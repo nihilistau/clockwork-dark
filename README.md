@@ -54,7 +54,7 @@ Do not edit `config/default.yaml` to point at your own directories. Create
 stack:
   services:
     voxtral_tts:
-      root: "D:/path/to/voxtral-mini-realtime-rs"
+      root: "/path/to/voxtral-mini-realtime-rs"
 ```
 
 ### Check it

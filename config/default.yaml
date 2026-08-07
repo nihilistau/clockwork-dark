@@ -100,7 +100,8 @@ stack:
     voxtral_tts:
       enabled: true
       manage: true
-      root: "D:/F/shannon-prime-repos/voxtral-mini-realtime-rs"
+      # Your checkout of voxtral-mini-realtime-rs. Set in config/local.yaml.
+      root: ""
       command: "target/release/tts-server.exe"
       args:
         - "--gguf"
@@ -116,7 +117,8 @@ stack:
     voxtral_asr:
       enabled: true
       manage: false  # CLI, invoked per request
-      root: "D:/F/shannon-prime-repos/voxtral-mini-realtime-rs"
+      # Your checkout of voxtral-mini-realtime-rs. Set in config/local.yaml.
+      root: ""
       command: "target/release/voxtral.exe"
       model: "models/voxtral-q4.gguf"
 
@@ -132,7 +134,8 @@ stack:
     grok:
       enabled: true
       manage: false  # invoked per image request
-      command: "C:/Users/Knack/.grok/bin/grok.exe"
+      # Absolute path, or just "grok" if it is on PATH.
+      command: "grok"
 
 world:
   tick_interval_seconds: 60
