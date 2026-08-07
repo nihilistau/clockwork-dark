@@ -1,0 +1,213 @@
+# NPC hourly routines — who is where, and what they are doing there.
+#
+# Read by engine/world/npc_sim.py. NPCs previously had one location_id fixed at
+# world generation and never moved, so Maris stood in her bakery at three in the
+# morning and forest_clearing -- the location every run STARTS in -- was empty.
+#
+# `hours` are 0-23 in world-clock hours. Every canon NPC covers all 24, so there
+# is never a gap that silently falls back to the procgen home.
+# `activity` strings land VERBATIM in the Storyteller prompt. Write them as
+# something a person could see from the doorway, not as a job title.
+# `available` false means physically present but not usefully addressable
+# (asleep, on the wall, mid-drill). The NPC is still listed -- the Storyteller
+# should be able to narrate a sleeping baker.
+
+version: 1
+
+defaults:
+  # Used when a routine slot supplies no activity of its own.
+  activity: "about the day's work"
+  # Used when something relocates an NPC away from their routine, so we do not
+  # narrate "asleep above the ovens" while they are standing in the square.
+  relocated_activity: "somewhere they had not planned to be this hour"
+  pinned_activity: "waiting on you, and not hiding that they are waiting"
+
+# Hours in which role-default (procedural) NPCs are abed and unavailable.
+night_hours: [22, 23, 0, 1, 2, 3, 4]
+
+# What a world event has its participants doing, keyed by event_id. Falls back
+# to defaults.relocated_activity.
+event_activities:
+  caravan_arrival: "unroping the cart tail and calling prices before the dust settles"
+  tinker_camp: "pegging out a wagon awning and laying wares on oiled cloth"
+  militia_press: "reading the levy notice aloud twice, in case the first time was ignored"
+
+npcs:
+
+  npc_maris:
+    home: edgewood_bakery
+    routine:
+      - hours: [3, 4, 5, 6]
+        location: edgewood_bakery
+        activity: "feeding the oven birch faggots by lamplight, flour to the elbow"
+      - hours: [7, 8, 9, 10, 11]
+        location: edgewood_bakery
+        activity: "shaping the second batch, humming low the way she does to keep the gears quiet"
+      - hours: [12, 13]
+        location: edgewood_square
+        activity: "selling from a covered basket beside the communal oven"
+      - hours: [14, 15, 16]
+        location: edgewood_bakery
+        activity: "scraping the stone and counting tomorrow's flour against what is left in the sack"
+      - hours: [17, 18]
+        location: edgewood_square
+        activity: "trading yesterday's heels for gossip at the well"
+      - hours: [19, 20]
+        location: edgewood_bakery
+        activity: "banking the coals and setting the sour to sulk overnight"
+      - hours: [21, 22, 23, 0, 1, 2]
+        location: edgewood_bakery
+        activity: "asleep on the cot above the ovens, still dressed"
+        available: false
+
+  npc_odran:
+    home: edgewood_square
+    routine:
+      - hours: [5, 6, 7]
+        location: millhaven_gate
+        activity: "greasing axles at the gate and cursing the Millhaven road by name"
+      - hours: [8, 9, 10, 11, 12]
+        location: edgewood_square
+        activity: "hawking road-worn goods off the cart tail, weighing every coin twice"
+      - hours: [13, 14, 15, 16]
+        location: edgewood_square
+        activity: "haggling cartage rates with anyone who slows down near the wheels"
+      - hours: [17, 18, 19]
+        location: edgewood_square
+        activity: "reknotting the cart ropes, glancing at the treeline between knots"
+      - hours: [20, 21, 22]
+        location: edgewood_square
+        activity: "drinking thin beer under the awning, telling the Millhaven story again"
+      - hours: [23, 0, 1, 2, 3, 4]
+        location: edgewood_square
+        activity: "asleep under the cart with one hand flat on the strongbox"
+        available: false
+
+  npc_ilya:
+    home: tinker_caravan
+    routine:
+      - hours: [0, 1, 2, 3]
+        location: tinker_caravan
+        activity: "asleep in the wagon bed among strung wire and unsorted pins"
+        available: false
+      - hours: [4, 5]
+        location: tinker_caravan
+        activity: "awake far too early, filing a pin down to nothing by a single lamp"
+      - hours: [6, 7, 8]
+        location: tinker_caravan
+        activity: "laying sympathy charms out on oiled cloth, the good pieces to the front"
+      - hours: [9, 10, 11, 12, 13, 14]
+        location: tinker_caravan
+        activity: "mending kettles for coppers and asking, lightly, whose clock has been running fast"
+      - hours: [15, 16, 17]
+        location: edgewood_square
+        activity: "walking the square with a tray of ward pins, pricing them off the buyer's face"
+      - hours: [18, 19, 20]
+        location: tinker_caravan
+        activity: "buying old clock parts by weight and paying more than the brass is worth"
+      - hours: [21, 22, 23]
+        location: tinker_caravan
+        activity: "redrawing a road map that no longer agrees with the road"
+
+  npc_sera:
+    home: millhaven_gate
+    routine:
+      - hours: [0, 1, 2, 3, 4]
+        location: millhaven_gate
+        activity: "asleep in the gatehouse with her boots still on"
+        available: false
+      - hours: [5, 6, 7]
+        location: millhaven_gate
+        activity: "walking the wall line at first grey, counting what changed in the night"
+      - hours: [8, 9, 10, 11]
+        location: millhaven_gate
+        activity: "checking passes and turning back anyone who cannot name their business"
+      - hours: [12, 13]
+        location: millhaven_gate
+        activity: "eating standing up while the roster argument happens around her"
+      - hours: [14, 15, 16, 17]
+        location: millhaven_gate
+        activity: "drilling the new levies, breaking them out of step on purpose"
+        available: false
+      - hours: [18, 19, 20]
+        location: edgewood_square
+        activity: "nailing fresh notices to the board and waiting to see who stops to read"
+      - hours: [21, 22, 23]
+        location: millhaven_gate
+        activity: "writing the day's report in a hand that gets smaller toward the bottom"
+
+  # Brindle roams. This is the entry that stops the opening scene -- hour 8 of
+  # day 1, forest_clearing -- from being narrated to an empty glade.
+  npc_brindle:
+    home: edgewood_square
+    routine:
+      - hours: [0, 1, 2]
+        location: forest_clearing
+        activity: "a shape on the fallen birch that is only a cat once you look straight at it"
+      - hours: [3, 4]
+        location: edgewood_bakery
+        activity: "curled against the warm oven stone with one eye not quite shut"
+      - hours: [5, 6, 7]
+        location: edgewood_square
+        activity: "sitting on the well cover, watching the shutters open one by one"
+      - hours: [8, 9, 10, 11]
+        location: forest_clearing
+        activity: "washing a paw on the fallen birch, in no hurry to explain itself"
+      - hours: [12, 13, 14]
+        location: edgewood_bakery
+        activity: "waiting at the door for the crust ends Maris pretends she does not save"
+      - hours: [15, 16, 17]
+        location: tinker_caravan
+        activity: "asleep on Ilya's spare tarp and refusing, bodily, to be moved"
+      - hours: [18, 19, 20]
+        location: edgewood_square
+        activity: "crossing the square on a diagonal, unbothered by the dogs"
+      - hours: [21, 22, 23]
+        location: forest_clearing
+        activity: "at the treeline where the smoke drifts the wrong way, watching it do that"
+
+# Procedural villagers have no routine of their own. Their activity is drawn by
+# role from a per-day deterministic stream, so the square is never a wall of
+# identical "villager (villager)" lines.
+role_defaults:
+  farmer:
+    day:
+      - "walking the furrows with a hand out, checking the wheat for straightness"
+      - "carrying a yoke of water to the low field because the ditch has stopped running"
+      - "arguing about the boundary stone as though it had moved again"
+    night:
+      - "asleep in a loft above the goats"
+  woodcutter:
+    day:
+      - "splitting rounds with a rhythm you could set a clock by, then breaking it on purpose"
+      - "stacking cordwood against the north wall and finding rot where there was none"
+      - "sharpening an axe that does not need it"
+    night:
+      - "asleep with the axe inside the door"
+  weaver:
+    day:
+      - "at the loom, counting the shed aloud so the count does not count itself"
+      - "picking burrs from a fleece with more patience than the fleece deserves"
+      - "hanging dyed skeins that came out a colour nobody ordered"
+    night:
+      - "asleep beside a loom left half-warped"
+  goat_herd:
+    day:
+      - "whistling the herd off the shrine steps for the third time today"
+      - "counting goats twice and getting a different answer once"
+      - "checking a doe's teeth without saying why"
+    night:
+      - "asleep in the pen, back against the rail"
+  fence_mender:
+    day:
+      - "driving a stake into ground that has gone strangely easy"
+      - "rewiring a gap in the east run and looking at what made it"
+      - "coiling wire off the reel and stopping, twice, to listen"
+    night:
+      - "asleep with wire-cut hands in a bowl of water"
+  default:
+    day:
+      - "going about the day's work with half an ear on the road"
+      - "standing where two people are talking and pretending not to listen"
+    night:
+      - "asleep, shutters barred"

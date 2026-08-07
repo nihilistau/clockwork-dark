@@ -1,0 +1,53 @@
+# ComfyUI prompt templates — append style_suffix to all prompts
+
+style_suffix: >-
+  oil-painted fantasy illustration, grounded realism, muted earth palette,
+  soft atmospheric lighting, detailed textures, frontier village aesthetic,
+  no modern elements, no text, no watermark
+
+negative_prompt: >-
+  cartoon, anime, neon, sci-fi, cyberpunk, modern clothing, cars, guns,
+  text, watermark, logo, blurry, low quality, oversaturated, heroic pose,
+  glowing magic effects, floating UI
+
+corruption_suffix: >-
+  subtle brass clockwork motifs in organic matter, sick green undertone,
+  uncanny wrongness, melancholy dread
+
+time_variants:
+  - dawn
+  - noon
+  - dusk
+  - night
+
+locations:
+  forest_clearing:
+    dawn: misty birch forest clearing, distant village smoke, mushrooms, ferns
+    noon: sun-dappled birch clearing, worn path toward village smoke
+    dusk: blue hour forest edge, long shadows, distant hearth glow
+  edgewood_square:
+    dawn: quiet frontier village square, timber houses, communal stone oven, mist
+    noon: busy village square, chickens, timber frames, market stalls
+    dusk: village square at evening, lantern light, communal oven smoke
+  edgewood_bakery:
+    dawn: small bakery interior, brick oven warming, flour sacks, warm light
+    night: empty bakery at night, embers in oven, flour dust in moonlight
+  tinker_caravan:
+    dusk: colorful tinker tent, brass charms, maps, wagon wheels at sunset
+  millhaven_gate:
+    dawn: wooden palisade gate, militia banners, mud road, cold morning
+
+cutscenes:
+  cutscene_stirring_phase:
+    placeholder: cutscene_stirring_phase.mp4
+    captions:
+      - "The village clock stopped at a hour that never was."
+      - "Crows gather on the mill roof, perfectly still."
+  cutscene_assistant_reveal:
+    placeholder: cutscene_assistant_reveal.mp4
+    captions:
+      - "Cat eyes reflect a map of the Heartlands."
+  cutscene_consuming_horizon:
+    placeholder: cutscene_consuming_horizon.mp4
+    captions:
+      - "Wheat rows tick like a metronome toward the horizon."

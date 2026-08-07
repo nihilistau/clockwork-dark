@@ -1,0 +1,55 @@
+/* ============================================================
+   Phase Themes — The Clockwork Dark  ·  Ash & Thorn (grim-dark)
+   The world corrupts across four evil phases (§1). All phases run
+   dark; the difference is temperature and how far the corruption
+   has bled into the accents. Apply to a root element:
+     <body data-phase="dormant|stirring|spreading|consuming">
+   DORMANT is the canonical default already set in colors.css;
+   these rules retint semantic aliases per phase so a whole product
+   shifts from one attribute.
+   ============================================================ */
+
+/* DORMANT — cold ash, a single brass hearth. Cleanest. */
+[data-phase="dormant"] {
+  --surface-scene:     #080b0b;
+  --surface-narrative: #1b1f1a;
+  --accent-candle:     #d6b26c;
+  --corruption-reveal: 0; /* @kind other */ /* corruption motifs hidden */
+}
+
+/* STIRRING — brass creeps warmer; shadows slightly too long. */
+[data-phase="stirring"] {
+  --surface-scene:     #0a0c0a;
+  --surface-narrative: #1d1f17;
+  --surface-ledger:    #181610;
+  --accent-candle:     #cda85f;
+  --accent-brass:      #b8863f;
+  --line-soft:         rgba(190, 118, 58, 0.18); /* brass-tinted rules */
+  --corruption-reveal: 0.25; /* @kind other */
+}
+
+/* SPREADING — sickly chartreuse bleeds into the cold. */
+[data-phase="spreading"] {
+  --surface-scene:     #0a0d09;
+  --surface-narrative: #1a1f16;
+  --surface-panel:     #14180f;
+  --accent-candle:     #b8a85a;
+  --accent-brass:      #7a6a2a;
+  --status-corruption: #8fae5a;
+  --line-soft:         rgba(122, 158, 79, 0.22);
+  --line-brass:        var(--corruption);
+  --corruption-reveal: 0.6; /* @kind other */
+}
+
+/* CONSUMING — near-black, high contrast, clockwork filigree. */
+[data-phase="consuming"] {
+  --surface-scene:     #050706;
+  --surface-narrative: #15180f;
+  --surface-chrome:    #050605;
+  --accent-candle:     #cda85f;
+  --accent-brass:      #5a6f3a;
+  --text-narration:    #e7dfca;
+  --line-ink:          #020302;
+  --status-corruption: #9bb862;
+  --corruption-reveal: 1; /* @kind other */
+}

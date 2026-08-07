@@ -1,0 +1,97 @@
+# Version: v0.1.0 [2026-08-07]
+
+id: the_wrong_map
+arc: whisper
+name: "A Map That Is Wrong"
+summary: >-
+  Odran sells a road map to Millhaven. It is a good map. It is wrong in a way
+  that good maps are not wrong.
+
+preconditions:
+  all:
+    - event_seen: caravan_arrival
+    - min_awareness: 12
+
+start_text: >-
+  Fifteen coppers, hand-drawn, creased along the same folds as every other copy.
+  Every other copy has the same mistake.
+
+stages:
+  - id: buy_it
+    objective: "Get hold of Odran's road map."
+    narrative_flags:
+      - nf_map_bought
+    expires_after_days: 4
+    complete_when:
+      any:
+        - has_item: { id: road_map, qty: 1 }
+        - all:
+            - at_location: [edgewood_square, tinker_caravan]
+            - flag: nf_map_bought
+            - min_gold: 15
+    complete_text: >-
+      He does not haggle, which for Odran is a thing worth noticing on its own.
+    on_complete:
+      effects:
+        - type: gold
+          delta: -15
+        - type: item
+          item_id: road_map
+          name: "Road map to Millhaven"
+          qty: 1
+          tags: [document]
+    fail_text: >-
+      The caravan rolls out. The maps go with it.
+
+  - id: walk_it
+    objective: "Walk a stretch of the road and compare it against the map."
+    narrative_flags:
+      - nf_map_compared
+    complete_when:
+      all:
+        - has_item: { id: road_map, qty: 1 }
+        - flag: nf_map_compared
+        - at_location: [millhaven_gate, edgewood_square]
+    complete_text: >-
+      Two miles of it are drawn from a vantage point that does not exist. Not a
+      guess. A view, from a place there is no place to stand.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 8
+        - type: check_penalty
+          text: "You keep re-checking the map"
+          delta: -1
+          skills: [lore]
+          days: 2
+
+  - id: ask_him
+    objective: "Ask Odran who drew it."
+    narrative_flags:
+      - nf_map_confronted
+    complete_when:
+      all:
+        - flag: nf_map_confronted
+    complete_text: >-
+      "Bought them in a lot," he says, and then, without being asked, "I don't
+      go that stretch any more."
+    on_complete:
+      effects:
+        - type: ledger_fact
+          text: "Odran will not travel the drawn stretch of the Millhaven road."
+          subject_id: npc_odran
+          kind: secret
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 5
+    - type: flag
+      flag: quest_the_wrong_map_done
+    - type: ledger_fact
+      text: "The Millhaven map was drawn from a vantage that does not exist."
+      kind: secret
+
+complete_text: >-
+  You keep the map. You have started to think of it less as a map and more as a
+  statement someone made.

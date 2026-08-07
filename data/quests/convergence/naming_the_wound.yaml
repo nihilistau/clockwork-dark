@@ -1,0 +1,102 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# Naming is the magic system of this world and it is expensive. Every stage
+# here costs Focus, and the final one costs a wound that does not heal inside
+# the quest's lifetime.
+
+id: naming_the_wound
+arc: convergence
+name: "Naming the Wound"
+summary: >-
+  It is not a demon and it does not have a name you can shout. It has a shape,
+  and shapes can be named by anyone willing to look at them long enough.
+
+preconditions:
+  all:
+    - min_awareness: 52
+
+start_text: >-
+  You have written down eleven things that are wrong. Laid side by side on the
+  table they stop being eleven things.
+
+stages:
+  - id: lay_it_out
+    objective: "Put every wrong thing you have seen side by side and look at the shape."
+    narrative_flags:
+      - nf_naming_laid_it_out
+    complete_when:
+      all:
+        - flag: nf_naming_laid_it_out
+        - min_stat: { stat: wits, min: 10 }
+    complete_text: >-
+      The lamb, the verse, the map's impossible vantage, the ring in the ash.
+      One mechanism, seen at four different magnifications.
+    on_complete:
+      effects:
+        - type: focus
+          delta: -3
+        - type: awareness
+          delta: 8
+
+  - id: say_it_aloud
+    objective: "Say what it is out loud, once, where somebody can hear you."
+    narrative_flags:
+      - nf_naming_spoke_it
+    expires_after_days: 4
+    complete_when:
+      all:
+        - flag: nf_naming_spoke_it
+        - min_phase: spreading
+    complete_text: >-
+      The word costs you the way Ilya said naming costs. Something goes out of
+      you into the saying and does not come back with the breath.
+    on_complete:
+      effects:
+        - type: focus
+          delta: -4
+        - type: wound
+          text: "A name spoken correctly, and what it took"
+          severity: 2
+          check_penalty: -2
+          skills: [lore, nerve]
+          heals_on_day: "+12"
+    fail_text: >-
+      You lose your nerve, and by morning the shape has stopped being obvious
+      again. It does that.
+    on_fail:
+      effects:
+        - type: focus
+          delta: -1
+
+  - id: write_it_down
+    objective: "Write the name where somebody who is not you will find it."
+    narrative_flags:
+      - nf_naming_wrote_it_down
+    complete_when:
+      all:
+        - flag: nf_naming_wrote_it_down
+        - at_location: [edgewood_square, edgewood_bakery, tinker_caravan]
+    complete_text: >-
+      Written, it is only ink. That is the whole trick, and it is not a small
+      one: a name on paper is a thing that outlives the person who paid for it.
+    on_complete:
+      effects:
+        - type: item
+          item_id: the_written_name
+          name: "The name, written out"
+          qty: 1
+          tags: [document, named]
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 12
+    - type: flag
+      flag: quest_naming_the_wound_done
+    - type: ledger_fact
+      text: "The wound has a name now, spoken once and written once."
+      kind: secret
+
+complete_text: >-
+  It is a pattern that turns living order into mechanism, and it has been called
+  that before, by people who also paid for saying it.

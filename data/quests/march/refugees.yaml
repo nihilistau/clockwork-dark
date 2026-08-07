@@ -1,0 +1,96 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# Edgewood reputation can go DOWN for doing the decent thing here. That is the
+# point of the arc: in the March there is no longer a choice that costs nothing.
+
+id: refugees
+arc: march
+name: "Room at the Edge"
+summary: >-
+  Nine people from inward, with two carts between them, asking for a field to
+  sleep in. Edgewood has fields. Edgewood has opinions.
+
+preconditions:
+  all:
+    - min_awareness: 26
+    - min_day: 16
+
+start_text: >-
+  They have come the whole way on foot and they are still standing at the edge
+  of the square, waiting to be invited in, because inward that is still a thing
+  people do.
+
+stages:
+  - id: hear_them
+    objective: "Talk to them. Find out what they walked away from."
+    narrative_flags:
+      - nf_refugees_spoke_to
+    complete_when:
+      all:
+        - at_location: edgewood_square
+        - flag: nf_refugees_spoke_to
+    complete_text: >-
+      Not fire. Not soldiers. "The fields kept time," the eldest says, and does
+      not elaborate, and does not need to.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 9
+        - type: ledger_fact
+          text: "Refugees from inward say the fields there kept time."
+          kind: secret
+
+  - id: decide
+    objective: "Get them a field and a roof, or send them on before dark."
+    narrative_flags:
+      - nf_refugees_housed
+      - nf_refugees_turned_away
+    expires_after_days: 2
+    complete_when:
+      any:
+        - flag: nf_refugees_housed
+        - flag: nf_refugees_turned_away
+    complete_text: >-
+      Whichever it is, you are the one who said it, and Edgewood will remember
+      that you were the one who said it.
+    fail_text: >-
+      They decide for themselves at dusk and take the road north. Two of the
+      carts do not go with them.
+    on_fail:
+      effects:
+        - type: reputation
+          faction: edgewood
+          delta: -4
+
+  - id: the_cost
+    objective: "Live with it for a few days."
+    complete_when:
+      all:
+        - days_in_stage: 3
+    complete_text: >-
+      Bread goes further than anyone expected, or the field stays empty and
+      nobody walks past it.
+    on_complete:
+      effects:
+        - type: hunger
+          delta: 8
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 6
+    - type: reputation
+      faction: unnamed_saints
+      delta: 10
+    - type: reputation
+      faction: edgewood
+      delta: -3
+    - type: flag
+      flag: quest_refugees_done
+    - type: ledger_fact
+      text: "Nine came out of the Heartlands and you were the one who answered."
+      kind: event
+
+complete_text: >-
+  Charity in a hungry village is not free and is not thanked. It is done anyway,
+  by somebody, or it is not.

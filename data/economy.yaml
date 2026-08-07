@@ -1,0 +1,105 @@
+# Vendor stock. Prices in copper.
+#
+# Read by engine/skills/builtin/mechanics.py::trade. Every TOP-LEVEL key is an
+# NPC id -- the loader treats this file as a flat vendor table, so nothing else
+# may live at the top level (no `version:`, no shared blocks). That is why the
+# schema notes are in this comment.
+#
+#   sells:  what the player may buy. `price` is what they pay.
+#   buys:   what the player may sell. `price` is what they receive.
+#
+# Every id on both sides must exist in data/items/*.yaml. That was not true
+# before P9 -- the registry did not exist -- and it is now enforced by
+# tests/test_content_integrity.py, so a typo here fails the suite instead of
+# producing a shop entry that cannot be bought.
+#
+# WHY A VENDOR BUYS LOW: the spread is the whole of the trading game. Maris
+# pays 1 for a mushroom she puts in bread she sells at 2; Odran pays 4 for a
+# hide worth 24 in Millhaven because he is the one making the trip. Nobody is
+# cheating anybody. The faction price multiplier in data/world/factions.yaml
+# is applied on top, so being trusted narrows the spread rather than
+# rewriting it.
+#
+# GAP NOTE: there are five NPCs in data/world/npc_schedules.yaml and only
+# three of them sell anything. Millhaven market and Hallam's forge have stock
+# lists worth writing and no NPC to hang them on; adding one needs an entry in
+# npc_schedules.yaml, which P9 does not own.
+#
+# Version: v0.2.0 [2026-08-07]
+
+# ------------------------------------------------------------
+# Maris Hearth -- the bakery. Sells food, buys ingredients.
+# ------------------------------------------------------------
+npc_maris:
+  sells:
+    loaf: { price: 2, name: "Loaf of bread" }
+    road_bread: { price: 4, name: "Road bread" }
+    festival_cake: { price: 8, name: "Festival cake" }
+    oat_porridge: { price: 1, name: "Bowl of oat porridge" }
+    small_beer: { price: 3, name: "Skin of small beer" }
+    hard_cheese: { price: 14, name: "Wheel of hard cheese" }
+    winter_ration: { price: 22, name: "Winter ration" }
+  buys:
+    wild_mushroom: { price: 1, name: "Wild mushroom" }
+    dried_mushrooms: { price: 4, name: "String of dried mushrooms" }
+    barley_flour: { price: 9, name: "Sack of barley flour" }
+    festival_honey: { price: 10, name: "Crock of late honey" }
+    honeycomb: { price: 5, name: "Cut honeycomb" }
+    charcoal_sack: { price: 6, name: "Sack of charcoal" }
+    seed_grain: { price: 24, name: "Sack of seed grain" }
+
+# ------------------------------------------------------------
+# Odran Cartwright -- the caravan. Sells what the road needs and buys what
+# the road will carry. His spread is wide because his risk is.
+# ------------------------------------------------------------
+npc_odran:
+  sells:
+    road_map: { price: 15, name: "Road map to Millhaven" }
+    whetstone: { price: 5, name: "Whetstone" }
+    salt_measure: { price: 16, name: "Measure of salt" }
+    tinderbox: { price: 8, name: "Tinderbox" }
+    candle: { price: 1, name: "Tallow candle" }
+    pitch_torch: { price: 2, name: "Pitch torch" }
+    wool_cloak: { price: 34, name: "Wool cloak" }
+    oiled_hood: { price: 14, name: "Oiled hood" }
+    travel_pack: { price: 22, name: "Travelling pack" }
+    hobnail_boots: { price: 50, name: "Hobnailed boots" }
+    hearth_knife: { price: 16, name: "Hearth knife" }
+    linen_cloth: { price: 17, name: "Bolt of linen" }
+  buys:
+    hide_roll: { price: 4, name: "Roll of cured hide" }
+    dried_mushrooms: { price: 3, name: "String of dried mushrooms" }
+    hard_cheese: { price: 6, name: "Wheel of hard cheese" }
+    salt_pork: { price: 5, name: "Salt pork" }
+    beeswax: { price: 4, name: "Block of beeswax" }
+    small_shield: { price: 9, name: "Buckler" }
+    golden_ring: { price: 60, name: "Gold ring" }
+
+# ------------------------------------------------------------
+# Ilya of the Nine Pins -- the tinker. Sells knowledge and wards; buys
+# anything with a spring in it, at twice its weight in copper, and will not
+# say who for.
+# ------------------------------------------------------------
+npc_ilya:
+  sells:
+    sympathy_charm: { price: 25, name: "Sympathy charm" }
+    tinker_map: { price: 20, name: "Tinker knowledge map" }
+    rune_talisman: { price: 18, name: "Rune talisman" }
+    brass_ward_pin: { price: 6, name: "Brass ward pin" }
+    tinker_kit: { price: 30, name: "Tinker's mending kit" }
+    hand_lantern: { price: 18, name: "Horn lantern" }
+    snare_wire: { price: 5, name: "Coil of snare wire" }
+    hand_awl: { price: 4, name: "Hand awl" }
+    mortar_and_pestle: { price: 12, name: "Mortar and pestle" }
+    potion: { price: 26, name: "Draught of bittergreen" }
+  buys:
+    clock_spring: { price: 52, name: "Clock spring" }
+    brass_filings: { price: 4, name: "Twist of brass filings" }
+    iron_stock: { price: 12, name: "Bar of iron stock" }
+    beeswax: { price: 5, name: "Block of beeswax" }
+    birch_resin: { price: 3, name: "Birch resin" }
+    herbs: { price: 2, name: "Bundle of herbs" }
+    yarrow_bundle: { price: 3, name: "Yarrow" }
+    feverfew: { price: 2, name: "Feverfew" }
+    stone_knife: { price: 9, name: "Knapped stone knife" }
+    iron_key: { price: 3, name: "Iron key" }

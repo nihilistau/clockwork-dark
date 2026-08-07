@@ -1,0 +1,110 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# The sacrifice quest. Note what the engine will and will not do: it checks
+# that a price was actually paid (an item gone, Focus spent, a wound taken), and
+# it will not close the stage on narration alone. "The player gave something up"
+# is exactly the kind of claim a model will make for free.
+
+id: the_sacrifice
+arc: convergence
+name: "The Price Asked"
+summary: >-
+  Sympathy takes a like for a like. To stall the pattern over one valley you
+  must give it something with the same shape, and the shapes it accepts are
+  short.
+
+preconditions:
+  all:
+    - min_phase: spreading
+    - quest_completed: naming_the_wound
+    - min_awareness: 58
+
+start_text: >-
+  Ilya writes the requirement out rather than saying it, which he has not done
+  for anything else in his life.
+
+stages:
+  - id: understand_the_price
+    objective: "Understand exactly what a like-for-like costs here."
+    narrative_flags:
+      - nf_sacrifice_understood
+    complete_when:
+      all:
+        - flag: nf_sacrifice_understood
+        - min_stat: { stat: wits, min: 10 }
+    complete_text: >-
+      Not blood. Blood is cheap and the pattern is not interested in cheap. It
+      wants something that was ordered and is now not.
+    on_complete:
+      effects:
+        - type: focus
+          delta: -2
+
+  - id: choose_what
+    objective: "Choose what you are giving up. Have it in your hands."
+    narrative_flags:
+      - nf_sacrifice_chosen
+    expires_after_days: 4
+    complete_when:
+      all:
+        - flag: nf_sacrifice_chosen
+        - any:
+            - has_item: { id: the_written_name, qty: 1 }
+            - has_item: { id: ninth_pin, qty: 1 }
+            - has_item: { id: brass_shard, qty: 1 }
+    complete_text: >-
+      You put it on the table and take your hand off it, and taking your hand
+      off it is the hard part.
+    fail_text: >-
+      The window closes. Valleys are lost on schedules, not on drama.
+    on_fail:
+      effects:
+        - type: awareness
+          delta: 6
+        - type: ledger_fact
+          text: "The like-for-like was not paid in time. The valley went."
+          kind: event
+
+  - id: pay_it
+    objective: "Pay it."
+    narrative_flags:
+      - nf_sacrifice_paid
+    complete_when:
+      all:
+        - flag: nf_sacrifice_paid
+        # The engine checks that something real left the player, not that the
+        # narration said it did.
+        - not_has_item: { id: the_written_name, qty: 1 }
+    complete_text: >-
+      There is no light and no sound. There is a table with nothing on it and a
+      valley that goes on being a valley.
+    on_complete:
+      effects:
+        - type: remove_item
+          item_id: the_written_name
+          qty: 1
+        - type: focus
+          delta: -4
+        - type: wound
+          text: "Something given that will not be got back"
+          severity: 3
+          check_penalty: -2
+          skills: [lore, sympathy, nerve]
+          heals_on_day: "+20"
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 10
+    - type: reputation
+      faction: unnamed_saints
+      delta: 20
+    - type: flag
+      flag: quest_the_sacrifice_done
+    - type: ledger_fact
+      text: "You paid a like-for-like and one valley kept its own time."
+      kind: secret
+
+complete_text: >-
+  One valley. Not the world, not the Heartlands, not the road. One valley, for
+  one season, at that price. You would want to be sure you had done the sum.

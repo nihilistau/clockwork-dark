@@ -1,0 +1,116 @@
+# Natural 1 complications (d20) — the engine picks one; the LLM narrates it only.
+#
+# Structured effects, not prose hints. A complication is a cost the world
+# charges, and it is charged through engine/game/effects.py so the model cannot
+# soften it, skip it, or invent a different one.
+#
+# Tone: frontier consequence. Nothing explodes. Things break, people notice,
+# you bleed a little and the day gets longer.
+#
+# Schema:
+#   id          stable identifier; never renamed (receipts and saves cite it)
+#   text        one line of consequence, past tense, no dice talk
+#   applies_to  optional skill filter; omit for any skill
+#   effects     list of effect dicts for engine/game/effects.py
+complications:
+  - id: slip
+    text: "You slip. The ground takes the wind out of you."
+    applies_to: [stealth, survival, craft]
+    effects:
+      - { type: stamina, delta: -10 }
+
+  - id: break_tool
+    text: "Something snags and gives. You will feel the lack of it."
+    applies_to: [craft, survival]
+    effects:
+      - { type: check_penalty, delta: -2, days: 2, skills: [craft], text: "working without the right tool" }
+
+  - id: alert_npc
+    text: "Someone notices something off about you and does not say so."
+    applies_to: [stealth, persuasion]
+    effects:
+      - { type: reputation, faction: edgewood, delta: -3 }
+
+  - id: turned_ankle
+    text: "Your ankle rolls on a root and stays sore."
+    effects:
+      - { type: wound, text: "Turned ankle", severity: 1, check_penalty: -1, skills: [stealth, survival], heals_on_day: "+3" }
+
+  - id: torn_hands
+    text: "The rope goes through your palms before you can let go."
+    applies_to: [craft, survival, stealth]
+    effects:
+      - { type: hp, delta: -2 }
+      - { type: wound, text: "Torn hands", severity: 1, check_penalty: -2, skills: [craft], heals_on_day: "+2" }
+
+  - id: lost_hours
+    text: "The trail doubles back on itself and you lose most of an afternoon."
+    applies_to: [survival, lore]
+    effects:
+      - { type: stamina, delta: -15 }
+      - { type: hunger, delta: 8 }
+
+  - id: spoiled_stores
+    text: "Damp got into your pack. What is in there is no longer food."
+    applies_to: [survival]
+    effects:
+      - { type: remove_item, item_id: wild_mushroom, qty: 2 }
+      - { type: hunger, delta: 5 }
+
+  - id: wrong_word
+    text: "You say the true thing at exactly the wrong moment."
+    applies_to: [persuasion]
+    effects:
+      - { type: reputation, faction: edgewood, delta: -5 }
+
+  - id: overcharged
+    text: "You agree to a price you work out later was not a good one."
+    applies_to: [persuasion, craft]
+    effects:
+      - { type: gold, delta: -3 }
+
+  - id: dropped_purse
+    text: "Somewhere on the road your purse got lighter without your help."
+    effects:
+      - { type: gold, delta: -5 }
+
+  - id: sympathy_backlash
+    text: "The binding takes the wrong thing from you and you feel it leave."
+    applies_to: [sympathy]
+    effects:
+      - { type: focus, delta: -4 }
+      - { type: hp, delta: -1 }
+
+  - id: brass_taste
+    text: "For a moment everything tastes of brass, and you know it was not the water."
+    applies_to: [sympathy, lore, nerve]
+    effects:
+      - { type: awareness, delta: 5 }
+      - { type: check_penalty, delta: -1, days: 1, skills: [nerve, sympathy], text: "the taste of brass" }
+
+  - id: nerve_breaks
+    text: "You look away first, and you keep hearing it after you stop looking."
+    applies_to: [nerve]
+    effects:
+      - { type: check_penalty, delta: -2, days: 1, text: "badly shaken" }
+      - { type: stamina, delta: -10 }
+
+  - id: misread_the_signs
+    text: "You were confidently wrong, and you told someone so."
+    applies_to: [lore]
+    effects:
+      - { type: ledger_fact, text: "Was confidently wrong about something important.", kind: engine }
+      - { type: reputation, faction: edgewood, delta: -2 }
+
+  - id: watched
+    text: "Something in the stillness has your measure now."
+    applies_to: [stealth, nerve, survival]
+    effects:
+      - { type: awareness, delta: 3 }
+      - { type: flag, flag: was_watched, value: true }
+
+  - id: long_night
+    text: "Whatever that was, it costs you the rest of the night."
+    effects:
+      - { type: stamina, delta: -20 }
+      - { type: hunger, delta: 6 }

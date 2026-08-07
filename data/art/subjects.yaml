@@ -1,0 +1,174 @@
+# ============================================================
+# Art subjects — ONE source, TWO prompt dialects.
+#
+# The two image backends want opposite things:
+#
+#   Grok Imagine  natural prose, 2-5 sentences, positive description only,
+#                 no negative prompts (per ~/.grok/skills/imagine/SKILL.md)
+#   ComfyUI SDXL  comma-separated keyword tags plus an explicit negative
+#                 prompt and LoRA hints
+#
+# Writing each subject twice guarantees they drift. Everything here is stored
+# once as structured fields, and engine/media/art.py renders whichever dialect
+# the active provider needs.
+#
+# Version: v0.2.0 [2026-08-07]
+# ============================================================
+
+style:
+  # Shared art direction, from Design_files/assets/comfyui-prompts.md.
+  prose: >-
+    Oil-painted fantasy illustration with grounded realism, a muted earth
+    palette, soft atmospheric light and heavy texture. Frontier village
+    aesthetic, nothing modern, no text or lettering anywhere in the frame.
+  tags: >-
+    oil-painted fantasy illustration, grounded realism, muted earth palette,
+    soft atmospheric lighting, detailed textures, frontier village aesthetic,
+    no modern elements, no text, no watermark
+  negative: >-
+    cartoon, anime, neon, sci-fi, cyberpunk, modern clothing, cars, guns, text,
+    watermark, logo, blurry, low quality, oversaturated, heroic pose,
+    glowing magic effects, floating UI
+  loras:
+    - {name: Oil_Painting_Style, weight: 0.6}
+    - {name: Medieval_Environment, weight: 0.4}
+
+# Applied only at SPREADING and beyond. The corruption is a pattern converting
+# living order into ticking mechanism -- it should read as wrongness, not as
+# monsters.
+corruption:
+  prose: >-
+    Faint brass clockwork motifs have grown into the organic matter, and a sick
+    green undertone runs beneath everything. The scene feels uncanny and
+    quietly wrong.
+  tags: >-
+    subtle brass clockwork motifs in organic matter, sick green undertone,
+    uncanny wrongness, melancholy dread
+
+# Aspect and size per workflow kind.
+formats:
+  location: {aspect: "16:9", width: 1344, height: 768}
+  portrait: {aspect: "3:4", width: 768, height: 1024}
+  item: {aspect: "1:1", width: 256, height: 256}
+  cutscene: {aspect: "16:9", width: 512, height: 288}
+
+# ------------------------------------------------------------
+# Locations, keyed <location_id>__<time_of_day>
+# ------------------------------------------------------------
+locations:
+  forest_clearing:
+    subject: "A birch forest clearing at the ragged edge of cultivated land"
+    details: "white-barked birches, deep fern undergrowth, a faint deer track"
+    times:
+      dawn:
+        setting: "cold mist lying low in the ferns"
+        light: "pale grey dawn, hearth smoke threading the air beyond the treeline"
+      day:
+        setting: "flat green light under a closed canopy"
+        light: "overcast noon, no shadows to speak of"
+      dusk:
+        setting: "the treeline going to silhouette"
+        light: "low amber light raking sideways through the trunks"
+      night:
+        setting: "the clearing lit only by what the sky gives"
+        light: "cold blue dark, the ferns almost black"
+
+  edgewood_square:
+    subject: "The packed-earth square of a small frontier village"
+    details: "a stone well, a notice board thick with old nails, timber-framed houses, a communal bread oven"
+    times:
+      dawn:
+        setting: "empty but for one figure drawing water"
+        light: "first light on wet stone"
+      day:
+        setting: "market day thinning out, baskets and trestles"
+        light: "flat working daylight"
+      dusk:
+        setting: "shutters closing one by one"
+        light: "the last of the sun on the upper storeys"
+      night:
+        setting: "empty, one lit window"
+        light: "a single lantern by the well, everything else dark"
+
+  edgewood_bakery:
+    subject: "The low interior of a village bakery"
+    details: "a brick oven mouth, flour on every surface, proving cloths, iron peels on the wall"
+    times:
+      dawn:
+        setting: "the second batch going in"
+        light: "firelight from the oven mouth, blue dark at the window"
+      day:
+        setting: "cooling loaves on a rack"
+        light: "warm dusty daylight through one small window"
+      dusk:
+        setting: "the day's bread nearly gone"
+        light: "the oven banked, the room dimming"
+      night:
+        setting: "cold and shut, the oven mouth dark"
+        light: "moonlight on the flour dust"
+
+  tinker_caravan:
+    subject: "A tinker's canvas caravan pitched at the edge of the village"
+    details: "hanging charms and brass oddments, a folding table of small tools, a patient mule"
+    times:
+      dawn:
+        setting: "the awning still wet with dew"
+        light: "grey early light, one lamp still burning"
+      day:
+        setting: "wares laid out on cloth"
+        light: "open daylight, brass catching it"
+      dusk:
+        setting: "packing down for the night"
+        light: "lamplight inside the canvas, glowing through"
+      night:
+        setting: "shut, but not asleep"
+        light: "one lamp, long shadows on the canvas"
+
+  millhaven_gate:
+    subject: "The stone gatehouse of a walled market town"
+    details: "a militia post, a toll table, cart ruts worn deep in the approach road"
+    times:
+      dawn:
+        setting: "the gate being opened for the day"
+        light: "cold light, breath visible"
+      day:
+        setting: "a queue of carts and a bored guard"
+        light: "hard daylight on grey stone"
+      dusk:
+        setting: "the last carts hurrying in"
+        light: "torches being lit in their brackets"
+      night:
+        setting: "barred, with a watchman's brazier"
+        light: "firelight and deep shadow"
+
+# ------------------------------------------------------------
+# Portraits. Consistency comes from generating ONE base image per NPC and then
+# using image_edit for variants -- Grok Imagine has no seed parameter, so the
+# base image IS the seed. This is the Imagine equivalent of ComfyUI's IPAdapter.
+# ------------------------------------------------------------
+portraits:
+  npc_maris:
+    subject: "A village baker in her fifties, flour to the elbow"
+    details: "broad hands, hair tied back and escaping, an expression that has stopped being surprised by anything"
+    setting: "the bakery interior behind her, oven light on one side of her face"
+    mood: "tired, kind, unsentimental"
+  npc_odran:
+    subject: "A caravan master in a travelled coat"
+    details: "weather-cut face, a ledger under one arm, rings worn thin"
+    setting: "carts and canvas behind him, open road light"
+    mood: "affable, calculating, watching the exits"
+  npc_ilya:
+    subject: "An androgynous tinker with nine brass pins in a wound scarf"
+    details: "sharp eyes, delicate hands, small tools on a leather roll"
+    setting: "a tent interior hung with charms and half-mended things"
+    mood: "curious, and smiling slightly too long"
+  npc_sera:
+    subject: "A militia sergeant in worn scale over a padded coat"
+    details: "close-cropped grey hair, a broken nose set badly, hands never far from anything"
+    setting: "a gatehouse arch, cold stone, torchlight"
+    mood: "fair, tired, and not on your side"
+  npc_brindle:
+    subject: "A grey barn cat sitting where it should not be able to have got"
+    details: "one ear notched, unhurried, looking directly at the viewer"
+    setting: "a windowsill or a fence post, everything behind it out of focus"
+    mood: "knowing, entirely unbothered"

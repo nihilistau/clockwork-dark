@@ -1,0 +1,106 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# The arc's closing beat: the first thing that cannot be explained away by
+# tiredness, bad light, or somebody else's story. Requires two other whisper
+# threads first, because "definitely not right" only means anything after a
+# stretch of things that were merely odd.
+
+id: not_right
+arc: whisper
+name: "Definitely Not Right"
+summary: >-
+  A lamb born in the night with brass in its jaw. Not a story about a lamb. The
+  lamb.
+
+preconditions:
+  all:
+    - min_awareness: 24
+    - any:
+        - quest_completed: childs_drawing
+        - quest_completed: wrong_lyrics
+        - quest_completed: the_wrong_map
+
+start_text: >-
+  Somebody comes to fetch you specifically, which has never happened before, and
+  will not explain on the way.
+
+stages:
+  - id: go_and_see
+    objective: "Go and see the thing they will not describe on the way."
+    narrative_flags:
+      - nf_notright_seen
+    expires_after_days: 2
+    complete_when:
+      all:
+        - flag: nf_notright_seen
+        - at_location: [edgewood_square, forest_clearing]
+    complete_text: >-
+      Four teeth. Brass, seated properly in the jaw, worn on the biting surfaces
+      as though the animal had been using them for a year it did not live.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 10
+        - type: focus
+          delta: -2
+    fail_text: >-
+      They burn it before you get there, and afterwards nobody in the village
+      will agree on what it was.
+    on_fail:
+      effects:
+        - type: awareness
+          delta: 4
+        - type: ledger_fact
+          text: "Edgewood burned something in the night and will not discuss it."
+          kind: event
+
+  - id: touch_it
+    objective: "Put your hand on it. Be certain."
+    narrative_flags:
+      - nf_notright_touched
+    complete_when:
+      all:
+        - flag: nf_notright_touched
+    complete_text: >-
+      Cold, and then not cold. You take your hand back faster than you meant to
+      and everyone present pretends not to have seen you do it.
+    on_complete:
+      effects:
+        - type: wound
+          text: "A burn on the palm shaped like nothing"
+          severity: 1
+          check_penalty: -1
+          skills: [craft]
+          heals_on_day: "+4"
+        - type: awareness
+          delta: 6
+
+  - id: say_it_out_loud
+    objective: "Tell somebody. Choose who, and know that they will now know too."
+    narrative_flags:
+      - nf_notright_told_someone
+    complete_when:
+      all:
+        - flag: nf_notright_told_someone
+    complete_text: >-
+      Saying it out loud does not make it less true. It makes it a thing two
+      people have to carry instead of one.
+    on_complete:
+      effects:
+        - type: ledger_fact
+          text: "You told someone in Edgewood about the brass-toothed lamb."
+          kind: event
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 8
+    - type: flag
+      flag: quest_not_right_done
+    - type: ledger_fact
+      text: "You have handled the wound directly. There is no unknowing it now."
+      kind: secret
+
+complete_text: >-
+  Up to now you could have chosen to have been mistaken. That option has been
+  withdrawn.

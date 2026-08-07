@@ -1,0 +1,103 @@
+# Version: v0.1.0 [2026-08-07]
+
+id: the_heartland_road
+arc: convergence
+name: "The Road Winding Inward"
+summary: >-
+  The mural had it right. There is a road, it goes inward, and it has been
+  getting shorter.
+
+preconditions:
+  all:
+    - min_phase: spreading
+    - min_awareness: 60
+    - visited: millhaven_gate
+
+start_text: >-
+  Four miles of it are gone. Not destroyed. Gone, and the two ends now meet, and
+  the ends match.
+
+stages:
+  - id: measure_it
+    objective: "Measure the road against a map you trust. Prove it is shorter."
+    narrative_flags:
+      - nf_road_measured
+    complete_when:
+      all:
+        - at_location: millhaven_gate
+        - flag: nf_road_measured
+        - has_item: { id: road_map, qty: 1 }
+    complete_text: >-
+      The wrong map is right now. It was always drawn for this length of road.
+      It was drawn early.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 12
+        - type: ledger_fact
+          text: "Odran's wrong map matches the road's new, shorter length exactly."
+          kind: secret
+
+  - id: walk_the_join
+    objective: "Walk the place where the two ends meet."
+    narrative_flags:
+      - nf_road_walked
+    expires_after_days: 3
+    complete_when:
+      all:
+        - flag: nf_road_walked
+        - at_location: millhaven_gate
+        - hour_between: [10, 15]
+    complete_text: >-
+      Underfoot it is one road. The hedgerows on either side belong to two
+      places that were four miles apart last spring, and they have grown
+      together.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 10
+        - type: focus
+          delta: -3
+        - type: check_penalty
+          text: "Something in your sense of distance has come loose"
+          delta: -2
+          skills: [survival]
+          days: 5
+    fail_text: >-
+      The militia close the stretch. Whatever is there is behind a chain now.
+    on_fail:
+      effects:
+        - type: reputation
+          faction: militia
+          delta: -4
+
+  - id: choose_a_direction
+    objective: "Go on inward, or turn back and say why."
+    narrative_flags:
+      - nf_road_turned_back
+    complete_when:
+      any:
+        - all:
+            - at_location: [edgewood_square, edgewood_bakery]
+            - flag: nf_road_turned_back
+        - days_in_stage: 4
+    complete_text: >-
+      Both are answers. Only one of them is a decision you can explain to Maris.
+    on_complete:
+      effects:
+        - type: stamina
+          delta: -20
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 10
+    - type: flag
+      flag: quest_the_heartland_road_done
+    - type: ledger_fact
+      text: "The inward road is four miles shorter than it was, and the ends match."
+      kind: secret
+
+complete_text: >-
+  The road is coming to meet the village. It is not in a hurry. It has never once
+  needed to be.

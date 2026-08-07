@@ -1,0 +1,206 @@
+# ============================================================
+# Shipped art manifest
+#
+# Maps game ids to the curated art pack in
+# content/scenes/clockwork/static/art/, which ships WITH the game.
+#
+# This is the top of the image resolution chain, and it is the reason the
+# chain exists in this order:
+#
+#   1. shipped     this file. Instant, free, authored, always correct.
+#   2. cache       anything generated in an earlier session.
+#   3. live        Grok Imagine or ComfyUI. OFF by default.
+#   4. procedural  deterministic SVG. Never fails, never pretty.
+#
+# Generating art on demand was the wrong default: a Grok Imagine still takes
+# two to three minutes, which is unusable in a real-time loop. The art is
+# already drawn; use it.
+#
+# `alts` are picked deterministically per (subject, time_of_day) so a location
+# is not identical on every visit while still being stable for a given seed.
+#
+# Version: v0.2.0 [2026-08-07]
+# ============================================================
+
+version: 1
+root: "/static/art"
+
+# ------------------------------------------------------------
+# Locations. `times` overrides the base still for a daypart.
+# ------------------------------------------------------------
+locations:
+  forest_clearing:
+    base: scenes/wheatfield-forest-edge.jpg
+    alts:
+      - scenes/forest-tree-stump.jpg
+      - scenes/forest-mushroom-ring.jpg
+    corrupted:
+      - scenes/forest-clockwork-vines.jpg
+      - scenes/forest-poison-gas.jpg
+
+  edgewood_square:
+    base: scenes/town-scene.jpg
+    alts:
+      - scenes/noticeboard.jpg
+    corrupted:
+      - scenes/wheatfields-scarecrow.jpg
+      - scenes/wheatfield-drawing-warning.jpg
+
+  edgewood_bakery:
+    base: scenes/bakery.jpg
+    alts:
+      - things/steaming-bread.jpg
+
+  tinker_caravan:
+    base: scenes/tinker-cart.jpg
+    alts:
+      - scenes/tinker-camping.jpg
+
+  millhaven_gate:
+    base: scenes/closing-town-gates.jpg
+    times:
+      night: scenes/closing-town-gates.jpg
+    corrupted:
+      - scenes/clockwork-tower.jpg
+
+  # Ring-2+ places the forest procgen already generates but that had no art.
+  deeper_forest:
+    base: scenes/forest-hidden-tunnel.jpg
+    alts: [tunnels/Tunnel-Entrance-Far.jpg]
+  old_barrows:
+    base: ruins/Mage-Ruins-Far.jpg
+    alts: [ruins/Mage-Ruins-Closer.jpg, ruins/mage-ruins-altar.jpg]
+  herb_glen:
+    base: things/herbs.jpg
+  the_forge:
+    base: forge/forge.jpg
+    alts: [forge/blacksmith-interior-anvil.jpg]
+  tunnel_entrance:
+    base: tunnels/tunnel-entrance-close.jpg
+    alts: [tunnels/tunnel-entrance-2-entries.jpg, tunnels/tunnels-stairs.jpg]
+
+  # ------------------------------------------------------------
+  # P9 ring expansion (data/world/locations.yaml). No new art was drawn for
+  # these; each one reuses the closest shipped still. A wrong-but-plausible
+  # photograph of a place reads better than a procedural silhouette, and the
+  # alternative was leaving ten new locations with no image at all.
+  # ------------------------------------------------------------
+  charcoal_burn:
+    base: scenes/tinker-camping.jpg
+    alts: [scenes/resting-camp.jpg]
+
+  edgewood_shrine:
+    base: ruins/Village-Altar.jpg
+    alts: [ruins/mage-ruins-altar.jpg]
+
+  well_row:
+    base: scenes/town-scene.jpg
+    alts: [scenes/noticeboard.jpg]
+
+  fallow_farm:
+    base: scenes/wheatfield-forest-edge.jpg
+    alts: [scenes/wheatfields-scarecrow.jpg]
+    corrupted:
+      - scenes/clockwork-wheatfield.jpg
+      - scenes/wheatfield-drawing-warning.jpg
+
+  millhaven_market:
+    base: scenes/town-scene.jpg
+    alts: [scenes/noticeboard-cutscene.jpg]
+    corrupted: [scenes/clockwork-tower.jpg]
+
+  millhaven_barracks:
+    base: scenes/closing-town-gates.jpg
+    alts: [signposts/notice-board-tunnel-revealed.jpg]
+
+  toll_bridge:
+    base: signposts/notice-board-contract-tunnels.jpg
+    alts: [scenes/closing-town-gates.jpg]
+
+  refugee_camp:
+    base: scenes/resting-camp.jpg
+    alts: [scenes/player-hurt-resting.jpg]
+
+  burned_farmstead:
+    base: ruins/Hollow-Hill-Far.jpg
+    alts: [ruins/Altar-Hollow-Hill-maybe.jpg]
+
+  heartland_road:
+    base: scenes/clockwork-wheatfield.jpg
+    alts: [scenes/clockwork-tower.jpg]
+    corrupted: [scenes/forest-clockwork-vines.jpg]
+
+# ------------------------------------------------------------
+# The Assistant's five canonical forms.
+# ------------------------------------------------------------
+assistant_forms:
+  cat: souls/cat-assistant.jpg
+  child: souls/child-assistant.jpg
+  wanderer: souls/shadow-mage-assistant.jpg
+  tinker: souls/tinker.jpg
+  reflection: souls/assistant-mage.jpg
+
+# ------------------------------------------------------------
+# NPC portraits. Sparse on purpose -- an unmapped NPC falls through to the
+# deterministic procedural silhouette rather than borrowing someone's face.
+# ------------------------------------------------------------
+portraits:
+  npc_brindle: souls/cat-assistant.jpg
+  npc_ilya: souls/tinker.jpg
+  npc_sera: souls/warrior.jpg
+  npc_odran: souls/shadow-portraits-men.jpg
+
+# ------------------------------------------------------------
+# Items, keyed on inventory id.
+# ------------------------------------------------------------
+items:
+  loaf: things/bread.png
+  road_bread: things/loaf-split.jpg
+  festival_cake: things/steaming-bread.jpg
+  # Was things/mushrooms.png, which has never existed in the art pack -- the
+  # only broken path in this file, caught by tests/test_content_integrity.py.
+  wild_mushroom: things/mushrooms.jpg
+  dried_mushrooms: things/mushrooms-2.png
+  whetstone: things/whetstone.jpg
+  road_map: things/map.jpg
+  tinker_map: things/map.jpg
+  sympathy_charm: things/talisman.jpg
+  rune_talisman: things/rune-talisman.jpg
+  hearth_knife: things/iron-knife.jpg
+  stone_knife: things/stone-knife.png
+  iron_key: things/iron-key.jpg
+  herbs: things/herbs.jpg
+  bandage: things/bandage-poultice.png
+  potion: things/potion.jpg
+  candle: things/candle-stack.jpg
+  coins: things/coins.jpg
+  wooden_shield: things/wooden-shield.jpg
+  small_shield: things/small-shield.png
+  brass_ward_pin: things/talisman-2.png
+  golden_ring: things/golden-ring-in-bread.jpg
+  # P9 registry items (data/items/*.yaml). Reusing a still for two ids is
+  # already the pattern here (road_map/tinker_map) and beats a silhouette.
+  festival_honey: things/potion.jpg
+  winter_ration: things/loaf-split.jpg
+  ninth_pin: things/rune-talisman.jpg
+
+# ------------------------------------------------------------
+# Encounter threats (P6).
+# ------------------------------------------------------------
+enemies:
+  wolf: enemies/wolf.jpg
+  scarecrow: enemies/scarecrow.jpg
+  clockwork_scarecrow: enemies/scarecrow-clockwork.jpg
+  clockwork_thing: enemies/clockwork-monster-vs-mage.jpg
+  clockwork_soldier: enemies/clockwork-enemy-vs-mage.jpg
+
+# ------------------------------------------------------------
+# UI furniture.
+# ------------------------------------------------------------
+ui:
+  menu: menu-screen.jpg
+  dice_roll: dice/roll-dice-image.jpg
+  notice_board: signposts/notice-board-contract-tunnels.jpg
+  scarecrow_sign: signposts/scare-crow-warning-sign-post.jpg
+  resting: scenes/resting-camp.jpg
+  hurt: scenes/player-hurt-resting.jpg

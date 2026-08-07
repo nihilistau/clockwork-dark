@@ -1,0 +1,92 @@
+# Version: v0.1.0 [2026-08-07]
+
+id: toll_roads
+arc: march
+name: "Two Coppers the Cart"
+summary: >-
+  There is a chain across the Millhaven road now, and a price for lifting it,
+  and a very reasonable man to explain the price.
+
+preconditions:
+  all:
+    - visited: millhaven_gate
+
+start_text: >-
+  Two coppers the cart, one the beast, nothing for a man on foot. It is the
+  "nothing for a man on foot" that tells you what the toll is really for.
+
+stages:
+  - id: meet_the_chain
+    objective: "Reach the Millhaven gate and deal with the toll one way or another."
+    narrative_flags:
+      - nf_toll_paid
+      - nf_toll_refused
+    complete_when:
+      all:
+        - at_location: millhaven_gate
+        - any:
+            - flag: nf_toll_paid
+            - flag: nf_toll_refused
+    complete_text: >-
+      He is polite in the specific way of a man who has been shouted at all
+      month and has decided it costs him nothing.
+    on_complete:
+      effects:
+        - type: gold
+          delta: -2
+        - type: reputation
+          faction: militia
+          delta: 2
+
+  - id: read_the_book
+    objective: "Get a look at what the toll-keeper actually writes in his book."
+    narrative_flags:
+      - nf_toll_ledger_read
+    expires_after_days: 4
+    complete_when:
+      all:
+        - at_location: millhaven_gate
+        - flag: nf_toll_ledger_read
+    complete_text: >-
+      Not takings. Names, origins, and a column headed with a single letter that
+      he fills in for about one traveller in nine.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 9
+        - type: ledger_fact
+          text: "The Millhaven toll book records names and a coded ninth column."
+          kind: secret
+    fail_text: >-
+      The book goes into a locked box at dusk and the box goes inside the gate.
+
+  - id: carry_it_back
+    objective: "Bring what you learned back to Edgewood, or keep it."
+    complete_when:
+      any:
+        - all:
+            - at_location: [edgewood_square, edgewood_bakery]
+            - days_in_stage: 1
+        - days_in_stage: 4
+    complete_text: >-
+      Merchants stop trading that road within the week. Nobody credits you and
+      everybody knows.
+    on_complete:
+      effects:
+        - type: reputation
+          faction: merchants
+          delta: 6
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 5
+    - type: flag
+      flag: quest_toll_roads_done
+    - type: ledger_fact
+      text: "The toll on the Millhaven road is a census wearing a toll's clothes."
+      kind: secret
+
+complete_text: >-
+  A toll takes money. This one takes money and an answer, and only one of those
+  is written on the board.

@@ -1,0 +1,111 @@
+# Version: v0.1.0 [2026-08-07]
+
+id: the_ninth_pin
+arc: convergence
+name: "The Ninth Pin"
+summary: >-
+  Ilya carries nine pins. He has never sold the ninth, and he has never once
+  said that it is not for sale.
+
+preconditions:
+  all:
+    - quest_completed: naming_the_wound
+    - any:
+        - visited: tinker_caravan
+        - event_seen: tinker_camp
+
+start_text: >-
+  He lays the felt out and this time he does not turn the last row face down.
+
+on_start:
+  effects:
+    - type: flag
+      flag: npc_pin_npc_ilya
+      value: true
+
+stages:
+  - id: ask_for_it
+    objective: "Ask Ilya about the ninth pin."
+    narrative_flags:
+      - nf_ninth_asked
+    complete_when:
+      all:
+        - at_location: tinker_caravan
+        - flag: nf_ninth_asked
+    complete_text: >-
+      "It isn't a ward," he says. "It's the opposite of a ward. You'd want to be
+      very clear which one you came for."
+
+  - id: pay_for_it
+    objective: "Ilya's price is not coin. Find out what it is and whether you will pay."
+    narrative_flags:
+      - nf_ninth_earned
+    expires_after_days: 5
+    complete_when:
+      all:
+        - flag: nf_ninth_earned
+        - at_location: tinker_caravan
+        - disposition: { npc: npc_ilya, min: 20 }
+    complete_text: >-
+      He wants a true name of yours. Not the one Edgewood uses. He waits, and he
+      does not fill the silence, which is how you know he has done this before.
+    on_complete:
+      effects:
+        - type: focus
+          delta: -3
+        - type: ledger_fact
+          text: "Ilya of the Nine Pins holds a true name of yours."
+          subject_id: npc_ilya
+          kind: secret
+    fail_text: >-
+      The caravan is gone before you decide. The ninth pin goes with it.
+    on_fail:
+      effects:
+        - type: reputation
+          faction: tinkers
+          delta: -5
+
+  - id: take_it_or_dont
+    objective: "Take the ninth pin, or leave it on the felt."
+    narrative_flags:
+      - nf_ninth_taken
+      - nf_ninth_left
+    complete_when:
+      any:
+        - flag: nf_ninth_taken
+        - flag: nf_ninth_left
+    complete_text: >-
+      Either choice is a real one. He rolls the felt up the same way afterwards.
+    on_complete:
+      effects:
+        - type: item
+          item_id: ninth_pin
+          name: "The ninth pin"
+          qty: 1
+          tags: [named, unsettling]
+        - type: reputation
+          faction: tinkers
+          delta: 15
+
+on_complete:
+  effects:
+    - type: flag
+      flag: npc_pin_npc_ilya
+      value: false
+    - type: awareness
+      delta: 8
+    - type: flag
+      flag: quest_the_ninth_pin_done
+    - type: ledger_fact
+      text: "The ninth pin left Ilya's felt. It is not a ward."
+      subject_id: npc_ilya
+      kind: secret
+
+on_fail:
+  effects:
+    - type: flag
+      flag: npc_pin_npc_ilya
+      value: false
+
+complete_text: >-
+  Nine pins, nine prices. You have paid the one nobody haggles over.

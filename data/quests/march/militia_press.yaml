@@ -1,0 +1,90 @@
+# Version: v0.1.0 [2026-08-07]
+
+id: militia_press
+arc: march
+name: "The Press"
+summary: >-
+  Millhaven's levy has come as far out as Edgewood, which it has not done in
+  living memory, and it is taking names.
+
+preconditions:
+  any:
+    - event_seen: militia_press
+    - visited: millhaven_gate
+
+start_text: >-
+  Four of them, and a table, and a book. The table is the part that frightens
+  people.
+
+stages:
+  - id: watch_it_happen
+    objective: "Watch the levy work the square. Learn how they choose."
+    narrative_flags:
+      - nf_press_watched
+    complete_when:
+      all:
+        - at_location: [edgewood_square, millhaven_gate]
+        - flag: nf_press_watched
+    complete_text: >-
+      They choose by who has nobody standing behind them. It is not cruelty. It
+      is efficiency, which travels further.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 5
+
+  - id: the_weller_boy
+    objective: "The Weller boy is on the list. Decide whether that is your business."
+    narrative_flags:
+      - nf_press_spoke_up
+      - nf_press_gave_name
+    expires_after_days: 2
+    complete_when:
+      any:
+        - flag: nf_press_spoke_up
+        - flag: nf_press_gave_name
+        - days_in_stage: 2
+    complete_text: >-
+      The sergeant writes something down either way. Everything here ends with
+      somebody writing something down.
+    fail_text: >-
+      The column leaves at first light. You were asleep. That is allowed.
+    on_fail:
+      effects:
+        - type: reputation
+          faction: edgewood
+          delta: -5
+        - type: ledger_fact
+          text: "The levy took the Weller boy. You did not speak."
+          kind: event
+
+  - id: aftermath
+    objective: "Face Edgewood the morning after the column leaves."
+    complete_when:
+      all:
+        - at_location: edgewood_square
+        - days_in_stage: 1
+    complete_text: >-
+      Nobody blames you out loud. Edgewood has never needed to say things out
+      loud.
+    on_complete:
+      effects:
+        - type: stamina
+          delta: -8
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 8
+    - type: reputation
+      faction: militia
+      delta: 4
+    - type: flag
+      flag: quest_militia_press_done
+    - type: ledger_fact
+      text: "The Millhaven levy pressed men out of Edgewood square. You were there."
+      kind: event
+
+complete_text: >-
+  The levy took four. The village will count them every morning for a year
+  without ever saying a number.

@@ -1,0 +1,111 @@
+# Charms, wards and the things people carry instead of answers.
+#
+# DESIGN.md: magic is costly, rare and mostly a bad idea. Nothing in this file
+# is a spell. A ward pin is folk practice -- it works, or it reassures, and the
+# village has never needed to know which. Only `sympathy_charm` claims to do
+# anything, and it claims it quietly.
+#
+# Field reference: see data/items/food.yaml.
+#
+# Version: v0.1.0 [2026-08-07]
+
+version: 1
+
+items:
+
+  - id: sympathy_charm
+    name: "Sympathy charm"
+    description: >-
+      Two things bound so that what happens to one is felt by the other: a
+      thread of your hair, a thread of somebody's coat, wax over both. It
+      takes from the wearer. Ilya says so at point of sale, and quietly.
+    tags: [charm]
+    weight: 0.1
+    value: 25
+    art: sympathy_charm
+    stack: false
+
+  - id: rune_talisman
+    name: "Rune talisman"
+    description: >-
+      A river pebble cut with four marks nobody in Edgewood can read. The
+      tinkers can, and price it accordingly.
+    tags: [charm, trade]
+    weight: 0.1
+    value: 18
+    art: rune_talisman
+    stack: false
+
+  - id: brass_ward_pin
+    name: "Brass ward pin"
+    description: >-
+      Sold nine to a card because nine is the count that holds. Worn through
+      the collar, point down, where the wearer cannot see it.
+    tags: [charm, trade]
+    weight: 0.05
+    value: 6
+    art: brass_ward_pin
+    stack: true
+
+  - id: ninth_pin
+    name: "The ninth pin"
+    description: >-
+      The last pin off a card of nine. Ilya will not sell it separately and
+      will not explain why, and the price of a tenth is not a number.
+    tags: [charm, quest]
+    weight: 0.05
+    value: 40
+    art: ninth_pin
+    stack: false
+
+  - id: saint_candle
+    name: "Saint's candle"
+    description: >-
+      A stub from the shrine, lit for a saint with no name and no face. The
+      old women light two now where they used to light one.
+    tags: [charm, light]
+    weight: 0.2
+    value: 2
+    art: candle
+    stack: true
+
+  - id: hare_foot
+    name: "Hare's foot"
+    description: >-
+      Dried, tied with red thread, carried against the chest. Half the
+      children in Well Row have one and none of them will say who gave it.
+    tags: [charm]
+    weight: 0.05
+    value: 1
+    stack: true
+
+  - id: bent_nail
+    name: "Bent iron nail"
+    description: >-
+      Driven into a doorframe and turned over, which is what you do when the
+      house has begun ticking and you have no better idea.
+    tags: [charm, material]
+    weight: 0.05
+    value: 1
+    stack: true
+
+  - id: wax_seal_saint
+    name: "Wax saint"
+    description: >-
+      A thumb-pressed figure with the face left smooth on purpose. Melts in a
+      pocket, which is said to be the point.
+    tags: [charm]
+    weight: 0.1
+    value: 3
+    stack: true
+
+  - id: golden_ring
+    name: "Gold ring"
+    description: >-
+      Plain, worn thin, and found baked into a loaf that nobody put it into.
+      Heavier than gold that size should be.
+    tags: [charm, trade, quest]
+    weight: 0.05
+    value: 120
+    art: golden_ring
+    stack: false

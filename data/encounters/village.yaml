@@ -1,0 +1,444 @@
+# Village Encounters
+# ==================
+#
+# Things waiting in Edgewood Square when you come in off the road. Filtered by
+# destination rather than by edge, because these are arrivals: the square has
+# been having its day while you were out, and you walk into the middle of it.
+#
+# Note that the square's internal edges (bakery, caravan) carry danger_dc 0 and
+# can therefore never produce an encounter. That is deliberate. Crossing the
+# square to Maris's door is not an event.
+
+band: village
+
+encounters:
+  - id: bread_queue_argument
+    tier: 1
+    weight: 26
+    triggers:
+      to: [edgewood_square]
+      phases: [dormant, stirring]
+      hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    intro: >-
+      There is a queue at the oven and it has stopped moving. A woman at the
+      front is holding up a loaf and saying it is short weight, and Maris is
+      wiping her hands very slowly on her apron.
+    threat: { name: "A queue that has stopped moving", resolve: 3 }
+    approaches:
+      mediate:
+        skill: persuasion
+        difficulty: standard
+        text: "Get between them and give both of them a way out"
+      weigh:
+        skill: craft
+        difficulty: standard
+        text: "Ask for the scale and settle it with the scale"
+      side_with_maris:
+        skill: sympathy
+        difficulty: easy
+        text: "Back Maris, quietly, where the queue can hear you"
+      buy_it:
+        cost_gold: 2
+        auto: true
+        text: "Buy the disputed loaf yourself and end it"
+        outcomes:
+          success:
+            text: >-
+              You put the coin down and take the loaf and the queue starts
+              moving again, and nobody has to be wrong.
+            outcome: "settled"
+            effects:
+              - { type: item, item_id: loaf, name: "Loaf of bread", qty: 1, tags: [food] }
+              - { type: reputation, faction: edgewood, delta: 1 }
+    outcomes:
+      crit_success:
+        text: >-
+          Both of them end up laughing and the queue moves. Maris puts a
+          second loaf in your hand on the way past and will not discuss it.
+        effects:
+          - { type: reputation, faction: edgewood, delta: 3 }
+          - { type: item, item_id: loaf, name: "Loaf of bread", qty: 1, tags: [food] }
+      success:
+        text: "It settles. The queue moves. Maris looks at you differently after."
+        effects:
+          - { type: reputation, faction: edgewood, delta: 2 }
+      partial:
+        text: >-
+          It stops being an argument and starts being a silence, which is what
+          Edgewood does instead of a resolution.
+        effects: []
+      failure:
+        text: >-
+          You take a side out loud in front of eleven people and nine of them
+          were on the other one.
+        effects:
+          - { type: reputation, faction: edgewood, delta: -2 }
+
+  - id: drunk_at_the_shrine
+    tier: 1
+    weight: 22
+    triggers:
+      to: [edgewood_square]
+      hours: [18, 19, 20, 21, 22, 23]
+    intro: >-
+      A man is sitting with his back to the shrine wall, drunk in the careful,
+      quiet way of somebody who started early on purpose. He is talking to the
+      mural. The mural is the one with the faces missing.
+    threat: { name: "A man talking to a wall", resolve: 3 }
+    approaches:
+      sit:
+        skill: sympathy
+        difficulty: standard
+        text: "Sit down next to him and let him talk"
+      walk_him:
+        skill: persuasion
+        difficulty: standard
+        text: "Get him up and walk him home"
+      listen:
+        skill: lore
+        difficulty: hard
+        text: "Listen to what he is actually saying to it"
+    outcomes:
+      crit_success:
+        text: >-
+          He is apologising to it. He has been apologising to it every night
+          for eleven days, since the morning his brother's field finished
+          itself while his brother was still in bed.
+        effects:
+          - { type: awareness, delta: 4 }
+          - { type: reputation, faction: edgewood, delta: 2 }
+          - type: ledger_fact
+            kind: engine
+            text: "A man apologises nightly to the faceless mural; his brother's field finished itself unattended."
+      success:
+        text: >-
+          You get him home. His wife takes him at the door with the face of
+          someone who has done this before and expects to again.
+        effects:
+          - { type: reputation, faction: edgewood, delta: 2 }
+          - { type: stamina, delta: -8 }
+      partial:
+        text: >-
+          He will not move and will not stop, and eventually you leave him
+          there with your coat over him, which you will want back.
+        effects:
+          - { type: reputation, faction: edgewood, delta: 1 }
+          - { type: stamina, delta: -5 }
+      failure:
+        text: >-
+          He takes hold of your sleeve and tells you the thing he has been
+          telling the wall, all of it, close to your face, and you are going
+          to be up most of tonight with it.
+        effects:
+          - { type: awareness, delta: 3 }
+          - type: check_penalty
+            text: "what the drunk said at the shrine"
+            delta: -2
+            skills: [nerve, sympathy]
+            days: 1
+
+  - id: boy_selling_a_dead_mans_boots
+    tier: 1
+    weight: 20
+    triggers:
+      to: [edgewood_square]
+      min_day: 3
+    intro: >-
+      A boy has a pair of good boots on a sack in the corner of the square and
+      is asking half what they are worth. They are the right size for a grown
+      man and the wrong size for anybody in his house.
+    threat: { name: "Boots with somebody else's shape in them", resolve: 3 }
+    approaches:
+      ask:
+        skill: persuasion
+        difficulty: standard
+        text: "Ask him whose they were"
+      look:
+        skill: lore
+        difficulty: standard
+        text: "Look at the wear on the soles"
+      buy:
+        cost_gold: 4
+        auto: true
+        text: "Buy them without asking"
+        outcomes:
+          success:
+            text: >-
+              He has your coin and is gone across the square before you have
+              the boots off the sack. They are good boots. They fit.
+            outcome: "settled"
+            effects:
+              - { type: item, item_id: whetstone, name: "Good road boots", qty: 1, tags: [gear] }
+              - { type: awareness, delta: 1 }
+    outcomes:
+      crit_success:
+        text: >-
+          His uncle's. His uncle walked out to check the ditch line eleven
+          days ago and the boots came back and his uncle did not, and the boy
+          says this the way you report weather.
+        effects:
+          - { type: awareness, delta: 4 }
+          - { type: reputation, faction: edgewood, delta: 1 }
+          - type: ledger_fact
+            kind: engine
+            text: "A man's boots came back from the ditch line without the man; his nephew is selling them."
+      success:
+        text: >-
+          His uncle's, and his uncle is not using them, and he will not be
+          drawn any further than that.
+        effects:
+          - { type: awareness, delta: 2 }
+      partial:
+        text: >-
+          He packs up and moves to the other side of the square rather than
+          answer, and sells them there inside the hour.
+        effects:
+          - { type: awareness, delta: 1 }
+      failure:
+        text: >-
+          You ask loudly enough that three people hear, and now the boy is a
+          thief in the square's opinion, and he was not.
+        effects:
+          - { type: reputation, faction: edgewood, delta: -2 }
+
+  - id: maris_short_handed
+    tier: 1
+    weight: 24
+    triggers:
+      to: [edgewood_square]
+      hours: [5, 6, 7, 8, 9, 10]
+    intro: >-
+      The oven is lit and Maris is doing three people's work at it, flour to
+      the elbow, humming the way she does when she wants the gears quiet. She
+      does not ask. She just looks at your hands.
+    threat: { name: "More dough than hands", resolve: 3 }
+    approaches:
+      work:
+        skill: craft
+        difficulty: standard
+        text: "Take a bench and start knocking back"
+      fetch:
+        skill: survival
+        difficulty: easy
+        text: "Fetch and carry — wood, water, flour"
+      talk:
+        skill: persuasion
+        difficulty: easy
+        text: "Talk the queue into being patient"
+    outcomes:
+      crit_success:
+        text: >-
+          Four hours and the whole batch out on time. She pays you in bread
+          and coin and in the thing she does not say, which is worth more.
+        effects:
+          - { type: item, item_id: loaf, name: "Loaf of bread", qty: 2, tags: [food] }
+          - { type: gold, delta: 2 }
+          - { type: reputation, faction: edgewood, delta: 3 }
+          - { type: stamina, delta: -20 }
+      success:
+        text: "The batch comes out. She sends you off with bread and no fuss."
+        effects:
+          - { type: item, item_id: loaf, name: "Loaf of bread", qty: 1, tags: [food] }
+          - { type: reputation, faction: edgewood, delta: 2 }
+          - { type: stamina, delta: -18 }
+      partial:
+        text: >-
+          Half the batch is over-proved and she works around you without
+          comment, which is its own comment.
+        effects:
+          - { type: reputation, faction: edgewood, delta: 1 }
+          - { type: stamina, delta: -15 }
+      failure:
+        text: >-
+          You put your hand flat on the oven lip. It is not a bad burn. It is
+          a stupid one, and everybody in the queue saw it happen.
+        effects:
+          - type: wound
+            text: "a burn across four fingers"
+            severity: 2
+            check_penalty: -2
+            skills: [craft, sympathy]
+            heals_on_day: "+4"
+          - { type: stamina, delta: -12 }
+
+  - id: militia_conscription_list
+    tier: 2
+    weight: 18
+    triggers:
+      to: [edgewood_square]
+      min_day: 4
+    intro: >-
+      A militia sergeant has nailed a sheet to the shrine board and is standing
+      under it with his arms folded. It is a list of names and a date. The
+      village is reading it the way you read a weather sky.
+    threat: { name: "A list on the shrine board", resolve: 4 }
+    approaches:
+      read:
+        skill: lore
+        difficulty: easy
+        text: "Get close and read the whole sheet"
+      argue:
+        skill: persuasion
+        difficulty: hard
+        text: "Argue two names off it in front of everybody"
+      copy:
+        skill: stealth
+        difficulty: standard
+        text: "Copy the names without being seen doing it"
+    outcomes:
+      crit_success:
+        text: >-
+          Every name on it lives east of the mill race. Every single one. The
+          sergeant has not noticed and you do not tell him you have.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: focus, delta: 1 }
+          - type: ledger_fact
+            kind: engine
+            text: "The Edgewood conscription list is drawn entirely from east of the mill race."
+      success:
+        text: >-
+          Eleven names, a date nine days out, and the militia seal. You have
+          the shape of it now.
+        effects:
+          - { type: awareness, delta: 2 }
+      partial:
+        text: >-
+          You get half of it before he moves you along. The half you got is
+          the half nobody was arguing about.
+        effects:
+          - { type: awareness, delta: 1 }
+      failure:
+        text: >-
+          He asks your name, and your name is not on the sheet, and he takes
+          out a pen.
+        effects:
+          - { type: reputation, faction: militia, delta: -2 }
+          - { type: flag, flag: on_the_militia_list, value: true }
+
+  - id: well_water_gone_wrong
+    tier: 2
+    weight: 18
+    triggers:
+      to: [edgewood_square]
+      phases: [stirring, spreading, consuming]
+    intro: >-
+      There is a crowd at the well and the bucket is up on the stones. The
+      water in it is clear, and there is a film on it, and the film is turning
+      slowly in a still bucket.
+    threat: { name: "The film on the water", resolve: 5 }
+    approaches:
+      test:
+        skill: lore
+        difficulty: standard
+        text: "Test it properly before anybody drinks"
+      draw:
+        skill: craft
+        difficulty: standard
+        text: "Rig a cloth filter over the bucket"
+      calm:
+        skill: persuasion
+        difficulty: standard
+        text: "Keep the crowd off the well until it is sorted"
+      taste:
+        skill: nerve
+        difficulty: severe
+        text: "Taste it yourself"
+    outcomes:
+      crit_success:
+        text: >-
+          Oil, and not any oil from a kitchen or a lamp. You get the well
+          roped off, the village on the rain butts, and the credit for both.
+        effects:
+          - { type: reputation, faction: edgewood, delta: 4 }
+          - { type: awareness, delta: 3 }
+          - type: ledger_fact
+            kind: engine
+            text: "The Edgewood well came up with machine oil on it and was roped off."
+      success:
+        text: "Roped off by evening. Nobody drank. Somebody will have to fix it."
+        effects:
+          - { type: reputation, faction: edgewood, delta: 2 }
+          - { type: awareness, delta: 2 }
+      partial:
+        text: >-
+          Half the square draws from it anyway. You spend the evening watching
+          the doors of the houses that did.
+        effects:
+          - { type: awareness, delta: 3 }
+      failure:
+        text: >-
+          You get a mouthful. It is warm going down and it stays warm, and it
+          is still warm in the morning.
+        effects:
+          - { type: hp, delta: -3 }
+          - { type: awareness, delta: 4 }
+          - type: check_penalty
+            text: "something warm that will not settle"
+            delta: -2
+            skills: [craft, lore, survival]
+            days: 3
+
+  - id: dogs_barking_at_nothing
+    tier: 2
+    weight: 16
+    triggers:
+      to: [edgewood_square]
+      phases: [spreading, consuming]
+      hours: [21, 22, 23, 0, 1, 2, 3]
+    intro: >-
+      Every dog in Edgewood is barking at the same patch of dark between the
+      forge and the shrine, and has been for an hour, and there is nothing in
+      it. Doors are shut that are never shut.
+    threat: { name: "The patch between the forge and the shrine", resolve: 5 }
+    approaches:
+      look:
+        skill: nerve
+        difficulty: hard
+        text: "Take a light in there yourself"
+      read:
+        skill: lore
+        difficulty: hard
+        text: "Work out what the dogs are lined up on"
+      quiet:
+        skill: sympathy
+        difficulty: standard
+        text: "Get among the dogs and settle them"
+    outcomes:
+      crit_success:
+        text: >-
+          They are all facing one flagstone. It is warm. It is the only warm
+          thing in the square and it has been raining since noon.
+        effects:
+          - { type: awareness, delta: 5 }
+          - { type: focus, delta: 1 }
+          - type: ledger_fact
+            kind: engine
+            text: "One flagstone between the Edgewood forge and shrine stays warm through rain."
+      success:
+        text: >-
+          The dogs settle by degrees and go home, and nothing at all comes out
+          of the dark, and the doors stay shut anyway.
+        effects:
+          - { type: awareness, delta: 3 }
+      partial:
+        text: >-
+          They will not settle. You give it up around two and lie awake to the
+          sound of it.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: stamina, delta: -15 }
+      failure:
+        text: >-
+          You go in with a light and the light goes out, and for a moment
+          something stands between you and the shrine lamp, and then does not.
+        effects:
+          - { type: hp, delta: -3 }
+          - { type: focus, delta: -1 }
+          - { type: awareness, delta: 6 }
+          - type: wound
+            text: "four cold marks on the shoulder"
+            severity: 2
+            check_penalty: -2
+            skills: [nerve, sympathy, craft]
+            heals_on_day: "+5"

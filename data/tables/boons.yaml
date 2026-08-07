@@ -1,0 +1,107 @@
+# Natural 20 boons (d20) — the engine picks one; the LLM narrates it only.
+#
+# Structured effects, not prose hints. Every entry resolves through
+# engine/game/effects.py so a boon can never become a stat change the model
+# invented for itself.
+#
+# Tone: grounded frontier luck. Nothing here is a miracle. The best thing that
+# happens to you on a good day is that a thing you were dreading does not.
+#
+# Schema:
+#   id          stable identifier; never renamed (receipts and saves cite it)
+#   text        one line of consequence, past tense, no dice talk
+#   applies_to  optional skill filter; omit for any skill
+#   effects     list of effect dicts for engine/game/effects.py
+boons:
+  - id: clean_success
+    text: "It goes exactly as you meant it to, and something is left over."
+    effects:
+      - { type: stamina, delta: 5 }
+
+  - id: lucky_find
+    text: "Your eye catches what everyone else walked past."
+    effects:
+      - { type: ledger_fact, text: "Noticed something others missed.", kind: engine }
+
+  - id: second_wind
+    text: "Your legs remember they used to do this all day."
+    effects:
+      - { type: stamina, delta: 20 }
+
+  - id: steady_hands
+    text: "The shake goes out of your hands and stays out for a while."
+    effects:
+      - { type: check_penalty, delta: 1, days: 1, text: "steady hands" }
+
+  - id: forager_luck
+    applies_to: [survival]
+    text: "A ring of good mushrooms, unspoiled, right where the light falls."
+    effects:
+      - { type: item, item_id: wild_mushroom, name: "Wild mushroom", qty: 3, tags: [food, forage] }
+
+  - id: clean_water
+    applies_to: [survival, nerve]
+    text: "The spring runs clear. You drink until you stop thinking about drinking."
+    effects:
+      - { type: stamina, delta: 10 }
+      - { type: hunger, delta: -10 }
+
+  - id: kind_word
+    applies_to: [persuasion]
+    text: "Someone who did not have to speak up for you does."
+    effects:
+      - { type: reputation, faction: edgewood, delta: 3 }
+
+  - id: honest_price
+    applies_to: [persuasion, craft]
+    text: "The price comes back better than the asking, and nobody feels cheated."
+    effects:
+      - { type: gold, delta: 3 }
+
+  - id: unseen_passage
+    applies_to: [stealth]
+    text: "The dog does not wake. The floorboard does not speak."
+    effects:
+      - { type: flag, flag: moved_unseen, value: true }
+
+  - id: read_the_room
+    applies_to: [persuasion, lore]
+    text: "You catch the thing under what was said."
+    effects:
+      - { type: ledger_fact, text: "Read the meaning under a stranger's words.", kind: engine }
+
+  - id: sound_work
+    applies_to: [craft]
+    text: "The seam holds. It will still hold in a year."
+    effects:
+      - { type: item, item_id: sound_work, name: "Well-made piece", qty: 1, tags: [trade] }
+      - { type: stat, stat: craft, delta: 1 }
+
+  - id: mural_clarity
+    applies_to: [lore, sympathy]
+    text: "A faceless saint on the shrine wall makes sudden, unwelcome sense."
+    effects:
+      - { type: awareness, delta: 4 }
+      - { type: ledger_fact, text: "Understood part of the shrine mural.", kind: engine }
+
+  - id: charm_holds
+    applies_to: [sympathy]
+    text: "The binding takes on the first try and costs you less than it should."
+    effects:
+      - { type: focus, delta: 2 }
+
+  - id: nerve_holds
+    applies_to: [nerve]
+    text: "You look at it. It looks back. You do not run, and afterward you are steadier."
+    effects:
+      - { type: check_penalty, delta: 2, days: 1, skills: [nerve], text: "nerve holds" }
+
+  - id: old_debt
+    text: "A face you helped once remembers the debt before you do."
+    effects:
+      - { type: reputation, faction: edgewood, delta: 5 }
+
+  - id: unspent_wound
+    text: "The blow that should have landed lands on the strap instead."
+    effects:
+      - { type: hp, delta: 3 }

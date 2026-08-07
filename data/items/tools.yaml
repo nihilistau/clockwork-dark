@@ -1,0 +1,148 @@
+# Tools -- the things honest work is done with.
+#
+# DESIGN.md's second pillar is "mundane craft as dignity". A baker's peel and a
+# tinker's kit therefore get the same care as a knife, and cost more.
+#
+# Field reference: see data/items/food.yaml.
+#
+# Version: v0.1.0 [2026-08-07]
+
+version: 1
+
+items:
+
+  - id: hearth_knife
+    name: "Hearth knife"
+    description: >-
+      A short iron blade with a scorched handle, meant for bread and rope and
+      not for people. It will do for people.
+    tags: [tool]
+    weight: 0.3
+    value: 14
+    art: hearth_knife
+    stack: false
+
+  - id: stone_knife
+    name: "Knapped stone knife"
+    description: >-
+      Older than the village and sharper than it has any right to be. Turned
+      up in a furrow at the Fallow holding and nobody wanted it in the house.
+    tags: [tool, quest]
+    weight: 0.2
+    value: 6
+    art: stone_knife
+    stack: false
+
+  - id: whetstone
+    name: "Whetstone"
+    description: >-
+      A grey block worn into a saddle down the middle. Odran sells them off
+      the cart and will show you the angle if you ask twice.
+    tags: [tool, trade]
+    weight: 0.5
+    value: 5
+    art: whetstone
+    stack: true
+
+  - id: iron_key
+    name: "Iron key"
+    description: >-
+      Long-shanked and cold, with wards cut in a pattern that stopped being
+      made two generations ago.
+    tags: [tool, quest]
+    weight: 0.1
+    value: 4
+    art: iron_key
+    stack: false
+
+  - id: road_map
+    name: "Road map to Millhaven"
+    description: >-
+      Ink on scraped hide, marked with the three fords and the toll. Accurate
+      the year it was drawn, which was not this year.
+    tags: [tool, trade]
+    weight: 0.2
+    value: 15
+    art: road_map
+    stack: false
+
+  - id: tinker_map
+    name: "Tinker knowledge map"
+    description: >-
+      Not a map of roads. A map of who owes what to whom between here and the
+      Marches, in a shorthand only tinkers read.
+    tags: [tool, trade, quest]
+    weight: 0.1
+    value: 20
+    art: tinker_map
+    stack: false
+
+  - id: baking_peel
+    name: "Baker's peel"
+    description: >-
+      A long ash paddle, thinned at the lip by forty years of scraping stone.
+      Maris has two and lends neither.
+    tags: [tool]
+    weight: 1.6
+    value: 9
+    stack: false
+
+  - id: mortar_and_pestle
+    name: "Mortar and pestle"
+    description: >-
+      River stone, hollowed by use rather than tooling. Herb work that is not
+      done in one of these is not herb work.
+    tags: [tool]
+    weight: 2.2
+    value: 11
+    stack: false
+
+  - id: hand_awl
+    name: "Hand awl"
+    description: >-
+      A spike in a pear-wood handle for punching leather and canvas. Every
+      cart on the road carries one and every carter has stabbed themself with it.
+    tags: [tool]
+    weight: 0.2
+    value: 4
+    stack: true
+
+  - id: snare_wire
+    name: "Coil of snare wire"
+    description: >-
+      Brass wire, ten arm-lengths, drawn thin. Sets a hare loop in the time it
+      takes to explain one.
+    tags: [tool, material]
+    weight: 0.2
+    value: 5
+    stack: true
+
+  - id: fishing_line
+    name: "Waxed fishing line"
+    description: >-
+      Horsehair twisted and waxed, wound on a notched stick, with three bone
+      hooks pushed into the cork.
+    tags: [tool]
+    weight: 0.1
+    value: 4
+    stack: true
+
+  - id: tinker_kit
+    name: "Tinker's mending kit"
+    description: >-
+      A hinged tin of solder, flux, wire, three files and a very small hammer.
+      Ilya sells them assembled and buys them back empty.
+    tags: [tool, trade]
+    weight: 1.1
+    value: 28
+    stack: false
+
+  - id: hand_lantern
+    name: "Horn lantern"
+    description: >-
+      A candle in a box of scraped horn, so the wind does not get it and the
+      light does not carry far enough to be seen from the treeline.
+    tags: [tool, light]
+    weight: 0.9
+    value: 16
+    stack: false

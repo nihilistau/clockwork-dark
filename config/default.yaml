@@ -1,0 +1,182 @@
+scene:
+  clockwork:
+    port: 5573
+    host: "0.0.0.0"
+
+lmstudio:
+  base_url: "http://localhost:1234/v1"
+  # Reads lmstudio.txt (gitignored), falling back to the LMSTUDIO_API_KEY
+  # environment variable. Leave the file absent and the variable unset only if
+  # LM Studio's "Require API key" toggle is off -- otherwise every request 401s
+  # and the Storyteller silently falls back to a canned line.
+  api_key: "${file:lmstudio.txt}"
+  context_tokens: 8192
+  reserve_output: 900
+  # auto | json_schema | json_object | off. `auto` probes the server once and
+  # caches the answer; small quantized models often ignore tools entirely, so
+  # the prose fallback stays in place until a probe proves otherwise.
+  structured_output: auto
+  models:
+    big: "local-model"
+    small: "local-model-small"
+    draft: "local-model-draft"
+  speculative:
+    enabled: true
+    draft_profile: "draft"
+    refine_profile: "big"
+
+media:
+  # Generate images DURING PLAY. Off by default on measured evidence: a Grok
+  # Imagine still takes 2-3 minutes, which cannot sit inside a real-time turn.
+  # ComfyUI is seconds and is the backend worth turning this on for.
+  #
+  # With this off, images come from the shipped art pack (see
+  # data/art/manifest.yaml) and the disk cache -- which is instant, and is what
+  # a shipped example game should do. Use scripts/generate_art.py to fill gaps
+  # ahead of time rather than paying for them mid-turn.
+  live_generation: false
+
+  # Which backend live generation and the pre-generation script use.
+  # grokbuild | comfyui | procedural
+  image_provider: grokbuild
+  # Generated stills carry a small provider watermark bottom-right. Cropping
+  # trims ~4.5% off the bottom; needs Pillow.
+  crop_watermark: false
+  grok_timeout_seconds: 600
+  cutscene_skip_after_seconds: 5
+  cutscene_budget: phase_shift_only
+
+comfyui:
+  base_url: "http://localhost:8188"
+  enabled: false
+  timeout_seconds: 120
+
+tts:
+  # OFF by default, and that is a measurement, not a preference: this machine
+  # synthesizes at ~21x slower than realtime (73.9s of compute for 3.44s of
+  # audio, 42 chars, euler_steps 3). A full narration costs minutes. Turn this
+  # on only if you want spoken narration badly enough to wait for it; short
+  # Assistant lines are the only thing worth speaking live.
+  enabled: false
+  # Speak the Assistant's 1-3 sentence lines even when narration is off.
+  assistant_enabled: false
+  base_url: "http://127.0.0.1:8123"
+  fallback: "text"
+  # Voxtral is serial by construction and contends with LM Studio for the GPU.
+  # A single sentence at euler_steps 3 is a few seconds; the ceiling is generous
+  # because the queue is the accept loop.
+  timeout_seconds: 120
+  voice: "neutral_male"
+  # HARD server limit: tts-server.exe rejects anything longer with HTTP 400.
+  # Long input on this build does not degrade, it blows up -- a 20s paragraph
+  # was measured at 47 minutes and 11.9/12 GB VRAM. Narration is split on
+  # sentence boundaries and queued.
+  max_chars: 400
+  euler_steps: 3
+
+stt:
+  # Voxtral ASR is a CLI, not a server -- there is no HTTP route for it, so the
+  # adapter shells out to the binary. base_url is kept for an OpenAI-compatible
+  # Whisper server if one is ever preferred.
+  base_url: "http://localhost:5051"
+  mode: "voxtral_cli"
+
+# ---------------------------------------------------------------------------
+# Local service stack. `python launcher.py --stack` starts everything listed
+# here with enabled: true, waits for health, then launches the game.
+# Paths are machine-specific; override them in config/local.yaml rather than
+# editing this file.
+# ---------------------------------------------------------------------------
+stack:
+  wait_timeout_seconds: 900
+  services:
+    lmstudio:
+      enabled: true
+      # Managed externally -- LM Studio is a desktop app with its own server
+      # toggle. The stack only health-checks it and tells you if it is down.
+      manage: false
+      health_url: "http://localhost:1234/v1/models"
+
+    voxtral_tts:
+      enabled: true
+      manage: true
+      root: "D:/F/shannon-prime-repos/voxtral-mini-realtime-rs"
+      command: "target/release/tts-server.exe"
+      args:
+        - "--gguf"
+        - "models/voxtral-tts-q4.gguf"
+        - "--port"
+        - "8123"
+        - "--euler-steps"
+        - "3"
+      health_url: "http://127.0.0.1:8123/health"
+      # Loads a 2.8 GB model and runs a warm-up sentence before it answers.
+      startup_timeout_seconds: 600
+
+    voxtral_asr:
+      enabled: true
+      manage: false  # CLI, invoked per request
+      root: "D:/F/shannon-prime-repos/voxtral-mini-realtime-rs"
+      command: "target/release/voxtral.exe"
+      model: "models/voxtral-q4.gguf"
+
+    comfyui:
+      enabled: false
+      manage: true
+      root: ""
+      command: "python"
+      args: ["main.py", "--port", "8188"]
+      health_url: "http://127.0.0.1:8188/system_stats"
+      startup_timeout_seconds: 300
+
+    grok:
+      enabled: true
+      manage: false  # invoked per image request
+      command: "C:/Users/Knack/.grok/bin/grok.exe"
+
+world:
+  tick_interval_seconds: 60
+  # 0.01 was never tuned against a working clock -- the clock did not work
+  # until this overhaul, so the rate had never actually run. Measured with
+  # scripts/simulate.py over 200 turns x 3 policies: at 0.01 the world reaches
+  # CONSUMING around day 80, which is roughly 165 turns -- inside a single
+  # sitting. At 0.006 it lands near day 130, and a forty-day baker sits at
+  # 0.23 evil: solidly STIRRING, which is the texture DESIGN.md's phase table
+  # actually promises. Below 0.005 the world is still DORMANT at day 40 and
+  # the premise evaporates.
+  evil_base_rate_per_day: 0.006
+
+awareness:
+  reveal_threshold: 20
+  reflection_form_min: 40
+  spoiler_gate_threshold: 15
+
+assistant:
+  max_tokens: 200
+  reflection_awareness_min: 40
+
+paths:
+  saves: "data/saves"
+  lore: "data/lore"
+  lore_db: "data/lore/lore.db"
+  economy: "data/economy.yaml"
+  procgen_templates: "data/procgen_templates/edgewood.yaml"
+  world_schedules: "data/world/schedules.yaml"
+  npc_schedules: "data/world/npc_schedules.yaml"
+  factions: "data/world/factions.yaml"
+  world_rumors: "data/world/rumors.yaml"
+  comfyui_templates: "data/procgen_templates/comfyui.yaml"
+  art_subjects: "data/art/subjects.yaml"
+  art_manifest: "data/art/manifest.yaml"
+  rules: "data/rules"
+  quests: "data/quests"
+  locations: "data/world/locations.yaml"
+  assistant_hints: "data/assistant/hints.yaml"
+  items: "data/items"
+  recipes: "data/recipes"
+  encounters: "data/encounters"
+
+comms:
+  interceptors:
+    - LoreInjectInterceptor
+    - AwarenessGateInterceptor

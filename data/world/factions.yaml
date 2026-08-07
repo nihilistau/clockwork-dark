@@ -1,0 +1,84 @@
+# Factions and standing bands.
+#
+# Read by engine/game/reputation.py. GameState.reputations has existed since
+# PR1 with no writer and no reader anywhere in the codebase; this file is the
+# content half of closing that gap.
+#
+# Reputation is how a GROUP regards the player. How one PERSON feels about them
+# lives in engine/memory/ledger.py (NPCRelation.disposition) and is not
+# duplicated here.
+
+version: 1
+
+defaults:
+  # Bands are walked in order; the first whose `upto` is >= the score wins.
+  # The last band has no `upto` and catches everything above.
+  bands:
+    - { id: hostile, upto: -40, label: "hostile" }
+    - { id: wary, upto: -15, label: "wary" }
+    - { id: neutral, upto: 24, label: "neutral" }
+    - { id: friendly, upto: 59, label: "friendly" }
+    - { id: trusted, label: "trusted" }
+
+  # Score is clamped to [min_score, max_score] on every write, so no single
+  # runaway quest reward can put a faction permanently out of reach.
+  min_score: -100
+  max_score: 100
+
+  # price = clamp(base - score / divisor, floor, ceiling)
+  # Neutral sits above 1.0 on purpose: a stranger pays the stranger's price,
+  # and earning your way down to it is meant to be felt.
+  price:
+    base: 1.15
+    divisor: 400
+    floor: 0.85
+    ceiling: 1.25
+
+factions:
+
+  edgewood:
+    name: "Edgewood Village"
+    description: >-
+      The margin settlement itself: the households around the communal oven,
+      the well, and the shrine nobody can name the saints of. They remember
+      who helped at harvest and who was elsewhere.
+
+  merchants:
+    name: "The Road Trade"
+    description: >-
+      Carters, factors and caravan masters who run the Millhaven road. They do
+      not care what you believe. They care whether your word survives contact
+      with a ledger.
+
+  militia:
+    name: "Millhaven Militia"
+    description: >-
+      The levy that holds the gate and the wall line. Standing with them buys
+      passage and warnings; it also buys their expectations of you.
+
+  tinkers:
+    name: "The Nine Pins"
+    description: >-
+      Itinerant wire-benders and charm-sellers who buy old clock parts by
+      weight. Their favour is cheap to gain and expensive to keep, and they
+      remember a haggle longer than a kindness.
+    # Tinkers price on rapport rather than volume, so their scale is steeper.
+    price:
+      base: 1.20
+      divisor: 300
+      floor: 0.80
+      ceiling: 1.35
+
+  unnamed_saints:
+    name: "Cult of the Unnamed Saints"
+    description: >-
+      The old women with two candles where there used to be one, and whatever
+      it is they are keeping the count for. There is no membership roll. There
+      is only whether the shrine has been tended.
+    # A shrine either regards you or it does not; there is no polite middle.
+    bands:
+      - { id: hostile, upto: -25, label: "unwelcome at the shrine" }
+      - { id: wary, upto: -1, label: "unmarked" }
+      - { id: neutral, upto: 29, label: "counted" }
+      - { id: friendly, upto: 64, label: "kept in the count" }
+      - { id: trusted, label: "named in the candles" }

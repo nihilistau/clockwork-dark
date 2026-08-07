@@ -1,0 +1,92 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# The one quiet_life quest that touches awareness at all, and it moves it by a
+# single point. That restraint is load-bearing: the Whisper arc gate sits at 15
+# awareness, so a player who does every domestic quest in this folder still ends
+# nowhere near it. The baker path has to actually be self-contained, not
+# self-contained-until-content-gets-enthusiastic.
+#
+# Reads procgen.shrine_mural, which world generation has produced on every run
+# and which nothing has ever read.
+
+id: shrine_mural
+arc: quiet_life
+name: "The Unfinished Saints"
+summary: >-
+  The shrine wall has been half-painted for sixty years. The old women say
+  finishing it would invite the road to arrive.
+
+preconditions:
+  all:
+    - min_day: 4
+    - visited: edgewood_square
+
+start_text: >-
+  Somebody has been at the mural with a wet rag. The saints have slightly more
+  face than they did last week, and nobody will say who.
+
+stages:
+  - id: look_properly
+    objective: "Look at the shrine mural properly, in daylight."
+    narrative_flags:
+      - nf_mural_examined
+    complete_when:
+      all:
+        - at_location: edgewood_square
+        - time_of_day: [day, dawn]
+        - flag: nf_mural_examined
+    complete_text: >-
+      Wheat, a road winding inward, saints with the faces left out. The brass
+      thread in the wheat is painted, not inlaid. Somebody chose that colour.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 1
+
+  - id: ask_the_elders
+    objective: "Ask someone old enough to remember why the mural was stopped."
+    narrative_flags:
+      - nf_mural_asked_elders
+    expires_after_days: 6
+    complete_when:
+      all:
+        - flag: nf_mural_asked_elders
+    complete_text: >-
+      "It wasn't stopped," she says. "It was left. There's a difference and you
+      are too young for it."
+    fail_text: >-
+      The rag stops appearing. The saints keep their blank faces.
+
+  - id: mend_it
+    objective: "Mend the plaster and repaint what has flaked, without finishing it."
+    complete_when:
+      all:
+        - at_location: edgewood_square
+        - min_stat: { stat: craft, min: 10 }
+        - days_in_stage: 1
+    complete_text: >-
+      You leave the faces alone. It takes more discipline than the plasterwork.
+    on_complete:
+      effects:
+        - type: stamina
+          delta: -10
+        - type: craft
+          delta: 1
+
+on_complete:
+  effects:
+    - type: reputation
+      faction: unnamed_saints
+      delta: 12
+    - type: reputation
+      faction: edgewood
+      delta: 4
+    - type: flag
+      flag: quest_shrine_mural_done
+    - type: ledger_fact
+      text: "You mended the shrine mural and left the saints' faces unfinished."
+      kind: event
+
+complete_text: >-
+  The wall will hold another sixty years. The saints stay nameless, and the road
+  in the painting stays where it is.

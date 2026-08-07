@@ -1,0 +1,100 @@
+# Survival Rules
+# ==============
+#
+# Hunger, rest and food. Consumed by engine/game/survival.py.
+#
+# THE BUG THIS TABLE EXISTS TO FIX: stamina was only ever spent (travel cost in
+# engine/game/engine.py) and restored nowhere. After roughly five round trips to
+# millhaven_gate the player sat at 0 stamina with no legal action and no way to
+# recover -- a permanent soft-lock reachable in the first hour of play.
+#
+# Awake regeneration is deliberately ZERO. Stamina comes back only when the
+# player chooses to stop, and stopping costs hours the evil clock keeps eating.
+
+version: 1
+
+hunger:
+  # Hunger points per in-game hour. 2/h means a full day of walking without
+  # eating puts you at 48 -- uncomfortable, not yet dangerous.
+  per_hour: 2.0
+  max: 100.0
+  thresholds:
+    peckish: 40.0
+    hungry: 60.0
+    starving: 85.0
+  # Above `hungry` you simply cannot hold a full tank. This is the cap, not a
+  # drain: it clamps current stamina and limits what rest can restore.
+  hungry_stamina_cap_penalty: 20
+  # Above `starving` you lose condition every hour. The matching -2 to all
+  # checks lives in data/rules/skills.yaml as the `starving` situational.
+  starving_hp_per_hour: 1.0
+
+stamina:
+  # Not a typo, not an oversight. See module header.
+  awake_regen_per_hour: 0.0
+
+rest:
+  rest_short:
+    label: "a short rest"
+    text: "You sit, drink, and let your legs stop shaking."
+    hours: 2
+    stamina: 15
+    hp: 0
+
+  sleep_bed:
+    label: "a night in a bed"
+    text: "A straw mattress and a door that shuts. You wake almost yourself again."
+    hours: 8
+    stamina: full
+    hp: 2
+    # Beds exist where somebody keeps one. Enforced softly: a failed location
+    # requirement downgrades to sleep_rough rather than refusing the action,
+    # because refusing rest is how you rebuild the soft-lock.
+    locations: [edgewood_bakery, edgewood_square, millhaven_gate]
+    fallback: sleep_rough
+
+  sleep_rough:
+    label: "a night on the ground"
+    text: "Roots, cold, and the forest doing its accounting around you."
+    hours: 8
+    check:
+      skill: survival
+      difficulty: standard
+    stamina: 55
+    hp: 0
+    on_failure:
+      stamina: 25
+      hp: -2
+      text: "You wake stiff, cold and worse off than you lay down."
+
+# Eating. Values are hunger deltas (negative = fed) applied through
+# engine/game/effects.py. Unlisted edible items fall back to `default`.
+eat:
+  hours: 0.25
+  items:
+    loaf:
+      hunger: -35
+      stamina: 5
+      text: "Honest bread. It tastes of hunger, not prophecy."
+    road_bread:
+      hunger: -25
+      stamina: 2
+      text: "Stale, but it stops the shaking."
+    festival_cake:
+      hunger: -45
+      stamina: 10
+      text: "Too rich for a road meal. You eat it anyway."
+    wild_mushroom:
+      hunger: -10
+      stamina: 0
+      text: "Earthy, damp, barely food."
+    dried_meat:
+      hunger: -30
+      stamina: 5
+      text: "Salt and sinew. It will keep you walking."
+  default:
+    hunger: -15
+    stamina: 0
+    text: "You eat what you have."
+  # Item ids carrying any of these tags are edible even if unlisted above.
+  edible_tags: [food, ration, forage]

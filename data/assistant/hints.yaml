@@ -1,0 +1,241 @@
+# The Assistant's voice.
+#
+# THE GAP THIS FILE CLOSES: six hints and three lore snippets were Python
+# string literals in engine/skills/builtin/assistant.py. Six. The Assistant is
+# one of the two agents this whole project is built around, it may speak on any
+# turn, and it had six things to say -- so a player who kept it around for a
+# week heard the same lines back. Content does not belong in a skills module,
+# and the person who should be writing this is not the person editing Python.
+#
+# ------------------------------------------------------------
+# Voice
+# ------------------------------------------------------------
+# The Assistant is IN-WORLD FOLKLORE. It is the grey wanderer, the cat that
+# watches the road too long, the child at the treeline. It is oblique, a little
+# wry, and it has opinions it will not defend.
+#
+#   NEVER fourth-wall. No "you", no "the player", no "this game".
+#   NEVER mechanical. No DCs, no stats, no "roll", no percentages.
+#   NEVER a quest marker. It gestures; it does not route.
+#   It may be wrong. It may be teasing. "Probably" is doing real work.
+#
+# Good: "The smoke is bread, not burning. Probably."
+# Bad:  "Travel to edgewood_bakery to begin the apprenticeship quest."
+#
+# ------------------------------------------------------------
+# Tiers
+# ------------------------------------------------------------
+#   0  ambient. Weather, cats, bread. Says nothing about anything.
+#   1  unease with no subject. Something is off; nothing is named.
+#   2  names people and places.
+#   3  names the pattern, the count, the specifics.
+#
+# engine/skills/builtin/assistant.py::compute_hint_tier floors at 1, so a
+# tier-0 line would be unreachable data on its own. Tier 1 therefore draws
+# from tiers 0 AND 1 -- the earliest a player can hear anything is also when
+# ambient noise is most in character. Tiers 2 and 3 draw from their own band
+# only, or a high-trust player would keep pulling weather out of the big
+# tier-0 pool.
+#
+# Version: v0.1.0 [2026-08-07]
+
+version: 1
+
+# Spoken when no pool yields anything at all. Should never be reached.
+fallback: "Nothing worth saying. That is not the same as nothing worth noticing."
+
+hints:
+
+  # -- tier 0: ambient ----------------------------------------------------
+
+  - tier: 0
+    text: "The smoke is bread, not burning. Probably."
+  - tier: 0
+    text: "That cat has been on that wall since before you got here. It will be there after."
+  - tier: 0
+    text: "Rain coming. Not the interesting kind."
+  - tier: 0
+    text: "Somebody is arguing about the oven rotation again. Somebody always is."
+  - tier: 0
+    text: "The bottom crust tells you more about the fire than the baker will."
+  - tier: 0
+    text: "Two crows on the byre roof. Which means two crows are on the byre roof."
+  - tier: 0
+    text: "Nothing is wrong this morning. Enjoy that. It is a real thing and it is free."
+  - tier: 0
+    text: "The well rope is fraying at the third turn. That is going to be somebody's bad day."
+  - tier: 0
+    text: "Walk slower. You are not late for anything, and it is a nice hour."
+  - tier: 0
+    text: "Bread, firewood, a roof that holds. People die having wanted less."
+
+  # -- tier 1: unease, nothing named --------------------------------------
+
+  - tier: 1
+    text: "The smoke drifts west. The wind is south. Both of those cannot be true, and yet."
+  - tier: 1
+    text: "The dogs on the lower row have gone quiet at night. Ask whether that is a mercy. Watch who answers fast."
+  - tier: 1
+    text: "The well tastes of iron this month. Nothing has been dropped in it. I checked."
+  - tier: 1
+    text: "The children have a new counting game. Not one mother will admit to teaching it."
+  - tier: 1
+    text: "Somebody's milk soured in the pail before it left the goat. The goat is fine. That is the part."
+  - tier: 1
+    text: "There is a smell off the east fields after dark. Like a knife left standing in vinegar."
+  - tier: 1
+    text: "A carter came in swearing the road was shorter than it had any business being. He has driven it twenty years."
+  - tier: 1
+    text: "Ticking in the rafters. They went up and found a wasp nest, long abandoned. They came down slowly."
+  - tier: 1
+    text: "The old women at the shrine are lighting two candles where they used to light one. Nobody has asked them why."
+  - tier: 1
+    text: "That cat left the Bramwell house four days ago. The Bramwell house has since had reasons."
+
+  # -- tier 2: names people and places ------------------------------------
+
+  - tier: 2
+    text: "Maris hums while she kneads. She will tell you it is habit. The village says it keeps the gears quiet, and the village is not joking."
+  - tier: 2
+    text: "The tinkers were selling ward charms before the wheat turned wrong. That is not profit. That is a route noticing something."
+  - tier: 2
+    text: "Ilya buys old clock parts at twice their weight in copper and will not say who for. Ask her twice. Watch the second answer."
+  - tier: 2
+    text: "Something in the Fallow east pen was born with brass where its teeth should have been. The Fallows have not said so out loud."
+  - tier: 2
+    text: "There are fresh nails in the recruitment board at Millhaven Gate. Somebody up there expects volunteers."
+  - tier: 2
+    text: "The wheat on the Millhaven side stands in rows too straight for any wind. Go and look at it in flat light."
+  - tier: 2
+    text: "The tanner's boy walked to Millhaven and came back naming streets that are not there. He named four. He can draw them."
+  - tier: 2
+    text: "Hallam will not take clock work any more. He will explain if you have an hour. Have the hour."
+  - tier: 2
+    text: "Half the Millhaven watch came off the wall in a step nobody called. Farmers do not march in step by accident. Ever."
+  - tier: 2
+    text: "The mural on the shrine wall stops mid-stroke, bottom right. The paint on the tray dried in the tray. It is still there."
+
+  # -- tier 3: the pattern, the count, the specifics -----------------------
+
+  - tier: 3
+    text: "Something in the wheat remembers being wound. Do not eat bread with brass in it, and do not sell it inward and tell yourself that is different."
+  - tier: 3
+    text: "The village clock broke the winter before last and it still ticks. Not with any hour you know. Nobody has proposed taking it down. Nobody has noticed that nobody has proposed it."
+  - tier: 3
+    text: "It started on the ninth of the wheat month. Nine days to cross each ring since. Count it yourself. It does not vary, and that is what it is telling you."
+  - tier: 3
+    text: "Every house it has taken had one thing in common: something in it kept time. A clock. A loom. A woman who hums the same four bars at the same hour. Break your clock. It is not enough."
+  - tier: 3
+    text: "Millhaven's grain tally has come out perfect four quarters running. Not close. Perfect. No harvest is perfect."
+  - tier: 3
+    text: "The saints have no faces because the wall was stopped, not lost. The painter is under the ninth barrow. The last thing she put up was a road coming in."
+  - tier: 3
+    text: "Nine to a card, because nine is the count that holds. Ask a tinker for a tenth. Do not haggle. Just watch what the price stops being."
+  - tier: 3
+    text: "Sera Venn holds orders dated before it ever reached Millhaven, telling her where to stand when it did. She has read the signature. She has not burned them."
+  - tier: 3
+    text: "It does not want worship and it has no use for the dead. It wants the world to run on time. It gains a little every day nobody stops it."
+  - tier: 3
+    text: "Naming a thing correctly is the only way to address a pattern. Every account of a true naming ends the same way. The namer paid. Ask what with, before you need to know."
+
+# ------------------------------------------------------------
+# Lore snippets, revealed by topic id through `reveal_lore`.
+#
+# `min_tier` is a trust gate, not a difficulty. These are the things the
+# Assistant will say plainly, and it will not say them to a stranger.
+# ------------------------------------------------------------
+lore_snippets:
+
+  edgewood:
+    min_tier: 1
+    text: >-
+      Edgewood is the last comfortable village before the Marches — timber
+      frames, a communal oven, and a shrine to saints nobody names. Ninety
+      people. Forty of them children. It has held for two seasons.
+
+  forest_margin:
+    min_tier: 1
+    text: >-
+      The margin is generous and not tame. Do not eat from a ring you did not
+      walk into from the outside, and do not follow a trail that is easier
+      than it was yesterday. Those are not laws of nature. They are what is
+      left of the people who ignored them.
+
+  bread:
+    min_tier: 1
+    text: >-
+      One oven, ninety people, and a rotation that forces all of them to speak
+      to each other every day about something practical. Everything this
+      village knows about itself, it knows because of the queue at the oven.
+
+  grey_wanderer:
+    min_tier: 2
+    text: >-
+      Folklore calls them the Grey Wanderer: a hooded figure who asks
+      questions and never answers yours. The stories disagree on everything
+      except that it turns up at the margin, and that it is not lying.
+
+  tinkers:
+    min_tier: 2
+    text: >-
+      Wagon families with overlapping routes and an etiquette outsiders
+      mistake for law. They knew first because a trade route is a nervous
+      system. Their routes now stop short of places they used to run through,
+      and plotted, the shortfall is a ring.
+
+  wards:
+    min_tier: 2
+    text: >-
+      Iron does something. Not much, and consistently — a nail turned over in
+      a threshold appears to make a house harder to include. Everything else
+      on the charm-seller's tray is reassurance, and reassurance is worth real
+      copper in a bad season.
+
+  militia:
+    min_tier: 2
+    text: >-
+      Levies, not soldiers: farmers with two weeks' drill, raised by people
+      who understand rolls and do not understand what the roll is against.
+      Sera Venn fills hers from the villages that will notice least. She chose
+      that over three worse options and would not accept being called anything
+      but responsible for it.
+
+  shrine_mural:
+    min_tier: 2
+    text: >-
+      Nine panels, left to right, and the ninth unfinished. The faces were
+      never painted — the plaster is sound. Read as a sequence it is not
+      devotional art. It is a method, documented by somebody who expected to
+      be dead before it was needed.
+
+  the_barrows:
+    min_tier: 3
+    text: >-
+      Nine mounds in a line too straight for weather, older than the village,
+      swept clean of grave goods and built to a standard nobody within a
+      hundred miles could match. That is not how you bury a chieftain. It is
+      how you seal a room.
+
+  sympathy:
+    min_tier: 3
+    text: >-
+      Binding like to like, so what is done to one is felt by the other. It
+      works. It takes the binder's strength every hour it holds and the binder
+      does not get to choose when to stop paying. Naming is the harder half,
+      and the only half that can address a pattern.
+
+  nine_count:
+    min_tier: 3
+    text: >-
+      Nine mounds, nine pins, nine panels, nine days to cross a ring. Nine is
+      what a count can be before it becomes a cycle. Ten closes. Nine holds
+      open, and a thing that is not finished cannot be completed by something
+      else.
+
+  clockwork_dark:
+    min_tier: 3
+    text: >-
+      The Clockwork Dark is not a plague and not a demon — it is a winding.
+      Brass teeth in stillborn lambs, gears in grain, rows too straight for
+      any wind. It converts living order into ticking mechanism, and living
+      order is everywhere, which is why there is no front line to hold.

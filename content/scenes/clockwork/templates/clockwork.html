@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>{{ scene.display_name }}</title>
+
+  {#
+    Built assets from ui/ (Vite + React). dist/ is committed, so playing needs
+    only Python -- node is required to CHANGE the UI, not to run it:
+
+        cd ui && npm run dev     HMR against this server on :5573
+        cd ui && npm run build   rebuild dist/
+
+    Nothing loads from a CDN. A local-first game must boot with no network.
+  #}
+  <link rel="icon" type="image/svg+xml" href="/static/dist/favicon.svg" />
+  <link rel="stylesheet" href="/static/dist/index.css" />
+</head>
+<body data-phase="dormant">
+  <div id="root"></div>
+
+  <noscript>
+    <p style="color:#e4dcca;background:#080b0b;font-family:Georgia,serif;padding:2rem">
+      The Clockwork Dark needs JavaScript to run.
+    </p>
+  </noscript>
+
+  <script type="module" src="/static/dist/app.js"></script>
+</body>
+</html>

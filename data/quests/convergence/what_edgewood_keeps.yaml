@@ -1,0 +1,100 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# A world-scale choice made at village scale, which is the only scale this game
+# ever asks the player to work at. Nothing here is decided in a throne room.
+
+id: what_edgewood_keeps
+arc: convergence
+name: "What Edgewood Keeps"
+summary: >-
+  The village has to decide what it takes with it and what it leaves standing.
+  Somebody has to say the words in the square, and everybody has decided that
+  somebody is you.
+
+preconditions:
+  all:
+    - min_awareness: 55
+    - quest_completed: naming_the_wound
+
+start_text: >-
+  They are all there. Maris has flour on her sleeves because she came straight
+  from the oven, and she will go straight back to it afterwards, whatever is
+  said.
+
+stages:
+  - id: call_the_meeting
+    objective: "Call Edgewood together and tell them what you know."
+    narrative_flags:
+      - nf_edgewood_called_it
+    complete_when:
+      all:
+        - at_location: edgewood_square
+        - flag: nf_edgewood_called_it
+        - time_of_day: [dusk, day]
+    complete_text: >-
+      You use the written name, because the spoken one costs too much to spend
+      twice, and because they deserve to be able to look at it.
+    on_complete:
+      effects:
+        - type: focus
+          delta: -2
+        - type: awareness
+          delta: 6
+
+  - id: the_vote
+    objective: "Let Edgewood choose: hold the village, empty it, or split it."
+    narrative_flags:
+      - nf_edgewood_stay
+      - nf_edgewood_go
+      - nf_edgewood_split
+    expires_after_days: 3
+    complete_when:
+      any:
+        - flag: nf_edgewood_stay
+        - flag: nf_edgewood_go
+        - flag: nf_edgewood_split
+    complete_text: >-
+      It takes four hours and it is decided by the people who have the least to
+      move, as these things always are.
+    fail_text: >-
+      No decision is a decision. The frost arrives on schedule and settles it.
+    on_fail:
+      effects:
+        - type: reputation
+          faction: edgewood
+          delta: -10
+        - type: awareness
+          delta: 4
+
+  - id: carry_it_out
+    objective: "Do the work the decision made. All of it, for three days."
+    complete_when:
+      all:
+        - days_in_stage: 3
+        - at_location: [edgewood_square, edgewood_bakery, forest_clearing]
+    complete_text: >-
+      Carts, and lists, and arguments about a dresser. World-scale decisions are
+      made of furniture.
+    on_complete:
+      effects:
+        - type: stamina
+          delta: -30
+        - type: hunger
+          delta: 12
+
+on_complete:
+  effects:
+    - type: reputation
+      faction: edgewood
+      delta: 20
+    - type: awareness
+      delta: 8
+    - type: flag
+      flag: quest_what_edgewood_keeps_done
+    - type: ledger_fact
+      text: "Edgewood decided its own fate in the square, and you said the words first."
+      kind: event
+
+complete_text: >-
+  Whatever they chose, they chose it knowing. That is not nothing. On some days
+  it is the only thing you managed.

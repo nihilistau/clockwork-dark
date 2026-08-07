@@ -1,0 +1,187 @@
+# Edgewood procgen templates — seeded village + forest margin
+
+counts:
+  buildings: 12
+  npcs: 8
+  procedural_npcs: 3
+  forage_nodes: 6
+  hidden_paths: 2
+
+bakery_job_day: 3
+
+canon_npcs:
+  - id: npc_maris
+    name: Maris Hearth
+    role: baker
+    location_id: edgewood_bakery
+    traits: [warm, watchful, maternal]
+  - id: npc_odran
+    name: Odran Cartwright
+    role: caravan_master
+    location_id: edgewood_square
+    traits: [weathered, gossiping, cautious]
+  - id: npc_ilya
+    name: Ilya of the Nine Pins
+    role: tinker
+    location_id: tinker_caravan
+    traits: [clever, evasive, charming]
+  - id: npc_sera
+    name: Sergeant Sera Venn
+    role: militia
+    location_id: millhaven_gate
+    traits: [stern, conflicted, dutiful]
+  - id: npc_brindle
+    name: Brindle
+    role: cat
+    location_id: edgewood_square
+    traits: [silent, knowing, feline]
+
+canon_buildings:
+  - id: building_bakery
+    name: Hearth Bakery
+    type: bakery
+    location_id: edgewood_bakery
+  - id: building_communal_oven
+    name: Communal Stone Oven
+    type: oven
+    location_id: edgewood_square
+  - id: building_shrine
+    name: Shrine of Unnamed Saints
+    type: shrine
+    location_id: edgewood_square
+  - id: building_well
+    name: Square Well
+    type: well
+    location_id: edgewood_square
+  - id: building_notice_board
+    name: Notice Board
+    type: civic
+    location_id: edgewood_square
+
+# Pool must stay comfortably larger than the number sampled, or every seed
+# builds the identical village. It previously held exactly 7 entries for a
+# 7-building sample, so sampling was a permutation, not a choice.
+building_types:
+  - { type: chandler, prefix: "The", suffix: "Chandlery" }
+  - { type: cooper, prefix: "", suffix: "Cooper's Shed" }
+  - { type: smithy, prefix: "Old", suffix: "Smithy" }
+  - { type: tanner, prefix: "", suffix: "Tannery" }
+  - { type: granary, prefix: "East", suffix: "Granary" }
+  - { type: stable, prefix: "Road", suffix: "Stables" }
+  - { type: healer, prefix: "Herb", suffix: "House" }
+  - { type: weaver, prefix: "", suffix: "Weaver's Loft" }
+  - { type: miller, prefix: "Low", suffix: "Mill" }
+  - { type: brewer, prefix: "The", suffix: "Malthouse" }
+  - { type: carpenter, prefix: "", suffix: "Joiner's Yard" }
+  - { type: fletcher, prefix: "", suffix: "Fletcher's Bench" }
+  - { type: potter, prefix: "Kiln", suffix: "Row" }
+  - { type: dairy, prefix: "", suffix: "Milkhouse" }
+  - { type: apiary, prefix: "Nine", suffix: "Skeps" }
+  - { type: charcoal, prefix: "", suffix: "Charcoal Burn" }
+  - { type: rope, prefix: "", suffix: "Ropewalk" }
+  - { type: dye, prefix: "Blue", suffix: "Dyeyard" }
+  - { type: smokehouse, prefix: "", suffix: "Smokehouse" }
+  - { type: cobbler, prefix: "", suffix: "Cobbler's Step" }
+  - { type: scribe, prefix: "The", suffix: "Copyhouse" }
+  - { type: washhouse, prefix: "Stone", suffix: "Washhouse" }
+  - { type: root_cellar, prefix: "Deep", suffix: "Cellar" }
+  - { type: watchpost, prefix: "West", suffix: "Watchpost" }
+  - { type: almshouse, prefix: "", suffix: "Almshouse" }
+  - { type: beekeeper, prefix: "Old", suffix: "Hivehouse" }
+
+villager_roles:
+  - farmer
+  - woodcutter
+  - weaver
+  - goat_herd
+  - fence_mender
+
+name_given:
+  - Aldric
+  - Bren
+  - Cora
+  - Dessa
+  - Ewan
+  - Fen
+  - Greta
+  - Hobb
+  - Isla
+  - Jory
+  - Kest
+  - Lina
+  - Merrin
+  - Noll
+  - Petra
+  - Quill
+  - Rook
+  - Sable
+  - Tamsin
+  - Ulric
+
+name_family:
+  - Ashford
+  - Briar
+  - Collow
+  - Dunne
+  - Ember
+  - Fallow
+  - Greym
+  - Holt
+  - Ivers
+  - Jann
+  - Kettle
+  - Lark
+  - Moss
+  - Nettle
+  - Orr
+  - Pike
+  - Quill
+  - Reed
+  - Stowe
+  - Thorn
+
+trait_pool:
+  - shy
+  - stubborn
+  - generous
+  - suspicious
+  - pious
+  - restless
+  - practical
+  - dreamy
+  - sharp_tongued
+  - soft_spoken
+
+forage_resources:
+  - mushroom
+  - herb
+  - berry
+  - game_trail
+  - resin
+  - clay
+
+mural_fragments:
+  - "a saint with clock-hands where eyes should be"
+  - "wheat stalks threaded through brass gears"
+  - "a village burning in perfect symmetry"
+  - "a child offering bread to something underground"
+  - "the Marches road winding into a wound of light"
+
+festival_names:
+  - Harvest Lantern
+  - Ember Eve
+  - Bread Moon
+  - Founder's Ash
+  - Wool and Wire
+
+festival_seasons:
+  - spring
+  - summer
+  - autumn
+  - winter
+
+barrow_names:
+  - Barrow of the First Warden
+  - Old King's Rest
+  - Brass-Sleep Mound
+  - Hollow Hill

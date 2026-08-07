@@ -1,0 +1,101 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# The last quest in the last arc, and it is a bake.
+#
+# This is here on purpose and it is the whole design in one file: even at the
+# far end of the Convergence, with the road shortening and a name written down
+# and a valley bought at a price, the game's final beat is an ordinary morning's
+# work done properly. The baker path is not the arc you leave behind. It is the
+# thing all the other arcs were about.
+
+id: the_last_quiet_thing
+arc: convergence
+name: "The Last Quiet Thing"
+summary: >-
+  The oven still has to be banked. Somebody still has to do it. Everything else
+  is negotiable and this is not.
+
+preconditions:
+  all:
+    - min_awareness: 62
+    - any:
+        - quest_completed: what_edgewood_keeps
+        - quest_completed: the_sacrifice
+        - quest_completed: the_heartland_road
+
+start_text: >-
+  Maris is at the bakery at four in the morning, the way she has been every
+  morning you have known her, and the way she will be tomorrow.
+
+stages:
+  - id: show_up
+    objective: "Be at the bakery for the firing. As if nothing had happened."
+    narrative_flags:
+      - nf_lastquiet_showed_up
+    complete_when:
+      all:
+        - at_location: edgewood_bakery
+        - hour_between: [4, 7]
+        - flag: nf_lastquiet_showed_up
+    complete_text: >-
+      She hands you the long peel without looking up. There is no ceremony to it
+      and that is the mercy.
+    on_complete:
+      effects:
+        - type: stamina
+          delta: -12
+
+  - id: the_batch
+    objective: "Get one full batch out. Properly. Not quickly."
+    complete_when:
+      all:
+        - at_location: edgewood_bakery
+        - min_stat: { stat: craft, min: 11 }
+        - days_in_stage: 1
+    complete_text: >-
+      Forty loaves. Two of them are wrong and you know exactly why, which is
+      what a year of mornings buys you.
+    on_complete:
+      effects:
+        - type: craft
+          delta: 1
+        - type: item
+          item_id: loaf
+          name: "Loaf of bread"
+          qty: 4
+          tags: [food]
+
+  - id: tell_her_or_dont
+    objective: "Tell Maris what you have paid, or let the morning be a morning."
+    narrative_flags:
+      - nf_lastquiet_said_nothing
+      - nf_lastquiet_told_her
+    complete_when:
+      any:
+        - flag: nf_lastquiet_told_her
+        - flag: nf_lastquiet_said_nothing
+        - days_in_stage: 2
+    complete_text: >-
+      "I know," she says, either way, and goes on shaping. One turn and a press.
+      One turn and a press.
+    on_complete:
+      effects:
+        - type: ledger_fact
+          text: "You worked the morning firing with Maris after everything."
+          subject_id: npc_maris
+          kind: event
+
+on_complete:
+  effects:
+    - type: reputation
+      faction: edgewood
+      delta: 15
+    - type: flag
+      flag: quest_the_last_quiet_thing_done
+    - type: ledger_fact
+      text: "Whatever else is true, Edgewood had bread that morning."
+      kind: event
+
+complete_text: >-
+  Edgewood has bread. The road is still coming. Both of those go on being true,
+  and the bread is the one you had a hand in.

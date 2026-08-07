@@ -1,0 +1,1 @@
+"""Game content — scenes, templates, static assets."""

@@ -1,0 +1,171 @@
+# Food and drink.
+#
+# THE GAP THIS DIRECTORY CLOSES: inventory ids were invented at the point of
+# use. data/economy.yaml named five, data/quests/** named fourteen more, and
+# data/art/manifest.yaml keyed twenty-one -- three overlapping lists with no
+# common source, no weights, no values, and no way to catch a typo. `loaf`
+# had a price in one file, a picture in another and a description in neither.
+# data/items/*.yaml is the registry those three now agree with; the agreement
+# is enforced by tests/test_content_integrity.py.
+#
+# Item shape:
+#   id           inventory id. Matches GameState.inventory[].id.
+#   name         what the UI and the vendor call it.
+#   description  one or two sentences, present tense, no second person.
+#   tags         food | tool | charm | trade | quest | light | apparel |
+#                material. An item may carry several.
+#   weight       kilograms, one decimal. Encumbrance has no rules yet; the
+#                number is here so that when it gets them, it does not need
+#                sixty guesses made in a hurry.
+#   value        base worth in copper, BEFORE the faction price multiplier in
+#                data/world/factions.yaml. A vendor's own price wins.
+#   art          key into data/art/manifest.yaml `items:`. Optional -- an
+#                unmapped item falls through to the procedural silhouette
+#                rather than borrowing another object's picture.
+#   stack        whether quantities merge in the inventory panel.
+#
+# Version: v0.1.0 [2026-08-07]
+
+version: 1
+
+items:
+
+  - id: loaf
+    name: "Loaf of bread"
+    description: >-
+      Dense village bread off the communal oven, dark on the bottom where the
+      stone was hottest. Keeps three days and tastes of honest hunger.
+    tags: [food]
+    weight: 0.6
+    value: 2
+    art: loaf
+    stack: true
+
+  - id: road_bread
+    name: "Road bread"
+    description: >-
+      Twice-baked and split before it cooled, so it dries instead of moulding.
+      Carters swear by it and nobody claims to enjoy it.
+    tags: [food, trade]
+    weight: 0.4
+    value: 3
+    art: road_bread
+    stack: true
+
+  - id: festival_cake
+    name: "Festival cake"
+    description: >-
+      A palm-sized honey cake from the festival bake. Children eat them
+      without knowing what the night at the oven cost.
+    tags: [food]
+    weight: 0.2
+    value: 8
+    art: festival_cake
+    stack: true
+
+  - id: festival_honey
+    name: "Crock of late honey"
+    description: >-
+      Dark autumn honey with wax still floating in it. Late in the season it
+      costs more than it should, and everyone pays.
+    tags: [food, material, quest]
+    weight: 1.2
+    value: 14
+    art: festival_honey
+    stack: true
+
+  - id: winter_ration
+    name: "Winter ration"
+    description: >-
+      A tied bundle of hard bread, salt meat and dried root: one household,
+      one week, if the household is careful and the week is short.
+    tags: [food, quest, trade]
+    weight: 2.5
+    value: 18
+    art: winter_ration
+    stack: true
+
+  - id: wild_mushroom
+    name: "Wild mushroom"
+    description: >-
+      Fat brown caps from a ring under the birches. Maris buys them at a
+      copper each and does not ask which ring.
+    tags: [food, material]
+    weight: 0.1
+    value: 1
+    art: wild_mushroom
+    stack: true
+
+  - id: dried_mushrooms
+    name: "String of dried mushrooms"
+    description: >-
+      Threaded on gut and hung over the hearth until they rattle. Worth four
+      times the fresh weight and keeps until spring.
+    tags: [food, trade]
+    weight: 0.3
+    value: 6
+    art: dried_mushrooms
+    stack: true
+
+  # Granted by the forest encounter bands (data/encounters/forest.yaml) as
+  # "Hare, dressed". The encounter names it; nothing else ever did.
+  - id: dried_meat
+    name: "Dressed hare"
+    description: >-
+      Skinned, gutted and hung. Two meals if you are alone and one argument if
+      you are not.
+    tags: [food]
+    weight: 0.8
+    value: 5
+    stack: true
+
+  - id: hard_cheese
+    name: "Wheel of hard cheese"
+    description: >-
+      Rind waxed black, small enough to carry and hard enough to hurt someone
+      with. Improves on the road, which is more than can be said for anything
+      else on it.
+    tags: [food, trade]
+    weight: 1.0
+    value: 12
+    stack: true
+
+  - id: salt_pork
+    name: "Salt pork"
+    description: >-
+      A brined slab wrapped in cloth. Needs soaking before it is food and
+      needs nothing at all before it is currency.
+    tags: [food, trade]
+    weight: 1.5
+    value: 10
+    stack: true
+
+  - id: small_beer
+    name: "Skin of small beer"
+    description: >-
+      Weak enough for children and safer than the well since the well started
+      tasting of iron.
+    tags: [food]
+    weight: 1.8
+    value: 3
+    stack: true
+
+  - id: honeycomb
+    name: "Cut honeycomb"
+    description: >-
+      A hand's width of comb, still warm from the skep. Half of it is wax and
+      the tinkers want the wax.
+    tags: [food, material]
+    weight: 0.4
+    value: 7
+    stack: true
+
+  - id: oat_porridge
+    name: "Bowl of oat porridge"
+    description: >-
+      Grey, thick, and eaten standing up. What Well Row eats on the mornings
+      it does not eat bread.
+    tags: [food]
+    weight: 0.5
+    value: 1
+    stack: true

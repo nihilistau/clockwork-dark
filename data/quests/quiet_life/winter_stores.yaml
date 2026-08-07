@@ -1,0 +1,102 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# The closing beat of the arc. Deliberately the longest and least dramatic
+# quest in the folder: the reward for a season of domestic work is a season of
+# not being hungry, which in a game with a hunger clock is a real reward.
+
+id: winter_stores
+arc: quiet_life
+name: "Enough Put By"
+summary: >-
+  Edgewood does not starve in winter. Edgewood spends autumn making sure of it,
+  every year, without being asked.
+
+preconditions:
+  all:
+    - min_day: 10
+    - any:
+        - quest_completed: bakery_apprentice
+        - quest_completed: neighbours_roof
+        - quest_completed: lost_goat
+
+start_text: >-
+  The communal store is opened and counted in public, which is how Edgewood
+  keeps everyone honest about how little there is.
+
+stages:
+  - id: count_it
+    objective: "Help count what the village has put by."
+    narrative_flags:
+      - nf_stores_counted
+    complete_when:
+      all:
+        - at_location: edgewood_square
+        - flag: nf_stores_counted
+    complete_text: >-
+      Short. Not frightening-short. The kind of short that a good month fixes
+      and a bad one does not.
+
+  - id: forage
+    objective: "Put by what the margin will still give: mushrooms, sloes, late roots."
+    expires_after_days: 8
+    complete_when:
+      any:
+        - has_item: { id: wild_mushroom, qty: 4 }
+        - all:
+            - visited: forest_clearing
+            - days_in_stage: 4
+    complete_text: >-
+      Four days of stooping. Your back keeps the receipt.
+    on_complete:
+      effects:
+        - type: stamina
+          delta: -20
+        - type: item
+          item_id: wild_mushroom
+          name: "Wild mushroom"
+          qty: 3
+          tags: [food]
+    fail_text: >-
+      The season closes. What is in the store is what there is.
+    on_fail:
+      effects:
+        - type: reputation
+          faction: edgewood
+          delta: -3
+
+  - id: hand_it_over
+    objective: "Put your share into the common store rather than your own pack."
+    narrative_flags:
+      - nf_stores_shared
+    complete_when:
+      all:
+        - at_location: edgewood_square
+        - flag: nf_stores_shared
+    complete_text: >-
+      Nobody makes a speech about it. Somebody writes your name in a book with a
+      very short pencil.
+    on_complete:
+      effects:
+        - type: remove_item
+          item_id: wild_mushroom
+          qty: 3
+
+on_complete:
+  effects:
+    - type: reputation
+      faction: edgewood
+      delta: 12
+    - type: item
+      item_id: winter_ration
+      name: "Winter ration"
+      qty: 3
+      tags: [food]
+    - type: flag
+      flag: quest_winter_stores_done
+    - type: ledger_fact
+      text: "Your name is in the winter store book. Edgewood will feed you."
+      kind: event
+
+complete_text: >-
+  You will not be hungry this winter, and neither will anyone who put their name
+  in the book beside yours. That is the whole of it. It is enough.

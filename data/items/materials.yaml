@@ -1,0 +1,149 @@
+# Raw materials -- what the recipes in data/recipes/ consume.
+#
+# Everything here is either forageable at a location tagged `forage`
+# (herb_glen, deeper_forest) or bought. Nothing here is magic; herbs are
+# medicine, resin is glue, and clay is clay.
+#
+# Field reference: see data/items/food.yaml.
+#
+# Version: v0.1.0 [2026-08-07]
+
+version: 1
+
+items:
+
+  - id: herbs
+    name: "Bundle of herbs"
+    description: >-
+      Mixed green cuttings tied at the stem. Useful, unspecific, and the thing
+      every herbalist actually carries.
+    tags: [material]
+    weight: 0.2
+    value: 4
+    art: herbs
+    stack: true
+
+  - id: feverfew
+    name: "Feverfew"
+    description: >-
+      Small white daisies with a bitter leaf. Chewed for headache and for
+      whatever the headache is a sign of.
+    tags: [material]
+    weight: 0.1
+    value: 3
+    art: herbs
+    stack: true
+
+  - id: yarrow_bundle
+    name: "Yarrow"
+    description: >-
+      Feathered leaves, cut in flower. Packed into a wound it slows the
+      bleeding; that is not folklore, it simply works.
+    tags: [material]
+    weight: 0.1
+    value: 4
+    art: herbs
+    stack: true
+
+  - id: bittercress
+    name: "Bittercress"
+    description: >-
+      Comes up in the glen thicker than it should, all year, in a bowl that
+      somebody weeded once and nobody weeds now.
+    tags: [material]
+    weight: 0.1
+    value: 3
+    art: herbs
+    stack: true
+
+  - id: birch_resin
+    name: "Birch resin"
+    description: >-
+      Amber sap scraped from a scored trunk. Glue when it is warm, varnish
+      when it is thin, and firelighter when it is neither.
+    tags: [material]
+    weight: 0.2
+    value: 5
+    stack: true
+
+  - id: river_clay
+    name: "River clay"
+    description: >-
+      Grey and heavy off the bank below the burn. Seals an oven mouth, patches
+      a wall, and takes a fingerprint for as long as anybody wants it to.
+    tags: [material]
+    weight: 2.0
+    value: 1
+    stack: true
+
+  - id: charcoal_sack
+    name: "Sack of charcoal"
+    description: >-
+      Light for its size and black to the touch. The burn produces it, the
+      forge eats it, and neither has ever agreed on a price.
+    tags: [material, trade]
+    weight: 4.0
+    value: 9
+    stack: true
+
+  - id: iron_stock
+    name: "Bar of iron stock"
+    description: >-
+      Rough forge stock, a forearm long. What a knife, a hinge or a bent nail
+      is before somebody decides which.
+    tags: [material, trade]
+    weight: 2.5
+    value: 20
+    stack: true
+
+  - id: barley_flour
+    name: "Sack of barley flour"
+    description: >-
+      Coarse, grey, and counted against what is left in the sack every
+      afternoon. Maris does the arithmetic aloud and gets it wrong twice.
+    tags: [material, trade]
+    weight: 5.0
+    value: 12
+    stack: true
+
+  - id: linen_cloth
+    name: "Bolt of linen"
+    description: >-
+      Undyed, hand's width, wound on a stick. Bandages, sails, shrouds and
+      shirts all start here.
+    tags: [material, trade]
+    weight: 1.0
+    value: 15
+    stack: true
+
+  - id: beeswax
+    name: "Block of beeswax"
+    description: >-
+      Strained, cast and stamped. Candles, seals, waterproofing, and the wax
+      a sympathy charm is closed with.
+    tags: [material, trade]
+    weight: 0.5
+    value: 8
+    stack: true
+
+  - id: bandage
+    name: "Poultice bandage"
+    description: >-
+      Boiled linen with a yarrow paste worked into it, rolled and tied. Made
+      before it is needed, because it is never made after.
+    tags: [material]
+    weight: 0.2
+    value: 6
+    art: bandage
+    stack: true
+
+  - id: potion
+    name: "Draught of bittergreen"
+    description: >-
+      A stoppered vial of something green and unpleasant that brings a fever
+      down. It does not heal anything; it buys the body a night.
+    tags: [material]
+    weight: 0.3
+    value: 22
+    art: potion
+    stack: true

@@ -1,0 +1,110 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# The first quest most players will meet, and the one that proves the thesis:
+# a whole arc of work with real stakes, none of them world-ending.
+#
+# Gated on `procgen.bakery_job_day`, which seeded world generation has produced
+# on every single run since PR7 and which nothing has ever read. The day Maris
+# starts looking for hands now varies with the world seed, as it was always
+# meant to.
+
+id: bakery_apprentice
+arc: quiet_life
+name: "Flour on Your Sleeves"
+summary: >-
+  Maris Hearth is short a pair of hands before the frost, and she is not the
+  sort to say so twice.
+
+preconditions:
+  all:
+    - procgen_day: bakery_job_day
+
+start_text: >-
+  There is a hand-lettered board propped against the bakery door. It has been
+  there long enough for the rain to soften the corners.
+
+stages:
+  - id: ask_for_work
+    objective: "Ask Maris at the bakery whether she needs hands."
+    narrative_flags:
+      - nf_bakery_asked_for_work
+    complete_when:
+      all:
+        - at_location: edgewood_bakery
+        - flag: nf_bakery_asked_for_work
+    complete_text: >-
+      She looks at your hands rather than your face, and decides something.
+    on_complete:
+      effects:
+        - type: ledger_fact
+          text: "Maris Hearth took you on at the bakery, on trial."
+          subject_id: npc_maris
+          kind: event
+
+  - id: first_firing
+    objective: "Be at the bakery before dawn to bank the oven for the first firing."
+    # Engine-evaluable to the letter: standing in the right room at the right
+    # hour. The model cannot argue the player was there in spirit.
+    complete_when:
+      all:
+        - at_location: edgewood_bakery
+        - hour_between: [4, 7]
+    complete_text: >-
+      The oven takes a long hour to come up. You learn what she means by "warm".
+    on_complete:
+      effects:
+        - type: stamina
+          delta: -12
+        - type: craft
+          delta: 1
+
+  - id: paid_week
+    objective: "Work out the week. Maris pays on the seventh day, not before."
+    expires_after_days: 9
+    fail_when:
+      any:
+        # Walking to Millhaven mid-apprenticeship is a choice, and it costs the
+        # job. Not a punishment -- a consequence with a bakery-sized shape.
+        - visited: millhaven_gate
+    fail_text: >-
+      The board is gone from the door when you come back. So is the work.
+    complete_when:
+      all:
+        - days_in_stage: 7
+        - at_location: edgewood_bakery
+    complete_text: >-
+      She counts the coins out twice, which is how you know she means them.
+    on_complete:
+      effects:
+        - type: gold
+          delta: 6
+        - type: item
+          item_id: loaf
+          name: "Loaf of bread"
+          qty: 2
+          tags: [food]
+    on_fail:
+      effects:
+        - type: reputation
+          faction: edgewood
+          delta: -3
+        - type: ledger_fact
+          text: "You left the bakery mid-week. Maris gave the work to someone else."
+          subject_id: npc_maris
+          kind: event
+
+on_complete:
+  effects:
+    - type: flag
+      flag: quest_bakery_apprentice_done
+    - type: reputation
+      faction: edgewood
+      delta: 8
+    - type: ledger_fact
+      text: "You are the baker's hands now. Edgewood has noticed."
+      subject_id: npc_maris
+      kind: event
+
+complete_text: >-
+  You have a place in the mornings. It is not nothing; in Edgewood it is nearly
+  everything.

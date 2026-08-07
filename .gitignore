@@ -1,0 +1,51 @@
+# ---------------------------------------------------------------------------
+# Secrets — never commit
+# ---------------------------------------------------------------------------
+lmstudio.txt
+*.token
+*.key
+.env
+.env.*
+config/local.yaml
+config/secrets.yaml
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ---------------------------------------------------------------------------
+# Node — the UI toolchain. `ui/dist` is NOT ignored: the build output is
+# committed on purpose so the game plays with only Python installed.
+# ---------------------------------------------------------------------------
+ui/node_modules/
+npm-debug.log*
+
+# ---------------------------------------------------------------------------
+# Runtime data
+# ---------------------------------------------------------------------------
+data/saves/
+data/cache/
+data/telemetry/
+data/lore/lore.db
+
+# Generated media. Session output is disposable; the curated pack that ships
+# with the game lives in content/scenes/clockwork/static/art/ and IS committed.
+data/media/
+
+# ---------------------------------------------------------------------------
+# Editors / OS
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store

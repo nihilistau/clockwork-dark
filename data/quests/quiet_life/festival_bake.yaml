@@ -1,0 +1,99 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# The seeded festival (procgen.festival) was generated and never used by
+# anything. This is the content that finally hangs a week of work off it.
+
+id: festival_bake
+arc: quiet_life
+name: "The Festival Bake"
+summary: >-
+  Edgewood's festival wants a hundred small cakes and a communal oven that has
+  never once produced a hundred of anything at the same temperature.
+
+preconditions:
+  all:
+    - quest_completed: bakery_apprentice
+    - min_day: 8
+
+start_text: >-
+  Maris does the arithmetic aloud twice and gets a different number each time.
+  "Hundred," she says. "Give or take a hundred."
+
+stages:
+  - id: agree_to_help
+    objective: "Tell Maris you will take the festival bake with her."
+    narrative_flags:
+      - nf_festival_agreed
+    complete_when:
+      all:
+        - at_location: edgewood_bakery
+        - flag: nf_festival_agreed
+    complete_text: >-
+      "Right," she says, and starts moving flour like the conversation is over.
+
+  - id: gather_honey
+    objective: "Find honey for the cakes. The square trades for it; the forest gives it up harder."
+    expires_after_days: 5
+    complete_when:
+      any:
+        - has_item: { id: festival_honey, qty: 1 }
+        - all:
+            - at_location: edgewood_square
+            - min_gold: 4
+    complete_text: >-
+      Sweetness enough. It costs more than it should, this late in the season.
+    on_complete:
+      effects:
+        - type: gold
+          delta: -4
+        - type: item
+          item_id: festival_honey
+          name: "Crock of late honey"
+          tags: [food, festival]
+    fail_text: >-
+      The cakes go out plain. Nobody says anything, which is worse.
+    on_fail:
+      effects:
+        - type: reputation
+          faction: edgewood
+          delta: -2
+
+  - id: the_long_night
+    objective: "Hold the oven through the night before the festival. Do not let it drop."
+    complete_when:
+      all:
+        - at_location: edgewood_bakery
+        - hour_between: [22, 4]
+        - days_in_stage: 1
+    complete_text: >-
+      By the small hours the room is all heat and flour dust and Maris humming
+      something with no words in it.
+    on_complete:
+      effects:
+        - type: stamina
+          delta: -25
+        - type: hunger
+          delta: 10
+
+on_complete:
+  effects:
+    - type: gold
+      delta: 12
+    - type: item
+      item_id: festival_cake
+      name: "Festival cake"
+      qty: 2
+      tags: [food, festival]
+    - type: reputation
+      faction: edgewood
+      delta: 10
+    - type: flag
+      flag: quest_festival_bake_done
+    - type: ledger_fact
+      text: "You baked the festival cakes with Maris. The whole village ate them."
+      subject_id: npc_maris
+      kind: event
+
+complete_text: >-
+  A hundred cakes, give or take a hundred. Children eat them without knowing
+  what the night cost.

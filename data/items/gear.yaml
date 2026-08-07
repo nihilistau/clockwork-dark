@@ -1,0 +1,127 @@
+# Light sources and things worn.
+#
+# There is no armour class in this game (DESIGN.md: no MMO combat spam), so a
+# shield is a tool for putting between yourself and a problem, priced like the
+# board and iron it is made of. Apparel is weather, not defence -- the survival
+# model in engine/game/survival.py is what these are for.
+#
+# Field reference: see data/items/food.yaml.
+#
+# Version: v0.1.0 [2026-08-07]
+
+version: 1
+
+items:
+
+  - id: candle
+    name: "Tallow candle"
+    description: >-
+      Rendered fat around a rush wick. Burns for four hours, smells of the
+      animal, and gutters in any draught worth the name.
+    tags: [light]
+    weight: 0.1
+    value: 1
+    art: candle
+    stack: true
+
+  - id: tallow_lamp
+    name: "Clay lamp"
+    description: >-
+      A pinched clay saucer with a floating wick. Cheap, ugly, and the only
+      light in half the houses on Well Row.
+    tags: [light]
+    weight: 0.4
+    value: 3
+    stack: true
+
+  - id: pitch_torch
+    name: "Pitch torch"
+    description: >-
+      Birch resin and tow on a hazel stave. Bright, brief, and visible from
+      the treeline, which cuts both ways.
+    tags: [light]
+    weight: 0.6
+    value: 2
+    stack: true
+
+  - id: tinderbox
+    name: "Tinderbox"
+    description: >-
+      Flint, steel and charred linen in a tin. The difference between a cold
+      night and a bad one.
+    tags: [light, tool]
+    weight: 0.3
+    value: 7
+    stack: false
+
+  - id: wool_cloak
+    name: "Wool cloak"
+    description: >-
+      Undyed, greasy with its own lanolin, and warm even wet. The single most
+      useful thing anyone on this road owns.
+    tags: [apparel]
+    weight: 2.0
+    value: 30
+    stack: false
+
+  - id: oiled_hood
+    name: "Oiled hood"
+    description: >-
+      Linen boiled in linseed until it stands up on its own. Sheds the wrong
+      rain as well as the right sort, so far.
+    tags: [apparel]
+    weight: 0.5
+    value: 12
+    stack: false
+
+  - id: hobnail_boots
+    name: "Hobnailed boots"
+    description: >-
+      Iron studs in a hide sole. They ring on the Millhaven metalling, which
+      is how the watch counts people in the dark.
+    tags: [apparel]
+    weight: 1.4
+    value: 45
+    stack: false
+
+  - id: leather_apron
+    name: "Leather apron"
+    description: >-
+      Scarred by sparks at the forge or scorched by the oven mouth, depending
+      whose it was. Everyone who has one earned it.
+    tags: [apparel, tool]
+    weight: 1.2
+    value: 16
+    stack: false
+
+  - id: wooden_shield
+    name: "Board shield"
+    description: >-
+      Limewood planks, a hide facing and an iron boss. Heavy, and better at
+      stopping an argument than winning one.
+    tags: [apparel, tool]
+    weight: 3.5
+    value: 35
+    art: wooden_shield
+    stack: false
+
+  - id: small_shield
+    name: "Buckler"
+    description: >-
+      A fist-sized iron disc on a strap. Militia issue at Millhaven, which
+      means it turns up in the ditch camp too.
+    tags: [apparel, tool, trade]
+    weight: 1.1
+    value: 22
+    art: small_shield
+    stack: false
+
+  - id: travel_pack
+    name: "Travelling pack"
+    description: >-
+      Waxed canvas over an ash frame, with the straps repaired twice by
+      different hands.
+    tags: [apparel, tool]
+    weight: 1.0
+    value: 20
+    stack: false

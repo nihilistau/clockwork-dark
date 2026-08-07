@@ -1,0 +1,104 @@
+# Herbalism and preserving.
+#
+# Medicine, not magic. Yarrow packed into a wound slows the bleeding because
+# yarrow slows bleeding; nothing in this file is gated on sympathy, and the
+# one recipe here that touches the costly art is in mending.yaml where it can
+# be read next to its price.
+#
+# Schema reference and the "data only, no craft_item skill yet" note: see
+# data/recipes/baking.yaml.
+#
+# Version: v0.1.0 [2026-08-07]
+
+version: 1
+category: herbalism
+
+recipes:
+
+  - id: dry_mushrooms
+    name: "Dry mushrooms over the hearth"
+    category: herbalism
+    skill: survival
+    band: trivial
+    hours: 6
+    inputs:
+      - { id: wild_mushroom, qty: 5 }
+    output: { id: dried_mushrooms, qty: 1 }
+    success_text: >-
+      Threaded on gut and hung until they rattle. Four times the fresh price
+      and they keep until spring.
+    failure_text: >-
+      Hung too close. Half of them cooked instead of drying and went black at
+      the gill.
+    salvage: { id: wild_mushroom, qty: 2 }
+
+  - id: bind_yarrow_bandage
+    name: "Bind yarrow bandages"
+    category: herbalism
+    skill: craft
+    band: easy
+    hours: 2
+    tools: [mortar_and_pestle]
+    inputs:
+      - { id: yarrow_bundle, qty: 1 }
+      - { id: linen_cloth, qty: 1 }
+    output: { id: bandage, qty: 3 }
+    success_text: >-
+      Boiled, pasted, rolled and tied. Made before they are needed, because
+      they are never made after.
+    failure_text: >-
+      The paste went on too wet and soured in the roll. Fit for cleaning a
+      hearth and nothing else.
+
+  - id: brew_bittergreen
+    name: "Brew a draught of bittergreen"
+    category: herbalism
+    skill: craft
+    band: hard
+    hours: 4
+    tools: [mortar_and_pestle]
+    inputs:
+      - { id: bittercress, qty: 2 }
+      - { id: feverfew, qty: 1 }
+      - { id: herbs, qty: 1 }
+    output: { id: potion, qty: 1 }
+    success_text: >-
+      Green, stoppered, and unpleasant enough that nobody takes it twice for
+      fun. It does not heal anything. It buys the body a night.
+    failure_text: >-
+      Boiled past the turn. What is in the pot now would take a fever down by
+      taking the patient with it. Poured out.
+
+  - id: dip_candles
+    name: "Dip a run of candles"
+    category: herbalism
+    skill: craft
+    band: easy
+    hours: 2
+    inputs:
+      - { id: tallow_block, qty: 1 }
+      - { id: linen_cloth, qty: 1 }
+    output: { id: candle, qty: 8 }
+    success_text: >-
+      Eight on the rack, even down the taper, and the smell of the animal in
+      the wool for two days.
+    failure_text: >-
+      The tallow was too hot and stripped as much as it laid on. Four thin
+      ones and a mess on the flags.
+    salvage: { id: candle, qty: 4 }
+
+  - id: press_pitch_torches
+    name: "Bind pitch torches"
+    category: herbalism
+    skill: survival
+    band: easy
+    hours: 1
+    inputs:
+      - { id: birch_resin, qty: 2 }
+    output: { id: pitch_torch, qty: 3 }
+    success_text: >-
+      Resin and tow worked onto hazel staves. Bright, brief, and visible from
+      the treeline, which cuts both ways.
+    failure_text: >-
+      The resin had gone hard in the cold and would not take the tow. Three
+      sticks and sticky hands.

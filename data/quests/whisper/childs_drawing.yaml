@@ -1,0 +1,90 @@
+# Version: v0.1.0 [2026-08-07]
+
+id: childs_drawing
+arc: whisper
+name: "What Nessa Draws"
+summary: >-
+  The Weller girl draws the same thing every day now. She has never been more
+  than four miles from this village.
+
+preconditions:
+  all:
+    - min_awareness: 16
+    - visited: edgewood_square
+
+start_text: >-
+  Charcoal on the back of a flour sack. Concentric. Toothed. Drawn with the
+  patience of somebody copying rather than inventing.
+
+stages:
+  - id: see_it
+    objective: "Get a proper look at what the Weller girl has been drawing."
+    narrative_flags:
+      - nf_drawing_seen
+    complete_when:
+      all:
+        - at_location: [edgewood_square, edgewood_bakery]
+        - flag: nf_drawing_seen
+    complete_text: >-
+      Gears. Correctly meshed. She is six and she has the tooth-counts right.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 7
+
+  - id: ask_her
+    objective: "Ask Nessa where she saw it. Do not tell her it is wrong."
+    narrative_flags:
+      - nf_drawing_asked
+    expires_after_days: 5
+    complete_when:
+      all:
+        - flag: nf_drawing_asked
+    complete_text: >-
+      "In the wheat," she says, bored of the question. "It's in the wheat, it's
+      always been in the wheat, can I have the charcoal back."
+    fail_text: >-
+      Her mother burns the sacks. Nessa draws horses after that, badly, on
+      purpose.
+    on_fail:
+      effects:
+        - type: awareness
+          delta: 3
+        - type: ledger_fact
+          text: "Nessa Weller stopped drawing gears. Somebody made her stop."
+          kind: event
+
+  - id: keep_one
+    objective: "Keep one of the drawings, or leave them all with her."
+    narrative_flags:
+      - nf_drawing_kept
+    complete_when:
+      any:
+        - flag: nf_drawing_kept
+        - days_in_stage: 3
+    complete_text: >-
+      Folded small. It does not stop being correct while folded.
+    on_complete:
+      effects:
+        - type: item
+          item_id: nessas_drawing
+          name: "Nessa's drawing"
+          qty: 1
+          tags: [document, unsettling]
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 5
+    - type: reputation
+      faction: edgewood
+      delta: -2
+    - type: flag
+      flag: quest_childs_drawing_done
+    - type: ledger_fact
+      text: "A six-year-old in Edgewood draws correctly-meshed gears from memory."
+      kind: secret
+
+complete_text: >-
+  Edgewood is not grateful to you for taking this seriously. Edgewood would
+  quite like you to stop.

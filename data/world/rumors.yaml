@@ -1,0 +1,373 @@
+# Awareness-gated rumours.
+#
+# DESIGN.md ("Awareness System") specifies rumour QUALITY as an awareness gate:
+# low Awareness -> vague unease; high -> names, places, dates. The old flat list
+# in data/world/schedules.yaml had no gating at all, so a player who had noticed
+# nothing could be handed the pattern on turn one -- and a player who had worked
+# for it heard the same seven lines.
+#
+# Awareness is a hidden stat. This file is where it becomes legible, and the
+# only place the player ever gets to feel it move.
+#
+#   tier 1  min_awareness  0   unease with no subject; nothing is named
+#   tier 2  min_awareness 20   names people and places
+#   tier 3  min_awareness 45   names dates, the pattern, the specifics
+#
+# Optional keys:
+#   requires_phase  list of evil_phase values; the rumour cannot exist yet
+#                   otherwise (nobody counts a pattern that has not happened)
+#   source_npc      who tends to be telling it. A preference, not a filter --
+#                   if nothing matches, the whole eligible pool is used, so a
+#                   speaker can never be struck mute by over-tight data.
+
+version: 1
+
+fallback: "The village mutters, but nothing clear reaches you."
+
+# Higher tiers are preferred once unlocked, or a high-awareness player would
+# keep drawing the same first-day unease out of the larger tier-1 pool.
+tier_weights:
+  1: 1.0
+  2: 3.0
+  3: 6.0
+
+rumors:
+
+  # -- tier 1: unease, nothing named -------------------------------------
+
+  - id: rain_wrong
+    tier: 1
+    min_awareness: 0
+    source_npc: npc_odran
+    text: "The rain came down wrong over Millhaven, and the wheat took it badly."
+
+  - id: dogs_quiet
+    tier: 1
+    min_awareness: 0
+    text: "Dogs in the lower row have stopped barking at night. Nobody agrees whether that is a mercy."
+
+  - id: milk_soured
+    tier: 1
+    min_awareness: 0
+    text: "Somebody's milk soured in the pail before it ever left the goat."
+
+  - id: knife_vinegar
+    tier: 1
+    min_awareness: 0
+    text: "There is a smell off the east fields after dark, like a knife left standing in vinegar."
+
+  - id: counting_game
+    tier: 1
+    min_awareness: 0
+    text: "The children have a new counting game, and not one mother will admit to teaching it."
+
+  - id: short_road
+    tier: 1
+    min_awareness: 0
+    source_npc: npc_odran
+    text: "A carter came in swearing the road was shorter than it had any business being."
+
+  - id: iron_well
+    tier: 1
+    min_awareness: 0
+    text: "The well tastes of iron this month. It never used to, and nothing has been dropped in it."
+
+  - id: empty_nest
+    tier: 1
+    min_awareness: 0
+    text: "Someone heard ticking in the rafters and found nothing up there but a wasp nest, long abandoned."
+
+  - id: two_candles
+    tier: 1
+    min_awareness: 0
+    text: "The old women at the shrine are lighting two candles where they used to light one."
+
+  # -- tier 1, P9 expansion. Twenty-six rumours meant a player who talked to
+  # three people in a day heard the pool out. Same schema, same gates.
+
+  - id: even_rain
+    tier: 1
+    min_awareness: 0
+    text: "It rained even. Not hard, not soft — even, the whole afternoon, and nobody can say why that sits wrong."
+
+  - id: horse_wont
+    tier: 1
+    min_awareness: 0
+    source_npc: npc_odran
+    text: "A horse balked at the last stretch before dusk and would not be argued with. The carter did not argue."
+
+  - id: cat_moved_house
+    tier: 1
+    min_awareness: 0
+    text: "That cat has changed houses twice this season. Both houses have since had reasons."
+
+  - id: frost_same_hour
+    tier: 1
+    min_awareness: 0
+    text: "Frost came at the same hour three mornings running. A farmer will tell you that never happens and then change the subject."
+
+  - id: rope_third_turn
+    tier: 1
+    min_awareness: 0
+    text: "The well rope wore through at the third turn, and the turn before it, and the one before that. All at the third."
+
+  - id: quiet_burner
+    tier: 1
+    min_awareness: 0
+    text: "One of the charcoal burners came down early and would not say why, and would not take payment for the short load."
+
+  - id: bread_bottom
+    tier: 1
+    min_awareness: 0
+    source_npc: npc_maris
+    text: "Somebody's bottom crust came out wrong in the right oven at the right heat, and the baker has not stopped thinking about it."
+
+  - id: same_minute
+    tier: 1
+    min_awareness: 0
+    text: "A household on the lower row has started rising at the same minute. All four of them. Nobody set a bell."
+
+  - id: goat_bell_silent
+    tier: 1
+    min_awareness: 0
+    text: "A goat went missing and was found somewhere it could not have got to, with the bell still on it and the clapper still in the bell."
+
+  - id: pigment_dry
+    tier: 1
+    min_awareness: 0
+    text: "There is dried paint on a tray at the shrine that has been dried for sixty years, and somebody has started dusting it."
+
+  - id: tinkers_short
+    tier: 1
+    min_awareness: 0
+    source_npc: npc_ilya
+    text: "The wagons are running shorter routes this year. Not fewer. Shorter, and always in the same direction."
+
+  - id: gate_earlier
+    tier: 1
+    min_awareness: 0
+    text: "The Millhaven gate is closing earlier than it did last month, and earlier than that the month before. Nobody remembers the order."
+
+  # -- tier 2: names people and places ------------------------------------
+
+  - id: bell_bread
+    tier: 2
+    min_awareness: 20
+    source_npc: npc_maris
+    text: "Maris burned a batch that rang like a struck bell when it cracked. She put the whole tray in the midden and would not discuss it."
+
+  - id: long_hour
+    tier: 2
+    min_awareness: 20
+    source_npc: npc_odran
+    text: "Odran swears the Millhaven road took an extra hour, though the sun said otherwise the whole way."
+
+  - id: clock_parts
+    tier: 2
+    min_awareness: 20
+    source_npc: npc_ilya
+    text: "Ilya of the Nine Pins is buying old clock parts at twice their weight in copper and will not say who for."
+
+  - id: brass_lamb
+    tier: 2
+    min_awareness: 20
+    text: "A stillborn lamb turned up in the Fallow east pen with brass filings where its teeth should have been."
+
+  - id: fresh_nails
+    tier: 2
+    min_awareness: 20
+    source_npc: npc_sera
+    text: "Sergeant Venn has had fresh nails put in the recruitment board at Millhaven Gate. Somebody up there expects volunteers."
+
+  - id: straight_rows
+    tier: 2
+    min_awareness: 20
+    text: "The wheat on the Millhaven side of the border stands in rows too straight for any wind to have made."
+
+  - id: streets_that_arent
+    tier: 2
+    min_awareness: 20
+    text: "The tanner's boy walked to Millhaven and came back naming streets that are not there. He named four of them."
+
+  - id: gears_in_dirt
+    tier: 2
+    min_awareness: 20
+    text: "Children in Edgewood square drew gears in the dirt. By morning the drawings were gone and the dirt was smooth."
+
+  - id: uncalled_step
+    tier: 2
+    min_awareness: 20
+    requires_phase: [stirring, spreading, consuming]
+    source_npc: npc_sera
+    text: "Half the Millhaven watch came off the wall marching in a step nobody had called."
+
+  # -- tier 2, P9 expansion ------------------------------------------------
+
+  - id: hallam_refuses
+    tier: 2
+    min_awareness: 20
+    text: "Hallam at the forge has stopped taking clock work. In a village with one clock that is not a policy, it is a decision."
+
+  - id: brass_sweepings
+    tier: 2
+    min_awareness: 20
+    text: "There is brass in the forge sweepings and Hallam has not worked brass in a year. He keeps it in a tin rather than throwing it out."
+
+  - id: fallow_strip
+    tier: 2
+    min_awareness: 20
+    text: "The Fallows have stopped inviting people out to the east strips, and they have not stopped farming them."
+
+  - id: maris_east_grain
+    tier: 2
+    min_awareness: 20
+    source_npc: npc_maris
+    text: "Maris has bought no grain off the east strips since midsummer and will give you three different reasons if you ask three times."
+
+  - id: ditch_camp
+    tier: 2
+    min_awareness: 20
+    source_npc: npc_sera
+    text: "There are forty people in the drainage ditch outside Millhaven's wall because the wall is shut and the road inward is worse."
+
+  - id: toll_clerk_writes
+    tier: 2
+    min_awareness: 20
+    source_npc: npc_odran
+    text: "The clerk at the toll bridge takes four copper and your name, your trade, your origin and your party. The four copper is the cheap part."
+
+  - id: grain_price_flat
+    tier: 2
+    min_awareness: 20
+    text: "Grain has not moved a copper in Millhaven market since spring. Roads shut, refugees at the wall, and the price sits still."
+
+  - id: odran_letters
+    tier: 2
+    min_awareness: 20
+    source_npc: npc_odran
+    text: "Odran has a stack of letters from his brother that he has stopped opening and has not stopped keeping."
+
+  - id: burned_sills
+    tier: 2
+    min_awareness: 20
+    text: "Two hours off the toll road there is a farmstead with its sills standing and its roof gone. The fire took the house and left the byre, which is backwards."
+
+  - id: venn_quiet
+    tier: 2
+    min_awareness: 20
+    source_npc: npc_sera
+    text: "Sergeant Venn is filling the levy from the villages that will notice least. She chose that over three worse ideas and she knows exactly what it is."
+
+  - id: nessa_wheel
+    tier: 2
+    min_awareness: 20
+    text: "The Fallow girl drew a toothed wheel on a flour wrapper, counted out exactly right, and she has never seen one."
+
+  - id: barrow_steps
+    tier: 2
+    min_awareness: 20
+    requires_phase: [stirring, spreading, consuming]
+    text: "The ones who have gone into the barrow mouth all agree the count of the steps is different on the way out. They do not agree which way."
+
+  # -- tier 3: dates, the pattern, the specifics ---------------------------
+
+  - id: nine_day_ring
+    tier: 3
+    min_awareness: 45
+    text: "It started on the ninth of the wheat month, and it has taken exactly nine days to cross each ring since. Count it yourself. It does not vary."
+
+  - id: things_that_keep_time
+    tier: 3
+    min_awareness: 45
+    text: "Every household it has taken had one thing in common: something in it kept time. A clock, a loom, a mill wheel. Break your clock."
+
+  - id: perfect_tally
+    tier: 3
+    min_awareness: 45
+    text: "Millhaven's grain tally has come out perfect four quarters running. Not close. Perfect. No harvest is perfect."
+
+  - id: same_day_letters
+    tier: 3
+    min_awareness: 45
+    source_npc: npc_odran
+    text: "Odran's brother drove the Heartlands run in spring. He writes now, in a hand that never varies, and every letter arrives on the same day of the week."
+
+  - id: the_painter
+    tier: 3
+    min_awareness: 45
+    text: "The saints on the shrine wall have no faces because the mural was stopped, not lost. The painter is under the barrow, and the last thing she put on that wall was a road coming in."
+
+  - id: ninth_pin
+    tier: 3
+    min_awareness: 45
+    source_npc: npc_ilya
+    text: "Ilya sells ward pins nine to a card because nine is the count that holds. Ask her for a tenth and watch what the price does."
+
+  - id: orders_predated
+    tier: 3
+    min_awareness: 45
+    requires_phase: [spreading, consuming]
+    source_npc: npc_sera
+    text: "Sera Venn is holding orders dated before the corruption ever reached Millhaven, telling her exactly where to stand when it did."
+
+  - id: runs_on_time
+    tier: 3
+    min_awareness: 45
+    requires_phase: [spreading, consuming]
+    text: "Whatever is in the wound does not want worship and has no use for the dead. It wants the world to run on time. It gains a little every day nobody stops it."
+
+  # -- tier 3, P9 expansion ------------------------------------------------
+
+  - id: clock_still_ticks
+    tier: 3
+    min_awareness: 45
+    text: "The village clock broke the winter before last and it still ticks, at an interval that has not varied since it broke. Nobody has proposed taking it down. Nobody has noticed that nobody has proposed it."
+
+  - id: nine_panels
+    tier: 3
+    min_awareness: 45
+    text: "There are nine panels on the shrine wall and the ninth is the unfinished one. Read left to right it is not devotional art. It is a method, written down step by step."
+
+  - id: painter_expected
+    tier: 3
+    min_awareness: 45
+    text: "The painter worked eleven months and set the brush down mid-stroke on a road coming in. She was not interrupted. She stopped, and she was buried in the ninth mound, and no village buries a painter in a barrow."
+
+  - id: barrow_swept
+    tier: 3
+    min_awareness: 45
+    text: "Barrows that age are stuffed with pots and iron and a horse. That one is swept clean and built to a standard nobody here could match. It is not a grave. It is a seal."
+
+  - id: enamel_teeth
+    tier: 3
+    min_awareness: 45
+    text: "The brass in the lamb was not in the gum. It was in the tooth, in the position of enamel, correctly shaped. Somebody made a tooth out of brass, inside a ewe, at term."
+
+  - id: rings_plotted
+    tier: 3
+    min_awareness: 45
+    source_npc: npc_ilya
+    text: "Plot the routes the wagons no longer run and it is a ring. The tinkers have known for a season and have told nobody, because nobody asked in the correct way."
+
+  - id: variance_lost
+    tier: 3
+    min_awareness: 45
+    requires_phase: [spreading, consuming]
+    text: "Its first act in a district is always the same: a natural thing losing its noise. Even rain. One wind for nine days. It is testing whether the district can be made regular."
+
+  - id: streets_drawn
+    tier: 3
+    min_awareness: 45
+    text: "Three people have now described the same four Millhaven streets that do not exist, in the same order, without having met. One of them can draw them."
+
+  - id: nothing_wrong_inward
+    tier: 3
+    min_awareness: 45
+    requires_phase: [spreading, consuming]
+    text: "The refugees agree on one place above all others: a district where nothing is wrong at all. The mills turn, the fields yield, everyone is polite, and none of them can stop keeping the schedule."
+
+  - id: namer_paid
+    tier: 3
+    min_awareness: 45
+    requires_phase: [spreading, consuming]
+    text: "Every account of a true naming ends the same way. The namer paid. Sometimes with their life, and sometimes with their own name, and the second is worse to watch."

@@ -1,0 +1,107 @@
+# Encounter Rules
+# ===============
+#
+# Every number the encounter system uses. Consumed by engine/game/encounter.py.
+#
+# THE GAP THIS TABLE CLOSES: `danger_dc` has sat on every edge in
+# engine/game/locations.py since the graph was written and nothing has ever
+# read it. Travel was a stamina cost and a clock advance. The road to Millhaven
+# was exactly as safe at midnight during `consuming` as at noon on day one.
+#
+# There is no initiative, no armour class and no turn loop here on purpose. A
+# conflict is a SCENE: one to three contested checks, then it is over. See the
+# module header of engine/game/encounter.py.
+
+version: 1
+
+# ------------------------------------------------------------
+# How often the road bites.
+# ------------------------------------------------------------
+#
+# chance = (base + per_danger_dc * danger_dc)
+#          * time_of_day[now]
+#          + evil_progress_bonus * evil_progress   (evil_progress is 0.0-1.0)
+#          - stealth_reduction_per_point * <player's stealth check modifier>
+#
+# Worked example at defaults: forest_clearing>edgewood_square carries
+# danger_dc 8, so a daylight walk is 8 * 0.028 * 0.9 = ~20%. The same walk at
+# night is ~34% before the darkness bonus to stealth pays some of it back. The
+# four-hour Millhaven road (danger_dc 12) is ~30% by day, ~50% at night with
+# the world already consuming. An edge with danger_dc 0 -- a door between two
+# village buildings -- can never produce one.
+trigger:
+  base: 0.0
+  per_danger_dc: 0.028
+  time_of_day:
+    dawn: 1.0
+    day: 0.9
+    dusk: 1.2
+    night: 1.5
+  # Full bonus at total corruption, not a per-point rate.
+  evil_progress_bonus: 0.12
+  # Moving quietly is the one thing that reliably buys you a peaceful road.
+  stealth_reduction_per_point: 0.02
+  min_chance: 0.0
+  max_chance: 0.60
+
+# ------------------------------------------------------------
+# Scene shape.
+# ------------------------------------------------------------
+scene:
+  # Hard ceiling on checks per scene. Three is the point at which a roadside
+  # argument stops being a beat and starts being a minigame.
+  max_rounds: 3
+  # Used when an encounter declares a threat with no `resolve`.
+  default_resolve: 3
+  # Resolve stripped from the threat by each degree. A threat at resolve 3
+  # breaks to a single clean success; one at 6 needs two, or a crit.
+  degree_resolve:
+    crit_success: 5
+    success: 3
+    partial: 1
+    failure: 0
+  # Degrees that close the scene whatever the threat has left. A failure ends
+  # it because the consequence IS the ending -- you do not get to re-roll your
+  # way out of the knife.
+  ends_on: [crit_success, failure]
+
+# Outcome blocks a scene may omit. First key present wins, so a minor
+# encounter can write only `success` and `failure` without partial silently
+# resolving to nothing at all.
+degree_fallback:
+  crit_success: [success]
+  success: [crit_success]
+  partial: [failure, success]
+  failure: [partial]
+
+# ------------------------------------------------------------
+# Approaches merged into EVERY encounter.
+# ------------------------------------------------------------
+#
+# Walking away is always on the table. A scene the player has no legal way to
+# address is a soft-lock, and `available_approaches` must never come back
+# empty -- an encounter can override `flee` but cannot remove it.
+default_approaches:
+  flee:
+    skill: survival
+    difficulty: easy
+    text: "Back away and keep walking"
+    ends: true
+    outcomes:
+      crit_success:
+        text: "You are simply not there by the time it matters. The road goes on."
+        outcome: "broken_off"
+      success:
+        text: "You step off the path and keep your pace even until it is behind you."
+        outcome: "broken_off"
+      partial:
+        text: "You get clear, but the long way, and your legs know it."
+        outcome: "broken_off"
+        effects:
+          - { type: stamina, delta: -8 }
+      failure:
+        text: "It comes with you a while. You walk faster than you would like to admit."
+        outcome: "broken_off"
+        effects:
+          - { type: stamina, delta: -15 }
+          - { type: awareness, delta: 1 }

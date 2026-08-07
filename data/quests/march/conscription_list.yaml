@@ -1,0 +1,113 @@
+# Version: v0.1.0 [2026-08-07]
+
+id: conscription_list
+arc: march
+name: "The List"
+summary: >-
+  There is a list. Everyone has heard there is a list. Nobody outside the gate
+  has seen the list, and the list has Edgewood names on it.
+
+preconditions:
+  all:
+    - visited: millhaven_gate
+    - any:
+        - quest_completed: militia_press
+        - quest_completed: toll_roads
+
+start_text: >-
+  A clerk's hand, four pages, and a column of villages down the left with
+  numbers beside them that are not populations.
+
+stages:
+  - id: get_near_it
+    objective: "Get close enough to the muster clerk to see the list."
+    narrative_flags:
+      - nf_list_glimpsed
+    complete_when:
+      all:
+        - at_location: millhaven_gate
+        - flag: nf_list_glimpsed
+    complete_text: >-
+      Edgewood is on page three with a four beside it. Edgewood has been asked
+      for four men. Edgewood has not been told.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 7
+
+  - id: copy_it
+    objective: "Copy the Edgewood names before the clerk closes the book."
+    narrative_flags:
+      - nf_list_copied
+    expires_after_days: 2
+    fail_when:
+      any:
+        - reputation: { faction: militia, max: -20 }
+    complete_when:
+      all:
+        - at_location: millhaven_gate
+        - flag: nf_list_copied
+    complete_text: >-
+      Four names, and beside each one a second column you do not have time to
+      understand.
+    on_complete:
+      effects:
+        - type: item
+          item_id: copied_list
+          name: "Four Edgewood names, copied"
+          qty: 1
+          tags: [document]
+        - type: reputation
+          faction: militia
+          delta: -8
+    fail_text: >-
+      The book shuts. Somewhere behind you a bolt goes across.
+    on_fail:
+      effects:
+        - type: check_penalty
+          text: "Watched at the gate"
+          delta: -2
+          skills: [stealth, persuasion]
+          days: 3
+
+  - id: warn_them
+    objective: "Get the four names back to Edgewood before the column does."
+    narrative_flags:
+      - nf_list_warned_edgewood
+    expires_after_days: 3
+    complete_when:
+      all:
+        - at_location: [edgewood_square, edgewood_bakery]
+        - has_item: { id: copied_list, qty: 1 }
+        - flag: nf_list_warned_edgewood
+    complete_text: >-
+      Two of the four are gone into the forest by morning. Two of the four stay,
+      because they have people who cannot walk that far.
+    on_complete:
+      effects:
+        - type: remove_item
+          item_id: copied_list
+          qty: 1
+        - type: reputation
+          faction: edgewood
+          delta: 14
+    fail_text: >-
+      You arrive behind the column. The names are already answered to.
+    on_fail:
+      effects:
+        - type: reputation
+          faction: edgewood
+          delta: -8
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 8
+    - type: flag
+      flag: quest_conscription_list_done
+    - type: ledger_fact
+      text: "You copied four Edgewood names off the Millhaven muster list and ran them home."
+      kind: event
+
+complete_text: >-
+  Two out of four is a number you will do arithmetic with for a long time.

@@ -1,0 +1,94 @@
+# Version: v0.1.0 [2026-08-07]
+
+id: wrong_lyrics
+arc: whisper
+name: "The Verse Nobody Taught"
+summary: >-
+  Everyone in Edgewood knows the harvest song. This week everyone in Edgewood
+  knows a fourth verse, and none of them remember learning it.
+
+preconditions:
+  all:
+    - min_awareness: 18
+    - min_day: 12
+
+start_text: >-
+  Maris hums it while she works. She has hummed it while she works your whole
+  time here. It is longer now.
+
+stages:
+  - id: notice
+    objective: "Notice the extra verse, and be certain it is extra."
+    narrative_flags:
+      - nf_song_noticed
+    complete_when:
+      all:
+        - flag: nf_song_noticed
+        - at_location: [edgewood_bakery, edgewood_square]
+    complete_text: >-
+      You count it twice against the version you were taught. Four verses. There
+      have always been three.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 6
+
+  - id: write_it_down
+    objective: "Write the fourth verse down before it changes again."
+    narrative_flags:
+      - nf_song_written_down
+    expires_after_days: 3
+    complete_when:
+      all:
+        - flag: nf_song_written_down
+    complete_text: >-
+      It scans. It rhymes. It is about a road being made and it is not about
+      anything else.
+    on_complete:
+      effects:
+        - type: item
+          item_id: fourth_verse
+          name: "The fourth verse, written out"
+          qty: 1
+          tags: [document, unsettling]
+        - type: focus
+          delta: -2
+    fail_text: >-
+      By the time you find a pencil the verse has gone back to three. Nobody
+      else noticed either way.
+    on_fail:
+      effects:
+        - type: awareness
+          delta: 2
+
+  - id: sing_it_back
+    objective: "Sing the fourth verse back to someone and watch what they do."
+    narrative_flags:
+      - nf_song_sung_back
+    complete_when:
+      all:
+        - flag: nf_song_sung_back
+        - has_item: { id: fourth_verse, qty: 1 }
+    complete_text: >-
+      She joins in on the second line without thinking, then stops, and puts her
+      hands flat on the table for a while.
+    on_complete:
+      effects:
+        - type: ledger_fact
+          text: "Maris knew the fourth verse of the harvest song without learning it."
+          subject_id: npc_maris
+          kind: secret
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 6
+    - type: flag
+      flag: quest_wrong_lyrics_done
+    - type: ledger_fact
+      text: "A fourth verse has entered the Edgewood harvest song. Nobody taught it."
+      kind: secret
+
+complete_text: >-
+  A song is a thing a village agrees on. Something has amended the agreement and
+  did not put it to a vote.

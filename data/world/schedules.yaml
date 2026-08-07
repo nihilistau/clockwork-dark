@@ -1,0 +1,36 @@
+# Trader, tinker, and militia schedule probabilities
+
+caravan_arrival:
+  min_day: 5
+  probability_per_day: 0.08
+  duration_days: 2
+  npc_id: npc_odran
+  location_id: edgewood_square
+  goods:
+    - road_map
+    - whetstone
+
+tinker_camp:
+  probability_per_week: 0.05
+  duration_days: 3
+  npc_id: npc_ilya
+  location_id: tinker_caravan
+  goods:
+    - sympathy_charm
+    - tinker_map
+
+militia_press:
+  min_awareness: 20
+  probability_per_day: 0.03
+  duration_days: 1
+  npc_id: npc_sera
+  location_id: edgewood_square
+
+rumors:
+  - "Odran swears the road to Millhaven took an extra hour though the sun said otherwise."
+  - "A stillborn lamb was found with brass filings where its teeth should be."
+  - "Maris burned a batch of bread that rang like a bell when it cracked."
+  - "Tinkers are buying old clock parts at twice their weight in copper."
+  - "The militia recruitment board has fresh nails — someone expects volunteers."
+  - "Wheat near the corruption border stands in rows too straight for wind."
+  - "Children in the square drew gears in the dirt; by morning the drawings were gone."

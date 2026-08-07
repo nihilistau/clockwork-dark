@@ -1,0 +1,112 @@
+# Mending, forge work, and the one recipe that costs the maker something.
+#
+# `bind_sympathy_charm` is the only entry in data/recipes/ that uses the
+# sympathy skill, and it is deliberately the hardest band in the directory.
+# DESIGN.md: magic is costly, rare and mostly a bad idea; naming a thing
+# correctly matters more than shouting at it. A charm binds like to like, and
+# what happens to the one is felt by the other -- including by the person who
+# tied the knot. That is why it takes the maker's own hair as an input and
+# why a failure here is worse than losing the wax.
+#
+# Schema reference and the "data only, no craft_item skill yet" note: see
+# data/recipes/baking.yaml.
+#
+# Version: v0.1.0 [2026-08-07]
+
+version: 1
+category: mending
+
+recipes:
+
+  - id: mend_boots
+    name: "Re-sole a pair of boots"
+    category: mending
+    skill: craft
+    band: standard
+    hours: 4
+    tools: [hand_awl]
+    inputs:
+      - { id: hide_roll, qty: 1 }
+    output: { id: hobnail_boots, qty: 1 }
+    success_text: >-
+      New sole, old uppers, and the studs set close enough that they ring on
+      metalling. Which is how the Millhaven watch counts people in the dark.
+    failure_text: >-
+      The awl went through the upper twice and the hide is wasted. The boots
+      are worse than they were this morning.
+
+  - id: forge_hearth_knife
+    name: "Forge a hearth knife"
+    category: mending
+    skill: craft
+    band: hard
+    hours: 6
+    station: the_forge
+    tools: [whetstone, leather_apron]
+    inputs:
+      - { id: iron_stock, qty: 1 }
+      - { id: charcoal_sack, qty: 1 }
+    output: { id: hearth_knife, qty: 1 }
+    success_text: >-
+      Drawn, ground and quenched. Meant for bread and rope and not for people.
+      It will do for people.
+    failure_text: >-
+      Quenched too cold and it cracked the length of the tang. Back in the
+      stock pile, and a day gone.
+
+  - id: forge_buckler
+    name: "Forge a buckler"
+    category: mending
+    skill: craft
+    band: severe
+    hours: 8
+    station: the_forge
+    tools: [leather_apron]
+    inputs:
+      - { id: iron_stock, qty: 1 }
+      - { id: hide_roll, qty: 1 }
+      - { id: charcoal_sack, qty: 1 }
+    output: { id: small_shield, qty: 1 }
+    success_text: >-
+      Dished, riveted and faced. Militia pattern, because the militia pattern
+      is the one everybody in the Marches knows how to make.
+    failure_text: >-
+      The boss would not take the dish and split at the rivet line. Scrap.
+    salvage: { id: iron_stock, qty: 1 }
+
+  - id: wind_ward_pins
+    name: "Wind a card of ward pins"
+    category: mending
+    skill: craft
+    band: standard
+    hours: 3
+    tools: [tinker_kit]
+    inputs:
+      - { id: brass_filings, qty: 3 }
+      - { id: beeswax, qty: 1 }
+    output: { id: brass_ward_pin, qty: 9 }
+    success_text: >-
+      Nine to the card, because nine is the count that holds. Do not ask
+      what a tenth would cost.
+    failure_text: >-
+      Eleven off the wire and the count is wrong, so the card is wrong, so the
+      whole run goes back in the filings tin.
+
+  - id: bind_sympathy_charm
+    name: "Bind a sympathy charm"
+    category: mending
+    skill: sympathy
+    band: severe
+    hours: 2
+    tools: [tinker_kit]
+    inputs:
+      - { id: beeswax, qty: 1 }
+      - { id: linen_cloth, qty: 1 }
+      - { id: birch_resin, qty: 1 }
+    output: { id: sympathy_charm, qty: 1 }
+    success_text: >-
+      A thread of your hair, a thread of theirs, wax over both. It holds. You
+      sit down afterwards and you do not remember deciding to.
+    failure_text: >-
+      The binding takes and does not hold, which is the bad way for it to
+      fail. It took the price anyway.

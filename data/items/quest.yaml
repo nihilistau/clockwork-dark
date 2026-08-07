@@ -1,0 +1,99 @@
+# Quest items.
+#
+# THE GAP THIS FILE CLOSES: every id below is granted by a quest effect in
+# data/quests/** and existed nowhere else -- no name outside the effect block,
+# no description, no weight, no value, and no vendor. A player could be holding
+# `the_written_name` and the inventory panel had nothing to say about it.
+#
+# None of these are stocked by a vendor and most of them should never be.
+# `value` is what a stranger would give you for it, which for several of these
+# is an insult and is meant to read as one.
+#
+# Field reference: see data/items/food.yaml.
+#
+# Version: v0.1.0 [2026-08-07]
+
+version: 1
+
+items:
+
+  - id: cut_reed
+    name: "Cut reed"
+    description: >-
+      A single ditch reed, cut square at both ends. It was cut square. Reeds
+      do not break square.
+    tags: [quest]
+    weight: 0.05
+    value: 0
+    stack: false
+
+  - id: nessas_drawing
+    name: "Nessa's drawing"
+    description: >-
+      Charcoal on the back of a flour wrapper: a wheel of teeth, counted out
+      exactly, drawn by a child who has never seen one.
+    tags: [quest]
+    weight: 0.05
+    value: 0
+    stack: false
+
+  - id: fourth_verse
+    name: "The fourth verse"
+    description: >-
+      Four lines of a harvest song written down at the tinker camp. The song
+      has three verses. It has always had three verses.
+    tags: [quest]
+    weight: 0.05
+    value: 0
+    stack: false
+
+  - id: brass_shard
+    name: "Brass shard"
+    description: >-
+      A curved sliver with three teeth still on it, warm at the broken edge
+      long after it should have gone cold.
+    tags: [quest, material]
+    weight: 0.1
+    value: 3
+    stack: true
+
+  - id: copied_list
+    name: "Copied conscription list"
+    description: >-
+      Ninety-one names in a borrowed hand, taken down fast at the barracks
+      board. Eleven of them are from Edgewood.
+    tags: [quest]
+    weight: 0.05
+    value: 0
+    stack: false
+
+  - id: the_written_name
+    name: "The written name"
+    description: >-
+      A word on a strip of linen, in ink that has soaked through to the other
+      side and reads the same way from the back. Naming a thing correctly is
+      the whole of the costly art, and it takes the namer's price either way.
+    tags: [quest, charm]
+    weight: 0.05
+    value: 0
+    stack: false
+
+  - id: mural_pigment
+    name: "Ground pigment"
+    description: >-
+      Ochre, lampblack and lime in three twists of paper, mixed to a
+      sixty-year-old recipe by somebody who had to ask twice how.
+    tags: [quest, material]
+    weight: 0.4
+    value: 9
+    stack: true
+
+  - id: goat_bell
+    name: "Goat bell"
+    description: >-
+      Hammered tin on a worn strap, with the clapper still in it. Which is the
+      part that stops making sense once you find where it was.
+    tags: [quest]
+    weight: 0.2
+    value: 2
+    stack: false

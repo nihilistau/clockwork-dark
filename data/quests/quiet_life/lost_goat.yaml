@@ -1,0 +1,83 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# A small quest on purpose. Not every thread is a thread.
+
+id: lost_goat
+arc: quiet_life
+name: "Someone Else's Goat"
+summary: >-
+  The Weller family's nanny goat has been gone two nights. She is old, she is
+  bad-tempered, and she is most of what they have.
+
+preconditions:
+  all:
+    - min_day: 2
+    - visited: edgewood_square
+
+start_text: >-
+  A boy has been up and down the square three times asking the same question in
+  the same words.
+
+stages:
+  - id: take_the_errand
+    objective: "Tell the Weller boy you will look for the goat."
+    narrative_flags:
+      - nf_goat_promised
+    complete_when:
+      all:
+        - at_location: edgewood_square
+        - flag: nf_goat_promised
+    complete_text: >-
+      He does not thank you. He just stops asking, which is the same thing.
+
+  - id: search_the_margin
+    objective: "Search the forest margin. Goats go uphill and then regret it."
+    expires_after_days: 3
+    complete_when:
+      all:
+        - at_location: forest_clearing
+        - flag: nf_goat_found
+    narrative_flags:
+      - nf_goat_found
+    complete_text: >-
+      She is wedged in a windfall with her leg turned wrong and an opinion about
+      you already formed.
+    fail_text: >-
+      By the fourth morning nobody is asking any more. That is its own answer.
+    on_fail:
+      effects:
+        - type: reputation
+          faction: edgewood
+          delta: -2
+        - type: ledger_fact
+          text: "The Wellers' goat was never found. The boy stopped asking."
+          kind: event
+
+  - id: bring_her_back
+    objective: "Get the goat back to the square in one piece."
+    complete_when:
+      all:
+        - at_location: edgewood_square
+    complete_text: >-
+      She bites you twice on the way down. You carry her the last part anyway.
+    on_complete:
+      effects:
+        - type: stamina
+          delta: -15
+
+on_complete:
+  effects:
+    - type: gold
+      delta: 3
+    - type: reputation
+      faction: edgewood
+      delta: 5
+    - type: flag
+      flag: quest_lost_goat_done
+    - type: ledger_fact
+      text: "You carried the Wellers' goat down out of the windfall."
+      kind: event
+
+complete_text: >-
+  The Wellers have nothing to pay you with, so they pay you with three coins
+  they cannot spare and will not take back.

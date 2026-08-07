@@ -1,0 +1,78 @@
+# The four story arcs.
+#
+# Every arc is a complete way to play. Quiet Life is not a tutorial and it is
+# not a failure state -- a player who bakes bread for forty days, mends a roof,
+# and never learns the word "clockwork" has finished the game. The gates below
+# only ever OPEN doors; nothing here closes one, and no quest anywhere in
+# data/quests punishes a player for staying where they are.
+#
+# `involvement` is the plot-involvement weight the arc contributes while it is
+# the active arc (read by engine/game/plot.py). It replaced a flat 15-point
+# bonus that keyed off `flags.main_quest_started` -- a flag no code ever set,
+# which meant the only pacing formula in the game had a permanently dead term.
+#
+# Gates are ordinary quest predicates (engine/game/quests.py). `requires_all`
+# and `requires_any` are ANDed together when both are present.
+#
+# Version: v0.1.0 [2026-08-07]
+
+version: 1
+
+arcs:
+  quiet_life:
+    name: "A Quiet Life"
+    default: true
+    involvement: 0
+    order: 0
+    blurb: >-
+      Flour, firewood, a goat that will not be found, and a shrine wall nobody
+      has finished painting in sixty years.
+
+  whisper:
+    name: "The Whisper"
+    involvement: 10
+    order: 1
+    unlock_text: >-
+      Things you were told, and things you were shown, have stopped agreeing
+      with each other.
+    blurb: >-
+      Rumours that turn out true. A map that is wrong in a way maps are not
+      wrong. A child who draws what she has not seen.
+    requires_all:
+      # The caravan comes for everyone. Odran rolls in on a schedule that has
+      # nothing to do with the player, so arrival alone cannot be the gate --
+      # it would drag every baker into the Whisper arc on a dice roll.
+      - event_seen: caravan_arrival
+      # ...and the ten days are counted from that arrival. `days_since_event`
+      # takes its event from the sibling `event_seen` clause above.
+      - days_since_event: 10
+      # The real gate. DESIGN.md: "Quiet Life ... Awareness stays <15". What
+      # separates the two arcs is not that the trader came, it is that the
+      # player listened to him.
+      - min_awareness: 15
+
+  march:
+    name: "The March"
+    involvement: 20
+    order: 2
+    unlock_text: >-
+      The road inward has soldiers on it now, and the soldiers are counting.
+    blurb: >-
+      Militia press gangs, toll roads, a farmstead burned for reasons nobody
+      will write down, and a sergeant doing arithmetic with people.
+    requires_any:
+      - visited: millhaven_gate
+      - min_awareness: 25
+
+  convergence:
+    name: "The Convergence"
+    involvement: 35
+    order: 3
+    unlock_text: >-
+      It has a shape. You can see the shape. That is the worst part.
+    blurb: >-
+      Naming the wound, and paying for the naming. Choices that are measured in
+      other people.
+    requires_any:
+      - min_awareness: 50
+      - min_phase: spreading

@@ -1,0 +1,84 @@
+# Currency and pure trade goods -- things carried because somebody else wants
+# them, not because they are useful where you are standing.
+#
+# `coins` is an inventory item as well as GameState.stats.gold because a purse
+# is a thing that can be taken, and a stat cannot be.
+#
+# Field reference: see data/items/food.yaml.
+#
+# Version: v0.1.0 [2026-08-07]
+
+version: 1
+
+items:
+
+  - id: coins
+    name: "Purse of copper"
+    description: >-
+      Mixed coin, mostly copper, a little clipped silver, and one piece from a
+      kingdom that has not minted anything in living memory.
+    tags: [trade]
+    weight: 0.3
+    value: 1
+    art: coins
+    stack: true
+
+  - id: salt_measure
+    name: "Measure of salt"
+    description: >-
+      A stitched pouch, sold by weight and argued over by the pinch. Preserves
+      food, prices honesty, and does nothing whatever against the ticking.
+    tags: [trade, material]
+    weight: 0.8
+    value: 14
+    stack: true
+
+  - id: clock_spring
+    name: "Clock spring"
+    description: >-
+      Blued steel coiled in a brass drum. Ilya buys these at twice their
+      weight in copper and will not say who for.
+    tags: [trade, material, quest]
+    weight: 0.1
+    value: 26
+    stack: true
+
+  - id: brass_filings
+    name: "Twist of brass filings"
+    description: >-
+      Bright dust in a paper twist. Turns up in grain, in lamb's gums, and in
+      the sweepings of a forge that has not worked brass in a year.
+    tags: [trade, material]
+    weight: 0.05
+    value: 2
+    stack: true
+
+  - id: tallow_block
+    name: "Block of tallow"
+    description: >-
+      Rendered and cast in a bucket. Candles, grease, waterproofing, and a
+      smell that gets into wool and stays.
+    tags: [trade, material]
+    weight: 1.5
+    value: 6
+    stack: true
+
+  - id: hide_roll
+    name: "Roll of cured hide"
+    description: >-
+      Scraped, smoked and rolled hair-in. The tanner's boy carries them to
+      Millhaven and comes back naming streets that are not there.
+    tags: [trade, material]
+    weight: 3.0
+    value: 24
+    stack: true
+
+  - id: seed_grain
+    name: "Sack of seed grain"
+    description: >-
+      Kept back from the harvest and worth more than the harvest. Eating it is
+      the decision a bad winter is actually made of.
+    tags: [trade, material]
+    weight: 6.0
+    value: 30
+    stack: true

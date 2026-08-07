@@ -1,0 +1,101 @@
+# Version: v0.1.0 [2026-08-07]
+
+id: burned_farmstead
+arc: march
+name: "The Hallow Place"
+summary: >-
+  A farmstead on the Millhaven road burned four nights ago. It was burned
+  carefully, which is the part nobody wants to discuss.
+
+preconditions:
+  all:
+    - visited: millhaven_gate
+    - min_awareness: 28
+
+start_text: >-
+  You can smell it from the road bend, and it is the wrong smell. Burned wood
+  and burned thatch and, under those, something with a mineral edge.
+
+stages:
+  - id: walk_the_ground
+    objective: "Walk the burned ground before the weather takes what is left."
+    narrative_flags:
+      - nf_farmstead_searched
+    expires_after_days: 3
+    complete_when:
+      all:
+        - flag: nf_farmstead_searched
+        - at_location: [millhaven_gate, forest_clearing]
+    complete_text: >-
+      The burn stops in a circle. Not a wind-shape, not a fire-break. A circle,
+      and outside it the grass is untouched to the blade.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 10
+    fail_text: >-
+      Rain, and then a week, and then it is just a field somebody used to farm.
+    on_fail:
+      effects:
+        - type: awareness
+          delta: 3
+
+  - id: the_ring
+    objective: "Find what is at the centre of the circle."
+    narrative_flags:
+      - nf_farmstead_found_the_ring
+    complete_when:
+      all:
+        - flag: nf_farmstead_found_the_ring
+    complete_text: >-
+      Sunk in the ash: a band of brass the width of a cart wheel, seated in the
+      earth, warm on a cold morning.
+    on_complete:
+      effects:
+        - type: item
+          item_id: brass_shard
+          name: "Shard of warm brass"
+          qty: 1
+          tags: [unsettling]
+        - type: wound
+          text: "Ash in the lungs"
+          severity: 1
+          check_penalty: -1
+          skills: [survival, nerve]
+          heals_on_day: "+5"
+        - type: awareness
+          delta: 8
+
+  - id: report_it
+    objective: "Decide who is told: the militia, the village, or nobody."
+    narrative_flags:
+      - nf_farmstead_reported
+    complete_when:
+      any:
+        - flag: nf_farmstead_reported
+        - days_in_stage: 3
+    complete_text: >-
+      The militia already knew. That is why they burned it, and that is why they
+      burned it carefully.
+    on_complete:
+      effects:
+        - type: ledger_fact
+          text: "The militia burned the farmstead deliberately, in a ring."
+          subject_id: npc_sera
+          kind: secret
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 10
+    - type: reputation
+      faction: militia
+      delta: -6
+    - type: flag
+      flag: quest_burned_farmstead_done
+    - type: ledger_fact
+      text: "You stood inside the ring at the burned farmstead and carried brass out."
+      kind: secret
+
+complete_text: >-
+  Somebody has a procedure for this. That is worse than nobody having one.

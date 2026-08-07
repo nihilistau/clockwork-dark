@@ -1,0 +1,123 @@
+# Baking and provisioning.
+#
+# THE GAP THIS DIRECTORY CLOSES: DESIGN.md makes "mundane craft as dignity" a
+# pillar and the Quiet Life arc a complete way to play, and there has never
+# been a way to MAKE anything. A player could buy bread and could be given
+# bread by a quest, and that was the whole of the baker's fantasy.
+#
+# DATA ONLY. Nothing reads this file yet -- the `craft_item` skill belongs in
+# engine/skills/builtin/mechanics.py, which P9 does not own. The schema below
+# is written for that skill to consume unchanged.
+#
+# Recipe shape:
+#   id            recipe id, unique across data/recipes/.
+#   name          imperative, as the player would ask for it.
+#   category      baking | herbalism | mending. Free text, for grouping.
+#   skill         persuasion|stealth|sympathy|lore|craft|survival|nerve.
+#                 The engine derives the DC from the band; a recipe never
+#                 states a DC (data/rules/skills.yaml owns that).
+#   band          trivial|easy|standard|hard|severe|legendary.
+#   hours         world-clock hours consumed whether or not the check passes.
+#                 A failed bake still cost you the morning.
+#   station       optional location id the work must happen at.
+#   tools         optional item ids that must be HELD and are not consumed.
+#   inputs        consumed on attempt, pass or fail, unless `salvage` says
+#                 otherwise. Failure that costs nothing is not a risk.
+#   output        granted on success.
+#   salvage       optional reduced output on failure. Bread that did not rise
+#                 is still bread; a broken knife is not a knife.
+#
+# Version: v0.1.0 [2026-08-07]
+
+version: 1
+category: baking
+
+recipes:
+
+  - id: mill_flour
+    name: "Mill barley into flour"
+    category: baking
+    skill: craft
+    band: trivial
+    hours: 2
+    inputs:
+      - { id: seed_grain, qty: 1 }
+    output: { id: barley_flour, qty: 2 }
+    success_text: >-
+      Two sacks off one, and grit in everything you own for a day.
+    failure_text: >-
+      The stone chatters and half of it comes out coarse enough to chew.
+    salvage: { id: barley_flour, qty: 1 }
+
+  - id: bake_loaf
+    name: "Bake a batch of loaves"
+    category: baking
+    skill: craft
+    band: easy
+    hours: 3
+    station: edgewood_bakery
+    tools: [baking_peel]
+    inputs:
+      - { id: barley_flour, qty: 1 }
+    output: { id: loaf, qty: 4 }
+    success_text: >-
+      Four out of the stone, dark on the bottom, ringing hollow at the knuckle
+      the way they are supposed to ring.
+    failure_text: >-
+      The oven was down twenty degrees and stayed down. Dense as clay and
+      edible, which is not the same as good.
+    salvage: { id: loaf, qty: 2 }
+
+  - id: bake_road_bread
+    name: "Twice-bake road bread"
+    category: baking
+    skill: craft
+    band: standard
+    hours: 2
+    station: edgewood_bakery
+    inputs:
+      - { id: loaf, qty: 2 }
+    output: { id: road_bread, qty: 4 }
+    success_text: >-
+      Split, returned to a cooling oven, and left until it dries instead of
+      moulding. It will outlast the journey and the traveller's patience.
+    failure_text: >-
+      Too long in. Black through, and no carter will take it at any price.
+
+  - id: bake_festival_cakes
+    name: "Bake the festival cakes"
+    category: baking
+    skill: craft
+    band: hard
+    hours: 5
+    station: edgewood_bakery
+    tools: [baking_peel]
+    inputs:
+      - { id: barley_flour, qty: 1 }
+      - { id: festival_honey, qty: 1 }
+    output: { id: festival_cake, qty: 8 }
+    success_text: >-
+      A hundred, give or take a hundred, and the room all heat and flour dust
+      by the small hours.
+    failure_text: >-
+      The honey caught on the stone and took the bottoms with it. They go out
+      plain. Nobody says anything, which is worse.
+    salvage: { id: festival_cake, qty: 3 }
+
+  - id: make_winter_ration
+    name: "Put up a winter ration"
+    category: baking
+    skill: survival
+    band: standard
+    hours: 3
+    inputs:
+      - { id: road_bread, qty: 2 }
+      - { id: salt_pork, qty: 1 }
+      - { id: dried_mushrooms, qty: 1 }
+    output: { id: winter_ration, qty: 1 }
+    success_text: >-
+      Tied, weighed and set on the high shelf. One household, one week, if the
+      household is careful.
+    failure_text: >-
+      Packed damp. It will not last the month and everyone will be too polite
+      to say so until it does not.

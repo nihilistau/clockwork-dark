@@ -1,0 +1,87 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# Uses state.rumors, which the schedule rolls have been filling since PR7. The
+# horror here is procedural rather than authored: whichever rumour the world
+# gave the player, this quest is the one where it stops being a rumour.
+
+id: rumour_made_true
+arc: whisper
+name: "The One That Was True"
+summary: >-
+  You have heard eleven pieces of nonsense off the road this season. Ten of them
+  were nonsense.
+
+preconditions:
+  all:
+    - event_seen: caravan_arrival
+
+start_text: >-
+  You catch yourself repeating something Odran said, and then catching yourself,
+  and then not being able to say why you stopped.
+
+stages:
+  - id: carry_it
+    objective: "Repeat the caravan's story to someone in Edgewood and watch their face."
+    narrative_flags:
+      - nf_rumour_repeated
+    complete_when:
+      all:
+        - flag: nf_rumour_repeated
+        - at_location: [edgewood_square, edgewood_bakery]
+    complete_text: >-
+      Maris does not laugh. She goes on kneading, and she does not laugh, and
+      the not-laughing takes up the whole room.
+
+  - id: go_and_look
+    objective: "Go to the forest margin and check the thing the story described."
+    expires_after_days: 6
+    narrative_flags:
+      - nf_rumour_verified
+    complete_when:
+      all:
+        - at_location: forest_clearing
+        - flag: nf_rumour_verified
+    complete_text: >-
+      It is exactly where the story put it, at exactly the size the story gave.
+      Stories are not usually accurate. That is what makes them stories.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 6
+        - type: ledger_fact
+          text: "The caravan's story about the margin was accurate in every detail."
+          subject_id: npc_odran
+          kind: secret
+    fail_text: >-
+      By the time you go, the weather has been at it. You will never know now.
+    on_fail:
+      effects:
+        - type: awareness
+          delta: 2
+
+  - id: decide_who_hears
+    objective: "Decide whether Edgewood gets told what you found."
+    complete_when:
+      any:
+        - flag: nf_rumour_repeated
+        - days_in_stage: 2
+    complete_text: >-
+      Either way, you are now the person who knows.
+    on_complete:
+      effects:
+        - type: reputation
+          faction: edgewood
+          delta: 3
+
+on_complete:
+  effects:
+    - type: awareness
+      delta: 4
+    - type: flag
+      flag: quest_rumour_made_true_done
+    - type: ledger_fact
+      text: "You confirmed a road-rumour with your own eyes. It was true."
+      kind: secret
+
+complete_text: >-
+  Ten of eleven were nonsense. You have stopped finding the ratio comforting.

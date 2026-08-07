@@ -1,0 +1,65 @@
+# Player Archetypes
+# =================
+#
+# Silhouettes, not classes (docs/CLAUDE_DESIGN_BRIEF.md § 4). An archetype is a
+# starting posture: a small stat spread, a couple of skills you were already
+# doing before the story found you, and the gear you happened to be carrying.
+#
+# The bonuses are deliberately small (+1/+2). A frontier baker who chooses to
+# walk into the woods should be a baker who is out of her depth, not a class
+# that cannot fail.
+#
+# Consumed by engine/game/checks.py (skill_bonus only). Stats and gear are
+# applied at character creation by procgen; entries are inert until then.
+
+version: 1
+default: wayfarer
+
+archetypes:
+  wayfarer:
+    name: "Wayfarer"
+    blurb: "Cloak, staff, road boots. You have slept under more hedges than roofs."
+    stats:
+      grit: 11
+      agility: 11
+      wits: 10
+      presence: 10
+      craft: 8
+    skill_bonus:
+      survival: 2
+      stealth: 1
+    starting_items:
+      - { id: road_bread, name: "Stale road bread", qty: 2, tags: [food] }
+      - { id: walking_staff, name: "Walking staff", qty: 1, tags: [tool] }
+
+  hearthkeeper:
+    name: "Hearthkeeper"
+    blurb: "Apron, rolled sleeves, flour to the elbow. You feed people. That is not nothing."
+    stats:
+      grit: 11
+      agility: 9
+      wits: 10
+      presence: 12
+      craft: 14
+    skill_bonus:
+      craft: 2
+      persuasion: 1
+    starting_items:
+      - { id: loaf, name: "Loaf of bread", qty: 2, tags: [food] }
+      - { id: hearth_knife, name: "Hearth knife", qty: 1, tags: [tool] }
+
+  tinker_apprentice:
+    name: "Tinker-apprentice"
+    blurb: "Tool belt, brass pins, chalk stains. You know what gears sound like when they are wrong."
+    stats:
+      grit: 9
+      agility: 12
+      wits: 13
+      presence: 10
+      craft: 12
+    skill_bonus:
+      lore: 2
+      craft: 1
+    starting_items:
+      - { id: tinker_tools, name: "Tinker tools", qty: 1, tags: [tool] }
+      - { id: ward_pin, name: "Brass ward pin", qty: 1, tags: [charm] }

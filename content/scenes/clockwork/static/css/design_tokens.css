@@ -1,0 +1,16 @@
+/* Hearth Ledger palette — CLAUDE_DESIGN_BRIEF Direction A */
+:root {
+  --forest-deep: #2c3e2c;
+  --moss-light: #6b7f5e;
+  --linen: #f2e8d5;
+  --tallow: #e8c47a;
+  --iron: #3d3d3d;
+  --rust-clock: #8b4513;
+  --corruption: #7a9e4f;
+  --blood-quiet: #6b2d2d;
+
+  --font-narration: "Georgia", "Times New Roman", serif;
+  --font-ui: "Segoe UI", "Source Sans 3", sans-serif;
+  --font-mono: "Consolas", "IBM Plex Mono", monospace;
+  --font-assistant: "Trebuchet MS", "Nunito", sans-serif;
+}

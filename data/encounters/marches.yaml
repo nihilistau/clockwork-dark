@@ -1,0 +1,498 @@
+# Marches Encounters
+# ==================
+#
+# Millhaven Gate and the ground under it: ring 2, evil multiplier 1.2, the
+# furthest out the graph currently goes. Filtered by destination, so these are
+# what is waiting at the gate when you finally arrive.
+#
+# This is where the clockwork is allowed to be ordinary. The pillar the whole
+# game is built on lives in `the_field_that_keeps_working`: the horror is not
+# that something attacks, it is that the work carries on being done, well, on
+# time, by nobody.
+
+band: marches
+
+encounters:
+  - id: gate_toll_and_a_ledger
+    tier: 2
+    weight: 24
+    triggers:
+      to: [millhaven_gate]
+    intro: >-
+      The Millhaven gate is half shut and there is a table across the open
+      half. A clerk with a ledger wants your name, your trade, your village,
+      and a gate fee that did not exist last season.
+    threat: { name: "A clerk with a ledger", resolve: 4 }
+    approaches:
+      pay:
+        cost_gold: 2
+        auto: true
+        text: "Pay the gate fee"
+        outcomes:
+          success:
+            text: >-
+              Two into the box, your name into the book, and the half-gate
+              opens exactly wide enough.
+            outcome: "settled"
+      talk:
+        skill: persuasion
+        difficulty: standard
+        text: "Give him a trade he has no column for"
+      forge:
+        skill: lore
+        difficulty: hard
+        text: "Give him a name that will pass the ledger"
+      slip:
+        skill: stealth
+        difficulty: hard
+        requires_time: night
+        text: "Wait for the change of watch and go round"
+    outcomes:
+      crit_success:
+        text: >-
+          You are through free, and you have read the last page over his
+          shoulder while he wrote, and the last page is mostly the same four
+          villages over and over.
+        effects:
+          - { type: awareness, delta: 2 }
+          - { type: reputation, faction: merchants, delta: 2 }
+      success:
+        text: "Through. He writes something down. He writes something down for everyone."
+        effects: []
+      partial:
+        text: >-
+          Through, an hour later, having been sent to the end of the queue
+          twice for reasons the clerk did not share.
+        effects:
+          - { type: stamina, delta: -10 }
+      failure:
+        text: >-
+          Your name goes in the column with the line ruled under it, and the
+          militia at the gate look up when it does.
+        effects:
+          - { type: reputation, faction: militia, delta: -2 }
+          - { type: gold, delta: -2 }
+          - { type: flag, flag: on_the_militia_list, value: true }
+
+  - id: refugees_from_the_upper_field
+    tier: 2
+    weight: 22
+    triggers:
+      to: [millhaven_gate]
+      phases: [stirring, spreading, consuming]
+    intro: >-
+      Nine people are camped against the outside of the gate wall with their
+      furniture. They came off the upper holdings and they will not say why in
+      front of the children, who are listening anyway.
+    threat: { name: "Nine people and their furniture", resolve: 4 }
+    approaches:
+      listen:
+        skill: sympathy
+        difficulty: standard
+        text: "Sit down with them and let them get to it"
+      help:
+        skill: craft
+        difficulty: standard
+        text: "Rig them a better shelter against the wall"
+      advocate:
+        skill: persuasion
+        difficulty: hard
+        text: "Argue them through the gate"
+      feed:
+        skill: survival
+        difficulty: easy
+        requires_item: loaf
+        text: "Put what food you have into the middle"
+    outcomes:
+      crit_success:
+        text: >-
+          They tell you all of it. The wheat in the upper field is coming up
+          threshed. Not cut — threshed, and stooked, in rows, by the morning.
+        effects:
+          - { type: awareness, delta: 5 }
+          - { type: reputation, faction: edgewood, delta: 3 }
+          - type: ledger_fact
+            kind: engine
+            text: "The upper field wheat comes up already threshed and stooked, overnight, in rows."
+      success:
+        text: >-
+          Enough of it. Something is working their fields and it is not them
+          and they have stopped going out to look.
+        effects:
+          - { type: awareness, delta: 4 }
+          - { type: reputation, faction: edgewood, delta: 2 }
+          - { type: stamina, delta: -10 }
+      partial:
+        text: >-
+          The adults will not talk. A girl of about six tells you her father
+          waves at the man in their field every morning, and there is no man.
+        effects:
+          - { type: awareness, delta: 4 }
+      failure:
+        text: >-
+          You push and the camp closes up like a hand. They ask you to move
+          on and the gate militia are watching you being asked.
+        effects:
+          - { type: reputation, faction: edgewood, delta: -2 }
+          - { type: reputation, faction: militia, delta: -1 }
+
+  - id: the_field_that_keeps_working
+    tier: 3
+    weight: 20
+    art: clockwork_scarecrow
+    triggers:
+      to: [millhaven_gate]
+      phases: [spreading, consuming]
+    intro: >-
+      Half a mile short of the gate there is a strip field being worked. The
+      rows are dead straight, the pace is exactly even, and it has been doing
+      it since before you came over the rise. Nobody in Millhaven is watching
+      it. That is the part that stops you.
+    threat: { name: "Whatever is bringing in the harvest", resolve: 7 }
+    approaches:
+      watch:
+        skill: stealth
+        difficulty: hard
+        text: "Get to the hedge line and watch it work"
+      name_it:
+        skill: lore
+        difficulty: severe
+        text: "Recognise what it is doing and what it is for"
+      hail:
+        skill: nerve
+        difficulty: severe
+        text: "Walk to the field edge and call out to it"
+      ward:
+        skill: sympathy
+        difficulty: hard
+        requires_item: brass_ward_pin
+        text: "Set the ward pin in the gatepost of the field"
+    outcomes:
+      crit_success:
+        text: >-
+          Sackcloth head, a farmer's smock, brass at every joint, and the
+          scythe stroke is the same length every time to within a thumb. It is
+          bringing the harvest in. It is doing it properly. That is the horror.
+        effects:
+          - { type: awareness, delta: 6 }
+          - { type: focus, delta: 1 }
+          - type: ledger_fact
+            kind: engine
+            text: "A brass thing in a farmer's smock is bringing in the Millhaven harvest, correctly, unattended."
+      success:
+        text: >-
+          You watch it to the end of a row. It turns at the headland the way a
+          man does, and starts the next one, and does not tire.
+        effects:
+          - { type: awareness, delta: 5 }
+          - { type: stamina, delta: -10 }
+      partial:
+        text: >-
+          You get close and it keeps working, and at some point you understand
+          that it has known you were there the whole time and has decided you
+          are not the harvest.
+        effects:
+          - { type: awareness, delta: 6 }
+          - { type: focus, delta: -1 }
+          - type: check_penalty
+            text: "the sound of an even scythe stroke"
+            delta: -2
+            skills: [nerve, sympathy]
+            days: 2
+      failure:
+        text: >-
+          It finishes the row it is on. Then it turns at the headland, and you
+          are on the headland, and the stroke length does not change.
+        effects:
+          - { type: hp, delta: -8 }
+          - { type: awareness, delta: 7 }
+          - type: wound
+            text: "a long clean cut opened along the hip"
+            severity: 4
+            check_penalty: -3
+            skills: [survival, stealth, craft]
+            heals_on_day: "+7"
+
+  - id: millhaven_press_gang
+    tier: 2
+    weight: 18
+    triggers:
+      to: [millhaven_gate]
+      min_day: 4
+    intro: >-
+      Four militia and a sergeant working the gate approach, taking anyone
+      arriving alone who cannot name a householder inside the walls. There is
+      a cart behind them with six men already sitting in it, and none of them
+      look surprised.
+    threat: { name: "A cart with six men in it", resolve: 5 }
+    approaches:
+      talk:
+        skill: persuasion
+        difficulty: hard
+        text: "Name a householder and make it stick"
+      stand:
+        skill: nerve
+        difficulty: severe
+        text: "Refuse, in front of the queue"
+      slip:
+        skill: stealth
+        difficulty: standard
+        requires_time: night
+        text: "Take the drainage cut under the wall"
+      buy_out:
+        cost_gold: 5
+        auto: true
+        text: "Pay the exemption"
+        outcomes:
+          success:
+            text: >-
+              There is a price and everyone knows the price. You pay it and
+              the sergeant loses interest in you mid-sentence.
+            outcome: "settled"
+    outcomes:
+      crit_success:
+        text: >-
+          Not only through, but through with the sergeant's name, and what
+          they are being levied for, and where the cart goes.
+        effects:
+          - { type: reputation, faction: militia, delta: 2 }
+          - { type: awareness, delta: 3 }
+      success:
+        text: "Through. The cart is still filling behind you when the gate shuts."
+        effects: []
+      partial:
+        text: >-
+          Through after two hours against the wall with your pack open on the
+          cobbles and your name in a book.
+        effects:
+          - { type: stamina, delta: -15 }
+          - { type: flag, flag: on_the_militia_list, value: true }
+      failure:
+        text: >-
+          It takes three of them and a stave across the back of the legs, and
+          you are in the cart until somebody vouches for you at dawn.
+        effects:
+          - { type: hp, delta: -4 }
+          - { type: gold, delta: -4 }
+          - { type: reputation, faction: militia, delta: -3 }
+          - type: wound
+            text: "both legs marked black behind the knee"
+            severity: 3
+            check_penalty: -3
+            skills: [stealth, survival]
+            heals_on_day: "+5"
+
+  - id: quarantine_rope
+    tier: 2
+    weight: 18
+    triggers:
+      to: [millhaven_gate]
+      phases: [stirring, spreading, consuming]
+    intro: >-
+      A rope on stakes runs across two holdings outside the wall with rags
+      tied along it at intervals. There is no sickness sign on it and nobody
+      posted to it. Inside the rope, the barley is doing well.
+    threat: { name: "A rope with no notice on it", resolve: 4 }
+    approaches:
+      read:
+        skill: lore
+        difficulty: standard
+        text: "Read the rags — somebody chose them"
+      ask:
+        skill: persuasion
+        difficulty: standard
+        text: "Find whoever put it up and ask"
+      cross:
+        skill: nerve
+        difficulty: hard
+        text: "Step over it and walk in"
+      skirt:
+        skill: stealth
+        difficulty: easy
+        text: "Follow it round at a distance and count the stakes"
+    outcomes:
+      crit_success:
+        text: >-
+          Sackcloth strips, all of them, and all of them off the same bolt as
+          a scarecrow's head. The rope is not keeping people out of the field.
+        effects:
+          - { type: awareness, delta: 5 }
+          - { type: focus, delta: 1 }
+          - type: ledger_fact
+            kind: engine
+            text: "The Millhaven quarantine rope is hung with scarecrow sackcloth and faces inward."
+      success:
+        text: >-
+          Nobody will say who put it up, and everybody knows exactly where it
+          runs, and nobody's animals go near it.
+        effects:
+          - { type: awareness, delta: 3 }
+      partial:
+        text: >-
+          You walk it to the far stake. It does not enclose the holdings. It
+          separates them from the road, which is the wrong way round.
+        effects:
+          - { type: awareness, delta: 4 }
+          - { type: stamina, delta: -8 }
+      failure:
+        text: >-
+          You are twenty paces inside it before the sound of your own boots
+          stops reaching you properly, and getting back out takes longer than
+          getting in did.
+        effects:
+          - { type: focus, delta: -2 }
+          - { type: awareness, delta: 5 }
+          - { type: stamina, delta: -18 }
+          - type: check_penalty
+            text: "twenty paces you cannot account for"
+            delta: -2
+            skills: [lore, nerve]
+            days: 2
+
+  - id: something_in_the_mill_race
+    tier: 3
+    weight: 16
+    art: clockwork_thing
+    triggers:
+      to: [millhaven_gate]
+      phases: [spreading, consuming]
+    intro: >-
+      The mill race under the gate road is running loud and running wrong.
+      There is something down there taking the wheel's rhythm and giving it
+      back a half-beat late, patiently, like a thing learning a trade.
+    threat: { name: "The half-beat in the race", resolve: 6 }
+    approaches:
+      look:
+        skill: nerve
+        difficulty: severe
+        text: "Get down the bank and look under the wheel"
+      listen:
+        skill: lore
+        difficulty: hard
+        text: "Stand on the bridge and work out the rhythm"
+      warn:
+        skill: persuasion
+        difficulty: standard
+        text: "Get the miller out of his bed about it"
+      leave_it:
+        skill: stealth
+        difficulty: standard
+        text: "Cross quietly and do not break stride"
+    outcomes:
+      crit_success:
+        text: >-
+          It is copying the wheel. It has nearly got it. When it has got it
+          exactly you suspect the wheel will be the one copying, and you get
+          off the bridge with that thought entire.
+        effects:
+          - { type: awareness, delta: 6 }
+          - { type: focus, delta: 1 }
+          - type: ledger_fact
+            kind: engine
+            text: "Something under the Millhaven wheel is learning the wheel's rhythm a half-beat at a time."
+      success:
+        text: >-
+          Brass under the water, turning with the wheel and not driven by it.
+          The miller will not come out. He knows.
+        effects:
+          - { type: awareness, delta: 4 }
+      partial:
+        text: >-
+          You cross. Halfway over, the half-beat stops, and waits, and starts
+          again when you are off the bridge.
+        effects:
+          - { type: awareness, delta: 5 }
+          - type: check_penalty
+            text: "a rhythm you keep checking your steps against"
+            delta: -2
+            skills: [craft, nerve]
+            days: 2
+      failure:
+        text: >-
+          The bank gives. You are in the race with it for the count of four
+          and it does not hurry and it does not let go until it is finished
+          looking at you.
+        effects:
+          - { type: hp, delta: -7 }
+          - { type: focus, delta: -2 }
+          - { type: awareness, delta: 7 }
+          - type: wound
+            text: "a grip mark all the way round the ankle"
+            severity: 3
+            check_penalty: -3
+            skills: [survival, stealth, nerve]
+            heals_on_day: "+6"
+
+  - id: the_saint_with_no_face
+    tier: 3
+    weight: 12
+    art: clockwork_soldier
+    triggers:
+      to: [millhaven_gate]
+      phases: [consuming]
+    intro: >-
+      There is a figure standing in the gate arch where the saint's niche is,
+      and the niche is empty, and the figure is the right height for it. It has
+      been raining on it long enough to have a shine.
+    threat: { name: "The thing standing in the niche", resolve: 8 }
+    approaches:
+      kneel:
+        skill: sympathy
+        difficulty: severe
+        text: "Kneel to it, because that is what the niche is for"
+      name_it:
+        skill: lore
+        difficulty: legendary
+        text: "Name the saint it is standing in for"
+      pass:
+        skill: nerve
+        difficulty: severe
+        text: "Walk under the arch without stopping"
+      ward:
+        skill: craft
+        difficulty: hard
+        requires_item: rune_talisman
+        text: "Set the talisman in the empty niche beside it"
+    outcomes:
+      crit_success:
+        text: >-
+          You kneel and it inclines, exactly as far as the mural shows the
+          saints inclining, and holds it until you are through the arch. The
+          unnamed saints have a name now, and you do not want it.
+        effects:
+          - { type: awareness, delta: 7 }
+          - { type: focus, delta: 2 }
+          - { type: reputation, faction: unnamed_saints, delta: 5 }
+          - type: ledger_fact
+            kind: engine
+            text: "The thing in the Millhaven gate niche returned a saint's bow, correctly, to the inch."
+      success:
+        text: >-
+          You get under the arch. It does not move while you are looking at it
+          and it is in a different attitude when you glance back.
+        effects:
+          - { type: awareness, delta: 6 }
+          - { type: reputation, faction: unnamed_saints, delta: 2 }
+      partial:
+        text: >-
+          You are under the arch a long time. Longer than the arch is deep.
+          You come out the far side into the same rain and a later hour.
+        effects:
+          - { type: awareness, delta: 7 }
+          - { type: stamina, delta: -25 }
+          - { type: focus, delta: -1 }
+      failure:
+        text: >-
+          It comes down out of the niche to meet you, and it does it the way
+          the mural shows the saints doing it, and there is nothing in the
+          face at all.
+        effects:
+          - { type: hp, delta: -10 }
+          - { type: focus, delta: -3 }
+          - { type: awareness, delta: 9 }
+          - type: wound
+            text: "a stillness that will not leave the left hand"
+            severity: 4
+            check_penalty: -3
+            skills: [craft, sympathy, lore, nerve]
+            heals_on_day: "+9"

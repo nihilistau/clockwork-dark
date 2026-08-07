@@ -1,0 +1,329 @@
+# ============================================================
+# The location graph.
+#
+# THE GAP THIS FILE CLOSES: until now the world was the only noun in this
+# project still hardcoded in Python. NPCs, schedules, economy, quests,
+# encounters, factions and rumours were all YAML; five places and eight edges
+# sat in engine/game/locations.py as a literal dict. That put the map out of
+# reach of every content tool and every non-Python contributor, and it kept
+# engine/game/procgen.py generating forage nodes, hidden paths, a barrow
+# dungeon and a shrine mural for `deeper_forest`, `old_barrows` and
+# `herb_glen` -- ids that were not in the graph, so `move_to` rejected them.
+# All of that content has been unreachable since it was written. It is
+# reachable now.
+#
+# DESIGN.md § Setting arranges the known world in concentric rings:
+#
+#   [Deep Forest] -> [Edgewood] -> [The Marches] -> [Heartlands] -> [The Wound]
+#
+# `ring` is that number. It is what the evil ticker, the encounter bands and
+# the Storyteller prompt all mean by "how far in are we".
+#
+# ------------------------------------------------------------
+# Edge shape
+# ------------------------------------------------------------
+#   hours            travel time on the world clock. 0 for a door.
+#   danger_dc        drives encounter probability (engine/game/encounter.py).
+#                    0 means "this leg cannot produce an encounter".
+#   awareness_delta  hidden Awareness gained by making the trip at all.
+#
+# Edges are BIDIRECTIONAL. Every a->b must have a matching b->a unless the
+# forward edge is marked `one_way: true`; the loader enforces this and mirrors
+# a missing return leg rather than stranding the player. The two directions do
+# not have to carry the same numbers -- walking INTO the tinker camp is where
+# you overhear things, walking out is not.
+#
+# ------------------------------------------------------------
+# WHY SO MANY danger_dc: 0
+# ------------------------------------------------------------
+# tests/test_encounter.py::test_every_edge_in_the_graph_with_danger_has_content
+# asserts that a dangerous edge always has an encounter that can fire on it --
+# a danger roll with an empty table is a roll that can never pay off. The
+# shipped bands in data/encounters/ are keyed to the five original places:
+# forest.yaml to the clearing<->square walk, road.yaml to the square<->gate
+# road, village.yaml to arrivals at edgewood_square, marches.yaml to arrivals
+# at millhaven_gate. So the only NEW legs that may carry danger today are the
+# ones arriving at Edgewood square or Millhaven gate. Every other new edge is
+# marked `danger_dc: 0` with a `# needs band` note. Raising them is a content
+# job in data/encounters/, not a number change here.
+#
+# Version: v0.1.0 [2026-08-07]
+# ============================================================
+
+version: 1
+
+# Human labels for the rings. Referenced by the loader's validation bounds and
+# by anything that wants to say "the Marches" instead of "ring 2".
+rings:
+  0: "The Deep Forest"
+  1: "Edgewood"
+  2: "The Marches"
+  3: "The Heartland Road"
+
+locations:
+
+  # ==========================================================
+  # Ring 0 -- the deep forest. Generous, not tame.
+  # ==========================================================
+
+  forest_clearing:
+    name: "Forest Clearing"
+    ring: 0
+    evil_multiplier: 0.5
+    summary: >-
+      Birch and fern around a stump wide enough to sleep on. Smoke from
+      Edgewood drifts west even when the wind blows south.
+    tags: [outdoors, wild, safe_camp]
+    connections:
+      edgewood_square: { hours: 1, danger_dc: 8, awareness_delta: 0 }
+      deeper_forest: { hours: 2, danger_dc: 0, awareness_delta: 1 }  # needs band
+      herb_glen: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
+
+  deeper_forest:
+    name: "The Deeper Wood"
+    ring: 0
+    evil_multiplier: 0.6
+    summary: >-
+      Past the last snare line the trees stop being a wood and start being a
+      distance. Game trails double back when watched.
+    tags: [outdoors, wild, forage]
+    connections:
+      forest_clearing: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
+      herb_glen: { hours: 1, danger_dc: 0, awareness_delta: 0 }  # needs band
+      old_barrows: { hours: 2, danger_dc: 0, awareness_delta: 2 }  # needs band
+      charcoal_burn: { hours: 1, danger_dc: 0, awareness_delta: 0 }  # needs band
+
+  herb_glen:
+    name: "The Herb Glen"
+    ring: 0
+    evil_multiplier: 0.5
+    summary: >-
+      A south-facing bowl where feverfew, yarrow and bittercress come up
+      thicker than they have any right to. Somebody weeded it, once.
+    tags: [outdoors, wild, forage, quiet]
+    connections:
+      forest_clearing: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
+      deeper_forest: { hours: 1, danger_dc: 0, awareness_delta: 0 }  # needs band
+
+  old_barrows:
+    name: "The Old Barrows"
+    ring: 0
+    evil_multiplier: 1.0
+    summary: >-
+      Nine grass-covered mounds in a line that is too straight to be weather.
+      The village does not come here and does not discuss not coming here.
+    tags: [outdoors, ruin, dangerous, quiet]
+    connections:
+      deeper_forest: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
+      tunnel_entrance: { hours: 1, danger_dc: 0, awareness_delta: 2 }  # needs band
+
+  tunnel_entrance:
+    name: "The Barrow Mouth"
+    ring: 0
+    evil_multiplier: 1.1
+    summary: >-
+      A dressed-stone throat in the side of the ninth mound, open, and colder
+      three paces in than the season allows.
+    tags: [underground, ruin, dangerous, dark]
+    connections:
+      old_barrows: { hours: 1, danger_dc: 0, awareness_delta: 0 }  # needs band
+
+  charcoal_burn:
+    name: "The Charcoal Burn"
+    ring: 0
+    evil_multiplier: 0.6
+    summary: >-
+      A clearing of turf-capped stacks and a burner's hut. Somebody sleeps
+      here in season and nobody knows their name in the village.
+    tags: [outdoors, work, trade, safe_camp]
+    connections:
+      deeper_forest: { hours: 1, danger_dc: 0, awareness_delta: 0 }  # needs band
+      edgewood_square: { hours: 2, danger_dc: 6, awareness_delta: 0 }
+
+  # ==========================================================
+  # Ring 1 -- Edgewood. The last comfortable place.
+  # ==========================================================
+
+  edgewood_square:
+    name: "Edgewood Square"
+    ring: 1
+    evil_multiplier: 0.8
+    summary: >-
+      Timber frames leaning together around the communal oven, a noticeboard,
+      and a well that has started tasting of iron.
+    tags: [village, hub, safe, trade]
+    connections:
+      forest_clearing: { hours: 1, danger_dc: 8, awareness_delta: 0 }
+      edgewood_bakery: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      tinker_caravan: { hours: 0, danger_dc: 0, awareness_delta: 1 }
+      millhaven_gate: { hours: 4, danger_dc: 12, awareness_delta: 2 }
+      edgewood_shrine: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      the_forge: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      well_row: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      fallow_farm: { hours: 1, danger_dc: 0, awareness_delta: 0 }  # needs band
+      charcoal_burn: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
+
+  edgewood_bakery:
+    name: "Edgewood Bakery"
+    ring: 1
+    evil_multiplier: 0.7
+    summary: >-
+      Maris Hearth's stone oven, a cot above it, and flour in every seam of
+      the floorboards. Warm at hours when nothing else is.
+    tags: [village, interior, safe, trade, work]
+    connections:
+      edgewood_square: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      well_row: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  tinker_caravan:
+    name: "Tinker Caravan"
+    ring: 1
+    evil_multiplier: 0.9
+    summary: >-
+      Two wagons, an awning of oiled cloth, and wares laid out in an order
+      that means something to the person who laid them.
+    tags: [village, trade, transient]
+    connections:
+      edgewood_square: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  edgewood_shrine:
+    name: "The Shrine of the Unnamed"
+    ring: 1
+    evil_multiplier: 0.6
+    summary: >-
+      A lime-washed wall, an unfinished mural of faceless saints, and candles
+      that the old women have started lighting two at a time.
+    tags: [village, interior, quiet, sacred]
+    connections:
+      edgewood_square: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  the_forge:
+    name: "Hallam's Forge"
+    ring: 1
+    evil_multiplier: 0.9
+    summary: >-
+      Charcoal heat, a slack tub, and a smith who will mend anything except a
+      clock, and will tell you why if you have an hour.
+    tags: [village, interior, work, trade, craft]
+    connections:
+      edgewood_square: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      well_row: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  well_row:
+    name: "Well Row"
+    ring: 1
+    evil_multiplier: 0.8
+    summary: >-
+      The lower street: twelve houses, a shared well, and dogs that have
+      lately stopped barking at night.
+    tags: [village, residential, quiet]
+    connections:
+      edgewood_square: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      edgewood_bakery: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      the_forge: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  fallow_farm:
+    name: "The Fallow Holding"
+    ring: 1
+    evil_multiplier: 1.0
+    summary: >-
+      East pens and a wheatfield that stands in rows too straight for any wind
+      to have made. The Fallows do not invite people out here any more.
+    tags: [outdoors, farm, work, uneasy]
+    connections:
+      edgewood_square: { hours: 1, danger_dc: 6, awareness_delta: 1 }
+
+  # ==========================================================
+  # Ring 2 -- the Marches. Market towns, garrisons, toll roads.
+  # ==========================================================
+
+  millhaven_gate:
+    name: "Millhaven Gate"
+    ring: 2
+    evil_multiplier: 1.2
+    summary: >-
+      A timber gate closed an hour earlier each week, a recruitment board with
+      fresh nails in it, and a queue that is counted twice.
+    tags: [town, gate, militia, uneasy]
+    connections:
+      edgewood_square: { hours: 4, danger_dc: 12, awareness_delta: 2 }
+      millhaven_market: { hours: 0, danger_dc: 0, awareness_delta: 1 }  # needs band
+      millhaven_barracks: { hours: 0, danger_dc: 0, awareness_delta: 2 }  # needs band
+      toll_bridge: { hours: 2, danger_dc: 0, awareness_delta: 1 }  # needs band
+      refugee_camp: { hours: 1, danger_dc: 0, awareness_delta: 2 }  # needs band
+
+  millhaven_market:
+    name: "Millhaven Market"
+    ring: 2
+    evil_multiplier: 1.3
+    summary: >-
+      Grain tallies chalked on a board and coming out perfect four quarters
+      running. No harvest is perfect.
+    tags: [town, trade, hub, uneasy]
+    connections:
+      millhaven_gate: { hours: 0, danger_dc: 8, awareness_delta: 0 }
+      millhaven_barracks: { hours: 0, danger_dc: 0, awareness_delta: 1 }  # needs band
+
+  millhaven_barracks:
+    name: "Millhaven Barracks"
+    ring: 2
+    evil_multiplier: 1.4
+    summary: >-
+      Sergeant Sera Venn's yard. Drill at the appointed hour, and lately half
+      the watch coming off the wall in a step nobody called.
+    tags: [town, interior, militia, dangerous]
+    connections:
+      millhaven_gate: { hours: 0, danger_dc: 8, awareness_delta: 0 }
+      millhaven_market: { hours: 0, danger_dc: 0, awareness_delta: 0 }  # needs band
+
+  toll_bridge:
+    name: "The Toll Bridge"
+    ring: 2
+    evil_multiplier: 1.2
+    summary: >-
+      Three spans of old stone, a chain, and a table where a clerk writes down
+      more about you than the toll requires.
+    tags: [road, toll, militia, uneasy]
+    connections:
+      millhaven_gate: { hours: 2, danger_dc: 10, awareness_delta: 1 }
+      burned_farmstead: { hours: 2, danger_dc: 0, awareness_delta: 2 }  # needs band
+      heartland_road: { hours: 3, danger_dc: 0, awareness_delta: 3 }  # needs band
+
+  refugee_camp:
+    name: "The Ditch Camp"
+    ring: 2
+    evil_multiplier: 1.3
+    summary: >-
+      Canvas and cart-boards in the drainage ditch outside the wall, because
+      the wall is closed and the road inward is worse.
+    tags: [camp, refugees, uneasy]
+    connections:
+      millhaven_gate: { hours: 1, danger_dc: 8, awareness_delta: 1 }
+      burned_farmstead: { hours: 2, danger_dc: 0, awareness_delta: 2 }  # needs band
+
+  burned_farmstead:
+    name: "The Burned Farmstead"
+    ring: 2
+    evil_multiplier: 1.5
+    summary: >-
+      Sills still standing, roof gone, and a fire that took the house and left
+      the byre. Nobody will write down why.
+    tags: [ruin, farm, dangerous, quiet]
+    connections:
+      toll_bridge: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
+      refugee_camp: { hours: 2, danger_dc: 0, awareness_delta: 0 }  # needs band
+
+  # ==========================================================
+  # Ring 3 -- the road inward. The last thing on the map.
+  # ==========================================================
+
+  heartland_road:
+    name: "The Heartland Road"
+    ring: 3
+    evil_multiplier: 1.8
+    summary: >-
+      Where the metalling changes and the milestones start agreeing with each
+      other too exactly. Everything past here is rumour and refugee.
+    tags: [road, frontier, dangerous, endgame]
+    connections:
+      toll_bridge: { hours: 3, danger_dc: 0, awareness_delta: 0 }  # needs band

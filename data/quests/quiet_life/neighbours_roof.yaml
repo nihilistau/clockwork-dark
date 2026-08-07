@@ -1,0 +1,100 @@
+# Version: v0.1.0 [2026-08-07]
+
+id: neighbours_roof
+arc: quiet_life
+name: "Rain Coming"
+summary: >-
+  Old Teward's thatch has gone soft along the north pitch, and Old Teward is
+  eighty-one and will absolutely climb up there himself.
+
+preconditions:
+  all:
+    - min_day: 5
+    - visited: edgewood_square
+
+start_text: >-
+  There is a ladder against the wrong house and an argument going on at the
+  bottom of it.
+
+stages:
+  - id: offer
+    objective: "Offer to do Teward's roof before he tries it himself."
+    narrative_flags:
+      - nf_roof_offered
+    complete_when:
+      all:
+        - at_location: edgewood_square
+        - flag: nf_roof_offered
+    complete_text: >-
+      He is insulted for exactly as long as it takes him to sit down.
+
+  - id: cut_reed
+    objective: "Cut fresh reed at the forest margin. Green reed, not last year's."
+    expires_after_days: 4
+    complete_when:
+      any:
+        - has_item: { id: cut_reed, qty: 1 }
+        - all:
+            - at_location: forest_clearing
+            - days_in_stage: 1
+    complete_text: >-
+      Wet work, and your hands will tell you about it tomorrow.
+    on_complete:
+      effects:
+        - type: item
+          item_id: cut_reed
+          name: "Bundle of green reed"
+          qty: 1
+          tags: [material]
+        - type: stamina
+          delta: -18
+    fail_text: >-
+      The rain arrives on schedule. Teward's north room is not usable after it.
+    on_fail:
+      effects:
+        - type: reputation
+          faction: edgewood
+          delta: -4
+        - type: ledger_fact
+          text: "Teward's roof went before you got to it. He does not mention it."
+          kind: event
+
+  - id: lay_it
+    objective: "Lay the new thatch before the weather turns."
+    complete_when:
+      all:
+        - at_location: edgewood_square
+        - has_item: { id: cut_reed, qty: 1 }
+        - time_of_day: [day]
+    complete_text: >-
+      Three courses up the pitch and the sky goes the colour of a bruise. You
+      finish anyway.
+    on_complete:
+      effects:
+        - type: remove_item
+          item_id: cut_reed
+          qty: 1
+        - type: stamina
+          delta: -20
+        - type: craft
+          delta: 1
+
+on_complete:
+  effects:
+    - type: reputation
+      faction: edgewood
+      delta: 7
+    - type: item
+      item_id: loaf
+      name: "Loaf of bread"
+      qty: 1
+      tags: [food]
+    - type: flag
+      flag: quest_neighbours_roof_done
+    - type: ledger_fact
+      text: "You rethatched Teward's north pitch the day before the rain."
+      kind: event
+
+complete_text: >-
+  It rains for two days. Teward's north room stays dry, and he tells three
+  separate people it was mostly his idea.

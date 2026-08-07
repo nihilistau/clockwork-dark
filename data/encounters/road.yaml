@@ -1,0 +1,574 @@
+# Road Encounters
+# ===============
+#
+# The four-hour Millhaven road: danger_dc 12, the most dangerous edge in the
+# graph and the one that had never once been rolled against. Frontier traffic
+# -- carters, militia, tinkers, a funeral walking to a bigger churchyard --
+# and, late, the things that use a road because a road is easier walking.
+
+band: road
+
+encounters:
+  - id: road_toll_bandits
+    tier: 1
+    weight: 26
+    art: scarecrow
+    triggers:
+      edges: ["edgewood_square>millhaven_gate", "millhaven_gate>edgewood_square"]
+      phases: [dormant, stirring]
+      hours: [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5]
+      min_day: 2
+    intro: >-
+      Three men step out of the alders about a mile short of the ford. Only one
+      of them is carrying anything you would call a weapon, and none of them
+      look like they enjoy this part.
+    threat: { name: "Toll-takers", resolve: 6 }
+    approaches:
+      talk:
+        skill: persuasion
+        difficulty: standard
+        text: "Talk your way past"
+      fight:
+        skill: nerve
+        difficulty: hard
+        text: "Stand your ground"
+      sneak:
+        skill: stealth
+        difficulty: standard
+        requires_time: night
+        text: "Slip into the alders and go round"
+      pay:
+        cost_gold: 3
+        auto: true
+        text: "Pay the toll"
+        outcomes:
+          success:
+            text: >-
+              You hand it over. The one with the billhook counts it twice and
+              looks embarrassed about the second count.
+            outcome: "settled"
+    outcomes:
+      crit_success:
+        text: >-
+          You get their names, their village, and the price of grain in it.
+          They walk you to the ford and one of them apologises on the way.
+        effects:
+          - { type: reputation, faction: militia, delta: -1 }
+          - { type: flag, flag: knows_the_alder_men, value: true }
+      success:
+        text: "They let it go. Nobody's day is improved and nobody bleeds."
+        effects: []
+      partial:
+        text: >-
+          You get through lighter than you came and with your teeth in your
+          head, which on this road counts as a negotiation.
+        effects:
+          - { type: gold, delta: -2 }
+      failure:
+        text: >-
+          The billhook is not decorative. It is a short conversation after
+          that, and your forearm takes most of it.
+        effects:
+          - { type: hp, delta: -4 }
+          - { type: gold, delta: -4 }
+          - type: wound
+            text: "a knife-line across the forearm"
+            severity: 2
+            check_penalty: -2
+            skills: [craft, stealth]
+            heals_on_day: "+3"
+
+  - id: cart_in_the_ditch
+    tier: 1
+    weight: 28
+    triggers:
+      edges: ["edgewood_square>millhaven_gate", "millhaven_gate>edgewood_square"]
+    intro: >-
+      A grain cart is off the crown of the road with one wheel in the ditch and
+      the horse standing patient in the traces. The carter is sitting on the
+      shaft with his hat in his hands.
+    threat: { name: "A wheel in a ditch", resolve: 3 }
+    approaches:
+      lift:
+        skill: craft
+        difficulty: standard
+        text: "Get under the axle and lift with him"
+      organise:
+        skill: persuasion
+        difficulty: easy
+        text: "Flag down the next traffic and make it a three-man job"
+      pass:
+        skill: nerve
+        difficulty: trivial
+        text: "Nod and keep walking"
+    outcomes:
+      crit_success:
+        text: >-
+          Up in one go, and he insists on the loaf out of his own bag. He
+          hauls for the Millhaven merchants and he remembers faces.
+        effects:
+          - { type: reputation, faction: merchants, delta: 3 }
+          - { type: item, item_id: road_bread, name: "Road bread", qty: 1, tags: [food, ration] }
+          - { type: stamina, delta: -10 }
+      success:
+        text: "It comes up. He shakes your hand with both of his and means it."
+        effects:
+          - { type: reputation, faction: merchants, delta: 2 }
+          - { type: stamina, delta: -12 }
+      partial:
+        text: >-
+          It comes up eventually and half the load is in the ditch water. He
+          thanks you in the voice of a man doing arithmetic.
+        effects:
+          - { type: reputation, faction: merchants, delta: 1 }
+          - { type: stamina, delta: -18 }
+      failure:
+        text: >-
+          The axle goes while you are under it and the cart comes down on your
+          shoulder. He is more sorry than you are, which takes some doing.
+        effects:
+          - { type: hp, delta: -3 }
+          - type: wound
+            text: "a shoulder that will not go above the horizontal"
+            severity: 2
+            check_penalty: -2
+            skills: [craft, survival]
+            heals_on_day: "+4"
+          - { type: stamina, delta: -20 }
+
+  - id: militia_asking_questions
+    tier: 1
+    weight: 24
+    triggers:
+      edges: ["edgewood_square>millhaven_gate", "millhaven_gate>edgewood_square"]
+      min_day: 2
+    intro: >-
+      Two militiamen have a rope across the road at the milestone and a list
+      they keep consulting. They want to know where you slept last night and
+      they want to know it in some detail.
+    threat: { name: "A rope and a list", resolve: 4 }
+    approaches:
+      answer:
+        skill: persuasion
+        difficulty: standard
+        text: "Answer plainly and let them get bored"
+      stand:
+        skill: nerve
+        difficulty: standard
+        text: "Ask what the list is for"
+      slip:
+        skill: stealth
+        difficulty: hard
+        requires_time: night
+        text: "Take the field wall and rejoin the road past them"
+      grease:
+        cost_gold: 2
+        auto: true
+        text: "Put something in the corporal's hand"
+        outcomes:
+          success:
+            text: >-
+              The rope comes down without anybody writing anything. The
+              corporal does not look at you while it happens.
+            outcome: "settled"
+    outcomes:
+      crit_success:
+        text: >-
+          They write your name down in the good column and tell you which
+          stretch of road they have stopped patrolling, and why.
+        effects:
+          - { type: reputation, faction: militia, delta: 3 }
+          - { type: awareness, delta: 1 }
+      success:
+        text: "The rope comes down. They are already looking past you."
+        effects:
+          - { type: reputation, faction: militia, delta: 1 }
+      partial:
+        text: >-
+          An hour by the milestone answering the same four questions in a
+          different order. Your name goes on the list.
+        effects:
+          - { type: stamina, delta: -10 }
+          - { type: flag, flag: on_the_militia_list, value: true }
+      failure:
+        text: >-
+          They take you off the road and go through your pack on the grass,
+          and something comes out of it that does not go back in.
+        effects:
+          - { type: reputation, faction: militia, delta: -3 }
+          - { type: gold, delta: -3 }
+          - { type: flag, flag: on_the_militia_list, value: true }
+          - { type: stamina, delta: -12 }
+
+  - id: funeral_on_the_road
+    tier: 1
+    weight: 18
+    triggers:
+      edges: ["edgewood_square>millhaven_gate", "millhaven_gate>edgewood_square"]
+      hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    intro: >-
+      Four people carrying a fifth on a hurdle, walking to Millhaven because
+      Edgewood's ground is full this season. Nobody is talking. The road is
+      only wide enough for you or for them.
+    threat: { name: "A hurdle and four bearers", resolve: 3 }
+    approaches:
+      stand_aside:
+        auto: true
+        text: "Step into the ditch, take your hat off, wait"
+        outcomes:
+          success:
+            text: >-
+              You stand in the wet until they are past. The last bearer, a
+              girl of maybe fifteen, meets your eye and nods once.
+            outcome: "settled"
+            effects:
+              - { type: reputation, faction: edgewood, delta: 2 }
+      carry:
+        skill: sympathy
+        difficulty: standard
+        text: "Offer to take a corner for a mile"
+      ask:
+        skill: lore
+        difficulty: hard
+        text: "Ask, carefully, what took him"
+    outcomes:
+      crit_success:
+        text: >-
+          You carry the front left the whole way to the Millhaven wall and
+          they will not let you leave until you have eaten with them.
+        effects:
+          - { type: reputation, faction: edgewood, delta: 4 }
+          - { type: hunger, delta: -20 }
+          - { type: stamina, delta: -20 }
+      success:
+        text: >-
+          A mile of it. It is heavier than you expected and it is a long mile
+          and nobody says thank you, because nobody has to.
+        effects:
+          - { type: reputation, faction: edgewood, delta: 2 }
+          - { type: stamina, delta: -15 }
+      partial:
+        text: >-
+          They let you take a corner and then take it back off you at the
+          first rest, politely, the way you take a tool off a child.
+        effects:
+          - { type: stamina, delta: -8 }
+      failure:
+        text: >-
+          You ask the wrong question. The answer is that he was found in his
+          own field, standing up, with the work half done and three days of
+          rain in his clothes. Then they will not speak to you at all.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: reputation, faction: edgewood, delta: -1 }
+          - type: check_penalty
+            text: "a picture you cannot put down"
+            delta: -1
+            skills: [nerve, sympathy]
+            days: 1
+
+  - id: tinker_axle_trouble
+    tier: 1
+    weight: 20
+    triggers:
+      edges: ["edgewood_square>millhaven_gate", "millhaven_gate>edgewood_square"]
+    intro: >-
+      A tinker's wagon at the roadside, painted panels open, a woman lying
+      under it swearing in a language you half recognise. There is brass laid
+      out on a cloth in an order that clearly matters.
+    threat: { name: "A stripped linchpin", resolve: 4 }
+    approaches:
+      help:
+        skill: craft
+        difficulty: standard
+        text: "Get under there with her"
+      talk:
+        skill: persuasion
+        difficulty: easy
+        text: "Keep her company and fetch what she asks for"
+      read_brass:
+        skill: lore
+        difficulty: hard
+        text: "Look at what is laid out on the cloth"
+    outcomes:
+      crit_success:
+        text: >-
+          You cut a new pin out of a fence nail while she watches, and she
+          watches the whole time. Tinkers remember hands.
+        effects:
+          - { type: reputation, faction: tinkers, delta: 4 }
+          - { type: item, item_id: whetstone, name: "Whetstone", qty: 1, tags: [tool] }
+      success:
+        text: "It holds. She writes something in a little book and does not show you."
+        effects:
+          - { type: reputation, faction: tinkers, delta: 2 }
+          - { type: stamina, delta: -8 }
+      partial:
+        text: >-
+          It holds badly. She will get to Millhaven and no further, and both
+          of you know it while you are shaking hands.
+        effects:
+          - { type: reputation, faction: tinkers, delta: 1 }
+          - { type: stamina, delta: -12 }
+      failure:
+        text: >-
+          You put your hand on the wrong piece of brass on the cloth. It is
+          cold, and then it is not, and she takes it off you without a word.
+        effects:
+          - { type: reputation, faction: tinkers, delta: -2 }
+          - { type: awareness, delta: 3 }
+          - { type: focus, delta: -1 }
+
+  - id: crows_that_do_not_scatter
+    tier: 2
+    weight: 18
+    triggers:
+      edges: ["edgewood_square>millhaven_gate", "millhaven_gate>edgewood_square"]
+      phases: [stirring, spreading, consuming]
+    intro: >-
+      Forty crows on the road, working at something in the ruts. They do not
+      lift when you come on. They do not lift when you shout. They step aside
+      exactly far enough and close up again behind you.
+    threat: { name: "Crows with no fear left", resolve: 4 }
+    approaches:
+      through:
+        skill: nerve
+        difficulty: standard
+        text: "Walk through the middle of them"
+      look:
+        skill: lore
+        difficulty: hard
+        text: "See what they are working at"
+      around:
+        skill: stealth
+        difficulty: easy
+        text: "Take the verge and give them the road"
+    outcomes:
+      crit_success:
+        text: >-
+          It is a sheep, and the sheep has been opened along the spine in a
+          straight line, and the line is straighter than a knife. You take
+          that away with you and leave the crows to it.
+        effects:
+          - { type: awareness, delta: 4 }
+          - { type: focus, delta: 1 }
+          - type: ledger_fact
+            kind: engine
+            text: "A sheep on the Millhaven road, opened along the spine in a perfectly straight line."
+      success:
+        text: "You get past. Behind you the sound resumes without a pause in it."
+        effects:
+          - { type: awareness, delta: 2 }
+      partial:
+        text: >-
+          You go the long way round through wet ground and arrive with your
+          boots full and your nerve in about the same condition.
+        effects:
+          - { type: stamina, delta: -12 }
+          - { type: awareness, delta: 2 }
+      failure:
+        text: >-
+          One of them comes up at your face. You get a beak past your eyebrow
+          and you are running before the rest of them have finished lifting.
+        effects:
+          - { type: hp, delta: -2 }
+          - type: wound
+            text: "a split eyebrow that keeps opening"
+            severity: 1
+            check_penalty: -1
+            skills: [persuasion, survival]
+            heals_on_day: "+3"
+          - { type: awareness, delta: 3 }
+
+  - id: night_lantern_behind_you
+    tier: 2
+    weight: 16
+    triggers:
+      edges: ["edgewood_square>millhaven_gate", "millhaven_gate>edgewood_square"]
+      hours: [20, 21, 22, 23, 0, 1, 2, 3, 4]
+      min_day: 3
+    intro: >-
+      There has been a lantern behind you for an hour. It keeps your pace
+      exactly. When you stop it stops, and it stops a beat too late, the way a
+      man does when he is trying not to be seen stopping.
+    threat: { name: "A light that keeps pace", resolve: 5 }
+    approaches:
+      wait:
+        skill: nerve
+        difficulty: hard
+        text: "Sit down on the milestone and wait for it"
+      hide:
+        skill: stealth
+        difficulty: standard
+        requires_time: night
+        text: "Get off the road and let it go past"
+      hail:
+        skill: persuasion
+        difficulty: standard
+        text: "Call out and offer to walk together"
+    outcomes:
+      crit_success:
+        text: >-
+          A pedlar, sixty, half blind, terrified of you for exactly the same
+          reasons. You walk the rest of it together and he talks the whole way.
+        effects:
+          - { type: reputation, faction: merchants, delta: 2 }
+          - { type: item, item_id: candle, name: "Tallow candle", qty: 2, tags: [tool] }
+      success:
+        text: >-
+          It is a man with a lantern. He passes you with a word and is gone up
+          the road, and that is all it ever was.
+        effects: []
+      partial:
+        text: >-
+          The light goes out while you are watching it. It does not come back
+          on and nobody comes past you for the rest of the road.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: stamina, delta: -10 }
+      failure:
+        text: >-
+          You lie in the ditch and it comes level and stops, and stands there
+          a long time with the lantern held low, and there is nothing holding
+          the lantern.
+        effects:
+          - { type: awareness, delta: 5 }
+          - { type: focus, delta: -1 }
+          - type: check_penalty
+            text: "no sleep worth the name"
+            delta: -2
+            skills: [nerve, lore, craft]
+            days: 2
+
+  - id: pilgrim_walking_backward
+    tier: 2
+    weight: 14
+    triggers:
+      edges: ["edgewood_square>millhaven_gate", "millhaven_gate>edgewood_square"]
+      phases: [stirring, spreading, consuming]
+    intro: >-
+      A woman in good boots is walking to Millhaven backwards, steadily, with
+      her eyes on the road behind her. She has been doing it long enough to be
+      good at it.
+    threat: { name: "A pilgrim facing the wrong way", resolve: 4 }
+    approaches:
+      ask:
+        skill: persuasion
+        difficulty: standard
+        text: "Fall in beside her and ask"
+      recognise:
+        skill: lore
+        difficulty: hard
+        text: "Work out what rite this is"
+      copy:
+        skill: nerve
+        difficulty: severe
+        text: "Turn around and walk the way she is walking"
+    outcomes:
+      crit_success:
+        text: >-
+          She says you must not let the road see your face, and she says which
+          stretch, and she says how far, and everything she says is specific.
+        effects:
+          - { type: awareness, delta: 3 }
+          - { type: focus, delta: 1 }
+          - { type: reputation, faction: unnamed_saints, delta: 3 }
+          - type: ledger_fact
+            kind: engine
+            text: "A pilgrim walks the Millhaven road backwards so the road cannot see her face."
+      success:
+        text: >-
+          She says it is a penance and does not say for what, and asks you not
+          to walk in front of her.
+        effects:
+          - { type: reputation, faction: unnamed_saints, delta: 1 }
+          - { type: awareness, delta: 2 }
+      partial:
+        text: >-
+          She will not speak while she is walking. You keep her company for a
+          mile of silence and learn nothing but the rhythm of it.
+        effects:
+          - { type: awareness, delta: 1 }
+          - { type: stamina, delta: -8 }
+      failure:
+        text: >-
+          You walk backwards beside her for two hundred paces and something
+          about the road, seen that way round, does not agree with you at all.
+        effects:
+          - { type: focus, delta: -2 }
+          - { type: awareness, delta: 4 }
+          - { type: stamina, delta: -15 }
+
+  - id: clockwork_on_the_millhaven_road
+    tier: 3
+    weight: 14
+    art: clockwork_soldier
+    triggers:
+      edges: ["edgewood_square>millhaven_gate", "millhaven_gate>edgewood_square"]
+      phases: [spreading, consuming]
+    intro: >-
+      It is walking the crown of the road towards you at the pace of a man in
+      no hurry, and it is not a man. Brass at the joints, a farmer's coat over
+      the top of it, and the coat still has the name tape sewn in.
+    threat: { name: "The walker on the crown of the road", resolve: 8 }
+    approaches:
+      ditch:
+        skill: stealth
+        difficulty: hard
+        text: "Into the ditch, face down, and do not move"
+      hold:
+        skill: nerve
+        difficulty: severe
+        text: "Stand in the road and let it come"
+      name_it:
+        skill: lore
+        difficulty: severe
+        text: "Read the name tape and say it out loud"
+      ward:
+        skill: sympathy
+        difficulty: hard
+        requires_item: brass_ward_pin
+        text: "Put the ward pin between you and it"
+    outcomes:
+      crit_success:
+        text: >-
+          It goes past four feet from your head at the same unhurried pace,
+          and you get the name off the tape, and the name is one the village
+          will know.
+        effects:
+          - { type: awareness, delta: 6 }
+          - { type: focus, delta: 1 }
+          - type: ledger_fact
+            kind: engine
+            text: "A brass walker on the Millhaven road wore a farmer's coat with the name tape still sewn in."
+      success:
+        text: "It goes past. It does not turn its head. You lie still a long time after."
+        effects:
+          - { type: awareness, delta: 5 }
+          - { type: stamina, delta: -15 }
+      partial:
+        text: >-
+          It stops level with you and stands there working through something,
+          ticking, for the length of about two hundred heartbeats, and then
+          goes on.
+        effects:
+          - { type: awareness, delta: 7 }
+          - { type: stamina, delta: -25 }
+          - type: check_penalty
+            text: "two hundred heartbeats you can still count"
+            delta: -2
+            skills: [nerve, stealth]
+            days: 2
+      failure:
+        text: >-
+          It puts a hand on you the way you would move a gate, and the road
+          comes up, and the next thing is a long way further on.
+        effects:
+          - { type: hp, delta: -9 }
+          - { type: awareness, delta: 8 }
+          - type: wound
+            text: "a chest that clicks when you breathe in"
+            severity: 4
+            check_penalty: -3
+            skills: [craft, stealth, survival, nerve]
+            heals_on_day: "+8"

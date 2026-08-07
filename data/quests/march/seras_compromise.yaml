@@ -1,0 +1,115 @@
+# Version: v0.1.0 [2026-08-07]
+#
+# The arc's closing beat and its thesis: Sera is not a villain, the compromise
+# is real, and the quest completes either way. There is no stage here that
+# rewards the player for being right about her.
+#
+# Pins Sera at the Millhaven gate so the quest cannot be orphaned by her hourly
+# routine walking her off the board mid-conversation.
+
+id: seras_compromise
+arc: march
+name: "Sergeant Venn Does the Arithmetic"
+summary: >-
+  Sera Venn will explain, without being asked and without excusing herself,
+  exactly what she is trading and for what.
+
+preconditions:
+  all:
+    - visited: millhaven_gate
+    - min_awareness: 32
+    - any:
+        - quest_completed: conscription_list
+        - quest_completed: burned_farmstead
+        - quest_completed: refugees
+
+start_text: >-
+  She is off duty, which she demonstrates by taking one glove off.
+
+on_start:
+  effects:
+    - type: flag
+      flag: npc_pin_npc_sera
+      value: true
+
+stages:
+  - id: ask_her_straight
+    objective: "Ask Sera Venn what the militia is actually doing out here."
+    narrative_flags:
+      - nf_sera_asked
+    complete_when:
+      all:
+        - at_location: millhaven_gate
+        - flag: nf_sera_asked
+    complete_text: >-
+      "Containment," she says. "You'll want a better word than that and there
+      isn't one."
+
+  - id: hear_the_number
+    objective: "Let her finish. She has a number and she is going to say it."
+    narrative_flags:
+      - nf_sera_heard_out
+    expires_after_days: 2
+    complete_when:
+      all:
+        - at_location: millhaven_gate
+        - flag: nf_sera_heard_out
+    complete_text: >-
+      Nine villages held, at the cost of the four inward of them. She has the
+      figures. She has had the figures for a year. She does not look away while
+      she says them.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 12
+        - type: ledger_fact
+          text: "Sera Venn is spending four villages to hold nine, and knows the count."
+          subject_id: npc_sera
+          kind: secret
+    fail_text: >-
+      She is called away mid-sentence and does not offer again.
+
+  - id: answer_her
+    objective: "Tell her whether you will carry any of it."
+    narrative_flags:
+      - nf_sera_agreed
+      - nf_sera_refused
+    complete_when:
+      any:
+        - flag: nf_sera_agreed
+        - flag: nf_sera_refused
+        - days_in_stage: 3
+    complete_text: >-
+      She takes the answer the same way either way, which is the thing about her
+      that will keep you awake.
+    on_complete:
+      effects:
+        - type: reputation
+          faction: militia
+          delta: 6
+        - type: focus
+          delta: -2
+
+on_complete:
+  effects:
+    - type: flag
+      flag: npc_pin_npc_sera
+      value: false
+    - type: awareness
+      delta: 10
+    - type: flag
+      flag: quest_seras_compromise_done
+    - type: ledger_fact
+      text: "You know what the militia is trading and who is paying. So does Sera."
+      subject_id: npc_sera
+      kind: secret
+
+on_fail:
+  effects:
+    - type: flag
+      flag: npc_pin_npc_sera
+      value: false
+
+complete_text: >-
+  She is not lying to you and she is not wrong about the arithmetic. Both of
+  those are true at once and neither of them helps.
