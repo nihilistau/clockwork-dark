@@ -1,0 +1,45 @@
+<!-- @dsCard group="Spacing" viewport="700x180" name="Radii, borders & shadows" subtitle="Restrained corners, the iron ledger rule, warm low shadows" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body {
+      margin: 0; padding: 22px 26px; font-family: var(--font-ui); color: var(--text-on-dark);
+      position: relative; overflow: hidden;
+      background:
+        radial-gradient(80% 70% at 88% -14%, rgba(201,122,60,.20), transparent 54%),
+        linear-gradient(155deg, #0c100e 0%, #141816 42%, #16180f 100%);
+    }
+    .grain { position: absolute; inset: 0; background-image: var(--texture-paper); opacity: .45; mix-blend-mode: multiply; pointer-events: none; }
+    .vig { position: absolute; inset: 0; box-shadow: inset 0 0 140px 28px rgba(3,4,2,.85); pointer-events: none; }
+    .wrap { position: relative; z-index: 1; }
+    .head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .head img { width: 24px; filter: brightness(1.5) drop-shadow(0 0 12px rgba(201,122,60,.55)); }
+    .head h2 { margin: 0; font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: var(--tracking-title); color: var(--tallow-300); font-weight: 700; text-shadow: 0 0 16px rgba(232,196,122,.3); }
+    .head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--rust-500), transparent); }
+    .grid { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+    .item { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+    .box { width: 84px; height: 58px; display: grid; place-items: center; font-size: 11px;
+      background: linear-gradient(170deg, #241f14, #15110a); color: var(--linen-400); }
+    .tok { font-family: var(--font-mono); font-size: 10px; color: var(--rust-300); }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="wrap">
+    <div class="head"><img src="../assets/gear-motif.svg" alt="" /><h2>Radii · Borders · Shadows</h2><span class="rule"></span></div>
+    <div class="grid">
+      <div class="item"><div class="box" style="border-radius:var(--radius-none);border:2px solid var(--rust-clock)">0</div><span class="tok">radius-none</span></div>
+      <div class="item"><div class="box" style="border-radius:var(--radius-sm);border:2px solid var(--rust-clock)">4</div><span class="tok">radius-sm</span></div>
+      <div class="item"><div class="box" style="border-radius:0 var(--radius-md) var(--radius-md) 0;border-left:4px solid var(--rust-clock)">brass edge</div><span class="tok">radius-md · mark</span></div>
+      <div class="item"><div class="box" style="border-radius:var(--radius-sm);box-shadow:0 10px 26px -8px rgba(0,0,0,.85)">card</div><span class="tok">shadow-card</span></div>
+      <div class="item"><div class="box" style="border-radius:var(--radius-sm);box-shadow:0 14px 34px -10px rgba(0,0,0,.9)">raise</div><span class="tok">shadow-raise</span></div>
+      <div class="item"><div class="box" style="border-radius:var(--radius-sm);box-shadow:var(--glow-candle),0 0 26px -4px rgba(232,196,122,.55)">focus</div><span class="tok">glow-candle</span></div>
+    </div>
+  </div>
+  <div class="vig"></div>
+</body>
+</html>

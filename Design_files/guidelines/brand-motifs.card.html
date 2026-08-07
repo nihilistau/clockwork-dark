@@ -1,0 +1,36 @@
+<!-- @dsCard group="Brand" viewport="700x190" name="Motifs — gear & woodcut divider" subtitle="The one true brand glyph and the section divider that ticks toward it" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body { margin: 0; padding: 24px 26px; position: relative; overflow: hidden; font-family: var(--font-ui);
+      background:
+        radial-gradient(70% 80% at 18% 30%, rgba(184,134,63,.16), transparent 60%),
+        linear-gradient(155deg, #16120c 0%, #1e1913 48%, #221c14 100%); }
+    .grain { position: absolute; inset: 0; background-image: var(--texture-paper); opacity: .5; mix-blend-mode: multiply; pointer-events: none; }
+    .vig { position: absolute; inset: 0; box-shadow: inset 0 0 120px 24px rgba(5,6,4,.8); pointer-events: none; }
+    .wrap { position: relative; }
+    .gear { display: flex; align-items: center; gap: 20px; margin-bottom: 24px; }
+    .gear img { width: 52px; filter: brightness(1.5) drop-shadow(0 0 14px rgba(201,122,60,.55)); }
+    .gear .t { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: var(--tracking-label);
+      color: var(--tallow-300); font-weight: 700; }
+    .gear .t small { display: block; text-transform: none; letter-spacing: 0; font-weight: 400; margin-top: 5px;
+      color: rgba(217,205,180,.6); font-family: var(--font-narration); font-style: italic; font-size: 13px; max-width: 440px; line-height: 1.45; }
+    .divider { position: relative; }
+    .divider img { width: 100%; max-width: 640px; display: block; filter: brightness(2.3) sepia(.3) saturate(1.4) drop-shadow(0 0 6px rgba(232,196,122,.18)); }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="wrap">
+    <div class="gear">
+      <img src="../assets/gear-motif.svg" alt="gear motif" />
+      <span class="t">Gear motif<small>World clock · settings · the corruption signature. Line-art brass, never animated except the phase stutter.</small></span>
+    </div>
+    <div class="divider"><img src="../assets/woodcut-divider.svg" alt="woodcut divider" /></div>
+  </div>
+  <div class="vig"></div>
+</body>
+</html>

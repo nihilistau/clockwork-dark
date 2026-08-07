@@ -1,0 +1,113 @@
+<!-- @dsCard group="Components" viewport="700x390" name="Core — Buttons, Choices, Badges, Stats" subtitle="Ledger controls: actions, narrative choices, smallcaps markers, stat rows" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="../../_ds_bundle.js"></script>
+  <style>
+    body {
+      margin: 0; font-family: var(--font-ui); color: var(--text-on-dark); position: relative; overflow: hidden;
+      --accent-candle: #c0903f; /* muddier tinker-brass within this showcase */
+      background:
+        radial-gradient(90% 70% at 86% -14%, rgba(160,104,52,.14), transparent 52%),
+        radial-gradient(80% 80% at 4% 116%, rgba(58,68,70,.16), transparent 58%),
+        linear-gradient(155deg, #07090b 0%, #0f1212 42%, #111308 100%);
+      padding: 22px 26px;
+    }
+    .grain { position: absolute; inset: 0; background-image: var(--texture-paper); opacity: .5; mix-blend-mode: multiply; pointer-events: none; }
+    .vig { position: absolute; inset: 0; box-shadow: inset 0 0 170px 38px rgba(2,3,2,.9); pointer-events: none; }
+    .wrap { position: relative; z-index: 1; }
+    .head { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
+    .head img { width: 26px; filter: brightness(1.5) drop-shadow(0 0 12px rgba(201,122,60,.6)); }
+    .head h2 { margin: 0; font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: var(--tracking-title); color: var(--tallow-300); font-weight: 700;
+      text-shadow: 0 0 18px rgba(232,196,122,.35); }
+    .head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--rust-500), rgba(107,45,45,.4), transparent); }
+    .group { margin-top: 15px; }
+    .lbl { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: var(--tracking-label);
+      color: var(--rust-300); margin: 0 0 9px; font-weight: 700; }
+    .bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .panel { background: linear-gradient(160deg, rgba(192,144,63,.06), rgba(0,0,0,.4));
+      border: 1px solid rgba(160,104,52,.2); border-radius: var(--radius-sm); padding: 14px 16px;
+      box-shadow: inset 0 1px 0 rgba(214,178,108,.06), 0 6px 18px -6px rgba(0,0,0,.8); }
+    .cols { display: grid; grid-template-columns: 1fr 232px; gap: 16px; align-items: stretch; }
+    .sheet { background: linear-gradient(170deg, #181a12, #0e0f07);
+      border-left: var(--border-mark) solid var(--accent-brass);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0; padding: 13px 16px;
+      box-shadow: 0 10px 26px -8px rgba(0,0,0,.85), 0 0 30px -12px rgba(192,144,63,.2); }
+    .sheet .cap { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: var(--tracking-label);
+      color: var(--tallow-300); font-weight: 700; margin: 0 0 10px; }
+    .drow { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0;
+      border-bottom: 1px solid rgba(232,196,122,.13); }
+    .drow:last-child { border-bottom: none; }
+    .drow .k { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: var(--tracking-label); color: rgba(217,205,180,.6); }
+    .drow .v { font-family: var(--font-mono); font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--linen-200); }
+    .drow .v.a { color: var(--tallow-300); }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="wrap"><div id="root"></div></div>
+  <div class="vig"></div>
+  <script type="text/babel">
+    const { Button, ChoiceChip, Badge } = window.TheClockworkDarkDesignSystem_4a0a88;
+    function Demo() {
+      return (
+        <div>
+          <div className="head">
+            <img src="../../assets/gear-motif.svg" alt="" />
+            <h2>Core Controls</h2>
+            <span className="rule"></span>
+          </div>
+
+          <div className="group">
+            <p className="lbl">Actions</p>
+            <div className="bar">
+              <Button variant="primary">Send</Button>
+              <Button variant="secondary">Examine</Button>
+              <Button variant="ghost">Hold to speak</Button>
+              <Button variant="danger">Strike</Button>
+              <Button variant="primary" disabled>Waiting…</Button>
+            </div>
+          </div>
+
+          <div className="group">
+            <p className="lbl">Narrative choices · keys 1–3</p>
+            <div className="bar">
+              <ChoiceChip index={1}>Walk toward smoke</ChoiceChip>
+              <ChoiceChip index={2}>Forage the clearing</ChoiceChip>
+              <ChoiceChip index={3}>Listen</ChoiceChip>
+            </div>
+          </div>
+
+          <div className="group cols">
+            <div className="panel">
+              <p className="lbl">Markers</p>
+              <div className="bar">
+                <Badge tone="brass">CAT</Badge>
+                <Badge tone="candle">Market day</Badge>
+                <Badge tone="moss">Edgewood</Badge>
+                <Badge tone="neutral">Overcast</Badge>
+                <Badge tone="danger">Injured</Badge>
+                <Badge tone="corruption">Wrong rain</Badge>
+              </div>
+            </div>
+            <div className="sheet">
+              <p className="cap">Traveler</p>
+              <div className="drow"><span className="k">HP</span><span className="v">14/18</span></div>
+              <div className="drow"><span className="k">Stamina</span><span className="v">6</span></div>
+              <div className="drow"><span className="k">Gold</span><span className="v a">0.42</span></div>
+              <div className="drow"><span className="k">Location</span><span className="v">edgewood</span></div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+  </script>
+</body>
+</html>

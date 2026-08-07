@@ -1,0 +1,68 @@
+<!-- @dsCard group="Colors" viewport="700x230" name="Alternate directions (reference)" subtitle="The two non-canonical palettes from the brief — Tinker Brass and Ash & Thorn — kept for reference" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body {
+      margin: 0; padding: 22px 26px; font-family: var(--font-ui); color: var(--text-on-dark);
+      background-image:
+        radial-gradient(110% 80% at 85% -12%, rgba(232,196,122,.16), transparent 55%),
+        radial-gradient(90% 80% at 6% 112%, rgba(190,118,58,.16), transparent 60%),
+        var(--texture-paper),
+        linear-gradient(150deg, #0c100e 0%, #141816 42%, #16180f 100%);
+    }
+    .head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .head img { width: 24px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+    .head h2 { margin: 0; font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: var(--tracking-title); color: var(--text-candlelight); font-weight: 700; }
+    .head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--rust-500), transparent); }
+    .dir { margin-bottom: 16px; padding: 14px 16px; border-radius: var(--radius-sm);
+      background: linear-gradient(160deg, rgba(242,232,213,.05), rgba(0,0,0,.25));
+      border: 1px solid rgba(232,196,122,.14); box-shadow: var(--shadow-card); }
+    .dir h3 { margin: 0 0 9px; font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: var(--tracking-label); color: var(--tallow-300); font-weight: 700; }
+    .dir h3 span { color: var(--rust-300); text-transform: none; letter-spacing: 0; font-weight: 400;
+      font-family: var(--font-narration); font-style: italic; font-size: var(--text-sm); }
+    .swatches { display: flex; gap: 7px; }
+    .chip { width: 60px; height: 38px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.4), 0 2px 5px rgba(0,0,0,.4); }
+    .note { font-size: 12px; color: var(--linen-400); margin: 9px 0 0; max-width: 600px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <img src="../assets/gear-motif.svg" alt="" />
+    <h2>Alternate Directions</h2>
+    <span class="rule"></span>
+  </div>
+  <div class="dir">
+    <h3>Tinker Brass — <span>copper, caravan lanterns, road dust</span></h3>
+    <div class="swatches">
+      <div class="chip" style="background:#3a2f24"></div>
+      <div class="chip" style="background:#7a5a3a"></div>
+      <div class="chip" style="background:#b8863f"></div>
+      <div class="chip" style="background:#e8c47a"></div>
+      <div class="chip" style="background:#c97a3c"></div>
+      <div class="chip" style="background:#6b5d45"></div>
+      <div class="chip" style="background:#ede0c4"></div>
+      <div class="chip" style="background:#4a3520"></div>
+    </div>
+    <p class="note">Warmer and more metallic than Hearth Ledger — lantern-lit wagon trails. Use if the caravan/trade loop becomes the spine of v0.1.</p>
+  </div>
+  <div class="dir">
+    <h3>Ash &amp; Thorn — <span>colder, bleaker, earlier dread</span></h3>
+    <div class="swatches">
+      <div class="chip" style="background:#23282a"></div>
+      <div class="chip" style="background:#4a565a"></div>
+      <div class="chip" style="background:#7d8a86"></div>
+      <div class="chip" style="background:#c9c2ad"></div>
+      <div class="chip" style="background:#8a6b4a"></div>
+      <div class="chip" style="background:#5a6b4a"></div>
+      <div class="chip" style="background:#2e3326"></div>
+      <div class="chip" style="background:#6b2d2d"></div>
+    </div>
+    <p class="note">Desaturated and slate-cold — pulls the dread forward. Canon uses Hearth Ledger; this is the bleak alternative if playtests find DORMANT too cozy.</p>
+  </div>
+</body>
+</html>

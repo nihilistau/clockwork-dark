@@ -1,0 +1,38 @@
+<!-- @dsCard group="Clockwork Scene" viewport="1280x760" name="The Clockwork Dark — game scene" subtitle="Full interactive scene: archetype start → turns → choices → dice → phase creep" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Clockwork Dark — Scene</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="../../_ds_bundle.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0a0c08; }
+    #root { height: 100vh; }
+    @media (prefers-reduced-motion: no-preference) {
+      @keyframes cwFlicker { 0%,100%{opacity:1} 45%{opacity:.86} 70%{opacity:.95} }
+      @keyframes cwTurn { to { transform: rotate(360deg) } }
+      @keyframes cwToast { from { opacity:0; transform: translateY(8px) scale(.96) } to { opacity:1; transform:none } }
+      .cw-flicker { animation: cwFlicker 5.5s var(--ease-quiet) infinite; }
+      .cw-turn { animation: cwTurn 60s linear infinite; }
+      .cw-toast { animation: cwToast var(--dur-base) var(--ease-settle); }
+    }
+    .cw-log::-webkit-scrollbar { width: 9px; }
+    .cw-log::-webkit-scrollbar-track { background: rgba(0,0,0,.25); }
+    .cw-log::-webkit-scrollbar-thumb { background: rgba(190,134,63,.5); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+    .cw-log::-webkit-scrollbar-thumb:hover { background: rgba(214,178,108,.7); background-clip: padding-box; }
+  </style>
+</head>
+<body data-phase="stirring">
+  <div id="root"></div>
+  <script type="text/babel" src="GameScene.jsx"></script>
+  <script type="text/babel">
+    const App = window.GameScene;
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

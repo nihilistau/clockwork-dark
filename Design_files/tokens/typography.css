@@ -1,0 +1,44 @@
+/* ============================================================
+   Typography — The Clockwork Dark
+   Four voices, kept distinct (§2):
+     narration  · old-style serif        (the world speaks)
+     ui         · humanist sans          (chrome & labels)
+     mono       · monospace tabular      (stats, dice, clock)
+     assistant  · rounded sans           (the ambiguous helper)
+   ============================================================ */
+
+:root {
+  /* ---- Families (web family → system fallback from repo) ---- */
+  --font-narration: "EB Garamond", "Georgia", "Times New Roman", serif;
+  --font-ui:        "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono:      "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  --font-assistant: "Nunito", "Trebuchet MS", sans-serif;
+
+  /* ---- Type scale (narration set generous, §2: 18–20px) ---- */
+  --text-xs:   0.75rem;   /* 12 — micro labels, footer */
+  --text-sm:   0.8125rem; /* 13 — UI labels */
+  --text-base: 0.875rem;  /* 14 — UI chrome default */
+  --text-md:   1rem;      /* 16 */
+  --text-lg:   1.1875rem; /* 19 — narration body */
+  --text-xl:   1.5rem;    /* 24 */
+  --text-2xl:  2rem;      /* 32 — scene / section titles */
+  --text-3xl:  2.75rem;   /* 44 — display */
+
+  /* ---- Weights ---- */
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* ---- Line heights ---- */
+  --leading-tight:  1.2;
+  --leading-snug:   1.4;
+  --leading-normal: 1.55;
+  --leading-relaxed:1.65; /* narration log */
+
+  /* ---- Letter spacing (chrome uses tracked smallcaps labels) ---- */
+  --tracking-tight:  -0.01em;
+  --tracking-normal: 0;
+  --tracking-label:  0.1em;   /* uppercase UI labels */
+  --tracking-title:  0.12em;  /* header h1 */
+}

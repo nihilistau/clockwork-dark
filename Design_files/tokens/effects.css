@@ -1,0 +1,46 @@
+/* ============================================================
+   Effects — The Clockwork Dark
+   Shadows are tallow-warm and low. Texture is paper grain on
+   linen, never glassmorphism. Motion is quiet: fades and
+   crossfades, no bounce. One motif — the tick — appears as a
+   dotted/dashed divider once the world begins to stir.
+   ============================================================ */
+
+:root {
+  /* ---- Shadows (warm, soft, low — candlelit not neon) ---- */
+  --shadow-sm:    0 1px 2px rgba(29, 41, 29, 0.18);
+  --shadow-card:  0 2px 6px rgba(29, 41, 29, 0.22);
+  --shadow-raise: 0 6px 18px rgba(29, 41, 29, 0.28);
+  --shadow-inset: inset 0 1px 2px rgba(29, 41, 29, 0.15);
+  /* candlelight bloom — focus / active highlight */
+  --glow-candle:  0 0 0 2px rgba(232, 196, 122, 0.5);
+
+  /* ---- Motion ---- */
+  --ease-quiet:   cubic-bezier(0.4, 0.0, 0.2, 1); /* @kind other */
+  --ease-settle:  cubic-bezier(0.2, 0.0, 0.0, 1); /* @kind other */
+  --dur-fast:     140ms;  /* @kind other */
+  --dur-base:     240ms;  /* @kind other */
+  --dur-crossfade:400ms;  /* @kind other */
+  --dur-toast:    1500ms; /* @kind other */
+
+  /* ---- Paper grain — kept faint; the system leans on smooth dark
+     gradients + brass hairlines now, not heavy woodcut texture ---- */
+  --grain-opacity: 0.3; /* @kind other */
+  --texture-paper:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); /* @kind other */
+
+  /* ---- Tick divider — woodcut dash; corruption-gated dotted ---- */
+  --rule-tick: repeating-linear-gradient(
+    90deg,
+    var(--line-ink) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms; /* @kind other */
+    --dur-base: 0ms; /* @kind other */
+    --dur-crossfade: 0ms; /* @kind other */
+  }
+}

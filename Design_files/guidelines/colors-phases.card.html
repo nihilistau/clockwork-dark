@@ -1,0 +1,90 @@
+<!-- @dsCard group="Colors" viewport="700x250" name="Phase themes — the corruption creep" subtitle="One [data-phase] attribute re-tints the whole product: dormant → stirring → spreading → consuming" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body {
+      margin: 0; padding: 22px 26px; font-family: var(--font-ui); color: var(--text-on-dark);
+      background-image:
+        radial-gradient(100% 80% at 50% -10%, rgba(232,196,122,.16), transparent 55%),
+        var(--texture-paper),
+        linear-gradient(150deg, #0c100e 0%, #141816 45%, #16180f 100%);
+    }
+    .head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .head img { width: 24px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+    .head h2 { margin: 0; font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: var(--tracking-title); color: var(--text-candlelight); font-weight: 700; }
+    .head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--corruption), var(--rust-500), transparent); }
+    .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .phase { border-radius: var(--radius-sm); overflow: hidden; border: 1px solid rgba(0,0,0,.5);
+      box-shadow: var(--shadow-raise); }
+    .scene { position: relative; padding: 14px 13px 16px; min-height: 120px; }
+    .scene::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 36px rgba(10,10,7,.6); pointer-events: none; }
+    .pill { display: inline-block; padding: 3px 9px; border-radius: 3px; font-family: var(--font-mono);
+      font-size: 11px; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+    .narr { margin-top: 44px; font-family: var(--font-narration); font-style: italic; font-size: 13px;
+      line-height: 1.4; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+    .tag { padding: 7px 12px; background: rgba(10,9,6,.7); display: flex; justify-content: space-between;
+      align-items: center; }
+    .tag b { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .1em;
+      color: var(--tallow-300); font-weight: 600; }
+    .tag i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 7px currentColor; }
+
+    /* DORMANT — cold ash, single brass hearth */
+    .p1 .scene { background:
+      radial-gradient(80% 60% at 60% 16%, rgba(214,178,108,.26), transparent 60%),
+      linear-gradient(165deg,#0d1310,#161b13); }
+    .p1 .pill { background: var(--accent-candle); color: #14140f; }
+    .p1 .narr { color: #e4dcca; }
+    .p1 .tag i { color: var(--accent-candle); }
+    /* STIRRING — brass creeps, shadows lengthen */
+    .p2 .scene { background:
+      radial-gradient(80% 60% at 64% 20%, rgba(190,118,58,.26), transparent 60%),
+      linear-gradient(165deg,#0e120d,#1d1710); }
+    .p2 .pill { background: #cda85f; color: #14140f; }
+    .p2 .narr { color: #e1d6bf; }
+    .p2 .tag i { color: var(--rust-300); }
+    /* SPREADING — sickly chartreuse bleeds into the cold */
+    .p3 .scene { background:
+      radial-gradient(80% 70% at 50% 28%, rgba(143,174,90,.26), transparent 62%),
+      linear-gradient(165deg,#0c110a,#1a1f12); }
+    .p3 .pill { background: var(--corruption); color: #10130b; }
+    .p3 .narr { color: #d7dcc0; }
+    .p3 .tag i { color: var(--corruption); }
+    /* CONSUMING — near-black, high contrast */
+    .p4 .scene { background:
+      radial-gradient(70% 60% at 50% 24%, rgba(155,184,98,.18), transparent 60%),
+      linear-gradient(165deg,#060807,#11150c); }
+    .p4 .pill { background: #cda85f; color: #14140f; }
+    .p4 .narr { color: #cfd3b6; }
+    .p4 .tag i { color: #9bb862; }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <img src="../assets/gear-motif.svg" alt="" />
+    <h2>The Corruption Creep</h2>
+    <span class="rule"></span>
+  </div>
+  <div class="row">
+    <div class="phase p1" data-phase="dormant">
+      <div class="scene"><span class="pill">Day 4</span><div class="narr">Bread steam. Honey light.</div></div>
+      <div class="tag"><b>dormant</b><i></i></div>
+    </div>
+    <div class="phase p2" data-phase="stirring">
+      <div class="scene"><span class="pill">Day 11</span><div class="narr">Shadows a touch too long.</div></div>
+      <div class="tag"><b>stirring</b><i></i></div>
+    </div>
+    <div class="phase p3" data-phase="spreading">
+      <div class="scene"><span class="pill">Day 22</span><div class="narr">The rain falls upward.</div></div>
+      <div class="tag"><b>spreading</b><i></i></div>
+    </div>
+    <div class="phase p4" data-phase="consuming">
+      <div class="scene"><span class="pill">Day 38</span><div class="narr">The wheat ticks. Listen.</div></div>
+      <div class="tag"><b>consuming</b><i></i></div>
+    </div>
+  </div>
+</body>
+</html>

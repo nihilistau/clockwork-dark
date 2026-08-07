@@ -1,0 +1,46 @@
+<!-- @dsCard group="Colors" viewport="700x210" name="Hearth Ledger — Primitives" subtitle="The canonical palette (Direction A): forest, moss, linen, tallow, iron, rust, corruption, blood" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body {
+      margin: 0; padding: 22px 26px; font-family: var(--font-ui); color: var(--text-on-dark);
+      background-image:
+        radial-gradient(110% 80% at 84% -12%, rgba(232,196,122,.18), transparent 55%),
+        radial-gradient(90% 80% at 6% 112%, rgba(190,118,58,.16), transparent 60%),
+        var(--texture-paper),
+        linear-gradient(150deg, #0c100e 0%, #141816 42%, #16180f 100%);
+    }
+    .head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .head img { width: 24px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+    .head h2 { margin: 0; font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: var(--tracking-title); color: var(--text-candlelight); font-weight: 700; }
+    .head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--rust-500), transparent); }
+    .row { display: grid; grid-template-columns: repeat(8, 1fr); gap: 11px; }
+    .sw { display: flex; flex-direction: column; }
+    .chip { height: 70px; border-radius: var(--radius-sm);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.4), 0 3px 8px rgba(0,0,0,.45); }
+    .name { font-size: var(--text-xs); font-weight: 600; color: var(--tallow-300); margin-top: 8px; }
+    .hex { font-family: var(--font-mono); font-size: 11px; color: var(--linen-400); }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <img src="../assets/gear-motif.svg" alt="" />
+    <h2>Hearth Ledger · Primitives</h2>
+    <span class="rule"></span>
+  </div>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--forest-deep)"></div><span class="name">forest-deep</span><span class="hex">#2C3E2C</span></div>
+    <div class="sw"><div class="chip" style="background:var(--moss-light)"></div><span class="name">moss-light</span><span class="hex">#6B7F5E</span></div>
+    <div class="sw"><div class="chip" style="background:var(--linen)"></div><span class="name">linen</span><span class="hex">#F2E8D5</span></div>
+    <div class="sw"><div class="chip" style="background:var(--tallow)"></div><span class="name">tallow</span><span class="hex">#E8C47A</span></div>
+    <div class="sw"><div class="chip" style="background:var(--iron)"></div><span class="name">iron</span><span class="hex">#3D3D3D</span></div>
+    <div class="sw"><div class="chip" style="background:var(--rust-clock)"></div><span class="name">rust-clock</span><span class="hex">#8B4513</span></div>
+    <div class="sw"><div class="chip" style="background:var(--corruption)"></div><span class="name">corruption</span><span class="hex">#7A9E4F</span></div>
+    <div class="sw"><div class="chip" style="background:var(--blood-quiet)"></div><span class="name">blood-quiet</span><span class="hex">#6B2D2D</span></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!-- @dsCard group="Spacing" viewport="700x160" name="Spacing scale" subtitle="0.25rem base — calm, rectangular rhythm" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body {
+      margin: 0; padding: 22px 26px; font-family: var(--font-ui); color: var(--text-on-dark);
+      position: relative; overflow: hidden;
+      background:
+        radial-gradient(80% 70% at 86% -16%, rgba(201,122,60,.18), transparent 54%),
+        linear-gradient(155deg, #0c100e 0%, #141816 42%, #16180f 100%);
+    }
+    .grain { position: absolute; inset: 0; background-image: var(--texture-paper); opacity: .4; mix-blend-mode: multiply; pointer-events: none; }
+    .vig { position: absolute; inset: 0; box-shadow: inset 0 0 130px 26px rgba(3,4,2,.82); pointer-events: none; }
+    .wrap { position: relative; z-index: 1; }
+    .head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .head img { width: 22px; filter: brightness(1.5) drop-shadow(0 0 12px rgba(201,122,60,.55)); }
+    .head h2 { margin: 0; font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: var(--tracking-title); color: var(--tallow-300); font-weight: 700; }
+    .head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--rust-500), transparent); }
+    .row { display: flex; align-items: flex-end; gap: 16px; }
+    .item { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+    .bar { width: 22px; border-radius: 2px 2px 0 0;
+      background: linear-gradient(180deg, var(--tallow-500), var(--rust-clock));
+      box-shadow: 0 0 12px -2px rgba(232,196,122,.4); }
+    .tok { font-family: var(--font-mono); font-size: 10px; color: var(--rust-300); }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="wrap">
+    <div class="head"><img src="../assets/gear-motif.svg" alt="" /><h2>Spacing Scale</h2><span class="rule"></span></div>
+    <div class="row">
+      <div class="item"><div class="bar" style="height:var(--space-1)"></div><span class="tok">1·4</span></div>
+      <div class="item"><div class="bar" style="height:var(--space-2)"></div><span class="tok">2·8</span></div>
+      <div class="item"><div class="bar" style="height:var(--space-3)"></div><span class="tok">3·12</span></div>
+      <div class="item"><div class="bar" style="height:var(--space-4)"></div><span class="tok">4·16</span></div>
+      <div class="item"><div class="bar" style="height:var(--space-5)"></div><span class="tok">5·20</span></div>
+      <div class="item"><div class="bar" style="height:var(--space-6)"></div><span class="tok">6·24</span></div>
+      <div class="item"><div class="bar" style="height:var(--space-8)"></div><span class="tok">8·32</span></div>
+      <div class="item"><div class="bar" style="height:var(--space-10)"></div><span class="tok">10·40</span></div>
+      <div class="item"><div class="bar" style="height:var(--space-12)"></div><span class="tok">12·48</span></div>
+    </div>
+  </div>
+  <div class="vig"></div>
+</body>
+</html>

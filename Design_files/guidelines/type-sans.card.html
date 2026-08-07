@@ -1,0 +1,48 @@
+<!-- @dsCard group="Type" viewport="700x200" name="Chrome & Assistant — sans voices" subtitle="Source Sans 3 for UI labels (tracked smallcaps); Nunito rounded for the Assistant" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body {
+      margin: 0; padding: 22px 26px; position: relative; overflow: hidden; color: var(--text-on-dark);
+      background:
+        radial-gradient(80% 70% at 86% -14%, rgba(201,122,60,.18), transparent 54%),
+        linear-gradient(155deg, #0b0e0c 0%, #12140f 44%, #161611 100%);
+    }
+    .grain { position: absolute; inset: 0; background-image: var(--texture-paper); opacity: .4; mix-blend-mode: multiply; pointer-events: none; }
+    .vig { position: absolute; inset: 0; box-shadow: inset 0 0 130px 26px rgba(3,4,2,.84); pointer-events: none; }
+    .wrap { position: relative; z-index: 1; }
+    .head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .head img { width: 22px; filter: brightness(1.5) drop-shadow(0 0 12px rgba(201,122,60,.55)); }
+    .head h2 { margin: 0; font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: var(--tracking-title); color: var(--tallow-300); font-weight: 700; }
+    .head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--rust-500), transparent); }
+    .meta { font-family: var(--font-mono); font-size: 11px; color: var(--rust-300); margin: 0 0 6px; }
+    .block { margin-bottom: 18px; }
+    .label { font-family: var(--font-ui); font-size: var(--text-md); text-transform: uppercase;
+      letter-spacing: var(--tracking-label); color: var(--text-candlelight); font-weight: 600; text-shadow: 0 0 16px rgba(232,196,122,.3); }
+    .ui { font-family: var(--font-ui); font-size: var(--text-base); color: var(--linen-300); margin-top: 5px; }
+    .asst { font-family: var(--font-assistant); font-size: var(--text-md); color: var(--linen-200); margin-top: 5px; }
+    .asst em { font-style: italic; color: rgba(217,205,180,.6); }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="wrap">
+    <div class="head"><img src="../assets/gear-motif.svg" alt="" /><h2>Sans Voices</h2><span class="rule"></span></div>
+    <div class="block">
+      <p class="meta">--font-ui · Source Sans 3</p>
+      <span class="label">Inventory · Stamina · Market Day</span>
+      <div class="ui">Humanist sans for chrome, labels, and choices. 13–14px, clear and quiet.</div>
+    </div>
+    <div class="block">
+      <p class="meta">--font-assistant · Nunito (rounded — reads as other)</p>
+      <div class="asst">The smoke is bread, not burning. Probably.</div>
+      <div class="asst"><em>It drew the same gears in the dirt again.</em></div>
+    </div>
+  </div>
+  <div class="vig"></div>
+</body>
+</html>

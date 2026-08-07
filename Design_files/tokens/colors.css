@@ -1,0 +1,70 @@
+/* ============================================================
+   Color — The Clockwork Dark
+   Direction A · "Hearth Ledger" (canonical, DORMANT phase)
+   A traveler's journal crossed with a clockmaker's ledger:
+   warm linen, moss, tallow candlelight, iron, quiet rust.
+   ============================================================ */
+
+:root {
+  /* ---- Hearth Ledger primitives (canon, §2) ---- */
+  --forest-deep:   #2c3e2c; /* forest scenes, headers */
+  --moss-light:    #6b7f5e; /* secondary panels */
+  --linen:         #f2e8d5; /* narrative log background */
+  --tallow:        #e8c47a; /* highlights, candlelight */
+  --iron:          #3d3d3d; /* stats, borders */
+  --rust-clock:    #8b4513; /* clock motifs, tinker brass */
+  --corruption:    #7a9e4f; /* sickly green — use sparingly */
+  --blood-quiet:   #6b2d2d; /* combat, injury (muted) */
+
+  /* ---- Extended ramp (derived, for depth & states) ---- */
+  --forest-900:    #1d291d;
+  --forest-700:    #2c3e2c;
+  --forest-500:    #3f5740;
+  --moss-600:      #586a4d;
+  --moss-400:      #84977a;
+  --linen-100:     #faf4e8;
+  --linen-200:     #f2e8d5;
+  --linen-300:     #e8dfd0; /* parchment, stats panel */
+  --linen-400:     #d9cdb4;
+  --tallow-300:    #f0d9a3;
+  --tallow-500:    #e8c47a;
+  --tallow-700:    #c79a4a;
+  --iron-900:      #2a2a2a;
+  --iron-700:      #3d3d3d;
+  --iron-500:      #5a5a57;
+  --iron-300:      #8a8782;
+  --rust-700:      #6f3710;
+  --rust-500:      #8b4513;
+  --rust-300:      #a9683a;
+
+  /* ---- Semantic aliases (Ash & Thorn dark · tinker-brass accent) ----
+     The system runs grim-dark: cold slate surfaces, bleak air, and a
+     single warm note of brass candlelight. Almost no light fills.
+     Product code references these — not the raw primitives above. */
+  --surface-scene:      #080b0b;             /* page / scene backdrop — cold near-black */
+  --surface-narrative:  #1b1f1a;             /* the journal — dark aged vellum */
+  --surface-panel:      #121614;             /* assistant column — ash */
+  --surface-ledger:     #15150f;             /* character / stats sheet — dark, faint brass */
+  --surface-chrome:     #090c0c;             /* header & footer bars */
+  --surface-card:       #1d221e;             /* bubbles, raised cards */
+  --surface-overlay:    rgba(6, 9, 9, 0.82);
+
+  --text-narration:     #e4dccaff;           /* warm bone on the dark page */
+  --text-body:          #d2ccba;             /* default UI text */
+  --text-muted:         #7f857c;             /* cold ash grey */
+  --text-on-dark:       #e4dcca;             /* text on chrome / scene */
+  --text-candlelight:   #d6b26c;             /* brass accent on dark chrome */
+
+  --line-ink:           #060807;             /* hard ledger rule */
+  --line-soft:          rgba(214, 178, 108, 0.13); /* brass hairline divider */
+  --line-brass:         var(--rust-clock);   /* clock-motif accent rule */
+
+  --accent-candle:      #d6b26c;             /* primary highlight — muted brass-amber */
+  --accent-brass:       #b8863f;             /* tinker / clockwork */
+  --accent-moss:        #4a5a44;             /* deep, desaturated */
+
+  --status-danger:      #7a2f2a;             /* combat / injury */
+  --status-corruption:  var(--corruption);   /* the wrongness (gated) */
+
+  --focus-ring:         #c79a4a;
+}

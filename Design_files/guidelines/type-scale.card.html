@@ -1,0 +1,34 @@
+<!-- @dsCard group="Type" viewport="700x250" name="Type scale" subtitle="From micro labels to display — the full ramp" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body {
+      margin: 0; padding: 20px 26px; color: var(--text-on-dark);
+      background-image:
+        radial-gradient(110% 80% at 88% -14%, rgba(232,196,122,.16), transparent 55%),
+        var(--texture-paper),
+        linear-gradient(150deg, #0c100e 0%, #141816 44%, #16180f 100%);
+    }
+    .head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-family: var(--font-ui); }
+    .head img { width: 22px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+    .head h2 { margin: 0; font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: var(--tracking-title); color: var(--text-candlelight); font-weight: 700; }
+    .head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--rust-500), transparent); }
+    .r { display: flex; align-items: baseline; gap: 16px; border-bottom: 1px solid rgba(232,196,122,.12); padding: 6px 0; }
+    .tok { font-family: var(--font-mono); font-size: 11px; color: var(--rust-300); width: 130px; flex: none; }
+    .spec { font-family: var(--font-narration); color: var(--linen-100); }
+  </style>
+</head>
+<body>
+  <div class="head"><img src="../assets/gear-motif.svg" alt="" /><h2>Type Scale</h2><span class="rule"></span></div>
+  <div class="r"><span class="tok">--text-3xl · 44</span><span class="spec" style="font-size:var(--text-3xl);color:var(--tallow-300)">The Clockwork Dark</span></div>
+  <div class="r"><span class="tok">--text-2xl · 32</span><span class="spec" style="font-size:var(--text-2xl)">Edgewood Square</span></div>
+  <div class="r"><span class="tok">--text-xl · 24</span><span class="spec" style="font-size:var(--text-xl)">The shrine never lacks a candle</span></div>
+  <div class="r"><span class="tok">--text-lg · 19</span><span class="spec" style="font-size:var(--text-lg)">Smoke drifts west even when the wind blows south.</span></div>
+  <div class="r"><span class="tok">--text-base · 14</span><span class="spec" style="font-family:var(--font-ui);font-size:var(--text-base)">Choice and chrome text.</span></div>
+  <div class="r"><span class="tok">--text-xs · 12</span><span class="spec" style="font-family:var(--font-ui);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:var(--tracking-label);color:var(--tallow-300)">Inventory</span></div>
+</body>
+</html>

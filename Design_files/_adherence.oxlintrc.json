@@ -1,0 +1,366 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "components/core/**",
+              "components/feedback/**",
+              "components/scene/**",
+              "ui_kits/clockwork-scene/**",
+              "ui_kits/clockwork-world/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:EB Garamond|Source Sans 3|IBM Plex Mono|Nunito))/i]",
+        "message": "Font not provided by the design system. Available: EB Garamond, Source Sans 3, IBM Plex Mono, Nunito."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AssistantBubble'] > JSXAttribute > JSXIdentifier[name!=/^(?:form|whisper|hidden|children|key|ref|className|style|children)$/]",
+        "message": "<AssistantBubble> doesn't accept that prop. Declared props: form, whisper, hidden, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|children|key|ref|className|style|children)$/]",
+        "message": "<Badge> doesn't accept that prop. Declared props: tone, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:neutral|candle|brass|moss|danger|corruption)$/]",
+        "message": "<Badge> tone must be one of 'neutral' | 'candle' | 'brass' | 'moss' | 'danger' | 'corruption'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|size|disabled|iconLeft|iconRight|children|key|ref|className|style|children)$/]",
+        "message": "<Button> doesn't accept that prop. Declared props: variant, size, disabled, iconLeft, iconRight, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:primary|secondary|ghost|danger)$/]",
+        "message": "<Button> variant must be one of 'primary' | 'secondary' | 'ghost' | 'danger'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:sm|md|lg)$/]",
+        "message": "<Button> size must be one of 'sm' | 'md' | 'lg'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ChoiceChip'] > JSXAttribute > JSXIdentifier[name!=/^(?:index|disabled|onClick|children|key|ref|className|style|children)$/]",
+        "message": "<ChoiceChip> doesn't accept that prop. Declared props: index, disabled, onClick, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='DiceToast'] > JSXAttribute > JSXIdentifier[name!=/^(?:roll|modifier|dc|outcome|key|ref|className|style|children)$/]",
+        "message": "<DiceToast> doesn't accept that prop. Declared props: roll, modifier, dc, outcome."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ScenePanel'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|surface|edge|children|key|ref|className|style|children)$/]",
+        "message": "<ScenePanel> doesn't accept that prop. Declared props: title, surface, edge, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ScenePanel'] > JSXAttribute[name.name='surface'] > Literal[value!=/^(?:ledger|panel|narrative|card)$/]",
+        "message": "<ScenePanel> surface must be one of 'ledger' | 'panel' | 'narrative' | 'card'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ScenePanel'] > JSXAttribute[name.name='edge'] > Literal[value!=/^(?:none|left|right)$/]",
+        "message": "<ScenePanel> edge must be one of 'none' | 'left' | 'right'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StatLine'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|value|accent|key|ref|className|style|children)$/]",
+        "message": "<StatLine> doesn't accept that prop. Declared props: label, value, accent."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='WorldClock'] > JSXAttribute > JSXIdentifier[name!=/^(?:day|time|discovered|key|ref|className|style|children)$/]",
+        "message": "<WorldClock> doesn't accept that prop. Declared props: day, time, discovered."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {
+      "AssistantBubble": {
+        "replaces": []
+      },
+      "Badge": {
+        "replaces": []
+      },
+      "Button": {
+        "replaces": []
+      },
+      "ChoiceChip": {
+        "replaces": []
+      },
+      "DiceToast": {
+        "replaces": []
+      },
+      "ScenePanel": {
+        "replaces": []
+      },
+      "StatLine": {
+        "replaces": []
+      },
+      "WorldClock": {
+        "replaces": []
+      }
+    },
+    "tokens": [
+      "--accent-brass",
+      "--accent-candle",
+      "--accent-moss",
+      "--blood-quiet",
+      "--border-hair",
+      "--border-mark",
+      "--border-rule",
+      "--col-assistant",
+      "--col-sheet",
+      "--corruption",
+      "--corruption-reveal",
+      "--dur-base",
+      "--dur-crossfade",
+      "--dur-fast",
+      "--dur-toast",
+      "--ease-quiet",
+      "--ease-settle",
+      "--focus-ring",
+      "--font-assistant",
+      "--font-mono",
+      "--font-narration",
+      "--font-ui",
+      "--forest-500",
+      "--forest-700",
+      "--forest-900",
+      "--forest-deep",
+      "--glow-candle",
+      "--grain-opacity",
+      "--iron",
+      "--iron-300",
+      "--iron-500",
+      "--iron-700",
+      "--iron-900",
+      "--leading-normal",
+      "--leading-relaxed",
+      "--leading-snug",
+      "--leading-tight",
+      "--letterbox-bar",
+      "--line-brass",
+      "--line-ink",
+      "--line-soft",
+      "--linen",
+      "--linen-100",
+      "--linen-200",
+      "--linen-300",
+      "--linen-400",
+      "--moss-400",
+      "--moss-600",
+      "--moss-light",
+      "--radius-md",
+      "--radius-none",
+      "--radius-pill",
+      "--radius-sm",
+      "--rule-tick",
+      "--rust-300",
+      "--rust-500",
+      "--rust-700",
+      "--rust-clock",
+      "--scene-min-h",
+      "--scene-min-w",
+      "--shadow-card",
+      "--shadow-inset",
+      "--shadow-raise",
+      "--shadow-sm",
+      "--space-0",
+      "--space-1",
+      "--space-10",
+      "--space-12",
+      "--space-2",
+      "--space-3",
+      "--space-4",
+      "--space-5",
+      "--space-6",
+      "--space-8",
+      "--status-corruption",
+      "--status-danger",
+      "--surface-card",
+      "--surface-chrome",
+      "--surface-ledger",
+      "--surface-narrative",
+      "--surface-overlay",
+      "--surface-panel",
+      "--surface-scene",
+      "--tallow",
+      "--tallow-300",
+      "--tallow-500",
+      "--tallow-700",
+      "--text-2xl",
+      "--text-3xl",
+      "--text-base",
+      "--text-body",
+      "--text-candlelight",
+      "--text-lg",
+      "--text-md",
+      "--text-muted",
+      "--text-narration",
+      "--text-on-dark",
+      "--text-sm",
+      "--text-xl",
+      "--text-xs",
+      "--texture-paper",
+      "--tracking-label",
+      "--tracking-normal",
+      "--tracking-tight",
+      "--tracking-title",
+      "--visual-height",
+      "--weight-bold",
+      "--weight-medium",
+      "--weight-regular",
+      "--weight-semibold"
+    ],
+    "tokenKinds": {
+      "--forest-deep": "color",
+      "--moss-light": "color",
+      "--linen": "color",
+      "--tallow": "color",
+      "--iron": "color",
+      "--rust-clock": "color",
+      "--corruption": "color",
+      "--blood-quiet": "color",
+      "--forest-900": "color",
+      "--forest-700": "color",
+      "--forest-500": "color",
+      "--moss-600": "color",
+      "--moss-400": "color",
+      "--linen-100": "color",
+      "--linen-200": "color",
+      "--linen-300": "color",
+      "--linen-400": "color",
+      "--tallow-300": "color",
+      "--tallow-500": "color",
+      "--tallow-700": "color",
+      "--iron-900": "color",
+      "--iron-700": "color",
+      "--iron-500": "color",
+      "--iron-300": "color",
+      "--rust-700": "color",
+      "--rust-500": "color",
+      "--rust-300": "color",
+      "--surface-scene": "color",
+      "--surface-narrative": "color",
+      "--surface-panel": "color",
+      "--surface-ledger": "color",
+      "--surface-chrome": "color",
+      "--surface-card": "color",
+      "--surface-overlay": "color",
+      "--text-narration": "font",
+      "--text-body": "font",
+      "--text-muted": "font",
+      "--text-on-dark": "font",
+      "--text-candlelight": "font",
+      "--line-ink": "color",
+      "--line-soft": "color",
+      "--line-brass": "color",
+      "--accent-candle": "color",
+      "--accent-brass": "color",
+      "--accent-moss": "color",
+      "--status-danger": "color",
+      "--status-corruption": "color",
+      "--focus-ring": "color",
+      "--font-narration": "font",
+      "--font-ui": "font",
+      "--font-mono": "font",
+      "--font-assistant": "font",
+      "--text-xs": "font",
+      "--text-sm": "font",
+      "--text-base": "font",
+      "--text-md": "font",
+      "--text-lg": "font",
+      "--text-xl": "font",
+      "--text-2xl": "font",
+      "--text-3xl": "font",
+      "--weight-regular": "font",
+      "--weight-medium": "font",
+      "--weight-semibold": "font",
+      "--weight-bold": "font",
+      "--leading-tight": "font",
+      "--leading-snug": "font",
+      "--leading-normal": "font",
+      "--leading-relaxed": "font",
+      "--tracking-tight": "font",
+      "--tracking-normal": "font",
+      "--tracking-label": "font",
+      "--tracking-title": "font",
+      "--space-0": "spacing",
+      "--space-1": "spacing",
+      "--space-2": "spacing",
+      "--space-3": "spacing",
+      "--space-4": "spacing",
+      "--space-5": "spacing",
+      "--space-6": "spacing",
+      "--space-8": "spacing",
+      "--space-10": "spacing",
+      "--space-12": "spacing",
+      "--col-assistant": "spacing",
+      "--col-sheet": "spacing",
+      "--scene-min-w": "spacing",
+      "--scene-min-h": "spacing",
+      "--visual-height": "spacing",
+      "--radius-none": "radius",
+      "--radius-sm": "radius",
+      "--radius-md": "radius",
+      "--radius-pill": "radius",
+      "--border-hair": "spacing",
+      "--border-rule": "spacing",
+      "--border-mark": "spacing",
+      "--letterbox-bar": "spacing",
+      "--shadow-sm": "shadow",
+      "--shadow-card": "shadow",
+      "--shadow-raise": "shadow",
+      "--shadow-inset": "shadow",
+      "--glow-candle": "shadow",
+      "--ease-quiet": "other",
+      "--ease-settle": "other",
+      "--dur-fast": "other",
+      "--dur-base": "other",
+      "--dur-crossfade": "other",
+      "--dur-toast": "other",
+      "--grain-opacity": "other",
+      "--texture-paper": "other",
+      "--rule-tick": "color",
+      "--corruption-reveal": "other"
+    },
+    "fontFamilies": [
+      "EB Garamond",
+      "IBM Plex Mono",
+      "Nunito",
+      "Source Sans 3"
+    ]
+  }
+}

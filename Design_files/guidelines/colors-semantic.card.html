@@ -1,0 +1,47 @@
+<!-- @dsCard group="Colors" viewport="700x230" name="Semantic surfaces & text" subtitle="The aliases product code uses — surfaces, text, lines, accents" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body {
+      margin: 0; padding: 22px 26px; font-family: var(--font-ui); color: var(--text-on-dark);
+      background-image:
+        radial-gradient(120% 90% at 85% -12%, rgba(232,196,122,.20), transparent 55%),
+        radial-gradient(90% 80% at 6% 112%, rgba(190,118,58,.16), transparent 60%),
+        var(--texture-paper),
+        linear-gradient(150deg, #0e1210 0%, #141816 40%, #16180f 100%);
+    }
+    .head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .head img { width: 24px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+    .head h2 { margin: 0; font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: var(--tracking-title); color: var(--text-candlelight); font-weight: 700; }
+    .head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--rust-500), transparent); }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .tile { border: 1px solid rgba(232,196,122,.18); border-radius: var(--radius-sm); overflow: hidden;
+      box-shadow: var(--shadow-card); }
+    .swatch { height: 56px; display: flex; align-items: center; padding: 0 12px;
+      font-size: var(--text-sm); font-weight: 600; letter-spacing: .01em; }
+    .meta { padding: 7px 11px; background: rgba(13,12,9,.55); border-top: 1px solid rgba(232,196,122,.12); }
+    .name { font-family: var(--font-mono); font-size: 11px; color: var(--tallow-300); }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <img src="../assets/gear-motif.svg" alt="" />
+    <h2>Semantic Aliases</h2>
+    <span class="rule"></span>
+  </div>
+  <div class="grid">
+    <div class="tile"><div class="swatch" style="background:var(--surface-scene);color:var(--text-on-dark)">Aa scene</div><div class="meta"><span class="name">--surface-scene</span></div></div>
+    <div class="tile"><div class="swatch" style="background:var(--surface-narrative);color:var(--text-narration)">Aa narrative</div><div class="meta"><span class="name">--surface-narrative</span></div></div>
+    <div class="tile"><div class="swatch" style="background:var(--surface-panel);color:var(--linen-100)">Aa panel</div><div class="meta"><span class="name">--surface-panel</span></div></div>
+    <div class="tile"><div class="swatch" style="background:var(--surface-ledger);color:var(--text-body)">Aa ledger</div><div class="meta"><span class="name">--surface-ledger</span></div></div>
+    <div class="tile"><div class="swatch" style="background:var(--surface-chrome);color:var(--text-candlelight)">Aa chrome</div><div class="meta"><span class="name">--surface-chrome</span></div></div>
+    <div class="tile"><div class="swatch" style="background:var(--accent-candle);color:var(--iron-900)">accent candle</div><div class="meta"><span class="name">--accent-candle</span></div></div>
+    <div class="tile"><div class="swatch" style="background:var(--accent-brass);color:var(--linen-100)">accent brass</div><div class="meta"><span class="name">--accent-brass</span></div></div>
+    <div class="tile"><div class="swatch" style="background:var(--status-danger);color:var(--linen-100)">danger</div><div class="meta"><span class="name">--status-danger</span></div></div>
+  </div>
+</body>
+</html>

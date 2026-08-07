@@ -1,0 +1,39 @@
+<!-- @dsCard group="Type" viewport="700x180" name="Mono — IBM Plex Mono" subtitle="Stats, dice, and the world clock. Tabular numbers." -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body {
+      margin: 0; padding: 22px 26px; position: relative; overflow: hidden;
+      background:
+        radial-gradient(70% 70% at 84% -16%, rgba(201,122,60,.16), transparent 56%),
+        linear-gradient(155deg, #080906 0%, #0e0f0a 46%, #11110c 100%);
+    }
+    .grain { position: absolute; inset: 0; background-image: var(--texture-paper); opacity: .35; mix-blend-mode: multiply; pointer-events: none; }
+    .vig { position: absolute; inset: 0; box-shadow: inset 0 0 130px 26px rgba(2,3,2,.85); pointer-events: none; }
+    .wrap { position: relative; z-index: 1; }
+    .head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-family: var(--font-ui); }
+    .head img { width: 22px; filter: brightness(1.5) drop-shadow(0 0 12px rgba(201,122,60,.55)); }
+    .head h2 { margin: 0; font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: var(--tracking-title); color: var(--tallow-300); font-weight: 700; }
+    .head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--rust-500), transparent); }
+    .meta { font-family: var(--font-mono); font-size: 11px; color: var(--rust-300); margin: 0 0 12px; }
+    .line { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--linen-200);
+      font-size: var(--text-md); margin-bottom: 9px; }
+    .candle { color: var(--text-candlelight); text-shadow: 0 0 14px rgba(232,196,122,.4); }
+    .ok { color: #8fae5a; }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="wrap">
+    <div class="head"><img src="../assets/gear-motif.svg" alt="" /><h2>Mono · Stats & Dice</h2><span class="rule"></span></div>
+    <p class="meta">--font-mono · IBM Plex Mono · tabular-nums</p>
+    <div class="line"><span class="candle">Day 12</span> · 18:00 &nbsp; HP 14/18 &nbsp; STA 6 &nbsp; GOLD 0.42</div>
+    <div class="line">d20: 14 + 2 = 16 vs DC 13 — <span class="ok">Success</span></div>
+  </div>
+  <div class="vig"></div>
+</body>
+</html>

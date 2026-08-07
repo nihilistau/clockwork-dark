@@ -1,0 +1,78 @@
+<!-- @dsCard group="Components" viewport="700x320" name="Feedback — Assistant & Dice" subtitle="The ambiguous helper's bubble and the verbatim dice toast" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="../../_ds_bundle.js"></script>
+  <style>
+    body {
+      margin: 0; padding: 22px 26px; font-family: var(--font-ui); color: var(--text-on-dark);
+      position: relative; overflow: hidden;
+      background:
+        radial-gradient(80% 70% at 14% 18%, rgba(70,82,86,.20), transparent 56%),
+        radial-gradient(80% 80% at 92% 110%, rgba(190,118,58,.16), transparent 58%),
+        linear-gradient(155deg, #0c100e 0%, #141816 44%, #16180f 100%);
+    }
+    .grain { position: absolute; inset: 0; background-image: var(--texture-paper); opacity: .45; mix-blend-mode: multiply; pointer-events: none; }
+    .vig { position: absolute; inset: 0; box-shadow: inset 0 0 150px 30px rgba(3,4,3,.85); pointer-events: none; }
+    .wrap { position: relative; z-index: 1; }
+    .head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .head img { width: 24px; filter: brightness(1.5) drop-shadow(0 0 12px rgba(201,122,60,.55)); }
+    .head h2 { margin: 0; font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: var(--tracking-title); color: var(--tallow-300); font-weight: 700; text-shadow: 0 0 16px rgba(232,196,122,.3); }
+    .head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--rust-500), transparent); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+    .lbl { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: var(--tracking-label);
+      color: var(--rust-300); margin: 0 0 10px; font-weight: 700; }
+    .stack { display: flex; flex-direction: column; gap: 12px; }
+    .toasts { display: flex; flex-direction: column; gap: 12px; align-items: flex-start;
+      background: linear-gradient(170deg, rgba(0,0,0,.4), rgba(20,16,10,.2));
+      border: 1px solid rgba(201,122,60,.18); padding: 16px; border-radius: var(--radius-sm);
+      box-shadow: inset 0 1px 0 rgba(232,196,122,.06); }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="wrap"><div id="root"></div></div>
+  <div class="vig"></div>
+  <script type="text/babel">
+    const { AssistantBubble, DiceToast } = window.TheClockworkDarkDesignSystem_4a0a88;
+    const glow = { boxShadow: "var(--shadow-raise), 0 0 30px -6px rgba(232,196,122,.4)" };
+    const tglow = { filter: "drop-shadow(0 8px 22px rgba(0,0,0,.6))" };
+    function Demo() {
+      return (
+        <div>
+          <div className="head">
+            <img src="../../assets/gear-motif.svg" alt="" />
+            <h2>Feedback</h2>
+            <span className="rule"></span>
+          </div>
+          <div className="grid">
+            <div>
+              <p className="lbl">Assistant bubble · forms</p>
+              <div className="stack">
+                <AssistantBubble form="cat" style={glow}>The smoke is bread, not burning. Probably.</AssistantBubble>
+                <AssistantBubble form="child" whisper style={glow}>It drew the same gears in the dirt again.</AssistantBubble>
+                <AssistantBubble form="wanderer" style={glow}>Roads change when the wheat turns wrong. Walk anyway.</AssistantBubble>
+              </div>
+            </div>
+            <div>
+              <p className="lbl">Dice toast · verbatim</p>
+              <div className="toasts">
+                <div style={tglow}><DiceToast roll={14} modifier={2} dc={13} outcome="Success" /></div>
+                <div style={tglow}><DiceToast roll={4} modifier={1} dc={12} outcome="Failure" /></div>
+                <div style={tglow}><DiceToast roll={20} modifier={0} outcome="Boon" /></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+  </script>
+</body>
+</html>

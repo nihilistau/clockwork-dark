@@ -1,0 +1,79 @@
+<!-- @dsCard group="Components" viewport="700x280" name="Scene — Panel & World Clock" subtitle="Journal-column surface and the diegetic chrome clock" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../../styles.css" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="../../_ds_bundle.js"></script>
+  <style>
+    body {
+      margin: 0; padding: 22px 26px; font-family: var(--font-ui); position: relative; overflow: hidden;
+      color: var(--text-on-dark);
+      background:
+        radial-gradient(80% 70% at 88% -16%, rgba(190,118,58,.16), transparent 54%),
+        linear-gradient(155deg, #0c100e 0%, #141815 46%, #15170f 100%);
+    }
+    .grain { position: absolute; inset: 0; background-image: var(--texture-paper); opacity: .4; mix-blend-mode: multiply; pointer-events: none; }
+    .vig { position: absolute; inset: 0; box-shadow: inset 0 0 140px 28px rgba(3,4,2,.85); pointer-events: none; }
+    .wrap { position: relative; z-index: 1; }
+    .chrome { display: flex; justify-content: space-between; align-items: center;
+      background: linear-gradient(180deg,#0d100c,#14140f); padding: 11px 16px; margin-bottom: 18px;
+      border: 1px solid rgba(232,196,122,.18); border-radius: var(--radius-sm);
+      box-shadow: 0 6px 18px -6px rgba(0,0,0,.7); }
+    .chrome .l { display: flex; align-items: center; gap: 10px; }
+    .chrome img { width: 20px; filter: brightness(1.4) drop-shadow(0 0 10px rgba(201,122,60,.5)); }
+    .chrome h1 { margin: 0; color: var(--text-on-dark); font-size: var(--text-base);
+      letter-spacing: var(--tracking-title); text-transform: uppercase; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: 200px 220px; gap: 18px; align-items: start; }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="wrap"><div id="root"></div></div>
+  <div class="vig"></div>
+  <script type="text/babel">
+    const { ScenePanel, AssistantBubble, WorldClock } = window.TheClockworkDarkDesignSystem_4a0a88;
+    function DarkStat({label, value, accent, last}) {
+      return (
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',padding:'5px 0',
+          borderBottom: last ? 'none' : '1px solid rgba(232,196,122,.14)'}}>
+          <span style={{fontFamily:'var(--font-ui)',fontSize:'var(--text-xs)',textTransform:'uppercase',
+            letterSpacing:'var(--tracking-label)',color:'rgba(217,205,180,.6)'}}>{label}</span>
+          <span style={{fontFamily:'var(--font-mono)',fontSize:'var(--text-sm)',
+            color: accent ? 'var(--tallow-300)' : 'var(--linen-200)'}}>{value}</span>
+        </div>
+      );
+    }
+    function Demo() {
+      const panelDark = { background:'linear-gradient(180deg,#2a3326,#1d241b)', boxShadow:'inset -16px 0 26px -22px #000' };
+      const ledgerDark = { background:'linear-gradient(180deg,#1c1a12,#15140d)', boxShadow:'inset 16px 0 26px -22px #000' };
+      const cap = { margin:'0 0 10px', fontFamily:'var(--font-ui)', fontSize:'var(--text-xs)', fontWeight:600,
+        textTransform:'uppercase', letterSpacing:'var(--tracking-label)', color:'var(--tallow-300)' };
+      return (
+        <div>
+          <div className="chrome">
+            <div className="l"><img src="../../assets/gear-motif.svg" alt="" /><h1>Edgewood Square</h1></div>
+            <WorldClock day={12} time="Evening" discovered />
+          </div>
+          <div className="grid">
+            <ScenePanel surface="panel" edge="right" style={{...panelDark, minHeight:'120px', borderRight:'1px solid rgba(232,196,122,.14)'}}>
+              <p style={cap}>Assistant</p>
+              <AssistantBubble form="cat" style={{boxShadow:'var(--shadow-raise), 0 0 26px -6px rgba(232,196,122,.4)'}}>Stay near the oven light.</AssistantBubble>
+            </ScenePanel>
+            <ScenePanel surface="ledger" edge="left" style={{...ledgerDark, borderLeft:'1px solid rgba(232,196,122,.14)'}}>
+              <p style={cap}>Traveler</p>
+              <DarkStat label="HP" value="14/18" />
+              <DarkStat label="Stamina" value="6" />
+              <DarkStat label="Gold" value="0.42" accent last />
+            </ScenePanel>
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+  </script>
+</body>
+</html>

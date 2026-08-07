@@ -1,0 +1,32 @@
+/* ============================================================
+   Webfonts — The Clockwork Dark
+   ------------------------------------------------------------
+   Confirmed families (open-licensed, OFL/Apache):
+     narration  → EB Garamond
+     ui/chrome  → Source Sans 3
+     stats/dice → IBM Plex Mono
+     assistant  → Nunito
+   These load from Google Fonts below (works online, no setup).
+   To SELF-HOST: add .woff2 files to assets/fonts/, then comment
+   out the @import and uncomment the @font-face block beneath it.
+   See assets/fonts/README.md for the exact files & weights.
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Nunito:ital,wght@0,400;0,600;1,400&display=swap");
+
+/* ----------------------------------------------------------------
+   SELF-HOST BLOCK — uncomment after adding files to assets/fonts/
+   (and comment out the @import above). Family names match the
+   --font-* token stacks in typography.css, so nothing else changes.
+-------------------------------------------------------------------
+@font-face { font-family:"EB Garamond"; font-weight:400; font-style:normal; font-display:swap; src:url("../assets/fonts/EBGaramond-Regular.woff2") format("woff2"); }
+@font-face { font-family:"EB Garamond"; font-weight:600; font-style:normal; font-display:swap; src:url("../assets/fonts/EBGaramond-SemiBold.woff2") format("woff2"); }
+@font-face { font-family:"EB Garamond"; font-weight:400; font-style:italic; font-display:swap; src:url("../assets/fonts/EBGaramond-Italic.woff2") format("woff2"); }
+@font-face { font-family:"Source Sans 3"; font-weight:400; font-style:normal; font-display:swap; src:url("../assets/fonts/SourceSans3-Regular.woff2") format("woff2"); }
+@font-face { font-family:"Source Sans 3"; font-weight:600; font-style:normal; font-display:swap; src:url("../assets/fonts/SourceSans3-SemiBold.woff2") format("woff2"); }
+@font-face { font-family:"Source Sans 3"; font-weight:700; font-style:normal; font-display:swap; src:url("../assets/fonts/SourceSans3-Bold.woff2") format("woff2"); }
+@font-face { font-family:"IBM Plex Mono"; font-weight:400; font-style:normal; font-display:swap; src:url("../assets/fonts/IBMPlexMono-Regular.woff2") format("woff2"); }
+@font-face { font-family:"IBM Plex Mono"; font-weight:500; font-style:normal; font-display:swap; src:url("../assets/fonts/IBMPlexMono-Medium.woff2") format("woff2"); }
+@font-face { font-family:"Nunito"; font-weight:400; font-style:normal; font-display:swap; src:url("../assets/fonts/Nunito-Regular.woff2") format("woff2"); }
+@font-face { font-family:"Nunito"; font-weight:600; font-style:normal; font-display:swap; src:url("../assets/fonts/Nunito-SemiBold.woff2") format("woff2"); }
+---------------------------------------------------------------- */
