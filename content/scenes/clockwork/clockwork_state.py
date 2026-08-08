@@ -31,6 +31,8 @@ import logging
 import time
 from typing import Any, Callable, Optional
 
+from engine.agents.character import CharacterTurn
+from engine.agents.pipeline import merge_choices, narration_block, run_pipeline
 from engine.game import epilogue as epilogue_module
 from engine.game.engine import active_engine
 from engine.game.state import GameState
@@ -657,10 +659,42 @@ def run_turn(
 
             session.storyteller.on_reasoning = stream_reasoning
 
+        # PLAN -> NEGOTIATE -> COMMIT, ahead of narration.
+        #
+        # Every declared agent proposes against the SAME pre-commit state and
+        # the same player action, seeing only what its knowledge scopes allow;
+        # the story's rule table decides whose intent leads and which choices
+        # survive; the accepted effects land in one atomic commit through the
+        # single writer, with the proposing agent recorded.
+        #
+        # The ordering is the whole point. Until now the narrator ran to
+        # completion and committed, and the second agent was handed the finished
+        # prose -- an agent that has already written cannot be argued with. So
+        # nothing is written until the argument is over, and the narrator then
+        # writes ONCE, knowing the answer.
+        #
+        # `ran=False` for a story declaring fewer than two agents, which is both
+        # shipped games: `agreed` is empty, the block is empty, and the turn
+        # below is byte-for-byte the turn they had.
+        # A non-empty `safety` means the gate refused this direction --
+        # `_review_input` returns {} when the input is allowed. The REDIRECT
+        # beat is passed, never `reasons`: those name the player's own declared
+        # limits, and routing them into a prompt would echo back the thing they
+        # asked not to read.
+        agreed = run_pipeline(
+            state,
+            player_action,
+            ledger=session.ledger,
+            safety_block=str(
+                (safety or {}).get("redirect") or (safety or {}).get("disposition") or ""
+            ),
+        )
+
         try:
             storyteller_result = session.storyteller.run_turn(
                 player_action,
                 on_delta=stream_to_client,
+                agreed_block=narration_block(agreed),
             )
         finally:
             # The agent outlives the turn. Leaving the sink attached would have
@@ -668,30 +702,44 @@ def run_turn(
             # callback closed over a dead request context.
             session.storyteller.on_reasoning = None
 
-        # The second voice. A story that declares a `role: character` in its
-        # agents.yaml gets that character -- her own persona file, her own
-        # model profile, and a prompt filtered by her declared knowledge
-        # scopes so the world's secrets never reach her. Every other story
-        # gets the companion, unchanged.
+        # The second voice.
         #
-        # She runs in the companion's slot, AFTER the narrator has committed.
-        # That is not the plan-then-negotiate pipeline in engine/agents/
-        # {plan,negotiate}.py -- those are built and tested and nothing calls
-        # them yet. This is a second agent with its own voice and blind spots;
-        # it is not yet two agents arguing before a shared commit.
-        character = _character_agent(session)
-        if character is not None:
-            character_result = character.run_turn(storyteller_result.narration)
+        # When the pipeline ran, she has ALREADY SPOKEN -- her words came out of
+        # her plan, before the narrator wrote, and the narrator was handed them
+        # verbatim. So there is nothing left to ask her: calling her again here
+        # would be a second model call producing a second line for a turn that
+        # already has hers, and the two would disagree.
+        #
+        # A story with no roster falls through to exactly what it had: its own
+        # character agent reacting to finished prose, or the companion.
+        speaker = agreed.speaker() if agreed.ran else None
+        if speaker is not None:
+            character_result = CharacterTurn(
+                agent=speaker.agent, text=speaker.line, spoke=True
+            )
+            assistant_result = None
+        elif agreed.ran:
+            # The pipeline ran and nobody chose to speak. Silence is a real
+            # outcome and the companion must not be summoned to fill it.
+            character_result = CharacterTurn(agent=agreed.lead)
             assistant_result = None
         else:
-            character_result = None
-            assistant_result = session.assistant.run_turn(storyteller_result.narration)
+            character = _character_agent(session)
+            if character is not None:
+                character_result = character.run_turn(storyteller_result.narration)
+                assistant_result = None
+            else:
+                character_result = None
+                assistant_result = session.assistant.run_turn(storyteller_result.narration)
 
     turn_payload = {
         "session_id": state.session_id,
         "save_id": session.save_id,
         "narration": storyteller_result.narration,
-        "choices": storyteller_result.choices,
+        # The narrator's options plus whatever the agents' plans put on the
+        # table, deduped and renumbered. Identical to the narrator's own list
+        # when no pipeline ran.
+        "choices": merge_choices(agreed, storyteller_result.choices),
         "state": state.to_client_dict(),
         "tool_receipts": storyteller_result.tool_receipts,
         "evaluation": storyteller_result.evaluation.to_dict(),
@@ -729,6 +777,17 @@ def run_turn(
     # all, so both shipped stories ship the payload they shipped before.
     if safety:
         turn_payload["safety"] = safety
+
+    # The turn journal: who proposed what, which rule fired, what it cost the
+    # loser, and every effect the commit applied or refused. Added only when a
+    # negotiation actually happened, same as `safety` -- a turn where one agent
+    # narrated has nothing to report and should not carry an empty block.
+    #
+    # `to_dict()` never includes a plan's `private`. A character's real motive
+    # reaching the payload is a motive the browser has, the logs have, and
+    # telemetry has.
+    if agreed.ran:
+        turn_payload["negotiation"] = agreed.to_dict()
 
     # The run is over, and here is what it reads like.
     #

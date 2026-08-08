@@ -26,12 +26,17 @@ WHAT MAKES IT DIFFERENT, CONCRETELY:
     available, because the single most common failure of a second agent is that
     it starts describing the room.
 
-NOT WIRED YET, and worth saying plainly: this runs INSTEAD OF the companion for
-a story that declares a character, in the same slot, after the narrator has
-already committed. It does not yet plan-then-negotiate -- ``plan.py`` and
-``negotiate.py`` exist and are tested, and the live turn does not use them. So
-this is a second agent with its own voice, permissions and blind spots; it is
-not yet two agents arguing before a shared commit.
+WHEN THIS RUNS, NOW THAT THE PIPELINE DOES. A story declaring two or more
+agents goes through ``engine/agents/pipeline.py`` instead: every agent PLANS
+against pre-commit state, the plans are negotiated, the accepted effects land in
+one commit, and the narrator writes once knowing the answer. A character who
+planned has already spoken -- her words came out of her plan and went to the
+narrator verbatim -- so this module is not called on those turns.
+
+It remains the path for a story that declares exactly ONE agent with
+``role: character``: there is nobody to negotiate with, so she reacts to
+finished prose, which is the right shape for that story and the wrong one for
+two. Both shipped games declare no roster at all and reach neither.
 
 Version: v0.1.0 [2026-08-08]
 """

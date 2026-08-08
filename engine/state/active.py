@@ -22,6 +22,7 @@ Version: v0.1.0 [2026-08-08]
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from typing import Any, Optional
 
 from engine.state.schema import SchemaError, StateSchema, load_schema
@@ -60,7 +61,7 @@ def active_schema() -> StateSchema:
             _schema = StateSchema(slug=manifest.slug)
             return _schema
 
-        _schema = load_schema(path, slug=manifest.slug)
+        _schema = _with_roster_grants(load_schema(path, slug=manifest.slug))
     except SchemaError:
         # A malformed schema is a real error and must not be swallowed: the
         # story asked for state it will not get.
@@ -70,6 +71,53 @@ def active_schema() -> StateSchema:
         _schema = StateSchema()
 
     return _schema
+
+
+def _with_roster_grants(schema: StateSchema) -> StateSchema:
+    """
+    Fold the story's agent roster into the schema's per-value ``owners``.
+
+    ONE PLACE PERMISSIONS ARE DECLARED. They had two, and the two disagreed.
+    ``agents.yaml`` grants an agent its ``writes`` and ``writes_with_reason``;
+    ``state.yaml`` grants a value its ``owners``; the store enforces the second
+    and nothing reconciled them. The Wicked Garden's roster granted ``gm`` ten
+    values and Sophia three, and its schema named owners for two -- so the world
+    agent could not move ``corruption``, the meter its whole story turns on, and
+    Sophia's ``autonomy`` write (the one permission that can close the door
+    home) was refused with ``owners=[]`` every time she asked.
+
+    Neither file was wrong on its own, which is what made it invisible. So the
+    roster is now the source and the schema's ``owners`` is derived: a story
+    declares who may write what once, beside the agent it belongs to, and the
+    store still does the enforcing. A value's own ``owners:`` list still works
+    and is unioned in, for a story that has no roster or wants to grant
+    something to an agent it does not declare.
+
+    Costs nothing for a story with no ``agents.yaml`` -- an empty roster grants
+    nothing, and the schema comes back untouched. That is both shipped games.
+    """
+    roster = active_roster()
+    if not roster or not schema.values:
+        return schema
+
+    granted = 0
+    for name, spec in schema.values.items():
+        owners = roster.owners_for(name)
+        if not owners:
+            continue
+        merged = tuple(dict.fromkeys(spec.owners + owners))
+        if merged != spec.owners:
+            granted += 1
+            schema.values[name] = replace(spec, owners=merged)
+
+    if granted:
+        logger.info(
+            "[state] Roster grants folded into the schema "
+            "(operation=active_schema, slug=%s, values=%d)",
+            schema.slug or "?",
+            granted,
+        )
+    return schema
 
 
 def active_roster() -> Any:

@@ -80,6 +80,7 @@ def build_storyteller_messages(
     include_examples: bool = True,
     budget: Optional[Budget] = None,
     retry_note: str = "",
+    agreed_block: str = "",
 ) -> list[dict[str, str]]:
     """
     Assemble the Storyteller prompt.
@@ -96,6 +97,10 @@ def build_storyteller_messages(
             pass where they cost tokens and buy nothing.
         budget: Token allowance; defaults from config.
         retry_note: Evaluator feedback for a repair attempt.
+        agreed_block: What the multi-agent negotiation already settled -- whose
+            intent leads, the surviving beats, the other agent's actual words,
+            and any state already committed. Empty for a story running one
+            agent, which is both shipped games.
 
     Returns:
         Chat message array, trimmed to fit the budget.
@@ -165,6 +170,12 @@ def build_storyteller_messages(
         block = receipts_block(receipts)
         if block:
             messages.append({"role": "system", "content": block})
+
+    # After the receipts and immediately before the player's line, because it is
+    # the same KIND of thing a receipt is: something already true that narration
+    # reports rather than decides. Inside the budget for the same reason.
+    if agreed_block:
+        messages.append({"role": "system", "content": agreed_block})
 
     messages.append({"role": "user", "content": player_action})
 

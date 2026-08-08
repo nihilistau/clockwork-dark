@@ -139,12 +139,33 @@ clamp but never stop the turn that did it.
 Its default chain is deliberately **empty**. A hook that can veto a turn is the
 most dangerous thing to ship on by default; a story gets one by asking.
 
+## The pipeline, on a live turn
+
+`engine/agents/pipeline.py` runs plan → negotiate → commit ahead of narration
+for any story declaring two or more agents.
+
+| Phase | What happens |
+|---|---|
+| Plan | Every declared agent proposes, concurrently, against the SAME pre-commit state and the same player action, seeing only what its knowledge scopes allow. `plan_schema()` is filled in per agent: `speaks_as` is enumerated to the voices it owns and `effects[].name` to the values it owns, so a claim it has no right to make is unsampleable rather than merely discouraged. |
+| Negotiate | Safety first and not reorderable, then voice ownership, then the story's rule table in declared order, then highest confidence. Every decision is recorded as a `Resolution` — a turn whose shape has an explanation. |
+| Commit | Accepted effects applied ONCE, inside one `StateTransaction`, through `apply_effect` with `by=` set to the proposing agent. Half-applying would leave a state neither agent proposed and no rule produced. |
+| Narrate | Unchanged, except that `build_storyteller_messages(agreed_block=...)` hands the narrator what was settled. It reports the turn rather than re-deciding it, and a character's line goes in verbatim. |
+
+The ordering is the point: an agent that has already written cannot be argued
+with, so nothing is written until the argument is over.
+
+**Permissions have one home.** A roster's `writes` / `writes_with_reason` are
+folded into the schema's per-value `owners` by `engine/state/active.py`. They
+used to be declared in two files that disagreed — the Garden's roster granted
+`gm` ten values and its schema named owners for two, so the world agent could
+not move `corruption` and Sophia's `autonomy` write was refused every time.
+
 ## NOT WIRED
 
 | Thing | Status |
 |---|---|
-| The pipeline on a live turn | `plan`, `negotiate`, `roster` and `knowledge` are built and tested. The live path is still `StorytellerAgent.run_turn`, the single-agent design. No shipped story declares an `agents.yaml`. |
-| `engine/agents/turn_loop.py` | Still unwired, still the designated basis for the pipeline. See its own header. |
-| Structured plan emission | `plan_schema()` exists; no agent is asked to fill it in yet. Note the cost when it is: a schema forces the OpenAI-compat transport, which cannot turn reasoning off. |
+| `engine/agents/turn_loop.py` | Still unwired. `pipeline.py` was written fresh rather than reviving it; this module is now redundant rather than pending, and should be deleted or explained. |
+| The store's write journal | `StateStore.journal` records every write with who and why, and is discarded: it is per-store, `store_for()` builds a fresh store per call, and `clear_journal()` ("called per turn, after it has been read") is called by nothing. The two fields that made it worth having — `by` and `why` — now ride out on the effect receipt instead, which is what actually survives a turn. |
+| Reasoning cost of structured plans | A JSON schema forces the OpenAI-compat transport, which cannot turn reasoning off. Two plan calls per turn pay that on hardware where reasoning is 800+ tokens. Unmeasured against a real model. |
 
-Version: v0.1.0 [2026-08-08]
+Version: v0.2.0 [2026-08-09]

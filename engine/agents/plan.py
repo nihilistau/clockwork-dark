@@ -135,8 +135,17 @@ class AgentPlan:
     tools: list[dict[str, Any]] = field(default_factory=list)
     beat: str = ""
     private: str = ""
+    #: What this agent SAYS, if the negotiation lets it speak. Distinct from
+    #: `beat`, which is intent for the negotiator and the narration prompt and
+    #: is never shown to the player. A world agent leaves this empty -- it
+    #: narrates downstream, in one pass, knowing the negotiated answer.
+    line: str = ""
     confidence: float = 0.5
     speaks_as: str = ""
+    #: Effects the agent asked for and was not allowed to ask for. Recorded
+    #: rather than dropped, because a character repeatedly reaching for a value
+    #: she does not own is a design signal, not noise.
+    refused: list[dict[str, Any]] = field(default_factory=list)
     #: Free-form extras a story's pipeline may attach. Kept so a story can carry
     #: something the base plan has not learned about without subclassing.
     extras: dict[str, Any] = field(default_factory=dict)
@@ -161,15 +170,28 @@ class AgentPlan:
             "choices": [c.to_dict() for c in self.choices],
             "tools": list(self.tools),
             "beat": self.beat,
+            "line": self.line,
             "confidence": round(float(self.confidence), 3),
             "speaks_as": self.speaks_as,
+            "refused": list(self.refused),
         }
         if include_private:
             out["private"] = self.private
         return out
 
 
-def plan_schema(agent: str, *, voices: tuple[str, ...] = ()) -> dict[str, Any]:
+#: Ceiling on a single proposed delta. The store clamps to the value's declared
+#: bounds anyway; this stops a model spending its whole allowance describing one
+#: enormous number, and keeps a plan's arithmetic legible in the journal.
+MAX_PROPOSED_DELTA = 25
+
+
+def plan_schema(
+    agent: str,
+    *,
+    voices: tuple[str, ...] = (),
+    writable: tuple[str, ...] = (),
+) -> dict[str, Any]:
     """
     JSON schema an agent fills in to emit a plan.
 
@@ -179,10 +201,19 @@ def plan_schema(agent: str, *, voices: tuple[str, ...] = ()) -> dict[str, Any]:
     schema uses for ``npc_voices`` -- enumerating the NPCs actually present
     makes an off-scene character unsampleable rather than merely discouraged.
 
+    ``writable`` does the same job for state. An agent's declared writes become
+    the enum of ``effects[].name``, so a plan proposing a value the agent does
+    not own is not merely refused downstream -- it cannot be sampled. The
+    store's per-value ``owners`` is still the enforcement point and still
+    journals a refusal; this is the cheaper wall in front of it.
+
     Args:
         agent: Agent id, for the description text.
         voices: Voice ids this agent owns. Omitted entirely when empty, because
             an empty enum matches nothing and would make the field unfillable.
+        writable: Declared values this agent may move. Same rule: no writes
+            declared means no ``effects`` field at all rather than an
+            unfillable one.
 
     Returns:
         A JSON schema dict for ``response_format``.
@@ -190,6 +221,30 @@ def plan_schema(agent: str, *, voices: tuple[str, ...] = ()) -> dict[str, Any]:
     speaks_as: dict[str, Any] = {"type": "string"}
     if voices:
         speaks_as = {"type": "string", "enum": list(voices)}
+
+    effects: dict[str, Any] = {
+        "type": "array",
+        "maxItems": 3,
+        "description": "State you want moved. Small, and only what this beat earns.",
+        "items": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["name", "delta"],
+            "properties": {
+                "name": {"type": "string", "enum": list(writable)},
+                "delta": {
+                    "type": "number",
+                    "minimum": -MAX_PROPOSED_DELTA,
+                    "maximum": MAX_PROPOSED_DELTA,
+                },
+                "reason": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "description": "Why, in one line. Required for some values.",
+                },
+            },
+        },
+    }
 
     return {
         "type": "object",
@@ -218,8 +273,17 @@ def plan_schema(agent: str, *, voices: tuple[str, ...] = ()) -> dict[str, Any]:
                 "maxLength": 240,
                 "description": "Your reasoning. The player and the other agent never see this.",
             },
+            "line": {
+                "type": "string",
+                "maxLength": 400,
+                "description": (
+                    "What you SAY, if you speak. Your words only -- no narration, "
+                    "no describing the room, no speaking for anyone else."
+                ),
+            },
             "confidence": {"type": "number", "minimum": 0, "maximum": 1},
             "speaks_as": speaks_as,
+            **({"effects": effects} if writable else {}),
             "choices": {
                 "type": "array",
                 "maxItems": 4,
@@ -245,16 +309,37 @@ def plan_schema(agent: str, *, voices: tuple[str, ...] = ()) -> dict[str, Any]:
     }
 
 
-def parse_plan(agent: str, raw: dict[str, Any]) -> AgentPlan:
+def parse_plan(
+    agent: str,
+    raw: dict[str, Any],
+    *,
+    writable: tuple[str, ...] = (),
+    needs_reason: tuple[str, ...] = (),
+) -> AgentPlan:
     """
     Build a plan from a model's structured output.
 
     Tolerant of shape, strict about ownership: unknown intents fall back to
     silence rather than raising, because a malformed plan must cost the agent
-    its turn and not the player's. Effects are NOT read from the model here --
-    an agent requests state changes through its declared tools, which are
-    already ACL-checked, so a plan cannot smuggle in an effect the agent has no
-    permission to ask for.
+    its turn and not the player's.
+
+    EFFECTS ARE READ, AND FILTERED HERE. An earlier version of this function
+    refused to read them at all, on the grounds that a plan should not be able
+    to smuggle in a write the agent has no permission for. That reasoning had
+    it backwards: the store's per-value ``owners`` is the enforcement point and
+    it REFUSES AND JOURNALS, which is strictly better than a write nobody can
+    express and therefore nobody can audit. Refusing to read them just meant a
+    declared character could not move the meters her roster says are hers.
+
+    So they are read, filtered against ``writable``, and anything outside it is
+    recorded on ``plan.refused`` rather than dropped. ``needs_reason`` values --
+    the Garden's ``autonomy``, which gates the door home -- are refused without
+    one, because "she took something from you" has to be attached to the number
+    that moved.
+
+    Args:
+        writable: Values this agent may move at all.
+        needs_reason: The subset that additionally requires a stated reason.
     """
     if not isinstance(raw, dict):
         return AgentPlan(agent=agent)
@@ -292,18 +377,57 @@ def parse_plan(agent: str, raw: dict[str, Any]) -> AgentPlan:
     except (TypeError, ValueError):
         confidence = 0.5
 
+    effects: list[ProposedEffect] = []
+    refused: list[dict[str, Any]] = []
+    allowed = set(writable)
+    reasoned = set(needs_reason)
+    for row in raw.get("effects") or []:
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get("name") or "").strip()
+        reason = str(row.get("reason") or "").strip()
+        try:
+            delta = float(row.get("delta", 0))
+        except (TypeError, ValueError):
+            delta = 0.0
+        if not name or not delta:
+            continue
+        if name not in allowed:
+            refused.append({"name": name, "delta": delta, "why": "not owned by this agent"})
+            logger.warning(
+                "[plan] Effect refused, value not owned (agent=%s, value=%s)", agent, name
+            )
+            continue
+        if name in reasoned and not reason:
+            refused.append({"name": name, "delta": delta, "why": "requires a stated reason"})
+            logger.warning(
+                "[plan] Effect refused, no reason given (agent=%s, value=%s)", agent, name
+            )
+            continue
+        effects.append(
+            ProposedEffect(
+                kind="value",
+                payload={"name": name, "delta": delta},
+                reason=reason,
+            )
+        )
+
     return AgentPlan(
         agent=agent,
         intent=intent,
+        effects=effects,
         choices=choices,
         beat=str(raw.get("beat") or "").strip(),
         private=str(raw.get("private") or "").strip(),
+        line=str(raw.get("line") or "").strip(),
         confidence=confidence,
         speaks_as=str(raw.get("speaks_as") or ""),
+        refused=refused,
     )
 
 
 __all__ = [
+    "MAX_PROPOSED_DELTA",
     "INTENT_INTERRUPT",
     "INTENT_NARRATE",
     "INTENT_OFFER",

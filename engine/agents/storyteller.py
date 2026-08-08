@@ -639,6 +639,7 @@ class StorytellerAgent:
         retry_notes: Optional[list[str]] = None,
         receipts: Optional[list[dict[str, Any]]] = None,
         rejected_draft: str = "",
+        agreed_block: str = "",
     ) -> list[dict[str, Any]]:
         state = self.engine.state
         PlotFormula.update_story_pressure(state)
@@ -655,6 +656,7 @@ class StorytellerAgent:
                 if retry_notes
                 else ""
             ),
+            agreed_block=agreed_block,
         )
 
         # ONLY the awareness gate runs here, and only over system blocks.
@@ -680,6 +682,7 @@ class StorytellerAgent:
         player_action: str,
         *,
         on_delta: Optional[Callable[[str], None]] = None,
+        agreed_block: str = "",
     ) -> StorytellerTurnResult:
         """
         Execute one Storyteller turn with tools and evaluator retry.
@@ -688,6 +691,11 @@ class StorytellerAgent:
             player_action: Player choice or free-text action.
             on_delta: Called with narration text as it streams. This is what
                 puts words on screen during generation instead of after it.
+            agreed_block: What the multi-agent negotiation already settled, if
+                this story runs one. The narrator REPORTS this rather than
+                re-deciding it -- the point of planning before narrating is
+                that the argument is over by the time the prose starts. Empty
+                for a single-agent story, which is both shipped games.
 
         Returns:
             StorytellerTurnResult with narration and evaluation.
@@ -731,6 +739,7 @@ class StorytellerAgent:
                 retry_notes=retry_notes if retries else None,
                 receipts=tool_receipts if retries else None,
                 rejected_draft=rejected_draft,
+                agreed_block=agreed_block,
             )
             try:
                 # Only stream the first attempt: a retry would replay text the

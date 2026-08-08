@@ -27,7 +27,12 @@ agents:
   gm:
     role: world
     profile: big
-    prompt: prompts/gm.md
+    # The narrator's persona file, and this pointed at `prompts/gm.md` -- which
+    # does not exist. An agent with no voice file does not plan at all, so the
+    # world would have sat out every negotiation silently and Sophia would have
+    # led every turn by default. `storyteller.md` IS the world's voice; there
+    # was never a second file, only a second name for it.
+    prompt: prompts/storyteller.md
 
     # Ten voices. Every named soul in the Garden except one -- and the epilogue
     # cards, because the mortal card and the garden card are the world's

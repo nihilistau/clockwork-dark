@@ -784,6 +784,19 @@ def _e_value(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> di
         "name": name,
         "label": label,
         "kind": spec.kind if spec is not None else "meter",
+        # WHO and WHY, carried out of the store's write journal.
+        #
+        # That journal is per-store and `store_for()` builds a fresh store on
+        # every call, so every record it wrote died the moment this function
+        # returned -- `clear_journal()` says "called per turn, after it has been
+        # read" and nothing ever read one. The roster leans on this: "the reason
+        # lands in the state journal, so 'she took something from you' is
+        # attached to the number that moved". It was not attached to anything.
+        #
+        # The receipt is the thing that actually survives the turn, so the two
+        # fields that made the journal worth having ride out on it.
+        "by": ctx.by,
+        "why": why,
         "delta": _float(effect.get("delta")) if "set" not in effect else None,
         "applied": after - before,
         "before": before,

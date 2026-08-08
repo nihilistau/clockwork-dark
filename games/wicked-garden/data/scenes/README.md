@@ -148,14 +148,18 @@ different way for authored content to be invisible.
    and the module is the *scene*, and returning the cards on the locking turn
    skipped the last three beats of the story, including the Seal that writes the
    gallery key and the New Game+ seed.
+7. **Both agents plan before either speaks.** `engine/agents/pipeline.py` runs
+   plan → negotiate → commit ahead of narration, so this story's `negotiation:`
+   table decides real turns: her private scene finishes over a world
+   interruption, the world asserts over her, the correctly-invoked law holds.
+   Her `writes_with_reason: [autonomy]` grant now reaches the store, which it
+   did not — `state.yaml` named owners for two values and the roster granted
+   thirteen.
 
 ## What is still not wired
 
 Stated plainly, per CLAUDE.md rule 9.
 
-1. **Nothing calls the plan → negotiate → commit pipeline.** `engine/agents/`
-   ships `plan.py`, `negotiate.py`, `knowledge.py` and `roster.py`, all tested;
-   the live turn still runs the single-agent path.
-2. **Six of the fourteen locations have no art plate**, including the entry
+1. **Six of the fourteen locations have no art plate**, including the entry
    `mortal_threshold`, so the opening screen draws a procedural placeholder.
    The generation prompts are in `MISSING-PLATES.md`.
