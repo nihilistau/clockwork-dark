@@ -105,9 +105,17 @@ def _build_procedural_npcs(
     if not given or not family:
         # The graceful-degradation path for a missing template used to walk
         # straight into rng.choice([]) -> IndexError.
-        logger.warning(
-            "[procgen] Name pools empty (operation=_build_procedural_npcs); "
-            "skipping procedural villagers"
+        #
+        # DEBUG, not WARNING. A story with no `procgen_templates` has no
+        # procedural villagers BY DESIGN -- The Wicked Garden's fourteen
+        # locations are authored and its cast is nine named fae -- so this fired
+        # on every new run of every story but the flagship, reporting an
+        # authoring decision as a fault. Once the engine stopped defaulting the
+        # path to Edgewood's templates, "no name pools" became the ordinary
+        # answer rather than a broken install.
+        logger.debug(
+            "[procgen] Story declares no name pools (operation=_build_procedural_npcs); "
+            "no procedural villagers"
         )
         return []
 

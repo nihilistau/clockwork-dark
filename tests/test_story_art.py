@@ -11,7 +11,8 @@ reachable.
 Two things had to become per-story, and this file holds both to their contract:
 
   1. ``paths.art_root``      WHERE the files are. Defaults to exactly the old
-                             constant, so the two shipped games are untouched.
+                             constant, so a story that declares none is
+                             untouched.
   2. ``GET /story-art/<p>``  HOW the browser gets them. Flask's ``/static``
                              handler is bound to the scene package, not to the
                              active game, so a story keeping plates in its own
@@ -113,9 +114,10 @@ def test_the_default_art_root_is_exactly_the_old_hardcoded_constant() -> None:
     """
     The whole compatibility claim rests on this one line of config.
 
-    Anything else in ``config/default.yaml`` and the two shipped games move
-    silently: their manifests are unchanged, so a wrong root simply resolves
-    nothing and the game paints silhouettes with no error anywhere.
+    Anything else in ``config/default.yaml`` and every story that declares no
+    root of its own moves silently: its manifest is unchanged, so a wrong root
+    simply resolves nothing and the game paints silhouettes with no error
+    anywhere.
     """
     assert get_config().get("paths.art_root") == str(ART_ROOT).replace("\\", "/")
 

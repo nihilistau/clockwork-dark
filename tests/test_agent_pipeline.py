@@ -94,7 +94,10 @@ def _speaks(answers: dict[str, dict[str, Any]]) -> Any:
 
 def test_a_story_with_no_roster_does_not_run_a_pipeline() -> None:
     """
-    Both shipped games declare no agents.yaml.
+    The flagship declares no agents.yaml, and an empty roster is what any
+    story that has not written one resolves to. (The Wicked Garden DOES ship
+    one; that is the other side of the seam and is tested against a roster
+    rather than against its absence.)
 
     `ran=False` is what keeps this additive: the caller falls through to the
     turn it had, the narration prompt gets no extra block, and the payload grows
