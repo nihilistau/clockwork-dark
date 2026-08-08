@@ -91,7 +91,10 @@ engine/
 ├── persistence/   atomic.py  saves.py  migrations.py
 ├── media/providers/   shipped.py  grokbuild.py  procedural.py  base.py
 ├── world/         npc_sim.py  schedules.py  world_sim.py
-├── agents/        json_stream.py  tag_buffer.py  turn_loop.py  tool_dispatcher.py
+├── agents/        json_stream.py  tag_buffer.py  tool_dispatcher.py
+│                  **CURRENT:** pipeline.py  planner.py  plan.py  negotiate.py
+│                  roster.py  knowledge.py  character.py — the multi-agent turn.
+│                  `turn_loop.py` is retired to `.bak`; it never ran.
 ├── lmstudio/      schemas.py  tools.py  gate.py  speculative.py
 ├── skills/builtin/    mechanics.py  assistant.py  quests.py
 └── stack.py       service supervision for launcher.py --stack/--check

@@ -154,6 +154,11 @@ for any story declaring two or more agents.
 The ordering is the point: an agent that has already written cannot be argued
 with, so nothing is written until the argument is over.
 
+`engine/agents/turn_loop.py` is **retired** — renamed `.bak`, out of the import
+path. It was kept as the designated basis for this pipeline; the pipeline was
+written fresh instead, so it stopped being pending and became redundant. Two
+turn architectures no longer coexist in the tree.
+
 **Permissions have one home.** A roster's `writes` / `writes_with_reason` are
 folded into the schema's per-value `owners` by `engine/state/active.py`. They
 used to be declared in two files that disagreed — the Garden's roster granted
@@ -164,7 +169,6 @@ not move `corruption` and Sophia's `autonomy` write was refused every time.
 
 | Thing | Status |
 |---|---|
-| `engine/agents/turn_loop.py` | Still unwired. `pipeline.py` was written fresh rather than reviving it; this module is now redundant rather than pending, and should be deleted or explained. |
 | The store's write journal | `StateStore.journal` records every write with who and why, and is discarded: it is per-store, `store_for()` builds a fresh store per call, and `clear_journal()` ("called per turn, after it has been read") is called by nothing. The two fields that made it worth having — `by` and `why` — now ride out on the effect receipt instead, which is what actually survives a turn. |
 | Reasoning cost of structured plans | A JSON schema forces the OpenAI-compat transport, which cannot turn reasoning off. Two plan calls per turn pay that on hardware where reasoning is 800+ tokens. Unmeasured against a real model. |
 

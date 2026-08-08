@@ -4,9 +4,11 @@ The model's proposed memory must actually reach the ledger.
 `ledger_delta` is in the turn schema, the model fills it in on most turns, and
 `parse_storyteller_response` defaults it -- and until now it was dropped on the
 floor. `apply_ledger_delta` had exactly one caller, `turn_loop.commit_ledger`,
-and nothing calls `turn_loop`. So the Storyteller could narrate "Maris will not
-meet your eye now" and the record of it never existed; the next turn's prompt
-was assembled from a ledger that had never heard of it.
+in a module nothing imported -- retired since to `engine/agents/turn_loop.py.bak`,
+which is why this file is the only thing standing between that function and
+being dropped on the floor again. So the Storyteller could narrate "Maris will
+not meet your eye now" and the record of it never existed; the next turn's
+prompt was assembled from a ledger that had never heard of it.
 
 The validating layer is the point of the wiring, not an obstacle to it: the
 model PROPOSES and the engine decides what is admitted. These tests assert both

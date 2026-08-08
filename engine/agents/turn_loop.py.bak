@@ -1,19 +1,33 @@
 """
-Two-Phase Turn Loop
-===================
+Two-Phase Turn Loop -- RETIRED
+==============================
 
-**NOT WIRED.** Nothing imports this module. The live path is
-``content/scenes/clockwork/clockwork_state.run_turn`` ->
-``engine/agents/storyteller.StorytellerAgent.run_turn``, which implements a
-weaker SINGLE-phase version of the same idea: it asks for tool calls and prose
-in one message, then executes the tools afterwards.
+**THIS FILE DOES NOT RUN AND CANNOT BE IMPORTED.** The ``.bak`` extension is
+deliberate: a module that never ran should not sit in the package looking like
+one that might.
 
-So two turn architectures coexist in this repo and the better one is dark. Read
-that as a warning, not as an endorsement -- this file has never run in
-production and its docstring below describes an intent, not observed behaviour.
+It was kept as "the designated basis for the multi-agent pipeline". That
+pipeline exists now -- ``engine/agents/pipeline.py``, plan -> negotiate ->
+commit -> narrate, wired into the live turn -- and it was written fresh rather
+than grown from this. So this stopped being pending and became redundant, and
+the honest thing is to say so and take it out of the import path.
 
-It is kept rather than deleted because it is the designated basis for the
-multi-agent pipeline (plan -> negotiate -> commit -> narrate): the phase split,
+Kept on disk at all only because it is the one place the two-phase shape was
+ever written out in full, and reading it is cheaper than rediscovering why the
+split was wanted. Git holds the history regardless; this copy is convenience,
+not preservation. Delete it freely.
+
+WHAT SURVIVED IT. ``apply_ledger_delta`` had exactly one caller --
+``turn_loop.commit_ledger`` -- so the model's proposed facts, names, promises
+and dispositions were parsed and dropped every turn. That is wired into
+``_record_memory`` now and held there by ``tests/test_ledger_delta_wiring.py``.
+
+Everything below this line is the original docstring. It describes an INTENT
+and never described observed behaviour.
+
+---
+
+It was the designated basis for the multi-agent pipeline: the phase split,
 the per-tool savepoints and the pre-dispatch ACL check at ``_dispatch`` are all
 the shapes that work needs, and rewriting them from scratch would be waste.
 

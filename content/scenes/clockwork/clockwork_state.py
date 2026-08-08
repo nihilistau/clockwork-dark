@@ -485,10 +485,10 @@ def _record_memory(
     #
     # THIS HAD NEVER RUN. `ledger_delta` is in the turn schema, the model fills
     # it in every turn, `parse_storyteller_response` defaults it, and then it
-    # was dropped on the floor: `apply_ledger_delta` is called from
-    # `turn_loop.commit_ledger`, and nothing calls `turn_loop`. So the
-    # Storyteller could observe "Maris does not trust you now" and the ledger
-    # would never hear about it.
+    # was dropped on the floor: `apply_ledger_delta`'s only caller was
+    # `turn_loop.commit_ledger`, in a module nothing imported (retired since, to
+    # `turn_loop.py.bak`). So the Storyteller could observe "Maris does not
+    # trust you now" and the ledger would never hear about it.
     #
     # It is applied here rather than inside the agent because the ledger belongs
     # to the session, and because `apply_ledger_delta` is the validating layer:
