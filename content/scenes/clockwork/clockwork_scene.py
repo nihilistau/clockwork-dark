@@ -198,6 +198,15 @@ def codex_places(state: Any) -> list[dict[str, Any]]:
                 "ring": int(row.get("ring", 0)),
                 "discovered": discovered,
                 "here": bool(state is not None and state.location_id == place_id),
+                # Withheld until walked, deliberately. Art ships for all 20
+                # places and it is tempting to send all 20 -- the Atlas used to
+                # be a grid of black rectangles over paintings sitting on disk.
+                # But the fix for that was the per-ring wash, road count and
+                # per-place unknown line the client now draws, NOT the painting
+                # itself: `.codexcard.is-unknown` filters only `.paint__wash`,
+                # so an image sent here renders at full strength and the player
+                # sees every place in the game on turn one. The shape of the
+                # map is not a secret; what is behind the next tree is.
                 "image": shipped_art_url(place_id, "location", time_of_day, evil_phase)
                 if discovered
                 else "",
@@ -317,6 +326,238 @@ def codex_things(state: Any) -> list[dict[str, Any]]:
     return things
 
 
+def _load_item_registry() -> dict[str, dict[str, Any]]:
+    """
+    The whole of data/items/*.yaml, keyed by item id.
+
+    THE GAP THIS CLOSES: 74 items ship with a description, tags, a weight, a
+    value and an art key, and the client rendered `name ×qty` because the
+    browser cannot read YAML and no route handed it over. `/api/codex/things`
+    was the closest thing, and it iterates the ART MANIFEST -- roughly 25 ids --
+    so two thirds of the registry was unreachable from the UI entirely.
+
+    Deliberately uncached. It is seven small files, read when an overlay opens,
+    and a module-level cache here would survive a game activation (which
+    repoints ``paths.items``) without anything to invalidate it.
+    """
+    import yaml
+
+    from engine.config import project_root
+
+    root = project_root() / str(get_config().get("paths.items", "data/items"))
+    registry: dict[str, dict[str, Any]] = {}
+    if not root.is_dir():
+        return registry
+    for path in sorted(root.glob("*.yaml")):
+        try:
+            with path.open(encoding="utf-8") as handle:
+                data = yaml.safe_load(handle) or {}
+        except (OSError, yaml.YAMLError) as exc:
+            # One malformed file costs one category, never the whole pack.
+            logger.warning("[clockwork_scene] Item file unreadable (%s): %s", path, exc)
+            continue
+        for row in data.get("items") or []:
+            if isinstance(row, dict) and row.get("id"):
+                registry.setdefault(str(row["id"]), row)
+    return registry
+
+
+def _load_recipe_registry() -> dict[str, dict[str, Any]]:
+    """Every recipe in data/recipes/*.yaml, keyed by id. Mirrors the loader in
+    engine/skills/builtin/mechanics.py, which is private to that module."""
+    import yaml
+
+    from engine.config import project_root
+
+    root = project_root() / str(get_config().get("paths.recipes", "data/recipes"))
+    recipes: dict[str, dict[str, Any]] = {}
+    if not root.is_dir():
+        return recipes
+    for path in sorted(root.glob("*.yaml")):
+        try:
+            with path.open(encoding="utf-8") as handle:
+                data = yaml.safe_load(handle) or {}
+        except (OSError, yaml.YAMLError) as exc:
+            logger.warning("[clockwork_scene] Recipe file unreadable (%s): %s", path, exc)
+            continue
+        for row in data.get("recipes") or []:
+            if isinstance(row, dict) and row.get("id"):
+                recipes.setdefault(str(row["id"]), row)
+    return recipes
+
+
+def _economy_prices() -> dict[str, dict[str, Any]]:
+    """item id -> {price, vendor} from data/economy.yaml, first vendor wins."""
+    import yaml
+
+    from engine.config import project_root
+
+    prices: dict[str, dict[str, Any]] = {}
+    try:
+        path = project_root() / str(get_config().get("paths.economy", "data/economy.yaml"))
+        with path.open(encoding="utf-8") as handle:
+            economy = yaml.safe_load(handle) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        logger.warning("[clockwork_scene] Economy unreadable: %s", exc)
+        return prices
+    for vendor_id, vendor in economy.items():
+        for side in ("sells", "buys"):
+            for item_id, row in ((vendor or {}).get(side) or {}).items():
+                prices.setdefault(
+                    str(item_id),
+                    {
+                        "price": int((row or {}).get("price", 0)),
+                        "vendor": str(vendor_id).replace("npc_", "").replace("_", " ").title(),
+                    },
+                )
+    return prices
+
+
+def item_catalog(state: Any) -> dict[str, Any]:
+    """
+    The pack: every registry item, with the player's carried count folded in.
+
+    Everything the inventory panel needs to be a real inventory rather than a
+    list of names -- picture, prose, tags, weight, value, and where it can be
+    sold. Read-only: nothing here moves an item. Item movement is a turn, and
+    the engine's own skills are the only writers.
+    """
+    registry = _load_item_registry()
+    prices = _economy_prices()
+    carried: dict[str, int] = {}
+    if state is not None:
+        for entry in getattr(state, "inventory", None) or []:
+            carried[str(entry.id)] = carried.get(str(entry.id), 0) + int(entry.qty)
+
+    def _row(item_id: str, row: dict[str, Any]) -> dict[str, Any]:
+        tags = [str(t) for t in (row.get("tags") or [])]
+        price = prices.get(item_id, {})
+        return {
+            "id": item_id,
+            "name": str(row.get("name") or item_id.replace("_", " ").title()),
+            "description": str(row.get("description") or "").strip(),
+            "tags": tags,
+            "weight": float(row.get("weight", 0) or 0),
+            "value": int(row.get("value", 0) or 0),
+            "stack": bool(row.get("stack", True)),
+            # `art:` is the manifest key and is usually but not always the id.
+            "image": shipped_art_url(str(row.get("art") or item_id), "item"),
+            "carried": int(carried.get(item_id, 0)),
+            "price": int(price.get("price", 0)),
+            "vendor": str(price.get("vendor") or ""),
+        }
+
+    items = [_row(item_id, row) for item_id, row in registry.items()]
+
+    # An id the player is holding that no YAML declares would otherwise vanish
+    # from the pack entirely -- the player would be carrying something the UI
+    # refuses to admit exists.
+    for entry in getattr(state, "inventory", None) or []:
+        if str(entry.id) not in registry:
+            items.append(
+                {
+                    "id": str(entry.id),
+                    "name": str(entry.name or entry.id),
+                    "description": "",
+                    "tags": ["unregistered"],
+                    "weight": 0.0,
+                    "value": 0,
+                    "stack": True,
+                    "image": shipped_art_url(str(entry.id), "item"),
+                    "carried": int(entry.qty),
+                    "price": 0,
+                    "vendor": "",
+                }
+            )
+
+    items.sort(key=lambda r: (-r["carried"], r["name"].lower()))
+    tags = sorted({t for row in items for t in row["tags"]})
+    held = [r for r in items if r["carried"] > 0]
+    return {
+        "items": items,
+        "tags": tags,
+        "gold": int(getattr(getattr(state, "stats", None), "gold", 0) or 0),
+        "carried_count": sum(r["carried"] for r in held),
+        # Encumbrance has no rules yet (see data/items/food.yaml), so this is
+        # shown as a fact about the pack, never as a limit.
+        "carried_weight": round(sum(r["weight"] * r["carried"] for r in held), 1),
+        "location_id": str(getattr(state, "location_id", "") or ""),
+    }
+
+
+def recipe_book(state: Any) -> dict[str, Any]:
+    """
+    Every recipe, annotated with what the player is holding and where they are.
+
+    `craft_item` and `list_recipes` have existed as engine skills with no way
+    for a player to discover a single recipe id -- the Storyteller had to guess
+    one unprompted. This is the discovery half; crafting itself still runs as a
+    normal turn through the engine.
+    """
+    registry = _load_item_registry()
+    held: dict[str, int] = {}
+    for entry in getattr(state, "inventory", None) or []:
+        held[str(entry.id)] = held.get(str(entry.id), 0) + int(entry.qty)
+    here = str(getattr(state, "location_id", "") or "")
+
+    def _name(item_id: str) -> str:
+        row = registry.get(item_id) or {}
+        return str(row.get("name") or item_id.replace("_", " ").title())
+
+    def _ingredient(raw: Any) -> dict[str, Any]:
+        entry = raw if isinstance(raw, dict) else {"id": raw}
+        item_id = str(entry.get("id") or "")
+        qty = int(entry.get("qty", 1) or 1)
+        return {
+            "id": item_id,
+            "name": _name(item_id),
+            "qty": qty,
+            "have": int(held.get(item_id, 0)),
+            "image": shipped_art_url(item_id, "item"),
+        }
+
+    recipes: list[dict[str, Any]] = []
+    for recipe_id, row in _load_recipe_registry().items():
+        station = str(row.get("station") or "")
+        inputs = [_ingredient(i) for i in (row.get("inputs") or [])]
+        tools = [_ingredient(t) for t in (row.get("tools") or [])]
+        output = row.get("output") if isinstance(row.get("output"), dict) else {}
+        recipes.append(
+            {
+                "id": recipe_id,
+                "name": str(row.get("name") or recipe_id.replace("_", " ").title()),
+                "category": str(row.get("category") or "craft"),
+                "skill": str(row.get("skill") or "craft"),
+                "band": str(row.get("band") or "standard"),
+                "hours": float(row.get("hours", 1) or 1),
+                "station": station,
+                "here": not station or station == here,
+                "inputs": inputs,
+                "tools": tools,
+                "output": {
+                    "id": str(output.get("id") or ""),
+                    "name": _name(str(output.get("id") or "")),
+                    "qty": int(output.get("qty", 1) or 1),
+                    "image": shipped_art_url(str(output.get("id") or ""), "item"),
+                },
+                "has_inputs": all(i["have"] >= i["qty"] for i in inputs),
+                "has_tools": all(t["have"] >= 1 for t in tools),
+            }
+        )
+
+    for row in recipes:
+        # Exactly the three gates craft_item enforces, so the button never
+        # promises something the engine is about to refuse.
+        row["makeable"] = bool(row["here"] and row["has_inputs"] and row["has_tools"])
+
+    recipes.sort(key=lambda r: (not r["makeable"], r["category"], r["name"].lower()))
+    return {
+        "location_id": here,
+        "recipes": recipes,
+        "categories": sorted({r["category"] for r in recipes}),
+    }
+
+
 def trade_offer(state: Any) -> dict[str, Any]:
     """
     Who will barter with the player right now, and at what price.
@@ -382,6 +623,424 @@ def trade_offer(state: Any) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Player-facing engine settings
+#
+# THE GAP THIS CLOSES: config/default.yaml carries ~25 knobs a player has a
+# legitimate opinion about -- whether narration is spoken, whether images are
+# generated during a turn, how fast the dark spreads -- and the only way to
+# touch any of them was to edit a checked-in YAML by hand. The Settings panel
+# shipped four localStorage toggles, none of which reached the engine.
+#
+# The whitelist below is the entire contract. A key not named here cannot be
+# written by any request, so a malicious or malformed body cannot repoint
+# `paths.saves`, disable the evil ticker's clamp, or inject a service command
+# line. Every value is type-checked and clamped to its declared domain before
+# it is written, and writes go to config/local.yaml -- gitignored, the layer
+# the config manager already documents as machine-local, and one that
+# engine/config.py ignores wholesale if it ever fails to parse.
+# ---------------------------------------------------------------------------
+
+# type: bool | int | float | enum | text
+SETTING_SPECS: tuple[dict[str, Any], ...] = (
+    # -- pace ------------------------------------------------------------
+    {
+        "key": "world.evil_base_rate_per_day",
+        "label": "How fast the dark spreads",
+        "group": "Pace",
+        "type": "float",
+        "min": 0.001,
+        "max": 0.02,
+        "step": 0.001,
+        "restart": False,
+        "hint": (
+            "The difficulty slider. 0.006 reaches CONSUMING near day 130; "
+            "0.012 does it in half that; below 0.003 the world is still quiet "
+            "at day 40 and the premise evaporates."
+        ),
+        "marks": {"0.003": "Slow", "0.006": "Measured", "0.012": "Hunted"},
+    },
+    {
+        "key": "world.tick_interval_seconds",
+        "label": "Background tick",
+        "group": "Pace",
+        "type": "int",
+        "min": 15,
+        "max": 600,
+        "restart": True,
+        "hint": "Real seconds between world simulation ticks.",
+    },
+    # -- voice -----------------------------------------------------------
+    {
+        "key": "tts.enabled",
+        "label": "Speak the narration",
+        "group": "Voice",
+        "type": "bool",
+        "restart": False,
+        "hint": (
+            "Off by default on measurement, not taste: this machine "
+            "synthesizes about 21x slower than realtime, so a full paragraph "
+            "costs minutes."
+        ),
+    },
+    {
+        "key": "tts.assistant_enabled",
+        "label": "Speak the Assistant",
+        "group": "Voice",
+        "type": "bool",
+        "restart": False,
+        "hint": "Its lines are one to three sentences — the only speech worth waiting for.",
+    },
+    {
+        "key": "tts.voice",
+        "label": "Voice",
+        "group": "Voice",
+        "type": "enum",
+        "options": ["neutral_male", "neutral_female", "warm_female", "old_male"],
+        "restart": False,
+        "hint": "Whatever your Voxtral build ships. An unknown name falls back to text.",
+    },
+    {
+        "key": "tts.euler_steps",
+        "label": "Synthesis quality",
+        "group": "Voice",
+        "type": "int",
+        "min": 1,
+        "max": 12,
+        "restart": False,
+        "hint": "Higher is better and much slower. 3 is the measured floor that still sounds human.",
+    },
+    # -- pictures --------------------------------------------------------
+    {
+        "key": "media.live_generation",
+        "label": "Generate pictures during play",
+        "group": "Pictures",
+        "type": "bool",
+        "restart": False,
+        "hint": (
+            "Off, the shipped art pack answers instantly. On, a turn waits for "
+            "the provider — minutes on Grok, seconds on ComfyUI."
+        ),
+    },
+    {
+        "key": "media.image_provider",
+        "label": "Picture provider",
+        "group": "Pictures",
+        "type": "enum",
+        "options": ["grokbuild", "comfyui", "procedural"],
+        "restart": False,
+        "hint": "Only consulted when live generation is on.",
+    },
+    {
+        "key": "media.cutscene_budget",
+        "label": "Cutscene budget",
+        "group": "Pictures",
+        "type": "enum",
+        "options": ["phase_shift_only", "unlimited"],
+        "restart": True,
+        "hint": "One cutscene per evil phase, or as many as the story asks for.",
+    },
+    {
+        "key": "media.cutscene_skip_after_seconds",
+        "label": "Skippable after",
+        "group": "Pictures",
+        "type": "int",
+        "min": 0,
+        "max": 60,
+        "restart": False,
+        "hint": "Seconds before a cutscene will let you out of it. 0 means immediately.",
+    },
+    # -- the companion ---------------------------------------------------
+    {
+        "key": "awareness.reveal_threshold",
+        "label": "Awareness before it will speak plainly",
+        "group": "The companion",
+        "type": "int",
+        "min": 0,
+        "max": 100,
+        "restart": False,
+        "hint": "Below this the Assistant answers in weather and omens.",
+    },
+    {
+        "key": "awareness.reflection_form_min",
+        "label": "Awareness before the reflection",
+        "group": "The companion",
+        "type": "int",
+        "min": 0,
+        "max": 100,
+        "restart": False,
+        "hint": "The fifth form is gated: it cannot appear until you have seen enough.",
+    },
+    {
+        "key": "awareness.spoiler_gate_threshold",
+        "label": "Lore spoiler gate",
+        "group": "The companion",
+        "type": "int",
+        "min": 0,
+        "max": 100,
+        "restart": False,
+        "hint": "Lore above this awareness is withheld from the prompt entirely.",
+    },
+    {
+        "key": "assistant.max_tokens",
+        "label": "How much it may say",
+        "group": "The companion",
+        "type": "int",
+        "min": 60,
+        "max": 600,
+        "restart": False,
+        "hint": "Tokens per line. It is a presence, not a chat window.",
+    },
+    # -- the model -------------------------------------------------------
+    {
+        "key": "lmstudio.profiles.big.model",
+        "label": "Narration model",
+        "group": "The model",
+        "type": "text",
+        "maxlength": 120,
+        "restart": True,
+        "hint": "Empty means discover one by capability from LM Studio. Otherwise an exact model id.",
+    },
+    {
+        "key": "lmstudio.profiles.big.temperature",
+        "label": "Narration temperature",
+        "group": "The model",
+        "type": "float",
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.05,
+        "restart": False,
+    },
+    {
+        "key": "lmstudio.profiles.big.max_tokens",
+        "label": "Narration token cap",
+        "group": "The model",
+        "type": "int",
+        "min": 512,
+        "max": 8000,
+        "restart": False,
+        "hint": "Covers reasoning AND prose combined. Too low and thinking eats the whole answer.",
+    },
+    {
+        "key": "lmstudio.profiles.big.reasoning",
+        "label": "Let it think out loud",
+        "group": "The model",
+        "type": "enum",
+        "options": ["on", "off"],
+        "restart": False,
+        "hint": "On feeds the live reasoning panel. Off is faster and blanker.",
+    },
+    {
+        "key": "lmstudio.context_tokens",
+        "label": "Context window",
+        "group": "The model",
+        "type": "int",
+        "min": 2048,
+        "max": 131072,
+        "restart": True,
+        "hint": "Fallback only — the real number comes from the loaded model.",
+    },
+    {
+        "key": "lmstudio.prefer_native",
+        "label": "Use LM Studio's native endpoint",
+        "group": "The model",
+        "type": "bool",
+        "restart": True,
+        "hint": "The only transport that can actually turn reasoning off. Leave on unless it misbehaves.",
+    },
+)
+
+SETTINGS_BY_KEY: dict[str, dict[str, Any]] = {s["key"]: s for s in SETTING_SPECS}
+
+_LOCAL_CONFIG = Path("config") / "local.yaml"
+
+
+def _dig(node: Any, dotted: str) -> Any:
+    for part in dotted.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    return node
+
+
+def _plant(root: dict[str, Any], dotted: str, value: Any) -> None:
+    """Set a dotted key, creating intermediate dicts. Never replaces a dict."""
+    parts = dotted.split(".")
+    node = root
+    for part in parts[:-1]:
+        child = node.get(part)
+        if not isinstance(child, dict):
+            child = {}
+            node[part] = child
+        node = child
+    node[parts[-1]] = value
+
+
+def _local_overrides() -> dict[str, Any]:
+    """Whatever config/local.yaml currently holds, or {} if it is absent or bad."""
+    import yaml
+
+    from engine.config import project_root
+
+    path = project_root() / _LOCAL_CONFIG
+    if not path.is_file():
+        return {}
+    try:
+        with path.open(encoding="utf-8") as handle:
+            data = yaml.safe_load(handle) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        logger.warning("[clockwork_scene] local.yaml unreadable: %s", exc)
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def settings_view() -> dict[str, Any]:
+    """Every player-settable knob, its live value, and whether it is overridden."""
+    cfg = get_config()
+    overrides = _local_overrides()
+    rows: list[dict[str, Any]] = []
+    for spec in SETTING_SPECS:
+        row = dict(spec)
+        row["value"] = cfg.get(spec["key"])
+        row["overridden"] = _dig(overrides, spec["key"]) is not None
+        rows.append(row)
+    return {
+        "settings": rows,
+        # Order is presentation, but it is stable order: a settings panel whose
+        # groups reshuffle between loads is unusable.
+        "groups": list(dict.fromkeys(s["group"] for s in SETTING_SPECS)),
+        "config_path": str(_LOCAL_CONFIG).replace("\\", "/"),
+    }
+
+
+def _coerce_setting(spec: dict[str, Any], raw: Any) -> tuple[bool, Any, str]:
+    """
+    Validate one value against its spec.
+
+    Returns (accepted, value, note). A number outside its range is CLAMPED and
+    accepted with a note rather than rejected: the point of the whitelist is
+    that no reachable value can brick a run, so the safe move is to land on the
+    nearest legal one, not to hand back an error the player cannot act on.
+    """
+    kind = spec["type"]
+    try:
+        if kind == "bool":
+            if isinstance(raw, str):
+                return True, raw.strip().lower() in ("1", "true", "yes", "on"), ""
+            return True, bool(raw), ""
+        if kind in ("int", "float"):
+            value = int(raw) if kind == "int" else float(raw)
+            if value != value or value in (float("inf"), float("-inf")):
+                return False, None, "not a finite number"
+            low, high = spec.get("min"), spec.get("max")
+            clamped = value
+            if low is not None:
+                clamped = max(low, clamped)
+            if high is not None:
+                clamped = min(high, clamped)
+            note = "" if clamped == value else f"clamped to {clamped}"
+            return True, (int(clamped) if kind == "int" else round(float(clamped), 6)), note
+        if kind == "enum":
+            value = str(raw)
+            if value not in spec.get("options", []):
+                return False, None, f"not one of {', '.join(spec.get('options', []))}"
+            return True, value, ""
+        if kind == "text":
+            value = str(raw).strip()[: int(spec.get("maxlength", 120))]
+            # A model id is an identifier, never a path or a shell fragment.
+            if any(c in value for c in "\n\r\t\\'\"$`;|&<>"):
+                return False, None, "contains characters an identifier cannot have"
+            return True, value, ""
+    except (TypeError, ValueError):
+        return False, None, f"not a valid {kind}"
+    return False, None, "unknown setting type"
+
+
+def apply_settings(changes: dict[str, Any], *, reset: bool = False) -> dict[str, Any]:
+    """
+    Merge validated changes into config/local.yaml and reload the config.
+
+    Only whitelisted keys are ever touched, so machine-specific values already
+    in local.yaml (service roots, API hosts) survive untouched. The file is
+    written to a sibling temp path and moved into place, so a crash mid-write
+    cannot leave a half-parsed config behind -- and even if one somehow did,
+    engine/config.py logs and ignores an unparseable layer rather than dying.
+    """
+    import yaml
+
+    from engine.config import project_root, reset_config
+
+    overrides = _local_overrides()
+    applied: dict[str, Any] = {}
+    rejected: dict[str, str] = {}
+    notes: dict[str, str] = {}
+
+    if reset:
+        # Remove only OUR keys. Anything else in the file is somebody's machine.
+        for key in SETTINGS_BY_KEY:
+            parts = key.split(".")
+            node = overrides
+            for part in parts[:-1]:
+                node = node.get(part) if isinstance(node.get(part), dict) else {}
+            if isinstance(node, dict):
+                node.pop(parts[-1], None)
+    else:
+        for key, raw in (changes or {}).items():
+            spec = SETTINGS_BY_KEY.get(str(key))
+            if spec is None:
+                rejected[str(key)] = "not a settable key"
+                continue
+            ok, value, note = _coerce_setting(spec, raw)
+            if not ok:
+                rejected[str(key)] = note
+                continue
+            _plant(overrides, str(key), value)
+            applied[str(key)] = value
+            if note:
+                notes[str(key)] = note
+
+    path = project_root() / _LOCAL_CONFIG
+    temp = path.with_suffix(".yaml.tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with temp.open("w", encoding="utf-8") as handle:
+            handle.write(
+                "# Machine-local config overrides. Gitignored.\n"
+                "# The game's Settings panel writes the keys it owns here;\n"
+                "# anything else in this file is yours and is left alone.\n\n"
+            )
+            yaml.safe_dump(overrides, handle, sort_keys=True, allow_unicode=True)
+        temp.replace(path)
+    except OSError as exc:
+        logger.error("[clockwork_scene] Could not write %s: %s", path, exc)
+        return {
+            "ok": False,
+            "error": f"could not write {_LOCAL_CONFIG}: {exc}",
+            "applied": {},
+            "rejected": rejected,
+        }
+
+    # Drops the config singleton AND every cache keyed off it, so a changed
+    # path or rate is live on the next turn rather than the next launch.
+    reset_config()
+
+    restart_needed = sorted(
+        k for k in applied if SETTINGS_BY_KEY[k].get("restart")
+    )
+    logger.info(
+        "[clockwork_scene] Settings written (operation=apply_settings, keys=%s)",
+        sorted(applied) or "reset",
+    )
+    return {
+        "ok": True,
+        "applied": applied,
+        "rejected": rejected,
+        "notes": notes,
+        "restart_needed": restart_needed,
+        **settings_view(),
+    }
+
+
 def get_store() -> SessionStore:
     global _store
     if _store is None:
@@ -412,6 +1071,32 @@ class ClockworkScene(FlaskScene):
     def register(self) -> None:
         app = self.app
         socketio = self.socketio
+
+        # Game catalogue: GET /api/games, /api/games/active, /api/games/<slug>.
+        # Lives in engine/games so the registry owns its own serialization
+        # rather than the scene reaching into it.
+        from engine.games.api import games_blueprint
+
+        app.register_blueprint(games_blueprint())
+
+        # Activate the default game at startup. The launcher does this for a
+        # CLI run, but the scene is also constructed directly by tests and by
+        # any other host -- and without it the registry sits inactive, so
+        # /api/games/active reported a slug with a null manifest and every
+        # content path still resolved through the un-overlaid config.
+        try:
+            from engine.games.registry import ActivationError, active, peek
+
+            if peek() is None:
+                active()
+        except ActivationError as exc:
+            logger.error(
+                "[clockwork_scene] No game could be activated "
+                "(operation=register): %s",
+                exc,
+            )
+        except ImportError:
+            pass
 
         @app.get("/")
         def index() -> str:
@@ -489,6 +1174,72 @@ class ClockworkScene(FlaskScene):
         def api_codex_things() -> Any:
             session = _optional_session(request.args.get("session_id", ""))
             return jsonify({"things": codex_things(session.engine.state if session else None)})
+
+        @app.get("/api/metrics")
+        def api_metrics() -> Any:
+            """
+            What the agents are actually doing, as numbers.
+
+            Exists so the Assistant and the prompts can be tuned against data
+            instead of vibes. The most useful series is `unearned_claims`: the
+            governance chain records every stat delta the model asserted with no
+            tool receipt behind it, and a stat that keeps appearing there is a
+            prompt defect that is otherwise completely invisible -- the engine
+            drops the claim silently and correctly, and nobody ever finds out
+            the model kept trying.
+
+            Process-wide and unpersisted; these are numbers about this run of
+            the server, not about a save.
+            """
+            from engine.telemetry import get_oracle
+
+            oracle = get_oracle()
+            return jsonify({"metrics": oracle.metrics(), "recent": oracle.recent(20)})
+
+        @app.get("/api/items")
+        def api_items() -> Any:
+            """
+            The full item registry, with carried counts when a session is given.
+
+            data/items/*.yaml holds 74 items with prose, tags, weight and value
+            and the browser cannot read YAML, so the inventory rendered
+            `name ×qty`. Session-optional so the pack is still browsable from
+            the title screen.
+            """
+            session = _optional_session(request.args.get("session_id", ""))
+            return jsonify(item_catalog(session.engine.state if session else None))
+
+        @app.get("/api/recipes")
+        def api_recipes() -> Any:
+            """
+            Every recipe, with what the player holds and whether it can be made.
+
+            `craft_item` and `list_recipes` have been callable engine skills
+            with no way for a player to learn a single recipe id.
+            """
+            session = _optional_session(request.args.get("session_id", ""))
+            return jsonify(recipe_book(session.engine.state if session else None))
+
+        @app.get("/api/settings")
+        def api_get_settings() -> Any:
+            """Player-settable engine config: spec, live value, override state."""
+            return jsonify(settings_view())
+
+        @app.post("/api/settings")
+        def api_put_settings() -> Any:
+            """
+            Persist whitelisted settings into config/local.yaml.
+
+            Not a game mutation: nothing here touches a GameState. Unknown keys
+            are refused and numbers are clamped to their declared domain, so no
+            body a client can send makes a run unplayable.
+            """
+            body = request.get_json(silent=True) or {}
+            result = apply_settings(
+                body.get("changes") or {},
+                reset=bool(body.get("reset")),
+            )
+            return jsonify(result), (200 if result.get("ok") else 500)
 
         @app.get("/api/art")
         def api_art() -> Any:
@@ -687,6 +1438,12 @@ class ClockworkScene(FlaskScene):
                     "session_id": session.session_id,
                     "save_id": save_id,
                     "state": session.engine.state.to_client_dict(),
+                    # BUG THIS FIXES: game_resumed shipped no `opening` at all,
+                    # and the client's reducer reads narration, choices and the
+                    # scene still out of exactly that key. Every reload restored
+                    # the run into a screen with no choices -- see
+                    # clockwork_state.resume_opening for the other half.
+                    "opening": session.last_turn,
                 },
             )
 
