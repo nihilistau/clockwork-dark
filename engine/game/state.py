@@ -206,6 +206,12 @@ class GameState:
     # plain dict so the save schema does not need a migration every time an
     # encounter gains a field.
     encounter: dict[str, Any] = field(default_factory=dict)
+    # Active multi-step challenge (skill gauntlet, decision tree, puzzle, dice
+    # table). Empty dict when nothing is running. A plain dict for the same
+    # reason as encounter: the spec is model-composed and engine-bounded, so its
+    # shape varies by kind and must not force a save migration per field.
+    # See engine/challenges/.
+    challenge: dict[str, Any] = field(default_factory=dict)
     # Quests and arcs (P7). quests maps quest_id -> progress record.
     quests: dict[str, Any] = field(default_factory=dict)
     active_arc: str = "quiet_life"
@@ -313,6 +319,9 @@ class GameState:
             "hunger_stage": self.hunger_stage,
             "stamina_cap": self.effective_stamina_cap,
             "encounter": dict(self.encounter),
+            # The player has to be able to see the step they are on and the
+            # options they may pick, or a challenge is unplayable.
+            "challenge": dict(self.challenge),
             "quests": dict(self.quests),
             "active_arc": self.active_arc,
             "turn_number": self.turn_number,

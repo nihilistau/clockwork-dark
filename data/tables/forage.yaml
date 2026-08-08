@@ -1,0 +1,225 @@
+# Foraging — what standing still in a wood for two hours actually gets you.
+#
+# THE SOFT-LOCK THIS TABLE CLOSES: scripts/simulate.py measured 62-79 deaths
+# per 200 turns, every one of them starvation, across all three policies. The
+# only food in the game had a price, all three policies ended the run at zero
+# gold, and a player who cannot buy bread starves, respawns at the shrine and
+# starves again. There was no repeatable food economy at all (docs/
+# DESIGN_REVIEW.md R-05). engine/game/procgen.py has generated forage nodes
+# since PR7 and nothing has ever read one.
+#
+# WHY THIS IS NOT A FREE BUTTON. Five prices, all of them in this file:
+#   1. hours          -- the evil clock eats every one of them
+#   2. stamina        -- which only rest gives back, which costs more hours
+#   3. a real check   -- against the node's own DC, which procgen seeded
+#   4. depletion      -- a worked node yields less and gets harder, and only
+#                        forgets you if you leave it alone for `recovery_days`
+#   5. the season     -- winter forage is a bad joke and is meant to be
+#
+# The yield is deliberately poor. A good pick is a snack; two hours in autumn
+# woodland does not feed you like a loaf does. What it does is keep a broke
+# player alive long enough to earn, which is the difference between a survival
+# system and a countdown.
+#
+# Consumed by engine/game/foraging.py. Resolved through paths.tables, so the
+# Brass Coast gets its own copy rather than this one.
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+
+forage:
+  # The check. The engine names the band from the node's DC (see `bands`);
+  # the skill is fixed because "can you find food out here" is one question.
+  skill: survival
+
+  # Time and stamina per attempt, spent whether or not anything is found.
+  # Two hours is the smallest unit of foraging that is not a lie: you cannot
+  # meaningfully search a wood in twenty minutes.
+  hours: 2.0
+  # 6, not 8. Measured: at 8 the `pauper` policy sat permanently under the -3
+  # `exhausted` situational in data/rules/skills.yaml, which collapsed the
+  # survival check foraging depends on and produced a death spiral -- 64
+  # starvation deaths in 200 turns, the exact soft-lock this system exists to
+  # remove, one layer further in.
+  stamina_cost: 6
+
+  # A location can be foraged when its `tags` in data/world/locations.yaml
+  # intersect this list. That is why forest_clearing (wild) works from turn
+  # one and edgewood_square (village, hub, safe, trade) never will.
+  location_tags: [forage, wild, farm, tidal, ruin]
+
+  # procgen mints node DCs in 6..14. Map them onto the bands in
+  # data/rules/skills.yaml rather than passing a raw DC, because
+  # engine/game/checks.py deliberately does not accept one.
+  # procgen mints node DCs in 6..14, and the bands in data/rules/skills.yaml
+  # are 8/10/13/16. Mapping the middle of that range onto `standard` (DC 13)
+  # was measured at a 12.7% productive-attempt rate for a hungry forager --
+  # foraging you cannot do is not an answer to starving. Finding food in a
+  # wood is not supposed to be a test; the tests are the season, the depletion
+  # and the hours.
+  bands:
+    - { upto: 8,  band: trivial }
+    - { upto: 11, band: easy }
+    - { upto: 14, band: standard }
+    - { band: hard }
+
+  # How many draws each degree of success buys. Partial is one pick: you found
+  # SOMETHING, which is the whole reason partial exists as a degree.
+  picks:
+    crit_success: 4
+    success: 3
+    partial: 2
+    failure: 0
+
+  # The chance at something better than food, rolled once per attempt on the
+  # degrees listed. This is the reason to forage a barrow rather than a hedge.
+  uncommon:
+    degrees: [crit_success, success]
+    chance: { crit_success: 0.85, success: 0.30 }
+
+  # Depletion. Worked ground gives less and gets harder, and forgets you only
+  # if you leave it alone. Held as a TimedEffect on the state
+  # (kind: forage_node), so the clock's expiry sweep IS the regrowth rule and
+  # no new save field was needed.
+  depletion:
+    # Multiplied into the PICK COUNT, once per prior use, floored. The floor
+    # is above zero on purpose: a worked-out node must get bad, not become a
+    # wall. A hard zero is how you rebuild the starvation soft-lock one layer
+    # further in -- see engine/game/foraging.py::depletion_multiplier.
+    yield_step: 0.68
+    yield_floor: 0.34
+    # Added to the node DC per prior use, capped. Picked-over ground is
+    # genuinely harder to find anything in.
+    dc_step: 1
+    dc_cap: 5
+    # Days of being left alone before a node is fresh again. Pushed forward on
+    # every use, so ground you keep working never recovers.
+    #
+    # ONE DAY, not five, and that is a measured number rather than a taste.
+    # Hunger runs at 2/hour, so a person needs roughly three meals a day; a
+    # node that takes five days to regrow means six forage grounds can feed
+    # somebody for about one day in five. The `pauper` policy died of
+    # starvation 58 times in 200 turns at recovery_days: 5. At one day the
+    # rule reads as "you can only take so much from one place in a day", which
+    # is both true of woodland and survivable -- and it still makes rotating
+    # between grounds strictly better than standing in one, which is the
+    # behaviour depletion exists to produce.
+    recovery_days: 1
+
+  # Season. There is no season field on GameState and there should not be:
+  # this is derived from world_day, which the clock already owns.
+  season:
+    days_each: 30
+    order: [spring, summer, autumn, winter]
+    modifiers:
+      spring: { check: 0,  yield: 1.0, label: "spring" }
+      summer: { check: 1,  yield: 1.2, label: "summer" }
+      autumn: { check: 2,  yield: 1.4, label: "autumn" }
+      winter: { check: -4, yield: 0.5, label: "winter" }
+
+  # Hunger sharpens the search. This deliberately OFFSETS the global `starving`
+  # and stamina situationals in data/rules/skills.yaml for this one activity:
+  # a person who has not eaten looks harder and lower, and more to the point, a
+  # penalty on the only unpaid source of food in the game is a spiral with no
+  # exit. Foraging must get EASIER as you get desperate or it cannot be the
+  # thing that saves you.
+  hunger:
+    fed: 0
+    peckish: 0
+    hungry: 1
+    starving: 3
+
+  # Dark woods are worse woods.
+  time_of_day:
+    dawn: 0
+    day: 0
+    dusk: -1
+    night: -3
+
+  # The world turning. Not a difficulty ramp for its own sake -- DESIGN.md's
+  # promise is that the evil is felt before it is seen, and the first way a
+  # frontier village feels it is that the wood stops giving.
+  evil_phase:
+    dormant: 0
+    stirring: 0
+    spreading: -1
+    consuming: -3
+
+# Yield tables. A table applies when the location's tags intersect `tags`.
+# Every applicable table's entries are pooled, so herb_glen (forage, wild,
+# quiet) draws from both the woodland and the glen tables.
+#
+# Entry shape:
+#   item_id   must exist in data/items/*.yaml
+#   weight    relative draw weight within its pool
+#   qty       [low, high] inclusive, before the season and depletion multiplier
+#   seasons   optional filter; omit for all year
+tables:
+
+  - id: woodland
+    label: "the leaf litter and the low branches"
+    tags: [wild, forage]
+    common:
+      - { item_id: wild_mushroom,   weight: 30, qty: [1, 3], seasons: [summer, autumn] }
+      - { item_id: hedge_berries,   weight: 26, qty: [1, 3], seasons: [summer, autumn] }
+      - { item_id: hazelnuts,       weight: 22, qty: [1, 3], seasons: [autumn, winter] }
+      - { item_id: wild_greens,     weight: 30, qty: [1, 3], seasons: [spring, summer, autumn] }
+      - { item_id: bird_eggs,       weight: 14, qty: [1, 2], seasons: [spring, summer] }
+      - { item_id: firewood_bundle, weight: 10, qty: [1, 1] }
+      - { item_id: birch_bark,      weight: 8,  qty: [1, 2] }
+      # Winter has to leave SOMETHING edible in the wood. A season in which
+      # every food row is filtered out is a thirty-day starvation window with
+      # no counterplay, which is the bug this whole file exists to remove --
+      # it is meant to be a bad month, not a locked door.
+      - { item_id: river_fish,      weight: 16, qty: [1, 2], seasons: [winter, spring] }
+    uncommon:
+      - { item_id: herbs,        weight: 20, qty: [1, 2] }
+      - { item_id: birch_resin,  weight: 16, qty: [1, 1] }
+      - { item_id: river_fish,   weight: 14, qty: [1, 2] }
+      - { item_id: honeycomb,    weight: 10, qty: [1, 1], seasons: [summer, autumn] }
+      - { item_id: snare_wire,   weight: 8,  qty: [1, 1] }
+      - { item_id: hare_foot,    weight: 8,  qty: [1, 1] }
+      - { item_id: stone_knife,  weight: 5,  qty: [1, 1] }
+      - { item_id: brass_shard,  weight: 6,  qty: [1, 1] }
+
+  - id: herb_ground
+    label: "the quiet ground where the useful things grow"
+    tags: [forage]
+    common:
+      - { item_id: feverfew,      weight: 20, qty: [1, 2], seasons: [spring, summer] }
+      - { item_id: yarrow_bundle, weight: 20, qty: [1, 2], seasons: [summer, autumn] }
+      - { item_id: bittercress,   weight: 18, qty: [1, 2], seasons: [spring, summer, autumn] }
+      - { item_id: river_clay,    weight: 14, qty: [1, 2] }
+    uncommon:
+      - { item_id: herbs,     weight: 30, qty: [2, 3] }
+      - { item_id: beeswax,   weight: 12, qty: [1, 1], seasons: [summer, autumn] }
+      - { item_id: potion,    weight: 4,  qty: [1, 1] }
+
+  - id: worked_land
+    label: "the field edges and the stubble"
+    tags: [farm]
+    common:
+      - { item_id: wild_greens,   weight: 26, qty: [1, 2], seasons: [spring, summer] }
+      - { item_id: hedge_berries, weight: 20, qty: [1, 2], seasons: [summer, autumn] }
+      - { item_id: bird_eggs,     weight: 14, qty: [1, 2], seasons: [spring, summer] }
+      - { item_id: barley_flour,  weight: 6,  qty: [1, 1], seasons: [autumn] }
+      - { item_id: wild_mushroom, weight: 12, qty: [1, 2], seasons: [autumn, winter] }
+    uncommon:
+      - { item_id: seed_grain,   weight: 10, qty: [1, 1], seasons: [autumn] }
+      - { item_id: iron_key,     weight: 8,  qty: [1, 1] }
+      - { item_id: bent_nail,    weight: 20, qty: [1, 2] }
+
+  - id: turned_stone
+    label: "spoil heaps and fallen lintels"
+    tags: [ruin]
+    common:
+      - { item_id: firewood_bundle, weight: 20, qty: [1, 1] }
+      - { item_id: river_clay,      weight: 16, qty: [1, 2] }
+      - { item_id: brass_filings,   weight: 22, qty: [1, 2] }
+    uncommon:
+      - { item_id: brass_shard,     weight: 24, qty: [1, 2] }
+      - { item_id: clock_spring,    weight: 8,  qty: [1, 1] }
+      - { item_id: iron_stock,      weight: 12, qty: [1, 1] }
+      - { item_id: wax_seal_saint,  weight: 10, qty: [1, 1] }
+      - { item_id: golden_ring,     weight: 2,  qty: [1, 1] }

@@ -10,20 +10,95 @@ lmstudio:
   # LM Studio's "Require API key" toggle is off -- otherwise every request 401s
   # and the Storyteller silently falls back to a canned line.
   api_key: "${file:lmstudio.txt}"
+  # Prefer LM Studio's native POST /api/v1/chat over the OpenAI-compatible
+  # /v1/chat/completions. This is not a style preference: the native endpoint is
+  # the ONLY one that can turn reasoning off. Measured on this machine with
+  # nvidia/nemotron-3-nano-4b, asking for a three-word greeting --
+  #   /v1/chat/completions baseline .................. 55 reasoning tokens
+  #   /v1/chat/completions reasoning: "off" .......... 88 reasoning tokens
+  #   /v1/chat/completions enable_thinking: false .... 143 reasoning tokens
+  #   /v1/chat/completions reasoning_effort: "low" ... 113 reasoning tokens
+  #   /api/v1/chat         reasoning: "off" ............. 0 reasoning tokens
+  # Every OpenAI-compat knob is ignored (reasoning_effort is lmstudio-bug-tracker
+  # #988). Requests needing tools or response_format still go OpenAI-compat,
+  # because /api/v1/chat rejects both -- see engine/lmstudio/backend.py.
+  prefer_native: true
+
+  # Fallback window used only when model discovery fails. The real number comes
+  # from the bound model's loaded_context_length via the registry.
   context_tokens: 8192
-  reserve_output: 900
+  # Must cover the largest profile max_tokens, because max_tokens caps
+  # reasoning + content COMBINED. The old 900 was set when narration asked for
+  # 1500; a prompt budgeted against it overflowed the window and LM Studio
+  # truncates the prompt from the front, silently dropping the system persona.
+  reserve_output: 3200
+
+  # Idle seconds before LM Studio may evict a model. With 47 models installed
+  # and JIT loading on, an un-evicted model holds VRAM the next profile needs.
+  # Sent on the OpenAI-compatible path only; /api/v1/chat rejects the key.
+  ttl_seconds: 900
+
   # auto | json_schema | json_object | off. `auto` probes the server once and
   # caches the answer; small quantized models often ignore tools entirely, so
   # the prose fallback stays in place until a probe proves otherwise.
+  # NOTE: a json_schema grammar constrains the CONTENT channel only. Reasoning
+  # runs ungrammared and uncapped, so structured output gives ZERO protection
+  # against a reasoning model eating the whole token budget. Only
+  # `reasoning: off` on the native transport does.
   structured_output: auto
+
+  # Concurrent requests per lane. LM Studio serves these in parallel. Narration
+  # gets its own lane so the summarizer and the Assistant can no longer stall
+  # the text the player is watching appear -- the old single global semaphore
+  # made every utility call a narration stall and vice versa.
+  lanes:
+    narration: 1
+    utility: 2
+
+  # Logical profiles. `model: ""` means discover one at runtime by capability
+  # from GET /api/v0/models -- the previous ids (local-model,
+  # local-model-small, local-model-draft) existed on no server anywhere.
+  profiles:
+    # Narration. Reasoning stays ON: on a slow local turn the model's thinking
+    # is the most interesting thing on screen, and the UI shows it as a
+    # separate live channel. 3000 tokens because the cap covers reasoning AND
+    # content, and 400 was entirely eaten by reasoning in the reported bug.
+    big:
+      model: ""
+      temperature: 0.85
+      max_tokens: 3000
+      reasoning: "on"
+      lane: "narration"
+      require_tools: true
+      prefer_non_reasoning: false
+      min_context: 8192
+    # Utility: summarizer, mechanics, Assistant, quest evaluation. Reasoning
+    # OFF, so the token cap buys answer rather than deliberation.
+    small:
+      model: ""
+      temperature: 0.6
+      max_tokens: 900
+      reasoning: "off"
+      lane: "utility"
+      require_tools: false
+      prefer_non_reasoning: true
+      min_context: 4096
+    draft:
+      model: ""
+      temperature: 0.3
+      max_tokens: 256
+      reasoning: "off"
+      lane: "utility"
+      require_tools: false
+      prefer_non_reasoning: true
+      min_context: 4096
+
+  # Legacy alias map, still honoured as an explicit-id hint per profile. Left
+  # empty: the ids that used to live here did not exist.
   models:
-    big: "local-model"
-    small: "local-model-small"
-    draft: "local-model-draft"
-  speculative:
-    enabled: true
-    draft_profile: "draft"
-    refine_profile: "big"
+    big: ""
+    small: ""
+    draft: ""
 
 media:
   # Generate images DURING PLAY. Off by default on measured evidence: a Grok
@@ -139,6 +214,31 @@ stack:
 
 world:
   tick_interval_seconds: 60
+
+  # R-03. The background world tick was a flat 6 in-game hours granted once per
+  # turn, and it was 60% of every hour the clock advanced -- no player action
+  # came within a factor of two of it. Measured over 200 turns x 4 policies,
+  # seed 42:
+  #
+  #   tick_hours   baker  cautious  pauper  reckless   mean   deaths
+  #   6.0 (was)     8.87     10.31    9.38     11.54  10.02      129
+  #   2.0 (now)     4.16      3.21    3.77      6.46   4.40       35
+  #   1.0           3.23      2.01    3.12      4.91   3.32       22
+  #
+  # The mean falls 56% for a 67% cut, because the tick was also feeding the
+  # thing that killed people: hunger runs at 2.0/hour, so 6h of tick was 12
+  # hunger per turn before the player did anything, and every respawn bought
+  # another 10 hours. Collapsing that cascade is most of the gain.
+  #
+  # Not lower than 2.0: at 1.0 a day is ~24 turns and the world stops feeling
+  # like it moves between visits, which is the premise.
+  tick_hours: 2.0
+
+  # Ceiling on one tick, however long the player was away. The tick is now
+  # proportional to real time elapsed rather than a step function -- a 61
+  # second turn and a ten minute turn used to cost the same 6 hours. Without a
+  # cap, leaving the tab open over lunch would advance the calendar by days.
+  tick_max_hours: 6.0
   # 0.01 was never tuned against a working clock -- the clock did not work
   # until this overhaul, so the rate had never actually run. Measured with
   # scripts/simulate.py over 200 turns x 3 policies: at 0.01 the world reaches
@@ -158,7 +258,31 @@ assistant:
   max_tokens: 200
   reflection_awareness_min: 40
 
+# ---------------------------------------------------------------------------
+# Which story this engine is running.
+#
+# A game is a directory under games/<slug>/ with a game.yaml manifest whose
+# `paths:` block is deep-merged over the `paths:` section below at activation
+# (engine/games/registry.py). Selection precedence, first hit wins:
+#
+#     launcher.py --game <slug>
+#     CLOCKWORK_GAME environment variable
+#     game.default, here
+#
+# `clockwork-dark` declares exactly the paths listed below, so activating it is
+# a no-op merge and the flagship content stays where it has always been.
+# `python launcher.py --list-games` prints what is installed.
+# ---------------------------------------------------------------------------
+game:
+  default: "clockwork-dark"
+  # Activate the default game at launch rather than running on the raw config.
+  # Off changes nothing today (the default manifest is a no-op merge) and is
+  # here so a broken manifest can never stop the flagship game from booting.
+  activate_on_launch: true
+
 paths:
+  # Per-game namespaced at runtime: the active slug is appended, so a run is
+  # written to data/saves/clockwork-dark/. See engine/persistence/saves.py.
   saves: "data/saves"
   lore: "data/lore"
   lore_db: "data/lore/lore.db"
@@ -172,14 +296,38 @@ paths:
   art_subjects: "data/art/subjects.yaml"
   art_manifest: "data/art/manifest.yaml"
   rules: "data/rules"
+  # Random draw tables: boons, complications, forage yields, labour, trade.
+  # This was hardcoded in engine/game/checks.py until v0.2.0, so a second game
+  # drew the first game's boons.
+  tables: "data/tables"
   quests: "data/quests"
   locations: "data/world/locations.yaml"
   assistant_hints: "data/assistant/hints.yaml"
   items: "data/items"
   recipes: "data/recipes"
   encounters: "data/encounters"
+  # Declarative world mutations fired when a doom beat is crossed.
+  # See engine/world/world_effects.py.
+  doom_effects: "data/rules/doom_effects.yaml"
+  # Stored challenge specs and the set-pieces that gate them.
+  challenges: "data/challenges"
 
 comms:
   interceptors:
     - LoreInjectInterceptor
     - AwarenessGateInterceptor
+
+# Governance interceptor chains (engine/agents/governance.py).
+#
+# `directives` shapes the GM prompt as ONE budgeted block -- it is deliberately
+# NOT folded into comms.interceptors, because that chain runs per system message
+# and after the token budget has been fitted (issue R-01).
+governance:
+  directives:
+    - EvilPhaseTone
+    - DoomSignsInterceptor
+    - StorytellerMind
+  post:
+    - RulesGovernor
+  media:
+    - MediaGovernor

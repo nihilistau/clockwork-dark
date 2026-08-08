@@ -21,7 +21,7 @@ DESIGN_REVIEW.md, then CLAUDE_CODE_BRIEF.md.
 5. **Never hardcode** ports, model names, or paths — use `config/default.yaml` via `get_config()`. Machine-specific paths go in `config/local.yaml` (gitignored, deep-merged).
 6. **Never gate rest.** It is the only thing that restores stamina; a gate rebuilds a soft-lock the game shipped with.
 7. **Reuse patterns** from [CosySim](https://github.com/nihilistau/CosySim) and [Archives of Anubis](https://github.com/nihilistau/Achieves-Of-Anubis) before writing new code.
-8. **Prove with tests** — run `pytest` before declaring work complete. Expect green with exactly one `xfail` (a real defect, R-01, not a flaky test).
+8. **Prove with tests** — run `pytest` before declaring work complete. Expect fully green, no `xfail`.
 9. **Do not document a mechanism you did not wire.** Mark it **NOT WIRED** with its file. A design doc describing code that never runs is how this codebase got into trouble.
 10. **Run `scripts/simulate.py` before changing a balance constant.** Every number here was originally chosen against a clock that did not tick.
 11. **Windows-aware** — LM Studio at `http://localhost:1234/v1`; use `scripts/start.ps1` or `launcher.py --stack`.
@@ -32,14 +32,28 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 
 ## Status
 
-**PR1–PR12 complete. Overhaul phases P1–P11 complete.** 600+ tests passing, 1 expected failure.
+**PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II waves 1–2
+complete.** 847 tests passing, no expected failures.
 
-There is no next PR. Open work is the issue list in
-[docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) — the live ones are the prompt
-budget overflow (**R-01**), the unwired `SceneRulesEngine` (**R-02**), the clock
-running at ~11.5 in-game hours per turn (**R-03**), the missing repeatable food
-economy (**R-05**), and every playstyle converging on the same doomsday clock
-(**R-06**).
+Two games ship: `clockwork-dark` (flagship) and `drowned-carillon`. Pick one
+with `launcher.py --game <slug>`.
+
+Closed: **R-01** (prompt budget overflow), **R-02** (`SceneRulesEngine` never
+called), **R-03** (the clock — 10.02 → 4.40 mean h/turn, deaths 129 → 35),
+**R-05** (no repeatable food economy — foraging closes it; the `pauper` policy
+now survives 200 turns spending zero gold).
+
+Still live: **R-06**. The doomsday clock diverges by playstyle far more than it
+did — 467 turns to CONSUMING for a reckless player against 1109 for a cautious
+one — but that is mostly the *turn cost* of those lives differing, not the rate.
+Per in-game day the baker and the reckless player are still within 13%
+(0.00564 vs 0.00635), because the location multiplier and the inaction bonus
+remain the same size and opposite in sign. The cause named in the review is
+untouched.
+
+See [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) for the measurements behind
+each, and the **NOT WIRED** tables in [docs/GOVERNANCE.md](docs/GOVERNANCE.md)
+for what is built but not yet called.
 
 ## Verify a checkout
 

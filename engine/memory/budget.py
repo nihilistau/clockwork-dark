@@ -56,6 +56,48 @@ class Budget:
     def fits(self, messages: Iterable[dict[str, str]]) -> bool:
         return estimate_messages(messages) <= self.available
 
+    @classmethod
+    def for_profile(cls, profile: str = "big") -> "Budget":
+        """
+        Derive the budget from the model that will actually serve the request.
+
+        WHY THIS IS NOT A CONSTANT ANY MORE
+        -----------------------------------
+        The shipped numbers were ``context_tokens: 8192`` and
+        ``reserve_output: 900``, giving ``(8192 - 900) * 0.85 = 6198`` tokens of
+        prompt. Two things were wrong with that.
+
+        First, ``reserve_output`` has to cover ``max_tokens``, and ``max_tokens``
+        on a reasoning model caps reasoning PLUS content. The narration profile
+        now asks for 3000 tokens to leave the model room to think and still
+        write; reserving 900 against that would put 2100 tokens of output into
+        a window the prompt had already claimed, and LM Studio truncates the
+        prompt silently from the front -- taking the system persona with it.
+
+        Second, 8192 was a guess about a model nobody had identified. The bound
+        model reports what it was actually loaded with (nemotron here: loaded at
+        20,224 despite advertising 1,048,576), so the real number is available
+        and the guess is unnecessary.
+        """
+        from engine.config import get_config
+        from engine.lmstudio.profiles import resolve_profile
+
+        cfg = get_config()
+        try:
+            mp = resolve_profile(profile)
+            context = int(mp.context_tokens)
+            # Reserve the full generation ceiling, plus a floor so a profile
+            # with a small cap still leaves room for a reply.
+            reserve = max(int(mp.max_tokens), int(cfg.get("lmstudio.reserve_output", 900)))
+        except Exception:  # noqa: BLE001 -- offline dev falls back to config
+            context = int(cfg.get("lmstudio.context_tokens", 8192))
+            reserve = int(cfg.get("lmstudio.reserve_output", 900))
+
+        # Never let the reserve eat the whole window: a huge max_tokens against
+        # a small context must still leave a usable prompt.
+        reserve = min(reserve, max(512, context // 2))
+        return cls(context_tokens=context, reserve_output=reserve)
+
 
 @dataclass
 class Block:

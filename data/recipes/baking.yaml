@@ -27,7 +27,7 @@
 #   salvage       optional reduced output on failure. Bread that did not rise
 #                 is still bread; a broken knife is not a knife.
 #
-# Version: v0.1.0 [2026-08-07]
+# Version: v0.2.0 [2026-08-08]
 
 version: 1
 category: baking
@@ -121,3 +121,39 @@ recipes:
     failure_text: >-
       Packed damp. It will not last the month and everyone will be too polite
       to say so until it does not.
+
+  - id: salt_the_larder
+    name: "Salt down a slab of pork"
+    category: baking
+    skill: survival
+    band: easy
+    hours: 3
+    inputs:
+      - { id: salt_measure, qty: 1 }
+      - { id: dried_meat, qty: 2 }
+    output: { id: salt_pork, qty: 2 }
+    success_text: >-
+      Layered, weighted, and covered. It needs soaking before it is food and
+      nothing at all before it is currency.
+    failure_text: >-
+      Under-salted through the middle. It will turn inside the month and you
+      will find out which week by smell.
+    salvage: { id: salt_pork, qty: 1 }
+
+  - id: press_hard_cheese
+    name: "Press a wheel of hard cheese"
+    category: baking
+    skill: craft
+    band: standard
+    hours: 5
+    inputs:
+      - { id: salt_measure, qty: 1 }
+      - { id: linen_cloth, qty: 1 }
+      - { id: small_beer, qty: 2 }
+    output: { id: hard_cheese, qty: 1 }
+    success_text: >-
+      Curded, bound in the cloth and under the stone by dusk. It improves on
+      the road, which is more than can be said for anything else on it.
+    failure_text: >-
+      It breaks in the cloth and weeps for two days. What is left is a wet
+      crumb nobody will trade you anything for.

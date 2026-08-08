@@ -1,0 +1,172 @@
+# Collectable sets — the reason to keep a thing you cannot eat, wear or sell
+# for much.
+#
+# THE GAP THIS TABLE CLOSES: an audit of the 81 declared items found 29 whose
+# only reachable verb was "sell it" and 3 that nothing in the game could even
+# grant. A hare's foot, a bent nail and a thumb-pressed wax saint are worth one
+# copper each and always will be; making them powerful would be a lie about
+# what they are. Making them COUNT is not. Five sets below, and every one of
+# them is a thing an Edgewood household would actually have on a shelf.
+#
+# WHY COMPLETION IS COUNTED ON WHAT IS CARRIED. A set you sold is a set you no
+# longer have. The engine could have tracked "ever held" and paid out on a
+# ledger, but then finishing a set would be a formality rather than a decision:
+# nine ward pins are 54 copper you are choosing not to spend, and the choice is
+# the whole content of the mechanic. Payout is recorded as a flag, so selling a
+# piece afterwards does not claw the reward back -- you did the thing.
+#
+# Read by engine/game/inventory.py::evaluate_collections, which is called from
+# ``grant`` (so a set closes the moment its last piece lands) and from the
+# ``collections`` skill. Resolved through paths.tables, so the Brass Coast gets
+# its own file rather than this one.
+#
+# Set shape:
+#   id            stable; the completion flag is collection_<id>_complete
+#   name          what the player would call the set
+#   blurb         one or two sentences, present tense
+#   items         registry ids. Every one must exist in data/items/*.yaml.
+#   counts        optional per-item quantity; anything unlisted needs 1
+#   effects       applied ONCE through engine/game/effects.py on completion
+#   reward_text   narration line for the receipt
+#
+# A permanent bonus is written as a `check_penalty` with expires_day
+# 1000000000 -- the same "never" sentinel worn gear uses (see
+# engine/game/effects.py::EQUIP_NEVER_EXPIRES). It is a `check_penalty` because
+# that is the one TimedEffect kind engine/game/checks.py itemises into the roll
+# receipt; the deltas here are positive, and the name is historical.
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+
+collections:
+
+  - id: nine_pins
+    name: "A full card of nine"
+    blurb: >-
+      Nine to the card, because nine is the count that holds, and the ninth is
+      the one Ilya will not sell you separately. Held together they are not
+      nine pins. They are a card.
+    items: [brass_ward_pin, ninth_pin]
+    counts: { brass_ward_pin: 9 }
+    reward_text: >-
+      Ilya counts them into your palm without being asked to and does not take
+      her hand away for a moment longer than she needs to.
+    effects:
+      - type: reputation
+        faction: tinkers
+        delta: 8
+      - type: check_penalty
+        id: collection_nine_pins
+        text: "the count that holds"
+        delta: 1
+        skills: [nerve]
+        expires_day: 1000000000
+      - type: flag
+        flag: nine_pins_carded
+      - type: ledger_fact
+        text: "You carry a full card of nine ward pins, the ninth included."
+        kind: event
+
+  - id: folk_remedies
+    name: "What the old women keep"
+    blurb: >-
+      A hare's foot, a wax saint with no face, a nail turned over in a
+      doorframe, a stub of shrine candle and a roll of birch bark to write a
+      name on. None of it is magic. All of it is practice.
+    items: [hare_foot, wax_seal_saint, bent_nail, saint_candle, birch_bark]
+    reward_text: >-
+      One of them looks at what you are carrying, then at you, and starts
+      telling you things she has not told anyone since her sister died.
+    effects:
+      - type: reputation
+        faction: unnamed_saints
+        delta: 7
+      - type: check_penalty
+        id: collection_folk_remedies
+        text: "what the old women taught you"
+        delta: 1
+        skills: [sympathy]
+        expires_day: 1000000000
+      - type: flag
+        flag: folk_remedies_gathered
+      - type: ledger_fact
+        text: "You carry the whole of the old women's kit, and they noticed."
+        kind: event
+
+  - id: brass_evidence
+    name: "The brass argument"
+    blurb: >-
+      A shard with three teeth on it, a twist of filings out of clean grain, a
+      clock spring from ground nobody wound, and a talisman cut with marks
+      Edgewood cannot read. Separately, four oddments. Together, a case.
+    items: [brass_shard, brass_filings, clock_spring, rune_talisman]
+    reward_text: >-
+      Laid out in order on a table they stop being oddments. Anyone who looks
+      at them in that order sees the same thing you do, which is the problem.
+    effects:
+      - type: awareness
+        delta: 3
+      - type: check_penalty
+        id: collection_brass_evidence
+        text: "you have seen the pattern"
+        delta: 1
+        skills: [lore]
+        expires_day: 1000000000
+      - type: flag
+        flag: brass_evidence_assembled
+      - type: ledger_fact
+        text: "You assembled four pieces of brass into an argument you cannot un-see."
+        kind: event
+
+  - id: road_kit
+    name: "Properly outfitted"
+    blurb: >-
+      Cloak, hood, boots, pack, lantern and the means to make fire. Nobody who
+      has all six is going anywhere by accident.
+    items: [wool_cloak, oiled_hood, hobnail_boots, travel_pack, hand_lantern, tinderbox]
+    reward_text: >-
+      Odran looks you over on the way past, says nothing at all, and starts
+      quoting you the road prices instead of the village ones.
+    effects:
+      - type: reputation
+        faction: merchants
+        delta: 6
+      - type: check_penalty
+        id: collection_road_kit
+        text: "outfitted for the road"
+        delta: 1
+        skills: [survival]
+        expires_day: 1000000000
+      - type: flag
+        flag: road_kit_complete
+      - type: ledger_fact
+        text: "You outfitted yourself properly for the road. Six pieces, all of them used."
+        kind: event
+
+  - id: turned_up_things
+    name: "Turned up in a furrow"
+    blurb: >-
+      A knapped stone knife older than the village, a key for a lock nobody
+      makes any more, a gold ring that came out of a loaf, and a goat bell
+      found where a goat could not have been. Four things the ground gave back.
+    items: [stone_knife, iron_key, golden_ring, goat_bell]
+    reward_text: >-
+      Ilya turns each one over twice, puts them down in an order you did not
+      choose, and trades you a map that is not of roads for the loan of them.
+    effects:
+      - type: item
+        item_id: tinker_map
+        name: "Tinker knowledge map"
+        qty: 1
+        tags: [tool, trade, quest]
+      - type: reputation
+        faction: tinkers
+        delta: 5
+      - type: awareness
+        delta: 2
+      - type: flag
+        flag: turned_up_things_shown
+      - type: ledger_fact
+        text: "You showed Ilya four things the ground gave back, and she drew you a map of debts."
+        kind: event

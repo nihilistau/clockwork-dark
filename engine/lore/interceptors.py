@@ -162,27 +162,24 @@ def run_pre_interceptors(
 
     Returns:
         Modified system prompt.
+
+    Note:
+        Dispatch lives in ``engine/agents/governance.py`` -- this function is
+        the historical entry point and delegates. It used to carry its own copy
+        of "build a chain from config, sort by priority, thread a prompt
+        through", which the media package then grew a second, subtly different
+        copy of. Neither copy could host a rule check, which is why
+        ``SceneRulesEngine`` sat uncalled. One chain now, with one ordering and
+        one failure policy.
     """
-    cfg_names = get_config().get("comms.interceptors", []) or []
-    if interceptors is None:
-        registry = {
-            "LoreInjectInterceptor": LoreInjectInterceptor(),
-            "AwarenessGateInterceptor": AwarenessGateInterceptor(),
-        }
-        chain = [registry[n] for n in cfg_names if n in registry] or list(
-            registry.values()
-        )
-    else:
-        chain = list(interceptors)
+    # Imported here, not at module scope: governance imports this module to
+    # register these two interceptors by name, so a top-level import would be
+    # circular.
+    from engine.agents.governance import get_governance
 
-    # Priority decides order on every path. The config branch previously ran in
-    # file order while the override branch sorted, so the declared priorities
-    # were ignored in production and honoured only in tests.
-    chain = sorted(chain, key=lambda i: getattr(i, "priority", 99))
-
-    result = system_prompt
-    for interceptor in chain:
-        run = getattr(interceptor, "run_pre", None)
-        if callable(run):
-            result = run(state, result, player_action=player_action)
-    return result
+    return get_governance().run_pre(
+        state,
+        system_prompt,
+        player_action=player_action,
+        interceptors=interceptors,
+    )

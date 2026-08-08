@@ -23,6 +23,8 @@ Version: v0.2.0 [2026-08-07]
 
 from __future__ import annotations
 
+import logging
+
 from typing import Any, Optional
 
 from engine.config import get_config
@@ -30,13 +32,28 @@ from engine.game.state import GameState
 from engine.memory.budget import BlockSet, Budget
 from engine.memory.ledger import StoryLedger
 
+logger = logging.getLogger(__name__)
+
 
 def default_budget() -> Budget:
-    cfg = get_config()
-    return Budget(
-        context_tokens=int(cfg.get("lmstudio.context_tokens", 8192)),
-        reserve_output=int(cfg.get("lmstudio.reserve_output", 900)),
-    )
+    """
+    Token allowance for the narration prompt.
+
+    Derived from the RESOLVED model rather than the static config guess. The
+    config said 8192; the loaded model reports a 20,224 real context window
+    (`loaded_context_length`, which is also not the 1,048,576 it advertises).
+    Budgeting against the static number threw away more than half the window
+    on every turn.
+    """
+    try:
+        return Budget.for_profile("big")
+    except Exception as exc:  # noqa: BLE001 — never block a turn on introspection
+        logger.debug("[memory] Profile budget unavailable, using config: %s", exc)
+        cfg = get_config()
+        return Budget(
+            context_tokens=int(cfg.get("lmstudio.context_tokens", 8192)),
+            reserve_output=int(cfg.get("lmstudio.reserve_output", 900)),
+        )
 
 
 def present_npc_ids(state: GameState) -> tuple[str, ...]:
@@ -112,6 +129,24 @@ def build_storyteller_messages(
     blocks.add("summary", "system", summary_block)
     blocks.add("threads", "system", threads_block)
     blocks.add("lore", "system", lore_block)
+
+    # GM directives -- evil-phase tone, what the Dark has already done, the
+    # Storyteller's disposition -- as ONE budgeted block.
+    #
+    # Deliberately not run through the PRE interceptor chain. That chain shapes
+    # a system prompt in place, and StorytellerAgent runs it over every system
+    # message AFTER this function has already fitted the prompt to the budget,
+    # so each shaper's text is appended once per block and none of the copies
+    # are counted. That is R-01, measured at 7,550 tokens against a 6,198
+    # budget. Building the text from an empty seed and adding it here means it
+    # is fitted like everything else.
+    from engine.agents.governance import get_governance
+
+    blocks.add(
+        "directives",
+        "system",
+        get_governance().build_directives(state, player_action=player_action),
+    )
 
     messages = blocks.fit(budget)
 

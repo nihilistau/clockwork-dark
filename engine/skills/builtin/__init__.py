@@ -1,3 +1,3 @@
 """Builtin skill packs — import to register."""
 
-from engine.skills.builtin import assistant, mechanics  # noqa: F401
+from engine.skills.builtin import assistant, items, livelihood, mechanics  # noqa: F401

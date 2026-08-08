@@ -1,0 +1,150 @@
+# Trade — prices, spreads, scarcity, and what haggling actually does.
+#
+# THE BUG THIS TABLE CLOSES: engine/skills/builtin/mechanics.py::trade priced
+# exclusively off the `buys:` and `sells:` rows in data/economy.yaml. That made
+# BUYING work and SELLING inert, which is the common case: a vendor with no
+# `buys` row for an item refused it outright, so the mushrooms you foraged, the
+# hide you were given and the brass you dug out of a barrow were all worth
+# exactly nothing to everyone in the world. data/items/*.yaml has carried a
+# `value` in copper for every item since P9 and no runtime code read it.
+#
+# Now: every item has a price everywhere, derived from its registry value, and
+# data/economy.yaml is an OVERRIDE layer rather than the whole market. A vendor
+# who stocks something still names their own number; a vendor who does not will
+# still make you an offer, at their spread, if the item is something they deal
+# in at all.
+#
+# THE SPREAD IS THE GAME. A vendor sells above value and buys below it, and the
+# gap is their living. Reputation narrows the gap; it never closes it. Scarcity
+# moves both sides together, so a `spreading` world is one where food costs
+# more and salvage is worth less, and the player feels the evil phase in their
+# purse before they ever see a clockwork thing.
+#
+# Consumed by engine/game/trade.py. Resolved through paths.tables.
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+
+trade:
+  # Base spread on the registry value, before anything else.
+  #   buy  -- what a vendor asks for a thing worth `value`
+  #   sell -- what a vendor pays for a thing worth `value`
+  # 1.25 / 0.45 means a full round trip loses about two thirds. That is meant
+  # to hurt: arbitrage is not supposed to be a living, work and foraging are.
+  spread:
+    buy: 1.25
+    sell: 0.45
+
+  # Copper floor on any completed sale of an item with a non-zero value, so a
+  # vendor cannot offer nothing for something real and call it a trade.
+  min_sale_price: 1
+
+  # Items a vendor will not touch at any price. Quest items are somebody's
+  # business and nobody else's.
+  never_traded_tags: [quest]
+
+  haggle:
+    skill: persuasion
+    # One attempt per vendor per day. Held as a TimedEffect that expires with
+    # the day, which is also where the agreed price lives -- see
+    # engine/game/trade.py.
+    attempts_per_day: 1
+    hours: 0.5
+    # Percentage points moved off the spread by each degree. Positive is in
+    # the player's favour; a fumbled haggle makes the price worse for the day
+    # and the vendor remembers until morning.
+    degrees:
+      crit_success: 18
+      success: 10
+      partial: 4
+      failure: -6
+    # Hard cap on how far a price can ever move from the base spread, in
+    # percentage points. This is the vendor's reservation price: past it they
+    # would rather keep the thing.
+    cap: 22
+    # Difficulty band by how greedy the player's opening offer is, measured as
+    # the percentage the offer asks for beyond the standing quote.
+    bands:
+      - { upto: 5,  band: easy }
+      - { upto: 12, band: standard }
+      - { upto: 20, band: hard }
+      - { band: severe }
+
+  # Scarcity. Multiplies BOTH sides of the spread, by item tag, per evil phase.
+  # A phase entry lists only the tags that move; anything unlisted is 1.0.
+  #
+  # The story these numbers tell: food gets dear as the fields empty, light and
+  # charms get dear as people get frightened, and the bottom falls out of the
+  # luxury and salvage trade because nobody is buying anything they can walk
+  # away from.
+  scarcity:
+    dormant: {}
+    stirring:
+      food: 1.1
+      light: 1.15
+      charm: 1.2
+    spreading:
+      food: 1.45
+      light: 1.4
+      charm: 1.5
+      material: 1.1
+      trade: 0.85
+      apparel: 0.9
+    consuming:
+      food: 2.0
+      light: 1.8
+      charm: 1.9
+      material: 1.2
+      trade: 0.6
+      apparel: 0.7
+
+# Who trades, where, and on whose behalf.
+#
+# data/world/npc_schedules.yaml knows where an NPC sleeps and data/economy.yaml
+# knows what they stock; NEITHER says which faction prices their goods, and
+# nothing in the engine did either -- scripts/simulate.py carried a hardcoded
+# VENDOR_LOCATIONS dict because there was nowhere else to put it.
+#
+#   faction     whose standing sets the price multiplier
+#   location    where the counter is
+#   deals_in    tags this vendor will buy at all. Omit for "anything".
+#   spread      optional per-vendor override of the global spread
+vendors:
+
+  npc_maris:
+    name: "Maris Hearth"
+    faction: edgewood
+    location: edgewood_bakery
+    deals_in: [food, material]
+    # A baker's margin is thin and everybody knows what a loaf costs.
+    spread: { buy: 1.1, sell: 0.55 }
+
+  npc_odran:
+    name: "Odran Cartwright"
+    faction: merchants
+    location: tinker_caravan
+    deals_in: [trade, material, apparel, tool, food, light]
+    # Wide, because his risk is. He is the one making the trip.
+    spread: { buy: 1.35, sell: 0.4 }
+
+  npc_ilya:
+    name: "Ilya of the Nine Pins"
+    faction: tinkers
+    location: tinker_caravan
+    deals_in: [material, charm, tool, trade]
+    spread: { buy: 1.3, sell: 0.5 }
+
+  npc_sera:
+    name: "Sera of the Gate"
+    faction: militia
+    location: millhaven_gate
+    deals_in: [tool, apparel, light, food]
+    spread: { buy: 1.4, sell: 0.35 }
+
+  npc_brindle:
+    name: "Brindle"
+    faction: edgewood
+    location: edgewood_square
+    deals_in: [material, tool, trade]
+    spread: { buy: 1.2, sell: 0.5 }

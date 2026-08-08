@@ -97,16 +97,62 @@ class WorldSim:
         return int(get_config().get("world.tick_interval_seconds", 60))
 
     @staticmethod
+    def realtime_tick_hours(
+        last_tick_at: float,
+        *,
+        now: Optional[float] = None,
+    ) -> float:
+        """
+        In-game hours the background world has earned since the last tick.
+
+        Replaces a step function with a rate. The old form answered a yes/no
+        question and the caller then granted a flat 6 hours, so a 61-second
+        turn and a ten-minute turn cost exactly the same, and a turn at 59
+        seconds cost nothing -- the clock moved in cliffs that had no relation
+        to how long the player actually took. That constant was also 60% of
+        every hour the game ever advanced (issue R-03).
+
+        Args:
+            last_tick_at: Wall-clock stamp of the previous tick. Zero or less
+                means "tick now" -- a new game, and the documented way for
+                tests to force one (``state.last_sim_tick_at = 0.0``).
+            now: Wall-clock override for tests.
+
+        Returns:
+            Hours to advance, or 0.0 when not enough real time has passed.
+            Never more than ``world.tick_max_hours``.
+        """
+        cfg = get_config()
+        base = float(cfg.get("world.tick_hours", 2.0))
+        interval = WorldSim.tick_interval_seconds()
+
+        # A forced tick has no elapsed time to scale by, so it gets exactly one
+        # interval's worth rather than a guess.
+        if last_tick_at <= 0:
+            return base
+        if interval <= 0:
+            return base
+
+        elapsed = max(0.0, (now if now is not None else time.time()) - last_tick_at)
+        if elapsed < interval:
+            return 0.0
+
+        cap = float(cfg.get("world.tick_max_hours", 6.0))
+        return min(base * (elapsed / interval), cap)
+
+    @staticmethod
     def should_run_realtime_tick(
         last_tick_at: float,
         *,
         now: Optional[float] = None,
     ) -> bool:
-        """Return True if real-time interval elapsed since last_tick_at."""
-        if last_tick_at <= 0:
-            return True
-        current = now if now is not None else time.time()
-        return (current - last_tick_at) >= WorldSim.tick_interval_seconds()
+        """
+        Whether the background world owes the player any time.
+
+        Kept as the predicate half of ``realtime_tick_hours`` so the two can
+        never disagree about when a tick is due.
+        """
+        return WorldSim.realtime_tick_hours(last_tick_at, now=now) > 0.0
 
     @staticmethod
     def expire_events(state: GameState) -> None:

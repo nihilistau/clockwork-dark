@@ -9,9 +9,17 @@
 # `value` is what a stranger would give you for it, which for several of these
 # is an insult and is meant to read as one.
 #
-# Field reference: see data/items/food.yaml.
+# THREE OF THESE WERE UNREACHABLE. `goat_bell`, `mural_pigment` and
+# `tinker_map` (in tools.yaml) were declared here and named by nothing: no
+# quest granted them, no recipe made them, no condition asked for them. They
+# are now, respectively, the proof stage of `lost_goat`, an input the
+# `shrine_mural` repair consumes, and the payout of the `turned_up_things`
+# collection.
 #
-# Version: v0.1.0 [2026-08-07]
+# Field reference: see data/items/food.yaml; the equip/use/collection blocks
+# are documented in data/items/gear.yaml.
+#
+# Version: v0.2.0 [2026-08-08]
 
 version: 1
 
@@ -55,6 +63,7 @@ items:
     tags: [quest, material]
     weight: 0.1
     value: 3
+    collection: brass_evidence
     stack: true
 
   - id: copied_list
@@ -76,6 +85,25 @@ items:
     tags: [quest, charm]
     weight: 0.05
     value: 0
+    use:
+      verb: "read it aloud"
+      hours: 0.5
+      consumes: 1
+      effects:
+        - type: check_penalty
+          id: the_name_spoken
+          text: "you said the name correctly"
+          delta: 3
+          skills: [sympathy, nerve, lore]
+          days: 1
+        - type: hp
+          delta: -3
+        - type: awareness
+          delta: 4
+      text: >-
+        You read it the way it is written, which is the whole of the costly
+        art, and it takes the namer's price on the way past. Your nose bleeds.
+        For one day nothing in the district can pretend not to have heard you.
     stack: false
 
   - id: mural_pigment
@@ -96,4 +124,5 @@ items:
     tags: [quest]
     weight: 0.2
     value: 2
+    collection: turned_up_things
     stack: false

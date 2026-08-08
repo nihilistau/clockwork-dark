@@ -1,4 +1,4 @@
-# Version: v0.1.0 [2026-08-07]
+# Version: v0.2.0 [2026-08-08]
 #
 # The one quiet_life quest that touches awareness at all, and it moves it by a
 # single point. That restraint is load-bearing: the Whisper arc gate sits at 15
@@ -8,6 +8,13 @@
 #
 # Reads procgen.shrine_mural, which world generation has produced on every run
 # and which nothing has ever read.
+#
+# `mural_pigment` is the fast path through the last stage and is NOT a wall.
+# The item existed in data/items/quest.yaml with nobody making it and nobody
+# asking for it; it is now ground by `grind_mural_pigment` in
+# data/recipes/mending.yaml, and a player without it mixes something adequate
+# on site over two extra days. Gating a quiet_life quest behind a craft chain
+# would be gating the baker path behind the tinker one.
 
 id: shrine_mural
 arc: quiet_life
@@ -63,11 +70,18 @@ stages:
       all:
         - at_location: edgewood_square
         - min_stat: { stat: craft, min: 10 }
-        - days_in_stage: 1
+        - any:
+            - has_item: { id: mural_pigment, qty: 1 }
+            - days_in_stage: 3
     complete_text: >-
       You leave the faces alone. It takes more discipline than the plasterwork.
     on_complete:
       effects:
+        # A no-op when the player mixed something on site instead: removing an
+        # item nobody carries costs nothing (engine/game/effects.py).
+        - type: remove_item
+          item_id: mural_pigment
+          qty: 1
         - type: stamina
           delta: -10
         - type: craft

@@ -17,7 +17,7 @@ timed conditions. All of it comes from data/rules/skills.yaml, and all of it is
 itemised in ``CheckResult.modifiers`` so the receipt can show the player exactly
 why the roll went the way it did.
 
-Version: v0.1.0 [2026-08-07]
+Version: v0.2.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -93,9 +93,23 @@ def load_archetypes() -> dict[str, Any]:
     return _load_yaml(_rules_path("archetypes.yaml"), "archetypes")
 
 
+def tables_path(filename: str) -> Path:
+    """
+    Resolve a random table file through ``paths.tables``.
+
+    This used to be ``_ROOT / "data" / "tables" / filename``, hardcoded. With
+    two games installed that meant ``drowned-carillon`` drew boons and
+    complications out of Edgewood's tables -- silently, because the loader
+    degrades to an empty list rather than raising, so the only symptom was a
+    nat 20 on the Brass Coast handing the player a forest boon. Every other
+    content directory in the engine is a ``paths.*`` key; this one was missed.
+    """
+    rel = get_config().get("paths.tables", "data/tables")
+    return _ROOT / str(rel) / filename
+
+
 def _load_table(filename: str, key: str) -> list[dict[str, Any]]:
-    path = _ROOT / "data" / "tables" / filename
-    data = _load_yaml(path, key)
+    data = _load_yaml(tables_path(filename), key)
     rows = data.get(key, [])
     return [r for r in rows if isinstance(r, dict)]
 

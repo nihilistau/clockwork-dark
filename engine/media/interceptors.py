@@ -93,14 +93,22 @@ def run_media_interceptors(
 
     Returns:
         Serialized MediaPipelineResult dict.
+
+    Note:
+        Delegates to the governance MEDIA phase. This function used to bypass
+        the three interceptor classes above entirely and call
+        ``MediaPipeline.process_tags`` itself, so their declared priorities
+        described an ordering that never ran. The classes remain as the direct,
+        single-purpose entry points; the chain is now a real chain.
     """
-    tags = processed_tags or {}
-    pipeline = MediaPipeline()
-    result = pipeline.process_tags(
-        state,
-        image_tags=tags.get("image"),
-        cutscene_tags=tags.get("cutscene"),
+    # Function-local: governance imports engine.media.pipeline lazily inside
+    # MediaGovernor, and this keeps the package import graph acyclic either way.
+    from engine.agents.governance import TurnContext, get_governance
+
+    ctx = TurnContext(
+        state=state,
         narration=narration,
         voice_style=voice_style,
+        processed_tags=processed_tags or {},
     )
-    return result.to_dict()
+    return get_governance().run_media(ctx).media

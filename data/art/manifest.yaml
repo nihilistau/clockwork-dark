@@ -154,35 +154,107 @@ portraits:
 # Items, keyed on inventory id.
 # ------------------------------------------------------------
 items:
+  # THE SHIPPED PACK ANSWERED 25 OF 81 ITEMS. The other 56 rendered as the
+  # procedural wash, and four of the 25 were borrowing another item's picture
+  # -- a crock of honey drawn as a potion vial, the ninth pin drawn as a rune
+  # talisman. Every id below now has its own plate, generated from the
+  # `items:` prompts in data/art/subjects.yaml through the Grok Imagine
+  # provider and promoted into the pack by
+  # `scripts/generate_art.py --items && scripts/generate_art.py --promote`.
+  #
+  # The `<item_id>.jpg` names are that promotion step's output and are meant to
+  # stay boring. The irregular hand-authored names below them are the original
+  # pack files as they arrived; they are mapped rather than renamed, because
+  # this map IS the indirection.
+  #
+  # Generated plates carry a small Grok watermark in the bottom-right corner.
+  # `media.crop_watermark` in config/default.yaml trims it and is off by
+  # default; that file is not this pass's to change.
+  baking_peel: things/baking_peel.jpg
+  barley_flour: things/barley_flour.jpg
+  beeswax: things/beeswax.jpg
+  bent_nail: things/bent_nail.jpg
+  birch_bark: things/birch_bark.jpg
+  birch_resin: things/birch_resin.jpg
+  bird_eggs: things/bird_eggs.jpg
+  bittercress: things/bittercress.jpg
+  brass_filings: things/brass_filings.jpg
+  brass_shard: things/brass_shard.jpg
+  charcoal_sack: things/charcoal_sack.jpg
+  clock_spring: things/clock_spring.jpg
+  coins: things/coins.jpg
+  copied_list: things/copied_list.jpg
+  cut_reed: things/cut_reed.jpg
+  dried_meat: things/dried_meat.jpg
+  festival_honey: things/festival_honey.jpg
+  feverfew: things/feverfew.jpg
+  firewood_bundle: things/firewood_bundle.jpg
+  fishing_line: things/fishing_line.jpg
+  fourth_verse: things/fourth_verse.jpg
+  goat_bell: things/goat_bell.jpg
+  hand_awl: things/hand_awl.jpg
+  hand_lantern: things/hand_lantern.jpg
+  hard_cheese: things/hard_cheese.jpg
+  hare_foot: things/hare_foot.jpg
+  hazelnuts: things/hazelnuts.jpg
+  hedge_berries: things/hedge_berries.jpg
+  herbs: things/herbs.jpg
+  hide_roll: things/hide_roll.jpg
+  hobnail_boots: things/hobnail_boots.jpg
+  honeycomb: things/honeycomb.jpg
+  iron_stock: things/iron_stock.jpg
+  leather_apron: things/leather_apron.jpg
+  linen_cloth: things/linen_cloth.jpg
+  mortar_and_pestle: things/mortar_and_pestle.jpg
+  mural_pigment: things/mural_pigment.jpg
+  nessas_drawing: things/nessas_drawing.jpg
+  ninth_pin: things/ninth_pin.jpg
+  oat_porridge: things/oat_porridge.jpg
+  oiled_hood: things/oiled_hood.jpg
+  pitch_torch: things/pitch_torch.jpg
+  potion: things/potion.jpg
+  river_clay: things/river_clay.jpg
+  river_fish: things/river_fish.jpg
+  saint_candle: things/saint_candle.jpg
+  salt_measure: things/salt_measure.jpg
+  salt_pork: things/salt_pork.jpg
+  seed_grain: things/seed_grain.jpg
+  small_beer: things/small_beer.jpg
+  snare_wire: things/snare_wire.jpg
+  tallow_block: things/tallow_block.jpg
+  tallow_lamp: things/tallow_lamp.jpg
+  the_written_name: things/the_written_name.jpg
+  tinderbox: things/tinderbox.jpg
+  tinker_kit: things/tinker_kit.jpg
+  tinker_map: things/tinker_map.jpg
+  travel_pack: things/travel_pack.jpg
+  wax_seal_saint: things/wax_seal_saint.jpg
+  whetstone: things/whetstone.jpg
+  wild_greens: things/wild_greens.jpg
+  winter_ration: things/winter_ration.jpg
+  wool_cloak: things/wool_cloak.jpg
+  yarrow_bundle: things/yarrow_bundle.jpg
+
+  # Hand-authored plates that shipped with the game.
+  bandage: things/bandage-poultice.png
+  brass_ward_pin: things/talisman-2.png
+  candle: things/candle-stack.jpg
+  dried_mushrooms: things/mushrooms-2.png
+  festival_cake: things/steaming-bread.jpg
+  golden_ring: things/golden-ring-in-bread.jpg
+  hearth_knife: things/iron-knife.jpg
+  iron_key: things/iron-key.jpg
   loaf: things/bread.png
   road_bread: things/loaf-split.jpg
-  festival_cake: things/steaming-bread.jpg
-  # Was things/mushrooms.png, which has never existed in the art pack -- the
-  # only broken path in this file, caught by tests/test_content_integrity.py.
-  wild_mushroom: things/mushrooms.jpg
-  dried_mushrooms: things/mushrooms-2.png
-  whetstone: things/whetstone.jpg
   road_map: things/map.jpg
-  tinker_map: things/map.jpg
-  sympathy_charm: things/talisman.jpg
   rune_talisman: things/rune-talisman.jpg
-  hearth_knife: things/iron-knife.jpg
-  stone_knife: things/stone-knife.png
-  iron_key: things/iron-key.jpg
-  herbs: things/herbs.jpg
-  bandage: things/bandage-poultice.png
-  potion: things/potion.jpg
-  candle: things/candle-stack.jpg
-  coins: things/coins.jpg
-  wooden_shield: things/wooden-shield.jpg
   small_shield: things/small-shield.png
-  brass_ward_pin: things/talisman-2.png
-  golden_ring: things/golden-ring-in-bread.jpg
-  # P9 registry items (data/items/*.yaml). Reusing a still for two ids is
-  # already the pattern here (road_map/tinker_map) and beats a silhouette.
-  festival_honey: things/potion.jpg
-  winter_ration: things/loaf-split.jpg
-  ninth_pin: things/rune-talisman.jpg
+  stone_knife: things/stone-knife.png
+  sympathy_charm: things/talisman.jpg
+  wild_mushroom: things/mushrooms.jpg
+  wooden_shield: things/wooden-shield.jpg
+
+
 
 # ------------------------------------------------------------
 # Encounter threats (P6).
@@ -199,8 +271,86 @@ enemies:
 # ------------------------------------------------------------
 ui:
   menu: menu-screen.jpg
+  # The generic plate. Kept as the fallback for a die with no face of its own
+  # (a d6 challenge table, say) -- `dice_faces` below is what a d20 roll uses.
   dice_roll: dice/roll-dice-image.jpg
   notice_board: signposts/notice-board-contract-tunnels.jpg
   scarecrow_sign: signposts/scare-crow-warning-sign-post.jpg
   resting: scenes/resting-camp.jpg
   hurt: scenes/player-hurt-resting.jpg
+
+# ------------------------------------------------------------
+# The d20, face by face.
+#
+# `ui.dice_roll` was the whole of the dice art: ONE generic plate for every
+# roll in the game, so a natural 20 and a natural 1 were the same picture. The
+# pack held fourteen numbered plates that nothing could address, and 6, 8, 11,
+# 16 and 18 did not exist at all -- five faces in twenty that could never be
+# shown whatever the engine rolled. The missing five were generated from
+# data/art/subjects.yaml's `dice_faces` block; see scripts/generate_dice_art.py.
+#
+# The irregular names (-small, -d20-) are the shipped files as they arrived.
+# They are mapped rather than renamed: this map is the indirection, and a
+# rename would break nothing usefully while invalidating anyone's checkout.
+#
+# `dice_plates` are the authored source paintings, ~1024-1408px and 350-800 KB
+# each. `dice_faces` below is what the interface actually loads: 256px squares
+# derived from them by `scripts/generate_dice_art.py --thumbs`, with the
+# provider watermark cropped off the bottom. A roll shows a 96px die; making
+# the player download 700 KB for it -- 12 MB across the set -- to paint 9,216
+# pixels is not a trade worth making.
+# ------------------------------------------------------------
+dice_plates:
+  1:  dice/dice-1-face.jpg
+  2:  dice/dice-2.jpg
+  3:  dice/dice-3-face.jpg
+  4:  dice/dice-4-face.jpg
+  5:  dice/dice-5-face.jpg
+  6:  dice/dice-6.jpg
+  7:  dice/dice-7-face.jpg
+  8:  dice/dice-8.jpg
+  9:  dice/dice-9-face.jpg
+  10: dice/dice-10.jpg
+  11: dice/dice-11.jpg
+  12: dice/dice-12.jpg
+  13: dice/dice-13.jpg
+  14: dice/dice-14-face.jpg
+  15: dice/dice-15-face.jpg
+  16: dice/dice-16.jpg
+  17: dice/dice-17-face.jpg
+  18: dice/dice-18.jpg
+  19: dice/dice-19-face.jpg
+  # dice-d20-10.jpg and dice-d20-13.jpg are byte-identical duplicates of
+  # dice-10 and dice-13; dice-d20-20.jpg is the only plate for a natural 20.
+  20: dice/dice-20-face.jpg
+
+# The twenty faces the interface loads, one per possible roll. Derived, not
+# authored: rebuild with `python scripts/generate_dice_art.py --thumbs`.
+#
+# NOT WIRED server-side: engine/media/providers/shipped.py::lookup has no
+# `kind == "dice"` branch, and the `dice_result` socket payload carries no
+# image url, so the client resolves these paths itself in
+# ui/src/parts/DiceToast.jsx -- from this same table, held in step by
+# tests/test_dice_art.py. Wiring the server side is a lookup branch in a file
+# this pass does not own.
+dice_faces:
+  1:  dice/faces/face-01.jpg
+  2:  dice/faces/face-02.jpg
+  3:  dice/faces/face-03.jpg
+  4:  dice/faces/face-04.jpg
+  5:  dice/faces/face-05.jpg
+  6:  dice/faces/face-06.jpg
+  7:  dice/faces/face-07.jpg
+  8:  dice/faces/face-08.jpg
+  9:  dice/faces/face-09.jpg
+  10: dice/faces/face-10.jpg
+  11: dice/faces/face-11.jpg
+  12: dice/faces/face-12.jpg
+  13: dice/faces/face-13.jpg
+  14: dice/faces/face-14.jpg
+  15: dice/faces/face-15.jpg
+  16: dice/faces/face-16.jpg
+  17: dice/faces/face-17.jpg
+  18: dice/faces/face-18.jpg
+  19: dice/faces/face-19.jpg
+  20: dice/faces/face-20.jpg

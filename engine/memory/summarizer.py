@@ -8,11 +8,19 @@ Nothing leaves the turn buffer without passing through here, so the model's
 long-term memory degrades gracefully rather than falling off a cliff at turn
 seven.
 
-Runs after the turn completes and behind the inference gate -- summarizing
-concurrently with a narration stream on one LM Studio instance serializes and
-visibly stalls the text mid-sentence.
+Runs after the turn completes, in the "utility" inference lane so it can no
+longer stall the narration stream the player is watching.
 
-Version: v0.2.0 [2026-08-07]
+FAILURE IS LOUD NOW
+-------------------
+When the LLM call returned an empty string -- which is exactly what a reasoning
+model does when ``max_tokens`` is spent on thinking -- this module fell back to
+deterministic compression with no log line at all, then logged "Summary
+updated". The player's long-term memory silently degraded to keyword salad and
+nothing anywhere said so. Every fallback path now says which one it took and
+why.
+
+Version: v0.3.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -87,6 +95,11 @@ def summarize(
         return ledger.summary
 
     if llm_fn is None:
+        logger.warning(
+            "[memory] No summarizer LLM; using deterministic compression "
+            "(operation=summarize, turns=%s). Long-term memory will degrade.",
+            len(evicted),
+        )
         ledger.summary = _fallback_summary(ledger.summary, evicted)
         ledger.summary_through_turn = evicted[-1].turn
         return ledger.summary
@@ -109,7 +122,19 @@ def summarize(
         result = ""
 
     if not result:
+        # The confirmed production path: the model returned "" because it spent
+        # the whole token cap reasoning. This used to fall through in silence.
+        logger.error(
+            "[memory] Summarizer returned NOTHING; falling back to deterministic "
+            "compression (operation=summarize, turns=%s). If the model is a "
+            "reasoning model, its max_tokens went entirely to reasoning — the "
+            "summarizer must run on a reasoning='off' profile.",
+            len(evicted),
+        )
         result = _fallback_summary(ledger.summary, evicted)
+        used_llm = False
+    else:
+        used_llm = True
 
     words = result.split()
     if len(words) > max_words * 1.3:
@@ -117,9 +142,11 @@ def summarize(
 
     ledger.summary = result
     ledger.summary_through_turn = evicted[-1].turn
-    logger.debug(
-        "[memory] Summary updated (operation=summarize, through_turn=%s, words=%s)",
+    logger.info(
+        "[memory] Summary updated (operation=summarize, through_turn=%s, words=%s, "
+        "source=%s)",
         ledger.summary_through_turn,
         len(result.split()),
+        "llm" if used_llm else "deterministic-fallback",
     )
     return ledger.summary

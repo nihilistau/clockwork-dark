@@ -11,7 +11,7 @@
 # Schema reference and the "data only, no craft_item skill yet" note: see
 # data/recipes/baking.yaml.
 #
-# Version: v0.1.0 [2026-08-07]
+# Version: v0.2.0 [2026-08-08]
 
 version: 1
 category: mending
@@ -110,3 +110,68 @@ recipes:
     failure_text: >-
       The binding takes and does not hold, which is the bad way for it to
       fail. It took the price anyway.
+
+  # ------------------------------------------------------------
+  # Added when items were given verbs (v0.2.0). Every input below was an item
+  # whose only reachable use was a sale price: bent nails off a doorframe,
+  # river clay, birch bark, a sack of charcoal that only the forge wanted.
+  # These are not good recipes. They are the reason to bend down.
+  # ------------------------------------------------------------
+
+  - id: straighten_nails
+    name: "Straighten a tin of bent nails"
+    category: mending
+    skill: craft
+    band: trivial
+    hours: 2
+    station: the_forge
+    inputs:
+      - { id: bent_nail, qty: 8 }
+      - { id: charcoal_sack, qty: 1 }
+    output: { id: iron_stock, qty: 1 }
+    success_text: >-
+      Eight off doorframes, heated and drawn true, and welded down into one bar
+      of usable stock. Hallam does not comment, which is how he approves.
+    failure_text: >-
+      Three of them burned through at the shank and the rest went back in the
+      tin bent differently.
+    salvage: { id: bent_nail, qty: 4 }
+
+  - id: grind_mural_pigment
+    name: "Grind pigment to the old recipe"
+    category: mending
+    skill: lore
+    band: standard
+    hours: 3
+    tools: [mortar_and_pestle]
+    inputs:
+      - { id: river_clay, qty: 2 }
+      - { id: birch_bark, qty: 1 }
+      - { id: beeswax, qty: 1 }
+    output: { id: mural_pigment, qty: 1 }
+    success_text: >-
+      Ochre out of the bank clay, lampblack off the burnt bark, lime and wax to
+      bind. Three twists of paper, mixed to a sixty-year-old recipe by somebody
+      who had to ask twice how.
+    failure_text: >-
+      The black is grey and the ochre has gone brown in the wax. It will not
+      match the wall and everybody who looks at the wall will know.
+
+  - id: wind_a_spring
+    name: "Rewind a clock spring"
+    category: mending
+    skill: craft
+    band: hard
+    hours: 3
+    tools: [tinker_kit]
+    inputs:
+      - { id: clock_spring, qty: 1 }
+      - { id: brass_filings, qty: 2 }
+    output: { id: brass_ward_pin, qty: 4 }
+    success_text: >-
+      Blued steel out of the drum, drawn and cut into pins. Ilya buys springs at
+      twice their weight in copper and will not say who for; this is one answer.
+    failure_text: >-
+      It goes at the third coil and takes a slice out of your thumb on the way
+      past. The drum is scrap and the thumb will be a week.
+    salvage: { id: brass_filings, qty: 2 }

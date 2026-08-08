@@ -4,7 +4,7 @@ Mechanics Skills
 
 Required tools for Storyteller mechanical resolution.
 
-Version: v0.2.0 [2026-08-07]
+Version: v0.3.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -26,15 +26,6 @@ from engine.skills.registry import (
 )
 
 _ROOT = Path(__file__).resolve().parents[3]
-
-
-def _load_economy() -> dict[str, Any]:
-    path = get_config().get("paths.economy", "data/economy.yaml")
-    economy_path = _ROOT / path
-    if not economy_path.exists():
-        return {}
-    with economy_path.open(encoding="utf-8") as fh:
-        return yaml.safe_load(fh) or {}
 
 
 @skill(
@@ -205,46 +196,49 @@ def move_to(location_id: str) -> str:
 
 @skill(
     pack="clockwork",
-    description="Browse, buy, or sell with an NPC vendor.",
+    description=(
+        "Browse, buy, or sell with an NPC vendor. Prefer the trade_browse / "
+        "trade_quote / trade_haggle / trade_buy / trade_sell tools, which "
+        "expose the price breakdown and can negotiate; this one is the short "
+        "form and does the same arithmetic."
+    ),
     category="GAME",
     trigger="optional",
 )
-def trade(action: str, item_id: str = "", npc_id: str = "") -> str:
-    """Trade using economy.yaml prices."""
+def trade(action: str, item_id: str = "", npc_id: str = "", qty: int = 1) -> str:
+    """
+    Trade with a vendor.
+
+    The body of this tool used to BE the economy: it read data/economy.yaml,
+    charged the listed price, and refused any sale the vendor had no explicit
+    ``buys`` row for -- which was almost everything, so selling was inert while
+    buying worked. It is now a thin adapter over engine/game/trade.py, which
+    prices off the item registry, reputation, scarcity and today's haggling.
+
+    The signature is unchanged on purpose: scripts/simulate.py, the vertical
+    slice and any narration that has already learned this tool keep working.
+
+    Args:
+        action: ``browse`` | ``buy`` | ``sell``.
+        item_id: What is being traded. Ignored by ``browse``.
+        npc_id: Vendor npc id.
+        qty: How many. Defaults to one, as the old signature implied.
+
+    Returns:
+        JSON receipt from the trade engine.
+    """
+    from engine.game import trade as trade_module
+
     engine = get_active_engine()
     state = engine.state
-    economy = _load_economy()
-    vendor = economy.get(npc_id, {})
+    qty = max(1, int(qty))
 
     if action == "browse":
-        return json.dumps({"npc_id": npc_id, "sells": vendor.get("sells", {}), "buys": vendor.get("buys", {})})
-
+        return json.dumps(trade_module.browse(state, npc_id))
     if action == "buy":
-        sells = vendor.get("sells", {})
-        item = sells.get(item_id)
-        if not item:
-            return json.dumps({"success": False, "message": f"{npc_id} does not sell {item_id}."})
-        price = int(item.get("price", 0))
-        if state.stats.gold < price:
-            return json.dumps({"success": False, "message": "Not enough gold."})
-        state.stats.gold -= price
-        engine.add_item(item_id, item.get("name", item_id))
-        return json.dumps({"success": True, "item_id": item_id, "gold_spent": price, "gold": state.stats.gold})
-
+        return json.dumps(trade_module.buy(state, npc_id, item_id, qty))
     if action == "sell":
-        buys = vendor.get("buys", {})
-        item = buys.get(item_id)
-        if not item:
-            return json.dumps({"success": False, "message": f"{npc_id} does not buy {item_id}."})
-        owned = next((i for i in state.inventory if i.id == item_id), None)
-        if not owned or owned.qty < 1:
-            return json.dumps({"success": False, "message": "You do not have that item."})
-        price = int(item.get("price", 0))
-        owned.qty -= 1
-        if owned.qty <= 0:
-            state.inventory.remove(owned)
-        state.stats.gold += price
-        return json.dumps({"success": True, "item_id": item_id, "gold_gained": price, "gold": state.stats.gold})
+        return json.dumps(trade_module.sell(state, npc_id, item_id, qty))
 
     return json.dumps({"success": False, "message": f"Unknown trade action: {action}"})
 

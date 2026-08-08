@@ -27,7 +27,21 @@ hunger:
   hungry_stamina_cap_penalty: 20
   # Above `starving` you lose condition every hour. The matching -2 to all
   # checks lives in data/rules/skills.yaml as the `starving` situational.
-  starving_hp_per_hour: 1.0
+  #
+  # 0.4, not 1.0, and this is a measured change (P12). At 1.0 against a
+  # max_hp of 20, crossing the `starving` line put the player twenty in-game
+  # hours from death -- and engine/game/clock.py is running at roughly twelve
+  # in-game hours PER TURN (docs/DESIGN_REVIEW.md R-03), so "starving" and
+  # "dead" were less than two player decisions apart. That is the schedule
+  # nobody could answer: no food economy, however generous, can be reached
+  # inside two turns from a standing start. scripts/simulate.py measured
+  # 62-79 starvation deaths per 200-turn run on every policy at 1.0.
+  #
+  # Starvation still kills. It now takes about two and a half in-game days
+  # from the threshold rather than under one, which is long enough to walk to
+  # a wood, work a shift, or reach a counter -- long enough, that is, for the
+  # answer to exist.
+  starving_hp_per_hour: 0.4
 
 stamina:
   # Not a typo, not an oversight. See module header.
@@ -92,6 +106,29 @@ eat:
       hunger: -30
       stamina: 5
       text: "Salt and sinew. It will keep you walking."
+    # Forage (P12). Deliberately worse than anything with a price on it: two
+    # hours in a wood is a snack, a loaf is a meal, and the gap between them is
+    # the whole reason to want money. See data/tables/forage.yaml.
+    wild_greens:
+      hunger: -10
+      stamina: 0
+      text: "Nettle tops and sorrel, bitter enough to prove they are food."
+    hedge_berries:
+      hunger: -12
+      stamina: 2
+      text: "Sharp, seedy, and gone before you have finished counting them."
+    hazelnuts:
+      hunger: -14
+      stamina: 2
+      text: "Cracked one at a time against a stone. It takes longer than it feeds."
+    bird_eggs:
+      hunger: -20
+      stamina: 3
+      text: "Swallowed raw at the edge of the trees, because a fire costs time."
+    river_fish:
+      hunger: -28
+      stamina: 5
+      text: "Spitted over a small fire. The best thing the forest gives away."
   default:
     hunger: -15
     stamina: 0

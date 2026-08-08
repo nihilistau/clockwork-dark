@@ -1,0 +1,292 @@
+# Work and wages — the economy the Quiet Life arc was promised and never got.
+#
+# THE GAP THIS TABLE CLOSES: DESIGN.md makes "become a baker, not a hero" a
+# pillar and data/quests/arcs.yaml ships a `quiet_life` arc, and there has
+# never been a way to earn a copper by working. Gold entered the game as a
+# quest reward and left it at the bakery counter; scripts/simulate.py measured
+# every policy -- including the one that never leaves Edgewood -- ending its
+# run at zero gold, net -5 for the whole 200 turns. A baker who cannot be paid
+# for baking is not a playstyle, it is a skin.
+#
+# WHAT A JOB IS. Hours for money, gated on a skill, priced by who you are to
+# the people paying. Four things move a wage and all four are in this file:
+#
+#   the degree      a bad day's work is paid like a bad day's work
+#   reputation      the faction pays what it thinks you are worth
+#   the evil phase  nobody hires when the village is emptying
+#   the day cap     a shift is a shift; you cannot work the oven six times
+#                   before lunch, and that cap is what stops labour becoming
+#                   an infinite gold button
+#
+# Job shape:
+#   id             stable; receipts and the per-day cap cite it
+#   name           imperative, as the player would ask for it
+#   location_id    where the work is. A job with none can be done anywhere.
+#   skill          one of the seven; the engine derives the DC from the band
+#   difficulty     band name from data/rules/skills.yaml
+#   hours          world-clock hours spent, pass or fail
+#   stamina_cost   spent pass or fail
+#   base_wage      copper at a clean success, before every multiplier
+#   faction        whose standing prices the work and gains from it
+#   pay            multiplier per degree of success
+#   in_kind        items handed over on the listed degrees. Often the real
+#                  pay: the bakery feeds you whether or not it likes you.
+#   reputation     standing moved on the listed degrees
+#   requires       optional gates: item held, minimum standing
+#   demand         wage multiplier per evil phase. Zero means NOT HIRING --
+#                  the job disappears from the board rather than paying zero.
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+
+labour:
+  # Jobs per calendar day, across all employers. A frontier day holds one
+  # honest shift and one bit of piece-work, and this is the ceiling that keeps
+  # "work" from being "press the button until rich".
+  shifts_per_day: 2
+  # A single job id may be worked this many times per day.
+  repeats_per_day: 1
+  # Standing gained is halved once you are past this band, so reputation earns
+  # in the early game and plateaus rather than running to 100 on chores.
+  reputation_plateau: friendly
+
+jobs:
+
+  # ------------------------------------------------------------
+  # Edgewood. The Quiet Life arc's actual economy.
+  # ------------------------------------------------------------
+
+  - id: oven_shift
+    name: "Work the morning oven"
+    blurb: >-
+      Maris lights at four. Someone has to feed the fire, turn the loaves and
+      carry the peel, and it is not going to be Maris every single day.
+    location_id: edgewood_bakery
+    skill: craft
+    difficulty: easy
+    hours: 5
+    stamina_cost: 15
+    base_wage: 5
+    faction: edgewood
+    pay: { crit_success: 1.6, success: 1.0, partial: 0.5, failure: 0.0 }
+    in_kind:
+      - { item_id: loaf, qty: 1, degrees: [crit_success, success, partial] }
+    reputation:
+      - { faction: edgewood, delta: 2, degrees: [crit_success, success] }
+      - { faction: edgewood, delta: -1, degrees: [failure] }
+    demand: { dormant: 1.0, stirring: 1.1, spreading: 1.3, consuming: 0.0 }
+    success_text: "The batch comes out even and Maris counts coppers into your hand without looking up."
+    failure_text: "Half the batch is dark on one side. Maris says nothing, which is worse."
+
+  - id: well_row_errands
+    name: "Run errands along Well Row"
+    blurb: >-
+      Water carried, a roof rope held, a message taken to the far end of the
+      village. Nobody's idea of a trade. Everybody's idea of useful.
+    location_id: well_row
+    skill: persuasion
+    difficulty: trivial
+    hours: 3
+    stamina_cost: 10
+    base_wage: 3
+    faction: edgewood
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.6, failure: 0.0 }
+    reputation:
+      - { faction: edgewood, delta: 1, degrees: [crit_success, success] }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 0.7, consuming: 0.3 }
+    success_text: "Small coins from four different doors. It adds up to a day."
+    failure_text: "You spend the afternoon being told to come back tomorrow."
+
+  - id: forge_bellows
+    name: "Pump the forge bellows"
+    blurb: >-
+      Hallam needs air more than he needs conversation. The pay is steady and
+      the shoulders are the price.
+    location_id: the_forge
+    skill: craft
+    difficulty: standard
+    hours: 6
+    stamina_cost: 25
+    base_wage: 9
+    faction: edgewood
+    pay: { crit_success: 1.6, success: 1.0, partial: 0.4, failure: 0.0 }
+    in_kind:
+      - { item_id: charcoal_sack, qty: 1, degrees: [crit_success] }
+    reputation:
+      - { faction: edgewood, delta: 1, degrees: [crit_success, success] }
+    demand: { dormant: 0.9, stirring: 1.1, spreading: 1.4, consuming: 1.6 }
+    success_text: "Hallam works the whole day without a word and pays you at the end of it."
+    failure_text: "You let the fire drop twice. Hallam pays you for the hours, not the work."
+
+  - id: fallow_farm_labour
+    name: "Take a day's field work"
+    blurb: >-
+      Stones off the fallow, ditches cleared, whatever the season is asking
+      for. The oldest wage there is.
+    location_id: fallow_farm
+    skill: survival
+    difficulty: easy
+    hours: 8
+    stamina_cost: 30
+    base_wage: 7
+    faction: edgewood
+    pay: { crit_success: 1.4, success: 1.0, partial: 0.5, failure: 0.0 }
+    in_kind:
+      - { item_id: oat_porridge, qty: 2, degrees: [crit_success, success, partial] }
+    reputation:
+      - { faction: edgewood, delta: 1, degrees: [crit_success, success] }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 0.8, consuming: 0.0 }
+    success_text: "Your back is ruined and there are coins in your palm. Both are honest."
+    failure_text: "You get through half of it before your hands stop closing."
+
+  - id: charcoal_burn_watch
+    name: "Sit the charcoal burn"
+    blurb: >-
+      A stack has to be watched all night or it flares and the week is gone.
+      It is the easiest hard work in the district.
+    location_id: charcoal_burn
+    skill: nerve
+    difficulty: easy
+    hours: 8
+    stamina_cost: 18
+    base_wage: 8
+    faction: edgewood
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    in_kind:
+      - { item_id: charcoal_sack, qty: 1, degrees: [crit_success, success] }
+    reputation:
+      - { faction: edgewood, delta: 1, degrees: [crit_success, success] }
+    demand: { dormant: 1.0, stirring: 1.1, spreading: 1.2, consuming: 0.6 }
+    success_text: "The stack holds. Morning finds you filthy, paid, and oddly proud."
+    failure_text: "It flares at the third hour and takes half the stack with it."
+
+  - id: shrine_tending
+    name: "Tend the shrine"
+    blurb: >-
+      Two candles where there used to be one, and the counting that goes with
+      them. The old women pay in coin because they know better than to pay in
+      thanks.
+    location_id: edgewood_shrine
+    skill: sympathy
+    difficulty: standard
+    hours: 3
+    stamina_cost: 8
+    base_wage: 4
+    faction: unnamed_saints
+    pay: { crit_success: 2.0, success: 1.0, partial: 0.5, failure: 0.0 }
+    in_kind:
+      - { item_id: saint_candle, qty: 1, degrees: [crit_success, success] }
+    reputation:
+      - { faction: unnamed_saints, delta: 3, degrees: [crit_success, success] }
+    demand: { dormant: 0.8, stirring: 1.2, spreading: 1.5, consuming: 1.8 }
+    success_text: "The count comes out right. One of them touches your wrist and does not explain why."
+    failure_text: "You lose the count somewhere in the second hundred and have to start again."
+
+  # ------------------------------------------------------------
+  # The road and the caravan. Better pay, worse hours, and standing with
+  # people who keep a ledger.
+  # ------------------------------------------------------------
+
+  - id: caravan_loading
+    name: "Load the caravan"
+    blurb: >-
+      Odran pays by the cart and does not care who you are as long as the
+      knots hold.
+    location_id: tinker_caravan
+    skill: craft
+    difficulty: easy
+    hours: 4
+    stamina_cost: 20
+    base_wage: 8
+    faction: merchants
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    reputation:
+      - { faction: merchants, delta: 2, degrees: [crit_success, success] }
+      - { faction: merchants, delta: -2, degrees: [failure] }
+    demand: { dormant: 1.0, stirring: 1.2, spreading: 1.4, consuming: 0.5 }
+    success_text: "Odran checks two knots at random, finds them good, and pays without haggling."
+    failure_text: "A crate goes over on the ramp. Odran deducts it from the day."
+
+  - id: tinker_bench
+    name: "Take a turn at Ilya's bench"
+    blurb: >-
+      Sorting springs by weight and pretending not to notice which ones she
+      sets aside.
+    location_id: tinker_caravan
+    skill: lore
+    difficulty: standard
+    hours: 4
+    stamina_cost: 10
+    base_wage: 11
+    faction: tinkers
+    pay: { crit_success: 1.8, success: 1.0, partial: 0.4, failure: 0.0 }
+    in_kind:
+      - { item_id: brass_filings, qty: 2, degrees: [crit_success, success] }
+    reputation:
+      - { faction: tinkers, delta: 2, degrees: [crit_success, success] }
+    requires:
+      standing: { faction: tinkers, minimum: neutral }
+    demand: { dormant: 0.9, stirring: 1.2, spreading: 1.6, consuming: 1.2 }
+    success_text: "Ilya sweeps your sorted trays into hers and pays in coin she counts twice."
+    failure_text: "You mix two weights and she re-sorts the lot in front of you, slowly."
+
+  - id: gate_watch
+    name: "Stand a shift on the gate"
+    blurb: >-
+      The Millhaven levy is short of bodies and stopped asking questions about
+      whose bodies some weeks ago.
+    location_id: millhaven_gate
+    skill: nerve
+    difficulty: standard
+    hours: 6
+    stamina_cost: 22
+    base_wage: 12
+    faction: militia
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    reputation:
+      - { faction: militia, delta: 3, degrees: [crit_success, success] }
+      - { faction: edgewood, delta: -1, degrees: [crit_success, success] }
+    demand: { dormant: 0.6, stirring: 1.0, spreading: 1.5, consuming: 2.0 }
+    success_text: "Six hours of nothing, which is what they are paying for."
+    failure_text: "Something goes past you in the dark and the sergeant knows it did."
+
+  - id: market_portering
+    name: "Porter for the Millhaven market"
+    blurb: >-
+      Somebody else's sacks, somebody else's stairs, coin at the end of every
+      load.
+    location_id: millhaven_market
+    skill: survival
+    difficulty: trivial
+    hours: 5
+    stamina_cost: 24
+    base_wage: 9
+    faction: merchants
+    pay: { crit_success: 1.4, success: 1.0, partial: 0.6, failure: 0.0 }
+    reputation:
+      - { faction: merchants, delta: 1, degrees: [crit_success, success] }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 0.8, consuming: 0.2 }
+    success_text: "Load after load, and a fistful of copper that smells of other people's grain."
+    failure_text: "You drop a sack on the stair and spend the fee replacing it."
+
+  - id: refugee_camp_hands
+    name: "Work the refugee camp"
+    blurb: >-
+      Water, ropes, and holding one end of things. The camp has no money and
+      the militia pays for the camp, which everyone finds humiliating.
+    location_id: refugee_camp
+    skill: sympathy
+    difficulty: easy
+    hours: 5
+    stamina_cost: 16
+    base_wage: 5
+    faction: edgewood
+    pay: { crit_success: 1.4, success: 1.0, partial: 0.7, failure: 0.0 }
+    reputation:
+      - { faction: edgewood, delta: 2, degrees: [crit_success, success] }
+      - { faction: unnamed_saints, delta: 1, degrees: [crit_success, success] }
+    # This is the one job the end of the world creates rather than destroys.
+    demand: { dormant: 0.0, stirring: 0.4, spreading: 1.4, consuming: 1.8 }
+    success_text: "Nobody thanks you and everybody remembers you were there."
+    failure_text: "You are more use out of the way, and somebody tells you so."

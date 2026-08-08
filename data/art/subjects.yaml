@@ -12,7 +12,14 @@
 # once as structured fields, and engine/media/art.py renders whichever dialect
 # the active provider needs.
 #
-# Version: v0.2.0 [2026-08-07]
+# v0.3.0 adds `items:`. 52 of the 81 declared items had no picture and no
+# prompt -- they rendered as the procedural wash and there was no way to
+# generate anything better, for either backend, because nobody had written
+# down what a bent iron nail is supposed to look like. All 81 are described
+# below, including the 29 the shipped pack already answers, so that a full
+# regeneration is possible rather than a patch.
+#
+# Version: v0.3.0 [2026-08-08]
 # ============================================================
 
 style:
@@ -51,11 +58,125 @@ formats:
   portrait: {aspect: "3:4", width: 768, height: 1024}
   item: {aspect: "1:1", width: 256, height: 256}
   cutscene: {aspect: "16:9", width: 512, height: 288}
+  # The shipped dice plates are square, ~1408px. `format_for` reads this by
+  # kind, so `render_*(..., kind="dice")` gets 1:1 without any code change.
+  dice: {aspect: "1:1", width: 1024, height: 1024}
+
+# ------------------------------------------------------------
+# Dice faces — the twenty plates of the d20 the engine actually rolls.
+#
+# The art pack shipped fourteen of them (1-5, 7, 9, 10, 12-15, 17, 19) plus a
+# 20, and nobody wrote down what they were generated from. 6, 8, 11, 16 and 18
+# did not exist at all, so five faces in twenty could never be shown. All
+# twenty are specified here so the set can be regenerated or extended without
+# guessing at the house style a second time.
+#
+# ONE spec, TWO dialects, as everything else in this file:
+#   render_prose(f"dice_face_{n}", kind="dice")  -> Grok Imagine (default)
+#   render_tags (f"dice_face_{n}", kind="dice")  -> ComfyUI SDXL + negative
+# `formats.dice` above gives both of them the 1:1 the plates are drawn at.
+#
+# The one place these fight the shared house style is `no text or lettering
+# anywhere in the frame`: a numbered die is nothing but an engraved numeral.
+# The `details` below settle it explicitly -- the numeral is cut INTO the
+# object, it is not lettering laid over the picture -- which is the wording
+# that actually produced the shipped-looking faces on Imagine.
+#
+# `times` carries a single `dawn` slot on purpose. `_location_fields` falls
+# back to `dawn` for any daypart it has no entry for, so one slot covers all
+# four: a die on a table does not have a time of day.
+# ------------------------------------------------------------
+_dice_plate: &dice_plate
+  details: >-
+    a heavy ivory-white icosahedron of old bone with chipped rounded edges and
+    hairline cracks running through it, the uppermost triangular facet cut deep
+    with its numeral and darkened with old ink, the surrounding facets carrying
+    their own smaller drilled marks; the engraved numeral is part of the die
+    itself, not lettering laid over the picture
+  times:
+    dawn:
+      setting: >-
+        the die alone and centred, filling most of a square frame, standing on
+        dark scarred slate with nothing else in shot
+      light: >-
+        one low warm lamp from the upper left, thick oil impasto on the lit
+        facets, the ground falling away to near-black in the corners
+
+dice_faces: &dice_faces
+  dice_face_1:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 1 uppermost and square to the viewer"
+  dice_face_2:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 2 uppermost and square to the viewer"
+  dice_face_3:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 3 uppermost and square to the viewer"
+  dice_face_4:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 4 uppermost and square to the viewer"
+  dice_face_5:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 5 uppermost and square to the viewer"
+  dice_face_6:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 6 uppermost and square to the viewer"
+  dice_face_7:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 7 uppermost and square to the viewer"
+  dice_face_8:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 8 uppermost and square to the viewer"
+  dice_face_9:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 9 uppermost and square to the viewer"
+  dice_face_10:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 10 uppermost and square to the viewer"
+  dice_face_11:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 11 uppermost and square to the viewer"
+  dice_face_12:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 12 uppermost and square to the viewer"
+  dice_face_13:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 13 uppermost and square to the viewer"
+  dice_face_14:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 14 uppermost and square to the viewer"
+  dice_face_15:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 15 uppermost and square to the viewer"
+  dice_face_16:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 16 uppermost and square to the viewer"
+  dice_face_17:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 17 uppermost and square to the viewer"
+  dice_face_18:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 18 uppermost and square to the viewer"
+  dice_face_19:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 19 uppermost and square to the viewer"
+  dice_face_20:
+    <<: *dice_plate
+    subject: "A single aged bone twenty-sided die, the numeral 20 uppermost and square to the viewer"
 
 # ------------------------------------------------------------
 # Locations, keyed <location_id>__<time_of_day>
 # ------------------------------------------------------------
 locations:
+  # engine/media/art.py::_fields sends every non-portrait kind to
+  # `_location_fields`, which reads THIS map -- so a dice subject has to be
+  # reachable from here or `render_prose(..., kind="dice")` renders nothing but
+  # the id. The merge key is what makes one definition serve both: `dice_faces`
+  # above is the semantic home, this is the lookup table the renderer walks.
+  # (Wiring a `dice` branch into `_fields` would let the merge go; that file is
+  # engine-owned.)
+  <<: *dice_faces
+
   forest_clearing:
     subject: "A birch forest clearing at the ragged edge of cultivated land"
     details: "white-barked birches, deep fern undergrowth, a faint deer track"
@@ -172,3 +293,298 @@ portraits:
     details: "one ear notched, unhurried, looking directly at the viewer"
     setting: "a windowsill or a fence post, everything behind it out of focus"
     mood: "knowing, entirely unbothered"
+
+# ------------------------------------------------------------
+# Items, keyed by the registry id in data/items/*.yaml.
+#
+# WHAT THE SHIPPED ITEM PLATES ACTUALLY LOOK LIKE, because the prompts have to
+# match them rather than describe some other game: one object, alone, seen flat
+# from directly above, on a dark aged ground with a rough painted border and a
+# soft shadow under it. Square. No hand holding it, no table setting, no scene.
+# They read as plates out of an old herbal or a museum card, and the 52 that
+# were missing have to arrive looking like they came out of the same book.
+#
+# That framing is in `defaults` rather than repeated eighty-one times; each
+# entry supplies only `subject` and `details`, and may override `setting` or
+# `light` when the object needs it -- a lit candle is not lit by the plate.
+#
+# Rendered by engine/media/art.py::render_prose (Grok Imagine: natural prose,
+# positive only) and ::render_tags (ComfyUI SDXL: comma tags plus the shared
+# negative prompt and the LoRA hints above). ONE source, TWO dialects -- see
+# the file header. Nothing here is written twice.
+#
+# `formats.item` above is 1:1 at 256x256, which is what the UI renders at and
+# what the pack's own plates already are.
+# ------------------------------------------------------------
+items:
+  defaults:
+    setting: >-
+      the single object alone in the centre of the frame, laid flat and seen
+      from directly above on a dark aged ground, a rough darkened painted
+      border around the edge, nothing else in the frame
+    light: >-
+      soft raking light from the upper left, a soft shadow cast beneath the
+      object, deep brown-black surround, still-life plate
+
+  # -- food and drink ----------------------------------------------------
+  loaf:
+    subject: "A single dense round village loaf of dark barley bread"
+    details: "scorched flat on the bottom where the stone was hottest, a cross slashed in the crust, a dusting of coarse flour"
+  road_bread:
+    subject: "Twice-baked road bread, split into hard dry halves"
+    details: "cut faces gone pale and rusk-dry, one half tipped against the other, crumbs"
+  festival_cake:
+    subject: "Three small palm-sized honey cakes"
+    details: "glazed dark amber, one broken to show the crumb, a thread of honey"
+  festival_honey:
+    subject: "A squat glazed earthenware crock of dark autumn honey"
+    details: "a cloth tied over the mouth with twine, wax flecks floating in the honey, a wooden dipper beside it"
+  winter_ration:
+    subject: "A tied bundle of hard bread, salt meat and dried root"
+    details: "wrapped in coarse sacking and bound crosswise with twine, one end open to show what is inside"
+  wild_mushroom:
+    subject: "Three fat brown-capped forest mushrooms"
+    details: "leaf litter still on the caps, thick pale stems cut short, gills showing on the one turned over"
+  dried_mushrooms:
+    subject: "A string of dried mushrooms threaded on gut"
+    details: "shrivelled dark caps hung along the cord, coiled into a loose loop"
+  dried_meat:
+    subject: "A dressed hare, skinned and hung"
+    details: "lean dark carcass on a cord through the hocks, folded to fit the frame"
+  hard_cheese:
+    subject: "A small wheel of hard cheese with a black waxed rind"
+    details: "a wedge cut out and laid beside it showing the dense pale paste"
+  salt_pork:
+    subject: "A brined slab of salt pork in an open cloth"
+    details: "coarse salt crusted on the fat, the cloth folded back, twine loose"
+  small_beer:
+    subject: "A leather drinking skin of small beer"
+    details: "stitched seams, a carved wooden stopper, the skin slack and half full"
+  honeycomb:
+    subject: "A hand's width of cut honeycomb"
+    details: "pale wax cells oozing dark honey, a broken edge, one drip caught on the ground"
+  oat_porridge:
+    subject: "A chipped wooden bowl of grey oat porridge"
+    details: "a horn spoon standing in it, the surface skinned over and cooling"
+  hedge_berries:
+    subject: "A handful of dark bramble berries in a fold of cloth"
+    details: "half of them under-ripe and red, the cloth stained, two loose on the ground"
+  hazelnuts:
+    subject: "A scatter of green-shelled hazelnuts"
+    details: "husks still on some, one cracked open beside a small round stone"
+  bird_eggs:
+    subject: "Three small speckled bird eggs in a nest of dry grass"
+    details: "pale brown shells flecked with dark, the grass loosely coiled"
+  river_fish:
+    subject: "Two hand-length river fish strung through the gills"
+    details: "silver-olive scales, gutted and clean, a loop of cord through both"
+  wild_greens:
+    subject: "A loose bundle of nettle tops and sorrel"
+    details: "tied at the stems with a twist of grass, leaves bruised at the edges"
+
+  # -- light, apparel and shields ---------------------------------------
+  candle:
+    subject: "Three tallow candles, one of them lit"
+    details: "uneven yellowish wax, a rush wick, a thin trail of smoke off the lit one"
+    light: "the lit candle is the only light source, warm and close, deep brown-black surround"
+  tallow_lamp:
+    subject: "A pinched clay saucer lamp with a floating wick"
+    details: "rough unglazed red clay, a pool of tallow, the wick lit and guttering"
+    light: "the small flame lights the saucer and nothing else, deep brown-black surround"
+  pitch_torch:
+    subject: "An unlit pitch torch of tow and birch resin bound to a hazel stave"
+    details: "a black sticky head, bark still on the stave, the binding cord visible"
+  tinderbox:
+    subject: "An open tin tinderbox holding flint, steel and charred linen"
+    details: "a curved striking steel, a grey flint flake, a wad of black char cloth, the lid tipped back"
+  wool_cloak:
+    subject: "A heavy undyed wool cloak, folded"
+    details: "greasy natural cream and grey fleece, a bone pin through the folded corner, coarse weave"
+  oiled_hood:
+    subject: "A stiff linen hood boiled in linseed oil"
+    details: "amber-brown and standing up in its own shape, dark seams, a tie cord at the throat"
+  hobnail_boots:
+    subject: "A pair of hobnailed hide boots, soles turned toward the viewer"
+    details: "iron studs set close in the sole, cracked leather uppers, laces knotted where they broke"
+  leather_apron:
+    subject: "A scarred leather work apron, laid out flat"
+    details: "spark burns and scorch marks across the chest, a broken neck strap knotted back together"
+  wooden_shield:
+    subject: "A round limewood board shield with an iron boss"
+    details: "hide facing split at one edge, plank lines showing through, the boss dented"
+  small_shield:
+    subject: "A fist-sized iron buckler on a leather strap"
+    details: "a dished iron disc with a riveted rim, militia issue, scratched to bare metal on the face"
+  travel_pack:
+    subject: "A waxed canvas travelling pack on an ash frame"
+    details: "straps repaired twice in different leather, a rolled blanket lashed under the flap"
+
+  # -- tools -------------------------------------------------------------
+  hearth_knife:
+    subject: "A short iron kitchen knife with a scorched wooden handle"
+    details: "a working edge ground back over years, the handle blackened at the bolster"
+  stone_knife:
+    subject: "A knapped flint knife, older than anything around it"
+    details: "flake scars across the blade, a wrapped sinew grip, the edge still bright"
+  whetstone:
+    subject: "A grey whetstone block worn into a saddle down the middle"
+    details: "water-darkened, one corner chipped away, fine grit dust on the ground"
+  iron_key:
+    subject: "A long-shanked iron key with old ward cuts"
+    details: "a heavy round bow, wards cut in a pattern nobody has made in two generations, dark with oil"
+  road_map:
+    subject: "A road map inked on scraped hide, unrolled"
+    details: "three fords and a toll marked, a river line, creases from years of folding, no readable lettering"
+  tinker_map:
+    subject: "A small hide chart covered in tinker shorthand marks"
+    details: "not roads but circles, ticks and tallies joined by lines, folded to a palm size, no readable lettering"
+  baking_peel:
+    subject: "A long ash baker's peel, its blade thinned to a lip"
+    details: "flour ground into the grain, the lip worn crooked by forty years of scraping stone"
+  mortar_and_pestle:
+    subject: "A river-stone mortar and pestle, hollowed by use"
+    details: "grey stone, green herb stain in the bowl, the pestle laid across the rim"
+  hand_awl:
+    subject: "A leatherworker's awl in a pear-wood handle"
+    details: "a bright steel spike, the handle polished dark by a hand, a scrap of pierced leather beside it"
+  snare_wire:
+    subject: "A coil of thin brass snare wire"
+    details: "ten arm-lengths wound into a loose ring, one end bent into a running loop"
+  fishing_line:
+    subject: "Waxed horsehair fishing line wound on a notched stick"
+    details: "three small bone hooks pushed into a cork, the line dark with wax"
+  tinker_kit:
+    subject: "An open hinged tin of tinker's tools"
+    details: "solder, a flux pot, coiled wire, three files and a very small hammer, each in a fitted place"
+  hand_lantern:
+    subject: "A horn lantern, a candle in a box of scraped horn"
+    details: "amber translucent panels in an iron frame, a carrying ring, the candle lit inside"
+    light: "the lantern is lit and is the only light, warm amber through the horn, deep brown-black surround"
+
+  # -- charms ------------------------------------------------------------
+  sympathy_charm:
+    subject: "A sympathy charm, two threads bound under a seal of wax"
+    details: "one dark hair and one wool thread twisted together, a thumb-pressed disc of wax over the join, a cord loop"
+  rune_talisman:
+    subject: "A flat river pebble cut with four marks"
+    details: "four incised angular marks, grey stone, a leather thong through a drilled hole, no readable lettering"
+  brass_ward_pin:
+    subject: "A card of nine small brass ward pins"
+    details: "nine straight pins pushed through a worn paper card in three rows, brass heads catching the light"
+  ninth_pin:
+    # First generation read "the last pin off a card" as a door key and drew
+    # one. The subject line now says straight pin, dressmaker's pin, and says
+    # what it is not.
+    subject: "One single long straight brass pin, like a dressmaker's pin, lying alone"
+    details: "a slender brass shaft with a small round head and a sharp point, no teeth and no wards, an empty paper card beside it pierced with eight holes"
+  saint_candle:
+    subject: "A short stub of shrine candle, burnt low"
+    details: "wax run down one side and pooled, a black wick, a faint pressed mark on the stub"
+  hare_foot:
+    subject: "A dried hare's foot tied with red thread"
+    details: "grey-brown fur, dark claws, the red thread wound tight at the joint and knotted into a loop"
+  bent_nail:
+    subject: "A hand-forged iron nail bent over at the point"
+    details: "a square-sectioned shank, a hammered head, rust bloom, the turned-over tip"
+  wax_seal_saint:
+    subject: "A small thumb-pressed wax figure with a blank face"
+    details: "pale beeswax, a thumbprint in the back, the face deliberately left smooth"
+  golden_ring:
+    subject: "A plain gold ring, worn thin"
+    details: "no stone and no engraving, a bread crumb still stuck inside, heavier-looking than gold that size"
+
+  # -- materials ---------------------------------------------------------
+  herbs:
+    subject: "A bundle of mixed green herb cuttings tied at the stem"
+    details: "feathered and broad leaves together, bound with a twist of the same stems"
+  feverfew:
+    subject: "A sprig of feverfew in flower"
+    details: "small white daisy heads with yellow centres, pale bitter-green leaves, cut short"
+  yarrow_bundle:
+    subject: "A cut bundle of yarrow in flower"
+    details: "flat cream flower heads, feathered leaves, tied at the stem with grass"
+  bittercress:
+    subject: "A handful of bittercress pulled up with its roots"
+    details: "small rosettes of round leaves, thin white roots with glen soil still on them"
+  birch_resin:
+    subject: "A lump of amber birch resin"
+    details: "translucent gold-brown, holding the shape of the scrape it came off in, bark flecks caught in it"
+  river_clay:
+    subject: "A lump of grey river clay"
+    details: "wet and heavy, a clear thumbprint pressed into one face, a slick sheen"
+  charcoal_sack:
+    subject: "An open sacking bag of lump charcoal"
+    details: "black angular lumps spilling from the mouth, black dust on the ground, coarse hessian weave"
+  iron_stock:
+    subject: "A rough forge bar of iron stock, a forearm long"
+    details: "hammer scale on the surface, a square section, the cut ends bright"
+  barley_flour:
+    subject: "An open sack of coarse grey barley flour"
+    details: "the neck rolled down, a wooden scoop standing in the flour, a dusting spilled around it"
+  linen_cloth:
+    subject: "A bolt of undyed linen wound on a stick"
+    details: "a hand's width of natural oatmeal cloth, the loose end fallen open, visible weave"
+  beeswax:
+    subject: "A cast block of strained beeswax"
+    details: "deep yellow, a stamped mark pressed into the top face, one corner cut away"
+  bandage:
+    subject: "A rolled poultice bandage of boiled linen"
+    details: "green yarrow paste worked into the cloth and showing at the edge, tied off with a linen tape"
+  potion:
+    subject: "A small stoppered glass vial of dark green liquid"
+    details: "a wooden bung sealed with wax, sediment settled at the bottom, thick and unpleasant-looking"
+  firewood_bundle:
+    subject: "A bundle of deadfall firewood tied with bark"
+    details: "arm-length sticks snapped rather than cut, bound at both ends with a twist of bark"
+  birch_bark:
+    subject: "A roll of white birch bark"
+    details: "peeled off in a single sheet and curling, dark lenticel marks across the outer face, no lettering"
+
+  # -- trade goods and currency -----------------------------------------
+  coins:
+    subject: "A spilled leather purse of mixed copper coin"
+    details: "mostly worn copper, two clipped pieces of silver, one thick foreign coin, no readable lettering"
+  salt_measure:
+    subject: "An open stitched cloth pouch of coarse salt"
+    details: "the neck folded back, white crystals heaped and spilling, a small horn measure beside it"
+  clock_spring:
+    subject: "A coiled blued-steel spring in a brass drum"
+    details: "the spring wound tight in its barrel, the free end standing proud, brass gone dull with handling"
+  brass_filings:
+    subject: "A twist of paper holding bright brass filings"
+    details: "the paper opened out flat, a small bright heap of metal dust, grains scattered on the ground"
+  tallow_block:
+    subject: "A block of rendered tallow cast in a bucket shape"
+    details: "waxy off-white, a knife cut taken out of one side, the bucket's rings moulded into the surface"
+  hide_roll:
+    subject: "A roll of cured hide, rolled hair-in"
+    details: "smoked brown, tied at both ends with cord, the cut edge showing the thickness"
+  seed_grain:
+    subject: "A tied sack of seed grain"
+    details: "the neck bound with cord and knotted, a spill of pale barley grains at the foot"
+
+  # -- quest items -------------------------------------------------------
+  cut_reed:
+    subject: "A single ditch reed cut square at both ends"
+    details: "a pale hollow stem, both cut faces flat and clean rather than torn, laid alone"
+  nessas_drawing:
+    subject: "A child's charcoal drawing on the back of a flour wrapper"
+    details: "a crude wheel of counted teeth drawn heavily in charcoal, smudged, the paper creased and floury"
+  fourth_verse:
+    subject: "Four lines of a song written on a scrap of paper"
+    details: "hurried handwriting in four short lines, the paper torn along one edge, the marks not legible as words"
+  brass_shard:
+    subject: "A curved sliver of brass with three gear teeth still on it"
+    details: "part of a gear rim, three intact teeth, the broken edge bright and slightly discoloured"
+  copied_list:
+    subject: "A copied conscription list in a borrowed hand"
+    details: "a long column of hurried tally-like entries on rough paper, one folded edge, the writing not legible"
+  the_written_name:
+    subject: "A strip of linen with a single word inked through it"
+    details: "the ink soaked clean through the weave and showing on the far side, the mark not legible as any language"
+  mural_pigment:
+    subject: "Three twists of paper holding ground pigment"
+    details: "one ochre, one lampblack, one white lime, each opened enough to show the colour, powder on the ground"
+  goat_bell:
+    subject: "A hammered tin goat bell on a worn leather strap"
+    details: "a dented four-sided bell, the iron clapper still hanging inside, the strap cracked but unbroken"

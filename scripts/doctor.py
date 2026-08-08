@@ -8,9 +8,13 @@ game doing that?" without reading a log.
     python scripts/doctor.py
     python scripts/doctor.py --verbose
 
+The Games section reports which game is active and validates every manifest on
+disk -- not only the active one, since a manifest with a missing path is a
+launch that will fail and this is where that should be found.
+
 Exit code 0 if nothing is broken, 1 if something is.
 
-Version: v0.2.0 [2026-08-07]
+Version: v0.3.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -110,6 +114,45 @@ def check_config(report: Report) -> None:
                    str(path) if exists else f"missing: {path}")
 
 
+def check_games(report: Report) -> None:
+    """
+    Report the active game and validate every manifest on disk.
+
+    Deliberately validates ALL games, not just the active one: a manifest with
+    a missing path is a launch that will fail, and the point of a doctor is to
+    find that before somebody tries to play it.
+    """
+    from engine.games.caches import registered_caches
+    from engine.games.registry import active_slug, catalog, discover
+
+    current = active_slug()
+    manifests = discover()
+    if not manifests:
+        report.add("Games", "discovery", FAIL,
+                   "no games found - expected games/<slug>/game.yaml")
+        return
+
+    report.add("Games", "active", OK, f"{current} ({len(manifests)} installed)")
+    if current not in manifests:
+        report.add("Games", "active", FAIL,
+                   f"{current} is selected but has no games/{current}/game.yaml")
+
+    for row in catalog():
+        slug = str(row["slug"])
+        label = f"{slug}{' (active)' if row['active'] else ''}"
+        if row["playable"]:
+            report.add("Games", label, OK,
+                       f"{row['title']} v{row['version']}, {len(row['paths'])} paths ok")
+        else:
+            # One line per problem: a manifest with four broken paths should
+            # print four lines, not "invalid".
+            for problem in row["problems"]:
+                report.add("Games", label, FAIL, problem)
+
+    report.add("Games", "cache registry", OK,
+               f"{len(registered_caches())} caches invalidated on activation")
+
+
 def check_content(report: Report) -> None:
     """Load every content tree and count it, so an empty file is visible."""
     from engine.game.locations import LOCATIONS
@@ -176,7 +219,15 @@ def main(argv: list[str] | None = None) -> int:
         logging.disable(logging.WARNING)
 
     report = Report()
-    for check in (check_python, check_config, check_services, check_content, check_ui, check_saves):
+    for check in (
+        check_python,
+        check_config,
+        check_games,
+        check_services,
+        check_content,
+        check_ui,
+        check_saves,
+    ):
         try:
             check(report)
         except Exception as exc:  # noqa: BLE001 — one bad check must not hide the rest

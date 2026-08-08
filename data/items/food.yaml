@@ -169,3 +169,60 @@ items:
     weight: 0.5
     value: 1
     stack: true
+
+  # ------------------------------------------------------------
+  # Forageable food (P12). These are what standing in a wood for two hours
+  # actually gets you, and they are deliberately poor: a hedgeful of berries
+  # is a snack, not a meal. The point is that a broke player can stay alive
+  # while a paid one eats better -- see data/tables/forage.yaml.
+  # ------------------------------------------------------------
+
+  - id: hedge_berries
+    name: "Handful of hedge berries"
+    description: >-
+      Bramble fruit picked into a fold of cloak, half of them under-ripe
+      because the ripe ones were taken by whatever gets up earlier.
+    tags: [food]
+    weight: 0.2
+    value: 1
+    stack: true
+
+  - id: hazelnuts
+    name: "Pocket of hazelnuts"
+    description: >-
+      Green-shelled and needing a stone to open. They keep for a season, which
+      is the only reason anybody bothers.
+    tags: [food, trade]
+    weight: 0.3
+    value: 2
+    stack: true
+
+  - id: bird_eggs
+    name: "Clutch of bird eggs"
+    description: >-
+      Three small speckled eggs, still warm. Taking them is a decision about
+      next spring that nobody in Edgewood says out loud.
+    tags: [food]
+    weight: 0.2
+    value: 2
+    stack: true
+
+  - id: river_fish
+    name: "String of river fish"
+    description: >-
+      Two hand-length fish off a set line, gutted at the bank. Better eating
+      than anything else the forest gives away.
+    tags: [food, trade]
+    weight: 0.7
+    value: 4
+    stack: true
+
+  - id: wild_greens
+    name: "Bundle of wild greens"
+    description: >-
+      Nettle tops, sorrel and whatever else the bank offered, bitter enough
+      to prove it is doing something.
+    tags: [food, material]
+    weight: 0.3
+    value: 1
+    stack: true

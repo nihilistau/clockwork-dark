@@ -1,10 +1,28 @@
 """
 LMSClient — LM Studio OpenAI-compatible SSE client.
 
-Uses ``POST {base_url}/chat/completions`` with ``stream: true``.
-Falls back gracefully when server is unavailable (for tests / offline dev).
+Uses ``POST {base_url}/chat/completions``. This is the fallback transport: it is
+the only one that can do tool calling and ``response_format`` structured output,
+but it CANNOT control reasoning (see native.py for the measurements). Prefer
+``engine.lmstudio.backend`` which routes between this and NativeClient.
 
-Version: v0.1.0 [2026-06-20]
+THE BUG THIS FILE CARRIED
+-------------------------
+Both read paths took ``message["content"]`` and nothing else::
+
+    delta = (first.get("delta") or {}).get("content", "") or ""   # streaming
+    content=message.get("content") or ""                          # non-streaming
+
+A reasoning model that hits ``max_tokens`` while still thinking returns
+``{"content": "", "reasoning_content": "<400 tokens>"}`` with
+``finish_reason: "length"``. ``content_parts`` stayed empty, the player watched
+a frozen screen, and the log said nothing at all. Both paths now read all three
+channels LM Studio can use -- ``content``, ``reasoning_content`` (DeepSeek
+style, 0.3.9+) and ``reasoning`` (gpt-oss style, 0.3.23+) -- keep reasoning in
+its own field, and shout when the content channel came back empty behind a full
+reasoning channel.
+
+Version: v0.3.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -24,6 +42,27 @@ from engine.lmstudio.profiles import ModelProfile, resolve_profile
 logger = logging.getLogger(__name__)
 
 _client_instance: Optional["LMSClient"] = None
+
+
+def extract_reasoning(payload: dict[str, Any]) -> str:
+    """
+    Pull reasoning text out of a message or delta object.
+
+    LM Studio uses two different key names depending on how the model was
+    converted: ``reasoning_content`` (DeepSeek convention, 0.3.9+, opt-in under
+    Settings -> Developer) and ``reasoning`` (gpt-oss convention, 0.3.23+).
+    Reading only one of them loses the channel entirely on half the models.
+    """
+    for key in ("reasoning_content", "reasoning"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            return value
+        # Some builds wrap it as {"reasoning": {"content": ...}}.
+        if isinstance(value, dict):
+            inner = value.get("content")
+            if isinstance(inner, str) and inner:
+                return inner
+    return ""
 
 
 def parse_tool_calls(raw: Any) -> list[ToolCall]:
@@ -70,6 +109,55 @@ def parse_tool_calls(raw: Any) -> list[ToolCall]:
     return calls
 
 
+class _ToolCallAccumulator:
+    """
+    Reassembles streamed tool calls.
+
+    On a stream, ``delta.tool_calls[i].function.arguments`` arrives as
+    FRAGMENTS -- ``{"loc`` then ``ation": "for`` then ``est"}`` -- keyed by
+    ``index``, and the ``id``/``name`` usually appear only on the first
+    fragment. Handing those fragments to ``parse_tool_calls`` one at a time
+    yields nothing but JSONDecodeErrors, which is why streaming tool calls could
+    not work here at all.
+    """
+
+    def __init__(self) -> None:
+        self._slots: dict[int, dict[str, str]] = {}
+
+    def push(self, raw: Any) -> None:
+        if not isinstance(raw, list):
+            return
+        for entry in raw:
+            if not isinstance(entry, dict):
+                continue
+            index = int(entry.get("index", 0) or 0)
+            slot = self._slots.setdefault(index, {"id": "", "name": "", "arguments": ""})
+            if entry.get("id"):
+                slot["id"] = str(entry["id"])
+            function = entry.get("function") or {}
+            if function.get("name"):
+                slot["name"] = str(function["name"])
+            fragment = function.get("arguments")
+            if isinstance(fragment, str):
+                slot["arguments"] += fragment
+
+    def flush(self) -> list[ToolCall]:
+        """Assemble the accumulated fragments into whole tool calls."""
+        assembled = [
+            {
+                "id": slot["id"] or f"call_{index}",
+                "function": {"name": slot["name"], "arguments": slot["arguments"]},
+            }
+            for index, slot in sorted(self._slots.items())
+            if slot["name"]
+        ]
+        self._slots.clear()
+        return parse_tool_calls(assembled)
+
+    def __bool__(self) -> bool:
+        return bool(self._slots)
+
+
 class LMSClient:
     """HTTP client for LM Studio chat completions with SSE streaming."""
 
@@ -77,7 +165,7 @@ class LMSClient:
         self,
         base_url: Optional[str] = None,
         *,
-        timeout: float = 120.0,
+        timeout: float = 180.0,
         api_key: str = "",
     ) -> None:
         cfg = get_config()
@@ -102,6 +190,17 @@ class LMSClient:
             logger.debug("[LMSClient] Health check failed (operation=health): %s", exc)
             return False
 
+    @staticmethod
+    def _apply_ttl(payload: dict[str, Any], ttl: int) -> None:
+        """
+        Ask LM Studio to evict this model after `ttl` idle seconds.
+
+        With 47 models installed and JIT loading on, an un-evicted model holds
+        VRAM the next profile needs.
+        """
+        if ttl > 0:
+            payload["ttl"] = ttl
+
     def chat(
         self,
         messages: list[dict[str, Any]],
@@ -112,6 +211,7 @@ class LMSClient:
         tools: Optional[list[dict[str, Any]]] = None,
         tool_choice: Optional[str] = None,
         response_format: Optional[dict[str, Any]] = None,
+        ttl: int = 0,
     ) -> LMSResponse:
         """
         Non-streaming chat completion.
@@ -134,6 +234,7 @@ class LMSClient:
             payload["tool_choice"] = tool_choice or "auto"
         if response_format:
             payload["response_format"] = response_format
+        self._apply_ttl(payload, ttl)
 
         t0 = time.perf_counter()
         try:
@@ -152,9 +253,12 @@ class LMSClient:
         first = choices[0] if choices else {}
         message = first.get("message") or {}
         usage = data.get("usage") or {}
+        details = usage.get("completion_tokens_details") or {}
 
-        return LMSResponse(
+        result = LMSResponse(
             content=message.get("content") or "",
+            reasoning_content=extract_reasoning(message),
+            reasoning_tokens=int(details.get("reasoning_tokens", 0) or 0),
             response_id=str(data.get("id", "")),
             model=str(data.get("model", resolved)),
             input_tokens=int(usage.get("prompt_tokens", 0) or 0),
@@ -162,7 +266,10 @@ class LMSClient:
             latency_ms=(time.perf_counter() - t0) * 1000,
             tool_calls=parse_tool_calls(message.get("tool_calls")),
             finish_reason=str(first.get("finish_reason", "")),
+            transport="openai",
         )
+        _log_outcome("chat", result, max_tokens)
+        return result
 
     def chat_stream(
         self,
@@ -173,14 +280,31 @@ class LMSClient:
         max_tokens: int = 1500,
         on_event: Optional[Callable[[LMSStreamEvent], None]] = None,
         on_delta: Optional[Callable[[str], None]] = None,
+        on_reasoning: Optional[Callable[[str], None]] = None,
         response_format: Optional[dict[str, Any]] = None,
+        tools: Optional[list[dict[str, Any]]] = None,
+        tool_choice: Optional[str] = None,
+        ttl: int = 0,
     ) -> Generator[str, None, LMSResponse]:
         """
         Stream chat completion tokens.
 
-        Yields content deltas. Fires typed LMSStreamEvent via on_event, and
-        calls on_delta for each chunk -- the hook the socket layer uses to push
-        narration to the browser as it is generated.
+        Yields CONTENT deltas only. Reasoning deltas go to ``on_reasoning`` and
+        out as ``reasoning.*`` events; they are deliberately not yielded,
+        because everything downstream of the yield (the tag scanner, the
+        narration JSON decoder) would otherwise act on the model's private
+        musings -- a model writing "maybe [IMAGE:forest]" while thinking must
+        not trigger a real image generation.
+
+        Args:
+            on_event: Receives typed events, translated into the native
+                vocabulary so StreamProcessor sees one shape from both
+                transports.
+            on_delta: Receives message content deltas.
+            on_reasoning: Receives reasoning deltas.
+            tools: Function definitions. Streamed tool-call argument fragments
+                are accumulated by index and flushed on
+                ``finish_reason == "tool_calls"``.
         """
         resolved = model or resolve_profile("big").model
         payload: dict[str, Any] = {
@@ -189,15 +313,28 @@ class LMSClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": True,
+            # Real token counts instead of the zeros this used to report.
+            "stream_options": {"include_usage": True},
         }
         if response_format:
             payload["response_format"] = response_format
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = tool_choice or "auto"
+        self._apply_ttl(payload, ttl)
+
         t0 = time.perf_counter()
         if on_event:
             on_event(LMSStreamEvent(event_type="chat.start", model_instance_id=resolved))
 
         content_parts: list[str] = []
+        reasoning_parts: list[str] = []
+        accumulator = _ToolCallAccumulator()
         finish_reason = ""
+        usage: dict[str, Any] = {}
+        started_message = False
+        started_reasoning = False
+
         try:
             with self._client.stream(
                 "POST",
@@ -217,6 +354,9 @@ class LMSClient:
                         data = json.loads(data_str)
                     except json.JSONDecodeError:
                         continue
+
+                    if data.get("usage"):
+                        usage = data["usage"]
                     # Many OpenAI-compatible servers, LM Studio included, send a
                     # final usage-only chunk with "choices": []. Indexing [0] on
                     # that raises IndexError, which is not an httpx.HTTPError and
@@ -225,8 +365,36 @@ class LMSClient:
                     first = choices[0] if choices else {}
                     if first.get("finish_reason"):
                         finish_reason = str(first["finish_reason"])
-                    delta = (first.get("delta") or {}).get("content", "") or ""
+                    delta_obj = first.get("delta") or {}
+
+                    if delta_obj.get("tool_calls"):
+                        accumulator.push(delta_obj["tool_calls"])
+
+                    reasoning_delta = extract_reasoning(delta_obj)
+                    if reasoning_delta:
+                        if not started_reasoning:
+                            started_reasoning = True
+                            if on_event:
+                                on_event(LMSStreamEvent(event_type="reasoning.start"))
+                        reasoning_parts.append(reasoning_delta)
+                        if on_reasoning:
+                            on_reasoning(reasoning_delta)
+                        if on_event:
+                            on_event(
+                                LMSStreamEvent(
+                                    event_type="reasoning.delta",
+                                    content=reasoning_delta,
+                                )
+                            )
+
+                    delta = delta_obj.get("content", "") or ""
                     if delta:
+                        if started_reasoning and not started_message and on_event:
+                            on_event(LMSStreamEvent(event_type="reasoning.end"))
+                        if not started_message:
+                            started_message = True
+                            if on_event:
+                                on_event(LMSStreamEvent(event_type="message.start"))
                         content_parts.append(delta)
                         if on_delta:
                             on_delta(delta)
@@ -246,27 +414,51 @@ class LMSClient:
 
         full = "".join(content_parts)
         latency = (time.perf_counter() - t0) * 1000
+        if started_message and on_event:
+            on_event(LMSStreamEvent(event_type="message.end"))
+
+        # Flush on tool_calls, and also unconditionally: a model can stop with
+        # finish_reason "stop" and still have emitted a complete tool call.
+        tool_calls = accumulator.flush()
+
+        details = usage.get("completion_tokens_details") or {}
+        # finish_reason travels in stats as well as on the response: a
+        # StreamProcessor built from events alone had no other way to learn it,
+        # so ProcessedResponse.finish_reason was permanently "" and a truncated
+        # generation was indistinguishable from a finished one.
+        stats: dict[str, Any] = {"latency_ms": latency, "finish_reason": finish_reason}
+        if usage:
+            stats.update(
+                {
+                    "input_tokens": int(usage.get("prompt_tokens", 0) or 0),
+                    "total_output_tokens": int(usage.get("completion_tokens", 0) or 0),
+                    "reasoning_output_tokens": int(details.get("reasoning_tokens", 0) or 0),
+                }
+            )
         if on_event:
             on_event(
                 LMSStreamEvent(
                     event_type="chat.end",
                     response_id=f"resp_{uuid.uuid4().hex[:12]}",
-                    stats={"latency_ms": latency},
+                    stats=stats,
                 )
             )
-        if finish_reason == "length":
-            logger.warning(
-                "[LMSClient] Response truncated at max_tokens "
-                "(operation=chat_stream, model=%s, chars=%s)",
-                resolved,
-                len(full),
-            )
-        return LMSResponse(
+
+        result = LMSResponse(
             content=full,
+            reasoning_content="".join(reasoning_parts),
+            reasoning_tokens=int(details.get("reasoning_tokens", 0) or 0),
             model=resolved,
+            input_tokens=int(usage.get("prompt_tokens", 0) or 0),
+            output_tokens=int(usage.get("completion_tokens", 0) or 0),
             latency_ms=latency,
+            stats=stats,
+            tool_calls=tool_calls,
             finish_reason=finish_reason,
+            transport="openai",
         )
+        _log_outcome("chat_stream", result, max_tokens)
+        return result
 
     def infer_stream(
         self,
@@ -274,6 +466,7 @@ class LMSClient:
         *,
         profile: str = "big",
         on_event: Optional[Callable[[LMSStreamEvent], None]] = None,
+        on_reasoning: Optional[Callable[[str], None]] = None,
     ) -> Generator[str, None, LMSResponse]:
         """Profile-aware streaming wrapper."""
         mp = resolve_profile(profile)
@@ -283,6 +476,8 @@ class LMSClient:
             temperature=mp.temperature,
             max_tokens=mp.max_tokens,
             on_event=on_event,
+            on_reasoning=on_reasoning,
+            ttl=mp.ttl,
         )
 
     def infer_processed(
@@ -291,6 +486,7 @@ class LMSClient:
         *,
         profile: str = "big",
         on_delta: Optional[Callable[[str], None]] = None,
+        on_reasoning: Optional[Callable[[str], None]] = None,
     ):
         """
         Stream + tag extraction via StreamProcessor.
@@ -300,11 +496,40 @@ class LMSClient:
         """
         from engine.agents.stream_processor import StreamProcessor
 
-        proc = StreamProcessor(on_delta=on_delta)
+        proc = StreamProcessor(on_delta=on_delta, on_reasoning=on_reasoning)
         gen = self.infer_stream(messages, profile=profile, on_event=proc.on_event)
         for _chunk in gen:
             pass
         return proc.result()
+
+
+def _log_outcome(operation: str, result: LMSResponse, max_tokens: int) -> None:
+    """Report an empty content channel as the specific failure it is."""
+    if result.starved_by_reasoning:
+        logger.error(
+            "[LMSClient] REASONING STARVED THE OUTPUT — content is empty because "
+            "the model spent the entire token budget thinking "
+            "(operation=%s, model=%s, max_tokens=%s, output_tokens=%s, "
+            "reasoning_tokens=%s, reasoning_chars=%s). This transport cannot "
+            "disable reasoning; route via engine.lmstudio.backend to use "
+            "/api/v1/chat with reasoning='off'.",
+            operation,
+            result.model,
+            max_tokens,
+            result.output_tokens,
+            result.reasoning_tokens,
+            len(result.reasoning_content),
+        )
+    elif result.truncated:
+        logger.warning(
+            "[LMSClient] Response truncated at max_tokens "
+            "(operation=%s, model=%s, max_tokens=%s, chars=%s, reasoning_tokens=%s)",
+            operation,
+            result.model,
+            max_tokens,
+            len(result.content),
+            result.reasoning_tokens,
+        )
 
 
 def get_lms_client() -> LMSClient:

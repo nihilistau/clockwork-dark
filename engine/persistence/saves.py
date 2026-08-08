@@ -11,14 +11,22 @@ client called /api/game/new on every connect event.
 Layout::
 
     data/saves/
-      index.json                     summaries for the load menu
-      <save_id>/
-        save.json                    envelope: metadata + full GameState
-        save.json.bak                previous good write
-        memory.json                  StoryLedger (P2), split to keep saves diffable
-        transcript.jsonl             append-only narration log, never read back
+      <game_slug>/                   one namespace per game (see saves_root)
+        index.json                   summaries for the load menu
+        <save_id>/
+          save.json                  envelope: metadata + full GameState
+          save.json.bak              previous good write
+          memory.json                StoryLedger (P2), split to keep saves diffable
+          transcript.jsonl           append-only narration log, never read back
 
-Version: v0.2.0 [2026-08-07]
+THE GAME SLUG IN THE PATH: saves were flat under ``data/saves/`` while there
+was only ever one story. With two, a flat namespace means one load menu listing
+runs from both games, and ``index.json`` written by whichever was launched last
+-- and a Drowned Carillon save restored into The Clockwork Dark is a state
+object full of location ids that do not exist in the graph. Namespacing is the
+cheap fix, and the legacy flat layout is migrated on first use.
+
+Version: v0.3.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -75,9 +83,104 @@ class SaveSummary:
         }
 
 
-def saves_root() -> Path:
-    """Configured save directory."""
+# Legacy migration runs at most once per process. The check is two stat calls,
+# but saves_root() is called on every store construction and a filesystem walk
+# per call would be absurd.
+_migrated: set[str] = set()
+
+
+def saves_base() -> Path:
+    """The un-namespaced save directory, straight from ``paths.saves``."""
     return Path(get_config().get("paths.saves", "data/saves"))
+
+
+def _migrate_legacy(base: Path, slug: str) -> None:
+    """
+    Move a pre-namespacing ``data/saves/`` tree into ``data/saves/<slug>/``.
+
+    Detected by an ``index.json`` sitting directly in the base directory --
+    the namespaced layout never has one there. Every save directory beside it
+    moves with it; a name that already exists in the destination is left alone
+    rather than overwritten, because losing somebody's run to a migration is
+    the one outcome worse than an untidy directory.
+
+    Args:
+        base: The un-namespaced save directory.
+        slug: Game to migrate the legacy runs into.
+    """
+    legacy_index = base / "index.json"
+    if not legacy_index.is_file():
+        return
+
+    destination = base / slug
+    destination.mkdir(parents=True, exist_ok=True)
+    moved = 0
+    for child in list(base.iterdir()):
+        if child.name == slug:
+            continue
+        if child.is_dir() and not (child / "save.json").is_file():
+            # Some other game's namespace, or a stray directory. Not ours.
+            continue
+        target = destination / child.name
+        if target.exists():
+            logger.warning(
+                "[persistence] Legacy save already migrated, leaving in place "
+                "(operation=_migrate_legacy, name=%s)",
+                child.name,
+            )
+            continue
+        try:
+            child.rename(target)
+            moved += 1
+        except OSError as exc:
+            logger.warning(
+                "[persistence] Could not migrate legacy save "
+                "(operation=_migrate_legacy, name=%s): %s",
+                child.name,
+                exc,
+            )
+
+    logger.info(
+        "[persistence] Migrated legacy saves into a game namespace "
+        "(operation=_migrate_legacy, slug=%s, entries=%d)",
+        slug,
+        moved,
+    )
+
+
+def saves_root(slug: Optional[str] = None) -> Path:
+    """
+    Save directory for a game.
+
+    Args:
+        slug: Game slug, or None for the active game.
+
+    Returns:
+        ``<paths.saves>/<slug>``. The legacy flat layout is folded into the
+        active game's namespace the first time this is called for it.
+    """
+    base = saves_base()
+
+    if slug is None:
+        # Imported lazily: engine.games.registry resets this module's cached
+        # store, so a module-level import would be a cycle.
+        from engine.games.registry import active_slug
+
+        slug = active_slug()
+
+    if slug not in _migrated:
+        _migrated.add(slug)
+        try:
+            _migrate_legacy(base, slug)
+        except OSError as exc:  # noqa: PERF203 -- diagnostics beat a crash here
+            logger.warning(
+                "[persistence] Legacy save migration failed "
+                "(operation=saves_root, slug=%s): %s",
+                slug,
+                exc,
+            )
+
+    return base / slug
 
 
 class SaveStore:
@@ -260,10 +363,12 @@ def reset_save_store() -> None:
 
 __all__ = [
     "AUTOSAVE_SLOT",
+    "ENGINE_VERSION",
     "MigrationError",
     "SaveStore",
     "SaveSummary",
     "get_save_store",
     "reset_save_store",
+    "saves_base",
     "saves_root",
 ]

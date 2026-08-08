@@ -46,7 +46,12 @@ stages:
     complete_when:
       all:
         - at_location: millhaven_gate
-        - flag: nf_toll_ledger_read
+        - any:
+            - flag: nf_toll_ledger_read
+            # A tinker knowledge map is a map of who owes what to whom. A
+            # coded ninth column is exactly the thing it is for, and reading
+            # the book over a shoulder is not the only way to read the book.
+            - has_item: { id: tinker_map, qty: 1 }
     complete_text: >-
       Not takings. Names, origins, and a column headed with a single letter that
       he fills in for about one traveller in nine.

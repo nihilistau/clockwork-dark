@@ -51,3 +51,58 @@ cutscenes:
     placeholder: cutscene_consuming_horizon.mp4
     captions:
       - "Wheat rows tick like a metronome toward the horizon."
+
+# ------------------------------------------------------------
+# d20 faces.
+#
+# MIRROR, not a second source. The authoritative spec is
+# data/art/subjects.yaml's `dice_faces` block, which engine/media/art.py
+# renders into BOTH dialects (prose for Grok Imagine, tags for SDXL). These
+# strings are the tag dialect, minus `style_suffix` -- build_image_prompt
+# appends that itself -- so that this file, which is the one ComfyUI's own
+# client reads, has the dice prompts in the shape it expects.
+#
+# NOT WIRED: engine/media/comfyui.py::build_image_prompt only looks in
+# `locations:` above. Reading this block is a two-line change in an
+# engine-owned file. Until then it is documentation for a human driving a
+# workflow by hand, which is what generating with ComfyUI on this machine
+# means anyway -- it is not installed.
+#
+# Pair every one of these with `negative_prompt` above. Do NOT add
+# `corruption_suffix`: the dice are interface furniture and do not rot with
+# the world. Square, 1024x1024.
+# ------------------------------------------------------------
+dice:
+  shared_detail: >-
+    a heavy ivory-white icosahedron of old bone with chipped rounded edges and
+    hairline cracks running through it, the uppermost triangular facet cut
+    deep with its numeral and darkened with old ink, the surrounding facets
+    carrying their own smaller drilled marks; the engraved numeral is part of
+    the die itself, not lettering laid over the picture, the die alone and
+    centred, filling most of a square frame, standing on dark scarred slate
+    with nothing else in shot, one low warm lamp from the upper left, thick
+    oil impasto on the lit facets, the ground falling away to near-black in
+    the corners
+
+  # Per face: append `shared_detail`, then `style_suffix`.
+  faces:
+    1: "A single aged bone twenty-sided die, the numeral 1 uppermost and square to the viewer"
+    2: "A single aged bone twenty-sided die, the numeral 2 uppermost and square to the viewer"
+    3: "A single aged bone twenty-sided die, the numeral 3 uppermost and square to the viewer"
+    4: "A single aged bone twenty-sided die, the numeral 4 uppermost and square to the viewer"
+    5: "A single aged bone twenty-sided die, the numeral 5 uppermost and square to the viewer"
+    6: "A single aged bone twenty-sided die, the numeral 6 uppermost and square to the viewer"
+    7: "A single aged bone twenty-sided die, the numeral 7 uppermost and square to the viewer"
+    8: "A single aged bone twenty-sided die, the numeral 8 uppermost and square to the viewer"
+    9: "A single aged bone twenty-sided die, the numeral 9 uppermost and square to the viewer"
+    10: "A single aged bone twenty-sided die, the numeral 10 uppermost and square to the viewer"
+    11: "A single aged bone twenty-sided die, the numeral 11 uppermost and square to the viewer"
+    12: "A single aged bone twenty-sided die, the numeral 12 uppermost and square to the viewer"
+    13: "A single aged bone twenty-sided die, the numeral 13 uppermost and square to the viewer"
+    14: "A single aged bone twenty-sided die, the numeral 14 uppermost and square to the viewer"
+    15: "A single aged bone twenty-sided die, the numeral 15 uppermost and square to the viewer"
+    16: "A single aged bone twenty-sided die, the numeral 16 uppermost and square to the viewer"
+    17: "A single aged bone twenty-sided die, the numeral 17 uppermost and square to the viewer"
+    18: "A single aged bone twenty-sided die, the numeral 18 uppermost and square to the viewer"
+    19: "A single aged bone twenty-sided die, the numeral 19 uppermost and square to the viewer"
+    20: "A single aged bone twenty-sided die, the numeral 20 uppermost and square to the viewer"

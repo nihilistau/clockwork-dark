@@ -25,11 +25,20 @@ wrapped for the duration of a run. Both are reached through several layers
 of them would mean changing engine signatures to serve a script. The wrap is
 restored in a finally block and never leaves this module.
 
+WHAT P12 ADDED, and why the harness had to grow to see it: foraging, labour
+and a working sell side are three systems whose whole point is that the player
+can stay alive and get paid, and this script could measure NEITHER. There was
+no gold-earned counter because nothing earned gold; no forage counter because
+nothing foraged; and every death was reported as one number when the only
+death anybody was dying of was starvation. The `livelihood` block and the
+`pauper` policy exist so those claims can be checked rather than asserted.
+
 Usage:
     python scripts/simulate.py --turns 200 --seed 42 --policy cautious
     python scripts/simulate.py --policy all --json > balance.json
+    python scripts/simulate.py --policy pauper --turns 200   # can you live broke?
 
-Version: v0.1.0 [2026-08-07]
+Version: v0.2.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -57,28 +66,52 @@ from engine.game.evil_ticker import PHASE_THRESHOLDS  # noqa: E402
 from engine.game.locations import LOCATIONS, get_edge  # noqa: E402
 from engine.game.procgen import new_game_state  # noqa: E402
 from engine.game.quests import QuestEngine  # noqa: E402
+from engine.game import economy as economy_module  # noqa: E402
+from engine.game import foraging as foraging_module  # noqa: E402
+from engine.game import inventory as inventory_module  # noqa: E402
+from engine.game import trade as trade_module  # noqa: E402
 from engine.game.state import GameState  # noqa: E402
 from engine.memory.ledger import StoryLedger  # noqa: E402
 from engine.skills.builtin.mechanics import trade as trade_skill  # noqa: E402
 from engine.world.world_sim import WorldSim  # noqa: E402
 
-#: Where each vendor stands. The economy table (data/economy.yaml) names NPCs;
-#: it does not say where they are, and nothing else in the engine does either.
-VENDOR_LOCATIONS: dict[str, str] = {
-    "npc_maris": "edgewood_bakery",
-    "npc_odran": "tinker_caravan",
-    "npc_ilya": "tinker_caravan",
-}
+#: Where each vendor stands. This used to be a hardcoded dict here, because
+#: data/economy.yaml names NPCs without saying where they are and nothing in
+#: the engine knew either. data/tables/trade.yaml now declares it, so the
+#: harness reads the same file the game does.
+def vendor_locations() -> dict[str, str]:
+    """Vendor id -> location id, from the active game's trade table."""
+    return {
+        npc_id: str(profile.get("location") or "")
+        for npc_id, profile in trade_module.vendors().items()
+        if profile.get("location")
+    }
 
-#: The only repeatable food in the game, and its price.
-STAPLE_FOOD = ("npc_maris", "loaf", 2)
 
-#: In-game hours the background world tick adds per turn. Mirrors
-#: ``content/scenes/clockwork/clockwork_state.py::REALTIME_TICK_HOURS``. In
-#: production that tick only fires when ``world.tick_interval_seconds`` of REAL
-#: time has passed, so this is the pacing of a player who thinks for a minute
-#: per turn. Set it to 0 to measure action time alone.
-DEFAULT_TICK_HOURS = 6.0
+#: The bought staple: what a player with money eats. Foraging is the answer for
+#: a player without, and proving that is the point of the `pauper` policy.
+STAPLE_FOOD = ("npc_maris", "loaf")
+
+def _default_tick_hours() -> float:
+    """
+    In-game hours the background world tick adds per turn.
+
+    READ FROM CONFIG, not restated. This was a literal 6.0 whose docstring
+    claimed it mirrored the scene's ``REALTIME_TICK_HOURS`` while nothing
+    enforced it -- so the instrument used to tune the clock could silently
+    measure a different clock than the one that shipped. That is the shape of
+    R-03: the number nobody could see was the number that mattered.
+
+    In production the tick is proportional to REAL time elapsed, so this is the
+    pacing of a player who thinks for about one ``world.tick_interval_seconds``
+    per turn. Pass ``--tick-hours 0`` to measure action time alone.
+    """
+    from engine.config import get_config
+
+    return float(get_config().get("world.tick_hours", 2.0))
+
+
+DEFAULT_TICK_HOURS = _default_tick_hours()
 
 #: Turn budget guard for a policy that somehow never terminates an encounter.
 MAX_ENCOUNTER_ROUNDS = 8
@@ -175,6 +208,23 @@ class RunResult:
     deaths: int = 0
     gold_start: int = 0
     gold_spent: int = 0
+    #: Livelihood instrumentation (P12). Before foraging, labour and a working
+    #: sell side existed there was nothing here to count: every policy ended
+    #: its run at zero gold having earned nothing, and the only food in the
+    #: game had a price. These are the numbers that say whether that changed.
+    gold_earned: int = 0
+    shifts_worked: int = 0
+    shifts_refused: int = 0
+    forage_attempts: int = 0
+    forage_productive: int = 0
+    food_foraged: int = 0
+    items_foraged: int = 0
+    items_sold: int = 0
+    starvation_deaths: int = 0
+    #: Base worth of everything still in the pack at the last turn. A run that
+    #: ends broke but carrying forty coppers of brass has an economy; one that
+    #: ends broke and empty does not.
+    carried_value_end: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -190,16 +240,51 @@ _IDLE_CHECKS = {
     "baker": ("craft", "standard"),
     "cautious": ("survival", "easy"),
     "reckless": ("nerve", "hard"),
+    "pauper": ("survival", "standard"),
 }
 
 
 def _edible(state: GameState) -> str:
-    """Id of the first edible item carried, or empty string."""
+    """
+    Id of the best edible item carried, or empty string.
+
+    "Best" means the one that removes the most hunger. Eating the weakest food
+    first is what an inventory-order scan does, and it measures a player who
+    eats five mushrooms instead of a loaf -- which is not the decision anybody
+    makes and understates what the food economy is worth.
+    """
     rules = survival.load_rules()
+    best, best_value = "", 0.0
     for item in state.inventory:
-        if item.qty > 0 and survival.food_value(item.id, list(item.tags), rules):
-            return item.id
-    return ""
+        if item.qty <= 0:
+            continue
+        value = survival.food_value(item.id, list(item.tags), rules)
+        if value is None:
+            continue
+        gain = -float(value.get("hunger", -15))
+        if gain > best_value:
+            best, best_value = item.id, gain
+    return best
+
+
+def _sellable(state: GameState, npc_id: str) -> tuple[str, int]:
+    """
+    The most valuable thing here this vendor would buy, and what it fetches.
+
+    Food is never offered: the point of carrying food is not starving, and a
+    policy that sells its own dinner measures a bug rather than an economy.
+    """
+    best, best_total = "", 0
+    for entry in state.inventory:
+        if inventory_module.has_tag(entry.id, "food", entry.tags):
+            continue
+        quote = trade_module.quote(state, npc_id, entry.id, trade_module.SELL, entry.qty)
+        if not quote.get("ok"):
+            continue
+        total = int(quote.get("total", 0))
+        if total > best_total:
+            best, best_total = entry.id, total
+    return best, best_total
 
 
 def _common_upkeep(state: GameState, policy: str) -> Optional[Action]:
@@ -221,16 +306,72 @@ def _common_upkeep(state: GameState, policy: str) -> Optional[Action]:
         if item_id:
             return ("eat", {"item_id": item_id})
 
+    # Sell before you buy. Standing at a counter with a pack full of foraged
+    # brass and no money was the exact state the old sell path could not get
+    # anybody out of, so a policy that never tries would not notice it was
+    # fixed.
+    for npc_id, where in vendor_locations().items():
+        if where != state.location_id:
+            continue
+        item_id, total = _sellable(state, npc_id)
+        if item_id and total >= 2:
+            # The whole stack, not one at a time: a player empties their pack
+            # at a counter in one conversation, and selling singly was measured
+            # burning fifty turns of two hundred on the same transaction.
+            return (
+                "sell",
+                {
+                    "npc_id": npc_id,
+                    "item_id": item_id,
+                    "qty": inventory_module.quantity(state, item_id),
+                },
+            )
+
     # Restock while standing in the only shop that sells food. Buying is
     # unconditional on hunger because the bakery is not on the way to anywhere
     # -- a policy that only shops when already starving never gets there.
-    vendor, food_id, price = STAPLE_FOOD
+    vendor, food_id = STAPLE_FOOD
+    price = trade_module.quote(state, vendor, food_id, trade_module.BUY, 1).get(
+        "unit_price", 0
+    )
     if (
-        state.location_id == VENDOR_LOCATIONS[vendor]
+        state.location_id == vendor_locations().get(vendor)
+        and price
         and state.stats.gold >= price
         and not _edible(state)
     ):
-        return ("buy", {"npc_id": vendor, "item_id": food_id})
+        # Stock up rather than buying one loaf per turn. At the shipped 6h
+        # background tick a turn costs 12 hunger before the action does
+        # anything, so buying singly was measured burning more hunger walking
+        # back to the counter than the loaf removed.
+        return (
+            "buy",
+            {"npc_id": vendor, "item_id": food_id, "qty": min(4, state.stats.gold // price)},
+        )
+
+    # Hungry and broke. These two branches are what did not exist: with no
+    # gold, no forage and no wage, the only remaining action was to keep
+    # walking until the hunger clock killed you. Every policy gets them,
+    # because "I am starving and there is work" is not a playstyle.
+    if survival.hunger_stage(state) in ("hungry", "starving") and not _edible(state):
+        if foraging_module.forageable(state.location_id) and state.stats.stamina >= 15:
+            return ("forage", {})
+        # Stamina floor of 45, not 25: a shift is five to eight hours and
+        # taking one at 25 stamina was measured putting `cautious` straight
+        # into a rest, so the shift cost the hours AND the night. Working
+        # yourself into a bed is a net hunger loss.
+        if state.stats.gold < 3 and state.stats.stamina >= 45:
+            paying = [
+                row
+                for row in economy_module.available(state)
+                if row.get("in_kind")
+            ]
+            if paying:
+                # Only work that FEEDS you. A wage cannot be eaten, and at this
+                # pacing the walk back to a counter costs more hunger than the
+                # coin buys.
+                best = min(paying, key=lambda r: float(r.get("hours", 24)))
+                return ("work", {"job_id": best["id"]})
     return None
 
 
@@ -239,6 +380,7 @@ _APPROACH_PREFERENCE: dict[str, tuple[str, ...]] = {
     "cautious": ("talk", "pay", "sneak", "flee", "fight"),
     "reckless": ("fight", "talk", "sneak", "pay", "flee"),
     "baker": ("talk", "pay", "flee", "sneak", "fight"),
+    "pauper": ("talk", "flee", "sneak", "pay", "fight"),
 }
 
 
@@ -272,6 +414,22 @@ def policy_baker(state: GameState) -> Action:
     if state.stats.stamina < 40:
         return ("rest", {"kind": "sleep_bed"})
 
+    # Work if there is work. This is the whole of the Quiet Life arc's economy
+    # and until data/tables/labour.yaml existed there was no such action: the
+    # baker policy's entire day was a craft check against nothing, for nothing.
+    shift = _best_shift(state)
+    if shift:
+        return ("work", {"job_id": shift})
+
+    # Nothing on offer here. A village has more than one counter, and which of
+    # them is hiring moves with the evil phase, so walking to the next one is
+    # a real decision rather than a fallback.
+    target = _nearest_hiring(state, ("edgewood_bakery", "well_row", "the_forge", "fallow_farm"))
+    if target and target != state.location_id:
+        hops = route(state.location_id, target)
+        if hops:
+            return ("travel", {"to": hops[0]})
+
     if state.location_id != "edgewood_bakery":
         hops = route(state.location_id, "edgewood_bakery")
         if hops:
@@ -283,6 +441,80 @@ def policy_baker(state: GameState) -> Action:
 
     skill, difficulty = _IDLE_CHECKS["baker"]
     return ("check", {"skill": skill, "difficulty": difficulty, "hours": 3.0})
+
+
+def _best_shift(state: GameState) -> str:
+    """Highest-paying job on offer where the player stands, or empty string."""
+    offers = economy_module.available(state)
+    if not offers:
+        return ""
+    return max(offers, key=lambda row: int(row.get("expected_wage", 0)))["id"]
+
+
+def _nearest_hiring(state: GameState, candidates: tuple[str, ...]) -> str:
+    """First place in the list that currently has work on offer."""
+    for location_id in candidates:
+        if economy_module.available(state, location_id):
+            return location_id
+    return ""
+
+
+def policy_pauper(state: GameState) -> Action:
+    """
+    Starts broke, stays broke on purpose, and never buys food.
+
+    THIS IS THE POLICY THAT ANSWERS THE QUESTION. Before P12 the only food in
+    the game had a price, so "can a player survive without gold" had one
+    answer: no, and the measured cost was 62-79 starvation deaths per 200
+    turns on every other policy. This one spends nothing, works nothing, and
+    lives entirely off what it can find -- so its death count IS the answer.
+
+    It rotates between forage grounds rather than standing in one, because a
+    depleted node is meant to make you walk, and a policy that never walks
+    measures the depletion curve instead of the food economy.
+    """
+    upkeep = _common_upkeep(state, "pauper")
+    if upkeep:
+        return upkeep
+
+    # 40, not 30. The `exhausted` situational in data/rules/skills.yaml bites
+    # at 20 and a forage costs 6, so a policy that rests at 30 spends most of
+    # its life inside a -3 on the only check that feeds it.
+    if state.stats.stamina < 40:
+        return (
+            "rest",
+            {"kind": "sleep_bed" if state.location_id == "edgewood_square" else "sleep_rough"},
+        )
+
+    # Eat before hunger becomes a stamina cap, not after it becomes damage.
+    if survival.hunger_stage(state) != "fed":
+        item_id = _edible(state)
+        if item_id:
+            return ("eat", {"item_id": item_id})
+
+    grounds = [
+        loc
+        for loc in ("forest_clearing", "herb_glen", "deeper_forest")
+        if foraging_module.forageable(loc)
+    ]
+    if not grounds:
+        skill, difficulty = _IDLE_CHECKS["pauper"]
+        return ("check", {"skill": skill, "difficulty": difficulty, "hours": 2.0})
+
+    here = foraging_module.preview(state)
+    # Move on only once the ground under you is genuinely picked over. Rotating
+    # sooner was measured spending 54 turns of 200 walking between three woods
+    # that are all one hop apart -- travel is the most expensive way to not eat.
+    worn = int(here.get("node_uses", 0)) >= 3
+    if here.get("available") and not worn:
+        return ("forage", {})
+
+    target = grounds[(state.turn_number // 7) % len(grounds)]
+    if target != state.location_id:
+        hops = route(state.location_id, target)
+        if hops:
+            return ("travel", {"to": hops[0]})
+    return ("forage", {})
 
 
 def policy_cautious(state: GameState) -> Action:
@@ -346,6 +578,7 @@ def policy_reckless(state: GameState) -> Action:
 POLICIES: dict[str, Callable[[GameState], Action]] = {
     "baker": policy_baker,
     "cautious": policy_cautious,
+    "pauper": policy_pauper,
     "reckless": policy_reckless,
 }
 
@@ -406,9 +639,16 @@ class Simulation:
             return outcome
 
         def recording_death(*args: Any, **kwargs: Any) -> Any:
+            # Read the cause BEFORE the call: check_death respawns the player
+            # and clears the scene, so anything sampled afterwards says
+            # "starved" for every death in the run.
+            starving = survival.hunger_stage(self.state) == "starving"
+            fighting = encounter_module.active(self.state)
             record = original_death(*args, **kwargs)
             if record:
                 self.result.deaths += 1
+                if starving and not fighting:
+                    self.result.starvation_deaths += 1
             return record
 
         checks_module.resolve = recording_resolve  # type: ignore[assignment]
@@ -453,6 +693,7 @@ class Simulation:
                         action="buy",
                         item_id=str(args["item_id"]),
                         npc_id=str(args["npc_id"]),
+                        qty=int(args.get("qty", 1)),
                     )
                 )
             if not payload.get("success"):
@@ -460,6 +701,46 @@ class Simulation:
             else:
                 self.result.gold_spent += int(payload.get("gold_spent", 0))
             advance_time(state, 0.5)
+
+        elif action == "sell":
+            # Through the registered skill for the same reason `buy` is: the
+            # point of a balance run is to measure the code that ships. This
+            # branch is new because before P12 the sell path refused almost
+            # everything and there was nothing to measure.
+            with active_engine(self.engine):
+                payload = json.loads(
+                    trade_skill(
+                        action="sell",
+                        item_id=str(args["item_id"]),
+                        npc_id=str(args["npc_id"]),
+                        qty=int(args.get("qty", 1)),
+                    )
+                )
+            if payload.get("success"):
+                self.result.gold_earned += int(payload.get("gold_gained", 0))
+                self.result.items_sold += int(payload.get("qty", 0))
+            advance_time(state, 0.5)
+
+        elif action == "forage":
+            outcome = foraging_module.forage(state, ledger=self.ledger)
+            self.result.forage_attempts += 1
+            if outcome.get("found"):
+                self.result.forage_productive += 1
+            for row in outcome.get("found") or []:
+                qty = int(row.get("qty", 0))
+                self.result.items_foraged += qty
+                if inventory_module.has_tag(str(row.get("item_id")), "food"):
+                    self.result.food_foraged += qty
+            if not outcome.get("success") and outcome.get("message"):
+                self.result.errors.append(f"forage refused: {outcome['message']}")
+
+        elif action == "work":
+            outcome = economy_module.work(state, str(args["job_id"]), ledger=self.ledger)
+            if outcome.get("message") and "check" not in outcome:
+                self.result.shifts_refused += 1
+            else:
+                self.result.shifts_worked += 1
+                self.result.gold_earned += int(outcome.get("wage", 0))
 
         elif action == "check":
             checks_module.resolve(
@@ -508,6 +789,7 @@ class Simulation:
         finally:
             checks_module.resolve = original_resolve  # type: ignore[assignment]
             encounter_module.check_death = original_death  # type: ignore[assignment]
+        self.result.carried_value_end = inventory_module.carried_value(self.state)
         return self.result
 
     def _one_turn(self) -> None:
@@ -650,6 +932,10 @@ def summarize(result: RunResult) -> dict[str, Any]:
 
     stage_counts = Counter(s.hunger_stage for s in samples)
     zero_stamina = sum(1 for s in samples if s.stamina <= 0)
+    # Where the turns actually went. Added in P12 because "foraging feeds you"
+    # and "the policy spent 13% of its turns foraging" are different claims and
+    # only the second one explains a death count.
+    action_counts = dict(Counter(s.action for s in samples).most_common())
 
     return {
         "config": {
@@ -675,7 +961,34 @@ def summarize(result: RunResult) -> dict[str, Any]:
             "final_awareness": last.awareness if last else 0.0,
             "final_arc": last.active_arc if last else "quiet_life",
             "deaths": result.deaths,
+            "starvation_deaths": result.starvation_deaths,
             "errors": len(result.errors),
+        },
+        # Livelihood (P12). The block that tells you whether a player can stay
+        # alive and get paid, which is the pair of questions the game had no
+        # mechanical answer to.
+        "livelihood": {
+            "gold_earned": result.gold_earned,
+            "gold_spent": result.gold_spent,
+            "shifts_worked": result.shifts_worked,
+            "shifts_refused": result.shifts_refused,
+            "forage_attempts": result.forage_attempts,
+            "forage_productive": result.forage_productive,
+            "forage_hit_rate": (
+                round(result.forage_productive / result.forage_attempts, 3)
+                if result.forage_attempts
+                else 0.0
+            ),
+            "items_foraged": result.items_foraged,
+            "food_foraged": result.food_foraged,
+            "food_per_forage": (
+                round(result.food_foraged / result.forage_attempts, 2)
+                if result.forage_attempts
+                else 0.0
+            ),
+            "items_sold": result.items_sold,
+            "carried_value_end": result.carried_value_end,
+            "actions": action_counts,
         },
         "evil": {
             "per_in_game_day": round(evil_per_day, 5),
@@ -738,6 +1051,11 @@ def summarize(result: RunResult) -> dict[str, Any]:
     }
 
 
+def _livelihood_line(report: dict[str, Any]) -> str:
+    """The livelihood block minus the action histogram, which prints separately."""
+    return str({k: v for k, v in report.get("livelihood", {}).items() if k != "actions"})
+
+
 def _render(report: dict[str, Any]) -> str:
     """Human-readable rendering of one report."""
     cfg, summary = report["config"], report["summary"]
@@ -755,11 +1073,14 @@ def _render(report: dict[str, Any]) -> str:
         f"(~{evil['turns_to_consuming_projected']} turns)",
         f"phase first seen     {evil['first_day_in_phase']}",
         f"awareness / arc      {summary['final_awareness']} / {summary['final_arc']}",
-        f"deaths / errors      {summary['deaths']} / {summary['errors']}",
+        f"deaths / errors      {summary['deaths']} "
+        f"({summary.get('starvation_deaths', 0)} starvation) / {summary['errors']}",
         "",
         f"stamina              {report['stamina']}",
         f"hunger               {report['hunger']}",
         f"gold                 {report['gold']}",
+        f"livelihood           {_livelihood_line(report)}",
+        f"turns spent on       {report.get('livelihood', {}).get('actions', {})}",
         f"encounters           {report['encounters']}",
         "",
         "skill                attempts  success  partial",

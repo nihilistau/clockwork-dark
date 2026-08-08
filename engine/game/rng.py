@@ -19,7 +19,7 @@ A per-state counter gives both. Naming the streams gives a third: adding an
 encounter roll cannot shift the caravan schedule, because they draw from
 different streams.
 
-Version: v0.2.0 [2026-08-07]
+Version: v0.3.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -41,6 +41,17 @@ COMPLICATION = "complication"
 DICE = "dice"
 ASSISTANT = "assistant"
 PROCGEN = "procgen"
+# Multi-step challenges roll on their own stream so composing one mid-scene
+# cannot shift the outcome of the encounter or skill check around it.
+CHALLENGE = "challenge"
+# Livelihood streams (P12). Separate from LOOT on purpose: what a forage node
+# yields, what a day's labour is worth and whether a vendor moves on a price
+# are three independent questions, and folding them into one stream would mean
+# that adding a shift at the forge silently reshuffled every mushroom in the
+# forest for every seed ever recorded.
+FORAGE = "forage"
+LABOUR = "labour"
+TRADE = "trade"
 
 
 def _mix(seed: int, stream: str, counter: int) -> int:

@@ -47,6 +47,9 @@ npc_maris:
     honeycomb: { price: 5, name: "Cut honeycomb" }
     charcoal_sack: { price: 6, name: "Sack of charcoal" }
     seed_grain: { price: 24, name: "Sack of seed grain" }
+    # Maris buys pigment back below what Ilya charges: the spread is the point,
+    # not an oversight. Nothing should be a gold pump between two vendors.
+    mural_pigment: { price: 5, name: "Ground mural pigment" }
 
 # ------------------------------------------------------------
 # Odran Cartwright -- the caravan. Sells what the road needs and buys what
@@ -92,6 +95,11 @@ npc_ilya:
     hand_awl: { price: 4, name: "Hand awl" }
     mortar_and_pestle: { price: 12, name: "Mortar and pestle" }
     potion: { price: 26, name: "Draught of bittergreen" }
+    # The shrine mural quest consumes pigment and nobody sold any, so the only
+    # route to it was the craft chain. A tinker who trades in brass filings and
+    # resin is exactly who would have ground colour.
+    mural_pigment: { price: 12, name: "Ground mural pigment" }
+    bandage: { price: 7, name: "Bandage poultice" }
   buys:
     clock_spring: { price: 52, name: "Clock spring" }
     brass_filings: { price: 4, name: "Twist of brass filings" }

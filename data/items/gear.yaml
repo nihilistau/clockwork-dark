@@ -5,9 +5,23 @@
 # board and iron it is made of. Apparel is weather, not defence -- the survival
 # model in engine/game/survival.py is what these are for.
 #
-# Field reference: see data/items/food.yaml.
+# EVERY ITEM IN THIS FILE USED TO BE INERT. Twelve pieces of gear, and the only
+# thing a player could do with any of them was sell it: a cloak that could not
+# be worn, a shield that stopped nothing, four light sources that were never
+# lit. They now carry `equip:` and `use:` blocks (see the field reference
+# below), which is the whole of the change -- the numbers are small on purpose.
 #
-# Version: v0.1.0 [2026-08-07]
+# Field reference: see data/items/food.yaml. Additional blocks:
+#   equip.slot           head|body|feet|hands|belt|offhand|light|back
+#   equip.bonuses        [{skills: [...], delta: n}] -- itemised into the check
+#                        receipt by engine/game/checks.py, by name
+#   equip.absorbs_wounds points of wound severity taken off the top, never to
+#                        zero (engine/game/effects.py)
+#   equip.carry_bonus    kilograms added to the reported carry limit
+#   use                  a verb: hours, what it consumes, what it does
+#   collection           set id in data/tables/collections.yaml
+#
+# Version: v0.2.0 [2026-08-08]
 
 version: 1
 
@@ -22,6 +36,20 @@ items:
     weight: 0.1
     value: 1
     art: candle
+    use:
+      verb: "light"
+      hours: 0.5
+      consumes: 1
+      effects:
+        - type: check_penalty
+          id: burning_light
+          text: "a light against the dark"
+          delta: 1
+          skills: [nerve, lore]
+          days: 1
+      text: >-
+        You light it and set it where it will not blow out. The dark does not
+        go away. It just stops being the whole of the room.
     stack: true
 
   - id: tallow_lamp
@@ -32,6 +60,13 @@ items:
     tags: [light]
     weight: 0.4
     value: 3
+    equip:
+      slot: light
+      bonuses:
+        - { skills: [craft], delta: 1 }
+      text: >-
+        You hook the saucer where it will throw light on your hands. Ugly, and
+        it means work does not have to stop at dusk.
     stack: true
 
   - id: pitch_torch
@@ -42,6 +77,14 @@ items:
     tags: [light]
     weight: 0.6
     value: 2
+    equip:
+      slot: light
+      bonuses:
+        - { skills: [nerve], delta: 1 }
+        - { skills: [stealth], delta: -2 }
+      text: >-
+        Lit and carried high. You can see, and so can everything on the
+        treeline that has been waiting for you to make it easy.
     stack: true
 
   - id: tinderbox
@@ -52,6 +95,30 @@ items:
     tags: [light, tool]
     weight: 0.3
     value: 7
+    equip:
+      slot: belt
+      bonuses:
+        - { skills: [survival], delta: 1 }
+      text: "Flint, steel and char, on the belt where a cold hand can find them."
+    use:
+      verb: "build a fire"
+      hours: 1.0
+      once_per_day: true
+      also_consumes:
+        - { id: firewood_bundle, qty: 1 }
+      effects:
+        - type: check_penalty
+          id: warm_and_dry
+          text: "warm and dry"
+          delta: 1
+          skills: [survival, nerve]
+          days: 1
+        - type: stamina
+          delta: 5
+      text: >-
+        Char takes on the third strike. You sit with your boots off and your
+        back to the light and stop being cold, which turns out to have been
+        most of what was wrong.
     stack: false
 
   - id: wool_cloak
@@ -62,6 +129,15 @@ items:
     tags: [apparel]
     weight: 2.0
     value: 30
+    equip:
+      slot: body
+      bonuses:
+        - { skills: [survival], delta: 1 }
+        - { skills: [nerve], delta: 1 }
+      text: >-
+        Over the shoulders and pinned. Warm even wet, which is the only kind of
+        warm this road offers.
+    collection: road_kit
     stack: false
 
   - id: oiled_hood
@@ -72,6 +148,12 @@ items:
     tags: [apparel]
     weight: 0.5
     value: 12
+    equip:
+      slot: head
+      bonuses:
+        - { skills: [survival], delta: 1 }
+      text: "Up, and the rain becomes somebody else's problem for an hour or two."
+    collection: road_kit
     stack: false
 
   - id: hobnail_boots
@@ -82,6 +164,15 @@ items:
     tags: [apparel]
     weight: 1.4
     value: 45
+    equip:
+      slot: feet
+      bonuses:
+        - { skills: [survival], delta: 2 }
+        - { skills: [stealth], delta: -1 }
+      text: >-
+        Laced. Your feet will last twice as far and every stone floor between
+        here and Millhaven will announce you.
+    collection: road_kit
     stack: false
 
   - id: leather_apron
@@ -92,6 +183,14 @@ items:
     tags: [apparel, tool]
     weight: 1.2
     value: 16
+    equip:
+      slot: body
+      bonuses:
+        - { skills: [craft], delta: 1 }
+      absorbs_wounds: 1
+      text: >-
+        On over everything, straps crossed at the back. Sparks and oven-mouths
+        stop being a thing you have to think about.
     stack: false
 
   - id: wooden_shield
@@ -103,6 +202,15 @@ items:
     weight: 3.5
     value: 35
     art: wooden_shield
+    equip:
+      slot: offhand
+      bonuses:
+        - { skills: [nerve], delta: 1 }
+        - { skills: [stealth], delta: -1 }
+      absorbs_wounds: 2
+      text: >-
+        On the arm, boss forward. It is heavy and it is between you and the
+        problem, which is the entire argument for it.
     stack: false
 
   - id: small_shield
@@ -114,6 +222,14 @@ items:
     weight: 1.1
     value: 22
     art: small_shield
+    equip:
+      slot: offhand
+      bonuses:
+        - { skills: [nerve], delta: 1 }
+      absorbs_wounds: 1
+      text: >-
+        Strapped to the fist. It will not stop much, and it will stop the first
+        thing, which is usually the one that matters.
     stack: false
 
   - id: travel_pack
@@ -124,4 +240,13 @@ items:
     tags: [apparel, tool]
     weight: 1.0
     value: 20
+    equip:
+      slot: back
+      carry_bonus: 15.0
+      bonuses:
+        - { skills: [survival], delta: 1 }
+      text: >-
+        Shouldered and cinched. Everything you own moves from your arms to your
+        back and stops being a decision you make every hour.
+    collection: road_kit
     stack: false

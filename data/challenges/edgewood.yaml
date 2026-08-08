@@ -1,0 +1,86 @@
+# Authored set-pieces for Edgewood.
+#
+# A set-piece is a stored challenge behind a flag gate. The flags that open
+# these are set by doom beats (data/rules/doom_effects.yaml), so the loop is:
+#
+#     doom beat -> requires_flags -> set-piece -> grants_flag (one-shot)
+#
+# Specs go through engine/challenges/spec.py exactly like model-composed ones,
+# so the reward ceilings apply here too. If you write a 500-gold reward it will
+# be clamped to 25 and the clamp will be logged.
+
+set_pieces:
+  # Unlocked by the `scarecrow_wakes` beat at evil_progress 0.30.
+  - id: brass_scarecrow
+    location_id: edgewood_square
+    requires_flags: [scarecrow_awake]
+    forbids_flags: [set_piece_brass_scarecrow_done]
+    grants_flag: set_piece_brass_scarecrow_done
+    challenge:
+      id: brass_scarecrow
+      kind: skill_gauntlet
+      title: The Thing in the East Field
+      steps:
+        - skill: nerve
+          difficulty: standard
+          text: >-
+            It stands at the field's edge with its back to the village, and it
+            is not where anyone left it. Walking closer is a decision.
+          on_fail_text: >-
+            Your nerve goes before your feet do. You are three fields away
+            before you notice you have been running.
+        - skill: lore
+          difficulty: hard
+          text: >-
+            Under the sacking, the frame is not wood. Gears sit where a
+            ribcage should, turning slowly, driven by nothing you can see.
+          on_fail_text: >-
+            The pattern will not resolve. It is close to something you have
+            read, and being close is worse than being ignorant.
+        - skill: craft
+          difficulty: standard
+          text: >-
+            One pin holds the whole assembly. Pulling it would stop this.
+          on_fail_text: >-
+            The pin shears. The turning does not stop, and now it knows.
+      reward:
+        text: >-
+          The gears wind down. You keep the pin — brass, warm, and marked with
+          a maker's stamp that is not from any forge in the valley.
+        effects:
+          - { type: item, item_id: brass_pin, name: Warm Brass Pin, tags: [clockwork, evidence] }
+          - { type: awareness, delta: 6 }
+      fail:
+        text: You leave the field with the taste of oil at the back of your throat.
+        effects:
+          - { type: awareness, delta: 2 }
+          - { type: stamina, delta: -15 }
+
+  # Unlocked by the `tunnels_open` beat at evil_progress 0.70.
+  - id: sealed_seam
+    location_id: forest_clearing
+    requires_flags: [tunnels_open]
+    forbids_flags: [set_piece_sealed_seam_done]
+    grants_flag: set_piece_sealed_seam_done
+    challenge:
+      id: sealed_seam
+      kind: puzzle
+      title: The Worked Stone
+      prompt: >-
+        The seam under the stump is not a crack; it is a door, and the door has
+        a word cut into it in letters that keep changing their minds. Only one
+        reading holds still: six letters, the thing every clock is built to
+        divide, and the thing this one is built to stop.
+      answer: time
+      attempts: 3
+      reward:
+        text: The stone remembers being a door, and behaves like one.
+        effects:
+          - { type: flag, flag: seam_opened }
+          - { type: awareness, delta: 8 }
+      fail:
+        text: >-
+          The letters settle into an arrangement that means nothing, and the
+          seam closes to a hairline.
+        effects:
+          - { type: stamina, delta: -10 }

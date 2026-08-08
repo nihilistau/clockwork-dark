@@ -4,7 +4,39 @@ Storyteller Agent
 
 GM agent — narrates world, dispatches required skills, passes Evaluator gate.
 
-Version: v0.1.0 [2026-06-20]
+This is the ONLY production narration path, and until now it never sent a
+``response_format``: ``engine/lmstudio/schemas.py`` built a full turn schema
+that nothing on this path ever used, and the ``lmstudio.structured_output``
+config key was read nowhere at all. ``_infer`` now goes through
+``engine.lmstudio.backend``, which applies the configured structured-output
+mode, picks the transport that can serve the request, and reports a reasoning-
+starved generation as its own failure instead of as an empty string.
+
+NARRATION THAT STOPS DEAD
+-------------------------
+Three separate paths used to put a severed sentence in front of the player, and
+only one of them was detected:
+
+1. A generation cut at ``max_tokens`` with SOME content produced
+   ``finish_reason: "length"`` and was merely logged. ``starved_by_reasoning``
+   only ever caught the case where content was EMPTY, so a partial cut sailed
+   through as if the model had finished.
+2. A cut mid-JSON left ``parse_storyteller_response`` with an object that never
+   closed. ``extract_json`` returned None and the function handed back
+   ``narration: ""`` -- while the player had already watched the first half of
+   that narration stream onto the screen. The turn then "failed evaluation" for
+   having no narration, which is not what happened.
+3. The evaluator retry does not stream (replaying text the player already
+   watched would be worse), so the accepted narration only ever reached the
+   client inside ``turn_update``. The client trusted its own delta buffer and
+   ignored it, leaving the rejected half-streamed draft on screen permanently.
+
+``_infer`` now reports whether the generation actually finished,
+``parse_storyteller_response`` salvages the narration prefix out of an
+unterminated envelope, and everything the player is shown is trimmed to a
+sentence boundary on the way out.
+
+Version: v0.3.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -20,20 +52,54 @@ from engine.agents.json_stream import NarrationStreamer, extract_json
 from engine.agents.prompts import evaluator_retry_prompt, storyteller_system_prompt
 from engine.agents.tag_buffer import TagBuffer
 from engine.game.transaction import StateTransaction
-from engine.lmstudio.gate import inference_slot
 from engine.memory.context import build_storyteller_messages
 from engine.memory.ledger import StoryLedger
-from engine.agents.stream_processor import StreamProcessor
+from engine.agents.stream_processor import (
+    SentenceGate,
+    StreamProcessor,
+    ends_mid_sentence,
+    strip_trailing_debris,
+    trim_to_sentence,
+)
 from engine.agents.tool_dispatcher import execute_tool_calls
 from engine.game.engine import GameEngine
 from engine.game.plot import PlotFormula
-from engine.lmstudio.speculative import speculative_stream
+from engine.lmstudio.schemas import NARRATION_MAX_CHARS
 from engine.lore.interceptors import AwarenessGateInterceptor
 from engine.lore.manager import get_lore_manager
 from engine.media.pipeline import MediaPipeline
 
 logger = logging.getLogger(__name__)
 
+
+
+@dataclass
+class Generation:
+    """
+    One call to the model, plus whether it actually got to the end.
+
+    ``_infer`` used to return a bare string, which made "the model finished"
+    and "the model was cut off at max_tokens" the same value. Every decision
+    downstream -- retry, trim, what to tell the client -- needs to tell those
+    apart.
+    """
+
+    raw: str = ""
+    # False when finish_reason was "length", the stream errored, or the model
+    # produced nothing at all.
+    complete: bool = True
+    finish_reason: str = ""
+    output_tokens: int = 0
+    reasoning_tokens: int = 0
+    # Text withheld from the player because the stream stopped mid-sentence.
+    dropped_tail: str = ""
+
+    @property
+    def truncated(self) -> bool:
+        return self.finish_reason == "length"
+
+    def __str__(self) -> str:  # pragma: no cover - convenience only
+        return self.raw
 
 
 @dataclass
@@ -54,6 +120,16 @@ class StorytellerTurnResult:
     # unreachable. Previously the canned line was emitted with no signal
     # anywhere in the payload, so a dead LLM looked like a very boring game.
     llm_unavailable: bool = False
+    # Rule breaches found by the governance POST chain (R001-R005). Empty on a
+    # clean turn, which is the overwhelmingly common case.
+    governance: list[dict[str, Any]] = field(default_factory=list)
+    # False when the accepted narration came from a generation that was cut
+    # short (max_tokens, a broken stream, an unterminated JSON envelope) and
+    # had its unfinished tail trimmed away. Carried so the client and the
+    # telemetry oracle can tell a deliberate ending from a survived one.
+    narration_complete: bool = True
+    # finish_reason of the generation that produced the accepted narration.
+    finish_reason: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -67,7 +143,60 @@ class StorytellerTurnResult:
             "media": self.media,
             "retries": self.retries,
             "llm_unavailable": self.llm_unavailable,
+            "governance": self.governance,
+            "narration_complete": self.narration_complete,
+            "finish_reason": self.finish_reason,
         }
+
+
+# The model writing the whole turn object a second time, escaped, INSIDE the
+# narration string. Grammar-legal -- a JSON string may contain anything -- so
+# structured output does not prevent it, and the player is shown
+# `..., "choices": [{"id": "a", "text": ...` as if it were prose. Measured once
+# in 21 live turns on nemotron-3-nano-4b.
+_EMBEDDED_ENVELOPE = re.compile(
+    r'["\'”’]?\s*,\s*"'
+    r"(?:choices|npc_voices|ledger_delta|mood|image_tag|tags_inline|narration"
+    r"|tool_calls|stat_changes|items_gained|items_lost|skill_check)"
+    r'"\s*:'
+)
+
+
+def strip_embedded_envelope(narration: str) -> str:
+    """
+    Cut the narration where it stops being prose and starts being JSON.
+
+    Returns the text unchanged when no envelope is embedded, which is the
+    overwhelmingly common case.
+    """
+    match = _EMBEDDED_ENVELOPE.search(narration)
+    if not match:
+        return narration
+    return narration[: match.start()]
+
+
+def salvage_narration(raw: str) -> str:
+    """
+    Recover the narration string from a JSON object that never closed.
+
+    A generation cut at ``max_tokens`` mid-envelope is unparseable, and the old
+    behaviour was to return an empty narration -- despite the player having
+    already watched most of that narration arrive as deltas. The incremental
+    decoder can read exactly as much of the string as was actually written, so
+    the prose is recoverable even though the object is not.
+
+    Args:
+        raw: Partial model output, expected to contain ``"narration": "..."``.
+
+    Returns:
+        The decoded narration text (possibly unfinished), or "" if the key
+        never arrived.
+    """
+    if '"narration"' not in raw:
+        return ""
+    streamer = NarrationStreamer()
+    streamer.push(raw)
+    return streamer.text
 
 
 def parse_storyteller_response(raw: str) -> dict[str, Any]:
@@ -82,6 +211,11 @@ def parse_storyteller_response(raw: str) -> dict[str, Any]:
     contains ``"choices": [{...}]``. So the fallback could never match, and
     whenever the model omitted the code fence (the single most common local
     model deviation) the player was shown the raw JSON as narration.
+
+    When the object is unparseable because it was CUT SHORT rather than
+    malformed, the narration string is salvaged out of the fragment instead of
+    being thrown away. That is the difference between "the model wrote nothing"
+    and "the model was interrupted", and only the second one is true.
 
     Args:
         raw: Full LLM response text.
@@ -107,6 +241,42 @@ def parse_storyteller_response(raw: str) -> dict[str, Any]:
         data.setdefault("skill_check", None)
         data.setdefault("tags_inline", "")
         return data
+
+    # Unparseable. Before falling back, try to read the narration out of a
+    # fragment that was simply cut short -- the common case by far, and the one
+    # that used to blank the screen after the player had already read half of
+    # it.
+    salvaged = salvage_narration(raw)
+    if salvaged.strip():
+        logger.warning(
+            "[storyteller] JSON envelope never closed; salvaged the narration "
+            "(operation=parse_storyteller_response, raw_chars=%s, "
+            "narration_chars=%s, mid_sentence=%s)",
+            len(raw),
+            len(salvaged),
+            ends_mid_sentence(salvaged),
+        )
+        return {
+            "narration": salvaged,
+            # Generic, but never empty: a zero-choice turn is a soft-lock, and
+            # a cut-short generation is exactly when one would happen. The
+            # retry in run_turn is driven by `salvaged`, not by the evaluator
+            # noticing the choices are dull.
+            "choices": [
+                {"id": "a", "text": "Look around"},
+                {"id": "b", "text": "Continue"},
+            ],
+            "tool_calls": [],
+            "npc_voices": [],
+            "ledger_delta": {},
+            "stat_changes": {},
+            "items_gained": [],
+            "items_lost": [],
+            "skill_check": None,
+            "tags_inline": "",
+            "parse_failed": True,
+            "salvaged": True,
+        }
 
     # Genuinely unparseable: show the prose, never the machinery.
     narration = raw.strip()
@@ -143,7 +313,9 @@ class StorytellerAgent:
     Args:
         engine: Game engine bound to session state.
         llm_fn: Optional mock/injectable LLM callable(messages) -> str.
-        use_speculative: Use draft→refine if True and client available.
+        lms_client: Optional backend override (anything with chat_stream/chat).
+        on_reasoning: Optional sink for the model's reasoning channel, so the
+            UI can show "the world is deciding..." during a slow local turn.
     """
 
     AGENT_ID = "clockwork_storyteller"
@@ -154,14 +326,14 @@ class StorytellerAgent:
         engine: GameEngine,
         *,
         llm_fn: Optional[Callable[[list[dict[str, Any]]], str]] = None,
-        use_speculative: bool = False,
         lms_client: Any = None,
         ledger: Optional[StoryLedger] = None,
+        on_reasoning: Optional[Callable[[str], None]] = None,
     ) -> None:
         self.engine = engine
         self.llm_fn = llm_fn
-        self.use_speculative = use_speculative
         self._client = lms_client
+        self.on_reasoning = on_reasoning
         self._evaluator = StorytellerEvaluator()
         self._media = MediaPipeline()
         # Narrative memory. Owned by the session; the agent holds a reference so
@@ -169,19 +341,32 @@ class StorytellerAgent:
         self.ledger: StoryLedger = ledger if ledger is not None else StoryLedger()
         self._lore_chunks: list[Any] = []
         self._llm_failed = False
+        # Populated per turn from the last generation, for diagnostics and for
+        # the UI's reasoning channel.
+        self.last_reasoning: str = ""
 
     def _infer(
         self,
         messages: list[dict[str, Any]],
         *,
         on_delta: Optional[Callable[[str], None]] = None,
-    ) -> str:
+    ) -> Generation:
         """
         Call the LLM, streaming narration to on_delta when one is supplied.
 
         Narration is decoded out of the JSON object as it arrives (it is the
-        first property in the schema) and passed through a tag buffer, so
-        ``[IMAGE:...]`` split across chunks never reaches the player's log.
+        first property in the schema) and passed through two gates before it
+        reaches the player:
+
+        * :class:`TagBuffer` holds back text that might still turn out to be a
+          ``[IMAGE:...]`` split across chunks.
+        * :class:`SentenceGate` holds back text that is not yet a well-formed
+          prefix, and -- when the generation is cut short -- drops the severed
+          tail rather than presenting it as prose.
+
+        Returns:
+            A :class:`Generation` carrying the raw text and whether the model
+            reached its own ending.
         """
         if self.llm_fn is not None:
             raw = self.llm_fn(messages)
@@ -193,53 +378,202 @@ class StorytellerAgent:
                 text = buffer.push(streamer.push(raw)) + buffer.flush()
                 if text:
                     on_delta(text)
-            return raw
+            return Generation(raw=raw, complete=True, finish_reason="stop")
 
-        from engine.lmstudio.client import get_lms_client
-        from engine.lmstudio.profiles import resolve_profile
+        from engine.lmstudio.backend import get_backend
+        from engine.lmstudio.schemas import storyteller_turn_schema
+        from engine.memory.context import present_npc_ids
 
-        client = self._client or get_lms_client()
-        profile = resolve_profile("big")
+        backend = self._client or get_backend()
+        # The schema this path built and then never sent. `structured_output`
+        # decides whether it actually goes on the wire.
+        schema = storyteller_turn_schema(npc_ids=present_npc_ids(self.engine.state))
+        response_format = backend.structured_output(schema)
+
+        self.last_reasoning = ""
+
+        def _reasoning(delta: str) -> None:
+            # Reasoning is captured and forwarded, and deliberately never fed
+            # to the narration decoder or the tag buffer: a model musing
+            # "maybe [IMAGE:forest]" must not fire a real image generation.
+            self.last_reasoning += delta
+            if self.on_reasoning:
+                self.on_reasoning(delta)
 
         if on_delta is None:
-            with inference_slot(label="storyteller"):
-                return client.chat(
-                    messages,
-                    model=profile.model,
-                    temperature=profile.temperature,
-                    max_tokens=profile.max_tokens,
-                ).content
+            result = backend.chat(
+                messages,
+                profile="big",
+                response_format=response_format,
+                label="storyteller",
+            )
+            self.last_reasoning = result.reasoning_content
+            self._warn_if_starved(result)
+            self._warn_if_truncated(result)
+            return self._generation(result, result.content)
 
         streamer = NarrationStreamer()
         buffer = TagBuffer()
+        gate = SentenceGate()
         parts: list[str] = []
+        # Set when the narration string turns into a second copy of the turn
+        # envelope. Everything after that point is machinery, not prose, and
+        # must stop reaching the screen immediately -- not at the end of the
+        # turn when the authoritative text replaces it.
+        derailed = False
 
         def _forward(delta: str) -> None:
+            nonlocal derailed
             parts.append(delta)
             text = streamer.push(delta)
-            if text:
-                safe = buffer.push(text)
-                if safe:
-                    on_delta(safe)
+            if derailed or not text:
+                return
+            # Scan a bounded tail, not the whole buffer: this runs on every
+            # delta, and the O(n^2) rescan is the exact shape of the bug the
+            # tag scanner already carries.
+            window = streamer.text[-max(160, len(text) + 80) :]
+            if _EMBEDDED_ENVELOPE.search(window):
+                derailed = True
+                logger.warning(
+                    "[storyteller] Narration ran into an embedded JSON envelope; "
+                    "stopped forwarding (operation=_infer, chars=%s)",
+                    len(streamer.text),
+                )
+                return
+            safe = buffer.push(text)
+            if safe:
+                paced = gate.push(safe)
+                if paced:
+                    on_delta(paced)
 
-        with inference_slot(label="storyteller"):
-            generator = client.chat_stream(
-                messages,
-                model=profile.model,
-                temperature=profile.temperature,
-                max_tokens=profile.max_tokens,
-                on_delta=_forward,
+        generator = backend.chat_stream(
+            messages,
+            profile="big",
+            response_format=response_format,
+            on_delta=_forward,
+            on_reasoning=_reasoning,
+        )
+        result = None
+        error = ""
+        try:
+            while True:
+                next(generator)
+        except StopIteration as stop:
+            result = stop.value
+        except Exception as exc:  # noqa: BLE001 -- surfaced as an incomplete turn
+            error = f"{type(exc).__name__}: {exc}"
+            logger.warning(
+                "[storyteller] Narration stream broke off "
+                "(operation=_infer, chars=%s): %s",
+                sum(len(p) for p in parts),
+                exc,
             )
-            try:
-                while True:
-                    next(generator)
-            except StopIteration:
-                pass
 
-        tail = buffer.flush()
-        if tail:
-            on_delta(tail)
-        return "".join(parts)
+        # A generation that reached its own ending may show its tail verbatim.
+        # One that was cut short must not: the severed clause is dropped, and
+        # the authoritative narration in `turn_update` replaces what is on
+        # screen with a version that ends properly.
+        complete = bool(
+            result is not None and not result.truncated and not error and not derailed
+        )
+        held = buffer.flush()
+        if held:
+            tail = gate.push(held)
+            if tail:
+                on_delta(tail)
+        closing = gate.flush(complete=complete)
+        if closing:
+            on_delta(closing)
+        if gate.dropped:
+            logger.info(
+                "[storyteller] Held back %s chars of unfinished narration "
+                "(operation=_infer, complete=%s, tail=%r)",
+                len(gate.dropped),
+                complete,
+                gate.dropped[-60:],
+            )
+
+        raw = "".join(parts)
+        if result is not None:
+            self._warn_if_starved(result)
+            self._warn_if_truncated(result)
+            # A starved stream produced no content at all. Recover with one
+            # non-streaming, reasoning-off attempt rather than handing the
+            # evaluator an empty string and calling it a bad narration.
+            if result.starved_by_reasoning:
+                recovered = backend.chat(
+                    messages,
+                    profile="big",
+                    reasoning="off",
+                    response_format=response_format,
+                    label="storyteller:recover",
+                    retry_on_starvation=False,
+                )
+                if recovered.content.strip():
+                    logger.info(
+                        "[storyteller] Recovered narration with reasoning off "
+                        "(operation=_infer, chars=%s)",
+                        len(recovered.content),
+                    )
+                    return self._generation(recovered, recovered.content)
+            generation = self._generation(result, raw, dropped=gate.dropped)
+            if derailed:
+                generation.complete = False
+            return generation
+
+        return Generation(
+            raw=raw,
+            complete=False,
+            finish_reason="error" if error else "",
+            dropped_tail=gate.dropped,
+        )
+
+    @staticmethod
+    def _generation(result: Any, raw: str, *, dropped: str = "") -> Generation:
+        """Wrap an LMSResponse and the text actually collected."""
+        return Generation(
+            raw=raw,
+            complete=not getattr(result, "truncated", False),
+            finish_reason=str(getattr(result, "finish_reason", "") or ""),
+            output_tokens=int(getattr(result, "output_tokens", 0) or 0),
+            reasoning_tokens=int(getattr(result, "reasoning_tokens", 0) or 0),
+            dropped_tail=dropped,
+        )
+
+    @staticmethod
+    def _warn_if_truncated(result: Any) -> None:
+        """
+        Name the PARTIAL cut, which nothing used to detect.
+
+        ``starved_by_reasoning`` is the empty-content case and was the only one
+        with a failure class. A generation that wrote 900 characters and was
+        then guillotined at ``max_tokens`` is the case the player actually
+        complains about, and it looked identical to a clean stop.
+        """
+        if getattr(result, "truncated_mid_content", False):
+            logger.warning(
+                "[storyteller] Narration was CUT OFF at max_tokens with content "
+                "already written -- the last sentence is severed "
+                "(operation=_infer, model=%s, chars=%s, output_tokens=%s, "
+                "reasoning_tokens=%s)",
+                getattr(result, "model", "?"),
+                len(getattr(result, "content", "") or ""),
+                getattr(result, "output_tokens", 0),
+                getattr(result, "reasoning_tokens", 0),
+            )
+
+    @staticmethod
+    def _warn_if_starved(result: Any) -> None:
+        """Name the empty-content failure instead of letting it look like prose."""
+        if getattr(result, "starved_by_reasoning", False):
+            logger.error(
+                "[storyteller] Narration came back EMPTY because the model spent "
+                "its whole token budget reasoning (operation=_infer, model=%s, "
+                "reasoning_tokens=%s, output_tokens=%s)",
+                getattr(result, "model", "?"),
+                getattr(result, "reasoning_tokens", 0),
+                getattr(result, "output_tokens", 0),
+            )
 
     def _lore_block(self, player_action: str) -> str:
         """
@@ -348,6 +682,12 @@ class StorytellerAgent:
         # narration they never saw.
         tx = StateTransaction(self.engine.state)
 
+        # R004 needs the pre-turn value to prove evil_progress never fell. Read
+        # here, before the transaction can be rolled back and replayed, so a
+        # retry compares against the turn's true starting point rather than
+        # against a partially applied draft.
+        evil_before = float(self.engine.state.evil_progress)
+
         while retries <= self.MAX_RETRIES:
             if retries:
                 tx.rollback()
@@ -360,24 +700,87 @@ class StorytellerAgent:
             )
             try:
                 # Only stream the first attempt: a retry would replay text the
-                # player has already watched appear.
-                raw = self._infer(messages, on_delta=on_delta if not retries else None)
+                # player has already watched appear. The retry's narration
+                # still reaches them -- `turn_update` carries the authoritative
+                # text and the client replaces the streamed entry with it.
+                generation = self._infer(
+                    messages, on_delta=on_delta if not retries else None
+                )
             except Exception as exc:
                 logger.warning(
                     "[storyteller] LLM unavailable (operation=run_turn): %s", exc
                 )
-                raw = (
-                    "The forest holds its breath. Smoke drifts from a distant chimney."
+                generation = Generation(
+                    raw=(
+                        "The forest holds its breath. "
+                        "Smoke drifts from a distant chimney."
+                    ),
+                    complete=True,
                 )
                 self._llm_failed = True
 
+            raw = generation.raw
             parsed = parse_storyteller_response(raw)
             tool_receipts = execute_tool_calls(
                 parsed.get("tool_calls", []),
                 self.engine,
             )
 
+            # Never hand the player a severed sentence, and never hand them the
+            # machinery. A generation that was cut short gets its unfinished
+            # tail dropped; one that ended on its own is untouched apart from
+            # markdown debris and any envelope it wrote inside its own prose.
             narration = parsed.get("narration", raw)
+            cleaned = strip_embedded_envelope(narration)
+            if cleaned != narration:
+                logger.warning(
+                    "[storyteller] Narration contained an embedded JSON envelope; "
+                    "cut it (operation=run_turn, before=%s, after=%s)",
+                    len(narration),
+                    len(cleaned),
+                )
+                narration = cleaned
+                parsed["narration"] = cleaned
+
+            # Fence debris is stripped unconditionally. It survives every
+            # truncation check by construction: the sentence before it is
+            # complete, so `ends_mid_sentence` is False and nothing else looks.
+            debris_free = strip_trailing_debris(narration)
+            if debris_free != narration:
+                narration = debris_free
+                parsed["narration"] = debris_free
+
+            # A narration that lands exactly on the schema's maxLength was cut
+            # by the GRAMMAR, not by the model: the sampler was forced to emit
+            # the closing quote mid-word. finish_reason is a clean "stop", so
+            # this is the one truncation no token-level check can ever see.
+            # Measured once in 21 live turns (a degeneration into backticks
+            # that ran the string to its ceiling).
+            if len(narration) >= NARRATION_MAX_CHARS:
+                logger.warning(
+                    "[storyteller] Narration hit the schema ceiling and was cut "
+                    "by the grammar (operation=run_turn, max_chars=%s)",
+                    NARRATION_MAX_CHARS,
+                )
+                generation.complete = False
+
+            if narration and (
+                not generation.complete
+                or parsed.get("salvaged")
+                or ends_mid_sentence(narration)
+            ):
+                trimmed = trim_to_sentence(narration)
+                if trimmed != narration:
+                    logger.info(
+                        "[storyteller] Trimmed an unfinished trailing fragment "
+                        "(operation=run_turn, before=%s, after=%s, complete=%s)",
+                        len(narration),
+                        len(trimmed),
+                        generation.complete,
+                    )
+                    narration = trimmed
+                    parsed["narration"] = trimmed
+
             tags_inline = parsed.get("tags_inline", "")
             tag_result = StreamProcessor.extract_tags(tags_inline or narration)
             processed_tags = tag_result.all_tags
@@ -389,10 +792,29 @@ class StorytellerAgent:
                 lore_snippets=[c.text for c in self._lore_chunks],
             )
 
-            if evaluation.passed:
+            # A cut-short generation is retried even when the evaluator is
+            # happy with what survived. The evaluator scores prose; it cannot
+            # tell a deliberate ending from a guillotine, and the trimmed text
+            # is by definition missing its last beat.
+            incomplete = not generation.complete or bool(parsed.get("salvaged"))
+            if evaluation.passed and not incomplete:
+                break
+            if incomplete and retries < self.MAX_RETRIES:
+                logger.info(
+                    "[storyteller] Retrying a cut-short generation "
+                    "(operation=run_turn, finish_reason=%s, salvaged=%s)",
+                    generation.finish_reason,
+                    bool(parsed.get("salvaged")),
+                )
+            elif evaluation.passed:
+                # Out of retries but the surviving prose is good. Keep it
+                # rather than spending another generation the player waits for.
                 break
 
-            retry_notes = evaluation.notes
+            retry_notes = evaluation.notes or [
+                "Your previous reply was cut off before it finished. "
+                "Write a shorter, complete narration that ends on a full stop."
+            ]
             rejected_draft = raw
             retries += 1
 
@@ -410,6 +832,28 @@ class StorytellerAgent:
             processed_tags=processed_tags,
         )
 
+        # Audit the committed turn. This is the call that makes SceneRulesEngine
+        # (R001-R005) real -- it has enforced nothing since it was written
+        # because nothing invoked it. Runs after the commit so it judges the
+        # state the player actually ends the turn in, and never raises: a
+        # governor that could kill a turn would trade an audit for an outage.
+        #
+        # Imported here, not at module scope: engine.agents.governance registers
+        # the legacy lore interceptors at import time, and engine.agents.__init__
+        # eagerly imports this class. A top-level import would close that loop.
+        from engine.agents.governance import TurnContext, get_governance
+
+        governance_ctx = get_governance().run_post(
+            TurnContext(
+                state=self.engine.state,
+                player_action=player_action,
+                parsed=parsed,
+                narration=parsed.get("narration", raw),
+                tool_receipts=tool_receipts,
+                metadata={"evil_before": evil_before},
+            )
+        )
+
         return StorytellerTurnResult(
             narration=parsed.get("narration", raw),
             choices=parsed.get("choices", []),
@@ -422,4 +866,9 @@ class StorytellerAgent:
             retries=retries,
             raw_llm=raw,
             llm_unavailable=self._llm_failed,
+            governance=governance_ctx.violations,
+            narration_complete=bool(
+                generation.complete and not parsed.get("salvaged")
+            ),
+            finish_reason=generation.finish_reason,
         )

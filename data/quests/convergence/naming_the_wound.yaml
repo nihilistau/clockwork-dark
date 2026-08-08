@@ -28,6 +28,17 @@ stages:
       all:
         - flag: nf_naming_laid_it_out
         - min_stat: { stat: wits, min: 10 }
+        # You cannot lay out what you did not keep. Any ONE of these is enough
+        # to have something on the table -- this is a reason to have held on to
+        # a child's drawing, not a checklist. `brass_evidence` is the set in
+        # data/tables/collections.yaml, and having it is the elegant answer.
+        - any:
+            - flag: collection_brass_evidence_complete
+            - has_item: { id: nessas_drawing, qty: 1 }
+            - has_item: { id: fourth_verse, qty: 1 }
+            - has_item: { id: brass_shard, qty: 1 }
+            - has_item: { id: golden_ring, qty: 1 }
+            - has_item: { id: copied_list, qty: 1 }
     complete_text: >-
       The lamb, the verse, the map's impossible vantage, the ring in the ash.
       One mechanism, seen at four different magnifications.

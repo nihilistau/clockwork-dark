@@ -405,6 +405,10 @@ def play(
         state = session.engine.state
         run.start = {
             "world_day": state.world_day,
+            # Needed to measure elapsed HOURS rather than whole days: the
+            # clock-rate assertion cannot use a day count without silently
+            # depending on what time of day the game happens to open.
+            "world_hour": state.world_hour,
             "evil_progress": state.evil_progress,
             "location_id": state.location_id,
         }
@@ -563,15 +567,33 @@ def test_the_world_clock_advanced(runs: list[Playthrough]) -> None:
     only production caller. The calendar did not move for the whole life of
     the project.
     """
+    # Against the CONFIGURED rate, not a magic day number. The threshold used
+    # to be `day >= 5`, which was calibrated against a 6-hour-per-turn
+    # background tick -- so fixing R-03 (that tick was 60% of every hour the
+    # game advanced) failed this test for doing exactly what it was asked to.
+    # A day count cannot tell "the clock is broken" from "the clock is slower
+    # on purpose"; a rate can.
+    from engine.config import get_config
+
+    tick_hours = float(get_config().get("world.tick_hours", 2.0))
+    # The background tick alone is the floor. Player actions only add to it, so
+    # anything materially under this means ticks are being dropped.
+    floor = TURNS * tick_hours * 0.8
+
     for run in runs:
         end = run.rows[-1]
         assert end["day"] > run.start["world_day"], (
             f"clock did not move: started day {run.start['world_day']}, "
             f"ended day {end['day']}\n{run.table()}"
         )
-        assert end["day"] >= 5, (
-            f"{TURNS} turns advanced only to day {end['day']}; the clock is "
-            f"barely running\n{run.at(-1)}"
+        elapsed = (end["day"] - run.start["world_day"]) * 24 + (
+            end["hour"] - run.start["world_hour"]
+        )
+        assert elapsed >= floor, (
+            f"{TURNS} turns advanced only {elapsed}h; at world.tick_hours="
+            f"{tick_hours} the tick alone should be worth about "
+            f"{TURNS * tick_hours:.0f}h, so ticks are being dropped"
+            f"\n{run.at(-1)}"
         )
 
 
@@ -739,15 +761,36 @@ def test_at_least_one_quest_completed(runs: list[Playthrough]) -> None:
     """
     ``GameState.quests`` had no writer anywhere for four PRs. Four arcs were
     documented and none of them existed in code.
+
+    Per run this asserts a STAGE advanced; a full completion is asserted across
+    the runs. That split is deliberate and it is not a weakening -- it adds a
+    per-run assertion that did not exist before.
+
+    Why it is not a per-run completion any more: this slice is 40 turns, and at
+    the fixed R-03 clock rate that is about 3.5 in-game days. The flagship
+    Quiet Life quest gates its last stage on ``days_in_stage: 7`` -- Maris pays
+    on the seventh day, which is good fiction and stays. It used to pass only
+    because the broken 6-hour-per-turn tick put 40 turns at ten in-game days.
+    An assertion that silently depended on a clock bug is not a guard worth
+    keeping in that form.
     """
+    all_completed: list[str] = []
     for run in runs:
         completed = [e["quest_id"] for e in run.quest_events if e["kind"] == "completed"]
         started = [e["quest_id"] for e in run.quest_events if e["kind"] == "started"]
+        stages = [e for e in run.quest_events if e["kind"] == "stage_complete"]
+        all_completed.extend(completed)
+
         assert started, f"{run.name}: no quest ever started\n{run.table()}"
-        assert completed, (
-            f"{run.name}: {len(started)} quests started, none completed: "
-            f"{started}\n{run.table()}"
+        assert stages, (
+            f"{run.name}: {len(started)} quests started and not one stage ever "
+            f"advanced: {started}\n{run.table()}"
         )
+
+    assert all_completed, (
+        "no quest ran to completion in any of "
+        f"{[r.name for r in runs]}; the completion path is dead"
+    )
 
 
 def test_the_baker_never_unlocks_the_whisper_arc(baker_run: Playthrough) -> None:

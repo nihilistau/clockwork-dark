@@ -70,7 +70,14 @@ stages:
     objective: "Do the work the decision made. All of it, for three days."
     complete_when:
       all:
-        - days_in_stage: 3
+        - any:
+            - days_in_stage: 3
+            # The shrine strongbox has a long-shanked key with wards cut in a
+            # pattern that stopped being made two generations ago. Whoever has
+            # it does not have to break the box, and the work goes a day faster.
+            - all:
+                - days_in_stage: 2
+                - has_item: { id: iron_key, qty: 1 }
         - at_location: [edgewood_square, edgewood_bakery, forest_clearing]
     complete_text: >-
       Carts, and lists, and arguments about a dresser. World-scale decisions are

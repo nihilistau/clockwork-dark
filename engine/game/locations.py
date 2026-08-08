@@ -29,7 +29,7 @@ Note on ``CANONICAL_LOCATION_IDS``: it is the five ids pinned by CLAUDE.md
 ("Canon IDs -- do not rename"), NOT the whole graph. Use ``LOCATION_IDS`` for
 "every place that exists".
 
-Version: v0.2.0 [2026-08-07]
+Version: v0.2.1 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -307,12 +307,24 @@ def load_locations(path: Optional[Path] = None) -> dict[str, dict[str, Any]]:
 
     _mirror_missing_returns(graph)
 
+    # CANON_IDS are The Clockwork Dark's canon, not the engine's. A second game
+    # ships its own map and shares none of them, so "all five absent" means
+    # "different story", not "broken file" -- logging ERROR five times per load
+    # taught players to ignore the one message that matters. A PARTIAL match is
+    # still an error: that is the flagship map with places missing, which is
+    # exactly the quest/encounter/schedule breakage the check was written for.
     missing_canon = [cid for cid in CANON_IDS if cid not in graph]
-    if missing_canon:
+    if missing_canon and len(missing_canon) < len(CANON_IDS):
         logger.error(
             "[locations] Canon ids absent from the graph "
             "(operation=load_locations, missing=%s)",
             missing_canon,
+        )
+    elif missing_canon:
+        logger.debug(
+            "[locations] No canon ids present; this is not the flagship map "
+            "(operation=load_locations, places=%d)",
+            len(graph),
         )
 
     edge_count = sum(len(s["connections"]) for s in graph.values())

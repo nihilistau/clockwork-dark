@@ -125,6 +125,19 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
     EvilTicker.advance(state, days_elapsed=days)
     PlotFormula.update_story_pressure(state)
 
+    # Doom beats key on the evil_progress the ticker just moved, so they fire
+    # here rather than in a turn handler. That matters: the clock also advances
+    # for travel, rest, unconsciousness and the background world tick, and a
+    # doom clock that only advanced on narrated turns would stop for a player
+    # who spent three days asleep. Idempotent (each beat sets its own flag), so
+    # the death check's re-entry cannot double-apply one.
+    try:
+        from engine.world import world_effects
+
+        world_effects.apply_pending_beats(state)
+    except ImportError:
+        pass
+
     expired, healed = _sweep_expiries(state)
 
     # Imported lazily so the clock has no hard dependency on layers that may

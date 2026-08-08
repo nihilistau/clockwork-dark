@@ -84,6 +84,28 @@ Other launcher modes:
 | `launcher.py --stack` | Start the managed local services, wait for health, then play |
 | `launcher.py --check` | Print the service status table and exit |
 | `launcher.py --no-stack` | Skip the service check entirely |
+| `launcher.py --list-games` | List installed games, with any manifest problems |
+| `launcher.py --game <slug>` | Play a specific game |
+
+## Games
+
+The engine is story-agnostic; the story lives in `games/<slug>/game.yaml`, which
+declares the content paths, and everything under it. Two ship:
+
+| Slug | Story |
+|------|-------|
+| `clockwork-dark` | The Clockwork Dark — the flagship. Edgewood, the forest edge, the gear-rot |
+| `drowned-carillon` | The Drowned Carillon — a bell-town under rising water |
+
+```powershell
+.\.venv\Scripts\python.exe launcher.py --list-games
+.\.venv\Scripts\python.exe launcher.py --game drowned-carillon
+```
+
+Selection order is `--game`, then the `CLOCKWORK_GAME` environment variable,
+then `game.default` in `config/default.yaml`. Activation happens before any
+content is imported, and saves are namespaced per game (`data/saves/<slug>/`)
+so two stories cannot collide.
 
 `scripts/start.ps1` creates the venv, installs requirements and runs the suite
 before pointing you at the launcher.

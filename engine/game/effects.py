@@ -22,7 +22,14 @@ returns a description. Unknown effect types are logged and ignored, never
 raised -- an unrecognised row is content the engine is too old to understand,
 not a reason to stop playing.
 
-Version: v0.1.0 [2026-08-07]
+ITEMS WRITE THROUGH HERE TOO. ``equip``/``unequip``, ``heal_wound`` and
+``clear_condition`` were added when items were given verbs (data/items/*.yaml
+``use:`` and ``equip:`` blocks). They are here rather than in
+engine/game/inventory.py for the reason at the top of this file: a bandage that
+closed a wound by reaching into ``state.wounds`` would be a second writer, and
+the receipt the UI renders would have nothing to show.
+
+Version: v0.2.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -44,6 +51,81 @@ HUNGER_MIN, HUNGER_MAX = 0.0, 100.0
 # Effect type aliases that are just `stat` with the name baked in. Kept so a
 # content author can write `{type: hp, delta: -2}` instead of the longer form.
 _STAT_ALIASES = ("hp", "stamina", "focus", "craft", "gold")
+
+# Worn gear is held as a TimedEffect rather than as a new GameState field, the
+# same trick engine/game/foraging.py uses for node wear, engine/game/economy.py
+# for the daily shift cap and engine/game/trade.py for today's haggle. Two
+# things fall out of it for free:
+#
+#   1. engine/game/checks.py already walks ``active_effects`` for
+#      ``kind == "check_penalty"`` and itemises each one in the receipt, so a
+#      worn cloak shows up in the roll breakdown by name with no change there.
+#   2. No save migration. A save written before equipment existed loads with an
+#      empty list, which is exactly "wearing nothing".
+#
+# The id carries the whole record -- ``equip:<slot>:<item_id>`` -- so what is
+# worn is derivable from the state rather than duplicated beside it.
+EQUIP_ID_PREFIX = "equip:"
+
+#: TimedEffect.expires_day for worn gear. The clock sweeps anything whose
+#: expires_day is BELOW the current day (engine/game/clock.py); a sentinel this
+#: far out means gear comes off when the player takes it off and at no other
+#: time. Not `sys.maxsize`: this number round-trips through YAML and JSON saves
+#: on every platform, and a boots entry reading "expires day 1000000000" is
+#: legible in a save file as "never".
+EQUIP_NEVER_EXPIRES = 1_000_000_000
+
+
+def equip_effect_ids(state: GameState, slot: str = "") -> list[str]:
+    """
+    Ids of the worn-gear effects, optionally narrowed to one slot.
+
+    Args:
+        state: Game state.
+        slot: Slot id, or "" for every slot.
+
+    Returns:
+        Matching ``TimedEffect.id`` strings, in wear order.
+    """
+    prefix = f"{EQUIP_ID_PREFIX}{slot}:" if slot else EQUIP_ID_PREFIX
+    return [e.id for e in state.active_effects if e.id.startswith(prefix)]
+
+
+def equipped_items(state: GameState) -> dict[str, str]:
+    """
+    Slot -> item id for everything currently worn.
+
+    Derived from ``active_effects`` on every call rather than cached: the list
+    is a handful of entries, and a cache would be a second source of truth for
+    the one fact this whole encoding exists to avoid duplicating.
+    """
+    worn: dict[str, str] = {}
+    for effect_id in equip_effect_ids(state):
+        parts = effect_id.split(":")
+        if len(parts) >= 3:
+            # Extra bonuses past the first are suffixed `#2`, `#3`; they name
+            # the same slot and item, so last write wins and agrees.
+            worn[parts[1]] = parts[2].split("#")[0]
+    return worn
+
+
+def wound_mitigation(state: GameState) -> int:
+    """
+    Points of wound severity absorbed by worn gear.
+
+    A board shield is not armour class -- DESIGN.md rules out hit-point combat
+    -- but a thing between you and the problem has to do something or it is a
+    35-copper decoration. It reduces severity and the check penalty that comes
+    with it, and it can never reduce a wound to nothing: taking the hit is
+    still taking the hit.
+    """
+    from engine.game import inventory  # late: inventory imports this module
+
+    total = 0
+    for item_id in equipped_items(state).values():
+        spec = inventory.equip_spec(item_id) or {}
+        total += max(0, _int(spec.get("absorbs_wounds"), 0))
+    return total
 
 
 def _int(value: Any, default: int = 0) -> int:
@@ -287,22 +369,156 @@ def apply_effect(
     # -- status ----------------------------------------------------------
     if kind == "wound":
         day = state.world_day
+        severity = max(1, _int(effect.get("severity"), 1))
+        penalty = _int(effect.get("check_penalty"), -1)
+
+        # Worn gear absorbs, it does not cancel. The floor of 1 is the design
+        # statement: a shield turns a bad wound into a lesser one and never
+        # into no wound at all.
+        absorbed = min(wound_mitigation(state), severity - 1)
+        if absorbed > 0:
+            severity -= absorbed
+            penalty = min(0, penalty + absorbed)
+
         wound = Wound(
             id=str(effect.get("id") or _next_id("wound", state.wounds, day)),
             text=str(effect.get("text") or "Injury"),
-            severity=max(1, _int(effect.get("severity"), 1)),
-            check_penalty=_int(effect.get("check_penalty"), -1),
+            severity=severity,
+            check_penalty=penalty,
             skills=[str(s) for s in (effect.get("skills") or [])],
             heals_on_day=resolve_day(state, effect.get("heals_on_day"), default_days=3),
         )
         state.wounds.append(wound)
+        line = f"wounded: {wound.text} (heals day {wound.heals_on_day})"
+        if absorbed:
+            line += f"; gear absorbed {absorbed}"
         return {
             "type": "wound",
             "id": wound.id,
             "severity": wound.severity,
+            "absorbed": absorbed,
             "heals_on_day": wound.heals_on_day,
             "ok": True,
-            "text": f"wounded: {wound.text} (heals day {wound.heals_on_day})",
+            "text": line,
+        }
+
+    if kind == "heal_wound":
+        # Worst first. A poultice spent on a scratch while a deep cut is open
+        # is a bandage the player will never forgive the engine for.
+        want = max(1, _int(effect.get("count"), 1))
+        wound_id = str(effect.get("id") or "").strip()
+        pool = (
+            [w for w in state.wounds if w.id == wound_id]
+            if wound_id
+            else sorted(state.wounds, key=lambda w: -int(w.severity))
+        )
+        healed = []
+        for wound in pool[:want]:
+            state.wounds.remove(wound)
+            healed.append(wound.text)
+        return {
+            "type": "heal_wound",
+            "healed": healed,
+            "count": len(healed),
+            "ok": True,
+            "text": (
+                "closed: " + ", ".join(healed) if healed else "nothing needed binding"
+            ),
+        }
+
+    if kind == "clear_condition":
+        # Matched by id first, then by exact text, then by kind. A draught that
+        # takes a fever down has to be able to name the fever.
+        target_id = str(effect.get("id") or "").strip()
+        target_text = str(effect.get("text") or "").strip().lower()
+        target_kind = str(effect.get("kind") or "check_penalty").strip()
+        cleared = []
+        for timed in list(state.active_effects):
+            if timed.expires_day >= EQUIP_NEVER_EXPIRES:
+                # PERMANENT EFFECTS ARE NOT CONDITIONS. Worn gear and completed
+                # collections both live in this list as check_penalty entries
+                # with the "never" sentinel, and a blanket clear would take a
+                # cloak off your back and a finished set's standing away for
+                # the price of one draught of bittergreen. A condition is a
+                # thing that was going to end on its own.
+                continue
+            hit = (
+                (target_id and timed.id == target_id)
+                or (target_text and timed.text.lower() == target_text)
+                or (not target_id and not target_text and timed.kind == target_kind)
+            )
+            if hit:
+                state.active_effects.remove(timed)
+                cleared.append(timed.text or timed.id)
+        return {
+            "type": "clear_condition",
+            "cleared": cleared,
+            "count": len(cleared),
+            "ok": True,
+            "text": "eased: " + ", ".join(cleared) if cleared else "nothing to ease",
+        }
+
+    if kind == "equip":
+        item_id = str(effect.get("item_id") or effect.get("id") or "").strip()
+        slot = str(effect.get("slot") or "").strip()
+        if not item_id or not slot:
+            return _unknown("equip", effect)
+
+        # One thing per slot. Displacing is the caller's job, so that the
+        # receipt can name what came off.
+        for existing in list(state.active_effects):
+            if existing.id.startswith(f"{EQUIP_ID_PREFIX}{slot}:"):
+                state.active_effects.remove(existing)
+
+        bonuses = [b for b in (effect.get("bonuses") or []) if isinstance(b, dict)]
+        if not bonuses:
+            bonuses = [{}]
+        applied: list[dict[str, Any]] = []
+        for index, bonus in enumerate(bonuses):
+            suffix = "" if index == 0 else f"#{index + 1}"
+            timed = TimedEffect(
+                id=f"{EQUIP_ID_PREFIX}{slot}:{item_id}{suffix}",
+                kind="check_penalty",
+                text=str(bonus.get("text") or effect.get("text") or item_id.replace("_", " ")),
+                delta=_int(bonus.get("delta"), 0),
+                skills=[str(s) for s in (bonus.get("skills") or [])],
+                expires_day=EQUIP_NEVER_EXPIRES,
+            )
+            state.active_effects.append(timed)
+            applied.append({"delta": timed.delta, "skills": list(timed.skills)})
+
+        return {
+            "type": "equip",
+            "item_id": item_id,
+            "slot": slot,
+            "bonuses": applied,
+            "ok": True,
+            "text": f"worn: {item_id.replace('_', ' ')} ({slot})",
+        }
+
+    if kind == "unequip":
+        slot = str(effect.get("slot") or "").strip()
+        item_id = str(effect.get("item_id") or "").strip()
+        removed = ""
+        for existing in list(state.active_effects):
+            if not existing.id.startswith(EQUIP_ID_PREFIX):
+                continue
+            parts = existing.id.split(":")
+            if len(parts) < 3:
+                continue
+            worn_slot, worn_item = parts[1], parts[2].split("#")[0]
+            if (slot and worn_slot != slot) or (item_id and worn_item != item_id):
+                continue
+            state.active_effects.remove(existing)
+            removed = worn_item
+        return {
+            "type": "unequip",
+            "slot": slot,
+            "item_id": removed,
+            "ok": True,
+            "text": (
+                f"stowed: {removed.replace('_', ' ')}" if removed else "nothing worn there"
+            ),
         }
 
     if kind == "check_penalty":

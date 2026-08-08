@@ -8,7 +8,7 @@
 # Schema reference and the "data only, no craft_item skill yet" note: see
 # data/recipes/baking.yaml.
 #
-# Version: v0.1.0 [2026-08-07]
+# Version: v0.2.0 [2026-08-08]
 
 version: 1
 category: herbalism
@@ -102,3 +102,37 @@ recipes:
     failure_text: >-
       The resin had gone hard in the cold and would not take the tow. Three
       sticks and sticky hands.
+
+  - id: render_tallow
+    name: "Render a bucket of tallow"
+    category: herbalism
+    skill: survival
+    band: trivial
+    hours: 4
+    inputs:
+      - { id: dried_meat, qty: 2 }
+      - { id: firewood_bundle, qty: 1 }
+    output: { id: tallow_block, qty: 2 }
+    success_text: >-
+      Strained twice and cast in the bucket. Candles, grease, waterproofing,
+      and a smell that gets into wool and stays there.
+    failure_text: >-
+      It caught on the bottom and took the whole pot with it. The smell stays
+      anyway, which is the joke everybody at the burn makes.
+
+  - id: pot_the_honey
+    name: "Strain a crock of honey"
+    category: herbalism
+    skill: craft
+    band: easy
+    hours: 2
+    inputs:
+      - { id: honeycomb, qty: 3 }
+    output: { id: festival_honey, qty: 1 }
+    salvage: { id: beeswax, qty: 1 }
+    success_text: >-
+      Warmed, strained through the linen, and the wax lifted off in one sheet.
+      Dark autumn honey with a little of the comb still floating in it.
+    failure_text: >-
+      Too hot, and it has gone to caramel at the edges. The wax is fine. The
+      honey is a thing you will eat yourself and not offer to anyone.

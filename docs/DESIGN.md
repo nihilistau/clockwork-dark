@@ -478,25 +478,34 @@ without bound simply because days pass faster than turns.)
 
 Storyteller receives full snapshot via `query_evil_state`; player UI shows only diegetic signs.
 
-**Measured pacing** — `scripts/simulate.py`, 200 turns per policy, base rate
-0.01. The clock runs at **~11.5 in-game hours per turn**: 6 from the background
-world tick (`REALTIME_TICK_HOURS`, applied once per `world.tick_interval_seconds`
-of *real* time) and the rest from action time, of which an 8-hour sleep is the
-largest single contributor.
+**Measured pacing** — `scripts/simulate.py`, 200 turns per policy, seed 42, base
+rate 0.006. The clock runs at **3.2–6.5 in-game hours per turn** depending on
+how the player lives. The largest term is the background world tick
+(`world.tick_hours`, 2.0), which is now proportional to the *real* time the
+player spends on a turn, capped at `world.tick_max_hours`.
 
-| Policy | Effective rate/day | CONSUMING at in-game day | ≈ turns |
-|--------|-------------------|--------------------------|---------|
-| baker — never leaves Edgewood | 0.0095 | 83 | ~176 |
-| cautious — village circuit, road by daylight | 0.0101 | 79 | ~185 |
-| reckless — Millhaven constantly | 0.0105 | 76 | ~160 |
+| Policy | h/turn | Effective rate/day | CONSUMING at in-game day | ≈ turns | Deaths |
+|--------|--------|-------------------|--------------------------|---------|--------|
+| baker — never leaves Edgewood | 4.16 | 0.00564 | 142 | ~811 | 0 |
+| cautious — village circuit, road by daylight | 3.21 | 0.00534 | 150 | ~1109 | 4 |
+| pauper — no gold ever spent | 3.77 | 0.00459 | 174 | ~1125 | 1 |
+| reckless — Millhaven constantly | 6.46 | 0.00635 | 126 | ~467 | 30 |
 
-Two things to read out of that table. First, the mechanism works and the numbers
-are real. Second, **the spread between a player who never leaves the bakery and
-one who lives on the Millhaven road is under 10%** — the location multiplier
-(0.7 vs 1.2) and the inaction bonus (1.35 vs 1.0) are the same size and opposite
-in sign, so they cancel and every playstyle converges on the same doomsday
-clock. That is a design problem no value of the rate constant fixes; see
-[DESIGN_REVIEW.md](DESIGN_REVIEW.md) issue **R-06**.
+Read three things out of that table. First, the mechanism works and the numbers
+are real. Second, the playstyles now genuinely diverge: the baker ends the run
+`quiet_life` and DORMANT at awareness 0, the reckless player ends `convergence`
+and STIRRING at awareness 100, and the reckless player reaches CONSUMING in
+about **40% of the turns** the cautious one needs. That spread used to be under
+10% — see [DESIGN_REVIEW.md](DESIGN_REVIEW.md) issues **R-03** (the clock, fixed)
+and **R-06** (the convergence it was masking).
+
+Third, **it is possible to survive without money**: the `pauper` policy spends
+zero gold across 200 turns, eats entirely from foraging, and ends richer than it
+started.
+
+Earlier revisions of this section blamed the 8-hour sleep for the pace. That was
+measured and found wrong — sleep is 0.7–1.4 h/turn amortised, and was never
+within a factor of four of the tick.
 
 Reproduce with:
 

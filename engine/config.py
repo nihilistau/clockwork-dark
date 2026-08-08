@@ -9,11 +9,17 @@ Layers, later wins, deep-merged:
     config/default.yaml     checked in; the documented shape of every setting
     config/<env>.yaml       CLOCKWORK_ENV, e.g. development
     config/local.yaml       gitignored; machine-specific paths live here
+    <game overlay>          the active game manifest's ``paths:`` block
 
 Deep merge matters for the stack section: overriding one service's ``root``
 should not delete every other service, which a shallow update would do.
 
-Version: v0.2.0 [2026-08-07]
+The game overlay is the top layer on purpose. A game is chosen at launch and
+must beat everything the repo shipped, but it must NOT be written into the
+YAML files -- so it lives in a process-local variable that survives
+``reset_config()``. See ``set_overlay`` and ``engine/games/registry.py``.
+
+Version: v0.3.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -33,6 +39,11 @@ _CONFIG_DIR = _ROOT / "config"
 _DEFAULT_PATH = _CONFIG_DIR / "default.yaml"
 
 _instance: Optional["ConfigManager"] = None
+
+# The active game's config overlay. Deliberately NOT cleared by reset_config():
+# activating a game is a session-level decision, and re-reading the YAML layers
+# must not silently drop the player back into a different story.
+_overlay: dict[str, Any] = {}
 
 
 def project_root() -> Path:
@@ -150,8 +161,38 @@ def get_config() -> ConfigManager:
             data = deep_merge(data, local)
             logger.info("[config] Local overrides applied (operation=get_config)")
 
+        if _overlay:
+            data = deep_merge(data, _overlay)
+            logger.info(
+                "[config] Game overlay applied (operation=get_config, keys=%s)",
+                sorted(_overlay),
+            )
+
         _instance = ConfigManager(data)
     return _instance
+
+
+def set_overlay(overlay: Optional[dict[str, Any]]) -> None:
+    """
+    Install (or clear) the top config layer and drop every derived cache.
+
+    This is the supported replacement for reaching into ``ConfigManager._data``
+    -- the source project's games/ README told contributors to retarget content
+    by mutating that private dict by hand, which no cache invalidation could
+    ever be hung off.
+
+    Args:
+        overlay: Nested dict merged last over the YAML layers, or None/{} to
+            clear it. A copy is taken, so the caller's dict stays theirs.
+    """
+    global _overlay
+    _overlay = copy.deepcopy(overlay) if overlay else {}
+    reset_config()
+
+
+def overlay() -> dict[str, Any]:
+    """Return a copy of the active config overlay."""
+    return copy.deepcopy(_overlay)
 
 
 def reset_config() -> None:
@@ -162,22 +203,20 @@ def reset_config() -> None:
     ComfyUI templates and the rules engine holding data loaded from the
     previous config, so a test that repointed a path silently got stale
     content -- and the failure surfaced in whichever test happened to run next.
+
+    The list of caches lives in ``engine/games/caches.py`` now rather than
+    inline here: it grew past a dozen entries once every content loader had to
+    survive a whole-game swap, and it has to be introspectable so
+    ``scripts/doctor.py`` can report what a game activation will invalidate.
     """
     global _instance
     _instance = None
 
-    # These are all `Optional[dict]` guarded by `is not None`, so they must be
-    # set back to None -- clearing the dict in place would leave an empty-but-
-    # populated cache that never reloads.
-    for module_name, attr in (
-        ("engine.game.procgen", "_TEMPLATE_CACHE"),
-        ("engine.world.schedules", "_SCHEDULE_CACHE"),
-        ("engine.media.comfyui", "_TEMPLATE_CACHE"),
-        ("engine.mcp.scene_rules_engine", "_rules_instance"),
-    ):
-        try:
-            module = __import__(module_name, fromlist=[attr])
-        except ImportError:
-            continue
-        if hasattr(module, attr):
-            setattr(module, attr, None)
+    # Imported lazily: engine.games imports engine.config, and a module-level
+    # import here would be a cycle.
+    try:
+        from engine.games.caches import reset_all_caches
+    except ImportError:  # pragma: no cover -- engine.games always ships
+        logger.warning("[config] Cache registry unavailable (operation=reset_config)")
+        return
+    reset_all_caches()

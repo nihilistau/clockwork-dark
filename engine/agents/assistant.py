@@ -19,8 +19,6 @@ from typing import Any, Callable, Optional
 from engine.agents.prompts import assistant_system_prompt
 from engine.agents.stream_processor import StreamProcessor
 from engine.agents.tool_dispatcher import execute_tool_calls
-from engine.game.rng import ASSISTANT as RNG_ASSISTANT
-from engine.game.rng import world_rng
 from engine.skills.registry import AGENT_ASSISTANT
 from engine.config import get_config
 from engine.game.engine import GameEngine
@@ -53,6 +51,10 @@ class AssistantTurnResult:
     tool_receipts: list[dict[str, Any]] = field(default_factory=list)
     raw_llm: str = ""
     transcript: str = ""
+    # What the director decided and why. Carried on silent turns too -- the
+    # reason it stayed quiet is the interesting half, and the Assistant column
+    # has nothing else to show between remarks.
+    decision: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -63,6 +65,7 @@ class AssistantTurnResult:
             "hint_tier": self.hint_tier,
             "tool_receipts": self.tool_receipts,
             "transcript": self.transcript,
+            "decision": self.decision,
         }
 
 
@@ -107,6 +110,14 @@ def should_assistant_speak(
     """
     Agency roll — Assistant may stay silent.
 
+    SUPERSEDED by ``engine/agents/assistant_director.AssistantDirector``, which
+    weighs the player's struggle and the evil phase rather than flipping the
+    same coin in the bakery and in the barrows. Kept as the reference
+    definition of the legacy roll: the director's appear-check is specified to
+    be bit-identical to this on a calm turn, and
+    ``test_the_director_matches_the_legacy_roll_on_a_calm_turn`` proves it by
+    running both.
+
     Args:
         help_probability: 0–1 willingness to help this turn.
         rng: Injectable RNG for tests.
@@ -115,6 +126,49 @@ def should_assistant_speak(
         True if Assistant should speak.
     """
     return rng.random() <= help_probability
+
+
+#: What each director intent asks of the companion, in the second person it
+#: already speaks in. Kept out of the prompts module because it describes a
+#: decision made this turn, not the standing persona.
+_INTENT_BRIEFS: dict[str, str] = {
+    "quip": "This turn: a small remark. Notice something; do not advise.",
+    "hint": "This turn: help. The player is struggling — point at a way through.",
+    "lore": "This turn: offer something you remember about this place.",
+    "warning": "This turn: unease. Something is wrong and you can feel it.",
+    "gift": "This turn: give them the item named below, in one line, and say why.",
+}
+
+
+def _decision_brief(decision: Any) -> str:
+    """
+    Turn a director decision into a line of brief for the companion.
+
+    The unreliable case is the point: an unreliable companion is told to be
+    confident and *wrong*, not to hedge. Hedging reads as a model refusing to
+    commit; a confident wrong answer is a reason to weigh its advice, which is
+    what makes trust a mechanic rather than a number on a sheet.
+    """
+    if decision is None:
+        return ""
+
+    lines: list[str] = []
+    brief = _INTENT_BRIEFS.get(getattr(decision, "intent", ""), "")
+    if brief:
+        lines.append(brief)
+
+    gift = getattr(decision, "gift_item", None)
+    if gift:
+        lines.append(f"The item you hand over: {gift.get('name', gift.get('id'))}.")
+
+    if not getattr(decision, "reliable", True):
+        lines.append(
+            "You are not sure of this and you do not know that. Say it plainly "
+            "and confidently anyway; being wrong is allowed. Never state that "
+            "you might be mistaken."
+        )
+
+    return "\n".join(lines)
 
 
 class AssistantAgent:
@@ -156,30 +210,110 @@ class AssistantAgent:
         from engine.lmstudio.client import get_lms_client
         from engine.lmstudio.profiles import resolve_profile
 
-        client = self._client or get_lms_client()
-        mp = resolve_profile("small")
-        max_tokens = int(
-            get_config().get("assistant.max_tokens", mp.max_tokens)
-        )
-        return client.chat(
+        # Through the backend, not the raw compat client. Measured on the live
+        # server: 156 of this call's 200 tokens went to REASONING and the reply
+        # was cut off mid-sentence. The backend routes a no-think transport for
+        # utility profiles, so the whole budget reaches the actual line.
+        from engine.lmstudio.backend import get_backend
+
+        if self._client is not None:
+            mp = resolve_profile("small")
+            return self._client.chat(
+                messages,
+                model=mp.model,
+                temperature=mp.temperature,
+                max_tokens=int(get_config().get("assistant.max_tokens", mp.max_tokens)),
+            ).content
+
+        return get_backend().chat(
             messages,
-            model=mp.model,
-            temperature=mp.temperature,
-            max_tokens=max_tokens,
+            profile="small",
+            max_tokens=int(get_config().get("assistant.max_tokens", 200)),
+            label="assistant",
         ).content
 
-    def _build_messages(self, context: str) -> list[dict[str, Any]]:
-        """Fresh conversation each turn — store=False semantics."""
+    def _build_messages(
+        self,
+        context: str,
+        *,
+        decision: Any = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Fresh conversation each turn — store=False semantics.
+
+        Args:
+            context: Scene beat or player message.
+            decision: Optional ``AssistantDecision``. When present its intent
+                and reliability shape the brief, which is the only way the
+                director's choices reach the words the player reads.
+        """
         state = self.engine.state
         hint_tier = compute_hint_tier(
             state.assistant_mind.trust_level,
             state.plot_involvement,
         )
         system = assistant_system_prompt(state, hint_tier=hint_tier)
+
+        brief = _decision_brief(decision)
+        if brief:
+            system = f"{system}\n\n{brief}"
+
         return [
             {"role": "system", "content": system},
             {"role": "user", "content": context},
         ]
+
+    @staticmethod
+    def _check_gift(decision: Any) -> None:
+        """
+        Confirm the gift exists in THIS game, or take the intent away.
+
+        The director's fallbacks name Clockwork Dark item ids, so in another
+        story the id resolves to nothing and the companion would conjure an
+        item that game has never heard of. Downgrading to a hint keeps it
+        useful instead. Resolves the display name from the registry too, so the
+        line it speaks matches the row the player will see in the inventory.
+        """
+        from engine.game.inventory import get_item
+
+        gift = getattr(decision, "gift_item", None)
+        if not decision.appear or not gift:
+            return
+
+        item_id = str(gift.get("id") or "")
+        row = get_item(item_id) if item_id else None
+        if row is None:
+            logger.info(
+                "[assistant] Gift item not in this game's registry, offering a "
+                "hint instead (operation=_check_gift, item=%s)",
+                item_id,
+            )
+            decision.intent = "hint"
+            decision.gift_item = None
+            return
+
+        decision.gift_item = {
+            "id": item_id,
+            "name": str(row.get("name") or gift.get("name") or item_id),
+        }
+
+    def _grant_gift(self, decision: Any) -> None:
+        """
+        Actually hand the item over.
+
+        Called only once the companion has said something. Granting at decision
+        time meant an unreachable model left the item in the player's pack with
+        no line anywhere explaining where it came from -- items must not appear
+        out of a turn that produced no narration.
+        """
+        gift = getattr(decision, "gift_item", None)
+        if not gift:
+            return
+        self.engine.add_item(str(gift["id"]), str(gift["name"]), 1)
+        logger.info(
+            "[assistant] Companion gave an item (operation=_grant_gift, item=%s)",
+            gift["id"],
+        )
 
     def run_turn(
         self,
@@ -203,12 +337,23 @@ class AssistantAgent:
         form = mind.current_form
         voice_style = FORM_VOICE_STYLES.get(form, "whisper")
 
-        if not force_speak and not should_assistant_speak(
-            mind.help_probability,
-            self._rng or world_rng(state, RNG_ASSISTANT),
-        ):
+        # The director replaces a flat coin-flip that gave the companion the
+        # same odds of turning up whether the player was chatting in the bakery
+        # or bleeding out in the barrows. It also decides WHY it appears and
+        # whether it is right -- at low trust it can be confidently wrong,
+        # which is what makes trust worth earning.
+        from engine.agents.assistant_director import (
+            AssistantDirector,
+            record_appearance,
+        )
+
+        decision = AssistantDirector().decide(state, rng=self._rng)
+        self._check_gift(decision)
+        if not force_speak and not decision.appear:
             logger.debug(
-                "[assistant] Silent turn (operation=run_turn, form=%s)", form
+                "[assistant] Silent turn (operation=run_turn, form=%s, score=%.2f)",
+                form,
+                decision.score,
             )
             return AssistantTurnResult(
                 text="",
@@ -216,9 +361,15 @@ class AssistantAgent:
                 voice_style=voice_style,
                 spoke=False,
                 hint_tier=hint_tier,
+                decision=decision.to_dict(),
             )
 
-        messages = self._build_messages(context)
+        # Burned only once the companion commits to speaking, and only after
+        # the decision is final -- previewing a decision must not mute the
+        # companion for the next two turns.
+        record_appearance(state, decision)
+
+        messages = self._build_messages(context, decision=decision)
         try:
             raw = self._infer(messages)
         except Exception as exc:
@@ -234,6 +385,7 @@ class AssistantAgent:
                 voice_style=voice_style,
                 spoke=False,
                 hint_tier=hint_tier,
+                decision=decision.to_dict(),
             )
 
         parsed = parse_assistant_response(raw)
@@ -252,6 +404,10 @@ class AssistantAgent:
         )
         clean_text = tags.clean_text or text
 
+        # The item lands only now, alongside the line that explains it.
+        if clean_text:
+            self._grant_gift(decision)
+
         return AssistantTurnResult(
             text=clean_text,
             form=form,
@@ -260,6 +416,7 @@ class AssistantAgent:
             hint_tier=hint_tier,
             tool_receipts=tool_receipts,
             raw_llm=raw,
+            decision=decision.to_dict(),
         )
 
     def process_voice_input(

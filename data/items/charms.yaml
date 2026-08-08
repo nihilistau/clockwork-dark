@@ -5,9 +5,15 @@
 # village has never needed to know which. Only `sympathy_charm` claims to do
 # anything, and it claims it quietly.
 #
-# Field reference: see data/items/food.yaml.
+# THE CHARM SLOT IS SINGLE, and that is the mechanic, not a limitation. A ward
+# pin worn through the collar and a hare's foot against the chest are the same
+# gesture made twice; wearing both would be wearing neither. So one charm, and
+# the choice of which is the whole of what a charm is for.
 #
-# Version: v0.1.0 [2026-08-07]
+# Field reference: see data/items/food.yaml; the equip/use/collection blocks
+# are documented in data/items/gear.yaml.
+#
+# Version: v0.2.0 [2026-08-08]
 
 version: 1
 
@@ -23,6 +29,14 @@ items:
     weight: 0.1
     value: 25
     art: sympathy_charm
+    equip:
+      slot: charm
+      bonuses:
+        - { skills: [sympathy], delta: 2 }
+        - { skills: [nerve], delta: -1 }
+      text: >-
+        Wound twice round the wrist and knotted. It takes from the wearer. Ilya
+        said so at point of sale, and quietly, and she was not being modest.
     stack: false
 
   - id: rune_talisman
@@ -34,6 +48,14 @@ items:
     weight: 0.1
     value: 18
     art: rune_talisman
+    equip:
+      slot: charm
+      bonuses:
+        - { skills: [lore], delta: 1 }
+      text: >-
+        On a thong at the throat, marks outward. The tinkers read them at a
+        glance and price you differently afterwards.
+    collection: brass_evidence
     stack: false
 
   - id: brass_ward_pin
@@ -45,6 +67,14 @@ items:
     weight: 0.05
     value: 6
     art: brass_ward_pin
+    equip:
+      slot: charm
+      bonuses:
+        - { skills: [nerve], delta: 1 }
+      text: >-
+        Through the collar, point down, where you cannot see it. You stop
+        checking over your shoulder without deciding to.
+    collection: nine_pins
     stack: true
 
   - id: ninth_pin
@@ -56,6 +86,7 @@ items:
     weight: 0.05
     value: 40
     art: ninth_pin
+    collection: nine_pins
     stack: false
 
   - id: saint_candle
@@ -66,7 +97,22 @@ items:
     tags: [charm, light]
     weight: 0.2
     value: 2
-    art: candle
+    art: saint_candle
+    use:
+      verb: "light"
+      hours: 0.5
+      consumes: 1
+      effects:
+        - type: check_penalty
+          id: lit_for_a_saint
+          text: "lit for a saint with no name"
+          delta: 1
+          skills: [sympathy, nerve]
+          days: 1
+      text: >-
+        You light it for a saint with no name and no face, which the old women
+        say is the only kind worth the wax.
+    collection: folk_remedies
     stack: true
 
   - id: hare_foot
@@ -77,6 +123,14 @@ items:
     tags: [charm]
     weight: 0.05
     value: 1
+    equip:
+      slot: charm
+      bonuses:
+        - { skills: [survival], delta: 1 }
+      text: >-
+        Against the chest on its red thread. Half the children in Well Row have
+        one and not one of them will say who gave it to them.
+    collection: folk_remedies
     stack: true
 
   - id: bent_nail
@@ -87,6 +141,7 @@ items:
     tags: [charm, material]
     weight: 0.05
     value: 1
+    collection: folk_remedies
     stack: true
 
   - id: wax_seal_saint
@@ -97,6 +152,21 @@ items:
     tags: [charm]
     weight: 0.1
     value: 3
+    use:
+      verb: "warm"
+      hours: 0.25
+      consumes: 1
+      effects:
+        - type: check_penalty
+          id: wax_saint_carried
+          text: "the saint gone soft in your pocket"
+          delta: 1
+          skills: [sympathy]
+          days: 1
+      text: >-
+        You close your hand round it until it gives. It goes shapeless, which
+        is said to be the point, and something in you goes with it.
+    collection: folk_remedies
     stack: true
 
   - id: golden_ring
@@ -108,4 +178,5 @@ items:
     weight: 0.05
     value: 120
     art: golden_ring
+    collection: turned_up_things
     stack: false

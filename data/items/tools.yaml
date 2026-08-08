@@ -3,9 +3,15 @@
 # DESIGN.md's second pillar is "mundane craft as dignity". A baker's peel and a
 # tinker's kit therefore get the same care as a knife, and cost more.
 #
-# Field reference: see data/items/food.yaml.
+# Six of these were already recipe tools and did their work by being HELD.
+# The rest -- knives, maps, wire and line -- did nothing at all, so they carry
+# `equip:` and `use:` blocks now. A tool on the belt is the cheapest honest
+# bonus in the game: +1 to one named skill, and a reason to have brought it.
 #
-# Version: v0.1.0 [2026-08-07]
+# Field reference: see data/items/food.yaml; the equip/use/collection blocks
+# are documented in data/items/gear.yaml.
+#
+# Version: v0.2.0 [2026-08-08]
 
 version: 1
 
@@ -20,6 +26,14 @@ items:
     weight: 0.3
     value: 14
     art: hearth_knife
+    equip:
+      slot: belt
+      bonuses:
+        - { skills: [survival], delta: 1 }
+        - { skills: [nerve], delta: 1 }
+      text: >-
+        On the belt, scorched handle out. Meant for bread and rope and not for
+        people, and everyone who sees it knows the second half of that sentence.
     stack: false
 
   - id: stone_knife
@@ -31,6 +45,15 @@ items:
     weight: 0.2
     value: 6
     art: stone_knife
+    equip:
+      slot: belt
+      bonuses:
+        - { skills: [survival], delta: 1 }
+        - { skills: [lore], delta: 1 }
+      text: >-
+        It sits in the hand as though it were made for a hand very like yours,
+        which is the part nobody at the Fallow holding wanted to say out loud.
+    collection: turned_up_things
     stack: false
 
   - id: whetstone
@@ -42,6 +65,20 @@ items:
     weight: 0.5
     value: 5
     art: whetstone
+    use:
+      verb: "sharpen"
+      hours: 0.5
+      once_per_day: true
+      effects:
+        - type: check_penalty
+          id: keen_edge
+          text: "a keen edge"
+          delta: 1
+          skills: [craft, survival]
+          days: 1
+      text: >-
+        Twenty strokes a side at the angle Odran shows you if you ask twice.
+        Everything you own cuts, for one day, the way it did when it was new.
     stack: true
 
   - id: iron_key
@@ -53,6 +90,7 @@ items:
     weight: 0.1
     value: 4
     art: iron_key
+    collection: turned_up_things
     stack: false
 
   - id: road_map
@@ -64,6 +102,20 @@ items:
     weight: 0.2
     value: 15
     art: road_map
+    use:
+      verb: "study"
+      hours: 0.5
+      once_per_day: true
+      effects:
+        - type: check_penalty
+          id: route_planned
+          text: "the route planned"
+          delta: 1
+          skills: [survival]
+          days: 1
+      text: >-
+        Three fords, one toll, and a bridge that the ink says is there. You
+        pick the day's road before you are standing in it.
     stack: false
 
   - id: tinker_map
@@ -75,6 +127,20 @@ items:
     weight: 0.1
     value: 20
     art: tinker_map
+    use:
+      verb: "read"
+      hours: 0.5
+      once_per_day: true
+      effects:
+        - type: check_penalty
+          id: knows_the_debts
+          text: "you know who owes whom"
+          delta: 1
+          skills: [persuasion, lore]
+          days: 1
+      text: >-
+        Not roads. Debts, feuds, and who will not speak to whom between here
+        and the Marches. You spend a morning on it and stop guessing.
     stack: false
 
   - id: baking_peel
@@ -105,6 +171,11 @@ items:
     tags: [tool]
     weight: 0.2
     value: 4
+    equip:
+      slot: hands
+      bonuses:
+        - { skills: [craft], delta: 1 }
+      text: "In the hand or through the belt loop, point buried in a cork."
     stack: true
 
   - id: snare_wire
@@ -115,6 +186,13 @@ items:
     tags: [tool, material]
     weight: 0.2
     value: 5
+    equip:
+      slot: belt
+      bonuses:
+        - { skills: [survival], delta: 1 }
+      text: >-
+        Coiled at the hip. A hare loop takes the time it takes to explain one,
+        and the wood stops being a place you walk through.
     stack: true
 
   - id: fishing_line
@@ -125,6 +203,13 @@ items:
     tags: [tool]
     weight: 0.1
     value: 4
+    equip:
+      slot: belt
+      bonuses:
+        - { skills: [survival], delta: 1 }
+      text: >-
+        Wound on its stick with the hooks in the cork. A set line works while
+        you sleep, which is the only labour in this game that does.
     stack: true
 
   - id: tinker_kit
@@ -135,6 +220,13 @@ items:
     tags: [tool, trade]
     weight: 1.1
     value: 28
+    equip:
+      slot: hands
+      bonuses:
+        - { skills: [craft], delta: 2 }
+      text: >-
+        Open on the knee, files laid out in order. There is very little on this
+        road that this tin cannot put back together once.
     stack: false
 
   - id: hand_lantern
@@ -145,4 +237,13 @@ items:
     tags: [tool, light]
     weight: 0.9
     value: 16
+    equip:
+      slot: light
+      bonuses:
+        - { skills: [lore], delta: 1 }
+        - { skills: [survival], delta: 1 }
+      text: >-
+        Scraped horn, so the wind does not get it and the light does not carry
+        to the treeline. You can read by it and nothing can read you.
+    collection: road_kit
     stack: false

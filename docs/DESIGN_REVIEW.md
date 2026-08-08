@@ -305,22 +305,55 @@ second layer of defence, or delete the module and its tests. R001/R002 duplicate
 checks `GameEngine.move_to` already performs, so only R003–R005 are worth
 keeping. Do not leave it as it is. DESIGN.md now marks it **NOT WIRED**.
 
-### R-03 · major · The clock runs at ~11.5 in-game hours per turn
-`content/scenes/clockwork/clockwork_state.py::REALTIME_TICK_HOURS`
+### R-03 · major · The clock ran at ~11.5 in-game hours per turn — FIXED
+`config/default.yaml` `world.tick_hours` · `engine/world/world_sim.py::realtime_tick_hours`
 
-Measured across all three simulator policies. Six of those hours come from the
-background world tick, which fires once per `world.tick_interval_seconds` (60s)
-of *real* time; the rest is action time, dominated by the 8-hour sleep.
+**Was:** a flat `REALTIME_TICK_HOURS = 6.0`, granted once per turn whenever 60s
+of real time had passed. Instrumenting `advance_time` with a caller-frame
+recorder over 200 turns × 4 policies gave the breakdown for `reckless`, the
+policy that produced the headline 11.5:
 
-Consequences: a two-hour session covers ~50 in-game days. Quest deadlines
-written as "expires_after_days: 3" are gone in about six turns. Hunger accrues
-~23 points per turn against a 100-point scale. Everything time-denominated in
-`data/` was authored against a clock that did not move and is now being read by
-one that moves fast.
+| term | h/turn | share |
+|---|---|---|
+| background tick | 6.00 | 52% |
+| death respawn (10h × 50 deaths) | 2.50 | 22% |
+| travel | 1.58 | 14% |
+| rest | 1.24 | 11% |
 
-Before touching any individual balance constant, consider that dropping
-`REALTIME_TICK_HOURS` from 6 to 2 gives every downstream system three times the
-breathing room in one edit. That constant is not owned by this phase.
+One constant was 60% of every hour the game advanced, and **no player action
+came within a factor of two of it**. The earlier note here — and DESIGN.md —
+blamed the 8-hour sleep; that was wrong for three of the four policies.
+
+The second term was not independent. Hunger runs at 2.0/hour, so 6h of tick was
+12 hunger per turn before the player did anything; starvation supplied nearly
+every death, and every death bought another 10 hours.
+
+**Now:** `world.tick_hours: 2.0`, and the tick is **proportional to real elapsed
+time** rather than a step function — a 61-second turn and a ten-minute turn used
+to cost identically — capped by `world.tick_max_hours` so an open tab over lunch
+cannot advance the calendar by days. `scripts/simulate.py` reads the same config
+key instead of restating the literal, which is how the instrument used to tune
+the clock could measure a different clock than the one that shipped.
+
+Measured, `--turns 200 --seed 42`:
+
+| policy | h/turn before | after | deaths before | after |
+|---|---|---|---|---|
+| baker | 8.87 | **4.16** | 13 | **0** |
+| cautious | 10.31 | **3.21** | 35 | **4** |
+| pauper | 9.38 | **3.77** | 31 | **1** |
+| reckless | 11.54 | **6.46** | 50 | **30** |
+| **mean / total** | **10.02** | **4.40** | **129** | **35** |
+
+The mean fell 56% for a 67% cut, because collapsing the starvation cascade was
+worth more than the direct arithmetic.
+
+Two vertical-slice assertions were recalibrated, both of which had been passing
+*because of* this bug: the clock test asserted `day >= 5` after 40 turns (only
+reachable at 6h/turn) and now asserts against the configured rate; the quest
+test required a per-run completion, which needed the flagship 7-day bakery stage
+to fit inside 40 turns. It now asserts a stage advance per run plus one full
+completion across the runs — see the docstring for why that is not a weakening.
 
 ### R-04 · structural · Rest must never gain a gate
 `engine/game/survival.py`

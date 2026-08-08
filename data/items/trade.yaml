@@ -4,9 +4,14 @@
 # `coins` is an inventory item as well as GameState.stats.gold because a purse
 # is a thing that can be taken, and a stat cannot be.
 #
-# Field reference: see data/items/food.yaml.
+# Field reference: see data/items/food.yaml; the equip/use/collection blocks
+# are documented in data/items/gear.yaml.
 #
-# Version: v0.1.0 [2026-08-07]
+# `coins` had the strangest gap in the registry: it was an inventory ENTRY with
+# no way to become the `gold` STAT. A purse you could carry, sell and lose, and
+# never spend. Its `use:` block is the missing verb.
+#
+# Version: v0.2.0 [2026-08-08]
 
 version: 1
 
@@ -21,6 +26,16 @@ items:
     weight: 0.3
     value: 1
     art: coins
+    use:
+      verb: "count out"
+      hours: 0.25
+      consumes: 1
+      effects:
+        - type: gold
+          delta: 12
+      text: >-
+        You tip it out and count it twice, the way everyone does. Mostly
+        copper, a little clipped silver, and one piece nobody will take.
     stack: true
 
   - id: salt_measure
@@ -31,6 +46,21 @@ items:
     tags: [trade, material]
     weight: 0.8
     value: 14
+    use:
+      verb: "salt it down"
+      hours: 1.0
+      consumes: 1
+      also_consumes:
+        - { id: river_fish, qty: 2 }
+      effects:
+        - type: item
+          item_id: salt_pork
+          name: "Salt pork"
+          qty: 1
+          tags: [food, trade]
+      text: >-
+        Split, layered, weighted and left. Two days' catch becomes a month's
+        food and the pouch is a pouch of nothing again.
     stack: true
 
   - id: clock_spring
@@ -41,6 +71,7 @@ items:
     tags: [trade, material, quest]
     weight: 0.1
     value: 26
+    collection: brass_evidence
     stack: true
 
   - id: brass_filings
@@ -51,6 +82,7 @@ items:
     tags: [trade, material]
     weight: 0.05
     value: 2
+    collection: brass_evidence
     stack: true
 
   - id: tallow_block

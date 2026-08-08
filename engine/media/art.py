@@ -10,7 +10,15 @@ tags with a separate negative prompt and LoRA hints. Maintaining both by hand
 guarantees they drift apart; both are rendered here from the structured
 subjects in data/art/subjects.yaml.
 
-Version: v0.2.0 [2026-08-07]
+v0.3.0 adds ``kind="item"``. The chain has been able to SERVE item art since
+P6 -- engine/media/providers/shipped.py resolves ``kind == "item"`` against the
+manifest -- but no prompt could ever be rendered for one, because ``_fields``
+only knew about locations and portraits and fell through to the "degrade to the
+id" branch. Asking either backend for a picture of ``bent_nail`` produced a
+prompt that read "bent nail" and nothing else, which is why the 52 items with
+no packed plate had no realistic route to one.
+
+Version: v0.3.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -84,12 +92,35 @@ def _portrait_fields(npc_id: str) -> Optional[dict[str, str]]:
     }
 
 
+def _item_fields(item_id: str) -> Optional[dict[str, str]]:
+    """
+    Prompt fields for one registry item.
+
+    Framing and lighting come from ``items.defaults`` unless the entry
+    overrides them, because eighty-one repetitions of "laid flat on a dark aged
+    ground" is eighty-one chances for one of them to say something else. An
+    item that needs its own light -- anything with a flame in it -- says so.
+    """
+    block = load_subjects().get("items", {}) or {}
+    entry = block.get(item_id)
+    if not entry:
+        return None
+    defaults = block.get("defaults", {}) or {}
+    return {
+        "subject": entry.get("subject", item_id.replace("_", " ")),
+        "details": entry.get("details", ""),
+        "setting": entry.get("setting", defaults.get("setting", "")),
+        "light": entry.get("light", defaults.get("light", "")),
+    }
+
+
 def _fields(kind: str, subject_id: str, time_of_day: str) -> dict[str, str]:
-    fields = (
-        _portrait_fields(subject_id)
-        if kind == "portrait"
-        else _location_fields(subject_id, time_of_day)
-    )
+    if kind == "item":
+        fields = _item_fields(subject_id)
+    elif kind == "portrait":
+        fields = _portrait_fields(subject_id)
+    else:
+        fields = _location_fields(subject_id, time_of_day)
     if fields is None:
         # Unknown subject: degrade to the id itself rather than producing
         # nothing. The old ComfyUI client did exactly this and it is fine.

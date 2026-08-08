@@ -1,6 +1,12 @@
-# Version: v0.1.0 [2026-08-07]
+# Version: v0.2.0 [2026-08-08]
 #
 # A small quest on purpose. Not every thread is a thread.
+#
+# `goat_bell` was declared in data/items/quest.yaml and granted by nothing at
+# all -- an item with a description, a weight and a price that no code path in
+# the game could ever put in a player's hands. It is granted here, where the
+# goat is found, and asked for at the square, because a bell with the clapper
+# still in it is the only proof the boy is going to accept.
 
 id: lost_goat
 arc: quiet_life
@@ -41,7 +47,15 @@ stages:
       - nf_goat_found
     complete_text: >-
       She is wedged in a windfall with her leg turned wrong and an opinion about
-      you already formed.
+      you already formed. The bell is off her neck and lying six feet uphill,
+      strap unbroken, which is the part that stops making sense later.
+    on_complete:
+      effects:
+        - type: item
+          item_id: goat_bell
+          name: "Goat bell"
+          qty: 1
+          tags: [quest]
     fail_text: >-
       By the fourth morning nobody is asking any more. That is its own answer.
     on_fail:
@@ -54,10 +68,11 @@ stages:
           kind: event
 
   - id: bring_her_back
-    objective: "Get the goat back to the square in one piece."
+    objective: "Get the goat back to the square in one piece, bell and all."
     complete_when:
       all:
         - at_location: edgewood_square
+        - has_item: { id: goat_bell, qty: 1 }
     complete_text: >-
       She bites you twice on the way down. You carry her the last part anyway.
     on_complete:

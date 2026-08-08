@@ -39,8 +39,7 @@ from engine.agents.tag_buffer import TagBuffer
 from engine.agents.tool_dispatcher import execute_tool
 from engine.game.engine import GameEngine
 from engine.game.transaction import StateTransaction
-from engine.lmstudio.gate import inference_slot
-from engine.lmstudio.schemas import response_format, storyteller_turn_schema
+from engine.lmstudio.schemas import storyteller_turn_schema
 from engine.lmstudio.tools import build_manifest
 from engine.memory.context import build_storyteller_messages, present_npc_ids
 from engine.memory.ledger import StoryLedger, apply_ledger_delta
@@ -100,7 +99,7 @@ def run_mechanics_phase(
     ledger: StoryLedger,
     player_action: str,
     *,
-    client: Any,
+    client: Any = None,
     tx: StateTransaction,
     evil_snapshot: Optional[dict[str, Any]] = None,
     lore_block: str = "",
@@ -109,16 +108,23 @@ def run_mechanics_phase(
     """
     Phase A: let the model request mechanical resolution, and resolve it.
 
-    Returns the receipts. Deliberately cheap: low temperature, few tokens, no
-    few-shot examples, no prose. Its only job is deciding which dice to roll.
+    Returns the receipts. Low temperature, no few-shot examples, no prose. Its
+    only job is deciding which dice to roll.
+
+    NOT as cheap as it looks. Tool calling is only available on the
+    OpenAI-compatible transport, and that transport cannot disable reasoning --
+    so the old hardcoded ``max_tokens=400`` was the same trap that produced
+    empty narration: a reasoning model spends the cap thinking and emits no
+    tool calls at all, which this loop reads as "no mechanics needed". The cap
+    now comes from the profile, and a starved pass says so.
     """
-    from engine.lmstudio.profiles import resolve_profile
+    from engine.lmstudio.backend import get_backend
 
     manifest = build_manifest(AGENT_STORYTELLER)
     if not manifest:
         return []
 
-    profile = resolve_profile("small")
+    backend = client or get_backend()
     messages = build_storyteller_messages(
         engine.state,
         ledger,
@@ -142,15 +148,17 @@ def run_mechanics_phase(
     receipts: list[dict[str, Any]] = []
     for round_index in range(max_rounds):
         try:
-            with inference_slot(label="mechanics"):
-                response = client.chat(
-                    messages,
-                    model=profile.model,
-                    temperature=0.3,
-                    max_tokens=400,
-                    tools=manifest,
-                    tool_choice="auto",
-                )
+            response = backend.chat(
+                messages,
+                profile="small",
+                temperature=0.3,
+                tools=manifest,
+                tool_choice="auto",
+                label="mechanics",
+                # A reasoning-off retry would go native, and native cannot call
+                # tools at all -- the retry could only return prose.
+                retry_on_starvation=False,
+            )
         except Exception as exc:  # noqa: BLE001 — mechanics are optional
             logger.warning(
                 "[turn_loop] Mechanics pass failed (operation=run_mechanics_phase): %s",
@@ -159,6 +167,15 @@ def run_mechanics_phase(
             break
 
         if not response.tool_calls:
+            if response.starved_by_reasoning:
+                logger.error(
+                    "[turn_loop] Mechanics pass emitted NO tool calls because the "
+                    "model spent its whole token budget reasoning "
+                    "(operation=run_mechanics_phase, model=%s, reasoning_tokens=%s). "
+                    "This turn will resolve with no dice.",
+                    response.model,
+                    response.reasoning_tokens,
+                )
             break
 
         assistant_msg: dict[str, Any] = {"role": "assistant", "content": None, "tool_calls": []}
@@ -202,21 +219,31 @@ def run_narration_phase(
     player_action: str,
     receipts: list[dict[str, Any]],
     *,
-    client: Any,
+    client: Any = None,
     evil_snapshot: Optional[dict[str, Any]] = None,
     lore_block: str = "",
     retry_note: str = "",
     on_delta: Optional[Callable[[str], None]] = None,
+    on_reasoning: Optional[Callable[[str], None]] = None,
 ) -> PhaseResult:
     """
     Phase B: narrate the outcomes the engine already decided.
 
     Streams narration to ``on_delta`` as it decodes, so the player sees text
     appear rather than watching a frozen screen for the whole generation.
-    """
-    from engine.lmstudio.profiles import resolve_profile
 
-    profile = resolve_profile("big")
+    Reasoning goes to ``on_reasoning`` and never to the narration decoder --
+    the decoder's buffer grows without bound and rescans from the start, so
+    feeding it a reasoning transcript is quadratic as well as wrong.
+
+    Args:
+        client: Backend override. Defaults to the routed LM Studio backend,
+            which picks native or OpenAI-compat per request.
+        on_reasoning: Live sink for the model's thinking channel.
+    """
+    from engine.lmstudio.backend import get_backend
+
+    backend = client or get_backend()
     npc_ids = present_npc_ids(engine.state)
     schema = storyteller_turn_schema(npc_ids=npc_ids)
 
@@ -247,22 +274,28 @@ def run_narration_phase(
 
     truncated = False
     try:
-        with inference_slot(label="narration"):
-            generator = client.chat_stream(
-                messages,
-                model=profile.model,
-                temperature=profile.temperature,
-                max_tokens=profile.max_tokens,
-                on_delta=_forward,
-                response_format=response_format(schema),
-            )
-            # chat_stream yields deltas and returns the response via StopIteration.
-            try:
-                while True:
-                    next(generator)
-            except StopIteration as stop:
-                final = stop.value
-                truncated = bool(getattr(final, "truncated", False))
+        generator = backend.chat_stream(
+            messages,
+            profile="big",
+            on_delta=_forward,
+            on_reasoning=on_reasoning,
+            response_format=backend.structured_output(schema),
+        )
+        # chat_stream yields deltas and returns the response via StopIteration.
+        try:
+            while True:
+                next(generator)
+        except StopIteration as stop:
+            final = stop.value
+            truncated = bool(getattr(final, "truncated", False))
+            if getattr(final, "starved_by_reasoning", False):
+                logger.error(
+                    "[turn_loop] Narration came back EMPTY because the model "
+                    "spent its whole token budget reasoning "
+                    "(operation=run_narration_phase, model=%s, reasoning_tokens=%s)",
+                    getattr(final, "model", "?"),
+                    getattr(final, "reasoning_tokens", 0),
+                )
     except Exception as exc:  # noqa: BLE001 — turn must still produce something
         logger.error("[turn_loop] Narration failed (operation=run_narration_phase): %s", exc)
 

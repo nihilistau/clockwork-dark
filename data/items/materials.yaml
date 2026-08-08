@@ -4,9 +4,17 @@
 # (herb_glen, deeper_forest) or bought. Nothing here is magic; herbs are
 # medicine, resin is glue, and clay is clay.
 #
-# Field reference: see data/items/food.yaml.
+# TWO OF THESE WERE THE WORST ITEMS IN THE GAME. `bandage` is a poultice that
+# closed no wound and `potion` is a fever draught that did nothing to a fever;
+# both existed only to be sold, which for a medicine is not a balance problem,
+# it is a broken promise. They now carry `use:` blocks that route through
+# engine/game/effects.py -- `heal_wound` and `clear_condition` were added for
+# exactly these two.
 #
-# Version: v0.1.0 [2026-08-07]
+# Field reference: see data/items/food.yaml; the equip/use/collection blocks
+# are documented in data/items/gear.yaml.
+#
+# Version: v0.2.0 [2026-08-08]
 
 version: 1
 
@@ -21,6 +29,16 @@ items:
     weight: 0.2
     value: 4
     art: herbs
+    use:
+      verb: "chew"
+      hours: 0.25
+      consumes: 1
+      effects:
+        - type: stamina
+          delta: 8
+      text: >-
+        Bitter green stems worked between the teeth on the walk. Not medicine.
+        Enough of one to keep your legs under you to the next village.
     stack: true
 
   - id: feverfew
@@ -31,7 +49,25 @@ items:
     tags: [material]
     weight: 0.1
     value: 3
-    art: herbs
+    art: feverfew
+    use:
+      verb: "chew"
+      hours: 0.25
+      consumes: 1
+      effects:
+        # No `clear_condition` here, deliberately. Feverfew is a leaf you chew
+        # on the walk; the draught of bittergreen in this same file is the
+        # thing that clears a condition, and it costs twenty-two copper and a
+        # hard craft check for that reason.
+        - type: check_penalty
+          id: headache_eased
+          text: "the headache eased"
+          delta: 1
+          skills: [lore, craft]
+          days: 1
+      text: >-
+        Bitter enough to make your eyes water and the headache goes with it,
+        along with whatever the headache was a sign of.
     stack: true
 
   - id: yarrow_bundle
@@ -42,7 +78,17 @@ items:
     tags: [material]
     weight: 0.1
     value: 4
-    art: herbs
+    art: yarrow_bundle
+    use:
+      verb: "pack the wound"
+      hours: 0.25
+      consumes: 1
+      effects:
+        - type: hp
+          delta: 2
+      text: >-
+        Crushed and pressed in with the heel of the hand. It slows the
+        bleeding. That is not folklore; it simply works.
     stack: true
 
   - id: bittercress
@@ -53,7 +99,7 @@ items:
     tags: [material]
     weight: 0.1
     value: 3
-    art: herbs
+    art: bittercress
     stack: true
 
   - id: birch_resin
@@ -135,6 +181,18 @@ items:
     weight: 0.2
     value: 6
     art: bandage
+    use:
+      verb: "bind"
+      hours: 0.5
+      consumes: 1
+      effects:
+        - type: heal_wound
+          count: 1
+        - type: hp
+          delta: 2
+      text: >-
+        Boiled linen and yarrow paste, packed in and tied off. It closes. It
+        will not be pretty and it will not be open in the morning.
     stack: true
 
   - id: potion
@@ -146,4 +204,44 @@ items:
     weight: 0.3
     value: 22
     art: potion
+    use:
+      verb: "drink"
+      hours: 0.25
+      consumes: 1
+      effects:
+        - type: hp
+          delta: 4
+        - type: clear_condition
+          kind: check_penalty
+        - type: stamina
+          delta: 10
+      text: >-
+        Green, and as unpleasant as advertised. It does not heal anything. It
+        takes the fever off you and buys the body a night, which on this road
+        is most of what anybody is asking for.
+    stack: true
+
+  # ------------------------------------------------------------
+  # Forageable materials (P12). See data/tables/forage.yaml.
+  # ------------------------------------------------------------
+
+  - id: firewood_bundle
+    name: "Bundle of firewood"
+    description: >-
+      Deadfall snapped to arm's length and tied with a twist of bark. Heavy,
+      cheap, and the difference between a cold night and a warm one.
+    tags: [material, trade]
+    weight: 5.0
+    value: 2
+    stack: true
+
+  - id: birch_bark
+    name: "Roll of birch bark"
+    description: >-
+      Peeled in a single sheet from a fallen trunk. Takes ink, takes a flame,
+      and the shrine writes names on it when it will not write them in stone.
+    tags: [material]
+    weight: 0.2
+    value: 2
+    collection: folk_remedies
     stack: true

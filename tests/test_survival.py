@@ -83,11 +83,23 @@ def test_hungry_caps_stamina_below_max():
 
 
 def test_starving_costs_hp_per_hour():
+    """
+    Starvation damage tracks the configured rate, whatever it is.
+
+    The assertion used to be a hardcoded ``- 4``, which pinned the test to
+    ``starving_hp_per_hour: 1.0`` and made a balance change look like a
+    regression. The invariant worth defending is that the rate in
+    data/rules/survival.yaml is the rate the engine charges -- not what that
+    number happens to be this week.
+    """
+    rate = float(survival.load_rules()["hunger"]["starving_hp_per_hour"])
+    assert rate > 0, "starvation that costs nothing is not starvation"
+
     state = fed_state()
     state.hunger = 90.0
     hp_before = state.stats.hp
     survival.tick(state, 4)
-    assert state.stats.hp == hp_before - 4
+    assert state.stats.hp == hp_before - round(rate * 4)
 
 
 def test_not_starving_costs_no_hp():

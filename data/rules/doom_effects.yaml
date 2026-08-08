@@ -1,0 +1,80 @@
+# Doom beats — the Dark made tangible.
+#
+# Each beat fires ONCE, the first time evil_progress reaches its `at_progress`
+# threshold. Applied by engine/world/world_effects.py; every effect lands on a
+# GameState field that already exists, so it round-trips through a save with no
+# schema migration.
+#
+# Keys per beat:
+#   at_progress  : float 0..1   -> fires when state.evil_progress >= this
+#   text         : str          -> one line for logs and the world ledger
+#   set_flags    : [flag, ...]  -> state.flags[flag] = True (via effects.apply_effect)
+#   discoveries  : [key, ...]   -> state.flags["discovery_<key>"] = True
+#   rumors       : ["text"]     -> appended to state.rumors, deduped
+#   world_events : [{event_id, text}] -> appended to state.world_events
+#   npc_moves    : {npc_id: location_id} -> relocates a villager on state.procgen
+#
+# Thresholds are spaced across the phase boundaries in engine/game/evil_ticker.py
+# (stirring 0.2, spreading 0.5, consuming 0.8) so each phase shift is preceded
+# and followed by something the player can actually walk into.
+
+wheat_turns:
+  at_progress: 0.15
+  text: "The south rows begin cutting themselves."
+  set_flags: [harvest_wrong]
+  rumors:
+    - "No one will walk the south harvest line now — the wheat lies down in rows too straight for any wind."
+  world_events:
+    - event_id: south_field_falls
+      text: "The south wheatfield has gone over to the rows; something low and brass moves through it at night."
+
+scarecrow_wakes:
+  at_progress: 0.30
+  text: "The east-field scarecrow turns to face the road."
+  set_flags: [scarecrow_awake]
+  rumors:
+    - "The east-field scarecrow turned to face the road, and no hand turned it. Its grin shows brass now."
+  world_events:
+    - event_id: scarecrow_walks
+      text: "The brass scarecrow no longer stands where it was put; it follows the road when unwatched."
+
+vines_breach_forest:
+  at_progress: 0.50
+  text: "Clockwork-vines thread the forest margin."
+  set_flags: [vines_breached]
+  rumors:
+    - "Cold filigree threads the birches at the forest margin. No one works past the first birch now."
+  world_events:
+    - event_id: forest_margin_turns
+      text: "Clockwork-vines have crept into the forest margin, ticking where the sap should run."
+  npc_moves:
+    # The tinker abandons the caravan road and pulls in to the square. The
+    # margins emptying is the point: npcs_at() drives both narration and the UI,
+    # so the village visibly contracts as the Dark advances.
+    npc_ilya: edgewood_square
+
+tunnels_open:
+  at_progress: 0.70
+  text: "A seam of worked stone yawns open beneath the old stump."
+  set_flags: [tunnels_open]
+  discoveries: [hidden_path]
+  rumors:
+    - "Beneath the old stump a seam of worked stone has yawned open, breathing a draught of oil and old time."
+  world_events:
+    - event_id: tunnels_unsealed
+      text: "The tunnels under Edgewood are unsealed; something under the village has been given a door."
+
+tower_assembles:
+  at_progress: 0.88
+  text: "A tower assembles itself out of the southern sky."
+  set_flags: [tower_visible, gate_thinning]
+  rumors:
+    - "A tower is assembling itself out of the bruised sky on the southern horizon. It was not there yesterday."
+    - "The road behind Millhaven gate is thick with people leaving and thin with anyone going back."
+  world_events:
+    - event_id: tower_rises
+      text: "The Clockwork Tower is assembling on the horizon, gear fitting to gear."
+    - event_id: gate_thins
+      text: "Millhaven gate is held by fewer hands each day; the line has pulled back toward Edgewood."
+  npc_moves:
+    npc_sera: edgewood_square
