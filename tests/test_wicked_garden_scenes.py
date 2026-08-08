@@ -56,7 +56,17 @@ GARDEN = _ROOT / "games" / "wicked-garden"
 SCENES = GARDEN / "data" / "scenes"
 RULES = GARDEN / "data" / "rules"
 EPILOGUES = GARDEN / "data" / "epilogues"
+#: The story's declared vocabulary, vendored into the game tree. It was read
+#: from `Design_files/` until that directory became local-only, at which point
+#: every scan below passed on one machine and errored on a fresh checkout.
+CANON = GARDEN / "data" / "canon"
+
+#: The material the Garden was AUTHORED from, which a public checkout does not
+#: carry -- see the note in .gitignore. Only the transcription-provenance test
+#: below reads it, and that test skips when it is absent rather than pretending
+#: to have run.
 DESIGN = _ROOT / "Design_files" / "Wicked-Garden" / "docs" / "design"
+HAVE_DESIGN = DESIGN.is_dir()
 
 #: The ten day chapters, in order. Named rather than globbed: a suite that
 #: globs cannot fail when a day goes missing, and "Day 6 is not authored" is
@@ -183,7 +193,7 @@ def _declared_locations() -> set[str]:
 
 
 def _dictionary() -> dict[str, Any]:
-    with (DESIGN / "agents" / "state-dictionary.json").open(encoding="utf-8") as handle:
+    with (CANON / "state-dictionary.json").open(encoding="utf-8") as handle:
         return json.load(handle)
 
 
@@ -674,6 +684,7 @@ def test_the_new_e6_variants_are_reachable(garden: GameState) -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(not HAVE_DESIGN, reason="Design_files/ is local-only; see .gitignore")
 def test_the_epilogue_index_matches_the_design_json() -> None:
     """
     The transcription lost nothing.
@@ -681,6 +692,19 @@ def test_the_epilogue_index_matches_the_design_json() -> None:
     Same ids in the same order, same titles, same gallery keys. The gallery key
     is checked specifically because it is not the ending id and the finale
     unlocks art by it -- DAY-09-FINALE.md:351.
+
+    THE ONLY SKIPPABLE TEST IN THIS FILE, and it is skippable because it checks
+    PROVENANCE rather than correctness: it compares the shipped YAML to the
+    authored JSON it was transcribed from, and that JSON is deliberately not in
+    the repository. On a checkout without it there is nothing to compare to, and
+    a check with no second opinion is not a check.
+
+    What it guards is covered without the source by tests that read only shipped
+    files -- `test_every_declared_ending_has_an_epilogue` holds the index, the
+    prose and `endings.declared()` to the same twenty-three ids, and
+    `test_epilogue_echo_speakers_are_people_this_story_has` holds the speakers to
+    the canon roster. What is lost here is only the ability to say the
+    transcription is faithful to a document nobody else has.
     """
     index = _read(EPILOGUES / "epilogue_index.yaml")
     with (DESIGN / "epilogues" / "epilogue-index.json").open(encoding="utf-8") as handle:

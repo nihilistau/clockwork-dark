@@ -46,6 +46,31 @@ games/*/data/lore/*.db
 data/media/
 
 # ---------------------------------------------------------------------------
+# Source design material — local only
+# ---------------------------------------------------------------------------
+# Working documents a story was BUILT FROM, not shipped from. 36.6 MB of
+# markdown, mockups and concept plates that the games/ tree has already
+# imported, re-encoded and cited by line number.
+#
+# Ignored rather than committed for three reasons: this repository is public
+# and git history is permanent; the concept art here is a second, larger copy
+# of pictures that already ship under games/<slug>/data/art/; and these
+# documents specify content at intensity tiers the shipped stories
+# deliberately stop short of.
+#
+# The engine never reads it. The suite reads it exactly once -- a test that
+# compares the shipped epilogue index to the JSON it was transcribed from --
+# and that test SKIPS when this directory is absent, because a provenance check
+# with no second document to compare against is not a check. Everything else
+# that used to read from here now reads
+# `games/wicked-garden/data/canon/state-dictionary.json`, which ships.
+#
+# Verified by renaming this directory and running the suite: 1314 passed, 1
+# skipped. The citations in the content files (`05-BACKSTORY.md:113`) are
+# provenance, not a dependency.
+Design_files/
+
+# ---------------------------------------------------------------------------
 # Editors / OS
 # ---------------------------------------------------------------------------
 .vscode/

@@ -1,0 +1,755 @@
+{
+  "$schema_name": "WickedGarden.StateBoard",
+  "version": "1.0.0-design",
+  "description": "Canonical shared state for GM Agent + Sophia Agent. Source of truth over chat memory. Design-phase contract — not runtime code.",
+  "conventions": {
+    "flag_names": "snake_case",
+    "booleans_default": false,
+    "meters_range": [0, 100],
+    "enums_exhaustive": true,
+    "unknown_flags": "reject_or_namespace_mod",
+    "time": {
+      "garden_day_index": "integer >= 0",
+      "time_debt_mortal_days": "garden days completed * 10 + fractional shards",
+      "formula_note": "1 Garden day = 10 mortal days"
+    }
+  },
+  "meta": {
+    "session_id": { "type": "string", "owner": "system" },
+    "player": {
+      "name": { "type": "string", "default": "you" },
+      "pronouns": { "type": "string", "examples": ["they/them", "she/her", "he/him"] },
+      "background_tags": {
+        "type": "string[]",
+        "examples": ["artist", "scholar", "lost_traveler", "runaway_spouse", "occult_dabbler"]
+      },
+      "boundaries": {
+        "hard_nos": { "type": "string[]", "owner": "product", "above_agents": true },
+        "soft_nos": { "type": "string[]" },
+        "green_lights": { "type": "string[]" }
+      }
+    },
+    "content": {
+      "intensity": {
+        "type": "enum",
+        "values": ["suggestive", "explicit", "extreme"],
+        "default": "suggestive",
+        "owner": "product"
+      },
+      "fade_available": { "type": "boolean", "default": true },
+      "aftercare_mode": { "type": "boolean", "default": false },
+      "reduced_motion": { "type": "boolean", "default": false },
+      "analyst_mode": { "type": "boolean", "default": false, "description": "Show raw meter numbers" }
+    },
+    "act": {
+      "type": "enum",
+      "values": ["prologue", "act1", "act2", "act3", "finale", "epilogue"],
+      "default": "prologue"
+    },
+    "garden_day_index": { "type": "integer", "default": 0 },
+    "location_key": {
+      "type": "enum",
+      "values": [
+        "mortal_threshold",
+        "gate_of_briars",
+        "path_first_petals",
+        "guest_house",
+        "heart_grove",
+        "feasting_glade",
+        "mirror_pools",
+        "thorn_labyrinth",
+        "winter_spindle",
+        "root_crypts",
+        "briar_deep",
+        "aviary_unsent",
+        "night_market",
+        "unknown"
+      ]
+    },
+    "garden_season": {
+      "type": "enum",
+      "values": ["bloom", "thorn", "harvest", "hush"],
+      "default": "bloom"
+    }
+  },
+  "meters": {
+    "favor": {
+      "type": "integer",
+      "min": 0,
+      "max": 100,
+      "default": 15,
+      "ui": "rose_bloom",
+      "description": "Sophia's favor / obsession heat toward player",
+      "write": ["gm_agent", "sophia_agent", "system"]
+    },
+    "autonomy": {
+      "type": "integer",
+      "min": 0,
+      "max": 100,
+      "default": 70,
+      "ui": "vine_hands",
+      "description": "Player will / bargaining power"
+    },
+    "corruption": {
+      "type": "integer",
+      "min": 0,
+      "max": 100,
+      "default": 5,
+      "ui": "gold_dust",
+      "description": "Fae-touched / Garden-bound"
+    },
+    "knowledge": {
+      "type": "integer",
+      "min": 0,
+      "max": 100,
+      "default": 0,
+      "ui": "moth_eye",
+      "description": "Laws, secrets, dangerous awareness"
+    },
+    "time_debt_mortal_days": {
+      "type": "number",
+      "min": 0,
+      "default": 0,
+      "ui": "ash_hourglass",
+      "description": "Mortal days lost equivalent"
+    },
+    "desire": {
+      "type": "integer",
+      "min": 0,
+      "max": 100,
+      "default": 10,
+      "ui": "heat_shimmer",
+      "description": "Optional explicit track; hunger/attraction pressure"
+    },
+    "equality_seed": {
+      "type": "integer",
+      "min": 0,
+      "max": 10,
+      "default": 0,
+      "description": "Progress toward E2 peer path"
+    },
+    "labyrinth_lost": {
+      "type": "integer",
+      "min": 0,
+      "max": 3,
+      "default": 0,
+      "description": "Hidden Day 5 lost meter"
+    }
+  },
+  "clocks": {
+    "ashen_pressure": { "type": "integer", "min": 0, "max": 5, "default": 0 },
+    "briar_hunger": { "type": "integer", "min": 0, "max": 5, "default": 0 },
+    "sophia_break": { "type": "integer", "min": 0, "max": 5, "default": 0 },
+    "mortal_collapse": { "type": "integer", "min": 0, "max": 5, "default": 0 },
+    "notes": "At 5 force setpiece; Day 7+ primary"
+  },
+  "knowledge_partitions": {
+    "public_world": {
+      "owner": ["gm_agent", "sophia_agent"],
+      "description": "Shared facts both may use freely"
+    },
+    "sophia_private": {
+      "owner": ["sophia_agent"],
+      "description": "Her true motives, soft century guilt detail, private desire plans"
+    },
+    "gm_secrets": {
+      "owner": ["gm_agent"],
+      "description": "Briar full truth, ending keys, NPC private plots"
+    },
+    "player_facing": {
+      "owner": ["system"],
+      "description": "What has been shown in prose/UI"
+    }
+  },
+  "relationships": {
+    "schema": {
+      "stance": {
+        "type": "enum",
+        "values": [
+          "unknown",
+          "curious",
+          "interested_possessive",
+          "allied",
+          "wary_respect",
+          "hostile",
+          "hostile_interest",
+          "amused_predator",
+          "in_love_peer",
+          "thrall_bond",
+          "creditor",
+          "dead_or_gone"
+        ]
+      },
+      "trust": { "type": "integer", "min": 0, "max": 100 },
+      "debt_to_them": { "type": "integer", "min": 0, "max": 100 },
+      "secrets_shared": { "type": "string[]" }
+    },
+    "npcs": [
+      "sophia",
+      "ashen_vale",
+      "thornwake",
+      "lior",
+      "mother_briar",
+      "elias",
+      "mara_quill",
+      "bloomkin_generic",
+      "court_generic"
+    ]
+  },
+  "inventory": {
+    "item_ids": [
+      "collar_soft_thorns",
+      "thorn_ring",
+      "kiss_petal",
+      "nightbloom_wine",
+      "living_silk",
+      "salt_circle_chalk",
+      "iron_pin",
+      "ashen_clasp",
+      "ashen_passport",
+      "briar_key",
+      "mortalslip_thread",
+      "lovers_ring_cold",
+      "pressed_letter",
+      "black_honey",
+      "seed_of_becoming",
+      "mirror_glass_knife",
+      "mirror_chip",
+      "thorn_of_proof",
+      "frost_splinter",
+      "true_name_shard_sophia_partial",
+      "pressed_court_schedule",
+      "frost_thread",
+      "sap_sketch"
+    ],
+    "item_instance_schema": {
+      "id": "string",
+      "charges": "integer|null",
+      "sealed_by": "string|null",
+      "bound_thread_id": "string|null",
+      "tags": "string[]"
+    }
+  },
+  "threads": {
+    "description": "Active bargains / obligations",
+    "schema": {
+      "id": "string",
+      "source": "sophia|ashen|briar|lior|market|law|other",
+      "tags": [
+        "Protection",
+        "Pleasure",
+        "Knowledge",
+        "Time",
+        "Freedom",
+        "Name",
+        "Body",
+        "Service",
+        "Silence",
+        "Sovereignty"
+      ],
+      "terms_summary": "string",
+      "status": ["active", "discharged", "broken", "transformed"],
+      "can_cut_with": ["mirror_glass_knife", "law", "death", "sovereign_word"]
+    },
+    "known_thread_templates": [
+      "obligation_gift_d1",
+      "hospitality_dawn",
+      "three_nights_or_truths",
+      "ashen_service_owed",
+      "ashen_clasp_double_edge",
+      "briar_witness",
+      "collar_property_scent"
+    ]
+  },
+  "flags": {
+    "description": "Boolean or enum story flags. Unlisted booleans default false.",
+    "enums": {
+      "entry_mode": ["guest", "claimed", "bargain", "refused", "dragged_guest"],
+      "labyrinth_result": [
+        "none",
+        "devoted",
+        "self",
+        "peer_attempt",
+        "blasphemy",
+        "deep_ashen"
+      ],
+      "act2_compass": [
+        "none",
+        "devotion",
+        "love_and_door",
+        "refuse_honeyed",
+        "condemn",
+        "briar_touched",
+        "winter"
+      ],
+      "day7_sophia_terms": [
+        "none",
+        "will_discuss_leave",
+        "demands_thrall_talk",
+        "demands_war_ally",
+        "silent_war",
+        "offers_equal_path"
+      ],
+      "ending_intent": [
+        "none",
+        "E1",
+        "E1a",
+        "E1b",
+        "E1c",
+        "E1d",
+        "E2",
+        "E2a",
+        "E2b",
+        "E2c",
+        "E3",
+        "E3a",
+        "E3b",
+        "E3c",
+        "E4",
+        "E4a",
+        "E4b",
+        "E4c",
+        "E4d",
+        "E4e",
+        "E5",
+        "E5a",
+        "E5b",
+        "E5c",
+        "E6a",
+        "E6b",
+        "E6c",
+        "E6d",
+        "E6e"
+      ],
+      "ending_locked": { "$ref": "ending_intent" },
+      "lior_memory_price": ["none", "childhood", "lover", "achievement", "custom"]
+    },
+    "booleans": {
+      "prologue": [
+        "resisted_call",
+        "threatened_leave",
+        "saw_time_moth",
+        "knows_time_law",
+        "invited_sophia_night0",
+        "night0_kiss",
+        "night0_intimate",
+        "dragged_guest"
+      ],
+      "act1": [
+        "looked_home_d1",
+        "heard_honeyed_warning",
+        "met_thornwake_sight",
+        "gift_accepted",
+        "gift_refused",
+        "gift_renegotiated",
+        "extracted_costly_gift",
+        "sophia_mark_social",
+        "heard_ashen_rumor",
+        "asked_exit_d1",
+        "ate_black_fruit",
+        "night1_intimate",
+        "met_thornwake",
+        "met_lior",
+        "law_hospitality",
+        "law_seat_vs_woman_partial",
+        "used_hospitality_law",
+        "saw_blurred_endings",
+        "sophia_released_to_learn",
+        "saw_elias_sap",
+        "briar_heartbeat_heard",
+        "sophia_soft_century_hint",
+        "dream_ashen",
+        "mortal_letter_d3",
+        "refused_feast",
+        "armed_with_iron",
+        "sided_sophia_feast",
+        "heard_ashen_offer",
+        "feast_neutral",
+        "public_defied_sophia",
+        "night3_intimate",
+        "night3_intimate_soft",
+        "night3_invite_argument",
+        "refused_night3",
+        "told_sophia_ashen_full",
+        "sophia_respected_spine_d3",
+        "toasted_doors_d3",
+        "ashen_route_open",
+        "act1_complete"
+      ],
+      "act2": [
+        "touched_ashen_frost",
+        "slipped_out",
+        "sophia_watching_d4",
+        "clasp_surrendered",
+        "thornwake_ashen_warning",
+        "ashen_bargain_d4",
+        "ashen_intel_only",
+        "ashen_used_for_equality",
+        "sold_sophia_warmth",
+        "ashen_intimacy_d4",
+        "name_partial_ashen",
+        "labyrinth_assigned_d5",
+        "labyrinth_ready",
+        "labyrinth_completed",
+        "labyrinth_heard_dead",
+        "labyrinth_law_used",
+        "labyrinth_deep_ashen",
+        "refused_winter_self",
+        "name_spoken_labyrinth",
+        "elias_exit_triad",
+        "tried_free_elias",
+        "briar_heard_self",
+        "met_briar_partial",
+        "briar_finale_pending",
+        "leave_law_fragment",
+        "iron_used_labyrinth"
+      ],
+      "act3": [
+        "act3_open",
+        "ending_sworn",
+        "briar_finale_pending",
+        "false_self_kissed",
+        "mortalslip_used",
+        "petal_summon_used"
+      ],
+      "finale": [
+        "ending_gallery_unlocked",
+        "looked_back_at_gate",
+        "ng_plus_seed_written"
+      ]
+    },
+    "integers": {
+      "ashen_route": {
+        "min": 0,
+        "max": 3,
+        "default": 0,
+        "description": "0 none · 1 aware · 2 bargained · 3 deep winter identity"
+      }
+    }
+  },
+  "codex_unlocks": {
+    "type": "string[]",
+    "examples": [
+      "law_of_tens",
+      "law_of_gifts",
+      "law_of_names_partial",
+      "law_hospitality",
+      "gate_of_briars",
+      "heart_grove",
+      "sophia_partial",
+      "ashen_vale",
+      "thornwake",
+      "lior",
+      "mother_briar_partial",
+      "elias",
+      "root_crypts",
+      "soft_century_hint",
+      "feasting_glade",
+      "thorn_labyrinth"
+    ]
+  },
+  "ending": {
+    "eligible": {
+      "type": "string[]",
+      "description": "Populated Day 8; subset of ending IDs"
+    },
+    "intent": { "$ref": "flags.enums.ending_intent" },
+    "locked": { "$ref": "flags.enums.ending_locked" },
+    "scores": {
+      "type": "object",
+      "additionalProperties": { "type": "number" },
+      "description": "Soft weights E1..E6 for UI omens"
+    },
+    "selection_hints": {
+      "E1a": ["day7_sophia_terms=will_discuss_leave|offers_equal_path", "favor_high", "not_stolen_force"],
+      "E1b": ["active_bargain_or_paid_debt", "leave_law_or_key"],
+      "E1c": ["forced_exit", "no_sophia_consent", "iron_or_stealth"],
+      "E1d": ["time_debt_mortal_days >= 100"],
+      "E2a": ["equality_seed >= 2", "favor >= 70", "autonomy >= 55", "shared_crisis_win"],
+      "E2b": ["E2 gates", "abandon_seat_flag"],
+      "E2c": ["E2 gates", "cost_visible_flag"],
+      "E3a": ["favor >= 75", "autonomy <= 40", "desire >= 60", "thrall_consent"],
+      "E3b": ["E3 gates", "public_seal"],
+      "E3c": ["E3 gates", "autonomy <= 25"],
+      "E4a": ["sophia_hunger_wrath", "refuse_exits"],
+      "E4b": ["briar_claim"],
+      "E4c": ["ashen_victory"],
+      "E4d": ["public_feast_humiliation"],
+      "E4e": ["player_opts_dissolution"],
+      "E5a": ["usurp_gates", "spare_sophia"],
+      "E5b": ["usurp_gates", "remove_sophia"],
+      "E5c": ["briar_wins_through_player"],
+      "E6a": ["ashen_route >= 2", "passport_or_service"],
+      "E6b": ["lior_legion_flag"],
+      "E6c": ["thornwake_squire_flag"],
+      "E6d": ["market_true_debt"],
+      "E6e": ["mara_arc_complete"]
+    },
+    "epilogue_card_pack": "docs/design/epilogues/EPILOGUE-CARDS.md"
+  },
+  "agent_contracts": {
+    "gm_agent": {
+      "may_write": [
+        "meters.*",
+        "flags.*",
+        "clocks.*",
+        "relationships.*(except sophia private mood)",
+        "inventory",
+        "threads",
+        "location_key",
+        "codex_unlocks",
+        "ending.eligible",
+        "ending.scores",
+        "knowledge_partitions.gm_secrets",
+        "knowledge_partitions.public_world",
+        "knowledge_partitions.player_facing"
+      ],
+      "owns_voice": [
+        "narration",
+        "ashen_vale",
+        "thornwake",
+        "lior",
+        "mother_briar",
+        "elias",
+        "mara_quill",
+        "court",
+        "bloomkin",
+        "epilogue_card_m",
+        "epilogue_card_g"
+      ],
+      "must_read_each_turn": [
+        "meta",
+        "meters",
+        "flags",
+        "clocks",
+        "location_key",
+        "inventory",
+        "threads",
+        "content.intensity",
+        "content.boundaries"
+      ]
+    },
+    "sophia_agent": {
+      "may_write": [
+        "meters.favor",
+        "meters.desire",
+        "meters.autonomy (with reason)",
+        "meters.corruption (intimate/claim contexts)",
+        "flags (sophia-related)",
+        "relationships.sophia",
+        "knowledge_partitions.sophia_private",
+        "knowledge_partitions.public_world (limited)",
+        "day7_sophia_terms"
+      ],
+      "owns_voice": ["sophia_dialogue", "sophia_intimate_direction", "sophia_echo_epilogue"],
+      "must_not": [
+        "override hard_nos",
+        "set intensity above player",
+        "speak as ashen/briar/thornwake",
+        "reveal gm_secrets she does not know in-character",
+        "unlock endings without system eligibility"
+      ],
+      "must_read_each_turn": [
+        "meters",
+        "flags related to claim/gift/jealousy",
+        "player.boundaries",
+        "content.intensity",
+        "act2_compass",
+        "relationships.sophia",
+        "inventory gifts she gave"
+      ],
+      "mood_vector": {
+        "type": "object",
+        "properties": {
+          "affection": { "type": "number", "min": 0, "max": 1 },
+          "hunger": { "type": "number", "min": 0, "max": 1 },
+          "jealousy": { "type": "number", "min": 0, "max": 1 },
+          "playfulness": { "type": "number", "min": 0, "max": 1 },
+          "melancholy": { "type": "number", "min": 0, "max": 1 },
+          "wrath": { "type": "number", "min": 0, "max": 1 },
+          "vulnerability": { "type": "number", "min": 0, "max": 1 }
+        },
+        "owner": "sophia_agent",
+        "persistence": "session+summary"
+      }
+    },
+    "system": {
+      "owns": [
+        "eligibility recompute",
+        "day toll time_debt",
+        "product safety gates",
+        "act transitions",
+        "ending lock validation"
+      ]
+    },
+    "negotiation_rules": [
+      "Product safety > all character goals",
+      "If Sophia private scene and GM random event conflict: finish private, event becomes aftermath",
+      "Threshold Law correctly invoked beats Sophia will for exit physics; she may still react on meters",
+      "State board commit happens once per turn after negotiation",
+      "Agents re-read board every turn; chat memory is not authoritative"
+    ]
+  },
+  "turn_pipeline": [
+    "player_input",
+    "safety_filter",
+    "intent_parse",
+    "sophia_plan_if_present",
+    "gm_plan",
+    "negotiate",
+    "state_commit",
+    "render_prose",
+    "render_choices",
+    "image_brief",
+    "video_brief_optional",
+    "ending_check_soft"
+  ],
+  "image_brief_schema": {
+    "shot_type": ["portrait", "wide", "intimate", "omen", "epilogue_card"],
+    "subjects": "string[]",
+    "location_key": "string",
+    "mood_palette": "string",
+    "wardrobe_state": "string",
+    "key_action": "string",
+    "ui_overlay_hint": "string",
+    "content_level": ["suggestive", "explicit", "extreme"]
+  },
+  "video_brief_schema": {
+    "duration_intent": [6, 10],
+    "camera": "string",
+    "motion_priority": "string[]",
+    "start_frame_desc": "string",
+    "emotional_payoff": "string"
+  },
+  "day_toll_default": {
+    "time_debt_mortal_days_delta": 10,
+    "on_labyrinth_lost_max": 10,
+    "recompute": ["ending.scores", "clocks.mortal_collapse"]
+  },
+  "initial_state_template": {
+    "meta.act": "prologue",
+    "meta.garden_day_index": 0,
+    "meta.location_key": "mortal_threshold",
+    "meters.favor": 15,
+    "meters.autonomy": 70,
+    "meters.corruption": 5,
+    "meters.knowledge": 0,
+    "meters.time_debt_mortal_days": 0,
+    "meters.desire": 10,
+    "meters.equality_seed": 0,
+    "flags.entry_mode": null,
+    "flags.act2_compass": "none",
+    "flags.labyrinth_result": "none",
+    "inventory": [],
+    "threads": [],
+    "clocks": {
+      "ashen_pressure": 0,
+      "briar_hunger": 0,
+      "sophia_break": 0,
+      "mortal_collapse": 0
+    },
+    "relationships": {
+      "sophia": { "stance": "unknown", "trust": 10, "debt_to_them": 0, "secrets_shared": [] }
+    },
+    "ending": { "eligible": [], "intent": "none", "locked": "none", "scores": {} }
+  },
+  "playtest_imports": {
+    "path_a_end_act1": {
+      "meters": {
+        "favor": 78,
+        "autonomy": 55,
+        "corruption": 20,
+        "knowledge": 42,
+        "time_debt_mortal_days": 40,
+        "desire": 68
+      },
+      "flags_true": [
+        "act1_complete",
+        "knows_time_law",
+        "gift_renegotiated",
+        "extracted_costly_gift",
+        "met_lior",
+        "saw_blurred_endings",
+        "night0_kiss",
+        "night3_intimate_soft",
+        "sided_sophia_feast",
+        "heard_ashen_offer"
+      ],
+      "entry_mode": "guest",
+      "inventory": ["kiss_petal", "living_silk", "mirror_chip"],
+      "ashen_route": 1
+    },
+    "path_b_end_act1": {
+      "meters": {
+        "favor": 35,
+        "autonomy": 95,
+        "corruption": 14,
+        "knowledge": 52,
+        "time_debt_mortal_days": 40,
+        "desire": 40
+      },
+      "flags_true": [
+        "act1_complete",
+        "knows_time_law",
+        "gift_refused",
+        "asked_exit_d1",
+        "met_thornwake",
+        "law_hospitality",
+        "used_hospitality_law",
+        "saw_elias_sap",
+        "briar_heartbeat_heard",
+        "toasted_doors_d3",
+        "heard_ashen_offer",
+        "ashen_route_open",
+        "refused_night3"
+      ],
+      "entry_mode": "bargain",
+      "inventory": ["iron_pin", "salt_circle_chalk", "ashen_clasp"],
+      "ashen_route": 2
+    },
+    "path_a_end_act2": {
+      "meters": {
+        "favor": 90,
+        "autonomy": 64,
+        "corruption": 28,
+        "knowledge": 72,
+        "time_debt_mortal_days": 70,
+        "desire": 78,
+        "equality_seed": 5
+      },
+      "act2_compass": "love_and_door",
+      "labyrinth_result": "peer_attempt",
+      "inventory": [
+        "kiss_petal",
+        "living_silk",
+        "mirror_chip",
+        "pressed_letter",
+        "mortalslip_thread"
+      ],
+      "ashen_route": 1,
+      "flags_true": ["ashen_intel_only", "labyrinth_completed", "met_briar_partial", "elias_exit_triad"]
+    },
+    "path_b_end_act2": {
+      "meters": {
+        "favor": 30,
+        "autonomy": 98,
+        "corruption": 30,
+        "knowledge": 85,
+        "time_debt_mortal_days": 75,
+        "desire": 52
+      },
+      "act2_compass": "refuse_honeyed",
+      "labyrinth_result": "self",
+      "inventory": ["ashen_clasp", "ashen_passport", "briar_key"],
+      "threads": ["ashen_service_owed"],
+      "ashen_route": 2,
+      "flags_true": [
+        "ashen_bargain_d4",
+        "labyrinth_completed",
+        "labyrinth_law_used",
+        "elias_exit_triad",
+        "sophia_soft_century_hint"
+      ]
+    }
+  }
+}
