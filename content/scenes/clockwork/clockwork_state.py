@@ -31,6 +31,7 @@ import logging
 import time
 from typing import Any, Callable, Optional
 
+from engine.game import epilogue as epilogue_module
 from engine.game.engine import active_engine
 from engine.game.state import GameState
 from engine.memory import StoryLedger, TurnRecord, present_npc_ids, summarize
@@ -728,6 +729,19 @@ def run_turn(
     # all, so both shipped stories ship the payload they shipped before.
     if safety:
         turn_payload["safety"] = safety
+
+    # The run is over, and here is what it reads like.
+    #
+    # Rides on turn_update rather than a new socket event: the client's INBOUND
+    # table is asserted against every server emit (tests/test_ui_contract.py),
+    # and an ending is a property of the turn that ended the story rather than
+    # a thing that happens on its own schedule. Absent while a run is running
+    # and absent forever for a story that declares no endings, so both shipped
+    # games send exactly the payload they sent before.
+    ending = epilogue_module.for_state(state)
+    if ending is not None:
+        turn_payload["ending"] = ending.to_dict()
+
     session.last_turn = turn_payload
 
     quest_events = _evaluate_quests(session)

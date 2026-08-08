@@ -359,7 +359,7 @@ cards:
     text: >-
       INTENT: one fullscreen omen and one confirmation. Irreversible, and the
       interface should say so without apologising.
-      RUNTIME: `endings.lock(state, <id>)`. It refuses an id that is not
+      RUNTIME: the `ending_lock` effect below. It refuses an id that is not
       eligible and refuses a second lock on an already-locked save, which is
       what makes this beat the point of no return rather than a label on one.
       Read `report.forced` from the receipt -- if the only thing in the eligible
@@ -370,6 +370,15 @@ cards:
         gate:
           on_pass:
             effects:
+              # No `ending:` on purpose. The id is the player's -- what they
+              # swore on Day 8 if it is still eligible, else the highest-scoring
+              # ending they can actually complete, else the fail-forward. Naming
+              # one here would be this beat choosing the ending for them.
+              #
+              # This is also what ends the run: `epilogue.for_state()` fires on
+              # a locked ending, the turn payload grows an `ending` block, and
+              # the client swaps the play screen for the two cards.
+              - { type: ending_lock }
               - { type: flag, flag: ending_sworn }
 
   - id: F4_ending_module
@@ -380,10 +389,10 @@ cards:
       INTENT: this beat is a pointer. The three beats of the locked ending are
       authored in `data/rules/endings.yaml` under that variant's `beats:` key,
       in the same Speak/Act/Seal order for all twenty-three.
-      RUNTIME: read them with `endings.load_rules()` and resolve each through
-      `deck.resolve_beat` -- they are ordinary bounded beats in the same
-      grammar. NOT WIRED: `endings.declared()` builds its flattened view from a
-      fixed key list and drops `beats:`, so a renderer must read the raw table.
+      RUNTIME: read them with `endings.declared()[<id>]["beats"]` and resolve
+      each through `deck.resolve_beat` -- they are ordinary bounded beats in the
+      same grammar. The flattened view used to drop `beats:` and a renderer had
+      to re-read the raw table; it carries them now.
       CONSTRAINT: intensity stays suggestive except inside an E2 or E3 intimacy
       seal where the player has raised it, and this content ships none of those.
       Sophia owns her own monologues and her intimate seals; the GM owns world

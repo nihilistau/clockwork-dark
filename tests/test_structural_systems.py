@@ -24,6 +24,7 @@ from typing import Any, Iterator
 
 import pytest
 
+from engine.challenges import spec as spec_module
 from engine.config import set_overlay
 from engine.content import deck as deck_module
 from engine.game import clocks, effects, endings, threads
@@ -1074,6 +1075,62 @@ def test_a_sequence_card_ignores_a_chosen_beat(garden: GameState) -> None:
     assert "sequence" in card.tags and len(card.beats) > 1
     results = deck_module.resolve_card(garden, card, chosen=card.beats[-1]["id"])
     assert [r.beat_id for r in results] == [b["id"] for b in card.beats]
+
+
+def test_a_model_composed_challenge_cannot_end_the_story(garden: GameState) -> None:
+    """
+    `ending_lock` is authored-content-only.
+
+    The bounder widened for the finale's own beat, and this is the half of that
+    change that matters: the widening is scoped to YAML in the story's tree.
+    A model composing a challenge mid-turn still cannot reach either ending
+    phase -- same argument the module already makes about `track`, that an
+    ending set by a dice table is not a scene but a hijack.
+    """
+    adjustments: list[str] = []
+    outcome = spec_module.clamp_outcome(
+        {"effects": [{"type": "ending_lock", "ending": "E1a"}]}, adjustments
+    )
+    assert outcome["effects"] == []
+    assert any("ending_lock" in note for note in adjustments), adjustments
+
+    # And the drop is a drop, not a silent pass-through to the dispatcher.
+    assert endings.locked(garden) == endings.NONE_ID
+
+
+def test_authored_content_may_end_the_story(garden: GameState) -> None:
+    """The same block, from a file rather than a model, survives intact."""
+    adjustments: list[str] = []
+    outcome = spec_module.clamp_outcome(
+        {"effects": [{"type": "ending_lock", "ending": "E1a"}]}, adjustments, authored=True
+    )
+    assert [e["type"] for e in outcome["effects"]] == ["ending_lock"]
+
+
+def test_widening_for_authored_content_widens_only_the_structural_kinds(
+    garden: GameState,
+) -> None:
+    """
+    `authored=True` is not an escape hatch.
+
+    Magnitude clamps still apply -- a beat written greedily is a mistake a human
+    makes too -- and `track`, which the module deliberately excludes, stays
+    excluded from both paths.
+    """
+    adjustments: list[str] = []
+    outcome = spec_module.clamp_outcome(
+        {
+            "effects": [
+                {"type": "favor", "delta": 500},
+                {"type": "track", "name": "ending_intent", "value": "E1a"},
+            ]
+        },
+        adjustments,
+        authored=True,
+    )
+    kinds = [e["type"] for e in outcome["effects"]]
+    assert "track" not in kinds
+    assert outcome["effects"][0]["delta"] < 500
 
 
 def test_a_beat_may_read_a_live_thread(garden: GameState) -> None:

@@ -27,6 +27,7 @@ import React from "react";
 import Meters from "@core/parts/Meters.jsx";
 import PaintFrame from "@core/parts/PaintFrame.jsx";
 import { AnalystContext, loadAnalyst } from "./analyst.js";
+import EpilogueCard from "./parts/EpilogueCard.jsx";
 import { HourglassMeter, VINES, VineMeter } from "./parts/Meters.jsx";
 
 const HOURGLASS = "time_debt_mortal_days";
@@ -120,6 +121,38 @@ function Stage({ state }) {
   );
 }
 
+/**
+ * The last screen.
+ *
+ * Core's generic Ending walks the payload's `render_order` and would draw this
+ * story correctly. The Garden overrides it because its two cards are typeset,
+ * not listed -- the waking world and the Garden are meant to sit as facing
+ * pages, and the whole design turns on the reader holding both at once.
+ *
+ * The payload is spread rather than mapped: `EpilogueCard`'s props ARE
+ * `Epilogue.to_dict()`'s keys, so there is no place for the two to disagree
+ * about what `card_m` means.
+ */
+function EndingScreen({ ending, story, onNewRun, onOpenSaves }) {
+  return (
+    // `.finale`, not `.ending` -- this story's `.ending__*` block belongs to
+    // EndingGallery's medallions.
+    <div className="finale finale--garden" role="document">
+      <EpilogueCard {...ending} />
+      <div className="finale__actions">
+        <button type="button" className="btn btn--lg" onClick={onNewRun}>
+          {story?.beginLabel || "Step through again"}
+        </button>
+        {onOpenSaves && (
+          <button type="button" className="btn btn--ghost" onClick={onOpenSaves}>
+            Saved runs
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default {
   slug: "wicked-garden",
   title: "The Wicked Garden",
@@ -138,6 +171,7 @@ export default {
   Wordmark,
   Ledger,
   Stage,
+  Ending: EndingScreen,
 
   // Everything the Garden draws reads analyst mode from context rather than
   // from props, because it reaches ten levels down into an ending card.

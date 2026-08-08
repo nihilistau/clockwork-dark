@@ -261,12 +261,47 @@ def render(state: GameState, ending_id: str) -> Optional[Epilogue]:
     )
 
 
+def for_state(state: GameState) -> Optional[Epilogue]:
+    """
+    The epilogue this run has earned, or None while it is still running.
+
+    THE TRIGGER IS ``lock``, NOT ``resolve``. ``endings.resolve()`` always
+    answers -- it falls forward rather than softlock a finale -- so a turn loop
+    asking it "is there an ending yet?" would be told yes on turn one and show
+    the player their epilogue before they had left the threshold. Locking is the
+    declared point of no return: it is refused on a non-eligible id and refused
+    a second time on an already-locked save, and it is the only thing in the
+    story that cannot be walked back.
+
+    A story with no declared endings never locks one, so this is None for The
+    Clockwork Dark on every turn of every run -- and its terminal death, which
+    sets ``state.ended``, stays what it was. Death is not an epilogue here; a
+    story wanting one declares an ending and locks it.
+    """
+    from engine.game import endings as endings_module
+
+    ending_id = endings_module.locked(state)
+    if not ending_id or ending_id == endings_module.NONE_ID:
+        return None
+    rendered = render(state, ending_id)
+    if rendered is None:
+        # Locked to a real ending with no card authored for it. Loud, because
+        # the finale has already committed and the player is about to reach the
+        # end of the story and be shown nothing.
+        logger.error(
+            "[epilogue] Locked ending has no epilogue (operation=for_state, ending=%s)",
+            ending_id,
+        )
+    return rendered
+
+
 __all__ = [
     "DEFAULT_ORDER",
     "INDEX_FILE",
     "TIME_DEBT_VALUE",
     "Epilogue",
     "declared",
+    "for_state",
     "load_cards",
     "load_index",
     "render",

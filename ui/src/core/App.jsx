@@ -13,6 +13,7 @@ import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } 
 
 import Cutscene from "./parts/Cutscene.jsx";
 import Onboarding, { shouldOnboard } from "./parts/Onboarding.jsx";
+import Ending from "./screens/Ending.jsx";
 import Menu from "./screens/Menu.jsx";
 import Play from "./screens/Play.jsx";
 import Saves from "./screens/Saves.jsx";
@@ -311,6 +312,31 @@ export default function App({ story }) {
             onDone={() => setOnboarding(false)}
           />
         )}
+      </Wrap>
+    );
+  }
+
+  // The run is over.
+  //
+  // Checked before Play rather than layered over it: the play screen would
+  // still be offering choices and a compose box for a story that has ended,
+  // and the engine refuses every action on a locked save -- so the player
+  // would be typing into a turn that can no longer happen.
+  //
+  // Not keyed off `screen`, because the ending is not a place the player
+  // navigates to and must survive a reconnect. It is cleared by RESET, which
+  // is what beginning or loading a run does.
+  if (state.ending) {
+    const StoryEnding = story.Ending || Ending;
+    return (
+      <Wrap state={state}>
+        <StoryEnding
+          ending={state.ending}
+          state={state}
+          story={story}
+          onNewRun={() => leaveRun(true)}
+          onOpenSaves={openSaves}
+        />
       </Wrap>
     );
   }

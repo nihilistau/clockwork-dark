@@ -924,14 +924,12 @@
   color: var(--text-narration);
 }
 
-.epilogue__hollow {
-  margin: 0;
-  padding-left: var(--space-3);
-  border-left: 2px solid var(--wg-iron);
-  font-family: var(--font-narration);
-  font-style: italic;
-  color: var(--wg-iron-bright);
-}
+/* `.epilogue__hollow` used to live here. The hollow clause is no longer its own
+   element: the engine appends it as the last paragraph of the mortal card, gated
+   on the debt threshold the story's epilogue index declares, so the client can
+   neither show it for a run that did not pay nor forget it for one that did. A
+   rule for markup nothing emits is the CSS shape of a mechanism that is
+   documented and not wired. */
 
 .epilogue__echo {
   display: flex;
@@ -952,11 +950,42 @@
   color: var(--wg-gold);
 }
 
+/* One paragraph of an authored card. The cards are written with blank lines in
+   them and arrive as one string, so the component splits and this styles each
+   piece -- a single <p> would have run four paragraphs together. */
+.epilogue__echo-line {
+  margin: 0;
+}
+
 .epilogue__time {
   margin: 0;
   font-family: var(--font-narration);
   font-style: italic;
   color: var(--text-muted);
+}
+
+/* ---------- the ending screen ----------
+   The page the epilogue card sits on. `.finale`, deliberately not `.ending`:
+   that block is EndingGallery's medallions, above. */
+
+.finale {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  min-height: 100vh;
+  padding: var(--space-6) var(--space-4);
+  overflow-y: auto;
+  background:
+    radial-gradient(120% 80% at 50% 0%, var(--wg-leaf), transparent 70%),
+    var(--wg-soil-deep);
+}
+
+.finale__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
 }
 
 /* ---------- reduced motion ----------

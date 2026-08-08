@@ -259,7 +259,12 @@ def _bound_gate(raw: dict[str, Any], adjustments: list[str]) -> dict[str, Any]:
         gate["check"] = bounded
     for branch in ("on_pass", "on_fail"):
         if branch in raw:
-            gate[branch] = spec_module.clamp_outcome(raw[branch], adjustments)
+            # `authored=True`: this came out of a YAML file in the story's own
+            # tree, not out of a model mid-turn. It widens the type allowlist by
+            # the structural kinds -- `ending_lock` and `ending_intent` -- and
+            # nothing else. Every magnitude clamp still applies, because a beat
+            # being written greedily is a mistake a human makes too.
+            gate[branch] = spec_module.clamp_outcome(raw[branch], adjustments, authored=True)
     return gate
 
 

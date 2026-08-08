@@ -12,30 +12,47 @@
  *   ──────────────────────────────────
  *   [CARD G — THE GARDEN]
  *   ──────────────────────────────────
- *   Sophia's echo (optional)
+ *   echo (optional, zero to two, whoever speaks)
  *   Time line
  *
- * The time line is a template with the arithmetic already in it: "You spent
- * {garden_days} days in the Wicked Garden. Outside, roughly {garden_days x 10}
- * days passed." The multiplier is the story's exchange rate and the card is the
- * only place a player ever sees the bill, so it is computed here from the one
- * number rather than being passed in twice and allowed to disagree.
+ * EVERY WORD HERE COMES FROM THE SERVER.
+ *
+ * This file used to compute two of them itself, and both were wrong in the same
+ * direction. It multiplied `gardenDays * 10` for the time line, when the
+ * authoritative number is the `time_debt_mortal_days` meter -- that carries the
+ * extra shards a lost labyrinth and a wasted hour added, so the card
+ * under-reported exactly the runs whose whole point is what they cost. And it
+ * hardcoded both the hollow clause's wording and "Sophia" as the speaker of
+ * every echo, in a story where the index declares the speaker per ending, two
+ * endings have two echoes and one has none.
+ *
+ * `engine/game/epilogue.py` renders all of it from the story's own index and
+ * prose. This draws it.
  */
 import React from "react";
 
-const MORTAL_PER_GARDEN_DAY = 10;
+/** Blank-line-separated paragraphs, which is how the cards are authored. */
+function Prose({ text, className = "epilogue__prose" }) {
+  return String(text || "")
+    .split(/\n{2,}/)
+    .filter((para) => para.trim())
+    .map((para, index) => (
+      <p className={className} key={index}>
+        {para.trim()}
+      </p>
+    ));
+}
 
 export default function EpilogueCard({
-  id,
-  title,
-  mortal,
-  garden,
-  echo,
-  gardenDays = 0,
-  hollow = false,
+  // The server's `Epilogue.to_dict()`, passed whole. Named fields rather than a
+  // blob so the component kit can still mount it from a fixture.
+  ending_id: id = "",
+  title = "",
+  card_m: mortal = "",
+  card_g: garden = "",
+  echoes = [],
+  time_line: timeLine = "",
 }) {
-  const mortalDays = Math.round(gardenDays * MORTAL_PER_GARDEN_DAY);
-
   return (
     <article className="epilogue" aria-label={`${id} ${title}`}>
       <header className="epilogue__head">
@@ -47,34 +64,28 @@ export default function EpilogueCard({
 
       <section className="epilogue__card">
         <h3 className="epilogue__card-head">The waking world</h3>
-        <p className="epilogue__prose">{mortal}</p>
-        {/* Past 100 mortal days the design injects a hollow clause into any
-            mortal card. It is a fixed consequence of the clock, so it is drawn
-            as part of the card rather than left to the prose to remember. */}
-        {hollow && (
-          <p className="epilogue__hollow">
-            Everyone you meant to come back to has had years of it. You are the
-            only one who thinks you were gone a week.
-          </p>
-        )}
+        {/* The hollow clause is already the last paragraph of this card when
+            the debt earned it -- the engine folds it in, gated on the
+            threshold the index declares, so it cannot be shown for a run that
+            did not pay it or forgotten for one that did. */}
+        <Prose text={mortal} />
       </section>
 
       <section className="epilogue__card">
         <h3 className="epilogue__card-head">The Garden</h3>
-        <p className="epilogue__prose">{garden}</p>
+        <Prose text={garden} />
       </section>
 
-      {echo && (
-        <p className="epilogue__echo">
-          <span className="epilogue__echo-who">Sophia</span>
-          {echo}
-        </p>
-      )}
+      {echoes.map((echo, index) => (
+        <div className="epilogue__echo" key={`${echo.speaker}-${index}`}>
+          {echo.speaker && (
+            <span className="epilogue__echo-who">{echo.speaker.replace(/_/g, " ")}</span>
+          )}
+          <Prose text={echo.text} className="epilogue__echo-line" />
+        </div>
+      ))}
 
-      <p className="epilogue__time">
-        You spent <b>{gardenDays}</b> {gardenDays === 1 ? "day" : "days"} in the
-        Wicked Garden. Outside, roughly <b>{mortalDays}</b> days passed.
-      </p>
+      {timeLine && <p className="epilogue__time">{timeLine}</p>}
     </article>
   );
 }

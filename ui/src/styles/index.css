@@ -1377,6 +1377,138 @@ input[type="radio"] {
 }
 
 
+/* ---------- the ending screen ----------
+   Shown in place of the play screen once a run locks an ending.
+
+   The block is `.finale` rather than `.ending` because a story stylesheet
+   already owns `.ending__title`, `.ending__card` and `.ending__id` for its
+   ending gallery's medallions, and a full-page epilogue landing under those
+   rules would look wrong in exactly one story.
+
+   Scrolls the page rather than an inner pane: an ending is two long cards and
+   a reader should be able to run past the bottom of the screen without a
+   nested scrollbar to find first. */
+
+.finale {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  align-content: start;
+  min-height: 100%;
+  padding: var(--space-6) var(--space-4);
+  overflow-y: auto;
+  background: var(--surface-scene);
+}
+
+.finale__sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: min(64ch, 100%);
+  padding: var(--space-6);
+  background: var(--surface-narrative);
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.finale__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-hair) solid var(--line-soft);
+}
+
+.finale__kicker {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-smallcaps);
+}
+
+.finale__title {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-2xl);
+  color: var(--text-display);
+}
+
+.finale__id {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  color: var(--text-candlelight);
+}
+
+.finale__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+  border-bottom: var(--border-hair) solid var(--line-soft);
+}
+
+.finale__card-head {
+  margin: 0;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-smallcaps);
+}
+
+/* An authored card arrives as one string with blank lines in it. Each piece is
+   its own inline element, so `display: block` is what makes them paragraphs. */
+.finale__para {
+  display: block;
+  font-family: var(--font-narration);
+  font-size: var(--text-lg);
+  line-height: var(--leading-relaxed);
+  color: var(--text-narration);
+}
+
+.finale__para + .finale__para {
+  margin-top: var(--space-3);
+}
+
+.finale__echoes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.finale__echo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  font-style: italic;
+  color: var(--text-parchment);
+}
+
+.finale__echo-who {
+  font-style: normal;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-candlelight);
+}
+
+.finale__time,
+.finale__gallery {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.finale__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+  padding-top: var(--space-2);
+}
+
+
 /* ---------- narrow viewports ----------
    The old breakpoint did `display: none` on the assistant AND stats
    panels, so a phone player lost health, stamina, gold, inventory and

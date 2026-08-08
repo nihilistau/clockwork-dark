@@ -36,7 +36,7 @@ import pytest
 import yaml
 
 from engine.config import set_overlay
-from engine.content import deck as deck_module
+from engine.content import deck as deck_module  # noqa: F401  -- also the fixture's loader
 
 # The state layer registers `value`, `clock` and `track`; threads and endings
 # register theirs. Imported for the side effect, so a condition in a scene file
@@ -822,6 +822,74 @@ def test_an_undeclared_ending_renders_nothing(garden: GameState) -> None:
     assert epilogue_module.render(garden, "E9z") is None
 
 
+def test_no_epilogue_reaches_the_player_until_an_ending_is_locked(garden: GameState) -> None:
+    """
+    The trigger is `lock`, not `resolve`.
+
+    `endings.resolve()` always answers -- it falls forward rather than softlock
+    a finale -- so a turn loop asking it "is there an ending yet?" is told yes
+    on turn one. Locking is the declared point of no return, and it is the only
+    honest signal that the story is over.
+    """
+    assert endings_module.resolve(garden), "resolve always answers; that is why it is not the gate"
+    assert epilogue_module.for_state(garden) is None
+
+    endings_module.lock(garden, endings_module.fail_forward_id())
+    rendered = epilogue_module.for_state(garden)
+    assert rendered is not None
+    assert rendered.ending_id == endings_module.fail_forward_id()
+    assert rendered.card_m and rendered.card_g and rendered.time_line
+
+
+def test_the_finales_own_beat_ends_the_run(garden: GameState) -> None:
+    """
+    The whole chain, driven from the authored file rather than from a call.
+
+    F3_point_of_no_return declares `{type: ending_lock}` with no id; the effect
+    dispatcher resolves what the run earned, `endings.lock` refuses anything
+    that cannot complete, and `epilogue.for_state` turns the locked id into the
+    two cards the turn payload carries. Every one of those existed and none of
+    them were connected: the finale named `endings.lock` in prose and no Python
+    anywhere called it, so the last screen of the story was unreachable by
+    playing.
+    """
+    card = next(
+        c
+        for c in deck_module.load_deck("day_09_finale").cards
+        if c.id == "F3_point_of_no_return"
+    )
+    assert epilogue_module.for_state(garden) is None
+
+    deck_module.resolve_card(garden, card, chosen="confirm_the_ending")
+
+    rendered = epilogue_module.for_state(garden)
+    assert rendered is not None, "the finale's own beat did not end the run"
+    assert rendered.ending_id == endings_module.locked(garden)
+    assert rendered.card_m and rendered.card_g
+
+    # Second lock refused, so a replayed beat cannot rewrite the ending.
+    before = endings_module.locked(garden)
+    deck_module.resolve_card(garden, card, chosen="confirm_the_ending")
+    assert endings_module.locked(garden) == before
+
+
+def test_a_locked_ending_always_has_a_card_to_show(garden: GameState) -> None:
+    """
+    Every ending the engine can lock renders.
+
+    The finale commits before this is asked, so an ending with no authored card
+    is a run that reaches its last screen and is shown nothing. Checked over all
+    twenty-three rather than the reachable ones, because "reachable" is the
+    thing most likely to be wrong.
+    """
+    blank = [
+        ending_id
+        for ending_id in endings_module.declared()
+        if epilogue_module.render(garden, ending_id) is None
+    ]
+    assert blank == []
+
+
 def test_epilogues_are_inert_for_a_story_that_declares_none() -> None:
     """
     The Clockwork Dark ships no epilogues, and adding this module cost it
@@ -830,3 +898,5 @@ def test_epilogues_are_inert_for_a_story_that_declares_none() -> None:
     assert epilogue_module.load_index() == {}
     assert epilogue_module.declared() == {}
     assert epilogue_module.render(GameState(), "E1a") is None
+    # And the turn payload never grows an `ending` key for it, on any turn.
+    assert epilogue_module.for_state(GameState()) is None

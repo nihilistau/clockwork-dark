@@ -51,6 +51,17 @@ export const initialState = {
   cutscene: null,
   audio: "",
 
+  // The run is over. `null` for every turn of a running game and for every
+  // turn of a story that declares no endings -- the server sends the key only
+  // once, on the turn that locked one. Shape is engine/game/epilogue.py's
+  // `Epilogue.to_dict()`: {ending_id, title, card_m, card_g, echoes, time_line,
+  // gallery_key, ng_plus_seed, order}.
+  //
+  // Deliberately NOT derived from `world.ended`. That flag is the flagship's
+  // terminal death, which is a different thing with no epilogue behind it, and
+  // one field meaning two things is how a screen ends up rendering a blank card.
+  ending: null,
+
   // The model thinking out loud, streamed on its own channel. Cleared when
   // narration starts: once there are words the player can read, the machinery
   // behind them stops being the most interesting thing on screen.
@@ -245,6 +256,12 @@ function handleSocket(state, event, payload) {
         meters: metersOf(payload, next.meters),
         saveId: payload.save_id || next.saveId,
         presence: payload.assistant || next.presence,
+        // Sticky once set. The turn that locks an ending is the only one
+        // carrying it, and a later turn -- an autosave echo, a reconnect
+        // replaying the last payload -- must not take the ending screen away
+        // again. Cleared only by RESET, which is what starting or loading a
+        // run does.
+        ending: payload.ending || next.ending,
         reasoningOpen: false,
       };
     }

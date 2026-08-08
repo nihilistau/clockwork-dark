@@ -343,16 +343,22 @@ export default function Kit() {
 
         <Section
           title="EpilogueCard"
-          note="Two cards, always: what happened in the waking world and what happened in the Garden. The time line computes the mortal cost from the Garden days at the story's own exchange rate, so the two can never disagree."
+          note="Two cards, always: what happened in the waking world and what happened in the Garden. Every field below is the shape the server sends — engine/game/epilogue.py's Epilogue.to_dict() — including the time line as a finished sentence and the hollow clause already folded into the mortal card. The component computes nothing, which is why this fixture reads like a payload."
         >
           <EpilogueCard
-            id="E1d"
+            ending_id="E1d"
             title="The Door Home — Hollow"
-            gardenDays={12}
-            hollow
-            mortal="The hedge lets you through on a Tuesday. Your key still fits. The lock has been changed twice since it was cut, and both times someone kept the old one, just in case."
-            garden="The chair you used is still at the table. Nobody has moved it and nobody sits in it, and this is the most sentimental thing the Garden has ever done."
-            echo="Go on, then. I will not watch you to the gate; I have some dignity."
+            card_m={
+              "The hedge lets you through on a Tuesday. Your key still fits. The lock has been changed twice since it was cut, and both times someone kept the old one, just in case.\n\nEven this ending cannot give you back the years the hourglass already ate."
+            }
+            card_g="The chair you used is still at the table. Nobody has moved it and nobody sits in it, and this is the most sentimental thing the Garden has ever done."
+            echoes={[
+              {
+                speaker: "sophia",
+                text: "Go on, then. I will not watch you to the gate; I have some dignity.",
+              },
+            ]}
+            time_line="You spent 12 days in the Wicked Garden. Outside, roughly 127 days passed."
           />
         </Section>
 

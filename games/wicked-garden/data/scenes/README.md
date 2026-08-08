@@ -128,16 +128,30 @@ different way for authored content to be invisible.
 4. **Epilogues** load through `paths.epilogues` and `engine/game/epilogue.py`,
    which joins the index to the prose, substitutes the time line from state, and
    appends the hollow clause past the declared debt threshold.
+5. **The finale can end the run, and the epilogue reaches the screen.**
+   `day_09_finale.yaml`'s `F3_point_of_no_return` declares `{type: ending_lock}`
+   with no id, so the ending is whatever the player earned — the intent sworn on
+   Day 8 if still eligible, else the best they can complete, else the
+   fail-forward. `epilogue.for_state()` fires on the lock (not on `resolve()`,
+   which always answers and would have shown an epilogue on turn one), rides
+   `turn_update` as an `ending` block, and the client swaps the play screen for
+   `core/screens/Ending.jsx` or this story's `EpilogueCard`.
+
+   The two effect kinds are **authored-content-only**. A model composing a
+   challenge mid-turn still cannot reach either phase — same argument the
+   bounder already made about `track`, that an ending set by a dice table is not
+   a scene but a hijack.
 
 ## What is still not wired
 
 Stated plainly, per CLAUDE.md rule 9.
 
-1. **No screen draws an epilogue.** The engine produces a fully substituted
-   `Epilogue`; the client has no component that renders one.
-2. **Nothing calls the plan → negotiate → commit pipeline.** `engine/agents/`
+1. **Nothing calls the plan → negotiate → commit pipeline.** `engine/agents/`
    ships `plan.py`, `negotiate.py`, `knowledge.py` and `roster.py`, all tested;
    the live turn still runs the single-agent path.
+2. **The Speak · Act · Seal beats are reachable and not run.** `F4_ending_module`
+   points at `endings.declared()[<id>]["beats"]`, which now carries them; no
+   runner walks them between the lock and the epilogue.
 3. **Six of the fourteen locations have no art plate**, including the entry
    `mortal_threshold`, so the opening screen draws a procedural placeholder.
-   The generation prompts exist in `data/art/subjects.yaml`.
+   The generation prompts are in `MISSING-PLATES.md`.

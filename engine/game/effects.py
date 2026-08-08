@@ -851,6 +851,64 @@ def _e_track(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> di
     }
 
 
+@effect_kind("ending_intent", "ending_lock")
+def _e_ending(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    Swear an ending, or commit to one.
+
+    ``{type: ending_intent, ending: E1a}`` is soft -- it can be sworn, changed
+    and dropped, and Day 8 exists for it. ``{type: ending_lock, ending: E1a}``
+    is the point of no return: refused on an id that cannot complete, refused a
+    second time on an already-locked save, and the signal the run is over.
+
+    THIS IS THE LINK THAT WAS MISSING. ``engine/game/endings.py`` has had both
+    calls since the structural systems landed, ``day_09_finale.yaml`` names them
+    beat by beat ("RUNTIME: ``endings.lock(state, <id>)``"), and no Python
+    anywhere invoked either -- so the finale was a document describing a
+    mechanism, the epilogue could not be reached by playing, and every layer
+    beneath it worked.
+
+    Routed through this dispatcher rather than called from a scene runner
+    because ``apply_effect`` is the one writer, and because that is what puts
+    both behind the ``by=`` ACL: an agent that may not end the story cannot,
+    and the refusal is journalled rather than dropped.
+
+    ``ending_lock`` WITH NO ID locks whatever the run has earned, via
+    ``endings.resolve()`` -- the intent sworn on Day 8 if it is still eligible,
+    else the highest-scoring eligible ending, else the declared fail-forward.
+    That is the shape the finale actually needs: the id belongs to the player,
+    not to the beat, and ``day_09_finale.yaml`` says so ("Whatever
+    ``endings.locked(state)`` returns... it cannot return nothing"). An
+    ``ending_intent`` with no id is still an error, because swearing to
+    whatever you happen to be nearest is not swearing.
+
+    Neither is bounded here. ``endings`` does its own bounding against the
+    declared table, which is stricter than an enum -- it checks the ending can
+    actually COMPLETE, not merely that its id was spelled right.
+    """
+    from engine.game import endings as endings_module
+
+    kind = str(effect.get("type", "")).strip().lower()
+    ending_id = str(effect.get("ending") or effect.get("id") or "").strip()
+    if not ending_id:
+        if kind != "ending_lock":
+            return _unknown(kind, effect)
+        ending_id = endings_module.resolve(state, ledger=ctx.ledger)
+        if not ending_id:
+            # A story with no declared endings. Nothing to lock, and this is
+            # not an error -- it is a story that does not end this way.
+            return _unknown(kind, effect)
+
+    if kind == "ending_lock":
+        receipt = endings_module.lock(state, ending_id, ledger=ctx.ledger)
+    else:
+        receipt = endings_module.set_intent(state, ending_id, ledger=ctx.ledger)
+    # The receipt is already a track receipt from `_write_track`; relabelling it
+    # would hide which of the two phases produced it.
+    receipt["type"] = kind
+    return receipt
+
+
 def _store(state: GameState) -> Optional[Any]:
     """
     A StateStore over the active story's schema, or None.

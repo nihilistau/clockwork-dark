@@ -173,6 +173,23 @@ ALLOWED_EFFECT_TYPES: frozenset[str] = frozenset(
      "reputation", "item", "remove_item", "flag"}
 )
 
+#: Effect types AUTHORED content may use and a model-composed spec may not.
+#:
+#: These are structural rather than large. Nothing here can be clamped into
+#: safety, because the risk is not magnitude -- `ending_lock` is the point of no
+#: return whatever number you attach to it, and the note above about `track` is
+#: the same argument: "an ending intent set by a dice table is not a scene, it
+#: is a hijack."
+#:
+#: The distinction this draws is between a human writing a finale into a YAML
+#: file on disk and a model composing a challenge mid-turn. The bounder used to
+#: make no such distinction, and its docstring defended that ("the ceiling
+#: exists because of what a scene IS, not because of who wrote it") -- which is
+#: correct about SIZE and wrong about CAPABILITY. Day 9's own point-of-no-return
+#: beat could not end the game, so the finale was a document describing a
+#: mechanism it had no way to invoke.
+STRUCTURAL_EFFECT_TYPES: frozenset[str] = frozenset({"ending_intent", "ending_lock"})
+
 #: How much of a bounded value's RANGE one scene may be worth.
 #:
 #: A sixth. The number is set by what the authored content actually asks for:
@@ -317,12 +334,21 @@ def _int(value: Any, default: int = 0) -> int:
 def _clamp_effect(
     effect: Any,
     adjustments: list[str],
+    *,
+    authored: bool = False,
 ) -> Optional[dict[str, Any]]:
     """
     Bound one effect, or drop it.
 
-    Returns None when the effect is unusable or of a type a model-composed
-    challenge is not allowed to apply.
+    Returns None when the effect is unusable or of a type the caller is not
+    allowed to apply.
+
+    Args:
+        authored: True for effects read from a story's own YAML on disk, False
+            for a model-composed spec. It widens the type allowlist by
+            ``STRUCTURAL_EFFECT_TYPES`` and changes nothing else -- every
+            magnitude clamp still applies, because a beat's size is bounded by
+            what a scene IS and not by who wrote it.
     """
     if not isinstance(effect, dict):
         return None
@@ -341,6 +367,8 @@ def _clamp_effect(
             return None
 
     allowed = allowed_effect_types()
+    if authored:
+        allowed = allowed | STRUCTURAL_EFFECT_TYPES
     if bounded_name not in allowed:
         adjustments.append(f"dropped disallowed effect type {bounded_name!r}")
         return None
@@ -395,11 +423,18 @@ def _clamp_effect(
     return bounded
 
 
-def clamp_outcome(raw: Any, adjustments: list[str]) -> dict[str, Any]:
+def clamp_outcome(
+    raw: Any, adjustments: list[str], *, authored: bool = False
+) -> dict[str, Any]:
     """
     Bound one outcome block (``reward`` or ``fail``).
 
     Shape: ``{"text": str, "effects": [effect, ...]}``.
+
+    Args:
+        authored: True when the block came from a story's own file rather than
+            from a model. Defaults to False so the strict path stays the one a
+            caller gets by not thinking about it.
     """
     if not isinstance(raw, dict):
         return {"text": "", "effects": []}
@@ -414,7 +449,7 @@ def clamp_outcome(raw: Any, adjustments: list[str]) -> dict[str, Any]:
 
     bounded: list[dict[str, Any]] = []
     for entry in effects_in:
-        clamped = _clamp_effect(entry, adjustments)
+        clamped = _clamp_effect(entry, adjustments, authored=authored)
         if clamped is not None:
             bounded.append(clamped)
 
@@ -660,6 +695,7 @@ __all__ = [
     "MAX_STEPS",
     "SCHEMA_CEILING_FRACTION",
     "SKILLS",
+    "STRUCTURAL_EFFECT_TYPES",
     "SpecResult",
     "allowed_effect_types",
     "clamp_outcome",
