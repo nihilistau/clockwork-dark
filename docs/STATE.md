@@ -1,0 +1,127 @@
+# Story State
+
+How a story declares what its state IS, and how the engine reads and writes it.
+
+Authority reminder: the code wins. If this file disagrees with
+`engine/state/**`, the modules are right and this file is stale.
+
+---
+
+## The problem
+
+`GameState` is a dataclass carrying `hp`, `stamina`, `hunger`, `wounds`,
+`evil_phase`, `awareness` and a procgen result. That is **one story's answer,
+welded into the engine**. A story built on eight 0–100 meters, four 0–5 progress
+clocks and nine per-NPC relationship records had nowhere to put any of it —
+`flags` is booleans only — while inheriting a dozen fields it would never read.
+
+The multi-game layer could repoint 22 content files and nothing else, so a
+second story could only ever be the first one with different nouns.
+
+## The declaration
+
+`games/<slug>/state.yaml`, optional. A story that ships none runs on the engine
+spine, exactly as both games did before this existed.
+
+```yaml
+version: 1
+meters:
+  favor:   {min: 0, max: 100, default: 15, visibility: veiled, owners: [sophia]}
+  hp:      {backing: field, path: stats.hp, min: 0, max: 20, visibility: public}
+clocks:
+  briar_hunger: {min: 0, max: 5, visibility: hidden}
+tracks:
+  ...
+```
+
+### `backing` is the migration strategy
+
+| | |
+|---|---|
+| `field` | An existing typed attribute, addressed by a dotted path (`stats.hp`). Nothing moves. The ~10 modules that say `state.stats.hp` keep saying it. |
+| `bag` | An entry in the generic `meters` / `clocks` / `tracks` containers on the spine. A story the engine has never heard of uses these exclusively. |
+
+**The Clockwork Dark declares 14 values, all `backing: field`.** It is *described*,
+not rewritten — which is the only reason this was safe to land under 949 existing
+tests. A value can be flipped from `field` to `bag` later, one at a time, each
+flip small enough to prove on its own. `tests/test_state_schema.py` asserts the
+flagship stays entirely field-backed, so a drift without moving its readers
+fails the suite.
+
+### `visibility` replaces three hardcoded payload contracts
+
+`to_client_dict`'s 21-key allowlist, the `turn_update` dict literal, and the
+reducer's own shape were three independent lists — so a story could not show the
+player a value the engine had not been taught about.
+
+| | |
+|---|---|
+| `public` | Sent as a number, with bounds |
+| `veiled` | Sent as a **band only**, never the integer — a meter read as a rose opening, not as 63/100 |
+| `hidden` | Never leaves the server; the player meets it as fiction |
+
+### `owners` is the per-agent write ACL
+
+Empty means **engine-only**, and empty is the default: a story has to say a value
+is agent-writable rather than forget to say it is not.
+
+## The store
+
+`engine/state/store.py`. One API over both backings — callers cannot tell which
+they are touching.
+
+```python
+from engine.state.active import store_for
+
+store = store_for(state)
+store.get("favor")
+store.adjust("favor", 8, by="sophia", why="she was amused", turn=12)
+```
+
+- **Writes clamp rather than raise.** A model proposing 140 on a 0–100 scale
+  means "as high as it goes", not "crash the turn". The overshoot is recorded.
+- **Every write is journalled** — name, before, after, who, why, turn, whether it
+  was clamped, whether it was refused.
+- **Refusals are recorded, not just dropped.** An agent repeatedly trying to move
+  a value it does not own is a prompt defect, and it is invisible if the attempt
+  is only ever discarded.
+- Never cache a store across a rollback: it holds the state by reference and a
+  rollback replaces that object's contents in place.
+
+## Prerequisites that had to be fixed first
+
+Three defects silently discarded any state declared beyond the base dataclass.
+Each failed in a way that looked like a content bug, and nothing in the suite
+exercised a subclass, so all three were invisible. See
+`tests/test_state_extension.py`.
+
+1. `transaction.restore_in_place` iterated `fields(GameState)` literally, not
+   `type(target)` — extended fields were reverted on **every evaluator retry and
+   every tool savepoint**.
+2. `StateTransaction.rollback` rehydrated through `GameState.from_dict`, so even
+   a fixed restore loop was handed an object with nothing to copy.
+3. `GameState.from_dict` named its six nested dataclasses one by one; a seventh
+   came back from a save as a raw dict and failed later, elsewhere.
+
+## What sits on top of it
+
+| Container | System |
+|---|---|
+| `meters` / `clocks` | `engine/game/clocks.py` — progress clocks with predicates, auto-advance and forced setpieces. Wound from `clock.advance_time`, for the same reason doom beats are: a clock that only advanced on narrated turns would stop for a player who slept through the week. |
+| `threads` | `engine/game/threads.py` — offer → terms → renegotiate → seal, with `transform` for an already-sealed contract. Expired on the day rollover from `clock.advance_time`. |
+| `tracks` | Enum and list-valued story state, written through the `track` effect kind. |
+| ending state | `engine/game/endings.py` — eligibility, continuous scores, soft `intent` then hard `lock`. |
+
+Effects reach all of it through `effects.apply_effect(..., by=, turn=)`, which is
+still the single writer, and which now threads the writer id down to the store's
+per-value `owners` ACL and journal.
+
+## NOT WIRED
+
+| Thing | Status |
+|---|---|
+| Agent write attribution | `apply_effect` accepts `by=` and the store enforces `owners` and journals refusals — but no agent passes it yet, so every production write is `WRITER_ENGINE`. It becomes real when a story runs the plan/negotiate pipeline. |
+| The plan/negotiate pipeline itself | `engine/agents/{plan,negotiate,roster,knowledge}.py` are built and tested; the live turn still runs the single-agent path in `StorytellerAgent.run_turn`. A story declares its roster in `agents.yaml`; no shipped story does. |
+| `ui/` consuming the `meters` block | The projection reaches the browser inside `state.meters`. Being wired in W3. |
+
+Version: v0.2.0 [2026-08-08]

@@ -64,6 +64,38 @@ def format_for(kind: str) -> dict[str, Any]:
     return formats.get(kind, formats.get("location", {"aspect": "16:9", "width": 1344, "height": 768}))
 
 
+def style_for(variant: str, key: str) -> str:
+    """
+    One clause of the shared art direction, or a named variant's replacement.
+
+    A story's ``style:`` block is appended to every prompt it renders, which is
+    the point -- it is what makes a pack look like one pack. But a story with a
+    strong house style has subjects that are deliberately OUTSIDE it, and for
+    those the block argues against the thing being drawn. The Wicked Garden's
+    style says "lush organic forms everywhere -- vines, petals, pollen" and
+    "botanical art nouveau"; two of its fourteen locations are a drab mortal
+    flat and a formless void, and reading as the opposite of the Garden is the
+    entire job of both.
+
+    So a subject may name a variant (``style: mortal``) and the story declares
+    it under ``style.variants.mortal``. Only the keys the variant declares are
+    replaced, so a variant that changes the prose keeps the shared negative.
+
+    An unknown variant name falls back to the shared block and logs -- a typo
+    should cost a prompt its exception, not produce no art direction at all.
+    """
+    block = load_subjects().get("style", {}) or {}
+    if variant:
+        override = (block.get("variants") or {}).get(variant)
+        if not isinstance(override, dict):
+            logger.warning(
+                "[art] Unknown style variant (operation=style_for, variant=%s)", variant
+            )
+        elif key in override:
+            return str(override.get(key) or "").strip()
+    return str(block.get(key) or "").strip()
+
+
 def _location_fields(location_id: str, time_of_day: str) -> Optional[dict[str, str]]:
     entry = load_subjects().get("locations", {}).get(location_id)
     if not entry:
@@ -77,6 +109,7 @@ def _location_fields(location_id: str, time_of_day: str) -> Optional[dict[str, s
         "details": entry.get("details", ""),
         "setting": slot.get("setting", ""),
         "light": slot.get("light", ""),
+        "style": entry.get("style", ""),
     }
 
 
@@ -89,6 +122,7 @@ def _portrait_fields(npc_id: str) -> Optional[dict[str, str]]:
         "details": entry.get("details", ""),
         "setting": entry.get("setting", ""),
         "light": entry.get("mood", ""),
+        "style": entry.get("style", ""),
     }
 
 
@@ -111,6 +145,7 @@ def _item_fields(item_id: str) -> Optional[dict[str, str]]:
         "details": entry.get("details", ""),
         "setting": entry.get("setting", defaults.get("setting", "")),
         "light": entry.get("light", defaults.get("light", "")),
+        "style": entry.get("style", defaults.get("style", "")),
     }
 
 
@@ -130,6 +165,7 @@ def _fields(kind: str, subject_id: str, time_of_day: str) -> dict[str, str]:
             "details": "",
             "setting": time_of_day,
             "light": "",
+            "style": "",
         }
     return fields
 
@@ -157,7 +193,7 @@ def render_prose(
         joined = ", ".join(p for p in (fields["setting"], fields["light"]) if p)
         sentences.append(f"{joined.capitalize()}.")
 
-    style = (spec.get("style", {}).get("prose") or "").strip()
+    style = style_for(fields.get("style", ""), "prose")
     if style:
         sentences.append(style)
 
@@ -186,7 +222,7 @@ def render_tags(
     fields = _fields(kind, subject_id, time_of_day)
 
     parts = [fields["subject"], fields["details"], fields["setting"], fields["light"]]
-    style = (spec.get("style", {}).get("tags") or "").strip()
+    style = style_for(fields.get("style", ""), "tags")
     if style:
         parts.append(style)
     if evil_phase in CORRUPT_PHASES:
@@ -195,7 +231,7 @@ def render_tags(
             parts.append(corrupt)
 
     positive = ", ".join(p.strip() for p in parts if p and p.strip())
-    negative = (spec.get("style", {}).get("negative") or "").strip()
+    negative = style_for(fields.get("style", ""), "negative")
     return positive, negative
 
 

@@ -1,0 +1,142 @@
+# The Clockwork Dark -- state declaration.
+#
+# Every value here is `backing: field`: it DESCRIBES an attribute that already
+# exists on GameState rather than moving it. That is deliberate and it is the
+# whole migration strategy. Roughly ten engine modules say `state.stats.hp` and
+# `state.hunger` today; they keep saying it, nothing moves, and 949 tests stay
+# green -- while the schema still becomes the single place that knows what this
+# story's state IS, what it is bounded by, who may write it and what the player
+# is allowed to see.
+#
+# A second story declares `backing: bag` throughout and needs no typed fields at
+# all. A Clockwork value can be flipped from `field` to `bag` later, one at a
+# time, each flip small enough to prove on its own.
+#
+# `owners` is the per-agent write ACL and it is deliberately EMPTY almost
+# everywhere: empty means engine-only. A story has to say a value is
+# agent-writable, rather than forgetting to say it is not.
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+slug: clockwork-dark
+
+meters:
+  # -- body ------------------------------------------------------------
+  hp:
+    backing: field
+    path: stats.hp
+    min: 0
+    max: 20
+    default: 20
+    visibility: public
+    label: Health
+  stamina:
+    backing: field
+    path: stats.stamina
+    min: 0
+    max: 100
+    default: 100
+    visibility: public
+    label: Stamina
+  focus:
+    backing: field
+    path: stats.focus
+    min: 0
+    max: 10
+    default: 10
+    visibility: public
+    label: Focus
+  # Rises toward starvation rather than falling, so 0 is fed. The UI shows the
+  # stage word, not this number -- see engine/game/survival.py::hunger_stage.
+  hunger:
+    backing: field
+    path: hunger
+    min: 0
+    max: 100
+    default: 0
+    visibility: public
+    label: Hunger
+
+  # -- purse and craft --------------------------------------------------
+  gold:
+    backing: field
+    path: stats.gold
+    min: 0
+    default: 5
+    visibility: public
+    label: Coin
+  craft:
+    backing: field
+    path: stats.craft
+    min: 0
+    default: 10
+    visibility: public
+    label: Craft
+
+  # -- attributes (3-18; checks derive modifiers from these) ------------
+  grit:
+    backing: field
+    path: stats.grit
+    min: 3
+    max: 18
+    default: 10
+    visibility: public
+  agility:
+    backing: field
+    path: stats.agility
+    min: 3
+    max: 18
+    default: 10
+    visibility: public
+  wits:
+    backing: field
+    path: stats.wits
+    min: 3
+    max: 18
+    default: 10
+    visibility: public
+  presence:
+    backing: field
+    path: stats.presence
+    min: 3
+    max: 18
+    default: 10
+    visibility: public
+
+  # -- hidden stats -----------------------------------------------------
+  #
+  # DESIGN.md is explicit that the player meets these as fiction and never as a
+  # number, and `to_client_dict` has always redacted them. Declaring them hidden
+  # is what makes that a property of the schema rather than a hand-maintained
+  # allowlist that a new field can be forgotten from.
+  awareness:
+    backing: field
+    path: awareness
+    min: 0
+    max: 100
+    default: 0
+    visibility: hidden
+    label: Awareness
+  evil_progress:
+    backing: field
+    path: evil_progress
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    visibility: hidden
+    label: The pattern
+  plot_involvement:
+    backing: field
+    path: plot_involvement
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    visibility: hidden
+  story_pressure:
+    backing: field
+    path: story_pressure
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    visibility: hidden

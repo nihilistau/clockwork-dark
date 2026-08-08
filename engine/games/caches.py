@@ -30,7 +30,7 @@ this file is:
       engine.game.locations         LOCATIONS (populated at import time)
       engine.skills.builtin.assistant  HINTS_BY_TIER, LORE_SNIPPETS
       engine.media.art              load_subjects (lru_cache)
-      engine.media.providers.shipped   load_manifest (lru_cache)
+      engine.media.providers.shipped   load_manifest, art_root (lru_cache)
       engine.persistence.saves      _store (its root embeds the game slug)
       engine.lore.manager           _manager (its db path is a config path)
 
@@ -95,6 +95,11 @@ NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
 LRU_CACHES: tuple[tuple[str, str], ...] = (
     ("engine.media.art", "load_subjects"),
     ("engine.media.providers.shipped", "load_manifest"),
+    # The directory that manifest's paths resolve against. Read on every
+    # lookup alongside load_manifest, so the two must be cleared together --
+    # otherwise a game swap checks the new story's filenames inside the old
+    # story's directory, misses every one, and the art silently vanishes.
+    ("engine.media.providers.shipped", "art_root"),
     ("engine.game.checks", "_read_yaml"),
     ("engine.game.survival", "_read_rules"),
     ("engine.game.encounter", "_read_dir"),
@@ -108,6 +113,16 @@ LRU_CACHES: tuple[tuple[str, str], ...] = (
     ("engine.game.economy", "_read_rules"),
     ("engine.game.trade", "_read_rules"),
     ("engine.game.trade", "_read_economy"),
+    # Structural systems: progress clocks, contract threads, ending gates,
+    # scene decks and the challenge bounds derived from a story's meters.
+    # Mtime-keyed and self-healing like the entries above, listed for the same
+    # reason this file states in its own docstring -- an activation that leaves
+    # some caches warm behaves differently depending on what ran before it.
+    ("engine.game.clocks", "_read_table"),
+    ("engine.game.threads", "_read_table"),
+    ("engine.game.endings", "_read_table"),
+    ("engine.content.deck", "_read_deck"),
+    ("engine.challenges.spec", "_read_bounds"),
 )
 
 # (module, attribute) pairs called with no arguments to rebuild in place.
@@ -133,6 +148,17 @@ RELOADERS: tuple[tuple[str, str], ...] = (
     ("engine.challenges.set_pieces", "reset_set_piece_cache"),
     ("engine.agents.governance", "reset_governance"),
     ("engine.telemetry.oracle", "reset_oracle"),
+    # The story's state declaration -- which meters exist, what they are bounded
+    # by, who may write them and what the player may see. Swapping stories
+    # without clearing this would serve the previous story's schema, and the
+    # failure mode is the worst kind: reads succeed and return the wrong story's
+    # defaults.
+    ("engine.state.active", "reset_schema"),
+    # Resolved safety policy -- the intensity ceiling and boundary sheet in
+    # force. A policy resolved under the previous story is precisely the stale
+    # cache this registry exists to end, and here the stale value would be a
+    # content rating.
+    ("engine.safety", "reset_policies"),
 )
 
 # (consumer module, consumer attribute, source module, source attribute).

@@ -3,11 +3,13 @@
   "private": true,
   "version": "0.2.0",
   "type": "module",
-  "description": "The Clockwork Dark — game client. Builds into the Flask static tree.",
+  "description": "The Clockwork Dark \u2014 game client. Builds into the Flask static tree.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check": "node tools/check-styles.mjs",
+    "prebuild": "node tools/check-styles.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

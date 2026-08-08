@@ -1,0 +1,272 @@
+# ============================================================
+# Who is where, and doing what, in the Wicked Garden.
+#
+# Read by engine/world/npc_sim.py. Every `activity` string lands VERBATIM in
+# the narrator's prompt, so each one is written as something a person standing
+# in the room could actually see.
+#
+# !! REQUIRES A MANIFEST LINE THAT DOES NOT EXIST YET !!
+# games/wicked-garden/game.yaml does not declare `paths.npc_schedules`. Until
+# it does, the engine loads the FLAGSHIP's file -- Maris Hearth in the Edgewood
+# bakery -- and places eight Edgewood villagers at locations that are not in
+# this graph. That is worse than an empty file. Adding
+# `npc_schedules: "games/wicked-garden/data/world/npc_schedules.yaml"` to the
+# manifest is the whole of the wiring.
+#
+# ------------------------------------------------------------
+# SOPHIA IS NOT IN THIS FILE, AND MUST NOT BE
+# ------------------------------------------------------------
+# She is the ninth name in the relationship block and the only one that is an
+# AGENT rather than an NPC. An agent does not have a routine; she has goals, a
+# mood vector and a roster entry (games/wicked-garden/agents.yaml). Giving her
+# a 24-hour schedule here would put a second, dumber Sophia in the world who
+# stands in the Heart Grove "receiving petitioners" while the real one is in
+# your room. Where she is is a thing she decides.
+#
+# ------------------------------------------------------------
+# IDS
+# ------------------------------------------------------------
+# The keys below are the BARE ids from state-dictionary.json:187-197 --
+# `ashen_vale`, not `npc_ashen_vale`. The flagship and the Brass Coast both use
+# an `npc_` prefix, and it is a convention rather than a rule (npc_sim reads
+# whatever keys the file declares). It is dropped here because these same
+# strings are the keys of the `relationships` block on the state board: one
+# name for one character, so a stance written against `thornwake` and a
+# schedule slot read for `thornwake` cannot drift apart.
+#
+# ------------------------------------------------------------
+# HOURS IN A PLACE WITH NO SUN
+# ------------------------------------------------------------
+# The Garden's day is emotional, not astronomical, but the engine's clock is a
+# 24-hour one and these routines have to cover all of it or a player who walks
+# into the Heart Grove at 04:00 finds a named location with nobody in it. So
+# every character below covers all twenty-four hours. What changes is that the
+# court is NOCTURNAL: the Heart Grove fills as the light goes, the Feasting
+# Glade runs from dusk to the small hours, and the quiet shift is late morning.
+# `night_hours` is set to the hours when even the court has stopped, which here
+# is dawn.
+#
+# Version: v0.1.0 [2026-08-08]
+# ============================================================
+
+version: 1
+
+defaults:
+  activity: "somewhere in the middle distance, being beautiful about it"
+  relocated_activity: "somewhere they had no business being at this hour, and not explaining"
+  pinned_activity: "waiting on you, and letting you see that they are waiting"
+
+# Dawn. The one stretch when the Garden is not performing for anybody.
+night_hours: [5, 6, 7, 8]
+
+# ------------------------------------------------------------
+# EVENT ACTIVITIES.
+#
+# The three keys below are the engine's HARDCODED event ids
+# (engine/world/schedules.py: `caravan_arrival`, `tinker_camp`,
+# `militia_press`) and not names of my choosing. The Brass Coast renamed its
+# three to fit its fiction and, in doing so, wrote three event blocks that can
+# never fire, because the simulator looks up the engine's names. The diegetic
+# names for these three in this story live in
+# games/wicked-garden/data/world/schedules.yaml, which maps them.
+# ------------------------------------------------------------
+event_activities:
+  caravan_arrival: "working the Night Market stalls, quoting prices in years and syllables"
+  tinker_camp: "holding a small court of their own under a hedge that was not there yesterday"
+  militia_press: "walking the border in a line, counting mortals, writing none of it down"
+
+npcs:
+
+  # ==========================================================
+  # The rival. Velvet contempt on a schedule.
+  # ==========================================================
+  ashen_vale:
+    home: winter_spindle
+    routine:
+      - hours: [9, 10, 11, 12]
+        location: winter_spindle
+        activity: "standing perfectly still among held moths, in a silence kept ready for somebody"
+      - hours: [13, 14, 15]
+        location: thorn_labyrinth
+        activity: "walking the frost edge of the briar, putting a gloved hand on the walls to see which of them are cold yet"
+      - hours: [16, 17, 18]
+        location: mirror_pools
+        activity: "buying futures off Lior at the water's edge and paying in weather"
+      - hours: [19, 20, 21, 22]
+        location: feasting_glade
+        activity: "at the far end of the table where the fruit does not ripen, being exquisitely polite to people who are frightened of him"
+      - hours: [23, 0, 1, 2]
+        location: night_market
+        activity: "at a stall he does not own, listening to what mortals are being charged"
+      - hours: [3, 4, 5, 6, 7, 8]
+        location: winter_spindle
+        activity: "gone entirely, and the cold left behind at the exact shape of him"
+        available: false
+
+  # ==========================================================
+  # The law. He is at the border because that is the whole of him.
+  # ==========================================================
+  thornwake:
+    home: gate_of_briars
+    routine:
+      - hours: [5, 6, 7, 8, 9]
+        location: gate_of_briars
+        activity: "walking the arch and putting a hand flat on each post, the way he has since before she held the Seat"
+      - hours: [10, 11, 12]
+        location: path_first_petals
+        activity: "standing where the petals stop, turning back anything that came in without leave"
+      - hours: [13, 14, 15, 16]
+        location: thorn_labyrinth
+        activity: "taking the hounds down the bone paths at a soldier's pace, not a hunter's"
+      - hours: [17, 18, 19, 20]
+        location: heart_grove
+        activity: "at the edge of the court with the helm under his arm, watching the dancing like a man watching weather come in"
+      - hours: [21, 22, 23, 0]
+        location: gate_of_briars
+        activity: "at the gate through the loud hours, because the loud hours are when mortals try it"
+      - hours: [1, 2, 3, 4]
+        location: gate_of_briars
+        activity: "sat against the arch with the antlered helm beside him, not asleep, not answering"
+        available: false
+
+  # ==========================================================
+  # The oracle. Always available, never free.
+  # ==========================================================
+  lior:
+    home: mirror_pools
+    routine:
+      - hours: [5, 6, 7, 8, 9, 10]
+        location: mirror_pools
+        activity: "sitting on the meniscus of the black water without breaking it, watching a reflection that is not keeping up"
+      - hours: [11, 12, 13, 14, 15, 16, 17]
+        location: mirror_pools
+        activity: "combing a stranger's face out of the water with two fingers and setting it aside for later"
+      - hours: [18, 19, 20]
+        location: heart_grove
+        activity: "at court, agreeing with everyone in turn and remembering all of it"
+      - hours: [21, 22, 23, 0]
+        location: night_market
+        activity: "renting possible selves from a stall with no goods on it, taking payment in memory"
+      - hours: [1, 2, 3, 4]
+        location: mirror_pools
+        activity: "under the water rather than on it, which is a thing they do and do not explain"
+
+  # ==========================================================
+  # The old Garden. She does not have a routine. She has a depth.
+  # ==========================================================
+  mother_briar:
+    home: briar_deep
+    routine:
+      # Deliberately only two slots. A being whose form is optional and whose
+      # scale runs from a cathedral of roots to one flower in your bedroom does
+      # not commute; what changes through the day is how far up she is willing
+      # to come, and how much of her is arranged into a face when she gets
+      # there.
+      - hours: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        location: briar_deep
+        activity: "a cathedral of roots and roses arranged most of the way into a face, breathing soil after rain"
+      - hours: [21, 22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8]
+        location: root_crypts
+        activity: "come up as far as the sap coffins, going along the row with more hands than there were a moment ago, checking the yield"
+
+  # ==========================================================
+  # The Honeyed Dead. He cannot go anywhere. He is always in.
+  # ==========================================================
+  elias:
+    home: root_crypts
+    routine:
+      - hours: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+        location: root_crypts
+        activity: "upright in amber with the lips almost moving and the eyes following, mid-sentence for a hundred years"
+      - hours: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        location: root_crypts
+        activity: "still there, still looking, and the sap running very slowly the way it does when he is choosing his words"
+
+  # ==========================================================
+  # The mortal echo. The only NPC who is sometimes not here at all.
+  # ==========================================================
+  mara_quill:
+    home: aviary_unsent
+    routine:
+      - hours: [9, 10, 11, 12, 13]
+        location: aviary_unsent
+        activity: "going through the paper birds one at a time looking for her own handwriting, which she has been doing for longer than she says"
+      - hours: [14, 15, 16, 17]
+        location: gate_of_briars
+        activity: "stood the wrong side of the arch where the roses will not open for her, saying nothing to Thornwake, who says nothing back"
+      - hours: [18, 19, 20, 21]
+        location: night_market
+        activity: "haggling badly and on purpose, to find out what the stalls will not sell her"
+      - hours: [22, 23, 0, 1]
+        location: aviary_unsent
+        activity: "asleep under the birds with her boots on, which is a mortal habit and the only one left"
+        available: false
+      # SHE IS NOT ALWAYS HERE. Mara got out, and the small hours are when she
+      # is back on the other side of it -- a warning you cannot reach, which is
+      # the whole shape of her arc. `available: false` at a location the player
+      # cannot travel to is the engine saying "gone" without a new mechanism.
+      - hours: [2, 3, 4, 5, 6, 7, 8]
+        location: mortal_threshold
+        activity: "somewhere in the waking world, in a life she is not managing to have, on the other side of a door you cannot use"
+        available: false
+
+  # ==========================================================
+  # The chorus. Two generic ids, both from the dictionary, both real
+  # crowds rather than placeholders.
+  # ==========================================================
+  bloomkin_generic:
+    home: guest_house
+    routine:
+      - hours: [5, 6, 7, 8, 9, 10]
+        location: guest_house
+        activity: "a peony-sized thing with too many joints laying out clothes you did not choose and gossiping at the wardrobe"
+      - hours: [11, 12, 13, 14, 15]
+        location: heart_grove
+        activity: "half a dozen of them running messages between courtiers and getting three of them wrong on purpose"
+      - hours: [16, 17, 18, 19, 20, 21]
+        location: feasting_glade
+        activity: "pouring, clearing, listening, and repeating what they heard to somebody who will pay a petal for it"
+      - hours: [22, 23, 0, 1, 2, 3, 4]
+        location: guest_house
+        activity: "one of them dozing on the sill in your room, which it insists is where it has always slept"
+
+  court_generic:
+    home: heart_grove
+    routine:
+      - hours: [5, 6, 7, 8, 9, 10, 11]
+        location: heart_grove
+        activity: "two or three left over from last night, draped on the roots, too proud to admit they have nowhere better"
+      - hours: [12, 13, 14, 15, 16]
+        location: mirror_pools
+        activity: "arranging themselves along the willows to be looked at, and looking sidelong at the water to check it agrees"
+      - hours: [17, 18, 19, 20]
+        location: heart_grove
+        activity: "filling the grove as the light goes, dancing the figures that are contracts and pretending not to count"
+      - hours: [21, 22, 23, 0, 1, 2, 3, 4]
+        location: feasting_glade
+        activity: "half-mortal and half-myth down the length of the tables, watching what the new guest puts in their mouth"
+
+# ------------------------------------------------------------
+# Fallbacks for unnamed bodies the simulator needs to place. `day` and `night`
+# here are the engine's slots, not the Garden's -- see the note on night_hours.
+# ------------------------------------------------------------
+role_defaults:
+  default:
+    day:
+      - "trailing a hand through a flower bed that leans into it"
+      - "arguing about somebody's wardrobe in a language that is mostly vowels"
+      - "asleep in a patch of sun that is not coming from anywhere"
+    night:
+      - "gone wherever the beautiful go when there is nobody to be beautiful at"
+  bloomkin:
+    day:
+      - "carrying something enormous and complaining about it operatically"
+      - "repeating a piece of gossip to the fourth person this hour, better each time"
+    night:
+      - "dozing in a cut-flower vase, which they are not supposed to do"
+  court:
+    day:
+      - "recovering from last night in a pose"
+      - "practising a laugh"
+    night:
+      - "dancing a figure that is a contract, and counting"

@@ -1,0 +1,163 @@
+# ============================================================
+# The reliquary sets.
+#
+# Read by engine/game/inventory.py::evaluate_collections through `paths.tables`,
+# exactly as data/tables/collections.yaml is in the flagship game.
+#
+# !! REQUIRES A MANIFEST LINE THAT DOES NOT EXIST YET !!
+# games/wicked-garden/game.yaml does not declare `paths.tables`. Until it does,
+# the engine loads the FLAGSHIP's collections table and the `collection:` keys
+# in games/wicked-garden/data/items/garden.yaml resolve to nothing -- no set
+# ever completes, and no reward below ever fires. Nothing breaks; nothing
+# happens either. Adding `tables: "games/wicked-garden/data/tables"` to the
+# manifest is the whole of the wiring.
+#
+# ------------------------------------------------------------
+# WHY FIVE SETS, AND WHY THESE FIVE
+# ------------------------------------------------------------
+# 04-ITEMS-AND-SYSTEMS.md:148 -- "Inventory is a reliquary... Each item has:
+# image, poetic description, mechanical tags, origin memory." A reliquary sorts
+# by WHOSE HAND IT CAME FROM, not by what it does, and in a story where every
+# object is a relationship the two are the same question. So the five sets are
+# a partition by provenance, and completing one is the moment the run stops
+# being a series of scenes and becomes a position:
+#
+#   sophias_gifts    you took everything she offered
+#   tools_of_refusal you assembled the means to say no to all of it
+#   winter_ledger    you are on the other side's books
+#   honeyed_dead     you went down and came back carrying them
+#   keys_and_names   you are holding the things the endings count
+#
+# Membership is disjoint by construction -- `collection:` is a single scalar on
+# an item row, so an object cannot be in two sets, and every one of the
+# twenty-three items is in exactly one.
+#
+# ------------------------------------------------------------
+# WHY THE REWARDS ARE ONLY `value` AND `ledger_fact`
+# ------------------------------------------------------------
+# The flagship's sets pay in coin, reputation and check bonuses. This story has
+# none of those: no economy, no dice, and `paths.factions` is not declared
+# either, so a `reputation` effect here would write to Edgewood's faction
+# table. What a set can honestly pay in this story is the twelve declared
+# values and a line in the ledger, and both are enough -- a completed set here
+# is a fact about who you have become, and the ledger is where facts about that
+# belong.
+#
+# No completion FLAGS. `flags` in this story is a closed vocabulary
+# (state-dictionary.json:264 -- "unknown_flags: reject_or_namespace_mod") and
+# none of the five names below is in it. If the spine wants a
+# `sophias_gifts_complete` gate, the flag goes in the dictionary first and the
+# effect goes here second, in that order.
+#
+# Version: v0.1.0 [2026-08-08]
+# ============================================================
+
+version: 1
+
+collections:
+
+  - id: sophias_gifts
+    name: "Everything she offered"
+    blurb: >-
+      The collar, the ring, the petal, the wine and the silk. Five gifts, five
+      threads, and not one of them ever refused. She has never had to ask for
+      anything twice.
+    items: [collar_soft_thorns, thorn_ring, kiss_petal, nightbloom_wine, living_silk]
+    reward_text: >-
+      She looks at what you are carrying, and at what you are wearing, and does
+      not say anything clever. What she says is your name, once, the way you
+      say a thing you own out loud to check that saying it still works.
+    effects:
+      - { type: value, name: favor, delta: 14, why: "you kept all of it" }
+      - { type: value, name: desire, delta: 10, why: "she is enjoying this" }
+      - { type: value, name: autonomy, delta: -10, why: "five threads and no refusals" }
+      - { type: value, name: corruption, delta: 6, why: "you have been wearing the Garden" }
+      - type: ledger_fact
+        text: "You accepted every gift she ever offered and refused none of them. She has noticed the pattern and so should you."
+        kind: secret
+
+  - id: tools_of_refusal
+    name: "The means to say no"
+    blurb: >-
+      Iron, salt, mirror-glass and a length of mortal string. Nothing here was
+      given as a kindness. Every one of them is rude in this place, and
+      together they are a plan.
+    items: [iron_pin, salt_circle_chalk, mirror_glass_knife, mortalslip_thread]
+    reward_text: >-
+      Laid out together on the guest house table they stop looking like
+      oddments and start looking like equipment. You did not assemble this by
+      accident. Somebody in this Garden is going to work that out.
+    effects:
+      - { type: value, name: autonomy, delta: 14, why: "four ways out, laid on a table" }
+      - { type: value, name: knowledge, delta: 8, why: "you know what each of them costs" }
+      - { type: value, name: equality_seed, delta: 1, why: "she respects a spine even aimed at her" }
+      - { type: value, name: sophia_break, delta: 1, why: "she has seen the table" }
+      - type: ledger_fact
+        text: "You assembled iron, salt, mirror-glass and mortalslip on one table. That is not a collection. That is a plan."
+        kind: secret
+
+  - id: winter_ledger
+    name: "On the other side's books"
+    blurb: >-
+      Clasp, passport, thread and splinter. Ashen Vale gives generously and
+      writes everything down, and four entries is no longer a flirtation with
+      the winter court. It is an account.
+    items: [ashen_clasp, ashen_passport, frost_thread, frost_splinter]
+    reward_text: >-
+      He does not thank you and he does not gloat. He simply stops explaining
+      things, which is what he does with people who are already inside the
+      argument.
+    effects:
+      - { type: value, name: knowledge, delta: 12, why: "the winter court explains itself to its own" }
+      - { type: value, name: ashen_route, delta: 1, why: "four entries is an account" }
+      - { type: value, name: ashen_pressure, delta: 2, why: "he is ready to call it in" }
+      - { type: value, name: favor, delta: -12, why: "she can count as well as you can" }
+      - type: ledger_fact
+        text: "You carry four of Ashen Vale's marks. He has stopped explaining himself to you, which is how he treats his own."
+        kind: secret
+
+  - id: honeyed_dead
+    name: "What you carried up"
+    blurb: >-
+      A cold ring, an unsent letter, a jar of black honey, a seed shaped like a
+      closed eye, and a sketch you made yourself. Four of them belonged to
+      people who are still in the sap. The fifth is the only thing down there
+      that was ever yours.
+    items: [lovers_ring_cold, pressed_letter, black_honey, seed_of_becoming, sap_sketch]
+    reward_text: >-
+      You know how it went for the ones before you. All of it, in order, with
+      dates. It does not make you safe. It makes you the first person in a
+      century who cannot claim they were not told.
+    effects:
+      - { type: value, name: knowledge, delta: 18, why: "the whole history, in order, with dates" }
+      - { type: value, name: corruption, delta: 8, why: "you brought the crypts up with you" }
+      - { type: value, name: briar_hunger, delta: 1, why: "the roots gave and expect" }
+      - { type: value, name: equality_seed, delta: 1, why: "she cannot lie to you about them any more" }
+      - type: ledger_fact
+        text: "You carried the Honeyed Dead's relics up out of the crypts. You know exactly how it went for every lover before you."
+        kind: secret
+
+  - id: keys_and_names
+    name: "What the endings count"
+    blurb: >-
+      The briar key, a shard of her true name, a chip of Lior's glass, the
+      thorn that proves you obeyed, and a pressed leaf a dead guest left down
+      the side of a bed. Between them they open, prove or blur every door out
+      of here.
+    items:
+      - briar_key
+      - true_name_shard_sophia_partial
+      - mirror_chip
+      - thorn_of_proof
+      - pressed_court_schedule
+    reward_text: >-
+      Laid out in order they are not five objects. They are a route, and the
+      last two steps of it are missing, and you now know precisely which two.
+    effects:
+      - { type: value, name: knowledge, delta: 15, why: "the route, and the two steps missing from it" }
+      - { type: value, name: autonomy, delta: 8, why: "you know which doors are real" }
+      - { type: value, name: equality_seed, delta: 1, why: "you did the work she assumed you could not" }
+      - { type: value, name: sophia_break, delta: 1, why: "a shard of her name on a table with four keys" }
+      - type: ledger_fact
+        text: "Key, name-shard, glass, thorn and schedule, laid out in order. You are two steps from a door and you know which two."
+        kind: secret

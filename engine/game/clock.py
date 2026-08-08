@@ -138,6 +138,17 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
     except ImportError:
         pass
 
+    # Progress clocks, the story-declared generalisation of the doom beats
+    # above. Same reasoning for the same placement: a clock that only wound on
+    # narrated turns would stop for a player who slept through the week. Inert
+    # for a story that declares none, which is both shipped games.
+    try:
+        from engine.game import clocks as clocks_module
+
+        clocks_module.resolve(state)
+    except ImportError:
+        pass
+
     expired, healed = _sweep_expiries(state)
 
     # Imported lazily so the clock has no hard dependency on layers that may
@@ -176,6 +187,20 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
 
     to_day, to_hour = state.world_day, state.world_hour
     if to_day != from_day:
+        # Contracts whose day has passed break on the rollover. Silence is an
+        # answer too: a bargain the player quietly let lapse should cost them
+        # the same as one they refused out loud.
+        #
+        # On the day tick specifically, beside the wound and effect sweep --
+        # a due date is a calendar fact, and running it per hour would break a
+        # thread up to twenty-three hours before its day was actually over.
+        try:
+            from engine.game import threads as threads_module
+
+            threads_module.expire_due(state)
+        except ImportError:
+            pass
+
         logger.info(
             "[clock] Day rolled (operation=advance_time, from=%s, to=%s)",
             from_day,

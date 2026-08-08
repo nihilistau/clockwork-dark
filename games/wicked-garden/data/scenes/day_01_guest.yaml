@@ -1,0 +1,579 @@
+# Day 1 — Guest of the Rose Court
+# ===============================
+#
+# Authored from Design_files/Wicked-Garden/docs/design/scenes/DAY-01-GUEST.md.
+#
+# THE DAY IS ONE SETPIECE WITH A MORNING AND AN EVENING AROUND IT. The Gift of
+# Soft Thorns is the whole point: it is the first time the story charges the
+# player for being liked, and it is the first place `autonomy` moves down for a
+# reason the player agreed to. Every other card on this day exists to make the
+# court real enough that refusing in front of it costs something.
+#
+# THE GIFT IS A THREAD, NOT A FLAG. `data/rules/threads.yaml` declares
+# `obligation_gift` with three renegotiations already written -- costly_gift,
+# service_named, refuse. The beats here set the flags the rest of the game
+# reads and leave the CONTRACT to the thread tool, because a bargain that lives
+# in a flag cannot be cut, discharged, or broken, and all three of those are
+# scenes later.
+#
+# Content ceiling: suggestive. The night-1 heat variant is a marked hook.
+#
+# Version: v0.1.0 [2026-08-08]
+
+id: day_01_guest
+
+draw: 2
+
+cards:
+
+  # =====================================================================
+  # SPINE
+  # =====================================================================
+
+  - id: D1_01_waking
+    required: true
+    tags: [menu, gm]
+    title: "Morning Is a Decision Here"
+    text: >-
+      INTENT: the first morning must sell the trade the player has already made
+      -- honeyed light in here, ten days of dust out there. The window shows the
+      mortal home while corruption is low and fog and roses once it is not.
+      CONSTRAINT: no NPC in this beat. The player is alone with the arithmetic.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: watch_the_mortal_window
+        text: >-
+          Piled mail, a dead plant, ten days of dust. Sets `looked_home_d1`,
+          which is the flag Day 3's letter and Day 7's mortal leak read to know
+          whether the player has ever once looked.
+        gate:
+          when: { value: { name: corruption, max: 19 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: looked_home_d1 }
+              - { type: value, name: knowledge, delta: 2 }
+              - { type: value, name: autonomy, delta: 2 }
+              - { type: value, name: desire, delta: -1 }
+          on_fail:
+            # FAIL FORWARD, and the failure is the content: past twenty
+            # corruption the window has stopped agreeing to show it.
+            text: "Fog and roses. The mortal world is hard to hold this morning."
+            effects:
+              - { type: value, name: corruption, delta: 2, why: "it did not resist you" }
+
+      - id: close_the_curtain
+        text: "The Garden approves of attention turned inward and says so in small ways."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 2 }
+              - { type: value, name: autonomy, delta: -1 }
+
+      - id: search_the_room
+        text: >-
+          The reliquary tutorial. A pressed court schedule from a previous
+          guest, in handwriting that stops mid-word. First pickup, first `use:`
+          verb, first evidence somebody was here before you.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: item, item_id: pressed_court_schedule, name: "Pressed Court Schedule" }
+
+  - id: D1_02_bloomkin_valet
+    required: true
+    tags: [menu, gm]
+    title: "Guest-Sweet"
+    text: >-
+      INTENT: comic menace, and the first proof that the Garden gossips. A
+      creature like a child-sized peony with too many joints. ADULT-CODED --
+      elderly gossip energy, never childlike in voice.
+      CONSTRAINT: it lies about three times in ten and it does not know it is
+      lying. What it can leak: the last favourite ended in the roots, or the
+      mirrors; the gossip disagrees.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: comply_gracefully
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 4 }
+
+      - id: interrogate_the_bloomkin
+        text: "Ask it things. Most of what it says is true and none of it is reliable."
+        band:
+          value: knowledge
+          min: 2
+          max: 6
+          text: "How much of the gossip was worth keeping."
+
+      - id: be_rude_to_it
+        text: "It sulks, and the wardrobe grows slightly thornier clothes. Cosmetic, remembered."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: -3 }
+              - { type: value, name: autonomy, delta: 2 }
+
+  - id: D1_03_wardrobe
+    required: true
+    tags: [menu, gm]
+    title: "What the Wardrobe Grows"
+    text: >-
+      INTENT: the smallest possible version of the day's real question. Wear
+      what she sent, or do not, in front of people who will read it either way.
+      CONSTRAINT: neither answer is wrong and the court notices both.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: wear_the_living_silk
+        gate:
+          on_pass:
+            effects:
+              - { type: item, item_id: living_silk, name: "Living Silk" }
+              - { type: value, name: corruption, delta: 2 }
+              - { type: value, name: favor, delta: 3 }
+
+      - id: keep_mortal_clothes
+        text: "Cotton in a room of grown fabric. It reads as a statement whether you meant one or not."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 4 }
+              - { type: value, name: favor, delta: -2 }
+
+  - id: D1_04_court_audience
+    required: true
+    tags: [menu, sophia, setpiece]
+    title: "Come Into the Light"
+    text: >-
+      INTENT: she is on a rose-and-gold seat and the court is a room of
+      beautiful predators. Silence falls in a pattern, and the pattern is
+      choreography rather than respect. Her eyes find the player as if the rest
+      of the court were furniture.
+      SHE WANTS: to display, and to see how the player handles being displayed.
+      Today the player is HER INTEREST, which is a safer title than most.
+      CONSTRAINT: she is performing for the court as much as for the player, and
+      the performance is load-bearing -- she cannot be soft here without paying
+      for it later.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: approach_and_bow
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 6 }
+              - { type: value, name: autonomy, delta: -2 }
+
+      - id: approach_without_bowing
+        text: "The court murmurs. Her smile sharpens, which is approval and also a warning."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 2 }
+              - { type: value, name: autonomy, delta: 3 }
+
+      - id: speak_first
+        text: >-
+          Requires guts and lands entirely on delivery. The band is the range
+          between witty and babbling; the agent judges where in it this actually
+          fell.
+        band:
+          value: favor
+          min: -2
+          max: 5
+          text: "Wit, or noise."
+
+  - id: D1_05_gift_of_soft_thorns
+    required: true
+    tags: [menu, setpiece, sophia]
+    title: "The Gift of Soft Thorns"
+    text: >-
+      INTENT: THE setpiece. A collar of soft thorns, offered in public, framed
+      as protection and priced as ownership. Terms shown plainly -- protection
+      from little mouths and little knives, a property-scent thread, not full
+      thrall, removable only with her leave or with rare law or iron.
+      SHE WANTS: to be refused interestingly. She says so out loud. She also
+      does not always honour refusal, and the player should believe both.
+      CONSTRAINT: whichever branch runs, OPEN A THREAD through the thread tool.
+      `obligation_gift` for acceptance; its `costly_gift`, `service_named` and
+      `refuse` renegotiations are already written in threads.yaml and are the
+      mechanical body of the three renegotiate answers below. If the player
+      names a limit and asks for the throat-garland rename, honour it silently
+      and change nothing mechanical.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: accept_the_gift
+        text: >-
+          The court softens into smiles with edges. Someone claps once, slowly.
+          NOTE: the design lists a fifth delta (Desire +6) that the four-effect
+          ceiling has no room for; it belongs to the night card and is taken
+          there.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: gift_accepted }
+              - { type: flag, flag: sophia_mark_social }
+              - { type: value, name: favor, delta: 14 }
+              - { type: value, name: autonomy, delta: -10 }
+
+      - id: refuse_cleanly
+        text: >-
+          The court gasps. She is delighted and dangerous in the same second and
+          the throne vines retreat like animals. Net favour is genuinely
+          ambiguous -- the sting and the intrigue arrive together, which is what
+          the band is for.
+        band:
+          value: favor
+          min: -6
+          max: 4
+          text: "The distance between insult and invitation."
+
+      - id: refuse_cleanly_aftermath
+        text: >-
+          Resolve immediately after `refuse_cleanly`. What refusal actually
+          bought: standing that is yours, and a court that now expects you to
+          survive on wit.
+        gate:
+          when: { none: [{ flag: gift_accepted }] }
+          on_pass:
+            effects:
+              - { type: flag, flag: gift_refused }
+              - { type: value, name: autonomy, delta: 8 }
+              - { type: value, name: knowledge, delta: 3 }
+
+      - id: renegotiate
+        text: >-
+          Three real counters, each a DIFFERENT contract rather than the same
+          one on better numbers: protection without the ownership scent (she
+          offers the thorn ring), three days only, or a gift that costs HER.
+          Seal whichever the player argued for through threads.yaml.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: gift_renegotiated }
+              - { type: value, name: knowledge, delta: 5 }
+
+      - id: extract_a_costly_gift
+        text: >-
+          The strongest available answer and the rarest. Ask for something that
+          costs her. She laughs, and gives you a petal stained with a kiss that
+          summons her once. No collar.
+        gate:
+          when: { value: { name: autonomy, min: 50 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: extracted_costly_gift }
+              - { type: item, item_id: kiss_petal, name: "Kiss-Stained Petal" }
+              - { type: value, name: favor, delta: 12 }
+              - { type: value, name: desire, delta: 8 }
+          on_fail:
+            # FAIL FORWARD. Asking from a low place is a different scene, not a
+            # blocked one: she hears the ask and gives the ordinary gift anyway.
+            text: "You ask for a price she can feel. She hears where it came from, and is gentle about it, which is worse."
+            effects:
+              - { type: flag, flag: gift_renegotiated }
+              - { type: item, item_id: thorn_ring, name: "Thorn Ring" }
+              - { type: value, name: favor, delta: 6 }
+              - { type: value, name: autonomy, delta: -4 }
+
+      - id: ask_about_the_last_one
+        text: >-
+          What happened to the last person who wore one. *They stopped needing
+          doors.* Answering costs her nothing and costs the player a little
+          standing; it does not consume the choice above.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 6 }
+              - { type: value, name: favor, delta: -2 }
+
+  - id: D1_07_afternoon_fork
+    required: true
+    tags: [menu, gm]
+    title: "The Intention Compass"
+    text: >-
+      INTENT: the first time the player spends a block of time rather than
+      answering a question. Rest, the edge of the feast, a private walk with
+      her, or the labyrinth's outer hedge.
+      CONSTRAINT: none of these is a side quest. Each one buys a specific thing
+      the next three days read.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: rest_at_the_guest_house
+        text: "Recover something of yourself. If the gift was refused, a silhouette in the dream that is not hers."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+
+      - id: the_edge_of_the_feast
+        text: >-
+          Tables of impossible fruit and guests who are mid-pleasure and
+          mid-plot. Listening is worth more than eating. The rumour worth
+          catching: Ashen Vale returns with winter moths.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: heard_ashen_rumor }
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: ashen_pressure, delta: 1, why: "the rumour reaches the wrong ears too" }
+
+      - id: walk_with_her_privately
+        text: >-
+          One or two questions answered with partial truths -- her name, the
+          Garden's origin, the conditions of leaving. She will not lie. She will
+          decline, beautifully.
+        band:
+          value: knowledge
+          min: 4
+          max: 10
+          text: "How much of the partial truth was actually true."
+
+      - id: wander_the_labyrinth_edge
+        text: >-
+          The hedge only, not the trial. An hour goes missing. A player with
+          enough of themselves left finds a pin of cold mortal iron in the
+          roots, which is the single most dangerous object in the story.
+        gate:
+          when: { value: { name: autonomy, min: 60 } }
+          on_pass:
+            effects:
+              - { type: item, item_id: iron_pin, name: "Iron Pin" }
+              - { type: value, name: knowledge, delta: 3 }
+          on_fail:
+            text: "An hour goes missing and gives nothing back."
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: time_debt_mortal_days, delta: 1, why: "lost in the hedge" }
+
+  - id: D1_08_evening
+    required: true
+    tags: [menu, sophia]
+    title: "Tonight I Am Not Theatre"
+    text: >-
+      INTENT: she comes to find the player unless the day went very badly. The
+      day's performance is over and she says so. This is where she is most
+      likely to be honest and least likely to be kind about it.
+      SHE WANTS: to know whether the person she displayed today is the same one
+      in the room now.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: ask_for_a_lesson
+        text: "She teaches the law of gifts: a gift accepted is a thread, and threads are how the Garden holds anything."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 8 }
+              - { type: value, name: favor, delta: 4 }
+              - { type: value, name: desire, delta: 2 }
+
+      - id: ask_how_to_leave_someday
+        text: >-
+          With her leave. With older law. With a cruelty she has not decided to
+          allow. Sets `asked_exit_d1` -- the earliest door-shaped flag in the
+          game, and she does not forget it.
+        band:
+          value: favor
+          min: -4
+          max: 2
+          text: "Whether it was phrased as curiosity or as an exit."
+
+      - id: ask_how_to_leave_someday_mark
+        text: "Resolve with `ask_how_to_leave_someday`. The fact, separated from the reaction."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: asked_exit_d1 }
+              - { type: value, name: autonomy, delta: 2 }
+
+      - id: seek_solitude
+        text: "She leaves without argument, which is the least reassuring thing she does all day."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 5 }
+              - { type: value, name: favor, delta: -5 }
+
+      - id: invite_intimacy
+        text: >-
+          Suggestive ceiling. Extended affection, warmth, entanglement; no
+          thrall, no ritual, no mark that was not already there.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: night1_intimate }
+              - { type: value, name: favor, delta: 10 }
+              - { type: value, name: desire, delta: 10 }
+              - { type: value, name: autonomy, delta: -4 }
+
+      # EXPLICIT VARIANT: not authored.
+      # DAY-01:282 specifies N1-Heat at Explicit+, dominant-leaning claim-play
+      # without the thrall ritual, with harder deltas. Out of the ceiling this
+      # content is authored to.
+
+  - id: D1_09_night
+    required: true
+    tags: [menu, night]
+    title: "The Bowl of Fruit"
+    text: >-
+      INTENT: whispers in the pipes and a black fruit sweating in the bowl she
+      told you not to eat. This is the first purely optional way to hurt
+      yourself and it is placed where the player is alone.
+      MENU -- resolve exactly the beat the player chose. If the evening ended
+      with her, skip this card entirely.
+    beats:
+      - id: eat_the_black_fruit
+        text: >-
+          It is for people who wish to forget why they should leave. It works.
+          The largest single corruption swing available before Act II.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ate_black_fruit }
+              - { type: value, name: corruption, delta: 10 }
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: autonomy, delta: -8 }
+
+      - id: leave_it_in_the_bowl
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 2 }
+
+  - id: day1_toll
+    required: true
+    tags: [sequence, toll, gm]
+    title: "Twenty Days Gone"
+    text: >-
+      INTENT: the bill. Two Garden days, twenty mortal ones. Somewhere a second
+      week of somebody's life has been filed as an absence.
+    beats:
+      - id: the_hourglass_turns
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: time_debt_mortal_days, delta: 10, why: "day 1 toll" }
+
+  # =====================================================================
+  # POOL — the procession and the court's small teeth. Two are dealt.
+  # =====================================================================
+
+  - id: DX_memory_bee
+    tags: [menu, gm]
+    once: true
+    weight: 2
+    title: "Memory Bee"
+    text: >-
+      Something lands on the throat during the procession and harvests a
+      surface thought. Record what it took; the court will have it by evening.
+      Swatting it hurts in a way that is not quite pain.
+    beats:
+      - id: hold_still_for_it
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 1 }
+              - { type: value, name: corruption, delta: 1 }
+
+      - id: swat_it
+        text: "Bee-anger. The sting runs warm and wrong, and for one line the air smells of cold."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: desire, delta: 2 }
+              - { type: value, name: autonomy, delta: 2 }
+
+  - id: DX_honeyed_warning
+    tags: [sequence, gm]
+    once: true
+    weight: 2
+    title: "Say No to Jewellery"
+    text: >-
+      A voice from inside a hedge, made of somebody who used to be a guest. Four
+      words and no follow-up. Deal this BEFORE the gift card wherever the hand
+      allows; a warning that arrives after the collar is a joke rather than a
+      mercy.
+    beats:
+      - id: hear_it
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: heard_honeyed_warning }
+              - { type: value, name: knowledge, delta: 2 }
+
+  - id: DX_thornwake_present
+    tags: [sequence, gm]
+    once: true
+    title: "The Captain, Silent"
+    text: >-
+      Antlered helm, bark-plate, a scarred human mouth. He is at the edge of the
+      court and says one thing only if the player looks at him: law holds, even
+      for favourites. He does not introduce himself and will not be drawn.
+    beats:
+      - id: meet_his_eyes
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: met_thornwake_sight }
+              - { type: value, name: knowledge, delta: 2 }
+
+  - id: DX_wine_from_a_minor_lord
+    tags: [menu, gm]
+    once: true
+    # The public test only makes sense as a test. If the collar is on, the
+    # lesser children of the Garden have already reconsidered.
+    when: { none: [{ flag: gift_accepted }] }
+    title: "Hospitality That Bites"
+    text: >-
+      A minor Fae lord offers wine to the guest who refused the Sovereign's
+      protection. This is the court checking whether refusal was courage or
+      arithmetic.
+    beats:
+      - id: drink_it
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: corruption, delta: 4 }
+              - { type: value, name: desire, delta: 5 }
+              - { type: value, name: knowledge, delta: 1 }
+
+      - id: refuse_with_law_shaped_words
+        text: "Requires enough of the shape of the law to bluff it. Below that, an audible failure."
+        gate:
+          when: { value: { name: knowledge, min: 12 } }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: autonomy, delta: 4 }
+          on_fail:
+            text: "You reach for a law and come back with a phrase. The table enjoys it."
+            effects:
+              - { type: value, name: favor, delta: -3 }
+
+      - id: look_to_her
+        text: "She intercepts. The dependency beat: it works, and it costs exactly what it looks like it costs."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 5 }
+              - { type: value, name: autonomy, delta: -3 }
+
+  - id: DX_root_heartbeat
+    tags: [sequence, gm]
+    once: true
+    weight: 0.5
+    # DAY-01:306 -- no Mother Briar face yet; one heartbeat under the throne,
+    # and only for a player already paying enough attention to hear it.
+    when: { value: { name: knowledge, min: 15 } }
+    title: "Under the Throne"
+    text: >-
+      Once, while the court is loud, something under the floor keeps a slower
+      time than the Garden does. No face. No voice. Do not name it and do not
+      let anyone in the room acknowledge that the player heard it.
+    beats:
+      - id: hear_it_once
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: briar_hunger, delta: 1, why: "it noticed being noticed" }

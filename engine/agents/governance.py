@@ -45,6 +45,18 @@ logger = logging.getLogger(__name__)
 
 PHASE_PRE = "pre"
 PHASE_DIRECTIVE = "directive"
+#: Runs over reconciled proposals BEFORE the transaction commits, with the
+#: authority to alter them.
+#:
+#: POST has always run after `tx.commit()`, which makes it a post-mortem audit:
+#: it can record that something was wrong and clamp a value back into range,
+#: but it cannot stop the turn that did it. Everything that has to decide
+#: whether a change happens at all -- the safety ceiling, per-agent write
+#: permission, an ending gate that must never offer an impossible card -- needs
+#: to run while the answer is still a proposal. The rollback machinery to
+#: support this already existed and was proven by the evaluator retry loop; the
+#: phase did not.
+PHASE_COMMIT = "commit"
 PHASE_POST = "post"
 PHASE_MEDIA = "media"
 
@@ -52,6 +64,7 @@ PHASE_MEDIA = "media"
 _REGISTRY: dict[str, dict[str, type]] = {
     PHASE_PRE: {},
     PHASE_DIRECTIVE: {},
+    PHASE_COMMIT: {},
     PHASE_POST: {},
     PHASE_MEDIA: {},
 }
@@ -68,6 +81,10 @@ _GOVERNANCE: Optional["GovernancePipeline"] = None
 _DEFAULT_CHAINS: dict[str, tuple[str, ...]] = {
     PHASE_PRE: ("LoreInjectInterceptor", "AwarenessGateInterceptor"),
     PHASE_DIRECTIVE: ("EvilPhaseTone", "DoomSignsInterceptor", "StorytellerMind"),
+    # Empty by default and deliberately so. A pre-commit hook can VETO a turn's
+    # changes, which is the most dangerous kind of default to ship implicitly --
+    # a story gets one only by asking for it.
+    PHASE_COMMIT: (),
     PHASE_POST: ("RulesGovernor",),
     PHASE_MEDIA: ("MediaGovernor",),
 }
@@ -123,6 +140,8 @@ class TurnContext:
 
     state: GameState
     player_action: str = ""
+    #: The agent this context is ABOUT, for single-agent phases. Kept because
+    #: every existing hook reads it; multi-agent phases read `plans` instead.
     agent: str = "storyteller"
     system_prompt: str = ""
     raw: str = ""
@@ -135,6 +154,35 @@ class TurnContext:
     violations: list[dict[str, Any]] = field(default_factory=list)
     media: dict[str, Any] = field(default_factory=dict)
     abort: bool = False
+
+    # -- multi-agent turn ------------------------------------------------
+    #
+    # `agent: str` above was the one-line assertion that this is a
+    # single-agent engine -- it is never assigned a non-default value anywhere
+    # in the original codebase. These carry a turn in which two agents each
+    # proposed something and one shape was agreed.
+    #
+    # All default empty, so every existing hook sees exactly what it saw
+    # before and a story that runs one agent pays nothing for these.
+
+    #: Each agent's proposal, keyed by agent id. Populated before PHASE_COMMIT.
+    plans: dict[str, Any] = field(default_factory=dict)
+    #: The agreed turn: lead, beats, merged choices, resolutions.
+    negotiated: Optional[Any] = None
+    #: Choices as they will be offered, after merge and id assignment.
+    choices: list[dict[str, Any]] = field(default_factory=list)
+    #: Structured creative direction emitted this turn, if any.
+    briefs: dict[str, Any] = field(default_factory=dict)
+    #: Content intensity in force. The safety layer owns this; an agent may
+    #: never raise it.
+    intensity: str = ""
+    #: Non-empty when the safety layer refused this turn's direction. The
+    #: caller redirects IN FICTION rather than emitting a refusal.
+    safety_block: str = ""
+    #: Set by a PHASE_COMMIT hook to stop the proposed changes being applied.
+    #: Distinct from `abort`, which stops the remaining chain: a veto rejects
+    #: the turn's effects, and the caller is expected to roll back.
+    veto: str = ""
 
     def add_violation(
         self,
@@ -173,6 +221,7 @@ class GovernancePipeline:
         wanted: dict[str, list[str]] = {
             PHASE_PRE: list(cfg.get("comms.interceptors", []) or []),
             PHASE_DIRECTIVE: list(cfg.get("governance.directives", []) or []),
+            PHASE_COMMIT: list(cfg.get("governance.commit", []) or []),
             PHASE_POST: list(cfg.get("governance.post", []) or []),
             PHASE_MEDIA: list(cfg.get("governance.media", []) or []),
         }
@@ -288,6 +337,28 @@ class GovernancePipeline:
                     exc,
                 )
         return result.strip()
+
+    def run_commit(self, ctx: TurnContext) -> TurnContext:
+        """
+        Run the pre-commit chain over reconciled proposals.
+
+        The difference from POST is authority, not timing alone. POST audits a
+        turn that already happened and can only record or clamp; a hook here
+        can set ``ctx.veto`` and the caller rolls the transaction back, so a
+        change that must not happen does not happen.
+
+        Callers MUST honour ``ctx.veto``. A chain that can veto and a caller
+        that ignores it is worse than no chain, because the log will claim the
+        turn was stopped.
+        """
+        result = self._run_ctx_chain(PHASE_COMMIT, ctx)
+        if result.veto:
+            logger.warning(
+                "[governance] Turn vetoed before commit "
+                "(operation=run_commit, reason=%s)",
+                result.veto,
+            )
+        return result
 
     def run_post(self, ctx: TurnContext) -> TurnContext:
         """Run the audit chain over a resolved turn."""
@@ -600,7 +671,36 @@ def _register_legacy_interceptors() -> None:
 _register_legacy_interceptors()
 
 
+def _register_safety() -> None:
+    """
+    Make the safety governors resolvable by config name.
+
+    Registered here rather than by ``engine.safety`` importing this module: the
+    safety layer must not depend on the governance layer, because it also has
+    to work at seams governance does not reach (player input, display strings).
+    The dependency points one way, and this is that way.
+
+    Failure is logged rather than raised. A missing safety module must not stop
+    the engine building its pipeline -- and the two shipped stories configure no
+    safety chain at all, so on those it changes nothing either way.
+    """
+    try:
+        from engine.safety.governor import register_safety_interceptors
+
+        register_safety_interceptors()
+    except Exception as exc:  # noqa: BLE001 -- see docstring
+        logger.warning(
+            "[governance] Safety interceptors unavailable "
+            "(operation=_register_safety): %s",
+            exc,
+        )
+
+
+_register_safety()
+
+
 __all__ = [
+    "PHASE_COMMIT",
     "PHASE_DIRECTIVE",
     "PHASE_MEDIA",
     "PHASE_POST",

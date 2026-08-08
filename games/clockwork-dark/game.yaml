@@ -12,7 +12,55 @@
 # already buy -- a second game proves the seam works without the first one
 # having to move house.
 #
-# Version: v0.1.0 [2026-08-08]
+# WHAT THIS MANIFEST DELIBERATELY DOES NOT DECLARE, as of engine v0.2.0:
+#
+#   settings:      a bounded allowlist of engine settings a story may set --
+#                  the world clock rate, the reveal thresholds, the governance
+#                  chain, cutscene pacing. See SETTING_ALLOWLIST in
+#                  engine/games/manifest.py, which lists every legal key with
+#                  the reason it is safe. This game declares none, because its
+#                  numbers ARE the engine defaults in config/default.yaml and
+#                  writing them twice would give them two homes.
+#
+#   save_summary:  which declared state values appear on the load menu. Absent
+#                  means the engine's own row, which is the row this game's
+#                  index.json has always had. A story with no doom clock and no
+#                  archetypes names its own columns here instead.
+#
+#   safety:        this story's content ceiling and its own boundary sheet.
+#                  See docs/SAFETY.md and engine/safety/. Absent, deliberately:
+#                  a frontier village and a brass horror is written at the
+#                  engine's default tier (`suggestive`), it declares no limits
+#                  of its own, and the settings it would write are already
+#                  config/default.yaml's -- the same argument as `settings:`
+#                  above, that a number with two homes is a number that will
+#                  disagree with itself.
+#
+#                  The consequence, which is the compatibility bar for the
+#                  safety layer exactly as a no-op merge was for the manifest:
+#                  this game's policy is INERT, so every safety surface
+#                  short-circuits to allow, the GM prompt gains no directive
+#                  text and no token, and no RNG stream is drawn. This story
+#                  plays byte-for-byte as it did before engine/safety existed.
+#                  tests/test_safety_shipped_games.py asserts it.
+#
+#                  A story that DID want limits would write, at top level:
+#
+#                      safety:
+#                        intensity: { max: explicit, default: suggestive }
+#                        boundaries:
+#                          hard_nos: [{ topic: ..., nouns: [...] }]
+#                          soft_nos: [{ topic: ..., nouns: [...], substitute: ... }]
+#                        redirects:
+#                          - { id: ..., tags: [...], beat: ..., line: ... }
+#
+#                  It goes at TOP LEVEL rather than under `settings:` on
+#                  purpose: the manifest keeps unknown top-level keys verbatim
+#                  in `extras` (this is how drowned-carillon carries
+#                  `phase_names:`), so a story's content rating never becomes a
+#                  config value that a stale config/local.yaml could move.
+#
+# Version: v0.2.0 [2026-08-08]
 
 id: clockwork-dark
 title: "The Clockwork Dark"
@@ -52,3 +100,17 @@ entry:
   # CLAUDE.md pins this id as canon. Do not rename it.
   location_id: forest_clearing
   archetypes: [wayfarer, hearthkeeper, tinker_apprentice]
+
+  # The first frame of a new run. Declared here rather than written into
+  # content/scenes/clockwork/clockwork_state.py, where it used to be two module
+  # constants -- and where, because that scene is the one every story runs on
+  # until it ships its own, a second story's player woke beneath Edgewood's
+  # birch trees.
+  opening:
+    narration: >-
+      You wake beneath birch trees at the forest's edge. Mist clings to the
+      ferns; somewhere ahead, hearth smoke threads the grey.
+    choices:
+      - { id: a, text: "Follow the smoke toward Edgewood" }
+      - { id: b, text: "Search the clearing for supplies" }
+      - { id: c, text: "Listen — something watches without moving" }

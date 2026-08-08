@@ -1,0 +1,179 @@
+# The Wicked Garden -- state declaration.
+#
+# Every value here is `backing: bag`. That is the point of this file: it is the
+# first story in the project that declares state the engine has never heard of,
+# with no typed field behind any of it. The Clockwork Dark's state.yaml is the
+# opposite case -- fourteen values, all `backing: field`, DESCRIBING attributes
+# that already existed on GameState. Between them the two files are the proof
+# that the schema layer is real rather than a wrapper around one story's
+# dataclass.
+#
+# This story has no HP, no stamina, no hunger, no wounds, no combat and no dice.
+# It inherits none of them: a value the schema does not declare does not exist
+# for this story, and `checks.py`, `survival.py` and `encounter.py` are simply
+# never reached.
+#
+# VISIBILITY. Eight of the twelve values are `veiled`, which is not decoration.
+# 04-ITEMS-AND-SYSTEMS.md:31 states the rule outright -- "Meters never display
+# raw integers in default UI" -- and the interface renders a veiled value as a
+# band word and a five-mark glyph row, never a number and never a width you
+# could measure back into one. `analyst_mode` is the player's own opt-in.
+#
+# OWNERS. Empty means engine-only. Only three values are agent-writable at all,
+# and `autonomy` is deliberately in `writes_with_reason` on the roster rather
+# than here -- see agents.yaml. Source of truth for every id, range and default
+# is Design_files/Wicked-Garden/docs/design/agents/state-dictionary.json:75-145;
+# where the prose docs disagree with it, it wins.
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+slug: wicked-garden
+
+meters:
+  # Her regard, and the thing most of the story is spent moving. Both agents
+  # may write it: the world can raise it by what the court sees you do, and she
+  # can raise it because she decided to.
+  favor:
+    backing: bag
+    min: 0
+    max: 100
+    default: 15
+    visibility: veiled
+    label: Her favour
+    owners: [gm, sophia]
+
+  # Your will, and the only meter that is spent rather than earned. Gifts,
+  # intimacy and every sealed bargain cost it; refusal is what buys it back.
+  # She may move it, but only with a stated reason -- see agents.yaml.
+  autonomy:
+    backing: bag
+    min: 0
+    max: 100
+    default: 70
+    visibility: veiled
+    label: What is yours
+
+  # Fae-touched. At the ceiling the mortal endings close, which is why it is
+  # veiled and not hidden: the player must be able to feel it coming without
+  # being able to count the distance.
+  corruption:
+    backing: bag
+    min: 0
+    max: 100
+    default: 5
+    visibility: veiled
+    label: Gold under the skin
+
+  # Laws, names, the shape of the bargain. The only meter that opens doors by
+  # being high rather than closing them.
+  knowledge:
+    backing: bag
+    min: 0
+    max: 100
+    default: 0
+    visibility: veiled
+    label: What you have learned
+
+  # PUBLIC and unbounded, alone among the meters, and both are deliberate.
+  # One day here is ten days at home; the toll is charged every night and never
+  # refunded. 00-WORLD-CONCEPT.md:48 makes this the engine of the whole story
+  # and 05-BACKSTORY-AND-LORE.md:79 says why -- "the horror of missing your own
+  # life is co-equal with sexual danger". A number you can watch is the point.
+  # Unbounded because there is no ceiling on what you can lose.
+  time_debt_mortal_days:
+    backing: bag
+    min: 0
+    default: 0
+    visibility: public
+    label: Days gone at home
+
+  desire:
+    backing: bag
+    min: 0
+    max: 100
+    default: 10
+    visibility: veiled
+    label: Heat
+    owners: [sophia]
+
+  # 0-10, not 0-100. Peer standing is earned in single acts of spine and
+  # honesty, and the E2 gate needs only two -- so each one has to be worth
+  # noticing, which a 0-100 scale would hide.
+  equality_seed:
+    backing: bag
+    min: 0
+    max: 10
+    default: 0
+    visibility: veiled
+    label: Something like equals
+
+  # HIDDEN, and scoped to one night. Filed under meters in the dictionary but
+  # it behaves as a clock; kept here to match the source, and hidden because a
+  # player who can see it stops being lost.
+  labyrinth_lost:
+    backing: bag
+    min: 0
+    max: 3
+    default: 0
+    visibility: hidden
+    label: Lost
+
+  # 0 none, 1 aware, 2 bargained, 3 deep winter identity.
+  #
+  # The dictionary files this under `flags` as a flag-integer rather than a
+  # meter, because it is a route depth rather than a quantity. It is declared
+  # here because it has to be: the E6a gate reads it as a value
+  # (`ashen_route >= 2`), and a name the schema does not declare is a name the
+  # store refuses rather than silently zeroes. A one-of-four step is a small
+  # bounded number; where it is filed in the source document is not worth a
+  # second storage mechanism.
+  ashen_route:
+    backing: bag
+    min: 0
+    max: 3
+    default: 0
+    visibility: hidden
+    label: The winter road
+
+clocks:
+  # Four pressure clocks, all 0-5, all hidden. At 5 the story stops asking and
+  # takes a scene -- see clocks.yaml. Hidden rather than veiled: these are the
+  # world's patience, not the player's stats, and a visible countdown would
+  # turn dread into arithmetic.
+  ashen_pressure:
+    backing: bag
+    min: 0
+    max: 5
+    default: 0
+    visibility: hidden
+    label: The winter road
+  briar_hunger:
+    backing: bag
+    min: 0
+    max: 5
+    default: 0
+    visibility: hidden
+    label: What the roots want
+  sophia_break:
+    backing: bag
+    min: 0
+    max: 5
+    default: 0
+    visibility: hidden
+    label: Her patience
+  mortal_collapse:
+    backing: bag
+    min: 0
+    max: 5
+    default: 0
+    visibility: hidden
+    label: What is left of home
+
+# The load menu. Two columns, because a save row has to answer the only two
+# questions worth asking of a run in this story: how she feels about you, and
+# what it has cost so far. A hidden value here would be a leak -- the schema
+# refuses one at load rather than discovering it per save.
+summary:
+  - favor
+  - time_debt_mortal_days

@@ -27,21 +27,50 @@ still a good scene; refusing it hands narration of the outcome back to the
 model unrolled, which is the failure the two-phase turn loop exists to prevent.
 Rejection is reserved for specs that are structurally unusable.
 
-Version: v0.1.0 [2026-08-08]
+WHY THE CEILINGS ARE DERIVED NOW. ``EFFECT_CEILINGS`` and
+``ALLOWED_EFFECT_TYPES`` used to be literal lists of one story's stat names --
+gold, hp, stamina, focus, craft, awareness, hunger, reputation. That is a
+perfectly good bound for The Clockwork Dark and a total wall for anything else:
+a model-composed challenge in a story built on favor, autonomy, corruption and
+knowledge could not touch a single one of its meters, because every one of them
+would be dropped as a disallowed type before it reached the dispatcher. The
+bounding layer was doing its job and enforcing the wrong story.
+
+So the ceilings are now READ OFF THE SCHEMA the running story declared. A value
+with bounds gets a ceiling proportional to its range -- a scene may move a
+0-100 meter by about a sixth of it, and a 0-5 progress clock by one -- because
+the thing being bounded is "how much of this value may one scene be worth", and
+that question is answered by the value's own scale, not by a name. A story that
+disagrees says so in ``data/rules/challenge_bounds.yaml``; nothing is
+hardcoded and nothing is unbounded.
+
+The engine's own base table survives underneath as the floor. It still names
+the flagship's stats, because those are ``backing: field`` values whose real
+ceilings were chosen against ``data/economy.yaml`` and are not derivable from
+a min/max pair: 25 gold is a balance decision, not a sixth of a range.
+
+Version: v0.2.0 [2026-08-08]
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Optional
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
+_ROOT = Path(__file__).resolve().parents[2]
+
 KINDS: tuple[str, ...] = ("skill_gauntlet", "decision_tree", "puzzle", "dice_table")
 
-#: The seven canon skills. A challenge naming anything else is retargeted
-#: rather than refused -- see CLAUDE.md "Canon IDs".
+#: The seven canon skills of The Clockwork Dark -- the FALLBACK, used only when
+#: the running story ships no skill table. A challenge naming anything else is
+#: retargeted rather than refused; see CLAUDE.md "Canon IDs".
 SKILLS: tuple[str, ...] = (
     "persuasion",
     "stealth",
@@ -52,6 +81,35 @@ SKILLS: tuple[str, ...] = (
     "nerve",
 )
 DEFAULT_SKILL = "nerve"
+
+
+def story_skills() -> tuple[str, ...]:
+    """
+    The skills the RUNNING story's check rules declare.
+
+    ``engine/game/checks.py`` already resolves every check against
+    ``data/rules/skills.yaml``, so that file is the authority on what a skill
+    is; this module was keeping a second copy of the list, which meant a story
+    with its own skills would have had every step of every gauntlet retargeted
+    to ``nerve``. Falls back to the canon seven when the table is unreadable --
+    a story whose rules file is broken should get the flagship's vocabulary,
+    not an empty one that rejects everything.
+    """
+    try:
+        from engine.game.checks import load_skill_rules
+
+        declared = (load_skill_rules() or {}).get("skills") or {}
+        names = tuple(str(k) for k in declared)
+        return names or SKILLS
+    except Exception as exc:  # noqa: BLE001 -- never block a turn on introspection
+        logger.debug("[challenges] No story skill table, using canon seven: %s", exc)
+        return SKILLS
+
+
+def default_skill() -> str:
+    """The skill an unrecognised one is retargeted to. First declared, else nerve."""
+    names = story_skills()
+    return DEFAULT_SKILL if DEFAULT_SKILL in names else (names[0] if names else DEFAULT_SKILL)
 
 #: The canon difficulty bands, in order. Bands are the ONLY way a spec can
 #: express difficulty, which is what keeps DCs inside the engine's table.
@@ -83,9 +141,13 @@ DEFAULT_DIE = 6
 #: Maximum number of effects one outcome may apply.
 MAX_EFFECTS = 4
 
-#: Per-effect magnitude ceilings, as absolute values. These are deliberately
-#: mean: a challenge is a scene, not a treasure room, and the economy is tuned
-#: against day-scale earnings (see data/economy.yaml).
+#: Per-effect magnitude ceilings for the engine's own kinds, as absolute values.
+#: These are deliberately mean: a challenge is a scene, not a treasure room, and
+#: the economy is tuned against day-scale earnings (see data/economy.yaml).
+#:
+#: This is the BASE table, not the whole table -- see ``effect_ceilings()``. It
+#: stays hand-written because these numbers are balance decisions taken against
+#: the flagship's economy and cannot be derived from a min/max pair.
 EFFECT_CEILINGS: dict[str, int] = {
     "gold": 25,
     "hp": 10,
@@ -100,14 +162,127 @@ EFFECT_CEILINGS: dict[str, int] = {
 #: Item quantity ceiling for an `item` effect.
 MAX_ITEM_QTY = 3
 
-#: Effect types a model-composed challenge may use at all. Everything else is
-#: dropped. Notably absent: `wound` and `check_penalty` with unbounded expiry,
-#: and `ledger_fact`, which would let a challenge write itself into memory as
-#: established truth.
+#: Effect types a model-composed challenge may use REGARDLESS of story.
+#: Everything else is dropped unless the running story declared it as a value.
+#: Notably absent: `wound` and `check_penalty` with unbounded expiry;
+#: `ledger_fact`, which would let a challenge write itself into memory as
+#: established truth; and `track`, which writes the enum-valued spine -- an
+#: ending intent set by a dice table is not a scene, it is a hijack.
 ALLOWED_EFFECT_TYPES: frozenset[str] = frozenset(
     {"gold", "hp", "stamina", "focus", "craft", "awareness", "hunger",
      "reputation", "item", "remove_item", "flag"}
 )
+
+#: How much of a bounded value's RANGE one scene may be worth.
+#:
+#: A sixth. The number is set by what the authored content actually asks for:
+#: the largest single-beat meter swing in the Wicked Garden day scripts is
+#: Favor +15 on a 0-100 scale, and the intent is that a challenge can express
+#: the biggest authored beat and nothing larger. It also lands correctly at the
+#: small end -- a 0-5 progress clock rounds to 1, so a scene may tick a clock
+#: once and never slam it to its setpiece from a single dice row.
+SCHEMA_CEILING_FRACTION = 1.0 / 6.0
+
+#: Ceiling for a declared value with no bounds to take a fraction of. A story
+#: may declare an open-ended accumulator (Wicked Garden's time debt has a floor
+#: and no ceiling); "unbounded" must not mean "unbounded per scene".
+DEFAULT_UNBOUNDED_CEILING = 10
+
+
+def _bounds_path() -> Path:
+    from engine.config import get_config
+
+    rel = get_config().get("paths.challenge_bounds", "data/rules/challenge_bounds.yaml")
+    return _ROOT / str(rel)
+
+
+@lru_cache(maxsize=8)
+def _read_bounds(path_str: str, _mtime: float) -> dict[str, Any]:
+    """
+    Parse the per-story ceiling overrides, memoized on (path, mtime).
+
+    Keyed on mtime as well as path so the cache invalidates on a file edit or a
+    repointed ``paths.challenge_bounds`` without this module having to be
+    registered in engine/games/caches.py, which it does not own.
+    """
+    try:
+        with Path(path_str).open(encoding="utf-8") as handle:
+            return yaml.safe_load(handle) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        logger.warning("[challenges] Unreadable challenge bounds: %s", exc)
+        return {}
+
+
+def load_bounds() -> dict[str, Any]:
+    """Story-declared ceiling overrides. Absent file means "derive everything"."""
+    path = _bounds_path()
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return {}
+    return _read_bounds(str(path), mtime)
+
+
+def _derived_ceiling(spec: Any) -> int:
+    """One declared value's per-scene ceiling, from its own scale."""
+    if spec.minimum is None or spec.maximum is None:
+        return DEFAULT_UNBOUNDED_CEILING
+    span = float(spec.maximum) - float(spec.minimum)
+    # Floor of 1: a value a challenge may touch but never move is worse than a
+    # value it may not touch, because the effect still produces a receipt
+    # claiming something happened.
+    return max(1, int(round(span * SCHEMA_CEILING_FRACTION)))
+
+
+def _schema_values() -> dict[str, Any]:
+    """The running story's declared values, or {} when it declares none."""
+    try:
+        from engine.state.active import active_schema
+
+        return dict(active_schema().values)
+    except Exception as exc:  # noqa: BLE001 -- never block a turn on introspection
+        logger.debug("[challenges] No active state schema: %s", exc)
+        return {}
+
+
+def effect_ceilings() -> dict[str, int]:
+    """
+    Per-effect magnitude ceilings for the RUNNING story.
+
+    Precedence, weakest first:
+
+      1. derived from each declared value's own bounds,
+      2. the engine's base table (balance numbers that are not derivable),
+      3. ``data/rules/challenge_bounds.yaml`` (the story's explicit word).
+
+    Rebuilt per call rather than cached: it is a dict comprehension over a few
+    dozen entries, and a cache here would be a fourth thing to invalidate on a
+    game swap for no measurable gain.
+    """
+    ceilings: dict[str, int] = {
+        name: _derived_ceiling(spec) for name, spec in _schema_values().items()
+    }
+    ceilings.update(EFFECT_CEILINGS)
+    for name, raw in (load_bounds().get("ceilings") or {}).items():
+        ceilings[str(name)] = max(0, _int(raw))
+    return ceilings
+
+
+def allowed_effect_types() -> frozenset[str]:
+    """
+    Effect types a model-composed challenge may use in the RUNNING story.
+
+    The engine's base set, plus every value the story declared -- which is what
+    lets a challenge in another story award its own meters instead of having
+    every one of them silently dropped. A story may subtract with a
+    ``denied:`` list; it may not add a type the dispatcher does not implement,
+    because the drop would then happen one layer later and without a receipt.
+    """
+    allowed = set(ALLOWED_EFFECT_TYPES) | set(_schema_values())
+    bounds = load_bounds()
+    for name in bounds.get("denied") or []:
+        allowed.discard(str(name))
+    return frozenset(allowed)
 
 
 @dataclass
@@ -152,21 +327,43 @@ def _clamp_effect(
     if not isinstance(effect, dict):
         return None
     kind = str(effect.get("type", "")).strip().lower()
-    if kind not in ALLOWED_EFFECT_TYPES:
-        adjustments.append(f"dropped disallowed effect type {kind!r}")
+
+    # `{type: value, name: favor}` is the explicit form of `{type: favor}`.
+    # Bounded under the NAME either way, because the ceiling belongs to the
+    # value, not to the spelling the author chose.
+    bounded_name = kind
+    if kind == "value":
+        bounded_name = str(
+            effect.get("name") or effect.get("id") or ""
+        ).strip().lower()
+        if not bounded_name:
+            adjustments.append("dropped value effect with no name")
+            return None
+
+    allowed = allowed_effect_types()
+    if bounded_name not in allowed:
+        adjustments.append(f"dropped disallowed effect type {bounded_name!r}")
         return None
 
     bounded = dict(effect)
     bounded["type"] = kind
+    if kind == "value":
+        bounded["name"] = bounded_name
 
-    ceiling = EFFECT_CEILINGS.get(kind)
+    ceiling = effect_ceilings().get(bounded_name)
     if ceiling is not None:
         delta = _int(effect.get("delta"))
         if abs(delta) > ceiling:
             capped = ceiling if delta > 0 else -ceiling
-            adjustments.append(f"{kind} delta {delta:+d} clamped to {capped:+d}")
+            adjustments.append(f"{bounded_name} delta {delta:+d} clamped to {capped:+d}")
             delta = capped
         bounded["delta"] = delta
+        # `set:` bypasses the delta ceiling entirely -- a challenge that may
+        # move favor by 16 must not be able to write favor = 100 instead. A
+        # model-composed spec expresses change, never absolute state.
+        if "set" in bounded:
+            adjustments.append(f"{bounded_name} 'set' dropped; a challenge may only adjust")
+            bounded.pop("set", None)
 
     if kind in ("item", "remove_item"):
         item_id = _ident(effect.get("item_id") or effect.get("id"))
@@ -255,13 +452,15 @@ def _validate_gauntlet(spec: dict[str, Any], out: dict[str, Any], adj: list[str]
         adj.append(f"steps trimmed from {len(raw_steps)} to {MAX_STEPS}")
         raw_steps = raw_steps[:MAX_STEPS]
 
+    known_skills = story_skills()
+    fallback = default_skill()
     steps: list[dict[str, Any]] = []
     for index, raw in enumerate(raw_steps):
         raw = raw if isinstance(raw, dict) else {}
         skill = str(raw.get("skill", "")).strip().lower()
-        if skill not in SKILLS:
-            adj.append(f"step {index}: skill {skill!r} is not canon, using {DEFAULT_SKILL}")
-            skill = DEFAULT_SKILL
+        if skill not in known_skills:
+            adj.append(f"step {index}: skill {skill!r} is not canon, using {fallback}")
+            skill = fallback
         difficulty = str(raw.get("difficulty", "")).strip().lower()
         if difficulty not in DIFFICULTIES:
             # No raw DC is accepted at all, so there is nothing to clamp -- an
@@ -452,15 +651,22 @@ def validate(spec: Any) -> SpecResult:
 __all__ = [
     "ALLOWED_DICE",
     "ALLOWED_EFFECT_TYPES",
+    "DEFAULT_UNBOUNDED_CEILING",
     "DIFFICULTIES",
     "EFFECT_CEILINGS",
     "KINDS",
     "MAX_EFFECTS",
     "MAX_ITEM_QTY",
     "MAX_STEPS",
+    "SCHEMA_CEILING_FRACTION",
     "SKILLS",
     "SpecResult",
+    "allowed_effect_types",
     "clamp_outcome",
+    "default_skill",
+    "effect_ceilings",
+    "load_bounds",
     "normalise_answer",
+    "story_skills",
     "validate",
 ]

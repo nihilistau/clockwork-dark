@@ -1,0 +1,572 @@
+# Day 2 — Laws of the Between
+# ===========================
+#
+# Authored from Design_files/Wicked-Garden/docs/design/scenes/DAY-02-LAWS.md.
+#
+# THE GM'S DAY. She is present at the start and the end and absent in the
+# middle, on purpose and by her own decision -- "I refuse to be your only
+# danger. That would be provincial." The whole day exists to make the Garden
+# bigger than the woman, because every ending that is not E3 needs the player to
+# believe there is a world here with rules in it.
+#
+# ONE LAW MUST BECOME USABLE, not just readable. That is the design's hard
+# requirement (DAY-02:290) and it is why `D2_05_law_practice` exists as its own
+# card: whichever teacher was chosen, the player gets one chance the same
+# afternoon to spend what they learned on a real trap.
+#
+# HOW THE TWO PATHS ARE SELECTED. Thornwake and Lior are `required` cards whose
+# beats are each guarded by `met_thornwake` / `met_lior`. A guard that fails
+# resolves as a pass-through with no text and no effects, so dealing both and
+# running one is safe and deterministic -- which a `draw` between them would not
+# be. The GM is handed both because the cross-sting needs to know what was not
+# chosen.
+#
+# Version: v0.1.0 [2026-08-08]
+
+id: day_02_laws
+
+draw: 2
+
+cards:
+
+  # =====================================================================
+  # SPINE
+  # =====================================================================
+
+  - id: D2_01_waking_omens
+    required: true
+    tags: [sequence, gm]
+    title: "A Thorn and a Silver Scale"
+    text: >-
+      INTENT: two invitations on the table that are also dares, and a reflection
+      in the washbasin that lags by half a second. The lag is Lior's calling
+      card and it is the day's one wrong detail.
+      CONSTRAINT: do not name either sender. The player should have to guess
+      which object belongs to which power.
+    beats:
+      - id: the_reflection_lags
+        text: >-
+          Half a second behind, and it finishes the movement you started. If the
+          collar or ring is worn, it warms toward the Heart Grove while you look
+          at the two invitations, which is not subtle and is not meant to be.
+        band:
+          value: knowledge
+          min: 1
+          max: 3
+          text: "What the half second told you."
+
+  - id: D2_02_sophia_releases_you
+    required: true
+    tags: [menu, sophia]
+    title: "Go Learn Something That Is Not My Mouth"
+    text: >-
+      INTENT: she sends the player away, and the sending is an act of appetite
+      rather than generosity -- she wants to see what comes back. Come back
+      still yourself, or more interestingly ruined.
+      SHE WANTS: to be missed, and to find out what the player is like when she
+      is not in the room. She is testing independence, not permitting it.
+      CONSTRAINT: she does not say where to go and will not choose the teacher.
+      Sets `sophia_released_to_learn`, which Day 4 reads when deciding how
+      betrayed she gets to feel.
+      MENU -- resolve exactly the beat the player chose, then the mark beat.
+    beats:
+      - id: affectionate_goodbye
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 5 }
+              - { type: value, name: desire, delta: 4 }
+
+      - id: ask_what_she_is_hiding_today
+        text: "She smiles a non-answer, and the shape of the non-answer is itself information."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 2 }
+              - { type: value, name: favor, delta: -1 }
+
+      - id: leave_cold
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+              - { type: value, name: favor, delta: -3 }
+
+      - id: she_let_you_go
+        text: "Always. Resolve after whichever branch ran."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: sophia_released_to_learn }
+
+  - id: D2_03_choose_a_teacher
+    required: true
+    tags: [menu, gm]
+    title: "The Captain or the Mirrors"
+    text: >-
+      INTENT: the day's fork, and the only one on it. Both teachers are
+      dangerous and neither is a friend. Thornwake is stone; Lior is a price.
+      CONSTRAINT: the player may only take one deeply. Whichever is not chosen
+      gets a single sting later and nothing more.
+      MENU -- resolve exactly the beat the player chose. The flag it sets is
+      what unlocks the corresponding path card below.
+    beats:
+      - id: seek_the_captain
+        text: "Wet iron and crushed green wood. Thorn-hounds that do not blink enough."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: met_thornwake }
+
+      - id: seek_the_mirrors
+        text: "Black glass water, silver willows, reflections out of time with their owners."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: met_lior }
+
+  - id: D2_T_thornwake
+    required: true
+    tags: [sequence, gm]
+    title: "Path T — Captain Thornwake"
+    text: >-
+      INTENT: law as stone. He opens with contempt that is not personal --
+      "Mortal. The Seat's current flower sent you, or your own death-wish?" --
+      and teaches anyway, because teaching is procedure and procedure is what he
+      is. He is not kind and he is not lying.
+      THREE LAWS: hospitality binds host and guest both ways; the Seat is not
+      the woman; iron speaks rudely and makes loud enemies.
+      CONSTRAINT: every beat is guarded on `met_thornwake`. On the Lior route
+      this whole card resolves to nothing, which is correct.
+      If asked how to leave: three doors -- her leave, older law, death. Mortals
+      invent a fourth and call it cleverness. Usually the roots are full of
+      clever bones.
+    beats:
+      - id: the_lesson
+        gate:
+          when: { flag: met_thornwake }
+          on_pass:
+            effects:
+              - { type: flag, flag: law_hospitality }
+              - { type: flag, flag: law_seat_vs_woman_partial }
+              - { type: value, name: knowledge, delta: 12 }
+              - { type: value, name: autonomy, delta: 5 }
+
+      - id: the_chalk
+        text: >-
+          One safe sleep, not two. Do not become a person who only lives inside
+          circles. He means it as instruction and it lands as diagnosis.
+        gate:
+          when: { flag: met_thornwake }
+          on_pass:
+            effects:
+              - { type: item, item_id: salt_circle_chalk, name: "Salt-Circle Chalk" }
+
+      - id: show_him_her_mark
+        text: >-
+          Optional. If the collar or ring is on, he looks at it once. Marks are
+          weather; law is stone. He does not offer to remove it and would not if
+          asked.
+        gate:
+          when:
+            all:
+              - { flag: met_thornwake }
+              - { any: [{ has_item: collar_soft_thorns }, { has_item: thorn_ring }] }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: autonomy, delta: 2 }
+
+  - id: D2_L_lior
+    required: true
+    tags: [sequence, gm]
+    title: "Path L — Lior of the Mirror Pools"
+    text: >-
+      INTENT: knowledge as a purchase. Lior does not sell truth, they rent
+      POSSIBLE SELVES, and they are delighted by how temporary the player might
+      be. Androgynous, liquid-silver skin, still-water eyes. Never minor-coded,
+      never a friend, never a quest-giver.
+      THEY WANT: to be owed something. Gratitude is a thread and they collect.
+      CONSTRAINT: every beat is guarded on `met_lior`. The visions are BLURRED
+      -- silhouettes weighted by meters, not the Day 8 cards. Do not name an
+      ending id here.
+      Soft law taught regardless: names open and close doors, and you never
+      stack your true name with wine.
+    beats:
+      - id: pay_a_memory
+        text: >-
+          The player picks what to sell: a childhood, a lover, an achievement.
+          Set the matching `lior_memory_price_*` flag -- an enum spelled as
+          flags, per this directory's README -- and never give the memory back.
+        gate:
+          when: { flag: met_lior }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 10 }
+              - { type: value, name: corruption, delta: 4 }
+
+      - id: refuse_to_pay
+        text: >-
+          Look without buying. Lior permits it and shows less, and respects the
+          player fractionally more than they will ever admit.
+        gate:
+          when: { flag: met_lior }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 5 }
+              - { type: value, name: knowledge, delta: 4 }
+
+      - id: the_blurred_futures
+        text: >-
+          Three silhouettes, chosen by whichever meters are loudest: a briar
+          door opening outward, a soft collar of light, a figure on a thorn
+          seat, a flower with the player's eyes, her hand open or closed.
+        gate:
+          when: { flag: met_lior }
+          on_pass:
+            effects:
+              - { type: flag, flag: saw_blurred_endings }
+              - { type: item, item_id: mirror_chip, name: "Mirror-Glass Chip" }
+              - { type: value, name: knowledge, delta: 6 }
+
+  - id: D2_04_cross_sting
+    required: true
+    tags: [sequence, gm]
+    title: "The Road Not Taken, Watching"
+    text: >-
+      INTENT: one image, no dialogue. On the Captain's road, a puddle shows Lior
+      winking once. On the mirror road, a thorn-hound stands in the trees and
+      the air smells of chalk. The point is that the player has been
+      inventoried by both.
+    beats:
+      - id: be_watched_by_the_other
+        band:
+          value: knowledge
+          min: 1
+          max: 3
+          text: "What you understood about being watched."
+
+  - id: D2_05_law_practice
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "Law Practice — the Free Wine"
+    text: >-
+      INTENT: the day's proof. A market stall on the way home offers Nightbloom
+      Wine free, "for Sophia's friend". A free gift is a thread and the whole
+      morning was about that.
+      CONSTRAINT: this is the card that makes a law USABLE rather than
+      collectible. At least one branch must be available to any player who took
+      either teacher.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: refuse_the_wine
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+
+      - id: accept_the_wine
+        text: "Memory haze afterward. The next social scene should be measurably harder to read."
+        gate:
+          on_pass:
+            effects:
+              - { type: item, item_id: nightbloom_wine, name: "Nightbloom Wine" }
+              - { type: value, name: corruption, delta: 5 }
+              - { type: value, name: desire, delta: 10 }
+              - { type: value, name: favor, delta: 3 }
+
+      - id: name_the_thread_aloud
+        text: >-
+          "This is a gift-thread." Say the shape of it and the shape stops
+          working. The vendor recoils and pays in lore to make you stop.
+        gate:
+          when:
+            any:
+              - { flag: law_hospitality }
+              - { value: { name: knowledge, min: 20 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: used_hospitality_law }
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: autonomy, delta: 4 }
+          on_fail:
+            # FAIL FORWARD: you reach for the law and get the grammar wrong.
+            # The trap still closes, and the embarrassment is the lesson.
+            text: "You have the shape of it and not the words. The vendor waits, politely, for you to finish."
+            effects:
+              - { type: value, name: favor, delta: -3 }
+              - { type: value, name: knowledge, delta: 2 }
+
+      - id: use_the_iron_pin
+        text: >-
+          The glamour drops for one second and the vendor is a rootling horror
+          with a stall built out of somebody. Both courts feel the iron. This is
+          never free.
+        gate:
+          when: { has_item: iron_pin }
+          on_pass:
+            effects:
+              - { type: flag, flag: armed_with_iron }
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: corruption, delta: 2 }
+              - { type: value, name: favor, delta: -4 }
+
+  - id: D2_07_sophia_debrief
+    required: true
+    tags: [menu, sophia]
+    title: "Report, My Trespass"
+    text: >-
+      INTENT: the moths told her where the player went; she is testing honesty,
+      not gathering intelligence. What did the world teach you without my
+      tongue?
+      SHE WANTS: to be told. Not to be obeyed -- told. Honesty raises favour and
+      she files every vulnerability it hands her, and the player should feel
+      both halves of that.
+      CONSTRAINT: if the gift was refused and knowledge is high, she says the
+      quiet part: *I prefer prey that might become peer, or interesting meat.*
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: full_honesty
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: desire, delta: 3 }
+
+      - id: partial_truths
+        text: >-
+          Contested. High favour buys her intuition; the higher she is, the more
+          likely she catches it, and the punishment is playful and not gentle.
+        gate:
+          check: { chance: 0.5, stream: "beat.d2_debrief_lie" }
+          on_pass:
+            text: "She lets it stand. You cannot tell whether she believed it."
+            effects:
+              - { type: value, name: knowledge, delta: 2 }
+          on_fail:
+            text: "She repeats one of your own words back with the wrong weight on it."
+            effects:
+              - { type: value, name: favor, delta: -6 }
+              - { type: value, name: desire, delta: 4 }
+
+      - id: none_of_your_business
+        text: "Aroused by spine, wounded by exclusion, and unable to hide either."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 6 }
+              - { type: value, name: favor, delta: -5 }
+              - { type: value, name: desire, delta: 5 }
+
+      - id: frame_it_as_staying_wiser
+        text: >-
+          "I learned it to stay with you better." True or not, it is the answer
+          that costs her the least pride, and she knows she is being managed.
+        band:
+          value: favor
+          min: -2
+          max: 4
+          text: "Whether she believed the framing or only enjoyed it."
+
+  - id: D2_08_night
+    required: true
+    tags: [menu, night, sophia]
+    title: "Chalk, or Frost"
+    text: >-
+      INTENT: the first night the player can choose to be safe, and the first
+      night that being safe costs intelligence. Chalk buys a sleep with no
+      dreams in it; without it the dream is frost creeping over roses and nobody
+      in it says a word.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: sleep_inside_the_circle
+        text: "Spend a chalk charge. Nothing comes. Nothing is learned."
+        gate:
+          when: { has_item: salt_circle_chalk }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+
+      - id: sleep_unwarded
+        text: >-
+          Frost on roses, in a dream that does not belong to her. Sets
+          `dream_ashen` -- the first Ashen contact of any kind, and the reason
+          Day 3's feast approach does not come out of nowhere.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: dream_ashen }
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+
+      - id: she_arrives
+        text: >-
+          Only if the day left enough heat. Theme is PRIDE AFTER INDEPENDENCE:
+          she reasserts presence without claiming anything new. Suggestive
+          ceiling; no ritual, no mark.
+        gate:
+          when:
+            all:
+              - { value: { name: favor, min: 50 } }
+              - { value: { name: desire, min: 40 } }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 10 }
+              - { type: value, name: desire, delta: 6 }
+              - { type: value, name: autonomy, delta: -4 }
+
+      - id: the_crack
+        text: >-
+          RARE. Only if the player used iron today or stood in the crypt. She is
+          softer or colder by the agent's read of her pride-wound, and if softer
+          she says the thing she has never said aloud -- that she has been kind
+          in centuries that starved the roots, and that she would rather not
+          choose the Garden over the player this early.
+        gate:
+          when:
+            any:
+              - { flag: armed_with_iron }
+              - { flag: saw_elias_sap }
+          on_pass:
+            effects:
+              - { type: flag, flag: sophia_soft_century_hint }
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: equality_seed, delta: 1 }
+
+  - id: day2_toll
+    required: true
+    tags: [sequence, toll, gm]
+    title: "Thirty Days Gone"
+    text: >-
+      INTENT: the bill. Three Garden days. A month of somebody else's calendar
+      has gone past without you in it.
+    beats:
+      - id: the_hourglass_turns
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: time_debt_mortal_days, delta: 10, why: "day 2 toll" }
+
+  # =====================================================================
+  # POOL — the crypt threshold and the day's smaller teeth. Two are dealt.
+  # =====================================================================
+
+  - id: DX_root_crypt_threshold
+    tags: [menu, gm]
+    once: true
+    weight: 3
+    # DAY-02:214 -- unlocked by knowledge, by the hedge warning, or by a player
+    # who will not stop asking what happened to the others.
+    when:
+      any:
+        - { value: { name: knowledge, min: 18 } }
+        - { flag: heard_honeyed_warning }
+        - { flag: threatened_leave }
+    title: "The Stairs Under the Heart Grove"
+    text: >-
+      INTENT: erotic memento mori, at the door only. Amber sap coffins seen from
+      the top step. Faces like wedding portraits. One of them looks like it
+      could still choose.
+      CONSTRAINT: Thornwake or a thorn-hound appears if the player goes deeper
+      than the threshold -- *not yet* -- and escorts them up without violence.
+      Day 6 is where this room opens. Do not spend it here.
+    beats:
+      - id: stay_and_listen
+        text: >-
+          An Elias-echo through the resin: she loved me until paint learned to
+          scream; leave while you still dry. He does not know he is dead in the
+          way that matters.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: saw_elias_sap }
+              - { type: value, name: knowledge, delta: 8 }
+              - { type: value, name: desire, delta: -2 }
+
+      - id: touch_the_sap
+        text: "Warm. It gives, slightly. A vision of the thrall ending arrives uninvited and is not unpleasant."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: corruption, delta: 8 }
+              - { type: value, name: desire, delta: 5 }
+
+      - id: flee_the_stairs
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 2 }
+
+      - id: the_heartbeat_in_the_wall
+        text: "Always, on the way out. One beat, slower than the Garden's. No face."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: briar_heartbeat_heard }
+              - { type: value, name: briar_hunger, delta: 1 }
+
+  - id: DX_singing_thorn_gift
+    tags: [menu, gm]
+    once: true
+    weight: 2
+    title: "A Bloomkin With a Present"
+    text: >-
+      A small Fae offers a singing thorn, sincerely, as a gift. It is a trap and
+      the bloomkin does not know that; obligation is simply how its people say
+      hello. This is the practice run for the wine.
+    beats:
+      - id: invoke_hospitality
+        gate:
+          when: { flag: law_hospitality }
+          on_pass:
+            text: "The gift is nullified and the bloomkin is deeply embarrassed."
+            effects:
+              - { type: flag, flag: used_hospitality_law }
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: autonomy, delta: 4 }
+          on_fail:
+            text: "You have no words for this and it is already in your hand."
+            effects:
+              - { type: value, name: corruption, delta: 3 }
+
+      - id: take_the_thorn
+        text: "A junk obligation. Small, real, and cuttable. Open the thread anyway."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: corruption, delta: 3 }
+
+  - id: DX_lior_puddle
+    tags: [sequence, gm]
+    once: true
+    weight: 0.5
+    when: { none: [{ flag: met_lior }] }
+    title: "Someone You Have Not Met Yet"
+    text: >-
+      A reflection in standing water finishes a sentence the player has not
+      started. It is friendly. It is charging for the friendliness already and
+      the invoice has not arrived.
+    beats:
+      - id: look_away_first
+        band:
+          value: knowledge
+          min: 1
+          max: 4
+          text: "What the water let you keep."
+
+  - id: DX_the_aviary_door
+    tags: [sequence, gm]
+    once: true
+    title: "The Aviary of Unsent Letters"
+    text: >-
+      A door the player has not been offered, standing open. Inside: paper birds
+      with mortal handwriting on their wings, all of it addressed outward, none
+      of it sent. Nobody stops the player looking. Nobody explains.
+    beats:
+      - id: read_one_wing
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: autonomy, delta: 2 }
+              - { type: value, name: desire, delta: -2 }

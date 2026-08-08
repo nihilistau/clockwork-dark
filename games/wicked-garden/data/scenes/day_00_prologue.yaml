@@ -1,0 +1,458 @@
+# Day 0 — Prologue: The Invitation
+# ================================
+#
+# Authored from Design_files/Wicked-Garden/docs/design/scenes/DAY-00-PROLOGUE.md.
+#
+# WHAT THIS DAY OWES THE REST OF THE GAME. Exactly two durable facts:
+# `entry_mode_*` (how you crossed) and `knows_time_law` (you were told the
+# price before you paid it). Everything else here is baseline. The design is
+# explicit that there is no failure state on Day 0 -- even refusal enters as a
+# guest -- so no beat on this day may close a route.
+#
+# `knows_time_law` is set by the toll card unconditionally, not by the beat
+# where she explains it. DAY-00:261 says "always by end of P6", and a fact the
+# player needs at Day 8 must not depend on which of four things they said.
+#
+# Content ceiling: suggestive. The night-0 heat variant the design specifies is
+# left as a marked hook, not written.
+#
+# Version: v0.1.0 [2026-08-08]
+
+id: day_00_prologue
+
+# Two pool cards on top of the spine. The prologue is short and its variety is
+# the mortal world thinning, not side content.
+draw: 2
+
+cards:
+
+  # =====================================================================
+  # SPINE
+  # =====================================================================
+
+  - id: P1_threshold_slip
+    required: true
+    tags: [menu, gm]
+    title: "The Path That Was Not There"
+    text: >-
+      INTENT: establish that the crossing is a choice and that the player is
+      already being pulled. The mortal world must read as ordinary and slightly
+      cheap -- desaturated, unremarkable, one impossible rose.
+      CONSTRAINTS: she is not seen and does not appear. Perfume, path, thorns.
+      Whatever the player does, the path is still there at the end of it; this
+      beat cannot fail and cannot end the story.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: follow_the_scent
+        text: >-
+          Walk toward it without arguing. Curiosity as the first sin, and the
+          cheapest one.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 2, why: "you looked at it properly" }
+              - { type: value, name: desire, delta: 3 }
+
+      - id: name_it_aloud
+        text: >-
+          Say what it obviously is: a dream, a trick, a breakdown. Naming a
+          thing is the mortal reflex and it does nothing, which is the point.
+        gate:
+          on_pass:
+            text: "The word does not land on anything."
+            effects:
+              - { type: value, name: autonomy, delta: 3, why: "you tried to keep hold of the frame" }
+
+      - id: turn_away_hard
+        text: >-
+          Refuse and walk. The path relocates in front of you, once, patiently.
+          Sets `resisted_call`, which is the only thing on this day that changes
+          what Day 4's winter does with you.
+        gate:
+          on_pass:
+            text: "The ordinary world blurs like wet paint. The thorns are simply there."
+            effects:
+              - { type: value, name: autonomy, delta: 5 }
+              - { type: flag, flag: resisted_call }
+
+  - id: P2_gate_of_briars
+    required: true
+    tags: [sequence, gm]
+    title: "The Gate of Briars"
+    text: >-
+      INTENT: the interface tutorial, hidden inside awe. Location stamp, the ash
+      hourglass empty, the first petal choices. One beautiful detail and one
+      wrong detail -- the roses opening are not all the colour of welcome.
+      CONSTRAINTS: no meters move here worth speaking of. This is the last
+      moment the player can look back and see their own world, and it should
+      already look like a sketch someone stopped caring about.
+    beats:
+      - id: look_at_the_arch
+        text: >-
+          A cathedral of living thorn. Beyond it, colour saturated past decency.
+          Behind, a world going thin.
+
+      - id: look_back_once
+        text: >-
+          The Garden's first honest offer: you may still see where you came
+          from. It will not make this offer again.
+        band:
+          value: knowledge
+          min: 1
+          max: 3
+          text: "What you noticed about the shape of the door before you used it."
+
+  - id: P3_sophia_appears
+    required: true
+    tags: [menu, sophia, setpiece]
+    title: "There You Are"
+    text: >-
+      INTENT: she must land as desire AND danger in the same breath, and she
+      must be interested rather than triumphant. She studies you the way a
+      jeweller studies a stone and the way a wolf studies a pulse.
+      SHE WANTS: to find out what you are before she decides what to do with
+      you. Patience is high. She is not jealous yet -- there is nothing to be
+      jealous of.
+      CONSTRAINT: she does not give her true name and does not take yours.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: ask_who_she_really_is
+        text: "A mortal question. She answers a true part of it and keeps the rest."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+
+      - id: ask_what_she_wants
+        text: "Directness amuses her more than flattery does. Reward the spine, not the words."
+        band:
+          value: favor
+          min: 2
+          max: 6
+          text: "How well the bluntness landed."
+
+      - id: hold_her_gaze_in_silence
+        text: >-
+          Most mortals fill the air with bargains they do not understand.
+          Silence is the strongest opening move available on Day 0.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 6 }
+              - { type: value, name: desire, delta: 4 }
+              - { type: value, name: autonomy, delta: 1 }
+
+      - id: say_you_are_leaving
+        text: >-
+          She does not argue. The Gate has opinions and so does she. Sets
+          `threatened_leave`, which she remembers on Day 1 and Day 7.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 4 }
+              - { type: value, name: favor, delta: -2, why: "said out loud, in front of the roses" }
+              - { type: flag, flag: threatened_leave }
+
+  - id: P4_question_of_entry
+    required: true
+    tags: [menu, setpiece, sophia]
+    title: "The Question of Entry"
+    text: >-
+      INTENT: the day's load-bearing choice. She does not block the Gate with
+      force; she blocks it with attention. Guest, prize, terms, or refusal.
+      CONSTRAINTS: refusal must not end the game and must not read as a
+      punishment -- the design's rule is that the door has already learned your
+      scent. Every branch ends on the Garden side of the arch.
+      MENU -- resolve exactly the beat the player chose. Each sets one
+      `entry_mode_*` flag; nothing later in the game should ever see two.
+    beats:
+      - id: enter_as_guest
+        text: >-
+          The recommended first crossing. Fed stories, fruit and her interest,
+          on terms nobody wrote down.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: entry_mode_guest }
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: corruption, delta: 2 }
+
+      - id: enter_as_claimed
+        text: >-
+          Cross knowing what you are. She will not pretend this is fair, and the
+          court will smell it on you by morning.
+          NOTE: the design also lists Corruption +5 here; four effects is the
+          engine's ceiling for one branch, so the corruption lands on the night
+          card instead of being silently clamped away.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: entry_mode_claimed }
+              - { type: value, name: favor, delta: 15 }
+              - { type: value, name: autonomy, delta: -8 }
+              - { type: value, name: desire, delta: 10 }
+
+      - id: bargain_at_the_threshold
+        text: >-
+          Speak terms. She adores people who think ink can leash a rose. The
+          terms themselves are a THREAD -- offer `hospitality_dawn` or
+          `three_nights_or_truths` through the thread tool, not from here.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: entry_mode_bargain }
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: favor, delta: 4 }
+
+      - id: refuse_entry
+        text: >-
+          You step back. The Gate does not close, and your shadow stretches into
+          the thorns and does not come back on time. A vine at the wrist, gentle
+          and inexorable. You cross anyway.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: entry_mode_refused }
+              - { type: flag, flag: dragged_guest }
+              - { type: value, name: autonomy, delta: 8 }
+              - { type: value, name: desire, delta: 3 }
+
+  - id: P6_first_law_time
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "One Day Here Is Ten At Home"
+    text: >-
+      INTENT: the thesis, spoken out loud, before the player has spent anything.
+      A moth of pale glass with a calendar in its wings. The ash hourglass
+      appears and drops its first grain.
+      SHE WANTS: to be chosen with the player's eyes open -- "stolen fruit
+      tastes of iron". This is her being genuinely kind and it is also the most
+      efficient way to own someone.
+      CONSTRAINT: she does not soften the number and does not call it tragedy.
+      She calls it price. `knows_time_law` is set by the toll card regardless of
+      which beat runs.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: ask_why_tell_me
+        text: "Because she wants the yes to be worth something."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 4 }
+              - { type: value, name: knowledge, delta: 5 }
+
+      - id: ask_to_be_sent_back
+        text: "Charmingly small. No. Not yet."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+              - { type: value, name: favor, delta: -3 }
+
+      - id: price_her_correctly
+        text: >-
+          Then every hour with you is expensive. The single best thing a player
+          can say to her on Day 0, and she knows it.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: desire, delta: 5 }
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: knowledge, delta: 3 }
+
+      - id: touch_the_moth
+        text: >-
+          Examine it instead of answering her. Unlocks the Law of Tens as a
+          thing you have read rather than a thing you were told.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 6 }
+              - { type: flag, flag: saw_time_moth }
+
+  - id: P7_guest_house_threshold
+    required: true
+    tags: [menu, sophia]
+    title: "The House of Soft Hours"
+    text: >-
+      INTENT: shelter that is also a held breath. The house rearranges as you
+      look at it. A bowl of fruit that steams with memory, and one instruction
+      -- do not eat the black fruit tonight.
+      SHE WANTS: to be asked to stay, and to be seen deciding not to take
+      everything. Restraint here is a leash made of gratitude and she knows it.
+      CONSTRAINT: nothing that happens tonight is a thrall ritual or a claim.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: ask_her_to_stay
+        text: "Sets `invited_sophia_night0`, which routes the night card."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: invited_sophia_night0 }
+              - { type: value, name: favor, delta: 10 }
+              - { type: value, name: desire, delta: 8 }
+              - { type: value, name: autonomy, delta: -2 }
+
+      - id: thank_her_and_take_distance
+        text: "She respects it, visibly, and files it."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 5 }
+              - { type: value, name: favor, delta: 2 }
+
+      - id: ask_about_the_black_fruit
+        text: >-
+          It is for people who wish to forget why they should leave. Tempting,
+          yes? Asking does not consume the choice above it.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 4 }
+
+  - id: P8_night_zero
+    required: true
+    tags: [menu, night, sophia, intimate]
+    title: "Night Zero"
+    text: >-
+      INTENT: close the day on a note the player cannot quite file. Alone, the
+      dream is the mortal kitchen going wrong and a rose on the pillow with no
+      thorns, which is worse. Invited, she sits at the edge of the bed and maps
+      your face with a gaze that feels like hands.
+      CEILING: suggestive. Heat without claim. She stops, and says she is
+      stopping, and means both the mercy and the leash.
+      MENU -- resolve exactly the beat that matches `invited_sophia_night0`.
+    beats:
+      - id: night0_alone
+        text: "Sleep like warm water. A living rose on the pillow by morning."
+        gate:
+          when: { none: [{ flag: invited_sophia_night0 }] }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 3 }
+              - { type: value, name: corruption, delta: 1 }
+              - { type: value, name: desire, delta: 2 }
+
+      - id: night0_soft
+        text: >-
+          She does not undress the night. A kiss at the corner of the mouth and
+          a stated mercy. Sets `night0_kiss`.
+        gate:
+          when: { flag: invited_sophia_night0 }
+          on_pass:
+            effects:
+              - { type: flag, flag: night0_kiss }
+              - { type: value, name: favor, delta: 12 }
+              - { type: value, name: desire, delta: 12 }
+              - { type: value, name: autonomy, delta: -3 }
+
+      # EXPLICIT VARIANT: not authored.
+      # DAY-00:304 specifies an N0-Heat branch at intensity Explicit+, setting
+      # `night0_intimate` and moving Favor/Desire/Corruption/Autonomy harder.
+      # This content is authored to the `suggestive` ceiling declared in
+      # game.yaml; the beat is deliberately absent rather than stubbed, because
+      # a stub that resolves is content and this is not.
+
+  - id: day0_toll
+    required: true
+    tags: [sequence, toll, gm]
+    title: "Ten Days Gone"
+    text: >-
+      INTENT: the bill, charged whether the day was spent well or not. Say the
+      number. The design's UI note is "Day 1 begins; ten days gone".
+      CONSTRAINT: this card runs at the end of every Day 0, on every route, and
+      is the only place the prologue writes time.
+    beats:
+      - id: the_law_is_now_known
+        text: >-
+          Set unconditionally. DAY-00:261 -- knows_time_law is true by the end
+          of P6 on every branch, because Day 8's door gate reads it and a fact
+          the finale needs must not depend on which of four things you said.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: knows_time_law }
+
+      - id: the_hourglass_turns
+        text: "Ten mortal days. The first grain was the whole of your evening."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: time_debt_mortal_days, delta: 10, why: "day 0 toll" }
+
+  # =====================================================================
+  # POOL — colour, not spine. Two are dealt.
+  # =====================================================================
+
+  - id: PX_shadow_arrives_late
+    tags: [sequence, gm]
+    once: true
+    weight: 2
+    title: "Your Shadow, Arriving Late"
+    text: >-
+      A small wrongness for the crossing itself: your shadow reaches the Garden
+      side a half second after you do, and settles like something catching its
+      breath. Nobody comments. It happens to everyone.
+    beats:
+      - id: notice_the_lag
+        band:
+          value: corruption
+          min: 1
+          max: 3
+          text: "How much of the Garden came in with you."
+
+  - id: PX_cold_moth_at_the_window
+    tags: [sequence, gm]
+    once: true
+    # Foreshadow only, and only for a player who already proved they can refuse.
+    # DAY-00:345 -- do not introduce Ashen Vale yet; scent only.
+    when: { flag: resisted_call }
+    title: "A Cold Moth at the Window"
+    text: >-
+      Something silver-grey rests on the outside of the glass and does not eat.
+      It is not one of hers. Do not name it, do not give it a voice, do not let
+      the player learn anything they could act on. Winter has simply noticed
+      that you are the kind of thing that says no.
+    beats:
+      - id: watch_it_not_eat
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 2 }
+              # A clock is a declared value like any other; `type: value` is
+              # how state.yaml's `clocks:` block is written. There is no
+              # `clock` effect kind and inventing one would be a second writer.
+              - { type: value, name: ashen_pressure, delta: 1 }
+
+  - id: PX_first_bloomkin
+    tags: [sequence, gm]
+    once: true
+    weight: 2
+    title: "Something Small and Rude"
+    text: >-
+      A petal-sized Fae watches from the lintel and reports to somebody. Adult
+      voice, elderly gossip energy, never childlike. It is here so the player
+      learns that the Garden is populated and that populations talk.
+    beats:
+      - id: be_reported_on
+        band:
+          value: knowledge
+          min: 1
+          max: 4
+          text: "What you got out of it before it got away."
+
+  - id: PX_the_mortal_window
+    tags: [sequence, gm]
+    once: true
+    title: "The Window That Shows Home"
+    text: >-
+      The guest house grows a window onto the mortal world if the player looks
+      for one. Ten days of dust, ten days of mail. The horror of missing your
+      own life is co-equal with the other kind and this is its first serving.
+    beats:
+      - id: count_the_dust
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3, why: "you remembered you had a life" }
+              - { type: value, name: desire, delta: -2 }

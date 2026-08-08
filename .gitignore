@@ -35,6 +35,11 @@ data/saves/
 data/cache/
 data/telemetry/
 data/lore/lore.db
+# Every story builds its own lore index on first run. Only the flagship's path
+# was ignored, so playing a second game left an untracked .db inside games/ --
+# which then failed the test asserting that an output path does not exist until
+# first use, on a checkout where someone had simply played the other story.
+games/*/data/lore/*.db
 
 # Generated media. Session output is disposable; the curated pack that ships
 # with the game lives in content/scenes/clockwork/static/art/ and IS committed.

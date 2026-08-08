@@ -664,6 +664,59 @@ _PREDICATES: dict[str, Any] = {
 #: cannot accidentally shadow one with a predicate name.
 _GROUP_KEYS = ("all", "any", "none")
 
+#: Keys that ANNOTATE a clause rather than test anything, and are skipped during
+#: evaluation.
+#:
+#: ``id`` exists because a failed gate has to be able to say WHICH clause failed
+#: in the story's own words. ``engine/game/endings.py`` renders lock reasons
+#: from these labels -- "You have not kept enough of yourself to walk out with"
+#: rather than a stringified dict -- and the mirror pool shows those reasons to
+#: the player. Without it, a named clause would be an unknown predicate and the
+#: whole condition would silently evaluate False, which is the most expensive
+#: possible way to fail: a gate that can never open and no error anywhere.
+_ANNOTATION_KEYS = ("id",)
+
+
+def register_predicate(name: str, handler: Any) -> None:
+    """
+    Add a predicate to the shared condition grammar.
+
+    THIS EXISTS SO THERE IS ONE GRAMMAR. Progress clocks, thread contracts,
+    ending gates and deck-card selection all need to ask questions about state,
+    and each of them growing its own ``when:`` dialect is how a codebase ends up
+    with four subtly different meanings for ``any``. They extend this table
+    instead, and a condition written for a quest stage reads identically in an
+    ending gate.
+
+    Args:
+        name: Predicate key as content writes it. Must not collide with a group
+            combinator, which would make ``{all: ...}`` ambiguous.
+        handler: ``(state, value, ctx) -> bool``. Returning False for anything
+            it cannot evaluate is the contract -- a gate whose predicate cannot
+            be answered must stay shut, never fall open.
+
+    Raises:
+        ValueError: On a name that shadows a combinator. Deliberately fatal and
+            deliberately at import time.
+    """
+    key = str(name).strip()
+    if key in _GROUP_KEYS or key in _ANNOTATION_KEYS:
+        raise ValueError(
+            f"predicate {key!r} would shadow a group combinator or clause label"
+        )
+    existing = _PREDICATES.get(key)
+    if existing is not None and existing is not handler:
+        logger.warning(
+            "[quests] Predicate redefined (operation=register_predicate, name=%s)",
+            key,
+        )
+    _PREDICATES[key] = handler
+
+
+def predicate_names() -> list[str]:
+    """Every predicate the grammar understands, sorted. For doctor and docs."""
+    return sorted(_PREDICATES)
+
 
 def evaluate_condition(
     state: GameState,
@@ -755,6 +808,8 @@ def _eval_predicate_dict(state: GameState, condition: dict[str, Any], ctx: _Ctx)
                 anchor_event=str(anchors[0]),
             )
     for key, value in condition.items():
+        if key in _ANNOTATION_KEYS:
+            continue
         handler = _PREDICATES.get(str(key))
         if handler is None:
             logger.warning(

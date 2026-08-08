@@ -52,6 +52,13 @@ CHALLENGE = "challenge"
 FORAGE = "forage"
 LABOUR = "labour"
 TRADE = "trade"
+# Structural streams (W4). Separate for the same reason as everything above: a
+# deck-drawn scene must lay out the same chambers on a replay of a seed even
+# after a later build adds a hidden check to one of its beats, and an arbitrary
+# thread cut must be reproducible from a bug report.
+DECK = "deck"
+BEAT = "beat"
+THREAD = "thread"
 
 
 def _mix(seed: int, stream: str, counter: int) -> int:

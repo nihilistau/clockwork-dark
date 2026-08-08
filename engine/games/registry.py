@@ -6,8 +6,9 @@ Discover the games on disk, validate one, activate it.
 
     discover()          scan games/*/game.yaml
     validate(manifest)  every declared path must exist -- returns problems
-    activate(slug)      merge paths over config, invalidate every cache
+    activate(slug)      merge paths and settings over config, invalidate caches
     active()            the manifest currently in force
+    entry_location()    where a new run starts, without activating anything
     reset_all_caches()  re-exported; the public form of "reload everything"
 
 WHY VALIDATION IS A HARD GATE AT ACTIVATION: every content loader in this
@@ -29,7 +30,7 @@ Selection precedence, first hit wins:
     CLOCKWORK_GAME          environment variable
     config game.default     config/default.yaml
 
-Version: v0.1.0 [2026-08-08]
+Version: v0.2.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -193,8 +194,35 @@ def validate(manifest: GameManifest) -> list[str]:
 
     if not manifest.entry_location:
         problems.append("entry.location_id is missing, so a new run has nowhere to start")
-    if not manifest.archetypes:
-        problems.append("entry.archetypes is empty, so character creation has nothing to offer")
+
+    # Archetypes: a story may legitimately have none.
+    #
+    # Character classes are ONE story's idea. A story where the player is simply
+    # a person who walked in has nothing to pick from, and creation offers a
+    # name rather than a build. Demanding a non-empty list would force such a
+    # story to invent a class it does not use -- which is the flagship's shape
+    # asserted as a rule, exactly what this layer exists to stop.
+    #
+    # The distinction is DECLARED-EMPTY versus ABSENT. Writing `archetypes: []`
+    # is an author saying "none"; omitting the key is an author who has not said,
+    # and that still falls back to the engine default, which for a story that
+    # meant to offer classes is a bug worth reporting.
+    entry = manifest.entry or {}
+    if "archetypes" not in entry:
+        problems.append(
+            "entry.archetypes is not declared; say `archetypes: []` if this "
+            "story has no character classes, or list the ids it offers"
+        )
+
+    # A settings key outside the allowlist is a HARD problem, not a silent
+    # drop. A story author who believes they moved the clock and did not would
+    # debug the clock; a refusal at activation points at the manifest line.
+    for key, reason in manifest.refused_settings().items():
+        problems.append(f"settings.{key} is not honoured: {reason}")
+
+    raw_summary = manifest.extras.get("save_summary")
+    if raw_summary is not None and not isinstance(raw_summary, (list, tuple, str)):
+        problems.append("save_summary must be a list of declared value names")
 
     if problems:
         logger.warning(
@@ -270,11 +298,12 @@ def activate(slug: Optional[str] = None) -> GameManifest:
 
         logger.info(
             "[games] Game activated (operation=activate, slug=%s, title=%s, "
-            "version=%s, paths=%d, caches=%d)",
+            "version=%s, paths=%d, settings=%d, caches=%d)",
             manifest.slug,
             manifest.title,
             manifest.version,
             len(manifest.paths),
+            len(manifest.allowed_settings()),
             len(registered_caches()),
         )
         return manifest
@@ -332,6 +361,56 @@ def active_slug() -> str:
     return resolve_slug()
 
 
+def entry_manifest() -> Optional[GameManifest]:
+    """
+    The manifest a new run should be built from, WITHOUT activating anything.
+
+    ``active()`` would activate the default game as a side effect, which means
+    repointing config and clearing a dozen caches -- far too much to happen
+    because somebody asked where a character starts. So: the activated manifest
+    if there is one, else the one ``resolve_slug()`` names, read straight off
+    disk. Returns None when that manifest will not load, and every caller is
+    expected to have a default for that case.
+    """
+    manifest = peek()
+    if manifest is not None:
+        return manifest
+    return get(resolve_slug())
+
+
+def entry_location(default: str = "") -> str:
+    """
+    Location id a new run starts in.
+
+    Fixes the third copy of the flagship's answer: ``engine/game/procgen.py``
+    carried ``location_id="forest_clearing"`` as a Python default, so
+    ``entry.location_id`` was validated and published over ``/api/games`` and
+    then consumed by nothing -- a new run in any story began in Edgewood's
+    forest clearing, an id the second story's map does not contain.
+
+    Args:
+        default: Returned when no manifest is readable or it declares none.
+    """
+    manifest = entry_manifest()
+    if manifest is None:
+        return default
+    return manifest.entry_location or default
+
+
+def entry_archetypes(default: tuple[str, ...] = ()) -> list[str]:
+    """
+    Archetype ids a new run may choose from, without activating anything.
+
+    The engine-side companion to ``entry_location``. Character creation still
+    has two other copies of this list -- see the report in
+    ``content/scenes/clockwork/clockwork_state.py`` and ``ui/src/screens/Start.jsx``.
+    """
+    manifest = entry_manifest()
+    if manifest is None:
+        return list(default)
+    return manifest.archetypes or list(default)
+
+
 def catalog() -> list[dict[str, Any]]:
     """
     Every discovered game as picker-ready dicts, newest problems included.
@@ -364,6 +443,9 @@ __all__ = [
     "catalog",
     "deactivate",
     "discover",
+    "entry_archetypes",
+    "entry_location",
+    "entry_manifest",
     "games_root",
     "get",
     "peek",

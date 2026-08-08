@@ -1,0 +1,658 @@
+# Day 3 — Heat & the Jealousy Seed
+# ================================
+#
+# Authored from Design_files/Wicked-Garden/docs/design/scenes/DAY-03-HEAT.md.
+#
+# THE DAY ACT I CLOSES ON. Two things have to happen and the order matters: the
+# feast has to make the player's standing PUBLIC, and Ashen Vale has to make an
+# offer that is genuinely worth hearing. If the rival reads as a trap the
+# player is being warned about, the rest of the game has no second axis.
+#
+# JEALOUSY MUST CREATE AGENCY (DAY-03:306). Her possessiveness is only
+# interesting because the offer underneath it is real leverage. Every branch of
+# D3_05 gives the player something -- standing, intelligence, or a clasp -- and
+# none of them is the "correct" one.
+#
+# THE ACT I GATE is a card, not a check buried in the toll: `knows_time_law`,
+# one teacher met, the gift resolved, the feast resolved. If it does not pass,
+# the day does not fail -- Act I soft-extends with GM filler, per DAY-03:31.
+#
+# `ashen_route` moves by ONE here, to 1 (*aware*). Its per-beat ceiling is 1 and
+# the ladder is deliberate: aware today, bargained on Day 4, deep on Day 5.
+#
+# Content ceiling: suggestive. The Day 3 heat peak is a marked hook.
+#
+# Version: v0.1.0 [2026-08-08]
+
+id: day_03_heat
+
+draw: 2
+
+cards:
+
+  # =====================================================================
+  # SPINE
+  # =====================================================================
+
+  - id: D3_01_morning_after
+    required: true
+    tags: [menu, gm]
+    title: "The Day Itself, Leaning In"
+    text: >-
+      INTENT: the body reports first. A pulse sitting higher in the throat, air
+      thicker than it was. Kitchen-moths counting seats somewhere out of sight.
+      If a collar or ring is worn it has grown one new thorn overnight --
+      cosmetic, and a warning.
+      CONSTRAINT: no NPC. If corruption is high the mirror lag is worse and
+      there is a laugh in it that is not hers.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: walk_and_clear_your_head
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+              - { type: value, name: desire, delta: -2 }
+
+      - id: go_straight_to_her
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: desire, delta: 5 }
+              - { type: value, name: favor, delta: 4 }
+
+      - id: write_the_laws_down
+        text: "Codex work. The only self-care in this story that is also a weapon."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+
+  - id: D3_01b_mortal_letter
+    required: true
+    tags: [sequence, gm]
+    title: "A Letter From Twenty Days Ago"
+    text: >-
+      INTENT: the first time the toll speaks in somebody else's voice. A job
+      gone, a family worried, news that has aged wrong. It arrives without
+      explanation and cannot be answered.
+      CONSTRAINT: fires only past twenty mortal days, which on a normal pace is
+      always by now. Do not let her comment on it. She was not invited.
+    beats:
+      - id: read_it
+        gate:
+          when: { value: { name: time_debt_mortal_days, min: 20 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: mortal_letter_d3 }
+              - { type: value, name: autonomy, delta: 2 }
+              - { type: value, name: desire, delta: -3 }
+              - { type: value, name: mortal_collapse, delta: 1 }
+
+  - id: D3_02_the_invitation
+    required: true
+    tags: [menu, sophia]
+    title: "You Will Sit Where I Can Watch Them Watch You"
+    text: >-
+      INTENT: she does not ask. She tells the player where to sit and what to
+      wear, and offers defiance as an equally acceptable costume, which is the
+      most generous cruel thing she does this week.
+      SHE WANTS: the court to see the player at her table. That is the whole
+      transaction and she is not hiding it.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: accept_the_seat
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 5 }
+
+      - id: negotiate_the_terms_of_the_seat
+        text: "Where, beside whom, and what the player is allowed to decline. She enjoys the pedantry."
+        band:
+          value: favor
+          min: 0
+          max: 5
+          text: "How clever the terms actually were."
+
+      - id: refuse_the_feast
+        text: >-
+          A real refusal with a real cost. She holds a private supper instead,
+          and the rival still enters -- by moth, later, and colder for having
+          been made to wait. Sets `refused_feast`, which feeds the roots:
+          clocks.yaml advances `briar_hunger` off it, because an empty theatre
+          is exactly what starves Mother Briar.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: refused_feast }
+              - { type: value, name: autonomy, delta: 5 }
+              - { type: value, name: favor, delta: -8 }
+
+  - id: D3_03_preparation
+    required: true
+    tags: [menu, sophia, intimate]
+    title: "Wear What I Send"
+    text: >-
+      INTENT: the safety card, disguised as a wardrobe scene. Intensity, fade
+      and limits are all still available and this is the last quiet moment to
+      say so without breaking tone.
+      SHE WANTS: to lace it herself. Suggestive: proximity, breath, hands that
+      take longer than they need to. If the player sets a boundary here and she
+      HONOURS it, that is a rare trust beat and it is worth more than the touch.
+      MENU -- resolve exactly the beat the player chose, plus the iron beat if
+      it applies.
+    beats:
+      - id: wear_her_design
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 6 }
+              - { type: value, name: corruption, delta: 2 }
+              - { type: value, name: desire, delta: 4 }
+
+      - id: modify_it
+        text: "Cover more, or keep one mortal layer underneath. The court reads it correctly."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 4 }
+              - { type: value, name: favor, delta: -2 }
+
+      - id: let_her_lace_it
+        text: >-
+          Suggestive. Her hands, the time she takes, the fact that she is
+          enjoying being watched enjoying it.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: desire, delta: 8 }
+              - { type: value, name: favor, delta: 4 }
+
+      - id: set_a_boundary_she_honours
+        text: >-
+          RARE and load-bearing. The player names a limit; she stops, without
+          sulking and without making it a scene. This is the first
+          `equality_seed` most runs will ever see.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 2 }
+              - { type: value, name: equality_seed, delta: 1 }
+
+      - id: hide_the_iron
+        text: >-
+          A pin of mortal iron under living silk, at a feast full of things that
+          can smell it. Sets `armed_with_iron` and the risk is real.
+        gate:
+          when: { has_item: iron_pin }
+          on_pass:
+            effects:
+              - { type: flag, flag: armed_with_iron }
+              - { type: value, name: autonomy, delta: 3 }
+
+  - id: D3_04_the_feast
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "The Feasting Glade"
+    text: >-
+      INTENT: three courses, three small public choices, one running meter of
+      how the room is reading the player. Long tables, wine like liquid garnets,
+      laughter with too many harmonics. Sophia at the high curve of the table --
+      a sun that knows it is also a blade.
+      CONSTRAINT: none of these is private. Everything the player does here is
+      evidence, and Ashen is already in the room by the third course.
+      MENU -- resolve one beat per course.
+    beats:
+      - id: course_one_honey_lies
+        text: "Say something true about her, out loud, in front of everyone. Or eat and say nothing."
+        band:
+          value: favor
+          min: 0
+          max: 5
+          text: "Whether the compliment was true enough to be worth anything."
+
+      - id: course_two_dance_with_her
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: desire, delta: 6 }
+              - { type: value, name: autonomy, delta: -2 }
+
+      - id: course_two_dance_with_a_stranger
+        text: >-
+          The single fastest way to bring winter to the table early. She does
+          not react in public. The court does.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: -10 }
+              - { type: value, name: desire, delta: 2 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+
+      - id: course_three_toast_with_her
+        text: "*To temporary things that learn to stay.*"
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 4 }
+
+      - id: course_three_toast_to_doors
+        text: >-
+          Four words, said into her toast. Somebody at the cold end of the table
+          smiles. Sets `toasted_doors_d3`, which Day 7 remembers when deciding
+          whether she will discuss leaving at all.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: toasted_doors_d3 }
+              - { type: value, name: autonomy, delta: 4 }
+              - { type: value, name: favor, delta: -3 }
+              - { type: value, name: knowledge, delta: 1 }
+
+  - id: D3_05_ashen_vale
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "Ashen Vale, at the Cold End of the Table"
+    text: >-
+      INTENT: THE hinge of Act I. The temperature drops without extinguishing a
+      single candle. Ash-silver moths land on the fruit and do not eat.
+      HE WANTS: to export the player, and he says so in those terms. His offer
+      is WEATHER -- cold is honest, her heat is a mouth, and he can show a gate
+      that does not need her blessing. Price later; freedom first. That is his
+      poetry and he means all of it.
+      CONSTRAINT: he must never read as rescue. He is not kinder than her, he is
+      colder, and the design's rule is that freedom has a winter price.
+      MENU -- resolve exactly the beat the player chose, then the clasp beat.
+    beats:
+      - id: side_with_her_publicly
+        text: "In front of the whole table, without being asked. She does not thank you and does not need to."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: sided_sophia_feast }
+              - { type: value, name: favor, delta: 15 }
+              - { type: value, name: desire, delta: 5 }
+              - { type: value, name: autonomy, delta: -3 }
+
+      - id: hear_him_out
+        text: >-
+          Step aside with him for the length of one course. Sets
+          `heard_ashen_offer` and moves `ashen_route` to 1 -- AWARE, which is
+          not the same as interested and is very much not the same as bargained.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: heard_ashen_offer }
+              - { type: value, name: ashen_route, delta: 1, why: "aware of the winter road" }
+              - { type: value, name: knowledge, delta: 6 }
+              - { type: value, name: favor, delta: -6 }
+
+      - id: perform_neutrality
+        text: >-
+          Say nothing that either of them can use. Both predators become
+          interested, which is worse than either of them being interested.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: feast_neutral }
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: autonomy, delta: 2 }
+              - { type: value, name: favor, delta: -2 }
+
+      - id: insult_the_winter
+        text: "Loud, public, and enormously satisfying. He files it under weather."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: sided_sophia_feast }
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+
+      - id: insult_her
+        text: >-
+          In front of the court, at her own table. Favour collapses and her
+          hunger spikes in the same second, because nobody has done this in a
+          very long time. Routes to the labyrinth-edge card.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: public_defied_sophia }
+              - { type: value, name: favor, delta: -15 }
+              - { type: value, name: autonomy, delta: 5 }
+              - { type: value, name: desire, delta: 8 }
+
+      - id: invoke_the_law_at_the_table
+        text: >-
+          Hospitality binds host and guest both ways, and a feast is the purest
+          case of it. Prevents violence and displeases both Fae differently,
+          which is the best available outcome and does not feel like one.
+        gate:
+          when:
+            any:
+              - { flag: law_hospitality }
+              - { flag: met_thornwake }
+          on_pass:
+            effects:
+              - { type: flag, flag: used_hospitality_law }
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: sophia_break, delta: 1, why: "she was managed in public" }
+          on_fail:
+            text: "You reach for a law you have not been taught. The cold end of the table waits politely."
+            effects:
+              - { type: value, name: favor, delta: -2 }
+
+      - id: the_silver_moth_clasp
+        text: >-
+          He leaves it regardless, unless iron drove him off. A signal and a
+          tracker in one object, and he does not pretend otherwise. Opening the
+          `ashen_service_owed` thread here is optional and early; the clasp
+          alone is enough to route Day 4.
+        gate:
+          when: { none: [{ flag: armed_with_iron }] }
+          on_pass:
+            effects:
+              - { type: flag, flag: ashen_route_open }
+              - { type: item, item_id: ashen_clasp, name: "Ashen Clasp" }
+              - { type: value, name: ashen_pressure, delta: 1 }
+
+  - id: D3_06_her_reaction
+    required: true
+    tags: [menu, sophia]
+    title: "What She Does About It"
+    text: >-
+      INTENT: four different women, selected by what the player did at the
+      table. Loyal -- low-voiced, a hand at the nape, a public claim gesture.
+      Heard-him-out -- she wants every word and will taste them out of the
+      player's mouth less gently if refused. Neutral -- neutrality is a story
+      cowards tell themselves while the plate is cleared. Defiance -- the smile
+      stays on and the eyes do not.
+      SHE WANTS: to know she is not being handled. Every version of this scene
+      is her checking that.
+      MENU -- resolve the beat matching the feast outcome.
+    beats:
+      - id: loyal_claim
+        gate:
+          when: { flag: sided_sophia_feast }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 5 }
+              - { type: value, name: autonomy, delta: -4 }
+
+      - id: confess_every_word
+        text: >-
+          Repeat the offer back to her in full, including the parts that were
+          tempting. Sets `told_sophia_ashen_full`, and she remembers it on Day 4
+          when she is deciding whether she was betrayed.
+        gate:
+          when: { flag: heard_ashen_offer }
+          on_pass:
+            effects:
+              - { type: flag, flag: told_sophia_ashen_full }
+              - { type: value, name: favor, delta: 6 }
+              - { type: value, name: autonomy, delta: -2 }
+
+      - id: refuse_to_repeat_it
+        text: "The jealousy scene sharpens. She does not shout. She gets quieter and closer."
+        gate:
+          when: { flag: heard_ashen_offer }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: -8 }
+              - { type: value, name: desire, delta: 6 }
+              - { type: value, name: sophia_break, delta: 1 }
+
+      - id: hold_the_neutral_line
+        text: "She tests it later rather than now, and says so, which is its own kind of threat."
+        gate:
+          when: { flag: feast_neutral }
+          on_pass:
+            effects:
+              - { type: value, name: desire, delta: 5 }
+
+      - id: she_respects_the_spine
+        text: >-
+          RARE. Available where the player defied her or held a line and did it
+          without cruelty. She says nothing about it and the court notices that
+          she said nothing about it.
+        gate:
+          when:
+            all:
+              - { value: { name: autonomy, min: 55 } }
+              - { any: [{ flag: public_defied_sophia }, { flag: toasted_doors_d3 }, { flag: feast_neutral }] }
+          on_pass:
+            effects:
+              - { type: flag, flag: sophia_respected_spine_d3 }
+              - { type: value, name: equality_seed, delta: 1 }
+              - { type: value, name: favor, delta: 4 }
+
+  - id: D3_07_the_night
+    required: true
+    tags: [menu, night, sophia, intimate]
+    title: "Peak, or Fracture"
+    text: >-
+      INTENT: the emotional climax of Act I, in whichever key the feast set.
+      Loyal -> CHOSEN HEAT, possessive tenderness as reward. Heard him out ->
+      INTERROGATION INTIMACY, questions between touch, power on a knife edge.
+      Neutral -> PROVING, she demands a clear yes or no and will accept either.
+      Defied -> withheld, or brief and unkind.
+      CEILING: suggestive. Mouth at the throat, vine-light, verbal claim, sleep
+      entangled. No thrall ritual -- that is Act II at the earliest, and the
+      design is explicit.
+      CONSTRAINT: refusal is valid play and must not be punished into
+      irrelevance. Fade is always available and sits above her.
+      MENU -- resolve exactly one beat.
+    beats:
+      - id: the_soft_peak
+        text: >-
+          Sets `night3_intimate_soft`. The largest coupled favour/desire move in
+          Act I, and the largest autonomy cost that is not a collar.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: night3_intimate_soft }
+              - { type: value, name: favor, delta: 12 }
+              - { type: value, name: desire, delta: 12 }
+              - { type: value, name: autonomy, delta: -5 }
+
+      - id: the_argument_instead
+        text: >-
+          Invite her and then have the fight that was underneath the evening.
+          Sets `night3_invite_argument`. This is a real branch, not a failure of
+          the one above it.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: night3_invite_argument }
+              - { type: value, name: desire, delta: 8 }
+              - { type: value, name: autonomy, delta: 4 }
+              - { type: value, name: sophia_break, delta: 1 }
+
+      - id: not_tonight
+        text: >-
+          Gently, or not. She may leave a cruel soft line about how patient
+          winter is not. Sets `refused_night3`.
+        band:
+          value: favor
+          min: -4
+          max: 2
+          text: "Whether the refusal was kind, and whether she was in a state to notice."
+
+      - id: not_tonight_mark
+        text: "Resolve with `not_tonight`. The fact, separate from her mood."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: refused_night3 }
+              - { type: value, name: autonomy, delta: 6 }
+
+      - id: the_impossible_horticulture
+        text: >-
+          The vulnerability inject, and the best writing she gets in Act I. If
+          she keeps the player badly the roots take them; if she keeps them
+          gently the court calls her weak and the moths come. She is not asking
+          for sympathy. She is describing a constraint.
+        gate:
+          when:
+            any:
+              - { flag: sophia_soft_century_hint }
+              - { value: { name: knowledge, min: 25 } }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 5 }
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: equality_seed, delta: 1 }
+
+      # EXPLICIT VARIANT: not authored.
+      # DAY-03:235 specifies the Explicit+ heat path, with a mid-scene
+      # negotiation beat above Autonomy 60 and harder deltas, setting
+      # `night3_intimate`. Out of the ceiling this content is authored to; the
+      # flag exists in the state dictionary and nothing here sets it.
+
+  - id: D3_09_act_one_seal
+    required: true
+    tags: [sequence, toll, gm]
+    title: "Act I Closes Like a Mouth"
+    text: >-
+      INTENT: the transition card. Act II begins with teeth. Somewhere winter
+      moths are mapping a pulse; somewhere under the throne something old is
+      counting desires like seeds.
+      CONSTRAINT: the gate below is SOFT. If it fails, Act I extends with GM
+      filler and is re-checked -- DAY-03:31. Nothing here can strand a player.
+    beats:
+      - id: the_gate_check
+        text: >-
+          Time law known, one teacher met, the gift resolved one of three ways,
+          and the feast behind you.
+        gate:
+          when:
+            all:
+              - { flag: knows_time_law }
+              - { any: [{ flag: met_thornwake }, { flag: met_lior }] }
+              - any:
+                  - { flag: gift_accepted }
+                  - { flag: gift_refused }
+                  - { flag: gift_renegotiated }
+          on_pass:
+            effects:
+              - { type: flag, flag: act1_complete }
+          on_fail:
+            # FAIL FORWARD, and it is not a failure. The day simply does not
+            # seal, and the GM runs one more Act I scene tomorrow before Day 4
+            # opens. A hard gate here would be the only softlock in the story.
+            text: "Something is still unfinished. The Garden is patient about exactly one thing, and this is it."
+
+      - id: the_hourglass_turns
+        text: "Four Garden days. Forty mortal ones."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: time_debt_mortal_days, delta: 10, why: "day 3 toll" }
+
+  # =====================================================================
+  # POOL — two are dealt.
+  # =====================================================================
+
+  - id: DX_labyrinth_edge_chase
+    tags: [menu, gm]
+    once: true
+    weight: 3
+    # Only where the evening actually broke. DAY-03:260.
+    when:
+      any:
+        - { flag: public_defied_sophia }
+        - { all: [{ has_item: ashen_clasp }, { clock: { name: sophia_break, min: 1 } }] }
+    title: "Enjoy the Labyrinth's Hospitality"
+    text: >-
+      INTENT: a short chase, not the Day 5 trial. Briar walls rearrange while
+      the player is inside them. Statues of the lost turn to watch and do not
+      help.
+      CONSTRAINT: no clear of the labyrinth here and no `labyrinth_completed`.
+      Three ways out, all of them fast.
+    beats:
+      - id: follow_the_cold_moth
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: ashen_route, delta: 1, why: "you followed his moth in the dark" }
+
+      - id: follow_the_rose_scent
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 5 }
+              - { type: value, name: autonomy, delta: -2 }
+
+      - id: cut_out_with_chalk_or_law
+        gate:
+          when:
+            any:
+              - { has_item: salt_circle_chalk }
+              - { flag: law_hospitality }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 5 }
+          on_fail:
+            text: "You try to draw a shape you half remember. The hedge closes it for you, politely, from the wrong side."
+            effects:
+              - { type: value, name: labyrinth_lost, delta: 1 }
+
+  - id: DX_mara_silhouette
+    tags: [sequence, gm]
+    once: true
+    weight: 2
+    when: { flag: gift_refused }
+    title: "A Woman Who Got Out"
+    text: >-
+      A dream, or a figure at the treeline during the afternoon. Mortal
+      clothing, twenty years out of date, and an expression that is not
+      gratitude. She does not speak yet. She is the reason E6e exists and this
+      is the only foreshadowing it gets in Act I.
+    beats:
+      - id: fail_to_reach_her
+        band:
+          value: knowledge
+          min: 1
+          max: 4
+          text: "What you worked out about her before she was gone."
+
+  - id: DX_the_gold_fruit
+    tags: [menu, gm]
+    once: true
+    weight: 2
+    title: "Fruit That Steams With Memory"
+    text: >-
+      At the feast, or its periphery. Gold fruit that tastes of an afternoon the
+      player has definitely had and cannot place. Time perception goes soft for
+      an hour.
+    beats:
+      - id: eat_it
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: desire, delta: 5 }
+              - { type: value, name: favor, delta: 2 }
+              - { type: value, name: time_debt_mortal_days, delta: 1, why: "an hour you cannot account for" }
+
+      - id: eat_nothing
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 2 }
+
+  - id: DX_court_board_unlocks
+    tags: [sequence, gm]
+    once: true
+    title: "Who Is At This Table"
+    text: >-
+      The first time the player can see the court as a structure rather than a
+      crowd: Sophia, Ashen, and whichever of Thornwake or Lior has been met.
+      Lines of tension between them, drawn by somebody who is not on the board.
+    beats:
+      - id: read_the_room
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 5 }

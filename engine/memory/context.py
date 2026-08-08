@@ -107,8 +107,8 @@ def build_storyteller_messages(
     # appeared to work because something else always imported engine.agents
     # first.
     from engine.agents.prompts import (
-        STORYTELLER_EXAMPLES,
-        STORYTELLER_PERSONA,
+        storyteller_examples,
+        storyteller_persona,
         memory_blocks,
         receipts_block,
         world_state_block,
@@ -119,7 +119,7 @@ def build_storyteller_messages(
     summary_block, threads_block = memory_blocks(ledger, present_npc_ids=npc_ids)
 
     blocks = BlockSet()
-    blocks.add("persona", "system", STORYTELLER_PERSONA, evictable=False)
+    blocks.add("persona", "system", storyteller_persona(), evictable=False)
     blocks.add(
         "world",
         "system",
@@ -154,7 +154,7 @@ def build_storyteller_messages(
         # Examples sit immediately after the stable system blocks so they stay
         # inside the cacheable prefix.
         insert_at = 2
-        messages = messages[:insert_at] + list(STORYTELLER_EXAMPLES) + messages[insert_at:]
+        messages = messages[:insert_at] + storyteller_examples() + messages[insert_at:]
 
     for record in ledger.turn_buffer:
         messages.append({"role": "user", "content": record.player_action})

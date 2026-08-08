@@ -67,7 +67,7 @@
   --dur-crossfade:400ms;  /* @kind other */
   --dur-toast:    1500ms; /* @kind other */
 
-  /* The dice rail. These MIRROR the constants in ui/src/parts/DiceToast.jsx --
+  /* The dice rail. These MIRROR the constants in the story's DiceToast --
      the component owns when the face stops being a decoy and the CSS owns what
      the die looks like while it is one, so if the two drift the die settles
      visually before or after it settles truthfully. Kept side by side and

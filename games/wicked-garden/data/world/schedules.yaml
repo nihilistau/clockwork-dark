@@ -1,0 +1,91 @@
+# ============================================================
+# World events in the Garden.
+#
+# Read by engine/world/schedules.py through `paths.world_schedules`.
+#
+# !! REQUIRES A MANIFEST LINE THAT DOES NOT EXIST YET !!
+# games/wicked-garden/game.yaml does not declare `paths.world_schedules`, so
+# today the engine loads Edgewood's -- a tinker caravan arriving at
+# `tinker_caravan`, a militia press at `edgewood_square`, neither of which is a
+# place in this graph. Adding
+# `world_schedules: "games/wicked-garden/data/world/schedules.yaml"` is the
+# wiring.
+#
+# ------------------------------------------------------------
+# THE THREE KEYS ARE THE ENGINE'S, NOT THE FICTION'S
+# ------------------------------------------------------------
+# `caravan_arrival`, `tinker_camp` and `militia_press` are HARDCODED lookups in
+# engine/world/schedules.py (WorldSim.check_caravan, check_tinker,
+# check_militia). They are the engine's three event slots -- a trader arrives,
+# a camp settles, an authority sweeps -- and a story gets to say what fills
+# them, not what they are called.
+#
+# The Brass Coast renamed its three (`factor_arrival`, `low_water_spring`,
+# `bell_watch`) and in doing so wrote three blocks the simulator will never
+# find, because the simulator asks for the engine's names and gets `{}`. Its
+# events run on the hardcoded defaults instead, which point at Edgewood. That
+# is an existing defect in games/drowned-carillon/data/world/schedules.yaml,
+# noted here so this file does not repeat it.
+#
+# So: engine ids on the left, the Garden's own names in the comments.
+#
+# `goods` lists are INERT TODAY. They feed a vendor's stock through the economy
+# loader, and this story declares no `paths.economy` and prices every item at
+# `value: 0` on purpose (there is no coin here; the market trades in years and
+# syllables). The lists are written accurately anyway so that the day a barter
+# surface exists, what the stalls carry is already decided and is not whatever
+# was convenient that afternoon.
+#
+# Version: v0.1.0 [2026-08-08]
+# ============================================================
+
+# THE NIGHT MARKET OPENS.
+# The engine's "a trader arrives" slot. Little Hungers set up between two
+# hedges that were not two hedges yesterday, and stay for a night or two.
+caravan_arrival:
+  min_day: 2
+  probability_per_day: 0.14
+  duration_days: 2
+  npc_id: lior
+  location_id: night_market
+  goods:
+    - nightbloom_wine
+    - kiss_petal
+    - salt_circle_chalk
+    - frost_thread
+
+# A COURT OF LITTLE HUNGERS.
+# The engine's "a camp settles" slot. A knot of minor Fae holding their own
+# small court under a hedge, selling nothing and offering everything.
+tinker_camp:
+  probability_per_week: 0.25
+  duration_days: 3
+  npc_id: bloomkin_generic
+  location_id: feasting_glade
+  goods:
+    - black_honey
+    - mirror_chip
+
+# THE BORDER WALKED.
+# The engine's "an authority sweeps" slot. Thornwake takes the watch along the
+# arch in a line, counting mortals. Gated on awareness rather than on days,
+# because he does it when the Garden has started leaking, and the only thing
+# that raises awareness in this story is how deep the player has gone.
+militia_press:
+  min_awareness: 25
+  probability_per_day: 0.06
+  duration_days: 1
+  npc_id: thornwake
+  location_id: gate_of_briars
+
+# The legacy flat pool. The loader still reads this list as a fallback when the
+# gated pool is unavailable; the pool that actually gets used is
+# games/wicked-garden/data/world/rumors.yaml.
+rumors:
+  - "The roses on the gate opened for somebody yesterday who had not been told they were claimed."
+  - "One of the statues in the third clearing is standing differently this week."
+  - "The moths were counted to thirteen twice last night, which is not how counting works."
+  - "There is a jar in the crypts with somebody's confession in it and the seal is new."
+  - "A paper bird got out of the aviary. Nobody is saying whose it was."
+  - "The cold end of the table was laid for one more than usual and nobody sat there."
+  - "Somebody asked the Captain the way home and he answered honestly, which was worse."

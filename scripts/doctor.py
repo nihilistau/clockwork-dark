@@ -12,9 +12,15 @@ The Games section reports which game is active and validates every manifest on
 disk -- not only the active one, since a manifest with a missing path is a
 launch that will fail and this is where that should be found.
 
+The State section does the same for ``games/<slug>/state.yaml``. A malformed
+schema is FATAL at load (``engine/state/schema.py`` raises rather than guessing),
+so without this check the first sign of a typo in a story's meters is the game
+refusing to start with a traceback -- which is exactly the class of failure a
+doctor exists to find first.
+
 Exit code 0 if nothing is broken, 1 if something is.
 
-Version: v0.3.0 [2026-08-08]
+Version: v0.4.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -102,14 +108,21 @@ def check_config(report: Report) -> None:
         report.add("Config", "lmstudio key", WARN,
                    "not set - fine only if LM Studio's 'Require API key' is off")
 
-    for label, path_key, default in (
-        ("economy", "paths.economy", "data/economy.yaml"),
-        ("procgen", "paths.procgen_templates", "data/procgen_templates/edgewood.yaml"),
-        ("schedules", "paths.world_schedules", "data/world/schedules.yaml"),
-        ("art manifest", "paths.art_manifest", "data/art/manifest.yaml"),
+    # No literal defaults here any more. They were the flagship's four content
+    # paths, so a story that had lost one of these keys was reported against
+    # Edgewood's file -- the doctor said "ok" about a file the running story
+    # does not use. An undeclared key is now its own answer.
+    for label, path_key in (
+        ("economy", "paths.economy"),
+        ("procgen", "paths.procgen_templates"),
+        ("schedules", "paths.world_schedules"),
+        ("art manifest", "paths.art_manifest"),
     ):
-        path = cfg.resolve_path(path_key, default)
-        exists = path is not None and path.exists()
+        path = cfg.resolve_path(path_key)
+        if path is None:
+            report.add("Config", label, WARN, f"{path_key} is not declared")
+            continue
+        exists = path.exists()
         report.add("Config", label, OK if exists else WARN,
                    str(path) if exists else f"missing: {path}")
 
@@ -151,6 +164,84 @@ def check_games(report: Report) -> None:
 
     report.add("Games", "cache registry", OK,
                f"{len(registered_caches())} caches invalidated on activation")
+
+
+def check_state_schemas(report: Report) -> None:
+    """
+    Validate every story's declared state, and report its shape.
+
+    Reports counts by BACKING (field-backed values describe an attribute that
+    already exists on GameState; bag-backed ones live in the generic containers)
+    and by VISIBILITY, because those two numbers are how you tell at a glance
+    whether a story has actually been described or is still running on the
+    engine spine.
+
+    A schema that will not parse is a FAIL, not a warning: the story asked for
+    state it is not going to get.
+    """
+    from engine.games.registry import active_slug, discover
+    from engine.state.schema import (
+        BACKING_BAG,
+        BACKING_FIELD,
+        VISIBILITY_HIDDEN,
+        VISIBILITY_PUBLIC,
+        VISIBILITY_VEILED,
+        SchemaError,
+        load_schema,
+    )
+
+    current = active_slug()
+    manifests = discover()
+    if not manifests:
+        return
+
+    for slug, manifest in manifests.items():
+        label = f"{slug}{' (active)' if slug == current else ''}"
+        path = manifest.state_schema_path
+        if path is None:
+            # Absent is legal everywhere: a story with no state.yaml runs on the
+            # engine spine, which is what both shipped games did before schemas.
+            report.add("State", label, OK, "no state.yaml - runs on the engine spine")
+            continue
+
+        try:
+            schema = load_schema(path, slug=slug)
+        except SchemaError as exc:
+            report.add("State", label, FAIL, f"{path.name}: {exc}")
+            continue
+
+        by_backing = {BACKING_FIELD: 0, BACKING_BAG: 0}
+        by_visibility = {VISIBILITY_PUBLIC: 0, VISIBILITY_VEILED: 0, VISIBILITY_HIDDEN: 0}
+        for spec in schema.values.values():
+            by_backing[spec.backing] = by_backing.get(spec.backing, 0) + 1
+            by_visibility[spec.visibility] = by_visibility.get(spec.visibility, 0) + 1
+
+        report.add(
+            "State",
+            label,
+            OK if schema.values else WARN,
+            "{n} values ({f} field, {b} bag) - {p} public, {v} veiled, {h} hidden".format(
+                n=len(schema.values),
+                f=by_backing[BACKING_FIELD],
+                b=by_backing[BACKING_BAG],
+                p=by_visibility[VISIBILITY_PUBLIC],
+                v=by_visibility[VISIBILITY_VEILED],
+                h=by_visibility[VISIBILITY_HIDDEN],
+            )
+            if schema.values
+            else f"{path.name} declares no values",
+        )
+
+        # The load-menu columns are resolved against this schema at save time,
+        # where a bad name is a logged warning nobody reads. Here it is visible.
+        for name in manifest.save_summary:
+            spec = schema.get(name)
+            if spec is None:
+                report.add("State", label, FAIL,
+                           f"save_summary names '{name}', which is not declared")
+            elif spec.visibility == VISIBILITY_HIDDEN:
+                report.add("State", label, FAIL,
+                           f"save_summary names '{name}', which is hidden from the player")
 
 
 def check_content(report: Report) -> None:
@@ -223,6 +314,7 @@ def main(argv: list[str] | None = None) -> int:
         check_python,
         check_config,
         check_games,
+        check_state_schemas,
         check_services,
         check_content,
         check_ui,

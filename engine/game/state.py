@@ -21,7 +21,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import asdict, dataclass, field, fields, is_dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, get_args, get_origin, get_type_hints
 
 CURRENT_SAVE_VERSION = 2
 
@@ -38,6 +38,31 @@ def _coerce(cls: type, raw: Any) -> Any:
         return raw
     known = {f.name for f in fields(cls)}
     return cls(**{k: v for k, v in raw.items() if k in known})
+
+
+def _coerce_annotated(annotation: Any, raw: Any) -> Any:
+    """
+    Rebuild a value according to its declared field type.
+
+    WHY THIS IS DERIVED RATHER THAN LISTED: ``from_dict`` used to name its six
+    nested dataclasses one by one. Anything a story added beyond those six came
+    back from a save as a raw ``dict`` instead of an object, with no warning --
+    it would fail later, somewhere else, as an AttributeError on a dict. Reading
+    the annotations means a new nested type round-trips the moment it is
+    declared, which is the property a per-story state schema needs.
+
+    Handles the bare dataclass and the ``list[Dataclass]`` case, which is every
+    shape the state actually uses. Anything else passes through untouched.
+    """
+    if is_dataclass(annotation) and isinstance(raw, dict):
+        return _coerce(annotation, raw)
+
+    if get_origin(annotation) is list and isinstance(raw, list):
+        args = get_args(annotation)
+        if args and is_dataclass(args[0]):
+            return [_coerce(args[0], item) for item in raw]
+
+    return raw
 
 
 class EvilPhase(str, Enum):
@@ -217,6 +242,29 @@ class GameState:
     active_arc: str = "quiet_life"
     arcs_unlocked: list[str] = field(default_factory=lambda: ["quiet_life"])
 
+    # -- story-declared state (see engine/state/schema.py) ----------------
+    #
+    # The generic containers a story's own values live in when they have no
+    # typed field to sit on. Everything above this line is one story's answer
+    # welded into the engine; a story with eight 0-100 meters, four progress
+    # clocks and nine per-NPC relationship records had nowhere to put any of it,
+    # because `flags` is booleans only.
+    #
+    # Empty for a story whose schema declares `backing: field` throughout -- The
+    # Clockwork Dark describes its existing attributes rather than moving them,
+    # so these stay empty for the flagship and its saves are unchanged in every
+    # key that already existed.
+    #
+    # Reached through StateStore, never directly: the store is what clamps to
+    # declared bounds and records who wrote what.
+    meters: dict[str, float] = field(default_factory=dict)
+    clocks: dict[str, float] = field(default_factory=dict)
+    tracks: dict[str, Any] = field(default_factory=dict)
+    # Persistent contracts -- offered, sealed, and live until discharged, broken
+    # or transformed. Plain dicts for the same reason as `encounter`: the shape
+    # is story-declared and must not force a save migration per field.
+    threads: list[dict[str, Any]] = field(default_factory=list)
+
     def __post_init__(self) -> None:
         """
         Keep evil_phase consistent with evil_progress.
@@ -224,7 +272,17 @@ class GameState:
         These are two views of one number. Constructing a state with a progress
         value but a stale phase produced states that disagreed with themselves
         and did not survive a save round trip.
+
+        Guarded on the fields existing, not unconditional. This runs on EVERY
+        ``GameState()`` in the process -- every test, every transaction
+        savepoint, every load -- and pulled in the doom ticker to do it. A story
+        with no doom clock should not import one, and once these two fields are
+        a story's declared meters rather than engine fields, the base spine must
+        still construct.
         """
+        if getattr(self, "evil_progress", None) is None:
+            return
+
         from engine.game.evil_ticker import phase_from_progress
 
         self.evil_phase = phase_from_progress(self.evil_progress)
@@ -299,8 +357,22 @@ class GameState:
         Awareness and evil_progress are hidden stats: the player experiences
         them through fiction, never as numbers. evil_phase ships because the UI
         re-tints on it, but the raw progress does not.
+
+        The hand-written keys below are The Clockwork Dark's contract and stay
+        exactly as they are -- the sheet, the reducer and a dozen components
+        read them by name. Everything a STORY declares arrives under ``meters``
+        instead, projected from its schema.
+
+        Why both: this allowlist was one of three independent hardcoded payload
+        contracts (here, the ``turn_update`` literal, and the reducer's own
+        shape), which together meant a story could not show the player a value
+        the engine had not already been taught about. A story now declares
+        visibility once. Rewriting the flagship's twenty-one keys to prove the
+        point would have been a large silent change to every screen for no
+        gain, so the projection is added beside them rather than through them.
         """
         return {
+            **self._declared_client_values(),
             "session_id": self.session_id,
             "player_name": self.player_name,
             "archetype": self.archetype,
@@ -328,6 +400,28 @@ class GameState:
             "ended": self.ended,
         }
 
+    def _declared_client_values(self) -> dict[str, Any]:
+        """
+        The story's own declared state, projected by visibility.
+
+        Empty for a story that declares no schema, which is why this is safe to
+        splat into the payload unconditionally: both shipped games see no change
+        until they describe themselves.
+
+        Never raises. A broken schema must cost the player a meter on the sheet,
+        not the turn they just played -- and the schema is validated loudly at
+        activation, so a failure here is already being reported somewhere with
+        far better context than a serialization call can give.
+        """
+        try:
+            from engine.state.active import store_for
+
+            declared = store_for(self).to_client()
+        except Exception:  # noqa: BLE001 -- see docstring
+            return {}
+
+        return {"meters": declared} if declared else {}
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> GameState:
         """
@@ -344,17 +438,25 @@ class GameState:
             k: v for k, v in data.items() if k in known
         }
 
-        kwargs["stats"] = _coerce(PlayerStats, data.get("stats") or {})
-        kwargs["inventory"] = [
-            _coerce(InventoryItem, i) for i in data.get("inventory", [])
-        ]
-        kwargs["procgen"] = _coerce(ProcgenResult, data.get("procgen") or {})
-        kwargs["storyteller_mind"] = _coerce(AgentMind, data.get("storyteller_mind") or {})
-        kwargs["assistant_mind"] = _coerce(AgentMind, data.get("assistant_mind") or {})
-        kwargs["wounds"] = [_coerce(Wound, w) for w in data.get("wounds", [])]
-        kwargs["active_effects"] = [
-            _coerce(TimedEffect, e) for e in data.get("active_effects", [])
-        ]
+        # Rebuild nested dataclasses from the ANNOTATIONS of the class being
+        # loaded, so a subclass's own nested types come back as objects too.
+        # `get_type_hints` rather than `field.type` because this module uses
+        # `from __future__ import annotations`, which makes every annotation a
+        # string that would otherwise never match `is_dataclass`.
+        hints = get_type_hints(cls)
+        for name, value in list(kwargs.items()):
+            annotation = hints.get(name)
+            if annotation is None:
+                continue
+            # An explicit null for a nested dataclass drops out entirely so the
+            # field's default_factory runs. The previous code spelled this
+            # `data.get("stats") or {}`; without it, a save carrying a null
+            # would load `stats=None` and fail on first attribute access.
+            if value is None and is_dataclass(annotation):
+                kwargs.pop(name)
+                continue
+            kwargs[name] = _coerce_annotated(annotation, value)
+
         # evil_progress is the source of truth for phase on load.
         kwargs["evil_progress"] = evil_progress
         kwargs["evil_phase"] = phase_from_progress(evil_progress)

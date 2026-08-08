@@ -1,0 +1,446 @@
+# Epilogue prose cards — The Wicked Garden
+# ========================================
+#
+# Transcribed verbatim from
+# Design_files/Wicked-Garden/docs/design/epilogues/EPILOGUE-CARDS.md.
+#
+# THIS IS THE ONE FILE IN THE STORY THAT IS FINISHED PROSE. Everything else the
+# agents improvise inside authored bone; these are the last words a run gets and
+# they were written to be read exactly as they are. Two cards per ending -- Card
+# M for the waking world, Card G for the Garden -- and the echoes after.
+#
+# INTENSITY: epilogues stay SUGGESTIVE even on an Explicit campaign. They are a
+# fade-forward summary, not a scene.
+#
+# TIME LINE: always stated, always last before the gallery, always from state.
+# "Do not undervalue TimeDebt in good endings -- cost is the thesis."
+#
+# LOADED BY `engine/game/epilogue.py`, through `paths.epilogues`. This file is
+# not found by name -- the index names it in `prose_source`, so the cards can be
+# split per ending class later without an engine change.
+#
+# Version: v0.1.1 [2026-08-09]
+
+version: 1
+
+cards:
+
+  # ===================================================================
+  # E1 — The Door Home
+  # ===================================================================
+
+  E1a:
+    title: "She Opened the Gate"
+    lean: "Love without ownership's final victory."
+    card_m: |-
+      You step into air that tastes of dust and electricity. The sky is wrong only because it is ordinary.
+
+      Your key still fits a lock that has learned other hands. Mail is a white dune. Plants have died or been replaced by someone kind enough to pretend you meant to leave.
+
+      People say your name like a rumor that got tired. Some hug you too hard. Some do not forgive the absence you cannot fully explain. At night you wake reaching for heat that isn't central heating.
+
+      On your collarbones, in certain light, gold dust freckles refuse to be makeup.
+    card_g: |-
+      At the Gate of Briars, Sophia stands barefoot among roses that open for no one. She does not chase. She watches the place where you stopped being a shape in her air.
+
+      For a season the court speaks softly. Mother Briar counts a strange yield: grief that still feeds, because it is real.
+
+      A single rose on the arch turns outward, toward mortal weather, and does not die on contact.
+    echoes:
+      - speaker: sophia
+        text: |-
+          Go. Before I invent a kinder cage.
+          If you dream of me, dream kindly. I will try to do the same — and I am very bad at trying.
+    gallery_art: "Sophia at Gate, hand open"
+    ng_plus: "flower_of_tender_release — rare soft line if she remembers a guest who left loved"
+
+  E1b:
+    title: "The Price That Walked Out With You"
+    lean: "Freedom with a thread still tied."
+    card_m: |-
+      You return with a story that almost sounds like competence: deals, laws, winter politics. The world does not care. It has continued without you in tenfold strides.
+
+      A job is gone, or waiting with teeth. A relationship is a closed door or an open wound. You keep checking your pockets for cold metal that isn't there — and sometimes is.
+
+      When rain smells like moths, you flinch. Debt has a weather.
+    card_g: |-
+      Something in the Garden keeps an account book in living ink. Ashen Vale smiles without warmth. Sophia tends the line of your exit like a scar she refuses to call a scar.
+
+      The Gate opens less easily for the next mortal. Or more easily — depending on who you paid.
+    echoes:
+      - speaker: sophia
+        text: |-
+          You bought a door with pieces of us.
+          I hope it was worth the sound it makes when it closes.
+    gallery_art: "Gate with silver moth and rose both on the lintel"
+    ng_plus: "debt_shadow — Ashen or Sophia may collect color in a later tale"
+
+  E1c:
+    title: "Run, Little Weather"
+    lean: "Escape as injury; hunt as intimacy."
+    card_m: |-
+      You make it out. That is not the same as safety.
+
+      Sleep becomes a second Garden. You wake with thorn-pricks that heal by noon, perfume on pillows no one else sprayed, and a calendar that skips when you dream too well.
+
+      Therapists hear "metaphor." You stop telling them about the woman with amber eyes who stands at the foot of the bed and never quite arrives.
+    card_g: |-
+      Sophia does not scream. She learns your new routes the way roots learn water. Moths map your city. A rose grows through a bus shelter in a neighborhood that should not support roses.
+
+      Thornwake files a report: membrane stress — pursuit ongoing.
+    echoes:
+      - speaker: sophia
+        text: |-
+          Run. I will not chase with feet.
+          I have better weather.
+    gallery_art: "City street, impossible rose, her silhouette in glass"
+    ng_plus: "dream_hunt_active — default on"
+
+  E1d:
+    title: "Home, After Home"
+    lean: "You won the door; time won everything else."
+    card_m: |-
+      The numbers are obscene. Months. Years. A decade, if you lingered like a lover.
+
+      Graves are optional but present in some configurations of your life: a parent, a friend, a version of you that kept appointments. The apartment is someone else's mouth. Your name is a credit report ghost.
+
+      You stand in a grocery aisle under sick white light and realize you fought gods for this — and that this is still, stubbornly, real. You buy fruit that does not steam with memory. You cry anyway.
+    card_g: |-
+      The Garden barely records your leaving. Yield was already harvested in the long stay. Sophia keeps one object of yours in a drawer that only opens on anniversaries she invents.
+
+      Mother Briar is satisfied. Hunger is a kind of peace.
+    echoes:
+      - speaker: sophia
+        text: |-
+          You took so long that leaving became a kind of staying.
+          Do not write. The paper will arrive as ash.
+    gallery_art: "Hourglass empty beside a withered welcome mat"
+    ng_plus: "TimeDebt horror tutorials softened or hardened by player choice"
+
+  # ===================================================================
+  # E2 — Equal & Eternal
+  # ===================================================================
+
+  E2a:
+    title: "Two Shadows on the Seat"
+    lean: "Partnership as sovereignty."
+    card_m: |-
+      Missing-person posters fade. A documentary never gets funded. In a city that used to be yours, roses bloom out of season and no one agrees why.
+
+      Someone who loved you keeps a light on for a year, then two, then learns a crueler kindness: living.
+    card_g: |-
+      You stand where thralls kneel. The court tastes the difference and chokes on it productively. Sophia's hand in yours is not a leash; it is a treaty with a pulse.
+
+      When Ashen tests the border, you answer as weather together. When Briar counts yield, desire is honest enough to rain.
+    echoes:
+      - speaker: sophia
+        text: |-
+          Peer. What an ugly, perfect word.
+          If hope kills Sovereigns, then we will be very careful gardeners of it.
+    gallery_art: "Dual throne of rose and thorn-gold"
+    ng_plus: "consort_rumor — start with rumor of the Consort who did not kneel"
+
+  E2b:
+    title: "We Left the Crown on the Table"
+    lean: "Love over Seat."
+    card_m: |-
+      Your disappearance becomes folklore with bad footnotes. Cults form and dissolve. A child draws two figures on a road of vines in a notebook that gets confiscated by a worried teacher.
+    card_g: |-
+      Thornwake inherits a mess and a law. The Seat cools. You and Sophia walk paths that rearrange for curiosity instead of court. Some nights she misses the theater. Some nights you miss doors. You choose each other again, which is the work.
+    echoes:
+      - speaker: sophia
+        text: |-
+          I abandoned a weather system for a pulse.
+          Mock me and I will kiss you until you recant.
+    gallery_art: "Road between winter and rose, two figures"
+    ng_plus: "thornwake_regent — Thornwake-as-regent world state"
+
+  E2c:
+    title: "What It Cost to Stand Beside"
+    lean: "Peerage with a scar."
+    card_m: |-
+      Same mythic absence as other E2 lines — but travelers who brush the membrane report a Fae queen with a streak of mortal grey in her hair, or a limp in the glamour, or eyes that dim when she laughs too true.
+    card_g: |-
+      You are equal. The Garden shows the receipt. Sophia's power thins in places she refuses to regret. You carry guilt like a second name. On good days it is proof. On bad days it is a museum you both refuse to enter.
+    echoes:
+      - speaker: sophia
+        text: |-
+          Do not apologize with your mouth. Apologize by staying sharp.
+          I did not pay this price to keep a blunt knife.
+    gallery_art: "Sophia with one black-thorn streak, smiling wrong and right"
+    ng_plus: "equality_easier_briar_harder — Equality seed easier; Briar harder"
+
+  # ===================================================================
+  # E3 — Beloved Thrall
+  # ===================================================================
+
+  E3a:
+    title: "Kept, and Glad of It"
+    lean: "Surrender as home."
+    card_m: |-
+      Your old life closes like a book no one finishes. A sister stops calling. A city forgets your coffee order. That is the toll. You do not collect it.
+    card_g: |-
+      Silk, ritual, heat, permission structured as love. You have duties of pleasure and presence. Sophia is not always kind; she is always here. The collar — or its invisible twin — feels like weather you requested.
+    echoes:
+      - speaker: sophia
+        text: |-
+          Mine.
+          Say it back when you want more. Silence is also an answer I know how to use.
+    gallery_art: "Guest House eternal afternoon"
+    ng_plus: "Spark post-credit if Knowledge was high: one clear thought — I chose — then sweetness returns"
+
+  E3b:
+    title: "Jewel of the Court"
+    lean: "Public belonging."
+    card_m: |-
+      Tabloid logic never finds you. The void you leave is shaped like scandal without content.
+    card_g: |-
+      You are worn to feasts like living jewelry. Eyes follow. Ashen's contempt is a spice Sophia feeds on. Your Autonomy is a story people tell about who you used to be. Sometimes you perform that story for her amusement. Sometimes you mean it.
+    echoes:
+      - speaker: sophia
+        text: |-
+          Let them look.
+          Looking is free. Touching you is a privilege I ration.
+    gallery_art: "Feast table, player at Sophia's side, moths as cameras"
+    ng_plus: null
+
+  E3c:
+    title: "The Long Sweet Unmaking"
+    lean: "Mind softened; bliss primary."
+    card_m: |-
+      No one finds a body. A cold case acquires roses in the evidence photos that the lab cannot explain.
+    card_g: |-
+      You drift. Name becomes texture. Sophia holds what remains like a flame cupped from wind. Honeyed Dead recognize a cousin. If Knowledge once burned bright, a post-credit spark surfaces: a single coherent memory of a door — then petals.
+    echoes:
+      - speaker: sophia
+        text: |-
+          Shh.
+          You do not need the sharp edges tonight. Or most nights. Or any.
+    gallery_art: "Player half-figured in rose and gold dust"
+    ng_plus: "Spark: optional NG+ memory fragment item"
+
+  # ===================================================================
+  # E4 — Consumed
+  # ===================================================================
+
+  E4a:
+    title: "She Loved You to the Bone"
+    lean: "Appetite as tragedy."
+    card_m: |-
+      Funeral optional. Story: accident, vanishing, water. Someone keeps your coat.
+    card_g: |-
+      Sophia does not display what she takes. The court feels the yield spike and pretends not to. In the Root Crypts, a new amber warmth settles. She sits the throne with perfect posture and emptier hands.
+    echoes:
+      - speaker: sophia
+        text: |-
+          I warned you I could be merciful.
+          Mercy was not what we chose at the end.
+    gallery_art: "Empty throne, single place-setting of rose and wine"
+    ng_plus: "Codex: your name in the Honeyed registry"
+
+  E4b:
+    title: "Grown Through"
+    lean: "Ecological ending."
+    card_m: |-
+      A park in your city develops a root problem. Foundation cracks. Flowers with your eye color appear in cracks of pavement for one spring, then never again — or every spring, depending on local legend.
+    card_g: |-
+      Briar does not gloat. You are rain made personal. Sophia negotiates around a bloom that used to say her name in bed. The Garden is healthier. That is not a comfort.
+    echoes:
+      - speaker: sophia
+        optional: true
+        text: |-
+          The roots took what I was too proud to keep carefully.
+          I will not forgive the weather.
+    gallery_art: "Flower with human eyes, beautiful, wrong"
+    ng_plus: null
+
+  E4c:
+    title: "Honest Cold"
+    lean: "Rival victory as death."
+    card_m: |-
+      You are found, if at all, in weather that should not have happened — frost in July, moths in a locked room.
+    card_g: |-
+      Ashen Vale toasts with ice that never melts. Sophia closes a portion of the Garden rather than look at the color white. Thornwake sharpens borders that already failed you.
+    echoes:
+      - speaker: sophia
+        text: |-
+          He does not get to keep you.
+          Neither do I. That is the insult.
+    gallery_art: "Ice statue with rose frozen at the heart"
+    ng_plus: null
+
+  E4d:
+    title: "Hospitality, Completed"
+    lean: "Public consumption; horror etiquette."
+    card_m: |-
+      News never names the truth. A chef has nightmares.
+    card_g: |-
+      The Feasting Glade sets a place that is you. Guests perform shock and appetite. Sophia's face is a mask that fools everyone except Mother Briar and you — and you only for a little while.
+    echoes:
+      - speaker: sophia
+        text: |-
+          Do not look at me like that.
+          Or do. Make it costly.
+    gallery_art: "Long table, empty chair crowned in roses"
+    ng_plus: null
+
+  E4e:
+    title: "Yes, to the Root"
+    lean: "Chosen unmaking."
+    card_m: |-
+      You leave a note that makes no sense: I am not missing. I am finished being singular.
+    card_g: |-
+      Briar and Sophia both witness — rare truce. You unmake into garden without being hunted. A calm flower. A kind legend among the Honeyed Dead: the one who walked into the soil awake.
+    echoes:
+      - speaker: sophia
+        text: |-
+          I would have kept you sharp.
+          You chose to become weather. I will hate that with respect.
+    gallery_art: "Player silhouette dissolving into petals, serene"
+    ng_plus: "dissolution_scar — Corruption starts slightly higher; Door slightly easier"
+
+  # ===================================================================
+  # E5 — Usurper / Sovereign
+  # ===================================================================
+
+  E5a:
+    title: "Seat and Second Sun"
+    lean: "Power shared after victory."
+    card_m: |-
+      Strange foreign policy of weather: embassies report botanical impossibilities. You become a classified myth.
+    card_g: |-
+      Sophia kneels once — or bows in a way the court never forgets — and rises as partner under a law you rewrote together. Pride bleeds; desire does not. Rivals recalculate.
+    echoes:
+      - speaker: sophia
+        text: |-
+          You took my weather and left me my mouth.
+          Use both carefully, usurper-mine.
+    gallery_art: "Dual crown, one thorn-black, one rose-gold"
+    ng_plus: null
+
+  E5b:
+    title: "The Seat Without Her Heat"
+    lean: "Victory as loneliness."
+    card_m: |-
+      Same mythic classification — colder briefings.
+    card_g: |-
+      Sophia is exiled, Honeyed, or bound offstage (per flags). You hold the Seat. Thornwake kneels to the office. The Garden yields. Nights are long. You understand her old cruelty from the inside and do not enjoy the education.
+    echoes:
+      - speaker: sophia
+        optional: true
+        text: |-
+          Congratulations.
+          May the roots love you better than I will.
+    gallery_art: "Lone figure on throne, court distant"
+    ng_plus: null
+
+  E5c:
+    title: "You Were a Door the Soil Used"
+    lean: "Usurpation as possession by Briar."
+    card_m: |-
+      Green disasters. Soft apocalypses of vine. Your face in bark of trees across continents for those who look too long.
+    card_g: |-
+      You speak and Mother Briar's grammar comes out. Sophia survives or does not as a footnote to a larger organism. Free will is a seasonal crop.
+    echoes:
+      - speaker: sophia
+        text: |-
+          I wanted a lover.
+          The Garden wanted a larynx. Guess which of us farms better.
+    gallery_art: "Player face in root cathedral"
+    ng_plus: "briar_visibility — Briar route visibility increased"
+
+  # ===================================================================
+  # E6 — Other Hungers
+  # ===================================================================
+
+  E6a:
+    title: "Freedom, Frostbitten"
+    lean: "Rival claim as ending."
+    card_m: |-
+      You vanish into a cold snap the news calls historic. Survivors of the snap dream of moths.
+    card_g: |-
+      Ashen does not lie: the cage is larger, the air thinner, the honesty brutal. Sophia loses publicly or seals her border and pretends the loss is strategy. You learn the price of weather.
+    echoes:
+      - speaker: sophia
+        text: |-
+          He will not love you as I would have.
+          That was never what you asked for. How practical. How cold.
+      - speaker: ashen_vale
+        text: |-
+          Warm things lie. Cold keeps its invoices. Welcome.
+    gallery_art: "Frost wedding-not-wedding, moth cloak shared"
+    ng_plus: null
+
+  E6b:
+    title: "Among Your Other Selves"
+    lean: "Identity flock."
+    card_m: |-
+      Facial recognition fails on your old photos. Friends insist you attended events you don't remember — or remember too many ways.
+    card_g: |-
+      You are plural in the pools. Lior collects you like rare coins. Sophia finds it vulgar and intimate. Escape is a hall of doors with your face.
+    echoes:
+      - speaker: lior
+        text: |-
+          Do not thank me.
+          Gratitude multiplies you, and I charge interest.
+    gallery_art: "Many of you under willow, smiling out of sync"
+    ng_plus: null
+
+  E6c:
+    title: "Strange Mercy"
+    lean: "Duty as salvation."
+    card_m: |-
+      Military/missing file. Closed.
+    card_g: |-
+      You serve border law: chalk, iron rules, hounds, thankless hours. Not Sophia's heat. Not Ashen's poetry. Safety with a scar. On rare leaves, you see the Gate and do not test it.
+    echoes:
+      - speaker: thornwake
+        text: |-
+          Law holds.
+          Even for you. Especially for you.
+      - speaker: sophia
+        text: |-
+          He took my favorite knife and called it shelter.
+          …Good.
+    gallery_art: "Antlered helm shadow over player, briar border dawn"
+    ng_plus: null
+
+  E6d:
+    title: "Little Hungers, Big Ledger"
+    lean: "Side-bargain apocalypse."
+    card_m: |-
+      Your credit, literal and spiritual, is nonsense. You work jobs that aren't listed. You smile when coins are placed on your tongue.
+    card_g: |-
+      Minor Fae own pieces of your time, voice, appetite. Sophia could buy you back and might not. The Market thrives.
+    # NO ECHO, by design. Nobody in this ending gets the last word.
+    echoes: []
+    gallery_art: "Stall lights, player behind the counter with empty eyes that still spark"
+    ng_plus: null
+
+  E6e:
+    title: "Brought Back Wrong"
+    lean: "Meta-tragic mortal ending (only if the Mara arc is live)."
+    card_m: |-
+      Mara Quill pulls you into daylight with a plan that is half rescue, half punishment for Sophia by breaking her toy. You become each other's evidence. Interviews. Institutions. Shared paranoia. Maybe healing. Maybe a cult of two.
+    card_g: |-
+      Sophia's attention lashes the membrane. Mara's apartment fills with roses that bleed. The story never ends cleanly; it serializes.
+    echoes:
+      - speaker: mara_quill
+        text: |-
+          I got out.
+          Getting out is not the same as winning.
+    gallery_art: "Fluorescent kitchen, rose growing from sink, two sleepless adults"
+    ng_plus: null
+
+# ---------------------------------------------------------------------------
+# Renderer ownership, from EPILOGUE-CARDS.md:557.
+#
+#   Card M prose      GM agent
+#   Card G prose      GM agent
+#   Sophia echo       Sophia agent, if she survives and speaks
+#   Other NPC echo    GM agent
+#   Time line         state board, never the card
+#
+# Do not invent new ending ids at runtime. Do select the variant by flags --
+# which is `engine/game/endings.py`'s job, not a renderer's.
+# ---------------------------------------------------------------------------

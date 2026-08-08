@@ -33,8 +33,17 @@ logger = logging.getLogger(__name__)
 
 
 def restore_in_place(target: GameState, source: GameState) -> None:
-    """Copy every field from source onto target, keeping target's identity."""
-    for spec in fields(GameState):
+    """
+    Copy every field from source onto target, keeping target's identity.
+
+    Iterates ``type(target)``, NOT ``GameState``. The literal base class was the
+    sharpest edge in the engine: any field a story added beyond the base
+    dataclass was silently reverted here on every evaluator retry and every tool
+    savepoint -- both of which run on ordinary turns. There was no log line and
+    no exception; it would have presented as "the new meters occasionally do not
+    move", visible only on turns the model happened to get rejected.
+    """
+    for spec in fields(type(target)):
         setattr(target, spec.name, getattr(source, spec.name))
 
 
@@ -47,8 +56,16 @@ class StateTransaction:
         self.committed = False
 
     def rollback(self) -> None:
-        """Undo every mutation since the snapshot."""
-        restore_in_place(self.state, GameState.from_dict(self._snapshot))
+        """
+        Undo every mutation since the snapshot.
+
+        Rehydrates through ``type(self.state)`` for the same reason
+        ``restore_in_place`` walks ``type(target)``: rebuilding through the base
+        class would hand back an object missing every extended field, so the
+        restore would have nothing to copy even after the loop was fixed. Both
+        halves have to know the real class or neither works.
+        """
+        restore_in_place(self.state, type(self.state).from_dict(self._snapshot))
         logger.debug(
             "[transaction] Rolled back (operation=rollback, turn=%s)",
             self.state.turn_number,

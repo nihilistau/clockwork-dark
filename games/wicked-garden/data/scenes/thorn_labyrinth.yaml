@@ -1,0 +1,195 @@
+# Deck-Drawn Scene — worked example (Wicked Garden, Day 5)
+# ========================================================
+#
+# NOT LOADED BY EITHER SHIPPED GAME. See ../README.md.
+#
+# DAY-05-LABYRINTH.md: "5 chambers drawn from a deck; always include Entrance,
+# Heart Trial, Exit. GM Agent picks 2-3 middle chambers by flags."
+#
+# So: three `required: true` cards forming the spine, and `draw: 2` middle
+# chambers selected from the pool by state. The required cards do NOT consume
+# draw slots and are dealt whether or not their conditions hold -- a labyrinth
+# that dropped its Heart Trial under some flag combination would be a labyrinth
+# with no labyrinth in it.
+#
+# Consumed by engine/content/deck.py.
+#
+# Version: v0.1.0 [2026-08-08]
+
+id: thorn_labyrinth
+draw: 2
+
+cards:
+
+  # ===================== THE SPINE ==========================
+  - id: L0_threshold
+    required: true
+    title: "Threshold"
+    text: >-
+      The Labyrinth does not begin with a wall. It begins with the moment you
+      realise the path behind you is no longer the path you walked.
+    beats:
+      - id: enter_empty_handed
+        text: "Enter carrying nothing."
+        # A HARD THRESHOLD. No dice: this is a fact about the state, and a fact
+        # resolved by a roll is a fact the player cannot plan around.
+        gate:
+          when: { none: [{ has_item: rose_token }, { has_item: ashen_passport }] }
+          on_pass:
+            text: "The briars do not know what to make of you, and are interested."
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+
+  - id: L3_heart_trial
+    required: true
+    title: "Heart Trial"
+    text: >-
+      A clearing of red thorns forming a ribcage. At the centre, a living rose
+      that beats.
+    beats:
+      - id: bind_rose_and_self
+        text: "Bind the rose and yourself, lightly. The equal attempt."
+        gate:
+          # The design's gate: "Requires Desire + Favor mid-high + Autonomy >= 50".
+          when:
+            all:
+              - { value: { name: autonomy, min: 50 } }
+              - { value: { name: favor, min: 45 } }
+              - { value: { name: desire, min: 40 } }
+          on_pass:
+            text: "Neither of you is holding the other down."
+            effects:
+              - { type: value, name: equality_seed, delta: 2 }
+              - { type: value, name: favor, delta: 6 }
+              - { type: value, name: autonomy, delta: 4 }
+              - { type: flag, flag: labyrinth_result_peer_attempt }
+          on_fail:
+            # FAIL FORWARD. "Fail gate -> default to devoted or self by nearest
+            # meter." The scene never stops; it becomes a different scene.
+            text: "You reach for level ground and find a slope."
+            effects:
+              - { type: value, name: favor, delta: 12 }
+              - { type: value, name: autonomy, delta: -6 }
+              - { type: flag, flag: labyrinth_result_devoted }
+
+  - id: L5_exit
+    required: true
+    title: "Exit"
+    text: "The roses open, or they do not, and you leave either way."
+    beats:
+      - id: what_you_carry_out
+        text: "What the Labyrinth lets you keep."
+        # A BAND. The engine owns the range; an agent picks inside it by how
+        # well the moment actually landed. With no judgement supplied it
+        # resolves to the midpoint, so the simulator and the tests need no model.
+        band:
+          value: knowledge
+          min: 2
+          max: 8
+          text: "What you understood on the way out."
+
+  # ===================== THE POOL ===========================
+  - id: CA_gallery_of_almost_lovers
+    title: "Gallery of Almost-Lovers"
+    once: true
+    weight: 2
+    text: "Statues, and reliefs of the Honeyed Dead. She sends the bright ones here to be polished with envy."
+    beats:
+      - id: listen_to_the_dead
+        gate:
+          on_pass:
+            text: "They are not warning you. They are comparing notes."
+            effects:
+              - { type: value, name: knowledge, delta: 6 }
+              - { type: flag, flag: labyrinth_heard_dead }
+
+  - id: CB_feast_that_walks
+    title: "The Feast That Walks"
+    text: "The table walks beside you. The fruit insists."
+    beats:
+      - id: eat_the_truth_fruit
+        band:
+          value: knowledge
+          min: 3
+          max: 5
+          text: "A secret said aloud, and recorded."
+
+  - id: CC_winter_mouth
+    title: "Winter Mouth"
+    # "Requires passport OR high Ashen route OR Lost >= 2" -- one `any`, in the
+    # same grammar a quest stage would use.
+    when:
+      any:
+        - { has_item: ashen_passport }
+        - { value: { name: ashen_route, min: 2 } }
+        - { value: { name: labyrinth_lost, min: 2 } }
+    text: "North is a door that hates her perfume."
+    beats:
+      - id: continue_north
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: flag, flag: labyrinth_deep_ashen }
+
+  - id: CD_law_circle
+    title: "Law Circle Clearing"
+    text: "Thornwake's old chalk scars, half eaten by root."
+    beats:
+      - id: call_the_seat_law_aloud
+        gate:
+          # Threshold AND check: the knowledge is the price of admission, the
+          # roll is whether the recitation held. One beat, one receipt.
+          when: { value: { name: knowledge, min: 35 } }
+          check: { skill: lore, difficulty: hard }
+          on_pass:
+            text: "The ambient hostiles pause, offended by procedure."
+            effects:
+              - { type: flag, flag: labyrinth_law_used }
+              - { type: value, name: knowledge, delta: 3 }
+          on_fail:
+            text: "You get the third clause wrong. The briars notice."
+            effects:
+              - { type: value, name: labyrinth_lost, delta: 1 }
+
+  - id: CE_name_well
+    title: "Name Well"
+    when: { none: [{ flag: name_spoken_labyrinth }] }
+    text: "Water that shows what a true name attempt looks like from the outside."
+    beats:
+      - id: whisper_your_name
+        gate:
+          # A SEEDED HIDDEN CHECK. Whether anything was listening is not a fact
+          # about the state and not a skill -- but it must still replay from the
+          # seed, so it draws from world_rng(state, "beat.name_well") and never
+          # from bare random.
+          check: { chance: 0.35, stream: "beat.name_well" }
+          on_pass:
+            text: "Something downstream repeats it back, slightly wrong, delighted."
+            effects:
+              - { type: flag, flag: name_spoken_labyrinth }
+              - { type: value, name: corruption, delta: 4 }
+          on_fail:
+            text: "The water takes it and says nothing. This time."
+            effects:
+              - { type: flag, flag: name_spoken_labyrinth }
+
+  - id: CF_bloom_ambush
+    title: "Bloom Ambush"
+    weight: 0.5
+    text: "Minor Fae, a gift-trap, and a seduction trap, in that order."
+    beats:
+      - id: invoke_gift_thread_knowledge
+        gate:
+          # Reads the THREAD system: knowing what a gift-thread is, because you
+          # are carrying one, is what lets you name the trap.
+          when: { thread: { tag: Service, status: active } }
+          on_pass:
+            text: "You name the shape of it out loud. The trap stops being a trap."
+            effects:
+              - { type: value, name: knowledge, delta: 4 }
+          on_fail:
+            effects:
+              - { type: value, name: autonomy, delta: -8 }
+              - { type: value, name: desire, delta: 8 }
+              - { type: value, name: labyrinth_lost, delta: 1 }

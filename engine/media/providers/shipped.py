@@ -14,13 +14,18 @@ Selection is deterministic. A location with alternates picks one from
 ``(subject, time_of_day, seed)``, so the same place looks the same on the same
 save while still varying between runs and dayparts.
 
-Version: v0.2.0 [2026-08-07]
+The art ROOT is per-story (``paths.art_root``). It used to be a constant
+pointing at the flagship's static tree, so a second story's manifest could name
+files that no lookup could ever find.
+
+Version: v0.3.0 [2026-08-08]
 """
 
 from __future__ import annotations
 
 import functools
 import logging
+import zlib
 from pathlib import Path
 from typing import Any, Optional
 
@@ -32,8 +37,49 @@ from engine.media.providers.base import ImageRequest, ImageResult
 
 logger = logging.getLogger(__name__)
 
+# The DEFAULT art root, repo-relative. This was the whole story until v0.2.1:
+# a module constant naming the flagship's static tree, which meant a second
+# game had nowhere to put art the lookup would find. Every Garden plate missed
+# and the procedural silhouette answered.
+#
+# Still a module constant, and still relative, because scripts/generate_art.py
+# joins it against the repo root to promote newly generated flagship plates.
+# The ACTIVE story's root is `art_root()` below; this is only its default.
 ART_ROOT = Path("content/scenes/clockwork/static/art")
 CORRUPT_PHASES = ("spreading", "consuming")
+
+
+@functools.lru_cache(maxsize=1)
+def art_root() -> Path:
+    """
+    Absolute directory the active story's manifest paths are relative to.
+
+    Cached and registered in ``engine/games/caches.py`` beside
+    ``load_manifest``: the two are read together on every lookup, and a game
+    swap that cleared one and not the other would resolve the new story's
+    manifest entries against the previous story's directory -- which mostly
+    misses, so the visible symptom is art silently disappearing.
+    """
+    resolved = get_config().resolve_path("paths.art_root", str(ART_ROOT))
+    return resolved or (project_root() / ART_ROOT)
+
+
+def _seed(*parts: str) -> int:
+    """
+    A stable integer for a set of strings.
+
+    NOT ``hash()``. Python randomizes ``hash()`` of ``str`` and ``tuple`` per
+    process (PYTHONHASHSEED), so the previous seed was stable within a run and
+    different in the next one -- every location in the game changed picture each
+    time the server restarted, while the comment beside it promised "never a
+    different picture on every render". True within a process, false across
+    restarts, and invisible unless you happened to look at the same place twice
+    either side of a restart.
+
+    crc32 because this picks a plate from a list; it needs to be stable and
+    cheap, not cryptographic.
+    """
+    return zlib.crc32("\x1f".join(parts).encode("utf-8"))
 
 
 @functools.lru_cache(maxsize=1)
@@ -53,10 +99,11 @@ def load_manifest() -> dict[str, Any]:
 def reset_manifest_cache() -> None:
     """Tests only."""
     load_manifest.cache_clear()
+    art_root.cache_clear()
 
 
 def _exists(relative: str) -> bool:
-    return bool(relative) and (project_root() / ART_ROOT / relative).is_file()
+    return bool(relative) and (art_root() / relative).is_file()
 
 
 def _url(relative: str) -> str:
@@ -99,7 +146,7 @@ def lookup(request: ImageRequest) -> Optional[str]:
     if request.evil_phase in CORRUPT_PHASES:
         corrupted = [p for p in entry.get("corrupted", []) if _exists(p)]
         if corrupted:
-            rng = stable_rng(hash(request.subject_id) & 0xFFFF, f"art.{request.evil_phase}")
+            rng = stable_rng(_seed(request.subject_id), f"art.{request.evil_phase}")
             return rng.choice(corrupted)
 
     by_time = entry.get("times", {}).get(request.time_of_day)
@@ -111,7 +158,7 @@ def lookup(request: ImageRequest) -> Optional[str]:
         return None
     # Deterministic per (place, daypart): stable within a save, varied across
     # the day, and never a different picture on every render.
-    rng = stable_rng(hash((request.subject_id, request.time_of_day)) & 0xFFFFFFFF, "art")
+    rng = stable_rng(_seed(request.subject_id, request.time_of_day), "art")
     return rng.choice(pool)
 
 
@@ -129,7 +176,7 @@ class ShippedArtProvider:
             return ImageResult(status="failed", provider=self.name, detail="not in manifest")
         return ImageResult(
             url=_url(relative),
-            path=str(ART_ROOT / relative),
+            path=str(art_root() / relative),
             status="cached",
             provider=self.name,
             detail=relative,

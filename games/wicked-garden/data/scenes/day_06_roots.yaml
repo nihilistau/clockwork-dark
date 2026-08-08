@@ -1,0 +1,669 @@
+# Day 6 — Root Crypts & the Old Garden
+# ====================================
+#
+# Authored from Design_files/Wicked-Garden/docs/design/scenes/DAY-06-ROOTS.md.
+#
+# THE HINGE. Everything before this is a relationship and a rivalry. Everything
+# after is a reckoning, and what turns one into the other is a room full of
+# people she loved, preserved.
+#
+# THIS DAY IS LORE AND MORAL, NOT SEX (DAY-06:260). Intimacy is punctuation.
+# What the player is here to acquire is the cost of her reign in a form they
+# cannot un-know, and Elias is how they acquire it. He must make devotion
+# endings bittersweet forever afterward -- not wrong, bittersweet.
+#
+# THE COMPASS LOCKS HERE. `act2_compass` is the single most load-bearing enum in
+# the story: Days 7, 8 and 9 read it more than they read raw meters. It is
+# spelled as `act2_compass_*` flags because a deck beat cannot write a `track`
+# -- see this directory's README.
+#
+# MOTHER BRIAR IS ECOLOGY, NOT A VILLAIN (DAY-06:262). She does not gloat, she
+# does not bargain hard, and she is not lying about rain.
+#
+# Version: v0.1.0 [2026-08-08]
+
+id: day_06_roots
+
+draw: 2
+
+cards:
+
+  # =====================================================================
+  # SPINE
+  # =====================================================================
+
+  - id: D6_01_descent
+    required: true
+    tags: [menu, gm]
+    title: "Stairs That Spiral Through Amber Light"
+    text: >-
+      INTENT: the air sweetens into rot-perfume, roses boiled in memory. The
+      hourglass ticks louder down here, as if graves were clocks.
+      CONSTRAINT: the permission route changes the tone and nothing else. Sent
+      by her -- *see what I preserve, then tell me you still want simple doors*.
+      Escorted by Thornwake -- *look, do not feed, do not promise the walls*.
+      Uninvited off the Labyrinth's lower stair -- danger, and it is yours.
+      Blasphemy or iron -- the crypts open like a wound and there are things in
+      the corridor.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: hesitate_at_the_top
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 2 }
+
+      - id: descend_eagerly
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 2 }
+              - { type: value, name: corruption, delta: 2 }
+
+      - id: descend_declaring_iron_or_chalk
+        text: "Safer, and the crypt is measurably more hostile about it. Both are true at once."
+        gate:
+          when:
+            any:
+              - { has_item: iron_pin }
+              - { has_item: salt_circle_chalk }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+              - { type: value, name: briar_hunger, delta: 1, why: "you came down armed" }
+
+  - id: D6_02_sap_gallery
+    required: true
+    tags: [menu, gm]
+    title: "The Sap Gallery"
+    text: >-
+      INTENT: coffins of amber sap. Faces mid-ecstasy, mid-scream, mid-prayer,
+      and nameplates in living script -- guests, lovers, thieves, one sovereign
+      pretender. The codex floods with partial entries, blurred until examined.
+      WRONG DETAIL: one coffin is empty, and warm.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: examine_three_plaques
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 6 }
+              - { type: value, name: desire, delta: -2 }
+
+      - id: refuse_to_look
+        text: "Autonomy bought at the price of every relic hint in the room. A real trade."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+
+      - id: sketch_one_of_them
+        text: >-
+          The only player-made object in the reliquary. She will find it later
+          and her reaction will be complicated in a way neither of you expects.
+        gate:
+          on_pass:
+            effects:
+              - { type: item, item_id: sap_sketch, name: "Sap Sketch" }
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: equality_seed, delta: 1 }
+
+  - id: D6_03_elias
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "Elias the Painter"
+    text: >-
+      INTENT: the canon previous lover, adult, preserved, and lucid. Voice
+      through sap; lips almost move; eyes follow. He opens with *she said I
+      painted her true -- truth is a solvent* and then asks the only question
+      that matters: are you the new canvas or the new knife?
+      HE WANTS: nothing. That is what makes him unbearable. He is not warning
+      the player and he is not recruiting them; he is comparing notes.
+      CONSTRAINT: he is not bitter and he does not hate her. He says yes, she
+      loved me, that is why I am art -- and he means it as an explanation.
+      If the player wears her collar: *soft thorns; they grow inward on their
+      own; ask me how I know*. If the player came back from the Labyrinth as a
+      peer: *interesting -- careful, peers get wars*.
+      MENU -- resolve as many beats as the player asks for.
+    beats:
+      - id: did_she_love_you
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: desire, delta: -2 }
+
+      - id: how_do_i_leave
+        text: >-
+          THE TRIAD, and the single most valuable sentence in Act II: with her
+          bored, with law older than her mouth, with the root's bargain, or with
+          death wearing perfume. Sets `elias_exit_triad`, which is what makes
+          the Day 7 leave-law lesson possible to ask for.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: elias_exit_triad }
+              - { type: value, name: knowledge, delta: 8 }
+
+      - id: how_do_i_stay_without_becoming_you
+        text: >-
+          Be necessary to the Garden, not only to her hunger. Or become her
+          peer, if she will allow a second sun. The most direct statement of the
+          E2 path anyone makes in the whole story.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: equality_seed, delta: 2 }
+              - { type: value, name: knowledge, delta: 5 }
+
+      - id: i_will_free_you
+        text: >-
+          Impossible now, and the attempt costs. He may give a pressed letter
+          for the trying -- something he wrote and never sent, which is worth
+          more than the rescue would have been.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: tried_free_elias }
+              - { type: value, name: corruption, delta: 5 }
+              - { type: item, item_id: pressed_letter, name: "Pressed Letter" }
+
+      - id: reject_his_pity
+        text: "He laughs gold bubbles. It is the least dead he sounds all day."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 2 }
+              - { type: value, name: knowledge, delta: 2 }
+
+  - id: D6_04_relic_choice
+    required: true
+    tags: [menu, gm]
+    title: "The Plinth Offers One"
+    text: >-
+      INTENT: one relic, or none. A second only for a player who has read enough
+      to know which two to want, and taking two without that is a trap the crypt
+      resolves by moving.
+      CONSTRAINT: the true-name shard is not a pick-up. It requires blasphemy or
+      Elias's real trust, it is the highest-leverage object in the story, and
+      the game should feel briefly nervous when it changes hands.
+      MENU -- resolve exactly one beat, or the refusal.
+    beats:
+      - id: take_the_pressed_letter
+        gate:
+          on_pass:
+            effects:
+              - { type: item, item_id: pressed_letter, name: "Pressed Letter" }
+              - { type: value, name: knowledge, delta: 4 }
+
+      - id: take_the_black_honey
+        text: "One audience with what is under the Garden. Drinkable the same day, if the player is in a hurry to be."
+        gate:
+          on_pass:
+            effects:
+              - { type: item, item_id: black_honey, name: "Black Honey" }
+              - { type: value, name: corruption, delta: 3 }
+
+      - id: take_the_true_name_shard
+        text: >-
+          A partial shard of her name, in a room she keeps. Extreme leverage,
+          and the single fastest way to make the Usurper endings real.
+        gate:
+          when:
+            any:
+              - { flag: labyrinth_result_blasphemy }
+              - { all: [{ flag: tried_free_elias }, { value: { name: knowledge, min: 55 } }] }
+          on_pass:
+            effects:
+              - { type: item, item_id: true_name_shard_sophia_partial, name: "True-Name Shard" }
+              - { type: value, name: knowledge, delta: 8 }
+              - { type: value, name: corruption, delta: 4 }
+          on_fail:
+            text: "It is there. It does not come loose for you, and the refusal is specific enough to be a judgement."
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+
+      - id: take_nothing
+        text: "Briar notices restraint. Whether she approves of it is not made clear."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 5 }
+
+      - id: try_to_take_two
+        text: >-
+          The crypt shifts the way the Labyrinth shifts. Thornwake or a rootling
+          corrects it, without malice, the way you would move a child's hand off
+          a stove.
+        gate:
+          when: { value: { name: knowledge, min: 50 } }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 4 }
+          on_fail:
+            effects:
+              - { type: value, name: labyrinth_lost, delta: 1 }
+              - { type: value, name: corruption, delta: 3 }
+
+  - id: D6_05_mother_briar
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "Warm Guest, Yielding Guest, Counting Guest"
+    text: >-
+      INTENT: partial manifestation only -- a face arranging itself out of roses
+      and wet seeds in the root-ceiling, many hands as shadows. Grandmother,
+      goddess, garden. The walls pulse and the sap syncs to the player's throat.
+      SHE WANTS: yield. *She keeps festivals. I keep rain.* And then the
+      question the whole day was built to ask: are you feast, fertilizer, or
+      farmer?
+      CONSTRAINT: no Deep Sovereign confrontation today. That is the finale.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: i_belong_to_myself
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: briar_heard_self }
+              - { type: flag, flag: met_briar_partial }
+              - { type: value, name: autonomy, delta: 6 }
+
+      - id: i_belong_to_sophia
+        text: "Briar's interest changes register from curiosity to appetite, and does not hide the change."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: met_briar_partial }
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: autonomy, delta: -4 }
+              - { type: value, name: briar_hunger, delta: 1 }
+
+      - id: i_want_the_seat
+        text: "Said out loud, underground, to the thing the Seat sits on. Dangerous and permanently on the record."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ambition_declared }
+              - { type: flag, flag: met_briar_partial }
+              - { type: value, name: knowledge, delta: 5 }
+
+      - id: i_want_a_door_home
+        text: "*Doors tax. Pay in years or names.* She is quoting a rate, not threatening."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: met_briar_partial }
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: mortal_collapse, delta: 1 }
+
+      - id: say_nothing_at_all
+        text: "She fills the silence with a vision of the player as a flower. It is not a threat. It is a suggestion."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: met_briar_partial }
+              - { type: value, name: corruption, delta: 6 }
+
+  - id: D6_06_the_three_hungers
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "Choose What You Will Feed Me"
+    text: >-
+      INTENT: the bargain-lite. Not a contract -- an arrangement, offered the
+      way a landlord offers terms. Desire, fear, ambition, or nothing.
+      CONSTRAINT: if the player chooses Ambition, open the `briar_witness`
+      thread through the thread tool. The whole point of speaking a goal aloud
+      to her is that she can quote it back in the finale, and a flag cannot be
+      quoted.
+      If Black Honey is drunk here, run the short deep bargain instead: ONE of a
+      glamour-resistant day, a true exit clue, her soft century, or a seed
+      upgrade -- and the cost is a memory or a favour spike that leaves a mark.
+      MENU -- resolve exactly one beat.
+    beats:
+      - id: feed_her_desire
+        text: "The next intimate peak runs one notch hotter, once, and neither of you chose it."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: desire, delta: 8 }
+              - { type: value, name: corruption, delta: 5 }
+              - { type: value, name: autonomy, delta: -3 }
+
+      - id: feed_her_fear
+        text: "Two nights of being stalked in dreams, in exchange for being able to smell danger coming."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 10 }
+              - { type: value, name: desire, delta: -5 }
+
+      - id: feed_her_ambition
+        text: >-
+          Speak a goal aloud: the door, the peerage, the Seat, or her. Sets
+          `ambition_declared`, which is one of E5's four gates and cannot be
+          acquired anywhere else this cheaply.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ambition_declared }
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: briar_hunger, delta: 1 }
+
+      - id: refuse_to_feed_her
+        text: >-
+          Root hostility for the rest of the story, and the exit is only
+          comfortable if Thornwake is an ally. Worth it.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 8 }
+              - { type: value, name: briar_hunger, delta: 1 }
+
+      - id: drink_the_black_honey
+        text: >-
+          The deep bargain. One real answer, and the cost is taken before the
+          answer is given. Her soft century is the most expensive of the four
+          and the one that changes the most.
+        gate:
+          when: { has_item: black_honey }
+          on_pass:
+            effects:
+              - { type: remove_item, item_id: black_honey }
+              - { type: flag, flag: sophia_soft_century_hint }
+              - { type: value, name: knowledge, delta: 12 }
+              - { type: value, name: corruption, delta: 5 }
+
+  - id: D6_07_sophia_at_the_stairs
+    required: true
+    tags: [menu, setpiece, sophia]
+    title: "You Went Into My Cellar of Almosts"
+    text: >-
+      INTENT: THE compass lock, and her best scene in the game. She is waiting
+      at the top of the stairs and she has been for a while. *Speak. Do you
+      still want me with the taste of resin on your tongue?*
+      SHE WANTS: to survive being seen. She is not defending the crypt and will
+      not apologise for it; what she is afraid of is the specific arithmetic the
+      player is doing right now.
+      CONSTRAINT: exactly one compass flag is set. Everything from here to the
+      finale reads it. If the player shows a relic, branch on which -- the
+      letter softens her, the shard enrages her, the seed frightens her.
+      HER PEAK LINE, on the dual answer: *then be the first mortal to mean both
+      without lying. I have had thieves of pleasure and beggars of forever. Not
+      gardeners of a third path. Do not make me hope. Hope is how Sovereigns
+      die.*
+      MENU -- resolve exactly one beat.
+    beats:
+      - id: more_than_before
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: act2_compass_devotion }
+              - { type: value, name: favor, delta: 15 }
+              - { type: value, name: autonomy, delta: -5 }
+              - { type: value, name: corruption, delta: 2 }
+
+      - id: i_want_you_and_a_door
+        text: >-
+          Both, honestly, without softening either. Requires enough of the
+          player left to mean it; below that it collapses into one or the other
+          and she hears which.
+        gate:
+          when: { value: { name: autonomy, min: 45 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: act2_compass_love_and_door }
+              - { type: value, name: equality_seed, delta: 2 }
+              - { type: value, name: favor, delta: 5 }
+              - { type: value, name: sophia_break, delta: 1 }
+          on_fail:
+            text: "You mean to say both and only one of them arrives. She is kind about it, which tells you which one."
+            effects:
+              - { type: flag, flag: act2_compass_devotion }
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: autonomy, delta: -3 }
+
+      - id: i_will_not_become_elias
+        text: "Respect, a wound, and possibly the loosening of the social mark. She does not argue."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: act2_compass_refuse_honeyed }
+              - { type: value, name: autonomy, delta: 8 }
+              - { type: value, name: favor, delta: -4 }
+              - { type: value, name: equality_seed, delta: 1 }
+
+      - id: you_made_a_museum_of_love
+        text: "Political cold war from tomorrow, and the winter road gets appreciably easier."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: act2_compass_condemn }
+              - { type: value, name: favor, delta: -12 }
+              - { type: value, name: desire, delta: 6 }
+              - { type: value, name: sophia_break, delta: 1 }
+
+      - id: i_made_a_deal_with_what_is_under_you
+        text: >-
+          Only if true. Crisis either way -- she fears it and wants it, and
+          whether favour moves up or down depends entirely on whether the player
+          framed it as protecting her reign.
+        gate:
+          when:
+            any:
+              - { flag: briar_heard_self }
+              - { flag: ambition_declared }
+              - { has_item: black_honey }
+          on_pass:
+            effects:
+              - { type: flag, flag: act2_compass_briar_touched }
+              - { type: value, name: briar_hunger, delta: 1 }
+              - { type: value, name: knowledge, delta: 4 }
+          on_fail:
+            text: "You imply a bargain you did not make. She checks. The checking is not pleasant."
+            effects:
+              - { type: value, name: favor, delta: -6 }
+
+      - id: she_is_not_at_the_stairs
+        text: >-
+          WINTER. Only where the player left with Ashen rather than climbing
+          back to her. Sets the sixth compass value, and the Day 7 omen for it
+          is ice on the inside of the windows.
+        gate:
+          when: { value: { name: ashen_route, min: 3 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: act2_compass_winter }
+              - { type: value, name: favor, delta: -8 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+
+  - id: D6_08_night
+    required: true
+    tags: [menu, night, sophia, intimate]
+    title: "Six Nights, by Compass"
+    text: >-
+      INTENT: the compass picks the night and the player does not.
+      Devotion -- intense, with thrall FORESHADOW talk only; the ritual is not
+      completed and consent for the conversation is not consent for the thing.
+      Love and door -- tender and tense, planning out loud, and she may give the
+      Mortalslip Thread, which is the most frightening gift in the story.
+      Refuse honeyed -- separate beds, protective moths at the window, respect.
+      Condemn -- the exile wing, and a winter moth arrives with an invitation.
+      Briar touched -- a shared nightmare, and she holds on too tightly.
+      Winter -- she is not here.
+      CEILING: suggestive. Fade sits above her.
+      MENU -- resolve the beat whose gate holds.
+    beats:
+      - id: devotion_night
+        gate:
+          when: { flag: act2_compass_devotion }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: desire, delta: 10 }
+              - { type: value, name: autonomy, delta: -5 }
+
+      - id: love_and_door_night
+        text: >-
+          She gives the Mortalslip Thread: one message out, to a world that has
+          moved sixty days without you. She knows what it will do to the player
+          and gives it anyway, which is the most she has ever risked.
+        gate:
+          when: { flag: act2_compass_love_and_door }
+          on_pass:
+            effects:
+              - { type: item, item_id: mortalslip_thread, name: "Mortalslip Thread" }
+              - { type: value, name: favor, delta: 6 }
+              - { type: value, name: equality_seed, delta: 1 }
+
+      - id: refuse_honeyed_night
+        gate:
+          when: { flag: act2_compass_refuse_honeyed }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 5 }
+              - { type: value, name: favor, delta: 2 }
+
+      - id: condemn_night
+        gate:
+          when: { flag: act2_compass_condemn }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 4 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+
+      - id: briar_touched_night
+        gate:
+          when: { flag: act2_compass_briar_touched }
+          on_pass:
+            effects:
+              - { type: value, name: corruption, delta: 6 }
+              - { type: value, name: favor, delta: 5 }
+              - { type: value, name: briar_hunger, delta: 1 }
+
+      - id: winter_night
+        gate:
+          when: { flag: act2_compass_winter }
+          on_pass:
+            effects:
+              - { type: value, name: corruption, delta: 3 }
+              - { type: value, name: knowledge, delta: 4 }
+
+  - id: day6_toll
+    required: true
+    tags: [sequence, toll, gm]
+    title: "Seventy Days Gone"
+    text: >-
+      INTENT: the bill, and the last one before the clocks take over. Seven
+      Garden days. Past this line, Act III opens whether the player is ready or
+      not.
+    beats:
+      - id: the_hourglass_turns
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: time_debt_mortal_days, delta: 10, why: "day 6 toll" }
+
+      - id: act_three_opens
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: act3_open }
+
+  # =====================================================================
+  # POOL — two are dealt.
+  # =====================================================================
+
+  - id: DX_the_warm_empty_coffin
+    tags: [sequence, gm]
+    once: true
+    weight: 3
+    title: "One Coffin Is Empty, and Warm"
+    text: >-
+      INTENT: the day's wrong detail, given its own card if the hand allows.
+      Nameplate blank, resin still soft, and the shape in it is roughly the
+      player's size. Nobody comments. Do not explain it today and do not explain
+      it on Day 9 either.
+    beats:
+      - id: look_into_it
+        band:
+          value: corruption
+          min: 2
+          max: 5
+          text: "How long you looked."
+
+  - id: DX_use_the_mortalslip
+    tags: [menu, gm]
+    once: true
+    when: { has_item: mortalslip_thread }
+    title: "One Message Out"
+    text: >-
+      INTENT: the mortal-world mini-scene, and the horror of it is arithmetic.
+      Whatever the player sends arrives seventy days late, into a life that has
+      already finished reacting to their absence. A reply may come back and be
+      about something else entirely.
+      CONSTRAINT: she will react on the player's return, and the reaction is not
+      jealousy. It is closer to grief.
+    beats:
+      - id: send_it
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: mortalslip_used }
+              - { type: remove_item, item_id: mortalslip_thread }
+              - { type: value, name: autonomy, delta: 6 }
+              - { type: value, name: desire, delta: -4 }
+
+      - id: keep_it_unspent
+        text: "Carrying it is its own scene. She notices that it is still in the room."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 2 }
+
+  - id: DX_rootlings
+    tags: [sequence, gm]
+    once: true
+    weight: 2
+    when:
+      any:
+        - { flag: labyrinth_result_blasphemy }
+        - { flag: iron_used_labyrinth }
+    title: "The Corridor Has Things In It"
+    text: >-
+      Iron and blasphemy open the crypts like a wound. What comes down the
+      corridor is not hunting the player exactly -- it is gardening, and the
+      player is in the bed.
+    beats:
+      - id: get_past_them
+        gate:
+          check: { chance: 0.55, stream: "beat.d6_rootlings" }
+          on_pass:
+            text: "They move around you. One of them is wearing something you recognise."
+            effects:
+              - { type: value, name: knowledge, delta: 4 }
+          on_fail:
+            text: "You get out. You get out having left something behind that you were carrying and are not any more."
+            effects:
+              - { type: value, name: corruption, delta: 6 }
+              - { type: value, name: briar_hunger, delta: 1 }
+
+  - id: DX_thornwake_escort
+    tags: [sequence, gm]
+    once: true
+    weight: 2
+    when: { flag: met_thornwake }
+    title: "Look. Do Not Feed. Do Not Promise the Walls."
+    text: >-
+      He comes down with the player and stands at the edge of every room without
+      looking at anything. He has been here before, often, and it is procedure
+      to him in the way a mortuary is procedure to a coroner.
+    beats:
+      - id: ask_him_why_he_comes_down_here
+        # He does not offer the squire's oath here. That is Day 7, after he has
+        # watched the player choose a compass -- `thornwake_squire_offered` is
+        # E6c's only gate and it must be earned in front of him, not collected
+        # from a corridor conversation.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: flag, flag: law_seat_vs_woman_partial }

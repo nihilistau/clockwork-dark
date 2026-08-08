@@ -1,0 +1,154 @@
+# The Wicked Garden -- the cast that narrates it.
+#
+# Two agents, and the second one is the reason the engine grew a multi-agent
+# runtime at all. The Clockwork Dark runs a narrator plus a hint system: the
+# companion speaks after the narrator has already committed, sees only the
+# finished prose, and can write nothing. That shape cannot express a character
+# who wants something, who moves shared meters under conditions, who is allowed
+# to lie, and whose intent has to be reconciled with the world's before either
+# of them says a word.
+#
+# This file DECLARES. Three existing layers enforce, and the separation is
+# deliberate -- a roster that enforced anything itself would be a fourth place
+# to get it wrong:
+#
+#   voices -> engine/agents/negotiate.py   at the point the intent is visible
+#   reads  -> engine/agents/knowledge.py   prompt blocks and lore retrieval
+#   writes -> engine/state/store.py        per-value owners, refused AND journalled
+#
+# Source: docs/design/agents/state-dictionary.json:490-591 and 07-NARRATIVE-AI.md.
+#
+# Version: v0.1.0 [2026-08-08]
+
+agents:
+  # ---------------------------------------------------------------------
+  # The world. Everything that is not her.
+  # ---------------------------------------------------------------------
+  gm:
+    role: world
+    profile: big
+    prompt: prompts/gm.md
+
+    # Ten voices. Every named soul in the Garden except one -- and the epilogue
+    # cards, because the mortal card and the garden card are the world's
+    # summing-up, not hers.
+    voices:
+      - narration
+      - ashen_vale
+      - thornwake
+      - lior
+      - mother_briar
+      - elias
+      - mara_quill
+      - court
+      - bloomkin
+      - epilogue_card_m
+      - epilogue_card_g
+
+    # The world knows what is behind the door. It does not know what she is
+    # thinking -- `character_private` is absent on purpose, and its absence is
+    # the whole mechanism: an agent left off a scope list sees only
+    # `public_world`, so forgetting to grant produces ignorance rather than a
+    # leak.
+    reads:
+      - gm_secrets
+
+    writes:
+      - favor
+      - corruption
+      - knowledge
+      - equality_seed
+      - labyrinth_lost
+      - time_debt_mortal_days
+      - ashen_pressure
+      - briar_hunger
+      - sophia_break
+      - mortal_collapse
+
+  # ---------------------------------------------------------------------
+  # Sophia. A character, not a companion.
+  # ---------------------------------------------------------------------
+  sophia:
+    role: character
+    profile: big
+    prompt: prompts/sophia.md
+
+    voices:
+      - sophia_dialogue
+      - sophia_intimate_direction
+      - sophia_echo_epilogue
+
+    # Her own mind, and nothing of the world's. She may not read `gm_secrets`:
+    # not because she would cheat, but because a character who knows what is
+    # really behind the door stops being a character and becomes a second
+    # narrator wearing a name.
+    #
+    # 02-CHARACTERS.md:218 says this is scoped knowledge, "not true hostility
+    # between systems". The scope is the whole of it.
+    reads:
+      - character_private
+
+    # Her regard and her heat are hers to move.
+    writes:
+      - favor
+      - desire
+
+    # Autonomy is HERS TO TAKE, and only ever with a reason recorded beside it.
+    # This is the single most consequential permission in the file: autonomy
+    # gates the door home and the equal ending, and a character who could
+    # quietly drain it would be able to close both without the player ever
+    # seeing why. The reason lands in the state journal, so "she took something
+    # from you" is attached to the number that moved.
+    #
+    # Corruption is deliberately NOT hers, though the dictionary allows it "in
+    # intimate/claim contexts". The store's ACL has no notion of context, so
+    # granting it would be granting it always -- and a permission that cannot
+    # express its own condition should be refused rather than approximated.
+    # The world applies corruption from what she does; she does not apply it to
+    # herself. Revisit if the ACL learns conditions.
+    writes_with_reason:
+      - autonomy
+
+# ---------------------------------------------------------------------------
+# How their proposals are reconciled, when they disagree.
+#
+# These are THIS STORY'S dramatic priorities, which is why they are data. The
+# engine ships only the two rules that are structural rather than dramatic --
+# safety outranks every agent goal, and no agent may speak as a voice it does
+# not own -- and neither of those is reorderable from here.
+#
+# First match wins, in declared order. A rule with no `when` never fires.
+# ---------------------------------------------------------------------------
+negotiation:
+  # 07-NARRATIVE-AI.md:88. The world does not lose its content, it loses the
+  # lead: `keep_loser_beat` is what turns an interrupted event into the thing
+  # you walk out into afterwards.
+  - name: private_scene_finishes
+    when:
+      sophia: speak
+      gm: interrupt
+    winner: sophia
+    keep_loser_beat: true
+    detail: her scene completes; the world's event becomes its aftermath
+
+  # The counterpart, and the one that keeps her from being the whole story: a
+  # world event she is trying to talk over still lands when it is the world
+  # asserting a fact rather than colour.
+  - name: the_world_asserts
+    when:
+      gm: narrate
+      sophia: interrupt
+    winner: gm
+    keep_loser_beat: true
+    detail: the Garden is older than she is; she gets the last line, not the first
+
+  # 07-NARRATIVE-AI.md:89 -- "Threshold Law correctly invoked beats Sophia will
+  # for exit physics; she may still react on meters." She does not get to
+  # narrate the door not opening. She gets to be furious about it.
+  - name: the_law_holds
+    when:
+      gm: offer
+      sophia: withhold
+    winner: gm
+    keep_loser_beat: true
+    detail: correctly invoked law beats sovereign will for exit physics

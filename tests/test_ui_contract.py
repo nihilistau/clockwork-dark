@@ -75,7 +75,7 @@ def test_every_emitted_event_has_a_client_listener():
     listened = set(
         re.findall(
             r'"([a-z_]+)"',
-            (UI_SRC / "socket.js").read_text(encoding="utf-8").split("export const INBOUND")[1].split("]")[0],
+            (UI_SRC / "core" / "socket.js").read_text(encoding="utf-8").split("export const INBOUND")[1].split("]")[0],
         )
     )
     missing = emitted - listened
@@ -83,7 +83,7 @@ def test_every_emitted_event_has_a_client_listener():
 
 
 def test_client_does_not_listen_for_events_nobody_sends():
-    text = (UI_SRC / "socket.js").read_text(encoding="utf-8")
+    text = (UI_SRC / "core" / "socket.js").read_text(encoding="utf-8")
     inbound = set(
         re.findall(r'"([a-z_]+)"', text.split("export const INBOUND")[1].split("]")[0])
     )

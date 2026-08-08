@@ -1,0 +1,99 @@
+# Progress Clocks — worked example (The Wicked Garden)
+# ====================================================
+#
+# NOT LOADED BY EITHER SHIPPED GAME. See README.md in this directory.
+#
+# A clock is declared TWICE and the split is the point:
+#
+#   games/<slug>/state.yaml   what it IS -- `kind: clock`, bounds, visibility,
+#                             who may write it. The engine's state layer.
+#   this file                 what it DOES -- what happens at each segment and
+#                             what setpiece it forces when it fills.
+#
+# So `briar_hunger: {min: 0, max: 5, visibility: hidden}` lives in state.yaml,
+# and everything below is what makes it a clock rather than a number.
+#
+# Consumed by engine/game/clocks.py.
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+
+clocks:
+
+  # ---------------------------------------------------------------------
+  # Mother Briar's hunger. The one that eats you if nothing else does.
+  # ---------------------------------------------------------------------
+  briar_hunger:
+    label: "The roots are counting"
+
+    # Engine-side pressure. A clock nothing drives is a clock the narrator can
+    # decline to wind -- which is exactly what happened to `evil_progress`
+    # before engine/world/world_effects.py existed.
+    advance_when:
+      - id: briar_hunger_from_refused_feast
+        when: { flag: refused_feast }
+        by: 1
+      - id: briar_hunger_from_deep_corruption
+        when: { value: { name: corruption, min: 60 } }
+        by: 1
+
+    beats:
+      - id: briar_hunger_2
+        at: 2
+        rumors:
+          - "The gardeners have stopped walking the low paths after dark."
+        discoveries: [root_crypts]
+
+      - id: briar_hunger_4
+        at: 4
+        set_flags: [briar_heartbeat_heard]
+        world_events:
+          - event_id: briar_pulse
+            text: "Something under the Garden keeps a slower time than the Garden does."
+        # Ordinary engine effects, through the one validated writer.
+        effects:
+          - { type: value, name: corruption, delta: 3, why: "the roots reach up" }
+
+      # `at: max` rather than `at: 5`, so retuning the clock's range in
+      # state.yaml does not silently strand its last beat.
+      - id: briar_hunger_full
+        at: max
+        set_flags: [briar_finale_pending]
+        forces_scene: briar_threshold
+        text: "Tomorrow you grow or you feed."
+
+  # ---------------------------------------------------------------------
+  # Ashen Vale's patience. RECURRING -- it empties on its setpiece and
+  # starts filling again, which is what `reset_to` is for. A rival who runs
+  # out of patience exactly once is not a rival, he is a cutscene.
+  # ---------------------------------------------------------------------
+  ashen_pressure:
+    label: "Winter, being patient"
+    beats:
+      - id: ashen_pressure_full
+        at: max
+        # Only when there is actually something owed. A clock beat may carry a
+        # condition beyond its number; `when` is the shared grammar.
+        when: { thread: { source: ashen_vale, status: active } }
+        forces_scene: ashen_collects
+        effects:
+          - { type: value, name: knowledge, delta: 2, why: "the Vale explains himself" }
+        reset_to: 0
+
+  # ---------------------------------------------------------------------
+  # What the mortal world is doing while you are here. Wound by the day
+  # toll, not by anything the player can see coming.
+  # ---------------------------------------------------------------------
+  mortal_collapse:
+    label: "The hourglass of ash"
+    advance_when:
+      - id: mortal_collapse_at_hundred_days
+        when: { value: { name: time_debt_mortal_days, min: 100 } }
+        by: 5
+    beats:
+      - id: mortal_collapse_full
+        at: max
+        set_flags: [mortal_life_unrecoverable]
+        forces_scene: empty_rooms
+        text: "Somewhere, tenfold days have finished rewriting a life that still thinks it might have you back."

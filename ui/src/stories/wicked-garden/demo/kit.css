@@ -1,0 +1,155 @@
+/* The kit page's own scaffolding. Nothing here is part of the story: it is the
+   shelf the components stand on. Kept separate from the theme so the theme is
+   only ever what a story ships. */
+
+.kit {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+.kit__masthead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-bottom: var(--space-5);
+  border-bottom: var(--border-hair) solid var(--line-soft);
+}
+
+.kit__title {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-3xl);
+  color: var(--text-display);
+}
+
+.kit__title span {
+  color: var(--accent-candle);
+  font-style: italic;
+}
+
+.kit__disclaimer {
+  margin: 0;
+  max-width: 72ch;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--status-danger);
+  background: var(--surface-card);
+  color: var(--text-body);
+}
+
+.kit__switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+}
+
+.kit__switch {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2);
+  align-items: baseline;
+  color: var(--text-body);
+}
+
+.kit__switch-note {
+  grid-column: 2;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.kit__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.kit__head {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--accent-candle);
+}
+
+.kit__note {
+  margin: 0;
+  max-width: 78ch;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.kit__stage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  align-items: flex-start;
+  padding: var(--space-5);
+  border: var(--border-hair) dashed var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+/* A lone component takes the whole shelf; two contracts sit side by side and
+   drop to one column when there is no room for both. Without a basis, a grid
+   child (the ending gallery) shrinks to its smallest column and shows six
+   medallions stacked in a strip. */
+.kit__stage > * {
+  flex: 1 1 340px;
+  min-width: 0;
+}
+
+.kit__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.kit__meters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: min(360px, 100%);
+  flex: 1;
+}
+
+.kit__slider {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.kit__echo {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-candlelight);
+}
+
+.kit__foot {
+  padding-top: var(--space-5);
+  border-top: var(--border-hair) solid var(--line-soft);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.kit code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--text-candlelight);
+}
+
+@media (max-width: 700px) {
+  .kit {
+    padding: var(--space-4) var(--space-3) var(--space-7);
+  }
+
+  .kit__stage {
+    padding: var(--space-3);
+  }
+}

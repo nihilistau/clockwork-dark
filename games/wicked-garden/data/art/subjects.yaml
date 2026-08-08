@@ -1,0 +1,653 @@
+# ============================================================
+# Art subjects -- The Wicked Garden.
+#
+# ONE source, TWO prompt dialects, exactly as data/art/subjects.yaml is for the
+# flagship and games/drowned-carillon/data/art/subjects.yaml is for the coast.
+# engine/media/art.py renders natural prose for Grok Imagine
+# (`render_prose`) and comma-separated tags plus a negative prompt for ComfyUI
+# SDXL (`render_tags`) from the structured fields below. Nothing here is
+# written twice, and there is no second convention in this file.
+#
+# The three `kind` values the renderer knows are `location`, `portrait` and
+# `item`, resolved by `_fields()`. Those are the three blocks below. An
+# `enemies:` block would be dead content -- this story has no encounters and no
+# combat -- so there is not one.
+#
+# ------------------------------------------------------------
+# CONTENT CEILING, AND WHAT IS DELIBERATELY NOT IN THIS FILE
+# ------------------------------------------------------------
+# game.yaml declares `safety.intensity.ceiling: suggestive`. Every prompt below
+# is written to that ceiling: atmosphere, tension, power, threat, and adult
+# charge carried by pose, gaze, light and proximity. There are no explicit
+# prompts here and no `intimate` shot block, and their absence is a decision
+# rather than an omission. The design package ships an explicit prompt ladder
+# (docs/design/prompts/SOPHIA-INTIMATE-PROMPT-PACK.md) and it stays there,
+# owned by whoever raises the ceiling on their own install.
+#
+# The negative prompt carries the hard product rule from 05-BACKSTORY-AND-
+# LORE.md:89 -- there are no minor-coded characters in this game's narrative
+# space, Fae "youth" are ancient, and every figure rendered from this file is
+# an adult. That is stated in the negatives rather than trusted to the
+# positives, because a negative prompt is the only half of an SDXL request that
+# holds when the positive drifts.
+#
+# ------------------------------------------------------------
+# WHAT THIS FILE IS FOR NOW THAT THE PACK EXISTS
+# ------------------------------------------------------------
+# The concept pack HAS been imported. game.yaml declares `paths.art_root` and
+# `paths.art_manifest`, the plates live in `plates/` beside this file, and
+# manifest.yaml maps them: eight of fourteen places, eight of nine portraits,
+# twenty-two of twenty-three items.
+#
+# So this file is no longer the only thing standing between the Garden and a
+# procedural silhouette. It is now two things:
+#
+#   1. THE GAP LIST, executable. Six places (`mortal_threshold`,
+#      `path_first_petals`, `aviary_unsent`, `night_market`, `briar_deep`,
+#      `unknown`), one portrait (`court_generic`) and one item (`sap_sketch`)
+#      have no plate and no honest neighbour to borrow from. Their prompts are
+#      below in full, so filling the gap is a generation run rather than a
+#      writing job.
+#   2. THE CONSISTENCY LOCK. Anything generated later has to look like what
+#      was imported, and `style:` plus the canon-face entry under
+#      `portraits.sophia` are what holds it.
+#
+# Nothing below was reverse-engineered from the imported plates; the prompts
+# and the pack were authored from the same design docs.
+#
+# ------------------------------------------------------------
+# WHY THE `corruption:` BLOCK IS CURRENTLY UNREACHABLE
+# ------------------------------------------------------------
+# `render_prose` and `render_tags` apply the corruption motif only when the
+# caller passes an evil phase of `spreading` or `consuming`. This story sets
+# `evil_base_rate_per_day: 0.0`, so the engine's phase is `dormant` from the
+# prologue to the finale and the block below never fires today.
+#
+# It is authored anyway, and honestly, for one reason: the thing that turns in
+# this story is the player's `corruption` meter, not a world doom clock, and
+# when the spine wires an image brief that maps a high corruption meter onto
+# the renderer's phase argument -- which is a one-line decision it is entitled
+# to make -- the motif has to already exist or the Garden will look identical
+# at five and at ninety-five. Marked so nobody documents it as live.
+#
+# Version: v0.1.0 [2026-08-08]
+# ============================================================
+
+style:
+  prose: >-
+    Painterly digital illustration in a Pre-Raphaelite dark-romantic register,
+    semi-realistic figures with tactile skin and heavy fabric, lit like
+    photography rather than like an illustration. A palette of plum-black
+    shadow, deep poison green, crimson rose, antique thorn-gold and pale
+    lilac-silver, with ghost-teal bioluminescence in the night flora. Lush
+    organic forms everywhere -- vines, petals, pollen, dew, silk, moth wings --
+    and one detail in every frame that is beautiful and slightly wrong.
+    Cinematic framing with shallow depth of field. Every figure is an adult. No
+    text or lettering anywhere in the frame.
+  tags: >-
+    painterly digital illustration, pre-raphaelite dark romantic fantasy,
+    semi-realistic adult figures, tactile skin and heavy fabric, photographic
+    lighting, plum-black and poison-emerald palette, crimson rose accents,
+    antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living
+    vines and petals, pollen and dew in the air, botanical art nouveau, shallow
+    depth of field, cinematic composition, one beautiful wrong detail, no text,
+    no watermark
+  negative: >-
+    child, teenager, youthful minor, childlike proportions, chibi, anime, manga,
+    cartoon, cel shading, flat mobile-game art, nudity, explicit content,
+    genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon,
+    cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating
+    interface, text, lettering, watermark, logo, signature, blurry, low
+    quality, oversaturated, costume-party elf ears, heroic power pose
+  loras:
+    - {name: Oil_Painting_Style, weight: 0.55}
+    - {name: Botanical_Fantasy, weight: 0.5}
+    - {name: Cinematic_Portrait, weight: 0.35}
+
+  # ----------------------------------------------------------
+  # Named alternatives a subject may opt into with `style: <name>`.
+  #
+  # The block above is appended to every prompt this story renders, which is
+  # what makes fifty-eight plates look like one pack. Two of the fourteen
+  # locations are deliberately NOT the Garden, and for those it argues against
+  # the thing being drawn: `mortal_threshold` is a drab modern flat and
+  # `unknown` is a formless void, and "lush organic forms everywhere -- vines,
+  # petals, pollen" plus "botanical art nouveau" is the opposite of both. That
+  # contrast is the whole point of the opening screen.
+  #
+  # Only the keys a variant declares are replaced, so `mortal` keeps the
+  # shared LoRAs and overrides prose, tags and negative.
+  # ----------------------------------------------------------
+  variants:
+
+    mortal:
+      prose: >-
+        Painterly digital illustration in a muted contemporary-realist register,
+        lit like photography rather than like an illustration. A palette of
+        greyed beige, cold window-white, dull wood-brown and washed-out
+        domestic colour, with no gold and no bioluminescence anywhere. Ordinary
+        modern surfaces, worn and specific -- painted skirting, laminate, a
+        radiator, post on a mat. Nothing is growing. Cinematic framing with
+        shallow depth of field. Every figure is an adult. No text or lettering
+        anywhere in the frame.
+      tags: >-
+        painterly digital illustration, muted contemporary realism, photographic
+        lighting, greyed beige and cold window-white palette, dull wood tones,
+        desaturated, ordinary modern interior, worn domestic surfaces, nothing
+        growing, shallow depth of field, cinematic composition, no text, no
+        watermark
+      # "modern clothing" is dropped from the shared negative -- this is a
+      # modern flat and the shared list is written to keep the Garden out of the
+      # twenty-first century. The botanical pushes are added instead, because
+      # this style has to hold a plain room against a heavily-botanical LoRA
+      # stack it still loads.
+      negative: >-
+        child, teenager, youthful minor, childlike proportions, chibi, anime,
+        manga, cartoon, cel shading, flat mobile-game art, nudity, explicit
+        content, genitalia, sexual act, gore, viscera, rotting flesh, zombie,
+        neon, cyberpunk, sci-fi, plastic hair, sterile UI, floating interface,
+        text, lettering, watermark, logo, signature, blurry, low quality,
+        oversaturated, vines, petals, pollen, flowers, foliage, moss, art
+        nouveau ornament, bioluminescence, gold dust, fantasy architecture,
+        magical glow
+
+# INERT TODAY -- see the header. Velvet horror, not rot: overripe rather than
+# decaying, gilded rather than filthy, because 01-ART-STYLE.md:111 is explicit
+# that decay here is beauty and never pure filth.
+corruption:
+  prose: >-
+    The Garden has stopped hiding what it is. Gold dust hangs in the air and
+    settles on skin in the shape of veins; the flowers have all turned to face
+    one way and are not moving; blossom is overripe to the point of splitting
+    and the light through it is bruise-blue and rot-purple rather than gold.
+    Roots are visible where roots should not be. The frame is still beautiful,
+    and the beauty has become an argument.
+  tags: >-
+    gold dust settling in vein patterns, every flower turned one way and still,
+    overripe splitting blossom, bruise-blue and rot-purple light, wrong
+    bioluminescence, roots showing through worked stone, beautiful and wrong,
+    velvet botanical horror
+
+# Generation targets, and they are READ -- engine/media/providers/grokbuild.py
+# and comfy.py size every live request from this block. So it has to describe
+# THIS pack, and it did not: these four lines arrived as a verbatim copy of The
+# Clockwork Dark's, whose item art is square icons. The Garden's twenty-two item
+# cards are 3:4 reliquary portraits, so a generated item came back 1:1 at
+# 256x256 and sat wrong beside every card that ships.
+#
+# Measured off the fifty-eight plates in `plates/`, not chosen: 1280x720 scenes,
+# 768x1024 portraits and items.
+formats:
+  location: {aspect: "16:9", width: 1280, height: 720}
+  portrait: {aspect: "3:4", width: 768, height: 1024}
+  item: {aspect: "3:4", width: 768, height: 1024}
+  # Video, not a still -- engine/media/cutscene.py. Left at the shared default
+  # because this story ships no cutscenes to measure against.
+  cutscene: {aspect: "16:9", width: 512, height: 288}
+
+# ------------------------------------------------------------
+# Locations. Ids from games/wicked-garden/data/world/locations.yaml, which
+# takes them from state-dictionary.json:52-67. All fourteen, including the
+# `unknown` sentinel, because a scene that puts the player nowhere still has to
+# render something.
+#
+# The four time slots are the engine's, not the Garden's. There is no reliable
+# sun here, so `dawn`/`day`/`dusk`/`night` are read as the court's cycle: the
+# grove fills as the light goes, the glade runs to the small hours, and dawn is
+# the only stretch when nothing is performing.
+# ------------------------------------------------------------
+locations:
+
+  mortal_threshold:
+    # The one room in this story that has to look like nothing special. The
+    # Garden's style block would put vines and pollen in it, and the entry
+    # screen's whole job is to be the drab thing the Garden is measured against.
+    # The `night` slot below is the exception and is written to be one: a single
+    # rose through the floorboards, in a room where nothing else grows.
+    style: mortal
+    subject: "An ordinary empty room in the waking world, seen from the doorway"
+    details: "a coat still on its hook, unopened post stacked by the door, a dead houseplant, dust on every horizontal surface"
+    times:
+      dawn:
+        setting: "nobody has been in for days and the room has settled into it"
+        light: "flat grey window light, all colour a shade too low"
+      day:
+        setting: "the post gone from a stack to a drift"
+        light: "desaturated daylight, warm tones drained out of the wood"
+      dusk:
+        setting: "the room going dark without anyone turning anything on"
+        light: "streetlight through net curtains, orange and unhelpful"
+      night:
+        setting: "black, except that one flower has come up through the floorboards"
+        light: "no light source, a faint rose bioluminescence at floor level"
+
+  gate_of_briars:
+    subject: "A vast arch of living thorn standing alone at the edge of a wood"
+    details: "roses along the arch, some open and some clenched shut, warmer air visibly moving on the far side, no gate and no lock"
+    times:
+      dawn:
+        setting: "mist to the knee on the near side and none at all on the far"
+        light: "cold blue on this side, gold spilling through the arch"
+      day:
+        setting: "the thorns holding perfectly still in a wind the trees are moving in"
+        light: "overcast on the near side, magic-hour warmth beyond the arch"
+      dusk:
+        setting: "the roses along the arch opening in a sequence, one at a time"
+        light: "blood-amber through the opening, the near side almost lightless"
+      night:
+        setting: "the arch full of moving lantern-moths, the way in obvious"
+        light: "moth-light and ghost teal, the wood behind entirely black"
+
+  path_first_petals:
+    subject: "A narrow path of white petals through leaning trees"
+    details: "petals laid ahead and absent behind, trees inclined inward as if listening, a single pale glass moth in the air"
+    times:
+      dawn:
+        setting: "the petals wet, the path uncertain more than ten paces ahead"
+        light: "silver pre-dawn under canopy, everything low-contrast"
+      day:
+        setting: "god rays through the leaves with pollen turning in them"
+        light: "magic hour under canopy, dust and pollen as glitter"
+      dusk:
+        setting: "the moth landing, its wings showing a calendar coming apart"
+        light: "gold going to rose, long shadows off the leaning trunks"
+      night:
+        setting: "the petals faintly luminous and the trees closer together than they were"
+        light: "moonlight silver, ghost-teal at the path edges"
+
+  heart_grove:
+    subject: "A court held under cathedral-sized trees, around a throne of braided rose and bone-gold"
+    details: "hanging silk between the trunks, floating lantern-moths, courtiers in botanical couture, the throne empty and unmistakably occupied-looking"
+    times:
+      dawn:
+        setting: "two or three left over from last night draped on the roots"
+        light: "grey-green filtered light, the silks hanging dead still"
+      day:
+        setting: "the grove between courts, cleared and enormous"
+        light: "god rays through the canopy, deep green shadow"
+      dusk:
+        setting: "the court filling as the light goes, the dancing starting"
+        light: "gold and rose, lantern-moths coming up like slow sparks"
+      night:
+        setting: "full court, the figures being danced, everyone counting"
+        light: "moth-light and candle warmth, the throne rim-lit in thorn-gold"
+
+  guest_house:
+    subject: "A luxurious guest suite that does not have consistent architecture"
+    details: "silk and unlit candles, a bowl of fruit steaming faintly, a window, and a doorway that leads somewhere different than it did"
+    times:
+      dawn:
+        setting: "the bed unmade and the room already rearranged around it"
+        light: "soft grey through the window, warm interior falloff"
+      day:
+        setting: "the window showing an ordinary mortal home, slightly wrong"
+        light: "flat daylight in the window, candle-warm in the room"
+      dusk:
+        setting: "the wardrobe growing clothes nobody chose"
+        light: "petal-glow and first candlelight, soft falloff on fabric"
+      night:
+        setting: "the window showing fog, and past the fog, garden"
+        light: "candle and rose bioluminescence, everything beyond the bed dark"
+
+  feasting_glade:
+    subject: "A banquet at long tables in a forest clearing, laid with impossible fruit"
+    details: "six months of fruit at once, wine that holds its own light, guests who are half-mortal and half-myth, one cold place setting at the far end"
+    times:
+      dawn:
+        setting: "the tables abandoned mid-course and nothing cleared"
+        light: "grey light on spilled wine and overripe fruit"
+      day:
+        setting: "empty tables under fruit that is ripening while you look"
+        light: "amber daylight through leaves, warm on the linen"
+      dusk:
+        setting: "the feast filling up, the first toasts, everyone watching the new guest"
+        light: "amber wine light and low sun, skin tones warm against green"
+      night:
+        setting: "the feast at full height, the cold end of the table frosted"
+        light: "candle and biolume, deep green dark beyond the table's reach"
+
+  mirror_pools:
+    subject: "Still pools of black glass water under silver willows"
+    details: "reflections lagging behind their originals, willow filaments trailing on the surface, dew jewellery on the branches"
+    times:
+      dawn:
+        setting: "the water absolutely flat and the reflections a half-second late"
+        light: "silver pre-dawn, teal in the shadow under the willows"
+      day:
+        setting: "courtiers arranged along the banks to be looked at"
+        light: "cool overcast silver, black water reflecting almost nothing"
+      dusk:
+        setting: "the reflections showing a sky with the wrong constellations"
+        light: "last light on the willows, the pools already night"
+      night:
+        setting: "figures at the edges of the reflections that are not on the bank"
+        light: "moonlight silver and ghost teal, black glass and no bottom"
+
+  aviary_unsent:
+    subject: "The interior of a great domed aviary of wire and briar, full of paper birds"
+    details: "folded paper birds in the hundreds, none of them settling, ink showing through the folds, a wire floor thick with the ones that fell"
+    times:
+      dawn:
+        setting: "the birds quiet and low, drifting rather than flying"
+        light: "cold light down through the dome, dust in the beams"
+      day:
+        setting: "the whole flock in the air at once and none of it landing"
+        light: "flat white daylight through wire, hard shadows on the floor"
+      dusk:
+        setting: "one bird at the dome's apex trying the same gap repeatedly"
+        light: "gold through the briar lattice, the floor already dark"
+      night:
+        setting: "still, and the ink faintly luminous through the paper"
+        light: "no source, a pale glow off the folded pages"
+
+  night_market:
+    subject: "A market of small strange stalls between two hedges at night"
+    details: "vendors the size of children's toys and the size of doors, wares that are appetites rather than objects, lit by things that are not lamps"
+    times:
+      dawn:
+        setting: "the hedges gone back to being two hedges, nothing left but flattened grass"
+        light: "grey, ordinary, and disappointing"
+      day:
+        setting: "shut, and the gap between the hedges narrower than a body"
+        light: "green daylight, nothing worth looking at"
+      dusk:
+        setting: "the stalls coming up in an order, the lights lit one by one"
+        light: "biolume teal and rose, the sky still blue behind"
+      night:
+        setting: "the market at full trade, prices being quoted in years"
+        light: "ghost teal and thorn-gold, no two stalls lit the same colour"
+
+  thorn_labyrinth:
+    subject: "High briar walls with a bone-white path running between them"
+    details: "walls above head height, the path pale and swept, true names cut into the bark at eye level, a statue of a person visible in a gap"
+    times:
+      dawn:
+        setting: "the path clear ahead and no way to see over anything"
+        light: "cold grey, dried-blood colour deep in the briar"
+      day:
+        setting: "a clearing full of very finely carved statues of guests"
+        light: "hard overhead light, iron shadows, pale leaf"
+      dusk:
+        setting: "the walls closer together than they were an hour ago"
+        light: "red-gold on the top of the briar, the path in shadow"
+      night:
+        setting: "the carved names faintly wet, the statues facing a new way"
+        light: "almost none, moonlight on bone-white paving"
+
+  winter_spindle:
+    subject: "A frozen wing of a briar labyrinth, silver moths holding still in the air"
+    details: "briar gone to frost and stopped moving, moths motionless mid-flight, black glass ornaments hung in the thorns, one cleared space kept ready"
+    times:
+      dawn:
+        setting: "frost smoke lying along the path at ankle height"
+        light: "cold silver-blue, no warmth anywhere in the frame"
+      day:
+        setting: "the moths holding position, the whole wing perfectly silent"
+        light: "flat white winter light, desaturated green under frost"
+      dusk:
+        setting: "the cleared space at the centre, swept, waiting"
+        light: "pale violet on ice, the last of the light going fast"
+      night:
+        setting: "the moths lit from inside, still not moving"
+        light: "moonlight and moth-glow on frost, deep blue shadow"
+
+  root_crypts:
+    subject: "Underground rose-catacombs lined with people standing upright in amber sap"
+    details: "amber columns with faces in them mid-expression, nameplates in living script, rose roots through the vaulting, one column empty"
+    times:
+      dawn:
+        setting: "the sap catching what little light comes down the stair"
+        light: "amber glow from within the columns, violet dark beyond"
+      day:
+        setting: "the full length of the gallery visible, row on row"
+        light: "fungus glow and bone-white stone, amber warmth in the columns"
+      dusk:
+        setting: "the faces in the sap all facing very slightly toward the stair"
+        light: "violet and amber, no daylight reaching this far"
+      night:
+        setting: "the floor warm, and the empty column warmer"
+        light: "amber sap light only, everything else black"
+
+  briar_deep:
+    subject: "An under-root cathedral with no far wall, roots the size of towers"
+    details: "root columns going up out of frame, roses growing on them at every height, a vast face half-arranged out of the mass, more hands than there were"
+    times:
+      dawn:
+        setting: "the face not assembled, the roots merely roots"
+        light: "amber sap light from below, everything backlit and enormous"
+      day:
+        setting: "the scale visible, the far wall genuinely absent"
+        light: "no daylight, warm root-light coming up through the floor"
+      dusk:
+        setting: "the face coming together and taking an interest"
+        light: "underlighting from the roots, eyes catching the light last"
+      night:
+        setting: "the floor moving very slightly, in time"
+        light: "deep amber and rot-purple, one bloom lit like an eye"
+
+  unknown:
+    # The fallback plate, so it stands in for anywhere with no art of its own.
+    # It is defined by having no botany in it yet -- the petals at the edge that
+    # resolve into nothing are the only growth allowed, and the shared style
+    # block would fill the frame with the rest. `mortal` is the right variant
+    # here for the same reason it is right for the flat: both are the absence of
+    # the Garden, which is a look, not a lack of one.
+    style: mortal
+    subject: "A figure standing in a place with no architecture and no horizon"
+    details: "light with no source, ground with no texture, a suggestion of petals at the very edge of the frame that resolves into nothing"
+    times:
+      dawn:
+        setting: "no scale, no distance, no way to tell which way is out"
+        light: "even ambient light from nowhere, no shadows at all"
+      day:
+        setting: "the same, and the sameness has begun to be the point"
+        light: "flat white void, faint rose at the extreme edges"
+      dusk:
+        setting: "something at the periphery deciding what this place will be"
+        light: "colour bleeding in from the edges of the frame inward"
+      night:
+        setting: "the ground beginning to have a smell of soil"
+        light: "near black with a warm suggestion underneath it"
+
+# ------------------------------------------------------------
+# Portraits. Keys are the bare ids from
+# games/wicked-garden/data/world/npc_schedules.yaml plus `sophia`, who has no
+# schedule entry because she is an agent -- but who absolutely has a face, and
+# whose face is the single most important consistency lock in this story.
+#
+# Every subject line states an adult, explicitly, in the positive prompt as
+# well as the negative.
+# ------------------------------------------------------------
+portraits:
+
+  sophia:
+    # CANON FACE. 02-CHARACTERS.md:51-64. This entry is the consistency lock:
+    # heart-shaped face, amber-gold eyes with green flecks, deep auburn-rose
+    # hair with living blossom, thorn-vine mark from the left hip toward the
+    # ribs, gold-dust freckles at the collarbones in moonlight. Court wardrobe
+    # is the default because it is the one the player meets first and the one
+    # she is most herself in. The hunt, wrath and intimate wardrobe states are
+    # NOT separate entries here: the renderer takes one portrait per id, and
+    # splitting her into four would be four faces inside a month.
+    subject: "An adult woman of ageless high-fae beauty, statuesque, in a living rose-silk court gown"
+    details: "heart-shaped face and high cheekbones, amber-gold eyes flecked green with faintly slitted pupils, long deep auburn-rose hair woven with living blossoms that are open, thorn-gold jewellery, gold-dust freckles at the collarbones, slightly pointed ears"
+    setting: "the Heart Grove behind her, throne and lantern-moths out of focus, one hand resting on a thorn that has not broken the skin"
+    mood: "unhurried, magnetic, entirely certain, and looking at you rather than at the camera"
+
+  ashen_vale:
+    subject: "An androgynous adult high fae of winter, pale, in a cloak of moth wings"
+    details: "black glass jewellery, silver moths settled on the shoulders, breath visibly frosting, hair like ash, an expression of exquisite courtesy"
+    setting: "the frozen wing of the labyrinth, moths holding still in the air behind"
+    mood: "velvet contempt, perfect manners, cold and entirely reasonable"
+
+  thornwake:
+    subject: "A tall adult knight in bark-plate armour, antlered helm held under one arm"
+    details: "a scarred, tired, human-seeming face with old vow-cuts around the mouth, a cloak of thorn-hound pelt, the shadow behind him still antlered"
+    setting: "the gate of briars at night, hounds out of focus at his knee"
+    mood: "blunt, honourable, tragic, standing like a soldier and not a courtier"
+
+  lior:
+    subject: "An androgynous adult fae of uncanny symmetry with patches of liquid silver skin"
+    details: "mercury-bright patches moving slowly across the skin, eyes of still black water blinking out of sync, hair like willow-shadow and filament silver, mirrored silks, dew jewellery"
+    setting: "at the edge of a black glass pool under silver willows, bare feet resting on the water without breaking it"
+    mood: "soft, close, intimate, and advertising the knife"
+
+  mother_briar:
+    subject: "A vast face arranging itself out of a cathedral of roots and roses"
+    details: "many vine-hands of inconsistent number, eyes like wet seeds and amber sap, petals where she is kind and thorns turned inward where she is correcting"
+    setting: "the under-root deep, scale impossible to establish, warm light coming up from below"
+    mood: "grandmotherly horror, vast patience, beautiful and wrong and not gory"
+
+  elias:
+    subject: "An adult man preserved upright inside a column of amber sap"
+    details: "a painter's hands still stained, the face caught mid-sentence, lips almost moving, eyes tracking the viewer, a nameplate in living script below"
+    setting: "the sap gallery of the root crypts, further columns receding into violet dark"
+    mood: "articulate, unbitter, and far worse for it"
+
+  mara_quill:
+    subject: "An adult human woman in worn mortal clothes, standing outside an arch of thorns"
+    details: "a wristwatch that has stopped, hands that will not stay still, hair going grey unevenly and too fast, roses on the arch beside her all clenched shut"
+    setting: "the wrong side of the gate of briars at dusk, the warm light on the far side and not on her"
+    mood: "burned romantic, unreliable, entirely correct about the laws"
+
+  bloomkin_generic:
+    subject: "A minor fae servant the size of a large peony, with too many joints"
+    details: "petal-plated body, four thin arms mid-gesture, an old and knowing face, carrying a tray considerably larger than itself"
+    setting: "the guest house at candle-hour, an open wardrobe growing clothes behind it"
+    mood: "elderly gossip energy, comic menace, ancient and absolutely not childlike"
+
+  court_generic:
+    subject: "A group of adult fae courtiers in botanical couture, arranged to be looked at"
+    details: "living fabric that grows and jewellery that has rooted, too-sharp smiles, shadows that lag very slightly behind their owners"
+    setting: "the heart grove at dusk, hanging silk and lantern-moths, mid-figure of a dance"
+    mood: "beautiful, bored, and taking notes"
+
+# ------------------------------------------------------------
+# Items, keyed by the registry id in
+# games/wicked-garden/data/items/garden.yaml.
+#
+# ITEM-CARDS.md:169 sets the framing for all twenty-three: deep plum ground,
+# hero-lit object, rose key with teal rim, reliquary photography crossed with
+# painting, adult luxury rather than inventory junk. That lives in `defaults`
+# once, so that twenty-three repetitions of it cannot drift into twenty-three
+# slightly different rooms. An item that needs its own light -- anything that
+# glows, frosts or is made of ice -- overrides `light` and says why.
+# ------------------------------------------------------------
+items:
+
+  defaults:
+    setting: >-
+      the single object alone at the centre of the frame, laid on deep
+      plum-black velvet, reliquary still-life, nothing else in the frame, no
+      hands and no figure
+    light: >-
+      hero-lit from the upper left with a warm rose key and a ghost-teal rim,
+      soft vignette falling to plum-black at the edges, a faint dust of pollen
+      in the air, painterly reliquary photography
+
+  collar_soft_thorns:
+    subject: "An elegant throat-garland of living rose-thorn, laid open in a circle"
+    details: "green stems still supple, thorns turned inward and blunt-tipped, small dark red roses at intervals, a dusting of gold on the inner face"
+
+  thorn_ring:
+    subject: "A rose-gold ring with a single upright thorn where a stone would sit"
+    details: "the band worked as a fine braided stem, the thorn catching a hard specular highlight, nothing else on it"
+
+  kiss_petal:
+    subject: "A single crimson rose petal with the shimmer of a lip-print on it"
+    details: "the print visible only as a change in sheen, the petal perfect and slightly curled, a small empty glass vial lying beside it"
+
+  nightbloom_wine:
+    subject: "A tall black-red bottle of wine with a faintly glowing cork"
+    details: "the glass so dark it reads black until the light finds it, liquid inside turning slowly on its own, a bioluminescent seal at the neck"
+    # Its own light: the bottle is a light source and the default rose key
+    # would flatten the one thing that makes it worth painting.
+    light: >-
+      lit largely from within by the bottle's own contents, cold biolume teal
+      spilling up the glass, a low warm rose fill from the left, deep
+      plum-black surround
+
+  living_silk:
+    subject: "A gown of petal-fabric on a formless display bust"
+    details: "the fabric visibly composed of overlapping living petals, one sleeve mid-adjustment, the hem still growing, no head and no hands"
+
+  iron_pin:
+    subject: "A crude four-inch mortal iron pin lying on fae velvet"
+    details: "black hammered head, no ornament of any kind, faint rust in the shaft, the velvet under it slightly withered in a ring"
+
+  salt_circle_chalk:
+    subject: "A stick of white chalk with a thorn-sigil cut into each end"
+    details: "coarse and gritty, salt crystals through it, a scatter of white dust and a partial drawn arc beneath it"
+
+  mirror_glass_knife:
+    subject: "A dagger with a blade of black mirror and a silver willow-bound grip"
+    details: "the blade reflecting something that is not the room around it, willow filament wound tight at the hilt, no crossguard"
+
+  mortalslip_thread:
+    subject: "A single length of ordinary grey coat-thread, laid in a loose curve"
+    details: "utterly mundane fibre, one frayed end, catching a rose light it should not be able to hold"
+
+  ashen_clasp:
+    subject: "A silver moth brooch with frost smoking off it"
+    details: "every wing scale worked separately, black glass at the body, a rime of frost forming on the velvet beneath it"
+    light: >-
+      cold silver key from above with a faint teal rim, the frost smoke lit
+      from behind, plum-black surround, breath-fog cool tones throughout
+
+  ashen_passport:
+    subject: "A pass of black bark inlaid with frost and one silver moth wing"
+    details: "frost worked into the grain as inlay rather than lying on it, a single wing set flush, a countersignature in a hand that has left the bark paler"
+
+  frost_thread:
+    subject: "A single straight hair of frost lying rigid on dark velvet"
+    details: "perfectly straight, not melting, throwing a hard thin specular line along its whole length, a faint cold haze around it"
+    light: >-
+      raking cold silver light from the left to catch the single line, ghost
+      teal rim, plum-black surround, no warm tones anywhere in the frame
+
+  frost_splinter:
+    subject: "A thorn of clear ice with an intact silver moth held inside it"
+    details: "the moth whole, unmarked, wings spread, suspended dead centre; the ice faceted like a real thorn rather than carved"
+    light: >-
+      backlit so the moth reads as a silhouette inside the ice, cold silver key,
+      teal rim, plum-black surround
+
+  lovers_ring_cold:
+    subject: "A plain mortal wedding band set inside a lump of amber-coloured frost"
+    details: "the band ordinary and slightly worn, the frost around it clouded and clearly not melting, a wet ring on the velvet that has not spread"
+
+  pressed_letter:
+    subject: "A single aged letter pressed under glass"
+    details: "an elegant hand that goes unsteady twice, a rose-coloured stain across one corner, a dried petal flattened along the fold"
+
+  black_honey:
+    subject: "A squat jar of honey with no light in it at all"
+    details: "the contents absolutely black and viscous, one gold bee laid in the middle with its wings intact, a cloth and cord seal at the rim"
+
+  seed_of_becoming:
+    subject: "A single large seed shaped like a closed eye"
+    details: "gold veins running across the shell in the pattern of lashes, a halo of dark soil around it that has not fallen away, a faint seam where it would open"
+
+  sap_sketch:
+    subject: "A fast charcoal sketch of a face, on a rough torn sheet"
+    details: "the mouth clearly wrong and the eyes exactly right, charcoal smudged by a thumb, one drop of amber sap dried on the corner of the paper"
+
+  briar_key:
+    subject: "A key of interwoven living thorn and bone-gold"
+    details: "green stems braided into a shank and bow, gold showing where the thorn has been worn smooth by a grip, one small leaf still alive on it"
+
+  true_name_shard_sophia_partial:
+    subject: "A fragment of rose-gold light sealed inside a block of clear crystal"
+    details: "the light shaped like part of a glyph and obviously incomplete, no readable lettering of any kind, the crystal cut flat on the broken side"
+
+  mirror_chip:
+    subject: "A small shard of black mirror-glass"
+    details: "reflecting a night sky with the wrong constellations in it rather than the room, one clean fracture edge, no frame"
+
+  thorn_of_proof:
+    subject: "One perfect black thorn presented on a small silk cushion"
+    details: "the thorn flawless and needle-sharp, the cushion deep crimson with a gold cord, the presentation more formal than the object deserves"
+
+  pressed_court_schedule:
+    subject: "A single pressed leaf with writing worked into its veins"
+    details: "the veins themselves forming a list rather than ink laid on top, the leaf dried flat and slightly translucent, one smaller line at the very bottom"

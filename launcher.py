@@ -19,7 +19,12 @@ WHICH GAME RUNS: `--game`, else the CLOCKWORK_GAME environment variable, else
 imported, because a scene import pulls in the content tree and a game
 activated afterwards would be repointing config under already-warm caches.
 
-Version: v0.3.0 [2026-08-08]
+WHICH SCENE RUNS: the active game's manifest, under a top-level `scene:` block
+(see engine/scenes/spec.py). Neither shipped game declares one, so both get the
+Clockwork scene exactly as before. The module used to be hardcoded here, which
+meant a second story could ship its own content and never its own screens.
+
+Version: v0.5.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -83,6 +88,13 @@ def _list_games() -> int:
         print(f" {mark} {str(row['slug']):<{width}}  {row['title']}  v{row['version']}{state}")
         if row["blurb"]:
             print(f"   {' ' * width}  {row['blurb'].strip()}")
+        # A story may declare a bounded set of engine settings (clock rate,
+        # reveal thresholds, governance chain -- see the allowlist in
+        # engine/games/manifest.py). Printed because a story that runs on a
+        # different clock than the engine default should say so before you
+        # launch it, not after the first turn feels wrong.
+        for key, value in sorted((row.get("settings") or {}).items()):
+            print(f"   {' ' * width}  setting: {key} = {value}")
         # Print every problem, not the first. A manifest with four missing
         # files should say so once rather than across four launch attempts.
         for problem in row["problems"]:
@@ -175,7 +187,12 @@ def main(argv: list[str] | None = None) -> int:
     _configure_logging(args.verbose)
 
     if args.list:
-        print("clockwork  —  THE CLOCKWORK DARK  (port 5573)")
+        # Port read from config rather than printed as a literal. It had four
+        # homes -- this line, SCENE_METADATA, FlaskScene.run's default and
+        # config/default.yaml -- so changing the config moved one of them.
+        from engine.scenes.spec import scene_port
+
+        print(f"clockwork  —  THE CLOCKWORK DARK  (port {scene_port('clockwork')})")
         return 0
 
     if args.list_games:
@@ -190,8 +207,14 @@ def main(argv: list[str] | None = None) -> int:
         _report(StackManager().status())
         return 0
 
-    if args.scene != "clockwork":
-        print(f"Unknown scene: {args.scene}", file=sys.stderr)
+    # The positional scene argument names the ACTIVE game's scene, whatever
+    # that is. It was compared against the literal "clockwork", so a story
+    # declaring its own scene could never be launched by name.
+    from engine.scenes.spec import resolve_scene as _resolve_scene
+
+    expected = _resolve_scene().name
+    if args.scene not in (expected, "clockwork"):
+        print(f"Unknown scene: {args.scene} (this game serves {expected!r})", file=sys.stderr)
         return 1
 
     manager = None
@@ -203,7 +226,20 @@ def main(argv: list[str] | None = None) -> int:
         # launching never silently spawns a multi-gigabyte model load.
         _report(manager.start_all() if args.stack else manager.status())
 
-    from content.scenes.clockwork.clockwork_scene import run_scene
+    # The active game names its scene module, defaulting to Clockwork's. The
+    # import happens AFTER activation for the reason in the module docstring:
+    # a scene import warms content caches, so the game has to be chosen first.
+    import importlib
+
+    from engine.scenes.spec import resolve_scene
+
+    spec = resolve_scene()
+    try:
+        scene_module = importlib.import_module(spec.module)
+        run_scene = scene_module.run_scene
+    except (ImportError, AttributeError) as exc:
+        print(f"\nScene {spec.module!r} will not load: {exc}\n", file=sys.stderr)
+        return 1
 
     try:
         run_scene(host=args.host, port=args.port)

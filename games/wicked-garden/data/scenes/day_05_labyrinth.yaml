@@ -1,0 +1,485 @@
+# Day 5 — The Thorn Labyrinth
+# ===========================
+#
+# Authored from Design_files/Wicked-Garden/docs/design/scenes/DAY-05-LABYRINTH.md.
+#
+# THIS FILE IS THE FRAME. The middle chambers are NOT here -- they are already
+# authored in `data/rules/decks/thorn_labyrinth.yaml`, which is the worked
+# example the deck engine was built against and which ships the Gallery of
+# Almost-Lovers, the Feast That Walks, the Winter Mouth, the Law Circle, the
+# Name Well and the Bloom Ambush, with the Threshold, Heart Trial and Exit as
+# its required spine. Duplicating them here would give the same night two
+# authorities and one of them would drift.
+#
+# SO THE RUNTIME DEALS TWICE on Day 5: this deck for the frame, and
+# `thorn_labyrinth` for the interior. What is added here is everything that
+# deck does not carry -- the entry bias, the two Heart Trial variants it does
+# not implement (Cold Mirror and Law Spine), the Clearing of the Lost, the
+# shortcut, the exit experiences, the aftermath and the toll.
+#
+# NO GAME OVER (DAY-05:229). The worst outcomes on this day are extra time,
+# corruption, a forced allegiance and a lost item. `labyrinth_lost` is hidden
+# and its ceiling is 1 per beat, so it climbs the way panic climbs.
+#
+# `ashen_route` reaches 3 (*deep winter*) here and only here, and only by
+# walking north on purpose.
+#
+# Version: v0.1.0 [2026-08-08]
+
+id: day_05_labyrinth
+
+draw: 1
+
+cards:
+
+  # =====================================================================
+  # SPINE
+  # =====================================================================
+
+  - id: D5_00_entry_bias
+    required: true
+    tags: [menu, gm]
+    title: "What You Carry In"
+    text: >-
+      INTENT: the Labyrinth does not begin with a wall. It begins with the
+      moment the path behind you is no longer the path you walked. Briars rise
+      like etiquette.
+      CONSTRAINT: what the player carries decides which chambers the interior
+      deck can offer, so resolve this BEFORE dealing `thorn_labyrinth`. If she
+      assigned this, she is at the edge and does not come in -- bring me back
+      something that is yours; not a flower, a decision; if you bring me only
+      obedience I will be bored, and boredom makes me cruel.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: enter_with_her_token
+        text: "Rose-weighted. The Heart Trial will be the Rose Heart and the briars will be gentle about it."
+        gate:
+          when:
+            any:
+              - { has_item: kiss_petal }
+              - { has_item: collar_soft_thorns }
+              - { has_item: thorn_ring }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 4 }
+          on_fail:
+            text: "You reach for something of hers and find you are not carrying any."
+            effects:
+              - { type: value, name: autonomy, delta: 2 }
+
+      - id: enter_with_the_passport
+        text: "Winter-weighted. The north mouth is available and the Cold Mirror becomes the likely Heart Trial."
+        gate:
+          when: { has_item: ashen_passport }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+          on_fail:
+            text: "North is a door that hates her perfume, and it does not know you."
+
+      - id: enter_declaring_chalk_or_iron
+        text: >-
+          Law-weighted. The Labyrinth notices iron the way a room notices a
+          raised voice, and the Law Spine becomes the likely Heart Trial.
+        gate:
+          when:
+            any:
+              - { has_item: salt_circle_chalk }
+              - { has_item: iron_pin }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: autonomy, delta: 2 }
+
+      - id: enter_empty_handed
+        text: >-
+          Wild deck, higher risk, and the briars do not know what to make of
+          you. The existing `thorn_labyrinth` spine rewards this at its own
+          threshold card; this beat is the decision, not the reward.
+        gate:
+          when:
+            none:
+              - { has_item: ashen_passport }
+              - { has_item: iron_pin }
+              - { has_item: salt_circle_chalk }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+
+  - id: D5_01_deal_the_interior
+    required: true
+    tags: [sequence, gm]
+    title: "Five Chambers"
+    text: >-
+      INTENT: this beat is an instruction to the runtime, not a scene. DEAL
+      `thorn_labyrinth` NOW -- three required cards and two drawn middles,
+      selected from state by the deck engine and reproducible from the seed.
+      Narrate the hand that comes back. Do not invent a sixth chamber and do not
+      skip one because it is inconvenient.
+      CONSTRAINT: keep the interior to three to five player choices in total.
+      Every chamber gets one beautiful detail and one wrong detail.
+    beats:
+      - id: the_hand_is_dealt
+        text: >-
+          Whatever the deck returned. If the Heart Trial in that hand is the
+          Rose Heart, it is already authored there; the two variants it does not
+          carry are the next card in this file.
+
+  - id: D5_03_heart_trial_variants
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "Heart Trial — the Two Variants the Interior Deck Does Not Carry"
+    text: >-
+      INTENT: `thorn_labyrinth` implements Variant R, the Rose Heart, including
+      the equal-attempt gate and its fail-forward into devotion. This card is
+      Variant C (Cold Mirror, Ashen-weighted) and Variant L (Law Spine,
+      knowledge-weighted), plus the two Rose answers that deck does not spell --
+      the obedience token and the blasphemy.
+      CONSTRAINT: exactly ONE Heart Trial happens. If the interior deck already
+      resolved the Rose Heart, resolve nothing here except possibly the
+      obedience or blasphemy beat, and never both.
+      MENU -- resolve exactly one beat.
+    beats:
+      - id: rose_cut_a_thorn_for_her
+        text: >-
+          The obedience token. A thorn cut from the living rose, carried out for
+          her, and she will know exactly what it means before you hand it over.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: labyrinth_result_devoted }
+              - { type: item, item_id: thorn_of_proof, name: "Thorn of Proof" }
+              - { type: value, name: favor, delta: 12 }
+              - { type: value, name: autonomy, delta: -6 }
+
+      - id: rose_cut_a_path_for_yourself
+        text: "Bloody autonomy. You get out and you get out torn, and she can see both."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: labyrinth_result_self }
+              - { type: value, name: autonomy, delta: 10 }
+              - { type: value, name: favor, delta: -6 }
+              - { type: value, name: corruption, delta: 2 }
+
+      - id: rose_burn_it_with_iron
+        text: >-
+          The Labyrinth screams. Something under it stops what it was doing to
+          listen. Exit becomes harder and the politics of the next four days are
+          different.
+        gate:
+          when: { has_item: iron_pin }
+          on_pass:
+            effects:
+              - { type: flag, flag: labyrinth_result_blasphemy }
+              - { type: flag, flag: iron_used_labyrinth }
+              - { type: value, name: knowledge, delta: 8 }
+              - { type: value, name: favor, delta: -15 }
+
+      - id: cold_mirror_accept_the_frost_crown
+        text: >-
+          Variant C. Black ice showing the player crowned in frost beside a
+          Sophia-shaped absence. Accepting takes `ashen_route` to 3 -- DEEP
+          WINTER, an identity rather than a route, and the E6a door.
+        gate:
+          when: { value: { name: ashen_route, min: 2 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: labyrinth_result_deep_ashen }
+              - { type: value, name: ashen_route, delta: 1, why: "you wore the frost crown" }
+              - { type: value, name: corruption, delta: 6 }
+              - { type: item, item_id: frost_splinter, name: "Frost Splinter" }
+          on_fail:
+            text: "The ice shows you a crown you have not earned the right to be offered, and takes it back."
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+
+      - id: cold_mirror_shatter_it
+        text: >-
+          Variant C, refused. Ashen's wrath as weather rather than as anger, and
+          something trapped behind the glass gets out with you.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 8 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+
+      - id: cold_mirror_show_it_her_mark
+        text: >-
+          Variant C, hybrid. Hold up the collar, or the ring, or the petal. It
+          hurts in a way that is instructive. Sets `refused_winter_self`.
+        gate:
+          when:
+            any:
+              - { has_item: collar_soft_thorns }
+              - { has_item: thorn_ring }
+              - { has_item: kiss_petal }
+          on_pass:
+            effects:
+              - { type: flag, flag: refused_winter_self }
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: favor, delta: 4 }
+
+      - id: law_spine_recite_the_true_ones
+        text: >-
+          Variant L. A corridor of engraved laws, some of them false. Identify
+          two true ones. Thornwake may appear once as examiner -- *recite or
+          bleed* -- and he is not joking and not enjoying it.
+        gate:
+          when: { value: { name: knowledge, min: 45 } }
+          check: { skill: lore, difficulty: hard }
+          on_pass:
+            effects:
+              - { type: flag, flag: labyrinth_law_used }
+              - { type: item, item_id: briar_key, name: "Briar Key" }
+              - { type: value, name: knowledge, delta: 6 }
+          on_fail:
+            # FAIL FORWARD: a false law brands the skin. Cosmetic, permanent,
+            # and legible to everyone who reads law.
+            text: "You recite the fourth clause of something that was never a law. It writes itself on you."
+            effects:
+              - { type: value, name: labyrinth_lost, delta: 1 }
+              - { type: value, name: corruption, delta: 5 }
+
+  - id: D5_04_pressure_or_shortcut
+    required: true
+    tags: [menu, gm]
+    title: "The Clearing of the Lost, or the Garden Path"
+    text: >-
+      INTENT: two mutually exclusive consequences of how the interior went. Lost
+      -- statues that turn their heads, an extra toll, and a whisper from
+      underneath that *down is easier than out*. Clean -- a shortcut garden path
+      with a seed lying in turned soil that nobody planted.
+      MENU -- resolve exactly the beat whose gate holds.
+    beats:
+      - id: the_clearing_of_the_lost
+        text: >-
+          Lost at 2 or worse. The extra toll is a full second shard, ten more
+          mortal days, and the offer at the bottom of it is Mother Briar's first
+          direct sentence to the player.
+        gate:
+          when: { value: { name: labyrinth_lost, min: 2 } }
+          on_pass:
+            effects:
+              - { type: value, name: time_debt_mortal_days, delta: 10, why: "lost, and the Garden charged for it" }
+              - { type: value, name: briar_hunger, delta: 1 }
+              - { type: value, name: knowledge, delta: 4 }
+
+      - id: the_seed_in_the_soil
+        text: >-
+          Clean run. A seed of becoming, in soil that has been turned recently
+          by something with hands. Taking it is the transformation path's only
+          key and nobody warns the player about that.
+        gate:
+          when: { value: { name: labyrinth_lost, max: 1 } }
+          on_pass:
+            effects:
+              - { type: item, item_id: seed_of_becoming, name: "Seed of Becoming" }
+              - { type: value, name: corruption, delta: 3 }
+
+      - id: leave_the_seed
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+
+  - id: D5_05_the_exit
+    required: true
+    tags: [menu, gm]
+    title: "How the Roses Let You Out"
+    text: >-
+      INTENT: six exits, one per result, and the exit is the result made
+      physical. Devoted -- roses open a path and she is standing in it. Self --
+      you tear yourself out and arrive torn. Peer -- the path opens beside her
+      rather than under her hand. Blasphemy -- Thornwake drags you out and it is
+      a political crisis by morning. Deep winter -- you come out into frost and
+      he congratulates you. Lost -- you come out anyway, later, with less.
+      CONSTRAINT: `labyrinth_completed` is set on every route including the
+      worst one. Nobody stays in here.
+    beats:
+      - id: you_are_out
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: labyrinth_completed }
+              - { type: value, name: knowledge, delta: 4 }
+
+      - id: the_dead_took_something
+        text: >-
+          Lost runs only. Something you were carrying is gone and one of the
+          statues is wearing it. The Labyrinth's worst outcome is a theft, not a
+          death.
+        gate:
+          when: { value: { name: labyrinth_lost, min: 3 } }
+          on_pass:
+            effects:
+              - { type: remove_item, item_id: ashen_clasp }
+              - { type: value, name: corruption, delta: 4 }
+
+  - id: D5_06_night_aftermath
+    required: true
+    tags: [menu, night, sophia, intimate]
+    title: "Show Me Your Decision"
+    text: >-
+      INTENT: she is waiting on most routes and she opens with those four
+      words. The player presents the token, or tells her the result, or has
+      nothing and has to say so.
+      SHE WANTS: a decision. Not obedience -- she said so at the threshold and
+      she meant it. Devoted gets warmth and a flicker of disappointment she will
+      not admit to. Self gets tense respect or cold distance by her read of it.
+      Peer gets the rare soft equality beat and she is frightened by it.
+      Blasphemy gets nothing tonight and the Root Crypts tomorrow, since you
+      love old things so much.
+      CEILING: suggestive throughout.
+      MENU -- resolve exactly one beat.
+    beats:
+      - id: she_receives_devotion
+        gate:
+          when: { flag: labyrinth_result_devoted }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 10 }
+              - { type: value, name: desire, delta: 8 }
+              - { type: value, name: autonomy, delta: -4 }
+
+      - id: she_receives_the_self
+        text: "Impressed, or furious. Both are true and the band is which one won."
+        gate:
+          when: { flag: labyrinth_result_self }
+          on_pass:
+            effects:
+              - { type: value, name: desire, delta: 6 }
+              - { type: value, name: autonomy, delta: 3 }
+              - { type: value, name: sophia_break, delta: 1 }
+
+      - id: she_receives_the_peer_attempt
+        text: >-
+          The rare one. She does not know what to do with somebody who came back
+          level, and what she does instead of knowing is the best scene she gets
+          in Act II.
+        gate:
+          when: { flag: labyrinth_result_peer_attempt }
+          on_pass:
+            effects:
+              - { type: value, name: equality_seed, delta: 2 }
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: knowledge, delta: 3 }
+
+      - id: winter_congratulates_you
+        text: >-
+          Deep route only. Brief, and the passport warms. *Roots next. She hides
+          her failures under the bloom.*
+        gate:
+          when: { flag: labyrinth_result_deep_ashen }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: favor, delta: -5 }
+
+      - id: nobody_is_waiting
+        text: >-
+          Blasphemy, or a run that went badly enough that she declined to be
+          seen receiving it. Dreams of both of them, splitting.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+              - { type: value, name: desire, delta: 3 }
+
+  - id: day5_toll
+    required: true
+    tags: [sequence, toll, gm]
+    title: "Sixty Days Gone"
+    text: >-
+      INTENT: the bill. Six Garden days, and on a lost run the Clearing already
+      charged a second shard today. Say both numbers if both happened.
+    beats:
+      - id: the_hourglass_turns
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: time_debt_mortal_days, delta: 10, why: "day 5 toll" }
+
+  # =====================================================================
+  # POOL — one is dealt, on top of whatever `thorn_labyrinth` returns.
+  # =====================================================================
+
+  - id: DX_lior_in_the_water
+    tags: [menu, gm]
+    once: true
+    weight: 2
+    when: { has_item: mirror_chip }
+    title: "A Face in the Standing Water"
+    text: >-
+      Lior, at the bottom of something that should be too shallow to hold them.
+      They will upgrade the chip to a knife -- an object that can cut a bargain
+      -- for a memory, and they will not tell the player which one until it is
+      gone.
+    beats:
+      - id: pay_for_the_knife
+        gate:
+          on_pass:
+            effects:
+              - { type: remove_item, item_id: mirror_chip }
+              - { type: item, item_id: mirror_glass_knife, name: "Mirror-Glass Knife" }
+              - { type: value, name: corruption, delta: 4 }
+              - { type: value, name: knowledge, delta: 4 }
+
+      - id: refuse_the_upgrade
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 4 }
+
+  - id: DX_the_lovers_ring
+    tags: [menu, gm]
+    once: true
+    weight: 2
+    title: "A Ring on a Plinth"
+    text: >-
+      Cold, plain, and the wrong size for everyone. It belonged to somebody who
+      is in the Root Crypts now. Taking it out of her museum is theft and she
+      will feel it happen.
+    beats:
+      - id: take_the_ring
+        gate:
+          on_pass:
+            effects:
+              - { type: item, item_id: lovers_ring_cold, name: "Lover's Ring" }
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: favor, delta: -3 }
+
+      - id: apologise_to_the_dead_instead
+        text: >-
+          Out loud, to statues, with nobody watching except all of them. The
+          only place in Act II where an equality seed can be earned from someone
+          who is not her.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: labyrinth_heard_dead }
+              - { type: value, name: equality_seed, delta: 1 }
+              - { type: value, name: corruption, delta: 2 }
+
+  - id: DX_panic
+    tags: [sequence, gm]
+    once: true
+    weight: 3
+    title: "A Turn You Did Not Choose"
+    text: >-
+      INTENT: the hidden meter, moving. A false moth, a corridor that was not
+      there, the specific sound of your own footsteps arriving before you do.
+      The player is not told a number and should not be able to infer one.
+    beats:
+      - id: take_the_wrong_turning
+        gate:
+          check: { chance: 0.5, stream: "beat.d5_panic" }
+          on_pass:
+            text: "You stop. You breathe. The corridor is only a corridor."
+            effects:
+              - { type: value, name: autonomy, delta: 2 }
+          on_fail:
+            text: "You are walking faster than you decided to."
+            effects:
+              - { type: value, name: labyrinth_lost, delta: 1 }

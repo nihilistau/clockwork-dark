@@ -150,17 +150,58 @@ def test_every_shipped_game_validates() -> None:
         assert registry.validate(manifest) == [], f"{slug} failed validation"
 
 
-def test_flagship_manifest_declares_exactly_the_config_defaults() -> None:
+def test_flagship_manifest_never_contradicts_the_config_defaults() -> None:
     """
     Activating clockwork-dark must be a no-op merge.
 
     This is the compatibility bar in one assertion: if the flagship manifest
     ever disagrees with config/default.yaml, activating the default game
-    silently moves content and the other 625 tests start lying.
+    silently moves content and the rest of the suite starts lying.
+
+    AGREEMENT, not identity. The config declares defaults for optional
+    structural systems (clocks, threads, endings, decks, challenge bounds)
+    whose files do not exist for this story -- every loader returns empty on a
+    missing file, so the default is harmless and makes the path repointable and
+    visible to doctor.py. The manifest cannot declare them: validation requires
+    a declared path to EXIST, so naming a file this story does not have would
+    make the flagship unplayable. Demanding identity here would therefore force
+    a choice between "the engine cannot default a path" and "a story must ship
+    empty files it never reads".
     """
-    defaults = config_module.get_config().section("paths")
+    defaults = {k: str(v) for k, v in config_module.get_config().section("paths").items()}
     declared = registry.discover()[CLOCKWORK].paths
-    assert declared == {k: str(v) for k, v in defaults.items()}
+
+    # Nothing declared may point somewhere else.
+    disagreements = {
+        key: (value, defaults[key])
+        for key, value in declared.items()
+        if key in defaults and value != defaults[key]
+    }
+    assert not disagreements, f"manifest disagrees with config: {disagreements}"
+
+    # And nothing declared may be a key the engine does not know about, which
+    # would be a silently unread path -- the original failure this file guards.
+    assert not (set(declared) - set(defaults)), (
+        f"manifest declares paths config has never heard of: "
+        f"{sorted(set(declared) - set(defaults))}"
+    )
+
+    # Every path the config defaults and the manifest omits must be one the
+    # engine tolerates being absent.
+    # `prompts` joins them for the same reason: the flagship's persona and
+    # few-shots are the engine's built-ins, so it ships no prompt directory and
+    # declaring one would mean copying its own defaults into a file to satisfy
+    # a test.
+    # `art_root` likewise: its default IS the flagship's static tree, so the
+    # flagship declaring it would be restating the default.
+    optional = {
+        "clocks", "threads", "endings", "decks", "challenge_bounds",
+        "prompts", "art_root",
+    }
+    missing = set(defaults) - set(declared)
+    assert missing <= optional, (
+        f"flagship omits content paths that are not optional: {sorted(missing - optional)}"
+    )
 
 
 def test_validation_reports_every_problem_at_once(tmp_path: Path) -> None:

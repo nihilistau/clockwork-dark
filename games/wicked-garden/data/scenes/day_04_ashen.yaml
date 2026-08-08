@@ -1,0 +1,645 @@
+# Day 4 — Winter in the Rose (Act II opens)
+# =========================================
+#
+# Authored from Design_files/Wicked-Garden/docs/design/scenes/DAY-04-ASHEN.md.
+#
+# THE DAY THE STORY GETS A SECOND AXIS. Everything before this is a relationship
+# with a cost. From here it is a political situation with a relationship inside
+# it, and the difference is that the player now has somewhere else to stand.
+#
+# ASHEN IS NEVER RESCUE. The design says it twice and it is the only note on
+# this day that matters: freedom has a winter price. His bargain is honest, and
+# honest is not the same as good. The five prices in D4_05 are all real, all
+# collectable, and none of them is a fee -- each one takes something the player
+# would rather keep.
+#
+# `ashen_route` reaches 2 (*bargained*) here, one step from Day 3's 1
+# (*aware*). Its per-beat ceiling is 1, so the ladder is enforced by the engine
+# and not by discipline: nobody can jump from never having met him to E6a.
+#
+# APPENDIX DAY. If the player never met Ashen at all, the Court Politics
+# variant runs instead -- a hospitality trial the player may testify at, with
+# Sophia watching competence rather than devotion. That is the `DX_court_trial`
+# card, and the labyrinth is still assigned at the end of it as "the season's
+# custom for favourites".
+#
+# Version: v0.1.0 [2026-08-08]
+
+id: day_04_ashen
+
+draw: 2
+
+cards:
+
+  # =====================================================================
+  # SPINE
+  # =====================================================================
+
+  - id: D4_01_frost_on_roses
+    required: true
+    tags: [menu, gm]
+    title: "Frost on Roses"
+    text: >-
+      INTENT: the Garden has been argued with overnight and lost a little.
+      Roses outside the window wear rime like jewellery. Your breath shows,
+      which it should not, not here. The ash hourglass has a silver hairline
+      crack in it -- not broken. Interested.
+      CONSTRAINT: if the clasp is carried it is warm with cold, a paradox the
+      player can feel, and it points north like a compass.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: touch_the_frost
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: touched_ashen_frost }
+              - { type: value, name: knowledge, delta: 2 }
+              - { type: value, name: desire, delta: 1 }
+
+      - id: call_for_her
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 3 }
+
+      - id: follow_the_clasp_immediately
+        text: >-
+          Out of the house before she wakes, on a compass made of something
+          else's metal. Sets `slipped_out`, which is what she is actually angry
+          about later -- not the winter, the leaving without saying.
+        gate:
+          when: { has_item: ashen_clasp }
+          on_pass:
+            effects:
+              - { type: flag, flag: slipped_out }
+              - { type: value, name: autonomy, delta: 3 }
+              - { type: value, name: favor, delta: -4 }
+          on_fail:
+            text: "There is nothing to follow. The frost is only weather, and weather here belongs to somebody."
+            effects:
+              - { type: value, name: knowledge, delta: 1 }
+
+  - id: D4_01b_mortal_letter
+    required: true
+    tags: [sequence, gm]
+    title: "Forty Days"
+    text: >-
+      INTENT: the second serving of the real horror. At forty mortal days the
+      news is no longer inconvenience. Somebody held a memorial. Somebody sold
+      the furniture. Somebody married in the gap.
+      CONSTRAINT: no comfort, no NPC, no fix. Read it and go to breakfast.
+    beats:
+      - id: read_it
+        gate:
+          when: { value: { name: time_debt_mortal_days, min: 40 } }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 2 }
+              - { type: value, name: desire, delta: -2 }
+              - { type: value, name: mortal_collapse, delta: 1 }
+
+  - id: D4_02_sophia_morning
+    required: true
+    tags: [menu, sophia]
+    title: "Winter Left Fingerprints on My Table"
+    text: >-
+      INTENT: four different mornings, chosen by what Day 3 was. After a good
+      night she is expansive and dangerous with it -- if a moth lands on your
+      mouth, crush it, or don't; I will learn either way. After the offer she is
+      direct: tell me you are not foolish enough to think cold is free. After
+      public defiance she is formal, polite, and assigns a court task before the
+      player is allowed to move.
+      SHE WANTS: to find out whether she is being left. Everything else on this
+      card is her not asking that.
+      CONSTRAINT: her best register is COMPETENCE JEALOUSY, not nagging. She is
+      not afraid of losing an argument, she is afraid of being outmanoeuvred.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: reassure_her
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: autonomy, delta: -2 }
+
+      - id: tell_her_you_might_listen_again
+        text: >-
+          Honest, and expensive, and the only answer on this card that can earn
+          an equality seed. Requires it to be said with respect rather than as a
+          threat -- the band is that judgement.
+        gate:
+          when: { value: { name: autonomy, min: 45 } }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: -6 }
+              - { type: value, name: autonomy, delta: 5 }
+              - { type: value, name: equality_seed, delta: 1 }
+          on_fail:
+            text: "It comes out as a threat because there is not enough of you left for it to come out as anything else."
+            effects:
+              - { type: value, name: favor, delta: -8 }
+              - { type: value, name: sophia_break, delta: 1 }
+
+      - id: deflect
+        text: >-
+          Contested. If she catches it she does not say so; she simply starts
+          watching, and `sophia_watching_d4` is how she finds out about the
+          bargain this afternoon.
+        gate:
+          check: { chance: 0.45, stream: "beat.d4_deflect" }
+          on_pass:
+            text: "She lets the subject move. Her attention does not."
+            effects:
+              - { type: value, name: knowledge, delta: 2 }
+          on_fail:
+            effects:
+              - { type: flag, flag: sophia_watching_d4 }
+              - { type: value, name: favor, delta: -4 }
+
+      - id: surrender_the_clasp
+        text: >-
+          Hand it over unasked. She is stung and then genuinely respectful, in
+          that order, and she freezes it in amber where the player can see it.
+          The item is gone.
+        gate:
+          when: { has_item: ashen_clasp }
+          on_pass:
+            effects:
+              - { type: flag, flag: clasp_surrendered }
+              - { type: remove_item, item_id: ashen_clasp }
+              - { type: value, name: favor, delta: 6 }
+              - { type: value, name: equality_seed, delta: 1 }
+
+      - id: the_court_task
+        text: >-
+          Only after public defiance. Serve wine, or recite the guest oath, in
+          front of the people who watched. Succeeding is grudging favour;
+          failing is the labyrinth recommended as a lesson.
+        gate:
+          when: { flag: public_defied_sophia }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 5 }
+              - { type: value, name: autonomy, delta: -5 }
+
+  - id: D4_03_the_day_branch
+    required: true
+    tags: [menu, gm]
+    title: "Answer the Moth, or Do Not"
+    text: >-
+      INTENT: the day's fork. Answer the moth, remain at court, seek the
+      Captain, or rest -- and resting still routes to the moth, in a dream,
+      because winter does not accept a declined invitation.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: answer_the_moth
+        text: "North. The path blinks and the heat leaves your knuckles."
+
+      - id: remain_at_court
+        text: >-
+          He sends a messenger instead, and the messenger is worse -- an
+          audience in front of people, with everything he wants to say said
+          politely.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+
+      - id: seek_the_captain
+        text: >-
+          Vale unmakes borders for sport; Sophia unmakes wills for love. Law
+          does not pick your bed, it picks whether the mortal world floods with
+          petals. If you walk with winter, carry iron or chalk. Prefer chalk;
+          iron makes loud enemies.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: thornwake_ashen_warning }
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: item, item_id: salt_circle_chalk, name: "Salt-Circle Chalk" }
+
+      - id: rest_instead
+        text: "The dream takes you north anyway, at half resolution, and he is amused that it worked."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+              - { type: flag, flag: dream_ashen }
+
+  - id: D4_04_the_winter_spindle
+    required: true
+    tags: [sequence, setpiece, gm]
+    title: "The Winter Spindle"
+    text: >-
+      INTENT: a demesne of dead roses, silver moths and a black ice fountain --
+      beauty as hypothermia. Elegant, adult, and entirely without warmth in a
+      way that is restful after four days of the Heart Grove.
+      HE WANTS: to take something of hers, and the player is the most convenient
+      shape that comes in. He is honest about that too.
+      CONSTRAINT: he asks one or two questions and they are all the same
+      question. What do you want that she will not give? Would you leave
+      tomorrow if a door opened? Do you love her, or the way she looks at you
+      when you almost run?
+    beats:
+      - id: answer_him_honestly
+        text: "He does not reward it. He records it, and the moths carry copies."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: corruption, delta: 1 }
+
+      - id: refuse_his_questions
+        text: "Amused. He was not expecting to get all three."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 4 }
+
+  - id: D4_05_the_honest_cold
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "The Honest Cold Bargain"
+    text: >-
+      INTENT: a contract in silver ink. What he offers -- a passport toward a
+      gate that does not need her blessing, and intelligence she has no reason
+      to give: that her leave is not the only law, that the Seat can be invoked
+      separately from the woman, and that Mother Briar starves when love becomes
+      theatre.
+      CONSTRAINT: the price is chosen by the player and every one of them is
+      collectable. Whichever runs, seal `ashen_service_owed` (or its
+      `intel_only` renegotiation) through the thread tool -- the finale's
+      collision table asks what is still live, and a bargain stored as a flag
+      cannot be paid, cut or broken.
+      MENU -- resolve exactly one price beat, then one outcome beat.
+    beats:
+      - id: price_a_warm_memory
+        text: >-
+          One good memory of her, given up. He takes it cleanly and she can tell
+          something is missing without being able to say what.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: sold_sophia_warmth }
+              - { type: value, name: favor, delta: -8 }
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: corruption, delta: 3 }
+
+      - id: price_one_unnamed_service
+        text: >-
+          Collected when the frost decides, not when the player is ready. Open
+          `ashen_service_owed`. This is the price the finale most wants live.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+
+      - id: price_a_cold_kiss
+        text: >-
+          Suggestive. Sealed rather than shared: cold as an event that happens
+          to the mouth. He is not seducing the player, he is signing something.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ashen_intimacy_d4 }
+              - { type: value, name: desire, delta: 8 }
+              - { type: value, name: corruption, delta: 4 }
+
+      - id: price_one_syllable_of_your_name
+        text: >-
+          The most dangerous option on the card and the player should be allowed
+          to take it. One syllable is not a name. It is a handle.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: name_partial_ashen }
+              - { type: value, name: knowledge, delta: 6 }
+              - { type: value, name: corruption, delta: 3 }
+
+      - id: outcome_take_the_passport
+        text: >-
+          `ashen_route` to 2 -- BARGAINED. The passport is a Day 5 key and an
+          E6a prerequisite, and it is not an ending skip.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ashen_bargain_d4 }
+              - { type: item, item_id: ashen_passport, name: "Ashen Passport" }
+              - { type: value, name: ashen_route, delta: 1, why: "bargained with winter" }
+              - { type: value, name: knowledge, delta: 8 }
+
+      - id: outcome_information_only
+        text: >-
+          Renegotiate to intelligence with no passport and no thread. Route
+          stays at 1. The player leaves knowing more and owing nothing, which is
+          the best available outcome and the one he respects least.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ashen_intel_only }
+              - { type: value, name: knowledge, delta: 10 }
+              - { type: item, item_id: frost_thread, name: "Frost Thread" }
+
+      - id: outcome_counter_for_equality
+        text: >-
+          RARE. "Help me become her equal, not her escape." Peerage with a rose?
+          Ambitious meat. He loves watching thrones tip and will trade
+          intelligence for the entertainment; safety is not included.
+        gate:
+          when: { value: { name: knowledge, min: 40 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: ashen_used_for_equality }
+              - { type: value, name: knowledge, delta: 8 }
+              - { type: value, name: equality_seed, delta: 1 }
+          on_fail:
+            text: "He lets you finish the sentence, which is the cruellest available answer, and offers the ordinary deal."
+            effects:
+              - { type: value, name: knowledge, delta: 4 }
+
+      - id: outcome_walk_away
+        text: >-
+          Refuse the whole table. He gives a frost thorn anyway, lore-only, and
+          says nothing that could be mistaken for a threat.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 6 }
+              - { type: item, item_id: frost_splinter, name: "Frost Splinter" }
+
+  - id: D4_06_sophia_learns
+    required: true
+    tags: [menu, sophia, setpiece]
+    title: "You Paid Winter With My Heat"
+    text: >-
+      INTENT: she finds out, one of four ways -- the player tells her, she was
+      already watching, the frost is simply on them, or Ashen wanted her to know
+      and arranged it. She is Sovereign here before she is lover, and the
+      difference is that she does not raise her voice.
+      SHE WANTS: to be chosen with the information on the table. If the player
+      confesses and still picks her, the swing is enormous and she will not say
+      thank you.
+      CONSTRAINT: assign the labyrinth by the end of this card, on every branch.
+      As punishment, as proof, or as a triumph -- but assign it. Day 5 needs it.
+      MENU -- resolve exactly the beat the player chose, then the assignment.
+    beats:
+      - id: confess_and_still_choose_her
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 12 }
+              - { type: value, name: desire, delta: 5 }
+              - { type: value, name: autonomy, delta: -3 }
+
+      - id: confess_and_ask_for_the_door
+        text: >-
+          Both true at once, said to her face. The best character writing
+          available on Day 4 and the seed of the whole `love_and_door` compass.
+        gate:
+          when: { value: { name: autonomy, min: 50 } }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: -5 }
+              - { type: value, name: equality_seed, delta: 1 }
+              - { type: value, name: knowledge, delta: 3 }
+          on_fail:
+            text: "You ask for the door and it comes out as an apology. She accepts the apology."
+            effects:
+              - { type: value, name: favor, delta: 3 }
+              - { type: value, name: autonomy, delta: -4 }
+
+      - id: caught_lying
+        text: >-
+          The worst outcome and the most interesting one. Clever. Ugly. Alive.
+          Day 5 becomes mandatory and it becomes a test.
+        gate:
+          when:
+            any:
+              - { flag: sophia_watching_d4 }
+              - { flag: slipped_out }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: -12 }
+              - { type: value, name: sophia_break, delta: 1 }
+              - { type: value, name: desire, delta: 6 }
+
+      - id: open_defiance
+        text: >-
+          "I will use him." She will either take that as betrayal or as a joint
+          weapon, and which one depends entirely on whether the player says
+          *us*. The band is that judgement.
+        band:
+          value: favor
+          min: -15
+          max: 5
+          text: "Whether it was framed as a tool for the two of you, or for one."
+
+      - id: the_labyrinth_is_assigned
+        text: >-
+          Always. *Come back with your name still fitting your mouth.* Bring me
+          back something that is yours -- not a flower, a decision.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: labyrinth_assigned_d5 }
+              - { type: flag, flag: labyrinth_ready }
+
+  - id: D4_08_night
+    required: true
+    tags: [menu, night, sophia, intimate]
+    title: "Repair, Exile, or Cold Dream"
+    text: >-
+      INTENT: four nights, and the player does not fully choose which. Repair --
+      suggestive claim, theme of CHOICE UNDER RIVALRY, and it should feel earned
+      rather than owed. Exile -- alone, while frost draws a map of the labyrinth
+      on the inside of the window. Cold dream -- his, uninvited, and it will
+      feel like betrayal in the morning even though nothing happened. Chalk --
+      safe, and nothing is learned.
+      MENU -- resolve exactly one beat.
+    beats:
+      - id: repair_with_her
+        gate:
+          when: { value: { name: favor, min: 45 } }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 10 }
+              - { type: value, name: desire, delta: 8 }
+              - { type: value, name: autonomy, delta: -4 }
+          on_fail:
+            text: "She does not come. Nobody says the word exile and the room is the same size it was yesterday."
+            effects:
+              - { type: value, name: autonomy, delta: 2 }
+
+      - id: exiled_to_the_room
+        text: "Frost on the inside of the glass, in the shape of a map. Free intelligence, at the price of the evening."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 4 }
+
+      - id: the_cold_dream
+        text: >-
+          Only where winter has a hold. She smells it on the player at
+          breakfast, and the fact that nothing happened will not be the point.
+        gate:
+          when:
+            any:
+              - { flag: ashen_intimacy_d4 }
+              - { value: { name: ashen_route, min: 2 } }
+          on_pass:
+            effects:
+              - { type: value, name: desire, delta: 5 }
+              - { type: value, name: favor, delta: -3 }
+              - { type: value, name: corruption, delta: 2 }
+
+      - id: chalk_sleep
+        gate:
+          when: { has_item: salt_circle_chalk }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+
+  - id: day4_toll
+    required: true
+    tags: [sequence, toll, gm]
+    title: "Fifty Days Gone"
+    text: >-
+      INTENT: the bill, and the first one that lands during a political
+      situation rather than a romance. Five Garden days.
+    beats:
+      - id: the_hourglass_turns
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: time_debt_mortal_days, delta: 10, why: "day 4 toll" }
+
+  # =====================================================================
+  # POOL — two are dealt.
+  # =====================================================================
+
+  - id: DX_court_trial
+    tags: [menu, gm]
+    once: true
+    weight: 3
+    # The appendix day. DAY-04:250 -- if the player never met Ashen, this is
+    # what Day 4 is instead, and it still ends with the labyrinth assigned.
+    when: { value: { name: ashen_route, max: 0 } }
+    title: "A Guest Who Broke Hospitality"
+    text: >-
+      INTENT: the no-winter variant. A trial in the Heart Grove: a guest ate
+      under a roof and then took something from under it. Thornwake prosecutes
+      procedure. Sophia watches to see whether the player is competent, which is
+      a different appetite from the usual one.
+      CONSTRAINT: Ashen appears only as a dead moth on the sill afterward, with
+      a note that says *Soon*.
+    beats:
+      - id: testify_using_the_law
+        gate:
+          when:
+            any:
+              - { flag: law_hospitality }
+              - { value: { name: knowledge, min: 25 } }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 6 }
+              - { type: value, name: favor, delta: 6 }
+              - { type: value, name: equality_seed, delta: 1 }
+          on_fail:
+            text: "You speak, and the room hears somebody guessing. Thornwake finishes your sentence correctly."
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: favor, delta: -3 }
+
+      - id: say_nothing
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+
+      - id: the_dead_moth
+        text: "Silver-grey, on the sill, with a note. *Soon.*"
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: ashen_pressure, delta: 1 }
+              - { type: value, name: knowledge, delta: 2 }
+
+  - id: DX_serve_at_the_throne
+    tags: [menu, gm]
+    once: true
+    weight: 2
+    when: { value: { name: favor, max: 40 } }
+    title: "Soft Punishment"
+    text: >-
+      INTENT: hours of standing silently beside the seat while the court
+      conducts business. Humiliating, boring, and the single richest source of
+      intelligence in Act II -- nobody lowers their voice for furniture.
+    beats:
+      - id: overhear_the_politics
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: autonomy, delta: -6 }
+              - { type: value, name: briar_hunger, delta: 1, why: "the yield talk is not going well" }
+
+      - id: overhear_the_previous_lover
+        text: "A name said once, in the past tense, by somebody who did not mean the player to hear it."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: desire, delta: -2 }
+
+  - id: DX_thornwake_freezes_it
+    tags: [sequence, gm]
+    once: true
+    weight: 2
+    when: { clock: { name: sophia_break, min: 1 } }
+    title: "Seat Law, Loudly"
+    text: >-
+      INTENT: when the two courts get close enough to violence, he steps between
+      them and cites the Seat rather than the woman. Both Fae snarl at him and
+      neither disobeys. The player learns more from watching it work than from
+      any lesson.
+    beats:
+      - id: watch_the_law_hold
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: flag, flag: law_seat_vs_woman_partial }
+
+      - id: the_fragment_he_leaves
+        text: >-
+          A piece of something that is not a key yet. He does not say what it
+          opens and may not know.
+        gate:
+          check: { chance: 0.4, stream: "beat.d4_briar_key_fragment" }
+          on_pass:
+            effects:
+              - { type: item, item_id: briar_key, name: "Briar Key" }
+              - { type: value, name: knowledge, delta: 3 }
+          on_fail:
+            text: "He keeps it. You saw enough of it to know the shape."
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+
+  - id: DX_ashen_follow_up_moth
+    tags: [sequence, gm]
+    once: true
+    when: { has_item: ashen_passport }
+    title: "The North Mouth"
+    text: >-
+      A moth with a message in it. The labyrinth's north mouth opens for bearers
+      of honest cold, and it does not want her perfume on them when they arrive.
+      This is a Day 5 instruction disguised as a courtesy.
+    beats:
+      - id: read_the_moth
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: ashen_pressure, delta: 1 }

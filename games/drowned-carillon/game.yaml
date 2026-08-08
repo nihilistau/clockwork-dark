@@ -34,6 +34,20 @@
 # names belong. Renaming an engine enum to match a story would be exactly the
 # coupling this package exists to remove.
 #
+# NO `safety:` BLOCK, AND THAT IS THE POINT. A story declares its content
+# ceiling and its own boundary sheet at top level (see docs/SAFETY.md and the
+# worked example in games/clockwork-dark/game.yaml). This coast declares none,
+# so its policy is INERT: every safety surface short-circuits to allow, the GM
+# prompt gains no directive text and no token, and no RNG stream is drawn.
+#
+# That matters more here than for the flagship. This game exists to prove the
+# engine is story-agnostic, and a safety layer that silently applied the
+# FLAGSHIP's limits to a second story would be the same coupling as inheriting
+# Edgewood's doom beats -- so the layer inherits nothing across the game
+# boundary and both shipped stories start from the engine defaults. The
+# `phase_names:` block below reaches the API the same way a `safety:` block
+# would: unknown top-level keys are kept verbatim in the manifest's `extras`.
+#
 # Version: v0.1.1 [2026-08-08]
 
 id: drowned-carillon

@@ -2,29 +2,107 @@
 Clockwork Session State
 =======================
 
-In-memory session store for active games.
+This story's turn, and the two frames it opens on.
 
-Version: v0.1.0 [2026-06-20]
+WHAT MOVED OUT IN v0.2.0. ``GameSession`` and ``SessionStore`` are now
+``engine/session/``: a session is engine machinery (engine, agents, ledger,
+save id, turn lock) and keeping it here meant a second story could not have one
+without importing the flagship. ``SessionStore`` is still importable from this
+module and still behaves identically -- ``ClockworkSessionStore`` below binds
+this story's opening frames into the generic store.
+
+WHAT DID NOT MOVE, AND WHY. ``run_turn`` is this story's turn SHAPE, not a
+generic one, and it is left here deliberately. It is a single 200-line
+straight-line function whose steps -- background tick, safety review, narration
+stream, reasoning stream, quest evaluation, telemetry, memory fold, autosave,
+then nine specific socket emissions -- are not separable into a pipeline
+without inventing the extension points a second story has not yet asked for.
+Splitting it now would produce an abstraction shaped exactly like Clockwork
+with a plugin interface nobody implements, which is the failure this whole
+package exists to undo. It should be split when a second story's turn is
+written and can argue with it.
+
+Version: v0.2.0 [2026-08-08]
 """
 
 from __future__ import annotations
 
 import logging
-import threading
 import time
-from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
-from engine.agents.assistant import AssistantAgent
-from engine.agents.storyteller import StorytellerAgent
-from engine.game.engine import GameEngine, active_engine
-from engine.game.procgen import new_game_state
+from engine.game.engine import active_engine
 from engine.game.state import GameState
 from engine.memory import StoryLedger, TurnRecord, present_npc_ids, summarize
 from engine.persistence import get_save_store
+from engine.session import GameSession
+from engine.session import SessionStore as EngineSessionStore
+from engine.session import default_archetype
 from engine.world.world_sim import WorldSim
 
 logger = logging.getLogger(__name__)
+
+def _review_input(session: GameSession, player_action: str) -> dict[str, Any]:
+    """
+    Run the safety gate over what the player just asked for.
+
+    Returns a small dict rather than the Verdict object so the turn payload can
+    carry it without the scene layer importing safety types, and so a build
+    without the safety package degrades to an empty dict rather than an
+    ImportError on the hot path.
+
+    Never raises. The gate has its own fallbacks, and this adds one more:
+    a safety layer that can stop a player typing is a worse outcome than one
+    that occasionally fails open on input, which is the seam where a false
+    positive costs the most and protects the least.
+    """
+    try:
+        from engine.safety import SafetyGate
+
+        gate = SafetyGate.for_state(session.engine.state)
+        if gate.inert:
+            return {}
+        verdict = gate.review_input(player_action)
+        if verdict.allowed:
+            return {}
+        logger.info(
+            "[clockwork_state] Safety verdict on input "
+            "(operation=_review_input, disposition=%s)",
+            verdict.disposition,
+        )
+        return {
+            "disposition": str(verdict.disposition),
+            # The redirect BEAT, not the reasons. `verdict.reasons` names the
+            # player's own limit topics, and putting those anywhere near prose
+            # would echo back the thing they asked not to read.
+            "redirect": verdict.redirect,
+            "fallback": verdict.fallback,
+        }
+    except Exception as exc:  # noqa: BLE001 -- see docstring
+        logger.debug("[clockwork_state] Safety gate unavailable: %s", exc)
+        return {}
+
+
+def _character_agent(session: GameSession) -> Any:
+    """
+    The active story's character agent, built once per session.
+
+    Cached on the session rather than per turn: constructing it reads the
+    roster and the persona file, and doing that on every turn would put two
+    file reads inside the hot path for no benefit.
+    """
+    if not hasattr(session, "_character"):
+        try:
+            from engine.agents.character import character_for
+
+            session._character = character_for(
+                session.engine, llm_fn=session.storyteller.llm_fn
+            )
+        except Exception as exc:  # noqa: BLE001 -- fall back to the companion
+            logger.debug("[clockwork_state] No character agent: %s", exc)
+            session._character = None
+    return session._character
+
 
 def nominal_tick_hours() -> float:
     """
@@ -140,15 +218,38 @@ def assistant_presence(state: GameState, result: Any = None) -> dict[str, Any]:
     }
 
 
-OPENING_NARRATION = (
-    "You wake beneath birch trees at the forest's edge. "
-    "Mist clings to the ferns; somewhere ahead, hearth smoke threads the grey."
-)
-OPENING_CHOICES = [
-    {"id": "a", "text": "Follow the smoke toward Edgewood"},
-    {"id": "b", "text": "Search the clearing for supplies"},
-    {"id": "c", "text": "Listen — something watches without moving"},
-]
+# The opening frame is DECLARED, not written here.
+#
+# It lives in games/clockwork-dark/game.yaml under `entry.opening`, and these
+# two names read it back so nothing that imported them has to change. The move
+# matters because this file is the scene EVERY story runs on until it ships its
+# own: while these were module constants, a second story's player woke beneath
+# Edgewood's birch trees, which is the same defect as the archetype default --
+# one story's answer reachable from a place another story cannot override
+# without writing code.
+def _declared_entry_opening() -> dict[str, Any]:
+    from engine.games.registry import entry_manifest
+
+    try:
+        manifest = entry_manifest()
+        declared = (manifest.entry or {}).get("opening") if manifest else None
+        return declared if isinstance(declared, dict) else {}
+    except Exception as exc:  # noqa: BLE001 — a missing opening is not fatal
+        logger.debug("[clockwork_state] No declared opening: %s", exc)
+        return {}
+
+
+def opening_narration() -> str:
+    return str(_declared_entry_opening().get("narration") or "")
+
+
+def opening_choices() -> list[dict[str, str]]:
+    rows = _declared_entry_opening().get("choices") or []
+    return [
+        {"id": str(c.get("id") or ""), "text": str(c.get("text") or "")}
+        for c in rows
+        if isinstance(c, dict) and c.get("text")
+    ]
 
 
 def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
@@ -202,139 +303,49 @@ def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
     }
 
 
-@dataclass
-class GameSession:
-    """One player session bound to engine and agents."""
+def opening(state: GameState) -> dict[str, Any]:
+    """
+    The frame a brand-new Clockwork run opens on.
 
-    engine: GameEngine
-    storyteller: StorytellerAgent
-    assistant: AssistantAgent
-    last_turn: dict[str, Any] = field(default_factory=dict)
-    save_id: str = ""
-    # Narrative memory. Persisted beside the save rather than inside it, so
-    # save.json stays small and diffable.
-    ledger: StoryLedger = field(default_factory=StoryLedger)
-    # Held for the duration of a turn. A second choice arriving mid-turn is
-    # rejected rather than interleaved -- two turns mutating one GameState
-    # concurrently corrupts it in ways no test would reproduce.
-    lock: threading.Lock = field(default_factory=threading.Lock)
+    One of the two story seams ``engine.session.SessionStore`` takes; see that
+    module's docstring for the other.
+    """
+    return {
+        "narration": opening_narration(),
+        "choices": opening_choices(),
+        "state": state.to_client_dict(),
+        # The opening is a scene like any other and needs its picture.
+        # image_ready only fires from run_turn, so without this the very
+        # first thing a player sees is an empty frame.
+        "scene_image": scene_image_url(state),
+        # The companion is present from the first frame. Without this the
+        # column had nothing to draw until the first turn completed.
+        "assistant": assistant_presence(state),
+    }
 
-    @property
-    def session_id(self) -> str:
-        return self.engine.state.session_id
 
+class ClockworkSessionStore(EngineSessionStore):
+    """
+    The engine's session store with this story's two frames bound in.
 
-class SessionStore:
-    """In-memory session registry backed by on-disk saves."""
+    ``save_store`` is passed as a lambda over this module's own
+    ``get_save_store`` rather than the function object, on purpose: the name is
+    resolved at call time, so the process-wide store is looked up late -- and a
+    test that redirects saves by patching this module's attribute keeps working
+    across the move to ``engine/session/``.
+    """
 
     def __init__(self) -> None:
-        self._sessions: dict[str, GameSession] = {}
-        self._guard = threading.RLock()
-
-    def _build(
-        self,
-        state: GameState,
-        *,
-        llm_fn: Optional[Callable[[list[dict[str, Any]]], str]] = None,
-        save_id: str = "",
-        ledger: Optional[StoryLedger] = None,
-    ) -> GameSession:
-        engine = GameEngine(state)
-        resolved_ledger = ledger or StoryLedger()
-        session = GameSession(
-            engine=engine,
-            # One ledger object shared with the agent, not a copy: what the
-            # session records after a turn is what the agent reads before the
-            # next one.
-            storyteller=StorytellerAgent(engine, llm_fn=llm_fn, ledger=resolved_ledger),
-            assistant=AssistantAgent(engine, llm_fn=llm_fn),
-            save_id=save_id,
-            ledger=resolved_ledger,
+        super().__init__(
+            opening=opening,
+            resume_opening=resume_opening,
+            save_store=lambda: get_save_store(),
         )
-        with self._guard:
-            self._sessions[state.session_id] = session
-        return session
 
-    def create(
-        self,
-        *,
-        player_name: str = "Traveler",
-        archetype: str = "wayfarer",
-        seed: Optional[int] = None,
-        llm_fn: Optional[Callable[[list[dict[str, Any]]], str]] = None,
-    ) -> GameSession:
-        """Create a new procgen-backed session and write its first save."""
-        state = new_game_state(
-            player_name=player_name,
-            archetype=archetype,
-            seed=seed,
-        )
-        session = self._build(state, llm_fn=llm_fn)
-        session.last_turn = {
-            "narration": OPENING_NARRATION,
-            "choices": OPENING_CHOICES,
-            "state": state.to_client_dict(),
-            # The opening is a scene like any other and needs its picture.
-            # image_ready only fires from run_turn, so without this the very
-            # first thing a player sees is an empty frame.
-            "scene_image": scene_image_url(state),
-            # The companion is present from the first frame. Without this the
-            # column had nothing to draw until the first turn completed.
-            "assistant": assistant_presence(state),
-        }
-        try:
-            session.save_id = get_save_store().save(state)
-        except OSError as exc:
-            logger.warning(
-                "[clockwork_state] Initial save failed (operation=create): %s", exc
-            )
-        logger.info(
-            "[clockwork_state] Session created (operation=create, id=%s, save=%s)",
-            state.session_id,
-            session.save_id,
-        )
-        return session
 
-    def resume(
-        self,
-        save_id: str,
-        *,
-        llm_fn: Optional[Callable[[list[dict[str, Any]]], str]] = None,
-    ) -> GameSession:
-        """
-        Rehydrate a run from disk.
-
-        This is what makes a dropped socket survivable. The client previously
-        called /api/game/new on every reconnect, silently discarding the run.
-        """
-        state, memory = get_save_store().load(save_id)
-        session = self._build(
-            state,
-            llm_fn=llm_fn,
-            save_id=save_id,
-            ledger=StoryLedger.from_dict(memory),
-        )
-        session.last_turn = resume_opening(state, session.ledger)
-        logger.info(
-            "[clockwork_state] Session resumed (operation=resume, save=%s, day=%s)",
-            save_id,
-            state.world_day,
-        )
-        return session
-
-    def get(self, session_id: str) -> Optional[GameSession]:
-        with self._guard:
-            return self._sessions.get(session_id)
-
-    def require(self, session_id: str) -> GameSession:
-        session = self.get(session_id)
-        if session is None:
-            raise KeyError(f"Unknown session: {session_id}")
-        return session
-
-    def delete(self, session_id: str) -> None:
-        with self._guard:
-            self._sessions.pop(session_id, None)
+# The name every caller and test already imports from here. Kept so the move
+# into the engine costs no import site anywhere else in the repo.
+SessionStore = ClockworkSessionStore
 
 
 def resolve_player_action(
@@ -466,6 +477,40 @@ def _record_memory(
         if r.get("type") == "dice" and r.get("success")
     ]
 
+    # The model's proposed memory -- facts it noticed, names it learned,
+    # promises it made, how an NPC now regards the player.
+    #
+    # THIS HAD NEVER RUN. `ledger_delta` is in the turn schema, the model fills
+    # it in every turn, `parse_storyteller_response` defaults it, and then it
+    # was dropped on the floor: `apply_ledger_delta` is called from
+    # `turn_loop.commit_ledger`, and nothing calls `turn_loop`. So the
+    # Storyteller could observe "Maris does not trust you now" and the ledger
+    # would never hear about it.
+    #
+    # It is applied here rather than inside the agent because the ledger belongs
+    # to the session, and because `apply_ledger_delta` is the validating layer:
+    # it caps facts per turn, truncates them, drops any whose subject is not a
+    # known NPC, and clamps disposition steps. The model proposes; the engine
+    # decides what is admitted.
+    delta = getattr(result, "parsed", {}).get("ledger_delta") or {}
+    if delta:
+        from engine.memory.ledger import apply_ledger_delta
+
+        accepted = apply_ledger_delta(
+            ledger,
+            delta,
+            turn=state.turn_number,
+            day=state.world_day,
+            known_npc_ids={
+                str(n.get("id")) for n in state.procgen.npcs if n.get("id")
+            },
+        )
+        logger.debug(
+            "[clockwork_state] Ledger delta applied (operation=_record_memory, "
+            "accepted=%s)",
+            accepted,
+        )
+
     evicted = ledger.record_turn(
         TurnRecord(
             turn=state.turn_number,
@@ -548,6 +593,18 @@ def run_turn(
     state = session.engine.state
     started_at = time.perf_counter()
 
+    # Player input, inspected before anything plans against it. This seam did
+    # not exist -- `player_action` went straight from the socket handler into
+    # the Storyteller with nothing looking at it.
+    #
+    # Reviewed HERE rather than at the two call sites of
+    # `resolve_player_action` because both of them end up in this function, and
+    # a check that has to be remembered twice is a check that will be forgotten
+    # once. A hard-no hit is a REDIRECT, not a refusal: the turn still runs and
+    # the fiction declines, which is the difference between a story and a
+    # dialog box.
+    safety = _review_input(session, player_action)
+
     with active_engine(session.engine):
         # Ask the world how much time it has actually earned rather than
         # granting a flat block. This was the R-03 bug: a fixed 6 hours per
@@ -610,7 +667,24 @@ def run_turn(
             # callback closed over a dead request context.
             session.storyteller.on_reasoning = None
 
-        assistant_result = session.assistant.run_turn(storyteller_result.narration)
+        # The second voice. A story that declares a `role: character` in its
+        # agents.yaml gets that character -- her own persona file, her own
+        # model profile, and a prompt filtered by her declared knowledge
+        # scopes so the world's secrets never reach her. Every other story
+        # gets the companion, unchanged.
+        #
+        # She runs in the companion's slot, AFTER the narrator has committed.
+        # That is not the plan-then-negotiate pipeline in engine/agents/
+        # {plan,negotiate}.py -- those are built and tested and nothing calls
+        # them yet. This is a second agent with its own voice and blind spots;
+        # it is not yet two agents arguing before a shared commit.
+        character = _character_agent(session)
+        if character is not None:
+            character_result = character.run_turn(storyteller_result.narration)
+            assistant_result = None
+        else:
+            character_result = None
+            assistant_result = session.assistant.run_turn(storyteller_result.narration)
 
     turn_payload = {
         "session_id": state.session_id,
@@ -624,7 +698,20 @@ def run_turn(
         # Presence, not just the line: portrait, form, trust and the two
         # awareness gates, so the companion column has something to be even on
         # a turn the Assistant chooses to stay silent for.
-        "assistant": assistant_presence(state, assistant_result),
+        # The companion column. For a story running a CHARACTER instead, the
+        # same slot carries her line -- the column is "the other voice", and
+        # giving her a second one would mean the client had to learn which
+        # stories have which. `character` marks who it is.
+        "assistant": (
+            assistant_presence(state, assistant_result)
+            if character_result is None
+            else {
+                **assistant_presence(state),
+                "character": character_result.agent,
+                "text": character_result.text,
+                "spoke": character_result.spoke,
+            }
+        ),
         "llm_unavailable": storyteller_result.llm_unavailable,
         # False when the accepted narration survived a cut-short generation and
         # had its unfinished tail trimmed off. The client uses it to decide
@@ -637,6 +724,10 @@ def run_turn(
         # the player noticing something is wrong three turns later.
         "governance": storyteller_result.governance,
     }
+    # Only when the gate had something to say -- an inert policy adds no key at
+    # all, so both shipped stories ship the payload they shipped before.
+    if safety:
+        turn_payload["safety"] = safety
     session.last_turn = turn_payload
 
     quest_events = _evaluate_quests(session)
@@ -727,3 +818,23 @@ def run_turn(
             )
 
     return turn_payload
+
+
+__all__ = [
+    "ClockworkSessionStore",
+    "opening_choices",
+    "opening_narration",
+    # Re-exported from engine.session, which is now their home. Anything that
+    # imported them from here keeps working.
+    "GameSession",
+    "SessionStore",
+    "assistant_portrait_url",
+    "assistant_presence",
+    "default_archetype",
+    "nominal_tick_hours",
+    "opening",
+    "resolve_player_action",
+    "resume_opening",
+    "run_turn",
+    "scene_image_url",
+]

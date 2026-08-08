@@ -27,11 +27,16 @@ Version: v0.2.0 [2026-08-07]
 from __future__ import annotations
 
 import json
+import logging
+from functools import lru_cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from engine.game.locations import LOCATIONS
 from engine.game.state import GameState
 from engine.lore.interceptors import mark_spoiler
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
     # Type-only. A real import here closes a cycle:
@@ -42,7 +47,7 @@ if TYPE_CHECKING:  # pragma: no cover
 # Block 0 -- stable. Must not interpolate anything volatile.
 # ---------------------------------------------------------------------------
 
-STORYTELLER_PERSONA = """\
+_BUILTIN_PERSONA = """\
 You are the STORYTELLER of "The Clockwork Dark", a grounded dark-fantasy RPG.
 
 VOICE
@@ -121,7 +126,7 @@ _EXAMPLE_GATE = {
     "mood": "tense",
 }
 
-STORYTELLER_EXAMPLES: list[dict[str, str]] = [
+_BUILTIN_EXAMPLES: list[dict[str, str]] = [
     # A quiet domestic beat with no roll -- the register the game is actually
     # about, and the one a model will otherwise skip straight past.
     {"role": "user", "content": "The player chooses: Ask Maris about the smoke."},
@@ -138,6 +143,101 @@ STORYTELLER_EXAMPLES: list[dict[str, str]] = [
     {"role": "user", "content": "The player chooses: Slip past the gate watch."},
     {"role": "assistant", "content": json.dumps(_EXAMPLE_GATE, ensure_ascii=False)},
 ]
+
+
+# ---------------------------------------------------------------------------
+# Story-owned prompts
+#
+# THE BUG THIS CLOSES. The persona above and the two examples below it are The
+# Clockwork Dark's, and they were the ONLY ones: a second story with its own
+# meters, its own map and its own cast still opened every prompt with "You are
+# the STORYTELLER of The Clockwork Dark", shipped two worked examples set in
+# Edgewood, and described the player's body in hp and stamina it does not have.
+# Every other layer had been made story-aware; the words the model actually
+# reads had not, so the Garden ran with a narrator who thought it was somewhere
+# else -- visible immediately in the model's output, and in nothing else.
+#
+# A story ships `prompts/storyteller.md` and optional `prompts/examples.json`
+# under `paths.prompts`. Absent means the built-ins, which is how both existing
+# games keep behaving exactly as they did.
+# ---------------------------------------------------------------------------
+
+
+def _prompts_dir() -> Optional[Path]:
+    from engine.config import get_config, project_root
+
+    raw = str(get_config().get("paths.prompts", "") or "")
+    if not raw:
+        return None
+    path = Path(raw)
+    if not path.is_absolute():
+        path = project_root() / path
+    return path if path.is_dir() else None
+
+
+@lru_cache(maxsize=8)
+def _read_prompt(directory: str, name: str, mtime: float) -> str:
+    """Read one prompt file. Keyed on mtime so an edit is picked up."""
+    try:
+        return (Path(directory) / name).read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def storyteller_persona() -> str:
+    """
+    The narrator's standing instructions, from the active story.
+
+    Falls back to the built-in when a story ships none -- which is not a
+    generic persona, it is Clockwork's. That is deliberate: inventing a
+    story-neutral one would give every story a narrator with no voice, and a
+    bad voice a story chose beats a bland one the engine imposed.
+    """
+    directory = _prompts_dir()
+    if directory is None:
+        return _BUILTIN_PERSONA
+    target = directory / "storyteller.md"
+    if not target.is_file():
+        return _BUILTIN_PERSONA
+    text = _read_prompt(str(directory), "storyteller.md", target.stat().st_mtime)
+    return text or _BUILTIN_PERSONA
+
+
+def storyteller_examples() -> list[dict[str, str]]:
+    """
+    Few-shot exchanges, from the active story.
+
+    A story that ships a persona but no examples gets NONE rather than the
+    flagship's -- two worked examples set in Edgewood are worse than no example
+    at all when the story is somewhere else, because a few-shot is the single
+    strongest signal in the prompt about what a turn looks like.
+    """
+    directory = _prompts_dir()
+    if directory is None:
+        return list(_BUILTIN_EXAMPLES)
+    if not (directory / "storyteller.md").is_file():
+        return list(_BUILTIN_EXAMPLES)
+
+    target = directory / "examples.json"
+    if not target.is_file():
+        return []
+    raw = _read_prompt(str(directory), "examples.json", target.stat().st_mtime)
+    try:
+        rows = json.loads(raw) if raw else []
+    except json.JSONDecodeError as exc:
+        logger.warning(
+            "[prompts] Unreadable examples.json, using none "
+            "(operation=storyteller_examples): %s",
+            exc,
+        )
+        return []
+    return [r for r in rows if isinstance(r, dict) and r.get("role") and r.get("content")]
+
+
+#: Back-compat module attributes. Several call sites and tests import these by
+#: name; they now resolve through the story-aware readers above.
+STORYTELLER_PERSONA = _BUILTIN_PERSONA
+STORYTELLER_EXAMPLES = _BUILTIN_EXAMPLES
 
 
 # ---------------------------------------------------------------------------
@@ -244,18 +344,61 @@ def _condition_block(state: GameState) -> str:
     return "CONDITION: " + ", ".join(bits) if bits else ""
 
 
+def _declared_condition(state: GameState) -> str:
+    """
+    The player's state, in whatever terms the running story declares.
+
+    Public values ship their number; veiled values ship their band word, never
+    the integer -- the same rule the interface follows, for the same reason. A
+    story that declares nothing gets an empty string and the block simply omits
+    the line.
+    """
+    try:
+        from engine.state.active import store_for
+        from engine.state.schema import VISIBILITY_PUBLIC, VISIBILITY_VEILED
+
+        store = store_for(state)
+        bits: list[str] = []
+        for spec in store.schema.client_visible():
+            value = store.get(spec.name)
+            if spec.visibility == VISIBILITY_PUBLIC:
+                if spec.maximum is not None:
+                    bits.append(f"{spec.display_label} {value:g}/{spec.maximum:g}")
+                else:
+                    bits.append(f"{spec.display_label} {value:g}")
+            elif spec.visibility == VISIBILITY_VEILED:
+                bits.append(f"{spec.display_label} {spec.band(value)}")
+        return "Condition: " + ", ".join(bits) if bits else ""
+    except Exception as exc:  # noqa: BLE001 -- a prompt line is not worth a turn
+        logger.debug("[prompts] No declared condition: %s", exc)
+        return ""
+
+
 def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
     """Block 1 -- volatile world facts."""
     loc = LOCATIONS.get(state.location_id, {})
+    who = state.player_name
+    if state.archetype:
+        who = f"{who}, {state.archetype}"
     parts = [
         "WORLD STATE",
-        f"Player: {state.player_name}, {state.archetype}",
+        f"Player: {who}",
         f"Place: {loc.get('name', state.location_id)} ({state.location_id})",
         f"Time: day {state.world_day}, {state.world_hour:02d}:00 ({state.time_of_day})",
-        f"Body: hp {state.stats.hp}/{state.stats.max_hp}, "
-        f"stamina {state.stats.stamina}/{state.stats.max_stamina}, "
-        f"gold {state.stats.gold}",
     ]
+
+    # The player's condition, from the STORY'S declared meters.
+    #
+    # This line was `Body: hp .../ stamina .../ gold ...`, hardcoded -- so a
+    # story with none of those three told its narrator about a body made of
+    # numbers it does not have, and said nothing at all about the meters it
+    # does. Hidden values are withheld here exactly as they are from the
+    # browser: the narrator is not the player, but a hidden meter is hidden
+    # because DESIGN.md says the player meets it as fiction, and a narrator
+    # handed the number will paraphrase it.
+    condition_line = _declared_condition(state)
+    if condition_line:
+        parts.append(condition_line)
     condition = _condition_block(state)
     if condition:
         parts.append(condition)
@@ -442,4 +585,4 @@ def storyteller_system_prompt(state: GameState, evil_snapshot: dict) -> str:
     The two-phase loop assembles blocks itself via engine/memory/context.py;
     this remains for direct callers and tests.
     """
-    return f"{STORYTELLER_PERSONA}\n\n{world_state_block(state, evil_snapshot)}"
+    return f"{storyteller_persona()}\n\n{world_state_block(state, evil_snapshot)}"

@@ -3,8 +3,8 @@ The d20 face pack, and the two places that have to agree about it.
 
 WHY THIS EXISTS. `dice_result` carries no image url and
 engine/media/providers/shipped.py has no ``kind == "dice"`` branch, so the
-browser resolves the painted face itself from a path it builds in
-ui/src/parts/DiceToast.jsx. That is a second copy of a mapping whose first copy
+browser resolves the painted face itself from a path it builds in the story's
+own DiceToast. That is a second copy of a mapping whose first copy
 is data/art/manifest.yaml, and a second copy nobody checks is how this codebase
 got a manifest entry pointing at ``things/mushrooms.png``, a file that never
 existed.
@@ -27,7 +27,9 @@ ROOT = Path(__file__).resolve().parent.parent
 ART = ROOT / "content" / "scenes" / "clockwork" / "static" / "art"
 MANIFEST = ROOT / "data" / "art" / "manifest.yaml"
 SUBJECTS = ROOT / "data" / "art" / "subjects.yaml"
-TOAST = ROOT / "ui" / "src" / "parts" / "DiceToast.jsx"
+TOAST = (
+    ROOT / "ui" / "src" / "stories" / "clockwork-dark" / "parts" / "DiceToast.jsx"
+)
 EFFECTS = ROOT / "ui" / "src" / "styles" / "effects.css"
 
 SIDES = 20

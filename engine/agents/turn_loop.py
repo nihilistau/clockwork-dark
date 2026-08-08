@@ -2,6 +2,29 @@
 Two-Phase Turn Loop
 ===================
 
+**NOT WIRED.** Nothing imports this module. The live path is
+``content/scenes/clockwork/clockwork_state.run_turn`` ->
+``engine/agents/storyteller.StorytellerAgent.run_turn``, which implements a
+weaker SINGLE-phase version of the same idea: it asks for tool calls and prose
+in one message, then executes the tools afterwards.
+
+So two turn architectures coexist in this repo and the better one is dark. Read
+that as a warning, not as an endorsement -- this file has never run in
+production and its docstring below describes an intent, not observed behaviour.
+
+It is kept rather than deleted because it is the designated basis for the
+multi-agent pipeline (plan -> negotiate -> commit -> narrate): the phase split,
+the per-tool savepoints and the pre-dispatch ACL check at ``_dispatch`` are all
+the shapes that work needs, and rewriting them from scratch would be waste.
+
+One thing it had that the live path did not, ``commit_ledger``, has been lifted
+out and wired into ``clockwork_state._record_memory`` -- the model's proposed
+facts, names, promises and dispositions were being parsed and discarded on every
+turn because this module's only caller was nobody. That is fixed independently
+of this file's fate; see ``tests/test_ledger_delta_wiring.py``.
+
+---
+
 The single highest-leverage change in the overhaul.
 
 Before, the model was asked to emit ``tool_calls`` AND the narration in one

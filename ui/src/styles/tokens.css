@@ -1,0 +1,84 @@
+/* ============================================================
+   Core fallback palette.
+
+   WHY this file exists: the semantic aliases below are the ONLY colour names
+   core components reference. A story ships its own palette and overrides all
+   of them (see stories/<slug>/theme/), but core has to be legible with no
+   story plugin loaded at all -- a client that renders a black rectangle when a
+   story is missing is a client nobody can debug.
+
+   So these are deliberately NEUTRAL: cold ink and paper with one dim amber
+   note. They are not The Clockwork Dark's palette and must never be tuned to
+   look like it, or the fallback stops being visibly a fallback.
+
+   Raw hex belongs HERE and only here. index.css is semantic tokens only, which
+   is what lets a story retint the whole product from one attribute.
+   ============================================================ */
+
+:root {
+  /* ---- surfaces ---- */
+  --surface-scene: #0a0b0d;
+  --surface-narrative: #16181c;
+  --surface-panel: #121417;
+  --surface-ledger: #14161a;
+  --surface-chrome: #0b0c0e;
+  --surface-card: #1a1d21;
+  --surface-overlay: rgba(6, 7, 9, 0.82);
+
+  /* ---- text ---- */
+  --text-narration: #ddd9d2;
+  --text-body: #ccc8c1;
+  --text-muted: #8b8f95;
+  --text-on-dark: #ddd9d2;
+  --text-candlelight: #c9a86a;
+  --text-danger: #c9776a;
+  --text-affirm: #8fae5a;
+  --text-display: #f2efe9;
+  --text-stat: #e4e0d8;
+  --text-ledger: #d6d2c9;
+  --text-parchment: #bab6ad;
+  --text-smallcaps: #d8c79c;
+  --text-disabled: #5a5d62;
+
+  /* ---- lines ---- */
+  --line-ink: #050607;
+  --line-soft: rgba(201, 168, 106, 0.13);
+  --line-brass: #8a6a35;
+  --line-iron: #26282c;
+  --line-rust-deep: #5c4222;
+
+  /* ---- accents & status ---- */
+  --accent-candle: #c9a86a;
+  --accent-brass: #a8823f;
+  --accent-moss: #5f7350;
+  --rust-clock: #8a5a2c;
+  --status-danger: #5f2a2a;
+  --status-corruption: #7a9e4f;
+  --focus-ring: #b8933f;
+
+  /* ---- phase ramp ----
+     Core only ever reads these as a generic four-step "how bad is it" ramp.
+     A story with no phases simply never sets [data-phase] and none apply. */
+  --phase-dormant: #7f8f74;
+  --phase-stirring: #c9a86a;
+  --phase-spreading: #7a9e4f;
+  --phase-consuming: #b4d16f;
+
+  /* ---- outcome ---- */
+  --outcome-success: #9ec46a;
+  --outcome-success-dim: rgba(158, 196, 106, 0.13);
+  --outcome-failure: #c9776a;
+  --outcome-failure-dim: rgba(201, 119, 106, 0.13);
+  --outcome-crit: #f0d9a3;
+  --outcome-crit-dim: rgba(240, 217, 163, 0.16);
+
+  /* ---- derived (kept as color-mix so a story override propagates) ---- */
+  --surface-chrome-lift: color-mix(in srgb, var(--surface-chrome) 84%, var(--text-on-dark));
+  --surface-panel-lift: color-mix(in srgb, var(--surface-panel) 88%, var(--text-on-dark));
+  --surface-card-lift: color-mix(in srgb, var(--surface-card) 84%, var(--text-on-dark));
+  --surface-void: color-mix(in srgb, var(--surface-scene) 92%, black);
+
+  --state-hover-fill: rgba(201, 168, 106, 0.09);
+  --state-active-fill: rgba(201, 168, 106, 0.16);
+  --state-select-fill: rgba(201, 168, 106, 0.14);
+}

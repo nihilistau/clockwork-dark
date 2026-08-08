@@ -259,6 +259,74 @@ assistant:
   reflection_awareness_min: 40
 
 # ---------------------------------------------------------------------------
+# Content limits. The product layer -- above every agent and every character.
+# See docs/SAFETY.md and engine/safety/.
+#
+# EVERYTHING HERE IS OFF AS SHIPPED, and "off" is a data state rather than a
+# switch: a session with no limits and a suggestive ceiling is INERT, and an
+# inert policy short-circuits to allow at every surface, contributes no prompt
+# text and draws no RNG. Both shipped stories are inert, which is why they play
+# exactly as they did before this section existed.
+#
+# There is deliberately NO `safety.enabled` flag. An off switch on a safety
+# layer is a config typo away from turning hard limits off, and the layer costs
+# nothing when there is nothing to enforce.
+# ---------------------------------------------------------------------------
+safety:
+  intensity:
+    # The highest tier a story may be played at: suggestive | explicit | extreme.
+    # This is the ENGINE's answer for a story that declares nothing. A story
+    # raises its own with a `safety:` block in its game.yaml -- story content is
+    # reviewed like code, unlike an agent, whose requests to raise the ceiling
+    # go through the ratchet in engine/safety/policy.py and are refused.
+    ceiling: suggestive
+    # Where a new session's dial starts. Never above the ceiling; a higher
+    # value here is clamped, not honoured.
+    default: suggestive
+
+  # Player-facing Fade control. Content above the session's tier collapses to
+  # summary whether or not this is on -- this is about offering the button, not
+  # about the automatic behaviour.
+  fade:
+    available: true
+
+  aftercare:
+    default: false
+
+  # Session-wide limits, in the engine's own voice. Almost always empty: limits
+  # are a PLAYER setting, and the two shipped stories set none. A deployment
+  # that must never generate something regardless of who is playing puts it in
+  # hard_nos here.
+  #
+  #   boundaries:
+  #     hard_nos:
+  #       - topic: some_topic          # the id that appears in logs
+  #         nouns: [word, phrase]      # surface forms, matched on word boundaries
+  #     soft_nos:
+  #       - topic: collars
+  #         nouns: [collar]
+  #         substitute: throat-garland # cosmetic rename; same mechanics
+  #     green_lights: [topic]          # lifts a soft no. Never lifts a hard one.
+  boundaries:
+    hard_nos: []
+    soft_nos: []
+    green_lights: []
+
+  # Surface forms that say "this text is at least this intense", so a caller
+  # that declares no tier -- or an agent that understates one -- is still
+  # measured against something.
+  #
+  # SHIPPED EMPTY ON PURPOSE. Filling these in means writing down the words that
+  # mark explicit content, and those words belong to whoever owns the story, not
+  # to the engine. The key is declared rather than omitted so the seam is
+  # visible and turning it on is a config edit, not a code change. An empty map
+  # is not a hole: the ceiling still enforces the tier a CALLER declares, and
+  # hard limits are enforced regardless.
+  tier_markers:
+    explicit: []
+    extreme: []
+
+# ---------------------------------------------------------------------------
 # Which story this engine is running.
 #
 # A game is a directory under games/<slug>/ with a game.yaml manifest whose
@@ -295,6 +363,21 @@ paths:
   comfyui_templates: "data/procgen_templates/comfyui.yaml"
   art_subjects: "data/art/subjects.yaml"
   art_manifest: "data/art/manifest.yaml"
+  # The directory every path in `art_manifest` is relative to.
+  #
+  # This was hardcoded in engine/media/providers/shipped.py until v0.2.1, at
+  # exactly the value below -- the FLAGSHIP's static tree. A second story could
+  # therefore write a manifest but had nowhere to put the files it named, so
+  # every lookup missed and the procedural silhouette answered instead. The
+  # default is today's value to the character, so this game and The Drowned
+  # Carillon resolve exactly what they resolved before.
+  #
+  # A story that ships its own tree points this at it AND sets `root:` in its
+  # manifest to "/story-art", which is the route in engine/api/art.py that
+  # serves this directory. Files under a story's own directory are NOT reachable
+  # through Flask's /static handler -- that is bound to the scene package, not
+  # to the game.
+  art_root: "content/scenes/clockwork/static/art"
   rules: "data/rules"
   # Random draw tables: boons, complications, forage yields, labour, trade.
   # This was hardcoded in engine/game/checks.py until v0.2.0, so a second game
@@ -312,6 +395,27 @@ paths:
   # Stored challenge specs and the set-pieces that gate them.
   challenges: "data/challenges"
 
+  # The words the model actually reads: `storyteller.md` and an optional
+  # `examples.json`. Absent means the built-in persona in
+  # engine/agents/prompts.py, which is The Clockwork Dark's -- so the flagship
+  # needs no file here and behaves exactly as it did.
+  #
+  # This was the last place one story's answer was welded into the engine, and
+  # the most visible: every other layer had been made story-aware while the
+  # prompt still opened "You are the STORYTELLER of The Clockwork Dark".
+  prompts: ""
+
+  # Structural systems. All five are absent for both shipped games and every
+  # loader returns empty on a missing file, so declaring them here costs
+  # nothing and makes them repointable per story and visible to doctor.py --
+  # a content path the engine reads but no config names is the shape of bug
+  # this project has already paid for twice (data/tables, procgen templates).
+  clocks: "data/rules/clocks.yaml"
+  threads: "data/rules/threads.yaml"
+  endings: "data/rules/endings.yaml"
+  decks: "data/rules/decks"
+  challenge_bounds: "data/rules/challenge_bounds.yaml"
+
 comms:
   interceptors:
     - LoreInjectInterceptor
@@ -324,9 +428,19 @@ comms:
 # and after the token budget has been fitted (issue R-01).
 governance:
   directives:
+    # First in the chain: standing constraints come before tone. Emits nothing
+    # at all when the story configures no boundaries and no ceiling, which is
+    # both shipped games -- zero prompt tokens, which matters because the
+    # budget overflow (R-01) was caused by exactly this kind of addition.
+    - SafetyDirective
     - EvilPhaseTone
     - DoomSignsInterceptor
     - StorytellerMind
+  # Runs over reconciled proposals BEFORE the transaction commits, with the
+  # authority to alter them. Everything else in this file audits after the
+  # fact; this is the only chain that can decide a change does not happen.
+  commit:
+    - SafetyCeiling
   post:
     - RulesGovernor
   media:

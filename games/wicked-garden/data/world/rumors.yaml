@@ -1,0 +1,198 @@
+# ============================================================
+# What the Garden says about itself.
+#
+# Read by engine/world/schedules.py. Three tiers on the same gates and the same
+# `tier_weights` curve as the other two games -- what changes is that here the
+# thing being slowly named is not a monster or a sound. It is a pattern of
+# behaviour, and the pattern is hers.
+#
+#   tier 1  min_awareness  0   pretty, ambient, nothing named
+#   tier 2  min_awareness 20   names people, places and the last guest
+#   tier 3  min_awareness 45   names the count, the century, and the price
+#
+# !! REQUIRES A MANIFEST LINE THAT DOES NOT EXIST YET !!
+# games/wicked-garden/game.yaml does not declare `paths.world_rumors`. Until it
+# does, the engine loads Edgewood's gated pool and the Garden gossips about
+# grain tallies and the Millhaven militia. Adding
+# `world_rumors: "games/wicked-garden/data/world/rumors.yaml"` is the wiring.
+#
+# ------------------------------------------------------------
+# WHAT ACTUALLY MOVES AWARENESS HERE, AND WHY THAT IS RIGHT
+# ------------------------------------------------------------
+# This story runs no doom clock and no encounters, so the only thing feeding
+# `state.awareness` is the `awareness_delta` on the travel edges in
+# games/wicked-garden/data/world/locations.yaml -- and those are weighted by
+# DEPTH. Going to the guest house is 0. Going to the Heart Grove for the first
+# time is 2. The labyrinth is 3. Mother Briar's Deep is 4.
+#
+# Which means the gates below are not a difficulty curve. They are a map: the
+# Garden tells you the truth in proportion to how far into it you have walked,
+# and a player who stays in the pretty rooms will hear pretty things until the
+# day the bill arrives. That is the design's own thesis (05-BACKSTORY-AND-
+# LORE.md:130 -- "Lore should feel discovered in skin and soil") expressed as a
+# number that was already there.
+#
+# ------------------------------------------------------------
+# NO `requires_phase` ANYWHERE IN THIS FILE
+# ------------------------------------------------------------
+# The other two games gate their darkest rumours on the evil phase. This story
+# sets `evil_base_rate_per_day: 0.0` in its manifest, so the phase is `dormant`
+# on turn one and `dormant` on the last turn of the finale. A `requires_phase:
+# [spreading]` line here would be a gate that never opens -- a rumour written,
+# shipped, and unreachable. The Garden's four seasons (bloom, thorn, harvest,
+# hush) are a story clock, not the engine's phase enum, and they belong to the
+# spine's clocks.yaml. Awareness carries all the gating in this file.
+#
+# `source_npc` values are the bare ids from
+# games/wicked-garden/data/world/npc_schedules.yaml. Sophia is never a source:
+# she does not gossip, she is gossiped about, and anything she wants you to
+# believe she will come and say herself.
+#
+# Version: v0.1.0 [2026-08-08]
+# ============================================================
+
+version: 1
+
+fallback: "Somebody says something lovely, and it is gone before you can decide whether it was about you."
+
+tier_weights:
+  1: 1.0
+  2: 3.0
+  3: 6.0
+
+rumors:
+
+  # -- tier 1: ambient, nothing named ------------------------------------
+
+  - id: roses_open_for_some
+    tier: 1
+    min_awareness: 0
+    text: "The roses on the gate open for some people and not others, and nobody will tell you which you are until you try to leave through them."
+
+  - id: flowers_turn
+    tier: 1
+    min_awareness: 0
+    text: "The flowers here turn to follow a guest the way flowers follow the sun. Nobody mentions it. Everybody notices who they turn for."
+
+  - id: statues_were_guests
+    tier: 1
+    min_awareness: 0
+    text: "There are statues in the labyrinth clearings that are very finely done. Nobody can name the sculptor and nobody asks twice."
+
+  - id: dont_eat_the_black
+    tier: 1
+    min_awareness: 0
+    source_npc: bloomkin_generic
+    text: "Eat whatever you like at the table, guest-sweet. Anything you like. Not the black fruit. Not on your first night, anyway."
+
+  - id: house_rearranges
+    tier: 1
+    min_awareness: 0
+    text: "The guest house rearranges itself to suit you. The trick is noticing the day it stops guessing and starts being right."
+
+  - id: dances_are_contracts
+    tier: 1
+    min_awareness: 0
+    source_npc: court_generic
+    text: "Do learn the figures before you dance them. Some of the figures are agreements, and the music does not stop to let you read."
+
+  # -- tier 2: names people, places and the last guest --------------------
+
+  - id: the_captain_serves_the_seat
+    tier: 2
+    min_awareness: 20
+    source_npc: bloomkin_generic
+    text: "Thornwake does not serve her. He serves the chair. He has said so out loud, in front of her, and he is still standing."
+
+  - id: liors_prices
+    tier: 2
+    min_awareness: 20
+    source_npc: court_generic
+    text: "Lior will show you anything you ask to see and will not lie about the price. What Lior will not do is tell you the price is too high."
+
+  - id: the_winter_courtier
+    tier: 2
+    min_awareness: 20
+    text: "There is a courtier at the cold end of the table who is not of this court and has not been asked to leave. That is a whole conversation in itself."
+
+  - id: guest_before_you
+    tier: 2
+    min_awareness: 20
+    source_npc: bloomkin_generic
+    text: "There was a guest in that room before you. Lovely hands. Very quick. Nobody has said where they went, which is not the same as nobody knowing."
+
+  - id: mara_at_the_gate
+    tier: 2
+    min_awareness: 20
+    source_npc: mara_quill
+    text: "I got out. Look at me and understand that both halves of that sentence are true, and then ask me what it cost before you ask me how."
+
+  - id: the_floor_is_awake
+    tier: 2
+    min_awareness: 20
+    source_npc: thornwake
+    text: "Do not put your ear to the floor of the crypts. Everyone does it once. The point is not what you hear. The point is that it hears you first."
+
+  - id: honey_from_confessions
+    tier: 2
+    min_awareness: 20
+    text: "The bees here do not work flowers. They work confessions, and what they make of them is black, and there is a jar of it in the crypts with your name in it already if you keep talking."
+
+  # -- tier 3: the count, the century, the price --------------------------
+
+  - id: the_soft_century
+    tier: 3
+    min_awareness: 45
+    source_npc: elias
+    text: >-
+      There was a stretch when she tried being kind. A long one. The Garden
+      starved on it and the roots came up through the court floor, and she
+      learned that mercy here is not a virtue, it is a crop failure. She has
+      never once said she was wrong to stop.
+
+  - id: the_law_of_tens_is_not_a_metaphor
+    tier: 3
+    min_awareness: 45
+    source_npc: thornwake
+    text: >-
+      Ten days for one. Not a figure of speech and not negotiable. Three doors
+      out: her leave, an older law, or death. Mortals invent a fourth and call
+      it cleverness, and the labyrinth is largely made of the ones who did.
+
+  - id: she_was_installed
+    tier: 3
+    min_awareness: 45
+    source_npc: lior
+    text: >-
+      Ask her whether she took the Rose Seat or was put in it. Watch what her
+      hands do. She will answer, and the answer will be beautiful, and it will
+      not be either of the two things you asked.
+
+  - id: what_briar_is_owed
+    tier: 3
+    min_awareness: 45
+    source_npc: mother_briar
+    text: >-
+      She keeps you like a festival. I keep you like rain keeps the field. One
+      of us is going to be here when the other is compost, little pulse, and
+      you may as well know now which way I am betting.
+
+  - id: the_ones_who_left_whole
+    tier: 3
+    min_awareness: 45
+    source_npc: elias
+    text: >-
+      Count the ones who left. Then count the ones who left whole. The second
+      number is not zero, which is the cruel part -- if it were zero you could
+      stop trying, and she would lose the only thing about you she actually
+      wants.
+
+  - id: ashen_needs_you_ruined
+    tier: 3
+    min_awareness: 45
+    source_npc: lior
+    text: >-
+      Vale does not want you free. Vale wants her humiliated, and a Sovereign
+      whose mortal walked out is a Sovereign with a hole in her. You are not
+      the point of his offer. You are the instrument of it, and he would tell
+      you so himself if you asked, which is why he is dangerous.

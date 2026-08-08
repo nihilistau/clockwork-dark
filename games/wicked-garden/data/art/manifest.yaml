@@ -1,0 +1,219 @@
+# ============================================================
+# Shipped art manifest -- The Wicked Garden.
+#
+# Maps this story's ids to the plates in `plates/`, which is what
+# `paths.art_root` in games/wicked-garden/game.yaml points at. Same file format
+# and same resolution chain as the flagship's data/art/manifest.yaml:
+#
+#   1. shipped     this file. Instant, free, authored, always correct.
+#   2. cache       anything generated in an earlier session.
+#   3. live        Grok Imagine or ComfyUI. OFF by default.
+#   4. procedural  deterministic SVG. Never fails, never pretty.
+#
+# ------------------------------------------------------------
+# WHY `root:` IS NOT "/static/art"
+# ------------------------------------------------------------
+# Flask's /static handler belongs to the SCENE package
+# (content/scenes/clockwork/static/), not to the active game. The flagship's
+# pack is reachable at /static/art/... only because it happens to sit inside
+# that directory. A story that keeps its plates in its own tree gets a 404
+# there -- the manifest resolves, the file exists, and the browser still shows
+# nothing, which looks exactly like having no art pack at all.
+#
+# `/story-art` is the route in engine/api/art.py that serves `paths.art_root`
+# for whichever game is active. That is the whole seam.
+#
+# ------------------------------------------------------------
+# WHERE THESE FILES CAME FROM
+# ------------------------------------------------------------
+# Design_files/Wicked-Garden/concept/, re-encoded on import: location plates
+# kept at 1280x720, portraits and item cards resampled to 768x1024, all JPEG
+# q85 progressive. 18.9 MiB of source became 8.0 MiB in the tree. The concept
+# pack stays where it is and remains the master; this is a derived copy, and
+# regenerating it is a re-run of the import rather than an archaeology
+# exercise.
+#
+# Which concept plate corresponds to which id is recorded in
+# games/wicked-garden/data/README.md, and the mapping below follows it.
+#
+# NOTHING HERE POINTS AN ID AT A NEIGHBOURING FILE. Eight of fourteen places,
+# eight of nine portraits and twenty-two of twenty-three items have their own
+# plate. The rest are listed as missing at the foot of this file and fall
+# through to the procedural silhouette, which is the correct degradation and
+# strictly better than showing the player the wrong room.
+#
+# Prompts for every missing plate already exist in the `subjects.yaml` beside
+# this file, in the same one-source/two-dialect form the other two stories use.
+#
+# ------------------------------------------------------------
+# WHAT WAS DELIBERATELY NOT IMPORTED
+# ------------------------------------------------------------
+# * The ui-kit rasters (concept/ui-kit/**.jpg). Every one is a subject on a
+#   chroma-key green field and none has been keyed out -- shipping them renders
+#   green boxes. concept/ui-kit/icons/exports/*.png ARE keyed and transparent,
+#   but nothing in this build loads a story-supplied icon, so they would be
+#   files no code can reach.
+# * The ending gallery (concept/gallery/endings/**, 36 files). There is no
+#   ending-gallery screen and no `art:` field on an ending in
+#   data/rules/endings.yaml, so nothing could render them.
+# * The intimate set (concept/scenes/intimate/int-*.jpg). Outside the
+#   `safety.intensity.ceiling: suggestive` this story is authored to.
+#   `env-boudoir-rumpled-empty.jpg` is from that folder and IS imported: it is
+#   an empty room with no figure in it.
+#
+# Version: v0.1.0 [2026-08-08]
+# ============================================================
+
+version: 1
+root: "/story-art"
+
+# ------------------------------------------------------------
+# Locations. Ids from data/world/locations.yaml.
+#
+# `alts` are picked deterministically per (place, daypart), so a place with
+# three plates varies across the day and is stable for a given save. There are
+# no `times:` overrides and no `corrupted:` pool: the concept pack has one plate
+# per place rather than one per hour, and this story's evil phase is `dormant`
+# from the prologue to the finale (game.yaml sets
+# `evil_base_rate_per_day: 0.0`), so a corrupted pool would be dead content.
+# ------------------------------------------------------------
+locations:
+
+  gate_of_briars:
+    base: scenes/gate-of-briars.jpg
+    alts:
+      - scenes/gate-of-briars-sophia.jpg
+      - scenes/gate-of-briars-arrival.jpg
+
+  heart_grove:
+    base: scenes/heart-grove.jpg
+    alts:
+      - scenes/heart-grove-throne.jpg
+
+  guest_house:
+    base: scenes/guest-house.jpg
+    alts:
+      - scenes/guest-house-night.jpg
+      - scenes/guest-house-rumpled.jpg
+
+  feasting_glade:
+    base: scenes/feasting-glade.jpg
+    alts:
+      # frame-ashen-entrance is a FEAST shot, not a winter one -- the
+      # video-frames README says so and the picture agrees. It reads as
+      # winter_spindle from the filename and is not.
+      - scenes/feasting-glade-court.jpg
+      - scenes/feasting-glade-ashen.jpg
+
+  mirror_pools:
+    base: scenes/mirror-pools.jpg
+
+  thorn_labyrinth:
+    base: scenes/thorn-labyrinth.jpg
+    alts:
+      - scenes/thorn-labyrinth-trial.jpg
+      - scenes/thorn-labyrinth-heart.jpg
+
+  winter_spindle:
+    base: scenes/winter-spindle.jpg
+    alts:
+      - scenes/winter-spindle-ashen.jpg
+
+  root_crypts:
+    base: scenes/root-crypts.jpg
+    alts:
+      - scenes/root-crypts-elias.jpg
+
+  # NO PLATE, ON PURPOSE -- these six are absent rather than borrowed:
+  #   mortal_threshold, path_first_petals, aviary_unsent,
+  #   night_market, briar_deep, unknown
+  # Each has a full four-daypart prompt in subjects.yaml. Until one is
+  # generated the place renders as the procedural silhouette, which tells the
+  # player nothing false.
+
+# ------------------------------------------------------------
+# Portraits, keyed on the bare npc id from data/world/npc_schedules.yaml, plus
+# `sophia`, who has no schedule entry because she is a character agent.
+#
+# `court_generic` has NO PLATE: the court crowd appears only inside composites
+# in the concept pack, and cropping a courtier out of a wide shot would be a
+# worse face than none. Its prompt is in subjects.yaml.
+# ------------------------------------------------------------
+portraits:
+  sophia: portraits/sophia.jpg
+  ashen_vale: portraits/ashen-vale.jpg
+  mother_briar: portraits/mother-briar.jpg
+  lior: portraits/lior.jpg
+  thornwake: portraits/thornwake.jpg
+  elias: portraits/elias.jpg
+  mara_quill: portraits/mara-quill.jpg
+  bloomkin_generic: portraits/bloomkin.jpg
+
+  # Sophia's wardrobe states and expressions.
+  #
+  # NOT WIRED: no caller asks for these ids. `sophia` above is the canon face
+  # and the consistency lock, and subjects.yaml deliberately keeps her as ONE
+  # portrait entry so a generated Sophia cannot become four faces. These keys
+  # exist because the plates exist and are addressable today through
+  # `GET /api/art?id=sophia_wrath&kind=portrait` -- the day a scene wants her
+  # angry, the picture is already here and no code change is needed to fetch
+  # it. Nothing in engine/ or content/ names them yet.
+  sophia_fullbody: portraits/sophia-fullbody.jpg
+  sophia_hunt: portraits/sophia-hunt.jpg
+  sophia_wrath: portraits/sophia-wrath.jpg
+  sophia_smile: portraits/sophia-smile.jpg
+  sophia_hungry: portraits/sophia-hungry.jpg
+  sophia_vulnerable: portraits/sophia-vulnerable.jpg
+  sophia_expr_wrath: portraits/sophia-expr-wrath.jpg
+  # Likewise NOT WIRED: the player has no portrait slot in this build.
+  player_silhouette: portraits/player-silhouette.jpg
+
+# ------------------------------------------------------------
+# Items, keyed on the registry id in data/items/garden.yaml.
+#
+# Twenty-two of twenty-three. Three filenames do not match their id by hand and
+# are mapped rather than renamed -- this map IS the indirection, exactly as the
+# flagship's is.
+# ------------------------------------------------------------
+items:
+  collar_soft_thorns: items/collar-soft-thorns.jpg
+  thorn_ring: items/thorn-ring.jpg
+  kiss_petal: items/kiss-petal.jpg
+  nightbloom_wine: items/nightbloom-wine.jpg
+  living_silk: items/living-silk.jpg
+  iron_pin: items/iron-pin.jpg
+  salt_circle_chalk: items/salt-chalk.jpg
+  mirror_glass_knife: items/mirror-glass-knife.jpg
+  mortalslip_thread: items/mortalslip-thread.jpg
+  ashen_clasp: items/ashen-clasp.jpg
+  ashen_passport: items/ashen-passport.jpg
+  frost_thread: items/frost-thread.jpg
+  frost_splinter: items/frost-splinter.jpg
+  lovers_ring_cold: items/lovers-ring-cold.jpg
+  pressed_letter: items/pressed-letter.jpg
+  black_honey: items/black-honey.jpg
+  seed_of_becoming: items/seed-of-becoming.jpg
+  briar_key: items/briar-key.jpg
+  true_name_shard_sophia_partial: items/true-name-shard.jpg
+  mirror_chip: items/mirror-chip.jpg
+  thorn_of_proof: items/thorn-of-proof.jpg
+  pressed_court_schedule: items/court-schedule.jpg
+
+  # NO PLATE: `sap_sketch`, the only player-made object in the reliquary.
+  # Prompt is in subjects.yaml.
+
+# ------------------------------------------------------------
+# Scene stills that are not a place, a person or a carried thing.
+#
+# NOT WIRED. `engine/media/providers/shipped.py::lookup` has no branch that
+# reads this block -- wiring it is a `kind == "still"` branch in that file plus
+# a caller that asks for one, and neither exists.
+#
+# It is here rather than nowhere because `item-black-fruit.jpg` is the one
+# concept plate with a real subject and no registry id: the black fruit is a
+# feast beat (`flags.act1.ate_black_fruit`), not an object the player carries,
+# so it is correctly absent from data/items/garden.yaml. Filed under `items:`
+# it would be an inventory icon for a thing that can never be in the inventory.
+# ------------------------------------------------------------
+stills:
+  black_fruit: stills/black-fruit.jpg

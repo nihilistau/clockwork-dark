@@ -1,0 +1,23 @@
+# The Wicked Garden -- what you are.
+#
+# One entry, and that is the whole design rather than a placeholder. This is a
+# story about a mortal in a place that is not for mortals: being human IS the
+# character class, it is the thing every fae in the Garden finds interesting
+# about you, and it is what the ten-day toll is charged against.
+#
+# No skill bonuses, because this story has no skills. `stats` is empty for the
+# same reason -- the flagship's grit/agility/wits/presence are its meters, not
+# the engine's, and this story declares its own twelve in state.yaml.
+#
+# Version: v0.1.0 [2026-08-08]
+
+default: human
+
+archetypes:
+  human:
+    name: "Human"
+    blurb: >-
+      Breakable, brief, and the most interesting thing anyone here has seen in
+      a century. You have a life on the other side of the hedge, and it is
+      still running.
+    summary: "A mortal, which is the point."

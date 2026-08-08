@@ -319,7 +319,7 @@ def test_turn_update_replaces_the_streamed_text():
     than trusting whatever its delta buffer happened to contain -- the retry
     does not stream, so the buffer holds a REJECTED draft.
     """
-    store = (UI_SRC / "store.js").read_text(encoding="utf-8")
+    store = (UI_SRC / "core" / "store.js").read_text(encoding="utf-8")
     turn_update = store.split('case "turn_update"')[1].split('case "dice_result"')[0]
     assert "payload.narration" in turn_update
     assert "text: finalText" in turn_update, (
@@ -341,7 +341,7 @@ def test_the_delta_queue_is_paced_and_always_fully_flushed():
     A paced drain must never be able to strand the tail: `flushNow` empties the
     queue outright, and every non-streamed event calls it before dispatching.
     """
-    socket = (UI_SRC / "socket.js").read_text(encoding="utf-8")
+    socket = (UI_SRC / "core" / "socket.js").read_text(encoding="utf-8")
     assert "requestAnimationFrame" in socket
     assert "DRAIN_DIVISOR" in socket, "the reveal is no longer paced"
 
@@ -359,7 +359,7 @@ def test_the_reveal_holds_back_a_half_written_word():
     ("You’re per"). The pacer must return 0 -- release nothing -- when the
     queue ends inside a word, rather than showing the fragment.
     """
-    socket = (UI_SRC / "socket.js").read_text(encoding="utf-8")
+    socket = (UI_SRC / "core" / "socket.js").read_text(encoding="utf-8")
     fn = socket.split("function wordBoundary(")[1].split("function step(")[0]
     assert "return 0" in fn or "return text.length > MAX_WORD ? text.length : 0" in fn
     assert "MAX_WORD" in socket, "a spaceless run must still have an escape hatch"
@@ -371,7 +371,7 @@ def test_a_dropped_socket_discards_the_queue_rather_than_flushing_it():
     closed entry -- and a held word fragment would spin the frame loop forever
     waiting on a socket that is gone.
     """
-    socket = (UI_SRC / "socket.js").read_text(encoding="utf-8")
+    socket = (UI_SRC / "core" / "socket.js").read_text(encoding="utf-8")
     disconnect = socket.split('socket.on("disconnect"')[1].split('socket.on("connect_error"')[0]
     assert "clearQueues()" in disconnect
     assert "flushNow()" not in disconnect
@@ -379,7 +379,7 @@ def test_a_dropped_socket_discards_the_queue_rather_than_flushing_it():
 
 def test_no_socket_event_was_added_without_registering_it():
     """The narration fix rides on turn_update; it must not invent a channel."""
-    socket = (UI_SRC / "socket.js").read_text(encoding="utf-8")
+    socket = (UI_SRC / "core" / "socket.js").read_text(encoding="utf-8")
     inbound = set(re.findall(r'"([a-z_]+)"', socket.split("export const INBOUND")[1].split("]")[0]))
     assert "turn_update" in inbound
     assert "narration_delta" in inbound

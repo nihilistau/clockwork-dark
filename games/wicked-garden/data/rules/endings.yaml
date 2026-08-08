@@ -1,0 +1,995 @@
+# Ending Eligibility — worked example (The Wicked Garden)
+# =======================================================
+#
+# NOT LOADED BY EITHER SHIPPED GAME. See README.md in this directory.
+#
+# Thresholds are DAY-08-MIRRORS.md's illustrative table, written as conditions
+# in the shared grammar. Nothing in engine/game/endings.py knows what `autonomy`
+# or `briar_key` are.
+#
+# THE TWO GATES ARE SEPARATE ON PURPOSE:
+#
+#   requires:     you have earned this ending
+#   completable:  nothing still live makes it impossible
+#
+# High Autonomy earns the door home; an unpaid service debt to the Vale is what
+# makes walking through it something other than walking through it. Folding them
+# together would lose the ability to tell the player WHICH they are looking at,
+# and that distinction is the lock text the mirror pool renders.
+#
+# Consumed by engine/game/endings.py.
+#
+# ---------------------------------------------------------------------------
+# `beats:` — THE ENDING MODULES (added v0.2.0)
+#
+# DAY-09-FINALE.md:102 gives every module three beats: Speak, Act, Seal. They
+# are authored HERE, beside the gate that decides who reaches them, because an
+# ending's beats and its eligibility are the same object. Split across two files
+# they drift, and the failure mode is a finale that offers a card whose beats
+# reference a state the gate never required.
+#
+# They are ordinary bounded beats in the deck grammar (engine/content/deck.py),
+# so `deck.resolve_beat` runs them unmodified and the per-scene ceilings apply.
+#
+# REACHABLE THROUGH `endings.declared()`. It built its flattened id -> declaration
+# view from a fixed key list -- class, label, requires, completable, score,
+# closes, lock_reasons -- and dropped everything else, so `beats:` was invisible
+# to it and a renderer had to re-read the raw table with `load_rules()`. Two
+# readers of one file are two readers free to disagree about it. `beats` is on
+# the flattened view now, inheriting from the class where a variant declares
+# none. `games/wicked-garden/data/scenes/day_09_finale.yaml` names the call.
+#
+# STILL UNRENDERED: no screen walks a finale's three beats yet.
+#
+# WHAT A BEAT IS FOR HERE. Not prose. The Seal beat in particular is the moment
+# the epilogue card is chosen from, so it sets the flags the epilogue index and
+# the NG+ seeds read. Sophia's monologues are hers; these say what the scene
+# asks of her.
+#
+# E6b, E6d and E6e were added at the same time. The design declares twenty-three
+# ending variants (08-ENDINGS-AND-PROGRESSION.md:119) and this table carried
+# twenty; the three missing ones are Lior's legion, the Market's ledger and
+# Mara's spiral, and all three have epilogue cards already written. No existing
+# gate was changed.
+#
+# Version: v0.2.0 [2026-08-08]
+
+version: 1
+
+# ALWAYS ELIGIBLE, by declaration. DAY-09-FINALE.md's failure policy is "never
+# softlock title": if nothing else qualifies, this carries the finale. It is in
+# the set because the story said so, not because the engine panicked -- E4e is a
+# real ending with real epilogue cards.
+fail_forward: E4e
+
+classes:
+
+  # ---------------------------------------------------------------------
+  E1:
+    label: "The Door Home"
+    requires:
+      all:
+        - { id: autonomy, value: { name: autonomy, min: 55 } }
+        - { id: knowledge, value: { name: knowledge, min: 40 } }
+        - id: a_way_out
+          any:
+            - { flag: sophia_will_discuss_leave }
+            - { has_item: briar_key }
+            - { flag: leave_law_fragment }
+    lock_reasons:
+      autonomy: "You have not kept enough of yourself to walk out with."
+      knowledge: "You do not know the shape of the door."
+      a_way_out: "There is no door yet — a law, a key, or her word."
+    score:
+      - { value: autonomy, at: 100, weight: 0.4 }
+      - { value: knowledge, at: 100, weight: 0.3 }
+      - { flag: knows_time_law, weight: 0.3 }
+    variants:
+      E1a:
+        label: "Tender release"
+        requires: { flag: sophia_will_discuss_leave }
+        # HONESTY: she cannot let you go tenderly while she is being eaten.
+        completable: { none: [{ clock: { name: briar_hunger, full: true } }] }
+        lock_reasons:
+          sophia_will_discuss_leave: "She has not agreed to discuss it."
+        closes: [E3a, E3b, E3c]
+        beats:
+          - id: E1a_speak
+            text: >-
+              SPEAK. Terms at the Gate, said plainly, with the court not
+              invited. She does not negotiate them down. She asks once whether
+              the player is sure and accepts the answer, which is the single
+              hardest thing she does in the story.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: autonomy, delta: 6 }
+                  - { type: value, name: equality_seed, delta: 1 }
+          - id: E1a_act
+            text: >-
+              ACT. Cross. The roses open. They do not tear anything and the
+              player will spend years wondering whether that was mercy or
+              disinterest.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: favor, delta: 5 }
+                  - { type: value, name: corruption, delta: -3, why: "the Garden lets go of some of it" }
+          - id: E1a_seal
+            text: >-
+              SEAL. Look back, or do not. `looked_back_at_gate` decides whether
+              the dream epilogue has her in it. *Go. Before I invent a kinder
+              cage.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+                  - { type: flag, flag: ng_plus_seed_written }
+
+      E1b:
+        label: "Bargained exit"
+        requires: { any: [{ thread: { status: active, min_count: 1 } }, { has_item: briar_key }] }
+        beats:
+          - id: E1b_speak
+            text: >-
+              SPEAK. Name the price out loud in front of whoever holds it. This
+              is not a plea, it is an accounting, and everybody present can
+              follow the arithmetic.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: knowledge, delta: 6 }
+          - id: E1b_act
+            text: >-
+              ACT. Pay it, or leave it standing and walk anyway. RUNTIME:
+              discharge or break the live thread through the thread tool -- the
+              epilogue's account book is that thread's final status, not a flag.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: autonomy, delta: 5 }
+                  - { type: value, name: corruption, delta: 2 }
+          - id: E1b_seal
+            text: >-
+              SEAL. The Gate opens less easily for the next mortal, or more
+              easily, depending entirely on who was paid. *You bought a door
+              with pieces of us.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+                  - { type: flag, flag: ng_plus_seed_written }
+
+      E1c:
+        label: "Stolen exit"
+        requires:
+          all:
+            - { has_item: iron_pin }
+            - { id: not_consenting, none: [{ flag: sophia_will_discuss_leave }] }
+        lock_reasons:
+          not_consenting: "You cannot steal what is being offered."
+        beats:
+          - id: E1c_speak
+            text: >-
+              SPEAK. Nothing, ideally. This is the one module where the Speak
+              beat is silence, or a lie told fast. If the player talks, she has
+              time to be persuasive, and she is very good at it.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: autonomy, delta: 4 }
+                  - { type: value, name: favor, delta: -8 }
+          - id: E1c_act
+            text: >-
+              ACT. Iron at the Gate. The roses tear skin on the way through and
+              the tearing is not incidental -- it is how the Garden marks
+              something that left without permission.
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: armed_with_iron }
+                  - { type: value, name: corruption, delta: 5 }
+                  - { type: value, name: knowledge, delta: 4 }
+          - id: E1c_seal
+            text: >-
+              SEAL. She does not scream and does not chase. *Run. I will not
+              chase with feet. I have better weather.* The dream hunt starts
+              tonight and does not stop.
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+                  - { type: flag, flag: ng_plus_seed_written }
+
+      E1d:
+        label: "Hollow victory"
+        requires: { value: { name: time_debt_mortal_days, min: 100 } }
+        beats:
+          - id: E1d_speak
+            text: >-
+              SPEAK. Whatever was going to be said has been overtaken. The
+              Garden barely records the leaving; the yield was harvested during
+              the long stay and there is nothing left to argue about.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: mortal_collapse, delta: 1 }
+          - id: E1d_act
+            text: >-
+              ACT. Cross, into a decade. The door is not the difficult part and
+              has not been for some time.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: autonomy, delta: 4 }
+                  - { type: value, name: desire, delta: -8 }
+          - id: E1d_seal
+            text: >-
+              SEAL. *You took so long that leaving became a kind of staying. Do
+              not write. The paper will arrive as ash.* The hollow clause is not
+              optional in this module; it is the module.
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: mortal_life_unrecoverable }
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  E2:
+    label: "Equal & Eternal"
+    requires:
+      all:
+        - { id: favor, value: { name: favor, min: 70 } }
+        - { id: autonomy, value: { name: autonomy, min: 55 } }
+        - { id: seed, value: { name: equality_seed, min: 2 } }
+        - { id: not_thrall, none: [{ flag: thrall_mark_accepted }] }
+    # An equal cannot be property. A live thread tagged Body is a collar with
+    # better manners, and the coronation would be a lie the finale cannot tell.
+    completable:
+      none:
+        - { thread: { tag: Body, status: active } }
+    lock_reasons:
+      favor: "She is fond of you. Fond is not equal."
+      autonomy: "There is not enough of you left to stand beside her."
+      seed: "You have never once stood level with her in public."
+      not_thrall: "You took the mark."
+    score:
+      - { value: favor, at: 100, weight: 0.35 }
+      - { value: autonomy, at: 100, weight: 0.35 }
+      - { value: equality_seed, at: 5, weight: 0.3 }
+    variants:
+      E2a:
+        label: "Coronation as Consort-Equal"
+        beats:
+          - id: E2a_speak
+            text: >-
+              SPEAK. A PEER OATH, and it must not be a thrall oath with better
+              adjectives. The grammar is the whole point: nothing in it is
+              given, everything in it is exchanged.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: equality_seed, delta: 2 }
+                  - { type: value, name: favor, delta: 8 }
+          - id: E2a_act
+            text: >-
+              ACT. Stand with her against whichever of the Vale or the roots
+              came for them in F2, and WIN it. An unearned coronation is the one
+              thing this ending cannot survive.
+            gate:
+              when: { value: { name: autonomy, min: 50 } }
+              on_pass:
+                effects:
+                  - { type: value, name: knowledge, delta: 6 }
+                  - { type: value, name: favor, delta: 6 }
+              on_fail:
+                # FAIL FORWARD into the bittersweet variant rather than into
+                # failure: the crisis is survived and the cost shows.
+                text: "You hold. What it costs is visible from the floor of the court, and stays visible."
+                effects:
+                  - { type: flag, flag: equality_cost_visible }
+                  - { type: value, name: favor, delta: 3 }
+          - id: E2a_seal
+            text: >-
+              SEAL. A dual mark that does not eat autonomy below fifty. If the
+              seal would take it lower, the mark is refused and the ending is
+              E2c. *Peer. What an ugly, perfect word.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+                  - { type: flag, flag: ng_plus_seed_written }
+                  - { type: value, name: corruption, delta: 3 }
+
+      E2b:
+        label: "Wanderers of Between"
+        requires: { flag: abandon_seat }
+        beats:
+          - id: E2b_speak
+            text: >-
+              SPEAK. The peer oath, and then the abdication, in that order. She
+              leaves the Seat because the oath made it possible to, not instead
+              of taking one.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: equality_seed, delta: 2 }
+                  - { type: value, name: autonomy, delta: 5 }
+          - id: E2b_act
+            text: >-
+              ACT. Thornwake inherits a mess and a law and does not thank
+              anybody. The court realigns behind them while they are still in
+              the room.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: favor, delta: 8 }
+                  - { type: value, name: briar_hunger, delta: 1, why: "the Seat is empty and the roots noticed" }
+          - id: E2b_seal
+            text: >-
+              SEAL. Two figures on a road that rearranges out of curiosity
+              rather than out of court business. Some nights she misses the
+              theatre. Choosing each other again is the work.
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+                  - { type: flag, flag: ng_plus_seed_written }
+
+      E2c:
+        label: "Bittersweet"
+        requires: { flag: equality_cost_visible }
+        beats:
+          - id: E2c_speak
+            text: >-
+              SPEAK. The peer oath, said by two people who already know what it
+              is going to cost her. Neither of them pretends otherwise and
+              neither of them stops.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: equality_seed, delta: 2 }
+          - id: E2c_act
+            text: >-
+              ACT. The Garden shows the receipt. Her power thins in places she
+              refuses to regret and the thinning is visible to anyone who knew
+              her before.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: favor, delta: 6 }
+                  - { type: value, name: corruption, delta: 4 }
+          - id: E2c_seal
+            text: >-
+              SEAL. *Do not apologise with your mouth. Apologise by staying
+              sharp. I did not pay this price to keep a blunt knife.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+                  - { type: flag, flag: ng_plus_seed_written }
+
+  # ---------------------------------------------------------------------
+  E3:
+    label: "Beloved Thrall"
+    requires:
+      all:
+        - { id: favor, value: { name: favor, min: 75 } }
+        - { id: autonomy, value: { name: autonomy, max: 40 } }
+        - { id: desire, value: { name: desire, min: 60 } }
+        - { id: consent, flag: thrall_consent }
+    lock_reasons:
+      favor: "She does not want you enough to keep you."
+      autonomy: "You are still too much your own."
+      desire: "There is no heat in it."
+      consent: "It has not been asked and answered."
+    score:
+      - { value: favor, at: 100, weight: 0.3 }
+      - { value: desire, at: 100, weight: 0.3 }
+      - { when: { value: { name: autonomy, max: 40 } }, weight: 0.4 }
+    variants:
+      E3a:
+        label: "Soft paradise"
+        beats:
+          - id: E3a_speak
+            text: >-
+              SPEAK. A yes that is a ritual word, and the product layer sits
+              above the character layer for all of it -- hard limits and fade
+              remain available inside the ritual, not before it.
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: thrall_mark_accepted }
+                  - { type: value, name: autonomy, delta: -8 }
+          - id: E3a_act
+            text: >-
+              ACT. The mark completes. Suggestive: weather requested and
+              arriving. Duties of pleasure and presence, structured as love and
+              genuinely functioning as it.
+              # EXPLICIT VARIANT: not authored. DAY-09-FINALE.md:159 permits an
+              # explicit intimacy seal inside E3 where the player has raised the
+              # ceiling. This content ships the suggestive one only.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: desire, delta: 12 }
+                  - { type: value, name: corruption, delta: 8 }
+                  - { type: value, name: favor, delta: 8 }
+          - id: E3a_seal
+            text: >-
+              SEAL. The choice interface narrows permanently. If knowledge was
+              high, the post-credit spark fires -- one clear thought, *I chose*,
+              and then sweetness returns. *Mine. Say it back when you want more.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+      E3b:
+        label: "Display thrall"
+        requires: { flag: public_seal }
+        beats:
+          - id: E3b_speak
+            text: >-
+              SPEAK. The ritual word, in the Feasting Glade, at volume, with the
+              court as witness rather than audience. Consent is public and
+              therefore harder to withdraw, which she knows.
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: thrall_mark_accepted }
+                  - { type: value, name: autonomy, delta: -8 }
+                  - { type: value, name: favor, delta: 6 }
+          - id: E3b_act
+            text: >-
+              ACT. Worn to the table like living jewellery. The Vale's contempt
+              is a spice she feeds on and does nothing to discourage.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: desire, delta: 10 }
+                  - { type: value, name: corruption, delta: 8 }
+          - id: E3b_seal
+            text: >-
+              SEAL. *Let them look. Looking is free. Touching you is a privilege
+              I ration.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+      E3c:
+        label: "Dreaming thrall"
+        requires: { value: { name: autonomy, max: 25 } }
+        beats:
+          - id: E3c_speak
+            text: >-
+              SPEAK. The word arrives slower than it used to and is meant just
+              as much. This module's horror is that nothing in it is coerced.
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: thrall_mark_accepted }
+                  - { type: value, name: autonomy, delta: -8 }
+          - id: E3c_act
+            text: >-
+              ACT. Drift. The name becomes texture. The Honeyed Dead recognise a
+              cousin and are kind about it, in the way of people who arrived
+              first.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: corruption, delta: 12 }
+                  - { type: value, name: desire, delta: 8 }
+          - id: E3c_seal
+            text: >-
+              SEAL. She holds what remains like a flame cupped from wind. If
+              knowledge once burned bright, one coherent memory of a door
+              surfaces post-credit, and then petals. *Shh.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+                  - { type: flag, flag: ng_plus_seed_written }
+
+  # ---------------------------------------------------------------------
+  # E4 has no `requires` at all: it is what is left. That is not laziness,
+  # it is the design -- "always eligible as fail-forward if clocks max or
+  # player opts dissolution" (DAY-08-MIRRORS.md).
+  E4:
+    label: "Consumed"
+    score:
+      - { value: corruption, at: 100, weight: 0.4 }
+      - { when: { clock: { name: briar_hunger, min: 4 } }, weight: 0.3 }
+      - { when: { value: { name: autonomy, max: 20 } }, weight: 0.3 }
+    variants:
+      E4a:
+        label: "Sophia's grief-feast"
+        requires: { value: { name: favor, min: 70 } }
+        beats:
+          - id: E4a_speak
+            text: >-
+              SPEAK. The last use of the player's name, in her mouth, correctly.
+              She has never once got it wrong and does not start now.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: favor, delta: 6 }
+                  - { type: value, name: sophia_break, delta: 1 }
+          - id: E4a_act
+            text: >-
+              ACT. Appetite as tragedy. Garden metaphor throughout -- gore is
+              not required and is not the register. She does not display what
+              she takes.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: corruption, delta: 12 }
+                  - { type: value, name: briar_hunger, delta: -1, why: "the yield spike the court pretends not to feel" }
+          - id: E4a_seal
+            text: >-
+              SEAL. A new amber warmth in the Root Crypts and an empty
+              place-setting on the Seat. *I warned you I could be merciful.
+              Mercy was not what we chose at the end.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+      E4b:
+        label: "Mother Briar roots you"
+        requires: { clock: { name: briar_hunger, full: true } }
+        beats:
+          - id: E4b_speak
+            text: >-
+              SPEAK. There is nobody to speak to. Briar does not converse at
+              this depth; she absorbs. Whatever the player says is the last
+              thing said in their own grammar.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: corruption, delta: 10 }
+          - id: E4b_act
+            text: >-
+              ACT. Rain made personal. The Garden gets measurably healthier and
+              that is not a comfort. Sophia negotiates around a bloom that used
+              to say her name in bed.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: favor, delta: -8 }
+                  - { type: value, name: corruption, delta: 8 }
+          - id: E4b_seal
+            text: >-
+              SEAL. A flower with human eyes, beautiful and wrong. Her echo is
+              OPTIONAL here and the index says so -- if it comes, it is not
+              forgiveness, it is a grudge against the weather.
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+      E4c:
+        label: "Ashen winter-kill"
+        requires: { flag: ashen_victory }
+        beats:
+          - id: E4c_speak
+            text: >-
+              SPEAK. The Vale is honest to the end and the honesty is the
+              cruelty. He explains what is happening while it happens, because
+              cold keeps its invoices.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: knowledge, delta: 5 }
+                  - { type: value, name: ashen_pressure, delta: 1 }
+          - id: E4c_act
+            text: >-
+              ACT. Frost in a month that should not support it. Not violence --
+              weather, applied to one person with precision.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: corruption, delta: 10 }
+                  - { type: value, name: desire, delta: -8 }
+          - id: E4c_seal
+            text: >-
+              SEAL. An ice statue with a rose frozen at the heart. She closes a
+              portion of the Garden rather than look at the colour white. *He
+              does not get to keep you. Neither do I. That is the insult.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+      E4d:
+        label: "Feast table"
+        requires: { flag: public_feast_humiliation }
+        beats:
+          - id: E4d_speak
+            text: >-
+              SPEAK. Horror etiquette. Everybody at the table is polite and the
+              politeness is load-bearing. Whatever the player says is treated as
+              part of the course.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: autonomy, delta: -8 }
+                  - { type: value, name: favor, delta: -6 }
+          - id: E4d_act
+            text: >-
+              ACT. Guests perform shock and appetite in the correct proportions.
+              Her face is a mask that fools everybody except Mother Briar and
+              the player, and the player only for a little while.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: corruption, delta: 12 }
+                  - { type: value, name: briar_hunger, delta: 1 }
+          - id: E4d_seal
+            text: >-
+              SEAL. A long table and an empty chair crowned in roses. *Do not
+              look at me like that. Or do. Make it costly.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+      # No requires. The declared fail_forward, and the reason there is one.
+      E4e:
+        label: "Willing dissolution"
+        beats:
+          - id: E4e_speak
+            text: >-
+              SPEAK. A yes, said awake, to the soil rather than to her. This is
+              the only module where the player is the one who is calm.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: autonomy, delta: 4 }
+                  - { type: value, name: corruption, delta: 8 }
+          - id: E4e_act
+            text: >-
+              ACT. Briar and Sophia both witness -- a rare truce, and neither of
+              them enjoys the other being there. Unmaking without being hunted.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: briar_hunger, delta: -1, why: "given, not taken" }
+                  - { type: value, name: favor, delta: -5 }
+          - id: E4e_seal
+            text: >-
+              SEAL. A calm flower, and a kind legend among the Honeyed Dead: the
+              one who walked into the soil awake. *I would have kept you sharp.
+              You chose to become weather. I will hate that with respect.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+                  - { type: flag, flag: ng_plus_seed_written }
+
+  # ---------------------------------------------------------------------
+  E5:
+    label: "Usurper / Sovereign"
+    requires:
+      all:
+        - { id: knowledge, value: { name: knowledge, min: 70 } }
+        - { id: autonomy, value: { name: autonomy, min: 60 } }
+        - { id: key, any: [{ has_item: briar_key }, { flag: briar_deal_struck }] }
+        - { id: ambition, flag: ambition_declared }
+    lock_reasons:
+      knowledge: "You do not know enough of the laws to break them properly."
+      autonomy: "A Seat is not taken by someone who is already sitting on the floor."
+      key: "The Deep has not opened for you."
+      ambition: "You have never once reached for it."
+    score:
+      - { value: knowledge, at: 100, weight: 0.5 }
+      - { value: autonomy, at: 100, weight: 0.25 }
+      - { flag: ambition_declared, weight: 0.25 }
+    variants:
+      E5a:
+        label: "Rule beside a humbled Sophia"
+        requires: { flag: spare_sophia }
+        beats:
+          - id: E5a_speak
+            text: >-
+              SPEAK. Seat law, or the true name, or the Briar pact -- whichever
+              the player actually assembled. It must be the one they earned; a
+              module that accepts any of the three interchangeably is a menu.
+            gate:
+              when:
+                any:
+                  - { has_item: true_name_shard_sophia_partial }
+                  - { flag: leave_law_fragment }
+                  - { flag: briar_deal_struck }
+              on_pass:
+                effects:
+                  - { type: value, name: knowledge, delta: 8 }
+                  - { type: value, name: sophia_break, delta: 1 }
+              on_fail:
+                text: "You reach for the Seat with the wrong hand. It notices, and so does she."
+                effects:
+                  - { type: value, name: favor, delta: -10 }
+          - id: E5a_act
+            text: >-
+              ACT. The ritual of the Seat. Thornwake kneels to the office, not
+              to the person, and says so out loud in case anybody
+              misunderstands. She bows in a way the court never forgets.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: autonomy, delta: 6 }
+                  - { type: value, name: favor, delta: 5 }
+                  - { type: value, name: corruption, delta: 5 }
+          - id: E5a_seal
+            text: >-
+              SEAL. A dual crown, one thorn-black and one rose-gold. Pride
+              bleeds; desire does not. *You took my weather and left me my
+              mouth. Use both carefully, usurper-mine.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+      E5b:
+        label: "Rule alone"
+        requires: { flag: remove_sophia }
+        beats:
+          - id: E5b_speak
+            text: >-
+              SPEAK. The naming, and it has to be complete enough to hold. A
+              partial shard binds her; it does not erase her, and the difference
+              is what the epilogue is about.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: knowledge, delta: 8 }
+                  - { type: value, name: favor, delta: -12 }
+          - id: E5b_act
+            text: >-
+              ACT. Exiled, Honeyed, or bound offstage, per flags. The Garden
+              yields either way, which is the first thing the player learns
+              about what they have taken.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: autonomy, delta: 6 }
+                  - { type: value, name: corruption, delta: 8 }
+          - id: E5b_seal
+            text: >-
+              SEAL. A lone figure on the throne with the court at a distance.
+              You understand her old cruelty from the inside and do not enjoy the
+              education. Her echo comes only if she is still able to speak.
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+      E5c:
+        label: "The Garden's mouth"
+        requires: { clock: { name: briar_hunger, min: 4 } }
+        beats:
+          - id: E5c_speak
+            text: >-
+              SPEAK. The player opens their mouth and Mother Briar's grammar
+              comes out. They notice. They are the only one who does, for a
+              while.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: corruption, delta: 12 }
+                  - { type: value, name: knowledge, delta: 5 }
+          - id: E5c_act
+            text: >-
+              ACT. Usurpation as possession. The Seat is genuinely taken and the
+              taker is genuinely no longer sole tenant of themselves. Free will
+              becomes a seasonal crop.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: autonomy, delta: -12 }
+                  - { type: value, name: briar_hunger, delta: 1 }
+          - id: E5c_seal
+            text: >-
+              SEAL. A face in a root cathedral. Sophia survives or does not as a
+              footnote to a larger organism. *I wanted a lover. The Garden
+              wanted a larynx.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+                  - { type: flag, flag: ng_plus_seed_written }
+
+  # ---------------------------------------------------------------------
+  E6:
+    label: "Other Hungers"
+    variants:
+      E6a:
+        label: "Ashen Vale's winter consort"
+        requires:
+          all:
+            - { id: route, value: { name: ashen_route, min: 2 } }
+            - { id: price, any: [{ has_item: ashen_passport }, { thread: { source: ashen_vale, status: active } }] }
+        lock_reasons:
+          route: "Winter has not taken enough interest in you."
+          price: "There is no passport and no debt — nothing for him to collect."
+        beats:
+          - id: E6a_speak
+            text: >-
+              SPEAK. He states the terms and does not improve them. The cage is
+              larger, the air is thinner, and the honesty is brutal. He is not
+              lying and he never was.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: knowledge, delta: 6 }
+                  - { type: value, name: ashen_pressure, delta: -1, why: "the debt is being converted, not collected" }
+          - id: E6a_act
+            text: >-
+              ACT. The service is collected as the consort price. Sophia loses
+              publicly, or seals her border and calls the loss strategy.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: favor, delta: -10 }
+                  - { type: value, name: corruption, delta: 6 }
+          - id: E6a_seal
+            text: >-
+              SEAL. A frost wedding that is not a wedding, and a moth cloak
+              shared. TWO echoes here -- hers, and his. *Warm things lie. Cold
+              keeps its invoices. Welcome.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+      # ADDED v0.2.0. The design declares five E6 variants; this table had two.
+      # Gated on what the scenes actually produce: you kissed a better version
+      # of yourself in Lior's water, and Lior collects.
+      E6b:
+        label: "Lior's mirrored legion"
+        requires:
+          all:
+            - { id: lior, flag: met_lior }
+            - { id: false_self, flag: false_self_kissed }
+        lock_reasons:
+          lior: "You never paid the pools enough attention for them to want you."
+          false_self: "You never kissed the better version of yourself."
+        beats:
+          - id: E6b_speak
+            text: >-
+              SPEAK. The player says something and several of them say it, out
+              of sync, in the water. Lior does not negotiate; they file.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: corruption, delta: 8 }
+                  - { type: value, name: knowledge, delta: 4 }
+          - id: E6b_act
+            text: >-
+              ACT. Plural. Escape becomes a hall of doors with the player's own
+              face on every one. Sophia finds it vulgar and intimate in the same
+              breath, which is the worst review Lior has ever had.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: autonomy, delta: -10 }
+                  - { type: value, name: favor, delta: -6 }
+          - id: E6b_seal
+            text: >-
+              SEAL. Many of you under the willows, smiling out of sync. Lior's
+              echo, not hers. *Do not thank me. Gratitude multiplies you, and I
+              charge interest.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+      E6c:
+        label: "Thornwake's lawbound squire"
+        requires: { flag: thornwake_squire_offered }
+        beats:
+          - id: E6c_speak
+            text: >-
+              SPEAK. The oath is to the Seat and not to anybody sitting on it,
+              and he makes the player say that part twice.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: knowledge, delta: 6 }
+                  - { type: value, name: autonomy, delta: -4 }
+          - id: E6c_act
+            text: >-
+              ACT. Border law: chalk, iron rules, hounds, thankless hours. Not
+              her heat, not the Vale's poetry. Safety with a scar, and it is
+              genuinely safety.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: corruption, delta: -4, why: "law is a solvent too" }
+                  - { type: value, name: favor, delta: -6 }
+          - id: E6c_seal
+            text: >-
+              SEAL. An antlered helm's shadow over the player at a briar-border
+              dawn. TWO echoes -- his, *law holds, even for you, especially for
+              you*; and hers, *he took my favourite knife and called it shelter.
+              …Good.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+      # ADDED v0.2.0. The side-bargain apocalypse: nobody in it is powerful.
+      E6d:
+        label: "Night Market true debt"
+        requires: { id: ledger, flag: market_true_debt }
+        lock_reasons:
+          ledger: "You never bought anything you could not pay for."
+        beats:
+          - id: E6d_speak
+            text: >-
+              SPEAK. The ledger is read aloud by something the size of a cat.
+              There is no villain in this module and that is the horror of it.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: knowledge, delta: 4 }
+                  - { type: value, name: autonomy, delta: -8 }
+          - id: E6d_act
+            text: >-
+              ACT. Minor Fae take ownership of pieces of the player's time,
+              voice and appetite, separately, to different creditors. Sophia
+              could buy them back. She might not.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: corruption, delta: 8 }
+                  - { type: value, name: favor, delta: -5 }
+          - id: E6d_seal
+            text: >-
+              SEAL. Stall lights, and the player behind a counter with empty
+              eyes that still spark. NO ECHO -- the index gives this ending
+              none, and the silence is the point.
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+
+      # ADDED v0.2.0. Only where the Aviary conversation actually happened.
+      # Half rescue, half a way of hurting Sophia by breaking her toy, and Mara
+      # is honest about the second half.
+      E6e:
+        label: "Mara's mortal revenge spiral"
+        requires: { id: mara, flag: mara_pact }
+        lock_reasons:
+          mara: "Nobody on the other side is reaching for you."
+        beats:
+          - id: E6e_speak
+            text: >-
+              SPEAK. Mara talks the player through the membrane from the wrong
+              side, badly, with no idea what she is doing. She is not a rescue
+              and she never claimed to be.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: autonomy, delta: 6 }
+                  - { type: value, name: mortal_collapse, delta: 1 }
+          - id: E6e_act
+            text: >-
+              ACT. Out, into daylight, into interviews and institutions and a
+              shared paranoia. The two of them become each other's evidence.
+            gate:
+              on_pass:
+                effects:
+                  - { type: value, name: favor, delta: -10 }
+                  - { type: value, name: corruption, delta: 4 }
+          - id: E6e_seal
+            text: >-
+              SEAL. A fluorescent kitchen, a rose growing from the sink, two
+              sleepless adults. The story does not end cleanly; it serialises.
+              *I got out. Getting out is not the same as winning.*
+            gate:
+              on_pass:
+                effects:
+                  - { type: flag, flag: ending_gallery_unlocked }
+                  - { type: flag, flag: ng_plus_seed_written }

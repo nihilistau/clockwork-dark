@@ -1,0 +1,642 @@
+# Day 7 — Reckoning (Act III)
+# ===========================
+#
+# Authored from Design_files/Wicked-Garden/docs/design/scenes/DAY-07-RECKONING.md.
+#
+# NO TOURIST SIDEQUESTS (DAY-07:182). Every scene on this day spends a clock or
+# a resource. The tourist Garden is over and the player should feel the room
+# getting smaller.
+#
+# THE CLOCKS DRIVE THE DAY, not the player. `clocks.yaml` already declares what
+# `briar_hunger`, `ashen_pressure` and `mortal_collapse` do when they fill, and
+# the crisis card here reads them rather than picking a crisis by author fiat.
+# `sophia_break` is declared in state.yaml with no beats in clocks.yaml -- it is
+# HER patience, and what it drives is the terms card at the end of this file.
+#
+# EXACTLY ONE DEEP FACTION SCENE. The others become sting cameos. That is the
+# design's rule and it is what makes Day 7 a triage rather than a checklist, so
+# the faction card is `menu` and the runtime must honour it.
+#
+# MANDATORY OUTPUT: `day7_sophia_terms`, one of five. Four are spelled
+# `day7_sophia_terms_*`; the fifth is `sophia_will_discuss_leave`, because E1a's gate
+# in endings.yaml already reads that name and the existing gates are not being
+# changed. See this directory's README.
+#
+# Version: v0.1.0 [2026-08-08]
+
+id: day_07_reckoning
+
+draw: 2
+
+cards:
+
+  # =====================================================================
+  # SPINE
+  # =====================================================================
+
+  - id: D7_01_waking_by_compass
+    required: true
+    tags: [menu, gm]
+    title: "Six Omens"
+    text: >-
+      INTENT: the compass wakes the player. Love and door -- the Mortalslip
+      hums, and rose light and grey light divide the room down the middle.
+      Devotion -- the collar or ring has grown, and the Honeyed Dead are singing
+      under the floor. Refuse honeyed -- iron taste in the water, Thornwake
+      outside the door before dawn. Condemn -- a court summons for guest
+      misconduct. Briar touched -- roots in the washbasin. Winter -- ice on the
+      INSIDE of the windows and moths spelling *now*.
+      CONSTRAINT: one omen, no dialogue, and the Court Board now shows the Briar
+      root under Sophia.
+      MENU -- resolve the beat matching the compass.
+    beats:
+      - id: omen_love_and_door
+        gate:
+          when: { flag: act2_compass_love_and_door }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 2 }
+              - { type: value, name: sophia_break, delta: 1 }
+
+      - id: omen_devotion
+        gate:
+          when: { flag: act2_compass_devotion }
+          on_pass:
+            effects:
+              - { type: value, name: corruption, delta: 3 }
+              - { type: value, name: briar_hunger, delta: 1 }
+
+      - id: omen_refuse_honeyed
+        gate:
+          when: { flag: act2_compass_refuse_honeyed }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: autonomy, delta: 2 }
+
+      - id: omen_condemn
+        gate:
+          when: { flag: act2_compass_condemn }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: sophia_break, delta: 1 }
+
+      - id: omen_briar_touched
+        gate:
+          when: { flag: act2_compass_briar_touched }
+          on_pass:
+            effects:
+              - { type: value, name: corruption, delta: 4 }
+              - { type: value, name: briar_hunger, delta: 1 }
+
+      - id: omen_winter
+        gate:
+          when: { flag: act2_compass_winter }
+          on_pass:
+            effects:
+              - { type: value, name: ashen_pressure, delta: 1 }
+              - { type: value, name: knowledge, delta: 2 }
+
+  - id: D7_02_court_emergency
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "The Crisis, Chosen by the Loudest Clock"
+    text: >-
+      INTENT: pick the primary crisis from whichever clock is highest -- not
+      from taste. The other three happen offstage and are audible.
+      ALPHA, Winter at the Gate: Ashen's moths rim the Heart Grove and demand an
+      audience, or the player. She must answer as Sovereign in public.
+      BETA, Root Bleed: flowers dying mid-bloom, and Sophia visibly pale with
+      yield-debt she cannot pay with theatre.
+      GAMMA, Mortal Leak: the Aviary of Unsent Letters bursts, and the toll
+      physicalises -- the player ages a flash, or sees their home from inside.
+      DELTA, Seat Challenge: minor Fae cite law that the Sovereign's favourite
+      undermines the membrane, and Thornwake must mediate.
+      MENU -- resolve exactly one crisis beat.
+    beats:
+      - id: crisis_alpha_winter_at_the_gate
+        gate:
+          when: { clock: { name: ashen_pressure, min: 3 } }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+          on_fail:
+            text: "Winter is at the edge of the light and not yet in it."
+            effects:
+              - { type: value, name: ashen_pressure, delta: 1 }
+
+      - id: crisis_beta_root_bleed
+        gate:
+          when: { clock: { name: briar_hunger, min: 3 } }
+          on_pass:
+            text: "She is pale in a way the court has never seen and is pretending not to see."
+            effects:
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: briar_hunger, delta: 1 }
+              - { type: value, name: favor, delta: 3 }
+          on_fail:
+            text: "A single bed of roses fails overnight. The gardeners replace it before the court wakes."
+            effects:
+              - { type: value, name: briar_hunger, delta: 1 }
+
+      - id: crisis_gamma_mortal_leak
+        gate:
+          when: { value: { name: time_debt_mortal_days, min: 70 } }
+          on_pass:
+            text: "Every unsent letter in the aviary opens at once, and they are all addressed outward."
+            effects:
+              - { type: value, name: mortal_collapse, delta: 1 }
+              - { type: value, name: autonomy, delta: 4 }
+              - { type: value, name: desire, delta: -4 }
+
+      - id: crisis_delta_seat_challenge
+        text: >-
+          The one crisis with no clock behind it. Available whenever the player
+          has been publicly conspicuous, and Thornwake is the only reason it
+          does not end in blood.
+        gate:
+          when:
+            any:
+              - { flag: public_defied_sophia }
+              - { flag: sophia_mark_social }
+              - { flag: act2_compass_condemn }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 6 }
+              - { type: flag, flag: law_seat_vs_woman_partial }
+              - { type: value, name: sophia_break, delta: 1 }
+
+  - id: D7_04_faction_triage
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "Where the Day Is Spent"
+    text: >-
+      INTENT: exactly ONE of these runs deep. The rest are one-line cameos.
+      Every beat below buys something Day 9 can spend, and none of them is safe.
+      MENU -- resolve exactly one beat.
+    beats:
+      - id: stand_with_her_in_court
+        text: >-
+          Joint performance, or an honest break of the glamour in front of
+          everyone. The PEER TEST: the player may speak as a near-equal once,
+          publicly, and the court decides whether it was true.
+        gate:
+          when: { value: { name: autonomy, min: 50 } }
+          on_pass:
+            effects:
+              - { type: value, name: equality_seed, delta: 2 }
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: knowledge, delta: 3 }
+          on_fail:
+            text: "You stand beside her and the room reads it as standing behind her. She does not correct them."
+            effects:
+              - { type: value, name: favor, delta: 6 }
+              - { type: value, name: autonomy, delta: -4 }
+
+      - id: answer_the_vale
+        text: >-
+          If a service is owed, this is where it is CALLED -- spy, deliver an
+          insult, or open a frost path. Discharge or break the thread through
+          the thread tool; the finale's collision table reads what is still
+          live. The passport can also be burned here for one hard door clue.
+        gate:
+          when:
+            any:
+              - { thread: { source: ashen_vale, status: active } }
+              - { has_item: ashen_passport }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 8 }
+              - { type: value, name: favor, delta: -6 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+          on_fail:
+            text: "There is nothing between you and winter, which he finds insulting."
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+
+      - id: seek_the_law
+        text: >-
+          THE LEAVE-LAW FRAGMENT. The conditions under which the Gate opens
+          without her, said once, slowly, by somebody who has watched people
+          fail to remember them. Sets `leave_law_fragment`, which is one of
+          E1's three alternative ways out.
+        gate:
+          when:
+            any:
+              - { flag: met_thornwake }
+              - { flag: elias_exit_triad }
+              - { value: { name: knowledge, min: 45 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: leave_law_fragment }
+              - { type: value, name: knowledge, delta: 10 }
+              - { type: value, name: autonomy, delta: 3 }
+          on_fail:
+            text: "He will not teach an exit to somebody who has not proved they can hold one. Come back knowing more."
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+
+      - id: swear_to_the_seat_not_the_woman
+        text: >-
+          RARE, and the only source of `thornwake_squire_offered`, which is
+          E6c's whole gate. He offers temporary protection under Seat law and
+          then, quietly, permanent service -- chalk, iron rules, hounds,
+          thankless hours. Strange mercy. He is not being kind and he knows it
+          is the kindest thing available.
+        gate:
+          when:
+            all:
+              - { flag: met_thornwake }
+              - { flag: law_seat_vs_woman_partial }
+              - { value: { name: knowledge, min: 40 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: thornwake_squire_offered }
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: autonomy, delta: -3 }
+
+      - id: seek_lior
+        text: >-
+          Clearer mirrors, not the Day 8 cards -- the top two ending classes by
+          score, named as images rather than ids. The price is a memory or a
+          secret and Lior does not discount for repeat custom.
+        gate:
+          when: { flag: met_lior }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 8 }
+              - { type: value, name: corruption, delta: 4 }
+          on_fail:
+            text: "The pools are polite to strangers, which is to say expensive."
+            effects:
+              - { type: value, name: corruption, delta: 3 }
+
+      - id: face_the_root_signs
+        text: >-
+          Feed her, or refuse in person, and either way schedule the Deep for
+          Day 8 or 9. She offers power for an ambition flag and does not care
+          which ambition.
+        gate:
+          when: { flag: met_briar_partial }
+          on_pass:
+            effects:
+              - { type: flag, flag: briar_deal_struck }
+              - { type: value, name: briar_hunger, delta: 1 }
+              - { type: value, name: knowledge, delta: 5 }
+
+      - id: send_mortal_word
+        text: >-
+          One message out, and the reply may return already too late. This is
+          the most autonomy available in a single beat in Act III and it costs
+          the most.
+        gate:
+          when: { has_item: mortalslip_thread }
+          on_pass:
+            effects:
+              - { type: flag, flag: mortalslip_used }
+              - { type: remove_item, item_id: mortalslip_thread }
+              - { type: value, name: autonomy, delta: 8 }
+              - { type: value, name: mortal_collapse, delta: 1 }
+
+  - id: D7_05_resource_moment
+    required: true
+    tags: [menu, gm]
+    title: "What Is Still in Your Hands"
+    text: >-
+      INTENT: an inventory check with a voice. The Briar Key grows heavier in
+      the pocket. The Kiss-Petal can pull her out of a crisis, once. Iron is the
+      political nuclear option. The Pressed Letter can soften her tonight and
+      only tonight. The name shard should not be spent before the finale and the
+      GM should say so obliquely, once.
+      MENU -- resolve at most one beat.
+    beats:
+      - id: burn_the_petal_to_summon_her
+        gate:
+          when: { has_item: kiss_petal }
+          on_pass:
+            effects:
+              - { type: flag, flag: petal_summon_used }
+              - { type: remove_item, item_id: kiss_petal }
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: sophia_break, delta: -1, why: "she came when called, and liked it" }
+
+      - id: draw_the_iron
+        text: >-
+          In court, in front of everyone. It works. Nothing about the rest of
+          the story is the same afterwards.
+        gate:
+          when: { has_item: iron_pin }
+          on_pass:
+            effects:
+              - { type: flag, flag: armed_with_iron }
+              - { type: value, name: favor, delta: -12 }
+              - { type: value, name: autonomy, delta: 6 }
+              - { type: value, name: briar_hunger, delta: 1 }
+
+      - id: keep_everything_in_your_pocket
+        text: "The Garden reads restraint as either discipline or fear and is not sure which."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+
+  - id: D7_06_sophia_private
+    required: true
+    tags: [menu, setpiece, sophia]
+    title: "Her Terms"
+    text: >-
+      INTENT: the day's mandatory output. Six moods by compass -- hope-terrified
+      on the dual path, hungry-soft on devotion, proud-wounded on refusal, cold
+      Sovereign on condemnation, clinging on the Briar path, hunting on winter
+      -- and every one of them ends with her stating terms.
+      SHE WANTS: to stop being surprised. Day 7 is where she decides what she is
+      willing to negotiate and she will not revisit it before the finale.
+      CONSTRAINT: exactly one terms flag is set and Day 8 and Day 9 both read
+      it. `will_discuss_leave` is spelled `sophia_will_discuss_leave` because
+      E1a's gate already reads that name.
+      LEVERS the player can pull here: the Pressed Letter, peer language, an
+      honest promise, or a shared enemy.
+      MENU -- resolve exactly one beat.
+    beats:
+      - id: terms_will_discuss_leave
+        text: >-
+          The hardest one to earn and the only one that opens E1a. She does not
+          agree to let the player go. She agrees to have the conversation, which
+          from her is enormous.
+        gate:
+          when:
+            all:
+              - { value: { name: autonomy, min: 50 } }
+              - any:
+                  - { flag: act2_compass_love_and_door }
+                  - { flag: act2_compass_refuse_honeyed }
+                  - { flag: sophia_respected_spine_d3 }
+          on_pass:
+            effects:
+              - { type: flag, flag: sophia_will_discuss_leave }
+              - { type: value, name: equality_seed, delta: 1 }
+              - { type: value, name: knowledge, delta: 4 }
+          on_fail:
+            # FAIL FORWARD into the silent war rather than into nothing. A day
+            # that can end with no terms at all would leave Day 8 reading an
+            # unset enum, which is the one thing this card exists to prevent.
+            text: "She hears the question and does not answer it. That is an answer, and both of you file it."
+            effects:
+              - { type: flag, flag: day7_sophia_terms_silent_war }
+              - { type: value, name: favor, delta: -5 }
+              - { type: value, name: sophia_break, delta: 1 }
+
+      - id: terms_offers_equal_path
+        text: >-
+          She proposes peerage herself, out loud, and is visibly frightened of
+          having done it. Hope is how Sovereigns die and she said so on Day 6.
+        gate:
+          when:
+            all:
+              - { value: { name: favor, min: 65 } }
+              - { value: { name: equality_seed, min: 3 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: day7_sophia_terms_offers_equal_path }
+              - { type: value, name: equality_seed, delta: 1 }
+              - { type: value, name: favor, delta: 5 }
+          on_fail:
+            text: "She begins a sentence about standing level and finishes a different one."
+            effects:
+              - { type: flag, flag: day7_sophia_terms_demands_war_ally }
+
+      - id: terms_demands_thrall_talk
+        text: >-
+          She wants the conversation about keeping. Not the ritual -- the
+          conversation, and consent for the conversation is not consent for the
+          thing. Refusing it here is legal and costs.
+        gate:
+          when:
+            all:
+              - { value: { name: favor, min: 60 } }
+              - { value: { name: autonomy, max: 45 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: day7_sophia_terms_demands_thrall_talk }
+              - { type: value, name: desire, delta: 8 }
+              - { type: value, name: autonomy, delta: -4 }
+
+      - id: terms_demands_war_ally
+        text: "No romance in it at all. She needs a body on her side of a fight she is losing."
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: day7_sophia_terms_demands_war_ally }
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: favor, delta: 3 }
+
+      - id: terms_silent_war
+        text: >-
+          She stops negotiating. Perfectly polite, entirely closed, and the
+          player will be leaving by law or not at all.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: day7_sophia_terms_silent_war }
+              - { type: value, name: favor, delta: -6 }
+              - { type: value, name: sophia_break, delta: 1 }
+
+  - id: D7_07_night
+    required: true
+    tags: [menu, night, sophia, intimate]
+    title: "Seal, or Fracture"
+    text: >-
+      INTENT: an alliance is sealed tonight or it is not -- with her, with
+      winter, with law, or with nobody. Intimacy is available only if the terms
+      allow it, which on three of the five they do not.
+      CONSTRAINT: the dream at the end is the Day 8 mirror, foreshadowed. Every
+      player gets it regardless of what they sealed.
+      MENU -- resolve one seal beat, then the dream.
+    beats:
+      - id: seal_with_her
+        gate:
+          when:
+            any:
+              - { flag: sophia_will_discuss_leave }
+              - { flag: day7_sophia_terms_offers_equal_path }
+              - { flag: day7_sophia_terms_demands_thrall_talk }
+              - { flag: day7_sophia_terms_demands_war_ally }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 10 }
+              - { type: value, name: desire, delta: 6 }
+
+      - id: seal_with_winter
+        gate:
+          when: { value: { name: ashen_route, min: 2 } }
+          on_pass:
+            effects:
+              - { type: value, name: ashen_pressure, delta: 1 }
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: favor, delta: -6 }
+
+      - id: seal_with_the_law
+        gate:
+          when:
+            any:
+              - { flag: leave_law_fragment }
+              - { flag: thornwake_squire_offered }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 6 }
+              - { type: value, name: knowledge, delta: 4 }
+
+      - id: seal_with_nobody
+        text: "The hardest option and the one with the most doors still open in the morning."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 6 }
+              - { type: value, name: sophia_break, delta: 1 }
+
+      - id: the_mirror_dream
+        text: "Always. Silhouettes with the player's outline, none of them agreeing on a posture."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+
+  - id: day7_toll
+    required: true
+    tags: [sequence, toll, gm]
+    title: "Eighty Days Gone"
+    text: >-
+      INTENT: the bill, plus the clocks. Eight Garden days. Advance the two
+      loudest clocks by one -- the design's rule, and it is the mechanism by
+      which Day 8 arrives already under pressure rather than needing an excuse.
+      CONSTRAINT: at 5/5 any clock forces its setpiece, and `clocks.yaml` owns
+      what that setpiece is. Do not narrate a clock filling without running what
+      it declares.
+    beats:
+      - id: the_hourglass_turns
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: time_debt_mortal_days, delta: 10, why: "day 7 toll" }
+
+      - id: the_clocks_advance
+        text: "The two loudest, by one. Read them; do not choose them."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: briar_hunger, delta: 1, why: "day 7 pressure" }
+              - { type: value, name: ashen_pressure, delta: 1, why: "day 7 pressure" }
+
+  # =====================================================================
+  # POOL — two are dealt. Cameos only; the deep scene is above.
+  # =====================================================================
+
+  - id: DX_cameo_lior
+    tags: [sequence, gm]
+    once: true
+    when: { none: [{ flag: act2_compass_winter }] }
+    title: "Cameo — Lior"
+    text: >-
+      One line, in a puddle, in passing: the water is tired of being polite, and
+      the player should come and see what they have purchased with their days.
+      This is the Day 8 summons, delivered early and rudely.
+    beats:
+      - id: hear_the_summons
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 2 }
+
+  - id: DX_cameo_elias
+    tags: [sequence, gm]
+    once: true
+    weight: 2
+    when: { flag: saw_elias_sap }
+    title: "Cameo — Under the Floor"
+    text: >-
+      Singing, from below, in a language that used to be somebody's accent. On
+      the devotion compass it is a lullaby. On every other one it is not.
+    beats:
+      - id: listen_through_the_boards
+        band:
+          value: knowledge
+          min: 2
+          max: 5
+          text: "What you understood of it."
+
+  - id: DX_mara_speaks
+    tags: [menu, gm]
+    once: true
+    weight: 2
+    # The E6e seed. Only for players who have both refused her and looked home.
+    when:
+      all:
+        - { flag: gift_refused }
+        - { flag: looked_home_d1 }
+    title: "The Woman Who Got Out"
+    text: >-
+      INTENT: Mara Quill, in the Aviary, twenty years out of date and entirely
+      lucid. She got out. She is not better. She has a plan that is half rescue
+      and half a way of hurting Sophia by breaking her toy, and she is honest
+      about the second half.
+      CONSTRAINT: she is not a rescue and not a villain. She is what E1 looks
+      like from ten years later.
+    beats:
+      - id: hear_her_plan
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 6 }
+              - { type: value, name: mortal_collapse, delta: 1 }
+
+      - id: agree_to_it
+        text: >-
+          The E6e route. She will come back for the player, through the
+          membrane, and neither of them has thought about what that does to a
+          person.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: mara_pact }
+              - { type: value, name: autonomy, delta: 5 }
+              - { type: value, name: favor, delta: -8 }
+
+      - id: refuse_her
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: autonomy, delta: 2 }
+
+  - id: DX_night_market_ledger
+    tags: [menu, gm]
+    once: true
+    weight: 2
+    when: { value: { name: knowledge, min: 30 } }
+    title: "The Night Market, After Hours"
+    text: >-
+      INTENT: the E6d seed, and the only place in the story where the player can
+      be ruined by something small. The Market quotes prices in years and
+      syllables and every stall will extend credit. Little hungers, big ledger.
+      CONSTRAINT: nobody here is powerful. That is the horror of it.
+    beats:
+      - id: buy_on_credit
+        text: >-
+          Anything at all -- a warm hour, a name for something, a night without
+          dreams. The debt is real and it compounds in a currency the player
+          cannot count.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: market_true_debt }
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: autonomy, delta: -6 }
+              - { type: value, name: corruption, delta: 4 }
+
+      - id: read_the_ledger_and_leave
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 6 }

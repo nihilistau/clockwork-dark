@@ -1,0 +1,113 @@
+# ============================================================
+# Standing in the Garden.
+#
+# Read by engine/game/reputation.py. The `defaults` block -- band thresholds,
+# score clamps, the price curve -- is the flagship game's, unchanged, because
+# those numbers are mechanics and not story. The seven bodies are not.
+#
+# !! REQUIRES A MANIFEST LINE THAT DOES NOT EXIST YET !!
+# games/wicked-garden/game.yaml does not declare `paths.factions`. Until it
+# does, the engine loads Edgewood's -- the militia, the tinkers and the
+# unnamed practice -- and any `reputation` effect written against a name below
+# resolves to a faction this story has never heard of. Nothing in the content I
+# have authored writes reputation for exactly that reason; see the header of
+# games/wicked-garden/data/tables/collections.yaml. Adding
+# `factions: "games/wicked-garden/data/world/factions.yaml"` makes this file
+# live and makes reputation an available verb again.
+#
+# THE PRICE CURVE IS INHERITED AND INERT. `defaults.price` scales a barter
+# multiplier. There is no coin in this story and every item is `value: 0`, so
+# the curve multiplies nothing. It is kept rather than deleted because the
+# loader expects the block's shape and a story that removed it would be
+# declaring a different mechanic rather than not using this one.
+#
+# WHY REPUTATION AT ALL, IN A STORY WITH ONE RELATIONSHIP THAT MATTERS: because
+# 03-WORLD-AND-PLACES.md:158 is a table of INHABITANTS, and 05-BACKSTORY-AND-
+# LORE.md:85 says "gifts are politics". The relationship board tracks six
+# named characters. What it does not track is the room -- whether the bloomkin
+# will lie to you, whether the court laughs when she is cruel to you, whether
+# the border watch treats you as a leak. Those are crowds, and crowds are what
+# a faction is for.
+#
+# Version: v0.1.0 [2026-08-08]
+# ============================================================
+
+version: 1
+
+defaults:
+  bands:
+    - { id: hostile, upto: -40, label: "hostile" }
+    - { id: wary, upto: -15, label: "wary" }
+    - { id: neutral, upto: 24, label: "neutral" }
+    - { id: friendly, upto: 59, label: "friendly" }
+    - { id: trusted, label: "trusted" }
+
+  min_score: -100
+  max_score: 100
+
+  price:
+    base: 1.15
+    divisor: 400
+    floor: 0.85
+    ceiling: 1.25
+
+factions:
+
+  rose_court:
+    name: "The Rose Court"
+    description: >-
+      Everyone who dances in the Heart Grove and eats in the glade: courtiers,
+      feast-lords, seasonal guests, and the several dozen beautiful people
+      whose entire occupation is being present when something happens. They do
+      not decide anything. They decide what everything MEANT, afterwards, out
+      loud, and the Sovereign has to live in the version they settle on.
+
+  winter_ash:
+    name: "The Winter Ash"
+    description: >-
+      Ashen Vale's exiles: silver moths, frost-courtiers, and a handful of
+      Garden natives who have quietly concluded that a Sovereign who runs the
+      place on heat will eventually burn through the membrane. They are polite,
+      they are correct about several things, and the freedom they offer is
+      another collar in a colder metal.
+
+  border_watch:
+    name: "The Border Watch"
+    description: >-
+      Thornwake's command: thorn hounds, gate wardens, the ones who count who
+      came in and who is unaccounted for. They serve the Seat and not the woman
+      sitting in it, which makes them the only body in the Garden that can be
+      relied upon and the only one that will still be here if she falls.
+
+  bloomkin:
+    name: "The Bloomkin"
+    description: >-
+      Minor Fae servants, ancient and small and enormously talkative. They
+      carry the wine, the messages and every private thing that has ever been
+      said in front of them. Being liked by the bloomkin is worth more than
+      being liked by half the court, and being disliked by them is a thing you
+      find out about six days late.
+
+  root_and_briar:
+    name: "Root and Briar"
+    description: >-
+      Rootlings, statue-watchers and the parts of the Garden that answer to
+      Mother Briar rather than to the throne. Not an organisation. An immune
+      system, with opinions about the yield, that has outlasted four
+      Sovereigns and expects to outlast this one.
+
+  honeyed_dead:
+    name: "The Honeyed Dead"
+    description: >-
+      Preserved lovers, guests and trespassers, standing in sap in the crypts,
+      still almost people. They gossip on a hundred-year delay and every word
+      of it is envy or warning and there is no reliable way to tell which. They
+      are the only faction in the Garden with nothing left to lose.
+
+  night_market:
+    name: "The Little Hungers"
+    description: >-
+      The vendors of the night market: small, specialised appetites that trade
+      in years, syllables, sleep and the sound of a name. They keep perfect
+      accounts, they never lie about the price, and they are the reason a
+      mortal can get almost anything here exactly once.

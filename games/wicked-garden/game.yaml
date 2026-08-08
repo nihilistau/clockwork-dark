@@ -1,0 +1,188 @@
+# The Wicked Garden.
+#
+# The third story, and the one the engine was rebuilt for. The Clockwork Dark
+# and The Drowned Carillon are cousins -- same mechanics, different nouns. This
+# one shares almost nothing with either: no combat, no HP, no hunger, no dice,
+# no travel graph in the usual sense, no character classes. What it has instead
+# is twelve declared meters and clocks, persistent contracts, a ten-day chapter
+# clock that spends an irreversible resource, and two agents who argue.
+#
+# If this file needed an engine change to work, the engine is still shaped like
+# the flagship. It did not.
+#
+# Version: v0.1.0 [2026-08-08]
+
+id: wicked-garden
+title: "The Wicked Garden"
+version: "0.1.0"
+engine_requires: ">=0.2.0"
+
+blurb: >-
+  A garden between worlds, and the High Fae who has decided she wants you.
+  One day here is ten days at home, and the toll is charged whether you spend
+  it well or not. Please her, match her, escape her, or be consumed.
+
+# ---------------------------------------------------------------------------
+# Content rating.
+#
+# Declared at TOP LEVEL rather than under `settings:` on purpose: a rating is
+# not a tunable, and routing it through the config overlay would let a stale
+# config/local.yaml move it. `extras` carries it verbatim, and `to_dict()`
+# publishes it over GET /api/games so the picker can show a rating for free.
+#
+# The ceiling is what this content is AUTHORED to. The shipped scenes are
+# written at `suggestive`: atmosphere, tension, power and threat, with the
+# explicit variants the design specifies left as marked hooks rather than
+# written. Raising the ceiling is a deliberate act by whoever owns the install,
+# and it does not conjure content that is not there.
+#
+# `hard_nos` is empty and stays empty. Limits belong to the PLAYER, set in the
+# boundary sheet at the start of a run; a story pre-filling them would be a
+# story deciding what its player finds unbearable.
+# ---------------------------------------------------------------------------
+safety:
+  intensity:
+    ceiling: suggestive
+    default: suggestive
+  fade:
+    available: true
+  aftercare:
+    default: true
+
+# ---------------------------------------------------------------------------
+# Engine settings this story declares. Only keys on the manifest allowlist are
+# honoured; anything else is a hard validation error rather than a silent drop.
+# ---------------------------------------------------------------------------
+settings:
+  world:
+    # A Garden day is a chapter, not a commute. The flagship's two hours per
+    # turn is tuned for a story where you walk between villages; here the day
+    # advances when a chapter ends, and the night toll is the thing that costs.
+    # Time passing on its own would charge the player ten mortal days for
+    # thinking.
+    tick_hours: 0.0
+    tick_max_hours: 0.0
+    # No doom clock. The pressure in this story is four named clocks and a debt
+    # that only ever grows -- see clocks.yaml. Leaving the flagship's rate on
+    # would run a second, invisible apocalypse underneath it.
+    evil_base_rate_per_day: 0.0
+
+  # The prompt shapers this story runs.
+  #
+  # The engine's default chain is The Clockwork Dark's: `EvilPhaseTone` reads
+  # the doom phase and instructs "Tone: cosy frontier life; the wrongness is
+  # barely a rumour", and `DoomSignsInterceptor` narrates a doom ledger this
+  # story does not keep. Both fired here -- so the Garden's narrator was being
+  # told to write cosy frontier life while standing at a fae threshold.
+  #
+  # Kept: SafetyDirective (standing constraints, emits nothing when a story
+  # configures no limits) and StorytellerMind, which is genuinely generic --
+  # it renders the GM's cruelty/generosity/patience knobs and names no story.
+  governance:
+    directives:
+      - SafetyDirective
+      - StorytellerMind
+
+paths:
+  # Content authored for this story.
+  #
+  # DECLARE EVERYTHING THIS STORY SHIPS, even where the engine would run
+  # without it. An undeclared path does not fall back to nothing -- it falls
+  # back to The Clockwork Dark's file, which is strictly worse: leaving
+  # `npc_schedules` off this list puts eight Edgewood villagers at locations
+  # that do not exist in this graph, has the Garden gossiping about grain
+  # tallies, and resolves reputation against a militia nobody here has heard
+  # of. Silent, and only visible if you happen to read a rumour.
+  locations: "games/wicked-garden/data/world/locations.yaml"
+  items: "games/wicked-garden/data/items"
+  lore: "games/wicked-garden/data/lore"
+  lore_db: "games/wicked-garden/data/lore/lore.db"
+  art_subjects: "games/wicked-garden/data/art/subjects.yaml"
+  # The Garden's own art pack.
+  #
+  # `art_root` is the directory `art_manifest`'s paths resolve against, and it
+  # has to be declared: its default is The Clockwork Dark's static tree, so a
+  # manifest without it names Garden filenames inside Edgewood's directory,
+  # misses every one, and falls silently through to the procedural silhouette.
+  # That is what this story shipped with.
+  #
+  # The pack is reachable over HTTP at `/story-art/...` (engine/api/art.py),
+  # which is what the manifest's `root:` names. It is NOT under /static --
+  # that handler belongs to the scene package, not to the active game.
+  art_root: "games/wicked-garden/data/art/plates"
+  art_manifest: "games/wicked-garden/data/art/manifest.yaml"
+  # The narrator's own words. Without this the model is told it is running The
+  # Clockwork Dark, which is exactly what it did.
+  prompts: "games/wicked-garden/prompts"
+  npc_schedules: "games/wicked-garden/data/world/npc_schedules.yaml"
+  world_rumors: "games/wicked-garden/data/world/rumors.yaml"
+  factions: "games/wicked-garden/data/world/factions.yaml"
+  world_schedules: "games/wicked-garden/data/world/schedules.yaml"
+  tables: "games/wicked-garden/data/tables"
+
+  # Its own rules directory, so `archetypes.yaml` resolves here rather than to
+  # Edgewood's. Without this the Garden reads the flagship's file and offers a
+  # wayfarer, a hearthkeeper and a tinker's apprentice.
+  rules: "games/wicked-garden/data/rules"
+
+  # Structural systems, declared per story.
+  threads: "games/wicked-garden/data/rules/threads.yaml"
+  endings: "games/wicked-garden/data/rules/endings.yaml"
+  clocks: "games/wicked-garden/data/rules/clocks.yaml"
+  # The ten day-chapters AND the labyrinth deck, in one directory.
+  #
+  # `paths.decks` is a single flat directory, so the days sat in
+  # `data/scenes/` where nothing could reach them -- 5,300 lines of authored
+  # content that loaded in a test and was invisible to the game. The labyrinth
+  # deck moved in beside them rather than teaching the loader to take a list:
+  # a day chapter and a chamber deck are the same kind of thing to this engine,
+  # and one directory is easier to be right about than two.
+  decks: "games/wicked-garden/data/scenes"
+
+  # The last words a run gets. A directory, not a file: the index and the prose
+  # are separate documents that change for different reasons, and the index
+  # names its own prose file (`prose_source`) so this story could split the
+  # cards per ending class later without an engine change.
+  epilogues: "games/wicked-garden/data/epilogues"
+
+  # Saves are namespaced per story by the store; this is the root it uses.
+  saves: "data/saves"
+
+entry:
+  # The mortal side of the threshold, not the Gate.
+  #
+  # DAY-00 is a prologue in which you CROSS, and the crossing is the first
+  # thing the story asks you to choose. Starting at the Gate would begin the
+  # game one decision after its opening question.
+  #
+  # `mortal_threshold` has no inbound edge anywhere in the graph, deliberately:
+  # going home is an ending, not a travel action. That makes it unreachable and
+  # therefore only ever a starting point, which is exactly right.
+  location_id: mortal_threshold
+
+  # DAY-00. The crossing is the first thing the story asks you to decide, and
+  # the toll is named before you choose rather than after -- 05-BACKSTORY:113,
+  # "consent is complicated in fantasy; meta-consent is absolute", applies to
+  # the player as much as the character. Nobody walks in here uninformed.
+  opening:
+    narration: >-
+      There is a gate in the hedge that was not there yesterday, and the air on
+      the other side is warmer than the season allows. Briars have grown over
+      the arch in a pattern too regular to be an accident, and something on the
+      far side has been waiting long enough to be patient about it. You know,
+      the way you know things in dreams, that a day spent past that arch costs
+      ten at home — and that the counting starts the moment you step through.
+    choices:
+      - { id: a, text: "Step through" }
+      - { id: b, text: "Ask what it costs, and wait for an answer" }
+      - { id: c, text: "Turn around and go home" }
+  # One, and it is the point of the story rather than a placeholder. Being
+  # mortal is what every fae here finds interesting about you and what the
+  # ten-day toll is charged against.
+  #
+  # The engine does support a story declaring `archetypes: []` -- that path is
+  # real and tested, and closing it fixed a genuine bug where the flagship's
+  # "wayfarer" had three separate homes and was reinstated at the end of the
+  # chain. But an empty character-creation panel is a worse screen than a
+  # one-line answer, and "Human" is the honest one here.
+  archetypes: [human]

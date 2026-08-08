@@ -1,0 +1,220 @@
+# Epilogue index — The Wicked Garden
+# ==================================
+#
+# Transcribed from Design_files/Wicked-Garden/docs/design/epilogues/epilogue-index.json.
+# Titles, gallery keys, echo speakers and NG+ seeds for all twenty-three
+# endings. The prose lives beside this in `epilogue_cards.yaml`.
+#
+# WHY THIS IS YAML AND NOT THE ORIGINAL JSON. Every other data file this story
+# loads is YAML, and a renderer that has to know which of two parsers to reach
+# for per file is a renderer with a bug in it. Nothing was dropped in the
+# conversion; `tests/test_wicked_garden_scenes.py` asserts this file and the
+# design JSON still declare the same twenty-three ids with the same gallery keys.
+#
+# THE GALLERY KEY IS NOT THE ENDING ID. `gate_tender_release`, not `E1a`. The
+# finale unlocks art by gallery key and the QA checklist's last line
+# (DAY-09-FINALE.md:351) is about exactly this.
+#
+# LOADED BY `engine/game/epilogue.py`, through `paths.epilogues`. `render_order`,
+# `time_line_template` and the hollow clause are honoured there; the substituted
+# `mortal_days` reads the declared `time_debt_mortal_days` value rather than
+# recomputing `garden_days * 10`, which would forgive the extra shards a lost
+# labyrinth owes. `mortal_days_formula` below documents how the toll maintains
+# that value -- it is not evaluated.
+#
+# STILL UNRENDERED. The engine can produce an Epilogue; no screen draws one yet.
+#
+# Version: v0.1.1 [2026-08-09]
+
+version: 1
+prose_source: epilogue_cards.yaml
+
+# Substituted at runtime from state. `garden_days` is the Garden day index;
+# `mortal_days` is `time_debt_mortal_days`, which is authoritative -- it carries
+# the extra shards a lost labyrinth and a wasted hour added, so recomputing it
+# as days * 10 would under-report a bad run.
+time_line_template: >-
+  You spent {garden_days} days in the Wicked Garden. Outside, roughly
+  {mortal_days} days passed.
+mortal_days_formula: "garden_days * 10 + extra_shards"
+
+render_order: [title, card_m, card_g, echoes, time_line, gallery_unlock]
+
+# Injected into any E1 or E2 mortal card past the line. A door that opens onto a
+# decade is not a victory and the epilogue is not allowed to imply otherwise.
+hollow_clause_if_time_debt_gte: 100
+hollow_clause_text: >-
+  Even this ending cannot give you back the years the hourglass already ate.
+
+endings:
+
+  - id: E1a
+    class: E1
+    title: "She Opened the Gate"
+    gallery_key: gate_tender_release
+    echo_speaker: [sophia]
+    ng_plus_seed: flower_of_tender_release
+
+  - id: E1b
+    class: E1
+    title: "The Price That Walked Out With You"
+    gallery_key: gate_bargained
+    echo_speaker: [sophia]
+    ng_plus_seed: debt_shadow
+
+  - id: E1c
+    class: E1
+    title: "Run, Little Weather"
+    gallery_key: dream_hunt
+    echo_speaker: [sophia]
+    ng_plus_seed: dream_hunt_active
+
+  - id: E1d
+    class: E1
+    title: "Home, After Home"
+    gallery_key: hollow_victory
+    echo_speaker: [sophia]
+    ng_plus_seed: null
+
+  - id: E2a
+    class: E2
+    title: "Two Shadows on the Seat"
+    gallery_key: consort_equal
+    echo_speaker: [sophia]
+    ng_plus_seed: consort_rumor
+
+  - id: E2b
+    class: E2
+    title: "We Left the Crown on the Table"
+    gallery_key: wanderers
+    echo_speaker: [sophia]
+    ng_plus_seed: thornwake_regent
+
+  - id: E2c
+    class: E2
+    title: "What It Cost to Stand Beside"
+    gallery_key: equal_scar
+    echo_speaker: [sophia]
+    ng_plus_seed: equality_easier_briar_harder
+
+  - id: E3a
+    class: E3
+    title: "Kept, and Glad of It"
+    gallery_key: soft_thrall
+    echo_speaker: [sophia]
+    ng_plus_seed: null
+    # The post-credit spark: one clear thought, then sweetness returns.
+    spark_if_knowledge_high: true
+
+  - id: E3b
+    class: E3
+    title: "Jewel of the Court"
+    gallery_key: display_thrall
+    echo_speaker: [sophia]
+    ng_plus_seed: null
+
+  - id: E3c
+    class: E3
+    title: "The Long Sweet Unmaking"
+    gallery_key: dreaming_thrall
+    echo_speaker: [sophia]
+    ng_plus_seed: null
+    spark_if_knowledge_high: true
+
+  - id: E4a
+    class: E4
+    title: "She Loved You to the Bone"
+    gallery_key: grief_feast
+    echo_speaker: [sophia]
+    ng_plus_seed: null
+    codex_honeyed: true
+
+  - id: E4b
+    class: E4
+    title: "Grown Through"
+    gallery_key: briar_flower_eyes
+    # OPTIONAL. She may not speak at all, and the silence is a valid render.
+    echo_speaker: [sophia]
+    echo_optional: true
+    ng_plus_seed: null
+
+  - id: E4c
+    class: E4
+    title: "Honest Cold"
+    gallery_key: winter_kill
+    echo_speaker: [sophia]
+    ng_plus_seed: null
+
+  - id: E4d
+    class: E4
+    title: "Hospitality, Completed"
+    gallery_key: feast_course
+    echo_speaker: [sophia]
+    ng_plus_seed: null
+
+  - id: E4e
+    class: E4
+    title: "Yes, to the Root"
+    gallery_key: willing_dissolution
+    echo_speaker: [sophia]
+    ng_plus_seed: dissolution_scar
+
+  - id: E5a
+    class: E5
+    title: "Seat and Second Sun"
+    gallery_key: dual_crown
+    echo_speaker: [sophia]
+    ng_plus_seed: null
+
+  - id: E5b
+    class: E5
+    title: "The Seat Without Her Heat"
+    gallery_key: lone_sovereign
+    echo_speaker: [sophia]
+    echo_optional: true
+    ng_plus_seed: null
+
+  - id: E5c
+    class: E5
+    title: "You Were a Door the Soil Used"
+    gallery_key: garden_mouth
+    echo_speaker: [sophia]
+    ng_plus_seed: briar_visibility
+
+  - id: E6a
+    class: E6
+    title: "Freedom, Frostbitten"
+    gallery_key: ashen_consort
+    echo_speaker: [sophia, ashen_vale]
+    ng_plus_seed: null
+
+  - id: E6b
+    class: E6
+    title: "Among Your Other Selves"
+    gallery_key: lior_legion
+    echo_speaker: [lior]
+    ng_plus_seed: null
+
+  - id: E6c
+    class: E6
+    title: "Strange Mercy"
+    gallery_key: thornwake_squire
+    echo_speaker: [thornwake, sophia]
+    ng_plus_seed: null
+
+  - id: E6d
+    class: E6
+    title: "Little Hungers, Big Ledger"
+    gallery_key: market_debt
+    # NO ECHO. Nobody in this ending is important enough to get the last word,
+    # which is the ending.
+    echo_speaker: []
+    ng_plus_seed: null
+
+  - id: E6e
+    class: E6
+    title: "Brought Back Wrong"
+    gallery_key: mara_spiral
+    echo_speaker: [mara_quill]
+    ng_plus_seed: null
+    requires_arc: mara_quill

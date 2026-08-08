@@ -1,0 +1,343 @@
+# ============================================================
+# The Wicked Garden -- the place graph.
+#
+# Read and validated by the SAME loader as the other two games
+# (engine/game/locations.py). Not one line of that module knows this file
+# exists; it checks ring bounds, evil multipliers, edge targets, travel hours
+# and edge symmetry here exactly as it does for Edgewood and the Brass Coast.
+#
+# ------------------------------------------------------------
+# THIS IS NOT A ROAD NETWORK, AND THE GRAPH SAYS SO
+# ------------------------------------------------------------
+# 03-WORLD-AND-PLACES.md:47 -- "The Garden is not a fixed MMO map. It is a
+# constellation of setpiece regions." :147 -- "Travel is narrative teleport
+# with cost. No open-world busywork; every move is a scene."
+#
+# A demiplane that wants you cannot be expressed by a symmetric weighted graph,
+# so this one is deliberately NOT symmetric in cost. Three rules run through
+# every edge below, and each of them is a sentence of the fiction spent as a
+# number the engine already enforces:
+#
+#   1. TOWARD HER IS FREE. Every edge whose destination is `heart_grove` costs
+#      0 hours. The Garden rearranges to put the court under your feet. Every
+#      edge LEAVING heart_grove costs 1-3. Walking away is the only walking
+#      this place makes you do.
+#
+#   2. INWARD IS SHORTER THAN OUTWARD. gate -> path is 1 hour; path -> gate is
+#      2. heart_grove -> thorn_labyrinth is 2; labyrinth -> heart_grove is 3.
+#      The loader permits the two directions of one edge to carry different
+#      numbers, and this is what that permission is for.
+#
+#   3. THE DOOR IS ONE-WAY. `mortal_threshold -> gate_of_briars` is
+#      `one_way: true`, and there is no return leg anywhere in this file.
+#      03-WORLD-AND-PLACES.md:24 -- "Exits are rarer than entrances." Going
+#      home is not a travel action in this story; it is an ENDING, resolved by
+#      the endings/threads spine, not by walking. If a player could simply
+#      travel back to `mortal_threshold`, every ending in E1 would be free.
+#
+# ------------------------------------------------------------
+# WHY EVERY danger_dc IS 0
+# ------------------------------------------------------------
+# tests/test_encounter.py::test_every_edge_in_the_graph_with_danger_has_content
+# asserts that a dangerous edge always has an encounter that can fire on it --
+# a danger roll against an empty table is a roll that can never pay off. This
+# story ships NO encounter tables and no dice at all (see state.yaml: no HP, no
+# stamina, no checks), so every edge here declares 0 and the pressure is
+# carried by `hours` and `awareness_delta` instead, both of which work with no
+# content behind them. Raising a danger_dc would be a content job in an
+# encounters directory this story does not have.
+#
+# ------------------------------------------------------------
+# WHAT `ring` MEANS HERE
+# ------------------------------------------------------------
+# In the flagship, ring is distance from safety measured outward. Here it is
+# DEPTH -- how far under the membrane you are standing:
+#
+#   0  the waking world           1  the threshold
+#   2  the court                  3  the trials
+#   4  the root
+#
+# ------------------------------------------------------------
+# WHAT `evil_multiplier` MEANS HERE
+# ------------------------------------------------------------
+# game.yaml sets `evil_base_rate_per_day: 0.0`, so no doom ticker runs and
+# these multipliers scale nothing today. They are still the honest declaration
+# of appetite per place -- what the Garden takes off you for standing there --
+# and they are what a Briar-hunger tick would multiply if the spine ever wires
+# one. Left accurate rather than left at 1.0, because 1.0 everywhere is a lie
+# that reads as a decision.
+#
+# Ids: Design_files/Wicked-Garden/docs/design/agents/state-dictionary.json:52-67
+# is authoritative. All fourteen `location_key` values appear here, including
+# `unknown` -- see the note on that entry.
+#
+# Version: v0.1.0 [2026-08-08]
+# ============================================================
+
+version: 1
+
+rings:
+  0: "The Waking World"
+  1: "The Threshold"
+  2: "The Court"
+  3: "The Trials"
+  4: "The Root"
+
+locations:
+
+  # ==========================================================
+  # Ring 0 -- the waking world. One place, and you have left it.
+  # ==========================================================
+
+  mortal_threshold:
+    name: "The Mortal Threshold"
+    ring: 0
+    evil_multiplier: 0.2
+    summary: >-
+      Your own fragment of the waking world -- a room, a street, a stairwell
+      with your coat still on the hook. It desaturates a shade for every day
+      you are gone, and the post keeps arriving for someone who is not there.
+    tags: [mortal, framing, threshold, quiet]
+    connections:
+      # ONE WAY, AND THE WHOLE STORY HANGS ON IT. There is no `gate_of_briars
+      # -> mortal_threshold` edge anywhere in this file and there must not be
+      # one. Crossing back is an ending, priced by the endings spine; a travel
+      # edge would hand it out for an hour of walking.
+      gate_of_briars: { hours: 1, danger_dc: 0, awareness_delta: 3, one_way: true }
+
+  # ==========================================================
+  # Ring 1 -- the threshold. The arch, and the first hundred paces.
+  # ==========================================================
+
+  gate_of_briars:
+    name: "The Gate of Briars"
+    ring: 1
+    evil_multiplier: 0.9
+    summary: >-
+      An arch of living thorn taller than it has any business being, roses
+      along it that open only for those already claimed. The air on the far
+      side is warmer and smells of a season you cannot name. Nothing here is
+      locked. That is not the same as open.
+    tags: [threshold, gate, law, outdoors]
+    connections:
+      path_first_petals: { hours: 1, danger_dc: 0, awareness_delta: 1 }
+
+  path_first_petals:
+    name: "The Path of First Petals"
+    ring: 1
+    evil_multiplier: 0.7
+    summary: >-
+      A walk of white petals laid ahead of your feet and gone behind them,
+      under trees that lean in to look. A pale glass moth will land on your
+      sleeve here, once, and show you a calendar coming apart in tens.
+    tags: [threshold, outdoors, tutorial, quiet]
+    connections:
+      # Back toward the door is twice the walk. The Garden is not stopping you.
+      # It is simply longer that way.
+      gate_of_briars: { hours: 2, danger_dc: 0, awareness_delta: 0 }
+      heart_grove: { hours: 0, danger_dc: 0, awareness_delta: 2 }
+      guest_house: { hours: 1, danger_dc: 0, awareness_delta: 1 }
+      feasting_glade: { hours: 1, danger_dc: 0, awareness_delta: 1 }
+      mirror_pools: { hours: 1, danger_dc: 0, awareness_delta: 1 }
+
+  # ==========================================================
+  # Ring 2 -- the court. Six places that are all next to each other
+  # whenever she wants them to be.
+  # ==========================================================
+
+  heart_grove:
+    name: "Heart Grove"
+    ring: 2
+    evil_multiplier: 1.0
+    summary: >-
+      Cathedral-trees hung with silk and lantern-moths, and at the centre a
+      throne braided out of rose and bone-gold. The court dances here and the
+      dances are contracts. Whatever else is true of the Garden, this is where
+      it keeps its face on.
+    tags: [court, hub, political, sophia, outdoors]
+    connections:
+      # Leaving the court costs. Arriving never does -- see the header.
+      path_first_petals: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      guest_house: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      feasting_glade: { hours: 0, danger_dc: 0, awareness_delta: 1 }
+      mirror_pools: { hours: 1, danger_dc: 0, awareness_delta: 1 }
+      aviary_unsent: { hours: 1, danger_dc: 0, awareness_delta: 1 }
+      # Exile is a walk you take on your own feet. That is the point of it.
+      thorn_labyrinth: { hours: 2, danger_dc: 0, awareness_delta: 3 }
+
+  guest_house:
+    name: "The Guest House of Soft Hours"
+    ring: 2
+    evil_multiplier: 0.6
+    summary: >-
+      A suite that rearranges while you are looking away, warm at hours when
+      nothing else is. There is a bowl of fruit that steams with memory and a
+      window that shows your mortal home until it doesn't, and then fog, and
+      then garden forever.
+    tags: [hub, interior, recovery, private, safe]
+    connections:
+      heart_grove: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      path_first_petals: { hours: 2, danger_dc: 0, awareness_delta: 0 }
+      feasting_glade: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      mirror_pools: { hours: 1, danger_dc: 0, awareness_delta: 1 }
+      aviary_unsent: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+
+  feasting_glade:
+    name: "The Feasting Glade"
+    ring: 2
+    evil_multiplier: 1.3
+    summary: >-
+      Tables long enough to lose an argument down, laid with fruit that should
+      not exist in the same month. The guests are half-mortal and half-myth
+      and all of them are watching what you put in your mouth. Drinking here
+      is storytelling. Eating here is signing.
+    tags: [court, social, feast, temptation, outdoors]
+    connections:
+      heart_grove: { hours: 0, danger_dc: 0, awareness_delta: 1 }
+      guest_house: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      path_first_petals: { hours: 2, danger_dc: 0, awareness_delta: 0 }
+      night_market: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+
+  mirror_pools:
+    name: "The Mirror Pools"
+    ring: 2
+    evil_multiplier: 1.1
+    summary: >-
+      Black-glass water under silver willows, and reflections that run half a
+      second behind. Lior keeps no shop and sells constantly. Look long enough
+      and you will meet a better version of yourself who is not you and does
+      not intend to stay in the water.
+    tags: [court, oracle, lior, identity, outdoors]
+    connections:
+      heart_grove: { hours: 0, danger_dc: 0, awareness_delta: 1 }
+      guest_house: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      path_first_petals: { hours: 2, danger_dc: 0, awareness_delta: 0 }
+      night_market: { hours: 1, danger_dc: 0, awareness_delta: 1 }
+      # Reflections lead cold. This is the route that opens once someone has
+      # been reading winter over your shoulder.
+      winter_spindle: { hours: 2, danger_dc: 0, awareness_delta: 3 }
+
+  aviary_unsent:
+    name: "The Aviary of Unsent Letters"
+    ring: 2
+    evil_multiplier: 0.8
+    summary: >-
+      A dome of wire and briar full of paper birds that will not settle. Every
+      one is a message somebody wrote to the mortal world and could not make
+      leave. They know your handwriting before you have written anything.
+    tags: [court, quiet, mortal, time, interior]
+    connections:
+      heart_grove: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      guest_house: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+
+  night_market:
+    name: "The Night Market of Little Hungers"
+    ring: 2
+    evil_multiplier: 1.4
+    summary: >-
+      Stalls between two hedges that were not two hedges yesterday, lit by
+      things that are not lamps. Minor Fae sell small appetites at prices
+      quoted in years, syllables and the sound of your own name in someone
+      else's mouth. Nothing here takes coin.
+    tags: [court, trade, bargain, dangerous, outdoors]
+    connections:
+      feasting_glade: { hours: 1, danger_dc: 0, awareness_delta: 1 }
+      mirror_pools: { hours: 1, danger_dc: 0, awareness_delta: 1 }
+      # The market backs onto the crypts, which is why the prices are what
+      # they are and why the vendors never look south.
+      root_crypts: { hours: 2, danger_dc: 0, awareness_delta: 3 }
+
+  # ==========================================================
+  # Ring 3 -- the trials. Where the Garden stops being hospitable
+  # and starts being honest.
+  # ==========================================================
+
+  thorn_labyrinth:
+    name: "The Thorn Labyrinth"
+    ring: 3
+    evil_multiplier: 1.8
+    summary: >-
+      Briar walls above head height and bone-white paths between them, opening
+      without warning into clearings full of statues that were guests. True
+      names are cut into the bark at eye level. Some of them are still wet.
+    tags: [trial, maze, dangerous, punishment, outdoors]
+    connections:
+      # Out is longer than in. Every time.
+      heart_grove: { hours: 3, danger_dc: 0, awareness_delta: 1 }
+      winter_spindle: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+      root_crypts: { hours: 2, danger_dc: 0, awareness_delta: 2 }
+
+  winter_spindle:
+    name: "The Winter Spindle"
+    ring: 3
+    evil_multiplier: 1.5
+    summary: >-
+      A wing of the labyrinth where the briar has gone to frost and stands
+      still. Silver moths hold position in the air like held breath. It is
+      quieter here than anywhere in the Garden, and the quiet is not rest, it
+      is a room kept ready for someone.
+    tags: [trial, winter, ashen, cold, dangerous]
+    connections:
+      thorn_labyrinth: { hours: 1, danger_dc: 0, awareness_delta: 1 }
+      mirror_pools: { hours: 3, danger_dc: 0, awareness_delta: 1 }
+
+  root_crypts:
+    name: "The Root Crypts"
+    ring: 3
+    evil_multiplier: 2.0
+    summary: >-
+      Rose-catacombs under the glade, lined with amber sap standing upright in
+      the shape of people. Nameplates in living script. The Honeyed Dead are
+      preserved at the moment they were most beautiful and they have had a
+      long time to think about it.
+    tags: [underground, lore, honeyed_dead, horror, dangerous]
+    connections:
+      thorn_labyrinth: { hours: 2, danger_dc: 0, awareness_delta: 1 }
+      night_market: { hours: 2, danger_dc: 0, awareness_delta: 1 }
+      briar_deep: { hours: 1, danger_dc: 0, awareness_delta: 4 }
+
+  # ==========================================================
+  # Ring 4 -- the root. One place, and it is listening.
+  # ==========================================================
+
+  briar_deep:
+    name: "Mother Briar's Deep"
+    ring: 4
+    evil_multiplier: 2.8
+    summary: >-
+      An under-root cathedral with no far wall, warm as a body, and a slow
+      knock in the floor that you will try very hard to call something other
+      than a heartbeat. Speak carefully. The walls are listening with
+      appetites.
+    tags: [underground, endgame, briar, sovereignty, dangerous]
+    connections:
+      # Three hours back up, against a floor that would rather you stayed.
+      root_crypts: { hours: 3, danger_dc: 0, awareness_delta: 1 }
+
+  # ==========================================================
+  # The fourteenth key.
+  # ==========================================================
+
+  unknown:
+    name: "Somewhere the Garden Has Not Named"
+    ring: 2
+    evil_multiplier: 1.0
+    summary: >-
+      Dream-walking, a bargain gone sideways, a door taken at speed in the
+      dark. You are inside the membrane and it has not decided where yet. The
+      light has no source and the ground has no smell.
+    tags: [sentinel, liminal, dream]
+    connections:
+      # WHY THIS PLACE EXISTS AT ALL: `unknown` is the fourteenth value of the
+      # `location_key` enum (state-dictionary.json:66). It is a sentinel -- a
+      # scene or an effect can put the player here, nothing can TRAVEL here,
+      # and it has no inbound edges anywhere in this file. Declaring it means a
+      # state whose location_key is `unknown` resolves to a place with a name
+      # and an atmosphere instead of falling through get_location() as None.
+      #
+      # The single outbound edge is `one_way` so the loader does not mirror a
+      # return leg into guest_house and turn a sentinel into a destination. It
+      # exists because a place with no exits is a soft-lock, and 03-WORLD-AND-
+      # PLACES.md:152 says where dream-walking puts you down: "risk of waking
+      # elsewhere". You wake in your room.
+      guest_house: { hours: 0, danger_dc: 0, awareness_delta: 1, one_way: true }

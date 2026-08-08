@@ -1,0 +1,529 @@
+# Day 9 — Finale & Epilogue
+# =========================
+#
+# Authored from Design_files/Wicked-Garden/docs/design/scenes/DAY-09-FINALE.md.
+#
+# THIS FILE IS THE FRAME AND NOT THE ENDINGS. The twenty-three ending modules --
+# three beats each, Speak, Act and Seal -- are authored in
+# `data/rules/endings.yaml` beside the gates that decide who gets them, because
+# an ending's beats and its eligibility are the same object and splitting them
+# is how a finale ends up offering a card it cannot play. What is here is
+# everything around them: the dawn, the approach, the collision, the point of no
+# return, the epilogue call and the gallery.
+#
+# NEVER SOFTLOCK TITLE (DAY-09:315). `endings.resolve()` cannot return an empty
+# string: locked, else sworn if still eligible, else the highest-scoring
+# eligible, else the declared fail-forward. E4e is in the set by declaration and
+# is a real ending with real cards, not an error screen. Nothing on this day
+# needs to defend against having no answer.
+#
+# THE TOLL STILL LANDS. "Do not undervalue TimeDebt in good endings -- cost is
+# the thesis" (DAY-09:337). The tenth day is charged before the epilogue reads,
+# on every route including the ones that leave.
+#
+# Version: v0.1.0 [2026-08-08]
+
+id: day_09_finale
+
+draw: 1
+
+cards:
+
+  # =====================================================================
+  # SPINE
+  # =====================================================================
+
+  - id: F0_dawn
+    required: true
+    tags: [menu, gm]
+    title: "The Hourglass Casts Its Own Shadow"
+    text: >-
+      INTENT: the last inventory, and one free action. Somewhere, tenfold days
+      have already rewritten a life that still thinks it might have the player
+      back.
+      RUNTIME: `endings.recompute(state)` first. The eligible set is shown as
+      equipped intents and the player may switch among ELIGIBLE ONES ONLY --
+      `set_intent` enforces that, so route the switch through it.
+      CONSTRAINT: exactly one free action, and each one spends something that
+      cannot be recovered.
+      MENU -- resolve at most one beat.
+    beats:
+      - id: spend_the_mortalslip
+        text: "One message out, on the last morning. It will arrive ninety days late and it will still be worth it."
+        gate:
+          when: { has_item: mortalslip_thread }
+          on_pass:
+            effects:
+              - { type: flag, flag: mortalslip_used }
+              - { type: remove_item, item_id: mortalslip_thread }
+              - { type: value, name: autonomy, delta: 6 }
+              - { type: value, name: desire, delta: -4 }
+
+      - id: summon_her_with_the_petal
+        gate:
+          when: { has_item: kiss_petal }
+          on_pass:
+            effects:
+              - { type: flag, flag: petal_summon_used }
+              - { type: remove_item, item_id: kiss_petal }
+              - { type: value, name: favor, delta: 8 }
+
+      - id: burn_the_passport
+        text: >-
+          One hard door clue, and winter loses its claim on the day. He will
+          feel it happen and will not be able to do anything about it.
+        gate:
+          when: { has_item: ashen_passport }
+          on_pass:
+            effects:
+              - { type: remove_item, item_id: ashen_passport }
+              - { type: value, name: knowledge, delta: 8 }
+              - { type: value, name: ashen_pressure, delta: -1, why: "there is nothing left to collect the route with" }
+
+      - id: speak_the_true_name
+        text: >-
+          The most dangerous free action in the story. A partial shard is not a
+          name, and a partial name spoken to a Sovereign is either the beginning
+          of E5 or the end of the player.
+        gate:
+          when: { has_item: true_name_shard_sophia_partial }
+          on_pass:
+            effects:
+              - { type: flag, flag: name_spoken_labyrinth }
+              - { type: value, name: knowledge, delta: 10 }
+              - { type: value, name: sophia_break, delta: 1 }
+              - { type: value, name: corruption, delta: 4 }
+
+      - id: refuse_the_salt_sleep
+        text: "No more safe nights. There were never going to be any more anyway."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 4 }
+
+  - id: F1_approach_vector
+    required: true
+    tags: [menu, gm]
+    title: "Where the End Happens"
+    text: >-
+      INTENT: the player picks the ground. Gate of Briars for the door and for
+      winter. The Heart Grove throne for peerage, thrall and usurpation. Mother
+      Briar's Deep for the roots. The Winter Spindle for the Vale. The Mirror
+      Pools for identity. The Feasting Glade for public consumption.
+      CONSTRAINT: an invalid combination auto-redirects with ONE line and no
+      argument -- *the Gate will not open for a thrall-oath.* Do not lecture the
+      player and do not make them choose twice.
+      MENU -- resolve exactly one beat.
+    beats:
+      - id: go_to_the_gate
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+
+      - id: go_to_the_throne
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 3 }
+
+      - id: go_down_to_the_deep
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: briar_hunger, delta: 1 }
+              - { type: value, name: corruption, delta: 3 }
+
+      - id: go_north_to_the_spindle
+        gate:
+          when: { value: { name: ashen_route, min: 2 } }
+          on_pass:
+            effects:
+              - { type: value, name: ashen_pressure, delta: 1 }
+              - { type: value, name: knowledge, delta: 3 }
+          on_fail:
+            text: "The road north does not recognise you, and closes politely."
+
+      - id: go_to_the_pools
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: corruption, delta: 3 }
+              - { type: value, name: knowledge, delta: 3 }
+
+      - id: go_to_the_glade
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: desire, delta: 4 }
+
+  - id: F2_climax_collision
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "One Primary Collision"
+    text: >-
+      INTENT: run ONE crisis, chosen by what is still live rather than by taste.
+      Every major NPC may cameo one line even when they are not the crisis.
+      CONSTRAINT: collision priority, in order -- product safety and fade;
+      ending-lock consistency; unpaid rival debt; Briar hunger at maximum; her
+      emotional climax; cosmetic court colour. If two apply, the higher one is
+      the scene and the lower one is a line.
+      VERBS available to the player: convince, defy, submit, bargain, invoke
+      law, call gift, sacrifice item, silence.
+      MENU -- resolve exactly one beat.
+    beats:
+      - id: the_vale_claims_his_debt
+        text: >-
+          Highest priority after safety and consistency. He collects mid-ending,
+          in front of whoever is there, and an E1 attempt with an unpaid service
+          may be hijacked toward E6a or E1b. Discharge, break or renegotiate
+          through the thread tool -- the outcome is the thread's, not this
+          beat's.
+        gate:
+          when: { thread: { source: ashen_vale, status: active } }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+
+      - id: the_roots_interrupt_the_court
+        gate:
+          when: { clock: { name: briar_hunger, min: 4 } }
+          on_pass:
+            effects:
+              - { type: value, name: briar_hunger, delta: 1 }
+              - { type: value, name: corruption, delta: 4 }
+
+      - id: she_almost_breaks
+        text: >-
+          The dual path's collision, and the best scene in the game. She almost
+          frees the player and almost does not, in the same breath, in public.
+          Hope is how Sovereigns die and she is doing it anyway.
+        gate:
+          when:
+            all:
+              - { flag: act2_compass_love_and_door }
+              - { clock: { name: sophia_break, min: 3 } }
+          on_pass:
+            effects:
+              - { type: value, name: equality_seed, delta: 2 }
+              - { type: value, name: favor, delta: 6 }
+          on_fail:
+            text: "She holds. Whatever it costs her to hold is not shown to the court and is shown to you."
+            effects:
+              - { type: value, name: favor, delta: 3 }
+
+      - id: the_court_demands_blood_for_iron
+        gate:
+          when:
+            any:
+              - { flag: iron_used_labyrinth }
+              - { flag: labyrinth_result_blasphemy }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: -8 }
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: sophia_break, delta: 1 }
+
+      - id: the_court_rules_on_dual_standing
+        text: >-
+          Peer attempt only. The court either accepts two people standing level
+          on that floor or it does not, and the vote is real.
+        gate:
+          when: { flag: labyrinth_result_peer_attempt }
+          check: { skill: persuasion, difficulty: hard }
+          on_pass:
+            effects:
+              - { type: value, name: equality_seed, delta: 2 }
+              - { type: value, name: favor, delta: 8 }
+          on_fail:
+            text: "The room does not refuse it. The room simply fails to understand what it is being asked."
+            effects:
+              - { type: flag, flag: equality_cost_visible }
+              - { type: value, name: favor, delta: -4 }
+
+      - id: the_mortal_world_interrupts
+        text: >-
+          Past a hundred mortal days the vision arrives uninvited, mid-crisis: a
+          funeral, a wedding, or a set of rooms with nobody in them. Nobody in
+          the Garden can see it and everybody notices the player stop.
+        gate:
+          when: { value: { name: time_debt_mortal_days, min: 100 } }
+          on_pass:
+            effects:
+              - { type: value, name: mortal_collapse, delta: 1 }
+              - { type: value, name: desire, delta: -6 }
+              - { type: value, name: autonomy, delta: 4 }
+
+  - id: F2b_declarations
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "What You Say Before You Choose"
+    text: >-
+      INTENT: five ending gates have no other author. `spare_sophia`,
+      `remove_sophia`, `abandon_seat`, `ashen_victory` and
+      `public_feast_humiliation` are read by `data/rules/endings.yaml` and are
+      declared HERE, in the last minutes before the lock, out loud, in front of
+      whoever is in the room.
+      CONSTRAINT: this card runs BEFORE F3. `endings.lock` refuses an id that is
+      not eligible, so a declaration made after the lock would be a declaration
+      that changed nothing -- and E5a asking for mercy the player never offered
+      is exactly the dishonesty Day 8 exists to prevent.
+      MENU -- resolve at most one beat, and only where the crisis actually
+      produced the question.
+    beats:
+      - id: declare_mercy_for_her
+        text: >-
+          Only from someone who has already taken the Seat's leverage. Mercy
+          from a position of no power is a wish. E5a's gate.
+        gate:
+          when:
+            all:
+              - { flag: ambition_declared }
+              - { value: { name: knowledge, min: 65 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: spare_sophia }
+              - { type: value, name: favor, delta: 5 }
+          on_fail:
+            text: "You offer to spare her. The room hears a mortal offering weather its forgiveness."
+            effects:
+              - { type: value, name: favor, delta: -5 }
+
+      - id: declare_her_removal
+        text: >-
+          Exile, binding, or the resin. E5b's gate, and it is the single
+          coldest sentence available in the game.
+        gate:
+          when:
+            all:
+              - { flag: ambition_declared }
+              - { value: { name: knowledge, min: 65 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: remove_sophia }
+              - { type: value, name: favor, delta: -12 }
+              - { type: value, name: sophia_break, delta: 1 }
+
+      - id: declare_the_seat_abandoned
+        text: >-
+          Hers to say, and she says it because the player made it possible.
+          E2b's gate. Thornwake finds out at the same moment as everybody else.
+        gate:
+          when:
+            all:
+              - { value: { name: equality_seed, min: 3 } }
+              - { value: { name: favor, min: 65 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: abandon_seat }
+              - { type: value, name: equality_seed, delta: 1 }
+
+      - id: winter_takes_the_field
+        text: >-
+          Not a declaration by the player. The Vale wins the collision, in
+          public, and the court adjusts. E4c's and E6a's shared precondition.
+        gate:
+          when:
+            all:
+              - { clock: { name: ashen_pressure, min: 4 } }
+              - { value: { name: favor, max: 45 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: ashen_victory }
+              - { type: value, name: favor, delta: -8 }
+              - { type: value, name: knowledge, delta: 4 }
+
+      - id: the_table_is_set_for_you
+        text: >-
+          The Glade only, and only after public humiliation. Guests take their
+          places without being asked to. E4d's gate.
+        gate:
+          when:
+            all:
+              - { value: { name: favor, max: 40 } }
+              - any:
+                  - { flag: public_defied_sophia }
+                  - { flag: act2_compass_condemn }
+                  - { clock: { name: sophia_break, min: 4 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: public_feast_humiliation }
+              - { type: value, name: autonomy, delta: -8 }
+              - { type: value, name: corruption, delta: 6 }
+
+  - id: F3_point_of_no_return
+    required: true
+    tags: [sequence, setpiece, gm]
+    title: "Choose. The Garden Will Grow Something From This Either Way."
+    text: >-
+      INTENT: one fullscreen omen and one confirmation. Irreversible, and the
+      interface should say so without apologising.
+      RUNTIME: `endings.lock(state, <id>)`. It refuses an id that is not
+      eligible and refuses a second lock on an already-locked save, which is
+      what makes this beat the point of no return rather than a label on one.
+      Read `report.forced` from the receipt -- if the only thing in the eligible
+      set was the fail-forward, the player earned nothing and the finale should
+      know that even though it must not say so.
+    beats:
+      - id: confirm_the_ending
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_sworn }
+
+  - id: F4_ending_module
+    required: true
+    tags: [sequence, setpiece, gm]
+    title: "Speak · Act · Seal"
+    text: >-
+      INTENT: this beat is a pointer. The three beats of the locked ending are
+      authored in `data/rules/endings.yaml` under that variant's `beats:` key,
+      in the same Speak/Act/Seal order for all twenty-three.
+      RUNTIME: read them with `endings.load_rules()` and resolve each through
+      `deck.resolve_beat` -- they are ordinary bounded beats in the same
+      grammar. NOT WIRED: `endings.declared()` builds its flattened view from a
+      fixed key list and drops `beats:`, so a renderer must read the raw table.
+      CONSTRAINT: intensity stays suggestive except inside an E2 or E3 intimacy
+      seal where the player has raised it, and this content ships none of those.
+      Sophia owns her own monologues and her intimate seals; the GM owns world
+      physics, the Vale, the roots and the mortal card.
+    beats:
+      - id: run_the_locked_module
+        text: >-
+          Whatever `endings.locked(state)` returns. If it returns `none`, call
+          `endings.resolve(state)` -- it cannot return nothing, and the
+          fail-forward is a real ending.
+
+  - id: F5_epilogue_dual
+    required: true
+    tags: [sequence, gm]
+    title: "Two Cards, Always"
+    text: >-
+      INTENT: Card M, the waking world; Card G, the Garden. Both, in the order
+      `data/epilogues/epilogue_index.yaml` declares, followed by the echoes and
+      then the time line.
+      RUNTIME: the prose is transcribed in `data/epilogues/epilogue_cards.yaml`,
+      keyed by ending id. The time line is a template -- garden days and garden
+      days times ten -- and the numbers come from state, never from the card.
+      CONSTRAINT: past a hundred mortal days the hollow clause is injected into
+      any E1 or E2 mortal card. Even this ending cannot give back the years the
+      hourglass already ate. Epilogues stay SUGGESTIVE even on an Explicit
+      campaign; they are a fade-forward summary.
+    beats:
+      - id: the_toll_is_charged_first
+        text: >-
+          The tenth day, on every route including the ones that leave. Cost is
+          the thesis and a good ending does not get a discount.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: time_debt_mortal_days, delta: 10, why: "day 9 toll" }
+
+      - id: read_the_two_cards
+
+      - id: read_the_echoes
+        text: >-
+          Sophia's echo if she survives and speaks; otherwise the NPC echo the
+          index names for that ending. Two endings carry two echoes and one
+          carries none.
+
+  - id: F6_gallery_and_ng_plus
+    required: true
+    tags: [sequence, gm]
+    title: "Gallery"
+    text: >-
+      INTENT: the silhouette becomes art, the codex takes its final entries, and
+      the NG+ seed is written if the ending has one.
+      CONSTRAINT: unlock the CORRECT id. The gallery key for each ending is in
+      the epilogue index and is not the ending id.
+    beats:
+      - id: unlock_the_gallery
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+              - { type: flag, flag: ng_plus_seed_written }
+
+  # =====================================================================
+  # POOL — one is dealt. Cameos and the last look back.
+  # =====================================================================
+
+  - id: DX_look_back_at_the_gate
+    tags: [menu, gm]
+    once: true
+    weight: 3
+    title: "Look Back, or Do Not"
+    text: >-
+      INTENT: the E1 seal, and a binary the epilogue reads. One flag, one image,
+      no mechanics worth the name -- but it decides whether the dream epilogue
+      has her in it.
+      CONSTRAINT: do not tell the player what it does.
+    beats:
+      - id: look_back
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: looked_back_at_gate }
+              - { type: value, name: favor, delta: 4 }
+
+      - id: keep_walking
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 4 }
+
+  - id: DX_thornwake_at_the_end
+    tags: [sequence, gm]
+    once: true
+    weight: 2
+    when: { flag: met_thornwake }
+    title: "Cameo — Law Holds"
+    text: >-
+      One line, wherever the finale happens. He is not on anybody's side and he
+      is standing where the exits are. If the player learned the form of words
+      on Day 8, this is where saying them obliges him.
+    beats:
+      - id: say_the_words
+        gate:
+          when: { flag: leave_law_fragment }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: autonomy, delta: 4 }
+
+  - id: DX_elias_at_the_end
+    tags: [sequence, gm]
+    once: true
+    weight: 2
+    when: { flag: saw_elias_sap }
+    title: "Cameo — From Under the Floor"
+    text: >-
+      He does not warn the player and does not congratulate them. He asks the
+      Day 6 question one more time, in the past tense: were you the canvas or
+      the knife.
+    beats:
+      - id: answer_him
+        band:
+          value: knowledge
+          min: 2
+          max: 5
+          text: "What the answer cost to say out loud."
+
+  - id: DX_mara_at_the_membrane
+    tags: [sequence, gm]
+    once: true
+    when: { flag: mara_pact }
+    title: "Cameo — Somebody Is Pulling"
+    text: >-
+      From the mortal side, badly, with no idea what she is doing. The E6e
+      hijack: if the player reaches for the Gate at all, Mara's hand is the one
+      that closes on theirs, and getting out is not the same as winning.
+    beats:
+      - id: take_her_hand
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 5 }
+              - { type: value, name: mortal_collapse, delta: 1 }
+              - { type: value, name: favor, delta: -8 }

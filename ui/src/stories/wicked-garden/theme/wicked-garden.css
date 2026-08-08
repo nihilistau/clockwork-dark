@@ -1,0 +1,1044 @@
+/* ============================================================
+   Wicked Garden — component styles.
+
+   Loaded at runtime by the plugin, after core's sheet. Semantic tokens only
+   below the palette import; the palette file beside this one is the only place
+   in the story a colour is spelled.
+
+   Motion follows 06-UI-UX: 200-350ms eases for panels, vines GROW rather than
+   bars filling, choices bloom outward and declined choices wilt. Everything
+   with a duration in it is switched off under `prefers-reduced-motion`, at the
+   bottom of this file.
+   ============================================================ */
+
+@import "./tokens.css";
+
+/* ---------- the petal choice ----------
+   A rectangle over an ellipse: `hit_box: rect_over_ellipse`, 48dp minimum. The
+   visual is the ellipse, the target is the box, and the box is what the min
+   sizes below are set against. */
+
+.petal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: flex-start;
+  min-height: 48px;
+  padding: var(--space-3) var(--space-5);
+  border: var(--border-hair) solid var(--wg-edge);
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, var(--wg-glass-top), var(--wg-glass));
+  color: var(--text-body);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--dur-base) var(--ease-quiet),
+    border-color var(--dur-base) var(--ease-quiet),
+    background var(--dur-base) var(--ease-quiet);
+}
+
+/* Blooming outward, not lifting up: the choice opens toward the player. */
+.petal:hover:not(:disabled) {
+  transform: scale(1.02);
+  border-color: var(--wg-gold-soft);
+  background: linear-gradient(180deg, var(--wg-wash-rose), var(--wg-glass));
+}
+
+.petal:active:not(:disabled) {
+  transform: scale(0.985);
+  border-color: var(--wg-gold-dim);
+  background: var(--wg-soil-deep);
+}
+
+.petal:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* Wilting: the shape stays, the life goes out of it. */
+.petal:disabled {
+  opacity: 0.45;
+  border-color: var(--line-iron);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+/* Danger emphasis WITHOUT changing hit geometry — the state matrix rule. */
+.petal[data-tone="danger"] {
+  border-color: var(--wg-iron);
+  color: var(--wg-iron-bright);
+}
+
+.petal__label {
+  font-size: var(--text-md);
+}
+
+/* The implication whisper: a second line, always visible, never a tooltip. */
+.petal__whisper {
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* ---------- the wax seal ---------- */
+
+.seal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 96px;
+  min-height: 48px;
+  padding: var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--text-body);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* r=36 with an inner ring at r=18, from the vector sheet. */
+.seal__disc {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border: 3px solid var(--wg-gold);
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, var(--wg-rose-bright), var(--wg-rose) 62%);
+  transition: transform var(--dur-base) var(--ease-quiet),
+    box-shadow var(--dur-base) var(--ease-quiet);
+}
+
+.seal__ring {
+  width: 36px;
+  height: 36px;
+  border: var(--border-hair) solid var(--wg-gold);
+  border-radius: 50%;
+  opacity: 0.75;
+}
+
+.seal:hover:not(:disabled) .seal__disc {
+  transform: scale(1.04);
+  border-color: var(--wg-gold-soft);
+  box-shadow: 0 0 18px var(--wg-wash-rose);
+}
+
+.seal:active:not(:disabled) .seal__disc {
+  transform: scale(0.96);
+  border-color: var(--wg-gold-dim);
+}
+
+.seal:focus-visible .seal__disc {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+
+.seal:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* `default_with_gold_tint` — the same seal, warmer. Renegotiate is a peer of
+   Accept, so it differs by tint and by nothing else. */
+.seal[data-action="renegotiate"] .seal__disc {
+  background: radial-gradient(circle at 38% 32%, var(--wg-gold-soft), var(--wg-gold) 66%);
+}
+
+.seal[data-action="renegotiate"] .seal__ring {
+  border-color: var(--wg-soil);
+}
+
+/* Refuse is COLD, not red. Same geometry, its own palette. */
+.seal[data-action="refuse"] .seal__disc {
+  border-color: var(--wg-iron);
+  background: radial-gradient(circle at 38% 32%, var(--wg-refuse-core), var(--wg-soil) 70%);
+}
+
+.seal[data-action="refuse"] .seal__ring {
+  border-color: var(--wg-iron-bright);
+}
+
+.seal[data-action="refuse"] .seal__label {
+  color: var(--wg-iron-bright);
+}
+
+/* ---------- the contract scroll ---------- */
+
+.scroll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 62ch;
+  /* dialogue_plate: 40px slice, 36/48 safe text inset. */
+  padding: 36px 48px;
+  border: var(--border-hair) solid var(--wg-edge);
+  border-radius: var(--wg-radius-panel);
+  background: linear-gradient(180deg, var(--wg-glass-top), var(--wg-glass));
+  backdrop-filter: blur(var(--wg-blur-glass));
+}
+
+.scroll__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-hair) solid var(--wg-edge-soft);
+}
+
+.scroll__title {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-2xl);
+  color: var(--wg-gold-soft);
+}
+
+/* Silver ink is Ashen Vale's hand; gold is the Garden's own. */
+.scroll[data-ink="silver"] .scroll__title {
+  color: var(--wg-iron-bright);
+}
+
+.scroll[data-ink="silver"] {
+  border-color: var(--wg-edge-iron);
+}
+
+.scroll__by,
+.scroll__hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.scroll__preamble {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-lg);
+  line-height: var(--leading-relaxed);
+  color: var(--text-narration);
+}
+
+.scroll__terms {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.term__pick {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-3);
+  align-items: baseline;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hair) solid transparent;
+  border-left: 2px solid var(--wg-edge-soft);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: none;
+  color: var(--text-body);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-base) var(--ease-quiet),
+    border-color var(--dur-base) var(--ease-quiet);
+}
+
+.term__pick:hover {
+  background: var(--state-hover-fill);
+}
+
+.term.is-picked .term__pick {
+  border-color: var(--wg-gold);
+  border-left-width: 3px;
+  background: var(--state-select-fill);
+}
+
+.term__tag {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--wg-gold);
+}
+
+.term__cost {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.scroll__seal-note {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Three peers on one row. They wrap together rather than one dropping away, so
+   Refuse is never the button that fell off the edge. */
+.scroll__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: center;
+  padding-top: var(--space-3);
+  border-top: var(--border-hair) solid var(--wg-edge-soft);
+}
+
+/* ---------- vine meters ---------- */
+
+.vine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.vine__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.vine__label {
+  flex: 1;
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-smallcaps);
+}
+
+/* The stage word IS the value, so it is set like one. */
+.vine__word {
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-base);
+  color: var(--text-narration);
+}
+
+/* Only under analyst mode, and always BESIDE the word rather than instead of
+   it -- the two readings have to stay the same meter. */
+.vine__int {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* 400x18, rx=9 — the vector sheet's track. */
+.vine__track {
+  position: relative;
+  height: 18px;
+  border: 1.5px solid var(--wg-gold);
+  border-radius: 9px;
+  background: var(--wg-soil);
+  overflow: visible;
+}
+
+.vine__fill {
+  position: absolute;
+  inset: 2px auto 2px 2px;
+  display: block;
+  border-radius: 7px;
+  background: linear-gradient(90deg, var(--wg-rose), var(--wg-rose-bright));
+  /* Growing, not filling: a long ease so the eye reads it as a thing that
+     spread rather than a bar that jumped. */
+  transition: width 320ms var(--ease-quiet);
+}
+
+.vine[data-hue="silk"] .vine__fill {
+  background: linear-gradient(90deg, var(--wg-silk-deep), var(--wg-silk));
+}
+
+.vine[data-hue="gold"] .vine__fill {
+  background: linear-gradient(90deg, var(--wg-gold-dim), var(--wg-gold-soft));
+}
+
+.vine[data-hue="teal"] .vine__fill {
+  background: linear-gradient(90deg, var(--wg-teal-deep), var(--wg-teal));
+}
+
+/* The bud at the head of the growth, 8 -> 11px across the four lit stages. */
+.vine__bud {
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: var(--wg-gold-soft);
+  box-shadow: 0 0 8px var(--wg-wash-rose);
+  transition: width 320ms var(--ease-quiet), height 320ms var(--ease-quiet);
+}
+
+/* A veiled meter is five hard segments with real gaps, drawn as elements
+   rather than as a gradient so the step count is the component's and not a
+   percentage that happens to look right at one width. The dashed track is the
+   second tell: this is a different KIND of meter, not a badly rendered one. */
+.vine[data-veiled="yes"] .vine__track {
+  display: flex;
+  gap: 3px;
+  padding: 2px;
+  border-style: dashed;
+}
+
+.vine__step {
+  flex: 1;
+  border-radius: 5px;
+  background: var(--wg-soil-deep);
+  box-shadow: inset 0 0 0 var(--border-hair) var(--wg-edge-soft);
+}
+
+.vine__step.is-lit {
+  background: var(--wg-rose);
+  box-shadow: none;
+}
+
+/* "none at all" lights nothing: the lowest band and the one above it must not
+   look identical. */
+.vine[data-veiled="yes"][data-band="none"] .vine__step.is-lit {
+  background: var(--wg-soil-deep);
+  box-shadow: inset 0 0 0 var(--border-hair) var(--wg-edge-soft);
+}
+
+/* ---------- the hourglass ---------- */
+
+.hourglass {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.hourglass__glass {
+  position: relative;
+  display: block;
+  width: 30px;
+  height: 46px;
+  flex: none;
+  border: var(--border-hair) solid var(--wg-gold);
+  border-radius: 4px;
+  background: var(--wg-soil);
+  overflow: hidden;
+}
+
+.hourglass__top,
+.hourglass__pile {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  display: block;
+  background: var(--wg-gold-soft);
+  opacity: 0.75;
+  transition: height 320ms var(--ease-quiet);
+}
+
+.hourglass__top {
+  top: 3px;
+  height: calc(var(--fall) * 18px);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.hourglass__pile {
+  bottom: 3px;
+  height: calc(var(--fall) * 18px);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.hourglass__waist {
+  position: absolute;
+  top: 50%;
+  left: 40%;
+  right: 40%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: var(--wg-gold);
+}
+
+.hourglass[data-spent="yes"] .hourglass__glass {
+  border-color: var(--wg-iron);
+}
+
+.hourglass__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.hourglass__label {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-smallcaps);
+}
+
+.hourglass__word {
+  font-family: var(--font-narration);
+  font-style: italic;
+  color: var(--text-narration);
+}
+
+.hourglass__int {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ---------- the court board ---------- */
+
+.court {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.court__graph {
+  width: 100%;
+  max-width: 380px;
+  height: auto;
+  align-self: center;
+}
+
+.court__node circle {
+  fill: var(--surface-card);
+  stroke: var(--wg-edge);
+  stroke-width: 1.5;
+}
+
+.court__node.is-centre circle {
+  fill: var(--wg-rose);
+  stroke: var(--wg-gold);
+  stroke-width: 2.5;
+}
+
+.court__initial {
+  fill: var(--text-narration);
+  font-family: var(--font-narration);
+  font-size: 18px;
+}
+
+.court__roll {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.courtrow__btn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hair) solid var(--wg-edge-soft);
+  border-radius: var(--radius-sm);
+  background: var(--wg-glass);
+  color: var(--text-body);
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-base) var(--ease-quiet);
+}
+
+.courtrow__btn:hover {
+  border-color: var(--wg-gold);
+}
+
+.courtrow__name {
+  font-family: var(--font-narration);
+  font-size: var(--text-md);
+  color: var(--text-narration);
+}
+
+.courtrow__standing {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--wg-gold);
+}
+
+.courtrow__ties {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.court__key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.court__keyrow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* Each tie type has its own DASH as well as its own colour, so the key still
+   works for a reader who cannot separate gold from silver. */
+.court__keyline {
+  width: 34px;
+  height: 0;
+  border-top: 2px solid var(--wg-gold);
+}
+
+.court__keyrow[data-kind="watching"] .court__keyline {
+  border-top-style: dashed;
+  border-top-color: var(--wg-iron);
+}
+
+.court__keyrow[data-kind="grievance"] .court__keyline {
+  border-top-style: dotted;
+  border-top-color: var(--wg-grievance);
+}
+
+/* ---------- the ending gallery ---------- */
+
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.gallery__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ending__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+  width: 100%;
+  padding: var(--space-3);
+  border: var(--border-hair) solid var(--wg-edge-soft);
+  border-radius: var(--wg-radius-panel);
+  background: var(--wg-glass);
+  color: var(--text-body);
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: border-color var(--dur-base) var(--ease-quiet);
+}
+
+.ending__card:hover {
+  border-color: var(--wg-gold);
+}
+
+.ending__medallion {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border: 2px solid var(--wg-edge);
+  border-radius: 50%;
+}
+
+.ending__shape {
+  width: 54px;
+  height: 54px;
+  border-radius: 50% 50% 50% 4px;
+  background: radial-gradient(circle at 36% 30%, var(--wg-gold-soft), var(--wg-rose) 70%);
+}
+
+/* Three tiers, three visibly different treatments. Grey-and-dim for locked;
+   a flat cut-out with no interior for a silhouette -- the shape of a thing you
+   cannot reach should not look like a picture of it. */
+.ending[data-tier="locked"] .ending__shape {
+  filter: grayscale(1) brightness(0.6);
+}
+
+.ending[data-tier="locked"] .ending__medallion {
+  border-color: var(--line-iron);
+}
+
+.ending__lock {
+  position: absolute;
+  width: 14px;
+  height: 11px;
+  bottom: 12px;
+  border: 2px solid var(--wg-iron);
+  border-radius: 2px;
+  background: var(--wg-soil);
+}
+
+.ending__lock::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: -8px;
+  width: 6px;
+  height: 8px;
+  border: 2px solid var(--wg-iron);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+}
+
+.ending[data-tier="silhouette"] .ending__shape {
+  background: var(--wg-soil);
+  box-shadow: inset 0 0 0 1px var(--line-iron);
+}
+
+.ending[data-tier="silhouette"] .ending__medallion {
+  border-style: dashed;
+  border-color: var(--line-iron);
+}
+
+.ending[data-tier="silhouette"] .ending__title,
+.ending[data-tier="silhouette"] .ending__id {
+  color: var(--text-disabled);
+}
+
+.ending__id {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--wg-gold);
+}
+
+.ending__title {
+  font-family: var(--font-narration);
+  font-size: var(--text-md);
+  color: var(--text-narration);
+  text-align: center;
+}
+
+.ending__tier {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.gallery__inspect {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: var(--border-hair) solid var(--wg-edge);
+  border-radius: var(--wg-radius-panel);
+  background: var(--wg-glass);
+}
+
+.gallery__inspect-title {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-xl);
+  color: var(--wg-gold-soft);
+}
+
+.gallery__tease {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-lg);
+  line-height: var(--leading-relaxed);
+  color: var(--text-narration);
+}
+
+.gallery__reason {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--wg-iron);
+  font-size: var(--text-base);
+  color: var(--text-muted);
+}
+
+.gallery__gate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: baseline;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--wg-teal);
+}
+
+.gallery__gate-kicker {
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.gallery__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.gallery__warn {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ---------- the omen sting ---------- */
+
+.omen {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  background: var(--surface-overlay);
+  animation: omen-in 260ms var(--ease-quiet);
+}
+
+.omen__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  /* `ch` here resolves against the UI font, not the display serif the line is
+     set in, so 46ch measured ~340px and broke the sting across five short
+     lines. A sting is one sentence and it should read as one. */
+  max-width: min(34rem, calc(100vw - var(--space-6) * 2));
+  padding: var(--space-6);
+  border-top: 2px solid var(--wg-gold);
+  border-bottom: 2px solid var(--wg-gold);
+  background: var(--wg-glass);
+  text-align: center;
+}
+
+.omen[data-tone="rose"] .omen__card {
+  border-color: var(--wg-rose-bright);
+}
+
+.omen[data-tone="teal"] .omen__card {
+  border-color: var(--wg-teal);
+}
+
+.omen__kicker {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--wg-gold);
+}
+
+.omen__line {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-relaxed);
+  color: var(--text-narration);
+}
+
+/* Photosensitivity: the words survive, the flash does not. */
+.omen--quiet {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 2px solid var(--wg-gold);
+  background: var(--wg-glass);
+  font-family: var(--font-narration);
+  font-style: italic;
+  color: var(--text-narration);
+}
+
+@keyframes omen-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- the epilogue card ---------- */
+
+.epilogue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 64ch;
+  padding: 36px 48px;
+  border: var(--border-hair) solid var(--wg-edge);
+  border-radius: var(--wg-radius-panel);
+  background: linear-gradient(180deg, var(--wg-glass-top), var(--wg-glass));
+}
+
+.epilogue__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-hair) solid var(--wg-edge-soft);
+}
+
+.epilogue__kicker {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--wg-gold);
+}
+
+.epilogue__title {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-2xl);
+  color: var(--text-display);
+}
+
+.epilogue__id {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  color: var(--wg-gold);
+}
+
+.epilogue__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+  border-bottom: var(--border-hair) solid var(--wg-edge-soft);
+}
+
+.epilogue__card-head {
+  margin: 0;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-smallcaps);
+}
+
+.epilogue__prose {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-lg);
+  line-height: var(--leading-relaxed);
+  color: var(--text-narration);
+}
+
+.epilogue__hollow {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--wg-iron);
+  font-family: var(--font-narration);
+  font-style: italic;
+  color: var(--wg-iron-bright);
+}
+
+.epilogue__echo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-lg);
+  color: var(--wg-rose-bright);
+}
+
+.epilogue__echo-who {
+  font-style: normal;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--wg-gold);
+}
+
+.epilogue__time {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* ---------- reduced motion ----------
+   Everything above that moves. The stings, the growth and the bloom are all
+   feeling rather than information -- except the vine's WIDTH and the
+   hourglass's fill, which are the value itself, so those keep their end state
+   and simply arrive without travelling. */
+
+@media (prefers-reduced-motion: reduce) {
+  .petal,
+  .petal:hover:not(:disabled),
+  .petal:active:not(:disabled) {
+    transform: none;
+    transition: none;
+  }
+
+  .seal__disc,
+  .seal:hover:not(:disabled) .seal__disc,
+  .seal:active:not(:disabled) .seal__disc {
+    transform: none;
+    transition: none;
+  }
+
+  .vine__fill,
+  .vine__bud,
+  .hourglass__top,
+  .hourglass__pile {
+    transition: none;
+  }
+
+  .omen {
+    animation: none;
+  }
+}
+
+/* ---------- narrow viewports ----------
+   The scroll is a manuscript and a manuscript has margins, but 48px of them on
+   a 375px phone leaves 279px for a three-column term row -- which set the
+   clause one word per line. The row stacks instead: tag, then the clause, then
+   its cost, in reading order. */
+
+@media (max-width: 560px) {
+  .scroll,
+  .epilogue {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .term__pick {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+    padding: var(--space-3);
+  }
+
+  .scroll__actions {
+    gap: var(--space-3);
+  }
+
+  /* Three seals across 375px would each be 96px wide with a 72px disc; the
+     discs shrink rather than the row wrapping, because Accept / Renegotiate /
+     Refuse being on one line is the thing that makes them read as peers. */
+  .seal {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .seal__disc {
+    width: 56px;
+    height: 56px;
+  }
+
+  .seal__ring {
+    width: 28px;
+    height: 28px;
+  }
+
+  .seal__label {
+    font-size: var(--text-xs);
+    letter-spacing: normal;
+  }
+
+  .court__roll,
+  .gallery__grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}

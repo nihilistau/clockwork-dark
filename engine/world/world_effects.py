@@ -34,11 +34,21 @@ TWO INTEROP FACTS THAT SHAPE THE SCHEMA, both learned the hard way:
   2. Our world events are keyed ``event_id``, not ``id``. ``apply_events`` and
      ``expire_events`` both dedupe on it.
 
-Idempotency is owned here, not by the caller: each beat sets
-``doom_beat_<id>`` and is skipped forever after. A caller that fires the same
-beat twice gets one application.
+WHAT MOVED, AND WHY THIS FILE GOT SHORTER. Everything after the trigger was
+generic: setting a flag, opening a discovery, seeding a rumour, writing a
+permanent mark and relocating an NPC are not facts about a doom clock, they are
+facts about a *beat*. Progress clocks needed all five and copying them would
+have meant two homes for the ``expire_events`` interop above -- the exact
+surprise that cost this module a silent, world-emptying bug. So the appliers,
+the idempotency flag and the interop live in ``engine/game/clocks.py`` now, and
+this module is the doom clock's specialisation of them: its own trigger
+(``evil_progress >= at_progress``), its own ``doom`` source tag, its own
+``doom_beat_<id>`` flag namespace.
 
-Version: v0.1.0 [2026-08-08]
+Idempotency is still owned below the caller, not by it: a caller that fires the
+same beat twice gets one application.
+
+Version: v0.2.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -50,7 +60,7 @@ from typing import Any, Optional
 import yaml
 
 from engine.config import get_config
-from engine.game import effects as effects_module
+from engine.game import clocks
 from engine.game.state import GameState
 
 logger = logging.getLogger(__name__)
@@ -61,15 +71,20 @@ _ROOT = Path(__file__).resolve().parents[2]
 # beats and must not inherit Edgewood's.
 _EFFECTS_CACHE: Optional[dict[str, Any]] = None
 
-#: Flag prefix marking a beat as already fired.
+#: Flag prefix marking a beat as already fired. This module's own namespace, so
+#: a doom beat and a clock beat sharing an id cannot cancel each other.
 BEAT_FLAG_PREFIX = "doom_beat_"
 
-#: Flag prefix for discoveries, matching the convention content gates read.
-DISCOVERY_FLAG_PREFIX = "discovery_"
+#: ``source`` tag stamped on every world event a doom beat writes.
+#: ``DoomSignsInterceptor`` narrates only these and not the transient
+#: caravan/militia events, so it is load-bearing rather than decorative.
+DOOM_SOURCE = "doom"
 
-#: Expiry horizon for a permanent world mark. See interop note 1 above --
-#: `None` is not an option, because that is the value expire_events drops.
-PERMANENT_HORIZON_DAY = 999_999
+#: Re-exported from engine/game/clocks.py, which owns them now. Kept as names
+#: here because content, tests and the doctor script all refer to them through
+#: this module, and moving a constant is not a reason to break a caller.
+DISCOVERY_FLAG_PREFIX = clocks.DISCOVERY_FLAG_PREFIX
+PERMANENT_HORIZON_DAY = clocks.PERMANENT_HORIZON_DAY
 
 
 def _effects_path() -> Path:
@@ -164,137 +179,6 @@ def pending_beats(state: GameState) -> list[str]:
     return [beat_id for _, beat_id in sorted(crossed)]
 
 
-def _apply_flags(state: GameState, spec: dict[str, Any]) -> list[dict[str, str]]:
-    """Set world flags through the effect dispatcher, per the engine's one-writer rule."""
-    applied: list[dict[str, str]] = []
-    for flag in spec.get("set_flags", []) or []:
-        name = str(flag).strip()
-        if not name:
-            continue
-        was_set = bool(state.flags.get(name))
-        # Routed through apply_effect rather than poking state.flags directly:
-        # the dispatcher is the only validated writer of game state, and a
-        # second path into it is how invariants stop being invariants.
-        effects_module.apply_effect(state, {"type": "flag", "flag": name, "value": True})
-        if not was_set:
-            applied.append({"type": "flag", "value": name})
-    return applied
-
-
-def _apply_discoveries(state: GameState, spec: dict[str, Any]) -> list[dict[str, str]]:
-    """Open discovery-gated content by setting ``discovery_<key>``."""
-    applied: list[dict[str, str]] = []
-    for key in spec.get("discoveries", []) or []:
-        name = str(key).strip()
-        if not name:
-            continue
-        flag = f"{DISCOVERY_FLAG_PREFIX}{name}"
-        was_set = bool(state.flags.get(flag))
-        effects_module.apply_effect(state, {"type": "flag", "flag": flag, "value": True})
-        if not was_set:
-            applied.append({"type": "discovery", "value": name})
-    return applied
-
-
-def _apply_rumors(state: GameState, spec: dict[str, Any]) -> list[dict[str, str]]:
-    """Append village chatter, deduped against what is already circulating."""
-    applied: list[dict[str, str]] = []
-    for raw in spec.get("rumors", []) or []:
-        text = str(raw).strip()
-        if not text or text in state.rumors:
-            continue
-        state.rumors.append(text)
-        applied.append({"type": "rumor", "value": text})
-    return applied
-
-
-def _apply_world_events(
-    state: GameState,
-    beat_id: str,
-    spec: dict[str, Any],
-) -> list[dict[str, str]]:
-    """Write permanent marks to the world ledger."""
-    applied: list[dict[str, str]] = []
-    known = {str(e.get("event_id")) for e in state.world_events}
-    for raw in spec.get("world_events", []) or []:
-        if not isinstance(raw, dict):
-            continue
-        event_id = str(raw.get("event_id") or "").strip()
-        if not event_id or event_id in known:
-            continue
-        state.world_events.append(
-            {
-                **raw,
-                "event_id": event_id,
-                "beat": beat_id,
-                # Marks the entry for DoomSignsInterceptor, which narrates only
-                # doom marks and not the transient caravan/militia events.
-                "source": "doom",
-                "day": state.world_day,
-                "expires_day": PERMANENT_HORIZON_DAY,
-            }
-        )
-        known.add(event_id)
-        applied.append({"type": "world_event", "value": event_id})
-    return applied
-
-
-def _apply_npc_moves(
-    state: GameState,
-    beat_id: str,
-    spec: dict[str, Any],
-) -> list[dict[str, str]]:
-    """
-    Relocate villagers as the Dark advances.
-
-    Destinations are checked against the live location graph. An unvalidated
-    move is worse than no move: the NPC does not vanish, they occupy an id that
-    ``npcs_at`` will never return, so they are silently deleted from the world
-    with no error anywhere.
-    """
-    from engine.game.locations import LOCATION_IDS
-
-    moves = spec.get("npc_moves", {}) or {}
-    if not isinstance(moves, dict):
-        return []
-
-    applied: list[dict[str, str]] = []
-    for raw_npc, raw_dest in moves.items():
-        npc_id = str(raw_npc).strip()
-        destination = str(raw_dest).strip()
-        if not npc_id or not destination:
-            continue
-        if destination not in LOCATION_IDS:
-            logger.error(
-                "[world_effects] npc_move destination is not in the location "
-                "graph, skipping (operation=_apply_npc_moves, beat=%s, npc=%s, "
-                "destination=%s)",
-                beat_id,
-                npc_id,
-                destination,
-            )
-            continue
-
-        npc = state.procgen.npc_by_id(npc_id)
-        if npc is None:
-            logger.warning(
-                "[world_effects] npc_move names an NPC this save does not have, "
-                "skipping (operation=_apply_npc_moves, beat=%s, npc=%s)",
-                beat_id,
-                npc_id,
-            )
-            continue
-        if npc.get("location_id") == destination:
-            continue
-
-        npc["location_id"] = destination
-        # Read by narration and the UI to explain why someone is standing
-        # somewhere they have no business being.
-        npc["displaced"] = True
-        applied.append({"type": "npc_move", "value": f"{npc_id}->{destination}"})
-    return applied
-
-
 def apply_beat(state: GameState, beat_id: str) -> list[dict[str, str]]:
     """
     Apply one doom beat's world mutations.
@@ -315,27 +199,26 @@ def apply_beat(state: GameState, beat_id: str) -> list[dict[str, str]]:
             beat_id,
         )
         return []
-    if has_fired(state, beat_id):
-        return []
 
-    applied: list[dict[str, str]] = []
-    applied += _apply_flags(state, spec)
-    applied += _apply_discoveries(state, spec)
-    applied += _apply_rumors(state, spec)
-    applied += _apply_world_events(state, beat_id, spec)
-    applied += _apply_npc_moves(state, beat_id, spec)
-
-    # Set last: a beat is only "fired" once its effects are in. Setting it
-    # first would make a mid-application failure permanent and silent.
-    state.flags[beat_flag(beat_id)] = True
-
-    logger.info(
-        "[world_effects] Doom beat applied (operation=apply_beat, beat=%s, "
-        "progress=%.3f, mutations=%d)",
+    # The appliers, the idempotency flag and the world-ledger interop live in
+    # engine/game/clocks.py now. This module keeps the one thing that was ever
+    # Clockwork-specific -- the trigger, `evil_progress >= at_progress` -- plus
+    # the `doom` source tag that DoomSignsInterceptor filters on.
+    applied = clocks.apply_mutations(
+        state,
         beat_id,
-        state.evil_progress,
-        len(applied),
+        spec,
+        source=DOOM_SOURCE,
+        flag_prefix=BEAT_FLAG_PREFIX,
     )
+    if applied or has_fired(state, beat_id):
+        logger.info(
+            "[world_effects] Doom beat applied (operation=apply_beat, beat=%s, "
+            "progress=%.3f, mutations=%d)",
+            beat_id,
+            state.evil_progress,
+            len(applied),
+        )
     return applied
 
 

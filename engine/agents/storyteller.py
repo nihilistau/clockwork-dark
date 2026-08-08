@@ -162,6 +162,40 @@ _EMBEDDED_ENVELOPE = re.compile(
 )
 
 
+def _positional_ids(choices: Any) -> list[dict[str, str]]:
+    """
+    Renumber choices a, b, c... in the order they were offered.
+
+    The turn schema declares choice ids as an enum of a|b|c|d, and a model is
+    free to pick from the middle of it -- observed live on
+    gemma-4-26b-a4b-it-qat, which returned two choices with ids "c" and "d".
+    Nothing broke, because the client keys its 1-4 shortcuts off position, but
+    the ids are what ``resolve_player_action`` matches and what the API returns,
+    so a turn advertised options the player could not name.
+
+    Assigned by the ENGINE rather than requested from the model, for the same
+    reason the negotiator does it: position is what the keyboard uses, so the
+    id has to follow the order rather than the sampler's mood.
+    """
+    if not isinstance(choices, list):
+        return []
+    out: list[dict[str, str]] = []
+    for choice in choices:
+        if not isinstance(choice, dict):
+            continue
+        text = str(choice.get("text") or "").strip()
+        if not text:
+            continue
+        row = {k: v for k, v in choice.items() if k != "id"}
+        # Numbered over what SURVIVES, not over the input. Counting the input
+        # would leave a gap wherever a malformed choice was dropped -- a "b"
+        # with no "a", which is worse than the ids it replaced.
+        row["id"] = chr(ord("a") + len(out)) if len(out) < 26 else str(len(out))
+        row["text"] = text
+        out.append(row)
+    return out
+
+
 def strip_embedded_envelope(narration: str) -> str:
     """
     Cut the narration where it stops being prose and starts being JSON.
@@ -856,7 +890,7 @@ class StorytellerAgent:
 
         return StorytellerTurnResult(
             narration=parsed.get("narration", raw),
-            choices=parsed.get("choices", []),
+            choices=_positional_ids(parsed.get("choices", [])),
             parsed=parsed,
             tool_receipts=tool_receipts,
             evaluation=evaluation,

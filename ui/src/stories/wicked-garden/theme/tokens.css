@@ -1,0 +1,123 @@
+/* ============================================================
+   Wicked Garden — palette.
+
+   The one file in this story allowed to spell a colour. Values are verbatim
+   from the design set, so a drift here is a drift from the art:
+
+     concept/meta/nine-slice.json  -> color_tokens
+     docs/design/09-UI-COMPONENT-KIT.md -> the token table
+     docs/design/01-ART-STYLE.md   -> the Primary Garden Palette
+
+   Two of the seven palette colours (poison emerald, honey peach) appear only in
+   01-ART-STYLE and not in the token table; they are here because the foliage
+   and the mortal-warmth notes have nothing else to be.
+
+   The semantic block below re-points CORE's aliases, which is the whole trick:
+   core's chrome, log, choices, compose box and modal shell take this palette
+   without a single core rule knowing the Garden exists.
+
+   Unscoped `:root` is safe because this sheet only exists in the document when
+   this story is the active one -- it is a lazily-imported chunk, fetched by the
+   plugin's `theme()`. Two themes are never loaded at once.
+   ============================================================ */
+
+:root {
+  /* ---- primitives (design set, verbatim) ---- */
+  --wg-soil: #1a0f18;        /* night soil — backgrounds, voids */
+  --wg-soil-deep: #0d080c;   /* the page under the page */
+  --wg-leaf: #1f6b4a;        /* poison emerald — foliage, the Garden's health */
+  --wg-rose: #8b1e3f;        /* bloom desire — passion, danger, Sophia */
+  --wg-rose-bright: #c43b5e;
+  --wg-gold: #c9a227;        /* fae gold — UI metal, contracts, power */
+  --wg-gold-soft: #e8d48b;
+  --wg-gold-dim: #8a7020;
+  --wg-silk: #d8cde8;        /* moon silk — soft light, innocence fading */
+  --wg-teal: #3dcfc2;        /* biolume — magic, warnings, night flora */
+  --wg-skin: #e8b89a;        /* honey peach — mortal warmth against fae cool */
+  --wg-cream: #f3ebe3;
+  --wg-muted: #a8989c;
+  --wg-iron: #a8b0b8;        /* refuse: cold silver, deliberately NOT red */
+  --wg-iron-bright: #c0c8d0;
+
+  /* ---- structural, from 09-UI-COMPONENT-KIT ---- */
+  --wg-radius-panel: 10px;   /* the 8–12px band */
+  --wg-blur-glass: 18px;     /* the 12–24px band */
+  --wg-glass: rgba(26, 15, 24, 0.88);
+  --wg-glass-top: rgba(42, 21, 36, 0.92);
+  --wg-edge: rgba(201, 162, 39, 0.35);
+  --wg-edge-soft: rgba(201, 162, 39, 0.2);
+  --wg-wash-rose: rgba(139, 30, 63, 0.4);
+  --wg-edge-iron: rgba(168, 176, 184, 0.35);
+
+  /* Gradient partners. Each is the dark end of a ramp whose light end is a
+     palette colour above, so a meter reads as one material rather than as a
+     colour sitting on black. */
+  --wg-silk-deep: #6a5f7c;
+  --wg-teal-deep: #1d6f69;
+  --wg-refuse-core: #2f2029;
+
+  /* The court board's third tension line. 06-UI-UX names the three as gold /
+     silver / BLACK -- and black on a #0d080c page is not a line, it is a gap.
+     So the grievance is drawn as the darkest value that still reads against
+     the soil, a cold bruise; the DOTTED dash is what actually carries the
+     distinction for anyone who cannot separate it from the silver. */
+  --wg-grievance: #4a3350;
+
+  /* 9-slice insets, from concept/meta/nine-slice.json. Held as tokens so the
+     day the art is keyed to alpha and dropped in as `border-image`, the numbers
+     are already the ones that were measured. */
+  --wg-slice-dialogue: 40px;
+  --wg-slice-glass: 32px;
+  --wg-inset-dialogue: 36px 48px;
+  --wg-inset-glass: 24px;
+
+  /* ---- core's aliases, re-pointed ----
+     Everything below is a name CORE reads. Overriding them here is what makes
+     the shared chrome, log, choices and modal shell read as the Garden. */
+  --surface-scene: var(--wg-soil-deep);
+  --surface-narrative: #180d16;
+  --surface-panel: var(--wg-glass);
+  --surface-ledger: #170c15;
+  --surface-chrome: #120a11;
+  --surface-card: #2a1524;
+  --surface-overlay: rgba(13, 8, 12, 0.86);
+
+  --text-narration: var(--wg-cream);
+  --text-body: #ded3dc;
+  --text-muted: var(--wg-muted);
+  --text-on-dark: var(--wg-cream);
+  --text-candlelight: var(--wg-gold-soft);
+  --text-danger: #f0a0b0;
+  --text-affirm: #6fc0a4;
+  --text-display: var(--wg-cream);
+  --text-stat: var(--wg-silk);
+  --text-ledger: var(--wg-silk);
+  --text-parchment: var(--wg-muted);
+  --text-smallcaps: var(--wg-gold);
+  --text-disabled: #5c4f58;
+
+  --line-ink: #080409;
+  --line-soft: var(--wg-edge-soft);
+  --line-brass: var(--wg-gold);
+  --line-iron: #2a1c28;
+  --line-rust-deep: var(--wg-gold-dim);
+
+  --accent-candle: var(--wg-gold);
+  --accent-brass: var(--wg-gold-soft);
+  --accent-moss: var(--wg-leaf);
+  --rust-clock: var(--wg-gold-dim);
+  --status-danger: var(--wg-rose);
+  --status-corruption: var(--wg-teal);
+  --focus-ring: var(--wg-teal);
+
+  --state-hover-fill: rgba(139, 30, 63, 0.22);
+  --state-active-fill: rgba(139, 30, 63, 0.34);
+  --state-select-fill: rgba(201, 162, 39, 0.18);
+
+  --outcome-success: var(--wg-teal);
+  --outcome-success-dim: rgba(61, 207, 194, 0.13);
+  --outcome-failure: #f0a0b0;
+  --outcome-failure-dim: rgba(240, 160, 176, 0.13);
+  --outcome-crit: var(--wg-gold-soft);
+  --outcome-crit-dim: rgba(232, 212, 139, 0.16);
+}

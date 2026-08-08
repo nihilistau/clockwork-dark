@@ -4,11 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="dark" />
-    <title>The Clockwork Dark</title>
+    <!-- The active story sets the real title at boot; this is what `npm run dev`
+         shows for the half-second before /api/games answers. -->
+    <title>Loading</title>
     <script type="module" crossorigin src="/static/dist/app.js"></script>
     <link rel="stylesheet" crossorigin href="/static/dist/index.css">
   </head>
-  <body data-phase="dormant">
-    <div id="root"></div>
+  <!-- No `data-phase` here: the story plugin writes it (and cleans it up).
+       Hardcoding the flagship's default meant a story with no phases still
+       booted with `data-phase="dormant"` on its body. -->
+  <body>
+    <div id="root"></div>
   </body>
 </html>

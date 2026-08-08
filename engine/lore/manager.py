@@ -217,16 +217,33 @@ class LoreManager:
         )
         return total
 
-    def search(self, query: str, *, limit: int = 3) -> list[LoreChunk]:
+    def search(
+        self,
+        query: str,
+        *,
+        limit: int = 3,
+        scopes: Optional[tuple[str, ...]] = None,
+    ) -> list[LoreChunk]:
         """
         FTS search for lore chunks.
 
         Args:
             query: Free-text query (location, action, keywords).
             limit: Max results.
+            scopes: Knowledge scopes the CALLER may read. A chunk tagged with a
+                scope outside this set is withheld. ``None`` means no scoping,
+                which is the behaviour every existing caller gets.
 
         Returns:
             Matching LoreChunk list (empty if DB empty or no hits).
+
+        Note on scoping: ``tags`` has been stored on every chunk since this
+        index was written and read by nothing -- the column was selected,
+        returned, and never filtered on. It is the scope key now, so a chunk
+        tagged ``gm_secrets`` is simply not retrievable by an agent without
+        that grant. Filtering happens in Python rather than SQL because tags
+        are a comma-joined string in an FTS table, and a LIKE over it would
+        match ``gm_secrets`` inside an unrelated tag.
         """
         if self.count() == 0 or not query.strip():
             return []
@@ -259,9 +276,25 @@ class LoreManager:
                 (f"%{terms[0]}%", limit),
             ).fetchall()
 
+        from engine.agents.knowledge import SCOPES
+
+        allowed = None if scopes is None else set(scopes)
+        withheld = 0
+
         results: list[LoreChunk] = []
         for row in rows:
             tags = [t for t in str(row["tags"]).split(",") if t]
+
+            if allowed is not None:
+                # Only tags that NAME a scope gate the chunk. Every other tag is
+                # ordinary content metadata, so an untagged or topically tagged
+                # chunk stays public -- the alternative would make every
+                # existing lore file invisible the moment scoping was turned on.
+                claimed = {t for t in tags if t in SCOPES}
+                if claimed and not (claimed & allowed):
+                    withheld += 1
+                    continue
+
             results.append(
                 LoreChunk(
                     chunk_id=str(row["chunk_id"]),
@@ -270,6 +303,12 @@ class LoreManager:
                     text=str(row["body"]),
                     tags=tags,
                 )
+            )
+
+        if withheld:
+            logger.debug(
+                "[lore] Chunks withheld by scope (operation=search, withheld=%d)",
+                withheld,
             )
         return results
 

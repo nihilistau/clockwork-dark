@@ -1,0 +1,160 @@
+# Threads — worked example (The Wicked Garden)
+# ============================================
+#
+# NOT LOADED BY EITHER SHIPPED GAME. See README.md in this directory.
+#
+#   Offer -> Terms -> Seal -> Thread
+#
+# Consumed by engine/game/threads.py.
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+
+# The story's tag vocabulary. An offer naming a tag that is not here has it
+# dropped -- a bargain tagged `Sovereignty` in a story with no sovereignty is a
+# promise the fiction cannot keep.
+tags:
+  - Protection
+  - Pleasure
+  - Knowledge
+  - Time
+  - Freedom
+  - Name
+  - Body
+  - Service
+  - Silence
+  - Sovereignty
+
+# What can sever a thread AT ALL in this story, and what each severing costs.
+# A thread's own `can_cut_with` is intersected with these keys, so a contract
+# cannot advertise an escape route the world does not implement.
+cutters:
+  mirror_glass_knife:
+    kind: item
+    consumes: true          # the knife is spent; it is glass and a bargain
+
+  law:
+    kind: invocation
+    # You cannot invoke what you have not read.
+    requires: { value: { name: knowledge, min: 35 } }
+    denied_text: "You do not know the words, and half-remembered law is worse than silence."
+
+  death:
+    kind: event
+
+  sovereign_word:
+    kind: invocation
+    requires: { track: { name: rank, is: [sovereign, consort_equal] } }
+    denied_text: "You have no Seat to speak from."
+
+# The template used when a gift is taken without asking what it costs.
+# "Gifts accepted without negotiation auto-thread Obligation" is a rule of the
+# fiction; this is the engine saying it, so it holds when nobody narrates it.
+gift_obligation:
+  template: obligation_gift
+
+templates:
+
+  # ---------------------------------------------------------------------
+  # The Day 1 gift dilemma. Three genuinely different contracts, and the
+  # third of them is not a contract at all.
+  # ---------------------------------------------------------------------
+  obligation_gift:
+    source: sophia
+    tags: [Service]
+    terms: "A gift accepted is a debt named later, by the giver, at their convenience."
+    can_cut_with: [mirror_glass_knife, sovereign_word]
+    due_in_days: 10
+    on_seal:
+      - { type: value, name: favor, delta: 6, why: "she likes being thanked" }
+    on_discharge:
+      - { type: value, name: favor, delta: 3 }
+      - { type: value, name: autonomy, delta: 2 }
+    on_break:
+      - { type: value, name: favor, delta: -12 }
+      - { type: value, name: autonomy, delta: 5 }
+
+    # RENEGOTIATE IS NOT ACCEPT/REFUSE. Each of these is a DIFFERENT contract
+    # with its own terms, tags and consequences -- not the same thread on
+    # better numbers.
+    renegotiations:
+
+      costly_gift:
+        label: "Ask what it costs, before you touch it"
+        terms: "You asked the price. She told you, and telling you cost her something too."
+        tags: [Service, Knowledge]
+        requires: { value: { name: autonomy, min: 50 } }
+        due_in_days: 20
+        on_seal:
+          - { type: value, name: knowledge, delta: 8, why: "a named price is a law learned" }
+          - { type: value, name: favor, delta: -2, why: "she is amused and slightly stung" }
+        on_break:
+          # Cheaper to break, because you both knew what it was.
+          - { type: value, name: favor, delta: -6 }
+
+      service_named:
+        label: "Name the service yourself"
+        terms: "One task, chosen by you, done without complaint. Then nothing."
+        tags: [Service, Freedom]
+        requires: { value: { name: knowledge, min: 25 } }
+        due_in_days: 6
+        can_cut_with: [mirror_glass_knife, law, sovereign_word]
+        on_seal:
+          - { type: value, name: autonomy, delta: 4 }
+        on_discharge:
+          - { type: value, name: favor, delta: 8 }
+          - { type: value, name: autonomy, delta: 4 }
+
+      refuse:
+        label: "Give it back"
+        # `outcome: none` -- the negotiation ends in NO contract. Refusing well
+        # is a real move and it still costs and earns things.
+        outcome: none
+        terms: "No thread. No gift either. She watches you put it down."
+        on_seal:
+          - { type: value, name: autonomy, delta: 6 }
+          - { type: value, name: favor, delta: -8 }
+
+  # ---------------------------------------------------------------------
+  # The rival's price. The one the finale's collision table asks about.
+  # ---------------------------------------------------------------------
+  ashen_service_owed:
+    source: ashen_vale
+    tags: [Service, Knowledge]
+    terms: "One winter's errand, collected when the frost decides, not when you are ready."
+    can_cut_with: [law, death]
+    due_in_days: 15
+    on_seal:
+      - { type: value, name: knowledge, delta: 10 }
+      - { type: value, name: corruption, delta: 2 }
+    on_discharge:
+      - { type: value, name: knowledge, delta: 4 }
+    on_break:
+      - { type: value, name: corruption, delta: 6 }
+      - { type: value, name: favor, delta: -4 }
+    renegotiations:
+      intel_only:
+        label: "Information, not service"
+        terms: "You will listen. You will not carry."
+        tags: [Knowledge]
+        on_seal:
+          - { type: value, name: knowledge, delta: 6 }
+        on_break:
+          - { type: value, name: corruption, delta: 2 }
+
+  # ---------------------------------------------------------------------
+  # Hospitality. A thread the LAW holds, not a person -- so it is one of
+  # the few that a correctly recited law can cut.
+  # ---------------------------------------------------------------------
+  hospitality_dawn:
+    source: law
+    tags: [Protection, Time]
+    terms: "A guest under the roof is unharmed until dawn. Both directions."
+    can_cut_with: [law, death]
+    due_in_days: 1
+    on_seal:
+      - { type: value, name: knowledge, delta: 3 }
+    on_break:
+      - { type: value, name: favor, delta: -20, why: "you broke the oldest one" }
+      - { type: value, name: corruption, delta: 5 }

@@ -1,0 +1,654 @@
+# ============================================================
+# The Wicked Garden -- the reliquary.
+#
+# Twenty-three items, read by engine/game/inventory.py through `paths.items`.
+# The id list is Design_files/Wicked-Garden/docs/design/agents/
+# state-dictionary.json:200-224 and it is AUTHORITATIVE over the prose docs.
+# Twenty of them have authored cards in docs/design/items/ITEM-CARDS.md; three
+# (`pressed_court_schedule`, `frost_thread`, `sap_sketch`) are named only in
+# the dictionary and the day scenes, and are authored here for the first time.
+#
+# ------------------------------------------------------------
+# WHY EVERY `value:` IS 0
+# ------------------------------------------------------------
+# There is no coin in this story. 04-ITEMS-AND-SYSTEMS.md:148 -- "Inventory is
+# a reliquary"; :152 -- "Destroying a gift is a relationship event." The Night
+# Market quotes prices in years, syllables and service, never in copper. A
+# non-zero `value` would put every one of these into a barter overlay that
+# would happily let a player sell the collar she fastened on their throat for
+# eleven coppers, and the whole of Act I would stop meaning anything. Zero is
+# the declaration that these are not for sale.
+#
+# ------------------------------------------------------------
+# WHY THE `use:` EFFECTS ARE ONLY `value`, `flag` AND `ledger_fact`
+# ------------------------------------------------------------
+# This story declares no HP, no stamina, no hunger, no wounds and no dice --
+# see games/wicked-garden/state.yaml. `check_penalty`, `stat`, `heal_wound` and
+# `awareness` are all live effect kinds in the engine and all of them are DEAD
+# HERE, because nothing in this story ever rolls a check or reads a pool. An
+# item that granted "+1 nerve for a day" would be a promise with no machine
+# behind it, which is exactly the failure CLAUDE.md rule 9 is about.
+#
+# So the verbs move the twelve declared values, set flags from the dictionary,
+# and write to the ledger. Every value name below appears in state.yaml; every
+# flag name below appears in state-dictionary.json under `flags.booleans`.
+#
+# ------------------------------------------------------------
+# WHY MOST `use.hours` ARE 0
+# ------------------------------------------------------------
+# game.yaml sets `tick_hours: 0.0` -- the day advances when a chapter ends, not
+# when the player thinks. Hours spent here still move the world clock (and so
+# the time of day an image is rendered at), so they are spent only where the
+# fiction says an act took a while. Reading a dead lover's letter takes an
+# hour. Crushing a petal does not.
+#
+# ------------------------------------------------------------
+# `equip:` WITHOUT BONUSES, ON PURPOSE
+# ------------------------------------------------------------
+# Four items are wearable and none of them carries a skill bonus, for the same
+# reason as above: there are no checks to bonus. What equipping buys is the
+# only thing that matters in a story about being claimed -- it is a SOCIAL
+# FACT, held in state, visible to both agents, and the engine's `charm` slot
+# holds exactly one thing at a time. You cannot wear her collar and his clasp
+# together. That constraint is free, it is already enforced
+# (inventory.EQUIP_SLOTS), and it is the sharpest mechanical sentence in the
+# file.
+#
+# ------------------------------------------------------------
+# TAG VOCABULARY
+# ------------------------------------------------------------
+# Two axes, both flat strings, both queryable by anything that filters:
+#
+#   PROVENANCE -- whose hand it came from, which is what makes an object in
+#   this story dangerous to carry: sophia, ashen, briar, lior, thornwake,
+#   honeyed_dead, mortal, self_made.
+#
+#   FUNCTION -- the card tags from ITEM-CARDS.md:24, lowercased: gift, rival,
+#   law, relic, consumable, key, danger, protection, glamour, tool, threshold,
+#   time, vision, lore, transformation, labyrinth, token, summon, leverage,
+#   bargain.
+#
+# Plus one deliberate marker: `ending_key` on the five objects named in an
+# ending gate in state-dictionary.json:464-487. That tag is the answer to "what
+# is this run actually carrying", and it is the reason to wire tags carefully
+# rather than decoratively.
+#
+# `art:` keys are absent throughout. This story ships no art PACK (there is no
+# `paths.art_manifest` in game.yaml), so items fall through to the procedural
+# silhouette rather than borrowing a picture from another game. Generation
+# prompts for all twenty-three exist in
+# games/wicked-garden/data/art/subjects.yaml.
+#
+# Version: v0.1.0 [2026-08-08]
+# ============================================================
+
+version: 1
+
+items:
+
+  # ======================================================================
+  # A. Her gifts. Every one of these is a real kindness and a real hook,
+  # and the design is emphatic that both halves are true at once.
+  # ======================================================================
+
+  - id: collar_soft_thorns
+    name: "Collar of Soft Thorns"
+    description: >-
+      A throat-garland of living rose-thorn, warm as a hand, that has never
+      once pricked you. Lesser Fae look at it and then look somewhere else.
+      Everything in the Garden can read it at forty paces, and what it says is
+      not your name.
+    tags: [gift, sophia, protection, danger, claim, wearable, ending_key]
+    weight: 0.2
+    value: 0
+    equip:
+      # The one charm slot. Wearing this is the loudest sentence a player can
+      # say without speaking, and it locks out the clasp and the ring.
+      slot: charm
+      text: >-
+        Fastened, and it settles as though it had been measured. It does not
+        prick. It has never pricked. That is somehow worse than if it had.
+    collection: sophias_gifts
+    stack: false
+
+  - id: thorn_ring
+    name: "Thorn Ring"
+    description: >-
+      Rose-gold, one thorn set where a stone would be, catching light like it
+      is thinking about it. The smaller courtesy: protection without the
+      collar's sentence. She offers it when she is being careful with you,
+      which is its own kind of information.
+    tags: [gift, sophia, protection, wearable]
+    weight: 0.05
+    value: 0
+    equip:
+      slot: charm
+      text: >-
+        On the hand she would take. Small enough to forget and never quite
+        forgotten, which is the whole of what it is for.
+    collection: sophias_gifts
+    stack: false
+
+  - id: kiss_petal
+    name: "Kiss-Stained Petal"
+    description: >-
+      A crimson petal with the shimmer of a lip-print still on it. Crush it
+      anywhere in the Garden and she will come. She will come *interested*,
+      which is not the same as helpfully.
+    tags: [gift, sophia, consumable, summon, danger]
+    weight: 0.01
+    value: 0
+    use:
+      verb: "crush the petal"
+      hours: 0
+      consumes: 1
+      effects:
+        - { type: value, name: favor, delta: 6, why: "you called for her and she liked it" }
+        - { type: value, name: desire, delta: 5, why: "she arrives interested" }
+        - { type: value, name: autonomy, delta: -4, why: "you asked her to solve it" }
+        - { type: flag, flag: petal_summon_used }
+        - type: ledger_fact
+          text: "You crushed the kiss-stained petal and she came, and she has not forgotten that you called."
+          kind: event
+      text: >-
+        It goes to nothing between your fingers and the smell of her is in the
+        room before the pieces have finished falling. She is delighted. That is
+        the part to be careful of.
+    collection: sophias_gifts
+    stack: true
+
+  - id: nightbloom_wine
+    name: "Nightbloom Wine"
+    description: >-
+      A black-red bottle with a cork that glows faintly from the inside. What
+      is in it moves when the bottle does not. Courage, ecstasy, and social
+      fire; and a hole in the evening where something you said used to be.
+    tags: [gift, sophia, consumable, danger, glamour]
+    weight: 0.9
+    value: 0
+    use:
+      verb: "drink"
+      hours: 1
+      consumes: 1
+      effects:
+        - { type: value, name: desire, delta: 12, why: "nightbloom" }
+        - { type: value, name: corruption, delta: 5, why: "you drank the Garden" }
+        - { type: value, name: knowledge, delta: -3, why: "memory haze" }
+        - type: ledger_fact
+          text: "You drank nightbloom wine. There is an hour of that evening you cannot get back."
+          kind: event
+      text: >-
+        It is warm going down and cold arriving, and the room becomes a place
+        where everything you might say is a good idea. Later there will be an
+        hour with nothing in it. You will be told what you did in it by someone
+        who enjoyed it.
+    collection: sophias_gifts
+    stack: true
+
+  - id: living_silk
+    name: "Living Silk"
+    description: >-
+      A gown of petal-fabric that adjusts itself while you are looking in the
+      mirror, in ways that are always improvements and never yours. The court
+      will accept you in it. The Garden may also find it convenient to see
+      through your eyes while you wear it.
+    tags: [gift, sophia, glamour, wearable, danger]
+    weight: 0.4
+    value: 0
+    equip:
+      slot: body
+      text: >-
+        It settles, and then it adjusts, and the adjustment is better than
+        anything you would have chosen. You look like someone who belongs here.
+        Something is looking back out.
+    collection: sophias_gifts
+    stack: false
+
+  # ======================================================================
+  # B. Tools of refusal. Mortal, borrowed, or stolen; all of them rude.
+  # ======================================================================
+
+  - id: iron_pin
+    name: "Iron Pin"
+    description: >-
+      Four inches of crude mortal iron, black at the head, smuggled in against
+      every law of the place. Held against a glamour it puts a hole through it
+      for as long as your hand is steady. Every Fae in the room will know it is
+      in your pocket and one of them will say so.
+    tags: [law, tool, danger, mortal, protection]
+    weight: 0.1
+    value: 0
+    use:
+      verb: "press the iron to it"
+      hours: 0
+      effects:
+        - { type: value, name: knowledge, delta: 6, why: "the glamour came off it" }
+        - { type: value, name: autonomy, delta: 5, why: "mortal refusal" }
+        - { type: value, name: favor, delta: -8, why: "iron in her garden" }
+        - { type: flag, flag: armed_with_iron }
+        - type: ledger_fact
+          text: "You put mortal iron against a glamour and saw what was under it. The room noticed."
+          kind: event
+      text: >-
+        The prettiness peels back for as long as you can hold your hand still,
+        and what is underneath is not a monster. It is the same thing, plainer,
+        and much older, and it has noticed you noticing.
+    collection: tools_of_refusal
+    stack: false
+
+  - id: salt_circle_chalk
+    name: "Salt Circle Chalk"
+    description: >-
+      A stick of white chalk with a thorn-sigil cut into each end, gritty with
+      salt. Thornwake hands them out and says the same sentence every time:
+      one safe sleep, not two.
+    tags: [law, tool, consumable, thornwake, protection]
+    weight: 0.15
+    value: 0
+    use:
+      verb: "draw the circle"
+      hours: 1
+      consumes: 1
+      once_per_day: true
+      effects:
+        - { type: value, name: autonomy, delta: 4, why: "a night that was yours" }
+        - { type: value, name: favor, delta: -2, why: "you slept behind a line she cannot cross" }
+        - type: ledger_fact
+          text: "You slept inside a salt circle. Nothing came in. Something waited."
+          kind: event
+      text: >-
+        Salt and chalk, closed properly, no gap at the ends. You sleep, and it
+        is the first sleep since you crossed that is entirely your own. In the
+        morning there is a ring of dead grass a hand's width outside the line.
+    collection: tools_of_refusal
+    stack: true
+
+  - id: mirror_glass_knife
+    name: "Mirror-Glass Knife"
+    description: >-
+      A dagger of black mirror wrapped in silver willow, cold at the grip.
+      Lior's, and Lior gave it to you, which means Lior has thought about what
+      you will cut with it. It severs bargains. It does not distinguish between
+      a bargain and a bond.
+    tags: [tool, lior, danger, leverage]
+    weight: 0.3
+    value: 0
+    equip:
+      # It is a knife you carry, not a knife you win fights with -- there are
+      # no fights. What `offhand` buys is that both agents can see you brought
+      # it to the conversation.
+      slot: offhand
+      text: >-
+        At the hip where the coat will not quite cover it. Anyone who has ever
+        sealed anything can see it from across the glade.
+    collection: tools_of_refusal
+    stack: false
+
+  - id: mortalslip_thread
+    name: "Mortalslip Thread"
+    description: >-
+      A filament of ordinary grey mortal string, the kind that comes off a coat
+      button, glowing very slightly wrong in this light. One message out. It is
+      thin. It may tear. What comes back, if anything comes back, will have
+      been written to someone who has been gone ten days for every one of
+      yours.
+    tags: [key, time, consumable, mortal, threshold]
+    weight: 0.01
+    value: 0
+    use:
+      verb: "send word"
+      hours: 1
+      consumes: 1
+      effects:
+        - { type: value, name: knowledge, delta: 4, why: "you learned what the date is out there" }
+        - { type: value, name: corruption, delta: -3, why: "you reached for the mortal world and it answered" }
+        - { type: value, name: favor, delta: -5, why: "she does not like you writing home" }
+        - { type: flag, flag: mortalslip_used }
+        - type: ledger_fact
+          text: "You sent one message out through the mortalslip thread. You know now how long you have been gone."
+          kind: secret
+      text: >-
+        You wind it round a finger and say the thing you want said, and the
+        thread goes taut and then slack in a way that means it arrived, or
+        means it did not. What you get back is the date. You had been guessing
+        low.
+    collection: tools_of_refusal
+    stack: true
+
+  # ======================================================================
+  # C. The winter road. Ashen Vale pays well and the receipt is you.
+  # ======================================================================
+
+  - id: ashen_clasp
+    name: "Ashen Clasp"
+    description: >-
+      A silver moth brooch that smokes very faintly with frost in warm rooms.
+      It signals to Ashen's people that you are spoken for in a colder court,
+      and it finds cold gates. It also tells him precisely where you are
+      standing, always, and he has never pretended otherwise.
+    tags: [rival, ashen, key, danger, winter, wearable, claim]
+    weight: 0.08
+    value: 0
+    equip:
+      # Competes with the collar and the ring for the single charm slot. That
+      # is the entire Act II dilemma expressed as one line of data.
+      slot: charm
+      text: >-
+        Pinned, and the frost-smoke comes off it in a room that is not cold.
+        Whatever else this says about you, it says it in a language the rose
+        court reads fluently.
+    collection: winter_ledger
+    stack: false
+
+  - id: ashen_passport
+    name: "Ashen Passport"
+    description: >-
+      A pass of black bark inlaid with frost and one silver moth wing,
+      countersigned in a hand that leaves the bark colder where it wrote. It
+      opens the winter wing. It is a bargain wearing the shape of a document.
+    tags: [rival, ashen, key, bargain, winter, threshold, ending_key]
+    weight: 0.05
+    value: 0
+    # NO `use:` BLOCK, DELIBERATELY. This is a key, and a key's verb belongs to
+    # the door. It is read as a condition by the scenes and the ending gates
+    # (E6a: `passport_or_service`), not spent by the player from a menu. An
+    # inert row here is correct; an invented verb would be a second mechanism
+    # for the same thing.
+    collection: winter_ledger
+    stack: false
+
+  - id: frost_thread
+    name: "Frost Thread"
+    description: >-
+      A single hair of Ashen Vale's frost, given instead of the passport when
+      the passport would be too much too early. It lies straight on the palm in
+      any wind and it does not melt. One cold passage, one door, once -- and a
+      debt too small to argue about, which is how he prefers to start.
+    #
+    # NO AUTHORED CARD. Named only in state-dictionary.json:222 and in
+    # DAY-04-ASHEN.md:166 -- "Item `ashen_passport` (or `frost_thread` if
+    # passport too strong early)". Authored here as the lighter half of the
+    # same bargain: the passport is a route, this is a single use of one, and
+    # the price is correspondingly a hook rather than a contract.
+    tags: [rival, ashen, key, consumable, winter, bargain]
+    weight: 0.01
+    value: 0
+    use:
+      verb: "draw the thread through"
+      hours: 0
+      consumes: 1
+      effects:
+        - { type: value, name: knowledge, delta: 5, why: "the winter wing is not where you were told" }
+        - { type: value, name: corruption, delta: 3, why: "you went through cold" }
+        - { type: flag, flag: touched_ashen_frost }
+        - type: ledger_fact
+          text: "You spent Ashen Vale's frost thread on a passage. He was told the moment you did."
+          kind: secret
+      text: >-
+        You draw it through the air in front of you and the air opens along the
+        line like a seam coming apart, cold on the face, and closes behind. He
+        knows. He was always going to know. That was most of the price.
+    collection: winter_ledger
+    stack: true
+
+  - id: frost_splinter
+    name: "Frost Splinter"
+    description: >-
+      A thorn of ice with a silver moth held inside it, whole and unmarked and
+      not dead. Proof that you went into the Winter Spindle and came out
+      answering to a colder name than the one you went in with.
+    tags: [labyrinth, token, ashen, winter, rival]
+    weight: 0.05
+    value: 0
+    # A trial token. It proves a thing about the run; it is not spent.
+    collection: winter_ledger
+    stack: false
+
+  # ======================================================================
+  # D. The Honeyed Dead. Everything in this section belonged to someone
+  # who is still here and is no longer a person.
+  # ======================================================================
+
+  - id: lovers_ring_cold
+    name: "Lover's Ring (Cold)"
+    description: >-
+      A plain band of the kind mortals exchange, set in amber frost that will
+      not warm in a closed fist. Put it on and you will watch an ending happen
+      to somebody else, from the inside, and know exactly which one it was.
+    tags: [relic, honeyed_dead, vision, danger]
+    weight: 0.03
+    value: 0
+    use:
+      verb: "put it on"
+      hours: 1
+      effects:
+        - { type: value, name: knowledge, delta: 9, why: "you watched an ending from inside it" }
+        - { type: value, name: desire, delta: -6, why: "grief is not an aphrodisiac" }
+        - { type: value, name: favor, delta: -3, why: "she can tell what you have been looking at" }
+        - type: ledger_fact
+          text: "You wore the cold lover's ring and saw how it ended for whoever wore it first."
+          kind: secret
+      text: >-
+        It is far too cold and then it is not cold at all, and you are standing
+        somewhere warm being told you are loved, and you know with total
+        certainty that the person being told is not going to survive being
+        right about it.
+    collection: honeyed_dead
+    stack: false
+
+  - id: pressed_letter
+    name: "Pressed Letter"
+    description: >-
+      A single sheet under glass, rose-stained, in a fine and steady hand that
+      goes unsteady twice. Somebody wrote this to the outside and it was
+      pressed instead of sent. It is preserved beautifully. So is the writer.
+    tags: [relic, honeyed_dead, lore, danger]
+    weight: 0.1
+    value: 0
+    use:
+      verb: "read it"
+      hours: 1
+      effects:
+        - { type: value, name: knowledge, delta: 7, why: "a lover's account of the laws" }
+        - { type: value, name: autonomy, delta: 3, why: "forewarned" }
+        - type: ledger_fact
+          text: "You read the pressed letter. Someone here worked out the rules in time, wrote them down, and stayed anyway."
+          kind: secret
+      text: >-
+        It is instructions. Two pages of them, careful and numbered, and they
+        are correct. It is dated on a day that has been over for a very long
+        time and it was never sent, and the hand goes unsteady twice, and both
+        times it is at the same word.
+    collection: honeyed_dead
+    stack: false
+
+  - id: black_honey
+    name: "Black Honey"
+    description: >-
+      A jar of honey with no light in it at all, and one gold bee laid in the
+      middle of it with its wings still perfect. Memory bees harvest
+      confessions. This is what they make. Taste it and the roots will answer
+      you, once.
+    tags: [relic, briar, consumable, danger, lore]
+    weight: 0.5
+    value: 0
+    use:
+      verb: "taste it"
+      hours: 1
+      consumes: 1
+      effects:
+        - { type: value, name: knowledge, delta: 12, why: "the roots answered" }
+        - { type: value, name: corruption, delta: 8, why: "you swallowed the Garden's memory" }
+        - { type: value, name: briar_hunger, delta: 1, why: "she noticed you noticing" }
+        - { type: flag, flag: met_briar_partial }
+        - type: ledger_fact
+          text: "You tasted the black honey and something enormous and patient answered you by name."
+          kind: secret
+      text: >-
+        It tastes of somebody else's confession, in the first person, and while
+        it is in your mouth the floor of the Garden is awake under you and
+        interested, and it says something that is not in words and is
+        unmistakably a greeting.
+    collection: honeyed_dead
+    stack: true
+
+  - id: seed_of_becoming
+    name: "Seed of Becoming"
+    description: >-
+      A seed the size of a knuckle, shaped like a closed eye, veined in gold,
+      trailing a halo of soil that does not fall off. It opens paths that do
+      not lead back to being what you are. It is not a decision you make once.
+    tags: [relic, briar, transformation, danger, ending_key]
+    weight: 0.05
+    value: 0
+    # DELIBERATELY INERT. The design is explicit that this "opens metamorphosis
+    # paths" and "human ending routes shrink" -- that is an ending-eligibility
+    # question, owned by the endings spine, not a verb on a menu. Carrying it
+    # is the mechanic.
+    collection: honeyed_dead
+    stack: false
+
+  - id: sap_sketch
+    name: "Sap Sketch"
+    description: >-
+      Your own drawing, done fast and badly and accurately, of a face in amber
+      that was looking back while you drew it. It is the only object in the
+      Garden that is entirely yours. She will find it, eventually, and her
+      reaction will not be the one you expect.
+    #
+    # NO AUTHORED CARD. Named only in state-dictionary.json:223 and in
+    # DAY-06-ROOTS.md:72 -- "Photograph/sketch if artist background -> unique
+    # lore item `sap_sketch`; Favor later weird". Authored here as the one
+    # PLAYER-MADE object in a reliquary otherwise composed entirely of things
+    # other people put in your hands: hence the `self_made` provenance tag,
+    # which nothing else in this file carries. "Favor later weird" is a scene
+    # beat and is left to the spine; the verb here is only the looking.
+    tags: [relic, honeyed_dead, lore, self_made]
+    weight: 0.08
+    value: 0
+    use:
+      verb: "look at what you drew"
+      hours: 0
+      effects:
+        - { type: value, name: knowledge, delta: 5, why: "you drew it accurately and only noticed afterwards" }
+        - { type: value, name: autonomy, delta: 4, why: "you made a thing in a place that only gives" }
+        - type: ledger_fact
+          text: "You made a sketch of Elias in the sap. It is the only object you own here that nobody handed you."
+          kind: event
+      text: >-
+        You got the mouth wrong and the eyes exactly right, which is the wrong
+        way round for a kindness. Elias was a painter. He was looking at your
+        hands the whole time and he did not say one word about the mouth.
+    collection: honeyed_dead
+    stack: false
+
+  # ======================================================================
+  # E. Keys and names. What the endings are actually counting.
+  # ======================================================================
+
+  - id: briar_key
+    name: "Briar Key"
+    description: >-
+      A key of interwoven living thorn and bone-gold, warm, and slightly
+      heavier every time you weigh it. It has weight at the Gate of Briars.
+      Weight is not permission. It also means the roots know your grip.
+    tags: [key, briar, threshold, danger, ending_key]
+    weight: 0.2
+    value: 0
+    # Read as a condition at the Gate (E1b: `leave_law_or_key`). Not spent.
+    collection: keys_and_names
+    stack: false
+
+  - id: true_name_shard_sophia_partial
+    name: "True-Name Shard (partial)"
+    description: >-
+      A fragment of rose-gold light sealed in crystal, incomplete, that hums
+      against the bones of the hand holding it. Part of what she actually is,
+      written in a script that is not for reading. Enough to make her stop.
+      Not enough to make her stay stopped.
+    tags: [relic, sophia, leverage, danger, ending_key]
+    weight: 0.05
+    value: 0
+    # NO VERB, AND THIS ONE MATTERS. Speaking a name is a scene with two agents
+    # in it and consequences that run through wrath, the ending gates and the
+    # whole relationship board. Putting it on an inventory menu as "use item"
+    # would let a player fire the loudest moment in the story from the pause
+    # screen. The reliquary holds it; the spine spends it.
+    collection: keys_and_names
+    stack: false
+
+  - id: mirror_chip
+    name: "Mirror Chip"
+    description: >-
+      A shard of black pool-glass small enough to palm. Held up, it shows the
+      room reflected under a sky with the wrong constellations in it, and
+      figures at the edge of the frame that are you and are not doing what you
+      are doing.
+    tags: [relic, lior, vision, lore]
+    weight: 0.02
+    value: 0
+    use:
+      verb: "look into it"
+      hours: 0
+      effects:
+        - { type: value, name: knowledge, delta: 6, why: "the endings blurred into view" }
+        - { type: value, name: autonomy, delta: -2, why: "one of them flattered you" }
+        - { type: flag, flag: saw_blurred_endings }
+        - type: ledger_fact
+          text: "You looked into the mirror chip and saw six ways this ends, all of them out of focus, one of them flattering."
+          kind: secret
+      text: >-
+        Six shapes at the edge of the glass, none of them in focus, all of them
+        standing where you are standing. One of them is the version you would
+        pick. Lior warned you about that one specifically, and did it kindly,
+        and charged for it.
+    collection: keys_and_names
+    stack: false
+
+  - id: thorn_of_proof
+    name: "Thorn of Proof"
+    description: >-
+      One perfect thorn on a scrap of silk cushion, presented rather than
+      handed. It means you went into the labyrinth on her instruction and came
+      out having done what you were told. The court will read it that way. She
+      will read it that way. So will you, eventually.
+    tags: [labyrinth, token, sophia, claim]
+    weight: 0.02
+    value: 0
+    collection: keys_and_names
+    stack: false
+
+  - id: pressed_court_schedule
+    name: "Pressed Court Schedule"
+    description: >-
+      A single pressed leaf found down the side of a bed in the guest house,
+      veined with a list: who is received, in what order, at which count of the
+      moths. Somebody stayed in this room before you and worked out that the
+      court runs to a timetable. It does. Knowing it is worth more here than a
+      weapon.
+    #
+    # NO AUTHORED CARD. Named in state-dictionary.json:221, in
+    # DAY-01-GUEST.md:76 ("Search the room -> Knowledge +3, find Pressed Court
+    # Schedule (lore item) -> Reliquary tutorial sting") and in the sample
+    # transcript's starting inventory. Authored here as the RELIQUARY TUTORIAL
+    # OBJECT: the first thing a player picks up, the first `use:` verb they
+    # meet, and the first evidence that a guest was in this room before them
+    # and did not leave with their things.
+    tags: [lore, tool, threshold]
+    weight: 0.02
+    value: 0
+    use:
+      verb: "read the veins"
+      hours: 0
+      effects:
+        - { type: value, name: knowledge, delta: 4, why: "the court keeps a timetable" }
+        - { type: value, name: autonomy, delta: 2, why: "you can be somewhere on purpose now" }
+        - type: ledger_fact
+          text: "A previous guest worked out the court's timetable and pressed it into a leaf. They did not take it with them."
+          kind: secret
+      text: >-
+        Audiences before the moths count nine. The glade after. The pools are
+        left blank, which is itself an entry. At the bottom, in the same hand,
+        much smaller: *she is never late and it is never an accident.*
+    collection: keys_and_names
+    stack: false
