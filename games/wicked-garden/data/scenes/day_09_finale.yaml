@@ -386,13 +386,15 @@ cards:
     tags: [sequence, setpiece, gm]
     title: "Speak · Act · Seal"
     text: >-
-      INTENT: this beat is a pointer. The three beats of the locked ending are
-      authored in `data/rules/endings.yaml` under that variant's `beats:` key,
-      in the same Speak/Act/Seal order for all twenty-three.
-      RUNTIME: read them with `endings.declared()[<id>]["beats"]` and resolve
-      each through `deck.resolve_beat` -- they are ordinary bounded beats in the
-      same grammar. The flattened view used to drop `beats:` and a renderer had
-      to re-read the raw table; it carries them now.
+      INTENT: this card hands off to the locked ending's own module. Its three
+      beats are authored in `data/rules/endings.yaml` under that variant's
+      `beats:` key, in the same Speak/Act/Seal order for all twenty-three.
+      RUNTIME: the `ending_module` effect below. It reads
+      `endings.declared()[<id>]["beats"]`, bounds them through the same clamps
+      every other beat gets, and resolves each with `deck.resolve_beat` -- they
+      are ordinary beats in the same grammar and there was never a reason for
+      them to be a second one. It takes no id, because which three these are was
+      decided by F3's lock. It runs once.
       CONSTRAINT: intensity stays suggestive except inside an E2 or E3 intimacy
       seal where the player has raised it, and this content ships none of those.
       Sophia owns her own monologues and her intimate seals; the GM owns world
@@ -400,9 +402,13 @@ cards:
     beats:
       - id: run_the_locked_module
         text: >-
-          Whatever `endings.locked(state)` returns. If it returns `none`, call
-          `endings.resolve(state)` -- it cannot return nothing, and the
-          fail-forward is a real ending.
+          Whatever F3 locked. Speak, then Act, then Seal, in authored order --
+          Seal is where the gallery key and the NG+ seed are written, which is
+          why the epilogue does not appear until this beat has played.
+        gate:
+          on_pass:
+            effects:
+              - { type: ending_module }
 
   - id: F5_epilogue_dual
     required: true

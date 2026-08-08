@@ -713,8 +713,61 @@ def register_predicate(name: str, handler: Any) -> None:
     _PREDICATES[key] = handler
 
 
+#: Modules that add predicates to this grammar by importing. Each self-registers
+#: at import time; the problem was that nothing imported them until gameplay
+#: happened to reach the code that did.
+_GRAMMAR_MODULES = (
+    "engine.game.clocks",  # value, clock, track, forced_scene
+    "engine.game.threads",  # thread, no_thread
+    "engine.game.endings",  # ending
+)
+
+_grammar_loaded = False
+
+
+def _ensure_grammar() -> None:
+    """
+    Import every module that contributes predicates, once.
+
+    THE BUG THIS FIXES was invisible and changed answers. ``clocks`` and
+    ``threads`` register by import, and the only things importing them were
+    ``clock.advance_time`` (lazily, mid-function) and its DAY-ROLLOVER branch.
+    So on a fresh process the grammar was missing ``value``, ``clock``,
+    ``track``, ``forced_scene``, ``thread`` and ``no_thread`` -- and an unknown
+    predicate is treated as unmet, correctly and silently.
+
+    Resume a Day-8 save, open the mirror pool before any time has passed, and
+    every ending gated on a meter reads as locked: measured returning
+    ``['E4e'] forced`` on a state that had earned more. Play one turn and the
+    same state answers differently, because the import had happened by then.
+    An eligibility answer that depends on what this PROCESS has done rather
+    than on what the SAVE contains is the worst shape a bug can have here.
+
+    Called from ``evaluate_condition`` because that is where the failure
+    surfaces. Import cycles are not a risk: each of these imports ``quests``
+    lazily inside its own ``_register()``.
+    """
+    global _grammar_loaded
+    if _grammar_loaded:
+        return
+    _grammar_loaded = True  # set first: a failed import must not retry per call
+    import importlib
+
+    for name in _GRAMMAR_MODULES:
+        try:
+            importlib.import_module(name)
+        except ImportError as exc:  # noqa: PERF203 -- a trimmed build is allowed
+            logger.warning(
+                "[quests] Predicate module unavailable (operation=_ensure_grammar, "
+                "module=%s): %s",
+                name,
+                exc,
+            )
+
+
 def predicate_names() -> list[str]:
     """Every predicate the grammar understands, sorted. For doctor and docs."""
+    _ensure_grammar()
     return sorted(_PREDICATES)
 
 
@@ -745,6 +798,7 @@ def evaluate_condition(
         treated as False -- a stage guarded by a predicate this build does not
         understand must stay shut, never fall open.
     """
+    _ensure_grammar()
     ctx = _Ctx(progress=progress, ledger=ledger)
     return _eval(state, condition, ctx)
 

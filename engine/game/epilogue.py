@@ -202,9 +202,17 @@ def time_line(state: GameState, index: Optional[dict[str, Any]] = None) -> str:
     template = str(doc.get("time_line_template") or "").strip()
     if not template:
         return ""
+    garden_days = int(state.world_day)
+    mortal_days = int(_value(state, TIME_DEBT_VALUE))
     return template.format(
-        garden_days=int(state.world_day),
-        mortal_days=int(_value(state, TIME_DEBT_VALUE)),
+        garden_days=garden_days,
+        mortal_days=mortal_days,
+        # So a template can read "{garden_days} {garden_days_word}" rather than
+        # "1 days". English pluralisation belongs to whoever wrote the sentence,
+        # not to this module -- the client used to do it, and it stopped being
+        # able to when the sentence became server-rendered.
+        garden_days_word="day" if garden_days == 1 else "days",
+        mortal_days_word="day" if mortal_days == 1 else "days",
     )
 
 
@@ -273,6 +281,15 @@ def for_state(state: GameState) -> Optional[Epilogue]:
     a second time on an already-locked save, and it is the only thing in the
     story that cannot be walked back.
 
+    AND THE MODULE HAS TO HAVE PLAYED. An ending that declares Speak/Act/Seal
+    beats has not happened yet at the moment it is locked -- the lock is the
+    decision, the module is the scene. Returning the cards on the locking turn
+    would swap the play screen out from under the last three beats of the story
+    and skip them, which is what a run did before ``run_module`` existed.
+    An ending that declares no beats is over as soon as it is locked, and the
+    module marks itself run in that case too, so "nothing to play" and "not
+    played yet" stay distinguishable.
+
     A story with no declared endings never locks one, so this is None for The
     Clockwork Dark on every turn of every run -- and its terminal death, which
     sets ``state.ended``, stays what it was. Death is not an epilogue here; a
@@ -282,6 +299,8 @@ def for_state(state: GameState) -> Optional[Epilogue]:
 
     ending_id = endings_module.locked(state)
     if not ending_id or ending_id == endings_module.NONE_ID:
+        return None
+    if endings_module.module_ran(state) != ending_id:
         return None
     rendered = render(state, ending_id)
     if rendered is None:

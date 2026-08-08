@@ -181,14 +181,27 @@ def _text(value: Any, limit: int = MAX_TEXT) -> str:
     return str(value or "").strip()[:limit]
 
 
-def _bound_beats(raw: Any, deck_id: str, card_id: str) -> list[dict[str, Any]]:
+def bound_beats(raw: Any, deck_id: str, card_id: str) -> list[dict[str, Any]]:
     """
-    Bound a card's beats.
+    Bound a list of beats.
 
     Effects inside a beat go through the challenge spec's clamps, so an
     authored beat cannot be worth more than the running story says one scene
-    may be worth. That the author is human does not change the answer: the
-    ceiling exists because of what a scene IS, not because of who wrote it.
+    may be worth. That the author is human does not change the answer for
+    SIZE: the ceiling exists because of what a scene IS, not because of who
+    wrote it. (It does change the answer for CAPABILITY -- see the
+    ``authored=True`` note in ``_bound_gate``.)
+
+    Public because a deck card is not the only thing made of beats: an ending's
+    Speak/Act/Seal module is authored in this same grammar in
+    ``data/rules/endings.yaml`` and read by ``engine/game/endings.py``. It
+    reaching in for a private helper, or worse resolving unbounded beats
+    because bounding was inconvenient to import, is how a second grammar gets
+    invented for the same shape.
+
+    Args:
+        deck_id: Only for log lines -- the caller's name for where these came
+            from. An ending module passes its ending id.
     """
     rows = raw if isinstance(raw, list) else []
     if len(rows) > MAX_BEATS:
@@ -351,7 +364,7 @@ def _parse_deck(deck_id: str, data: dict[str, Any]) -> Deck:
                 weight=weight,
                 tags=[str(t) for t in (raw.get("tags") or [])],
                 when=raw.get("when"),
-                beats=_bound_beats(raw.get("beats"), deck_id, card_id),
+                beats=bound_beats(raw.get("beats"), deck_id, card_id),
             )
         )
 

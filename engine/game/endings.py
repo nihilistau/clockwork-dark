@@ -65,6 +65,10 @@ _ROOT = Path(__file__).resolve().parents[2]
 #: nor ``StateStore`` could hold them.
 TRACK_INTENT = "ending_intent"
 TRACK_LOCKED = "ending_locked"
+#: The ending whose Speak/Act/Seal beats have played. Separate from
+#: TRACK_LOCKED because "committed to this ending" and "has watched it happen"
+#: are different states, and the epilogue waits for the second one.
+TRACK_MODULE = "ending_module_ran"
 TRACK_ELIGIBLE = "ending_eligible"
 TRACK_SCORES = "ending_scores"
 
@@ -529,6 +533,89 @@ def lock(
     return receipt
 
 
+def module_ran(state: GameState) -> str:
+    """The ending whose Speak/Act/Seal beats have played, or ``none``."""
+    return str(state.tracks.get(TRACK_MODULE) or NONE_ID)
+
+
+def module_beats(ending_id: str) -> list[dict[str, Any]]:
+    """
+    One ending's three beats, bounded, in authored order.
+
+    Bounded through ``deck.bound_beats`` rather than handed to the resolver raw.
+    They are authored in the deck grammar and there is no argument for a beat
+    being exempt from the per-scene ceilings because of which file it lives in
+    -- an ending that awards +40 autonomy is a finale written greedily, which is
+    exactly what the clamp is for.
+    """
+    from engine.content import deck as deck_module
+
+    body = declared().get(str(ending_id)) or {}
+    return deck_module.bound_beats(body.get("beats"), str(ending_id), "module")
+
+
+def run_module(
+    state: GameState,
+    *,
+    ledger: Optional[Any] = None,
+    by: str = "engine",
+) -> dict[str, Any]:
+    """
+    Play the locked ending's Speak · Act · Seal, in order.
+
+    ``DAY-09-FINALE.md``'s F4 is a pointer: the three beats of the locked ending
+    are authored under that variant's ``beats:`` key, in the same order for all
+    twenty-three, and the finale card says "read them and resolve each through
+    ``deck.resolve_beat``". Nothing did -- so a run went from the point of no
+    return straight to the epilogue, and the sixty-nine authored beats that are
+    the actual last scene of the story were skipped.
+
+    Runs ONCE. The receipt records which ending played, so a replayed card, a
+    reconnect or a re-resolved turn cannot award Seal's flags twice.
+
+    Refused before an ending is locked, because there is no module to run: which
+    three beats these are is decided by the lock, and running them off an
+    ``intent`` would play a finale the player has not committed to.
+    """
+    ending_id = locked(state)
+    if ending_id == NONE_ID:
+        return {
+            "type": "track",
+            "name": TRACK_MODULE,
+            "ok": False,
+            "text": "no ending is locked; there is no module to run",
+        }
+
+    already = module_ran(state)
+    if already != NONE_ID:
+        return {
+            "type": "track",
+            "name": TRACK_MODULE,
+            "ok": False,
+            "ran": already,
+            "text": f"the {already} module has already played",
+        }
+
+    from engine.content import deck as deck_module
+
+    beats = module_beats(ending_id)
+    results = [
+        deck_module.resolve_beat(state, beat, ledger=ledger, by=by) for beat in beats
+    ]
+    # Marked run even when the ending declares no beats. "Nothing to play" and
+    # "not played yet" have to be distinguishable, or an ending with no module
+    # would leave the finale waiting for a scene that is never coming.
+    receipt = _write_track(state, TRACK_MODULE, ending_id, allowed=sorted(declared()) + [NONE_ID])
+    receipt["beats"] = [r.beat_id for r in results]
+    receipt["results"] = [r.to_dict() for r in results]
+    logger.info(
+        "[endings] Module played (operation=run_module, ending=%s, beats=%d)",
+        ending_id,
+        len(results),
+    )
+    return receipt
+
+
 def resolve(state: GameState, *, ledger: Optional[Any] = None) -> str:
     """
     The ending that happens, whatever the player did or failed to do.
@@ -605,6 +692,7 @@ __all__ = [
     "TRACK_ELIGIBLE",
     "TRACK_INTENT",
     "TRACK_LOCKED",
+    "TRACK_MODULE",
     "TRACK_SCORES",
     "EligibilityReport",
     "declared",
@@ -614,7 +702,10 @@ __all__ = [
     "load_rules",
     "lock",
     "locked",
+    "module_beats",
+    "module_ran",
     "recompute",
     "resolve",
+    "run_module",
     "set_intent",
 ]

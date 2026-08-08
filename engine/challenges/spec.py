@@ -188,7 +188,9 @@ ALLOWED_EFFECT_TYPES: frozenset[str] = frozenset(
 #: correct about SIZE and wrong about CAPABILITY. Day 9's own point-of-no-return
 #: beat could not end the game, so the finale was a document describing a
 #: mechanism it had no way to invoke.
-STRUCTURAL_EFFECT_TYPES: frozenset[str] = frozenset({"ending_intent", "ending_lock"})
+STRUCTURAL_EFFECT_TYPES: frozenset[str] = frozenset(
+    {"ending_intent", "ending_lock", "ending_module"}
+)
 
 #: How much of a bounded value's RANGE one scene may be worth.
 #:

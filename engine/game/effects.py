@@ -851,6 +851,26 @@ def _e_track(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> di
     }
 
 
+@effect_kind("ending_module")
+def _e_ending_module(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    ``{type: ending_module}`` -- play the locked ending's Speak · Act · Seal.
+
+    Takes no id: which three beats these are was decided by the lock, and
+    letting a beat name them would let the finale play an ending the player
+    never committed to. Runs once; a replay is refused with a receipt.
+
+    Authored-content-only, same as the two phases above.
+    """
+    from engine.game import endings as endings_module
+
+    receipt = endings_module.run_module(state, ledger=ctx.ledger, by=ctx.by)
+    receipt["type"] = "ending_module"
+    return receipt
+
+
 @effect_kind("ending_intent", "ending_lock")
 def _e_ending(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
     """

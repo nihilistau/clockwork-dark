@@ -137,10 +137,17 @@ different way for authored content to be invisible.
    `turn_update` as an `ending` block, and the client swaps the play screen for
    `core/screens/Ending.jsx` or this story's `EpilogueCard`.
 
-   The two effect kinds are **authored-content-only**. A model composing a
-   challenge mid-turn still cannot reach either phase — same argument the
-   bounder already made about `track`, that an ending set by a dice table is not
-   a scene but a hijack.
+   The three effect kinds are **authored-content-only**. A model composing a
+   challenge mid-turn cannot reach any of them — same argument the bounder
+   already made about `track`, that an ending set by a dice table is not a scene
+   but a hijack.
+6. **Speak · Act · Seal plays between the two.** `F4_ending_module` declares
+   `{type: ending_module}`; it reads the locked ending's own `beats:`, bounds
+   them through the same clamps every other beat gets, and resolves each with
+   `deck.resolve_beat`. The epilogue waits for it — the lock is the *decision*
+   and the module is the *scene*, and returning the cards on the locking turn
+   skipped the last three beats of the story, including the Seal that writes the
+   gallery key and the New Game+ seed.
 
 ## What is still not wired
 
@@ -149,9 +156,6 @@ Stated plainly, per CLAUDE.md rule 9.
 1. **Nothing calls the plan → negotiate → commit pipeline.** `engine/agents/`
    ships `plan.py`, `negotiate.py`, `knowledge.py` and `roster.py`, all tested;
    the live turn still runs the single-agent path.
-2. **The Speak · Act · Seal beats are reachable and not run.** `F4_ending_module`
-   points at `endings.declared()[<id>]["beats"]`, which now carries them; no
-   runner walks them between the lock and the epilogue.
-3. **Six of the fourteen locations have no art plate**, including the entry
+2. **Six of the fourteen locations have no art plate**, including the entry
    `mortal_threshold`, so the opening screen draws a procedural placeholder.
    The generation prompts are in `MISSING-PLATES.md`.

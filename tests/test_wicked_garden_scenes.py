@@ -344,7 +344,7 @@ def test_no_beat_survives_the_bounder_changed(garden: GameState) -> None:
     """
     Nothing authored is clamped, retargeted or dropped on load.
 
-    `_bound_beats` records every adjustment it makes. An authored beat that
+    `bound_beats` records every adjustment it makes. An authored beat that
     produces one is an authored beat whose numbers are not the numbers that will
     run -- a `track` effect silently removed, a band over the story's per-scene
     ceiling, a difficulty band that is not canon. All of those are content bugs
@@ -822,22 +822,33 @@ def test_an_undeclared_ending_renders_nothing(garden: GameState) -> None:
     assert epilogue_module.render(garden, "E9z") is None
 
 
-def test_no_epilogue_reaches_the_player_until_an_ending_is_locked(garden: GameState) -> None:
+def test_the_epilogue_waits_for_the_lock_and_then_for_the_module(
+    garden: GameState,
+) -> None:
     """
-    The trigger is `lock`, not `resolve`.
+    Two gates, and both matter.
 
-    `endings.resolve()` always answers -- it falls forward rather than softlock
-    a finale -- so a turn loop asking it "is there an ending yet?" is told yes
-    on turn one. Locking is the declared point of no return, and it is the only
-    honest signal that the story is over.
+    NOT `resolve()`: it always answers, because it falls forward rather than
+    softlock a finale, so a turn loop asking it "is there an ending yet?" is
+    told yes on turn one.
+
+    NOT the lock alone either: the lock is the DECISION and the module is the
+    SCENE. Returning the cards on the locking turn swaps the screen out from
+    under Speak, Act and Seal -- the last three beats of the story, and the ones
+    that write the gallery key and the New Game+ seed.
     """
-    assert endings_module.resolve(garden), "resolve always answers; that is why it is not the gate"
+    ending_id = endings_module.fail_forward_id()
+
+    assert endings_module.resolve(garden), "resolve always answers; that is why it is not a gate"
     assert epilogue_module.for_state(garden) is None
 
-    endings_module.lock(garden, endings_module.fail_forward_id())
+    endings_module.lock(garden, ending_id)
+    assert epilogue_module.for_state(garden) is None, "shown before the module played"
+
+    endings_module.run_module(garden)
     rendered = epilogue_module.for_state(garden)
     assert rendered is not None
-    assert rendered.ending_id == endings_module.fail_forward_id()
+    assert rendered.ending_id == ending_id
     assert rendered.card_m and rendered.card_g and rendered.time_line
 
 
@@ -862,15 +873,90 @@ def test_the_finales_own_beat_ends_the_run(garden: GameState) -> None:
 
     deck_module.resolve_card(garden, card, chosen="confirm_the_ending")
 
+    locked_id = endings_module.locked(garden)
+    assert locked_id != endings_module.NONE_ID, "the finale's own beat did not lock"
+
+    # NOT over yet. The lock is the decision; Speak/Act/Seal is the scene, and
+    # showing the cards here would swap the screen out from under the last three
+    # beats of the story.
+    assert epilogue_module.for_state(garden) is None
+
+    module = next(
+        c
+        for c in deck_module.load_deck("day_09_finale").cards
+        if c.id == "F4_ending_module"
+    )
+    deck_module.resolve_card(garden, module, chosen="run_the_locked_module")
+
     rendered = epilogue_module.for_state(garden)
-    assert rendered is not None, "the finale's own beat did not end the run"
-    assert rendered.ending_id == endings_module.locked(garden)
+    assert rendered is not None, "the module played and the epilogue still did not arrive"
+    assert rendered.ending_id == locked_id
     assert rendered.card_m and rendered.card_g
 
-    # Second lock refused, so a replayed beat cannot rewrite the ending.
-    before = endings_module.locked(garden)
+    # Both cards refuse a replay, so a reconnect or a re-resolved turn cannot
+    # rewrite the ending or award Seal's flags twice.
     deck_module.resolve_card(garden, card, chosen="confirm_the_ending")
-    assert endings_module.locked(garden) == before
+    deck_module.resolve_card(garden, module, chosen="run_the_locked_module")
+    assert endings_module.locked(garden) == locked_id
+    assert endings_module.module_ran(garden) == locked_id
+
+
+def test_the_module_plays_the_endings_own_three_beats(garden: GameState) -> None:
+    """
+    Speak, then Act, then Seal -- the authored beats, in authored order.
+
+    Sixty-nine beats across twenty-three endings were reachable and never run:
+    `F4_ending_module` described the call in prose and no effect invoked it, so
+    a finale went from the point of no return straight to the cards. Seal is
+    where `ending_gallery_unlocked` and `ng_plus_seed_written` are set, so
+    skipping it silently cost the gallery and the New Game+ seed too.
+    """
+    # The fail-forward, because it is the one ending eligible from a blank
+    # state -- `lock` refuses anything that cannot complete, which is the point
+    # of it, so naming a richer ending here would test the refusal instead.
+    ending_id = endings_module.fail_forward_id()
+    endings_module.lock(garden, ending_id)
+    assert endings_module.module_ran(garden) == endings_module.NONE_ID
+
+    receipt = endings_module.run_module(garden)
+    assert receipt["ok"] is True
+    assert receipt["beats"] == [f"{ending_id}_speak", f"{ending_id}_act", f"{ending_id}_seal"]
+    # Seal's writes landed, which is the half a skipped module was costing.
+    assert garden.flags.get("ending_gallery_unlocked") is True
+    assert garden.flags.get("ng_plus_seed_written") is True
+
+    replay = endings_module.run_module(garden)
+    assert replay["ok"] is False
+
+
+def test_the_module_refuses_to_run_before_an_ending_is_locked(garden: GameState) -> None:
+    """
+    Which three beats these are is decided by the lock.
+
+    Running off `intent` would play a finale the player has not committed to,
+    and Day 8 exists precisely so an intent can be sworn and then changed.
+    """
+    endings_module.set_intent(garden, endings_module.fail_forward_id())
+    receipt = endings_module.run_module(garden)
+    assert receipt["ok"] is False
+    assert endings_module.module_ran(garden) == endings_module.NONE_ID
+
+
+def test_every_ending_module_is_speak_act_seal(garden: GameState) -> None:
+    """
+    All twenty-three, through the bounder, with nothing dropped.
+
+    Three beats each in that order is the design's own contract
+    (`DAY-09-FINALE.md:102`), and a module that loses one is a finale missing
+    its middle with no error anywhere.
+    """
+    wrong: list[str] = []
+    for ending_id in endings_module.declared():
+        beats = endings_module.module_beats(ending_id)
+        suffixes = [str(b["id"]).rsplit("_", 1)[-1] for b in beats]
+        if suffixes != ["speak", "act", "seal"]:
+            wrong.append(f"{ending_id}: {suffixes}")
+    assert wrong == []
 
 
 def test_a_locked_ending_always_has_a_card_to_show(garden: GameState) -> None:

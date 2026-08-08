@@ -34,8 +34,8 @@ prose_source: epilogue_cards.yaml
 # the extra shards a lost labyrinth and a wasted hour added, so recomputing it
 # as days * 10 would under-report a bad run.
 time_line_template: >-
-  You spent {garden_days} days in the Wicked Garden. Outside, roughly
-  {mortal_days} days passed.
+  You spent {garden_days} {garden_days_word} in the Wicked Garden. Outside,
+  roughly {mortal_days} {mortal_days_word} passed.
 mortal_days_formula: "garden_days * 10 + extra_shards"
 
 render_order: [title, card_m, card_g, echoes, time_line, gallery_unlock]

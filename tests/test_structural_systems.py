@@ -1016,7 +1016,7 @@ def test_an_agent_picks_inside_the_band_and_only_inside_it(
 
 def test_a_beat_declaring_both_a_gate_and_a_band_keeps_the_gate() -> None:
     """A beat is one question; two resolutions could not produce one receipt."""
-    beats = deck_module._bound_beats(
+    beats = deck_module.bound_beats(
         [{"id": "b", "gate": {"on_pass": {}}, "band": {"value": "favor", "min": 1, "max": 2}}],
         "d",
         "c",
@@ -1077,6 +1077,54 @@ def test_a_sequence_card_ignores_a_chosen_beat(garden: GameState) -> None:
     assert [r.beat_id for r in results] == [b["id"] for b in card.beats]
 
 
+def test_the_condition_grammar_is_complete_before_anything_is_evaluated() -> None:
+    """
+    Eligibility must not depend on what this PROCESS has done.
+
+    `clocks` and `threads` register their predicates by import, and the only
+    things importing them were `clock.advance_time` -- lazily, mid-function --
+    and its day-rollover branch. So on a fresh process the grammar was missing
+    `value`, `clock`, `track`, `forced_scene`, `thread` and `no_thread`, and an
+    unknown predicate is treated as unmet: correctly, and silently.
+
+    The visible symptom was a resumed Day-8 save whose mirror pool showed every
+    meter-gated ending locked, until a turn was played and the same state
+    answered differently. Measured before the fix: `['E4e'] forced` on a state
+    that had earned three.
+
+    Deliberately does NOT import the registrars -- importing them is the thing
+    under test. It reads the grammar through the public entry point, which is
+    what a fresh process does.
+    """
+    from engine.game.quests import predicate_names
+
+    grammar = set(predicate_names())
+    for name in ("value", "clock", "track", "forced_scene", "thread", "no_thread", "ending"):
+        assert name in grammar, name
+
+
+def test_a_meter_gated_ending_is_reachable_without_a_clock_tick(
+    garden: GameState,
+) -> None:
+    """
+    The same bug from the other side: a real gate, on a state that has earned it.
+
+    `E2a` is gated on meters. Before the grammar fix this was locked on any
+    process where the clock had not ticked, so the honest-eligibility promise --
+    "never offer a card that cannot complete" -- was being kept by locking cards
+    the player HAD completed.
+    """
+    for name, value in (
+        ("autonomy", 92), ("corruption", 8), ("knowledge", 60),
+        ("equality_seed", 3), ("favor", 70),
+    ):
+        _set(garden, name, value)
+
+    report = endings.eligible(garden)
+    assert "E2a" in report.eligible, report.locked.get("E2a")
+    assert report.forced is False, "still falling forward on a run that earned an ending"
+
+
 def test_a_model_composed_challenge_cannot_end_the_story(garden: GameState) -> None:
     """
     `ending_lock` is authored-content-only.
@@ -1087,15 +1135,17 @@ def test_a_model_composed_challenge_cannot_end_the_story(garden: GameState) -> N
     phase -- same argument the module already makes about `track`, that an
     ending set by a dice table is not a scene but a hijack.
     """
-    adjustments: list[str] = []
-    outcome = spec_module.clamp_outcome(
-        {"effects": [{"type": "ending_lock", "ending": "E1a"}]}, adjustments
-    )
-    assert outcome["effects"] == []
-    assert any("ending_lock" in note for note in adjustments), adjustments
+    for kind in sorted(spec_module.STRUCTURAL_EFFECT_TYPES):
+        adjustments: list[str] = []
+        outcome = spec_module.clamp_outcome(
+            {"effects": [{"type": kind, "ending": "E1a"}]}, adjustments
+        )
+        assert outcome["effects"] == [], kind
+        assert any(kind in note for note in adjustments), (kind, adjustments)
 
     # And the drop is a drop, not a silent pass-through to the dispatcher.
     assert endings.locked(garden) == endings.NONE_ID
+    assert endings.module_ran(garden) == endings.NONE_ID
 
 
 def test_authored_content_may_end_the_story(garden: GameState) -> None:
