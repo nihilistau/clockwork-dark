@@ -8,11 +8,18 @@ Scene launcher — optionally brings up the local service stack first.
     python launcher.py --stack          start managed services, then play
     python launcher.py --check          report service status and exit
     python launcher.py --no-stack       skip the service check entirely
+    python launcher.py --list-games     list installed games and exit
+    python launcher.py --game <slug>    play a specific game
 
 Service paths live in config/default.yaml under `stack.services`, and are
 overridden per machine in config/local.yaml.
 
-Version: v0.2.0 [2026-08-07]
+WHICH GAME RUNS: `--game`, else the CLOCKWORK_GAME environment variable, else
+`game.default` in config/default.yaml. Activation happens BEFORE the scene is
+imported, because a scene import pulls in the content tree and a game
+activated afterwards would be repointing config under already-warm caches.
+
+Version: v0.3.0 [2026-08-08]
 """
 
 from __future__ import annotations
@@ -59,6 +66,67 @@ def _report(statuses) -> bool:
     return not broken
 
 
+def _list_games() -> int:
+    """Print the installed games. Returns a process exit code."""
+    from engine.games import registry
+
+    rows = registry.catalog()
+    if not rows:
+        print("No games found under games/. Expected games/<slug>/game.yaml.")
+        return 1
+
+    width = max(len(str(row["slug"])) for row in rows)
+    print("\nInstalled games:\n")
+    for row in rows:
+        mark = "*" if row["active"] else " "
+        state = "" if row["playable"] else "  [UNPLAYABLE]"
+        print(f" {mark} {str(row['slug']):<{width}}  {row['title']}  v{row['version']}{state}")
+        if row["blurb"]:
+            print(f"   {' ' * width}  {row['blurb'].strip()}")
+        # Print every problem, not the first. A manifest with four missing
+        # files should say so once rather than across four launch attempts.
+        for problem in row["problems"]:
+            print(f"   {' ' * width}  - {problem}")
+    print("\n  * = would run now.   Play one with:  python launcher.py --game <slug>\n")
+    return 0
+
+
+def _activate_game(slug: str | None) -> bool:
+    """
+    Activate the selected game before anything imports content.
+
+    Args:
+        slug: Explicit slug from ``--game``, or None to use the env var and
+            config default.
+
+    Returns:
+        True to carry on launching. False only when the player explicitly
+        asked for a game that will not load -- an explicit request that cannot
+        be honoured must not silently drop them into a different story.
+    """
+    from engine.config import get_config
+    from engine.games.registry import ActivationError, activate
+
+    if slug is None and not bool(get_config().get("game.activate_on_launch", True)):
+        return True
+
+    try:
+        manifest = activate(slug)
+    except ActivationError as exc:
+        print(f"\n{exc}\n", file=sys.stderr)
+        print("  python launcher.py --list-games", file=sys.stderr)
+        if slug is not None:
+            return False
+        # No explicit request: fall through on the raw config, which is the
+        # flagship game's content. A broken manifest must never be the reason
+        # the game will not start.
+        print("  Continuing on the default content paths.\n", file=sys.stderr)
+        return True
+
+    print(f"\nGame: {manifest.title}  (games/{manifest.slug}, v{manifest.version})")
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point for launcher."""
     parser = argparse.ArgumentParser(
@@ -72,6 +140,18 @@ def main(argv: list[str] | None = None) -> int:
         help="Scene to launch (default: clockwork)",
     )
     parser.add_argument("--list", action="store_true", help="List available scenes")
+    parser.add_argument(
+        "--game",
+        type=str,
+        default=None,
+        metavar="SLUG",
+        help="Game to play (default: CLOCKWORK_GAME, else config game.default)",
+    )
+    parser.add_argument(
+        "--list-games",
+        action="store_true",
+        help="List installed games and exit",
+    )
     parser.add_argument("--port", type=int, default=None, help="Override scene port")
     parser.add_argument("--host", type=str, default=None, help="Override bind host")
     parser.add_argument(
@@ -97,6 +177,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.list:
         print("clockwork  —  THE CLOCKWORK DARK  (port 5573)")
         return 0
+
+    if args.list_games:
+        return _list_games()
+
+    if not _activate_game(args.game):
+        return 1
 
     if args.check:
         from engine.stack import StackManager

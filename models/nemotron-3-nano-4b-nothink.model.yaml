@@ -1,0 +1,62 @@
+%YAML 1.2
+---
+# No-think variant of nvidia/nemotron-3-nano-4b.
+#
+# WHY: LM Studio's OpenAI-compatible endpoint cannot disable reasoning. Measured
+# on this machine, asking nemotron for a three-word greeting via
+# POST /v1/chat/completions:
+#
+#   baseline ...................................  55 reasoning tokens
+#   reasoning: "off" ...........................  88 reasoning tokens
+#   chat_template_kwargs.enable_thinking: false . 143 reasoning tokens
+#   reasoning_effort: "low" ..................... 113 reasoning tokens
+#
+# Every knob is ignored (reasoning_effort is lmstudio-bug-tracker #988). Since
+# max_tokens caps reasoning AND content combined, a utility call with a 400-token
+# cap gets 400 tokens of deliberation and an empty content channel -- the
+# confirmed cause of blank narration and silently-degraded memory.
+#
+# Two things fix it. The engine's first choice is LM Studio's NATIVE endpoint,
+# POST /api/v1/chat with `reasoning: "off"`, which measures 0 reasoning tokens.
+# That is automatic and needs no install (see engine/lmstudio/backend.py).
+#
+# This file is the second fix, and the one that matters for requests the native
+# endpoint cannot serve -- tool calling and structured output, which /api/v1/chat
+# rejects outright. Installing it makes LM Studio list a SECOND virtual model id
+# whose reasoning is off at the template level, so even the OpenAI-compatible
+# route stops thinking.
+#
+# INSTALL
+#   1. Copy this file into the model's own directory inside the LM Studio models
+#      folder, beside the .gguf:
+#        %USERPROFILE%\.lmstudio\models\nvidia\nemotron-3-nano-4b\
+#      The filename must end in `.model.yaml`.
+#   2. Restart LM Studio (or re-scan models).
+#   3. Confirm the new id appears:
+#        curl http://localhost:1234/api/v0/models | findstr nothink
+#   4. Point the utility profiles at it in config/local.yaml:
+#        lmstudio:
+#          profiles:
+#            small: {model: "nemotron-3-nano-4b-nothink"}
+#            draft: {model: "nemotron-3-nano-4b-nothink"}
+#
+# FALLBACK: if the variant is absent, engine/lmstudio/registry.py logs
+# "Configured model not on server" and binds by capability instead, preferring a
+# non-reasoning instruct model. Nothing breaks; the utility profiles just fall
+# back to `reasoning: "off"` on the native transport.
+
+model: nvidia/nemotron-3-nano-4b
+
+# The load-bearing line. Creates a virtual model variant with the reasoning
+# channel disabled in the chat template itself, which is the only mechanism LM
+# Studio honours consistently across both APIs.
+enableThinking: false
+
+# Utility work wants a decision, not a range of them.
+load:
+  contextLength: 20224
+
+inference:
+  temperature: 0.4
+  topPPrompt: 0.9
+  repeatPenalty: 1.05

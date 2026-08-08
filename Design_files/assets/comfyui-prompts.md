@@ -54,3 +54,34 @@ uncanny wrongness, melancholy dread
 - **cutscene_consuming_horizon** — "Wheat rows tick like a metronome toward the horizon."
 
 LoRA hints: `Oil_Painting_Style` ~0.6, `Medieval_Environment` ~0.4. Avoid anime/cyberpunk LoRAs.
+
+## d20 faces (interface furniture, 1:1 1024×1024)
+
+Twenty plates, one per possible roll — the toast shows the face the engine
+actually rolled. Authoritative spec: `data/art/subjects.yaml` → `dice_faces`,
+rendered into both dialects by `engine/media/art.py`. Mirror for the ComfyUI
+client: `data/procgen_templates/comfyui.yaml` → `dice`. Generate with
+`python scripts/generate_dice_art.py`.
+
+**Subject (per face `n`)**
+```
+A single aged bone twenty-sided die, the numeral n uppermost and square to the viewer
+```
+
+**Shared detail (append to every face, before the style suffix)**
+```
+a heavy ivory-white icosahedron of old bone with chipped rounded edges and hairline
+cracks running through it, the uppermost triangular facet cut deep with its numeral and
+darkened with old ink, the surrounding facets carrying their own smaller drilled marks;
+the engraved numeral is part of the die itself, not lettering laid over the picture,
+the die alone and centred, filling most of a square frame, standing on dark scarred slate
+with nothing else in shot, one low warm lamp from the upper left, thick oil impasto on the
+lit facets, the ground falling away to near-black in the corners
+```
+
+Then the standard **style suffix** and **negative prompt**. Do *not* add the
+corruption suffix — the dice are chrome, not world, and do not rot with it.
+
+The `no text` clause in the style suffix fights a numbered die by definition.
+The "part of the die itself, not lettering laid over the picture" wording in the
+shared detail is what settles it; without it Imagine returns unmarked pip dice.
