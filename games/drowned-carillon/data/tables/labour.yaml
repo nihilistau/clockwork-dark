@@ -1,0 +1,158 @@
+# Work and wages on Bellfounders' Quay.
+#
+# The coast's version of the same claim the flagship game makes: there has to
+# be a way to earn a living that is not adventuring, or "mend nets and sell
+# brass" (games/drowned-carillon/README.md) is a line of marketing rather than
+# a way to play.
+#
+# WHAT THE COAST DOES DIFFERENTLY: the evil phase does not shut this economy
+# down, it REDIRECTS it. As the Carillon rises the fishing dies and the
+# damping work multiplies, so a quayfolk livelihood turns into a bell-warden
+# livelihood without the player ever choosing to become a hero. That is the
+# same "every playstyle converges" problem DESIGN_REVIEW.md R-06 names, solved
+# in the direction of divergence: what you do for money changes even if you
+# never go down the Wet Steps.
+#
+# Same schema as data/tables/labour.yaml. Consumed by engine/game/economy.py
+# through paths.tables.
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+
+labour:
+  shifts_per_day: 2
+  repeats_per_day: 1
+  reputation_plateau: friendly
+
+jobs:
+
+  - id: mend_nets
+    name: "Take a bench in the net lofts"
+    blurb: >-
+      Vesh has more torn net than hands and has stopped pretending otherwise.
+      The work is dull, warm and dry, which on this coast is most of a wage.
+    location_id: net_lofts
+    skill: craft
+    difficulty: easy
+    hours: 5
+    stamina_cost: 12
+    base_wage: 6
+    faction: quayfolk
+    pay: { crit_success: 1.6, success: 1.0, partial: 0.5, failure: 0.0 }
+    in_kind:
+      - { item_id: fish_chowder, qty: 1, degrees: [crit_success, success, partial] }
+    reputation:
+      - { faction: quayfolk, delta: 2, degrees: [crit_success, success] }
+      - { faction: quayfolk, delta: -1, degrees: [failure] }
+    # The nets stop mattering when the boats stop going out.
+    demand: { dormant: 1.2, stirring: 1.0, spreading: 0.6, consuming: 0.0 }
+    success_text: "Vesh runs a thumb down your splice, finds nothing to say, and pays you."
+    failure_text: "She unpicks two of yours in front of you without comment."
+
+  - id: trim_the_lamps
+    name: "Trim the lamps for Brother Cael"
+    blurb: >-
+      Wicks cut, glass cleaned, oil measured. Somebody has done it every night
+      for eleven years and nobody has ever been thanked for it.
+    location_id: lamp_house
+    skill: craft
+    difficulty: trivial
+    hours: 3
+    stamina_cost: 8
+    base_wage: 4
+    faction: bell_wardens
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.6, failure: 0.0 }
+    in_kind:
+      - { item_id: lamp_oil, qty: 1, degrees: [crit_success] }
+    reputation:
+      - { faction: bell_wardens, delta: 2, degrees: [crit_success, success] }
+    demand: { dormant: 1.0, stirring: 1.2, spreading: 1.5, consuming: 1.8 }
+    success_text: "Every glass clean, every wick even. Cael pays out of a box he keeps under the step."
+    failure_text: "Two lamps gutter before midnight and Cael relights them himself."
+
+  - id: quay_portering
+    name: "Work the quay"
+    blurb: >-
+      Boxes off the boats and up the steps, over and over, for coin counted at
+      the top.
+    location_id: bellfounders_quay
+    skill: survival
+    difficulty: trivial
+    hours: 5
+    stamina_cost: 24
+    base_wage: 8
+    faction: quayfolk
+    pay: { crit_success: 1.4, success: 1.0, partial: 0.6, failure: 0.0 }
+    reputation:
+      - { faction: quayfolk, delta: 1, degrees: [crit_success, success] }
+    demand: { dormant: 1.1, stirring: 1.0, spreading: 0.7, consuming: 0.2 }
+    success_text: "Load after load, and copper that smells of somebody else's catch."
+    failure_text: "A crate goes into the water off the third step. That is your day's fee."
+
+  - id: brass_breaking
+    name: "Break brass for Halloran"
+    blurb: >-
+      Salvaged chime-metal cut down to weight. He wants it in pieces small
+      enough that none of them can hold a note.
+    location_id: bellfounders_quay
+    skill: craft
+    difficulty: standard
+    hours: 6
+    stamina_cost: 26
+    base_wage: 11
+    faction: inland_factors
+    pay: { crit_success: 1.6, success: 1.0, partial: 0.4, failure: 0.0 }
+    in_kind:
+      - { item_id: green_brass, qty: 1, degrees: [crit_success, success] }
+    reputation:
+      - { faction: inland_factors, delta: 2, degrees: [crit_success, success] }
+      - { faction: bell_wardens, delta: -1, degrees: [crit_success, success] }
+    demand: { dormant: 0.8, stirring: 1.2, spreading: 1.6, consuming: 1.4 }
+    success_text: "Halloran weighs the pile twice, pays on the second weighing, and says nothing about the first."
+    failure_text: "A piece rings when you cut it. Halloran takes it away and the day ends early."
+
+  - id: walk_the_marks
+    name: "Walk the tide marks"
+    blurb: >-
+      Four posts, four readings, written on the board before dark. It is the
+      only measurement anybody on this coast trusts.
+    location_id: tide_flats
+    skill: lore
+    difficulty: easy
+    hours: 4
+    stamina_cost: 14
+    base_wage: 7
+    faction: bell_wardens
+    pay: { crit_success: 1.8, success: 1.0, partial: 0.5, failure: 0.0 }
+    reputation:
+      - { faction: bell_wardens, delta: 2, degrees: [crit_success, success] }
+      - { faction: quayfolk, delta: 1, degrees: [crit_success] }
+    demand: { dormant: 0.7, stirring: 1.2, spreading: 1.6, consuming: 2.0 }
+    success_text: "Four numbers, chalked up before dusk. Someone reads them within the hour."
+    failure_text: "You lose the third post to the light and guess. Somebody checks."
+
+  - id: damping_work
+    name: "Hang damping cloth"
+    blurb: >-
+      Wet felt over every casting in the yard, re-hung twice a day. It is
+      thankless, endless, and the only thing that has ever worked.
+    location_id: bellfounders_quay
+    skill: nerve
+    difficulty: standard
+    hours: 5
+    stamina_cost: 20
+    base_wage: 10
+    faction: bell_wardens
+    pay: { crit_success: 1.7, success: 1.0, partial: 0.5, failure: 0.0 }
+    in_kind:
+      - { item_id: wax_earplugs, qty: 2, degrees: [crit_success, success] }
+    reputation:
+      - { faction: bell_wardens, delta: 3, degrees: [crit_success, success] }
+    requires:
+      standing: { faction: bell_wardens, minimum: neutral }
+    # This job does not exist until the coast has a problem, and then it is
+    # the only job left.
+    demand: { dormant: 0.0, stirring: 0.6, spreading: 1.6, consuming: 2.2 }
+    success_text: "The yard goes quiet. You had not noticed how loud quiet was."
+    failure_text: "One casting stays live all afternoon and everyone hears it."

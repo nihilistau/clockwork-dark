@@ -1,0 +1,99 @@
+# Awareness-gated rumours on the Brass Coast.
+#
+# Read by engine/world/schedules.py. Three tiers, same gates and the same
+# tier_weights curve as the flagship game -- what changes is that here the
+# thing being slowly named is a sound rather than a machine.
+#
+#   tier 1  min_awareness  0   unease with no subject; nothing is named
+#   tier 2  min_awareness 20   names people and places
+#   tier 3  min_awareness 45   names the pattern, the count, the specifics
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+
+fallback: "The quay talks, but the wind takes most of it."
+
+tier_weights:
+  1: 1.0
+  2: 3.0
+  3: 6.0
+
+rumors:
+
+  # -- tier 1: unease, nothing named -------------------------------------
+
+  - id: tide_early
+    tier: 1
+    min_awareness: 0
+    text: "The tide has been coming early. Not much. Enough that people have started keeping their own tables."
+
+  - id: quiet_boats
+    tier: 1
+    min_awareness: 0
+    text: "The boats have gone quiet going out. Nobody sings on the water now and nobody will say when that started."
+
+  - id: humming
+    tier: 1
+    min_awareness: 0
+    text: "Somebody's child has been humming the same four notes for a fortnight and cannot say where she got them."
+
+  - id: cold_brass
+    tier: 1
+    min_awareness: 0
+    requires_phase: [stirring, spreading, consuming]
+    text: "Brass off the flats does not warm in the hand. People have stopped picking it up and cannot tell you why."
+
+  # -- tier 2: names people and places -----------------------------------
+
+  - id: vesh_on_the_steps
+    tier: 2
+    min_awareness: 20
+    source_npc: npc_cael
+    text: "Vesh goes down to the ninth step at the turn of the tide. Cael has stopped trying to talk her out of it."
+
+  - id: cael_and_the_rope
+    tier: 2
+    min_awareness: 20
+    source_npc: npc_vesh
+    text: "Cael has not rung the shore-bell in eleven years, and he checks the rope every single morning."
+
+  - id: husks_on_the_steps
+    tier: 2
+    min_awareness: 20
+    requires_phase: [spreading, consuming]
+    text: "There is a fisher working a line on the Wet Steps that has not been a fisher for two winters."
+
+  - id: factors_buying
+    tier: 2
+    min_awareness: 20
+    source_npc: npc_orsel
+    text: "The inland factors are buying chime-brass by weight and taking it over the headland before dark."
+
+  # -- tier 3: the pattern, the count, the specifics ----------------------
+
+  - id: the_interval
+    tier: 3
+    min_awareness: 45
+    source_npc: npc_cael
+    text: >-
+      The Carillon answers bells. It answered the shore-bell in the year of
+      the three tides, and it has been holding that interval ever since,
+      waiting for the second half of the phrase.
+
+  - id: the_count
+    tier: 3
+    min_awareness: 45
+    source_npc: npc_vesh
+    requires_phase: [spreading, consuming]
+    text: >-
+      Nineteen people have gone off this quay in eleven years and Vesh can
+      name all nineteen in the order they went, which is also the order the
+      choir stands in.
+
+  - id: grief_is_the_key
+    tier: 3
+    min_awareness: 45
+    text: >-
+      It does not take the strong or the careless. It takes the mourned. The
+      cleaner a thing is sung over, the cleaner it can be sounded out.

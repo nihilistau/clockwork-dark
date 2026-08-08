@@ -1,0 +1,44 @@
+# Bestiary — The Drowned Carillon. Same schema as data/bestiary.yaml; consumed by
+# the unchanged engine combat system (engine/game/combat.py).
+#
+# Fields:
+#   name     display name
+#   hp       hit points
+#   defense  DC the player's attack roll must meet to hit
+#   to_hit   enemy attack modifier vs the player's defense
+#   damage   damage dealt on a successful enemy hit
+#   fear     fear inflicted on the player per hit
+#   tags     [beast|construct|clockwork|human|undead] — sympathy "unmaking"
+#            still keys off the `clockwork` tag, so a brass-tuned foe is unmade
+#            by the same engine code, no edits required.
+#   loot     optional {id, name} dropped on victory
+
+ringing_gull:
+  name: Ringing Gull
+  hp: 7
+  defense: 11
+  to_hit: 2
+  damage: 3
+  fear: 1
+  tags: [beast]
+  loot: { id: brass_quill, name: Brass Gull-Quill }
+
+chime_husk:
+  name: Chime-Husk Fisher
+  hp: 15
+  defense: 13
+  to_hit: 4
+  damage: 5
+  fear: 2
+  tags: [clockwork, undead]
+  loot: { id: salvaged_brass, name: Salvaged Chime-Brass }
+
+tide_cantor:
+  name: The Tide-Cantor
+  hp: 24
+  defense: 14
+  to_hit: 5
+  damage: 6
+  fear: 3
+  tags: [clockwork]
+  loot: { id: tuning_fork, name: Drowned Tuning-Fork }

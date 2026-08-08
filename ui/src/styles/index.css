@@ -31,6 +31,20 @@ body,
   margin: 0;
 }
 
+/* Bug: index.html has declared `viewport-fit=cover` since day one and the
+   stylesheet contained no `env(safe-area-inset-*)` and no dvh/svh anywhere in
+   2135 lines. `height: 100%` resolves against the LARGE viewport on mobile
+   Safari, so the URL bar sat on top of the footer and ate the controls. `dvh`
+   tracks the live viewport instead; the safe-area insets are applied where
+   they matter -- the two chrome bars, the tab bar, the grid and the overlay. */
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+}
+
 body {
   background: var(--surface-scene);
   color: var(--text-body);
@@ -56,23 +70,72 @@ button {
 button:disabled {
   cursor: wait;
   opacity: 0.5;
+  color: var(--text-disabled);
+}
+
+/* Native controls default to the OS accent -- on Windows that is a bright
+   blue or red bar, which was the single most out-of-palette thing on the
+   pause menu. One line puts them in brass. */
+input[type="range"],
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent-candle);
 }
 
 /* ---------- chrome ---------- */
 
+/* Bug (asymmetric frame): the header measured ~46px (a 16px gear plus padding)
+   and the footer ~69px (six 44px icon buttons plus padding). One shared
+   min-height makes both ends of the frame the same weight, and the vertical
+   padding drops to --space-2 so the 44px touch targets set the floor rather
+   than stacking on top of it. */
 .chrome {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-3) var(--space-5);
-  background: var(--surface-chrome);
+  min-height: var(--chrome-h);
+  padding: var(--space-1) var(--space-5);
+  /* A flat fill made the two bars read as holes cut in the page. The reference
+     lights them from their own edge and casts them onto the frame, which is
+     what tells the eye the chrome is IN FRONT of the play area. `position:
+     relative` puts them above .scene::before, the atmosphere layer. */
+  position: relative;
+  z-index: 2;
+  background: var(--gradient-chrome);
+  box-shadow: var(--shadow-chrome);
   border-bottom: var(--border-hair) solid var(--line-soft);
+  /* Landscape notches cut into the sides of the frame, not just the ends. */
+  padding-left: max(var(--space-5), env(safe-area-inset-left));
+  padding-right: max(var(--space-5), env(safe-area-inset-right));
+}
+
+.chrome--top {
+  padding-top: max(var(--space-1), env(safe-area-inset-top));
 }
 
 .chrome--bottom {
   border-bottom: 0;
   border-top: var(--border-hair) solid var(--line-soft);
+  background: var(--gradient-chrome-up);
+  box-shadow: var(--shadow-chrome-up);
+  /* The home indicator lives here. */
+  padding-bottom: max(var(--space-1), env(safe-area-inset-bottom));
+}
+
+/* The masthead ornament, and the one place the tick rule appears in chrome:
+   a hairline of escapement teeth under the top bar. */
+.chrome--top::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: var(--rule-tick);
+  background-size: 12px 1px;
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .chrome__left,
@@ -92,13 +155,19 @@ button:disabled {
   color: var(--text-on-dark);
 }
 
+/* The one piece of brand furniture on the play screen. At 16px and 0.55
+   opacity it read as a smudge; it is the shipped gear-motif geometry at 22px
+   now, lit like brass under a lamp. */
 .gear {
+  flex: none;
   color: var(--accent-brass);
-  opacity: 0.55;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 8px var(--state-select-fill));
 }
 
 .gear--turning {
   opacity: 1;
+  color: var(--accent-candle);
   animation: gear-turn 60s linear infinite;
 }
 
@@ -150,12 +219,36 @@ button:disabled {
   padding: var(--space-1) var(--space-2);
   line-height: 1;
   transition: color var(--dur-fast) var(--ease-quiet),
-    border-color var(--dur-fast) var(--ease-quiet);
+    border-color var(--dur-fast) var(--ease-quiet),
+    background-color var(--dur-fast) var(--ease-quiet),
+    box-shadow var(--dur-fast) var(--ease-quiet);
 }
 
+/* Hover has to be seen, not measured: a brass fill and a brass edge, not a
+   colour swap of a 1px hairline. */
 .icon-btn:hover {
   color: var(--text-candlelight);
   border-color: var(--accent-brass);
+  background: var(--state-hover-fill);
+  box-shadow: var(--glow-select);
+}
+
+.icon-btn:active {
+  background: var(--state-active-fill);
+  box-shadow: var(--shadow-inset);
+}
+
+.icon-btn[aria-pressed="true"] {
+  color: var(--text-candlelight);
+  border-color: var(--accent-brass);
+  background: var(--state-select-fill);
+}
+
+.icon {
+  display: block;
+  /* The mark is drawn on a 24px grid at 1.4 stroke; letting it inherit the
+     button's 13px line-height would hint the strokes to different weights. */
+  overflow: visible;
 }
 
 /* ---------- scene layout ---------- */
@@ -164,54 +257,182 @@ button:disabled {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--surface-scene);
+  /* The frame is lit from the top, not filled flat. Same figure as
+     GameScene.jsx::frameStyle. */
+  background: radial-gradient(
+    120% 100% at 50% 0%,
+    var(--surface-panel),
+    var(--surface-scene) 72%
+  );
+  /* Anchors the two atmosphere layers below. */
+  position: relative;
+  isolation: isolate;
+  /* The play screen IS the window. Nothing escapes the frame -- every region
+     inside it that can outgrow its box scrolls on its own (see below). */
+  overflow: hidden;
+}
+
+/* ATMOSPHERE — GameScene.jsx:380-386, which did not exist in the app at all.
+   A room has corners you cannot see into and air you are looking through. This
+   is both: a deep inset falloff plus a radial over the whole frame. It sits
+   UNDER the chrome and the columns (they are z-index 2 and 1), so it darkens
+   the gaps and the page rather than dimming the content -- which is what lets
+   the narrative log read as the one lit thing on screen. */
+.scene::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  box-shadow: var(--shadow-atmosphere);
+  background: var(--air-falloff);
+}
+
+/* CORRUPTION REVEAL — the mechanic phases.css has themed since day one.
+   --corruption-reveal is 0 / 0.25 / 0.6 / 1 across dormant → consuming and was
+   read by nothing. Here it drives the clockwork bleeding in at the corners of
+   the frame: the shipped gear motif, masked so it takes the phase's own brass,
+   fading up as the world rots. Over everything, because by CONSUMING it is not
+   behind the furniture any more. */
+.scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  /* 0.26 is the ceiling. At full --corruption-reveal the motifs were three
+     opaque brass gears stuck on top of the interface; the mechanic is the
+     clockwork BLEEDING THROUGH the frame, so it has to sit in the surface,
+     not on it. Large and mostly off-canvas, so what you see is the arc of
+     something much bigger than the window. */
+  opacity: calc(var(--corruption-reveal) * 0.26);
+  background-color: var(--line-brass);
+  filter: blur(0.5px);
+  -webkit-mask-image: var(--motif-gear), var(--motif-gear), var(--motif-gear);
+  mask-image: var(--motif-gear), var(--motif-gear), var(--motif-gear);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: -9% -14%, 109% 4%, 94% 112%;
+  mask-position: -9% -14%, 109% 4%, 94% 112%;
+  -webkit-mask-size: 320px, 210px, 460px;
+  mask-size: 320px, 210px, 460px;
+  transition: opacity calc(var(--dur-crossfade) * 4) var(--ease-settle);
+  animation: rot-turn 240s linear infinite;
+}
+
+/* Four minutes for a full drift. The clockwork is not in a hurry; it is just
+   never not moving. */
+@keyframes rot-turn {
+  to {
+    -webkit-mask-position: -4% -6%, 103% -4%, 88% 104%;
+    mask-position: -4% -6%, 103% -4%, 88% 104%;
+  }
 }
 
 .scene__grid {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: var(--col-assistant, 210px) minmax(0, 1fr)
-    var(--col-sheet, 230px);
+  /* Bug (contradictory tokens): these carried fallbacks of 210px/230px while
+     spacing.css defined 200px/220px. The tokens always won, so the fallbacks
+     were decorative lies about what the layout actually measured. */
+  grid-template-columns: var(--col-assistant) minmax(0, 1fr) var(--col-sheet);
   gap: var(--space-4);
+  /* Paints above .scene::before so the atmosphere is the air BEHIND the
+     columns, not a scrim over them. Purely a paint-order concern: no track,
+     no gap and no overflow rule changes with it. */
+  position: relative;
+  z-index: 1;
   padding: var(--space-4);
+  padding-left: max(var(--space-4), env(safe-area-inset-left));
+  padding-right: max(var(--space-4), env(safe-area-inset-right));
+  /* The grid is the fixed frame; the columns inside it do the scrolling. */
+  overflow: hidden;
 }
 
+/* Bug (nothing scrolls): `.scene__grid` had `flex: 1; min-height: 0` and NO
+   overflow, and `.scene__col` had none either. In the whole stylesheet
+   `overflow-y: auto` appeared on four selectors, none of them a column. The
+   play screen was a fixed-height box whose contents spilled over the footer
+   and off the window with no scrollbar and no way to reach them. */
 .scene__col {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
+/* Bug (39/61 instead of 60/40): this was a flex column whose still was
+   `height: min(34vh, 320px); flex: none` -- the 320px cap bit on every desktop
+   and `flex: none` meant the image could never grow, while the log was the
+   only item able to shrink and so absorbed every wrapping choice chip.
+   Two fr tracks make the ratio a layout invariant. The first two children
+   (still-or-encounter, then log) take the two flexible rows; everything after
+   them -- the thinking indicator, the choices, the compose bar -- lands in an
+   implicit auto row and is therefore ALWAYS on screen, whatever the turn
+   renders. */
 .scene__col--main {
+  display: grid;
+  grid-template-rows:
+    minmax(var(--visual-height), var(--row-visual))
+    minmax(var(--log-min), var(--row-log));
+  grid-auto-rows: auto;
   gap: var(--space-3);
+}
+
+/* An encounter is not a picture: it carries the art, the threat, the round log
+   AND the approach buttons, which are the player's only legal moves. It gets
+   the larger share, and the narrative log keeps its floor.
+   The 14rem minimum matters: the panel pins its approach bar to its own bottom
+   edge, and a pinned footer taller than the box it is pinned inside just clips.
+   If the column cannot afford 14rem, the COLUMN overflows and scrolls -- which
+   is reachable -- instead of the panel silently eating its own buttons. */
+.scene__col--main:has(.encounter) {
+  grid-template-rows:
+    minmax(14rem, 7fr)
+    minmax(var(--log-min), 3fr);
 }
 
 .tabbar {
   display: none;
 }
 
-/* ---------- visual ---------- */
+/* ---------- the painted frame ----------
+   One implementation for the scene still and every codex plate, ported from
+   Design_files/ui_kits/clockwork-world/PaintFrame.jsx:95-146. Before this the
+   app had a wash, a grain and a vignette; the frame had no light in it, no
+   air, and nothing to say where the light was coming from.
 
-.visual {
+   THE VIGNETTE IS A VARIABLE. `.plate__vignette` used to hardcode the hero's
+   `inset 0 0 70px 14px` and then apply it to a 169px-tall codex tile, where a
+   70px blur and a 14px spread reach the middle of the tile from all four
+   sides -- it did not "darken the edges", it filled the box. Each size sets
+   its own --vig-* below. */
+
+.paint {
   position: relative;
-  height: min(34vh, 320px);
-  flex: none;
-  border: var(--border-hair) solid var(--line-soft);
-  border-radius: var(--radius-sm);
+  min-height: 0;
   overflow: hidden;
+  isolation: isolate;
+  border: var(--border-rule) solid var(--line-iron);
+  border-radius: var(--radius-sm);
+  background: var(--surface-scene);
 }
 
-.visual__wash,
-.visual__tint,
-.visual__img,
-.visual__grain,
-.visual__vignette {
+.paint__wash,
+.paint__tint,
+.paint__bloom,
+.paint__img,
+.paint__rot,
+.paint__grain,
+.paint__vignette {
   position: absolute;
   inset: 0;
+  pointer-events: none;
 }
 
-.visual__img {
+.paint__img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -219,48 +440,178 @@ button:disabled {
   transition: opacity var(--dur-crossfade) var(--ease-quiet);
 }
 
-.visual__img.is-loaded {
+.paint__img.is-loaded {
   opacity: 1;
 }
 
-.visual__grain {
+/* The candle. One warm note, and the only thing on the frame that moves. */
+.paint__bloom {
+  background: radial-gradient(
+    54% 46% at 52% 14%,
+    var(--state-select-fill),
+    transparent 62%
+  );
+  mix-blend-mode: screen;
+  animation: flicker 6s var(--ease-quiet) infinite;
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 0.9; }
+  43%      { opacity: 1; }
+  47%      { opacity: 0.78; }
+  52%      { opacity: 0.97; }
+}
+
+/* Low mist: the bottom of every frame is further away than the top of it. */
+.paint__mist {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42%;
+  pointer-events: none;
+  background: linear-gradient(0deg, var(--state-hover-fill), transparent);
+  mix-blend-mode: screen;
+}
+
+/* Volumetric ray. The skew is what makes it read as light falling through
+   something rather than as a gradient someone left on. */
+.paint__ray {
+  position: absolute;
+  top: -10%;
+  left: 30%;
+  width: 40%;
+  height: 85%;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--state-select-fill), transparent 72%);
+  transform: skewX(-9deg);
+  mix-blend-mode: screen;
+}
+
+/* The wrongness, over the picture rather than under it. */
+.paint__rot {
+  background: var(--status-corruption);
+  opacity: calc(0.06 + var(--corruption-reveal) * 0.20);
+  mix-blend-mode: color;
+  transition: opacity calc(var(--dur-crossfade) * 3) var(--ease-settle);
+}
+
+.paint__grain {
   background-image: var(--texture-paper);
   mix-blend-mode: multiply;
-  opacity: 0.5;
-  pointer-events: none;
+  opacity: var(--grain-opacity);
 }
 
-.visual__vignette {
-  box-shadow: inset 0 0 140px 30px var(--surface-scene);
-  pointer-events: none;
+.paint__vignette {
+  box-shadow: inset 0 0 var(--vig-blur) var(--vig-spread) var(--surface-void);
 }
 
-.visual__caption {
+/* Top film lip — the frame's own edge, catching the room. */
+.paint__lip {
   position: absolute;
-  left: var(--space-3);
-  bottom: var(--space-3);
-  padding: var(--space-1) var(--space-2);
-  border: var(--border-hair) solid var(--line-soft);
-  border-radius: var(--radius-sm);
-  background: var(--surface-overlay);
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--lip-h);
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--surface-overlay), transparent);
+}
+
+.paint__mark {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-3);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  letter-spacing: var(--tracking-label);
+  letter-spacing: var(--tracking-title);
   text-transform: uppercase;
   color: var(--text-candlelight);
+  opacity: 0.5;
+  text-shadow: 0 1px 3px var(--surface-void);
+  pointer-events: none;
+}
+
+/* Serif italic, not a mono chip: the caption is the picture's own voice. */
+.paint__caption {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-2);
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-narration);
+  text-shadow: 0 1px 4px var(--surface-void);
+  pointer-events: none;
+}
+
+/* ---- sizes: each tunes its own vignette and lip ---- */
+
+/* The hero still. No `height` and no `flex: none` -- it fills whatever the 6fr
+   row gives it, which is how the 60/40 split is actually honoured. */
+.paint--hero {
+  --vig-blur: 140px;
+  --vig-spread: 30px;
+  --lip-h: 30px;
+}
+
+/* Codex places, ~180px tall at the shipped grid. A 22px blur is a rim; the
+   old 70px (plus 14px spread, from both sides) was a lid. */
+.paint--tile {
+  --vig-blur: 22px;
+  --vig-spread: 0px;
+  --lip-h: 14px;
+  aspect-ratio: 16 / 9;
+}
+
+.paint--portrait {
+  --vig-blur: 26px;
+  --vig-spread: 1px;
+  --lip-h: 12px;
+  aspect-ratio: 3 / 4;
+}
+
+.paint--square {
+  --vig-blur: 20px;
+  --vig-spread: 0px;
+  --lip-h: 10px;
+  aspect-ratio: 1 / 1;
+}
+
+/* The hero is the only frame big enough to carry the ray and the mist without
+   them turning into a stripe across a thumbnail. */
+.paint--square .paint__ray,
+.paint--portrait .paint__ray,
+.paint--square .paint__mist {
+  display: none;
 }
 
 /* ---------- log ---------- */
 
+/* The floor lives on the grid track (--log-min); `min-height: 0` here is what
+   lets this box shrink to that track and scroll inside it rather than pushing
+   the choices and the compose bar off the bottom of the window. */
 .log {
-  flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--space-5);
-  background: var(--surface-narrative);
+  overscroll-behavior: contain;
+  padding: var(--space-5) var(--space-6);
+  /* Aged vellum lit from the top, not a flat fill: the page has a near edge
+     and a far one. */
+  background:
+    var(--texture-paper),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-narrative) 88%, var(--text-narration)) 0%,
+      var(--surface-narrative) 100%
+    );
   border: var(--border-hair) solid var(--line-soft);
   border-radius: var(--radius-sm);
-  background-image: var(--texture-paper);
+  /* The journal IS the candle. --bloom-journal spills warm light outward onto
+     the frame; --shadow-log-inset rolls the page's own top and bottom edges
+     into shadow. GameScene.jsx:263 and :270 — neither existed here, which is
+     why the "one lit thing on screen" was the same flat rectangle as the two
+     panels beside it. */
+  box-shadow: var(--bloom-journal), var(--shadow-log-inset);
   transition: background-color var(--dur-crossfade) var(--ease-quiet);
 }
 
@@ -291,7 +642,7 @@ button:disabled {
 
 .entry--player {
   padding-left: var(--space-3);
-  border-left: var(--border-mark) solid var(--rust-clock);
+  border-left: var(--border-mark) solid var(--line-rust-deep);
   font-style: italic;
   color: var(--accent-candle);
 }
@@ -361,10 +712,22 @@ button:disabled {
 
 /* ---------- choices ---------- */
 
+/* Safety valve for the case that starved the log: the choices sit in an auto
+   row, so an unusually long or heavily wrapping list would otherwise take the
+   space straight out of the narrative. Past a third of the window they scroll
+   among themselves instead. */
 .choices {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  max-height: 34vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* `overflow-y: auto` sets this box's automatic minimum size to zero, which
+     makes its `auto` grid row crushable -- measured 6.4px at 900x600, i.e. the
+     player could see that choices existed and not read one. One chip's worth is
+     the floor; past that the column overflows and scrolls, which is reachable. */
+  min-height: 44px;
 }
 
 .chip {
@@ -373,23 +736,36 @@ button:disabled {
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   min-height: 44px; /* touch target */
-  background: var(--surface-card);
+  background: linear-gradient(180deg, var(--surface-card-lift), var(--surface-card));
   border: var(--border-hair) solid var(--line-soft);
   border-left: var(--border-mark) solid var(--accent-brass);
   border-radius: var(--radius-sm);
   color: var(--text-body);
-  transition: filter var(--dur-fast) var(--ease-quiet),
+  box-shadow: var(--shadow-card);
+  transition: background-color var(--dur-fast) var(--ease-quiet),
+    color var(--dur-fast) var(--ease-quiet),
+    box-shadow var(--dur-fast) var(--ease-quiet),
     border-color var(--dur-fast) var(--ease-quiet);
 }
 
+/* Bug (invisible feedback): this was `filter: brightness(0.92)` over
+   --surface-card #1d221e, which resolves to #1b1f1c -- a two-value change per
+   channel. Nobody has ever seen it. The reference selection state is a brass
+   FILL plus a brass EDGE plus a candle bloom, and that is what this is. */
 .chip:hover:not(:disabled) {
-  /* Deepens, never lightens -- the design system is explicit about this. */
-  filter: brightness(0.92);
+  background: var(--state-hover-fill);
+  border-color: var(--accent-brass);
   border-left-color: var(--accent-candle);
+  color: var(--text-on-dark);
+  box-shadow: var(--shadow-raise), var(--glow-select);
 }
 
 .chip:active:not(:disabled) {
+  background: var(--state-active-fill);
+  border-left-color: var(--accent-candle);
   box-shadow: var(--shadow-inset);
+  /* The chip is pressed, so it moves. One pixel is enough. */
+  transform: translateY(1px);
 }
 
 .chip__key {
@@ -442,16 +818,35 @@ button:disabled {
 .btn {
   padding: var(--space-2) var(--space-4);
   min-height: 44px;
-  background: var(--accent-candle);
+  /* Struck brass, lit from the top edge. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent-candle) 88%, white),
+    var(--accent-candle) 62%,
+    var(--accent-brass)
+  );
   border: 0;
   border-radius: var(--radius-sm);
   color: var(--surface-scene);
   font-weight: 600;
-  transition: filter var(--dur-fast) var(--ease-quiet);
+  letter-spacing: var(--tracking-tight);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--dur-fast) var(--ease-quiet),
+    transform var(--dur-fast) var(--ease-quiet),
+    filter var(--dur-fast) var(--ease-quiet);
 }
 
+/* Same finding as .chip: brightness(0.93) on brass is a change nobody sees.
+   The button lifts and throws light instead. */
 .btn:hover:not(:disabled) {
-  filter: brightness(0.93);
+  filter: brightness(1.08);
+  box-shadow: var(--shadow-raise), var(--glow-select);
+}
+
+.btn:active:not(:disabled) {
+  filter: brightness(0.92);
+  box-shadow: var(--shadow-inset);
+  transform: translateY(1px);
 }
 
 .btn--lg {
@@ -490,8 +885,15 @@ button:disabled {
   flex-direction: column;
   gap: var(--space-3);
   height: 100%;
+  /* Matches .sheet: a long companion thread scrolls inside its own panel
+     rather than spilling past the panel border. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--space-3);
-  background: var(--surface-panel);
+  /* Column edge shadow (GameScene.jsx:246): the assistant sits further from
+     the candle than the page does, and its inner edge falls away toward it. */
+  background: linear-gradient(180deg, var(--surface-panel-lift), var(--surface-panel));
+  box-shadow: var(--shadow-edge-right);
   border: var(--border-hair) solid var(--line-soft);
   border-radius: var(--radius-sm);
 }
@@ -500,9 +902,10 @@ button:disabled {
 .sheet__heading {
   margin: 0;
   font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
-  color: var(--text-candlelight);
+  color: var(--text-smallcaps);
 }
 
 .bubble {
@@ -568,7 +971,16 @@ button:disabled {
   height: 100%;
   overflow-y: auto;
   padding: var(--space-3);
-  background: var(--surface-ledger);
+  /* Mirror of .assistant — see there. The ledger is faintly brassier because
+     it is the one column made of paper the player owns. */
+  background:
+    var(--texture-paper),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-ledger) 86%, var(--accent-brass)),
+      var(--surface-ledger)
+    );
+  box-shadow: var(--shadow-edge-left);
   border: var(--border-hair) solid var(--line-soft);
   border-radius: var(--radius-sm);
 }
@@ -606,7 +1018,7 @@ button:disabled {
 }
 
 .meter__value {
-  color: var(--text-on-dark);
+  color: var(--text-stat);
   font-variant-numeric: tabular-nums;
 }
 
@@ -651,7 +1063,7 @@ button:disabled {
 }
 
 .statline__value {
-  color: var(--text-on-dark);
+  color: var(--text-stat);
   font-variant-numeric: tabular-nums;
 }
 
@@ -676,7 +1088,8 @@ button:disabled {
   padding: 2px 0;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--text-body);
+  /* Paper, not chrome — GameScene.jsx prints carried things in --linen-300. */
+  color: var(--text-ledger);
 }
 
 .inventory__qty {
@@ -695,83 +1108,472 @@ button:disabled {
   color: var(--text-danger);
 }
 
-/* ---------- dice ---------- */
+/* ---------- dice ----------
+   The rail, the die, and the five outcome cards.
 
-.dice {
+   WHAT THIS REPLACES. One fixed `.dice` toast, pinned at `top: 22%`, that
+   showed no die, could not stack (a second roll simply overwrote the first),
+   and distinguished a natural 20 from a fumbled nerve check by the colour of a
+   2px border. The component's own stated job was "a failure reads as a
+   consequence"; a rectangle that changes hue does not do that.
+
+   THE GRAMMAR IS TWO AXES.
+     data-tone  critical | success | failure | fumble | neutral
+                -> colour, weight and MOTION. Set by the engine's degree.
+     data-kind  attack | save | wound | stealth | parley | check
+                -> the mark. Read off the roll's reason; see DiceToast.jsx.
+   So a fumbled attack and a fumbled save are visibly relatives, and a critical
+   and a fumble are legible as themselves before the word under them is read.
+
+   NOTHING HERE MAY COVER A CONTROL. The rail is inside the scene still by
+   construction (--rolls-top, --rolls-max-h in spacing.css): the narration, the
+   choices and the compose bar all sit below it and are never occluded. */
+
+.rolls {
   position: fixed;
   left: 50%;
-  top: 22%;
+  top: var(--rolls-top);
   transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-5);
-  background: var(--surface-overlay);
-  border: var(--border-hair) solid var(--accent-brass);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-raise);
-  font-family: var(--font-mono);
-  color: var(--text-on-dark);
-  animation: dice-in var(--dur-base, 240ms) var(--ease-quiet);
   z-index: 40;
+  display: flex;
+  /* Newest first. DiceToast.jsx unshifts, so the card that just landed is at
+     the top of the rail and the ones going quiet drift down under it. */
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(var(--rolls-w), calc(100vw - var(--space-6) * 2));
+  max-height: var(--rolls-max-h);
+  /* The rail is a readout, not a surface -- clicks belong to the picture
+     behind it. Individual cards take their pointer events back. */
+  pointer-events: none;
 }
 
-@keyframes dice-in {
+.roll {
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-2);
+  /* Colour goes on background-IMAGE so every tone keeps the same opaque scrim
+     underneath it. The card lands over a painting; a translucent verdict is an
+     unreadable one. */
+  background-color: var(--surface-overlay);
+  background-image: linear-gradient(100deg, var(--roll-wash), transparent 64%);
+  backdrop-filter: blur(3px);
+  border: var(--border-hair) solid color-mix(in srgb, var(--roll-ink) 38%, transparent);
+  border-left: var(--border-mark) solid var(--roll-ink);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-raise);
+  /* `currentColor` is the tone, so the impact ring and the marks inherit it
+     without a rule each. */
+  color: var(--roll-ink);
+  animation: roll-in var(--dur-base) var(--ease-settle) both;
+}
+
+/* Five tones, two variables each. Everything above reads --roll-ink. */
+.roll[data-tone="neutral"]  { --roll-ink: var(--accent-brass);    --roll-wash: var(--state-hover-fill); }
+.roll[data-tone="success"]  { --roll-ink: var(--outcome-success); --roll-wash: var(--outcome-success-dim); }
+.roll[data-tone="failure"]  { --roll-ink: var(--outcome-failure); --roll-wash: var(--outcome-failure-dim); }
+.roll[data-tone="critical"] { --roll-ink: var(--outcome-crit);    --roll-wash: var(--outcome-crit-dim); }
+.roll[data-tone="fumble"]   { --roll-ink: var(--text-danger);     --roll-wash: var(--outcome-failure-dim); }
+
+@keyframes roll-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -8px);
+    transform: translateY(-10px) scale(0.97);
   }
 }
 
-.dice.is-crit {
-  border-color: var(--accent-candle);
-}
-.dice.is-fumble {
-  border-color: var(--status-danger);
+/* Fading away is the point: a verdict that has to be dismissed is a modal.
+   Blur on the way out reads as the card losing focus rather than as the
+   renderer dropping a frame. */
+.roll.is-leaving {
+  animation: roll-out var(--dur-roll-leave) var(--ease-quiet) both;
 }
 
-.dice__dc,
-.dice__breakdown {
-  color: var(--text-muted);
+@keyframes roll-out {
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+    filter: blur(3px);
+  }
+}
+
+/* ---- the die ----
+   The face is the plate the engine actually rolled -- data/art/manifest.yaml's
+   `dice_faces`, resolved client-side. While it is tumbling the <img> flips
+   through decoy faces on the component's own clock, so the rotation below is
+   turning a REAL die through real numbers rather than spinning one picture. */
+
+.roll__die {
+  position: relative;
+  flex: none;
+  width: var(--die-size);
+  height: var(--die-size);
+  border-radius: var(--radius-sm);
+  overflow: visible;
+  /* The die is lit from the lamp in its own painting; this is that light
+     spilling onto the card. */
+  filter: drop-shadow(0 4px 10px var(--surface-void));
+}
+
+.roll__face {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: var(--border-hair) solid color-mix(in srgb, var(--roll-ink) 30%, transparent);
+  user-select: none;
+}
+
+/* Anticipation, travel, overshoot, settle -- in that order, which is the whole
+   difference between a die that was thrown and a number that was printed. It
+   arrives from above, turns a full revolution and a bit, and is still moving
+   when the flipbook stops. */
+.roll.is-rolling .roll__die {
+  animation: die-tumble var(--dur-roll-tumble) var(--ease-quiet) both;
+}
+
+@keyframes die-tumble {
+  0%   { transform: translateY(-46%) rotate(-24deg) scale(0.82); }
+  22%  { transform: translateY(-6%)  rotate(96deg)  scale(1.04); }
+  44%  { transform: translateY(-24%) rotate(188deg) scale(0.94); }
+  66%  { transform: translateY(-2%)  rotate(268deg) scale(1.03); }
+  84%  { transform: translateY(-11%) rotate(322deg) scale(0.97); }
+  100% { transform: translateY(0)    rotate(372deg) scale(1.14); }
+}
+
+/* The landing. It comes in heavy (1.22), squashes past its resting size
+   (0.93), rocks once, and stops -- weight, rather than a die that stops dead
+   because the timer said so. */
+.roll.is-settled .roll__die {
+  animation: die-settle var(--dur-roll-settle) var(--ease-settle) both;
+}
+
+@keyframes die-settle {
+  0%   { transform: translateY(-14%) rotate(-9deg) scale(1.22); }
+  46%  { transform: translateY(2%)   rotate(4deg)  scale(0.93); }
+  72%  { transform: translateY(-3%)  rotate(-2deg) scale(1.05); }
+  100% { transform: none; }
+}
+
+/* The impact: a ring thrown off the die at the instant it lands, in the
+   outcome's own colour. It is the only thing on the card that says "now". */
+.roll__impact {
+  position: absolute;
+  inset: -2px;
+  border: var(--border-rule) solid currentColor;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.roll.is-settled .roll__impact {
+  animation: die-impact var(--dur-roll-leave) var(--ease-settle) both;
+}
+
+@keyframes die-impact {
+  from { transform: scale(0.62); opacity: 0.8; }
+  to   { transform: scale(1.85); opacity: 0; }
+}
+
+/* ---- the words ---- */
+
+.roll__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.roll__kicker {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
-.dice__mod + .dice__mod::before {
-  content: " · ";
+.roll__mark {
+  color: var(--roll-ink);
+  font-size: var(--text-sm);
+  opacity: 0.9;
+}
+
+/* The verdict is the one thing on the card that has to be readable from across
+   the room, so it is the house display face rather than another mono label. */
+.roll__verdict {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--roll-ink);
+}
+
+.roll__sum {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* The natural is the die; the total is the verdict's arithmetic. Both are the
+   tone, the plumbing between them is not. */
+.roll__natural,
+.roll__total {
+  color: var(--roll-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.roll__op {
+  opacity: 0.6;
+}
+
+.roll__dc {
+  margin-left: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* The receipt. A failure reads as a consequence of exhaustion, a wound or the
+   dark rather than as arbitrary bad luck -- which is the entire reason the
+   engine itemises modifiers instead of returning one number. */
+.roll__mods {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+}
+
+.roll__mod {
+  display: inline-flex;
+  gap: 4px;
+  padding: 0 var(--space-2);
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.roll__mod[data-sign="up"] b   { color: var(--outcome-success); }
+.roll__mod[data-sign="down"] b { color: var(--outcome-failure); }
+
+/* ---- what makes each outcome ITSELF ---- */
+
+/* CRITICAL — the card catches light. A brass bloom plus a slow sweep across
+   the face of it, which is the same candle that lights the rest of the game. */
+.roll[data-tone="critical"].is-settled {
+  box-shadow: var(--shadow-raise), var(--glow-select);
+}
+
+.roll[data-tone="critical"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    var(--state-select-fill) 50%,
+    transparent 70%
+  );
+  opacity: 0;
+}
+
+.roll[data-tone="critical"].is-settled::after {
+  animation: roll-sweep 900ms var(--ease-quiet) both;
+}
+
+@keyframes roll-sweep {
+  0%   { opacity: 0; transform: translateX(-40%); }
+  35%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(40%); }
+}
+
+/* Cards need a containing block for the two overlays above and below. */
+.roll {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* FUMBLE — the die does not settle, it lands badly. A hard shake on the die
+   itself rather than on the card, so it cannot fight the card's own enter and
+   leave animations, and a hairline fracture across the panel. */
+.roll[data-tone="fumble"].is-settled .roll__die {
+  animation: die-fumble var(--dur-roll-settle) var(--ease-quiet) both;
+}
+
+@keyframes die-fumble {
+  0%   { transform: translateY(-16%) rotate(-14deg) scale(1.24); }
+  38%  { transform: translateY(3%)   rotate(9deg)   scale(0.9); }
+  56%  { transform: translateX(-4px) rotate(-6deg)  scale(1.02); }
+  70%  { transform: translateX(4px)  rotate(5deg)   scale(0.99); }
+  84%  { transform: translateX(-2px) rotate(-2deg); }
+  100% { transform: none; }
+}
+
+.roll[data-tone="fumble"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* A single diagonal split, not a texture: the card has been broken across. */
+  background: linear-gradient(
+    116deg,
+    transparent calc(50% - 1px),
+    var(--status-danger) 50%,
+    transparent calc(50% + 1px)
+  );
+  opacity: 0;
+}
+
+.roll[data-tone="fumble"].is-settled::before {
+  animation: roll-crack 620ms var(--ease-settle) both;
+}
+
+@keyframes roll-crack {
+  0%   { opacity: 0; transform: scaleY(0.2); }
+  30%  { opacity: 0.85; transform: scaleY(1); }
+  100% { opacity: 0.18; transform: scaleY(1); }
+}
+
+/* FAILURE — no flourish at all, and that is the design. It sags a millimetre
+   and sits there. The absence of an effect is what separates "you missed" from
+   "this went badly wrong". */
+.roll[data-tone="failure"] .roll__verdict {
+  opacity: 0.9;
+}
+
+/* SUCCESS — the quietest possible tell: the die's own edge lights. */
+.roll[data-tone="success"].is-settled .roll__face {
+  border-color: var(--outcome-success);
+}
+
+/* ---- kinds ----
+   The mark carries the kind; a wound also earns a red edge, because it is the
+   one kind that is a consequence rather than an attempt. */
+.roll[data-kind="wound"] {
+  border-left-color: var(--status-danger);
+}
+
+/* ---- narrow viewports ----
+   On a phone the still is shorter and the tab bar is in play, so the rail
+   holds fewer cards and sits tighter to the top. */
+@media (max-width: 900px) {
+  .rolls {
+    --rolls-max-h: 15rem;
+    --die-size: 3.5rem;
+    width: calc(100vw - var(--space-3) * 2);
+  }
+
+  .roll__verdict {
+    font-size: var(--text-lg);
+  }
 }
 
 /* ---------- start ---------- */
 
+/* The title screen had no title art. `menu-screen.jpg` -- a painted brass
+   frame of gears over a ruined skyline -- has shipped in
+   content/scenes/clockwork/static/art/ since the art pack landed and was
+   referenced by nothing. It is the first thing a player sees now. */
 .start {
+  position: relative;
   display: grid;
   place-items: center;
   min-height: 100%;
   padding: var(--space-6);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.start::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--surface-scene) url("/static/art/menu-screen.jpg") center / cover no-repeat;
+  /* A title plate is a backdrop, not a poster: it has to lose to the form in
+     front of it. Grain and a deep vignette put it behind glass. */
+  box-shadow: inset 0 0 260px 70px var(--surface-void);
+  pointer-events: none;
+}
+
+.start::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: var(--texture-paper);
+  mix-blend-mode: multiply;
+  opacity: var(--grain-opacity);
+  pointer-events: none;
 }
 
 .start__card {
+  position: relative;
+  z-index: 1;
   width: min(560px, 100%);
   padding: var(--space-6);
-  background: var(--surface-narrative);
+  background:
+    var(--texture-paper),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-narrative) 90%, var(--text-narration)),
+      var(--surface-narrative)
+    );
   border: var(--border-hair) solid var(--line-soft);
-  border-left: var(--border-mark) solid var(--rust-clock);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-raise);
-  background-image: var(--texture-paper);
+  /* The card floats over the plate, so it needs a real drop plus the journal's
+     own candle bloom -- and the brass tick rule down its left edge instead of
+     the raw #8b4513 slab, which was the most saturated thing on the screen. */
+  box-shadow: var(--shadow-plate), var(--bloom-journal);
 }
 
+.start__card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--rule-tick);
+  background-size: 3px 12px;
+  opacity: 0.85;
+}
+
+/* Design_files/assets/wordmark.svg — the real lockup, gear and all. The text
+   stays in the DOM (it is the h1) and is simply not painted, so the accessible
+   name and the document outline are unchanged. */
 .start__wordmark {
-  margin: 0 0 var(--space-3);
-  font-family: var(--font-narration);
-  font-size: var(--text-3xl);
-  font-weight: 500;
-  color: var(--text-narration);
+  margin: 0 0 var(--space-4);
+  width: 360px;
+  max-width: 100%;
+  aspect-ratio: 360 / 64;
+  background: url("/static/dist/wordmark.svg") left center / contain no-repeat;
+  font-size: 0;
+  color: transparent;
+  filter: drop-shadow(0 2px 10px var(--surface-void));
 }
 
 .start__wordmark span {
-  color: var(--accent-candle);
-  letter-spacing: var(--tracking-title);
-  text-transform: uppercase;
+  font-size: 0;
 }
 
 .start__intro {
@@ -931,9 +1733,34 @@ button:disabled {
    the companion outright. Tabs keep everything reachable. */
 
 @media (max-width: 900px) {
+  /* Bug (doubled bottom chrome): a 60px tab bar sat directly above a 68px
+     footer -- 128px of chrome on a 667px phone, and 142px on a 375x812 one
+     because the footer's clock forced the icon row to wrap onto a second line.
+     The clock is a straight duplicate of the one in the header two bars above,
+     so it goes; both bars go compact; the icon row then fits on one line. */
+  .chrome {
+    --chrome-h: 3.25rem; /* 52 */
+    padding-left: max(var(--space-3), env(safe-area-inset-left));
+    padding-right: max(var(--space-3), env(safe-area-inset-right));
+  }
+
+  .chrome--bottom .clock {
+    display: none;
+  }
+
+  .chrome--bottom .chrome__right {
+    gap: var(--space-1);
+  }
+
+  .icon-btn {
+    min-width: 40px;
+  }
+
   .scene__grid {
     grid-template-columns: 1fr;
     padding: var(--space-3);
+    padding-left: max(var(--space-3), env(safe-area-inset-left));
+    padding-right: max(var(--space-3), env(safe-area-inset-right));
   }
 
   .scene__col--assistant,
@@ -953,15 +1780,21 @@ button:disabled {
 
   .tabbar {
     display: flex;
+    flex: none;
     gap: var(--space-1);
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-3);
+    padding-left: max(var(--space-3), env(safe-area-inset-left));
+    padding-right: max(var(--space-3), env(safe-area-inset-right));
     background: var(--surface-chrome);
     border-top: var(--border-hair) solid var(--line-soft);
   }
 
   .tabbar__btn {
     flex: 1;
-    min-height: 44px;
+    /* 40px rather than 44: these are full-width bars, so the horizontal target
+       is enormous and the height is the only dimension paying for the chrome
+       budget. The 44px minimum stays on every square icon button. */
+    min-height: 40px;
     background: none;
     border: var(--border-hair) solid transparent;
     border-radius: var(--radius-sm);
@@ -976,9 +1809,9 @@ button:disabled {
     border-color: var(--line-soft);
   }
 
-  .visual {
-    height: 22vh;
-  }
+  /* `.visual { height: 22vh }` used to live here. It is gone: the 6fr/4fr
+     tracks give the still its share on a phone exactly as they do on a
+     desktop, so there is no second, contradictory height to keep in sync. */
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1030,8 +1863,9 @@ button:disabled {
 
 .cutscene__bar {
   flex: none;
-  height: var(--letterbox-bar, 11%);
-  background: var(--surface-scene);
+  height: var(--letterbox-bar);
+  background: var(--surface-void);
+  box-shadow: var(--shadow-chrome);
 }
 
 .cutscene__bar--bottom {
@@ -1041,7 +1875,7 @@ button:disabled {
   gap: var(--space-4);
   padding: 0 var(--space-6);
   height: auto;
-  min-height: var(--letterbox-bar, 11%);
+  min-height: var(--letterbox-bar);
 }
 
 .cutscene__frame {
@@ -1215,29 +2049,75 @@ button:disabled {
    the focus trap, the Esc key and the focus restore have exactly one
    implementation between them. */
 
+/* Bug (every modal overflowed unreachably -- the cyclic-percentage trap):
+   `place-items: center` on an AUTO-sized grid row means `max-height: 100%` on
+   the card resolves to `none` during track sizing, so the row grew to the
+   card's max-content height (the codex measured 2233px inside a 768px window),
+   and only THEN did `100%` resolve -- against that. `.overlay` is
+   `position: fixed` with no overflow, so 1489px of the codex painted outside
+   the fixed box with nothing able to scroll to it, and `.overlay__body`'s
+   `flex: 1; min-height: 0; overflow-y: auto` never got a chance to fire.
+   Three things fix it, all of them belt and braces:
+     1. an explicit minmax(0, 1fr) track, so the row can never exceed the box;
+     2. a real pixel cap on the card instead of a percentage; and
+     3. overflow-y on the backdrop itself, for anything that still escapes. */
 .overlay {
   position: fixed;
   inset: 0;
   z-index: 50;
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   padding: var(--space-6);
+  padding-top: max(var(--space-6), env(safe-area-inset-top));
+  padding-bottom: max(var(--space-6), env(safe-area-inset-bottom));
   background: var(--surface-overlay);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   animation: fade-in var(--dur-base) var(--ease-quiet);
 }
 
 .overlay__card {
   width: min(620px, 100%);
-  max-height: 100%;
+  /* The vh line is the fallback, not a duplicate: if `dvh` is unsupported the
+     second declaration is invalid and DROPS, and a card with no max-height at
+     all is exactly the bug this section exists to fix. */
+  max-height: min(var(--overlay-max-h), calc(100vh - var(--space-6) * 2));
+  max-height: min(var(--overlay-max-h), calc(100dvh - var(--space-6) * 2));
   display: flex;
   flex-direction: column;
-  padding: var(--space-5);
-  background: var(--surface-narrative);
+  padding: var(--space-5) var(--space-6);
+  background:
+    var(--texture-paper),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-narrative) 90%, var(--text-narration)),
+      var(--surface-narrative)
+    );
   border: var(--border-hair) solid var(--line-soft);
-  border-left: var(--border-mark) solid var(--rust-clock);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-raise);
-  background-image: var(--texture-paper);
+  /* Bug (clashing accent): this carried `border-left: 4px solid
+     var(--rust-clock)` -- #8b4513, the most saturated colour in the palette,
+     as a slab down the edge of every overlay, arguing with --accent-brass
+     eighteen pixels away. The brand's own ornament is the TICK, so the card's
+     edge is a tick rule in the phase's brass. */
+  box-shadow: var(--shadow-plate), var(--bloom-journal);
+  position: relative;
+  overflow: hidden;
+}
+
+.overlay__card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--rule-tick);
+  background-size: 3px 12px;
+  opacity: 0.85;
+  pointer-events: none;
 }
 
 .overlay__card--wide {
@@ -1245,27 +2125,76 @@ button:disabled {
 }
 
 .overlay__head {
+  position: relative;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-3);
   margin-bottom: var(--space-4);
-  padding-bottom: var(--space-3);
-  border-bottom: var(--border-hair) solid var(--line-soft);
+  padding-bottom: var(--space-4);
+  border-bottom: 0;
 }
 
+/* The shipped woodcut ornament instead of a hairline: escapement teeth either
+   side of a clock face. Design_files/assets/woodcut-divider.svg, masked so it
+   takes the phase's brass rather than the file's baked iron grey. */
+.overlay__head::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 14px;
+  background-color: var(--line-brass);
+  -webkit-mask: var(--ornament-woodcut) center / 100% 100% no-repeat;
+  mask: var(--ornament-woodcut) center / 100% 100% no-repeat;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+/* Bug (flat type): --text-2xl and --text-3xl were each used ONCE in the whole
+   product, and every in-game screen title -- Codex, Journal, Barter, Settings,
+   Saves -- was this rule at --text-sm, i.e. 13px of uppercase UI label. The
+   reference head is a mono kicker over a serif title. Modal.jsx renders one
+   <h2>, so the kicker is generated: it is the same masthead on every page,
+   which is exactly what it is -- these are all pages of one book. */
 .overlay__title {
   margin: 0;
-  font-size: var(--text-sm);
-  letter-spacing: var(--tracking-label);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-narration);
+  font-size: var(--text-2xl);
+  font-weight: 500;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  text-transform: none;
+  color: var(--text-narration);
+}
+
+.overlay__title::before {
+  content: "The Clockwork Dark";
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  letter-spacing: var(--tracking-title);
   text-transform: uppercase;
-  color: var(--text-candlelight);
+  color: var(--accent-brass);
 }
 
 .overlay__body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Stop a modal's scroll from chaining into the play screen behind it. */
+  overscroll-behavior: contain;
+}
+
+/* The head and foot are the fixed ends of the card; only the body scrolls, so
+   the title and the primary action are always reachable. */
+.overlay__head,
+.overlay__foot {
+  flex: none;
 }
 
 .overlay__foot {
@@ -1306,12 +2235,25 @@ button:disabled {
    state.encounter has shipped every turn since P6 with nothing rendering it.
    When it is live it owns the top of the main column. */
 
+/* Bug (approach buttons unreachable): this was `flex: none` around a 240px art
+   block, a full --text-lg intro paragraph, a 26vh round log and a wrapping
+   approach grid -- measured at 729px inside a 622px column with no overflow
+   anywhere above it. The approach buttons are the ONLY way to act during an
+   encounter and they painted off the bottom of the window; so did the log and
+   the compose bar below them.
+   The panel now scrolls inside its own grid row, and the approaches are
+   sticky to its bottom edge, so the player's legal moves are on screen at
+   every scroll position and at every window size. */
 .encounter {
-  flex: none;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4);
+  /* Bottom padding moves onto the sticky approach bar so scrolling content
+     cannot show through underneath it. */
+  padding: var(--space-4) var(--space-4) 0;
   background: var(--surface-card);
   border: var(--border-hair) solid var(--line-soft);
   border-left: var(--border-mark) solid var(--status-danger);
@@ -1319,9 +2261,22 @@ button:disabled {
   box-shadow: var(--shadow-raise);
 }
 
+/* Now that the panel scrolls, nothing inside it may shrink -- the panel gives
+   way, not its contents. Without this the round log (an ordinary flex item,
+   so shrink factor 1) collapsed to zero height and the player lost the record
+   of what had already happened to them. */
+.encounter > * {
+  flex: none;
+}
+
+/* Trimmed from min(26vh, 240px): the art was the single largest contributor to
+   the panel outgrowing its column, and it is the part of an encounter that
+   carries the least information. `flex: none` is explicit -- inside a scrolling
+   flex column an image must not be the thing that gets squashed. */
 .encounter__art {
   position: relative;
-  height: min(26vh, 240px);
+  flex: none;
+  height: min(20vh, 200px);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
@@ -1447,8 +2402,11 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  max-height: 26vh;
+  /* 26vh of round log plus 26vh of art plus the intro plus the approaches did
+     not fit in any window we ship on. */
+  max-height: 18vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .encounter__beat {
@@ -1462,12 +2420,14 @@ button:disabled {
 
 .encounter__beat[data-degree="success"],
 .encounter__beat[data-degree="critical"] {
-  border-left-color: var(--accent-candle);
+  border-left-color: var(--outcome-success);
+  background: linear-gradient(90deg, var(--outcome-success-dim), transparent 60%);
 }
 
 .encounter__beat[data-degree="failure"],
 .encounter__beat[data-degree="fumble"] {
-  border-left-color: var(--status-danger);
+  border-left-color: var(--outcome-failure);
+  background: linear-gradient(90deg, var(--outcome-failure-dim), transparent 60%);
 }
 
 .encounter__beat-round {
@@ -1493,7 +2453,18 @@ button:disabled {
   color: var(--text-muted);
 }
 
+/* Pinned to the bottom of the scrolling panel. The negative top margin cancels
+   the flex `gap` so the bar's own background covers the strip content would
+   otherwise scroll through; the negative side margins let it span the panel's
+   full width, and it supplies the bottom padding the panel gave up. */
 .encounter__approaches {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: calc(var(--space-3) * -1) calc(var(--space-4) * -1) 0;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--surface-card);
+  border-top: var(--border-hair) solid var(--line-soft);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -1517,9 +2488,20 @@ button:disabled {
     border-color var(--dur-fast) var(--ease-quiet);
 }
 
+/* Third instance of the invisible-hover bug (see .chip). These are the only
+   legal moves during an encounter; the player has to be able to see which one
+   is under the cursor. */
 .approach:hover:not(:disabled) {
-  filter: brightness(0.92);
+  background: var(--state-hover-fill);
+  border-color: var(--accent-brass);
   border-left-color: var(--accent-candle);
+  box-shadow: var(--shadow-raise), var(--glow-select);
+}
+
+.approach:active:not(:disabled) {
+  background: var(--state-active-fill);
+  box-shadow: var(--shadow-inset);
+  transform: translateY(1px);
 }
 
 .approach__text {
@@ -1654,8 +2636,11 @@ button:disabled {
   background: var(--line-ink);
 }
 
+/* An objective that landed is the one thing in this product that went
+   RIGHT, so it is the only place --accent-moss appears. */
 .quest__pip.is-done {
-  background: var(--accent-candle);
+  background: var(--accent-moss);
+  box-shadow: 0 0 6px -1px var(--accent-moss);
 }
 
 /* ---------- codex ----------
@@ -1691,73 +2676,66 @@ button:disabled {
   box-shadow: var(--glow-candle);
 }
 
+/* Atlas.jsx:36 lays these out at minmax(360px, 1fr) with a 22px gutter, and it
+   is right: a place card carries a 16:9 painting, a name, a ring, a line of
+   prose and a road table. At 240px the painting was 135px tall and the prose
+   wrapped to five lines. */
 .codexgrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: var(--space-6);
 }
 
 .codexgrid--tight {
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--space-4);
 }
 
 .codexcard {
   display: flex;
   flex-direction: column;
-  background: var(--surface-panel);
+  background: var(--gradient-card);
   border: var(--border-hair) solid var(--line-soft);
   border-radius: var(--radius-sm);
   overflow: hidden;
-  box-shadow: var(--shadow-card);
+  /* Atlas.jsx:7 — a long soft drop is what makes a grid of cards read as
+     objects on a table rather than as holes in one. */
+  box-shadow: var(--shadow-plate);
+  transition: border-color var(--dur-fast) var(--ease-quiet),
+    box-shadow var(--dur-fast) var(--ease-quiet);
 }
 
-.codexcard.is-unknown {
-  opacity: 0.62;
+.codexcard:hover {
+  border-color: var(--accent-brass);
+  box-shadow: var(--shadow-plate), var(--glow-select);
 }
 
+/* Bug (nine identical black rectangles): `opacity: 0.62` on top of an
+   invisible hatch and a tile-swallowing vignette. An unwalked place is not a
+   dimmed card -- it is a card with a picture nobody has painted yet, so it
+   shows its ring's own light and keeps full contrast on the words. */
+.codexcard.is-unknown .paint__wash {
+  /* Enough to read as "unpainted" and no more. At saturate(.55)
+     brightness(.72) the ring palettes collapsed back into one dark smear,
+     which is the bug this whole file exists to fix. */
+  filter: saturate(0.8) brightness(0.88);
+}
+
+.codexcard.is-unknown .codexcard__name {
+  color: var(--text-muted);
+}
+
+/* The plate sits flush inside the card's own rounded box. */
 .plate {
-  position: relative;
-  width: 100%;
-  background: var(--surface-ledger);
-  overflow: hidden;
-}
-
-.plate__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.plate__blank {
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    135deg,
-    var(--surface-ledger) 0 8px,
-    var(--surface-panel) 8px 16px
-  );
-}
-
-.plate__grain,
-.plate__vignette {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.plate__grain {
-  background-image: var(--texture-paper);
-  mix-blend-mode: multiply;
-  opacity: 0.45;
-}
-
-.plate__vignette {
-  box-shadow: inset 0 0 70px 14px var(--surface-scene);
+  border: 0;
+  border-radius: 0;
+  border-bottom: var(--border-hair) solid var(--line-soft);
 }
 
 .codexcard__body {
-  padding: var(--space-3);
+  /* Atlas.jsx:9 — 16px 18px 18px. The old 12px on all four sides is why the
+     text block touched the plate. */
+  padding: var(--space-4) var(--space-5) var(--space-5);
 }
 
 .codexcard__head {
@@ -1770,10 +2748,29 @@ button:disabled {
 .codexcard__name {
   margin: 0;
   font-family: var(--font-narration);
-  font-size: var(--text-lg);
+  font-size: var(--text-xl);
   font-weight: 500;
+  line-height: var(--leading-tight);
   color: var(--text-on-dark);
 }
+
+/* Seventh layer (Atlas.jsx:21): the quiet mono note under the prose. */
+.codexcard__hint {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+/* The ring is the Atlas's organising idea, so it gets a colour per ring rather
+   than one brass label for all twenty. */
+.codexcard[data-ring="0"] .codexcard__role { color: var(--ring0-label); }
+.codexcard[data-ring="1"] .codexcard__role { color: var(--ring1-label); }
+.codexcard[data-ring="2"] .codexcard__role { color: var(--ring2-label); }
+.codexcard[data-ring="3"] .codexcard__role { color: var(--ring3-label); }
 
 .codexcard__role {
   margin: var(--space-1) 0 0;
@@ -1828,7 +2825,8 @@ button:disabled {
 }
 
 .roads__cost {
-  color: var(--text-muted);
+  color: var(--text-parchment);
+  opacity: 0.75;
 }
 
 .formchips {
@@ -2109,11 +3107,1682 @@ button:disabled {
   margin-top: var(--space-5);
 }
 
+/* ============================================================
+   THE SECOND PASS
+   Markup landed by the inventory / menu / companion work with no styles at
+   all, because this file is owned separately. Everything below is layout and
+   type for that markup; none of it changes what any of those components do.
+   ============================================================ */
+
+/* ---------- the phase bar ----------
+   Bug (a wrong string on screen): `.phasepill__kicker` and `.phasepill__word`
+   are adjacent inline spans with no whitespace between them, so the chrome
+   read "The pattern isDormant". Same defect in the menu's `.phaseband`. They
+   are blocks now, which is also the right typography -- a mono kicker over a
+   serif word is the house head style. */
+
+/* `.chromebar` is gone. It was a full band across a 768px screen carrying one
+   pill, and the scene column beneath it had 567px to divide between the art,
+   the log, the choices and the compose box -- on a screen whose owner had
+   asked for the art to be BIGGER. The pill moved into the header's right
+   cluster beside the world clock; the Menu button moved to the footer glyph
+   row with the other controls. Same information, one less row. */
+
+.phasepill {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* Sized to sit inside the header without growing it. The standalone bar
+     could afford 34px; here anything taller than the clock line pushes the
+     whole header down and gives back the row this move just reclaimed. */
+  min-height: 0;
+  padding: 2px var(--space-3) 2px var(--space-2);
+  background: transparent;
+  border: var(--border-hair) solid var(--line-soft);
+  border-left: var(--border-mark) solid var(--phase-ink);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: background-color var(--dur-fast) var(--ease-quiet),
+    box-shadow var(--dur-fast) var(--ease-quiet);
+}
+
+.phasepill:hover {
+  background: var(--state-hover-fill);
+  box-shadow: var(--glow-select);
+}
+
+.phasepill__kicker {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  line-height: 1.1;
+}
+
+.phasepill__word {
+  display: block;
+  font-family: var(--font-narration);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  line-height: 1.1;
+  color: var(--phase-ink);
+  text-shadow: 0 0 14px var(--state-select-fill);
+}
+
+/* On a phone the pill sits beside the place name in a 375px header, and
+   "The pattern is" wrapped onto two lines of its own -- 61px of pill forcing a
+   69px header, on the screen with the least room to give. The kicker is the
+   expendable half: which phase you are in is the information, "the pattern is"
+   is only the sentence around it. */
+@media (max-width: 560px) {
+  .phasepill__kicker {
+    display: none;
+  }
+
+  .phasepill {
+    border-left-width: var(--border-mark);
+    padding: 2px var(--space-2);
+  }
+}
+
+/* One variable, four values. Everything above reads --phase-ink. */
+.phasepill--dormant   { --phase-ink: var(--phase-dormant); }
+.phasepill--stirring  { --phase-ink: var(--phase-stirring); }
+.phasepill--spreading { --phase-ink: var(--phase-spreading); }
+.phasepill--consuming { --phase-ink: var(--phase-consuming); }
+
+/* The last two phases are not a label any more, they are a warning. */
+.phasepill--spreading,
+.phasepill--consuming {
+  background: color-mix(in srgb, var(--phase-ink) 8%, transparent);
+}
+
+.phasepill--consuming {
+  border-color: color-mix(in srgb, var(--phase-ink) 34%, transparent);
+  animation: phase-alarm 4s var(--ease-quiet) infinite;
+}
+
+@keyframes phase-alarm {
+  0%, 100% { box-shadow: none; }
+  50%      { box-shadow: 0 0 18px -6px var(--phase-consuming); }
+}
+
+.keymap kbd {
+  padding: 1px 5px;
+  margin-left: var(--space-2);
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-scene);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* The menu's long form of the same thing: a full-width band across the top of
+   the pause screen, kicker over word over the sentence that explains it. */
+.phaseband {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-sm);
+  border-left: var(--border-mark) solid var(--phase-ink);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--phase-ink) 12%, transparent),
+    transparent 70%
+  );
+}
+
+.phaseband--dormant   { --phase-ink: var(--phase-dormant); }
+.phaseband--stirring  { --phase-ink: var(--phase-stirring); }
+.phaseband--spreading { --phase-ink: var(--phase-spreading); }
+.phaseband--consuming { --phase-ink: var(--phase-consuming); }
+
+.phaseband__kicker {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-title);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.phaseband__word {
+  display: block;
+  font-family: var(--font-narration);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  color: var(--phase-ink);
+}
+
+.phaseband__line {
+  display: block;
+  max-width: 60ch;
+  font-family: var(--font-narration);
+  font-size: var(--text-lg);
+  line-height: var(--leading-snug);
+  color: var(--text-narration);
+  opacity: 0.8;
+}
+
+/* ---------- companion column ----------
+   The Assistant is the only face in the product. It gets the treatment a face
+   gets: lit, framed, and given room -- not a 13px label over a bubble. */
+
+.companion {
+  gap: var(--space-4);
+}
+
+.companion__plate {
+  position: relative;
+  /* Inside a fixed-height flex column an image must not be the item that gets
+     squashed OR the item that grows without asking. */
+  flex: none;
+}
+
+.companion__frame {
+  /* Its own candle, so the face is lit from the same direction as the scene
+     still above it rather than sitting in flat shadow. */
+  box-shadow: var(--shadow-plate), 0 0 40px -14px var(--accent-candle);
+  /* Bug (widening the column made the scroll WORSE): `.paint--portrait` is
+     `aspect-ratio: 3/4`, so the plate's height is a function of the column's
+     width. Measured at 1366x768: a 200px column gave a 212px plate; the 255px
+     column this pass introduces wanted 305px, i.e. the 55px of width bought
+     93px of new height and the panel overflowed by more than before. The cap
+     breaks that coupling -- see --companion-plate-h. */
+  max-height: var(--companion-plate-h);
+  /* `aspect-ratio` plus `max-height` resolves the WIDTH from the height, so
+     the capped plate is narrower than the widened column and would otherwise
+     sit hard against its left edge with 90px of dead panel beside it. The
+     painting keeps its 3:4 rather than being cropped to a letterbox, and it
+     is hung in the middle of the wall. */
+  margin-inline: auto;
+}
+
+/* ---- the disclosure, and why it re-weights the panel ----
+   Measured at 1366x768: the column has 565px of room. Collapsed, the companion
+   panel is ~500px and fits. Opening "What it knows" APPENDS 398px of seals,
+   faces and footnote to it -- 961px of content in 565px -- so the panel began
+   scrolling the moment it was opened, and the first things to scroll away were
+   the portrait and the trust meter, i.e. the two things the player is actually
+   looking at. Widening the column cannot pay off a 396px overrun; a 55px-wider
+   column with a 3:4 plate in it is 93px TALLER.
+
+   So opening the disclosure re-weights the panel instead of extending it. The
+   identity block -- portrait, name, trust -- folds from a stack into a header
+   row: the plate spans the two rows beside it as a thumbnail rather than
+   sitting above them at full width. That is 199px of column returned as 107px
+   of header, which is the whole overrun. The idle line goes with it: it is the
+   placeholder for "the companion has nothing to say", and a player who has
+   just asked what it knows is owed the answer, not the placeholder.
+
+   Explicit rows/columns rather than grid-template-areas because
+   `.assistant__idle` is `display: none` here -- a named row it no longer
+   occupies would still cost its two gaps. */
+.companion:has(.companion__detail) {
+  display: grid;
+  grid-template-columns: clamp(4rem, 30%, 5.5rem) minmax(0, 1fr);
+  align-content: start;
+  gap: var(--space-2);
+}
+
+.companion:has(.companion__detail) > .assistant__label,
+.companion:has(.companion__detail) > .bubble,
+.companion:has(.companion__detail) > .companion__more,
+.companion:has(.companion__detail) > .companion__detail {
+  grid-column: 1 / -1;
+}
+
+.companion:has(.companion__detail) > .companion__plate {
+  grid-column: 1;
+  /* Beside the name and the trust meter, not above them. */
+  grid-row: span 2;
+  min-height: var(--companion-plate-h-open);
+}
+
+.companion:has(.companion__detail) > .companion__ident,
+.companion:has(.companion__detail) > .meter--trust {
+  grid-column: 2;
+  margin-bottom: 0;
+}
+
+/* The plate fills the header row's height, so the pair of rows beside it is
+   what sets the size -- not `aspect-ratio` and not the column's width. */
+.companion:has(.companion__detail) .companion__frame {
+  height: 100%;
+  max-height: none;
+}
+
+.companion:has(.companion__detail) .assistant__idle {
+  display: none;
+}
+
+/* `margin-top: auto` is how this button sits at the bottom of a FLEX column.
+   In the grid it has no free space to claim and would only confuse a future
+   reader. */
+.companion:has(.companion__detail) > .companion__more {
+  margin-top: 0;
+}
+
+/* The companion can say an arbitrary amount, and it says it in the one row the
+   header just freed up. Three lines is a remark; past that it is a transcript,
+   and there is a 45-second fade coming for it anyway. */
+.companion:has(.companion__detail) .bubble__text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.companion__glyph {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-3xl);
+  color: var(--accent-candle);
+  opacity: 0.7;
+}
+
+/* It is listening. A slow brass breath around the frame, not a spinner. */
+.companion__listening {
+  position: absolute;
+  inset: -3px;
+  border-radius: var(--radius-sm);
+  border: var(--border-hair) solid var(--accent-candle);
+  pointer-events: none;
+  animation: breathe 2.4s var(--ease-quiet) infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.15; }
+  50%      { opacity: 0.7; }
+}
+
+.companion__ident {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.companion__form {
+  font-family: var(--font-narration);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  color: var(--text-on-dark);
+  text-transform: capitalize;
+}
+
+.companion__note {
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Trust is a relationship, not a health bar: moss, and glossed in words. */
+.meter--trust .meter__fill {
+  background: var(--accent-moss);
+}
+
+.meter__gloss {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.bubble__tier {
+  display: block;
+  margin-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--accent-brass);
+  opacity: 0.7;
+}
+
+.companion__more {
+  margin-top: auto;
+  min-height: 36px;
+  padding: var(--space-2);
+  background: transparent;
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transition: color var(--dur-fast) var(--ease-quiet),
+    border-color var(--dur-fast) var(--ease-quiet),
+    background-color var(--dur-fast) var(--ease-quiet);
+}
+
+.companion__more:hover {
+  color: var(--text-candlelight);
+  border-color: var(--accent-brass);
+  background: var(--state-hover-fill);
+}
+
+.companion__detail {
+  display: flex;
+  flex-direction: column;
+  /* Part of the budget described above .companion:has(.companion__detail):
+     four gaps at --space-3 is 48px of the 396px overrun. */
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--border-hair) solid var(--line-soft);
+}
+
+.companion__subhead {
+  margin: 0;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-smallcaps);
+}
+
+.companion__footnote {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+/* A gate the player has crossed, drawn as wax: shut, or broken open. */
+.seal {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hair) dashed var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-scene);
+}
+
+.seal.is-open {
+  border-style: solid;
+  border-color: var(--accent-brass);
+  background: var(--state-hover-fill);
+}
+
+.seal__mark {
+  flex: none;
+  font-size: var(--text-md);
+  line-height: 1.2;
+  color: var(--text-disabled);
+}
+
+.seal.is-open .seal__mark {
+  color: var(--accent-candle);
+  text-shadow: 0 0 10px var(--state-select-fill);
+}
+
+.seal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.seal__label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-body);
+}
+
+.seal.is-open .seal__label {
+  color: var(--text-candlelight);
+}
+
+.seal__hint {
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--text-muted);
+  /* A gloss, not a paragraph. At the old 200px column these ran to three and
+     four lines and two seals alone were 166px of a 565px column; at the
+     widened 255px most of them fall to two on their own, and this is the stop
+     for the ones that do not. The full text is still the element's own text,
+     so it is read out in full by a screen reader. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* The faces it has worn, in order. A strip of small paintings. */
+.formtrack {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* Fixed 52px tracks, not `minmax(52px, 1fr)`. The faces are square, so a
+     stretchy track makes the strip TALLER as the column gets wider -- at 229px
+     of content `1fr` resolved to three 71px faces and a 117px strip. A fixed
+     track means a wider column simply fits more faces per row, which is what a
+     history strip should do. */
+  grid-template-columns: repeat(auto-fill, 52px);
+  gap: var(--space-2);
+  justify-content: start;
+}
+
+.formtrack__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0.6;
+}
+
+.formtrack__item.is-current {
+  opacity: 1;
+}
+
+.formtrack__face {
+  border-radius: var(--radius-sm);
+}
+
+.formtrack__item.is-current .formtrack__face {
+  border-color: var(--accent-candle);
+  box-shadow: var(--glow-select);
+}
+
+.formtrack__glyph {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-md);
+  color: var(--accent-candle);
+}
+
+.formtrack__label {
+  font-size: var(--text-xs);
+  text-transform: capitalize;
+  color: var(--text-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.formtrack__when {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ---------- the reasoning panel ----------
+   The model can emit a great deal of this, so it is capped and scrolls inside
+   itself. Deliberately the quietest type in the product: it is the machine
+   thinking out loud, not the world speaking. */
+
+.reasoning {
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-scene);
+  overflow: hidden;
+}
+
+.reasoning__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  background: transparent;
+  border: 0;
+  text-align: left;
+}
+
+.reasoning__label {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.reasoning__chevron {
+  flex: none;
+  color: var(--accent-brass);
+  font-size: var(--text-xs);
+}
+
+.reasoning__toggle:hover .reasoning__label {
+  color: var(--text-candlelight);
+}
+
+.reasoning__body {
+  max-height: 9rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--space-3) var(--space-2);
+  border-top: var(--border-hair) solid var(--line-soft);
+}
+
+.reasoning__text {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+
+/* ---------- the pack ---------- */
+
+.pack__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.pack__stat {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.pack__stat b {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-stat);
+  font-variant-numeric: tabular-nums;
+}
+
+.packtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.packtab {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-4);
+  background: transparent;
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  transition: color var(--dur-fast) var(--ease-quiet),
+    border-color var(--dur-fast) var(--ease-quiet),
+    background-color var(--dur-fast) var(--ease-quiet);
+}
+
+.packtab:hover {
+  color: var(--text-candlelight);
+  border-color: var(--accent-brass);
+  background: var(--state-hover-fill);
+}
+
+.packtab.is-active {
+  color: var(--text-candlelight);
+  border-color: var(--accent-candle);
+  background: var(--state-select-fill);
+  box-shadow: var(--glow-select);
+}
+
+.pack__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.tagchip {
+  min-height: 28px;
+  padding: 2px var(--space-2);
+  background: transparent;
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  transition: color var(--dur-fast) var(--ease-quiet),
+    border-color var(--dur-fast) var(--ease-quiet),
+    background-color var(--dur-fast) var(--ease-quiet);
+}
+
+.tagchip:hover {
+  color: var(--text-body);
+  border-color: var(--accent-brass);
+}
+
+.tagchip.is-active {
+  color: var(--text-candlelight);
+  border-color: var(--accent-candle);
+  background: var(--state-select-fill);
+}
+
+/* Two panes: the grid you browse and the thing you are looking at. */
+.pack__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.packgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: var(--space-3);
+}
+
+.packitem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--gradient-card);
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: border-color var(--dur-fast) var(--ease-quiet),
+    background-color var(--dur-fast) var(--ease-quiet),
+    box-shadow var(--dur-fast) var(--ease-quiet);
+}
+
+.packitem:hover {
+  border-color: var(--accent-brass);
+  background: var(--state-hover-fill);
+  box-shadow: var(--shadow-raise);
+}
+
+.packitem.is-selected {
+  border-color: var(--accent-candle);
+  background: var(--state-select-fill);
+  box-shadow: var(--glow-select);
+}
+
+/* Carried is a fact about the world, so it is a mark on the item, not a
+   different card: a brass margin down its left edge. */
+.packitem.is-carried {
+  border-left: var(--border-mark) solid var(--accent-brass);
+}
+
+.packitem__art {
+  position: relative;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- items nobody has painted yet ----------
+   /api/items returns 81 items and 29 of them have a picture. The other 52
+   rendered as empty black squares in the same grid as the painted ones, which
+   is the Codex's "nineteen identical black rectangles" bug in a new screen: a
+   black box reads as a failed image request, not as "not drawn yet".
+
+   The frame can tell the difference itself -- an undrawn plate is a .paint
+   with no .paint__img inside it -- so no markup change is needed. It gets the
+   same painted wash the rest of the product uses, cycled across the ramp so a
+   row of them is a row of DIFFERENT unfinished plates, plus the engraver's
+   mark in the middle to say so. */
+.packitem__art:not(:has(.paint__img)),
+.satchel__art:not(:has(.paint__img)),
+.ingredient__art:not(:has(.paint__img)),
+.packdetail__plate:not(:has(.paint__img)),
+.formtrack__face:not(:has(.paint__img)),
+.companion__frame:not(:has(.paint__img)) {
+  --undrawn-ink: var(--char-trade);
+}
+
+.packitem__art:not(:has(.paint__img)) .paint__wash,
+.satchel__art:not(:has(.paint__img)) .paint__wash,
+.ingredient__art:not(:has(.paint__img)) .paint__wash,
+.packdetail__plate:not(:has(.paint__img)) .paint__wash,
+.formtrack__face:not(:has(.paint__img)) .paint__wash,
+.companion__frame:not(:has(.paint__img)) .paint__wash {
+  background:
+    radial-gradient(72% 62% at 50% 26%, var(--undrawn-ink), transparent 70%),
+    linear-gradient(
+      166deg,
+      var(--ring1-shade) 0%,
+      var(--ring1-mid) 46%,
+      var(--ring1-lift) 100%
+    );
+}
+
+/* The engraver's mark: this plate is blank on purpose. */
+.packitem__art:not(:has(.paint__img))::after,
+.satchel__art:not(:has(.paint__img))::after,
+.packdetail__plate:not(:has(.paint__img))::after {
+  content: "";
+  position: absolute;
+  inset: 22%;
+  z-index: 2;
+  background: var(--accent-brass);
+  -webkit-mask: var(--motif-gear) center / contain no-repeat;
+  mask: var(--motif-gear) center / contain no-repeat;
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+/* Eight inks over the grid, so "undrawn" is a family of plates rather than one
+   plate repeated fifty-two times. */
+.packgrid .packitem:nth-child(8n + 1) .packitem__art { --undrawn-ink: var(--char-wild); }
+.packgrid .packitem:nth-child(8n + 2) .packitem__art { --undrawn-ink: var(--char-hearth); }
+.packgrid .packitem:nth-child(8n + 3) .packitem__art { --undrawn-ink: var(--char-trade); }
+.packgrid .packitem:nth-child(8n + 4) .packitem__art { --undrawn-ink: var(--char-stone); }
+.packgrid .packitem:nth-child(8n + 5) .packitem__art { --undrawn-ink: var(--char-ruin); }
+.packgrid .packitem:nth-child(8n + 6) .packitem__art { --undrawn-ink: var(--char-sacred); }
+.packgrid .packitem:nth-child(8n + 7) .packitem__art { --undrawn-ink: var(--char-water); }
+.packgrid .packitem:nth-child(8n + 8) .packitem__art { --undrawn-ink: var(--char-under); }
+
+.satchel .satchel__item:nth-child(3n + 1) .satchel__art { --undrawn-ink: var(--char-trade); }
+.satchel .satchel__item:nth-child(3n + 2) .satchel__art { --undrawn-ink: var(--char-wild); }
+.satchel .satchel__item:nth-child(3n + 3) .satchel__art { --undrawn-ink: var(--char-hearth); }
+
+.packitem__qty {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  z-index: 2;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-overlay);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-candlelight);
+}
+
+.packitem__name {
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  color: var(--text-ledger);
+}
+
+.packdetail {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-scene);
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.packdetail--empty {
+  align-items: center;
+  justify-content: center;
+  min-height: 12rem;
+  border-style: dashed;
+}
+
+/* --tile is 16:9 and would otherwise run the full width of the modal. */
+.packdetail__plate {
+  width: 100%;
+  max-width: 260px;
+  align-self: center;
+}
+
+.packdetail__name {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  color: var(--text-on-dark);
+}
+
+.packdetail__prose {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+  color: var(--text-narration);
+  opacity: 0.85;
+}
+
+.packdetail__facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--space-3);
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.packdetail__facts dt {
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.packdetail__facts dd {
+  margin: 0;
+  color: var(--text-parchment);
+  font-variant-numeric: tabular-nums;
+}
+
+.packdetail__note {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.packactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--border-hair) solid var(--line-soft);
+}
+
+/* ---------- crafting ----------
+   A recipe is an equation, so it is set as one: cost, ingredients, arrow,
+   result. Makeable ones are lit; the rest state their reason. */
+
+.recipes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.recipe {
+  padding: var(--space-4);
+  background: var(--gradient-card);
+  border: var(--border-hair) solid var(--line-soft);
+  border-left: var(--border-mark) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+}
+
+.recipe.is-makeable {
+  border-left-color: var(--accent-candle);
+  box-shadow: var(--shadow-card), var(--glow-select);
+}
+
+.recipe__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.recipe__name {
+  font-family: var(--font-narration);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+  color: var(--text-on-dark);
+}
+
+.recipe__cost {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.recipe__flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.recipe__arrow {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  color: var(--accent-brass);
+}
+
+.recipe__out {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.recipe__tools,
+.recipe__why {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.recipe__why {
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text-danger);
+}
+
+.recipe__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border-hair) solid var(--line-soft);
+}
+
+.ingredients {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+}
+
+.ingredient {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Held / short is the single most useful thing a recipe row can tell you, so
+   it is a colour and a border, not a footnote. */
+.ingredient.is-held {
+  border-color: var(--accent-moss);
+  color: var(--text-ledger);
+}
+
+.ingredient.is-short {
+  border-color: var(--status-danger);
+  color: var(--text-danger);
+}
+
+.ingredient__art {
+  flex: none;
+  width: 28px;
+  border-radius: var(--radius-sm);
+}
+
+.ingredient__name {
+  white-space: nowrap;
+}
+
+.ingredient__count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+/* ---------- the satchel on the sheet ----------
+   A narrow column, so the pack preview is a tight grid of small paintings
+   rather than a list that pushes the stats off screen. */
+
+.satchel {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+}
+
+.satchel__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.satchel__art {
+  position: relative;
+  border-radius: var(--radius-sm);
+}
+
+.satchel__qty {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  z-index: 2;
+  padding: 0 3px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-overlay);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-candlelight);
+}
+
+.satchel__name {
+  font-size: var(--text-xs);
+  line-height: 1.25;
+  color: var(--text-ledger);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet__packbtn {
+  width: 100%;
+}
+
+/* ---------- the pause menu ---------- */
+
+.menu__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-hair) solid var(--line-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--text-muted);
+}
+
+.menu__meta .is-warn {
+  color: var(--text-danger);
+}
+
+.menu__cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-6);
+}
+
+.menu__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.menu__head {
+  margin: var(--space-3) 0 var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--tracking-title);
+  text-transform: uppercase;
+  color: var(--accent-brass);
+}
+
+.menu__col > .menu__head:first-child {
+  margin-top: 0;
+}
+
+.menu__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.menurow {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: var(--border-hair) solid var(--line-soft);
+  border-left: var(--border-mark) solid var(--accent-brass);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: background-color var(--dur-fast) var(--ease-quiet),
+    border-color var(--dur-fast) var(--ease-quiet),
+    box-shadow var(--dur-fast) var(--ease-quiet);
+}
+
+.menurow:hover {
+  background: var(--state-hover-fill);
+  border-color: var(--accent-brass);
+  border-left-color: var(--accent-candle);
+  box-shadow: var(--glow-select);
+}
+
+/* Abandoning a run is not undoable. It does not get the same edge as "load". */
+.menurow--danger {
+  border-left-color: var(--status-danger);
+}
+
+.menurow--danger:hover {
+  background: var(--outcome-failure-dim);
+  border-color: var(--status-danger);
+  border-left-color: var(--text-danger);
+  box-shadow: none;
+}
+
+.menurow--danger .menurow__label {
+  color: var(--text-danger);
+}
+
+.menurow__label {
+  font-size: var(--text-base);
+  color: var(--text-on-dark);
+}
+
+.menurow__hint {
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.menu__save {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.menu__note,
+.menu__about,
+.menu__blurb {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--text-muted);
+}
+
+.menu__blurb {
+  display: block;
+  margin-top: var(--space-1);
+  font-style: italic;
+}
+
+.keymap {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.keymap__row {
+  display: contents;
+}
+
+.keymap dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.keymap dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-body);
+}
+
+.keymap kbd {
+  margin-left: 0;
+}
+
+/* ---------- settings extras ---------- */
+
+.setting--engine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* A setting that needs a restart is a promise the app cannot keep until then;
+   it says so on its face rather than in a footnote. */
+.needs-restart {
+  border-left: var(--border-mark) solid var(--accent-brass);
+  padding-left: var(--space-3);
+}
+
+.setting__badge {
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border: var(--border-hair) solid var(--accent-brass);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-candlelight);
+}
+
+.setting__marks {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.setting__slider {
+  display: block;
+}
+
+.setting__slider input[type="range"],
+.settings__group input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent-candle);
+}
+
+.settings__status {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--text-candlelight);
+}
+
+.settings__footnote {
+  display: block;
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: var(--border-hair) solid var(--line-soft);
+  font-style: italic;
+}
+
+/* ---------- the start screen's game picker ---------- */
+
+.picker {
+  position: relative;
+  margin: 0 0 var(--space-4);
+}
+
+.picker__current {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-scene);
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: border-color var(--dur-fast) var(--ease-quiet),
+    background-color var(--dur-fast) var(--ease-quiet);
+}
+
+.picker__current:hover {
+  border-color: var(--accent-brass);
+  background: var(--state-hover-fill);
+}
+
+.picker__kicker {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.picker__title {
+  flex: 1;
+  font-family: var(--font-narration);
+  font-size: var(--text-md);
+  color: var(--text-on-dark);
+}
+
+.picker__count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.picker__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2);
+  background: var(--surface-scene);
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-plate);
+}
+
+.pickerrow {
+  display: block;
+  width: 100%;
+  padding: var(--space-3);
+  background: transparent;
+  border: var(--border-hair) solid transparent;
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.pickerrow:hover {
+  border-color: var(--accent-brass);
+  background: var(--state-hover-fill);
+}
+
+.pickerrow.is-active {
+  border-color: var(--accent-candle);
+  background: var(--state-select-fill);
+}
+
+/* A game that will not load is not offered in the same voice as one that
+   will: it is dimmed, marked, and it explains itself. */
+.pickerrow.is-broken {
+  border-color: var(--status-danger);
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.pickerrow__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.pickerrow__title {
+  flex: 1;
+  font-family: var(--font-narration);
+  font-size: var(--text-md);
+  color: var(--text-on-dark);
+}
+
+.pickerrow__version {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.pickerrow__blurb {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.pickerrow__problem {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-danger);
+}
+
+.pickerrow__how {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.start__continue {
+  width: 100%;
+  margin-bottom: var(--space-3);
+}
+
+/* ---------- section heads ----------
+   The reference SectionHead (Atlas.jsx:33) is a mono kicker over a --text-2xl
+   serif title over a --text-lg serif lede. The app had no such component at
+   all: --text-2xl and --text-3xl were each used once in 2500 lines and every
+   section in every overlay opened with a 13px uppercase label. */
+
+.sectionhead {
+  position: relative;
+  margin: 0 0 var(--space-5);
+}
+
+.sectionhead__kicker {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-title);
+  text-transform: uppercase;
+  color: var(--accent-brass);
+}
+
+.sectionhead__title {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-display);
+}
+
+.sectionhead__lede {
+  margin: var(--space-2) 0 0;
+  max-width: 62ch;
+  font-family: var(--font-narration);
+  font-size: var(--text-lg);
+  line-height: var(--leading-snug);
+  color: var(--text-narration);
+  opacity: 0.78;
+  text-wrap: pretty;
+}
+
+/* ---------- ornament rules ----------
+   Two weights of the same idea. The tick is the hairline; the woodcut is the
+   full escapement-and-clockface plate. Both are masks, so both take the
+   phase's brass and both corrupt with everything else. */
+
+.rule {
+  display: block;
+  height: 1px;
+  margin: var(--space-4) 0 0;
+  background: var(--rule-tick);
+  background-size: 12px 1px;
+  opacity: 0.6;
+}
+
+.rule--woodcut {
+  height: 16px;
+  background: var(--line-brass);
+  -webkit-mask: var(--ornament-woodcut) center / 100% 100% no-repeat;
+  mask: var(--ornament-woodcut) center / 100% 100% no-repeat;
+  opacity: 0.7;
+}
+
+/* ---------- empty states ----------
+   Eight selectors resolved to one treatment: narration font, italic,
+   --text-muted. "The page is blank", "Nothing but what you stand in" and
+   "Nobody here trades" were typographically the same sentence, so none of them
+   told the player anything about WHERE they were when nothing happened.
+
+   Each context gets its own frame below. The shared piece is --grain-opacity
+   and the brass mark; everything else differs. */
+
+.empty {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+  color: var(--text-muted);
+  border: var(--border-hair) dashed var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--state-hover-fill);
+}
+
+/* The mark is the gear at rest — the world is not doing anything here yet. */
+.empty__mark {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  background: var(--accent-brass);
+  -webkit-mask: var(--motif-gear) center / contain no-repeat;
+  mask: var(--motif-gear) center / contain no-repeat;
+  opacity: 0.55;
+}
+
+.empty--waiting .empty__mark {
+  animation: gear-turn 8s linear infinite;
+}
+
+.empty--souls {
+  border-style: dotted;
+}
+
+.empty--things .empty__mark {
+  opacity: 0.3;
+}
+
+/* 1 · the narrative log — a blank page waiting for ink, so it is drawn as a
+   page: full width, ruled top and bottom, the text centred on it. */
+.log__empty {
+  margin: var(--space-6) auto;
+  max-width: 46ch;
+  padding: var(--space-5) 0;
+  border-top: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+  border-image: var(--rule-tick) 1 / 1px / 0 stretch;
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-lg);
+  text-align: center;
+  color: var(--text-narration);
+  opacity: 0.55;
+}
+
+/* 2 · the pack — a ledger line with nothing written on it, kept in the mono
+   voice of the inventory it stands in for. */
+.inventory__empty {
+  display: block;
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-hair) dashed var(--line-soft);
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: lowercase;
+  color: var(--text-disabled);
+}
+
+/* 3 · the Assistant saying nothing — it is a presence, not a missing panel, so
+   it keeps the bubble's brass margin and sits at the bottom of the column. */
+.assistant__idle {
+  margin-top: auto;
+  padding: var(--space-3) 0 var(--space-1) var(--space-3);
+  border-left: var(--border-hair) solid var(--line-soft);
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+/* 4 · no legal move in an encounter — the most alarming empty state in the
+   product, and it used to look exactly like an empty rucksack. */
+.encounter__none {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: var(--border-mark) solid var(--status-danger);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--outcome-failure-dim);
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-md);
+  color: var(--text-danger);
+}
+
+/* 5 · everything else inside an overlay: a quiet centred note, no box. Used by
+   Saves, Journal and Barter, which are all "there is nothing to list yet". */
+.overlay__empty {
+  margin: var(--space-4) 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-md);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ---------- reduced motion ----------
+   effects.css already zeroes the durations, but these are ANIMATIONS with
+   their own timing and would keep running: the flicker on every painted frame,
+   the drifting corruption filigree, the turning gears. A player who has asked
+   for stillness gets stillness. */
+@media (prefers-reduced-motion: reduce) {
+  .paint__bloom,
+  .scene::after,
+  .gear--turning,
+  .empty--waiting .empty__mark,
+  .thinking__dot,
+  /* The dice rail, all of it. DiceToast.jsx reads the same preference and
+     skips the flipbook entirely, so a player who asked for stillness is shown
+     the face that was rolled immediately -- the card still enters and still
+     fades, it just does not tumble, flash or crack. Killing the animations
+     here without that would leave the die frozen mid-decoy on a face that is
+     not the one the engine returned, which is worse than no animation. */
+  .roll.is-rolling .roll__die,
+  .roll.is-settled .roll__die,
+  .roll.is-settled .roll__impact,
+  .roll[data-tone="critical"].is-settled::after,
+  .roll[data-tone="fumble"].is-settled::before,
+  .roll[data-tone="fumble"].is-settled .roll__die {
+    animation: none;
+  }
+
+  /* The fracture is information, not decoration -- a fumble still looks like a
+     fumble. It is simply already there rather than arriving. */
+  .roll[data-tone="fumble"]::before {
+    opacity: 0.18;
+  }
+
+  .chip:active:not(:disabled),
+  .btn:active:not(:disabled),
+  .approach:active:not(:disabled) {
+    transform: none;
+  }
+
+  /* The corruption still has to be legible without the drift, so it holds at
+     its phase's opacity rather than being switched off. */
+  .scene::after {
+    transition: none;
+  }
+}
+
 /* ---------- narrow viewports, new screens ---------- */
 
 @media (max-width: 900px) {
   .overlay {
     padding: var(--space-3);
+    padding-top: max(var(--space-3), env(safe-area-inset-top));
+    padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+  }
+
+  .overlay__card {
+    max-height: min(var(--overlay-max-h), calc(100vh - var(--space-3) * 2));
+    max-height: min(var(--overlay-max-h), calc(100dvh - var(--space-3) * 2));
   }
 
   .barter__columns {
@@ -2121,14 +4790,47 @@ button:disabled {
   }
 
   .encounter__art {
-    height: 20vh;
+    height: 16vh;
   }
 
   .encounter__head {
     align-items: flex-start;
   }
+}
 
+/* One approach per row is a PHONE layout, not a 900px one. It used to start at
+   900px, where there is room for three across, and the resulting 345px-tall
+   approach bar could not fit in any share of the column -- two of four buttons
+   clipped at 900x600. */
+@media (max-width: 560px) {
   .approach {
     flex-basis: 100%;
+  }
+}
+
+/* Below this the pinned-approaches design stops being possible: the bar stacks
+   one button per row and is taller than any share of the column we could give
+   the panel, and a `position: sticky` footer taller than its scrollport just
+   clips. So the panel gives up its own scroller and its natural height stands;
+   the COLUMN scrolls instead. The player scrolls to reach an approach, which is
+   worse than having it pinned and enormously better than it being unreachable,
+   which is what shipped. */
+@media (max-width: 560px), (max-height: 560px) {
+  .scene__col--main:has(.encounter) {
+    grid-template-rows: auto minmax(var(--log-min), auto);
+  }
+
+  .encounter {
+    overflow: visible;
+    /* `min-height: 0` is what lets the panel shrink inside its own scroller.
+       With the scroller gone it must be reverted, or the panel's automatic
+       minimum stays 0, the `auto` row shrinks below the content anyway, and the
+       approaches paint straight over the narrative log and the compose bar
+       instead of pushing the column taller. */
+    min-height: auto;
+  }
+
+  .encounter__approaches {
+    position: static;
   }
 }

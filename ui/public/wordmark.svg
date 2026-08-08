@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 64">
+  <g fill="#f2e8d5" font-family="&#39;EB Garamond&#39;, Georgia, serif">
+    <text x="56" y="30" font-size="23" letter-spacing="0.5">The Clockwork</text>
+    <text x="56" y="52" font-size="23" letter-spacing="3" fill="#e8c47a">DARK</text>
+  </g>
+  <g transform="translate(10,14)" fill="none" stroke="#8b4513" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="18" cy="18" r="6.5"></circle>
+    <circle cx="18" cy="18" r="1.5" fill="#8b4513" stroke="none"></circle>
+    <path d="M18 1.5v4M18 30.5v4M1.5 18h4M30.5 18h4M6 6l2.8 2.8M27.2 27.2L30 30M30 6l-2.8 2.8M8.8 27.2L6 30"></path>
+    <path d="M18 18l2.4-1.8" stroke-width="1.1"></path>
+  </g>
+</svg>

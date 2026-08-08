@@ -1,0 +1,11 @@
+# Set-pieces for The Drowned Carillon.
+#
+# Deliberately empty, for the same reason as this game's doom_effects.yaml: an
+# undeclared path falls back to the engine default, which would offer this coast
+# Edgewood's brass scarecrow in a square it does not have.
+#
+# A set-piece is a stored challenge behind a flag gate. Schema and worked
+# examples: data/challenges/edgewood.yaml. Specs authored here go through the
+# same bounding pass as model-composed ones (engine/challenges/spec.py), so the
+# reward ceilings apply.
+set_pieces: []

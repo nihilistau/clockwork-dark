@@ -1,0 +1,122 @@
+# The Assistant's voice on the Brass Coast.
+#
+# Read by engine/skills/builtin/assistant.py, unchanged. Same tier grammar as
+# the flagship corpus (0 ambient, 1 unease, 2 names people and places, 3 names
+# the pattern), same rules: never fourth-wall, never mechanical, never a quest
+# marker, and it may be wrong.
+#
+# Here the Assistant is coast folklore rather than forest folklore -- the gull
+# that follows one boat, the child on the steps, the voice that answers from
+# the wrong side of the water. Same creature. Different weather.
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+
+fallback: "Nothing worth saying. The tide is not asking your opinion either."
+
+hints:
+
+  # -- tier 0: ambient ----------------------------------------------------
+
+  - tier: 0
+    text: "The pot has been on since before light. It is better than it smells."
+  - tier: 0
+    text: "That gull has followed the same boat for three seasons. Loyalty, or bookkeeping."
+  - tier: 0
+    text: "Weather coming off the headland. The dull kind."
+  - tier: 0
+    text: "Somebody is arguing about the tide table again. Somebody always is."
+  - tier: 0
+    text: "Tar on your hands means you did a day. It is not nothing."
+  - tier: 0
+    text: "Two boats out, four in. Which means two boats are out."
+  - tier: 0
+    text: "The bar is walkable for six hours. It has never once been seven."
+  - tier: 0
+    text: "Nobody has drowned this week. Enjoy that. It is a real thing and it is free."
+  - tier: 0
+    text: "Chowder, twine, a loft that keeps the rain off. People die having wanted less."
+  - tier: 0
+    text: "Walk slower on the wet granite. You are not late for anything."
+
+  # -- tier 1: unease, nothing named --------------------------------------
+
+  - tier: 1
+    text: "The tide came early. Not much. Enough that people have started keeping their own tables and not comparing them."
+  - tier: 1
+    text: "Nobody sings on the water any more. Ask when that started. Watch who answers fast."
+  - tier: 1
+    text: "Brass off the flats does not warm in the hand. I have held some. It is not the cold."
+  - tier: 1
+    text: "There is a note under the sea-noise that keeps the same pitch whatever the weather does. Weather does not do that."
+  - tier: 1
+    text: "The green on those steps starts at the ninth one and it has been the ninth one for as long as anyone will say."
+  - tier: 1
+    text: "That child has hummed four notes for a fortnight and cannot say where she got them. Neither can I, and I usually can."
+  - tier: 1
+    text: "The set-nets are coming up sorted. Nets do not sort."
+
+  # -- tier 2: names people and places ------------------------------------
+
+  - tier: 2
+    text: "Vesh goes down to the ninth step at the turn of the tide. She is not grieving. She is listening, which is worse."
+  - tier: 2
+    text: "Cael checks that bell rope every morning and has not pulled it in eleven years. Both halves of that are the same decision."
+  - tier: 2
+    text: "Halloran weighs green brass at the yard gate and writes nothing down. He can afford paper."
+  - tier: 2
+    text: "There is a fisher working a line on the Wet Steps. There has been no line on the Wet Steps since the year of the three tides."
+  - tier: 2
+    text: "The factors take the brass over the headland before dark and will not say who wants it. Somebody wants it."
+
+  # -- tier 3: the pattern, the count, the specifics ----------------------
+
+  - tier: 3
+    text: "It answers bells. That is the whole of it. Ring anything on this coast and something under it rings back, and the second half of a phrase is a promise."
+  - tier: 3
+    text: "Nineteen people in eleven years, and Vesh can name them in order. The choir stands in that order. She has not worked that out yet and I am not going to be the one."
+  - tier: 3
+    text: "It does not take the strong or the careless. It takes the mourned. The cleaner a thing is sung over, the cleaner it comes out."
+  - tier: 3
+    text: "Naming is the harder half and the only half that works. Everyone here knows it. Nobody says it, because saying it is also naming."
+
+lore_snippets:
+
+  the_carillon:
+    min_tier: 2
+    text: >-
+      A cathedral organ under the sea, played by the tide because the tide is
+      what is left to play it. It does not flood a coast. It tunes one, and
+      what it leaves is salt, verdigris, and a chime where a heartbeat used to
+      be.
+
+  the_receding_tide:
+    min_tier: 2
+    text: >-
+      Low water, spring tide, flood mark, full chime. Four marks on a post,
+      and nobody who cuts them will tell you they are counting anything but
+      water.
+
+  the_sunken_nave:
+    min_tier: 2
+    text: >-
+      A coast cathedral that did not fall, it went under, floor and pillars
+      and pipework intact. It is reachable at low water and only then, and the
+      hour either side of low water is the whole of the argument.
+
+  naming:
+    min_tier: 3
+    text: >-
+      Binding like to like is the cheap half and it costs the binder every
+      hour it holds. Naming is the other half. A thing that is called by what
+      it was cannot go on being what it has been made into, which is why the
+      husks stop when you get it right and why nobody on the quay practises.
+
+  the_shore_bell:
+    min_tier: 3
+    text: >-
+      Cast on this quay, hung in a frame that has outlasted the men who set
+      it, and rung once in the year of the three tides. Whatever answered it
+      has been holding the interval ever since. A phrase left half-finished is
+      not silence. It is waiting.

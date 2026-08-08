@@ -19,11 +19,23 @@ export const initialState = {
 
   world: null, // to_client_dict payload
   phase: "dormant",
-  assistant: null, // {text, form, voice_style}
+  assistant: null, // {text, form, voice_style, portrait, trust, ...}
+  // Presence, not speech: survives a silent turn so the companion column is
+  // never blank. assistant.text is the transient line; this is who is there.
+  presence: null,
+  // Every form the companion has worn this run, oldest first. It changes form
+  // as it changes its mind about you, and nothing recorded that it had.
+  formHistory: [],
   dice: null, // transient toast
   sceneImage: "",
   cutscene: null,
   audio: "",
+
+  // The model thinking out loud, streamed on its own channel. Cleared when
+  // narration starts: once there are words the player can read, the machinery
+  // behind them stops being the most interesting thing on screen.
+  reasoning: "",
+  reasoningOpen: false,
 
   error: "",
   saves: [],
@@ -35,6 +47,24 @@ const newId = () => `e${nextId++}`;
 function append(state, kind, text) {
   if (!text) return state;
   return { ...state, log: [...state.log, { id: newId(), kind, text }] };
+}
+
+/**
+ * Append to the form history only when the form actually changed.
+ *
+ * The companion wears five faces and swaps between them as its trust and the
+ * world's awareness move. Nothing in the client ever recorded that it had, so
+ * a player who looked away missed the only tell the design gives them.
+ */
+function rememberForm(history, presence, world) {
+  const form = presence?.form;
+  if (!form) return history;
+  const last = history[history.length - 1];
+  if (last && last.form === form) return history;
+  return [
+    ...history,
+    { form, day: world?.world_day ?? 0, turn: world?.turn_number ?? 0, portrait: presence.portrait || "" },
+  ].slice(-8);
 }
 
 export function reducer(state, action) {
@@ -52,11 +82,31 @@ export function reducer(state, action) {
 
     case "SUBMIT": {
       const next = append(state, "player", action.text);
-      return { ...next, busy: true, dice: null, error: "" };
+      return {
+        ...next,
+        busy: true,
+        dice: null,
+        error: "",
+        // A new turn gets a fresh thinking panel. Keeping last turn's
+        // reasoning on screen while this turn deliberates is a lie about what
+        // the model is doing right now.
+        reasoning: "",
+        reasoningOpen: true,
+      };
     }
 
     case "SCREEN":
       return { ...state, screen: action.screen };
+
+    // Leaving a run. Without this the previous run's narrative log, choices,
+    // companion and scene still bled straight into the next one -- the old
+    // client had no way to leave a run at all, so nothing ever needed it.
+    case "RESET":
+      return { ...initialState, connected: state.connected, saves: state.saves };
+
+    // Client-only: the player collapsing or reopening the thinking panel.
+    case "REASONING_TOGGLE":
+      return { ...state, reasoningOpen: !state.reasoningOpen };
 
     case "SAVES":
       return { ...state, saves: action.saves };
@@ -85,9 +135,28 @@ function handleSocket(state, event, payload) {
         error: "",
       };
       if (opening.narration) next = append(next, "narration", opening.narration);
-      if (opening.choices) next = { ...next, choices: opening.choices };
+      // `opening.choices || []` and not `if (opening.choices)`: a resume used
+      // to arrive with no opening at all, and falling through left whatever
+      // stale choices the previous screen had.
+      next = { ...next, choices: opening.choices || [] };
       if (opening.scene_image) next = { ...next, sceneImage: opening.scene_image };
+      if (opening.assistant) {
+        next = {
+          ...next,
+          presence: opening.assistant,
+          formHistory: rememberForm(next.formHistory, opening.assistant, next.world),
+        };
+      }
       return next;
+    }
+
+    case "reasoning_delta": {
+      const text = typeof payload === "string" ? payload : payload.text;
+      if (!text) return state;
+      // Capped from the front. Reasoning is uncapped and ungrammared upstream;
+      // a model that spirals must not grow an unbounded string in the store.
+      const joined = (state.reasoning + text).slice(-6000);
+      return { ...state, reasoning: joined };
     }
 
     case "narration_delta": {
@@ -100,6 +169,9 @@ function handleSocket(state, event, payload) {
         return {
           ...state,
           streamingId: id,
+          // The thinking panel folds itself away the moment there are words to
+          // read. The text is kept, so the player can reopen it.
+          reasoningOpen: false,
           log: [...state.log, { id, kind: "narration", text, streaming: true }],
         };
       }
@@ -118,22 +190,51 @@ function handleSocket(state, event, payload) {
         ? "The Storyteller is unreachable — check LM Studio is running and its API key is set."
         : "";
       let next = { ...state, busy: false, error: outage };
+
+      // The server's narration is AUTHORITATIVE; the delta buffer is not.
+      //
+      // The old code only cleared the `streaming` flag and kept whatever text
+      // had accumulated. Three ways that lied to the player:
+      //
+      //  - The evaluator retry does not stream. On a retried turn the text on
+      //    screen is the REJECTED draft and the accepted narration arrives
+      //    only here, where it was being thrown away.
+      //  - A generation cut off at max_tokens streams a severed sentence; the
+      //    server trims it back to its last full stop and sends that.
+      //  - A delta lost to a reconnect mid-turn left a hole nothing repaired.
+      //
+      // Replacing is safe because the server streams exactly the text it later
+      // sends: on an ordinary turn this is a no-op.
       if (state.streamingId) {
+        const finalText = payload.narration || "";
         next.log = next.log.map((e) =>
-          e.id === state.streamingId ? { ...e, streaming: false } : e
+          e.id === state.streamingId
+            ? { ...e, streaming: false, text: finalText || e.text }
+            : e
+        );
+        // A turn that streamed nothing and resolved to nothing leaves an empty
+        // paragraph behind. Drop it rather than render a blank entry.
+        next.log = next.log.filter(
+          (e) => e.id !== state.streamingId || (e.text && e.text.trim())
         );
         next.streamingId = null;
-      }
-      // Only append when the text did NOT already arrive as deltas.
-      if (payload.narration && !payload.streamed) {
+      } else if (payload.narration) {
+        // Nothing streamed -- a non-streaming turn, or a generation that was
+        // starved before it produced a single token. Append it whole. This no
+        // longer consults `payload.streamed`: a starved first attempt sets that
+        // flag with no entry to attach to, and the turn silently vanished.
         next = append(next, "narration", payload.narration);
       }
+      const presence = payload.assistant || next.presence;
       return {
         ...next,
         choices: payload.choices || [],
         world: payload.state || next.world,
         phase: (payload.state && payload.state.evil_phase) || next.phase,
         saveId: payload.save_id || next.saveId,
+        presence,
+        formHistory: rememberForm(next.formHistory, presence, payload.state),
+        reasoningOpen: false,
       };
     }
 
@@ -141,7 +242,19 @@ function handleSocket(state, event, payload) {
       return { ...state, dice: { ...payload, at: Date.now() } };
 
     case "assistant_speak":
-      return { ...state, assistant: payload };
+      // Merge, never replace: the speak event is a line plus a few fields, and
+      // overwriting presence with it would drop trust and the awareness gates
+      // every time the companion opened its mouth.
+      return { ...state, assistant: payload, presence: { ...state.presence, ...payload } };
+
+    // Was in INBOUND with no reducer case at all, which made it a silent
+    // no-op AND suppressed the socket.onAny drift warning meant to catch it.
+    case "portrait_ready": {
+      if (!payload.url) return state;
+      if (payload.kind && payload.kind !== "assistant") return state;
+      const presence = { ...state.presence, portrait: payload.url, form: payload.form || state.presence?.form };
+      return { ...state, presence, formHistory: rememberForm(state.formHistory, presence, state.world) };
+    }
 
     case "image_ready":
       return payload.url ? { ...state, sceneImage: payload.url } : state;

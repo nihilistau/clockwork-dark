@@ -1,0 +1,123 @@
+# Version: v0.1.0 [2026-08-08]
+#
+# Ported from the source project's contracts.yaml (`still_the_carillon`, giver
+# npc_cael, kind anti_dark). The source had a one-line summary and a reward
+# block. What it needed to become a quest in this engine was stages with
+# engine-evaluable completion, which is the whole difference between content
+# that describes a thing and content that can happen.
+#
+# Every predicate below is one the engine already understands: at_location,
+# hour_between, has_item, flag. The model cannot argue the player was in the
+# choir loft in spirit.
+
+id: still_the_carillon
+arc: the_stilling
+name: "Still the Carillon"
+summary: >-
+  The organ in the Sunken Nave plays louder each tide. Cael wants the choir
+  loft reached at low water and its pipes stilled, and he will not come with
+  you, and he will tell you exactly why.
+
+preconditions:
+  all:
+    - min_awareness: 20
+    - arc_unlocked: the_stilling
+
+start_text: >-
+  Cael takes his hand off the bell rope and says the thing he has not said to
+  anyone in eleven years: that the Carillon answers bells, that it has been
+  holding one interval since the year of the three tides, and that he has kept
+  the coast alive by never once completing the phrase.
+
+stages:
+  - id: get_the_wax
+    objective: "Get a pair of wax earplugs from the Lamp House. Cael will not sell you the trip without them."
+    complete_when:
+      all:
+        - has_item: { id: wax_earplugs, qty: 1 }
+    complete_text: >-
+      He presses them into your palm and closes your fingers over them,
+      which is the most he has touched anybody in years.
+    on_complete:
+      effects:
+        - type: ledger_fact
+          kind: event
+          subject_id: npc_cael
+          text: "Cael gave up the wax and the reason for it: the Carillon answers bells."
+
+  - id: reach_the_nave
+    objective: "Get down the Wet Steps to the Sunken Nave."
+    complete_when:
+      all:
+        - at_location: sunken_nave
+    complete_text: >-
+      Knee-deep on a cathedral floor, with pipework in the far wall the size
+      of masts, and the drip coming back off the pillars in a chord.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 5
+        - type: stamina
+          delta: -12
+
+  - id: the_choir_loft
+    objective: "Reach the choir loft at low water. There is about an hour either side."
+    expires_after_days: 6
+    complete_when:
+      all:
+        - at_location: choir_loft
+        # Low water on this coast, per the tide table nailed to the
+        # notice-board post. The engine reads it as an hour range; the quay
+        # reads it as the only time anyone has ever come back up.
+        - hour_between: [4, 8]
+    fail_when:
+      any:
+        - max_awareness: 15
+    fail_text: >-
+      You stop hearing it. That should be a relief and it is not; the coast
+      goes on doing what it does and you have lost the thread of why it
+      mattered.
+    complete_text: >-
+      Salt-white stops and couplers, moving on their own, and the water two
+      feet under the gallery rail and climbing. This is the hour. There is
+      not another one today.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 8
+        - type: flag
+          flag: nf_reached_choir_loft
+          value: true
+
+  - id: still_the_pipes
+    objective: "Still the pipes. Damping cloth, or the Cantor's own fork, or the name of the thing keeping its time."
+    complete_when:
+      any:
+        - has_item: { id: tuning_fork, qty: 1 }
+        - has_item: { id: damping_cloth, qty: 1 }
+        - flag: nf_cantor_unmade
+    complete_text: >-
+      The note goes out of it. Not silence -- the sea is still the sea -- but
+      the organ stops keeping time, and for the length of one held breath the
+      whole coast is only weather.
+    on_complete:
+      effects:
+        - type: focus
+          delta: 3
+        - type: reputation
+          faction: bell_wardens
+          delta: 12
+        - type: reputation
+          faction: quayfolk
+          delta: 8
+        - type: ledger_fact
+          kind: engine
+          text: "The Carillon was stilled from the choir loft at low water, and the coast was only weather."
+
+on_complete:
+  effects:
+    - type: gold
+      delta: 10
+    - type: flag
+      flag: nf_carillon_stilled
+      value: true

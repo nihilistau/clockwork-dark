@@ -1,0 +1,274 @@
+# Coast Encounters -- the flats, the quay, and the top of the Wet Steps.
+#
+# Covers every dangerous edge in ring 0-2 of
+# games/drowned-carillon/data/world/locations.yaml, in both directions. An
+# edge with `danger_dc` above zero and nothing eligible to fire on it is a
+# dice roll that can never pay off; tests/test_games.py asserts the coverage
+# the same way the flagship game's suite does.
+#
+# Tone: maritime elegy. Most of these are not monsters either -- a gull that
+# rings, a net that comes up wrong, a woman standing in the water at the wrong
+# hour. The Ringing Gull is the ported bestiary's tier-1 foe and it is
+# deliberately a bird.
+#
+# Version: v0.1.0 [2026-08-08]
+
+band: coast
+
+encounters:
+
+  - id: ringing_gull_on_the_bar
+    tier: 1
+    weight: 30
+    triggers:
+      edges:
+        - "tide_flats>bellfounders_quay"
+        - "bellfounders_quay>tide_flats"
+    intro: >-
+      A gull comes off the bar ahead of you and makes a sound no gull makes:
+      one clean struck note, held, and then the ordinary shriek underneath it
+      as if it were embarrassed.
+    threat: { name: "A gull that rings", resolve: 3 }
+    approaches:
+      watch:
+        skill: survival
+        difficulty: easy
+        text: "Stand still and let it finish"
+      name_it:
+        skill: lore
+        difficulty: standard
+        text: "Work out what it has been standing near"
+      shout:
+        skill: nerve
+        difficulty: easy
+        text: "Shout at it until it is only a bird"
+    outcomes:
+      crit_success:
+        text: >-
+          It rings twice more and settles on a post, and you get a clear look
+          at its throat, which has a seam in it, and at the flats behind it,
+          which have a shape standing in the shallows a half-mile out.
+        effects:
+          - { type: awareness, delta: 4 }
+          - { type: focus, delta: 1 }
+          - type: ledger_fact
+            kind: engine
+            text: "A gull on the bar rang like a struck bell, and had a seam in its throat."
+      success:
+        text: >-
+          It rings once, thinks better of it, and goes back to being a gull.
+          You walk the rest of the bar listening harder than you meant to.
+        effects:
+          - { type: awareness, delta: 2 }
+      partial:
+        text: >-
+          You lose the light arguing with a bird. The water is over the low
+          bar by the time you are up on the granite.
+        effects:
+          - { type: stamina, delta: -10 }
+          - { type: awareness, delta: 1 }
+      failure:
+        text: >-
+          It follows you the whole way in, ringing, and by the quay steps
+          three more have joined it and they are ringing in a chord.
+        effects:
+          - { type: awareness, delta: 4 }
+          - { type: stamina, delta: -12 }
+
+  - id: the_net_that_came_up_wrong
+    tier: 1
+    weight: 22
+    triggers:
+      edges:
+        - "tide_flats>bellfounders_quay"
+        - "bellfounders_quay>tide_flats"
+      phases: [stirring, spreading, consuming]
+    intro: >-
+      Someone's set-net is standing proud of the water on the bar, and what is
+      in it is not fish. It is brass. Small pieces, hundreds, sorted by size
+      along the foot rope as neatly as a bench.
+    threat: { name: "A net full of sorted brass", resolve: 3 }
+    approaches:
+      sort_it:
+        skill: craft
+        difficulty: standard
+        text: "Read the sorting for what it means"
+      leave_it:
+        skill: nerve
+        difficulty: easy
+        text: "Cut the net free and let the tide have it"
+      salvage:
+        skill: survival
+        difficulty: hard
+        text: "Take what is worth taking"
+    outcomes:
+      crit_success:
+        text: >-
+          It is sorted by pitch. You do not know how you know that, and then
+          you do: you hummed while you looked, and the pieces answered in
+          order, low to high, along the rope.
+        effects:
+          - { type: awareness, delta: 5 }
+          - { type: item, item_id: salvaged_brass, name: "Salvaged chime-brass", qty: 2, tags: [material] }
+          - type: ledger_fact
+            kind: engine
+            text: "A set-net on the bar held brass sorted by pitch, low to high along the foot rope."
+      success:
+        text: >-
+          You get a double handful off the foot rope before the water comes
+          back over the bar, and you do not hum while you do it.
+        effects:
+          - { type: item, item_id: salvaged_brass, name: "Salvaged chime-brass", qty: 1, tags: [material] }
+          - { type: awareness, delta: 2 }
+      partial:
+        text: >-
+          The net is fast in the sand and the tide is not waiting for either
+          of you. You come away with cold hands and nothing in them.
+        effects:
+          - { type: stamina, delta: -12 }
+      failure:
+        text: >-
+          You are up to your waist and still working at it when you realise
+          the sorting has changed while you were in it.
+        effects:
+          - { type: awareness, delta: 5 }
+          - { type: stamina, delta: -18 }
+
+  - id: vesh_standing_in_the_water
+    tier: 2
+    weight: 20
+    once: true
+    triggers:
+      edges:
+        - "bellfounders_quay>wet_steps"
+        - "wet_steps>bellfounders_quay"
+    intro: >-
+      Salt-Widow Vesh is on the ninth step with the water at her knees and her
+      head tipped, listening the way a person listens for a name being called
+      in another room.
+    threat: { name: "Vesh, listening", resolve: 3 }
+    approaches:
+      speak:
+        skill: persuasion
+        difficulty: standard
+        text: "Say her name until she answers to it"
+      wait:
+        skill: nerve
+        difficulty: standard
+        text: "Stand where she can see you and say nothing"
+      hum:
+        skill: sympathy
+        difficulty: hard
+        text: "Hum the line she is listening for, badly, and on purpose"
+    outcomes:
+      crit_success:
+        text: >-
+          She comes up the steps on her own legs, furious and dry-eyed, and
+          tells you exactly which of the three it sounded like this time.
+          Grief tuned her; it also makes her the best warning bell on the coast.
+        effects:
+          - { type: reputation, faction: quayfolk, delta: 5 }
+          - { type: awareness, delta: 3 }
+          - type: ledger_fact
+            kind: event
+            subject_id: npc_vesh
+            text: "Vesh was on the ninth step at the water's knee, listening for a drowned husband."
+      success:
+        text: >-
+          She blinks, swears at you, and comes up. Neither of you mentions it
+          on the quay.
+        effects:
+          - { type: reputation, faction: quayfolk, delta: 3 }
+          - { type: awareness, delta: 1 }
+      partial:
+        text: >-
+          She comes up when the water reaches her waist and not one moment
+          sooner, and she does not thank you for waiting.
+        effects:
+          - { type: reputation, faction: quayfolk, delta: 1 }
+          - { type: stamina, delta: -8 }
+      failure:
+        text: >-
+          You get close enough to hear what she is hearing. It is somebody
+          saying your name in a voice you know, and it is coming from under
+          the step.
+        effects:
+          - { type: awareness, delta: 6 }
+          - type: check_penalty
+            text: "a voice you recognised"
+            delta: -2
+            skills: [nerve, sympathy]
+            days: 2
+
+  - id: chime_husk_on_the_steps
+    tier: 3
+    weight: 18
+    triggers:
+      edges:
+        - "bellfounders_quay>wet_steps"
+        - "wet_steps>bellfounders_quay"
+      phases: [spreading, consuming]
+    art: clockwork_thing
+    intro: >-
+      There is a fisher on the steps below you in oilskins gone green, working
+      at a line that is not there, and every motion of the arms produces a
+      note. It is keeping time. It has been keeping time for a while.
+    threat: { name: "A chime-husk that was a fisher", resolve: 6 }
+    approaches:
+      name_it:
+        skill: sympathy
+        difficulty: severe
+        text: "Name who it used to be, out loud, and hold the name"
+      slip_past:
+        skill: stealth
+        difficulty: hard
+        text: "Go down the wall side while it is on the upbeat"
+      break_it:
+        skill: nerve
+        difficulty: severe
+        text: "Put your shoulder into it and send it off the step"
+    outcomes:
+      crit_success:
+        text: >-
+          You get the name out and it stops on the beat, which is the first
+          silence on these steps in eleven years. Then it goes down into the
+          water on its own, unhurried, the way a man walks off a job he has
+          finished. Naming a thing is how you unmake it. Everyone on this
+          coast knows that and nobody says it.
+        effects:
+          - { type: awareness, delta: 6 }
+          - { type: focus, delta: 2 }
+          - { type: item, item_id: salvaged_brass, name: "Salvaged chime-brass", qty: 1, tags: [material] }
+          - type: ledger_fact
+            kind: engine
+            text: "A chime-husk on the Wet Steps stopped when it was named, and walked down into the water."
+      success:
+        text: >-
+          It loses the beat, finds it again a tone lower, and by then you are
+          past it and down.
+        effects:
+          - { type: awareness, delta: 4 }
+          - { type: stamina, delta: -10 }
+      partial:
+        text: >-
+          You get by. The tempo follows you down and does not stop when you
+          do, which is how you learn there is more than one of them.
+        effects:
+          - { type: awareness, delta: 5 }
+          - { type: stamina, delta: -15 }
+          - type: check_penalty
+            text: "the tempo you can still feel"
+            delta: -2
+            skills: [nerve, stealth]
+            days: 2
+      failure:
+        text: >-
+          It turns without turning, the way the sea turns, and the oilskin
+          hood has a face in it you last saw at a funeral you attended.
+        effects:
+          - { type: awareness, delta: 7 }
+          - { type: stamina, delta: -20 }
+          - type: wound
+            severity: 1
+            text: "a hand opened on green brass"
+            skills: [craft, stealth]

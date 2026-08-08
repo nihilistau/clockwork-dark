@@ -1,0 +1,54 @@
+# The Clockwork Dark -- the flagship game.
+#
+# Every path below is EXACTLY what config/default.yaml already declares, so
+# activating this game is a no-op merge. That is deliberate and it is the
+# compatibility bar: turning the engine into a multi-game engine must not move
+# a single content file, and the whole existing test suite must pass with this
+# manifest active.
+#
+# The content itself lives in data/ rather than games/clockwork-dark/data/ for
+# the same reason. Moving it would be a large, silent, entirely mechanical
+# change to every path in the repo, and it buys nothing the manifest does not
+# already buy -- a second game proves the seam works without the first one
+# having to move house.
+#
+# Version: v0.1.0 [2026-08-08]
+
+id: clockwork-dark
+title: "The Clockwork Dark"
+version: "0.2.0"
+engine_requires: ">=0.2.0"
+
+blurb: >-
+  A frontier village at the edge of a forest, and something patient and brass
+  working its way outward from the Wound. Become a hero or become a baker --
+  the evil ticks either way.
+
+paths:
+  saves: "data/saves"
+  lore: "data/lore"
+  lore_db: "data/lore/lore.db"
+  economy: "data/economy.yaml"
+  procgen_templates: "data/procgen_templates/edgewood.yaml"
+  world_schedules: "data/world/schedules.yaml"
+  npc_schedules: "data/world/npc_schedules.yaml"
+  factions: "data/world/factions.yaml"
+  world_rumors: "data/world/rumors.yaml"
+  comfyui_templates: "data/procgen_templates/comfyui.yaml"
+  art_subjects: "data/art/subjects.yaml"
+  art_manifest: "data/art/manifest.yaml"
+  rules: "data/rules"
+  tables: "data/tables"
+  quests: "data/quests"
+  locations: "data/world/locations.yaml"
+  assistant_hints: "data/assistant/hints.yaml"
+  items: "data/items"
+  recipes: "data/recipes"
+  encounters: "data/encounters"
+  doom_effects: "data/rules/doom_effects.yaml"
+  challenges: "data/challenges"
+
+entry:
+  # CLAUDE.md pins this id as canon. Do not rename it.
+  location_id: forest_clearing
+  archetypes: [wayfarer, hearthkeeper, tinker_apprentice]

@@ -1,0 +1,180 @@
+# Brass Coast procgen templates -- seeded quay + tide flats.
+#
+# Read by engine/game/procgen.py. Names, roles, buildings and counts are all
+# content; the generator is not.
+#
+# KNOWN ENGINE LIMIT, recorded here rather than hidden: engine/game/procgen.py
+# ::_build_forest hardcodes `location_id: "forest_clearing"` for forage nodes
+# and picks `leads_to` from the literal list
+# ["deeper_forest", "old_barrows", "herb_glen"]. Those are Edgewood ids, so on
+# this coast the generated forage nodes and hidden paths hang off places that
+# do not exist in this game's graph. Nothing crashes -- the ids are simply
+# never matched by anything -- but the feature is inert here until those two
+# lists become content. `forage_resources` and `barrow_names` below are
+# authored anyway, so that fix is a one-file change when it happens.
+#
+# Version: v0.1.0 [2026-08-08]
+
+counts:
+  buildings: 9
+  npcs: 7
+  procedural_npcs: 3
+  forage_nodes: 5
+  hidden_paths: 2
+
+# The day Vesh admits she is behind on the nets. Read by quest preconditions
+# via `procgen_day` in the flagship game; kept under the same key so the
+# predicate works identically here.
+bakery_job_day: 2
+
+canon_npcs:
+  - id: npc_cael
+    name: Brother Cael
+    role: lamp_keeper
+    location_id: lamp_house
+    traits: [quiet, scrupulous, haunted]
+  - id: npc_vesh
+    name: Salt-Widow Vesh
+    role: net_mender
+    location_id: net_lofts
+    traits: [blunt, grieving, unflinching]
+  - id: npc_halloran
+    name: Halloran of the Yard
+    role: bellfounder
+    location_id: bellfounders_quay
+    traits: [heavy, incurious, useful]
+  - id: npc_orsel
+    name: Orsel the Factor
+    role: factor
+    location_id: bellfounders_quay
+    traits: [brisk, sceptical, generous]
+  - id: npc_pell
+    name: Pell
+    role: dog
+    location_id: bellfounders_quay
+    traits: [silent, watchful, canine]
+
+canon_buildings:
+  - id: building_lamp_house
+    name: The Lamp House
+    type: chandlery
+    location_id: lamp_house
+  - id: building_net_lofts
+    name: The Net Lofts
+    type: workshop
+    location_id: net_lofts
+  - id: building_bell_frame
+    name: The Shore-Bell Frame
+    type: civic
+    location_id: bellfounders_quay
+  - id: building_notice_post
+    name: The Tarred Notice Post
+    type: civic
+    location_id: bellfounders_quay
+  - id: building_casting_yard
+    name: Halloran's Casting Yard
+    type: foundry
+    location_id: bellfounders_quay
+
+building_types:
+  - { type: chowder, prefix: "The", suffix: "Chowder Shed" }
+  - { type: cooper, prefix: "", suffix: "Cooper's Bench" }
+  - { type: sailmaker, prefix: "", suffix: "Sail Loft" }
+  - { type: smokehouse, prefix: "Low", suffix: "Smokehouse" }
+  - { type: saltworks, prefix: "", suffix: "Salt Pans" }
+  - { type: boatyard, prefix: "West", suffix: "Boatyard" }
+  - { type: ropewalk, prefix: "", suffix: "Ropewalk" }
+  - { type: chandler, prefix: "Old", suffix: "Chandlery" }
+  - { type: fish_shed, prefix: "", suffix: "Gutting Shed" }
+  - { type: winch, prefix: "Stone", suffix: "Winchhouse" }
+  - { type: almshouse, prefix: "", suffix: "Almshouse" }
+  - { type: boathouse, prefix: "Deep", suffix: "Boathouse" }
+  - { type: kiln, prefix: "Lime", suffix: "Kiln" }
+  - { type: washhouse, prefix: "Granite", suffix: "Washhouse" }
+  - { type: storehouse, prefix: "Tide", suffix: "Storehouse" }
+  - { type: scribe, prefix: "The", suffix: "Tally House" }
+
+villager_roles:
+  - fisher
+  - net_mender
+  - cooper
+  - salt_boiler
+  - boatwright
+
+trait_pool:
+  - weathered
+  - superstitious
+  - stubborn
+  - kind
+  - deaf in one ear
+  - never sings
+
+forage_resources:
+  - winkle
+  - dulse
+  - razor clam
+  - driftwood
+  - green brass
+
+barrow_names:
+  - The Bar Cairn
+  - Widow's Mark
+  - The Nine Stakes
+
+festival_names:
+  - The Blessing of the Bar
+  - Low Water Night
+  - The Naming of Boats
+
+festival_seasons:
+  - autumn
+  - winter
+
+mural_fragments:
+  - "a bell in a frame, with the rope drawn twice"
+  - "figures in two ranks, all with their mouths open"
+  - "water above a roofline, and the roofline is this one"
+
+name_given:
+  - Anwyl
+  - Bryn
+  - Cael
+  - Dellow
+  - Enid
+  - Fenner
+  - Gwilym
+  - Halloran
+  - Isa
+  - Jethro
+  - Kerrin
+  - Lowri
+  - Marek
+  - Nessa
+  - Orsel
+  - Pell
+  - Rhodri
+  - Seren
+  - Tam
+  - Vesh
+
+name_family:
+  - Bellow
+  - Corrie
+  - Drennan
+  - Ewart
+  - Fathom
+  - Garrow
+  - Halyard
+  - Ingle
+  - Kell
+  - Lugger
+  - Mordant
+  - Netherby
+  - Orme
+  - Pilchard
+  - Quarrel
+  - Rundle
+  - Scarrow
+  - Trant
+  - Vantry
+  - Wick

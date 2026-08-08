@@ -14,6 +14,50 @@
   --shadow-inset: inset 0 1px 2px rgba(29, 41, 29, 0.15);
   /* candlelight bloom — focus / active highlight */
   --glow-candle:  0 0 0 2px rgba(232, 196, 122, 0.5);
+  /* the soft outward halo, as opposed to the hard focus ring above */
+  --glow-select:  0 0 16px -4px rgba(214, 178, 108, 0.65);
+
+  /* ---- Depth ----
+     Ported from Design_files/ui_kits/clockwork-scene/GameScene.jsx. The app
+     shipped with --shadow-card on exactly one selector and nothing else, so
+     every panel was a flat fill inside a 1px hairline and the frame had no
+     inside and no outside. These are the layers that give it one.
+
+     They are built with color-mix against the semantic surfaces rather than
+     frozen hex, so [data-phase] carries the depth with it: CONSUMING is a
+     darker room than DORMANT, and the shadows have to know that. */
+
+  /* The whole play frame, seen from inside: corners fall away, the air in
+     front of the far wall is not quite clear. GameScene.jsx::Atmosphere. */
+  --shadow-atmosphere:
+    inset 0 0 220px 50px color-mix(in srgb, var(--surface-void) 74%, transparent);
+  --air-falloff: radial-gradient(
+    140% 120% at 50% -10%,
+    transparent 58%,
+    color-mix(in srgb, var(--surface-void) 55%, transparent)
+  );
+
+  /* The journal is the one lit thing on screen. This is the candle doing it. */
+  --bloom-journal: 0 0 100px -12px rgba(214, 178, 108, 0.16);
+
+  /* Page curvature: the log's own top and bottom edges roll into shadow. */
+  --shadow-log-inset:
+    inset 0 18px 26px -20px color-mix(in srgb, var(--surface-void) 78%, transparent),
+    inset 0 -18px 26px -20px color-mix(in srgb, var(--surface-void) 68%, transparent);
+
+  /* Side columns sit further from the candle than the page does. */
+  --shadow-edge-right: inset -18px 0 32px -26px var(--surface-void);
+  --shadow-edge-left:  inset 18px 0 32px -26px var(--surface-void);
+
+  /* Chrome bars are lit from their own edge and cast onto the frame. */
+  --gradient-chrome:    linear-gradient(180deg, var(--surface-chrome), var(--surface-chrome-lift));
+  --gradient-chrome-up: linear-gradient(0deg, var(--surface-chrome), var(--surface-chrome-lift));
+  --shadow-chrome:      0 2px 16px color-mix(in srgb, var(--surface-void) 70%, transparent);
+  --shadow-chrome-up:   0 -2px 16px color-mix(in srgb, var(--surface-void) 70%, transparent);
+
+  /* Cards lift off the page: a long, soft, almost-black drop. */
+  --shadow-plate: 0 14px 34px -16px color-mix(in srgb, var(--surface-void) 80%, transparent);
+  --gradient-card: linear-gradient(180deg, var(--surface-panel-lift), var(--surface-panel));
 
   /* ---- Motion ---- */
   --ease-quiet:   cubic-bezier(0.4, 0.0, 0.2, 1); /* @kind other */
@@ -23,18 +67,45 @@
   --dur-crossfade:400ms;  /* @kind other */
   --dur-toast:    1500ms; /* @kind other */
 
+  /* The dice rail. These MIRROR the constants in ui/src/parts/DiceToast.jsx --
+     the component owns when the face stops being a decoy and the CSS owns what
+     the die looks like while it is one, so if the two drift the die settles
+     visually before or after it settles truthfully. Kept side by side and
+     named the same on both ends so a change to one is an obvious prompt to
+     change the other. */
+  --dur-roll-tumble: 620ms; /* @kind other — TUMBLE_MS */
+  --dur-roll-settle: 420ms; /* @kind other */
+  --dur-roll-leave:  520ms; /* @kind other — LEAVE_MS */
+
   /* ---- Paper grain — kept faint; the system leans on smooth dark
      gradients + brass hairlines now, not heavy woodcut texture ---- */
   --grain-opacity: 0.3; /* @kind other */
   --texture-paper:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); /* @kind other */
 
-  /* ---- Tick divider — woodcut dash; corruption-gated dotted ---- */
+  /* ---- The tick — the brand's one ornament ----
+     Was drawn in --line-ink (#060807) against near-black surfaces, i.e.
+     invisible, and referenced by nothing. It is brass now, and it is what
+     every section rule in the product is made of. */
   --rule-tick: repeating-linear-gradient(
     90deg,
-    var(--line-ink) 0 6px,
+    var(--line-brass) 0 6px,
     transparent 6px 12px
   );
+
+  /* The full woodcut ornament — escapement teeth either side of a gear.
+     Design_files/assets/woodcut-divider.svg, shipped and never referenced.
+     Used as a MASK so it takes the phase's brass rather than the file's
+     baked #3d3d3d, and so it corrupts with everything else. */
+  --ornament-woodcut: url("/static/dist/woodcut-divider.svg");
+
+  /* ---- Corruption motifs ----
+     --corruption-reveal is set by all four blocks in phases.css and was read
+     by NOTHING: the "clockwork bleeds into the world as it rots" mechanic was
+     themed and never drawn. These are what it drives. Default 0 so a root
+     with no [data-phase] renders clean rather than unstyled. */
+  --corruption-reveal: 0; /* @kind other */
+  --motif-gear: url("/static/dist/gear-motif.svg");
 }
 
 @media (prefers-reduced-motion: reduce) {

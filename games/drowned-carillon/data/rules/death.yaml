@@ -1,0 +1,81 @@
+# Death Rules
+# ===========
+#
+# What happens when hp reaches the floor. Consumed by
+# engine/game/encounter.py::check_death.
+#
+# THE GAP THIS TABLE CLOSES: `stats.hp` had never been decremented by any code
+# path in this project's history, and `state.ended` had never been set to True
+# by anything. HP was a number on a sheet with no consequence attached.
+#
+# DESIGN.md § Open Questions settles the default: death is a SETBACK, not a
+# game over. You wake in Edgewood Square hours later, lighter of purse, stiff
+# with something that will take days to close -- and the evil has kept its own
+# hours the whole time you were down. Losing a save to a bad roll on a village
+# road would be the wrong kind of dark.
+
+version: 1
+
+# hp at or below this triggers the rules below.
+threshold: 0
+
+respawn:
+  location_id: edgewood_square
+
+  # Hours you are simply not present for. This is the real cost: the evil
+  # ticker, the calendar and every timed effect move without you.
+  hours: 10
+
+  # Targets, not deltas -- engine/game/encounter.py converts them. You come
+  # back alive but nowhere near whole.
+  hp_fraction: 0.35
+  stamina_fraction: 0.30
+
+  # Somebody carried you back, and somebody went through your pockets. Which
+  # of those two was the same person is not a question anyone answers.
+  gold_loss_fraction: 0.5
+  gold_loss_min: 1
+
+  # The lingering wound. Broad skill list on purpose: this is the one injury
+  # in the game that touches nearly everything you might try to do.
+  wound:
+    text: "the long ache of whatever put you down"
+    severity: 3
+    check_penalty: -2
+    skills: [craft, stealth, survival, nerve]
+    heals_on_day: "+5"
+
+  # Awareness is deliberately NOT changed. Being hurt does not make the thing
+  # in the field notice you less, and it should not make it notice you more
+  # either -- awareness is earned by what you go looking at.
+  effects:
+    # Hunger comes DOWN, not up. Starvation is a way to die, and adding hunger
+    # on respawn made that death unescapable: you woke at 35% hp, hungrier than
+    # you went down, and starved again within the hour, forever. Whoever put a
+    # blanket over you also got something into you. You are still hungry.
+    - type: hunger
+      delta: -45
+    - type: ledger_fact
+      kind: engine
+      text: "You were carried back into Edgewood Square with your boots dragging."
+
+  text: >-
+    You come to on the flagstones of Edgewood Square with a blanket over you
+    and no memory of the road between. Your purse is lighter. Nobody says who
+    found you.
+
+# ------------------------------------------------------------
+# The one true game over.
+# ------------------------------------------------------------
+#
+# state.ended is set here and nowhere else. It requires TWO deaths while the
+# world is already consuming -- the first marks you, the second finds nobody
+# left in Edgewood able to come out and fetch you. Reaching this takes an
+# endgame world and a second fatal mistake inside it, which is the only
+# situation in which "no more story" is an honest answer.
+terminal:
+  phases: [consuming]
+  flag: saints_marked_you
+  text: >-
+    Nobody comes. The square is quiet in the way a stopped mechanism is quiet,
+    and the blanket over you is the one they use for the ones who do not get up.

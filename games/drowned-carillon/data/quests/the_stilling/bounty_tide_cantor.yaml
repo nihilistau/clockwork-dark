@@ -1,0 +1,60 @@
+# Version: v0.1.0 [2026-08-08]
+#
+# Ported from the source project's contracts.yaml (`bounty_tide_cantor`,
+# giver noticeboard, kind bounty, min_awareness 20). Kept as a bounty: it is
+# posted by nobody in particular, it pays in coin and brass, and it can be
+# taken by a player who has no interest at all in what the Carillon is.
+
+id: bounty_tide_cantor
+arc: the_stilling
+name: "Bounty: The Tide-Cantor"
+summary: >-
+  A standing bounty, tarred to the notice-board post, for the brass-throated
+  thing that keeps the organ's time. Bring back its drowned tuning-fork.
+
+preconditions:
+  all:
+    - min_awareness: 20
+
+start_text: >-
+  The notice has been up long enough that the tar has gone matte. The hand is
+  not Cael's and not Halloran's, and nobody on the quay will say whose it is.
+
+stages:
+  - id: find_it
+    objective: "Get down to the loft stair, where the thing keeps its time."
+    complete_when:
+      all:
+        - at_location: sunken_nave
+    complete_text: >-
+      From the nave floor you can see the loft stair, and there is a shape on
+      it with one hand on the rail that has not moved since you came in.
+    on_complete:
+      effects:
+        - type: awareness
+          delta: 4
+
+  - id: take_the_fork
+    objective: "Come back up with the drowned tuning-fork."
+    complete_when:
+      all:
+        - has_item: { id: tuning_fork, qty: 1 }
+        - at_location: bellfounders_quay
+    complete_text: >-
+      You put it on the bollard by the post and three people who were not
+      there a moment ago are there.
+    on_complete:
+      effects:
+        - type: gold
+          delta: 14
+        - type: item
+          item_id: salvaged_brass
+          name: "Salvaged chime-brass"
+          qty: 1
+          tags: [material]
+        - type: reputation
+          faction: inland_factors
+          delta: 6
+        - type: ledger_fact
+          kind: engine
+          text: "The Tide-Cantor's fork was brought up onto the quay and laid on the bollard by the post."

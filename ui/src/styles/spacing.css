@@ -18,12 +18,76 @@
   --space-10: 2.5rem;  /* 40 */
   --space-12: 3rem;    /* 48 */
 
-  /* ---- Global frame columns (§3 layout) ---- */
-  --col-assistant: 200px;
-  --col-sheet:     220px;
-  --scene-min-w:   1280px;
-  --scene-min-h:   800px;
-  --visual-height: 38vh;   /* scene-visual share of frame */
+  /* ---- Global frame (§3 layout) ----
+     Every token below is REFERENCED by index.css. The previous set declared
+     --scene-min-w, --scene-min-h and --visual-height and then used none of
+     them, while index.css hand-typed `210px`, `230px` and `min(34vh, 320px)`
+     right beside them -- so the "design constants" and the shipped layout
+     disagreed and there was no way to tell which one was authoritative.
+     --scene-min-w / --scene-min-h are gone: a hard minimum window size is not
+     a thing this layout wants any more, it just fits. */
+  /* The three-column split, measured at 1366x768 (the reference window).
+     Before: assistant 200px = 14.64% · middle 882px = 64.57% · sheet 220px =
+     16.11%, the remaining 4.68% being the two gutters and the grid padding.
+     The middle was carrying two thirds of the window for a picture and a
+     paragraph while the two panels that hold the player's actual STATE --
+     the companion and the character sheet -- were narrow enough that every
+     hint wrapped to three lines and both columns scrolled.
+
+     After: 4.0% comes off EACH side of the middle and goes to the flank on
+     that side, so middle 64.57% -> 56.52%, assistant 14.64% -> 18.67%,
+     sheet 16.11% -> 20.13%. That is 255px and 275px at 1366.
+
+     vw rather than flat px so the ratio holds across desktop widths, with a
+     floor (never narrower than it was) and a ceiling (on an ultrawide the
+     flanks stop growing and the picture gets the rest -- 18.65% of 2560 is a
+     478px sidebar for a 4-line trust meter). */
+  --col-assistant: clamp(200px, 18.65vw, 288px);
+  --col-sheet:     clamp(220px, 20.10vw, 312px);
+
+  /* The companion portrait's height, decoupled from the column's width.
+     `.paint--portrait` is `aspect-ratio: 3/4`, so a wider column is a TALLER
+     plate: at 255px the frame wanted 305px instead of 212px and ate every
+     pixel the widening was supposed to buy. Capping the height means the
+     extra width is free -- the plate just goes from 3:4 to roughly square,
+     and `object-fit: cover` keeps the face centred. 27.5vh keeps today's
+     212px at 768 tall and shrinks it on a shorter window. */
+  --companion-plate-h:      clamp(8rem, 27.5vh, 13.25rem);
+  /* Open the disclosure and the portrait is no longer the subject of the
+     panel -- the seals and the faces are. It folds into a header thumbnail
+     beside the name and the trust meter, and this is its floor. */
+  --companion-plate-h-open: clamp(4rem, 9vh, 5.5rem);
+
+  /* One bar height for BOTH ends of the frame. The old chrome ran a ~46px
+     header over a ~68px footer (six 44px icon buttons plus padding) and read
+     visibly lopsided. */
+  --chrome-h:      3.5rem;   /* 56 */
+
+  /* The main column's 60/40 split, expressed as grid tracks the browser
+     enforces. It used to be a pixel height with a `min()` cap that bit on
+     every desktop, plus `flex: none` so the still could never grow -- the
+     measured result was 39/61, the exact inverse of the intent. */
+  --row-visual:    6fr;
+  --row-log:       4fr;
+
+  /* Floors. Both rows are flexible, so both need a bottom stop: without them
+     a wrapping choice list squeezed the narrative log toward zero (measured
+     ~122px at 1366x768 -- three lines of prose). */
+  --visual-height: 12vh;     /* below this the still stops reading as an image */
+  --log-min:       7rem;     /* 112 -- the log can never starve to nothing */
+
+  /* Overlay cards cap here rather than at their own max-content height. */
+  --overlay-max-h: 54rem;    /* 864 */
+
+  /* ---- the dice rail ----
+     Clear of the two chrome bars and inside the scene still, which is the one
+     region on the play screen that can afford to be covered: the narration and
+     the choices below it cannot. Three cards at ~5rem plus gaps is ~16rem, so
+     the rail bottoms out around 23rem -- still inside the still at 768 tall. */
+  --rolls-top:  calc(var(--chrome-h) + 3.25rem);
+  --rolls-w:    26rem;   /* 416 */
+  --rolls-max-h: 24rem;  /* hard stop: never reaches the narrative log */
+  --die-size:   4.5rem;  /* 72 — the painted face, at a size its numeral reads */
 
   /* ---- Radii — restrained, not bubbly ---- */
   --radius-none: 0;

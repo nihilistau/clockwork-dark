@@ -1,0 +1,87 @@
+# The Drowned Carillon -- the second game.
+#
+# This exists to prove one claim: the engine is story-agnostic. Every path
+# below points inside games/drowned-carillon/, and not one line of engine/
+# was edited to make this coast playable.
+#
+# WHAT IS NOT OVERRIDDEN, AND WHY:
+#   rules/skills.yaml, rules/survival.yaml, rules/death.yaml are copied
+#     verbatim from the flagship game. They are mechanics -- difficulty bands,
+#     stat modifiers, starvation curves -- not story, and copying rather than
+#     inheriting keeps the game self-contained so a change to Edgewood's
+#     balance cannot silently reach this coast. rules/archetypes.yaml IS this
+#     game's own; the three silhouettes here are net-mender, lamp-keeper and
+#     bell-founder.
+#   art_manifest is NOT declared. This game ships no art pack, so it falls
+#     through to the flagship's shipped-art lookup, misses, and lands on the
+#     procedural silhouette provider -- which is the correct degradation and
+#     requires no code. A manifest with no files behind it would be a list of
+#     broken paths, and tests/test_content_integrity.py would rightly fail it.
+#   art_subjects IS declared, as of v0.1.1. Shipping no pack was correct;
+#     shipping no PROMPTS meant the degradation was permanent -- there was no
+#     way to generate a coast, for either backend, because nobody had written
+#     down what the coast looks like. The subjects file describes every
+#     location, NPC, item and the three clockwork enemy ids these encounters
+#     borrow from Edgewood, in the same one-source/two-dialect form
+#     engine/media/art.py renders for the flagship. It overrides the style
+#     block: this coast is salt and verdigris, not forest earth.
+#
+# THE EVIL-PHASE IDS ARE THE ENGINE'S. GameState pins dormant / stirring /
+# spreading / consuming, and every `phases:` trigger in this game's content
+# uses them. The four marks cut into the notice-board post -- low water,
+# spring tide, flood mark, full chime -- are the diegetic names for the same
+# four states, and they live in prose (data/lore/the_receding_tide.md) where
+# names belong. Renaming an engine enum to match a story would be exactly the
+# coupling this package exists to remove.
+#
+# Version: v0.1.1 [2026-08-08]
+
+id: drowned-carillon
+title: "The Drowned Carillon"
+version: "0.1.1"
+engine_requires: ">=0.2.0"
+
+blurb: >-
+  A cathedral organ under the Brass Coast, played by the tide and answering a
+  bell that was rung eleven years ago. It does not drown people. It tunes
+  them. Mend nets and sell brass, or go down the Wet Steps at low water.
+
+paths:
+  saves: "data/saves"
+  lore: "games/drowned-carillon/data/lore"
+  lore_db: "games/drowned-carillon/data/lore/lore.db"
+  economy: "games/drowned-carillon/data/economy.yaml"
+  procgen_templates: "games/drowned-carillon/data/procgen_templates/brass_coast.yaml"
+  world_schedules: "games/drowned-carillon/data/world/schedules.yaml"
+  npc_schedules: "games/drowned-carillon/data/world/npc_schedules.yaml"
+  factions: "games/drowned-carillon/data/world/factions.yaml"
+  world_rumors: "games/drowned-carillon/data/world/rumors.yaml"
+  art_subjects: "games/drowned-carillon/data/art/subjects.yaml"
+  rules: "games/drowned-carillon/data/rules"
+  # This coast's own boons, complications, forage yields, labour and trade.
+  # engine/game/checks.py hardcoded `data/tables/` until v0.2.0, so a nat 20
+  # down the Wet Steps used to hand the player an Edgewood forest boon.
+  tables: "games/drowned-carillon/data/tables"
+  quests: "games/drowned-carillon/data/quests"
+  locations: "games/drowned-carillon/data/world/locations.yaml"
+  assistant_hints: "games/drowned-carillon/data/assistant/hints.yaml"
+  items: "games/drowned-carillon/data/items"
+  recipes: "games/drowned-carillon/data/recipes"
+  encounters: "games/drowned-carillon/data/encounters"
+  # Both are empty tables. Declared rather than omitted so this game cannot
+  # inherit Edgewood's doom beats and set-pieces -- see the comments in those
+  # files.
+  doom_effects: "games/drowned-carillon/data/rules/doom_effects.yaml"
+  challenges: "games/drowned-carillon/data/challenges"
+
+entry:
+  location_id: bellfounders_quay
+  archetypes: [net_mender, lamp_keeper, bell_founder]
+
+# Not read by the engine. Carried through GET /api/games so a picker can show
+# a story its own vocabulary without the engine having to learn it.
+phase_names:
+  dormant: "low water"
+  stirring: "spring tide"
+  spreading: "flood mark"
+  consuming: "full chime"

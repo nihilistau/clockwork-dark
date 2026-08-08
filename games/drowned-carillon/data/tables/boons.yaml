@@ -1,0 +1,97 @@
+# Natural 20 boons (d20) on the Brass Coast — the engine picks one; the LLM
+# narrates it only.
+#
+# WHY THIS FILE EXISTS AT ALL: until v0.2.0 of engine/game/checks.py the boon
+# and complication loader hardcoded ``data/tables/``, so a nat 20 on this coast
+# handed the player an Edgewood forest boon -- a ring of good mushrooms, a
+# spring running clear -- three hundred miles from any forest. The loader now
+# resolves through ``paths.tables`` and this is what it finds.
+#
+# Same schema as the flagship game's data/tables/boons.yaml:
+#   id          stable identifier; never renamed (receipts and saves cite it)
+#   text        one line of consequence, past tense, no dice talk
+#   applies_to  optional skill filter; omit for any skill
+#   effects     list of effect dicts for engine/game/effects.py
+#
+# Tone: the sea is not on your side, it is merely not against you this once.
+#
+# Version: v0.1.0 [2026-08-08]
+
+boons:
+
+  - id: clean_water_run
+    text: "It goes the way you planned, and the tide gives you the time back."
+    effects:
+      - { type: stamina, delta: 5 }
+
+  - id: the_note_holds
+    text: "The note in the back of your teeth steadies, and so do you."
+    effects:
+      - { type: check_penalty, delta: 1, days: 1, text: "steady against the chime" }
+
+  - id: sea_legs
+    text: "Your feet find the rhythm of the wet stone and stop arguing with it."
+    effects:
+      - { type: stamina, delta: 20 }
+
+  - id: low_water_luck
+    applies_to: [survival]
+    text: "The tide is further out than the marks say, and it stays out."
+    effects:
+      - { type: item, item_id: razor_clams, name: "String of razor clams", qty: 2, tags: [food] }
+      - { type: item, item_id: winkles, name: "Bag of winkles", qty: 2, tags: [food] }
+
+  - id: something_in_the_wrack
+    applies_to: [survival, lore]
+    text: "The wrack line has been turned over by the sea and left facing up."
+    effects:
+      - { type: item, item_id: green_brass, name: "Lump of green brass", qty: 1, tags: [material, trade] }
+
+  - id: dry_kindling
+    applies_to: [survival, craft]
+    text: "Somebody's woodpile has been above the waterline all winter."
+    effects:
+      - { type: item, item_id: driftwood, name: "Armful of driftwood", qty: 2, tags: [material] }
+
+  - id: the_quay_notices
+    applies_to: [persuasion, sympathy]
+    text: "Three people see you do it and two of them are the ones who talk."
+    effects:
+      - { type: reputation, faction: quayfolk, delta: 4 }
+
+  - id: wardens_nod
+    applies_to: [nerve, lore]
+    text: "One of the bell wardens watches the whole thing and says nothing, which from a warden is a great deal."
+    effects:
+      - { type: reputation, faction: bell_wardens, delta: 3 }
+
+  - id: a_factors_respect
+    applies_to: [persuasion, craft]
+    text: "The factor writes something next to your name instead of under it."
+    effects:
+      - { type: reputation, faction: inland_factors, delta: 3 }
+
+  - id: the_oil_stretches
+    applies_to: [craft, lore]
+    text: "The jar is heavier than it has any right to be."
+    effects:
+      - { type: item, item_id: lamp_oil, name: "Jar of lamp oil", qty: 1, tags: [tool, trade] }
+
+  - id: unbroken_line
+    applies_to: [craft, stealth]
+    text: "Not one strand parts. You have not had a day like this in a year."
+    effects:
+      - { type: item, item_id: net_twine, name: "Hank of net twine", qty: 3, tags: [material, trade] }
+
+  - id: the_water_forgets_you
+    applies_to: [stealth]
+    text: "Whatever is listening down there listens somewhere else for a while."
+    effects:
+      - { type: awareness, delta: -3 }
+      - { type: ledger_fact, text: "Went unnoticed by the thing in the nave.", kind: engine }
+
+  - id: an_hour_you_did_not_expect
+    text: "The work is done and the light is still good."
+    effects:
+      - { type: stamina, delta: 10 }
+      - { type: ledger_fact, text: "Finished early, for once.", kind: engine }

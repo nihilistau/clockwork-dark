@@ -12,8 +12,17 @@ import useFocusTrap from "../hooks/useFocusTrap.js";
 export default function Modal({ title, onClose, children, footer, wide = false }) {
   const ref = useFocusTrap(onClose);
 
+  // Clicking the backdrop closes, which is what every player already expects
+  // and what the overlay previously did not do -- only Esc and the ✕ worked.
+  // It fires on the backdrop element itself only, so a click that started
+  // inside the card and drifted out (selecting text, dragging a scrollbar)
+  // does not dismiss the dialog under the player's hand.
+  function onBackdrop(event) {
+    if (event.target === event.currentTarget) onClose();
+  }
+
   return (
-    <div className="overlay">
+    <div className="overlay" onMouseDown={onBackdrop}>
       <div
         className={`overlay__card ${wide ? "overlay__card--wide" : ""}`}
         ref={ref}

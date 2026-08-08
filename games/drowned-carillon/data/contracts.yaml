@@ -1,0 +1,32 @@
+# Notice-board & character contracts — The Drowned Carillon. Same schema as
+# data/contracts.yaml; consumed by the unchanged engine ContractBoard
+# (engine/game/contracts.py). The player may take none and simply mend nets.
+#
+# Fields: title, giver, kind (anti_dark|mundane|bounty), summary, location,
+# optional min_phase / min_awareness gates, reward (gold, engagement, awareness,
+# hp, item{id,name}, reputation{npc:amt}).
+
+still_the_carillon:
+  title: "Still the Carillon"
+  giver: npc_cael
+  kind: anti_dark
+  summary: "Pinned by the unrung bell: the organ in the Sunken Nave plays louder each tide. Reach the choir-loft at low water and still its pipes."
+  location: bellfounders_quay
+  reward: { gold: 10, engagement: 12, reputation: { npc_cael: 2 } }
+
+carry_the_lamp_oil:
+  title: "Carry the Lamp Oil"
+  giver: npc_vesh
+  kind: mundane
+  summary: "Vesh needs the season's lamp oil carried up to the head of the quay before the grey afternoon, without humming on the steps."
+  location: bellfounders_quay
+  reward: { gold: 3, reputation: { npc_vesh: 2 } }
+
+bounty_tide_cantor:
+  title: "Bounty: The Tide-Cantor"
+  giver: noticeboard
+  kind: bounty
+  summary: "A standing bounty for the brass-throated thing that keeps the organ's time in the Sunken Nave. Bring back its drowned tuning-fork."
+  location: bellfounders_quay
+  min_awareness: 20
+  reward: { gold: 14, engagement: 8, item: { id: salvaged_brass, name: Salvaged Chime-Brass } }

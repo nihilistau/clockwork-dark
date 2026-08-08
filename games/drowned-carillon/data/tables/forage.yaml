@@ -1,0 +1,120 @@
+# Foraging the Brass Coast — what low water leaves behind.
+#
+# The coast's answer to the same problem the flagship game had: the only food
+# with a repeatable source was food with a price, and a broke player starved
+# on a schedule they could not answer. Here the answer is the tide, which is
+# free, poor, twice a day, and taken from a place that is listening.
+#
+# WHAT IS DIFFERENT FROM EDGEWOOD, and why:
+#   - the season order is the coast's, not the inland year. `storms` is the
+#     bad month rather than winter, and it is worse than Edgewood's winter
+#     because a flat you cannot stand on gives nothing at all.
+#   - `drowned` is a forageable tag. Working the nave for brass is the best
+#     paid ground on the coast and the reason the Wet Steps exist.
+#   - the evil phase penalty is steeper. When the Carillon is at full chime
+#     the flats are not a place a person can concentrate.
+#
+# Same schema as data/tables/forage.yaml. Consumed by engine/game/foraging.py
+# through paths.tables.
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+
+forage:
+  skill: survival
+  hours: 2.0
+  stamina_cost: 6
+
+  location_tags: [tidal, wild, drowned]
+
+  bands:
+    - { upto: 8,  band: trivial }
+    - { upto: 11, band: easy }
+    - { upto: 14, band: standard }
+    - { band: hard }
+
+  picks:
+    crit_success: 4
+    success: 3
+    partial: 2
+    failure: 0
+
+  uncommon:
+    degrees: [crit_success, success]
+    chance: { crit_success: 0.85, success: 0.30 }
+
+  depletion:
+    yield_step: 0.68
+    yield_floor: 0.34
+    dc_step: 1
+    dc_cap: 5
+    # Ground forgets you overnight -- see the long note on `recovery_days` in
+    # data/tables/forage.yaml. On this coast the fiction is easier: two tides
+    # a day do the work.
+    recovery_days: 1
+
+  season:
+    days_each: 30
+    order: [spring_tides, long_light, storms, neaps]
+    modifiers:
+      spring_tides: { check: 2,  yield: 1.4, label: "the spring tides" }
+      long_light:   { check: 1,  yield: 1.2, label: "the long light" }
+      storms:       { check: -4, yield: 0.5, label: "the storm months" }
+      neaps:        { check: 0,  yield: 1.0, label: "the neaps" }
+
+  # Desperation. See the note in data/tables/forage.yaml -- a penalty on the
+  # only unpaid food source is a spiral with no exit.
+  hunger:
+    fed: 0
+    peckish: 0
+    hungry: 1
+    starving: 3
+
+  time_of_day:
+    dawn: 1
+    day: 0
+    dusk: -1
+    night: -3
+
+  evil_phase:
+    dormant: 0
+    stirring: 0
+    spreading: -2
+    consuming: -4
+
+tables:
+
+  - id: the_flats
+    label: "the wrack line and the lower rocks"
+    tags: [tidal, wild]
+    common:
+      - { item_id: winkles,      weight: 30, qty: [1, 3] }
+      - { item_id: dulse,        weight: 24, qty: [1, 2], seasons: [spring_tides, long_light, neaps] }
+      - { item_id: razor_clams,  weight: 18, qty: [1, 2], seasons: [spring_tides, neaps] }
+      - { item_id: driftwood,    weight: 22, qty: [1, 1] }
+      - { item_id: gull_eggs,    weight: 12, qty: [1, 1], seasons: [long_light] }
+      # Storm months strip the flats. Something has to remain edible, or the
+      # season is a thirty-day locked door rather than a bad month.
+      - { item_id: salt_fish,    weight: 10, qty: [1, 1], seasons: [storms] }
+    uncommon:
+      - { item_id: green_brass,     weight: 24, qty: [1, 1] }
+      - { item_id: net_twine,       weight: 20, qty: [1, 2] }
+      - { item_id: lamp_oil,        weight: 10, qty: [1, 1] }
+      - { item_id: beeswax,         weight: 10, qty: [1, 1] }
+      - { item_id: net_needle,      weight: 8,  qty: [1, 1] }
+      - { item_id: salvaged_brass,  weight: 8,  qty: [1, 1] }
+
+  - id: the_drowned_ground
+    label: "what the nave has been keeping"
+    tags: [drowned]
+    common:
+      - { item_id: green_brass,    weight: 34, qty: [1, 2] }
+      - { item_id: driftwood,      weight: 18, qty: [1, 1] }
+      - { item_id: net_twine,      weight: 14, qty: [1, 1] }
+      - { item_id: winkles,        weight: 14, qty: [1, 2] }
+    uncommon:
+      - { item_id: salvaged_brass, weight: 30, qty: [1, 2] }
+      - { item_id: brass_quill,    weight: 14, qty: [1, 1] }
+      - { item_id: damping_cloth,  weight: 6,  qty: [1, 1] }
+      - { item_id: storm_lantern,  weight: 4,  qty: [1, 1] }

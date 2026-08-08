@@ -41,24 +41,40 @@ function completedPrefix(text) {
   return text.slice(0, end);
 }
 
+/** Length of the longest shared prefix of two strings. */
+function commonPrefix(a, b) {
+  const limit = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < limit && a[i] === b[i]) i += 1;
+  return i;
+}
+
 function useSentenceAnnouncer(entries) {
   const [announcement, setAnnouncement] = useState("");
-  const cursor = useRef({ id: null, at: 0 });
+  const cursor = useRef({ id: null, said: "" });
 
   const last = entries.length ? entries[entries.length - 1] : null;
   const text = last && last.kind === "narration" ? last.text : "";
 
   useEffect(() => {
     if (!last || last.kind !== "narration") return;
-    if (cursor.current.id !== last.id) cursor.current = { id: last.id, at: 0 };
+    if (cursor.current.id !== last.id) cursor.current = { id: last.id, said: "" };
 
     // While streaming, only whole sentences are safe to speak. Once the entry
     // is closed the remainder is final, however it is punctuated.
     const ready = last.streaming ? completedPrefix(text) : text;
-    if (ready.length <= cursor.current.at) return;
 
-    const fresh = ready.slice(cursor.current.at).trim();
-    cursor.current.at = ready.length;
+    // The announced prefix is tracked as TEXT, not as a length. `turn_update`
+    // replaces the streamed text with the server's authoritative narration --
+    // on a retried or trimmed turn that is a different string, and a numeric
+    // cursor would either re-read the paragraph from the top or, when the
+    // corrected text is shorter, announce nothing at all and leave the reader
+    // believing the severed draft was the ending.
+    const shared = commonPrefix(cursor.current.said, ready);
+    if (shared === ready.length && ready.length <= cursor.current.said.length) return;
+
+    const fresh = ready.slice(shared).trim();
+    cursor.current.said = ready;
     if (fresh) setAnnouncement(fresh);
   }, [last, text]);
 

@@ -16,25 +16,30 @@
   --corruption:    #7a9e4f; /* sickly green — use sparingly */
   --blood-quiet:   #6b2d2d; /* combat, injury (muted) */
 
-  /* ---- Extended ramp (derived, for depth & states) ---- */
+  /* ---- Extended ramp (derived, for depth & states) ----
+     The five duplicated literals below now POINT at the canon primitives above
+     instead of restating their hex. They were byte-identical pairs
+     (--forest-700/--forest-deep, --linen-200/--linen, --tallow-500/--tallow,
+     --iron-700/--iron, --rust-500/--rust-clock), which meant a change to the
+     canon colour silently failed to reach half the ramp. */
   --forest-900:    #1d291d;
-  --forest-700:    #2c3e2c;
+  --forest-700:    var(--forest-deep);
   --forest-500:    #3f5740;
   --moss-600:      #586a4d;
   --moss-400:      #84977a;
   --linen-100:     #faf4e8;
-  --linen-200:     #f2e8d5;
+  --linen-200:     var(--linen);
   --linen-300:     #e8dfd0; /* parchment, stats panel */
   --linen-400:     #d9cdb4;
   --tallow-300:    #f0d9a3;
-  --tallow-500:    #e8c47a;
+  --tallow-500:    var(--tallow);
   --tallow-700:    #c79a4a;
   --iron-900:      #2a2a2a;
-  --iron-700:      #3d3d3d;
+  --iron-700:      var(--iron);
   --iron-500:      #5a5a57;
   --iron-300:      #8a8782;
   --rust-700:      #6f3710;
-  --rust-500:      #8b4513;
+  --rust-500:      var(--rust-clock);
   --rust-300:      #a9683a;
 
   /* ---- Semantic aliases (Ash & Thorn dark · tinker-brass accent) ----
@@ -69,10 +74,129 @@
 
   --accent-candle:      #d6b26c;             /* primary highlight — muted brass-amber */
   --accent-brass:       #b8863f;             /* tinker / clockwork */
-  --accent-moss:        #4a5a44;             /* deep, desaturated */
+  --accent-moss:        var(--moss-600);     /* a thing that went right */
 
-  --status-danger:      #7a2f2a;             /* combat / injury */
+  --status-danger:      var(--blood-quiet);  /* combat / injury */
   --status-corruption:  var(--corruption);   /* the wrongness (gated) */
 
-  --focus-ring:         #c79a4a;
+  --focus-ring:         var(--tallow-700);
+
+  /* ---- Ledger & display text ----
+     GameScene.jsx prints stat values in --linen-200 and inventory lines in
+     --linen-300: the sheet is PAPER, and paper is the one bright surface this
+     palette owns. The app printed all of it in --text-on-dark, so the entire
+     linen ramp was dead and the ledger column had no material. */
+  --text-display:       var(--linen-100);    /* serif screen titles */
+  --text-stat:          var(--linen-200);    /* the numbers on the sheet */
+  --text-ledger:        var(--linen-300);    /* inventory, carried things */
+  --text-parchment:     var(--linen-400);    /* mono tables, road costs */
+  --text-smallcaps:     var(--tallow-300);   /* panel headings */
+  --text-disabled:      var(--iron-500);
+
+  /* ---- Structural lines ----
+     PaintFrame.jsx frames its stills in --iron-900, not a brass hairline: a
+     painting has a dark edge or it floats. */
+  --line-iron:          var(--iron-900);
+  --line-rust-deep:     var(--rust-700);     /* the player's own margin mark */
+
+  /* ---- Evil phase ----
+     The phase has retinted the entire product since the phase themes landed
+     and was never written down anywhere the player could see it. Now that it
+     is on screen it needs its own four-step ramp: calm moss, brass warming,
+     the sickness arriving, the sickness winning. These are deliberately NOT
+     --accent-candle, which is itself retinted per phase -- a phase indicator
+     that changes colour for reasons other than the phase is not an indicator. */
+  --phase-dormant:      var(--moss-400);
+  --phase-stirring:     var(--tallow-500);
+  --phase-spreading:    var(--corruption);
+  --phase-consuming:    #b4d16f;
+
+  /* ---- Ring labels ----
+     One colour per ring of the map, so "Edgewood" and "The Marches" are not
+     the same brass word twenty times. */
+  --ring0-label:        var(--moss-light);
+  --ring1-label:        var(--tallow-300);
+  --ring2-label:        var(--iron-300);
+  --ring3-label:        var(--rust-300);
+
+  /* ---- Ring palettes (§ Setting: concentric rings) ----
+     data/world/locations.yaml tags all twenty places with a `ring`, and the
+     UI never used it for anything but a caption. It is the strongest signal
+     the map has: how far in are we. Each ring gets its own TEMPERATURE, so a
+     place reads as forest / village / marches / frontier before you read its
+     name.
+
+     Before this, SceneVisual carried five hardcoded washes for twenty
+     locations -- fifteen places fell through to the same forest green.
+
+     Four stops, not two. `shade -> mid -> lift -> edge` is a sky, a middle
+     distance, a lit ground and the near edge catching it; three of those are
+     what a two-stop wash cannot draw, which is why the old five looked like
+     coloured fog. The range has to be wide or the vignette and the mist band
+     close it back up and every tile goes black again. */
+  --ring0-shade:  #0b1210;  /* Deep Forest — cold moss under closed canopy */
+  --ring0-mid:    var(--forest-900);
+  --ring0-lift:   var(--forest-500);
+  --ring0-edge:   #5d7a4f;
+
+  --ring1-shade:  #14100a;  /* Edgewood — hearth ember, bread and tallow */
+  --ring1-mid:    #2e2214;
+  --ring1-lift:   #5c4423;
+  --ring1-edge:   #8a6535;
+
+  --ring2-shade:  #0c1013;  /* The Marches — wet slate, militia, rain */
+  --ring2-mid:    #1d242c;
+  --ring2-lift:   #43515f;
+  --ring2-edge:   #6a7a89;
+
+  --ring3-shade:  #120c0b;  /* The Heartland Road — old blood, the Wound */
+  --ring3-mid:    #2b1815;
+  --ring3-lift:   #5d3025;
+  --ring3-edge:   #8a4c37;
+
+  /* ---- Place characters ----
+     The second axis. Ring says how far in; character says what the place IS,
+     and it is what keeps two Edgewood interiors from painting identically.
+     These are the bloom colour dropped over the ring gradient, so they are
+     deliberately translucent — a wash, never a fill.
+
+     Six of the eight are the canon ramp at low alpha, so the washes are the
+     same paint as the rest of the product. The two exceptions are noted:
+     the ramp is entirely warm-to-neutral and has no cold light in it. */
+  --char-wild:    color-mix(in srgb, var(--moss-light) 48%, transparent);
+  --char-hearth:  color-mix(in srgb, var(--rust-300) 72%, transparent);
+  --char-trade:   color-mix(in srgb, var(--tallow-500) 58%, transparent);
+  --char-stone:   color-mix(in srgb, var(--iron-300) 58%, transparent);
+  --char-ruin:    color-mix(in srgb, var(--blood-quiet) 78%, transparent);
+  --char-sacred:  color-mix(in srgb, var(--tallow-300) 62%, transparent);
+  --char-under:   rgba(102, 74, 140, 0.54);   /* no sky at all — not in ramp */
+  --char-water:   rgba(112, 178, 188, 0.46); /* mill race, well — not in ramp */
+
+  /* ---- Derived surfaces (phase-reactive) ----
+     color-mix keeps these tied to the semantic aliases, so [data-phase]
+     retints them for free. A flat hex here would freeze the chrome in the
+     DORMANT palette while the rest of the product went wrong. */
+  --surface-chrome-lift: color-mix(in srgb, var(--surface-chrome) 84%, var(--text-on-dark));
+  --surface-panel-lift:  color-mix(in srgb, var(--surface-panel) 88%, var(--text-on-dark));
+  --surface-card-lift:   color-mix(in srgb, var(--surface-card) 84%, var(--text-on-dark));
+  --surface-void:        color-mix(in srgb, var(--surface-scene) 92%, black);
+
+  /* ---- Interaction states ----
+     `filter: brightness(0.92)` on --surface-card resolved to a two-value
+     change per channel. On a real monitor that is nothing. Selection and
+     hover are now a brass FILL plus a brass EDGE, which is what the
+     reference kit does and what a player can actually see. */
+  --state-hover-fill:    rgba(214, 178, 108, 0.09);
+  --state-active-fill:   rgba(214, 178, 108, 0.16);
+  --state-select-fill:   rgba(214, 178, 108, 0.14);
+
+  /* ---- Outcome colours ----
+     .dice__roll and .dice__outcome had no CSS at all: a success and a failure
+     printed in the same inherited body colour. */
+  --outcome-success:     #9ec46a;
+  --outcome-success-dim: rgba(158, 196, 106, 0.13);
+  --outcome-failure:     #c9776a;
+  --outcome-failure-dim: rgba(201, 119, 106, 0.13);
+  --outcome-crit:        #f0d9a3;
+  --outcome-crit-dim:    rgba(240, 217, 163, 0.16);
 }

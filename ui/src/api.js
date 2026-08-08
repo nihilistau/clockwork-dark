@@ -33,6 +33,39 @@ export const fetchThings = (sessionId) =>
 export const fetchTrade = (sessionId) => getJSON("/api/trade", { session_id: sessionId });
 
 /**
+ * The pack: all 74 registry items with prose, tags, weight, value and art,
+ * plus what the player is carrying. data/items/*.yaml is unreadable from the
+ * browser, which is why the inventory used to be a list of names.
+ */
+export const fetchItems = (sessionId) => getJSON("/api/items", { session_id: sessionId });
+
+/** Every recipe, annotated with what is held and whether it can be made here. */
+export const fetchRecipes = (sessionId) => getJSON("/api/recipes", { session_id: sessionId });
+
+/** Player-settable engine config: spec, live value, override state. */
+export const fetchSettings = () => getJSON("/api/settings");
+
+/** The installed game catalogue, with playable/problems/active flags. */
+export const fetchGames = () => getJSON("/api/games");
+
+/**
+ * Persist engine settings into config/local.yaml.
+ *
+ * Unlike the readers above this one throws: a settings write that silently
+ * failed would leave the panel showing values the engine never received.
+ */
+export async function writeSettings(changes, { reset = false } = {}) {
+  const res = await fetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ changes, reset }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.error || `server said ${res.status}`);
+  return data;
+}
+
+/**
  * Resolve a manifest art key ("wolf") to a served URL.
  *
  * The client cannot read data/art/manifest.yaml, so this is the only way an

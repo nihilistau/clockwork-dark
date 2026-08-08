@@ -5,9 +5,11 @@ import React, { useCallback, useEffect, useReducer, useRef, useState } from "rea
 import { createRoot } from "react-dom/client";
 
 import Cutscene from "./parts/Cutscene.jsx";
+import Inventory from "./parts/Inventory.jsx";
 import Onboarding, { shouldOnboard } from "./parts/Onboarding.jsx";
 import Codex from "./screens/Codex.jsx";
 import Journal from "./screens/Journal.jsx";
+import Menu from "./screens/Menu.jsx";
 import Saves from "./screens/Saves.jsx";
 import Scene from "./screens/Scene.jsx";
 import Settings, { loadPrefs, savePrefs } from "./screens/Settings.jsx";
@@ -23,18 +25,25 @@ import "./styles/index.css";
 // client left every control disabled forever with nothing on screen.
 const TURN_WATCHDOG_MS = 240000;
 
+// Single-key shortcuts on the play screen. They were all undiscoverable: the
+// footer is six unlabelled glyphs and 1-4 were bound with nothing saying so.
+// The pause menu now prints this table; see screens/Menu.jsx.
+const OVERLAY_KEYS = { i: "pack", j: "journal", c: "codex", b: "trade" };
+
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [prefs, setPrefs] = useState(loadPrefs);
   const [showSettings, setShowSettings] = useState(false);
-  // One overlay at a time: journal | codex | trade | null. Two dialogs open at
-  // once would mean two focus traps fighting over the same document.
+  const [showMenu, setShowMenu] = useState(false);
+  // One overlay at a time: journal | codex | trade | pack | null. Two dialogs
+  // open at once would mean two focus traps fighting over the same document.
   const [overlay, setOverlay] = useState(null);
   const [onboarding, setOnboarding] = useState(shouldOnboard);
   const muted = prefs.muted;
   const socketRef = useRef(null);
   const audioRef = useRef(null);
   const watchdog = useRef(null);
+  const composeRef = useRef(null);
 
   useEffect(() => {
     const socket = connect(dispatch);
@@ -76,8 +85,15 @@ function App() {
     const player = audioRef.current;
     if (!player) return;
     player.src = state.audio;
+    player.volume = prefs.volume ?? 0.8;
     player.play().catch(() => {});
-  }, [state.audio, muted]);
+  }, [state.audio, muted, prefs.volume]);
+
+  // Volume is live, not next-line: a player reaching for the slider mid-
+  // paragraph means "quieter now".
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = prefs.volume ?? 0.8;
+  }, [prefs.volume]);
 
   const begin = useCallback(async (payload) => {
     dispatch({ type: "SUBMIT", text: "" });
@@ -125,6 +141,9 @@ function App() {
       const res = await fetch(`/api/saves/${save.save_id}/load`, { method: "POST" });
       if (!res.ok) throw new Error(`server said ${res.status}`);
       const data = await res.json();
+      // The incoming run is a different run: its log, choices and companion
+      // must not inherit the one we were just looking at.
+      dispatch({ type: "RESET" });
       storeSaveId(data.save_id);
       socketRef.current?.emit("join_session", { session_id: data.session_id });
       dispatch({ type: "SCREEN", screen: "scene" });
@@ -138,6 +157,36 @@ function App() {
     const res = await fetch("/api/saves");
     const data = await res.json();
     dispatch({ type: "SAVES", saves: data.saves || [] });
+  }, []);
+
+  /** Write the run to disk now, optionally into a named slot. Throws so the
+      menu can report a failure rather than claiming it saved. */
+  const saveNow = useCallback(
+    async (slot) => {
+      const res = await fetch("/api/saves", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: state.sessionId,
+          save_id: state.saveId,
+          slot: slot || "1",
+        }),
+      });
+      if (!res.ok) throw new Error(`server said ${res.status}`);
+      return res.json();
+    },
+    [state.sessionId, state.saveId]
+  );
+
+  const leaveRun = useCallback((forget) => {
+    // "New run" keeps the save reachable from the save browser; "abandon"
+    // additionally makes this browser forget it, so the next reload does not
+    // silently resume the thing you just walked away from.
+    if (forget) clearSaveId();
+    setShowMenu(false);
+    setOverlay(null);
+    dispatch({ type: "RESET" });
+    dispatch({ type: "SCREEN", screen: "start" });
   }, []);
 
   const updatePrefs = useCallback((next) => {
@@ -160,6 +209,49 @@ function App() {
     document.documentElement.dataset.reduceMotion = String(prefs.reduceMotion);
   }, [prefs.textSize, prefs.reduceMotion]);
 
+  // Global shortcuts, play screen only.
+  //
+  // Deliberately inert while anything modal is open: Modal's focus trap already
+  // owns Esc for the topmost dialog (see hooks/useFocusTrap.js), and a second
+  // handler here would close the dialog AND open the pause menu on one press.
+  // `onboarding` is deliberately NOT in this list. It is only ever rendered on
+  // the start screen, but it stays true for the whole session when a player
+  // arrives straight into a resumed run — which made every shortcut on the
+  // play screen permanently dead. `screen !== "scene"` already covers the case
+  // where the cards are actually on screen.
+  const blocked =
+    Boolean(showMenu) || showSettings || Boolean(overlay) || Boolean(state.cutscene) ||
+    state.screen !== "scene";
+
+  useEffect(() => {
+    function onKey(event) {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const tag = event.target?.tagName;
+      const typing = tag === "INPUT" || tag === "TEXTAREA" || event.target?.isContentEditable;
+
+      if (event.key === "Escape") {
+        if (blocked) return;
+        event.preventDefault();
+        setShowMenu(true);
+        return;
+      }
+      if (typing || blocked) return;
+
+      if (event.key === "/") {
+        event.preventDefault();
+        composeRef.current?.focus();
+        return;
+      }
+      const wanted = OVERLAY_KEYS[event.key.toLowerCase()];
+      if (wanted) {
+        event.preventDefault();
+        setOverlay(wanted);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [blocked]);
+
   if (state.screen === "saves") {
     return (
       <Saves
@@ -167,10 +259,7 @@ function App() {
         onLoad={loadSave}
         onDelete={deleteSave}
         onClose={() => dispatch({ type: "SCREEN", screen: state.sessionId ? "scene" : "start" })}
-        onNew={() => {
-          clearSaveId();
-          dispatch({ type: "SCREEN", screen: "start" });
-        }}
+        onNew={() => leaveRun(true)}
       />
     );
   }
@@ -178,7 +267,7 @@ function App() {
   if (state.screen === "start") {
     return (
       <>
-        <Start onBegin={begin} busy={state.busy} />
+        <Start onBegin={begin} busy={state.busy} onOpenSaves={openSaves} />
         {onboarding && <Onboarding onDone={() => setOnboarding(false)} />}
       </>
     );
@@ -195,9 +284,14 @@ function App() {
         onOpenJournal={() => setOverlay("journal")}
         onOpenCodex={() => setOverlay("codex")}
         onOpenTrade={() => setOverlay("trade")}
+        onOpenPack={() => setOverlay("pack")}
+        onOpenMenu={() => setShowMenu(true)}
+        onToggleReasoning={() => dispatch({ type: "REASONING_TOGGLE" })}
         muted={muted}
         onToggleMute={toggleMute}
         showDiceBreakdown={prefs.showDiceBreakdown}
+        showReasoning={prefs.showReasoning}
+        composeRef={composeRef}
       />
 
       {overlay === "journal" && (
@@ -206,6 +300,17 @@ function App() {
 
       {overlay === "codex" && (
         <Codex sessionId={state.sessionId} onClose={() => setOverlay(null)} />
+      )}
+
+      {overlay === "pack" && (
+        <Inventory
+          sessionId={state.sessionId}
+          busy={state.busy}
+          // Using an item, crafting, dropping -- all ordinary turns. The engine
+          // stays the only writer of inventory, gold and the clock.
+          onAct={(text) => send("custom", text, text)}
+          onClose={() => setOverlay(null)}
+        />
       )}
 
       {overlay === "trade" && (
@@ -221,6 +326,29 @@ function App() {
         <Cutscene
           cutscene={state.cutscene}
           onClose={() => dispatch({ type: "SOCKET", event: "cutscene_end", payload: {} })}
+        />
+      )}
+
+      {showMenu && (
+        <Menu
+          world={state.world}
+          phase={state.phase}
+          saveId={state.saveId}
+          connected={state.connected}
+          prefs={prefs}
+          onChangePrefs={updatePrefs}
+          onResume={() => setShowMenu(false)}
+          onSaveNow={saveNow}
+          onOpenSaves={() => {
+            setShowMenu(false);
+            openSaves();
+          }}
+          onOpenSettings={() => {
+            setShowMenu(false);
+            setShowSettings(true);
+          }}
+          onNewRun={() => leaveRun(false)}
+          onAbandon={() => leaveRun(true)}
         />
       )}
 

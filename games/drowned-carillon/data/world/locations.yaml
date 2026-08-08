@@ -1,0 +1,128 @@
+# The Brass Coast.
+#
+# The location graph for The Drowned Carillon, read by the SAME loader as the
+# flagship game's map (engine/game/locations.py). Not one line of that module
+# knows this file exists; it validates ring numbers, evil multipliers, edge
+# symmetry and travel hours here exactly as it does for Edgewood.
+#
+# `ring` is distance from safety, which on this coast means distance DOWN.
+# Ring 0 is the sand you can walk at low water; ring 3 is the choir-loft, which
+# is under the sea for twenty hours of every day.
+#
+# NOTE ON CANON IDS: engine/game/locations.py logs an error when the five ids
+# CLAUDE.md pins as canon are absent. That log line is expected and correct
+# here -- it is the engine noticing, accurately, that this is not Edgewood. It
+# does not degrade anything: CANONICAL_LOCATION_IDS is a documentation
+# constant, and every function that matters reads LOCATION_IDS, which is
+# whatever the loaded graph contains.
+#
+# Version: v0.1.0 [2026-08-08]
+
+version: 1
+
+rings:
+  0: "The Tide Flats"
+  1: "Bellfounders' Quay"
+  2: "The Wet Steps"
+  3: "The Sunken Nave"
+
+locations:
+
+  # ==========================================================
+  # Ring 0 -- the flats. Safe for six hours a day, and no longer.
+  # ==========================================================
+
+  tide_flats:
+    name: "The Tide Flats"
+    ring: 0
+    evil_multiplier: 0.6
+    summary: >-
+      Grey sand and standing water out to the bar, ribbed where the sea last
+      combed it. Things stand up out of the flats at low water that are not
+      there when it comes back.
+    tags: [outdoors, wild, tidal]
+    connections:
+      bellfounders_quay: { hours: 1, danger_dc: 6, awareness_delta: 1 }
+
+  # ==========================================================
+  # Ring 1 -- the quay. The last dry granite on this coast.
+  # ==========================================================
+
+  bellfounders_quay:
+    name: "Bellfounders' Quay"
+    ring: 1
+    evil_multiplier: 1.0
+    summary: >-
+      Granite steps, chowder smoke, a tarred notice-board post, and a great
+      shore-bell in a frame that nobody has rung in eleven years. The rope is
+      still on it. That is the part people notice.
+    tags: [settlement, safe_camp, hub]
+    connections:
+      tide_flats: { hours: 1, danger_dc: 6, awareness_delta: 0 }
+      net_lofts: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      lamp_house: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      wet_steps: { hours: 1, danger_dc: 9, awareness_delta: 2 }
+
+  net_lofts:
+    name: "The Net Lofts"
+    ring: 1
+    evil_multiplier: 0.8
+    summary: >-
+      Two storeys of tarred timber over the water, floored in drying net and
+      lit through the gaps. Vesh works here with her back to the sea.
+    tags: [indoors, settlement, workshop]
+    connections:
+      bellfounders_quay: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  lamp_house:
+    name: "The Lamp House"
+    ring: 1
+    evil_multiplier: 0.7
+    summary: >-
+      A single squat room of whitewashed stone holding oil, wick, glass and
+      one shelf of wax earplugs that Cael sells without ever explaining.
+    tags: [indoors, settlement, shop]
+    connections:
+      bellfounders_quay: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  # ==========================================================
+  # Ring 2 -- the stair, and the water at the bottom of it.
+  # ==========================================================
+
+  wet_steps:
+    name: "The Wet Steps"
+    ring: 2
+    evil_multiplier: 1.4
+    summary: >-
+      Forty granite treads going down under the quay, green from the ninth
+      down. The sea sits somewhere on them at all times, and the sound coming
+      up is not the sea.
+    tags: [outdoors, tidal, threshold]
+    connections:
+      bellfounders_quay: { hours: 1, danger_dc: 9, awareness_delta: 1 }
+      sunken_nave: { hours: 1, danger_dc: 12, awareness_delta: 3 }
+
+  sunken_nave:
+    name: "The Sunken Nave"
+    ring: 3
+    evil_multiplier: 2.0
+    summary: >-
+      A cathedral floor under three feet of standing water, pillars going up
+      into dark, and pipework in the far wall the size of a ship's masts. At
+      low water it only drips. It is not always low water.
+    tags: [indoors, wild, drowned]
+    connections:
+      wet_steps: { hours: 1, danger_dc: 12, awareness_delta: 1 }
+      choir_loft: { hours: 1, danger_dc: 14, awareness_delta: 4 }
+
+  choir_loft:
+    name: "The Choir Loft"
+    ring: 3
+    evil_multiplier: 2.4
+    summary: >-
+      A gallery of worked stone above the nave, reachable for perhaps an hour
+      either side of low water. The stops and couplers of the Carillon are up
+      here, salted white, and they move on their own.
+    tags: [indoors, drowned, dungeon]
+    connections:
+      sunken_nave: { hours: 1, danger_dc: 14, awareness_delta: 2 }
