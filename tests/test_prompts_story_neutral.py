@@ -199,11 +199,13 @@ def test_the_directive_block_describes_escalation_not_a_setting():
 # The awareness gate rewrites terms the player has not earned yet. WHICH terms
 # was a Python list in `engine/lore/interceptors.py` naming one story's nouns,
 # so every story masked The Clockwork Dark's vocabulary: a fae court below the
-# threshold had its narration rewritten to talk about wheat, and a story with
-# no `evil_progress` paid the regex on every turn regardless.
+# threshold had its narration rewritten to talk about wheat.
 #
-# The engine owns the GATE -- when to redact, and the leading-article match
-# that keeps the replacement readable. The story owns the WORDS.
+# There are TWO tables now, because there are two kinds of leak. A story's
+# title is the story's to hide and to phrase. `evil_progress` and the four
+# phase ids are identifiers THIS ENGINE puts in receipts, and they leak the
+# same way out of any story -- so the engine masks those itself, in words that
+# name no place and no person.
 # ---------------------------------------------------------------------------
 
 
@@ -213,43 +215,125 @@ SPOILER_LINE = "The Clockwork Dark stirs; evil_progress rises toward CONSUMING."
 def test_the_flagship_still_redacts_exactly_what_it_did():
     """
     The compatibility bar. These three substitutions shipped for months and a
-    player below the threshold must see the same sentence they always saw.
+    player below the threshold must see the same sentence they always saw --
+    even though only ONE of the three rows is still in the flagship's own file.
     """
-    from engine.lore.interceptors import AwarenessGateInterceptor, spoiler_terms
+    from engine.lore.interceptors import AwarenessGateInterceptor
 
     registry.activate("clockwork-dark")
-    assert len(spoiler_terms()) == 3
-    gated = AwarenessGateInterceptor().gate(SPOILER_LINE, 0.0)
-    assert gated == (
+    assert AwarenessGateInterceptor().gate(SPOILER_LINE, 0.0) == (
         "something wrong in the wheat stirs; the village's unease rises "
         "toward the worst of it."
     )
 
 
 @pytest.mark.parametrize("slug", ["wicked-garden", "dev-story"])
-def test_another_story_is_not_made_to_talk_about_wheat(slug):
+def test_no_story_is_handed_the_flagships_imagery(slug):
     """
-    A story that declares no spoilers redacts NOTHING, which is the correct
-    nothing -- the gate still runs, it has simply been told no vocabulary.
+    The defect, stated as its inverse.
 
-    Asserted on the Garden specifically because it is the case that was wrong:
-    a fae court has no wheat, no village and no `evil_progress`, and rewriting
-    its narration into Edgewood's idiom is a bug the player would read.
+    A fae court has no wheat and no village. Whatever the gate does for another
+    story, it must never reach for Edgewood's nouns to do it.
     """
-    from engine.lore.interceptors import AwarenessGateInterceptor, spoiler_terms
+    from engine.lore.interceptors import AwarenessGateInterceptor
 
     registry.activate(slug)
-    assert spoiler_terms() == ()
-    assert AwarenessGateInterceptor().gate(SPOILER_LINE, 0.0) == SPOILER_LINE
+    gated = AwarenessGateInterceptor().gate(SPOILER_LINE, 0.0)
+    for image in ("wheat", "village"):
+        assert image not in gated, f"{slug} was handed the flagship's {image!r}"
+
+
+@pytest.mark.parametrize("slug", ["wicked-garden", "dev-story"])
+def test_the_machinery_is_masked_even_with_no_story_table(slug):
+    """
+    The half the first fix missed.
+
+    Moving the whole list into the flagship left a story with no
+    `spoilers.yaml` redacting NOTHING -- including `evil_progress` and the
+    phase ids, which are the engine's own identifiers and leak out of any
+    story. They are covered by `ENGINE_TERMS` now, in story-neutral words.
+    """
+    from engine.lore.interceptors import AwarenessGateInterceptor, story_spoiler_terms
+
+    registry.activate(slug)
+    assert story_spoiler_terms() == (), "this story is supposed to declare none"
+    gated = AwarenessGateInterceptor().gate(SPOILER_LINE, 0.0)
+    assert "evil_progress" not in gated
+    assert "CONSUMING" not in gated
+
+
+def test_a_story_row_overrides_the_engines_wording():
+    """
+    Order is the override, and it is what lets a story keep its own voice for
+    a mechanical id without the engine losing the fallback for everyone else.
+
+    The flagship declares `evil_progress` in its own file; the Garden does not.
+    Same identifier, same gate, two different sentences -- neither of them the
+    other story's.
+    """
+    from engine.lore.interceptors import AwarenessGateInterceptor
+
+    line = "evil_progress climbs."
+    registry.activate("clockwork-dark")
+    assert AwarenessGateInterceptor().gate(line, 0.0) == "the village's unease climbs."
+    registry.activate("wicked-garden")
+    assert AwarenessGateInterceptor().gate(line, 0.0) == "what is building climbs."
+
+
+def test_the_engines_own_replacements_name_no_story():
+    """
+    `ENGINE_TERMS` applies to every story, so anything in it that named a
+    place, a person or a crop would be the original bug wearing a new name.
+    """
+    from engine.lore.interceptors import ENGINE_TERMS
+
+    said = " ".join(instead for _term, instead, _cs in ENGINE_TERMS).lower()
+    for word in ("wheat", "village", "clockwork", "edgewood", "garden", "fae"):
+        assert word not in said, f"the engine's fallback says {word!r}"
+
+
+def test_an_ordinary_english_phase_word_is_left_alone():
+    """
+    The phase ids are matched case-sensitively for a reason.
+
+    "stirring", "spreading" and "dormant" are words a narrator is entitled to
+    use -- leaves stir, fire spreads, a seed lies dormant -- and masking those
+    would corrupt honest prose to hide a term that was never leaked.
+    """
+    from engine.lore.interceptors import AwarenessGateInterceptor
+
+    prose = "The leaves were stirring, the fire spreading, the seed dormant."
+    for slug in ("clockwork-dark", "wicked-garden"):
+        registry.activate(slug)
+        assert AwarenessGateInterceptor().gate(prose, 0.0) == prose, slug
+
+
+def test_nothing_is_redacted_above_the_threshold():
+    """
+    The gate is a gate. A player who has earned the vocabulary reads it, and
+    that is as true of the engine's table as of the story's.
+
+    Awareness is on a 0-100 scale and the gate opens at
+    `awareness.spoiler_gate_threshold` (15 by default), so the value is read
+    from config rather than written here -- a literal would pass today and stop
+    meaning "above the threshold" the moment a story tuned it.
+    """
+    from engine.config import get_config
+    from engine.lore.interceptors import AwarenessGateInterceptor
+
+    registry.activate("clockwork-dark")
+    earned = float(get_config().get("awareness.spoiler_gate_threshold", 15))
+    assert AwarenessGateInterceptor().gate(SPOILER_LINE, earned) == SPOILER_LINE
 
 
 def test_no_story_vocabulary_is_left_in_the_interceptor_module():
     """
-    Source-level, deliberately. The table is gone; this stops it coming back as
-    a convenient default the next time somebody wants redaction to "just work".
+    Source-level, deliberately. The story table is gone; this stops it coming
+    back as a convenient default the next time somebody wants redaction to
+    "just work".
 
     Comments and docstrings are stripped before the scan, and that is not a
-    loophole -- the module's docstring QUOTES the old phrases to explain what
+    loophole -- the module's docstrings QUOTE the old phrases to explain what
     went wrong, which is the house style and worth keeping. What must not come
     back is a phrase the engine can actually substitute, so the test reads the
     module the way Python does: as an AST, with the prose removed.
@@ -261,9 +345,6 @@ def test_no_story_vocabulary_is_left_in_the_interceptor_module():
         Path(__file__).resolve().parents[1] / "engine" / "lore" / "interceptors.py"
     ).read_text(encoding="utf-8")
 
-    # Every string literal that is NOT a docstring. A docstring is the first
-    # statement of a module, class or function; anything else is a value the
-    # code can reach.
     tree = ast.parse(source)
     docstrings = {
         id(node.body[0].value)
@@ -282,5 +363,5 @@ def test_no_story_vocabulary_is_left_in_the_interceptor_module():
         and id(node) not in docstrings
     )
 
-    for phrase in ("something wrong in the wheat", "the village's unease", "the worst of it"):
+    for phrase in ("something wrong in the wheat", "the village's unease", "Clockwork Dark"):
         assert phrase not in live, f"{phrase!r} is a live string in the engine again"

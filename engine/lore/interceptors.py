@@ -29,6 +29,58 @@ _ROOT = Path(__file__).resolve().parents[2]
 #: its narration must not name before the player has earned it.
 SPOILER_FILE = "spoilers.yaml"
 
+#: The ENGINE's own vocabulary, masked for every story including one that
+#: declares no table of its own.
+#:
+#: These are not any story's nouns -- they are identifiers this engine puts in
+#: receipts, logs and tool results, and a model that has seen one will
+#: occasionally repeat it. ``evil_progress`` in narration is not a spoiler so
+#: much as the machinery showing, and it is the engine's machinery, so hiding it
+#: is the engine's job.
+#:
+#: THE REPLACEMENTS NAME NO PLACE AND NO PERSON. That is the whole distinction
+#: this constant exists to hold: the flagship's "the village's unease" was in
+#: here, and a fae court that tripped the gate was handed Edgewood's imagery.
+#: A story wanting its own phrasing declares the same term in its own file,
+#: which is applied first and wins.
+#:
+#: The four phase ids are matched CASE-SENSITIVELY, in their uppercase form.
+#: "stirring", "spreading" and "dormant" are ordinary English a narrator is
+#: entitled to use -- leaves stir, fire spreads -- and masking those would
+#: corrupt honest prose to hide a word that was never leaked.
+ENGINE_TERMS: tuple[tuple[str, str, bool], ...] = (
+    ("evil_progress", "what is building", False),
+    ("DORMANT", "nothing yet", True),
+    ("STIRRING", "the first of it", True),
+    ("SPREADING", "well underway", True),
+    ("CONSUMING", "the worst of it", True),
+)
+
+
+def _compile(term: str, instead: str, *, case_sensitive: bool) -> Optional[
+    tuple[re.Pattern[str], str]
+]:
+    """
+    One term -> pattern pair, or None if the term will not compile.
+
+    The leading article is swallowed so the replacement reads as English.
+    Matching the bare term produced "names the something wrong in the wheat",
+    which is the sort of thing a player screenshots.
+    """
+    try:
+        flags = 0 if case_sensitive else re.IGNORECASE
+        return (re.compile(rf"\b(?:the\s+)?{re.escape(term)}\b", flags), instead)
+    except re.error as exc:
+        logger.warning("[lore] Bad spoiler term %r: %s", term, exc)
+        return None
+
+
+@functools.lru_cache(maxsize=1)
+def _engine_terms() -> tuple[tuple[re.Pattern[str], str], ...]:
+    """ENGINE_TERMS, compiled once. Constant, so it never needs invalidating."""
+    rows = (_compile(t, i, case_sensitive=cs) for t, i, cs in ENGINE_TERMS)
+    return tuple(row for row in rows if row is not None)
+
 
 @functools.lru_cache(maxsize=8)
 def _compile_terms(rules_dir: str, _mtime: float) -> tuple[tuple[re.Pattern[str], str], ...]:
@@ -49,36 +101,22 @@ def _compile_terms(rules_dir: str, _mtime: float) -> tuple[tuple[re.Pattern[str]
         instead = str(row.get("instead") or "").strip()
         if not term or not instead:
             continue
-        # The leading article is swallowed so the replacement reads as English.
-        # Matching the bare term produced "names the something wrong in the
-        # wheat", which is the sort of thing a player screenshots.
-        flags = 0 if row.get("case_sensitive") else re.IGNORECASE
-        try:
-            out.append((re.compile(rf"\b(?:the\s+)?{re.escape(term)}\b", flags), instead))
-        except re.error as exc:
-            logger.warning("[lore] Bad spoiler term %r: %s", term, exc)
+        compiled = _compile(term, instead, case_sensitive=bool(row.get("case_sensitive")))
+        if compiled is not None:
+            out.append(compiled)
     return tuple(out)
 
 
-def spoiler_terms() -> tuple[tuple[re.Pattern[str], str], ...]:
+def story_spoiler_terms() -> tuple[tuple[re.Pattern[str], str], ...]:
     """
-    What the RUNNING story will not have named yet, and what to say instead.
-
-    THIS WAS A LIST OF ONE STORY'S NOUNS IN THE ENGINE. It masked "Clockwork
-    Dark" as "something wrong in the wheat" and ``evil_progress`` as "the
-    village's unease" -- for every story, forever. A fae court below the
-    awareness threshold had its narration rewritten to talk about wheat, and a
-    story with no ``evil_progress`` still paid the regex.
-
-    A story declares its own in ``<paths.rules>/spoilers.yaml``::
+    Just the RUNNING story's own table, from ``<paths.rules>/spoilers.yaml``::
 
         spoilers:
           - term: "Clockwork Dark"
             instead: "something wrong in the wheat"
 
-    A story that declares none gets an empty table, which means no redaction --
-    the correct nothing, and the same shape as clocks, threads and endings. The
-    awareness GATE still runs; there is simply no vocabulary for it to mask.
+    Empty for a story that declares none, which is the same shape as clocks,
+    threads and endings.
     """
     rel = str(get_config().get("paths.rules", "") or "").strip()
     if not rel:
@@ -92,6 +130,31 @@ def spoiler_terms() -> tuple[tuple[re.Pattern[str], str], ...]:
     except OSError:
         return ()
     return _compile_terms(str(root), mtime)
+
+
+def spoiler_terms() -> tuple[tuple[re.Pattern[str], str], ...]:
+    """
+    Everything the gate may mask: the story's own words, then the engine's.
+
+    THIS WAS A LIST OF ONE STORY'S NOUNS IN THE ENGINE. It masked "Clockwork
+    Dark" as "something wrong in the wheat" and ``evil_progress`` as "the
+    village's unease" -- for every story, forever. A fae court below the
+    awareness threshold had its narration rewritten to talk about wheat.
+
+    TWO TABLES, BECAUSE THERE ARE TWO KINDS OF LEAK. A story's title is the
+    story's to hide and to phrase; ``evil_progress`` is an identifier this
+    engine puts in receipts, and it leaks the same way out of any story. Moving
+    the whole list into the flagship left the second kind covered by nothing --
+    a story with no ``spoilers.yaml`` redacted nothing at all, including the
+    machinery. That is the gap this closes.
+
+    ORDER IS THE OVERRIDE. The story's rows are applied first, so a story that
+    wants its own phrasing for a mechanical id simply declares it -- The
+    Clockwork Dark says "the village's unease" where the engine would say
+    "what is building", and by the time the engine's row is tried there is
+    nothing left to match.
+    """
+    return story_spoiler_terms() + _engine_terms()
 
 
 class LoreInjectInterceptor:
