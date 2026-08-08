@@ -66,15 +66,16 @@ _CONFIG_KEYS = ("trigger", "scene", "degree_fallback", "default_approaches")
 # ---------------------------------------------------------------------------
 
 
-def _encounters_dir() -> Path:
-    """Directory holding the encounter tables."""
-    rel = get_config().get("paths.encounters", "data/encounters")
-    return _ROOT / str(rel)
+def _encounters_dir() -> Optional[Path]:
+    """Directory holding the encounter tables, or None if the story ships none."""
+    rel = str(get_config().get("paths.encounters", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
-def _death_rules_path() -> Path:
-    rel = get_config().get("paths.rules", "data/rules")
-    return _ROOT / str(rel) / "death.yaml"
+def _death_rules_path() -> Optional[Path]:
+    """The death rules, or None when the story declares no rules directory."""
+    rel = str(get_config().get("paths.rules", "") or "").strip()
+    return (_ROOT / rel / "death.yaml") if rel else None
 
 
 def _fingerprint(paths: list[Path]) -> tuple[Any, ...]:
@@ -149,6 +150,12 @@ def load_encounters() -> dict[str, Any]:
         contributed by any file in the directory.
     """
     directory = _encounters_dir()
+    if directory is None:
+        # No encounter tables means the road is quiet, which is a story
+        # decision. _read_dir would warn about a missing directory; there is no
+        # directory to miss.
+        logger.debug("[encounter] Story declares no encounters (operation=load_encounters)")
+        return {_CONTENT_KEY: []}
     paths = sorted(directory.glob("*.yaml")) if directory.is_dir() else []
     return _read_dir(str(directory), _fingerprint(paths))
 
@@ -183,6 +190,9 @@ def _read_death(path_str: str, _mtime: float) -> dict[str, Any]:
 def load_death_rules() -> dict[str, Any]:
     """Load data/rules/death.yaml."""
     path = _death_rules_path()
+    if path is None:
+        logger.debug("[encounter] Story declares no rules (operation=load_death_rules)")
+        return {}
     try:
         mtime = path.stat().st_mtime
     except OSError:

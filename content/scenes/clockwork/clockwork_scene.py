@@ -67,9 +67,37 @@ SCENE_NAME = "clockwork"
 # template renders, and the template reads ``display_name`` only.
 SCENE_METADATA = {
     "name": SCENE_NAME,
-    "display_name": "THE CLOCKWORK DARK",
+    # Fallback only. See `scene_metadata()` -- this is what shows when no game
+    # is active, which is a state a player never reaches.
+    "display_name": "A story",
     "type": "rpg",
 }
+
+
+def scene_metadata() -> dict[str, Any]:
+    """
+    What the page template renders, with the ACTIVE STORY's name in it.
+
+    ``display_name`` was the string "THE CLOCKWORK DARK", hardcoded. This scene
+    package serves every story -- the flagship, The Wicked Garden, a scratch
+    test story -- so every one of them opened a browser tab titled after the
+    flagship. Reproduced by launching The Drowned Carillon and reading
+    ``document.title``.
+
+    That is the scene package being story-shaped, which is the deepest form of
+    the problem this whole seam exists to fix: one story's package is where
+    every story runs, so anything named in it is named for all of them.
+
+    Read live rather than captured at import, because activation happens after
+    this module is imported and a value frozen at import time would be the
+    fallback forever.
+    """
+    from engine.games.registry import peek
+
+    manifest = peek()
+    if manifest is None:
+        return dict(SCENE_METADATA)
+    return {**SCENE_METADATA, "display_name": manifest.title}
 
 _store: Optional[SessionStore] = None
 _scene: Optional["ClockworkScene"] = None
@@ -127,7 +155,7 @@ class ClockworkScene(FlaskScene):
 
         @app.get("/")
         def index() -> str:
-            return render_template("clockwork.html", scene=SCENE_METADATA)
+            return render_template("clockwork.html", scene=scene_metadata())
 
         @app.post("/api/game/new")
         def api_new_game() -> Any:

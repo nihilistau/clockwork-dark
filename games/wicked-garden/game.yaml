@@ -83,16 +83,43 @@ settings:
       - SafetyDirective
       - StorytellerMind
 
+# WHAT THIS STORY DELIBERATELY SHIPS NONE OF.
+#
+# Until config/default.yaml was emptied, an undeclared path did not mean
+# nothing -- it meant The Clockwork Dark's file. This story was reading NINE of
+# them: assistant_hints, challenges, comfyui_templates, doom_effects, economy,
+# encounters, procgen_templates, quests and recipes. A fae court was quoting
+# Edgewood's bread prices and holding Edgewood's quests, silently, because
+# nothing here has a quest giver or a vendor to make it visible.
+#
+# They are omitted rather than pointed at a stub, and the omission is the
+# authoring decision, one line each:
+#
+#   quests             the shape of this story is ten authored days
+#                      (`decks`), not an offer board.
+#   economy            nothing here is bought. A bargain is the currency, and
+#                      that is `threads`.
+#   encounters         danger is written into the day chapters, not drawn from
+#                      a road table.
+#   recipes            nothing is crafted.
+#   challenges         set-pieces are cards in the labyrinth deck.
+#   doom_effects       there is no doom clock here; `clocks` holds this story's
+#                      own, which count something else.
+#   procgen_templates  every location in this world is authored. There is no
+#                      village to generate.
+#   comfyui_templates  the art pack below is what this story shows.
+#   assistant_hints    the companion here is a character with her own prompt
+#                      (prompts/sophia.md), not a hint corpus.
+#
+# Each resolves empty now, which every loader reads as "this story ships none
+# of this". If one of them is ever authored, it goes in the block below.
 paths:
   # Content authored for this story.
   #
-  # DECLARE EVERYTHING THIS STORY SHIPS, even where the engine would run
-  # without it. An undeclared path does not fall back to nothing -- it falls
-  # back to The Clockwork Dark's file, which is strictly worse: leaving
-  # `npc_schedules` off this list puts eight Edgewood villagers at locations
-  # that do not exist in this graph, has the Garden gossiping about grain
-  # tallies, and resolves reputation against a militia nobody here has heard
-  # of. Silent, and only visible if you happen to read a rumour.
+  # DECLARE EVERYTHING THIS STORY SHIPS. Leaving `npc_schedules` off this list
+  # used to put eight Edgewood villagers at locations that do not exist in this
+  # graph, have the Garden gossiping about grain tallies, and resolve
+  # reputation against a militia nobody here has heard of.
   locations: "games/wicked-garden/data/world/locations.yaml"
   items: "games/wicked-garden/data/items"
   lore: "games/wicked-garden/data/lore"
@@ -101,9 +128,9 @@ paths:
   # The Garden's own art pack.
   #
   # `art_root` is the directory `art_manifest`'s paths resolve against, and it
-  # has to be declared: its default is The Clockwork Dark's static tree, so a
-  # manifest without it names Garden filenames inside Edgewood's directory,
-  # misses every one, and falls silently through to the procedural silhouette.
+  # has to be declared: it used to default to The Clockwork Dark's static tree,
+  # so a manifest without it named Garden filenames inside Edgewood's directory,
+  # missed every one, and fell silently through to the procedural silhouette.
   # That is what this story shipped with.
   #
   # The pack is reachable over HTTP at `/story-art/...` (engine/api/art.py),

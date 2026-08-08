@@ -41,9 +41,16 @@ logger = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).resolve().parents[2]
 
-def _rules_path(filename: str) -> Path:
-    rel = get_config().get("paths.rules", "data/rules")
-    return _ROOT / str(rel) / filename
+def _rules_path(filename: str) -> Optional[Path]:
+    """
+    Resolve a rules file, or None when the story declares no rules directory.
+
+    None rather than ``_ROOT / "" / filename``: joining a filename onto an empty
+    path yields the repo root, so an undeclared directory would read whatever
+    happens to be lying there rather than reading nothing.
+    """
+    rel = str(get_config().get("paths.rules", "") or "").strip()
+    return (_ROOT / rel / filename) if rel else None
 
 
 @lru_cache(maxsize=16)
@@ -70,7 +77,17 @@ def _read_yaml(path_str: str, _mtime: float) -> dict[str, Any]:
         return {}
 
 
-def _load_yaml(path: Path, label: str) -> dict[str, Any]:
+def _load_yaml(path: Optional[Path], label: str) -> dict[str, Any]:
+    # A story that ships none of this content is not a fault and must not log
+    # like one: DEBUG, because "no rules file" would otherwise print on every
+    # boot of a story that legitimately has none.
+    if path is None:
+        logger.debug(
+            "[checks] Story declares no path for this content "
+            "(operation=_load_yaml, label=%s)",
+            label,
+        )
+        return {}
     try:
         mtime = path.stat().st_mtime
     except OSError:
@@ -93,19 +110,24 @@ def load_archetypes() -> dict[str, Any]:
     return _load_yaml(_rules_path("archetypes.yaml"), "archetypes")
 
 
-def tables_path(filename: str) -> Path:
+def tables_path(filename: str) -> Optional[Path]:
     """
     Resolve a random table file through ``paths.tables``.
 
-    This used to be ``_ROOT / "data" / "tables" / filename``, hardcoded. With
-    two games installed that meant ``drowned-carillon`` drew boons and
-    complications out of Edgewood's tables -- silently, because the loader
-    degrades to an empty list rather than raising, so the only symptom was a
-    nat 20 on the Brass Coast handing the player a forest boon. Every other
-    content directory in the engine is a ``paths.*`` key; this one was missed.
+    This used to be ``_ROOT / "data" / "tables" / filename``, hardcoded, so a
+    second game drew boons and complications out of Edgewood's tables --
+    silently, because the loader degrades to an empty list rather than raising,
+    and the only symptom was a nat 20 in another story handing the player a
+    forest boon. Every other content directory in the engine is a ``paths.*``
+    key; this one was missed.
+
+    Returns:
+        The resolved file, or None when the story declares no table directory.
+        A story with no boon table draws no boons, which is the same answer the
+        loader already gives for a table file that is not there.
     """
-    rel = get_config().get("paths.tables", "data/tables")
-    return _ROOT / str(rel) / filename
+    rel = str(get_config().get("paths.tables", "") or "").strip()
+    return (_ROOT / rel / filename) if rel else None
 
 
 def _load_table(filename: str, key: str) -> list[dict[str, Any]]:

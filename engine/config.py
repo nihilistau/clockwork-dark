@@ -19,7 +19,18 @@ must beat everything the repo shipped, but it must NOT be written into the
 YAML files -- so it lives in a process-local variable that survives
 ``reset_config()``. See ``set_overlay`` and ``engine/games/registry.py``.
 
-Version: v0.3.0 [2026-08-08]
+``paths.*`` HAS ONE EXTRA LAYER, AND IT IS THE POINT OF THIS MODULE'S v0.4.0.
+Until then ``config/default.yaml`` named The Clockwork Dark's own content files
+as the engine's defaults, so a story that omitted a key did not read nothing --
+it read the flagship's quests, prices and encounters, silently. The defaults are
+empty strings now, and an empty ``paths.*`` value is answered from the manifest
+of the story this process is running (``registry.entry_manifest()``): the
+activated one, or the one ``resolve_slug()`` names when nothing has been
+activated yet. Nothing else changes: an unactivated process is by definition
+running the default game, so it resolves that game's manifest and sees exactly
+the paths this file used to hardcode.
+
+Version: v0.4.0 [2026-08-09]
 """
 
 from __future__ import annotations
@@ -45,6 +56,26 @@ _instance: Optional["ConfigManager"] = None
 # must not silently drop the player back into a different story.
 _overlay: dict[str, Any] = {}
 
+#: Keys under this prefix name STORY content. The engine ships none of it.
+_PATHS_PREFIX = "paths."
+
+#: Distinguishes "declared, and empty" from "no such key anywhere", which for a
+#: ``paths.*`` lookup are different answers -- see ``_story_path``.
+_MISSING = object()
+
+#: Manifest ``paths:`` blocks by slug, for the case where no game has been
+#: activated and the answer therefore has to be read off disk.
+#:
+#: DELIBERATELY NOT CLEARED BY reset_config(), and an empty answer is never
+#: stored. Cache invalidation runs reloaders that re-read content, and those
+#: reloaders ask this question while it is being answered -- so a moment when
+#: the manifest cannot be found (a test that has redirected ``games_root``, a
+#: directory being written) would otherwise replace a whole story's content
+#: paths with nothing and leave the process with an empty world and no error.
+#: A manifest's ``paths:`` block does not change while a process runs; a game
+#: swap goes through the overlay, which is read ahead of this.
+_story_paths_by_slug: dict[str, dict[str, str]] = {}
+
 
 def project_root() -> Path:
     """Repository root. Used to resolve relative paths in config."""
@@ -66,6 +97,41 @@ def deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def story_paths() -> dict[str, str]:
+    """
+    The ``paths:`` block of the story this process is running.
+
+    The activated manifest if there is one, else the manifest ``resolve_slug()``
+    names, read off disk and cached per slug. Reading it must not activate
+    anything: activation repoints config and clears a dozen content caches, and
+    asking where the quests live is not a reason for either.
+
+    Returns:
+        Mapping of path key to repo-relative value. Empty when no manifest is
+        readable, which is deliberately not an error here -- a caller asking for
+        a path it will not get is answered by the loader, not by a raise from
+        the config layer.
+    """
+    try:
+        from engine.games import registry
+
+        manifest = registry.peek()
+        if manifest is not None:
+            return manifest.paths
+        slug = registry.resolve_slug()
+        cached = _story_paths_by_slug.get(slug)
+        if cached is not None:
+            return cached
+        found = registry.get(slug)
+        paths = dict(found.paths) if found is not None else {}
+        if paths:
+            _story_paths_by_slug[slug] = paths
+        return paths
+    except Exception as exc:  # noqa: BLE001 -- config must answer, never raise
+        logger.debug("[config] No manifest for path lookup (operation=story_paths): %s", exc)
+        return {}
+
+
 class ConfigManager:
     """Dot-notation config access."""
 
@@ -73,15 +139,72 @@ class ConfigManager:
         self._data = data
 
     def get(self, path: str, default: Any = None) -> Any:
-        """Return nested value by dot path."""
+        """
+        Return nested value by dot path.
+
+        ``paths.*`` takes one extra step: the engine's config declares those
+        keys empty on purpose, so an empty one is answered from the running
+        story's manifest instead. See ``_story_path`` for what that costs the
+        caller's ``default``.
+        """
         node: Any = self._data
+        found: Any = _MISSING
         for part in path.split("."):
             if not isinstance(node, dict) or part not in node:
-                return default
+                break
             node = node[part]
-        if isinstance(node, str) and node.startswith("${") and node.endswith("}"):
-            return self._expand(node[2:-1], default)
-        return node
+        else:
+            found = node
+
+        value = default if found is _MISSING else found
+        if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
+            value = self._expand(value[2:-1], default)
+
+        if path.startswith(_PATHS_PREFIX):
+            return self._story_path(
+                path[len(_PATHS_PREFIX):],
+                value if found is not _MISSING else "",
+                declared=found is not _MISSING,
+                default=default,
+            )
+        return value
+
+    def _story_path(self, key: str, value: Any, *, declared: bool, default: Any) -> Any:
+        """
+        Answer a ``paths.*`` lookup, falling back to the running story's manifest.
+
+        THE CALLER'S DEFAULT IS DELIBERATELY NOT USED FOR A KEY THE CONFIG
+        DECLARES. Every such literal in this engine was one story's answer --
+        ``"data/quests"``, ``"data/tables"``, ``"data/world/locations.yaml"`` --
+        and returning it would rebuild, in Python, exactly the inheritance the
+        empty defaults exist to remove. A key the config declares and no story
+        claims resolves to "", which every loader reads as "this story ships
+        none of this".
+
+        The default still answers a key that appears nowhere: that is not a
+        story omitting content, it is a caller asking about a key this build's
+        config has never heard of, and its own answer is the only one available.
+
+        Args:
+            key: The part after ``paths.``.
+            value: What the config layers hold, "" when they hold nothing.
+            declared: Whether the key exists in the config at all.
+            default: The caller's fallback.
+        """
+        text = str(value or "").strip()
+        if text:
+            return text
+        from_story = str(story_paths().get(key) or "").strip()
+        if from_story:
+            return from_story
+        if declared:
+            logger.debug(
+                "[config] Story declares no content for this path "
+                "(operation=_story_path, key=paths.%s)",
+                key,
+            )
+            return ""
+        return default
 
     def _expand(self, token: str, default: Any) -> Any:
         """
@@ -111,16 +234,33 @@ class ConfigManager:
         return os.environ.get(token, default)
 
     def section(self, path: str) -> dict[str, Any]:
-        """Return a nested dict, or {} if absent."""
+        """
+        Return a nested dict, or {} if absent.
+
+        ``section("paths")`` answers what ``get("paths.<key>")`` answers, key for
+        key. The two disagreeing would be its own trap: a caller iterating the
+        section would see the engine's empty string for a key that resolves,
+        through the running story's manifest, to a real file.
+        """
         value = self.get(path, {})
-        return value if isinstance(value, dict) else {}
+        block = value if isinstance(value, dict) else {}
+        if path != "paths":
+            return block
+        merged = dict(block)
+        for key, declared in story_paths().items():
+            if not str(merged.get(key) or "").strip():
+                merged[key] = declared
+        return merged
 
     def resolve_path(self, path: str, default: str = "") -> Optional[Path]:
         """
         Resolve a config value as a filesystem path.
 
         Relative paths are taken against the repo root so the game behaves the
-        same regardless of the working directory it was launched from.
+        same regardless of the working directory it was launched from. None
+        means the value is empty, which for a ``paths.*`` key means the running
+        story ships none of that content -- ``_ROOT / ""`` is the repo root,
+        and reading whatever is in it is worse than reading nothing.
         """
         raw = str(self.get(path, default) or "").strip()
         if not raw:

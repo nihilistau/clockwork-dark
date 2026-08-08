@@ -44,9 +44,10 @@ logger = logging.getLogger(__name__)
 _ROOT = Path(__file__).resolve().parents[2]
 
 
-def _rules_path() -> Path:
-    rel = get_config().get("paths.rules", "data/rules")
-    return _ROOT / str(rel) / "survival.yaml"
+def _rules_path() -> Optional[Path]:
+    """The survival rules, or None when this story declares no rules directory."""
+    rel = str(get_config().get("paths.rules", "") or "").strip()
+    return (_ROOT / rel / "survival.yaml") if rel else None
 
 
 @lru_cache(maxsize=8)
@@ -69,6 +70,9 @@ def _read_rules(path_str: str, _mtime: float) -> dict[str, Any]:
 def load_rules() -> dict[str, Any]:
     """Load data/rules/survival.yaml."""
     path = _rules_path()
+    if path is None:
+        logger.debug("[survival] Story declares no rules (operation=load_rules)")
+        return {}
     try:
         mtime = path.stat().st_mtime
     except OSError:

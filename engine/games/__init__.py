@@ -8,7 +8,8 @@ A *game* is a directory under ``games/<slug>/`` holding a ``game.yaml``
 manifest and whatever content that manifest points at. Activating a game
 deep-merges its ``paths:`` block over the config and invalidates every module
 cache that was built from the old paths, so the same engine binary can serve
-"The Clockwork Dark" and "The Drowned Carillon" without an edit.
+"The Clockwork Dark" and "The Wicked Garden" without an edit -- two stories
+that share no meters, no travel model and no character classes.
 
 Public surface:
 

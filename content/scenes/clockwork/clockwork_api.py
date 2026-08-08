@@ -20,7 +20,7 @@ blueprint a second story simply does not mount -- it names its own in its
 ``game.yaml`` under ``scene.blueprint``, or names none and ships no screens.
 
     scene:
-      blueprint: games.drowned_carillon.api:story_blueprint
+      blueprint: games.tide_and_bell.api:story_blueprint
 
 Honest caveat, because the seam should not be oversold: ``/api/items`` and
 ``/api/recipes`` read ``paths.items`` / ``paths.recipes`` / ``paths.economy``
@@ -43,6 +43,7 @@ Version: v0.1.0 [2026-08-08]
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any, Optional
 
 from flask import Blueprint, jsonify, request
@@ -283,6 +284,37 @@ def codex_things(state: Any) -> list[dict[str, Any]]:
     return things
 
 
+def _story_dir(key: str) -> Optional[Path]:
+    """
+    Resolve one ``paths.*`` key, or None when the story declares none.
+
+    THE BUG THIS EXISTS FOR. These three loaders each did
+    ``project_root() / str(get_config().get(key, "data/items"))`` -- a flagship
+    literal as the fallback, and no guard on an empty value. Two failures came
+    out of that once the engine's defaults were emptied:
+
+      * a story declaring no items resolved the path to ``""`` and globbed
+        ``*.yaml`` at the REPOSITORY ROOT, which is harmless only for as long
+        as nobody puts a yaml file there;
+      * ``_economy_prices`` logged "Economy unreadable" at WARNING on every
+        call for a story that simply has no economy, which is not an error --
+        it is an answer.
+
+    The literal defaults were also dead by then: `engine/config.py` resolves a
+    declared-but-empty key through the active story's manifest and deliberately
+    ignores the caller's default, so the string here could never win. Removing
+    them stops the next reader believing the flagship is the fallback.
+    """
+    from engine.config import project_root
+
+    rel = str(get_config().get(key, "") or "").strip()
+    if not rel:
+        logger.debug("[clockwork_api] Story declares no %s", key)
+        return None
+    candidate = Path(rel)
+    return candidate if candidate.is_absolute() else (project_root() / candidate)
+
+
 def _load_item_registry() -> dict[str, dict[str, Any]]:
     """
     The whole of data/items/*.yaml, keyed by item id.
@@ -301,9 +333,9 @@ def _load_item_registry() -> dict[str, dict[str, Any]]:
 
     from engine.config import project_root
 
-    root = project_root() / str(get_config().get("paths.items", "data/items"))
     registry: dict[str, dict[str, Any]] = {}
-    if not root.is_dir():
+    root = _story_dir("paths.items")
+    if root is None or not root.is_dir():
         return registry
     for path in sorted(root.glob("*.yaml")):
         try:
@@ -324,11 +356,9 @@ def _load_recipe_registry() -> dict[str, dict[str, Any]]:
     engine/skills/builtin/mechanics.py, which is private to that module."""
     import yaml
 
-    from engine.config import project_root
-
-    root = project_root() / str(get_config().get("paths.recipes", "data/recipes"))
     recipes: dict[str, dict[str, Any]] = {}
-    if not root.is_dir():
+    root = _story_dir("paths.recipes")
+    if root is None or not root.is_dir():
         return recipes
     for path in sorted(root.glob("*.yaml")):
         try:
@@ -347,11 +377,11 @@ def _economy_prices() -> dict[str, dict[str, Any]]:
     """item id -> {price, vendor} from data/economy.yaml, first vendor wins."""
     import yaml
 
-    from engine.config import project_root
-
     prices: dict[str, dict[str, Any]] = {}
+    path = _story_dir("paths.economy")
+    if path is None:
+        return prices
     try:
-        path = project_root() / str(get_config().get("paths.economy", "data/economy.yaml"))
         with path.open(encoding="utf-8") as handle:
             economy = yaml.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:

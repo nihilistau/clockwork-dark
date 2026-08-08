@@ -21,7 +21,15 @@ What changed and why:
     the model was never told.
   - Memory. The Storyteller now sees what it said, who it met, and what it owes.
 
-Version: v0.2.0 [2026-08-07]
+WHAT THIS MODULE NO LONGER HOLDS, as of v0.2.1: any story's prose. The
+flagship's persona, its two Edgewood few-shots and its Grey Wanderer folklore
+were Python string literals here and were handed to every story that declared
+no ``paths.prompts``, so a second story never actually loaded -- it wore the
+flagship's narrator. They live in ``games/clockwork-dark/prompts/`` now. See
+the block comment above ``_prompts_dir`` for where a story's words are found
+and why an undescribed story still gets a fallback rather than an exception.
+
+Version: v0.2.1 [2026-08-09]
 """
 
 from __future__ import annotations
@@ -47,132 +55,158 @@ if TYPE_CHECKING:  # pragma: no cover
 # Block 0 -- stable. Must not interpolate anything volatile.
 # ---------------------------------------------------------------------------
 
-_BUILTIN_PERSONA = """\
-You are the STORYTELLER of "The Clockwork Dark", a grounded dark-fantasy RPG.
+# ---------------------------------------------------------------------------
+# Story-owned prompts
+#
+# THE BUG THIS CLOSES. Until v0.2.1 this module held The Clockwork Dark's
+# persona as a Python string literal, plus two worked examples set in Edgewood,
+# and handed them to any story that declared no `paths.prompts`. So a second
+# story with its own meters, its own map and its own cast still opened every
+# prompt with "You are the STORYTELLER of The Clockwork Dark". Every other
+# layer had been made story-aware; the words the model actually reads had not,
+# so a second story never really loaded -- it wore the flagship's narrator, and
+# that was visible immediately in the model's output and in nothing else.
+#
+# The flagship's words now live in `games/clockwork-dark/prompts/` alongside
+# every other story's, and this module owns no story's prose at all. What is
+# left below is the minimum that makes an UNDESCRIBED story narratable: second
+# person, present tense, a length target, and the standing prohibition on
+# inventing mechanics. It names no place, no person and no meter.
+#
+# WHY A FALLBACK AT ALL, RATHER THAN A HARD ERROR. A story that boots into a
+# blank narrator is harder to diagnose than one that boots plain: the model
+# still answers, so the symptom surfaces as strange narration several turns
+# later rather than as a stack trace at activation. So the fallback stays and
+# is loud instead -- one WARNING per story naming `paths.prompts` and the
+# directory that was looked for, which is the line an author can act on.
+#
+# WHERE A STORY'S PROMPTS ARE FOUND, in order:
+#
+#   1. `paths.prompts`, if the story declares it. Always wins.
+#   2. `games/<active slug>/prompts`, if that directory exists. This is the
+#      convention, not a special case: it is where all three shipped stories
+#      keep their words, and it means the flagship owns its own voice without
+#      a config key whose only possible value is its own package.
+#
+# A directory supplies `storyteller.md` (the narrator), optional
+# `examples.json` (few-shots) and optional `assistant.md` (the companion).
+# ---------------------------------------------------------------------------
+
+#: Filled with the slugs already warned about. `storyteller_persona()` runs on
+#: every turn of every run, and a per-turn WARNING is a log nobody reads.
+_WARNED_SLUGS: set[str] = set()
+
+_NEUTRAL_PERSONA = """\
+You are the STORYTELLER of {title}.
 
 VOICE
 - Second person, present tense. "You step into..." never "The player steps".
-- Plain, concrete, sensory. Name specific things: hinges, flour, wet wool.
-- Frontier life first, dread underneath. The horror is that ordinary work
-  continues while something goes quietly wrong at the edge of the field.
-- Magic is costly, rare, and never flashy. No fireballs. No spell names.
+- Plain, concrete, sensory. Name specific things rather than describing them.
 - 90-150 words of narration. Shorter when the beat is small.
 
 NEVER
 - Never invent a dice result, a stat change, or an item. The engine decides
   those and hands you the outcome before you write. Narrate what you are given.
 - Never state a number the engine did not give you.
+- Never invent a rule, a meter, or a cost this story has not shown you.
 - Never break the fourth wall or mention rules, mechanics, or "the player".
 - Never introduce a named character who is not present in WORLD STATE.
 - Never contradict LORE CONTEXT or THE STORY SO FAR.
 
 CHOICES
 Offer 2-4. Each must be a genuinely different intention, not three phrasings of
-"go forward". At least one should be quiet or domestic where the scene allows
-it -- a baker's life is a valid way to play this game. Keep each under 8 words.
+the same one. Keep each under 8 words.
 
 CONTINUITY
 You are given a running summary, recent turns, and a list of remembered facts
-and names. Use them. If a character was called Maris Hearth, she is Maris
-Hearth every time. If the player was promised something, that promise is real.
+and names. Use them exactly as given. A name already spoken is that name every
+time, and a promise already made is real.
 """
 
-# Built from real dicts and serialized, rather than hand-written JSON inside
-# Python string literals. Nested quotes and escapes in narration prose make the
-# literal form easy to break and impossible to review.
-_EXAMPLE_BAKERY = {
-    "narration": (
-        "Maris does not stop working while she answers. Her hands go on shaping "
-        "the dough, one turn and a press, one turn and a press, and the smell of "
-        'it fills the low room. "Chimney\'s drawing wrong," she says. "Has been '
-        'since the frost broke." She tips her chin at the flue without looking '
-        "up. There is a dark rime along the iron where the soot has gone "
-        'grey-green instead of black. "Odran says it\'s the wind. Odran says a '
-        'lot of things." The oven ticks as it heats.'
-    ),
-    "choices": [
-        {"id": "a", "text": "Look closer at the flue", "hint": "unknown"},
-        {"id": "b", "text": "Offer to help with the batch", "hint": "safe"},
-        {"id": "c", "text": "Ask what else Odran says", "hint": "safe"},
-    ],
-    "npc_voices": [{"npc_id": "npc_maris", "line": "Chimney's drawing wrong."}],
-    "ledger_delta": {
-        "facts": [
-            {
-                "text": "The bakery flue has grey-green rime, since the frost broke.",
-                "subject_id": "npc_maris",
-            }
-        ]
-    },
-    "mood": "uneasy",
-}
+_NEUTRAL_ASSISTANT_PERSONA = """\
+You are the ASSISTANT in {title} -- an in-world presence, NOT a tutorial and
+NOT an AI. You may help, mislead by omission, or say nothing worth acting on.
 
-_EXAMPLE_GATE = {
-    "narration": (
-        "You are more tired than you let yourself think. The gravel gives under "
-        "your heel with a sound like a small bone breaking, and the watchman's "
-        "lamp swings round before you have finished flinching. He is not "
-        'alarmed. That is somehow worse. "Bit late for the road," he says, and '
-        "waits, and the waiting goes on long enough that you understand you are "
-        "being counted."
-    ),
-    "choices": [
-        {"id": "a", "text": "Give him a name", "hint": "risky"},
-        {"id": "b", "text": "Turn back toward Edgewood", "hint": "safe"},
-        {"id": "c", "text": "Pay the late toll", "hint": "costly"},
-    ],
-    "npc_voices": [{"npc_id": "npc_sera", "line": "Bit late for the road."}],
-    "ledger_delta": {"npc_disposition": {"npc_sera": -2}},
-    "mood": "tense",
-}
-
-_BUILTIN_EXAMPLES: list[dict[str, str]] = [
-    # A quiet domestic beat with no roll -- the register the game is actually
-    # about, and the one a model will otherwise skip straight past.
-    {"role": "user", "content": "The player chooses: Ask Maris about the smoke."},
-    {"role": "assistant", "content": json.dumps(_EXAMPLE_BAKERY, ensure_ascii=False)},
-    # A failed check, narrated from a result the engine already decided.
-    {
-        "role": "system",
-        "content": (
-            "MECHANICAL RESULTS -- AUTHORITATIVE. Narrate these outcomes.\n"
-            "- stealth (standard): d20 6, +2 agility, -3 exhausted = 5 vs DC 13. "
-            "FAILURE by 8."
-        ),
-    },
-    {"role": "user", "content": "The player chooses: Slip past the gate watch."},
-    {"role": "assistant", "content": json.dumps(_EXAMPLE_GATE, ensure_ascii=False)},
-]
+VOICE
+- 1-3 sentences. Never more.
+- Oblique and concrete. Speak in images, not instructions.
+- Never mention dice, stats, rules, or outcomes.
+- Never address the player as a player. You are speaking to a person.
+- You may be wrong. You are never earnest.
+"""
 
 
-# ---------------------------------------------------------------------------
-# Story-owned prompts
-#
-# THE BUG THIS CLOSES. The persona above and the two examples below it are The
-# Clockwork Dark's, and they were the ONLY ones: a second story with its own
-# meters, its own map and its own cast still opened every prompt with "You are
-# the STORYTELLER of The Clockwork Dark", shipped two worked examples set in
-# Edgewood, and described the player's body in hp and stamina it does not have.
-# Every other layer had been made story-aware; the words the model actually
-# reads had not, so the Garden ran with a narrator who thought it was somewhere
-# else -- visible immediately in the model's output, and in nothing else.
-#
-# A story ships `prompts/storyteller.md` and optional `prompts/examples.json`
-# under `paths.prompts`. Absent means the built-ins, which is how both existing
-# games keep behaving exactly as they did.
-# ---------------------------------------------------------------------------
+def _active_title() -> str:
+    """
+    The running story's display name, quoted, or a neutral stand-in.
+
+    Read through ``peek()`` rather than ``active()`` so building a prompt can
+    never activate a game as a side effect -- prompt assembly is not the place
+    to discover that the default game will not load.
+    """
+    try:
+        from engine.games import registry
+
+        manifest = registry.peek()
+        if manifest is not None and manifest.title:
+            return f'"{manifest.title}"'
+    except Exception as exc:  # noqa: BLE001 -- a title is not worth a turn
+        logger.debug("[prompts] No active title: %s", exc)
+    return "this story"
+
+
+def _warn_missing_prompts(looked_in: Optional[Path]) -> None:
+    """Say once, per story, that the narrator is running on engine defaults."""
+    try:
+        from engine.games import registry
+
+        slug = registry.active_slug()
+    except Exception:  # noqa: BLE001
+        slug = "<unknown>"
+    if slug in _WARNED_SLUGS:
+        return
+    _WARNED_SLUGS.add(slug)
+    logger.warning(
+        "[prompts] Story '%s' ships no storyteller.md, so it is narrating with "
+        "the engine's story-neutral fallback persona. Declare `paths.prompts` "
+        "in its manifest, or put storyteller.md in %s "
+        "(operation=storyteller_persona)",
+        slug,
+        looked_in or f"games/{slug}/prompts",
+    )
+
+
+def reset_prompt_warnings() -> None:
+    """
+    Forget which stories have been warned about.
+
+    Registered alongside the other per-game caches: a game swap inside one
+    process must be able to warn about the story it just switched to, and
+    tests activate several stories in a row.
+    """
+    _WARNED_SLUGS.clear()
 
 
 def _prompts_dir() -> Optional[Path]:
+    """The active story's prompt directory, declared or conventional."""
     from engine.config import get_config, project_root
 
     raw = str(get_config().get("paths.prompts", "") or "")
-    if not raw:
+    if raw:
+        path = Path(raw)
+        if not path.is_absolute():
+            path = project_root() / path
+        return path if path.is_dir() else None
+
+    try:
+        from engine.games import registry
+
+        slug = registry.active_slug()
+    except Exception as exc:  # noqa: BLE001 -- fall through to the fallback
+        logger.debug("[prompts] No active slug: %s", exc)
         return None
-    path = Path(raw)
-    if not path.is_absolute():
-        path = project_root() / path
-    return path if path.is_dir() else None
+    candidate = project_root() / "games" / slug / "prompts"
+    return candidate if candidate.is_dir() else None
 
 
 @lru_cache(maxsize=8)
@@ -184,46 +218,47 @@ def _read_prompt(directory: str, name: str, mtime: float) -> str:
         return ""
 
 
+def _story_prompt(name: str) -> str:
+    """One prompt file from the active story, or "" if it ships none."""
+    directory = _prompts_dir()
+    if directory is None:
+        return ""
+    target = directory / name
+    if not target.is_file():
+        return ""
+    return _read_prompt(str(directory), name, target.stat().st_mtime)
+
+
 def storyteller_persona() -> str:
     """
     The narrator's standing instructions, from the active story.
 
-    Falls back to the built-in when a story ships none -- which is not a
-    generic persona, it is Clockwork's. That is deliberate: inventing a
-    story-neutral one would give every story a narrator with no voice, and a
-    bad voice a story chose beats a bland one the engine imposed.
+    Falls back to a story-neutral persona -- deliberately plain, and never
+    another story's voice. See the block comment above for why the fallback
+    exists at all and why it warns.
     """
-    directory = _prompts_dir()
-    if directory is None:
-        return _BUILTIN_PERSONA
-    target = directory / "storyteller.md"
-    if not target.is_file():
-        return _BUILTIN_PERSONA
-    text = _read_prompt(str(directory), "storyteller.md", target.stat().st_mtime)
-    return text or _BUILTIN_PERSONA
+    text = _story_prompt("storyteller.md")
+    if text:
+        return text
+    _warn_missing_prompts(_prompts_dir())
+    return _NEUTRAL_PERSONA.format(title=_active_title())
 
 
 def storyteller_examples() -> list[dict[str, str]]:
     """
     Few-shot exchanges, from the active story.
 
-    A story that ships a persona but no examples gets NONE rather than the
-    flagship's -- two worked examples set in Edgewood are worse than no example
-    at all when the story is somewhere else, because a few-shot is the single
-    strongest signal in the prompt about what a turn looks like.
+    A story that ships no ``examples.json`` gets NONE. There is no engine
+    default here and there must not be one: a few-shot is the single strongest
+    signal in the prompt about what a turn looks like, so a worked example from
+    somewhere else teaches every story to sound like somewhere else. That is
+    the same defect as the persona, one layer quieter.
     """
-    directory = _prompts_dir()
-    if directory is None:
-        return list(_BUILTIN_EXAMPLES)
-    if not (directory / "storyteller.md").is_file():
-        return list(_BUILTIN_EXAMPLES)
-
-    target = directory / "examples.json"
-    if not target.is_file():
+    raw = _story_prompt("examples.json")
+    if not raw:
         return []
-    raw = _read_prompt(str(directory), "examples.json", target.stat().st_mtime)
     try:
-        rows = json.loads(raw) if raw else []
+        rows = json.loads(raw)
     except json.JSONDecodeError as exc:
         logger.warning(
             "[prompts] Unreadable examples.json, using none "
@@ -231,13 +266,23 @@ def storyteller_examples() -> list[dict[str, str]]:
             exc,
         )
         return []
+    if not isinstance(rows, list):
+        return []
     return [r for r in rows if isinstance(r, dict) and r.get("role") and r.get("content")]
 
 
-#: Back-compat module attributes. Several call sites and tests import these by
-#: name; they now resolve through the story-aware readers above.
-STORYTELLER_PERSONA = _BUILTIN_PERSONA
-STORYTELLER_EXAMPLES = _BUILTIN_EXAMPLES
+def assistant_persona() -> str:
+    """
+    The companion's standing instructions, from the active story.
+
+    Same rule as the narrator: the flagship's folklore -- the Grey Wanderer,
+    the Cat Who Knows -- is Edgewood's, and it lived in this module hardcoded
+    into the f-string below until v0.2.1.
+    """
+    text = _story_prompt("assistant.md")
+    if text:
+        return text
+    return _NEUTRAL_ASSISTANT_PERSONA.format(title=_active_title())
 
 
 # ---------------------------------------------------------------------------
@@ -520,6 +565,10 @@ def assistant_system_prompt(state: GameState, *, hint_tier: int) -> str:
     Deliberately still short and stateless. The Assistant is meant to be a
     voice at the edge of the scene, and giving it history would make it
     conversational, which is exactly what it must not be.
+
+    The persona half comes from the story (``prompts/assistant.md``); only the
+    volatile half below is the engine's, because forms, hint tier and place are
+    engine state rather than voice.
     """
     from engine.skills.builtin.assistant import ASSISTANT_FORMS
 
@@ -527,22 +576,7 @@ def assistant_system_prompt(state: GameState, *, hint_tier: int) -> str:
     form = mind.current_form
 
     return f"""\
-You are the ASSISTANT in "The Clockwork Dark" -- an in-world presence, NOT a
-tutorial and NOT an AI. In Edgewood folklore you are the Grey Wanderer, the Cat
-Who Knows, the Tinker's Shadow. You may help, mislead by omission, or say
-nothing worth acting on.
-
-VOICE
-- 1-3 sentences. Never more.
-- Folklore register: oblique, concrete, a little wry. Speak in images.
-- Never mention dice, stats, rules, or outcomes.
-- Never address the player as a player. You are speaking to a person.
-- You may be wrong. You are never earnest.
-
-Good: "The smoke is bread, not burning. Probably."
-Good: "Wheat remembers what the field forgets."
-Bad:  "You should try a stealth check here!"
-Bad:  "As your assistant, I recommend..."
+{assistant_persona()}
 
 FORMS: {", ".join(ASSISTANT_FORMS)}
 CURRENT FORM: {form} -- speak as this.

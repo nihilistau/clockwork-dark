@@ -435,18 +435,18 @@ def test_collection_status_reports_what_is_missing(state: GameState):
 # ---------------------------------------------------------------------------
 
 
-def test_the_coast_declares_the_same_blocks():
+def test_the_garden_declares_the_same_blocks():
     """
     Whatever exists here must exist there or be cleanly absent.
 
-    The Drowned Carillon carries its own items, its own collections and its own
+    The Wicked Garden carries its own items, its own collections and its own
     art prompts. This asserts the shapes agree, so a change to one game's
     schema cannot leave the other silently degraded.
     """
-    coast = yaml.safe_load(
-        (_ROOT / "games/drowned-carillon/data/items/coast.yaml").read_text(encoding="utf-8")
+    garden = yaml.safe_load(
+        (_ROOT / "games/wicked-garden/data/items/garden.yaml").read_text(encoding="utf-8")
     )
-    rows = {r["id"]: r for r in coast["items"]}
+    rows = {r["id"]: r for r in garden["items"]}
     assert any("equip" in r for r in rows.values())
     assert any("use" in r for r in rows.values())
 
@@ -456,16 +456,18 @@ def test_the_coast_declares_the_same_blocks():
             assert equip["slot"] in inventory.EQUIP_SLOTS, row["id"]
 
     sets = yaml.safe_load(
-        (_ROOT / "games/drowned-carillon/data/tables/collections.yaml").read_text(
+        (_ROOT / "games/wicked-garden/data/tables/collections.yaml").read_text(
             encoding="utf-8"
         )
     )
     for entry in sets["collections"]:
         for member in entry["items"]:
-            assert member in rows, f"{entry['id']} names an item this coast has no row for: {member}"
+            assert member in rows, (
+                f"{entry['id']} names an item this garden has no row for: {member}"
+            )
 
     subjects = yaml.safe_load(
-        (_ROOT / "games/drowned-carillon/data/art/subjects.yaml").read_text(encoding="utf-8")
+        (_ROOT / "games/wicked-garden/data/art/subjects.yaml").read_text(encoding="utf-8")
     )
     assert set(rows) == set(subjects["items"]) - {"defaults"}
 
@@ -474,8 +476,8 @@ def test_a_game_with_no_collections_file_is_silent(monkeypatch, tmp_path):
     """
     An absent table is not a warning.
 
-    The coast shipped without one for a release. A missing file must read as
-    "this game has no sets", not as an error the player sees in a log.
+    A second story shipped without one for a release. A missing file must read
+    as "this game has no sets", not as an error the player sees in a log.
     """
     from engine.config import get_config
 

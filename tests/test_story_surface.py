@@ -43,7 +43,7 @@ from engine.persistence import migrations as migrations_module
 from engine.persistence import saves as saves_module
 
 CLOCKWORK = "clockwork-dark"
-CARILLON = "drowned-carillon"
+GARDEN = "wicked-garden"
 UI_SRC = Path(__file__).resolve().parents[1] / "ui" / "src"
 
 #: The row The Clockwork Dark has always written into index.json. Any key added
@@ -71,9 +71,9 @@ CLOCKWORK_ROW_KEYS = {
 
 
 @pytest.fixture
-def carillon() -> Iterator[Any]:
-    """Activate The Drowned Carillon for one test, then put it back."""
-    manifest = registry.activate(CARILLON)
+def garden() -> Iterator[Any]:
+    """Activate The Wicked Garden for one test, then put it back."""
+    manifest = registry.activate(GARDEN)
     try:
         yield manifest
     finally:
@@ -146,15 +146,41 @@ def test_a_story_declaring_no_settings_installs_exactly_what_it_used_to() -> Non
     """
     The compatibility bar for the whole wave.
 
-    ``config_overlay`` returned ``{"paths": ...}`` and nothing else. Both
-    shipped stories must still produce precisely that, or every path in the
-    engine is now being merged through an untested code path.
+    ``config_overlay`` returned ``{"paths": ...}`` and nothing else. A story
+    that declares no ``settings:`` must still produce precisely that, or every
+    path in the engine is now being merged through an untested code path.
+
+    Only the flagship is checked, because it is the only shipped story that
+    declares nothing -- and it is the one whose bytes must not move. The Wicked
+    Garden is the other side of the same seam and gets its own test below.
     """
-    for slug in (CLOCKWORK, CARILLON):
-        manifest = registry.discover()[slug]
-        assert manifest.settings == {}
-        assert manifest.config_overlay() == {"paths": dict(manifest.paths)}
-        assert "settings" not in manifest.to_dict()
+    manifest = registry.discover()[CLOCKWORK]
+    assert manifest.settings == {}
+    assert manifest.config_overlay() == {"paths": dict(manifest.paths)}
+    assert "settings" not in manifest.to_dict()
+
+
+def test_the_garden_s_declared_settings_reach_the_overlay_and_the_api() -> None:
+    """
+    The other side: the one shipped story that DOES declare settings.
+
+    Every key it names is on the allowlist, so all of them survive into the
+    overlay and are republished over /api/games. A key silently dropped here
+    would leave the Garden running the flagship's clock and the flagship's
+    governance chain -- a doom ticker under a story with no doom, and a
+    narrator instructed to write cosy frontier life at a fae threshold.
+    """
+    manifest = registry.discover()[GARDEN]
+    assert manifest.settings, "the Garden declares settings; this test is about them"
+
+    overlay = manifest.config_overlay()
+    assert overlay["world"]["tick_hours"] == 0.0
+    assert overlay["world"]["evil_base_rate_per_day"] == 0.0
+    assert overlay["governance"]["directives"] == ["SafetyDirective", "StorytellerMind"]
+
+    # Nothing was dropped on the way in: every declared key is an allowed one.
+    assert set(manifest.allowed_settings()) == set(manifest.flat_settings())
+    assert manifest.to_dict()["settings"] == manifest.allowed_settings()
 
 
 def test_flatten_settings_dots_the_nesting_and_keeps_lists_whole() -> None:
@@ -291,10 +317,10 @@ def test_every_shipped_story_still_resolves_to_its_own_plugin() -> None:
     The compatibility bar. Not run under `temp_story`, which redirects
     `games_root` at a temp directory and would put the real games out of reach.
 
-    Every shipped story declares no `ui:` block, so every one must resolve
-    exactly as it did when the client keyed off the directory name.
+    No shipped story declares a `ui:` block, so every one must resolve exactly
+    as it did when the client keyed off the directory name.
     """
-    for shipped in (CLOCKWORK, CARILLON):
+    for shipped in (CLOCKWORK, GARDEN):
         manifest = registry.get(shipped)
         assert manifest.ui_plugin == ""
         assert manifest.to_dict()["ui_plugin"] == shipped
@@ -378,12 +404,12 @@ def test_entry_location_answers_without_activating_anything() -> None:
     assert registry.peek() is None
 
 
-def test_entry_location_follows_the_active_story(carillon: Any) -> None:
-    assert registry.entry_location() == "bellfounders_quay"
-    assert registry.entry_archetypes() == ["net_mender", "lamp_keeper", "bell_founder"]
+def test_entry_location_follows_the_active_story(garden: Any) -> None:
+    assert registry.entry_location() == "mortal_threshold"
+    assert registry.entry_archetypes() == ["human"]
 
 
-def test_a_new_run_starts_where_the_manifest_says(carillon: Any) -> None:
+def test_a_new_run_starts_where_the_manifest_says(garden: Any) -> None:
     """
     The bug: ``new_game_state`` carried ``location_id="forest_clearing"``.
 
@@ -394,7 +420,7 @@ def test_a_new_run_starts_where_the_manifest_says(carillon: Any) -> None:
     from engine.game.procgen import new_game_state
 
     state = new_game_state(player_name="Nel", seed=7)
-    assert state.location_id == "bellfounders_quay"
+    assert state.location_id == "mortal_threshold"
 
 
 def test_the_flagship_still_starts_in_the_forest_clearing() -> None:
@@ -404,11 +430,11 @@ def test_the_flagship_still_starts_in_the_forest_clearing() -> None:
     assert new_game_state(player_name="Alden", seed=7).location_id == "forest_clearing"
 
 
-def test_an_explicit_location_still_wins(carillon: Any) -> None:
+def test_an_explicit_location_still_wins(garden: Any) -> None:
     from engine.game.procgen import new_game_state
 
-    state = new_game_state(player_name="Nel", seed=7, location_id="wet_steps")
-    assert state.location_id == "wet_steps"
+    state = new_game_state(player_name="Nel", seed=7, location_id="heart_grove")
+    assert state.location_id == "heart_grove"
 
 
 # ---------------------------------------------------------------------------
@@ -429,7 +455,7 @@ def _v1_doc() -> dict[str, Any]:
 
 def test_the_engine_chain_still_runs_for_every_story() -> None:
     """v1 -> v2 touches the SPINE, so it is not namespaced and must not be."""
-    for slug in (None, CLOCKWORK, CARILLON, "a-story-nobody-wrote"):
+    for slug in (None, CLOCKWORK, GARDEN, "a-story-nobody-wrote"):
         out = migrations_module.migrate(_v1_doc(), slug=slug)
         assert out["world_clock_hours"] == 2 * 24 + 9
         assert out["rng_seed"] == 5
@@ -440,9 +466,9 @@ def test_a_story_step_runs_only_over_that_story_s_saves() -> None:
         data["tide"] = 4
         return data
 
-    migrations_module.register_story_migration(CARILLON, 1, stamp)
+    migrations_module.register_story_migration(GARDEN, 1, stamp)
 
-    assert migrations_module.migrate(_v1_doc(), slug=CARILLON)["tide"] == 4
+    assert migrations_module.migrate(_v1_doc(), slug=GARDEN)["tide"] == 4
     # The whole point: a step written for one story must not reach another's.
     assert "tide" not in migrations_module.migrate(_v1_doc(), slug=CLOCKWORK)
     assert "tide" not in migrations_module.migrate(_v1_doc())
@@ -456,25 +482,25 @@ def test_the_spine_runs_before_the_story_step() -> None:
         seen.update(data)
         return data
 
-    migrations_module.register_story_migration(CARILLON, 1, observe)
-    migrations_module.migrate(_v1_doc(), slug=CARILLON)
+    migrations_module.register_story_migration(GARDEN, 1, observe)
+    migrations_module.migrate(_v1_doc(), slug=GARDEN)
     assert "world_clock_hours" in seen
     assert "world_day" not in seen
 
 
 def test_registering_two_steps_for_one_version_is_refused() -> None:
-    migrations_module.register_story_migration(CARILLON, 1, lambda d: d)
+    migrations_module.register_story_migration(GARDEN, 1, lambda d: d)
     with pytest.raises(migrations_module.MigrationError):
-        migrations_module.register_story_migration(CARILLON, 1, lambda d: d)
+        migrations_module.register_story_migration(GARDEN, 1, lambda d: d)
 
 
 def test_a_save_carries_the_story_that_wrote_it(tmp_path: Path) -> None:
     from engine.persistence.atomic import read_json
 
-    store = saves_module.SaveStore(root=tmp_path / "saves", slug=CARILLON)
+    store = saves_module.SaveStore(root=tmp_path / "saves", slug=GARDEN)
     save_id = store.save(GameState(player_name="Nel"))
     envelope = read_json(tmp_path / "saves" / save_id / "save.json")
-    assert envelope["game"] == CARILLON
+    assert envelope["game"] == GARDEN
 
 
 def test_the_load_path_selects_the_chain_from_the_save(tmp_path: Path) -> None:
@@ -490,9 +516,9 @@ def test_the_load_path_selects_the_chain_from_the_save(tmp_path: Path) -> None:
         seen.append("ran")
         return data
 
-    migrations_module.register_story_migration(CARILLON, 1, stamp)
+    migrations_module.register_story_migration(GARDEN, 1, stamp)
 
-    store = saves_module.SaveStore(root=tmp_path / "saves", slug=CARILLON)
+    store = saves_module.SaveStore(root=tmp_path / "saves", slug=GARDEN)
     save_id = store.save(GameState(player_name="Nel"))
 
     # Rewrite the envelope back to v1 so the chain has something to do.
@@ -504,8 +530,8 @@ def test_the_load_path_selects_the_chain_from_the_save(tmp_path: Path) -> None:
     envelope["state"]["save_version"] = 1
     write_json_atomic(path, envelope)
 
-    # A store built on a DIFFERENT slug still runs the Carillon chain, because
-    # the envelope says the save is a Carillon save.
+    # A store built on a DIFFERENT slug still runs the Garden chain, because
+    # the envelope says the save is a Garden save.
     other = saves_module.SaveStore(root=tmp_path / "saves", slug=CLOCKWORK)
     other.load(save_id)
     assert seen == ["ran"]
@@ -640,7 +666,17 @@ def _doctor():
     return module
 
 
-def test_the_doctor_reports_both_shipped_stories_state() -> None:
+def test_the_doctor_reports_every_shipped_story_s_state() -> None:
+    """
+    The two shipped stories describe their state in opposite ways, and the
+    doctor's whole job here is that the difference is visible at a glance.
+
+    The flagship's fourteen values are every one FIELD-backed: the schema
+    describes attributes `GameState` already had, which is the only reason the
+    layer was safe to land over a game people were mid-run on. The Garden's
+    thirteen are every one BAG-backed and mostly veiled or hidden, because none
+    of them existed before it declared them.
+    """
     doctor = _doctor()
     report = doctor.Report()
     doctor.check_state_schemas(report)
@@ -652,10 +688,33 @@ def test_the_doctor_reports_both_shipped_stories_state() -> None:
     assert "14 field, 0 bag" in flagship[1]
     assert "4 hidden" in flagship[1]
 
-    # A story with no state.yaml runs on the spine. Absent is legal everywhere.
-    coast = next(v for k, v in rows.items() if k.startswith(CARILLON))
-    assert coast[0] == doctor.OK
-    assert "spine" in coast[1]
+    garden_row = next(v for k, v in rows.items() if k.startswith(GARDEN))
+    assert garden_row[0] == doctor.OK
+    assert "13 values" in garden_row[1]
+    assert "0 field, 13 bag" in garden_row[1]
+    assert "6 veiled" in garden_row[1]
+
+
+def test_the_doctor_passes_a_story_that_declares_no_state(temp_story: Any) -> None:
+    """
+    Absent is legal everywhere, and the doctor must say so rather than warn.
+
+    Both shipped stories now ship a state.yaml, so the absent case is built
+    here instead of borrowed from one of them -- `temp_story` writes a manifest
+    and no state.yaml, and redirects `games_root` at it, so this is the only
+    story the doctor can see.
+    """
+    doctor = _doctor()
+    slug = temp_story({})
+
+    report = doctor.Report()
+    doctor.check_state_schemas(report)
+
+    rows = {name: (status, detail) for section, name, status, detail in report.rows}
+    row = next(v for k, v in rows.items() if k.startswith(slug))
+    assert not report.failed
+    assert row[0] == doctor.OK
+    assert "spine" in row[1]
 
 
 def test_the_doctor_fails_loudly_on_a_malformed_schema(temp_story: Any) -> None:

@@ -41,7 +41,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    lore_dir = _ROOT / (args.dir or get_config().get("paths.lore", "data/lore"))
+    # A story that declares no `paths.lore` has no corpus to seed. Joining ""
+    # onto the repo root would hand the ingester the repository itself, and
+    # every top-level markdown file in it -- CLAUDE.md, the README -- would be
+    # indexed as this story's lore and quoted back by the Storyteller.
+    relative = str(args.dir or get_config().get("paths.lore", "") or "").strip()
+    if not relative:
+        print("[seed_lore] This story declares no paths.lore; nothing to ingest.")
+        return 1
+
+    lore_dir = _ROOT / relative
     manager = reset_lore_manager()
 
     if args.clear:

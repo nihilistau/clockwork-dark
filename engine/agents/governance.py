@@ -29,7 +29,7 @@ FAILURE SEMANTICS. An interceptor that raises is logged and skipped. A hook
 that shapes a prompt or records a metric must never be able to take down the
 turn it was observing -- that trades a cosmetic problem for a fatal one.
 
-Version: v0.1.0 [2026-08-08]
+Version: v0.1.1 [2026-08-09]
 """
 
 from __future__ import annotations
@@ -424,12 +424,20 @@ class EvilPhaseTone:
 
     The phase is a hidden stat. Handing the model the word "consuming" invites
     it to write the word; handing it a tone gets the same escalation in fiction.
+
+    The four lines describe an ESCALATION CURVE and nothing else. They used to
+    describe The Clockwork Dark's -- "cosy frontier life", "brass glints" --
+    which put the flagship's imagery into every story's directive block on
+    every turn, one layer quieter than the persona did. A story that wants its
+    own images writes them in ``prompts/storyteller.md``, which sits above this
+    in the prompt; a story-neutral engine may say the wrongness is growing and
+    must not say what it looks like.
     """
 
     _TONE: dict[str, str] = {
-        "dormant": "Tone: cosy frontier life; the wrongness is barely a rumour.",
-        "stirring": "Tone: small wrongnesses creep in -- brass glints, odd silences.",
-        "spreading": "Tone: dread thickens; the corruption is undeniable to the watchful.",
+        "dormant": "Tone: ordinary life; the wrongness is barely a rumour.",
+        "stirring": "Tone: small wrongnesses creep in -- odd details, odd silences.",
+        "spreading": "Tone: dread thickens; the wrongness is undeniable to the watchful.",
         "consuming": "Tone: stark, high-contrast horror; the world is coming apart.",
     }
 

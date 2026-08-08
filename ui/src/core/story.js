@@ -10,8 +10,10 @@
  *
  * A plugin is a plain object. Every field is optional: core has a working
  * default for all of them, which is what makes "a story that ships no plugin
- * still runs" true rather than aspirational -- `games/drowned-carillon/` is the
- * live proof, it has no plugin directory and boots on core alone.
+ * still runs" true rather than aspirational. The story that used to prove it
+ * (`drowned-carillon`, no plugin directory, booted on core alone) has been
+ * deleted, so the property is now held by tests rather than by anything
+ * shipped -- see `tests/test_story_surface.py`.
  *
  * WHICH PLUGIN A STORY GETS
  * -------------------------
@@ -119,7 +121,13 @@ export function listStories() {
  */
 export async function loadStory(plugin, slug = plugin, title = "") {
   const loader = BY_PLUGIN[plugin];
-  if (!loader) return CORE_ONLY;
+  if (!loader) {
+    // A story that ships no plugin still has a NAME. Returning bare CORE_ONLY
+    // meant `story.title` was empty and the start screen fell back to the
+    // literal "A story" -- observed on a real launch, above a picker that was
+    // correctly displaying the story's actual title two lines below.
+    return { ...CORE_ONLY, slug, title, documentTitle: title };
+  }
   try {
     const module = await loader();
     const found = module.default || CORE_ONLY;

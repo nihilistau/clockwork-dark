@@ -337,8 +337,12 @@ safety:
 #     CLOCKWORK_GAME environment variable
 #     game.default, here
 #
-# `clockwork-dark` declares exactly the paths listed below, so activating it is
-# a no-op merge and the flagship content stays where it has always been.
+# The `paths:` block below ships EMPTY of story content, so every path a story
+# reads comes from its own manifest. A process that has activated nothing is
+# still running a story -- whichever this precedence picks -- so an empty
+# `paths.*` value resolves through that story's manifest instead
+# (engine/config.py::story_paths). `clockwork-dark` therefore resolves the
+# flagship content it has always resolved, with nothing about it left in here.
 # `python launcher.py --list-games` prints what is installed.
 # ---------------------------------------------------------------------------
 game:
@@ -348,73 +352,119 @@ game:
   # here so a broken manifest can never stop the flagship game from booting.
   activate_on_launch: true
 
+# ---------------------------------------------------------------------------
+# Paths.
+#
+# ONLY THE ENGINE'S OWN OUTPUT DIRECTORY HAS A VALUE HERE. Every content key is
+# declared and EMPTY, and that is the repair of a defect this file shipped with:
+# it used to name The Clockwork Dark's own files -- `data/quests`,
+# `data/economy.yaml`, `data/world/locations.yaml`,
+# `content/scenes/clockwork/static/art` -- as the ENGINE's defaults. A story
+# that omitted a key therefore did not read nothing. It read the flagship's,
+# silently, and the only symptom was content that made no sense where it
+# surfaced. Measured on 2026-08-09, The Wicked Garden inherited nine of them --
+# assistant_hints, challenges, comfyui_templates, doom_effects, economy,
+# encounters, procgen_templates, quests, recipes -- so a fae court was quoting
+# Edgewood's prices and offering Edgewood's quests.
+#
+# A path naming one story's files is THAT STORY'S MANIFEST'S JOB. Every story
+# declares what it reads in games/<slug>/game.yaml, which the registry merges
+# over this block at activation (engine/games/registry.py). Nothing is
+# inherited; a key one story omits is not another story's file.
+#
+# WHY THE KEYS STAY DECLARED RATHER THAN DELETED. Two reasons, both about the
+# seam being visible. A key listed here is a content system the engine knows
+# how to read, so this block is the inventory of what a story MAY ship -- and
+# scripts/doctor.py reports against it. And a declared-empty key is what tells
+# engine/config.py to answer "" rather than whatever string literal the calling
+# loader happens to carry, which is where the flagship's answers would otherwise
+# survive in Python. See ConfigManager._story_path.
+#
+# AN EMPTY VALUE MEANS THIS STORY SHIPS NONE OF THIS: an empty table, an empty
+# list, no lore index, no warning. That is not new behaviour -- `clocks`,
+# `threads` and `endings` have always resolved to nothing for the flagship --
+# it is now the behaviour of every key here.
+# ---------------------------------------------------------------------------
 paths:
-  # Per-game namespaced at runtime: the active slug is appended, so a run is
-  # written to data/saves/clockwork-dark/. See engine/persistence/saves.py.
+  # THE ONE ENGINE-OWNED PATH. Names no story's content: the active slug is
+  # appended at runtime, so a run is written to data/saves/<slug>/. See
+  # engine/persistence/saves.py.
   saves: "data/saves"
-  lore: "data/lore"
-  lore_db: "data/lore/lore.db"
-  economy: "data/economy.yaml"
-  procgen_templates: "data/procgen_templates/edgewood.yaml"
-  world_schedules: "data/world/schedules.yaml"
-  npc_schedules: "data/world/npc_schedules.yaml"
-  factions: "data/world/factions.yaml"
-  world_rumors: "data/world/rumors.yaml"
-  comfyui_templates: "data/procgen_templates/comfyui.yaml"
-  art_subjects: "data/art/subjects.yaml"
-  art_manifest: "data/art/manifest.yaml"
-  # The directory every path in `art_manifest` is relative to.
-  #
-  # This was hardcoded in engine/media/providers/shipped.py until v0.2.1, at
-  # exactly the value below -- the FLAGSHIP's static tree. A second story could
-  # therefore write a manifest but had nowhere to put the files it named, so
-  # every lookup missed and the procedural silhouette answered instead. The
-  # default is today's value to the character, so this game and The Drowned
-  # Carillon resolve exactly what they resolved before.
-  #
-  # A story that ships its own tree points this at it AND sets `root:` in its
-  # manifest to "/story-art", which is the route in engine/api/art.py that
-  # serves this directory. Files under a story's own directory are NOT reachable
-  # through Flask's /static handler -- that is bound to the scene package, not
-  # to the game.
-  art_root: "content/scenes/clockwork/static/art"
-  rules: "data/rules"
+
+  # -- the world ------------------------------------------------------------
+  locations: ""
+  factions: ""
+  world_schedules: ""
+  npc_schedules: ""
+  world_rumors: ""
+  # Seeded village and margin. The template file used to be a string literal in
+  # engine/game/procgen.py as well, so a story with no templates of its own
+  # generated Edgewood.
+  procgen_templates: ""
+
+  # -- things, work and trade ----------------------------------------------
+  items: ""
+  recipes: ""
+  economy: ""
   # Random draw tables: boons, complications, forage yields, labour, trade.
   # This was hardcoded in engine/game/checks.py until v0.2.0, so a second game
   # drew the first game's boons.
-  tables: "data/tables"
-  quests: "data/quests"
-  locations: "data/world/locations.yaml"
-  assistant_hints: "data/assistant/hints.yaml"
-  items: "data/items"
-  recipes: "data/recipes"
-  encounters: "data/encounters"
+  tables: ""
+
+  # -- what happens to the player -------------------------------------------
+  quests: ""
+  encounters: ""
+  rules: ""
+  # Stored challenge specs and the set-pieces that gate them.
+  challenges: ""
   # Declarative world mutations fired when a doom beat is crossed.
   # See engine/world/world_effects.py.
-  doom_effects: "data/rules/doom_effects.yaml"
-  # Stored challenge specs and the set-pieces that gate them.
-  challenges: "data/challenges"
+  doom_effects: ""
 
+  # -- what the player is told ----------------------------------------------
+  lore: ""
+  # Output, but story-scoped: the index scripts/seed_lore.py builds lives inside
+  # the story's own lore directory, so it cannot be defaulted either.
+  lore_db: ""
+  assistant_hints: ""
   # The words the model actually reads: `storyteller.md` and an optional
-  # `examples.json`. Absent means the built-in persona in
+  # `examples.json`. Empty means the built-in persona in
   # engine/agents/prompts.py, which is The Clockwork Dark's -- so the flagship
   # needs no file here and behaves exactly as it did.
-  #
-  # This was the last place one story's answer was welded into the engine, and
-  # the most visible: every other layer had been made story-aware while the
-  # prompt still opened "You are the STORYTELLER of The Clockwork Dark".
   prompts: ""
 
-  # Structural systems. All five are absent for both shipped games and every
-  # loader returns empty on a missing file, so declaring them here costs
-  # nothing and makes them repointable per story and visible to doctor.py --
-  # a content path the engine reads but no config names is the shape of bug
-  # this project has already paid for twice (data/tables, procgen templates).
-  clocks: "data/rules/clocks.yaml"
-  threads: "data/rules/threads.yaml"
-  endings: "data/rules/endings.yaml"
-  decks: "data/rules/decks"
-  challenge_bounds: "data/rules/challenge_bounds.yaml"
+  # -- pictures --------------------------------------------------------------
+  art_subjects: ""
+  art_manifest: ""
+  # The directory every path in `art_manifest` is relative to.
+  #
+  # This was hardcoded in engine/media/providers/shipped.py until v0.2.1 at the
+  # FLAGSHIP's static tree, and then hardcoded here as the default until this
+  # change. A story could write a manifest but had nowhere to put the files it
+  # named, so every lookup missed and the procedural silhouette answered.
+  #
+  # A story points this at its own tree AND sets `root:` in its manifest to
+  # "/story-art", which is the route in engine/api/art.py that serves this
+  # directory. Files under a story's own directory are NOT reachable through
+  # Flask's /static handler -- that is bound to the scene package, not the game.
+  art_root: ""
+  comfyui_templates: ""
+
+  # -- structural systems ----------------------------------------------------
+  # Declared so they are repointable per story and visible to doctor.py -- a
+  # content path the engine reads but no config names is the shape of bug this
+  # project has already paid for twice (data/tables, procgen templates).
+  clocks: ""
+  threads: ""
+  endings: ""
+  decks: ""
+  challenge_bounds: ""
+  # The last words a run gets, read by engine/game/epilogue.py. Listed here
+  # even though it is empty for every story but one: this block is the ENGINE'S
+  # VOCABULARY of path keys, and a key a story declares that is not listed is a
+  # line nothing validates and doctor.py cannot see. It was missing, and
+  # tests/test_games.py caught it.
+  epilogues: ""
 
 comms:
   interceptors:

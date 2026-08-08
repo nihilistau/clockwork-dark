@@ -92,14 +92,21 @@ Other launcher modes:
 The engine is story-agnostic; the story lives in `games/<slug>/game.yaml`, which
 declares the content paths, and everything under it. Two ship:
 
+
 | Slug | Story |
 |------|-------|
 | `clockwork-dark` | The Clockwork Dark — the flagship. Edgewood, the forest edge, the gear-rot |
-| `drowned-carillon` | The Drowned Carillon — a bell-town under rising water |
+| `wicked-garden` | The Wicked Garden — a fae court, ten mortal days a night, no combat and no dice |
+
+The Wicked Garden is the one that proves the seam. It shares almost nothing
+with the flagship: no HP, no hunger, no travel graph, no character classes, and
+a state schema whose every value is bag-backed where the flagship's is a typed
+dataclass. A second story that was the flagship with different nouns proved
+only that nouns are replaceable.
 
 ```powershell
 .\.venv\Scripts\python.exe launcher.py --list-games
-.\.venv\Scripts\python.exe launcher.py --game drowned-carillon
+.\.venv\Scripts\python.exe launcher.py --game wicked-garden
 ```
 
 Selection order is `--game`, then the `CLOCKWORK_GAME` environment variable,

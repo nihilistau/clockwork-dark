@@ -1,15 +1,26 @@
 """
-Livelihood systems across both installed games.
+Livelihood systems, per game that has them.
 
 THE BUG THIS FILE EXISTS FOR: ``engine/game/checks.py::_load_table`` hardcoded
 ``data/tables/`` instead of resolving through ``get_config()``. With two games
-installed that meant a natural 20 on the Brass Coast drew an Edgewood forest
+installed that meant a natural 20 in the second story drew an Edgewood forest
 boon -- silently, because every content loader in this engine degrades to an
 empty list rather than raising. It fixed itself into invisibility.
 
-The second half of the claim matters as much: anything P12 added must exist in
-BOTH games or be cleanly absent from one. No crash, no ERROR log, no silently
-borrowed content.
+WHY THIS PARAMETRIZE HAS ONE ENTRY. It used to have two, and the second was The
+Drowned Carillon, which ran the same livelihood systems over different nouns --
+forage tables, jobs, vendors, an economy. That story is gone. The other shipped
+story, The Wicked Garden, is deliberately NOT added in its place: it declares no
+``paths.economy``, no forage rules and no travel graph, and prices every item at
+zero because there is no coin in it. Adding it here would assert a system it
+does not run, and each of these tests would be asserting that an empty table is
+a bug when it is the design.
+
+What the Garden IS held to is the last test in this file, which is the half of
+the claim that still generalises: a game is allowed to ship without foraging or
+labour, but it is not allowed to be NOISY about it.
+
+Version: v0.2.0 [2026-08-09]
 """
 
 from __future__ import annotations
@@ -24,7 +35,12 @@ from engine.game import economy, foraging, inventory, trade
 from engine.game.procgen import new_game_state
 from engine.games import registry
 
-GAMES = ("clockwork-dark", "drowned-carillon")
+#: Games that declare livelihood content. See the module docstring for why
+#: The Wicked Garden is not one of them.
+GAMES = ("clockwork-dark",)
+
+#: Every installed story, for the one claim that holds regardless.
+ALL_GAMES = ("clockwork-dark", "wicked-garden")
 
 
 @pytest.fixture
@@ -46,14 +62,7 @@ def test_each_game_draws_its_own_boons_and_complications(activated: str):
     }
     assert boons, f"{activated} resolved no boon table at all"
     assert complications, f"{activated} resolved no complication table at all"
-
-    if activated == "clockwork-dark":
-        assert "forager_luck" in boons
-        assert "low_water_luck" not in boons
-    else:
-        assert "low_water_luck" in boons
-        assert "forager_luck" not in boons, "the coast is drawing Edgewood's boons"
-        assert "the_note_gets_in" in complications
+    assert "forager_luck" in boons
 
 
 @pytest.mark.parametrize("activated", GAMES, indirect=True)
@@ -111,8 +120,8 @@ def test_every_vendor_names_a_place_and_a_faction_that_exist(activated: str):
 
 
 @pytest.mark.parametrize("activated", GAMES, indirect=True)
-def test_a_broke_player_can_forage_food_in_either_game(activated: str):
-    """The soft-lock this whole package closes, checked on both maps."""
+def test_a_broke_player_can_forage_food_where_there_is_ground_to_forage(activated: str):
+    """The soft-lock this whole package closes, checked on every map that has one."""
     entry = registry.active().entry.get("location_id", "")
     state = new_game_state(seed=42, location_id=entry)
     state.stats.gold = 0
@@ -131,7 +140,7 @@ def test_a_broke_player_can_forage_food_in_either_game(activated: str):
 
 
 @pytest.mark.parametrize("activated", GAMES, indirect=True)
-def test_a_shift_can_be_worked_in_either_game(activated: str):
+def test_a_shift_can_be_worked_where_there_is_paid_work(activated: str):
     jobs = economy.jobs()
     assert jobs, f"{activated} declares no paid work"
 
@@ -141,8 +150,8 @@ def test_a_shift_can_be_worked_in_either_game(activated: str):
     assert "check" in outcome, f"{activated}: {job_id} would not run: {outcome}"
 
 
-@pytest.mark.parametrize("activated", GAMES, indirect=True)
-def test_no_livelihood_system_logs_an_error_in_either_game(
+@pytest.mark.parametrize("activated", ALL_GAMES, indirect=True)
+def test_no_livelihood_system_logs_an_error_in_any_game(
     activated: str, caplog: pytest.LogCaptureFixture
 ):
     """
@@ -151,9 +160,21 @@ def test_no_livelihood_system_logs_an_error_in_either_game(
     A game is allowed to ship without foraging or labour. What it is not
     allowed to do is log an error about it, because that is indistinguishable
     from a broken manifest in a support thread.
+
+    This is the one test in the file that runs over EVERY installed story, and
+    it is the reason the rest may safely run over only the flagship: The Wicked
+    Garden has none of these systems, so this is the whole of what the engine
+    owes it -- silence.
     """
     entry = registry.active().entry.get("location_id", "")
     state = new_game_state(seed=42, location_id=entry)
+
+    # Only the seven calls below are on trial. Building the state is setup, and
+    # it is noisy for a reason that has nothing to do with livelihood: a story
+    # declaring no `paths.procgen_templates` has empty name pools and procgen
+    # says so once per new run. Letting that land here would make this test
+    # fail for a fact about character generation.
+    caplog.clear()
 
     with caplog.at_level(logging.WARNING):
         foraging.snapshot(state)

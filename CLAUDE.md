@@ -33,10 +33,26 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II waves 1–2
-complete.** 847 tests passing, no expected failures.
+complete.** ~1360 tests passing, no expected failures. Run `pytest` for the
+real number rather than trusting this line — it has been stale before.
 
-Two games ship: `clockwork-dark` (flagship) and `drowned-carillon`. Pick one
-with `launcher.py --game <slug>`.
+The engine/story seam is the current work. What landed: the multi-agent turn
+(plan → negotiate → commit, `engine/agents/pipeline.py`), the finale chain
+(lock → Speak·Act·Seal → epilogue), a story-declared UI plugin (`ui.plugin`),
+and the removal of one story's content from the engine's defaults. What that
+last one fixed is worth stating plainly, because it was invisible for months:
+every story that omitted a `paths.*` key silently read The Clockwork Dark's
+content, and every story that omitted `paths.prompts` got a narrator who
+introduced itself as the Storyteller of The Clockwork Dark.
+
+Two games ship: `clockwork-dark` (flagship) and `wicked-garden`. Pick one with
+`launcher.py --game <slug>`.
+
+`drowned-carillon` was **deleted**. It was the flagship with different nouns,
+which made it a poor proof of the engine/story seam — it could not fail in any
+way the flagship would not, and it had rotted unnoticed. The Wicked Garden is
+the second story now, and it shares almost nothing with the flagship, which is
+the point.
 
 Closed: **R-01** (prompt budget overflow), **R-02** (`SceneRulesEngine` never
 called), **R-03** (the clock — 10.02 → 4.40 mean h/turn, deaths 129 → 35),

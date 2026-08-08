@@ -54,7 +54,7 @@ def _manifest(**data):
 
 def test_a_manifest_with_no_scene_block_gets_todays_behaviour():
     """
-    The compatibility bar. Neither shipped game declares `scene:`, so both must
+    The compatibility bar. No shipped game declares `scene:`, so every one must
     resolve to the Clockwork scene and the Clockwork story blueprint.
     """
     spec = resolve_scene(_manifest())
@@ -64,26 +64,32 @@ def test_a_manifest_with_no_scene_block_gets_todays_behaviour():
     assert spec.blueprint == DEFAULT_STORY_BLUEPRINT
 
 
-@pytest.mark.parametrize("slug", ["clockwork-dark", "drowned-carillon"])
-def test_both_shipped_games_resolve_to_the_clockwork_scene(slug):
+@pytest.mark.parametrize("slug", ["clockwork-dark", "wicked-garden"])
+def test_every_shipped_game_resolves_to_the_clockwork_scene(slug):
     manifest = registry.get(slug)
     assert manifest is not None, f"games/{slug}/game.yaml is missing"
     assert resolve_scene(manifest) == SceneSpec()
 
 
 def test_a_story_may_name_its_own_scene_and_screens():
+    """
+    The targets here are DELIBERATELY FICTIONAL. `resolve_scene` parses and
+    validates a dotted target; it does not import one, and nothing in this test
+    ever will. Naming a real module would make the test look like an
+    integration check and would tie it to whichever stories happen to ship.
+    """
     spec = resolve_scene(
         _manifest(
             scene={
-                "name": "carillon",
-                "module": "games.drowned_carillon.scene",
-                "blueprint": "games.drowned_carillon.api:story_blueprint",
+                "name": "example",
+                "module": "games.example_story.scene",
+                "blueprint": "games.example_story.api:story_blueprint",
             }
         )
     )
-    assert spec.name == "carillon"
-    assert spec.module == "games.drowned_carillon.scene"
-    assert spec.blueprint == "games.drowned_carillon.api:story_blueprint"
+    assert spec.name == "example"
+    assert spec.module == "games.example_story.scene"
+    assert spec.blueprint == "games.example_story.api:story_blueprint"
 
 
 def test_an_empty_blueprint_means_no_story_screens_not_the_flagships():

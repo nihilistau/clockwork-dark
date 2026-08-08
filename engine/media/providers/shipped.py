@@ -31,7 +31,7 @@ from typing import Any, Optional
 
 import yaml
 
-from engine.config import get_config, project_root
+from engine.config import get_config
 from engine.game.rng import stable_rng
 from engine.media.providers.base import ImageRequest, ImageResult
 
@@ -50,7 +50,7 @@ CORRUPT_PHASES = ("spreading", "consuming")
 
 
 @functools.lru_cache(maxsize=1)
-def art_root() -> Path:
+def art_root() -> Optional[Path]:
     """
     Absolute directory the active story's manifest paths are relative to.
 
@@ -59,9 +59,16 @@ def art_root() -> Path:
     swap that cleared one and not the other would resolve the new story's
     manifest entries against the previous story's directory -- which mostly
     misses, so the visible symptom is art silently disappearing.
+
+    Returns:
+        The story's own art directory, or None when it declares none. This
+        used to fall back to ``ART_ROOT`` -- the FLAGSHIP's tree -- which is the
+        same mistake in Python that ``config/default.yaml`` was making in YAML:
+        a story with no art pack would resolve Edgewood's filenames against
+        Edgewood's directory and quietly serve another story's pictures.
+        Without a root there is no pack, and the procedural provider answers.
     """
-    resolved = get_config().resolve_path("paths.art_root", str(ART_ROOT))
-    return resolved or (project_root() / ART_ROOT)
+    return get_config().resolve_path("paths.art_root")
 
 
 def _seed(*parts: str) -> int:
@@ -84,8 +91,11 @@ def _seed(*parts: str) -> int:
 
 @functools.lru_cache(maxsize=1)
 def load_manifest() -> dict[str, Any]:
-    path = get_config().resolve_path("paths.art_manifest", "data/art/manifest.yaml")
-    if path is None or not path.exists():
+    path = get_config().resolve_path("paths.art_manifest")
+    if path is None:
+        logger.debug("[media] Story declares no art manifest (operation=load_manifest)")
+        return {}
+    if not path.exists():
         logger.info("[media] No art manifest (operation=load_manifest, path=%s)", path)
         return {}
     try:
@@ -103,7 +113,8 @@ def reset_manifest_cache() -> None:
 
 
 def _exists(relative: str) -> bool:
-    return bool(relative) and (art_root() / relative).is_file()
+    root = art_root()
+    return bool(relative) and root is not None and (root / relative).is_file()
 
 
 def _url(relative: str) -> str:
@@ -172,11 +183,12 @@ class ShippedArtProvider:
 
     def generate(self, request: ImageRequest) -> ImageResult:
         relative = lookup(request)
-        if relative is None:
+        root = art_root()
+        if relative is None or root is None:
             return ImageResult(status="failed", provider=self.name, detail="not in manifest")
         return ImageResult(
             url=_url(relative),
-            path=str(art_root() / relative),
+            path=str(root / relative),
             status="cached",
             provider=self.name,
             detail=relative,

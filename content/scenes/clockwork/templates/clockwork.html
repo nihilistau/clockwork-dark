@@ -18,7 +18,19 @@
   <link rel="icon" type="image/svg+xml" href="/static/dist/favicon.svg" />
   <link rel="stylesheet" href="/static/dist/index.css" />
 </head>
-<body data-phase="dormant">
+{#
+  NO `data-phase` HERE. It used to be `<body data-phase="dormant">`, hardcoded,
+  so every story served by this scene package -- including ones with no evil
+  phases at all -- rendered with the flagship's phase attribute on the body and
+  picked up its `[data-phase]` theme rules.
+
+  It belongs to the story that has phases. `ui/src/stories/clockwork-dark/`
+  declares `bodyData`, and core writes it onto the body on mount, which is the
+  seam that lets a story set a body attribute without core knowing what a phase
+  is. A story with no phases now gets no attribute, which is the correct
+  nothing.
+#}
+<body>
   <div id="root"></div>
 
   <noscript>

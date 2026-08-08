@@ -83,9 +83,10 @@ EQUIP_SLOTS = (
 BASE_CARRY_KG = 25.0
 
 
-def _items_dir() -> Path:
-    rel = get_config().get("paths.items", "data/items")
-    return _ROOT / str(rel)
+def _items_dir() -> Optional[Path]:
+    """The item directory, or None when this story declares none."""
+    rel = str(get_config().get("paths.items", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 def _fingerprint(directory: Path) -> tuple[Any, ...]:
@@ -142,8 +143,17 @@ def _read_items(dir_str: str, _fp: tuple[Any, ...]) -> dict[str, dict[str, Any]]
 
 
 def load_items() -> dict[str, dict[str, Any]]:
-    """Every declared item, keyed by id."""
+    """
+    Every declared item, keyed by id.
+
+    Empty for a story that declares no item directory. That is a legitimate
+    shape -- a story can be entirely about conversation -- so it is a DEBUG
+    line, not the warning a genuinely missing directory earns.
+    """
     directory = _items_dir()
+    if directory is None:
+        logger.debug("[inventory] Story declares no items (operation=load_items)")
+        return {}
     return _read_items(str(directory), _fingerprint(directory))
 
 
@@ -243,9 +253,10 @@ def collection_of(item_id: str) -> str:
     return str((get_item(item_id) or {}).get("collection") or "")
 
 
-def _quests_dir() -> Path:
-    rel = get_config().get("paths.quests", "data/quests")
-    return _ROOT / str(rel)
+def _quests_dir() -> Optional[Path]:
+    """The quest directory, or None when this story declares none."""
+    rel = str(get_config().get("paths.quests", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 @lru_cache(maxsize=8)
@@ -293,6 +304,10 @@ def _read_quest_locks(dir_str: str, _fp: tuple[Any, ...]) -> frozenset[str]:
 def quest_locks() -> frozenset[str]:
     """Every item id a quest condition asks for. Cached on directory mtimes."""
     directory = _quests_dir()
+    if directory is None:
+        # No quests means no quest can be holding an item hostage.
+        logger.debug("[inventory] Story declares no quests (operation=quest_locks)")
+        return frozenset()
     fingerprint = tuple(
         (p.name, p.stat().st_mtime)
         for p in sorted(directory.rglob("*.yaml"))
@@ -306,9 +321,10 @@ def reset_quest_lock_cache() -> None:
     _read_quest_locks.cache_clear()
 
 
-def _recipes_dir() -> Path:
-    rel = get_config().get("paths.recipes", "data/recipes")
-    return _ROOT / str(rel)
+def _recipes_dir() -> Optional[Path]:
+    """The recipe directory, or None when this story declares none."""
+    rel = str(get_config().get("paths.recipes", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 @lru_cache(maxsize=8)
@@ -348,6 +364,9 @@ def _read_recipe_refs(dir_str: str, _fp: tuple[Any, ...]) -> frozenset[str]:
 def recipe_refs() -> frozenset[str]:
     """Every item id some recipe consumes, needs as a tool, or makes."""
     directory = _recipes_dir()
+    if directory is None:
+        logger.debug("[inventory] Story declares no recipes (operation=recipe_refs)")
+        return frozenset()
     fingerprint = tuple(
         (p.name, p.stat().st_mtime) for p in sorted(directory.glob("*.yaml"))
     ) if directory.is_dir() else ()
@@ -508,9 +527,10 @@ def wearable(state: GameState) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def _collections_path() -> Path:
-    rel = get_config().get("paths.tables", "data/tables")
-    return _ROOT / str(rel) / "collections.yaml"
+def _collections_path() -> Optional[Path]:
+    """The collections table, or None when this story declares no tables."""
+    rel = str(get_config().get("paths.tables", "") or "").strip()
+    return (_ROOT / rel / "collections.yaml") if rel else None
 
 
 @lru_cache(maxsize=8)
@@ -533,6 +553,8 @@ def load_collections() -> list[dict[str, Any]]:
     warning.
     """
     path = _collections_path()
+    if path is None:
+        return []
     try:
         mtime = path.stat().st_mtime
     except OSError:

@@ -54,7 +54,7 @@ cache to invalidate, and force-importing the whole content tree on every
 ``reset_config()`` would make the test suite pay for a dozen YAML parses it
 never asked for.
 
-Version: v0.1.0 [2026-08-08]
+Version: v0.1.1 [2026-08-09]
 """
 
 from __future__ import annotations
@@ -123,6 +123,10 @@ LRU_CACHES: tuple[tuple[str, str], ...] = (
     ("engine.game.endings", "_read_table"),
     ("engine.content.deck", "_read_deck"),
     ("engine.challenges.spec", "_read_bounds"),
+    # The words the model actually reads: storyteller.md, examples.json and
+    # assistant.md from the active story's prompt directory. Mtime-keyed and
+    # so self-healing, listed for the same reason as the entries above.
+    ("engine.agents.prompts", "_read_prompt"),
 )
 
 # (module, attribute) pairs called with no arguments to rebuild in place.
@@ -147,6 +151,11 @@ RELOADERS: tuple[tuple[str, str], ...] = (
     ("engine.world.world_effects", "reset_doom_effects_cache"),
     ("engine.challenges.set_pieces", "reset_set_piece_cache"),
     ("engine.agents.governance", "reset_governance"),
+    # Which stories have already been warned about shipping no storyteller.md.
+    # Suppressed per slug for the life of the process, so a swap back to a
+    # story must be able to say it again -- an author who fixes a manifest and
+    # reactivates deserves to see whether it took.
+    ("engine.agents.prompts", "reset_prompt_warnings"),
     ("engine.telemetry.oracle", "reset_oracle"),
     # The story's state declaration -- which meters exist, what they are bounded
     # by, who may write them and what the player may see. Swapping stories

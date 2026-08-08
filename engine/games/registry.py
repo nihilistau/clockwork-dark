@@ -20,13 +20,17 @@ error anywhere near the cause. So the paths are checked once, up front, and a
 game with a broken manifest refuses to activate.
 
 WHY THE DEFAULT GAME CHANGES NOTHING: ``games/clockwork-dark/game.yaml``
-declares exactly the paths ``config/default.yaml`` already had. Activating it
-is a no-op merge, which is the point -- the flagship game shipping as a game
-must not move a single content file.
+declares exactly the paths the engine used to hardcode, and nothing else does.
+``config/default.yaml`` ships its ``paths:`` block empty of story content now,
+and ``engine/config.py`` resolves an empty ``paths.*`` through the manifest of
+whatever story ``resolve_slug()`` names -- so a process that has activated
+nothing already reads the default game's paths, and activating it changes
+nothing. That is the point: the flagship shipping as a game must not move a
+single content file, and no story may read another's.
 
 Selection precedence, first hit wins:
 
-    explicit argument       registry.activate("drowned-carillon")
+    explicit argument       registry.activate("tide-and-bell")
     CLOCKWORK_GAME          environment variable
     config game.default     config/default.yaml
 
@@ -313,8 +317,10 @@ def deactivate() -> None:
     """
     Drop the active game and its config overlay.
 
-    Leaves the engine on ``config/default.yaml``'s paths, which are the
-    flagship game's. Tests use this to get back to the baseline.
+    Leaves the engine on ``config/default.yaml``, whose ``paths:`` block names
+    no story's content -- so content then resolves through the manifest of the
+    story ``resolve_slug()`` picks, which is the default game. Tests use this to
+    get back to the baseline.
     """
     global _active
     with _lock:

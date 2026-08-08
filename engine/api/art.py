@@ -130,7 +130,12 @@ def art_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
         from engine.api.media import send_generated
         from engine.media.providers.shipped import art_root
 
-        return send_generated(art_root(), name)
+        root = art_root()
+        if root is None:
+            # This story declares no art tree, so this route has nothing behind
+            # it. 404 rather than serving another story's directory.
+            return jsonify({"error": "no story art root"}), 404
+        return send_generated(root, name)
 
     return blueprint
 

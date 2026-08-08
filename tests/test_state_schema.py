@@ -261,17 +261,25 @@ def test_bands_move_with_the_value():
 # -- absent is legal ----------------------------------------------------------
 
 
-def test_a_story_with_no_schema_file_gets_an_empty_schema():
+def test_a_story_with_no_schema_file_gets_an_empty_schema(tmp_path):
     """
-    Drowned Carillon declares no state and must keep running.
+    A story that declares no state must keep running.
 
     Refusing to start over a missing optional file would turn an additive change
     into a breaking one for every existing game.
+
+    Both shipped stories now ship a state.yaml, so the absent case is written
+    against a path in a temp directory rather than against whichever story
+    happens not to have declared one this week -- the property is about the
+    LOADER, not about the current content of games/.
     """
-    schema = load_schema("games/drowned-carillon/state.yaml", slug="drowned-carillon")
+    absent = tmp_path / "example-story" / "state.yaml"
+    assert not absent.exists()
+
+    schema = load_schema(absent, slug="example-story")
 
     assert schema.values == {}
-    assert schema.slug == "drowned-carillon"
+    assert schema.slug == "example-story"
 
 
 def test_an_empty_schema_projects_nothing_and_does_not_raise():

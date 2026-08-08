@@ -48,14 +48,37 @@ class LoreChunk:
         }
 
 
+#: Index for a story that declares no ``paths.lore_db``. An empty in-memory
+#: database rather than another story's file: the lore index is the archive the
+#: Storyteller quotes from, and answering a fae court's questions out of
+#: Edgewood's archive is exactly the inheritance the empty config defaults exist
+#: to stop. The manager stays fully usable and simply has nothing in it.
+MEMORY_DB = Path(":memory:")
+
+#: Applied to every connection, not once per manager: a thread-local connection
+#: to an in-memory database is a DIFFERENT database, so a worker thread that
+#: opened its own would otherwise query a table that does not exist there.
+_SCHEMA_SQL = """
+CREATE VIRTUAL TABLE IF NOT EXISTS lore_fts USING fts5(
+    chunk_id UNINDEXED,
+    source UNINDEXED,
+    title,
+    body,
+    tags
+);
+"""
+
+
 def _default_db_path() -> Path:
-    rel = get_config().get("paths.lore_db", "data/lore/lore.db")
-    return _ROOT / rel
+    """Where the index lives, or ``MEMORY_DB`` when the story declares none."""
+    rel = str(get_config().get("paths.lore_db", "") or "").strip()
+    return (_ROOT / rel) if rel else MEMORY_DB
 
 
-def _default_lore_dir() -> Path:
-    rel = get_config().get("paths.lore", "data/lore")
-    return _ROOT / rel
+def _default_lore_dir() -> Optional[Path]:
+    """The markdown corpus directory, or None when the story ships none."""
+    rel = str(get_config().get("paths.lore", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 def chunk_markdown(text: str, source: str) -> list[tuple[str, str, list[str]]]:
@@ -104,7 +127,8 @@ class LoreManager:
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
         self.db_path = db_path or _default_db_path()
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        if self.db_path != MEMORY_DB:
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
         # One connection per thread. This is a process-wide singleton reached
         # from Socket.IO worker threads; a single shared sqlite3 connection
         # raises ProgrammingError as soon as a second thread touches it.
@@ -120,6 +144,7 @@ class LoreManager:
         if conn is None:
             conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
             conn.row_factory = sqlite3.Row
+            conn.executescript(_SCHEMA_SQL)
             self._local.conn = conn
         return conn
 
@@ -131,18 +156,9 @@ class LoreManager:
             self._local.conn = None
 
     def _init_schema(self) -> None:
+        # The schema is applied by ``_conn`` as each connection opens; this
+        # exists so a freshly constructed manager has one before anything asks.
         with self._write_lock:
-            self._conn.executescript(
-                """
-                CREATE VIRTUAL TABLE IF NOT EXISTS lore_fts USING fts5(
-                    chunk_id UNINDEXED,
-                    source UNINDEXED,
-                    title,
-                    body,
-                    tags
-                );
-                """
-            )
             self._conn.commit()
 
     def clear(self) -> None:
@@ -201,6 +217,11 @@ class LoreManager:
             Total chunks ingested.
         """
         lore_dir = directory or _default_lore_dir()
+        if lore_dir is None:
+            logger.debug(
+                "[lore] Story declares no lore corpus (operation=ingest_directory)"
+            )
+            return 0
         if not lore_dir.exists():
             logger.warning(
                 "[lore] Directory missing (operation=ingest_directory, path=%s)",

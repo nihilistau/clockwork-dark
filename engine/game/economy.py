@@ -60,9 +60,10 @@ _ROOT = Path(__file__).resolve().parents[2]
 SHIFT_EFFECT_KIND = "shift"
 
 
-def _table_path() -> Path:
-    rel = get_config().get("paths.tables", "data/tables")
-    return _ROOT / str(rel) / "labour.yaml"
+def _table_path() -> Optional[Path]:
+    """The labour table, or None when this story declares no table directory."""
+    rel = str(get_config().get("paths.tables", "") or "").strip()
+    return (_ROOT / rel / "labour.yaml") if rel else None
 
 
 @lru_cache(maxsize=8)
@@ -84,6 +85,11 @@ def load_rules() -> dict[str, Any]:
     logs at info and every entry point degrades to "there is no work here".
     """
     path = _table_path()
+    if path is None:
+        # Declaring no tables is a story saying "there is no paid work here".
+        # DEBUG, not a warning: it is a content decision, not a missing file.
+        logger.debug("[economy] Story declares no tables (operation=load_rules)")
+        return {}
     try:
         mtime = path.stat().st_mtime
     except OSError:

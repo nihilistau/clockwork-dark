@@ -11,7 +11,7 @@ far more than carrying one from the start.
 
 TWO CHAINS, AND THE SECOND ONE IS WHY THIS FILE CHANGED. There was a single
 global ``MIGRATIONS`` dict keyed only by version, so a step written for one
-story would run over every story's saves -- a Drowned Carillon save loaded
+story would run over every story's saves -- a Wicked Garden save loaded
 through a Clockwork migration that backfills ``hunger`` and ``wounds``, or worse,
 a second story's step reaching into a first story's document. With N stories
 that is not a hypothetical; it is the first thing anyone writing story #2 hits.

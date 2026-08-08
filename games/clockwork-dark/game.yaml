@@ -1,16 +1,12 @@
 # The Clockwork Dark -- the flagship game.
 #
-# Every path below is EXACTLY what config/default.yaml already declares, so
-# activating this game is a no-op merge. That is deliberate and it is the
-# compatibility bar: turning the engine into a multi-game engine must not move
-# a single content file, and the whole existing test suite must pass with this
-# manifest active.
-#
-# The content itself lives in data/ rather than games/clockwork-dark/data/ for
-# the same reason. Moving it would be a large, silent, entirely mechanical
-# change to every path in the repo, and it buys nothing the manifest does not
-# already buy -- a second game proves the seam works without the first one
-# having to move house.
+# Every path below used to be duplicated in config/default.yaml, and that
+# duplication was the bug: it made one story's content the ENGINE's answer, so
+# any story omitting a key read this one's files. The engine's defaults are
+# empty now and this manifest is the single place the flagship's content is
+# named. The values did not move, which is the compatibility bar: turning the
+# engine into a multi-game engine must not move a single content file, and the
+# whole existing test suite must pass with this manifest active.
 #
 # WHAT THIS MANIFEST DELIBERATELY DOES NOT DECLARE, as of engine v0.2.0:
 #
@@ -72,6 +68,15 @@ blurb: >-
   working its way outward from the Wound. Become a hero or become a baker --
   the evil ticks either way.
 
+# EVERY PATH THIS STORY READS, INCLUDING THE ONES IT USED TO INHERIT.
+#
+# config/default.yaml carried this list until v0.2.2 -- which meant the engine's
+# defaults were one story's content, and any story omitting a key silently read
+# Edgewood's. The defaults are empty now, so this block is the only thing
+# pointing at the flagship's files. The values are unchanged to the character:
+# the content stays in data/ rather than moving under games/clockwork-dark/,
+# because moving it would be a large silent rename of every path in the repo
+# and buys nothing this manifest does not already buy.
 paths:
   saves: "data/saves"
   lore: "data/lore"
@@ -85,6 +90,11 @@ paths:
   comfyui_templates: "data/procgen_templates/comfyui.yaml"
   art_subjects: "data/art/subjects.yaml"
   art_manifest: "data/art/manifest.yaml"
+  # The directory every path in `art_manifest` resolves against. This story
+  # relied on the engine default for it, and the engine default WAS this
+  # directory -- the flagship's own static tree, which is exactly why no engine
+  # may default it. Declared here now; the value is unchanged.
+  art_root: "content/scenes/clockwork/static/art"
   rules: "data/rules"
   tables: "data/tables"
   quests: "data/quests"

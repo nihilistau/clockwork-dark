@@ -7,9 +7,9 @@ Which scene serves a story, and which Blueprint carries its own screens.
 A story declares this at the TOP LEVEL of its ``games/<slug>/game.yaml``::
 
     scene:
-      module: games.drowned_carillon.scene       # optional
-      blueprint: games.drowned_carillon.api:story_blueprint   # optional
-      name: carillon                             # optional; picks scene.<name>.*
+      module: games.tide_and_bell.scene       # optional
+      blueprint: games.tide_and_bell.api:story_blueprint   # optional
+      name: tide-and-bell                             # optional; picks scene.<name>.*
 
 Top level, not under ``settings:``, for the same reason ``phase_names:`` and
 ``safety:`` are: the manifest keeps unknown top-level keys verbatim in

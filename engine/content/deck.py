@@ -158,11 +158,12 @@ class Hand:
 # ---------------------------------------------------------------------------
 
 
-def _decks_dir() -> Path:
+def _decks_dir() -> Optional[Path]:
+    """The deck directory, or None when the story declares none."""
     from engine.config import get_config
 
-    rel = get_config().get("paths.decks", "data/rules/decks")
-    return _ROOT / str(rel)
+    rel = str(get_config().get("paths.decks", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 @lru_cache(maxsize=32)
@@ -378,7 +379,11 @@ def load_deck(deck_id: str) -> Optional[Deck]:
     Returns None when the story ships no such deck -- which is both shipped
     games today, and is not an error.
     """
-    path = _decks_dir() / f"{deck_id}.yaml"
+    directory = _decks_dir()
+    if directory is None:
+        logger.debug("[deck] Story declares no decks (operation=load_deck)")
+        return None
+    path = directory / f"{deck_id}.yaml"
     try:
         mtime = path.stat().st_mtime
     except OSError:
@@ -393,7 +398,7 @@ def load_deck(deck_id: str) -> Optional[Deck]:
 def deck_ids() -> list[str]:
     """Every deck the running story ships."""
     directory = _decks_dir()
-    if not directory.is_dir():
+    if directory is None or not directory.is_dir():
         return []
     return sorted(p.stem for p in directory.glob("*.yaml"))
 

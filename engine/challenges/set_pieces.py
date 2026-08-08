@@ -43,9 +43,10 @@ _CACHE: Optional[dict[str, dict[str, Any]]] = None
 SET_PIECE_KEY = "set_piece"
 
 
-def _catalogue_dir() -> Path:
-    rel = get_config().get("paths.challenges", "data/challenges")
-    return _ROOT / str(rel)
+def _catalogue_dir() -> Optional[Path]:
+    """The challenge directory, or None when the story declares none."""
+    rel = str(get_config().get("paths.challenges", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 def load_set_pieces() -> dict[str, dict[str, Any]]:
@@ -61,6 +62,12 @@ def load_set_pieces() -> dict[str, dict[str, Any]]:
 
     catalogue: dict[str, dict[str, Any]] = {}
     directory = _catalogue_dir()
+    if directory is None:
+        logger.debug(
+            "[set_pieces] Story declares no challenges (operation=load_set_pieces)"
+        )
+        _CACHE = catalogue
+        return _CACHE
     if not directory.is_dir():
         logger.info(
             "[set_pieces] No challenge directory (operation=load_set_pieces, path=%s)",

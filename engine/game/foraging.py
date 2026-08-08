@@ -78,9 +78,10 @@ def _round(value: float) -> int:
     return int(value + 0.5) if value >= 0 else -int(-value + 0.5)
 
 
-def _table_path() -> Path:
-    rel = get_config().get("paths.tables", "data/tables")
-    return _ROOT / str(rel) / "forage.yaml"
+def _table_path() -> Optional[Path]:
+    """The forage table, or None when this story declares no table directory."""
+    rel = str(get_config().get("paths.tables", "") or "").strip()
+    return (_ROOT / rel / "forage.yaml") if rel else None
 
 
 @lru_cache(maxsize=8)
@@ -103,6 +104,11 @@ def load_rules() -> dict[str, Any]:
     ``available`` reports False everywhere and the skill says so politely.
     """
     path = _table_path()
+    if path is None:
+        # A story with no tables at all forages nothing, and says so the same
+        # polite way it does for a story that ships tables but no forage.yaml.
+        logger.debug("[forage] Story declares no tables (operation=load_rules)")
+        return {}
     try:
         mtime = path.stat().st_mtime
     except OSError:

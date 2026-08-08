@@ -7,14 +7,21 @@ activating the flagship is a no-op merge. This file is that claim, tested.
 
 The claim has three parts and each is a separate failure if it breaks:
 
-  1. Neither shipped story declares a ``safety:`` block, so both resolve to an
-     INERT policy.
+  1. No shipped story configures a LIMIT -- the flagship declares no ``safety:``
+     block at all, and The Wicked Garden declares one that names an intensity
+     ceiling and nothing else -- so both resolve to an INERT policy.
   2. An inert policy contributes no prompt text -- R-01 means the budget is
      already over, and a layer nobody configured must not spend a token of it.
   3. An inert policy draws no RNG, so a recorded seed replays identically with
      the layer present.
 
-Version: v0.1.0 [2026-08-08]
+Part 1 is the one that changed shape. It used to read "neither shipped story
+declares a ``safety:`` block", which was true when the second story was a
+near-copy of the flagship. The Garden does declare one, and it still resolves
+inert -- which is the more useful claim, because it is the DECLARATION that has
+to be inspected rather than its absence.
+
+Version: v0.2.0 [2026-08-09]
 """
 
 from __future__ import annotations
@@ -31,7 +38,7 @@ from engine.safety.governor import SafetyCeiling, SafetyDirective
 from engine.safety.policy import resolve
 from engine.safety.tiers import IntensityTier
 
-SHIPPED = ("clockwork-dark", "drowned-carillon")
+SHIPPED = ("clockwork-dark", "wicked-garden")
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +54,7 @@ def shipped(request: Any) -> Iterator[Any]:
     Activate each shipped game in turn, then put it back.
 
     Teardown is not optional -- activation mutates process-global config and a
-    dozen module caches. Same reasoning as ``tests/test_games.py::carillon``.
+    dozen module caches. Same reasoning as ``tests/test_games.py::garden``.
     """
     manifest = registry.activate(request.param)
     try:
@@ -59,8 +66,22 @@ def shipped(request: Any) -> Iterator[Any]:
 
 
 class TestShippedStoriesAreUnchanged:
-    def test_neither_declares_a_safety_block(self, shipped: Any) -> None:
-        assert "safety" not in shipped.extras
+    def test_neither_declares_a_limit(self, shipped: Any) -> None:
+        """
+        What makes a policy inert is what is ABSENT from the block, not the
+        block. The flagship declares nothing; the Garden declares a ceiling and
+        a fade preference, which are authorship, not restriction.
+
+        ``hard_nos`` stays empty in a manifest on purpose: limits belong to the
+        PLAYER, set in the boundary sheet at the start of a run. A story
+        pre-filling them would be a story deciding what its player finds
+        unbearable -- and would make everything below this line false.
+        """
+        block = shipped.extras.get("safety") or {}
+        assert not block.get("hard_nos")
+        assert not block.get("markers")
+        ceiling = str((block.get("intensity") or {}).get("ceiling") or "suggestive")
+        assert ceiling == "suggestive"
 
     def test_the_resolved_policy_is_inert(self, shipped: Any) -> None:
         policy = resolve()

@@ -22,9 +22,10 @@ Layout::
 THE GAME SLUG IN THE PATH: saves were flat under ``data/saves/`` while there
 was only ever one story. With two, a flat namespace means one load menu listing
 runs from both games, and ``index.json`` written by whichever was launched last
--- and a Drowned Carillon save restored into The Clockwork Dark is a state
-object full of location ids that do not exist in the graph. Namespacing is the
-cheap fix, and the legacy flat layout is migrated on first use.
+-- and a Wicked Garden save restored into The Clockwork Dark is a state object
+full of location ids that do not exist in the graph, with meters the flagship
+has never declared. Namespacing is the cheap fix, and the legacy flat layout is
+migrated on first use.
 
 THE LOAD-MENU ROW IS STORY-DECLARED. ``SaveSummary`` had twelve required fields
 including ``evil_phase`` and ``archetype``, so indexing a run of a story with no

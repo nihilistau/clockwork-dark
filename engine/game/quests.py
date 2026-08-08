@@ -173,10 +173,17 @@ class QuestEvent:
 # ---------------------------------------------------------------------------
 
 
-def quests_root() -> Path:
-    """Resolve the quest content directory."""
-    rel = get_config().get("paths.quests", "data/quests")
-    return _ROOT / str(rel)
+def quests_root() -> Optional[Path]:
+    """
+    Resolve the quest content directory, or None when the story declares none.
+
+    A story with no quests is a supported shape, not a broken install -- The
+    Wicked Garden is written as ten authored days and offers none. It used to
+    inherit Edgewood's quest pack through the engine's default path, which is
+    the defect this returns None for.
+    """
+    rel = str(get_config().get("paths.quests", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 def reset_cache() -> None:
@@ -199,7 +206,13 @@ def load_arcs() -> dict[str, dict[str, Any]]:
     if _ARC_CACHE is not None:
         return _ARC_CACHE
 
-    path = quests_root() / "arcs.yaml"
+    root = quests_root()
+    if root is None:
+        logger.debug("[quests] Story declares no quests (operation=load_arcs)")
+        _ARC_CACHE = {}
+        return _ARC_CACHE
+
+    path = root / "arcs.yaml"
     if not path.exists():
         logger.warning(
             "[quests] Arc content missing (operation=load_arcs, path=%s)", path
@@ -278,6 +291,10 @@ def load_quests() -> dict[str, dict[str, Any]]:
 
     root = quests_root()
     found: dict[str, dict[str, Any]] = {}
+    if root is None:
+        logger.debug("[quests] Story declares no quests (operation=load_quests)")
+        _QUEST_CACHE = {}
+        return _QUEST_CACHE
     if not root.exists():
         logger.warning(
             "[quests] Quest content missing (operation=load_quests, path=%s)", root

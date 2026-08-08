@@ -115,11 +115,12 @@ class EligibilityReport:
 # ---------------------------------------------------------------------------
 
 
-def _table_path() -> Path:
+def _table_path() -> Optional[Path]:
+    """The endings table, or None when the story declares none."""
     from engine.config import get_config
 
-    rel = get_config().get("paths.endings", "data/rules/endings.yaml")
-    return _ROOT / str(rel)
+    rel = str(get_config().get("paths.endings", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 @lru_cache(maxsize=8)
@@ -143,6 +144,8 @@ def load_rules() -> dict[str, Any]:
     story that never ends cannot softlock its ending.
     """
     path = _table_path()
+    if path is None:
+        return {}
     try:
         mtime = path.stat().st_mtime
     except OSError:

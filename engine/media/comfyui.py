@@ -37,10 +37,13 @@ def load_comfyui_templates() -> dict[str, Any]:
     if _TEMPLATE_CACHE is not None:
         return _TEMPLATE_CACHE
 
-    rel = get_config().get(
-        "paths.comfyui_templates",
-        "data/procgen_templates/comfyui.yaml",
-    )
+    rel = str(get_config().get("paths.comfyui_templates", "") or "").strip()
+    if not rel:
+        # A story with no image-prompt templates generates from the caller's
+        # tag alone. It must not borrow another story's visual language.
+        _TEMPLATE_CACHE = {}
+        return _TEMPLATE_CACHE
+
     path = _ROOT / rel
     if not path.exists():
         _TEMPLATE_CACHE = {}

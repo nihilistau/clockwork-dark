@@ -1,0 +1,43 @@
+# The Clockwork Dark — what the narration may not name yet.
+#
+# Below `awareness.spoiler_gate_threshold` the player has not earned the
+# vocabulary of their own story. A narrator that says "the Clockwork Dark" on
+# turn one has told them the shape of forty days of play in four words, so the
+# gate rewrites the term into what a villager would actually say.
+#
+# WHY THIS FILE EXISTS. These three substitutions were a Python list in
+# `engine/lore/interceptors.py`, which meant every story masked THIS story's
+# nouns: a fae court below the threshold had its narration rewritten to talk
+# about wheat, and a story with no `evil_progress` still paid the regex on
+# every turn. The engine owns the GATE -- when to redact, and that a bare term
+# is matched with its leading article so the replacement reads as English. The
+# VOCABULARY is the story's, and it lives here.
+#
+# A story that ships no spoilers.yaml redacts nothing, which is the correct
+# nothing: the gate still runs, there is simply nothing it has been told to
+# hide.
+#
+# `term` is matched case-insensitively and word-bounded, with an optional
+# leading "the" swallowed -- matching the bare term produced "names the
+# something wrong in the wheat". Set `case_sensitive: true` where the casing
+# is the point, as it is for the phase name.
+#
+# Version: v0.1.0 [2026-08-09]
+
+spoilers:
+  # The name of the thing itself. The single biggest reveal in the game.
+  - term: "Clockwork Dark"
+    instead: "something wrong in the wheat"
+
+  # An internal meter id. It should never reach prose at all, but a model that
+  # has seen it in a receipt will occasionally repeat it, and "evil_progress"
+  # in narration is worse than a spoiler -- it is the machinery showing.
+  - term: "evil_progress"
+    instead: "the village's unease"
+
+  # The last evil phase. Case-sensitive: the engine's phase ids are uppercased
+  # in receipts and logs, and the ordinary English word "consuming" is a
+  # perfectly good thing for a narrator to write about a fire or a hunger.
+  - term: "CONSUMING"
+    instead: "the worst of it"
+    case_sensitive: true

@@ -23,7 +23,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 
@@ -48,10 +48,16 @@ ASSISTANT_FORMS: tuple[str, ...] = (
 _FALLBACK_HINT = "Nothing worth saying. That is not the same as nothing worth noticing."
 
 
-def _hints_path() -> Path:
-    """Path to the hint corpus, overridable via ``paths.assistant_hints``."""
-    rel = get_config().get("paths.assistant_hints", "data/assistant/hints.yaml")
-    return _ROOT / str(rel)
+def _hints_path() -> Optional[Path]:
+    """
+    Path to the hint corpus, declared by the story as ``paths.assistant_hints``.
+
+    None when the story ships none, in which case the Assistant speaks from
+    ``_FALLBACK_HINT`` and whatever the turn itself gives it. Another story's
+    hints would have it noticing things this world does not contain.
+    """
+    rel = str(get_config().get("paths.assistant_hints", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 def _load_hint_data() -> dict[str, Any]:
@@ -64,6 +70,9 @@ def _load_hint_data() -> dict[str, Any]:
         abort a turn.
     """
     path = _hints_path()
+    if path is None:
+        logger.debug("[assistant] Story declares no hints (operation=_load_hint_data)")
+        return {}
     try:
         with path.open(encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
@@ -107,9 +116,21 @@ def _build_hints_by_tier(data: dict[str, Any]) -> dict[int, list[str]]:
         3: by_tier[3],
     }
     for tier, pool in merged.items():
-        if not pool:
+        if pool:
+            continue
+        # A story that ships NO hint corpus has no pools by definition, and
+        # saying so three times at WARNING on every boot is noise about a
+        # decision the story made. A corpus that exists and leaves a tier empty
+        # is still worth flagging: that one is an authoring gap.
+        if data.get("hints"):
             logger.warning(
                 "[assistant] Empty hint pool (operation=_build_hints_by_tier, tier=%s)",
+                tier,
+            )
+        else:
+            logger.debug(
+                "[assistant] Story declares no hints "
+                "(operation=_build_hints_by_tier, tier=%s)",
                 tier,
             )
     return merged

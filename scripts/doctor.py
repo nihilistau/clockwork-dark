@@ -33,10 +33,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 OK, WARN, FAIL = "ok", "warn", "fail"
 
-#: The story whose content `config/default.yaml`'s `paths:` block names.
-#: Every other story that omits one of those keys reads this one's files --
-#: see check_inherited_content.
-DEFAULTS_OWNER = "clockwork-dark"
 GLYPH = {OK: "[ ok ]", WARN: "[warn]", FAIL: "[FAIL]"}
 
 
@@ -185,15 +181,15 @@ def check_inherited_content(report: Report) -> None:
     about grain tallies in a fae garden, and by then it looks like a content
     bug rather than a missing line in a manifest.
 
-    Reported as WARN rather than FAIL because every case on disk today is
-    pre-existing and unreached -- The Wicked Garden inherits ``quests`` and has
-    no quest giver, so nothing offers one. That makes it a trap rather than a
-    break, and a trap is exactly what a doctor is for.
+    THE CAUSE IS FIXED; THIS IS THE GUARD. Every content key in
+    ``config/default.yaml`` is empty now, and each story declares what it reads.
+    So this check should be quiet forever -- it exists to catch the regression,
+    which is somebody adding a real path back to the engine default and
+    reintroducing the leak for every story that omits it.
 
-    The deeper fix is to stop the engine's defaults naming one story's content
-    at all: the flagship already declares twenty-two of these in its own
-    manifest, so the defaults buy it nothing and cost everyone else. That is a
-    bigger change than a diagnostic, and it should be made deliberately.
+    WARN rather than FAIL because the failure mode is a trap rather than a
+    break: the content is reachable but usually unreached, which is precisely
+    why it survived undetected. A trap is what a doctor is for.
     """
     import yaml
 
@@ -220,15 +216,21 @@ def check_inherited_content(report: Report) -> None:
         and (root / str(value)).exists()
     }
 
-    for slug, manifest in sorted(discover().items()):
-        # The story the defaults belong to is not inheriting anything. Named
-        # rather than derived because that is the actual fact being reported:
-        # `config/default.yaml` holds THIS story's paths, which is the whole
-        # reason every other story reading them is a problem.
-        if slug == DEFAULTS_OWNER:
-            report.add("Story paths", slug, OK, "owns the engine defaults")
-            continue
+    if not flagship:
+        report.add(
+            "Story paths", "engine defaults", OK, "name no story's content"
+        )
+    else:
+        # A regression: somebody put a story's file back in the engine default.
+        report.add(
+            "Story paths",
+            "engine defaults",
+            WARN,
+            f"{len(flagship)} default path(s) name content on disk, which every "
+            f"story omitting them will read: {', '.join(sorted(flagship))}",
+        )
 
+    for slug, manifest in sorted(discover().items()):
         inherited = sorted(flagship - set(manifest.paths))
         if not inherited:
             report.add("Story paths", slug, OK, "declares every content path it reads")
@@ -237,8 +239,7 @@ def check_inherited_content(report: Report) -> None:
             "Story paths",
             slug,
             WARN,
-            f"reads {len(inherited)} path(s) belonging to {DEFAULTS_OWNER}: "
-            f"{', '.join(inherited)}",
+            f"reads {len(inherited)} path(s) it does not declare: {', '.join(inherited)}",
         )
 
 

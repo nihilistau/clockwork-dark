@@ -68,7 +68,12 @@ def load_schedules() -> dict[str, Any]:
     if _SCHEDULE_CACHE is not None:
         return _SCHEDULE_CACHE
 
-    rel = get_config().get("paths.world_schedules", "data/world/schedules.yaml")
+    rel = str(get_config().get("paths.world_schedules", "") or "").strip()
+    if not rel:
+        logger.debug("[schedules] Story declares no schedules (operation=load_schedules)")
+        _SCHEDULE_CACHE = {}
+        return _SCHEDULE_CACHE
+
     path = _ROOT / rel
     if not path.exists():
         logger.warning(
@@ -82,10 +87,14 @@ def load_schedules() -> dict[str, Any]:
     return _SCHEDULE_CACHE
 
 
-def _rumors_path() -> Path:
-    """Resolve the rumour file. Split out so tests can point it elsewhere."""
-    rel = get_config().get("paths.world_rumors", "data/world/rumors.yaml")
-    return _ROOT / rel
+def _rumors_path() -> Optional[Path]:
+    """
+    Resolve the rumour file, or None when the story declares none.
+
+    Split out so tests can point it elsewhere.
+    """
+    rel = str(get_config().get("paths.world_rumors", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 def load_rumors() -> dict[str, Any]:
@@ -102,6 +111,10 @@ def load_rumors() -> dict[str, Any]:
         return _RUMOR_CACHE
 
     path = _rumors_path()
+    if path is None:
+        logger.debug("[schedules] Story declares no rumours (operation=load_rumors)")
+        _RUMOR_CACHE = {}
+        return _RUMOR_CACHE
     if not path.exists():
         logger.info(
             "[schedules] Tiered rumours absent, using flat list "

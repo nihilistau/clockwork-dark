@@ -12,6 +12,18 @@
       "runtimeExecutable": ".venv\\Scripts\\python.exe",
       "runtimeArgs": ["launcher.py", "--game", "dev-story", "--port", "5599"],
       "port": 5599
+    },
+    {
+      "name": "garden",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": ["launcher.py", "--game", "wicked-garden", "--port", "5601"],
+      "port": 5601
+    },
+    {
+      "name": "clockwork",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": ["launcher.py", "--game", "clockwork-dark", "--port", "5602"],
+      "port": 5602
     }
   ]
 }

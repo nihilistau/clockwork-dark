@@ -1,8 +1,8 @@
 # ============================================================
 # Art subjects -- The Wicked Garden.
 #
-# ONE source, TWO prompt dialects, exactly as data/art/subjects.yaml is for the
-# flagship and games/drowned-carillon/data/art/subjects.yaml is for the coast.
+# ONE source, TWO prompt dialects, exactly as the flagship's own subjects file
+# is for Edgewood.
 # engine/media/art.py renders natural prose for Grok Imagine
 # (`render_prose`) and comma-separated tags plus a negative prompt for ComfyUI
 # SDXL (`render_tags`) from the structured fields below. Nothing here is

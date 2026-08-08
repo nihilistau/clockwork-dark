@@ -378,8 +378,13 @@ def _load_recipes() -> dict[str, Any]:
     Merged across data/recipes/*.yaml so a malformed file costs one category
     rather than every recipe in the game.
     """
-    root = _ROOT / str(get_config().get("paths.recipes", "data/recipes"))
+    rel = str(get_config().get("paths.recipes", "") or "").strip()
     recipes: dict[str, Any] = {}
+    if not rel:
+        # No recipe directory means nothing here can be crafted. Resolving ""
+        # would glob the repository root instead.
+        return recipes
+    root = _ROOT / rel
     if not root.exists():
         return recipes
     for path in sorted(root.glob("*.yaml")):

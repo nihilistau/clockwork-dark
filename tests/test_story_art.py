@@ -18,10 +18,15 @@ Two things had to become per-story, and this file holds both to their contract:
                              tree had no URL at all -- the manifest resolved,
                              the file existed, and the browser got a 404.
 
-The regression bar is the last three tests: both shipped games must resolve the
-same number of pictures at the same URLs as before this seam existed.
+The regression bar is the last three tests: a story that declares no
+``art_root`` must resolve the same number of pictures at the same URLs as
+before this seam existed. The flagship is the only shipped story in that
+position -- the Garden declares its own root, which is the whole point of it --
+so ``INHERITS_THE_FLAGSHIP_TREE`` has one entry rather than two. The Garden is
+not missing from this file; it is the subject of everything between here and
+the regression bar.
 
-Version: v0.1.0 [2026-08-08]
+Version: v0.2.0 [2026-08-09]
 """
 
 from __future__ import annotations
@@ -45,7 +50,12 @@ from engine.media.providers.shipped import (
 
 _ROOT = project_root()
 GARDEN = "wicked-garden"
-SHIPPED = ("clockwork-dark", "drowned-carillon")
+
+#: Shipped stories that declare no ``paths.art_root`` and therefore resolve
+#: against the flagship's static tree. The Wicked Garden is deliberately NOT in
+#: here: it declares its own root and serves from ``/story-art``, so adding it
+#: would assert the exact behaviour this seam exists to end.
+INHERITS_THE_FLAGSHIP_TREE = ("clockwork-dark",)
 
 # The flagship pack, counted before this seam existed. These are golden
 # numbers: they are here to fail loudly if repointing the root moves a picture
@@ -59,7 +69,7 @@ def garden() -> Iterator[Any]:
     Activate The Wicked Garden, then put the process back.
 
     Teardown is not optional -- activation mutates process-global config and a
-    dozen module caches. Same reasoning as ``tests/test_games.py::carillon``.
+    dozen module caches. Same reasoning as ``tests/test_games.py::garden``.
     """
     manifest = registry.activate(GARDEN)
     try:
@@ -69,8 +79,8 @@ def garden() -> Iterator[Any]:
         reset_manifest_cache()
 
 
-@pytest.fixture(params=SHIPPED)
-def shipped_game(request: Any) -> Iterator[str]:
+@pytest.fixture(params=INHERITS_THE_FLAGSHIP_TREE)
+def inheriting_game(request: Any) -> Iterator[str]:
     slug = str(request.param)
     registry.activate(slug)
     try:
@@ -334,7 +344,7 @@ def test_an_unknown_variant_falls_back_to_the_house_style() -> None:
         reset_manifest_cache()
 
 
-def test_a_story_with_no_variants_is_unaffected(shipped_game: str) -> None:
+def test_a_story_with_no_variants_is_unaffected(inheriting_game: str) -> None:
     """
     The flagship declares no `style.variants`. Adding the seam cost it nothing.
     """
@@ -388,12 +398,14 @@ def test_story_art_404s_rather_than_raising_on_a_miss(garden: Any) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_shipped_games_still_resolve_against_the_flagship_tree(shipped_game: str) -> None:
+def test_a_story_with_no_art_root_still_resolves_against_the_flagship_tree(
+    inheriting_game: str,
+) -> None:
     assert art_root() == _ROOT / ART_ROOT
 
 
-def test_shipped_games_still_serve_from_static(shipped_game: str) -> None:
-    """Their manifests keep ``root: /static/art`` and Flask keeps serving it."""
+def test_a_story_with_no_art_root_still_serves_from_static(inheriting_game: str) -> None:
+    """Its manifest keeps ``root: /static/art`` and Flask keeps serving it."""
     result = ShippedArtProvider().generate(
         ImageRequest(subject_id="forest_clearing", kind="location", time_of_day="day")
     )
@@ -401,10 +413,12 @@ def test_shipped_games_still_serve_from_static(shipped_game: str) -> None:
     assert result.url.startswith("/static/art/")
 
 
-def test_shipped_games_resolve_exactly_what_they_did_before(shipped_game: str) -> None:
+def test_a_story_with_no_art_root_resolves_exactly_what_it_did_before(
+    inheriting_game: str,
+) -> None:
     """
-    The Drowned Carillon declares no ``art_manifest`` and therefore inherits
-    the flagship's. That is pre-existing behaviour, not something this seam
-    introduced, and pinning it here is what would catch a change to it.
+    A story declaring no ``art_manifest`` inherits the flagship's. That is
+    pre-existing behaviour, not something this seam introduced, and pinning it
+    here is what would catch a change to it.
     """
     assert _count_resolved(load_manifest()) == FLAGSHIP_RESOLVED

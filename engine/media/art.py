@@ -41,8 +41,13 @@ CORRUPT_PHASES = ("spreading", "consuming")
 @functools.lru_cache(maxsize=1)
 def load_subjects() -> dict[str, Any]:
     """Load the art spec. Cached; the file is small and static."""
-    path = get_config().resolve_path("paths.art_subjects", "data/art/subjects.yaml")
-    if path is None or not path.exists():
+    path = get_config().resolve_path("paths.art_subjects")
+    if path is None:
+        # No art spec is a story shipping no generated art, not a fault. DEBUG,
+        # or it warns on every boot of a story that legitimately has none.
+        logger.debug("[art] Story declares no art subjects (operation=load_subjects)")
+        return {}
+    if not path.exists():
         logger.warning("[art] Subjects file missing (operation=load_subjects, path=%s)", path)
         return {}
     try:

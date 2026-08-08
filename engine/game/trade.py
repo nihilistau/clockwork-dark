@@ -73,9 +73,10 @@ BUY = "buy"
 SELL = "sell"
 
 
-def _table_path() -> Path:
-    rel = get_config().get("paths.tables", "data/tables")
-    return _ROOT / str(rel) / "trade.yaml"
+def _table_path() -> Optional[Path]:
+    """The trade table, or None when this story declares no table directory."""
+    rel = str(get_config().get("paths.tables", "") or "").strip()
+    return (_ROOT / rel / "trade.yaml") if rel else None
 
 
 @lru_cache(maxsize=8)
@@ -98,6 +99,9 @@ def load_rules() -> dict[str, Any]:
     broken game.
     """
     path = _table_path()
+    if path is None:
+        logger.debug("[trade] Story declares no tables (operation=load_rules)")
+        return {}
     try:
         mtime = path.stat().st_mtime
     except OSError:
@@ -121,9 +125,19 @@ def _read_economy(path_str: str, _mtime: float) -> dict[str, Any]:
 
 
 def load_economy() -> dict[str, Any]:
-    """Vendor stock overrides from ``paths.economy``."""
-    rel = get_config().get("paths.economy", "data/economy.yaml")
-    path = _ROOT / str(rel)
+    """
+    Vendor stock overrides from ``paths.economy``.
+
+    A story that declares no economy has no prices of its own, and must not be
+    given another story's: this used to default to the flagship's
+    ``data/economy.yaml``, which is how a fae court came to quote Edgewood's
+    bread prices.
+    """
+    rel = str(get_config().get("paths.economy", "") or "").strip()
+    if not rel:
+        logger.debug("[trade] Story declares no economy (operation=load_economy)")
+        return {}
+    path = _ROOT / rel
     try:
         mtime = path.stat().st_mtime
     except OSError:

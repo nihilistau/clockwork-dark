@@ -21,14 +21,14 @@ rewrites the game. That is the whole trick, and it is the source project's
 idea -- what was missing there was the manifest, the loader, and any way to
 validate that the paths point at files that exist.
 
-    id: drowned-carillon
-    title: "The Drowned Carillon"
+    id: tide-and-bell
+    title: "Tide and Bell"
     version: "0.1.0"
     engine_requires: ">=0.2.0"
     blurb: "A sunken cathedral-organ plays the tide, and the tide answers."
     paths:
-      locations: "games/drowned-carillon/data/world/locations.yaml"
-      quests: "games/drowned-carillon/data/quests"
+      locations: "games/tide-and-bell/data/world/locations.yaml"
+      quests: "games/tide-and-bell/data/quests"
     settings:
       world:
         tick_hours: 1.0

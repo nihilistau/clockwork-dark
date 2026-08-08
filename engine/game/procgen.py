@@ -38,45 +38,39 @@ logger = logging.getLogger(__name__)
 _ROOT = Path(__file__).resolve().parents[2]
 _TEMPLATE_CACHE: Optional[dict[str, Any]] = None
 
-# Last-resort answers, used only when neither the config nor the active
-# manifest has one. They are the flagship's, so a build with a damaged config
-# degrades to the behaviour it had before this module learned about manifests
-# -- but a story that DECLARES its own now wins, which it did not before.
-_FALLBACK_TEMPLATES = "data/procgen_templates/edgewood.yaml"
+# Last-resort STARTING LOCATION, used only when no manifest is readable at all.
+# It is the flagship's, and it is deliberately still here: a build that cannot
+# read a manifest has to put a new character somewhere, and there is no such
+# thing as a run with no location. The template path that sat beside it is gone
+# -- a story with no procgen templates generates nothing, which is an answer.
 _FALLBACK_LOCATION = "forest_clearing"
 
 
-def _manifest_path(key: str) -> str:
+def _templates_path() -> Optional[Path]:
     """
-    A ``paths.*`` value straight off the active manifest, or "".
+    The running story's procgen templates, or None when it declares none.
 
-    Read without activating anything: asking where the templates live must not
-    repoint config and clear a dozen caches as a side effect.
+    ``get_config()`` resolves ``paths.*`` through the active manifest itself
+    now, so the manifest read this function used to do by hand is gone -- and
+    so is ``_FALLBACK_TEMPLATES``, which named Edgewood's file and meant a story
+    with no templates of its own generated an Edgewood.
     """
-    try:
-        from engine.games.registry import entry_manifest
-
-        manifest = entry_manifest()
-    except Exception as exc:  # noqa: BLE001 -- procgen must not fail on lookup
-        logger.debug("[procgen] No manifest available (operation=_manifest_path): %s", exc)
-        return ""
-    return str((manifest.paths.get(key) if manifest else "") or "")
-
-
-def _templates_path() -> Path:
-    rel = get_config().get("paths.procgen_templates", "") or _manifest_path(
-        "procgen_templates"
-    ) or _FALLBACK_TEMPLATES
-    return _ROOT / rel
+    rel = str(get_config().get("paths.procgen_templates", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 def load_templates() -> dict[str, Any]:
-    """Load and cache Edgewood procgen templates."""
+    """Load and cache the running story's procgen templates."""
     global _TEMPLATE_CACHE
     if _TEMPLATE_CACHE is not None:
         return _TEMPLATE_CACHE
 
     path = _templates_path()
+    if path is None:
+        logger.debug("[procgen] Story declares no templates (operation=load_templates)")
+        _TEMPLATE_CACHE = {}
+        return _TEMPLATE_CACHE
+
     if not path.exists():
         logger.warning(
             "[procgen] Templates missing (operation=load_templates, path=%s)", path

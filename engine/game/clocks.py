@@ -401,11 +401,12 @@ def mark_scene_played(state: GameState, scene_id: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def _table_path() -> Path:
+def _table_path() -> Optional[Path]:
+    """The clock table, or None when the story declares none."""
     from engine.config import get_config
 
-    rel = get_config().get("paths.clocks", "data/rules/clocks.yaml")
-    return _ROOT / str(rel)
+    rel = str(get_config().get("paths.clocks", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 @lru_cache(maxsize=8)
@@ -436,6 +437,8 @@ def load_clocks() -> dict[str, Any]:
     existed, which is both shipped games today.
     """
     path = _table_path()
+    if path is None:
+        return {}
     try:
         mtime = path.stat().st_mtime
     except OSError:

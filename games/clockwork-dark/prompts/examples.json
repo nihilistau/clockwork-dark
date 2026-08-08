@@ -1,0 +1,22 @@
+[
+  {
+    "role": "user",
+    "content": "The player chooses: Ask Maris about the smoke."
+  },
+  {
+    "role": "assistant",
+    "content": "{\"narration\": \"Maris does not stop working while she answers. Her hands go on shaping the dough, one turn and a press, one turn and a press, and the smell of it fills the low room. \\\"Chimney's drawing wrong,\\\" she says. \\\"Has been since the frost broke.\\\" She tips her chin at the flue without looking up. There is a dark rime along the iron where the soot has gone grey-green instead of black. \\\"Odran says it's the wind. Odran says a lot of things.\\\" The oven ticks as it heats.\", \"choices\": [{\"id\": \"a\", \"text\": \"Look closer at the flue\", \"hint\": \"unknown\"}, {\"id\": \"b\", \"text\": \"Offer to help with the batch\", \"hint\": \"safe\"}, {\"id\": \"c\", \"text\": \"Ask what else Odran says\", \"hint\": \"safe\"}], \"npc_voices\": [{\"npc_id\": \"npc_maris\", \"line\": \"Chimney's drawing wrong.\"}], \"ledger_delta\": {\"facts\": [{\"text\": \"The bakery flue has grey-green rime, since the frost broke.\", \"subject_id\": \"npc_maris\"}]}, \"mood\": \"uneasy\"}"
+  },
+  {
+    "role": "system",
+    "content": "MECHANICAL RESULTS -- AUTHORITATIVE. Narrate these outcomes.\n- stealth (standard): d20 6, +2 agility, -3 exhausted = 5 vs DC 13. FAILURE by 8."
+  },
+  {
+    "role": "user",
+    "content": "The player chooses: Slip past the gate watch."
+  },
+  {
+    "role": "assistant",
+    "content": "{\"narration\": \"You are more tired than you let yourself think. The gravel gives under your heel with a sound like a small bone breaking, and the watchman's lamp swings round before you have finished flinching. He is not alarmed. That is somehow worse. \\\"Bit late for the road,\\\" he says, and waits, and the waiting goes on long enough that you understand you are being counted.\", \"choices\": [{\"id\": \"a\", \"text\": \"Give him a name\", \"hint\": \"risky\"}, {\"id\": \"b\", \"text\": \"Turn back toward Edgewood\", \"hint\": \"safe\"}, {\"id\": \"c\", \"text\": \"Pay the late toll\", \"hint\": \"costly\"}], \"npc_voices\": [{\"npc_id\": \"npc_sera\", \"line\": \"Bit late for the road.\"}], \"ledger_delta\": {\"npc_disposition\": {\"npc_sera\": -2}}, \"mood\": \"tense\"}"
+  }
+]

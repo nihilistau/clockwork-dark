@@ -87,9 +87,10 @@ DISCOVERY_FLAG_PREFIX = clocks.DISCOVERY_FLAG_PREFIX
 PERMANENT_HORIZON_DAY = clocks.PERMANENT_HORIZON_DAY
 
 
-def _effects_path() -> Path:
-    rel = get_config().get("paths.doom_effects", "data/rules/doom_effects.yaml")
-    return _ROOT / str(rel)
+def _effects_path() -> Optional[Path]:
+    """The doom beat table, or None when the story declares none."""
+    rel = str(get_config().get("paths.doom_effects", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 def load_doom_effects() -> dict[str, Any]:
@@ -105,6 +106,14 @@ def load_doom_effects() -> dict[str, Any]:
         return _EFFECTS_CACHE
 
     path = _effects_path()
+    if path is None:
+        logger.debug(
+            "[world_effects] Story declares no doom effects "
+            "(operation=load_doom_effects)"
+        )
+        _EFFECTS_CACHE = {}
+        return _EFFECTS_CACHE
+
     try:
         with path.open(encoding="utf-8") as handle:
             data = yaml.safe_load(handle) or {}

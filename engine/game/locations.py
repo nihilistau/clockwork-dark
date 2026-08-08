@@ -70,10 +70,17 @@ _AWARENESS_DELTA_RANGE = (-10, 10)
 _EDGE_DEFAULTS: dict[str, int] = {"hours": 1, "danger_dc": 0, "awareness_delta": 0}
 
 
-def _locations_path() -> Path:
-    """Path to the graph file, overridable via ``paths.locations``."""
-    rel = get_config().get("paths.locations", "data/world/locations.yaml")
-    return _ROOT / str(rel)
+def _locations_path() -> Optional[Path]:
+    """
+    Path to the graph file, declared by the story as ``paths.locations``.
+
+    None when the story declares none. There is no engine answer to fall back
+    on: a location graph is the most story-specific file there is, and reading
+    another story's would put the player in a village that does not exist in
+    the world they are playing.
+    """
+    rel = str(get_config().get("paths.locations", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 def _in_range(value: float, bounds: tuple[float, float]) -> bool:
@@ -258,6 +265,11 @@ def load_locations(path: Optional[Path] = None) -> dict[str, dict[str, Any]]:
         an unreadable map must not abort a turn mid-travel.
     """
     source = path or _locations_path()
+    if source is None:
+        logger.debug(
+            "[locations] Story declares no location graph (operation=load_locations)"
+        )
+        return {}
     try:
         with source.open(encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}

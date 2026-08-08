@@ -24,8 +24,8 @@
 # `bell_watch`) and in doing so wrote three blocks the simulator will never
 # find, because the simulator asks for the engine's names and gets `{}`. Its
 # events run on the hardcoded defaults instead, which point at Edgewood. That
-# is an existing defect in games/drowned-carillon/data/world/schedules.yaml,
-# noted here so this file does not repeat it.
+# was an existing defect in the second story that used to ship here, noted so
+# this file does not repeat it. That story has since been deleted.
 #
 # So: engine ids on the left, the Garden's own names in the comments.
 #

@@ -89,10 +89,16 @@ class NPCPresence:
 # ---------------------------------------------------------------------------
 
 
-def _schedules_path() -> Path:
-    """Resolve the routine file. Split out so tests can point it elsewhere."""
-    rel = get_config().get("paths.npc_schedules", "data/world/npc_schedules.yaml")
-    return _ROOT / rel
+def _schedules_path() -> Optional[Path]:
+    """
+    Resolve the routine file, or None when the story declares none.
+
+    Split out so tests can point it elsewhere. Another story's routines are
+    worse than no routines: they place NPCs at location ids this world does not
+    contain, which is what the engine's default path used to do.
+    """
+    rel = str(get_config().get("paths.npc_schedules", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 def load_npc_schedules() -> dict[str, Any]:
@@ -109,6 +115,12 @@ def load_npc_schedules() -> dict[str, Any]:
         return _SCHEDULE_CACHE
 
     path = _schedules_path()
+    if path is None:
+        logger.debug(
+            "[npc_sim] Story declares no routines (operation=load_npc_schedules)"
+        )
+        _SCHEDULE_CACHE = {}
+        return _SCHEDULE_CACHE
     if not path.exists():
         logger.warning(
             "[npc_sim] Routines missing, falling back to procgen homes "

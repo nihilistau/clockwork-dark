@@ -44,10 +44,17 @@ UNNAMED_SAINTS = "unnamed_saints"
 _UNKNOWN_STANDING = "unknown"
 
 
-def _factions_path() -> Path:
-    """Resolve the faction file. Split out so tests can point it elsewhere."""
-    rel = get_config().get("paths.factions", "data/world/factions.yaml")
-    return _ROOT / rel
+def _factions_path() -> Optional[Path]:
+    """
+    Resolve the faction file, or None when the story declares none.
+
+    Split out so tests can point it elsewhere. A story with no factions
+    resolves every standing as unknown, which is what a world with no organised
+    powers should do -- rather than resolving it against another story's
+    militia, which is what the engine's default path used to do.
+    """
+    rel = str(get_config().get("paths.factions", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 def load_factions() -> dict[str, Any]:
@@ -62,6 +69,10 @@ def load_factions() -> dict[str, Any]:
         return _FACTION_CACHE
 
     path = _factions_path()
+    if path is None:
+        logger.debug("[reputation] Story declares no factions (operation=load_factions)")
+        _FACTION_CACHE = {}
+        return _FACTION_CACHE
     if not path.exists():
         logger.warning(
             "[reputation] Factions missing (operation=load_factions, path=%s)", path

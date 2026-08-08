@@ -338,8 +338,8 @@ safety:
 ```
 
 **Why top level and not `settings:`.** `GameManifest` keeps every unknown
-top-level key verbatim in `extras` — `drowned-carillon` already carries
-`phase_names:` that way — so a story declares its content rating with **no
+top-level key verbatim in `extras` — that is also how `ui:` reaches the games
+API without the dataclass learning about it — so a story declares its content rating with **no
 change to `engine/games/manifest.py`** and, more importantly, without the block
 passing through `config_overlay()`, which would make a story's rating a config
 value that a stale `config/local.yaml` could move. `to_dict()` emits `extras`,

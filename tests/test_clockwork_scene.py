@@ -49,7 +49,19 @@ def test_index_loads(scene_app):
     client = app.test_client()
     res = client.get("/")
     assert res.status_code == 200
-    assert b"CLOCKWORK DARK" in res.data
+    # The page title is the ACTIVE STORY's, not a constant.
+    #
+    # This used to assert b"CLOCKWORK DARK", which the template rendered from a
+    # hardcoded `display_name` -- so every story served by this scene package
+    # opened a browser tab named after the flagship. Reproduced by launching a
+    # second story and reading `document.title`.
+    #
+    # Asserted against the registry rather than a literal, so the test says
+    # "the title follows the story" instead of re-pinning it to one name.
+    from engine.games.registry import peek
+
+    expected = (peek().title if peek() else "A story").encode()
+    assert expected in res.data
 
 
 def test_new_game(scene_app):

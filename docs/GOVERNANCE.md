@@ -188,11 +188,21 @@ Nothing is persisted — these are numbers about a running process.
 
 ## Multi-game safety
 
-Both `paths.doom_effects` and `paths.challenges` are declared in **both** game
-manifests. An undeclared path falls back to the engine default, which is
-Edgewood's table — that would have The Drowned Carillon's flood tide waking a
-brass scarecrow in a wheatfield it does not have. The Carillon files are
-deliberately empty and say so.
+An undeclared `paths.*` key resolves to **nothing**, and every loader treats
+that as "this story ships none of this" — an empty table, no index, no rules.
+
+It did not always. `config/default.yaml` used to name The Clockwork Dark's own
+files as the default for 23 content keys, so a story that forgot `doom_effects`
+got Edgewood's table: a brass scarecrow waking in a wheatfield the story does
+not have. Nothing announced it. Measured before the fix, The Wicked Garden was
+reading Edgewood's quests, prices and encounters.
+
+Every path key in `config/default.yaml` is empty now except `saves`, which is an
+output directory the engine owns rather than any story's content. A story
+declares what it reads, and a story that declares nothing reads nothing.
+
+`scripts/doctor.py`'s **Story paths** section reports any story still resolving
+into another story's tree.
 
 ---
 

@@ -208,11 +208,12 @@ SCHEMA_CEILING_FRACTION = 1.0 / 6.0
 DEFAULT_UNBOUNDED_CEILING = 10
 
 
-def _bounds_path() -> Path:
+def _bounds_path() -> Optional[Path]:
+    """The bounds file, or None when the story declares none."""
     from engine.config import get_config
 
-    rel = get_config().get("paths.challenge_bounds", "data/rules/challenge_bounds.yaml")
-    return _ROOT / str(rel)
+    rel = str(get_config().get("paths.challenge_bounds", "") or "").strip()
+    return (_ROOT / rel) if rel else None
 
 
 @lru_cache(maxsize=8)
@@ -235,6 +236,8 @@ def _read_bounds(path_str: str, _mtime: float) -> dict[str, Any]:
 def load_bounds() -> dict[str, Any]:
     """Story-declared ceiling overrides. Absent file means "derive everything"."""
     path = _bounds_path()
+    if path is None:
+        return {}
     try:
         mtime = path.stat().st_mtime
     except OSError:
