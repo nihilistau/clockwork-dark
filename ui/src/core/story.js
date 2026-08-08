@@ -13,11 +13,25 @@
  * still runs" true rather than aspirational -- `games/drowned-carillon/` is the
  * live proof, it has no plugin directory and boots on core alone.
  *
+ * WHICH PLUGIN A STORY GETS
+ * -------------------------
+ * The server says. `GET /api/games` reports `ui_plugin` for the active story,
+ * which is its manifest's `ui.plugin` or, when it declares none, its own slug --
+ * so the default is exactly the old directory-name match.
+ *
+ * That indirection exists because a plugin directory is not free: Vite turns
+ * each one into its own chunk in `content/scenes/clockwork/static/dist/`, which
+ * is COMMITTED. A story that only wants to borrow another's look had no way to
+ * say so, and paying for a directory plus build artefacts to get a skin that
+ * already exists is the wrong trade. Now `ui: {plugin: wicked-garden}` in a
+ * manifest is the whole of it.
+ *
  * THE CONTRACT
  * ------------
- *   slug          Must equal the server's game slug. That is the whole binding:
- *                 GET /api/games reports which slug is active and the matching
- *                 directory under src/stories/ is loaded.
+ *   slug          The PLUGIN's own id. It no longer has to equal the running
+ *                 story's slug -- two stories may share one plugin -- so
+ *                 anything keying off "which story is this" must read the
+ *                 catalogue, not this field.
  *   title         Fallback wordmark, used only until the catalogue answers.
  *   theme()       Returns a promise for the story's stylesheet. Loaded BEFORE
  *                 first paint, after core's, so story rules win ties without
@@ -68,8 +82,8 @@ import { fetchGames } from "./api.js";
  */
 const PLUGINS = import.meta.glob("../stories/*/index.jsx");
 
-/** Slug -> loader, keyed off the directory name so it matches the server's. */
-const BY_SLUG = Object.fromEntries(
+/** Plugin id -> loader, keyed off the directory name under src/stories/. */
+const BY_PLUGIN = Object.fromEntries(
   Object.entries(PLUGINS).map(([path, load]) => [
     path.replace("../stories/", "").replace("/index.jsx", ""),
     load,
@@ -86,25 +100,62 @@ export const CORE_ONLY = Object.freeze({
 });
 
 export function listStories() {
-  return Object.keys(BY_SLUG);
+  return Object.keys(BY_PLUGIN);
 }
 
 /**
- * Load one story's plugin and its theme, or fall back to core.
+ * Load one plugin and its theme, or fall back to core.
  *
  * Never rejects. A story whose plugin throws must cost the player its bespoke
  * screens, not the boot -- core alone is a playable client.
+ *
+ * Args:
+ *   plugin  Which plugin directory to load.
+ *   slug    The running story, for the fallback `slug` field and log lines.
+ *           Defaults to the plugin id, which is the case for every story that
+ *           declares no `ui.plugin`.
+ *   title   The running story's own name, from the catalogue. Only used when
+ *           the plugin is BORROWED -- see below.
  */
-export async function loadStory(slug) {
-  const loader = BY_SLUG[slug];
+export async function loadStory(plugin, slug = plugin, title = "") {
+  const loader = BY_PLUGIN[plugin];
   if (!loader) return CORE_ONLY;
   try {
     const module = await loader();
-    const plugin = module.default || CORE_ONLY;
-    if (plugin.theme) await plugin.theme();
-    return { ...CORE_ONLY, ...plugin, slug: plugin.slug || slug };
+    const found = module.default || CORE_ONLY;
+    if (found.theme) await found.theme();
+
+    // A BORROWED plugin lends its LOOK, not its VOICE.
+    //
+    // A plugin holds two kinds of thing. Visual slots -- theme, Ledger, Stage,
+    // Wrap, components -- are what a story borrows one for. Naming slots are
+    // copy written in that story's own fiction, and they assert whose story
+    // this is: `title` and `documentTitle` reach the tab and the masthead,
+    // `Wordmark` is the start screen's title treatment, `beginLabel` is a
+    // sentence about a specific world ("Step through the hedge"), `StartIntro`
+    // and `onboarding` are prose about it.
+    //
+    // Left alone, a scratch story borrowing the Garden's skin announced itself
+    // as The Wicked Garden everywhere and invited the player to step through a
+    // hedge that is not in its one room. Stripped, it gets the look it asked
+    // for and its own name. When the plugin is the story's own -- every shipped
+    // story -- none of this runs.
+    const borrowed = plugin !== slug;
+    const naming = borrowed
+      ? {
+          title: title || slug,
+          documentTitle: title || slug,
+          Wordmark: null,
+          StartIntro: null,
+          beginLabel: "",
+          asideLabel: "",
+          onboarding: [],
+        }
+      : {};
+
+    return { ...CORE_ONLY, ...found, ...naming, slug: found.slug || slug };
   } catch (err) {
-    console.error(`[story] plugin "${slug}" failed to load; falling back to core`, err);
+    console.error(`[story] plugin "${plugin}" failed to load; falling back to core`, err);
     return CORE_ONLY;
   }
 }
@@ -119,9 +170,18 @@ export async function loadStory(slug) {
  */
 export async function resolveStory() {
   let slug = "";
+  let plugin = "";
+  let title = "";
   try {
     const data = await fetchGames();
-    slug = data?.active || (data?.games || []).find((g) => g.active)?.slug || "";
+    const games = data?.games || [];
+    const active = games.find((g) => g.active) || null;
+    slug = data?.active || active?.slug || "";
+    // What the story ASKED to be drawn as. The server already defaults this to
+    // the story's own slug, so the lookup below is the old behaviour whenever a
+    // manifest declares nothing.
+    plugin = active?.ui_plugin || "";
+    title = active?.title || "";
   } catch {
     // No catalogue route, or the server is not up yet. A single-story install
     // with a plugin still resolves below if there is exactly one on disk.
@@ -130,5 +190,5 @@ export async function resolveStory() {
     const only = listStories();
     if (only.length === 1) slug = only[0];
   }
-  return loadStory(slug);
+  return loadStory(plugin || slug, slug, title);
 }

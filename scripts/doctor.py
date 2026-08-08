@@ -32,6 +32,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 OK, WARN, FAIL = "ok", "warn", "fail"
+
+#: The story whose content `config/default.yaml`'s `paths:` block names.
+#: Every other story that omits one of those keys reads this one's files --
+#: see check_inherited_content.
+DEFAULTS_OWNER = "clockwork-dark"
 GLYPH = {OK: "[ ok ]", WARN: "[warn]", FAIL: "[FAIL]"}
 
 
@@ -164,6 +169,77 @@ def check_games(report: Report) -> None:
 
     report.add("Games", "cache registry", OK,
                f"{len(registered_caches())} caches invalidated on activation")
+
+
+def check_inherited_content(report: Report) -> None:
+    """
+    Which stories are silently reading another story's content.
+
+    THE DEFECT THIS SURFACES. A ``paths.*`` key a story omits does not fall back
+    to nothing -- it falls back to ``config/default.yaml``, and twenty-three of
+    those defaults point at The Clockwork Dark's own files. So a story that
+    forgets ``quests`` does not get no quests; it gets Edgewood's, offered by
+    name in a world that has never heard of Edgewood.
+
+    Nothing announced this. It is invisible unless you happen to meet a rumour
+    about grain tallies in a fae garden, and by then it looks like a content
+    bug rather than a missing line in a manifest.
+
+    Reported as WARN rather than FAIL because every case on disk today is
+    pre-existing and unreached -- The Wicked Garden inherits ``quests`` and has
+    no quest giver, so nothing offers one. That makes it a trap rather than a
+    break, and a trap is exactly what a doctor is for.
+
+    The deeper fix is to stop the engine's defaults naming one story's content
+    at all: the flagship already declares twenty-two of these in its own
+    manifest, so the defaults buy it nothing and cost everyone else. That is a
+    bigger change than a diagnostic, and it should be made deliberately.
+    """
+    import yaml
+
+    from engine.config import project_root
+    from engine.games.registry import discover
+
+    root = project_root()
+    try:
+        with (root / "config" / "default.yaml").open(encoding="utf-8") as handle:
+            defaults = (yaml.safe_load(handle) or {}).get("paths") or {}
+    except (OSError, yaml.YAMLError) as exc:
+        report.add("Story paths", "defaults", WARN, f"could not read config/default.yaml: {exc}")
+        return
+
+    # Only keys whose default resolves to a file that EXISTS and is not itself
+    # story-scoped or a runtime output directory. Those are the ones where an
+    # omission means "read the flagship" rather than "read nothing".
+    owned = {"games/", "data/saves", "data/cache", "data/media", "data/telemetry"}
+    flagship = {
+        key
+        for key, value in defaults.items()
+        if str(value)
+        and not str(value).startswith(tuple(owned))
+        and (root / str(value)).exists()
+    }
+
+    for slug, manifest in sorted(discover().items()):
+        # The story the defaults belong to is not inheriting anything. Named
+        # rather than derived because that is the actual fact being reported:
+        # `config/default.yaml` holds THIS story's paths, which is the whole
+        # reason every other story reading them is a problem.
+        if slug == DEFAULTS_OWNER:
+            report.add("Story paths", slug, OK, "owns the engine defaults")
+            continue
+
+        inherited = sorted(flagship - set(manifest.paths))
+        if not inherited:
+            report.add("Story paths", slug, OK, "declares every content path it reads")
+            continue
+        report.add(
+            "Story paths",
+            slug,
+            WARN,
+            f"reads {len(inherited)} path(s) belonging to {DEFAULTS_OWNER}: "
+            f"{', '.join(inherited)}",
+        )
 
 
 def check_state_schemas(report: Report) -> None:
@@ -315,6 +391,7 @@ def main(argv: list[str] | None = None) -> int:
         check_config,
         check_games,
         check_state_schemas,
+        check_inherited_content,
         check_services,
         check_content,
         check_ui,

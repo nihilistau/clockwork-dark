@@ -28,6 +28,7 @@ Version: v0.1.0 [2026-08-08]
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -43,6 +44,7 @@ from engine.persistence import saves as saves_module
 
 CLOCKWORK = "clockwork-dark"
 CARILLON = "drowned-carillon"
+UI_SRC = Path(__file__).resolve().parents[1] / "ui" / "src"
 
 #: The row The Clockwork Dark has always written into index.json. Any key added
 #: or removed here is a change to a file players already have on disk.
@@ -271,6 +273,95 @@ def test_allowed_settings_are_published_over_the_games_api(temp_story: Any) -> N
     slug = temp_story({"settings": {"world": {"tick_hours": 1.25}}})
     row = registry.get(slug).to_dict()
     assert row["settings"] == {"world.tick_hours": 1.25}
+
+
+# ---------------------------------------------------------------------------
+# 1b. ui.plugin -- a story declares which client plugin draws it
+#
+# It used to be inferred: the client matched the server's slug against a
+# directory name under ui/src/stories/. That made two stories unable to share a
+# look, and a plugin directory is not free -- Vite turns each into its own chunk
+# in the COMMITTED dist/ tree, so a scratch story wanting an existing skin had
+# to leave build artefacts in the repository to get it.
+# ---------------------------------------------------------------------------
+
+
+def test_every_shipped_story_still_resolves_to_its_own_plugin() -> None:
+    """
+    The compatibility bar. Not run under `temp_story`, which redirects
+    `games_root` at a temp directory and would put the real games out of reach.
+
+    Every shipped story declares no `ui:` block, so every one must resolve
+    exactly as it did when the client keyed off the directory name.
+    """
+    for shipped in (CLOCKWORK, CARILLON):
+        manifest = registry.get(shipped)
+        assert manifest.ui_plugin == ""
+        assert manifest.to_dict()["ui_plugin"] == shipped
+
+
+def test_a_story_may_borrow_another_storys_plugin(temp_story: Any) -> None:
+    """`ui: {plugin: wicked-garden}` -- draw me like that one."""
+    slug = temp_story({"ui": {"plugin": "wicked-garden"}})
+    manifest = registry.get(slug)
+    assert manifest.ui_plugin == "wicked-garden"
+    assert manifest.to_dict()["ui_plugin"] == "wicked-garden"
+    # And the story is still itself: the plugin is a skin, not an identity.
+    assert manifest.slug == slug
+
+
+@pytest.mark.parametrize(
+    "bad", ["wicked-garden", ["wicked-garden"], {"plugin": ""}, {}, None]
+)
+def test_a_malformed_ui_block_falls_back_rather_than_raising(
+    temp_story: Any, bad: Any
+) -> None:
+    """
+    A typo costs the story its skin, never its boot.
+
+    Same argument the client makes for a plugin that throws: core alone is a
+    playable client, and a manifest is content.
+    """
+    slug = temp_story({"ui": bad}, slug="ui-fallback")
+    assert registry.get(slug).to_dict()["ui_plugin"] == slug
+
+
+def test_the_client_follows_the_declaration_not_the_directory() -> None:
+    """
+    The JS half of the seam, read from source.
+
+    `resolveStory` must take `ui_plugin` off the catalogue row and pass it to
+    `loadStory`, keeping the running slug separate -- two stories sharing one
+    plugin means "which plugin" and "which story" are no longer the same
+    question, and anything that conflates them silently mislabels a run.
+    """
+    text = (UI_SRC / "core" / "story.js").read_text(encoding="utf-8")
+    assert "ui_plugin" in text, "the client never reads the declaration"
+    assert "BY_SLUG" not in text, "still keyed off the slug"
+    assert re.search(r"loadStory\(\s*plugin\s*\|\|\s*slug\s*,\s*slug\s*,\s*title\s*\)", text)
+
+
+def test_a_borrowed_plugin_lends_its_look_and_not_its_voice() -> None:
+    """
+    Every naming slot is dropped when a plugin is borrowed.
+
+    Observed before this: a scratch story borrowing the Garden's plugin titled
+    its browser tab "The Wicked Garden", drew the Garden's wordmark, and put
+    "Step through the hedge" on the Begin button of a story whose whole world is
+    one bedroom. That is the same plugin-versus-story conflation the seam
+    exists to separate, resurfacing one layer up as copy.
+
+    Listed explicitly rather than inferred: a slot added later is VISUAL by
+    default, and a naming slot that is forgotten here leaks a story's fiction
+    into another story's screen -- which is exactly the failure this is for.
+    """
+    text = (UI_SRC / "core" / "story.js").read_text(encoding="utf-8")
+    assert re.search(r"const\s+borrowed\s*=\s*plugin\s*!==\s*slug", text)
+    block = text.split("const naming")[1].split("return {")[0]
+    for slot in ("title", "documentTitle", "Wordmark", "StartIntro", "beginLabel", "onboarding"):
+        assert slot in block, f"{slot} survives a borrowed plugin"
+    # The story's own plugin is untouched: the whole override is gated on it.
+    assert "borrowed" in text.split("const naming")[1].split("\n")[0]
 
 
 # ---------------------------------------------------------------------------

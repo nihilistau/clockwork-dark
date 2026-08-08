@@ -332,6 +332,28 @@ class GameManifest:
         return [str(raw)]
 
     @property
+    def ui_plugin(self) -> str:
+        """
+        Which client plugin draws this story. Empty means "core alone".
+
+        DECLARED, NOT INFERRED. The client used to pick a plugin by matching the
+        server's slug against a directory name under ``ui/src/stories/``, which
+        made the two impossible to share: a story wanting another's look had to
+        ship a directory named after itself, and every such directory becomes
+        its own build chunk in the COMMITTED ``dist/`` tree. So a scratch story
+        that only wanted to borrow an existing skin could not do it without
+        leaving build artefacts in the repository.
+
+        Naming it here costs nothing for the stories that already match -- an
+        omitted ``ui.plugin`` falls back to the slug, which is exactly the old
+        behaviour -- and it lets a story say "draw me like that one".
+        """
+        block = self.extras.get("ui")
+        if isinstance(block, dict):
+            return str(block.get("plugin") or "").strip()
+        return ""
+
+    @property
     def state_schema_path(self) -> Optional[Path]:
         """
         Where this story declares its state, or None if it declares none.
@@ -424,6 +446,10 @@ class GameManifest:
             "entry_location": self.entry_location,
             "archetypes": self.archetypes,
             "paths": dict(self.paths),
+            # Flattened to a stable key rather than left for the client to dig
+            # out of the raw `ui:` block below. Empty means "this story's own
+            # slug", which is what every story did before the key existed.
+            "ui_plugin": self.ui_plugin or self.slug,
             **{k: v for k, v in self.extras.items() if k not in {"paths", "entry"}},
         }
         # Emitted only when declared. A story that declares no settings must
