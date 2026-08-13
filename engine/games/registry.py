@@ -409,7 +409,7 @@ def entry_archetypes(default: tuple[str, ...] = ()) -> list[str]:
 
     The engine-side companion to ``entry_location``. Character creation still
     has two other copies of this list -- see the report in
-    ``content/scenes/clockwork/clockwork_state.py`` and ``ui/src/screens/Start.jsx``.
+    ``engine/scenes/default_scene.py`` and ``ui/src/screens/Start.jsx``.
     """
     manifest = entry_manifest()
     if manifest is None:

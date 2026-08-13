@@ -391,12 +391,12 @@ def play(
         return messages
 
     with patch(
-        "content.scenes.clockwork.clockwork_state.get_save_store",
+        "engine.scenes.default_state.get_save_store",
         lambda: save_store,
     ), patch(
         # A playtest must not depend on a local model being up, and 40 turns
         # overflow the turn buffer several times over.
-        "content.scenes.clockwork.clockwork_state._summarizer_fn",
+        "engine.scenes.default_state._summarizer_fn",
         lambda: None,
     ), patch.object(
         storyteller_module, "build_storyteller_messages", recording_build

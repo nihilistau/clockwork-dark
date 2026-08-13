@@ -52,20 +52,30 @@ def _manifest(**data):
 # -- 1. what a manifest declares -------------------------------------------
 
 
-def test_a_manifest_with_no_scene_block_gets_todays_behaviour():
+def test_a_manifest_with_no_scene_block_gets_the_engine_default():
     """
-    The compatibility bar. No shipped game declares `scene:`, so every one must
-    resolve to the Clockwork scene and the Clockwork story blueprint.
+    The compatibility bar. A story that declares no `scene:` block runs on the
+    ENGINE's default scene and default story screens -- not on any story's.
     """
     spec = resolve_scene(_manifest())
     assert spec == SceneSpec()
     assert spec.name == DEFAULT_SCENE_NAME
     assert spec.module == DEFAULT_SCENE_MODULE
     assert spec.blueprint == DEFAULT_STORY_BLUEPRINT
+    # The default is the engine's own module, not a story package's. This is
+    # what the v0.3.0 extraction changed: the scene every story falls back to
+    # must not live inside one story's tree.
+    assert spec.module.startswith("engine.scenes.")
+    assert spec.blueprint.startswith("engine.scenes.")
 
 
 @pytest.mark.parametrize("slug", ["clockwork-dark", "wicked-garden"])
-def test_every_shipped_game_resolves_to_the_clockwork_scene(slug):
+def test_every_shipped_game_declares_the_engine_default_scene(slug):
+    """
+    Both shipped games run the engine default. The declared values must equal
+    the defaults exactly: a shipped game quietly drifting off the engine scene
+    is a change someone should make on purpose, in this test.
+    """
     manifest = registry.get(slug)
     assert manifest is not None, f"games/{slug}/game.yaml is missing"
     assert resolve_scene(manifest) == SceneSpec()
@@ -94,9 +104,9 @@ def test_a_story_may_name_its_own_scene_and_screens():
 
 def test_an_empty_blueprint_means_no_story_screens_not_the_flagships():
     """
-    The distinction the seam turns on. Omitting the key inherits Clockwork's
-    screens (compatibility); declaring it empty ships none. If these collapsed
-    into each other a second story could never opt out.
+    The distinction the seam turns on. Omitting the key inherits the engine's
+    default screens (compatibility); declaring it empty ships none. If these
+    collapsed into each other a second story could never opt out.
     """
     assert resolve_scene(_manifest(scene={"blueprint": ""})).blueprint == ""
     assert resolve_scene(_manifest(scene={})).blueprint == DEFAULT_STORY_BLUEPRINT
@@ -151,7 +161,7 @@ def test_scene_metadata_no_longer_carries_a_second_copy_of_the_port():
     R: the number lived in config, SCENE_METADATA, FlaskScene.run and the
     launcher's --list line. Four homes, one of which the config could move.
     """
-    from content.scenes.clockwork.clockwork_scene import SCENE_METADATA
+    from engine.scenes.default_scene import SCENE_METADATA
 
     assert "port" not in SCENE_METADATA
 
@@ -184,7 +194,7 @@ def test_the_scene_mounts_the_blueprint_the_manifest_names(monkeypatch):
         "engine.games.registry.entry_manifest",
         lambda: _manifest(scene={"blueprint": f"{__name__}:_probe_blueprint"}),
     )
-    from content.scenes.clockwork.clockwork_scene import create_app, reset_store
+    from engine.scenes.default_scene import create_app, reset_store
 
     reset_store()
     _, app = create_app(testing=True, llm_fn=lambda _m: MOCK_STORYTELLER)
@@ -204,7 +214,7 @@ def test_a_story_can_ship_no_screens_at_all(monkeypatch):
         "engine.games.registry.entry_manifest",
         lambda: _manifest(scene={"blueprint": ""}),
     )
-    from content.scenes.clockwork.clockwork_scene import create_app, reset_store
+    from engine.scenes.default_scene import create_app, reset_store
 
     reset_store()
     _, app = create_app(testing=True, llm_fn=lambda _m: MOCK_STORYTELLER)
@@ -222,7 +232,7 @@ def test_the_shared_set_carries_every_route_the_client_already_calls():
     are not negotiable; a blueprint that quietly dropped one would only be
     found in the browser.
     """
-    from content.scenes.clockwork.clockwork_scene import create_app, reset_store
+    from engine.scenes.default_scene import create_app, reset_store
 
     reset_store()
     _, app = create_app(testing=True, llm_fn=lambda _m: MOCK_STORYTELLER)
@@ -300,23 +310,20 @@ def test_the_engine_store_opens_on_the_active_storys_declared_frame(tmp_path):
     assert session.last_turn["choices"]
 
 
-def test_the_clockwork_store_is_the_engine_store_with_its_frames_bound(tmp_path):
-    from content.scenes.clockwork.clockwork_state import (
-        ClockworkSessionStore,
-        opening_narration,
-    )
+def test_the_default_store_is_the_engine_store_with_the_frames_bound(tmp_path):
+    from engine.scenes.default_state import DefaultSessionStore, opening_narration
     from engine.session import SessionStore as EngineSessionStore
 
-    assert issubclass(ClockworkSessionStore, EngineSessionStore)
+    assert issubclass(DefaultSessionStore, EngineSessionStore)
 
-    import content.scenes.clockwork.clockwork_state as state_module
+    import engine.scenes.default_state as state_module
     from engine.persistence.saves import SaveStore
 
     saves = SaveStore(root=tmp_path / "s", slug="clockwork-dark")
     original = state_module.get_save_store
     state_module.get_save_store = lambda: saves
     try:
-        session = ClockworkSessionStore().create(seed=1, llm_fn=lambda _m: MOCK_STORYTELLER)
+        session = DefaultSessionStore().create(seed=1, llm_fn=lambda _m: MOCK_STORYTELLER)
     finally:
         state_module.get_save_store = original
 
@@ -328,8 +335,28 @@ def test_the_clockwork_store_is_the_engine_store_with_its_frames_bound(tmp_path)
     assert session.save_id and (tmp_path / "s").exists()
 
 
+def test_the_old_scene_package_still_exports_every_name():
+    """
+    The v0.3.0 compatibility shims. Anything that imported the turn, the
+    store or the screens from content/scenes/clockwork/ must keep working,
+    and must get the ENGINE's objects rather than a diverging copy.
+    """
+    from content.scenes.clockwork import clockwork_api, clockwork_scene, clockwork_state
+    from engine.scenes import default_api, default_scene, default_state
+
+    assert clockwork_state.run_turn is default_state.run_turn
+    assert clockwork_state.SessionStore is default_state.DefaultSessionStore
+    assert clockwork_state.ClockworkSessionStore is default_state.DefaultSessionStore
+    assert clockwork_state.resolve_player_action is default_state.resolve_player_action
+    assert clockwork_scene.ClockworkScene is default_scene.DefaultScene
+    assert clockwork_scene.create_app is default_scene.create_app
+    assert clockwork_scene.reset_store is default_scene.reset_store
+    assert clockwork_api.story_blueprint is default_api.story_blueprint
+
+
 def test_game_session_is_importable_from_both_homes():
     from content.scenes.clockwork.clockwork_state import GameSession as StoryName
     from engine.session import GameSession as EngineName
 
     assert StoryName is EngineName
+

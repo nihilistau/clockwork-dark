@@ -216,7 +216,7 @@ Five. Two are already declared for this layer by
 
 ### 1. Player input
 
-Wired: `content/scenes/clockwork/clockwork_state.py::_review_input`, called at
+Wired: `engine/scenes/default_state.py::_review_input`, called at
 the top of the turn handler, before anything is planned.
 
 A hard-no hit here is a `REDIRECT`, which means the turn **still runs**: the
@@ -290,7 +290,7 @@ The mechanism is wired into the running turn. Where each seam lives:
 | Commit chain read from config | `engine/agents/governance.py::GovernancePipeline.from_config` reads `governance.commit`; `config/default.yaml` names `SafetyCeiling` there and `SafetyDirective` in `governance.directives` |
 | The commit chain is called | `engine/agents/pipeline.py::_govern_commit` runs `GovernancePipeline.run_commit` over the negotiated turn **before** the `StateTransaction` commits; `governance.commit` is on the manifest `SETTING_ALLOWLIST` (`engine/games/manifest.py`) so a story can declare its own chain. Tests: `tests/test_governance_commit.py` |
 | Stale policies dropped on a game swap | `engine/games/caches.py` `RELOADERS` includes `engine.safety.reset_policies` |
-| Player-input review | `content/scenes/clockwork/clockwork_state.py::_review_input` — attach point 1 |
+| Player-input review | `engine/scenes/default_state.py::_review_input` — attach point 1 |
 | Narration review + fade card | `engine/agents/storyteller.py::run_turn`, after the retry loop, before the commit — attach point 4 |
 | The RNG stream | `SAFETY_REDIRECT = "safety.redirect"` lives in `engine/game/rng.py` with the other named streams; `engine/safety/redirect.py` imports it |
 | The player dial | `safety.intensity.player` in `config/default.yaml`, written by the Settings screen (`engine/api/settings.py`), clamped to the story ceiling at policy construction |

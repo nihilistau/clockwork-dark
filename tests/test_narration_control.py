@@ -331,7 +331,7 @@ def test_turn_update_replaces_the_streamed_text():
 def test_the_server_sends_the_completion_signal():
     state = (
         Path(__file__).resolve().parent.parent
-        / "content" / "scenes" / "clockwork" / "clockwork_state.py"
+        / "engine" / "scenes" / "default_state.py"
     ).read_text(encoding="utf-8")
     assert '"narration_complete"' in state
 

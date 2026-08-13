@@ -43,7 +43,9 @@ def _isolated_saves(tmp_path, monkeypatch):
     """Keep every test's saves in its own directory."""
     reset_save_store()
     store = SaveStore(root=tmp_path / "saves")
-    monkeypatch.setattr("content.scenes.clockwork.clockwork_state.get_save_store", lambda: store)
+    # run_turn lives in engine/scenes/default_state.py now; the content module
+    # is a re-export shim, so the patch must land on the engine module.
+    monkeypatch.setattr("engine.scenes.default_state.get_save_store", lambda: store)
     yield
     reset_save_store()
 

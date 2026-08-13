@@ -28,7 +28,7 @@ A scene mounts the whole set in one line::
 
 Story-owned screens go in a separate blueprint the scene mounts alongside --
 see ``engine/scenes/spec.load_story_blueprint`` and
-``content/scenes/clockwork/clockwork_api.py``.
+``engine/scenes/default_api.py``.
 
 Version: v0.1.0 [2026-08-08]
 """

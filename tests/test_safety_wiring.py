@@ -47,7 +47,7 @@ def _isolated(tmp_path, monkeypatch):
     reset_save_store()
     store = SaveStore(root=tmp_path / "saves")
     monkeypatch.setattr(
-        "content.scenes.clockwork.clockwork_state.get_save_store", lambda: store
+        "engine.scenes.default_state.get_save_store", lambda: store
     )
     from engine.safety import reset_policies
 

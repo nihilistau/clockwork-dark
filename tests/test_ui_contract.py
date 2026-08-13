@@ -62,11 +62,19 @@ def test_fonts_are_self_hosted():
 
 
 def _server_events(pattern: str) -> set[str]:
-    """Event names the server passes to an emit call."""
+    """
+    Event names the server passes to an emit call.
+
+    Scans engine/scenes/ as well as content/: the default scene and its turn
+    (the source of every emit) moved to engine/scenes/default_scene.py and
+    default_state.py, while a story-owned scene package would still live under
+    content/.
+    """
     found: set[str] = set()
-    for path in (ROOT / "content").rglob("*.py"):
-        text = path.read_text(encoding="utf-8")
-        found |= set(re.findall(pattern, text))
+    for tree in (ROOT / "content", ROOT / "engine" / "scenes"):
+        for path in tree.rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            found |= set(re.findall(pattern, text))
     return found
 
 

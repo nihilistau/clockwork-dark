@@ -20,8 +20,9 @@ imported, because a scene import pulls in the content tree and a game
 activated afterwards would be repointing config under already-warm caches.
 
 WHICH SCENE RUNS: the active game's manifest, under a top-level `scene:` block
-(see engine/scenes/spec.py). Neither shipped game declares one, so both get the
-Clockwork scene exactly as before. The module used to be hardcoded here, which
+(see engine/scenes/spec.py). Both shipped games declare the engine's default
+scene (engine/scenes/default_scene.py) explicitly; a story that declares
+nothing gets the same default. The module used to be hardcoded here, which
 meant a second story could ship its own content and never its own screens.
 
 Version: v0.5.0 [2026-08-08]

@@ -18,12 +18,14 @@ Top level, not under ``settings:``, for the same reason ``phase_names:`` and
 outright -- see ``SETTING_REFUSALS`` -- because bind host and port belong to
 the machine, and that stays true.)
 
-EVERY FIELD IS OPTIONAL AND EVERY DEFAULT IS TODAY'S BEHAVIOUR. Neither
-shipped game declares a ``scene:`` block, so both resolve to the Clockwork
-scene and the Clockwork story blueprint exactly as they did before this module
-existed. A second story opts out of Edgewood's journal and codex by naming its
-own ``blueprint:``; it opts out of the whole scene by naming its own
-``module:``.
+EVERY FIELD IS OPTIONAL AND EVERY DEFAULT IS THE ENGINE'S OWN SCENE. A story
+that declares nothing runs on ``engine/scenes/default_scene.py`` with the
+default story screens from ``engine/scenes/default_api.py`` -- that is the
+point of an engine default, and it is what both shipped games run. They still
+DECLARE it, explicitly, in their manifests: a shipped story's scene should be
+readable from its ``game.yaml`` rather than known only by omission. A story
+opts out of the default screens by naming its own ``blueprint:``; it opts out
+of the whole scene by naming its own ``module:``.
 
 THE TRUST BOUNDARY. ``blueprint:`` and ``module:`` are import targets, which
 means a manifest can name code to run. That is not a new hole: a game
@@ -46,10 +48,18 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# What both shipped games get, because neither declares a scene block.
+# The engine's own scene -- what a story gets when it declares nothing. Both
+# shipped games declare exactly these values in their manifests; the defaults
+# exist for the story that has not written a scene: block yet.
+#
+# THE COMPAT BAR FOR THE v0.3.0 MOVE: these targets used to be
+# content.scenes.clockwork.clockwork_scene / clockwork_api, and those modules
+# still import (as shims re-exporting the engine's), so a manifest or tool
+# naming the old paths keeps working. The scene NAME stays "clockwork" because
+# it keys the ``scene.clockwork.*`` config block that carries the port.
 DEFAULT_SCENE_NAME = "clockwork"
-DEFAULT_SCENE_MODULE = "content.scenes.clockwork.clockwork_scene"
-DEFAULT_STORY_BLUEPRINT = "content.scenes.clockwork.clockwork_api:story_blueprint"
+DEFAULT_SCENE_MODULE = "engine.scenes.default_scene"
+DEFAULT_STORY_BLUEPRINT = "engine.scenes.default_api:story_blueprint"
 
 # Last-resort port. The real home is ``scene.<name>.port`` in config; this is
 # only what answers when config has no entry for the scene at all.
