@@ -45,6 +45,9 @@ stages:
       not recognise doing something the first one is not asking for.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: awareness
           delta: 5
 
@@ -62,6 +65,9 @@ stages:
       question you asked, and I am answering the one I can afford to."
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: ledger_fact
           text: "Ilya began carrying ward charms this season and will not say why."
           subject_id: npc_ilya
@@ -86,11 +92,18 @@ stages:
       warm and says nothing at all.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: focus
           delta: -1
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 12
     - type: flag
       flag: npc_pin_npc_ilya
       value: false

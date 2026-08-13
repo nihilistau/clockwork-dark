@@ -32,6 +32,9 @@ stages:
       It was drawn early.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: awareness
           delta: 12
         - type: ledger_fact
@@ -54,6 +57,9 @@ stages:
       together.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: awareness
           delta: 10
         - type: focus
@@ -85,11 +91,18 @@ stages:
       Both are answers. Only one of them is a decision you can explain to Maris.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: stamina
           delta: -20
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 25
     - type: awareness
       delta: 10
     - type: flag

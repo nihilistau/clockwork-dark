@@ -44,6 +44,9 @@ stages:
       One mechanism, seen at four different magnifications.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: focus
           delta: -3
         - type: awareness
@@ -63,6 +66,9 @@ stages:
       you into the saying and does not come back with the breath.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: focus
           delta: -4
         - type: wound
@@ -92,6 +98,9 @@ stages:
       one: a name on paper is a thing that outlives the person who paid for it.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: item
           item_id: the_written_name
           name: "The name, written out"
@@ -100,6 +109,10 @@ stages:
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 25
     - type: awareness
       delta: 12
     - type: flag

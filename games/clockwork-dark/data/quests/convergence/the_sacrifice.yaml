@@ -37,6 +37,9 @@ stages:
       wants something that was ordered and is now not.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: focus
           delta: -2
 
@@ -80,6 +83,9 @@ stages:
       valley that goes on being a valley.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: remove_item
           item_id: the_written_name
           qty: 1
@@ -94,6 +100,10 @@ stages:
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 25
     - type: awareness
       delta: 10
     - type: reputation

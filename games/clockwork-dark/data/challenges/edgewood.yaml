@@ -50,6 +50,9 @@ set_pieces:
         effects:
           - { type: item, item_id: brass_pin, name: Warm Brass Pin, tags: [clockwork, evidence] }
           - { type: awareness, delta: 6 }
+          # R-06: stopping the thing in the field IS pushing the Dark back.
+          # Capped at 15 by the spec ceilings; decays daily (evil_ticker.py).
+          - { type: doom_resistance, delta: 12 }
       fail:
         text: You leave the field with the taste of oil at the back of your throat.
         effects:
@@ -78,6 +81,8 @@ set_pieces:
         effects:
           - { type: flag, flag: seam_opened }
           - { type: awareness, delta: 8 }
+          # R-06: reading the door on your own terms is a victory over it.
+          - { type: doom_resistance, delta: 12 }
       fail:
         text: >-
           The letters settle into an arrangement that means nothing, and the

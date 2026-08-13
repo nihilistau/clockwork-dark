@@ -36,6 +36,9 @@ stages:
       twice, and because they deserve to be able to look at it.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: focus
           delta: -2
         - type: awareness
@@ -84,6 +87,9 @@ stages:
       made of furniture.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: stamina
           delta: -30
         - type: hunger
@@ -91,6 +97,10 @@ stages:
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 25
     - type: reputation
       faction: edgewood
       delta: 20

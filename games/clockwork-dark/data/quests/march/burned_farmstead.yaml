@@ -31,6 +31,9 @@ stages:
       and outside it the grass is untouched to the blade.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 6
         - type: awareness
           delta: 10
     fail_text: >-
@@ -52,6 +55,9 @@ stages:
       earth, warm on a cold morning.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 6
         - type: item
           item_id: brass_shard
           name: "Shard of warm brass"
@@ -79,6 +85,9 @@ stages:
       burned it carefully.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 6
         - type: ledger_fact
           text: "The militia burned the farmstead deliberately, in a ring."
           subject_id: npc_sera
@@ -86,6 +95,10 @@ stages:
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 18
     - type: awareness
       delta: 10
     - type: reputation

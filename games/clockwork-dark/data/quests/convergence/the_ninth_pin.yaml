@@ -51,6 +51,9 @@ stages:
       does not fill the silence, which is how you know he has done this before.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: focus
           delta: -3
         - type: ledger_fact
@@ -78,6 +81,9 @@ stages:
       Either choice is a real one. He rolls the felt up the same way afterwards.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: item
           item_id: ninth_pin
           name: "The ninth pin"
@@ -89,6 +95,10 @@ stages:
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 25
     - type: flag
       flag: npc_pin_npc_ilya
       value: false

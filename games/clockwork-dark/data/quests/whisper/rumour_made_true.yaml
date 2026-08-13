@@ -46,6 +46,9 @@ stages:
       Stories are not usually accurate. That is what makes them stories.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: awareness
           delta: 6
         - type: ledger_fact
@@ -69,12 +72,19 @@ stages:
       Either way, you are now the person who knows.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: reputation
           faction: edgewood
           delta: 3
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 12
     - type: awareness
       delta: 4
     - type: flag

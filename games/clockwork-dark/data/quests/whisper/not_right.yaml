@@ -39,6 +39,9 @@ stages:
       as though the animal had been using them for a year it did not live.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: awareness
           delta: 10
         - type: focus
@@ -66,6 +69,9 @@ stages:
       and everyone present pretends not to have seen you do it.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: wound
           text: "A burn on the palm shaped like nothing"
           severity: 1
@@ -87,12 +93,19 @@ stages:
       people have to carry instead of one.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: ledger_fact
           text: "You told someone in Edgewood about the brass-toothed lamb."
           kind: event
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 12
     - type: awareness
       delta: 8
     - type: flag

@@ -29,6 +29,9 @@ stages:
       Gears. Correctly meshed. She is six and she has the tooth-counts right.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: awareness
           delta: 7
 
@@ -66,6 +69,9 @@ stages:
       Folded small. It does not stop being correct while folded.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: item
           item_id: nessas_drawing
           name: "Nessa's drawing"
@@ -74,6 +80,10 @@ stages:
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 12
     - type: awareness
       delta: 5
     - type: reputation

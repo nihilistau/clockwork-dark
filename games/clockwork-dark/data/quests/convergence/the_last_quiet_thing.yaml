@@ -42,6 +42,9 @@ stages:
       and that is the mercy.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: stamina
           delta: -12
 
@@ -57,6 +60,9 @@ stages:
       what a year of mornings buys you.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: craft
           delta: 1
         - type: item
@@ -80,6 +86,9 @@ stages:
       One turn and a press.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 8
         - type: ledger_fact
           text: "You worked the morning firing with Maris after everything."
           subject_id: npc_maris
@@ -87,6 +96,10 @@ stages:
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 25
     - type: reputation
       faction: edgewood
       delta: 15

@@ -32,6 +32,9 @@ stages:
       month and has decided it costs him nothing.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 6
         - type: gold
           delta: -2
         - type: reputation
@@ -57,6 +60,9 @@ stages:
       he fills in for about one traveller in nine.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 6
         - type: awareness
           delta: 9
         - type: ledger_fact
@@ -78,12 +84,19 @@ stages:
       everybody knows.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 6
         - type: reputation
           faction: merchants
           delta: 6
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 18
     - type: awareness
       delta: 5
     - type: flag

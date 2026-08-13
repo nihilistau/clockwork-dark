@@ -34,6 +34,9 @@ stages:
       not elaborate, and does not need to.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 6
         - type: awareness
           delta: 9
         - type: ledger_fact
@@ -72,11 +75,18 @@ stages:
       nobody walks past it.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 6
         - type: hunger
           delta: 8
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 18
     - type: awareness
       delta: 6
     - type: reputation

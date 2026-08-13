@@ -30,6 +30,9 @@ stages:
       have always been three.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: awareness
           delta: 6
 
@@ -46,6 +49,9 @@ stages:
       anything else.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: item
           item_id: fourth_verse
           name: "The fourth verse, written out"
@@ -74,6 +80,9 @@ stages:
       hands flat on the table for a while.
     on_complete:
       effects:
+        # Progress is pushback too: a smaller earned reprieve (R-06).
+        - type: doom_resistance
+          delta: 4
         - type: ledger_fact
           text: "Maris knew the fourth verse of the harvest song without learning it."
           subject_id: npc_maris
@@ -81,6 +90,10 @@ stages:
 
 on_complete:
   effects:
+    # R-06: seeing this through is pushing back. Earned reprieve slows the
+    # doom clock and decays daily -- engine/game/evil_ticker.py.
+    - type: doom_resistance
+      delta: 12
     - type: awareness
       delta: 6
     - type: flag

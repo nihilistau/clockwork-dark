@@ -47,7 +47,25 @@
 # marked `danger_dc: 0` with a `# needs band` note. Raising them is a content
 # job in data/encounters/, not a number change here.
 #
-# Version: v0.1.0 [2026-08-07]
+# ------------------------------------------------------------
+# evil_multiplier (R-06)
+# ------------------------------------------------------------
+# Three bands, widened on purpose. The shipped 0.5-1.2 spread was the same
+# size as the inaction bonus and opposite in sign, so a baker's slow hearth
+# and a road-walker's fast Marches cancelled to within 13% per in-game day --
+# where you stood changed what you saw, not when the world ended.
+#
+#   hearth ring  0.25-0.4   the village loop and the tended forest edge; the
+#                           places the pattern reaches last
+#   mid ring     0.8-1.2    the wild wood, the barrows, the uneasy farm --
+#                           reachable early, already listening
+#   deep ring    1.6-2.2    the Millhaven road and everything past the gate;
+#                           standing here is standing in the current
+#
+# Ordering within a band is the fiction's: the bakery is the warmest place in
+# the world and the burned farmstead is nearly the Wound.
+#
+# Version: v0.2.0 [2026-08-13]
 # ============================================================
 
 version: 1
@@ -85,7 +103,7 @@ locations:
   forest_clearing:
     name: "Forest Clearing"
     ring: 0
-    evil_multiplier: 0.5
+    evil_multiplier: 0.4
     summary: >-
       Birch and fern around a stump wide enough to sleep on. Smoke from
       Edgewood drifts west even when the wind blows south.
@@ -98,7 +116,7 @@ locations:
   deeper_forest:
     name: "The Deeper Wood"
     ring: 0
-    evil_multiplier: 0.6
+    evil_multiplier: 0.8
     summary: >-
       Past the last snare line the trees stop being a wood and start being a
       distance. Game trails double back when watched.
@@ -112,7 +130,7 @@ locations:
   herb_glen:
     name: "The Herb Glen"
     ring: 0
-    evil_multiplier: 0.5
+    evil_multiplier: 0.3
     summary: >-
       A south-facing bowl where feverfew, yarrow and bittercress come up
       thicker than they have any right to. Somebody weeded it, once.
@@ -124,7 +142,7 @@ locations:
   old_barrows:
     name: "The Old Barrows"
     ring: 0
-    evil_multiplier: 1.0
+    evil_multiplier: 1.1
     summary: >-
       Nine grass-covered mounds in a line that is too straight to be weather.
       The village does not come here and does not discuss not coming here.
@@ -136,7 +154,7 @@ locations:
   tunnel_entrance:
     name: "The Barrow Mouth"
     ring: 0
-    evil_multiplier: 1.1
+    evil_multiplier: 1.2
     summary: >-
       A dressed-stone throat in the side of the ninth mound, open, and colder
       three paces in than the season allows.
@@ -147,7 +165,7 @@ locations:
   charcoal_burn:
     name: "The Charcoal Burn"
     ring: 0
-    evil_multiplier: 0.6
+    evil_multiplier: 0.8
     summary: >-
       A clearing of turf-capped stacks and a burner's hut. Somebody sleeps
       here in season and nobody knows their name in the village.
@@ -163,7 +181,8 @@ locations:
   edgewood_square:
     name: "Edgewood Square"
     ring: 1
-    evil_multiplier: 0.8
+    # Top of the hearth band, not the bottom: the well already tastes of iron.
+    evil_multiplier: 0.4
     summary: >-
       Timber frames leaning together around the communal oven, a noticeboard,
       and a well that has started tasting of iron.
@@ -182,7 +201,8 @@ locations:
   edgewood_bakery:
     name: "Edgewood Bakery"
     ring: 1
-    evil_multiplier: 0.7
+    # Warm is not warded. The oven keeps the cold out, not the pattern.
+    evil_multiplier: 0.4
     summary: >-
       Maris Hearth's stone oven, a cot above it, and flour in every seam of
       the floorboards. Warm at hours when nothing else is.
@@ -194,7 +214,9 @@ locations:
   tinker_caravan:
     name: "Tinker Caravan"
     ring: 1
-    evil_multiplier: 0.9
+    # Bottom of the hearth band with the shrine: Ilya's wagons are hung with
+    # the ward charms he will not explain.
+    evil_multiplier: 0.3
     summary: >-
       Two wagons, an awning of oiled cloth, and wares laid out in an order
       that means something to the person who laid them.
@@ -205,7 +227,8 @@ locations:
   edgewood_shrine:
     name: "The Shrine of the Unnamed"
     ring: 1
-    evil_multiplier: 0.6
+    # The most warded ground in the valley, unfinished mural and all.
+    evil_multiplier: 0.25
     summary: >-
       A lime-washed wall, an unfinished mural of faceless saints, and candles
       that the old women have started lighting two at a time.
@@ -216,7 +239,7 @@ locations:
   the_forge:
     name: "Hallam's Forge"
     ring: 1
-    evil_multiplier: 0.9
+    evil_multiplier: 0.4
     summary: >-
       Charcoal heat, a slack tub, and a smith who will mend anything except a
       clock, and will tell you why if you have an hour.
@@ -228,7 +251,8 @@ locations:
   well_row:
     name: "Well Row"
     ring: 1
-    evil_multiplier: 0.8
+    # The dogs stopped barking at night. This street is already listening.
+    evil_multiplier: 0.4
     summary: >-
       The lower street: twelve houses, a shared well, and dogs that have
       lately stopped barking at night.
@@ -256,7 +280,7 @@ locations:
   millhaven_gate:
     name: "Millhaven Gate"
     ring: 2
-    evil_multiplier: 1.2
+    evil_multiplier: 1.8
     summary: >-
       A timber gate closed an hour earlier each week, a recruitment board with
       fresh nails in it, and a queue that is counted twice.
@@ -271,7 +295,7 @@ locations:
   millhaven_market:
     name: "Millhaven Market"
     ring: 2
-    evil_multiplier: 1.3
+    evil_multiplier: 1.7
     summary: >-
       Grain tallies chalked on a board and coming out perfect four quarters
       running. No harvest is perfect.
@@ -283,7 +307,7 @@ locations:
   millhaven_barracks:
     name: "Millhaven Barracks"
     ring: 2
-    evil_multiplier: 1.4
+    evil_multiplier: 2.0
     summary: >-
       Sergeant Sera Venn's yard. Drill at the appointed hour, and lately half
       the watch coming off the wall in a step nobody called.
@@ -295,7 +319,7 @@ locations:
   toll_bridge:
     name: "The Toll Bridge"
     ring: 2
-    evil_multiplier: 1.2
+    evil_multiplier: 1.7
     summary: >-
       Three spans of old stone, a chain, and a table where a clerk writes down
       more about you than the toll requires.
@@ -308,7 +332,7 @@ locations:
   refugee_camp:
     name: "The Ditch Camp"
     ring: 2
-    evil_multiplier: 1.3
+    evil_multiplier: 1.8
     summary: >-
       Canvas and cart-boards in the drainage ditch outside the wall, because
       the wall is closed and the road inward is worse.
@@ -320,7 +344,7 @@ locations:
   burned_farmstead:
     name: "The Burned Farmstead"
     ring: 2
-    evil_multiplier: 1.5
+    evil_multiplier: 2.1
     summary: >-
       Sills still standing, roof gone, and a fire that took the house and left
       the byre. Nobody will write down why.
@@ -336,7 +360,7 @@ locations:
   heartland_road:
     name: "The Heartland Road"
     ring: 3
-    evil_multiplier: 1.8
+    evil_multiplier: 2.2
     summary: >-
       Where the metalling changes and the milestones start agreeing with each
       other too exactly. Everything past here is rumour and refugee.

@@ -2,7 +2,11 @@
 
 caravan_arrival:
   min_day: 5
-  probability_per_day: 0.08
+  # 0.08 expected Odran around day 17, which was fine when the world took
+  # eighty days to fall and is a third of the whole story now that it takes
+  # about forty (R-06 retune). The Whisper arc counts its wait from this
+  # arrival, so the trader is the story's opening bell: expected ~day 7 now.
+  probability_per_day: 0.25
   duration_days: 2
   npc_id: npc_odran
   location_id: edgewood_square

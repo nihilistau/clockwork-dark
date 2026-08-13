@@ -81,6 +81,10 @@ stages:
 
 on_complete:
   effects:
+    # R-06: tending the village is a small act of holding the dark off --
+    # a fraction of a whisper quest's reprieve, and it fades (evil_ticker.py).
+    - type: doom_resistance
+      delta: 6
     - type: reputation
       faction: edgewood
       delta: 7

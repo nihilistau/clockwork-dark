@@ -43,9 +43,14 @@ arcs:
       # nothing to do with the player, so arrival alone cannot be the gate --
       # it would drag every baker into the Whisper arc on a dice roll.
       - event_seen: caravan_arrival
-      # ...and the ten days are counted from that arrival. `days_since_event`
-      # takes its event from the sibling `event_seen` clause above.
-      - days_since_event: 10
+      # ...and the wait is counted from that arrival. `days_since_event` takes
+      # its event from the sibling `event_seen` clause above. It was ten days
+      # when the world took eighty to fall (R-07's 0.006/day); with the R-06
+      # retune the whole doom arc fits inside roughly forty, and a ten-day
+      # quarantine on the first pushback arc meant a third of the run was over
+      # before pushing back was even possible. Three days keeps the arrival
+      # from being the gate without making listening pointless.
+      - days_since_event: 3
       # The real gate. DESIGN.md: "Quiet Life ... Awareness stays <15". What
       # separates the two arcs is not that the trader came, it is that the
       # player listened to him.
