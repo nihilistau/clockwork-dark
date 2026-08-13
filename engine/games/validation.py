@@ -1212,15 +1212,19 @@ class StoryValidator:
             self._add(source, "-", "endings table is not a YAML mapping")
             return
 
+        # Mirror engine/game/endings.py::declared() exactly: a class that
+        # declares a `variants:` block contributes each variant id as an
+        # ending; a class that declares none IS the ending, keyed by the class
+        # id (dev-story's whole table is this shape, and its endings.yaml
+        # documents the contract). A validator stricter than the loader fails
+        # content the engine plays happily.
         variants: set[str] = set()
         for class_id, body in (doc.get("classes") or {}).items():
             block = (body or {}).get("variants") or {}
-            if not block:
-                self._add(source, str(class_id), "ending class declares no variants")
-            for variant_id in block:
-                if str(variant_id) in variants:
-                    self._add(source, str(variant_id), "duplicate ending variant id")
-                variants.add(str(variant_id))
+            for ending_id in block or {str(class_id): body}:
+                if str(ending_id) in variants:
+                    self._add(source, str(ending_id), "duplicate ending id")
+                variants.add(str(ending_id))
 
         fail_forward = str(doc.get("fail_forward") or "").strip()
         if not fail_forward:

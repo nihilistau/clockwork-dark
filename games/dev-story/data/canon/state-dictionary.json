@@ -1,0 +1,22 @@
+{
+  "description": [
+    "Dev Story's declared vocabulary, in the Garden's dictionary shape.",
+    "The validator (engine/games/validation.py) reads this: a flag written",
+    "anywhere in the content must appear here or be read somewhere, and a",
+    "gate on a flag nothing writes is an error. ending_gallery_unlocked is",
+    "the deliberately write-only case -- the CLIENT reads it to unlock the",
+    "ending gallery, so no YAML ever tests it; declaring it here is how a",
+    "story says 'this write has a reader you cannot see from the data'."
+  ],
+  "flags": {
+    "booleans": {
+      "term": [
+        "ending_gallery_unlocked",
+        "nf_asked_about_the_card",
+        "quest_orientation_done",
+        "rumour_reached_the_dean",
+        "told_someone"
+      ]
+    }
+  }
+}
