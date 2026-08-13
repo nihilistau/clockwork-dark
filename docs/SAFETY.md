@@ -3,8 +3,9 @@
 *The product layer. It sits above every agent, and no character's motivation
 reaches it.*
 
-**Version:** v0.1.0 [2026-08-08] · **Code:** `engine/safety/` · **Tests:**
-`tests/test_safety.py`, `tests/test_safety_shipped_games.py`
+**Version:** v0.2.0 [2026-08-13] · **Code:** `engine/safety/` · **Tests:**
+`tests/test_safety.py`, `tests/test_safety_shipped_games.py`,
+`tests/test_safety_wiring.py`, `tests/test_governance_commit.py`
 
 ---
 
@@ -35,8 +36,11 @@ enforcement rule) and `voice/SOPHIA-VOICE-BIBLE.md` (character vs product).
 
 A policy with no limits and a `suggestive` ceiling is **inert**. An inert policy
 short-circuits to `ALLOW` at every surface, contributes **no prompt text**, and
-draws **no RNG**. Both shipped stories are inert.
-`tests/test_safety_shipped_games.py` asserts all three, per story.
+draws **no RNG**. The flagship declares nothing and is inert; The Wicked Garden
+declares `ceiling: explicit, default: explicit` in its `game.yaml` and is
+deliberately not — declaring a rating is asking for the layer to run.
+`tests/test_safety_shipped_games.py` asserts that each story gets exactly the
+policy its manifest declares, and that an inert policy stays free.
 
 There is deliberately **no `safety.enabled` flag**. An off switch on a safety
 layer is one config typo away from turning hard limits off, and the layer costs
@@ -210,23 +214,16 @@ Five. Two are already declared for this layer by
 `engine/agents/governance.py::TurnContext` (`intensity`, `safety_block`) and
 `engine/agents/negotiate.py::NegotiatedTurn` (`blocked`, `block_reason`).
 
-### 1. Player input — the empty seam
+### 1. Player input
 
-Player input is passed straight through with no inspection today.
-
-```python
-# content/scenes/clockwork/clockwork_scene.py, at both call sites
-# (~line 1373 and ~line 1447), immediately after resolve_player_action():
-from engine.safety import SafetyGate
-
-verdict = SafetyGate.for_state(session.state).review_input(action)
-if verdict.blocked:
-    action = f"{action}\n\n[DIRECTION: {verdict.redirect}]"
-```
+Wired: `content/scenes/clockwork/clockwork_state.py::_review_input`, called at
+the top of the turn handler, before anything is planned.
 
 A hard-no hit here is a `REDIRECT`, which means the turn **still runs**: the
 player asked for something the session has ruled out, and the fiction declines
-rather than the interface refusing.
+rather than the interface refusing. The redirect **beat** — never
+`verdict.reasons`, which name the player's own limits — is threaded into the
+turn as the pipeline's `safety_block`, so the narrator declines in-world.
 
 ### 2. `PHASE_DIRECTIVE` — the standing constraint
 
@@ -253,13 +250,15 @@ instead — the same refusal at the right granularity.
 
 ### 4. Narration — the last line
 
-```python
-# engine/agents/storyteller.py, after narration is parsed, before it returns
-verdict = SafetyGate.for_state(state).review_narration(narration)
-if verdict.disposition is Disposition.FADE:
-    # re-narrate with verdict.summary_hint, then:
-    card = gate.fade_card(verdict, summary=summary, outcomes=rendered_outcomes)
-```
+Wired: `engine/agents/storyteller.py::run_turn`, after the retry loop and
+**before** `tx.commit()`, reviews the final prose. `REDIRECT` rolls the
+transaction back and ships the in-fiction fallback line — "this did not
+happen" is made true, not asserted. `FADE` keeps every mechanical outcome
+(nothing touches the transaction), replaces the prose with the fade line, and
+attaches the built card as `StorytellerTurnResult.fade_card`, which rides out
+in the turn payload as `fade_card` beside `safety`. `SUBSTITUTE` runs
+`gate.rename` over the prose. An inert policy short-circuits: no review, no
+RNG, no new payload keys.
 
 Weakest of the surfaces, because by the time there is prose the turn is already
 planned. It exists because the earlier surfaces read intent and this one reads
@@ -281,23 +280,27 @@ asserts the signature.
 
 ---
 
-## NOT WIRED
+## Wiring status
 
-The mechanism is complete and tested. It is **not connected to a running
-turn**, because every call site above is in a package this workstream does not
-own. Until the lines below land, `engine/safety/` is importable, unit-tested,
-and inert.
+The mechanism is wired into the running turn. Where each seam lives:
 
-| What | File | The line |
+| What | Where |
+|---|---|
+| Both hooks registered | `engine/agents/governance.py`, bottom of module — `register_safety_interceptors()` runs at import, after `interceptor`/`register` are defined |
+| Commit chain read from config | `engine/agents/governance.py::GovernancePipeline.from_config` reads `governance.commit`; `config/default.yaml` names `SafetyCeiling` there and `SafetyDirective` in `governance.directives` |
+| The commit chain is called | `engine/agents/pipeline.py::_govern_commit` runs `GovernancePipeline.run_commit` over the negotiated turn **before** the `StateTransaction` commits; `governance.commit` is on the manifest `SETTING_ALLOWLIST` (`engine/games/manifest.py`) so a story can declare its own chain. Tests: `tests/test_governance_commit.py` |
+| Stale policies dropped on a game swap | `engine/games/caches.py` `RELOADERS` includes `engine.safety.reset_policies` |
+| Player-input review | `content/scenes/clockwork/clockwork_state.py::_review_input` — attach point 1 |
+| Narration review + fade card | `engine/agents/storyteller.py::run_turn`, after the retry loop, before the commit — attach point 4 |
+| The RNG stream | `SAFETY_REDIRECT = "safety.redirect"` lives in `engine/game/rng.py` with the other named streams; `engine/safety/redirect.py` imports it |
+| The player dial | `safety.intensity.player` in `config/default.yaml`, written by the Settings screen (`engine/api/settings.py`), clamped to the story ceiling at policy construction |
+
+### NOT WIRED
+
+| What | File | Status |
 |---|---|---|
-| Register both hooks | `engine/agents/governance.py`, bottom of module | `from engine.safety.governor import register_safety_interceptors; register_safety_interceptors()` — must be at the **bottom**, after `interceptor`/`register` are defined |
-| Read the commit chain from config | `engine/agents/governance.py::GovernancePipeline.from_config` | `PHASE_COMMIT: list(cfg.get("governance.commit", []) or []),` |
-| Name the hooks | `config/default.yaml` | `governance.directives` += `SafetyDirective`; new `governance.commit: [SafetyCeiling]` — **owned here, but held back**: naming a class that nothing registered logs "Unknown interceptor, skipping" on every build |
-| Drop stale policies on a game swap | `engine/games/caches.py::reset_all_caches` | `from engine.safety import reset_policies; reset_policies()` — a policy resolved under the previous story is exactly the stale-cache failure `reset_config` was written to end |
-| Player-input review | `content/scenes/clockwork/clockwork_scene.py:~1373, ~1447` | see attach point 1 |
-| Narration review + fade card | `engine/agents/storyteller.py`, after the retry loop | see attach point 4 |
-| Cosmetic rename on display | inventory / choice rendering in `ui/` | see attach point 5 |
-| Promote the RNG stream | `engine/game/rng.py` | `SAFETY_REDIRECT = "safety.redirect"` currently lives in `engine/safety/redirect.py`. It follows that module's discipline exactly — a named constant on its own stream — and moving it is tidiness, not a fix |
+| Fade-card render | `ui/` | `fade_card` reaches the browser in the turn payload; nothing in `ui/` draws it yet. A later UI phase |
+| Cosmetic rename on display | inventory / choice rendering in `ui/` | attach point 5 — `gate.rename` covers narration prose, but display labels (items, locations, choices) are rendered without it. A later UI phase |
 
 ---
 
@@ -309,6 +312,7 @@ and inert.
 |---|---|---|
 | `safety.intensity.ceiling` | `suggestive` | highest tier a story with no `safety:` block may be played at |
 | `safety.intensity.default` | `suggestive` | where a new session's dial starts |
+| `safety.intensity.player` | `"story"` | the player's standing dial, written by the Settings screen into `config/local.yaml` (`engine/api/settings.py`). `"story"` means "follow the active story's default"; a tier name overrides it, clamped to the story ceiling — lowering is always honoured, raising past the ceiling never is |
 | `safety.fade.available` | `true` | offer the Fade control (the automatic collapse happens regardless) |
 | `safety.aftercare.default` | `false` | request an aftercare beat after an intense scene |
 | `safety.boundaries.hard_nos` | `[]` | deployment-wide limits |
@@ -324,7 +328,10 @@ A **top-level** `safety:` block, not a `settings:` entry:
 ```yaml
 safety:
   intensity:
-    max: extreme          # what THIS story is written for
+    ceiling: extreme      # what THIS story is written for. `max` is accepted
+                          # for compatibility; `ceiling` is the documented
+                          # spelling and the one The Wicked Garden declares
+                          # (engine/safety/policy.py)
     default: suggestive   # where its dial starts
   boundaries:
     hard_nos: [{ topic: ..., nouns: [...] }]

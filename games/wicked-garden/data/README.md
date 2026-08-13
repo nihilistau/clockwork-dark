@@ -166,10 +166,16 @@ defined:
 
 ## Concept art: what exists, what does not
 
-The pack at `Design_files/Wicked-Garden/concept/` is **not wired**. There is no
-`paths.art_manifest` in `game.yaml`, so the game falls through to the
-procedural silhouette, which is the correct degradation. This table is what an
-import would need.
+The story now ships its own art pack: `game.yaml` declares
+`art_root: data/art/plates` and `art_manifest: data/art/manifest.yaml`, served
+over `/story-art/...`. The live record of which subjects still lack a plate —
+with generated prompts for each — is `art/MISSING-PLATES.md` (rebuild it with
+`scripts/art_missing.py --game wicked-garden`); a missing plate falls through
+to the procedural silhouette, which is the correct degradation.
+
+The tables below map the source imagery in
+`Design_files/Wicked-Garden/concept/`, which is where the shipped plates were
+drawn from.
 
 ### Locations — 8 of 14 have a plate
 
@@ -225,21 +231,20 @@ content's ceiling by design.
 
 ---
 
-## Wiring this content still needs
+## Wiring status
 
-`game.yaml` currently declares `locations`, `items`, `lore`, `lore_db`,
-`art_subjects`, `threads`, `endings`, `clocks`, `decks` and `saves`. Five files
-in this tree are therefore **authored but not loaded**, and in four of those
-cases the engine currently falls back to *Edgewood's* file, which is worse than
-falling back to nothing:
+Everything in this tree is **declared and loaded**: `game.yaml`'s `paths:`
+block names `locations`, `items`, `lore`, `lore_db`, `art_subjects`,
+`art_root`, `art_manifest`, `prompts`, `npc_schedules`, `world_rumors`,
+`factions`, `world_schedules`, `tables`, `rules`, `threads`, `endings`,
+`clocks`, `decks`, `epilogues` and `saves`.
 
-| Add to `paths:` | Or else |
-|-----------------|---------|
-| `npc_schedules: games/wicked-garden/data/world/npc_schedules.yaml` | Eight Edgewood villagers are placed at locations not in this graph. |
-| `world_rumors: games/wicked-garden/data/world/rumors.yaml` | The Garden gossips about grain tallies and the Millhaven militia. |
-| `factions: games/wicked-garden/data/world/factions.yaml` | Reputation resolves against the militia, the tinkers and the unnamed practice. |
-| `world_schedules: games/wicked-garden/data/world/schedules.yaml` | World events fire at `tinker_caravan` and `edgewood_square`. |
-| `tables: games/wicked-garden/data/tables` | The five `collection:` keys on the items resolve to nothing; no set ever completes. |
+The five world files were once authored-but-undeclared, and each fell back to
+*Edgewood's* file — eight villagers placed at locations not in this graph,
+gossip about grain tallies, reputation resolved against the Millhaven militia,
+world events firing at `tinker_caravan`, and `collection:` keys that resolved
+to nothing so no reliquary set could ever complete. That failure mode is why
+the comment in `game.yaml` says DECLARE EVERYTHING THIS STORY SHIPS.
 
 A note on `world/schedules.yaml`: the three keys in it —
 `caravan_arrival`, `tinker_camp`, `militia_press` — are **hardcoded lookups**

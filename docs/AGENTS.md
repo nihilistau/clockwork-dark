@@ -32,7 +32,7 @@ input → safety → plans (per agent, private) → negotiate
 whole design rests on: a proposal that has already taken effect cannot be
 argued with, only undone. Effects are *requested*; the commit phase runs them
 through `effects.apply_effect` — still the single writer — with the proposing
-agent recorded, so the state store's ACL and journal see who asked.
+agent recorded, so the state store's ACL and the effect receipt see who asked.
 
 **`private` reasoning never leaves the agent.** `AgentPlan.to_dict()` withholds
 it by default, because that output is what gets logged, journalled and sent to
@@ -123,7 +123,7 @@ get it wrong.
 |---|---|
 | voices | `negotiate.py`, at the point the intent is visible |
 | reads | `knowledge.py`, filtering prompt blocks and lore retrieval |
-| writes | `state/store.py`, whose per-value `owners` refuses **and journals** |
+| writes | `state/store.py`, whose per-value `owners` refuses **and logs the refusal**; who and why land on the effect receipt |
 
 Two voices claimed by two agents, or a rule naming an agent that does not exist,
 are both rejected at load — a rule that can never fire would sit in the table
@@ -165,11 +165,18 @@ used to be declared in two files that disagreed — the Garden's roster granted
 `gm` ten values and its schema named owners for two, so the world agent could
 not move `corruption` and Sophia's `autonomy` write was refused every time.
 
+The store's write journal is **deleted** (`engine/state/store.py`): it was
+per-store, `store_for()` builds a fresh store per call, so every record died
+the moment its caller returned, and `clear_journal()` was called by nothing.
+The two fields that made it worth having — `by` and `why` — ride out on the
+effect receipt instead, which is what actually survives a turn. What stays in
+the store is enforcement: the `owners` ACL and a WARNING-level log on every
+refusal.
+
 ## NOT WIRED
 
 | Thing | Status |
 |---|---|
-| The store's write journal | `StateStore.journal` records every write with who and why, and is discarded: it is per-store, `store_for()` builds a fresh store per call, and `clear_journal()` ("called per turn, after it has been read") is called by nothing. The two fields that made it worth having — `by` and `why` — now ride out on the effect receipt instead, which is what actually survives a turn. |
 | Reasoning cost of structured plans | A JSON schema forces the OpenAI-compat transport, which cannot turn reasoning off. Two plan calls per turn pay that on hardware where reasoning is 800+ tokens. Unmeasured against a real model. |
 
-Version: v0.2.0 [2026-08-09]
+Version: v0.3.0 [2026-08-13]

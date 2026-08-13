@@ -4,7 +4,9 @@
 **Covers:** overhaul phases P1–P11, applied to a codebase that had shipped
 PR1–PR12 and 97 passing tests.
 **Date:** 2026-08-07
-**Suite:** 97 → 600+ passing, 1 expected failure (R-01, below).
+**Suite:** 97 → ~1,400 passing, no expected failures. (The count and the
+"1 expected failure" both dated quickly — run `pytest` for the real numbers
+rather than trusting this line.)
 
 ---
 
@@ -256,10 +258,12 @@ appears by name in check receipts.
 
 ## Open issues
 
-These are not fixed. They are recorded here rather than left for the next reader
-to rediscover.
+These were not fixed by the overhaul itself. They are recorded here rather
+than left for the next reader to rediscover; the ones marked **FIXED** were
+closed by later work, each with a **Now:** note giving the call site, in the
+style R-03 set. R-06 is the one still live.
 
-### R-01 · major · The prompt is fitted, then inflated past the budget
+### R-01 · major · The prompt is fitted, then inflated past the budget — FIXED
 `engine/agents/storyteller.py::_build_messages`
 
 `build_storyteller_messages` fits the prompt to the token budget. `_build_messages`
@@ -287,7 +291,12 @@ Fix: the interceptor output has to go through `BlockSet.fit`, not around it —
 either run the PRE pass before assembly, or re-fit after it. This was found by
 the vertical slice and not fixed here because it lives in `engine/`.
 
-### R-02 · major · `SceneRulesEngine` is dead code with a passing test suite
+**Now:** fixed. Lore retrieval moved into `engine/memory/context.py`, inside
+the budget; only the awareness gate runs after fitting. The `xfail` became a
+regression guard
+(`tests/test_vertical_slice.py::test_the_prompt_that_is_sent_also_fits_the_budget`).
+
+### R-02 · major · `SceneRulesEngine` is dead code with a passing test suite — FIXED
 `engine/mcp/scene_rules_engine.py`, `tests/test_skill_enforcement.py`
 
 Rules R001–R005 are implemented and tested. **No production path calls them.**
@@ -303,7 +312,17 @@ proven.
 Decide one way or the other: wire it in front of `effects.apply_effect` as a
 second layer of defence, or delete the module and its tests. R001/R002 duplicate
 checks `GameEngine.move_to` already performs, so only R003–R005 are worth
-keeping. Do not leave it as it is. DESIGN.md now marks it **NOT WIRED**.
+keeping. Do not leave it as it is.
+
+**Now:** wired, the first way. `RulesGovernor` (`engine/agents/governance.py`)
+runs R001–R005 in the governance POST chain, called from
+`StorytellerAgent.run_turn` after `tx.commit()` so it audits the state the
+player actually ends the turn in; violations ride out on
+`StorytellerTurnResult.governance`, and R003 counts unearned stat claims into
+`Oracle.record_unearned_claim`. R001 validates against the full live location
+graph through the rules engine (procgen places are legal), and the caches
+rebind the location set on a game swap — see docs/GOVERNANCE.md for both
+hazards.
 
 ### R-03 · major · The clock ran at ~11.5 in-game hours per turn — FIXED
 `config/default.yaml` `world.tick_hours` · `engine/world/world_sim.py::realtime_tick_hours`
@@ -365,7 +384,7 @@ file downgrades instead of refusing, and
 `tests/test_vertical_slice.py::test_rest_is_always_a_legal_action_at_zero_stamina`
 asserts it from the final state of both playthroughs.
 
-### R-05 · major · There is no repeatable income, so the player starves
+### R-05 · major · There is no repeatable income, so the player starves — FIXED
 `data/economy.yaml`, `data/rules/survival.yaml`, `engine/game/procgen.py`
 
 The live balance problem, and the simulator's loudest finding.
@@ -402,6 +421,12 @@ well they fit the fiction:
    change and the most in keeping with Edgewood.
 
 None of these are in `engine/` and none were made here.
+
+**Now:** fix 1 landed as the `forage` skill (`engine/game/foraging.py`,
+`engine/skills/builtin/livelihood.py`) reading the forest nodes procgen
+already generates, plus repeatable labour through the `work` skill
+(`data/tables/labour.yaml`, `engine/game/economy.py`). The `pauper` simulator
+policy — no buying, ever — survives 200 turns spending zero gold.
 
 ### R-06 · major · Every playstyle converges on the same doomsday clock
 `config/default.yaml`, `engine/game/evil_ticker.py`, `engine/game/locations.py`
@@ -484,7 +509,8 @@ changed, even if they never learn what. That is the whole premise.
 2. It changes nothing about R-05. The player still starves to death every three
    turns; they just do it in a less corrupted world.
 
-Not applied — `config/` is not owned by this phase.
+**Applied:** `config/default.yaml` now ships
+`world.evil_base_rate_per_day: 0.006`.
 
 ---
 

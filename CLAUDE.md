@@ -33,7 +33,7 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II waves 1–2
-complete.** ~1360 tests passing, no expected failures. Run `pytest` for the
+complete.** ~1400 tests passing, no expected failures. Run `pytest` for the
 real number rather than trusting this line — it has been stale before.
 
 The engine/story seam is the current work. What landed: the multi-agent turn
@@ -44,6 +44,12 @@ last one fixed is worth stating plainly, because it was invisible for months:
 every story that omitted a `paths.*` key silently read The Clockwork Dark's
 content, and every story that omitted `paths.prompts` got a narrator who
 introduced itself as the Storyteller of The Clockwork Dark.
+
+Also landed since: `craft_item` with degree outcomes, foraging that discovers
+hidden-path travel shortcuts, carry weight priced on travel (never on rest),
+the served notice board (`GET /api/notices`), and the safety layer wired
+end-to-end — input review, a pre-commit `SafetyCeiling`, and narration review
+with fade cards (docs/SAFETY.md; UI render of the card is the open half).
 
 Two games ship: `clockwork-dark` (flagship) and `wicked-garden`. Pick one with
 `launcher.py --game <slug>`.

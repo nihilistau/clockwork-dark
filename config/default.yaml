@@ -433,9 +433,11 @@ paths:
   lore_db: ""
   assistant_hints: ""
   # The words the model actually reads: `storyteller.md` and an optional
-  # `examples.json`. Empty means the built-in persona in
-  # engine/agents/prompts.py, which is The Clockwork Dark's -- so the flagship
-  # needs no file here and behaves exactly as it did.
+  # `examples.json`. Empty means the STORY-NEUTRAL fallback persona in
+  # engine/agents/prompts.py -- deliberately plain, never another story's
+  # voice, and it logs a warning naming the story that left this blank. The
+  # flagship's own words live in games/clockwork-dark/prompts/ like any other
+  # story's.
   prompts: ""
 
   # -- pictures --------------------------------------------------------------

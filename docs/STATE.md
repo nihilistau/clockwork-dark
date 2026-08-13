@@ -79,12 +79,17 @@ store.adjust("favor", 8, by="sophia", why="she was amused", turn=12)
 ```
 
 - **Writes clamp rather than raise.** A model proposing 140 on a 0–100 scale
-  means "as high as it goes", not "crash the turn". The overshoot is recorded.
-- **Every write is journalled** — name, before, after, who, why, turn, whether it
-  was clamped, whether it was refused.
-- **Refusals are recorded, not just dropped.** An agent repeatedly trying to move
-  a value it does not own is a prompt defect, and it is invisible if the attempt
-  is only ever discarded.
+  means "as high as it goes", not "crash the turn". The receipt carries
+  `before`/`after`, so the overshoot is still visible.
+- **Attribution lives on the effect receipt, not in the store.** The store's
+  write journal was deleted — `store_for()` builds a fresh store per call, so
+  every journal record died the moment its caller returned, and nothing ever
+  read one. `by` and `why` ride out on the effect receipt
+  (`engine/game/effects.py`), which is the artifact that survives a turn.
+- **Refusals are logged, not just dropped.** A write by anyone not in a value's
+  `owners` is refused at WARNING — an agent repeatedly trying to move a value
+  it does not own is a prompt defect, and it is invisible if the attempt is
+  only ever discarded.
 - Never cache a store across a rollback: it holds the state by reference and a
   rollback replaces that object's contents in place.
 
@@ -113,15 +118,20 @@ exercised a subclass, so all three were invisible. See
 | ending state | `engine/game/endings.py` — eligibility, continuous scores, soft `intent` then hard `lock`. |
 
 Effects reach all of it through `effects.apply_effect(..., by=, turn=)`, which is
-still the single writer, and which now threads the writer id down to the store's
-per-value `owners` ACL and journal.
+still the single writer, and which threads the writer id down to the store's
+per-value `owners` ACL and onto the effect receipt.
+
+## Wiring status
+
+| Thing | Status |
+|---|---|
+| Agent write attribution | **Wired.** `engine/agents/pipeline.py` commits every accepted effect through `apply_effect(..., by=agent, turn=...)`, so the store's `owners` ACL and the receipt both see who asked. Writes outside the pipeline are `WRITER_ENGINE`, which is what they are. |
+| The plan/negotiate pipeline | **Live.** `engine/agents/pipeline.py` runs plan → negotiate → commit ahead of narration for any story whose `agents.yaml` declares two or more agents. The Wicked Garden declares two (`gm` + `sophia`) and takes this path; the flagship declares no roster and runs the single-agent turn unchanged. |
 
 ## NOT WIRED
 
 | Thing | Status |
 |---|---|
-| Agent write attribution | `apply_effect` accepts `by=` and the store enforces `owners` and journals refusals — but no agent passes it yet, so every production write is `WRITER_ENGINE`. It becomes real when a story runs the plan/negotiate pipeline. |
-| The plan/negotiate pipeline itself | `engine/agents/{plan,negotiate,roster,knowledge}.py` are built and tested; the live turn still runs the single-agent path in `StorytellerAgent.run_turn`. A story declares its roster in `agents.yaml`; no shipped story does. |
-| `ui/` consuming the `meters` block | The projection reaches the browser inside `state.meters`. Being wired in W3. |
+| `ui/` consuming the `meters` block | The projection reaches the browser inside `state.meters`; nothing in `ui/` draws it yet. A later UI phase. |
 
-Version: v0.2.0 [2026-08-08]
+Version: v0.3.0 [2026-08-13]

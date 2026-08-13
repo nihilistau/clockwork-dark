@@ -81,7 +81,8 @@ After reading, tell the user: **"Onboarding complete. Awaiting orders."** — do
 `engine/game/combat.py` does not exist and never will (conflict is a scene, not
 a combat system — `engine/game/encounter.py`); `engine/agents/virtual_agent.py`
 and `content/scenes/clockwork/clockwork_rules.py` do not exist; `engine/mcp/`
-contains only `scene_rules_engine.py`, which is **not wired**. What it omits:
+contains only `scene_rules_engine.py`, now run post-turn by `RulesGovernor`
+(`engine/agents/governance.py`). What it omits:
 
 ```
 engine/
@@ -96,7 +97,7 @@ engine/
 │                  roster.py  knowledge.py  character.py — the multi-agent turn.
 │                  `turn_loop.py` is retired to `.bak`; it never ran.
 ├── lmstudio/      schemas.py  tools.py  gate.py  speculative.py
-├── skills/builtin/    mechanics.py  assistant.py  quests.py
+├── skills/builtin/    mechanics.py  livelihood.py  items.py  assistant.py  quests.py
 └── stack.py       service supervision for launcher.py --stack/--check
 
 ui/                Vite + React 18 client; `npm run build` emits into
@@ -695,7 +696,8 @@ stack:                          # services launcher.py --stack supervises
 
 ## §10 — Testing Requirements
 
-**CURRENT.** 35 test modules, 600+ tests. Run everything:
+**CURRENT.** ~70 test modules, ~1,400 tests, fully green, no `xfail`. Run
+everything:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests\ -q
@@ -712,7 +714,7 @@ stack:                          # services launcher.py --stack supervises
 | `test_ui_contract.py` | The Socket.IO payload shape the React client reads |
 | `test_session_isolation.py` | Two sessions in one process must not share state |
 | `test_checks.py` / `test_effects.py` | The two chokepoints everything mechanical goes through |
-| `test_skill_enforcement.py` | `SceneRulesEngine` — **a spec for an unwired layer**, not proof of enforcement |
+| `test_skill_enforcement.py` | `SceneRulesEngine` R001–R005 — enforced in production by `RulesGovernor` (`engine/agents/governance.py`) since the seam work |
 
 ### Integration tests
 
@@ -736,9 +738,10 @@ was JSON-serializable; stamina never pinned at zero.
 **Failures print the turn, the day and the state.** `assert False` forty turns
 into a playthrough is not a bug report.
 
-One test is a **non-strict `xfail` recording a real defect** (the interceptor
-budget overflow, R-01). Run with `-rxX` to see it. It is not flaky — do not
-delete it, fix the code and then delete it.
+The interceptor budget overflow (R-01) lived here as a **non-strict `xfail`**
+until the fix landed; the same test is now a plain regression guard
+(`test_the_prompt_that_is_sent_also_fits_the_budget`). The suite carries no
+expected failures.
 
 ### Balance (`scripts/simulate.py`)
 
@@ -815,7 +818,7 @@ Open work is the issue list in docs/DESIGN_REVIEW.md.
 
 Verify the checkout before changing anything:
   .venv\Scripts\python.exe scripts\doctor.py
-  .venv\Scripts\python.exe -m pytest tests\ -q          # expect green, 1 xfail
+  .venv\Scripts\python.exe -m pytest tests\ -q          # expect fully green, no xfail
   .venv\Scripts\python.exe launcher.py --check
 
 Golden rules 9-14 in docs/CLAUDE_CODE_BRIEF.md sec 0 are the ones the

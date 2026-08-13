@@ -373,12 +373,18 @@ to close — and the evil kept its own hours the whole time you were down.
 already `consuming`, when there is no longer anyone left to come out and fetch
 you.
 
-### Crafting & Professions — *partial*
+### Crafting & Professions
 
 Recipes exist in `data/recipes/*.yaml` and items in `data/items/*.yaml`. Buying
-and selling run through the `trade` skill against `data/economy.yaml`. A general
-`craft_item(recipe_id)` skill is **NOT WIRED** — recipes are read by content and
-quests, not by a crafting tool.
+and selling run through the `trade` skill against `data/economy.yaml`.
+`craft_item(recipe_id)` is a real skill
+(`engine/skills/builtin/mechanics.py`, `tests/test_craft.py`): refusals —
+unknown recipe, wrong station, missing tool, short of inputs — come **before**
+anything is spent; the hours and inputs are then consumed on the attempt, pass
+or fail; the outcome is resolved by `checks.resolve` on the recipe's declared
+band with degrees (a crit adds one to the batch, a partial wastes some, a
+failure falls back to the recipe's declared salvage). `list_recipes` tells the
+narrator what could be attempted here and what it needs.
 
 ### Inventory schema (v0.1)
 
@@ -531,10 +537,14 @@ Reproduce with:
 ### Forest (seeded)
 
 - 6 forage nodes, 2 hidden paths, 1 optional barrow dungeon
-- **NOT WIRED:** forage nodes and hidden paths are generated into
-  `ProcgenResult.forest` and are not reachable by any skill. There is no
-  `forage` action, which is why the food economy has no free tier — see
-  DESIGN_REVIEW.md **R-05**
+- Forage nodes are reachable through the `forage` skill
+  (`engine/game/foraging.py`), which is what closed **R-05** — a repeatable,
+  gold-free food source; the `pauper` simulator policy survives 200 turns
+  spending zero gold
+- Hidden paths are **discoverable while foraging** and act as travel
+  shortcuts: `GameEngine.move_to` prices a discovered path's two ends at
+  `SHORTCUT_HOURS` (`engine/game/foraging.py::shortcut_hours`,
+  `tests/test_hidden_paths.py`)
 - Encounter tables are banded by evil phase (`data/encounters/*.yaml`)
 
 ### Trader & Tinker Schedule
@@ -652,13 +662,15 @@ Narrative memory is engine-owned, not a chat transcript.
   between turns. The old prompt put HP and the current hour in the middle of the
   standing rules, so nothing cached and every turn reprocessed the whole prompt.
 
-> **Known defect:** `StorytellerAgent._build_messages` runs the PRE interceptors
-> over the system blocks *after* `build_storyteller_messages` has fitted them,
-> and `LoreInjectInterceptor` appends retrieved chunks there. Measured on the
-> seeded lore DB: assembled prompt peaks at ~6.1k tokens (inside the 6198
-> budget), the prompt actually sent peaks at ~7.5k, which with
-> `reserve_output: 900` overflows the 8192 window. Recorded as an `xfail` in
-> `tests/test_vertical_slice.py`. See DESIGN_REVIEW.md **R-01**.
+> **Fixed defect (R-01):** `StorytellerAgent._build_messages` used to run the
+> PRE interceptors over the system blocks *after* `build_storyteller_messages`
+> had fitted them, so `LoreInjectInterceptor` appended uncounted lore per
+> system block — ~7.5k tokens sent against a 6,198 budget on a seeded lore DB.
+> Lore retrieval now lives in `engine/memory/context.py`, inside the budget;
+> only the awareness gate runs after fitting. The former `xfail` in
+> `tests/test_vertical_slice.py` is now a regression guard
+> (`test_the_prompt_that_is_sent_also_fits_the_budget`). See DESIGN_REVIEW.md
+> **R-01** for the history.
 
 ### Directory Layout
 
@@ -719,19 +731,17 @@ What actually runs, in the order a turn hits it:
    chunks the model was shown.
 7. **AwarenessGate interceptor** strips spoiler phrasing below the threshold.
 
-> **`SceneRulesEngine` is NOT WIRED.** `engine/mcp/scene_rules_engine.py`
-> implements rules R001–R005 and is exercised by `tests/test_skill_enforcement.py`,
-> but **no production path calls it** — grep for `get_rules_engine` and the only
-> non-test hits are the module's own definition, the package `__init__`, and the
-> cache-reset list in `engine/config.py`. This document previously claimed it
-> "rejects stat changes not backed by tool calls"; it does not, because nothing
-> asks it to. Items 1–4 above are what actually make that guarantee, and they do
-> it by construction rather than by validation. The module is kept as **pending**
-> rather than deleted: R001/R002 (canonical location, valid edge) duplicate
-> checks `GameEngine.move_to` already performs, and R003–R005 are candidates for
-> a second layer of defence in front of `apply_effect`. If that layer is not
-> built, delete the module — a passing test suite for code nothing calls is worse
-> than no test at all, because it reads as coverage.
+> **`SceneRulesEngine` is wired** — via `RulesGovernor`
+> (`engine/agents/governance.py`), which runs R001–R005 over every resolved
+> turn: `StorytellerAgent.run_turn` calls `get_governance().run_post(...)`
+> after `tx.commit()`, so the audit judges the state the player actually ends
+> the turn in, and violations ride out on `StorytellerTurnResult.governance`.
+> It spent five PRs as dead code with a passing test suite — see
+> DESIGN_REVIEW.md **R-02** for that history. Items 1–4 above remain the
+> primary guarantee, by construction; the governor is the second layer of
+> defence, and R003 additionally counts a model's unearned stat claims through
+> `Oracle.record_unearned_claim` because a model claiming fifty gold on one
+> turn in three is a prompt defect you can only see by counting it.
 
 ### Inference Pipeline
 
@@ -806,7 +816,7 @@ evil progress, awareness and trust to defaults.
 |-------|----------|
 | Save format | JSON in `data/saves/`, `save_version: 2`, atomic + migrated |
 | FlaskScene | Ported in PR10 |
-| Skill enforcement | Agent allowlist in the dispatcher + engine-owned DCs + Evaluator receipt check. `SceneRulesEngine` is **NOT WIRED** |
+| Skill enforcement | Agent allowlist in the dispatcher + engine-owned DCs + Evaluator receipt check, plus `SceneRulesEngine` R001–R005 run post-turn by `RulesGovernor` (`engine/agents/governance.py`) |
 | Lore | `LoreInject` is a no-op when the DB is empty; seed with `scripts/seed_lore.py` |
 | Frontend | Vite + React in `ui/`, built into a **committed** `content/scenes/clockwork/static/dist` so the game runs without Node |
 
@@ -814,37 +824,56 @@ evil progress, awareness and trust to defaults.
 
 ## Skills & Tags Manifest
 
-**17 registered skills**, partitioned by an **agent allowlist**
+**35 registered skills**, partitioned by an **agent allowlist**
 (`SkillDef.agents`). The allowlist — not the trigger, not the category — is what
 the dispatcher enforces. A skill a given agent is not on cannot be called by it,
 and the refusal comes back as a legible receipt so the model can correct itself.
 
-Implementations: `engine/skills/builtin/mechanics.py` (12),
-`engine/skills/builtin/assistant.py` (3), `engine/skills/builtin/quests.py` (2).
-Verify with:
+Implementations: `engine/skills/builtin/mechanics.py` (14),
+`engine/skills/builtin/livelihood.py` (10), `engine/skills/builtin/items.py`
+(6), `engine/skills/builtin/assistant.py` (3),
+`engine/skills/builtin/quests.py` (2). Verify with:
 
 ```powershell
-.\.venv\Scripts\python.exe -c "import engine.skills.builtin.mechanics, engine.skills.builtin.assistant, engine.skills.builtin.quests; from engine.skills.registry import SKILL_REGISTRY as R; [print(f'{s.name:20} {s.category:10} {s.trigger:9} {s.agents}') for s in sorted(R.all_tools(), key=lambda s: (s.category, s.name))]"
+.\.venv\Scripts\python.exe -c "import engine.skills.builtin, engine.skills.builtin.quests; from engine.skills.registry import SKILL_REGISTRY as R; tools = sorted(R.all_tools(), key=lambda s: (s.category, s.name)); print(len(tools)); [print(f'{s.name:20} {s.category:10} {s.trigger:9} {s.agents}') for s in tools]"
 ```
 
 | Skill | Category | Trigger | Callable by |
 |-------|----------|---------|-------------|
-| `roll_dice` | GAME | required | storyteller |
-| `resolve_skill_check` | GAME | required | storyteller |
-| `move_to` | GAME | required | storyteller |
-| `encounter_approach` | GAME | required | storyteller |
-| `flee` | GAME | optional | storyteller |
-| `rest` | GAME | optional | storyteller |
+| `collections` | GAME | optional | storyteller |
+| `craft_item` | GAME | optional | storyteller |
 | `eat` | GAME | optional | storyteller |
+| `encounter_approach` | GAME | required | storyteller |
+| `equip_item` | GAME | optional | storyteller |
+| `flee` | GAME | optional | storyteller |
+| `forage` | GAME | optional | storyteller |
+| `list_recipes` | GAME | optional | storyteller |
+| `move_to` | GAME | required | storyteller |
+| `query_equipment` | GAME | optional | storyteller |
+| `query_forage` | GAME | optional | storyteller |
+| `query_inventory` | GAME | optional | storyteller |
+| `query_work` | GAME | optional | storyteller |
+| `resolve_skill_check` | GAME | required | storyteller |
+| `rest` | GAME | optional | storyteller |
+| `roll_dice` | GAME | required | storyteller |
 | `sleep_until` | GAME | optional | storyteller |
 | `trade` | GAME | optional | storyteller |
-| `query_evil_state` | NARRATIVE | required | storyteller |
-| `query_encounter` | NARRATIVE | required | storyteller |
-| `query_quests` | NARRATIVE | optional | storyteller |
-| `set_narrative_flag` | NARRATIVE | optional | storyteller |
-| `grant_hint` | NARRATIVE | optional | **assistant** |
-| `reveal_lore` | NARRATIVE | optional | **assistant** |
+| `trade_browse` | GAME | optional | storyteller |
+| `trade_buy` | GAME | optional | storyteller |
+| `trade_haggle` | GAME | optional | storyteller |
+| `trade_quote` | GAME | optional | storyteller |
+| `trade_sell` | GAME | optional | storyteller |
+| `unequip_item` | GAME | optional | storyteller |
+| `use_item` | GAME | optional | storyteller |
+| `work` | GAME | optional | storyteller |
 | `change_form` | NARRATIVE | optional | **assistant** |
+| `grant_hint` | NARRATIVE | optional | **assistant** |
+| `inspect_item` | NARRATIVE | optional | storyteller |
+| `query_encounter` | NARRATIVE | required | storyteller |
+| `query_evil_state` | NARRATIVE | required | storyteller |
+| `query_quests` | NARRATIVE | optional | storyteller |
+| `reveal_lore` | NARRATIVE | optional | **assistant** |
+| `set_narrative_flag` | NARRATIVE | optional | storyteller |
 | `advance_world_tick` | SYSTEM | system | **system only** |
 
 `advance_world_tick` is deliberately unreachable from either agent. Exposed to
@@ -943,7 +972,7 @@ of it.
 The PR plan above describes how the game was *built*. It is complete. What
 followed was a correction pass, numbered P1–P11, which is where most of the
 architecture in this document actually came from. The suite went from 97 tests
-to 600+.
+to 600+ during the overhaul; it stands at ~1,400 now.
 
 | Phase | What it did |
 |-------|-------------|
@@ -971,7 +1000,7 @@ to 600+.
 | Multiplayer | Deferred |
 | Nexus KMS | Optional; local SQLite FTS is sufficient |
 | Character creation depth | Archetype only — archetypes now carry stats and a starting kit |
-| Repeatable income / food economy | **OPEN, and it is the live balance problem.** See DESIGN_REVIEW.md **R-05** |
+| Repeatable income / food economy | **Settled.** Foraging (`engine/game/foraging.py`) is the repeatable, gold-free tier; the `pauper` simulator policy survives 200 turns spending zero gold. See DESIGN_REVIEW.md **R-05** |
 
 ---
 
@@ -986,7 +1015,7 @@ to 600+.
 | Command | What it proves |
 |---------|----------------|
 | `.venv\Scripts\python.exe -m pytest tests/ -q` | The whole suite |
-| `.venv\Scripts\python.exe -m pytest tests/test_vertical_slice.py -q -rxX` | Two long playthroughs; the `xfail` is a real defect, not a flaky test |
+| `.venv\Scripts\python.exe -m pytest tests/test_vertical_slice.py -q` | Two long playthroughs; the properties that only break at length |
 | `.venv\Scripts\python.exe scripts\simulate.py --policy all --turns 200` | Every balance number quoted above |
 | `.venv\Scripts\python.exe launcher.py --check` | Which local services are up and what you lose without each |
 | `.venv\Scripts\python.exe scripts\doctor.py` | Environment, config, content and data integrity |

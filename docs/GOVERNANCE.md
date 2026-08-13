@@ -34,8 +34,15 @@ failure policy.
 |---|---|---|---|
 | `pre` | `comms.interceptors` | `run_pre(state, prompt, *, player_action) -> str` | legacy prompt chain (lore inject, awareness gate) |
 | `directive` | `governance.directives` | same | GM prompt shaping, built as **one** block |
+| `commit` | `governance.commit` | `run_commit(ctx) -> ctx` | review the negotiated turn **before** the transaction commits; the only chain with veto authority |
 | `post` | `governance.post` | `run_post(ctx) -> ctx` | audit a resolved turn |
 | `media` | `governance.media` | `run_post(ctx) -> ctx` | media tag fan-out |
+
+`commit` is called from `engine/agents/pipeline.py::_govern_commit`, ahead of
+the `StateTransaction` that applies the accepted effects. `governance.commit`
+is on the manifest `SETTING_ALLOWLIST` (`engine/games/manifest.py`), so a story
+declares its own chain in `game.yaml`. Covered by
+`tests/test_governance_commit.py`.
 
 An interceptor that raises is logged and skipped. A hook that shapes a prompt or
 records a metric must never take down the turn it was observing.
@@ -57,8 +64,15 @@ block. The caller inserts it into the budget like any other block.
 - **`DoomSignsInterceptor`** (directive) — surfaces what the Dark has actually
   done, read from the world-event ledger, so narration cannot drift from state.
 - **`StorytellerMind`** (directive) — turns the agency knobs into GM directives.
-- **`RulesGovernor`** (post) — runs R001–R005. **This is the call that did not exist.**
+- **`RulesGovernor`** (post) — runs R001–R005. **This is the call that did not
+  exist** — `SceneRulesEngine` had a passing test suite and no caller for five
+  PRs; this governor, run from `StorytellerAgent.run_turn` after `tx.commit()`,
+  is what made it production code.
 - **`MediaGovernor`** (media) — replaces the bypass described above.
+- **`SafetyDirective`** (directive) and **`SafetyCeiling`** (commit) — the
+  safety layer's two hooks, defined in `engine/safety/governor.py` and
+  registered by `register_safety_interceptors()` at the bottom of
+  `engine/agents/governance.py`. See docs/SAFETY.md.
 
 ### R003 and the telemetry that motivated it
 
@@ -211,6 +225,8 @@ into another story's tree.
 | System | Where it is called |
 |---|---|
 | `RulesGovernor` | `StorytellerAgent.run_turn`, after `tx.commit()`, so it audits the state the player actually ends the turn in. Violations ride out on `StorytellerTurnResult.governance` |
+| `run_commit` | `engine/agents/pipeline.py::_govern_commit`, over the negotiated turn, before the `StateTransaction` applies its effects. `SafetyCeiling` is the shipped occupant of the chain |
+| `Oracle.record_turn` | `content/scenes/clockwork/clockwork_state.py`, after the turn resolves; served by `GET /api/metrics` (`engine/api/metrics.py`) |
 | `build_directives` | one budgeted block in `engine/memory/context.py::build_storyteller_messages`, added beside `lore`. Deliberately **not** the PRE chain — that is R-01 |
 | `world_effects.apply_pending_beats` | `engine/game/clock.py::advance_time`, directly after `EvilTicker.advance`. Not a turn handler: the clock also moves for travel, rest, unconsciousness and the background tick, and a doom clock that only advanced on narrated turns would stop for a player who slept through the week |
 | `AssistantDirector` | replaces the flat roll in `AssistantAgent.run_turn`. `_check_gift` validates the item against **this game's** registry — the director's fallbacks name Clockwork Dark ids — and downgrades to a hint when it is absent; `_grant_gift` runs only once the companion has actually said something, so an unreachable model cannot leave an unexplained item in the pack |
@@ -221,10 +237,16 @@ Guarded by `test_beats_fire_from_the_clock_without_a_turn_handler` and
 because nothing else in the suite would notice if the clock call were deleted —
 a whole content system would simply stop happening.
 
+Formerly in this table, now wired: `Oracle.record_turn` and `/api/metrics`
+(rows above); the notice board's server half —
+`content/scenes/clockwork/clockwork_api.py::notice_board`, served at
+`GET /api/notices` from `engine/game/economy.py`'s snapshot,
+`tests/test_notice_board.py`; and the rolled-d20 stills — all 20 plates and all
+20 interface faces exist and are mapped in `data/art/manifest.yaml`
+(`dice_plates` / `dice_faces`), held by `tests/test_dice_art.py`.
+
 ### NOT WIRED
 
 | System | Needs |
 |---|---|
-| `Oracle.record_turn` and `/api/metrics` | both in `content/scenes/clockwork/clockwork_scene.py`. `record_unearned_claim` **is** live — `RulesGovernor` calls it on every R003 violation |
-| Notice board | not built. The contract catalogue it would serve from exists; the render does not |
-| Rolled-d20 stills | faces 6, 8, 11, 16 and 18 do not exist under `static/art/dice/`, and the art manifest maps only a generic `dice_roll` |
+| Notice board render | the browser side. `GET /api/notices` serves the board; nothing in `ui/` draws it yet |
