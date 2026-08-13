@@ -335,6 +335,11 @@ LOCATIONS = {
 >
 > Registration also takes `agents=[...]`, which is the allowlist the dispatcher
 > actually enforces. Omit it and it defaults from the trigger.
+>
+> The sketch below also says `pack="clockwork"`; the built-in pack is
+> **`pack="core"`** now. The old name was one story's, and the pack name is
+> registry-internal -- it reaches no save, no client payload and no model
+> manifest -- so the rename cost nothing.
 
 ```python
 @skill(

@@ -35,7 +35,7 @@ from engine.skills.registry import AGENT_STORYTELLER, skill
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "What foraging HERE would cost and give: the hours, the stamina, the "
         "difficulty, the season, and how picked-over the ground already is. "
@@ -55,7 +55,7 @@ def query_forage() -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Forage: work the ground here for food and materials. Costs hours and "
         "stamina whether or not anything is found, rolls survival against the "
@@ -94,7 +94,7 @@ def forage(node_id: str = "") -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "What paid work is on offer here right now, what each shift pays, and "
         "how many shifts the player has left today. Read-only. A job that is "
@@ -114,7 +114,7 @@ def query_work() -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Take a shift of paid work. Spends the hours and stamina pass or fail, "
         "rolls the job's skill, and pays coin scaled by the result, the "
@@ -153,7 +153,7 @@ def work(job_id: str) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Everything a vendor sells with current prices, AND what they would "
         "pay for each thing the player is carrying. Read-only. Use this "
@@ -173,7 +173,7 @@ def trade_browse(npc_id: str) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "The exact price a vendor will do one trade at, with the whole "
         "breakdown: base, spread, reputation, scarcity, haggling. Read-only. "
@@ -192,7 +192,7 @@ def trade_quote(npc_id: str, item_id: str, side: str = "buy", qty: int = 1) -> s
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Argue about a price. One attempt per vendor per day. The player names "
         "an offer; the engine sets the difficulty from how greedy it is, rolls "
@@ -228,7 +228,7 @@ def trade_haggle(npc_id: str, item_id: str, side: str = "buy", offer: int = 0) -
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Buy qty of an item from a vendor at the standing quote. Fails "
         "cleanly if the vendor does not stock it or the player cannot afford "
@@ -247,7 +247,7 @@ def trade_buy(npc_id: str, item_id: str, qty: int = 1) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Sell qty of a carried item to a vendor at the standing quote. Any "
         "item the vendor deals in has a price, whether or not it appears on "
@@ -277,7 +277,7 @@ def trade_sell(npc_id: str, item_id: str, qty: int = 1) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "The player's purse and everything they carry, joined against the item "
         "registry: name, description, tags, unit value, stack value and weight. "

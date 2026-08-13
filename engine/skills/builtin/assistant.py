@@ -208,7 +208,7 @@ def _reflection_min_awareness() -> float:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description="Assistant: return a lore hint appropriate to trust tier.",
     category="NARRATIVE",
     trigger=TRIGGER_OPTIONAL,
@@ -242,7 +242,7 @@ def grant_hint(tier: int = 0) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description="Assistant: reveal a lore snippet by topic id.",
     category="NARRATIVE",
     trigger=TRIGGER_OPTIONAL,
@@ -287,7 +287,7 @@ def reveal_lore(topic: str = "") -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description="Assistant: shift visible form (cat, wanderer, child, tinker, reflection).",
     category="NARRATIVE",
     trigger=TRIGGER_OPTIONAL,

@@ -29,7 +29,7 @@ _ROOT = Path(__file__).resolve().parents[3]
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description="Roll dice. MUST call before narrating any roll outcome.",
     category="GAME",
     trigger=TRIGGER_REQUIRED,
@@ -42,7 +42,7 @@ def roll_dice(sides: int = 20, modifier: int = 0, reason: str = "") -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Resolve a skill check. MUST call for risky actions. Pick a skill "
         "(persuasion|stealth|sympathy|lore|craft|survival|nerve) and a difficulty "
@@ -86,7 +86,7 @@ def resolve_skill_check(
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Rest to recover stamina. kind = rest_short (2h) | sleep_bed (8h, needs "
         "a bed) | sleep_rough (8h outdoors, survival check). Advances the clock."
@@ -110,7 +110,7 @@ def rest(kind: str = "rest_short") -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description="Eat one food item from inventory to reduce hunger.",
     category="GAME",
     trigger="optional",
@@ -125,7 +125,7 @@ def eat(item_id: str) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Wait or sleep until a given hour of day (0-23). Advances the clock; "
         "8+ hours of it counts as a night's sleep."
@@ -183,7 +183,7 @@ def sleep_until(hour: int = 6) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description="Move player to location_id along the location graph.",
     category="GAME",
     trigger=TRIGGER_REQUIRED,
@@ -195,7 +195,7 @@ def move_to(location_id: str) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Browse, buy, or sell with an NPC vendor. Prefer the trade_browse / "
         "trade_quote / trade_haggle / trade_buy / trade_sell tools, which "
@@ -244,7 +244,7 @@ def trade(action: str, item_id: str = "", npc_id: str = "", qty: int = 1) -> str
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description="Advance world day and evil ticker. System and tests only.",
     category="SYSTEM",
     trigger=TRIGGER_SYSTEM,
@@ -265,7 +265,7 @@ def advance_world_tick(days: float = 1.0, force_event: str = "") -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description="Storyteller-only: full evil and pressure snapshot.",
     category="NARRATIVE",
     trigger=TRIGGER_REQUIRED,
@@ -277,7 +277,7 @@ def query_evil_state() -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Read the encounter the player is currently in: the intro, the threat, "
         "how much fight it has left, what has happened so far, and the exact "
@@ -311,7 +311,7 @@ def query_encounter() -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Resolve one round of the current encounter with a named approach "
         "(talk|fight|sneak|pay|flee|...). MUST call before narrating how a "
@@ -347,7 +347,7 @@ def encounter_approach(approach: str) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Break off the current encounter and walk away. Shorthand for "
         "encounter_approach('flee'); always available while a scene is open."
@@ -431,7 +431,7 @@ def _craft_yield(degree: str, recipe: dict[str, Any]) -> Optional[dict[str, Any]
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Make something from a recipe. Consumes the inputs and the hours "
         "whether or not it works. Call list_recipes first if unsure."
@@ -532,7 +532,7 @@ def craft_item(recipe_id: str) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description="List recipes the player could attempt here, with what they need.",
     category="GAME",
     trigger="optional",

@@ -34,7 +34,7 @@ from engine.skills.registry import AGENT_STORYTELLER, skill
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Use a carried item for what it is FOR: bind a bandage, drink a "
         "draught, light a candle, build a fire, sharpen on a whetstone, study "
@@ -66,7 +66,7 @@ def use_item(item_id: str) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Put on a carried item: cloak, hood, boots, shield, lantern, charm, "
         "knife, pack. One item per slot -- wearing a second displaces the "
@@ -93,7 +93,7 @@ def equip_item(item_id: str) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Take off what is worn in a slot (head|body|feet|hands|belt|offhand|"
         "light|back|charm), or take off a named item wherever it is worn."
@@ -120,7 +120,7 @@ def unequip_item(slot: str = "", item_id: str = "") -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Read-only: every equipment slot, what is worn in it, what each worn "
         "thing is doing to which skill, how much wound severity the gear "
@@ -143,7 +143,7 @@ def query_equipment() -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Read-only: what a specific item IS and what can be done with it -- "
         "its verbs, its slot, its bonuses, what it is worth, which recipes "
@@ -206,7 +206,7 @@ def inspect_item(item_id: str) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Every collectable set, how far along each one is, what is still "
         "missing, and what completing it paid or would pay. Also settles any "

@@ -11,7 +11,10 @@ from engine.skills.registry import SKILL_REGISTRY
 
 
 def test_skills_registered():
-    names = {s.name for s in SKILL_REGISTRY.get_pack_tools("clockwork")}
+    # "core", not "clockwork": the built-in pack is the engine's, and its old
+    # name was one story's. The pack name is registry-internal -- it reaches no
+    # save, no client payload and no model manifest -- so the rename is free.
+    names = {s.name for s in SKILL_REGISTRY.get_pack_tools("core")}
     assert "roll_dice" in names
     assert "move_to" in names
     assert "query_evil_state" in names

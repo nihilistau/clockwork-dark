@@ -34,7 +34,7 @@ from engine.skills.registry import (
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "Report that a specific story beat happened, by raising a narrative "
         "flag a quest is listening for. Use ONLY the flag ids listed in your "
@@ -88,7 +88,7 @@ def set_narrative_flag(flag_id: str) -> str:
 
 
 @skill(
-    pack="clockwork",
+    pack="core",
     description=(
         "List what the player currently has open: quest names, the objective "
         "in play, and the narrative flags you are permitted to raise."
