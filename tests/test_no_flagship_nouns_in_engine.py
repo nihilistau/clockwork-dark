@@ -146,7 +146,13 @@ def test_agent_ids_are_the_only_clockwork_identifiers_left() -> None:
         "engine/games/registry.py",  # DEFAULT_SLUG + CLOCKWORK_GAME env var
         "engine/media/providers/comfy.py",  # ComfyUI output prefix -- S4
         "engine/media/providers/shipped.py",  # flagship art tree for its own script
-        "engine/scenes/spec.py",  # default scene package -- S2 extracts
+        "engine/scenes/spec.py",  # default scene NAME keys scene.clockwork.* config
+        # The extracted default scene serves the flagship-pinned asset home
+        # (content/scenes/clockwork/static + templates/clockwork.html, held by
+        # ui/vite.config.js outDir) and reads scene.clockwork.* for port/host.
+        # Both are deliberate compat identities documented in the module; the
+        # day the asset home and config key are renamed, this row goes too.
+        "engine/scenes/default_scene.py",
         "engine/skills/builtin/assistant.py",  # pack= -- S4 owns
         "engine/skills/builtin/items.py",  # pack= -- S4 owns
         "engine/skills/builtin/livelihood.py",  # pack= -- S4 owns
