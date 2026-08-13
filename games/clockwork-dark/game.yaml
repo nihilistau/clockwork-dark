@@ -69,6 +69,23 @@ blurb: >-
   working its way outward from the Wound. Become a hero or become a baker --
   the evil ticks either way.
 
+# Which scene serves this story, declared rather than inherited.
+#
+# These are exactly the engine's defaults (engine/scenes/spec.py) -- the
+# default scene USED to be this story's own package, and in v0.3.0 it moved
+# into the engine because every story ran on it. A shipped story's scene
+# should be readable from its manifest, not known only by omission, so the
+# flagship says out loud what it runs. tests/test_scene_seam.py pins the
+# declared values to the engine defaults; drifting off them is a decision
+# made there, on purpose.
+#
+# `name` keys the `scene.clockwork.*` block in config/default.yaml, which is
+# where the port and bind host live -- machine concerns stay in config.
+scene:
+  name: clockwork
+  module: engine.scenes.default_scene
+  blueprint: "engine.scenes.default_api:story_blueprint"
+
 # EVERY PATH THIS STORY READS, INCLUDING THE ONES IT USED TO INHERIT.
 #
 # config/default.yaml carried this list until v0.2.2 -- which meant the engine's

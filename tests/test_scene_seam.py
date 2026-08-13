@@ -72,12 +72,16 @@ def test_a_manifest_with_no_scene_block_gets_the_engine_default():
 @pytest.mark.parametrize("slug", ["clockwork-dark", "wicked-garden"])
 def test_every_shipped_game_declares_the_engine_default_scene(slug):
     """
-    Both shipped games run the engine default. The declared values must equal
-    the defaults exactly: a shipped game quietly drifting off the engine scene
-    is a change someone should make on purpose, in this test.
+    Both shipped games run the engine default -- and DECLARE it, explicitly,
+    so their scene is readable from game.yaml rather than known by omission.
+    The declared values must equal the defaults exactly: a shipped game
+    quietly drifting off the engine scene is a change someone should make on
+    purpose, in this test.
     """
     manifest = registry.get(slug)
     assert manifest is not None, f"games/{slug}/game.yaml is missing"
+    declared = (manifest.extras or {}).get("scene")
+    assert isinstance(declared, dict), f"games/{slug}/game.yaml declares no scene: block"
     assert resolve_scene(manifest) == SceneSpec()
 
 

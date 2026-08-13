@@ -23,6 +23,22 @@ blurb: >-
   it well or not. Please her, match her, escape her, or be consumed.
 
 # ---------------------------------------------------------------------------
+# Which scene serves this story, declared rather than inherited.
+#
+# The engine's default scene and default screens (engine/scenes/spec.py),
+# exactly -- the turn loop, the socket contract, and the paths-driven journal,
+# codex and pack screens all resolve through this manifest, so this story has
+# nothing to replace yet. Declared anyway: a story that runs the default by
+# SAYING so is a story whose game.yaml answers the question, and the day this
+# story ships its own screens the change is one line here. `name` keys the
+# `scene.clockwork.*` config block, which is where port and host live.
+# ---------------------------------------------------------------------------
+scene:
+  name: clockwork
+  module: engine.scenes.default_scene
+  blueprint: "engine.scenes.default_api:story_blueprint"
+
+# ---------------------------------------------------------------------------
 # Content rating.
 #
 # Declared at TOP LEVEL rather than under `settings:` on purpose: a rating is
