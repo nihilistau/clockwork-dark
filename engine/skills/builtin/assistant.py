@@ -2,7 +2,9 @@
 Assistant Skills
 ================
 
-Optional narrative tools for clockwork_assistant.
+Optional narrative tools for the companion agent (the ``assistant`` role in
+the skill registry's allowlist; historically ``clockwork_assistant``, an id
+that now lives in the flagship's agents.yaml rather than in engine code).
 
 THE GAP THIS MODULE CLOSES (P9): the Assistant's entire vocabulary used to be
 six hint strings and three lore snippets written as Python literals right here.

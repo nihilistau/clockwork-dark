@@ -407,8 +407,20 @@ class StorytellerAgent:
             UI can show "the world is deciding..." during a slow local turn.
     """
 
-    AGENT_ID = "clockwork_storyteller"
+    #: The historical canon id (CLAUDE.md: do not rename), kept as the LEGACY
+    #: SHIM: it is the answer only for a story that ships no agents.yaml at
+    #: all. A story with a roster names its own narrator -- the flagship's
+    #: declares this same id, which is how the canon name survives without
+    #: living in engine code.
+    LEGACY_AGENT_ID = "clockwork_storyteller"
     MAX_RETRIES = 1
+
+    @property
+    def AGENT_ID(self) -> str:
+        """The active story's world-role agent id, or the historical canon id."""
+        from engine.agents.roster import ROLE_WORLD, agent_id_for_role
+
+        return agent_id_for_role(ROLE_WORLD, self.LEGACY_AGENT_ID)
 
     def __init__(
         self,

@@ -4,11 +4,14 @@ Agent Roster
 
 Which agents a story runs, what each may say, read and write.
 
-WHY THIS IS DATA. The two agents in this engine are named in Python
-(``clockwork_storyteller``, ``clockwork_assistant``), their personas are string
-literals, their voices are implicit, and the only permission model is a skill
-allowlist checked at dispatch. That is a description of one story's cast written
-into the runtime.
+WHY THIS IS DATA. The two agents in this engine were, for the project's whole
+life, named in Python (``clockwork_storyteller``, ``clockwork_assistant``),
+their personas were string literals, their voices implicit, and the only
+permission model a skill allowlist checked at dispatch. That was a description
+of one story's cast written into the runtime. The names live in the flagship's
+own ``agents.yaml`` now, and the engine resolves an agent's id through
+:func:`agent_id_for_role`; the old literals survive only as the fallback for a
+story that declares no roster at all.
 
 A second story has a different cast with different rules: a world agent owning
 ten voices, a character agent owning three, each barred from the other's
@@ -259,6 +262,34 @@ def parse_roster(data: Any, *, slug: str = "") -> Roster:
     return roster
 
 
+def agent_id_for_role(role: str, fallback: str) -> str:
+    """
+    The active story's agent id for a role, or the legacy fallback.
+
+    This is how the engine's built-in agents get their names now. The fallbacks
+    callers pass are the HISTORICAL CANON IDS (``clockwork_storyteller``,
+    ``clockwork_assistant`` -- CLAUDE.md, do not rename): they were engine
+    literals for the project's whole life and external records (transcripts,
+    telemetry, tooling) may carry them, so a story that ships no ``agents.yaml``
+    keeps them exactly as before. A story WITH a roster names its own cast, and
+    the flagship's roster declares the canon pair itself -- which means the
+    fallback path is exercised only by a rosterless story, never by a shipped
+    one.
+
+    Where a role has several agents, the first declared wins; a story that
+    needs the engine to tell its two world agents apart has outgrown this
+    helper and should be addressing them by id.
+    """
+    try:
+        from engine.state.active import active_roster
+
+        agents = active_roster().of_role(role)
+    except Exception as exc:  # noqa: BLE001 -- never block a turn on the roster
+        logger.debug("[roster] No active roster for id lookup: %s", exc)
+        return fallback
+    return agents[0].id if agents else fallback
+
+
 def load_roster(path: Path | str, *, slug: str = "") -> Roster:
     """
     Read a story's ``agents.yaml``.
@@ -293,6 +324,7 @@ __all__ = [
     "AgentSpec",
     "Roster",
     "RosterError",
+    "agent_id_for_role",
     "load_roster",
     "parse_roster",
 ]

@@ -182,7 +182,20 @@ class AssistantAgent:
         rng: Injectable random for agency tests.
     """
 
-    AGENT_ID = "clockwork_assistant"
+    #: The historical canon id (CLAUDE.md: do not rename), kept as the LEGACY
+    #: SHIM: it is the answer only for a story that ships no agents.yaml, or
+    #: one whose roster declares no companion (The Wicked Garden -- Sophia is
+    #: a `character`, not a companion). The flagship's roster declares this
+    #: same id, which is how the canon name survives without living in engine
+    #: code.
+    LEGACY_AGENT_ID = "clockwork_assistant"
+
+    @property
+    def AGENT_ID(self) -> str:
+        """The active story's companion-role agent id, or the historical canon id."""
+        from engine.agents.roster import ROLE_COMPANION, agent_id_for_role
+
+        return agent_id_for_role(ROLE_COMPANION, self.LEGACY_AGENT_ID)
 
     def __init__(
         self,
