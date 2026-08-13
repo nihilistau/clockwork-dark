@@ -37,6 +37,32 @@ def test_same_seed_identical_npcs():
     assert a.shrine_mural == b.shrine_mural
 
 
+def test_generate_world_draws_on_the_named_procgen_stream(monkeypatch):
+    """
+    The named-stream discipline reaches world generation.
+
+    ``generate_world`` used a bare ``random.Random(seed)`` -- the one generator
+    in the engine outside rng.py -- so any draw added to any co-seeded system
+    could have silently reshuffled every recorded village. It must build its
+    generator through ``stable_rng`` on the PROCGEN stream, and this test holds
+    the wiring rather than the numbers so a rng.py refactor cannot pass by
+    coincidence.
+    """
+    from engine.game import procgen as procgen_module
+    from engine.game import rng as rng_module
+
+    calls: list[tuple[int, str]] = []
+    real = rng_module.stable_rng
+
+    def spy(seed: int, stream: str):
+        calls.append((seed, stream))
+        return real(seed, stream)
+
+    monkeypatch.setattr(procgen_module, "stable_rng", spy)
+    generate_world(2026)
+    assert (2026, rng_module.PROCGEN) in calls
+
+
 def test_different_seeds_differ():
     a = generate_world(1)
     b = generate_world(2)

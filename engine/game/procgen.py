@@ -31,6 +31,7 @@ from typing import Any, Optional
 import yaml
 
 from engine.config import get_config
+from engine.game.rng import PROCGEN, stable_rng
 from engine.game.state import GameState, InventoryItem, ProcgenResult
 
 logger = logging.getLogger(__name__)
@@ -241,7 +242,14 @@ def generate_world(seed: int) -> ProcgenResult:
         ProcgenResult with NPCs, buildings, forest, and festival data.
     """
     templates = load_templates()
-    rng = random.Random(seed)
+    # The named-stream discipline (CLAUDE.md rule 4), in its pre-state form.
+    # World generation runs BEFORE a GameState exists, so there is no
+    # ``world_rng(state, ...)`` to draw on; ``stable_rng`` is the sanctioned
+    # seed-only construction, and naming the PROCGEN stream means a draw added
+    # to any other system cannot reshuffle every village ever generated from a
+    # recorded seed. A bare ``random.Random(seed)`` sat here before -- the one
+    # generator in the engine outside rng.py's discipline.
+    rng = stable_rng(seed, PROCGEN)
     counts = templates.get("counts", {})
 
     canon_npcs = [
