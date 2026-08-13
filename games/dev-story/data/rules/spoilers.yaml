@@ -1,0 +1,40 @@
+# Dev Story -- what the narration may not name yet.
+#
+# Read by engine/lore/interceptors.py, from `<paths.rules>/spoilers.yaml`. The
+# filename is fixed; the directory is whatever `paths.rules` points at.
+#
+# Below `awareness.spoiler_gate_threshold` these terms are rewritten in both
+# directions: out of the model's narration (`run_post`) and out of any part of
+# the system prompt explicitly wrapped in `mark_spoiler` (`run_pre`). Above the
+# threshold nothing is touched.
+#
+# TWO ROWS, AND THAT IS HONEST. This story is contemporary and mundane; it has
+# almost nothing to hide, and inventing reveals so that this file could be
+# longer would be inventing a story. The file exists so the mechanism is
+# reachable from the bench, and so there is somewhere obvious to add a row when
+# you are testing the gate.
+#
+# WHAT YOU DO NOT NEED TO PUT HERE. The engine masks its own vocabulary for
+# every story regardless of this file -- `evil_progress` and the four uppercase
+# phase ids (`ENGINE_TERMS` in engine/lore/interceptors.py). Those are engine
+# identifiers that leak out of receipts and logs, not any story's nouns. Add one
+# here only to give it different wording; a story's rows are applied first, so
+# yours would win.
+#
+# `term` is matched case-insensitively and word-bounded, with an optional
+# leading "the" swallowed -- matching the bare term produced "names the
+# something wrong in the wheat" in the flagship, which is the sort of thing a
+# player screenshots. Set `case_sensitive: true` where the casing is the point.
+#
+# Version: v0.1.0 [2026-08-11]
+
+spoilers:
+  # The only real reveal this story has: why she turned up mid-term, which
+  # nobody is supposed to know before she says it.
+  - term: "transfer paperwork"
+    instead: "whatever it was that happened at her last school"
+
+  # Not a secret so much as a piece of machinery: the narrator should not name
+  # the noticeboard result before the noticeboard has it.
+  - term: "midterm results"
+    instead: "what goes up on the board on Friday"

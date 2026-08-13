@@ -1,0 +1,77 @@
+# Dev Story -- world events on campus.
+#
+# Read by engine/world/schedules.py via `paths.world_schedules`. INERT UNTIL
+# THAT PATH IS DECLARED in games/dev-story/game.yaml.
+#
+# ------------------------------------------------------------
+# THE THREE KEYS ARE THE ENGINE'S, NOT THE FICTION'S
+# ------------------------------------------------------------
+# `caravan_arrival`, `tinker_camp` and `militia_press` are HARDCODED lookups in
+# engine/world/schedules.py (WorldSim.check_caravan, check_tinker,
+# check_militia). They are the engine's three event slots -- a visitor arrives,
+# a gathering settles, an authority sweeps -- and a story gets to say what fills
+# them, not what they are called.
+#
+# THE DEFECT THIS FILE IS AVOIDING: a story that renamed its three (to, say,
+# `guest_lecture`, `gym_class`, `inspection`) would write three blocks the
+# simulator never finds, because the simulator asks for the engine's names and
+# gets `{}`. Its events would then run on the hardcoded defaults, which point at
+# Edgewood locations that are not in this graph. So: engine ids on the left, the
+# campus name in the comment above each one.
+#
+# ------------------------------------------------------------
+# GATES ARE SET SO THESE CAN ACTUALLY FIRE
+# ------------------------------------------------------------
+# `militia_press` defaults to `min_awareness: 20`. Nothing in this story raises
+# Awareness (every travel edge is `awareness_delta: 0`, and there are no
+# encounters), so the shipped gate would be a gate that never opens. It is 0
+# here for the same reason every rumour in rumors.yaml is min_awareness 0.
+#
+# Probabilities are high for a bench. Roll counts are what makes an event
+# testable at all; a 0.06/day event in a story you restart every ten minutes is
+# an event you will never see fire.
+#
+# NO `goods:` LISTS. Those feed a vendor's stock through the economy loader, and
+# this story declares no `paths.items` and no `paths.economy` -- every id would
+# be a dangling reference. Add them when you add an item registry, not before.
+#
+# Version: v0.1.0 [2026-08-09]
+
+# A GUEST LECTURE.
+# The engine's "a visitor arrives" slot: somebody comes in, sets up at the
+# front, and is there for a day or two.
+caravan_arrival:
+  min_day: 1
+  probability_per_day: 0.5
+  duration_days: 2
+  npc_id: the_teacher
+  location_id: classroom
+
+# AN OPEN GYM CLASS.
+# The engine's "a gathering settles" slot: mats out, a rough square of people,
+# running for a few days before it quietly stops.
+tinker_camp:
+  probability_per_week: 1.0
+  duration_days: 3
+  npc_id: chloe
+  location_id: gym
+
+# THE DEAN'S WALK-ROUND.
+# The engine's "an authority sweeps" slot, which on a campus is an inspection:
+# a clipboard, an open door, and everybody suddenly working.
+militia_press:
+  min_awareness: 0
+  probability_per_day: 0.25
+  duration_days: 1
+  npc_id: the_dean
+  location_id: admin_block
+
+# The legacy flat pool. The loader reads this list only as a fallback when the
+# gated pool is unavailable; the pool that actually gets used is
+# games/dev-story/data/world/rumors.yaml. Three lines, so that a run with
+# `world_rumors` declared and `world_schedules` not (or the other way round)
+# still says something rather than falling to the engine's default string.
+rumors:
+  - "The printer in the admin block is jamming again."
+  - "The Dean has been walking the corridors herself this week."
+  - "There is a sign-up sheet on the gym noticeboard with too many names on it."

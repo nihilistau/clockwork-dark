@@ -1,0 +1,96 @@
+# Dev Story -- state declaration.
+#
+# Two meters and one clock. Everything a bench needs to watch a write land, and
+# nothing else.
+#
+# THIS WHOLE FILE CAN BE DELETED. The state schema layer is additive: a story
+# with no state.yaml runs on the engine spine alone (GameState's own typed
+# fields), which is what the flagship does. Delete it, drop the `writes:`
+# lists from agents.yaml, and this story still launches -- it just loses the
+# meters, the clock, and every rule below that reads them.
+#
+# `backing: bag` means the value lives in the generic `meters` / `clocks`
+# containers on the spine rather than on a typed attribute. That is the backing
+# a story the engine has never heard of uses -- `backing: field` needs a dotted
+# `path:` to an attribute that already exists, and none of these do.
+#
+# `visibility: public` sends the raw number to the browser. That is the point of
+# a bench meter: `veiled` would render a band word and a five-mark glyph row
+# instead, which is right for a story and useless here. `hidden` never leaves
+# the server at all.
+#
+# ---------------------------------------------------------------------------
+# WHY THERE IS NO `owners:` ON THE TWO METERS
+# ---------------------------------------------------------------------------
+# Because agents.yaml already says it, and it says it more precisely than an
+# `owners:` list can. `engine/state/active.py::_with_roster_grants` unions the
+# roster's `writes:` and `writes_with_reason:` into this schema at load, so the
+# grants are:
+#
+#   world    influence, popularity          (writes)
+#   sophia   popularity                     (writes)
+#   sophia   influence, WITH A REASON       (writes_with_reason)
+#
+# `owners: [world, sophia]` on `influence` would be TRUE and MISLEADING: the
+# flat list has no way to spell "only with a reason", so it would read as an
+# unconditional grant to Sophia and hide the one permission in this story that
+# is worth testing. The union can only ever widen, never disagree -- so leaving
+# it off costs nothing and keeps the answer in one place.
+#
+# If you delete agents.yaml (single-agent bench), nobody can write these and
+# every agent write is refused and journalled. Add `owners: [world]` here to get
+# it back without a roster.
+#
+# ---------------------------------------------------------------------------
+# WHY THE CLOCK IS DECLARED HERE AS WELL AS IN data/rules/clocks.yaml
+# ---------------------------------------------------------------------------
+# A clock is declared TWICE and the split is deliberate: this file says what it
+# IS (bounds, visibility, who may write it) and clocks.yaml says what it DOES.
+# Both halves are required. Without this block `clocks.value_of` reads 0.0 and
+# `clocks.maximum_of` returns None, so `at: max` never resolves and the beats
+# below simply never fire -- silently, which is the failure this sandbox exists
+# to make impossible.
+#
+# No `owners:` on the clock either, and here it means engine-only: `clocks.py`
+# writes as `by: engine`, which the store always permits. Grant it to an agent
+# only if you are specifically testing an agent winding a clock.
+#
+# Version: v0.1.0 [2026-08-11]
+
+version: 1
+slug: dev-story
+
+meters:
+  influence:
+    backing: bag
+    min: 0
+    max: 100
+    default: 50
+    visibility: public
+    label: Influence
+
+  popularity:
+    backing: bag
+    min: 0
+    max: 100
+    default: 50
+    visibility: public
+    label: Popularity
+
+clocks:
+  # Four segments, because four is the smallest number that gives a clock a
+  # middle. A 0-2 clock is a flag with extra steps.
+  rumour_spreading:
+    backing: bag
+    min: 0
+    max: 4
+    default: 0
+    visibility: public
+    label: "Rumour"
+
+# Which values the load menu shows on a save row. The two meters only: the clock
+# starts at 0 on every run and a column that reads 0 on most rows tells you
+# nothing about which save to load.
+summary:
+  - influence
+  - popularity

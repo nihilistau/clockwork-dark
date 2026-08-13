@@ -1,0 +1,82 @@
+# ============================================================
+# Shipped art manifest -- Dev Story.
+#
+# Maps this story's ids to the plates in `plates/`, which is what
+# `paths.art_root` in games/dev-story/game.yaml points at. Same file format and
+# the same resolution chain as the other three stories:
+#
+#   1. shipped     this file. Instant, free, always correct.
+#   2. cache       anything generated in an earlier session.
+#   3. live        Grok Imagine or ComfyUI. OFF by default.
+#   4. procedural  deterministic SVG. Never fails, never pretty.
+#
+# ------------------------------------------------------------
+# WHERE THESE FILES CAME FROM
+# ------------------------------------------------------------
+# COPIED from games/wicked-garden/data/art/plates/ so this story has real
+# pictures without a generation run. Three guest-house scene plates stand in
+# for the bedroom and all eight Sophia portraits came across. They are the
+# Garden's art and they look like it -- lush, gilded, fae. If you are testing
+# how a plate reads rather than that a plate resolves, replace the files; the
+# ids below do not care what the JPEGs contain.
+#
+# The Garden's Sophia and this story's Sophia are NOT the same character (see
+# prompts/storyteller.md). The portrait is borrowed pixels, not borrowed canon.
+#
+# ------------------------------------------------------------
+# WHY `root:` IS "/story-art" AND NOT "/static/art"
+# ------------------------------------------------------------
+# Flask's /static handler belongs to the SCENE package, not to the active game,
+# so a story keeping its plates in its own tree gets a 404 there -- the
+# manifest resolves, the file exists on disk, and the browser still shows
+# nothing, which looks exactly like having no art pack at all. `/story-art` is
+# the route in engine/api/art.py that serves `paths.art_root` for whichever
+# game is active.
+#
+# Version: v0.1.0 [2026-08-09]
+# ============================================================
+
+version: 1
+root: "/story-art"
+
+# ------------------------------------------------------------
+# Locations. Ids from data/world/locations.yaml -- there is one.
+#
+# `alts` are picked deterministically per (place, daypart), so the room varies
+# across the day and is stable for a given save. There is no `times:` block and
+# no `corrupted:` pool: a `times:` override would pin one plate per hour, which
+# defeats the point of watching the alt rotation work, and this story's evil
+# phase is `dormant` forever (game.yaml sets `evil_base_rate_per_day: 0.0`) so
+# a corrupted pool would be dead content.
+# ------------------------------------------------------------
+locations:
+  test_bedroom:
+    base: scenes/guest-house.jpg
+    alts:
+      - scenes/guest-house-night.jpg
+      - scenes/guest-house-rumpled.jpg
+
+# ------------------------------------------------------------
+# Portraits. All EIGHT characters, ids from data/world/npc_schedules.yaml.
+#
+# EVERY ONE OF THESE IS A PLACEHOLDER, and they are eight DIFFERENT files on
+# purpose. The pack contains eight Wicked Garden Sophia plates and this story
+# has eight people, so each id gets its own picture -- not because any of them
+# resembles the person in subjects.yaml, but because a distinct image per id is
+# the only way to see AT A GLANCE which id actually resolved. Point all eight at
+# one file and a portrait route that silently returns the wrong character looks
+# exactly like one that works.
+#
+# To make them real: drop your own JPEG over the file, or generate from the
+# prompts in subjects.yaml via `scripts/art_missing.py --game dev-story`. The
+# ids below do not care what the bytes contain.
+# ------------------------------------------------------------
+portraits:
+  maya: portraits/sophia-smile.jpg
+  sophia: portraits/sophia.jpg
+  chloe: portraits/sophia-vulnerable.jpg
+  the_dean: portraits/sophia-wrath.jpg
+  the_teacher: portraits/sophia-hungry.jpg
+  the_secretary: portraits/sophia-expr-wrath.jpg
+  the_lunch_lady: portraits/sophia-hunt.jpg
+  the_librarian: portraits/sophia-fullbody.jpg

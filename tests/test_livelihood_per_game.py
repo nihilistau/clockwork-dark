@@ -37,11 +37,15 @@ from engine.game.procgen import new_game_state
 from engine.games import registry
 
 #: Games that declare livelihood content. See the module docstring for why
-#: The Wicked Garden is not one of them.
+#: The Wicked Garden is not one of them; Dev Story ships items but no economy,
+#: forage rules or vendors, so it belongs with the Garden below. STATIC on
+#: purpose -- whether a story runs these systems is an authoring decision read
+#: from its content, and a derived list would assert whatever it found.
 GAMES = ("clockwork-dark",)
 
-#: Every installed story, for the one claim that holds regardless.
-ALL_GAMES = ("clockwork-dark", "wicked-garden")
+#: Every installed story, for the one claim that holds regardless. Derived,
+#: because "cleanly absent, never noisy" is owed to any story that exists.
+ALL_GAMES = tuple(sorted(registry.discover()))
 
 
 @pytest.fixture

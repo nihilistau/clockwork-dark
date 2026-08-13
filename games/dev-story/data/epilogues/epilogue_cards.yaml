@@ -1,0 +1,79 @@
+# Dev Story -- epilogue prose.
+#
+# Read by engine/game/epilogue.py. This file is NOT found by name: the index
+# names it in `prose_source`, which is what lets the cards be split per ending
+# later without touching the engine.
+#
+# TWO CARDS PER ENDING, because the renderer draws two and `render_order` in the
+# index names both. What the two mean is the story's business:
+#
+#   card_m   AFTER. The rest of the year, the summer, the next place.
+#   card_g   HERE. What the campus looks like once you are not in it.
+#
+# The engine substitutes nothing inside these -- it appends the hollow clause to
+# `card_m` and renders `time_line` separately. Anything in braces here is
+# literal text, not a placeholder.
+#
+# `echoes` is a list of `{speaker, text}`. The index's `echo_speaker` is the
+# structural declaration of WHO gets the last word; these are what they say. An
+# ending with an empty `echo_speaker` has no `echoes` block here, and the
+# silence is the point.
+#
+# Version: v0.1.0 [2026-08-11]
+
+version: 1
+
+cards:
+
+  top_of_the_class:
+    title: "The One They Asked"
+    card_m: |-
+      You get asked things now. Not the interesting things, at first -- where the
+      form is, whether the room is booked, whether it is worth arguing. Then the
+      interesting things.
+
+      It turns out to be mostly admin, and you are surprisingly all right at
+      admin, and nobody warns you that this is how it starts.
+    card_g: |-
+      The noticeboard outside the admin block keeps your name up longer than it
+      needs to, because nobody has the job of taking things down.
+
+      Two years later somebody points at it and asks who that was, and gets an
+      answer, and the answer is broadly accurate.
+    echoes:
+      - speaker: sophia
+        text: |-
+          You were unbearable about it for about a week. Then you were fine.
+          I did notice which order that happened in.
+
+  everyones_friend:
+    title: "Everyone Said Yes"
+    card_m: |-
+      The group chat outlives the reason for the group chat by several years. It
+      goes quiet and comes back. It goes quiet and comes back.
+
+      You are the one who starts it up again, every time, and you never once
+      notice that this is a thing you do.
+    card_g: |-
+      The quad in the last week of term, which is the only week it is ever
+      actually full, and somebody has a camera out.
+
+      You are in the middle of the photograph and nobody put you there.
+    echoes:
+      - speaker: chloe
+        text: |-
+          I told about four people you were fine about the thing. You were not
+          fine about the thing. You are welcome.
+
+  just_another_term:
+    title: "Just Another Term"
+    card_m: |-
+      You remember two conversations and one afternoon in the library when the
+      heating was off, and that is genuinely all of it.
+
+      Which is not nothing. Most terms leave less.
+    card_g: |-
+      The locker is empty in under four minutes. A hair tie, a receipt, a pen
+      that does not work.
+
+      Somebody else has it by September and does not wonder about you at all.

@@ -1,0 +1,247 @@
+# Dev Story -- the bench.
+#
+# This is not a game. It is a bench: a house, a university, eight people, and
+# one small working instance of every subsystem. Everything in this directory
+# is meant to be rewritten in place while the server is running, so every file
+# here is short and every non-obvious line says why it is there.
+#
+# WHAT IT IS FOR. Testing a scene, a persona, a world agent, or an interaction
+# without the 5,300 lines of authored content in the two big stories answering
+# first. If a change here does not do what you expected, the cause is the
+# engine or your edit -- there is nothing else in the room.
+#
+# IT SHIPS NOW. This directory used to be gitignored -- a maintainer-only
+# sandbox. It is committed because it earns its keep twice over: it is the full
+# worked example the story templates (scripts/story_template/) are distilled
+# from, and it puts a third row under every per-story test, one that shares
+# almost nothing with either big story. Break it freely; just leave it working.
+#
+# WHAT IT DELIBERATELY DOES NOT HAVE: no doom, no encounters, no dice, no
+# crafting, no economy. An UNDECLARED path resolves to nothing (the engine's
+# defaults name no story's content), and the block above `paths:` lists what
+# this story ships none of, on purpose.
+#
+# Version: v0.3.0 [2026-08-13]
+
+id: dev-story
+title: "Dev Story"
+version: "0.3.0"
+engine_requires: ">=0.2.0"
+
+blurb: >-
+  A scratch story for testing scenes, characters, world agents and
+  interactions. One bedroom, one narrator, three placeholder buttons. Edit
+  anything in games/dev-story/ and reload.
+
+# ---------------------------------------------------------------------------
+# Which UI plugin renders this story.
+#
+# This story borrows The Wicked Garden's look rather than shipping its own UI
+# directory, because a story's UI plugin is DECLARED rather than inferred from
+# the directory name. There is no ui/src/stories/dev-story/ and there is not
+# meant to be one -- a bench that had to carry a front end would cost a build
+# step every time you renamed it, and every such directory becomes its own
+# chunk in the COMMITTED dist/ tree. Borrowing is the supported path
+# (engine/games/manifest.py::ui_plugin), and this manifest is the story the
+# key was added for.
+# ---------------------------------------------------------------------------
+ui:
+  plugin: wicked-garden
+
+# ---------------------------------------------------------------------------
+# Which scene serves this story, declared rather than inherited.
+#
+# The engine's default scene and default screens, exactly, same as both big
+# stories -- and declared for the same reason they declare it: a story that
+# runs the default by SAYING so is a story whose game.yaml answers the
+# question. `name` keys the `scene.clockwork.*` config block, where port and
+# host live; `--port 5599` on the launcher overrides it for the bench.
+# ---------------------------------------------------------------------------
+scene:
+  name: clockwork
+  module: engine.scenes.default_scene
+  blueprint: "engine.scenes.default_api:story_blueprint"
+
+# ---------------------------------------------------------------------------
+# Content rating -- DECLARED BY THIS STORY, not by the engine.
+#
+# The engine's default is `suggestive` for both halves and it stays there. This
+# block is how a story raises its own, and it is the mechanism the config file
+# points at: "A story raises its own with a `safety:` block in its game.yaml".
+#
+# It is declared HERE rather than by editing `config/default.yaml` because that
+# file is the ENGINE's answer for every story that declares nothing -- raising
+# it there would have moved the ceiling for The Clockwork Dark and The Wicked
+# Garden too, stories whose content is authored to `suggestive`, and it fails
+# `tests/test_safety_shipped_games.py`, which exists to catch exactly that.
+# A sandbox wanting a different dial is a story-level decision, so it goes in
+# the story, and the safety tests compute their expectation from this block
+# rather than pinning a value -- a shipped rating is a declaration, not a bug.
+#
+# `hard_nos` stays absent on purpose. Limits belong to the PLAYER, set in the
+# boundary sheet at the start of a run -- a story pre-filling them is a story
+# deciding what its player finds unbearable.
+# ---------------------------------------------------------------------------
+safety:
+  intensity:
+    ceiling: extreme
+    default: explicit
+  fade:
+    available: true
+  aftercare:
+    default: true
+
+# ---------------------------------------------------------------------------
+# Engine settings. Only keys on SETTING_ALLOWLIST in engine/games/manifest.py
+# are honoured; anything else is a hard validation error rather than a silent
+# drop, so this block is kept to the three numbers that have to be zero and the
+# one chain that has to be shortened.
+# ---------------------------------------------------------------------------
+settings:
+  world:
+    # NOTHING TICKS WHILE YOU ARE TESTING. The flagship grants 2 in-game hours
+    # per background tick and caps a single tick at 6; both would move the
+    # clock underneath a scene you are re-running to compare two prompts, and
+    # a bench whose conditions change between runs is not a bench.
+    tick_hours: 0.0
+    tick_max_hours: 0.0
+    # No doom. At the default 0.006/day the world would drift out of `dormant`
+    # while you sat on one screen, and the phase feeds the narration tone.
+    # 0.0 pins the evil phase at `dormant` forever.
+    evil_base_rate_per_day: 0.0
+
+  # The prompt shapers this story runs.
+  #
+  # Same reasoning as The Wicked Garden's: the engine's default chain is The
+  # Clockwork Dark's. `EvilPhaseTone` instructs "Tone: cosy frontier life; the
+  # wrongness is barely a rumour" and `DoomSignsInterceptor` narrates a doom
+  # ledger this story does not keep -- both would inject Clockwork's tone into
+  # a bedroom scene that has nothing to do with it.
+  #
+  # Kept: SafetyDirective (standing constraints; emits nothing at all when a
+  # story configures no limits, which is this one) and StorytellerMind, which
+  # is genuinely generic -- it renders the GM's cruelty/generosity/patience
+  # knobs and names no story.
+  governance:
+    directives:
+      - SafetyDirective
+      - StorytellerMind
+
+# ---------------------------------------------------------------------------
+# paths: -- deep-merged over config/default.yaml's `paths:` block.
+#
+# ONLY WHAT THIS STORY SHIPS IS DECLARED. Seven keys, and each one is here
+# because leaving it off would point the engine at Edgewood:
+#
+#   locations     default data/world/locations.yaml -- Edgewood's map, and
+#                 `test_bedroom` is not in it, so entry would resolve to None
+#   prompts       default "" -- the BUILT-IN persona in engine/agents/prompts.py,
+#                 which opens "You are the STORYTELLER of The Clockwork Dark"
+#   rules         default data/rules -- Edgewood's archetypes.yaml, which offers
+#                 a wayfarer, a hearthkeeper and a tinker's apprentice
+#   art_root      default content/scenes/clockwork/static/art -- the FLAGSHIP's
+#                 static tree, so this manifest's filenames would be looked for
+#                 inside Edgewood's directory, miss every one, and fall through
+#                 to the procedural silhouette
+#   art_manifest  default data/art/manifest.yaml -- Edgewood's id map
+#   art_subjects  default data/art/subjects.yaml -- Edgewood's prompts
+#   saves         restated rather than inherited so the save root is visible
+#                 here; the store appends the slug, so runs land in
+#                 data/saves/dev-story/. Validated on its PARENT (it is in
+#                 OUTPUT_PATH_KEYS), which is why it may not exist yet.
+#
+# ---------------------------------------------------------------------------
+# WHAT THIS STORY SHIPS NONE OF, WHICH IS ALMOST EVERYTHING
+# ---------------------------------------------------------------------------
+# This block used to be a list of what this story INHERITED. Every key it did
+# not declare read The Clockwork Dark's file: Edgewood's quests, item registry,
+# crafting, encounters, boon tables, lore index, factions, prices, and eight
+# Edgewood villagers placed at location ids this one-room map does not contain.
+# None of it was reachable from a room with no exits, which is why it survived
+# -- it was a trap laid for whoever added the second room.
+#
+# config/default.yaml no longer names any story's content, so the list below is
+# simply what this story does not have, and an undeclared key resolves to
+# nothing:
+#
+#   quests, items, recipes, encounters, tables, economy, challenges,
+#   doom_effects, procgen_templates, comfyui_templates, assistant_hints,
+#   factions, npc_schedules, world_rumors, world_schedules, lore, lore_db,
+#   clocks, threads, endings, decks, challenge_bounds
+#
+# That is the point of this story: the smallest thing the engine will run, so a
+# narration change can be tested without a world arguing with it. Every one of
+# those systems returns an empty table and says so at DEBUG.
+#
+# TO ADD ONE: ship the file (validation requires a DECLARED path to exist) and
+# name it below. Nothing outside this directory changes.
+# ---------------------------------------------------------------------------
+paths:
+  locations: "games/dev-story/data/world/locations.yaml"
+  prompts: "games/dev-story/prompts"
+  rules: "games/dev-story/data/rules"
+
+  # The living world. Without these four the map is a set of empty rooms: the
+  # eight routines, the campus factions, the rumour pool and the world events
+  # all resolve to nothing, and nothing says so above DEBUG.
+  npc_schedules: "games/dev-story/data/world/npc_schedules.yaml"
+  factions: "games/dev-story/data/world/factions.yaml"
+  world_rumors: "games/dev-story/data/world/rumors.yaml"
+  world_schedules: "games/dev-story/data/world/schedules.yaml"
+
+  # The structural systems, one small instance of each. This is the half that
+  # makes the bench a bench rather than a room: a clock that fills, a contract
+  # with a lifecycle, endings with real gates, and the epilogue that follows.
+  # `rules` above already points at the directory holding clocks/threads/
+  # endings/spoilers, but each is addressed by its own key and an undeclared one
+  # resolves to nothing regardless of what sits in the directory.
+  clocks: "games/dev-story/data/rules/clocks.yaml"
+  threads: "games/dev-story/data/rules/threads.yaml"
+  endings: "games/dev-story/data/rules/endings.yaml"
+  epilogues: "games/dev-story/data/epilogues"
+  decks: "games/dev-story/data/scenes"
+
+  # Content the ordinary systems read.
+  items: "games/dev-story/data/items"
+  quests: "games/dev-story/data/quests"
+
+  # NOT DECLARED, and correctly so: `spoilers.yaml`. The awareness gate finds it
+  # by fixed filename inside `paths.rules` above, which is already declared --
+  # adding a key for it would be a second way to say the same thing, and the two
+  # would eventually disagree.
+  # The plates directory every path in `art_manifest` resolves against, served
+  # over HTTP at /story-art/... by engine/api/art.py. NOT under /static --
+  # that handler is bound to the scene package, not to the active game.
+  art_root: "games/dev-story/data/art/plates"
+  art_manifest: "games/dev-story/data/art/manifest.yaml"
+  art_subjects: "games/dev-story/data/art/subjects.yaml"
+  saves: "data/saves"
+
+entry:
+  # The one room in the world. See data/world/locations.yaml.
+  location_id: test_bedroom
+
+  # One archetype, because character creation needs something to offer and an
+  # empty panel is a worse screen than a one-line answer. `archetypes: []` is
+  # legal and tested if you would rather skip creation entirely -- but the key
+  # must be PRESENT either way: omitting it is a validation problem, because an
+  # absent key falls back to the engine default rather than meaning "none".
+  archetypes: [human]
+
+  # The test scene.
+  #
+  # PLACEHOLDERS -- EDIT FREELY. The narration and all three choice texts exist
+  # to be replaced with whatever you are testing this hour. The ids a/b/c are
+  # what the UI posts back, and the engine renumbers merged choices to a/b/c...
+  # in order anyway (engine/agents/pipeline.py::merge_choices), so keep them
+  # lowercase single letters and you will not surprise yourself.
+  opening:
+    narration: >-
+      This is a test scene. You are in a bedroom: a bed, a window with the
+      curtain half drawn, a lamp on the near table, a door. Sophia is here,
+      sitting on the end of the bed with her phone face-down beside her,
+      waiting for you to say something.
+    choices:
+      - { id: a, text: "buttonA_test_text" }
+      - { id: b, text: "buttonB_test_text" }
+      - { id: c, text: "buttonC_test_text" }

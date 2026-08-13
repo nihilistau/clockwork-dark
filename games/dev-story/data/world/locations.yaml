@@ -1,0 +1,265 @@
+# Dev Story -- the place graph. A house and a campus.
+#
+# Read by the same loader as the shipped stories (engine/game/locations.py). It
+# is forgiving by design: a bad entry is LOGGED AND SKIPPED rather than raised,
+# so if your new room does not appear, look in the log for "[locations]" before
+# you look at the engine.
+#
+# WHAT THE LOADER ACTUALLY REQUIRES of an entry -- everything else is optional:
+#   name              non-empty, or the entry is SKIPPED
+#   ring              an integer 0-4, or the entry is SKIPPED
+#   evil_multiplier   0.1-3.0, or it is CLAMPED into range (default 1.0).
+#                     Never write 0.0: it is clamped up to 0.1 and logged as an
+#                     error, which is noise in a file you are editing live.
+#
+# ------------------------------------------------------------
+# WHY THIS SHAPE
+# ------------------------------------------------------------
+# Two areas joined by exactly one edge, because the two failures a place graph
+# actually has are (a) an edge pointing at an id that does not exist and (b) a
+# region nobody can reach. One bridge between two clusters makes both visible
+# the moment you break them: delete `front_porch <-> quad` and half the world
+# goes unreachable, which is the thing scripts/ checks assert against.
+#
+# The setting is contemporary and mundane on purpose. A bench whose rooms have
+# atmosphere of their own is a bench that argues with whatever you are testing.
+#
+# ------------------------------------------------------------
+# EDGE SHAPE, AND WHY THE NUMBERS ARE WHAT THEY ARE
+# ------------------------------------------------------------
+#   hours            travel time on the world clock. 0 for a door.
+#   danger_dc        drives encounter probability (engine/game/encounter.py).
+#   awareness_delta  hidden Awareness gained by making the trip at all.
+#
+# danger_dc IS 0 ON EVERY EDGE. A danger roll against an empty encounter table
+# is a roll that can never pay off -- this story declares no `paths.encounters`
+# and ships none, and tests/test_encounter.py asserts exactly that pairing for
+# the shipped games. Raising one here would be a content job in a directory
+# this story does not have.
+#
+# awareness_delta IS 0 ON EVERY EDGE for the same reason inverted: nothing in
+# this story reads Awareness for anything except rumour tiers, and rumors.yaml
+# gates every line at 0 precisely because nothing here can raise it. Two zeroes
+# that agree beat one gate that never opens.
+#
+# hours IS 0 EVERYWHERE EXCEPT THE WALK. Doors and short campus crossings cost
+# nothing, so re-running the same scene twice to compare two prompts gives you
+# the same world hour both times -- a bench whose conditions drift between runs
+# is not a bench. The house <-> campus walk costs 1 hour, deliberately, as the
+# ONE way to move the clock on purpose: it is how you watch npc_schedules.yaml
+# hand you a different set of people in the same room. game.yaml sets
+# `tick_hours: 0.0`, so nothing else moves it behind your back.
+#
+# Both legs of every edge are written out. A one-directional edge is treated as
+# a typo and MIRRORED automatically with the same cost and a warning (see
+# `_mirror_missing_returns`); write both anyway so the graph says what you
+# meant. Add `one_way: true` when you genuinely want a door that does not open
+# from the other side -- there are none here.
+#
+# Version: v0.1.0 [2026-08-09]
+
+version: 1
+
+# Two rings, and `ring` means "which building" rather than distance from
+# safety. The loader only requires 0-4, and the number is read by tone and
+# encounter banding that this story does not run, so it is free to mean
+# something local.
+rings:
+  0: "The House"
+  1: "The University"
+
+locations:
+
+  # ==========================================================
+  # Ring 0 -- the house. Ordinary, contemporary, somebody lives here.
+  # ==========================================================
+
+  test_bedroom:
+    name: "Bedroom"
+    ring: 0
+    # 0.1 is the loader's FLOOR, not a judgement. It scales nothing: game.yaml
+    # sets `evil_base_rate_per_day: 0.0`, so there is no doom accrual to
+    # multiply. Every place in this file carries the same number for that
+    # reason -- varying them would imply a mechanic that is switched off.
+    evil_multiplier: 0.1
+    # ID PINNED. game.yaml's `entry.location_id` is `test_bedroom`; rename it
+    # and a new run starts nowhere. The display name is free to change.
+    summary: >-
+      A bedroom. An unmade bed, a window with the curtain half drawn, a lamp on
+      the near table, clothes over the back of a chair. This is the test scene;
+      rewrite this summary and the narrator's description of the room changes
+      with it.
+    tags: [interior, house, private, test]
+    connections:
+      hallway: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  hallway:
+    name: "Hallway"
+    ring: 0
+    evil_multiplier: 0.1
+    # The house's hub. Every other room hangs off it, so a walk from the
+    # bedroom to the porch is three hops -- enough for travel to be a visible
+    # sequence rather than a teleport, which is what you want when you are
+    # testing whether the narrator notices movement at all.
+    summary: >-
+      A short hallway with coat hooks by the door, a radiator that ticks, and a
+      stack of post nobody has opened on the shelf.
+    tags: [interior, house, hub]
+    connections:
+      test_bedroom: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      bathroom: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      kitchen: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      living_room: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      front_porch: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  bathroom:
+    name: "Bathroom"
+    ring: 0
+    evil_multiplier: 0.1
+    # A leaf node on purpose: one room with exactly one exit, so "can the
+    # player get back out of a dead end" is testable without building one.
+    summary: >-
+      Tiles, a shower over the bath, a mirror that fogs in seconds and a
+      window that never quite shuts.
+    tags: [interior, house, private]
+    connections:
+      hallway: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  kitchen:
+    name: "Kitchen"
+    ring: 0
+    evil_multiplier: 0.1
+    summary: >-
+      Counter, kettle, a fridge covered in other people's reminders. The back
+      window looks onto the neighbour's fence.
+    tags: [interior, house, social]
+    connections:
+      hallway: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      # The only loop inside the house. Two routes between the same pair of
+      # rooms is what makes a pathfinding change visible.
+      living_room: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  living_room:
+    name: "Living Room"
+    ring: 0
+    evil_multiplier: 0.1
+    summary: >-
+      A sofa aimed at a television, a coffee table under mugs and coursework,
+      a lamp in the corner that is the only one anybody switches on.
+    tags: [interior, house, social]
+    connections:
+      hallway: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      kitchen: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  front_porch:
+    name: "Front Porch"
+    ring: 0
+    evil_multiplier: 0.1
+    # THE BRIDGE. This is the only place in the house with an edge out of ring
+    # 0, and `quad` is the only place on campus with an edge into it. Break
+    # this one line and the reachability check in the verify script fails
+    # loudly instead of a player finding out.
+    summary: >-
+      Three steps down to the path, a bin that needs bringing in, and the
+      street beyond. The campus is a twenty-minute walk from the corner.
+    tags: [outdoors, house, threshold]
+    connections:
+      hallway: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      quad: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+
+  # ==========================================================
+  # Ring 1 -- the university. The quad is the hub; everything else
+  # hangs off it, plus two short cuts so the graph is not a pure star.
+  # ==========================================================
+
+  quad:
+    name: "The Quad"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      Cut grass, a paved cross of paths, benches along the edges and bikes
+      chained to everything that will hold one. Whoever you are looking for
+      crosses this at some point in the day.
+    tags: [outdoors, campus, hub, social]
+    connections:
+      front_porch: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      admin_block: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      cafeteria: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      library: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      classroom: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      gym: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      dorm_room: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  admin_block:
+    name: "Admin Block"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A carpeted corridor of offices with name plates, a waiting area with four
+      chairs, and a printer that everyone can hear from the front desk.
+    tags: [interior, campus, staff, quiet]
+    connections:
+      quad: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  cafeteria:
+    name: "Cafeteria"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      Long tables, a hot counter under heat lamps, trays stacked wet at the
+      end. Loud at one, empty by three, and somebody is always asleep on their
+      bag in the corner.
+    tags: [interior, campus, social, food]
+    connections:
+      quad: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      # The route students actually use -- dorm to food without crossing the
+      # quad. It also gives the graph a second cycle, which is what makes a
+      # "shortest path" bug show up as a wrong answer rather than no answer.
+      dorm_room: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  dorm_room:
+    name: "Dorm Room"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      A single bed, a desk under a corkboard of photos and deadlines, a kettle
+      that is against the rules. Someone's laundry is drying on the radiator.
+    tags: [interior, campus, private, student]
+    connections:
+      quad: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      cafeteria: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  classroom:
+    name: "Classroom"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      Rows of desks facing a whiteboard nobody has fully cleaned, a projector
+      that takes a minute to wake, and a radiator under the windows.
+    tags: [interior, campus, teaching]
+    connections:
+      quad: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      library: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  gym:
+    name: "Gym"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      Rubber flooring, a rack of weights, three treadmills facing a wall of
+      mirrors, and a playlist somebody else chose.
+    tags: [interior, campus, sport, social]
+    connections:
+      quad: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  library:
+    name: "Library"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      Stacks on two floors, study booths along the window wall, and a hush that
+      is enforced by nobody in particular and holds anyway.
+    tags: [interior, campus, quiet, study]
+    connections:
+      quad: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      classroom: { hours: 0, danger_dc: 0, awareness_delta: 0 }

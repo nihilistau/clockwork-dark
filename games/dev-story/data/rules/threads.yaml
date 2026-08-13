@@ -1,0 +1,123 @@
+# Dev Story -- one thread.
+#
+# Read by engine/game/threads.py through `paths.threads`.
+#
+#   Offer -> Terms -> Seal -> Thread
+#
+# A thread is a contract the world remembers. It is offered, its terms are
+# stated, it is sealed by some act, and then it STAYS -- active, discharged,
+# broken or transformed -- until something resolves it. Nothing about it is
+# prose an agent can quietly stop honouring three turns later.
+#
+# ONE TEMPLATE, ON PURPOSE. A favour owed to a classmate, with the three verbs a
+# bench needs to exercise: seal it, discharge it, break it. Its `renegotiations`
+# exist so you can watch the interesting half -- renegotiating returns a
+# DIFFERENT contract with its own terms and its own costs, not the same one on
+# better numbers.
+#
+# TRY IT FROM A REPL:
+#   o = threads.offer(state, "favour_owed", source="chloe")
+#   threads.terms_of(o)                        # what the player would read
+#   o2 = threads.renegotiate(state, o, "swap_instead")
+#   threads.seal(state, o2, sealed_by="word")
+#   threads.discharge(state, o2.thread_id)     # or break_thread(...)
+#
+# Version: v0.1.0 [2026-08-11]
+
+version: 1
+
+# The story's tag vocabulary. An offer naming a tag that is not on this list has
+# it DROPPED at bounding, with a note on the offer's `adjustments` -- a bargain
+# tagged `Blackmail` in a story with no blackmail is a promise the fiction
+# cannot keep. Empty the list to accept any tag.
+tags:
+  - Favour
+  - Time
+  - Secrecy
+  - Reputation
+
+# What can end a thread early AT ALL in this story, and what each costs. A
+# thread's own `can_cut_with` is INTERSECTED with these keys, so a contract
+# cannot advertise an escape route the world does not implement.
+cutters:
+  # `kind: item` is checked against the inventory: you must be carrying it, and
+  # `consumes: true` spends it. The card is the proof you did the shift.
+  student_card:
+    kind: item
+    consumes: false
+
+  # `kind: invocation` is a thing you say rather than a thing you hold. Gated on
+  # state like any other condition; the denial text is what the player is told.
+  apology:
+    kind: invocation
+    requires: { value: { name: popularity, min: 40 } }
+    denied_text: "Nobody is in the mood to hear it from you this week."
+
+# The template sealed automatically when a gift is accepted without asking what
+# it costs (engine/game/threads.py::accept_gift). Delete this block and gifts in
+# this story are simply free.
+gift_obligation:
+  template: favour_owed
+
+templates:
+
+  # ---------------------------------------------------------------------
+  # She covered for you. That is not free, and she was never pretending
+  # it was.
+  # ---------------------------------------------------------------------
+  favour_owed:
+    source: chloe
+    tags: [Favour, Time]
+    terms: "One favour back, named by her, at a moment that suits her and not you."
+    can_cut_with: [student_card, apology]
+    # Days from the seal until it comes due. `threads.expire_due` breaks any
+    # live thread past its day on a day tick -- silence is an answer too.
+    due_in_days: 5
+    on_seal:
+      - { type: value, name: popularity, delta: 4, why: "she told people you were fine about it" }
+    on_discharge:
+      - { type: value, name: popularity, delta: 3 }
+      - { type: value, name: influence, delta: 2 }
+    on_break:
+      - { type: value, name: popularity, delta: -8 }
+      - { type: value, name: influence, delta: -3 }
+
+    # RENEGOTIATE IS NOT ACCEPT/REFUSE. Each of these is a DIFFERENT contract,
+    # with its own terms, tags and consequences. What a variant does not restate
+    # it inherits from the template above.
+    renegotiations:
+
+      swap_instead:
+        label: "Offer something specific, now, instead of something vague, later"
+        terms: "One named task this week. Then it is closed and neither of you brings it up again."
+        tags: [Favour]
+        due_in_days: 2
+        on_seal:
+          - { type: value, name: influence, delta: 3, why: "you set the terms and she let you" }
+          - { type: value, name: popularity, delta: -1, why: "she notices you counted" }
+        on_break:
+          # Cheaper to break, because you both knew exactly what it was.
+          - { type: value, name: popularity, delta: -4 }
+
+      keep_it_quiet:
+        label: "Ask her not to mention it to anyone"
+        terms: "She says nothing. You owe her the same silence, and silence compounds."
+        tags: [Favour, Secrecy]
+        # A variant may be GATED. Renegotiating from a position you do not hold
+        # is refused rather than silently granted.
+        requires: { value: { name: influence, min: 45 } }
+        due_in_days: 8
+        on_seal:
+          - { type: value, name: influence, delta: 2 }
+        on_break:
+          - { type: value, name: popularity, delta: -10, why: "she stops being quiet about all of it" }
+
+      say_no:
+        label: "Tell her you would rather just be even"
+        # `outcome: none` -- the negotiation ends in NO contract. Refusing well
+        # is a real move, and it still costs and earns things.
+        outcome: none
+        terms: "No thread. She shrugs, and something is slightly different afterwards."
+        on_seal:
+          - { type: value, name: influence, delta: 4 }
+          - { type: value, name: popularity, delta: -5 }

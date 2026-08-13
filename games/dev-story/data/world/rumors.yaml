@@ -1,0 +1,84 @@
+# Dev Story -- what people are saying on campus.
+#
+# Read by engine/world/schedules.py via `paths.world_rumors`. INERT UNTIL THAT
+# PATH IS DECLARED in games/dev-story/game.yaml.
+#
+# ------------------------------------------------------------
+# EVERY LINE IS TIER 1 AT min_awareness 0, ON PURPOSE
+# ------------------------------------------------------------
+# The shipped games gate rumour quality on Awareness -- vague unease at 0, names
+# at 20, dates and the pattern at 45. That works because their travel edges
+# carry `awareness_delta` and their encounters raise it. This story's edges are
+# all `awareness_delta: 0` (see data/world/locations.yaml) and it ships no
+# encounters, so Awareness starts at whatever state.yaml says and never moves.
+#
+# A `min_awareness: 20` line here would therefore be a rumour that is written,
+# shipped, and unreachable forever -- a gate that never opens. So everything is
+# reachable on turn one, and if you want to test the gating machinery, raise an
+# edge's awareness_delta first and then raise a gate to match. Two files, in
+# that order.
+#
+# `source_npc` is a PREFERENCE, not a filter: if nothing matches the speaker the
+# whole eligible pool is used, so a character can never be struck mute by
+# over-tight data. The ids are the bare keys from
+# games/dev-story/data/world/npc_schedules.yaml.
+#
+# Version: v0.1.0 [2026-08-09]
+
+version: 1
+
+fallback: "Nobody has anything worth repeating today."
+
+# One tier, so the weighting is a formality. Kept because the loader reads it
+# and a missing key would fall to 1.0 anyway -- better to say so than to rely on
+# a default nobody can see.
+tier_weights:
+  1: 1.0
+
+rumors:
+
+  - id: printer_again
+    tier: 1
+    min_awareness: 0
+    source_npc: the_secretary
+    text: "The printer in the admin block is jamming again, and the person who knows the trick to it is on leave."
+
+  - id: dean_walkabout
+    tier: 1
+    min_awareness: 0
+    text: "The Dean has been walking the corridors herself this week instead of sending anybody."
+
+  - id: library_late
+    tier: 1
+    min_awareness: 0
+    source_npc: the_librarian
+    text: "The library is quietly staying open past closing for whoever is still in the booths, and nobody has put that in writing."
+
+  - id: menu_changed
+    tier: 1
+    min_awareness: 0
+    source_npc: the_lunch_lady
+    text: "The cafeteria menu changed on Monday and half of what changed came back off the trays untouched."
+
+  - id: deadline_moved
+    tier: 1
+    min_awareness: 0
+    source_npc: the_teacher
+    text: "The deadline moved a week, and only the people who were in the room on Thursday know it."
+
+  - id: gym_signup
+    tier: 1
+    min_awareness: 0
+    source_npc: chloe
+    text: "There is a sign-up sheet on the gym noticeboard with more names on it than there are places, and no list of who got in."
+
+  - id: quad_bikes
+    tier: 1
+    min_awareness: 0
+    text: "Somebody has been cutting locks on the quad, and security have started with the bikes that were never locked properly."
+
+  - id: house_party
+    tier: 1
+    min_awareness: 0
+    source_npc: maya
+    text: "There is something happening at the house on Friday, depending on who you ask and whether anybody has told the neighbours."

@@ -1,0 +1,34 @@
+# Dev Story -- one arc.
+#
+# Read by engine/game/quests.py::load_arcs, from `<paths.quests>/arcs.yaml`.
+#
+# THIS FILE IS TECHNICALLY OPTIONAL AND PRACTICALLY REQUIRED. A missing
+# arcs.yaml is a WARNING and an empty arc table, not a crash -- but quest files
+# live in `<paths.quests>/<arc>/*.yaml` and `QuestEngine` refuses to start a
+# quest whose arc is not in `state.arcs_unlocked`. So with no arcs declared the
+# quest below would load, sit in the table, and never offer itself: present,
+# inert, and silent about it.
+#
+# `default: true` is what puts `term` in `arcs_unlocked` on turn one. Without it
+# the arc needs a `requires_all` / `requires_any` gate to open, and until it does
+# the quest is unreachable.
+#
+# ONE ARC, so the directory layout is `data/quests/term/*.yaml`. The subdirectory
+# name IS the arc id -- a quest file in a directory with no matching arc entry
+# is loaded and never runs.
+#
+# Version: v0.1.0 [2026-08-11]
+
+version: 1
+
+arcs:
+  term:
+    name: "The Term"
+    default: true
+    # Plot-involvement weight this arc contributes while it is active (read by
+    # engine/game/plot.py). Zero: nothing in this story should make the pacing
+    # model think a plot is under way.
+    involvement: 0
+    order: 0
+    blurb: >-
+      Registration, a reading list, a locker, and eleven weeks.

@@ -1,0 +1,27 @@
+# Dev Story -- what you are.
+#
+# One archetype, and it carries nothing. There is no `stats` block and no
+# `skill_bonus` block on purpose: this story rolls no dice, so a bonus would
+# modify a check that never happens, and a stat would be a number nothing
+# reads.
+#
+# This file exists because `paths.rules` has to be declared -- without it
+# engine/game/checks.py::load_archetypes reads data/rules/archetypes.yaml and
+# character creation offers Edgewood's wayfarer, hearthkeeper and tinker's
+# apprentice. One honest entry is cheaper than that.
+#
+# TO ADD ONE: copy the `human` block, give it a new key, and add that key to
+# `entry.archetypes` in game.yaml. The two lists are separate on purpose --
+# this file is what EXISTS, the manifest is what is OFFERED.
+#
+# Version: v0.1.0 [2026-08-09]
+
+default: human
+
+archetypes:
+  human:
+    name: "Human"
+    blurb: >-
+      An ordinary person in an ordinary room. No training, no history, nothing
+      the engine needs to know before the scene starts.
+    summary: "A person, which is all this bench requires."

@@ -47,22 +47,12 @@ data/media/
 # ---------------------------------------------------------------------------
 # Scratch stories — local only
 # ---------------------------------------------------------------------------
-# A sandbox story for testing scenes, characters and agents. It is a real
-# installed game (`launcher.py --game dev-story`) and deliberately disposable,
-# so it stays off the repository.
-#
-# Safe to ignore because nothing committed names it. `registry.discover()`
-# simply does not find it, `catalog()` returns one fewer row, and no test,
-# script or config references the slug. The one thing that WOULD have leaked it
-# is a UI plugin directory: Vite turns each `ui/src/stories/<slug>/` into its own
-# chunk in the COMMITTED `dist/` tree. It does not need one -- it declares
-# `ui: {plugin: wicked-garden}` and borrows an existing skin, which is what that
-# manifest key was added for.
-#
-# The one rule: do NOT put `game.default: dev-story` in `config/default.yaml`.
-# That file IS committed, and a fresh checkout would fail activation on a story
-# it does not have. `config/local.yaml` is ignored and is the right home.
-games/dev-story/
+# `games/dev-story/` used to be ignored here. It ships now: it is the full
+# worked example the story templates in scripts/story_template/ are distilled
+# from, and the tests that parametrise over shipped stories run its rows. A
+# scratch story you do NOT want committed goes under its own slug and gets its
+# own line below — `registry.discover()` will still find it locally, and
+# nothing committed may name it.
 
 # ---------------------------------------------------------------------------
 # Source design material — local only

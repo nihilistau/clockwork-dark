@@ -1,0 +1,354 @@
+# Dev Story -- who is where, hour by hour.
+#
+# Read by engine/world/npc_sim.py via `paths.npc_schedules`. INERT UNTIL THAT
+# PATH IS DECLARED in games/dev-story/game.yaml; an undeclared path now resolves
+# to nothing rather than to The Clockwork Dark's file, so the failure mode today
+# is an empty world rather than eight Edgewood villagers standing in a kitchen.
+#
+# ------------------------------------------------------------
+# WHAT THE SIMULATOR ACTUALLY READS
+# ------------------------------------------------------------
+#   home              fallback location when no routine slot matches the hour
+#   routine[].hours   0-23 world-clock hours; taken modulo 24
+#   routine[].location  MUST be an id in data/world/locations.yaml. A slot
+#                     pointing at a place that does not exist does not raise --
+#                     the NPC is simply placed nowhere the player can be, and
+#                     the room they should be in is empty. That is the exact bug
+#                     this sandbox exists to catch, so the verify script asserts
+#                     every id below against the graph.
+#   routine[].activity  lands VERBATIM in the narrator's prompt. Write it as
+#                     something a person in the doorway could see, not a job
+#                     title.
+#   routine[].available  false = present but not usefully addressable (asleep,
+#                     mid-class, gone for the night). The NPC is still listed;
+#                     a narrator should be able to describe a locked office.
+#   name, role        used when nothing procedural supplies them. `role` picks
+#                     the pool in `role_defaults` below.
+#
+# EVERY CHARACTER COVERS ALL 24 HOURS. A gap falls back to `home` with the
+# default activity, which reads as a person standing in one place doing nothing
+# describable -- fine as a safety net, wrong as a routine.
+#
+# ------------------------------------------------------------
+# THE CLOCK BARELY MOVES HERE, AND THAT IS THE POINT
+# ------------------------------------------------------------
+# game.yaml sets `tick_hours: 0.0` and every edge in locations.yaml costs 0
+# hours except the house <-> campus walk, which costs 1. So the only way to see
+# these routines change is to walk that one edge deliberately. If you want to
+# test a specific hour, that walk is the lever.
+#
+# ------------------------------------------------------------
+# SOPHIA IS ALSO A VOICE
+# ------------------------------------------------------------
+# games/dev-story/agents.yaml gives the single world agent both `narration` and
+# `sophia` as voices, so the narrator speaks her lines. Her block below is a
+# BODY on the map -- where she is when you are not with her -- and the two do
+# not conflict while one agent owns both. The moment you promote her to her own
+# agent (the commented block in agents.yaml), DELETE her from this file: an
+# agent decides where she is, and a schedule would put a second, dumber Sophia
+# in the library while the real one is in the room with you.
+#
+# Version: v0.1.0 [2026-08-09]
+
+version: 1
+
+defaults:
+  # Used when a routine slot supplies no activity of its own.
+  activity: "getting on with something unremarkable"
+  # Used when something relocates an NPC off their routine, so we do not
+  # narrate "asleep upstairs" while they are standing in the quad.
+  relocated_activity: "somewhere they had not planned to be at this hour"
+  pinned_activity: "waiting on you, and not pretending otherwise"
+
+# Hours in which unnamed, procedurally placed people are abed and unavailable.
+# The named cast below carries its own `available` flags and ignores this.
+night_hours: [23, 0, 1, 2, 3, 4, 5, 6]
+
+# ------------------------------------------------------------
+# EVENT ACTIVITIES.
+#
+# These three keys are the ENGINE's hardcoded event ids
+# (engine/world/schedules.py: check_caravan, check_tinker, check_militia), not
+# names of my choosing. A story gets to say what fills the three slots, not what
+# they are called -- rename them and the simulator asks for the engine's names,
+# gets nothing, and falls back to its Edgewood defaults. What each one means in
+# this story is in data/world/schedules.yaml.
+# ------------------------------------------------------------
+event_activities:
+  caravan_arrival: "setting up at the front of the room, plugging a laptop into a projector that is not cooperating"
+  tinker_camp: "dragging mats into a rough square and counting heads before starting"
+  militia_press: "walking the corridor with a clipboard, looking into rooms without going in"
+
+npcs:
+
+  # ==========================================================
+  # The three students. Ordinary twenty-somethings; Maya and Sophia
+  # live in the house, Chloe is in halls and visits.
+  # ==========================================================
+
+  maya:
+    name: "Maya"
+    role: student
+    home: test_bedroom
+    routine:
+      - hours: [0, 1, 2, 3, 4, 5, 6]
+        location: test_bedroom
+        activity: "asleep with the lamp still on and a laptop open beside the bed"
+        available: false
+      - hours: [7, 8]
+        location: kitchen
+        activity: "eating cereal standing up and reading something on her phone"
+      - hours: [9, 10, 11]
+        location: classroom
+        activity: "third row from the front, taking notes she will not be able to read later"
+      - hours: [12, 13]
+        location: cafeteria
+        activity: "at the long table with a tray she has stopped eating from, talking"
+      - hours: [14, 15, 16]
+        location: library
+        activity: "in a window booth with three tabs open and a highlighter she keeps losing"
+      - hours: [17, 18]
+        location: quad
+        activity: "sat on the low wall waiting for somebody, coat over her knees"
+      - hours: [19, 20, 21]
+        location: living_room
+        activity: "sideways on the sofa with the television on for company rather than for watching"
+      - hours: [22, 23]
+        location: test_bedroom
+        activity: "half changed for bed, still answering messages"
+
+  # SOPHIA IS NOT HERE, AND THAT IS THE POINT.
+  #
+  # She is the story's CHARACTER AGENT (agents.yaml declares `role: character`
+  # with her own prompts/sophia.md), so she is a live participant in the turn
+  # rather than a body the world simulator moves around a map. Giving her a
+  # routine as well would put a second, dumber Sophia in the library on a
+  # schedule while the real one is in the room answering you -- two of her, and
+  # the simulated one wins any question about where she is.
+  #
+  # This is the sharpest difference between the two ways a person can exist in
+  # this engine, which is exactly the thing a bench should make visible:
+  #
+  #   an NPC       a row in this file. Has a location per hour, an activity
+  #                string, a disposition. Says nothing it was not written to
+  #                say. Cheap -- no model call, ever.
+  #   an AGENT     a row in agents.yaml with a persona and permissions. Plans
+  #                against the same state the narrator does, negotiates, may
+  #                move meters it owns. Costs a model call per turn.
+  #
+  # TO SWAP HER BACK: delete the `sophia:` block from agents.yaml (and the
+  # `negotiation:` table with it -- a rule naming a missing agent is a hard
+  # RosterError, not a silent skip), then paste a routine here in the shape of
+  # the seven around this comment. Doing that also turns the multi-agent
+  # pipeline off, because one declared agent is below `MIN_AGENTS`.
+
+  chloe:
+    name: "Chloe"
+    role: student
+    home: dorm_room
+    routine:
+      - hours: [0, 1, 2, 3, 4, 5, 6]
+        location: dorm_room
+        activity: "asleep under a corkboard of photographs and deadlines"
+        available: false
+      - hours: [7, 8]
+        location: gym
+        activity: "first one in, working through a routine she wrote out on her phone"
+      - hours: [9, 10]
+        location: cafeteria
+        activity: "coffee and toast at the corner table, texting three conversations at once"
+      - hours: [11, 12, 13]
+        location: classroom
+        activity: "on the back row, listening better than she looks like she is"
+      - hours: [14, 15, 16]
+        location: quad
+        activity: "cross-legged on the grass with her coat under her, laughing at something"
+      - hours: [17, 18, 19]
+        location: gym
+        activity: "spotting for somebody and talking the whole time"
+      - hours: [20, 21]
+        location: living_room
+        activity: "in the armchair with her shoes off, having stayed longer than she meant to"
+      - hours: [22, 23]
+        location: dorm_room
+        activity: "back in halls with the kettle on, laptop propped on the desk"
+
+  # ==========================================================
+  # The staff. Referred to by role, and placed where the role puts
+  # them: the office, the classroom, the counter, the desk.
+  # ==========================================================
+
+  the_dean:
+    name: "The Dean"
+    role: staff
+    home: admin_block
+    routine:
+      # AWAY, NOT ABSENT. There is no id in this graph for a staff member's own
+      # home, so the off-hours slots keep them at the workplace with
+      # `available: false` and an activity that says the room is empty. That is
+      # the engine saying "gone" without inventing a mechanism -- and it means a
+      # player who walks into the admin block at 04:00 gets a described dark
+      # corridor rather than silence.
+      - hours: [0, 1, 2, 3, 4, 5, 6]
+        location: admin_block
+        activity: "gone for the night; the office dark behind the glass and the corridor lights on a timer"
+        available: false
+      - hours: [7, 8]
+        location: admin_block
+        activity: "in first, coat still on, going through the overnight email standing up"
+      - hours: [9, 10, 11, 12]
+        location: admin_block
+        activity: "door shut with somebody in there, and a name written on the pad outside"
+      - hours: [13]
+        location: cafeteria
+        activity: "in the queue like everyone else, being greeted by six people and remembering four names"
+      - hours: [14, 15, 16]
+        location: admin_block
+        activity: "signing things in a stack the secretary squared off for her"
+      - hours: [17, 18]
+        location: quad
+        activity: "crossing the grass with a bag over one shoulder, stopped twice on the way"
+      - hours: [19, 20, 21, 22, 23]
+        location: admin_block
+        activity: "gone; the office lamp off and the door pulled to but not locked"
+        available: false
+
+  the_teacher:
+    name: "The Teacher"
+    role: staff
+    home: classroom
+    routine:
+      - hours: [0, 1, 2, 3, 4, 5, 6]
+        location: classroom
+        activity: "gone; the room dark, chairs up on the desks, the whiteboard half wiped"
+        available: false
+      - hours: [7, 8]
+        location: cafeteria
+        activity: "at the counter with a coffee, reading the morning's slides one last time"
+      - hours: [9, 10, 11, 12]
+        location: classroom
+        activity: "teaching, one hand on the desk edge, waiting out a question nobody has asked yet"
+      - hours: [13]
+        location: cafeteria
+        activity: "eating quickly at the staff end of the room with a folder open beside the tray"
+      - hours: [14, 15, 16]
+        location: classroom
+        activity: "marking at the front desk with the door open, which is deliberate"
+      - hours: [17, 18]
+        location: library
+        activity: "pulling two things off the shelf for a student who has not asked for them yet"
+      - hours: [19, 20, 21, 22, 23]
+        location: classroom
+        activity: "gone home; the projector fan still running down in an empty room"
+        available: false
+
+  the_secretary:
+    name: "The Secretary"
+    role: staff
+    home: admin_block
+    routine:
+      - hours: [0, 1, 2, 3, 4, 5, 6, 7]
+        location: admin_block
+        activity: "not in yet; the front desk tidy, the phone light blinking with three messages"
+        available: false
+      - hours: [8, 9, 10, 11]
+        location: admin_block
+        activity: "at the front desk taking calls and turning people around before they reach the Dean"
+      - hours: [12, 13]
+        location: cafeteria
+        activity: "at the same table she always takes, eating something brought from home"
+      - hours: [14, 15, 16]
+        location: admin_block
+        activity: "at the printer feeding it the paper it should already have, unbothered"
+      - hours: [17]
+        location: quad
+        activity: "walking out with a coat over her arm, checking her phone at the gate"
+      - hours: [18, 19, 20, 21, 22, 23]
+        location: admin_block
+        activity: "gone; the desk lamp off and a note left square in the middle of the counter"
+        available: false
+
+  the_lunch_lady:
+    name: "The Lunch Lady"
+    role: staff
+    home: cafeteria
+    routine:
+      - hours: [0, 1, 2, 3, 4]
+        location: cafeteria
+        activity: "shut; the shutters down over the counter and the floor still damp at the edges"
+        available: false
+      - hours: [5, 6, 7]
+        location: cafeteria
+        activity: "in before anyone, trays in the racks and the urns filling"
+      - hours: [8, 9, 10]
+        location: cafeteria
+        activity: "serving breakfast to a trickle of people and having a word with each of them"
+      - hours: [11, 12, 13, 14]
+        location: cafeteria
+        activity: "on the hot counter through the rush, moving fast and never rushed"
+      - hours: [15, 16]
+        location: cafeteria
+        activity: "wiping down and stacking chairs, letting two people stay who should have gone"
+      - hours: [17, 18]
+        location: quad
+        activity: "crossing to the gate with a bag of bread nobody is going to eat otherwise"
+      - hours: [19, 20, 21, 22, 23]
+        location: cafeteria
+        activity: "closed; the heat lamps off and the smell of the day still in the room"
+        available: false
+
+  the_librarian:
+    name: "The Librarian"
+    role: staff
+    home: library
+    routine:
+      - hours: [0, 1, 2, 3, 4, 5, 6]
+        location: library
+        activity: "closed; the stacks dark and the returns box full behind the door"
+        available: false
+      - hours: [7, 8]
+        location: library
+        activity: "emptying the returns box and reshelving before the doors are properly open"
+      - hours: [9, 10, 11, 12]
+        location: library
+        activity: "at the desk, looking up over the screen at anyone who comes in"
+      - hours: [13]
+        location: cafeteria
+        activity: "eating alone by the window with a paperback flat on the table"
+      - hours: [14, 15, 16, 17]
+        location: library
+        activity: "walking the second floor slowly, straightening what does not need straightening"
+      - hours: [18, 19, 20]
+        location: library
+        activity: "letting the late ones stay, turning the far lights off around them"
+      - hours: [21, 22, 23]
+        location: library
+        activity: "gone; the doors locked and one strip light left on over the desk"
+        available: false
+
+# ------------------------------------------------------------
+# Fallbacks for unnamed bodies the simulator needs to place -- the crowd this
+# story never names. `role` on an NPC above picks the pool; anything else falls
+# to `default`. `day` and `night` are chosen by `night_hours` at the top.
+# ------------------------------------------------------------
+role_defaults:
+  default:
+    day:
+      - "walking somewhere with the specific speed of somebody who is late"
+      - "on a bench with headphones in, not looking up"
+      - "having a conversation that stops when you get close and starts again after"
+    night:
+      - "gone home, like everyone sensible"
+  student:
+    day:
+      - "carrying too much and refusing to put any of it down"
+      - "arguing about a deadline as though arguing moves it"
+      - "asleep across two chairs with a bag for a pillow"
+    night:
+      - "back in halls with the door propped open and music through the wall"
+  staff:
+    day:
+      - "moving between rooms with a lanyard swinging and a folder under one arm"
+      - "waiting for the printer and pretending not to mind"
+    night:
+      - "long gone; the corridor on a timer switch"

@@ -1,0 +1,195 @@
+# Dev Story -- three endings.
+#
+# Read by engine/game/endings.py through `paths.endings`.
+#
+# TWO GATES, SEPARATE ON PURPOSE:
+#
+#   requires:     you have earned this ending
+#   completable:  nothing still live makes it impossible
+#
+# Influence earns the class-president card; an unpaid favour to Chloe is what
+# makes standing up in front of everyone something other than standing up in
+# front of everyone. Folding them together would lose the ability to tell the
+# player WHICH one they are looking at, and that distinction is the whole of the
+# lock text a UI renders.
+#
+# THE GATES ARE LOW ON PURPOSE. Both meters start at 50 and every ending here
+# needs 60 of one of them, which is two or three good beats from the deck. A
+# sandbox whose finale takes forty turns to reach is a sandbox nobody reaches
+# the finale of.
+#
+# `beats:` -- the three-beat ending module, Speak / Act / Seal. They are ordinary
+# bounded beats in the deck grammar (engine/content/deck.py), authored here
+# beside the gate that decides who reaches them, because an ending's beats and
+# its eligibility are the same object. `endings.run_module` plays them once,
+# after `lock`, and `epilogue.for_state` waits for that before it hands over a
+# card.
+#
+# THE ORDER OF OPERATIONS, if you are driving this from a REPL:
+#   endings.eligible(state)          # what could happen, and why the rest cannot
+#   endings.set_intent(state, id)    # soft, changeable
+#   endings.lock(state, id)          # hard, once, point of no return
+#   endings.run_module(state)        # plays the three beats below
+#   epilogue.for_state(state)        # the card, only now
+#
+# Version: v0.1.0 [2026-08-11]
+
+version: 1
+
+# ALWAYS ELIGIBLE, BY DECLARATION. `endings.eligible()` can never return an
+# empty set while this is here: if nothing else qualifies, this is added with an
+# explicit reason and `forced: true`. It is in the set because this file says so,
+# not because the engine panicked -- and it is a real ending with a real card.
+fail_forward: just_another_term
+
+classes:
+
+  # NO `variants:` ANYWHERE IN THIS FILE. When a class declares none,
+  # `endings.declared()` returns the class body itself as the ending, keyed by
+  # the class id -- so these three ids are what `lock()` and the epilogue index
+  # have to agree on. Add a `variants:` block and the CLASS id stops being an
+  # ending and each variant id becomes one instead, inheriting these gates.
+
+  # ---------------------------------------------------------------------
+  top_of_the_class:
+    label: "Top of the Class"
+    requires:
+      all:
+        - { id: influence, value: { name: influence, min: 60 } }
+        # Not a popularity ending, but you cannot run the room from outside it.
+        - { id: standing, value: { name: popularity, min: 40 } }
+    # HONESTY: you cannot stand up and be told you are the reliable one while
+    # you still owe Chloe a favour she has not been paid.
+    # The `id:` rides on the OUTER clause, not on the predicate inside it:
+    # `endings._clause_list` reports a `none:` group whole, so an id nested one
+    # level down would never be read and the lock text would fall back to a
+    # rendered dict.
+    completable:
+      id: not_owed
+      none:
+        - { thread: { template: favour_owed, status: active } }
+    lock_reasons:
+      influence: "Nobody is waiting to hear what you think yet."
+      standing: "You have the argument and not the room."
+      # Keyed by the clause id where there is one; the `completable` failure is
+      # reported with a "cannot complete:" prefix the engine adds.
+      not_owed: "You still owe Chloe, and she is in the room."
+    # Continuous 0.0-1.0 closeness, for foreshadowing long before anything is
+    # eligible. `at:` is the reading that counts as 1.0 for this ending.
+    score:
+      - { value: influence, at: 80, weight: 0.7 }
+      - { value: popularity, at: 60, weight: 0.3 }
+    beats:
+      - id: top_of_the_class_speak
+        text: >-
+          SPEAK. You say the thing you have been saying all term, in the room
+          where saying it counts, and this time nobody talks over the end of it.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: influence, delta: 5 }
+      - id: top_of_the_class_act
+        text: >-
+          ACT. You do the work in front of people rather than after they have
+          left. It is less impressive and considerably more convincing.
+        gate:
+          # A gate may carry a threshold as well as an outcome. Below it the
+          # beat FAILS FORWARD -- the ending still happens, it just costs.
+          when: { value: { name: popularity, min: 45 } }
+          on_pass:
+            effects:
+              - { type: value, name: influence, delta: 4 }
+              - { type: value, name: popularity, delta: 3 }
+          on_fail:
+            text: "You are right, and being right in front of a room that does not like you is its own long afternoon."
+            effects:
+              - { type: value, name: influence, delta: 2 }
+              - { type: value, name: popularity, delta: -2 }
+      - id: top_of_the_class_seal
+        text: >-
+          SEAL. Your name goes on something that will still be on a wall next
+          year. Somebody who did not like you says so anyway.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  everyones_friend:
+    label: "Everyone's Friend"
+    requires:
+      all:
+        - { id: popularity, value: { name: popularity, min: 60 } }
+    # You cannot be the person everyone likes while the thing they are all
+    # talking about is you. The clock is the obstruction, not the gate.
+    completable:
+      id: not_the_rumour
+      none:
+        - { clock: { name: rumour_spreading, min: 3 } }
+    lock_reasons:
+      popularity: "People are fine with you. Fine is not this."
+      not_the_rumour: "You are the thing going around, which is not the same as being liked."
+    score:
+      - { value: popularity, at: 85, weight: 0.8 }
+      - { value: influence, at: 50, weight: 0.2 }
+    beats:
+      - id: everyones_friend_speak
+        text: >-
+          SPEAK. You say less than you could and it lands better than it should.
+          Three separate people think the good bit was theirs.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: popularity, delta: 5 }
+      - id: everyones_friend_act
+        text: >-
+          ACT. You carry someone else's thing across the quad, and that is the
+          whole of it, and it is remembered longer than anything you argued.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: popularity, delta: 4 }
+              - { type: value, name: influence, delta: -2, why: "being easy to be around is not being listened to" }
+      - id: everyones_friend_seal
+        text: >-
+          SEAL. The group photo has you in the middle of it and nobody arranged
+          that. Somebody saves it. It surfaces years later.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # No `requires` at all: this is what is left. That is not laziness, it is
+  # the declaration at the top of the file -- the finale must never softlock,
+  # so there is always exactly one card that cannot be locked out.
+  just_another_term:
+    label: "Just Another Term"
+    score:
+      - { when: { value: { name: influence, max: 55 } }, weight: 0.5 }
+      - { when: { value: { name: popularity, max: 55 } }, weight: 0.5 }
+    beats:
+      - id: just_another_term_speak
+        text: >-
+          SPEAK. Nothing, particularly. Somebody asks whether you are coming to
+          the thing on Friday and you say maybe, and mean it.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: popularity, delta: 1 }
+      - id: just_another_term_act
+        text: >-
+          ACT. You hand the work in. It is fine. The term does the rest of the
+          work of ending on its own, as terms do.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: influence, delta: 1 }
+      - id: just_another_term_seal
+        text: >-
+          SEAL. You clear the locker out in about four minutes and are surprised
+          how little there was in it.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }

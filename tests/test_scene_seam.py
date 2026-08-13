@@ -69,14 +69,15 @@ def test_a_manifest_with_no_scene_block_gets_the_engine_default():
     assert spec.blueprint.startswith("engine.scenes.")
 
 
-@pytest.mark.parametrize("slug", ["clockwork-dark", "wicked-garden"])
+@pytest.mark.parametrize("slug", sorted(registry.discover()))
 def test_every_shipped_game_declares_the_engine_default_scene(slug):
     """
-    Both shipped games run the engine default -- and DECLARE it, explicitly,
-    so their scene is readable from game.yaml rather than known by omission.
+    Every shipped game runs the engine default -- and DECLARES it, explicitly,
+    so its scene is readable from game.yaml rather than known by omission.
     The declared values must equal the defaults exactly: a shipped game
     quietly drifting off the engine scene is a change someone should make on
-    purpose, in this test.
+    purpose, in this test. Parametrised over discovery rather than a list, so
+    the day a story ships its own scene, the deliberate change lands here.
     """
     manifest = registry.get(slug)
     assert manifest is not None, f"games/{slug}/game.yaml is missing"

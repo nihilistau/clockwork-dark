@@ -1,0 +1,87 @@
+# Dev Story -- one progress clock.
+#
+# Read by engine/game/clocks.py through `paths.clocks`.
+#
+# A clock is a counter that ends in a SCENE. That last clause is what separates
+# it from a meter: `popularity` at 80 is a quantity the fiction reads;
+# `rumour_spreading` at 4 is a promise the engine keeps, and what it keeps is
+# `forces_scene:`.
+#
+# THE OTHER HALF OF THIS CLOCK IS IN state.yaml, under `clocks:`. Bounds and
+# visibility live there; what each segment DOES lives here. Delete either half
+# and the clock stops working -- quietly, if you delete the state.yaml half.
+#
+# ONE CLOCK, ON PURPOSE. This is a bench, not a game. Copy the block to add a
+# second; the only things that have to be unique are the clock name (which must
+# match a `clocks:` entry in state.yaml) and every `id:` in the file, because
+# beat ids are the idempotency flags and two beats sharing one would fire once
+# between them.
+#
+# Version: v0.1.0 [2026-08-11]
+
+version: 1
+
+clocks:
+
+  # ---------------------------------------------------------------------
+  # Somebody said something about somebody. Four segments from "one person
+  # heard it" to "it reaches the admin block", which is when the campus
+  # stops being background and turns around to look at you.
+  # ---------------------------------------------------------------------
+  rumour_spreading:
+    label: "It is going around"
+
+    # Engine-side pressure. A clock that only moves when an agent calls
+    # `clocks.advance` is a clock the agent can decline to wind, so these are
+    # the rules that wind it whether anyone narrates it or not.
+    #
+    # Each rule fires ONCE by default (`once: true` is the default) and is
+    # remembered by its `id`. Rename an id and it fires again on an old save.
+    advance_when:
+      - id: rumour_from_the_first_telling
+        when: { flag: told_someone }
+        by: 1
+
+      # Being liked is how a rumour travels. This is the whole reason the clock
+      # is interesting on a bench: it couples a meter an agent can move to a
+      # setpiece the engine will force.
+      - id: rumour_from_being_popular
+        when: { value: { name: popularity, min: 70 } }
+        by: 2
+
+    beats:
+      # Halfway. Nothing forced yet -- just the campus starting to know.
+      - id: rumour_spreading_2
+        at: 2
+        rumors:
+          - "Someone in the cafeteria queue already knew, and did not say who from."
+        # Opens `discovery_admin_interest`, which is an ordinary flag with a
+        # prefix. Content gates read it like any other flag.
+        discoveries: [admin_interest]
+
+      # `at: max` rather than `at: 4`, so retuning the clock's range in
+      # state.yaml does not silently strand its last beat.
+      - id: rumour_spreading_full
+        at: max
+        set_flags: [rumour_reached_the_dean]
+        world_events:
+          - event_id: rumour_in_the_admin_block
+            text: "The story has reached a desk with a nameplate on it."
+        # Ordinary engine effects, through the one validated writer.
+        effects:
+          - { type: value, name: influence, delta: -4, why: "being talked about is not the same as being listened to" }
+        # The setpiece the clock owes the player. Named for the deck in
+        # data/scenes/, so `clocks.forced_scenes(state)` returns an id that
+        # something can actually deal -- a forced scene naming nothing is a
+        # promise with no scene behind it.
+        forces_scene: campus_day
+        text: "Whatever this was, it is now an item on somebody's agenda."
+        # The clock empties when the setpiece is owed, so the meter goes back to
+        # reading "nothing is going around" instead of sitting pinned at 4.
+        #
+        # NOTE WHAT THIS DOES NOT DO. The beat itself is idempotent -- fired
+        # beats are remembered by the flag `clock_beat_rumour_spreading_full`
+        # (engine/game/clocks.py::has_fired), so refilling the clock does NOT
+        # play it again. `reset_to` resets the number, not the beat. Clear that
+        # flag if you want a genuinely recurring setpiece.
+        reset_to: 0

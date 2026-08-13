@@ -38,7 +38,11 @@ from engine.safety.governor import SafetyCeiling, SafetyDirective
 from engine.safety.policy import resolve
 from engine.safety.tiers import LOWEST, IntensityTier, clamp
 
-SHIPPED = ("clockwork-dark", "wicked-garden")
+# Every installed story, discovered at collection rather than listed. Safe to
+# derive because the expectations below are computed from each manifest's own
+# `safety:` block -- a new story (or a local scratch one) gets exactly the
+# policy it declares, so a new row can only fail if the mechanism breaks.
+SHIPPED = tuple(sorted(registry.discover()))
 
 
 @pytest.fixture(autouse=True)

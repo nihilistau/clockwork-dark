@@ -1,0 +1,104 @@
+# Dev Story -- four ordinary objects.
+#
+# Read by engine/game/inventory.py through `paths.items`. EVERY `*.yaml` in that
+# directory is merged into one id -> row registry, first file to claim an id
+# wins, so a second category file needs no wiring at all -- drop it in.
+#
+# ONE OF EACH SHAPE, which is the whole reason there are four:
+#
+#   student_card      a plain object with no verbs. Carried, referenced by a
+#                     thread cutter (data/rules/threads.yaml), otherwise inert.
+#   library_book      a `use:` that COSTS TIME. `hours: 1` moves the world clock.
+#   gym_locker_key    an `equip:` in a slot, so you can watch the slot conflict.
+#   coffee            a `use:` that CONSUMES itself and stacks.
+#
+# WHAT THE `use.effects` MAY BE. This story declares no HP, no stamina, no
+# hunger and no dice -- see state.yaml. `stat`, `heal_wound` and `check_penalty`
+# are live engine effect kinds and all of them are DEAD HERE: they would produce
+# a receipt claiming something happened to a pool that does not exist. So the
+# verbs move the two declared meters and set flags, and nothing else.
+#
+# `value:` IS NOT ZERO but it is also not connected to anything -- this story
+# declares no `paths.economy`, so nothing buys or sells. The numbers are here so
+# that wiring an economy later has something to read, and they are small so that
+# nobody mistakes this for a shop.
+#
+# NO `art:` KEYS. The art manifest in data/art/manifest.yaml maps scenes and
+# portraits only; items fall through to the procedural silhouette rather than
+# borrowing a picture of some other story's relic.
+#
+# Version: v0.1.0 [2026-08-11]
+
+version: 1
+
+items:
+
+  - id: student_card
+    name: "Student Card"
+    description: >-
+      Your face on it from a day you would not have chosen. It opens the library
+      turnstile, it is proof you did the shift, and it is the only object here
+      anybody else has an opinion about.
+    tags: [campus, key, proof]
+    weight: 0.01
+    value: 0
+    stack: false
+
+  - id: library_book
+    name: "Library Book"
+    description: >-
+      Two weeks, renewable twice, spine cracked by somebody in a hurry. There is
+      a name pencilled inside the cover that has been rubbed out and written
+      again three times.
+    tags: [campus, study]
+    weight: 0.6
+    value: 4
+    use:
+      verb: "read a chapter"
+      # Costs an hour of the world clock. game.yaml pins `tick_hours: 0.0`, so
+      # this and the house-to-campus walk are the only two things in the story
+      # that move the day -- which makes it the honest way to test anything
+      # that reads the hour.
+      hours: 1
+      effects:
+        - { type: value, name: influence, delta: 3, why: "you actually did the reading" }
+      text: >-
+        An hour goes somewhere. You could not summarise it under questioning and
+        you are measurably better at the subject afterwards.
+    stack: false
+
+  - id: gym_locker_key
+    name: "Gym Locker Key"
+    description: >-
+      A stub of a key on a red plastic fob with a number worn half off. Whether
+      it is 18 or 13 is the sort of thing you find out at the worst moment.
+    tags: [campus, key, wearable]
+    weight: 0.05
+    value: 1
+    equip:
+      # One `charm` slot, engine-side (inventory.EQUIP_SLOTS). Equipping a second
+      # thing into it displaces the first, which is the cheapest way to watch
+      # slot exclusivity behave.
+      slot: charm
+      text: "On the wrist, where you will not lose it, where everybody can see it."
+    stack: false
+
+  - id: coffee
+    name: "Coffee"
+    description: >-
+      From the cart by the quad, in a cup that is slightly too hot to hold
+      properly. Two of these is a personality.
+    tags: [campus, consumable, gift]
+    weight: 0.3
+    value: 2
+    use:
+      verb: "drink"
+      hours: 0
+      # Spends one from the stack. Without `consumes` the verb is repeatable
+      # forever, which is a fine thing for a bench and a terrible thing for a
+      # game.
+      consumes: 1
+      effects:
+        - { type: value, name: popularity, delta: 2, why: "you brought two" }
+      text: "Too hot, then exactly right, then cold, in about nine minutes."
+    stack: true

@@ -1,0 +1,86 @@
+# Dev Story -- one quest, three stages.
+#
+# Read by engine/game/quests.py. The DIRECTORY NAME IS THE ARC (`term`, declared
+# in ../arcs.yaml) and the `id:` below is the quest id; both have to be right or
+# the quest loads and never offers itself.
+#
+# EVERY `complete_when` HERE IS ENGINE-EVALUABLE TO THE LETTER -- a room, a flag,
+# an object in the bag. Nothing asks whether the player was there in spirit,
+# because a stage the model can argue its way through is not a stage.
+#
+# The flag `nf_asked_about_the_card` is declared on the stage as a
+# `narrative_flags` entry, which is how a stage tells the narrator "this is the
+# thing you may set when the fiction gets there". Nothing else sets it.
+#
+# Stage predicates used below, all from the shared grammar:
+#   at_location, flag, has_item, days_in_stage
+# The full table is `_PREDICATES` in engine/game/quests.py.
+#
+# Version: v0.1.0 [2026-08-11]
+
+id: orientation
+arc: term
+name: "Registration"
+summary: >-
+  There is a card with your face on it in the admin block, and it will not walk
+  itself over.
+
+start_text: >-
+  There is a queue in the admin block that has been the same length all morning,
+  which is not how queues work.
+
+stages:
+  - id: ask_about_the_card
+    objective: "Ask at the admin block about the card you were told to collect."
+    narrative_flags:
+      - nf_asked_about_the_card
+    complete_when:
+      all:
+        - at_location: admin_block
+        - flag: nf_asked_about_the_card
+    complete_text: >-
+      The secretary finds it in under nine seconds and is visibly annoyed that
+      it took you until now.
+    on_complete:
+      effects:
+        - { type: item, item_id: student_card, name: "Student Card" }
+        - { type: value, name: influence, delta: 2, why: "you exist on the system now" }
+
+  - id: use_the_library
+    objective: "Take the card to the library and get something off the reading list."
+    complete_when:
+      all:
+        - at_location: library
+        - has_item: student_card
+    complete_text: >-
+      The turnstile accepts you, which is the first thing on campus that has.
+    on_complete:
+      effects:
+        - { type: item, item_id: library_book, name: "Library Book" }
+
+  - id: settle_in
+    objective: "Give it a couple of days and see whether any of it sticks."
+    # A stage may simply take TIME. `days_in_stage` needs the world clock to
+    # move, and game.yaml pins `tick_hours: 0.0` -- so this advances only when
+    # something spends hours on purpose: the house-to-campus walk, or reading a
+    # chapter of the library book. That is the point of having one such stage in
+    # a bench with a stopped clock.
+    complete_when:
+      all:
+        - days_in_stage: 2
+    complete_text: >-
+      You know two corridors properly and can find the good stairwell. That is
+      most of what a first fortnight is.
+    on_complete:
+      effects:
+        - { type: value, name: popularity, delta: 3 }
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_orientation_done }
+    - type: ledger_fact
+      text: "You registered, got the card, and found the library. Nobody made a fuss."
+      kind: event
+
+complete_text: >-
+  You are on the list. It is not an achievement and it is a considerable relief.

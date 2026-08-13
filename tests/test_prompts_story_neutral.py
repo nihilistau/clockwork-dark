@@ -28,26 +28,23 @@ from engine.config import project_root, set_overlay
 from engine.game.state import GameState
 from engine.games import registry
 
-#: Every shipped story, as (slug, manifest title). A new story is a one-line
-#: addition here and the cross-checks below stay exhaustive.
-SHIPPED = (
-    ("clockwork-dark", "The Clockwork Dark"),
-    ("wicked-garden", "The Wicked Garden"),
-    ("dev-story", "Dev Story"),
+#: Every installed story, as (slug, manifest title), discovered at collection.
+#:
+#: DERIVED, NOT LISTED. This was a static tuple with a skip helper underneath
+#: it, because ``dev-story`` was gitignored and a hard-coded row for it failed
+#: every checkout that was not the maintainer's machine. That story ships now,
+#: so the skip machinery is gone -- and deriving the rows from
+#: ``registry.discover()`` means the fourth story is in these cross-checks the
+#: day its ``game.yaml`` lands, with no list here to go stale. A local scratch
+#: story is swept in too, deliberately: these invariants (your own narrator,
+#: nobody else's nouns) are exactly the ones a scratch story breaks silently.
+SHIPPED = tuple(
+    (slug, manifest.title) for slug, manifest in sorted(registry.discover().items())
 )
 
-
-def _require(slug: str) -> None:
-    """
-    Skip when the story is not in this checkout.
-
-    ``dev-story`` is gitignored -- it exists on the maintainer's machine and in
-    no fresh clone or worktree -- so a test that hard-fails on its absence
-    fails every checkout that is not that machine. Skipping keeps the
-    cross-checks exhaustive wherever the story IS present.
-    """
-    if not (project_root() / "games" / slug / "game.yaml").is_file():
-        pytest.skip(f"games/{slug} is not present in this checkout (gitignored)")
+#: The same rows minus the flagship, for the tests whose claim is "nobody is
+#: handed the flagship's things".
+NOT_THE_FLAGSHIP = tuple(slug for slug, _title in SHIPPED if slug != "clockwork-dark")
 
 
 @pytest.fixture(autouse=True)
@@ -69,7 +66,6 @@ def test_each_story_narrates_from_its_own_file(slug, _title):
     names itself -- and the invariant under test is whose words arrive, not
     what they say.
     """
-    _require(slug)
     registry.activate(slug)
     own = (project_root() / "games" / slug / "prompts" / "storyteller.md")
     assert own.is_file(), f"{slug} ships no storyteller.md"
@@ -83,17 +79,12 @@ def test_no_two_stories_are_handed_the_same_narrator():
     Before the fix all three of these were byte-identical: the flagship's
     persona, because only the flagship had one and the engine handed it out.
     """
-    present = [
-        (slug, title)
-        for slug, title in SHIPPED
-        if (project_root() / "games" / slug / "game.yaml").is_file()
-    ]
-    assert len(present) >= 2, "fewer than two stories in this checkout"
+    assert len(SHIPPED) >= 2, "fewer than two stories in this checkout"
     seen: dict[str, str] = {}
-    for slug, _title in present:
+    for slug, _title in SHIPPED:
         registry.activate(slug)
         seen[slug] = prompts.storyteller_persona()
-    assert len(set(seen.values())) == len(present), {k: v[:60] for k, v in seen.items()}
+    assert len(set(seen.values())) == len(SHIPPED), {k: v[:60] for k, v in seen.items()}
 
 
 def test_the_flagship_owns_its_own_voice_on_disk():
@@ -129,14 +120,23 @@ def test_the_flagship_still_ships_its_two_worked_examples():
     assert "Maris" in rows[0]["content"]
 
 
-@pytest.mark.parametrize("slug", ["wicked-garden", "dev-story"])
+#: Parametrised over the stories that SHIP no examples.json -- derived from the
+#: filesystem rather than listed, because the claim is about what the loader
+#: does with absence, and the set of stories that choose absence changes.
+_NO_EXAMPLES = tuple(
+    slug
+    for slug, _title in SHIPPED
+    if not (project_root() / "games" / slug / "prompts" / "examples.json").is_file()
+)
+
+
+@pytest.mark.parametrize("slug", _NO_EXAMPLES)
 def test_a_story_with_no_examples_gets_none_rather_than_the_flagship_s(slug):
     """
     A few-shot is the strongest signal in the prompt about what a turn looks
     like, so an inherited one teaches every story to sound like Edgewood. None
     is the correct answer; the flagship's is not.
     """
-    _require(slug)
     registry.activate(slug)
     assert prompts.storyteller_examples() == []
 
@@ -189,7 +189,6 @@ def test_the_companion_is_story_owned_too(slug, title):
     The volatile half stays the engine's -- forms, hint tier and place are
     state, not voice -- so those are asserted present as well.
     """
-    _require(slug)
     registry.activate(slug)
     state = GameState()
     prompt = prompts.assistant_system_prompt(state, hint_tier=2)
@@ -249,7 +248,7 @@ def test_the_flagship_still_redacts_exactly_what_it_did():
     )
 
 
-@pytest.mark.parametrize("slug", ["wicked-garden", "dev-story"])
+@pytest.mark.parametrize("slug", NOT_THE_FLAGSHIP)
 def test_no_story_is_handed_the_flagships_imagery(slug):
     """
     The defect, stated as its inverse.
@@ -257,7 +256,6 @@ def test_no_story_is_handed_the_flagships_imagery(slug):
     A fae court has no wheat and no village. Whatever the gate does for another
     story, it must never reach for Edgewood's nouns to do it.
     """
-    _require(slug)
     from engine.lore.interceptors import AwarenessGateInterceptor
 
     registry.activate(slug)
@@ -282,7 +280,6 @@ def test_the_machinery_is_masked_even_with_no_story_table():
     and would have passed for the wrong reason if the file had been empty
     rather than absent.
     """
-    _require("wicked-garden")
     from engine.lore.interceptors import AwarenessGateInterceptor, story_spoiler_terms
 
     registry.activate("wicked-garden")
@@ -333,7 +330,7 @@ def test_an_ordinary_english_phase_word_is_left_alone():
     from engine.lore.interceptors import AwarenessGateInterceptor
 
     prose = "The leaves were stirring, the fire spreading, the seed dormant."
-    for slug in ("clockwork-dark", "wicked-garden"):
+    for slug, _title in SHIPPED:
         registry.activate(slug)
         assert AwarenessGateInterceptor().gate(prose, 0.0) == prose, slug
 

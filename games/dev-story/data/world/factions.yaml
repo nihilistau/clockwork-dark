@@ -1,0 +1,66 @@
+# Dev Story -- standing with the three crowds on campus.
+#
+# Read by engine/game/reputation.py via `paths.factions`. INERT UNTIL THAT PATH
+# IS DECLARED in games/dev-story/game.yaml.
+#
+# WHY FACTIONS AT ALL IN A BENCH: reputation is a GROUP's view of the player.
+# How one person feels about them is a different system entirely
+# (engine/memory/ledger.py, NPCRelation.disposition). Three tiny factions here
+# give you something to point a `reputation` effect at while testing, without
+# having to invent one mid-edit -- and an effect written against a faction id
+# that does not exist is a silent no-op, which is the worst kind of test result.
+#
+# THE `defaults` BLOCK IS THE FLAGSHIP'S, UNCHANGED. Bands, clamps and the price
+# curve are mechanics rather than story, the loader expects the block's shape,
+# and copying the shipped numbers means a reputation reading here means the same
+# thing it means in the real games. `price` scales a barter multiplier; this
+# story declares no `paths.economy` and sells nothing, so it multiplies nothing
+# and is kept only because removing it would be declaring a different mechanic
+# rather than not using this one.
+#
+# Version: v0.1.0 [2026-08-09]
+
+version: 1
+
+defaults:
+  # Walked in order; the first band whose `upto` is >= the score wins. The last
+  # has no `upto` and catches everything above.
+  bands:
+    - { id: hostile, upto: -40, label: "hostile" }
+    - { id: wary, upto: -15, label: "wary" }
+    - { id: neutral, upto: 24, label: "neutral" }
+    - { id: friendly, upto: 59, label: "friendly" }
+    - { id: trusted, label: "trusted" }
+
+  min_score: -100
+  max_score: 100
+
+  price:
+    base: 1.15
+    divisor: 400
+    floor: 0.85
+    ceiling: 1.25
+
+factions:
+
+  faculty:
+    name: "Faculty and Staff"
+    description: >-
+      The Dean, the teaching staff, the front desk, the counter and the library
+      desk. They talk to each other more than students expect, and the record of
+      what you are like arrives in a room before you do.
+
+  students:
+    name: "The Student Body"
+    description: >-
+      Everyone else on the quad: coursemates, housemates, the people in the
+      queue behind you. No membership and no leadership, just the general sense
+      of whether you are somebody worth sitting next to.
+
+  the_gym_crowd:
+    name: "The Gym Crowd"
+    description: >-
+      The clique that is in the gym at seven and at six, knows whose towel is
+      whose, and holds the sign-up sheet for anything sporting. A social circle
+      rather than an institution, which is the point of including it: a third
+      faction whose regard is earned in a completely different room.

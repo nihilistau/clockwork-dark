@@ -1,0 +1,203 @@
+# Dev Story -- one deck, four cards.
+#
+# Read by engine/content/deck.py through `paths.decks`. THE FILENAME IS THE
+# DECK ID: `deck.load_deck("campus_day")` looks for `campus_day.yaml` in that
+# directory. Rename the file and the id changes with it.
+#
+#   deck.draw(state, "campus_day")   -> a Hand
+#   deck.resolve_card(state, card, chosen="<beat id>")
+#
+# HOW A HAND IS DEALT. Every `required: true` card is included, in authored
+# order, whether or not its conditions hold, and they do NOT consume draw slots.
+# Then `draw:` pool cards are picked from whatever is eligible, weighted, from
+# the seeded `deck` RNG stream -- so the same seed lays out the same day.
+#
+# ---------------------------------------------------------------------------
+# THE `menu` / `sequence` TAG CONTRACT. EVERY CARD DECLARES ONE.
+# ---------------------------------------------------------------------------
+#   sequence   the beats are STEPS. All of them resolve, in order.
+#   menu       the beats are ALTERNATIVES. Exactly one resolves -- the one named
+#              by `chosen`, because the choice belongs to the player.
+#
+# This is not decoration. `deck.chosen_beats` reads the tag, and a menu card
+# resolved without one applies EVERY branch at once: on the lunch queue card
+# below that means sitting down with people, walking off on your own, and
+# starting the rumour, all in the same turn, and taking the numbers for all
+# three. With `menu` and no `chosen` the engine takes the first beat and logs a
+# WARNING -- resolving something beats a card with no mechanical trace at all,
+# but it is a fallback, not the contract.
+#
+# ---------------------------------------------------------------------------
+# WHAT A BEAT MAY BE. Exactly one of these, never both:
+#
+#   gate:   a HARD THRESHOLD (`when:`) or a SEEDED HIDDEN CHECK (`check:`), or
+#           both -- the threshold is the price of admission and the check is
+#           whether it went well. Deterministic and replayable either way.
+#           Branches into `on_pass` / `on_fail`.
+#
+#   band:   a RANGE (`popularity: +2..6`) an agent picks inside by judged
+#           quality. The engine owns the range and the clamp; the model owns
+#           only where in it the moment landed. With no quality supplied it
+#           resolves to the MIDPOINT, so tests and the simulator need no model.
+#
+# A beat with neither is a text-only beat and resolves as a pass with no
+# effects, which is a legal thing for a beat to be.
+#
+# Every effect here is clamped by the story's own scale: a 0-100 meter may move
+# by about a sixth of its range in one beat (engine/challenges/spec.py). Write
+# `+40` and you get `+17` and a note on the receipt, not a rejection.
+#
+# Version: v0.1.0 [2026-08-11]
+
+id: campus_day
+
+# Two pool cards on top of the two required ones. There are three in the pool,
+# so one is left out every deal -- which is the point of a deck, and is visible
+# in `Hand.rejected` as "not drawn".
+draw: 2
+
+cards:
+
+  # =====================================================================
+  # SPINE -- always dealt.
+  # =====================================================================
+
+  - id: CD_01_first_bell
+    required: true
+    tags: [sequence, gm]
+    title: "First Bell"
+    text: >-
+      INTENT: open the day and put one number on the board before anybody has
+      made a decision. SEQUENCE -- both beats resolve, in order.
+    beats:
+      # A GATE. The threshold is `when:`; the seeded check is `check:`; both are
+      # present, so both must go your way. Being known is the price of
+      # admission, and the chance is whether the person you wanted was actually
+      # there.
+      - id: CD_01_catch_someone
+        text: >-
+          You want a word with someone before the room fills. Whether there is
+          one to be had is half you and half the timetable.
+        gate:
+          when: { value: { name: influence, min: 40 } }
+          check:
+            # Named stream, so this roll cannot shift the deck's own draw.
+            # Never bare `random`: a seeded bench that does not replay is not a
+            # bench. Omit `stream` and it uses the shared `beat` stream.
+            stream: beat
+            chance: 0.6
+          on_pass:
+            text: "They have thirty seconds and they give you all thirty."
+            effects:
+              - { type: value, name: influence, delta: 3 }
+          on_fail:
+            # FAIL FORWARD. The beat still happens; it just happens worse.
+            text: "The corridor moves you along before you get to the point."
+            effects:
+              - { type: value, name: popularity, delta: -1 }
+
+      # A BAND. No pass, no fail -- an amount, inside a range the engine owns.
+      - id: CD_01_who_says_hello
+        text: >-
+          How many people say your name on the way in. Judged, not rolled.
+        band:
+          value: popularity
+          min: 1
+          max: 5
+          text: "How the walk in went."
+
+  - id: CD_02_lunch_queue
+    required: true
+    tags: [menu, gm]
+    title: "The Queue"
+    text: >-
+      INTENT: the day's one real decision, and the only place the rumour clock
+      can be started by the player rather than by the world.
+      MENU -- resolve exactly the beat the player chose. Resolving this card
+      whole applies all three at once, which is not a thing that can happen to
+      a person.
+    beats:
+      - id: sit_with_the_table
+        text: "You sit down with people. It costs you the half hour you were going to work in."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: popularity, delta: 4 }
+              - { type: value, name: influence, delta: -1 }
+
+      - id: eat_and_go
+        text: "You take it outside and get the reading done. Nobody minds. Nobody notices either."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: influence, delta: 3 }
+              - { type: value, name: popularity, delta: -2 }
+
+      - id: repeat_what_you_heard
+        text: >-
+          You pass on the thing you were told. Sets `told_someone`, which is what
+          data/rules/clocks.yaml watches -- this is the beat that starts the
+          rumour clock, and the clock is what eventually forces a scene.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: told_someone }
+              - { type: value, name: popularity, delta: 2 }
+
+  # =====================================================================
+  # POOL -- `draw: 2` of these three, weighted, from the seeded stream.
+  # =====================================================================
+
+  - id: CD_03_library_afternoon
+    tags: [sequence]
+    title: "The Cold Library"
+    # `when:` gates a POOL card. Fail it and the card is not dealt, and the
+    # reason lands in `Hand.rejected` as "conditions not met" -- a card that
+    # quietly never appears is indistinguishable from a card that is broken.
+    when: { value: { name: influence, min: 35 } }
+    weight: 2.0
+    beats:
+      - id: CD_03_get_it_done
+        band:
+          value: influence
+          min: 2
+          max: 6
+          text: "How much of the reading actually went in."
+
+  - id: CD_04_noticeboard
+    tags: [menu]
+    title: "The Noticeboard"
+    # `once: true` -- dealt at most once per save, remembered by the flag
+    # `deck_drawn_campus_day_CD_04_noticeboard`. After that it is rejected as
+    # "already drawn".
+    once: true
+    beats:
+      - id: put_your_name_down
+        text: "You sign up for the thing. You will regret this on Thursday and not before."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: influence, delta: 4 }
+              - { type: item, item_id: student_card, name: "Student Card" }
+
+      - id: walk_past_it
+        text: "You read all of it and sign none of it, which is the most common way to use a noticeboard."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: influence, delta: -1 }
+
+  - id: CD_05_gym_corridor
+    tags: [sequence]
+    title: "The Gym Corridor"
+    # Low weight: dealt less often than the library, so a couple of draws from
+    # the same seed visibly differ. Weight 0 would take it out of the pool
+    # entirely and report "weight 0" in the rejections.
+    weight: 0.5
+    beats:
+      - id: CD_05_hold_the_door
+        text: "Somebody's arms are full. It takes four seconds and is remembered for a term."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: popularity, delta: 3 }

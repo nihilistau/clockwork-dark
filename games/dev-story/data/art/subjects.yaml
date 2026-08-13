@@ -1,0 +1,255 @@
+# ============================================================
+# Art subjects -- Dev Story.
+#
+# ONE source, TWO prompt dialects. `engine/media/art.py` renders natural prose
+# for Grok Imagine (`render_prose`) and comma-separated tags plus a negative for
+# ComfyUI SDXL (`render_tags`) from the same entry, so the two can never drift.
+#
+# NOTHING HERE IS SHIPPED AS A PICTURE except the bedroom. This story copied
+# three scene plates and eight portraits from The Wicked Garden so it would have
+# SOMETHING on screen, and those are fae guest-house pictures wearing campus
+# ids. Every other subject below has no plate and falls through to the
+# procedural silhouette.
+#
+# That is deliberate and it is the useful state: the prompts are written, so
+#
+#     .\.venv\Scripts\python.exe scripts\art_missing.py --game dev-story
+#
+# produces a brief with a ready-to-paste prompt for every gap, in both dialects,
+# at the right pixel size. Generate what you want to look at; ignore the rest.
+#
+# Version: v0.1.0 [2026-08-11]
+# ============================================================
+
+# ------------------------------------------------------------
+# House style. Appended to EVERY prompt this story renders.
+#
+# Deliberately the opposite of the Garden's, whose block asks for "lush organic
+# forms everywhere" and "botanical art nouveau". This story is a wet quad and a
+# vending machine. A style block that fights its own subjects is the single
+# easiest way to get a pack that does not match.
+# ------------------------------------------------------------
+style:
+  prose: >-
+    Photographic, contemporary, unremarkable. Available light -- overhead
+    strips, a window, a desk lamp -- with the colour it actually casts rather
+    than a corrected version of it. Muted greens, greys, warm beige, the
+    institutional palette of a building nobody chose. Ordinary modern surfaces,
+    worn and specific: scuffed vinyl, a radiator, a whiteboard half wiped, a
+    noticeboard with too many pins. Shallow depth of field. Every figure is an
+    adult. No text or lettering anywhere in the frame.
+  tags: >-
+    photographic, contemporary interior, available light, muted institutional
+    palette, greys and warm beige, worn everyday surfaces, scuffed vinyl,
+    fluorescent strip lighting, shallow depth of field, natural composition,
+    unremarkable, no text, no watermark
+  negative: >-
+    child, teenager, youthful minor, childlike proportions, chibi, anime, manga,
+    cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines,
+    petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk,
+    sci-fi, text, lettering, watermark, logo, signature, blurry, low quality,
+    oversaturated, HDR, heroic pose
+  loras:
+    - {name: Photoreal_Interior, weight: 0.5}
+
+# Generation targets. READ by engine/media/providers/{grokbuild,comfy}.py, so
+# these have to describe the pack that ships. Measured off the eleven plates
+# copied in: scenes 1280x720, portraits 768x1024.
+formats:
+  location: {aspect: "16:9", width: 1280, height: 720}
+  portrait: {aspect: "3:4", width: 768, height: 1024}
+  item: {aspect: "3:4", width: 768, height: 1024}
+  cutscene: {aspect: "16:9", width: 512, height: 288}
+
+# ------------------------------------------------------------
+# Locations. Ids from data/world/locations.yaml -- all thirteen.
+#
+# The four time slots are the engine's. Written plainly: the same room at 8am
+# and at 11pm is the cheapest way to see the alt rotation working, and if you
+# only ever generate one it should be `day`.
+# ------------------------------------------------------------
+locations:
+
+  test_bedroom:
+    subject: "An ordinary bedroom, seen from the doorway"
+    details: "an unmade bed with the covers pushed back, a lamp on the near table, a window with the curtain half drawn, a closed door, clothes over the back of a chair"
+    times:
+      dawn: {setting: "the room before anyone has decided to get up", light: "grey window light, colours a shade low"}
+      day: {setting: "the bed made badly, the curtain pushed all the way back", light: "flat daylight, nothing flattering"}
+      dusk: {setting: "the lamp on and the window going dark", light: "warm lamp against cold blue outside"}
+      night: {setting: "one lamp, everything else in shadow", light: "a single warm source, the rest falling to black"}
+
+  hallway:
+    subject: "The hallway of an ordinary house"
+    details: "coats on hooks, shoes not quite paired, a radiator, doors standing open onto other rooms, a light switch worn pale"
+    times:
+      dawn: {setting: "nobody through it yet", light: "grey from the frosted panel in the front door"}
+      day: {setting: "a bag dropped where somebody stopped to answer their phone", light: "flat daylight from both ends"}
+      dusk: {setting: "the overhead on because the hall has no window worth the name", light: "warm overhead, the doorways darker"}
+      night: {setting: "one lamp left on for whoever is still out", light: "low, yellow, the far end unlit"}
+
+  bathroom:
+    subject: "A small domestic bathroom"
+    details: "a mirror with a damp patch cleared in it, tiles, a towel over the radiator, too many bottles on the ledge"
+    times:
+      dawn: {setting: "still humid from someone earlier", light: "the extractor fan light, cold and mean"}
+      day: {setting: "dry and blank", light: "daylight through frosted glass"}
+      dusk: {setting: "the mirror fogged at the edges", light: "overhead, unflattering"}
+      night: {setting: "the light left on by accident", light: "a single hard overhead"}
+
+  kitchen:
+    subject: "A domestic kitchen with the everyday mess left in it"
+    details: "mugs by the sink, a kettle, a noticeboard, a chair pulled out at an angle, a window over the worktop"
+    times:
+      dawn: {setting: "the kettle just boiled and nobody in the room", light: "early grey, the overhead not on yet"}
+      day: {setting: "somebody eating standing up", light: "daylight from the window over the sink"}
+      dusk: {setting: "the overhead on and the window gone black", light: "warm overhead against a dark window"}
+      night: {setting: "one light over the hob, the rest dark", light: "a single low source"}
+
+  living_room:
+    subject: "An ordinary living room"
+    details: "a sofa with a throw pulled crooked, a low table with rings on it, a television nobody is watching, a lamp in the corner"
+    times:
+      dawn: {setting: "curtains still shut", light: "the little that gets past the curtains"}
+      day: {setting: "curtains open, the room honest about its wear", light: "flat daylight"}
+      dusk: {setting: "lamps on, the room suddenly warmer than it is", light: "two lamps, no overhead"}
+      night: {setting: "the television the only thing lit", light: "screen light, blue and moving"}
+
+  front_porch:
+    subject: "The front step of an ordinary house, looking out"
+    details: "a door that sticks, a mat, a bin at the corner of the path, the street beyond and the campus buildings past it"
+    times:
+      dawn: {setting: "nobody on the street yet", light: "cold early light, long shadows"}
+      day: {setting: "the walk to campus visible past the gate", light: "plain daylight"}
+      dusk: {setting: "the street lights coming on before they are needed", light: "orange sodium against the last of the blue"}
+      night: {setting: "the porch light on, the street empty", light: "one bulb over the door, everything past it dark"}
+
+  quad:
+    subject: "A university quad between buildings"
+    details: "wet paving, a strip of grass nobody walks on, bike racks, a noticeboard with too many pins, students crossing at angles"
+    times:
+      dawn: {setting: "empty, still wet from overnight", light: "flat early grey"}
+      day: {setting: "full, everyone crossing to somewhere else", light: "open daylight, no shelter"}
+      dusk: {setting: "thinning out, the windows brighter than the sky", light: "lit windows against a darkening quad"}
+      night: {setting: "empty except the lights on the paths", light: "pooled lamplight, the middle dark"}
+
+  admin_block:
+    subject: "A university administration corridor and counter"
+    details: "a counter with a bell nobody rings twice, laminated notices, a queue rail, closed office doors with names on them"
+    times:
+      dawn: {setting: "shutters still down on the counter", light: "corridor strips only"}
+      day: {setting: "somebody ahead of you in the queue", light: "hard fluorescent, no windows worth the name"}
+      dusk: {setting: "the counter closing, one light left over it", light: "one strip on, the rest off"}
+      night: {setting: "locked, dark, a green exit sign", light: "exit-sign green and nothing else"}
+
+  cafeteria:
+    subject: "A university cafeteria at the serving line"
+    details: "steel counters, trays stacked, a hot cabinet, tables in rows, chairs pushed in wrong"
+    times:
+      dawn: {setting: "chairs still up on the tables", light: "half the strips on"}
+      day: {setting: "the line moving, every table taken", light: "full fluorescent, steam over the counter"}
+      dusk: {setting: "the last of the food and most of the tables empty", light: "strips over the counter, the room dimmer"}
+      night: {setting: "wiped down and shut", light: "one row of lights left on"}
+
+  dorm_room:
+    subject: "A student dorm room"
+    details: "a narrow bed, a desk with a laptop and a mug on it, things stuck to the wall, a wardrobe that does not shut flush"
+    times:
+      dawn: {setting: "the laptop still open from last night", light: "grey through a thin curtain"}
+      day: {setting: "the door propped open onto the corridor", light: "daylight and corridor light both"}
+      dusk: {setting: "desk lamp on, the overhead off", light: "one warm lamp, screen glow"}
+      night: {setting: "only the screen", light: "laptop light on a face's worth of room"}
+
+  classroom:
+    subject: "A university classroom between sessions"
+    details: "rows of tables, a whiteboard half wiped, a projector on standby, chairs at angles where people got up"
+    times:
+      dawn: {setting: "empty and straightened", light: "daylight, blinds half down"}
+      day: {setting: "mid-session, bags on the floor", light: "daylight plus overheads"}
+      dusk: {setting: "emptying out, someone still packing up", light: "overheads on, the windows dark"}
+      night: {setting: "chairs up, board wiped", light: "one bank of lights"}
+
+  gym:
+    subject: "A university gym"
+    details: "rubber matting, a rack of weights, mirrors along one wall, a water fountain, a hand-written sign taped to a machine"
+    times:
+      dawn: {setting: "two people in and neither talking", light: "strips over the mats"}
+      day: {setting: "busy, everything in use", light: "bright, even, unkind"}
+      dusk: {setting: "the after-class rush", light: "full lights, dark windows"}
+      night: {setting: "nearly empty, one machine running", light: "half the lights off"}
+
+  library:
+    subject: "A university library reading room"
+    details: "long tables with individual lamps, stacks receding, a trolley of returns, a laptop left open at an empty chair"
+    times:
+      dawn: {setting: "unlocked and nobody in yet", light: "daylight from high windows"}
+      day: {setting: "every other seat taken and completely silent", light: "daylight and table lamps together"}
+      dusk: {setting: "the lamps doing the work now", light: "pools of lamplight, the stacks dark"}
+      night: {setting: "close to closing, one or two left", light: "table lamps only"}
+
+# ------------------------------------------------------------
+# Portraits. All eight, ids from data/world/npc_schedules.yaml.
+#
+# Every one currently resolves to a Wicked Garden Sophia plate -- see
+# manifest.yaml. They are placeholders chosen to be DISTINCT from each other so
+# you can tell at a glance which id resolved, not because any of them looks like
+# the person described here.
+# ------------------------------------------------------------
+portraits:
+
+  maya:
+    subject: "A woman of about twenty-one, mid-laugh, caught looking at someone off-frame"
+    details: "phone in one hand face-up, hair pushed back, a denim jacket over something soft"
+    setting: "a university corridor, people moving behind her"
+    mood: "quick, amused, already three steps into the next thing"
+
+  sophia:
+    subject: "A woman of about twenty-two, looking directly at the camera and not smiling"
+    details: "dark hair a bit past the shoulders pushed back off her face, a grey jumper with the sleeves over her hands"
+    setting: "indoors, a window somewhere behind her"
+    mood: "quiet, level, holding the look a beat longer than is comfortable"
+
+  chloe:
+    subject: "A woman of about twenty, half-turned as if she has just been spoken to"
+    details: "a folder held against her chest with both arms, hair tied back, a lanyard"
+    setting: "a dorm corridor with a propped-open door behind her"
+    mood: "earnest, apologetic, ready to move out of the way"
+
+  the_dean:
+    subject: "A woman in her fifties behind a desk, hands folded"
+    details: "immaculate jacket, a fountain pen laid parallel to a closed folder, nothing else on the desk"
+    setting: "an office with a window and a bookcase kept for the look of it"
+    mood: "unhurried, pleasant, entirely unreadable"
+
+  the_teacher:
+    subject: "A man in his thirties marking papers at a cafeteria table"
+    details: "a red pen, a stack of essays weighted with a coffee cup, a coat still on"
+    setting: "the corner of a cafeteria, trays cleared to one side"
+    mood: "tired, invested, mid-thought"
+
+  the_secretary:
+    subject: "A woman behind an administration counter, looking up over her glasses"
+    details: "a keyboard, a stamp, three trays of paperwork in a strict order"
+    setting: "an admin block counter with laminated notices behind her"
+    mood: "unimpressed, entirely in charge of what happens next"
+
+  the_lunch_lady:
+    subject: "A woman in an apron and hairnet behind a hot serving counter"
+    details: "a serving spoon held at rest, steel counter, steam rising in front of her"
+    setting: "a cafeteria serving line, trays stacked at the end"
+    mood: "warm to some people and visibly not to others"
+
+  the_librarian:
+    subject: "A woman standing at the end of a library stack, one hand on a shelf"
+    details: "a returns trolley beside her, keys on a retractable clip, reading glasses pushed up"
+    setting: "between library stacks, reading room lamps beyond"
+    mood: "quiet, absolute, not going to say it twice"
+
+# ------------------------------------------------------------
+# Items. Ids from data/items/. Framing comes from `defaults` unless an entry
+# overrides it, so five items do not repeat one sentence five times.
+# ------------------------------------------------------------
+items:
+  defaults:
+    setting: "the single object alone at the centre of the frame, laid on a plain grey desk surface, nothing else in shot, no hands"
+    light: "flat overhead light with a soft shadow under the object, product-photograph plain"

@@ -1,0 +1,150 @@
+# Dev Story -- the cast.
+#
+# ============================================================================
+# TWO AGENTS. THAT IS THE SWITCH THAT TURNS THE PIPELINE ON. READ THIS FIRST.
+# ============================================================================
+# `engine/agents/pipeline.py` sets `MIN_AGENTS = 2` and returns
+# `PipelineResult(ran=False)` for any roster smaller than that. There is no
+# flag anywhere; the count of blocks under `agents:` IS the flag.
+#
+# With the TWO agents below, a turn runs plan -> negotiate -> commit: every
+# agent is asked for an AgentPlan, the Negotiator reconciles them against the
+# `negotiation:` table at the bottom of this file, and agent-proposed writes go
+# to engine/state/store.py where they are checked against `writes:`. That is
+# the code path this sandbox exists to exercise, and exercising it is most of
+# its value -- the single-agent path cannot reach any of it.
+#
+# WHAT IT COSTS: one extra model call per turn. The character agent plans
+# alongside the world agent, so a turn is roughly twice the latency of pure
+# narration.
+#
+# TO TURN IT BACK OFF: delete the `sophia:` block and the `negotiation:` table,
+# and give `sophia_dialogue`/`sophia_aside` back to `world` under `voices:`.
+# The roster drops to one agent, MIN_AGENTS refuses it, and you are back on the
+# cheap single-agent narration path -- the right bench for testing a scene, a
+# voice or a room with nothing arguing with it. The `negotiation:` table must
+# go with her: parse_roster raises on a rule naming an agent that does not
+# exist, so leaving it behind fails the load rather than being ignored.
+#
+# WHAT THIS FILE DOES AND DOES NOT DO. It DECLARES. Three other layers enforce:
+#   voices -> engine/agents/negotiate.py
+#   reads  -> engine/agents/knowledge.py
+#   writes -> engine/state/store.py (per-value owners, refused AND journalled;
+#             engine/state/active.py folds these grants into the schema)
+#
+# Version: v0.2.0 [2026-08-11]
+
+agents:
+  # ---------------------------------------------------------------------
+  # The world: narration, the campus, the house, and all five staff.
+  # ---------------------------------------------------------------------
+  world:
+    role: world
+    # `big` is the narration profile: reasoning ON, 3000 tokens, its own LM
+    # Studio lane. Switch to `small` if you are testing turn latency rather
+    # than prose quality.
+    profile: big
+    # Relative to this story's root, NOT to paths.prompts. The planner takes
+    # the leaf and looks it up under paths.prompts, so both resolve to
+    # games/dev-story/prompts/storyteller.md.
+    prompt: prompts/storyteller.md
+
+    # Everyone the world speaks for. The two student friends are here rather
+    # than with Sophia because they are scenery with names -- give either of
+    # them their own agent block and their voice has to move out of this list,
+    # since a voice claimed twice is a hard RosterError at load
+    # (engine/agents/roster.py::parse_roster).
+    voices:
+      - narration
+      - maya
+      - chloe
+      - dean
+      - teacher
+      - secretary
+      - lunch_lady
+      - librarian
+
+    # Both meters. The world is what moves the room when Sophia is not in it.
+    # Kept in sync with state.yaml by hand: a value this agent is not granted
+    # is refused at the store and journalled, which from the outside looks
+    # exactly like "the meter did not move".
+    writes:
+      - influence
+      - popularity
+
+  # ---------------------------------------------------------------------
+  # Sophia. A character, not a companion -- the second agent, and therefore
+  # the reason any of the pipeline above runs.
+  # ---------------------------------------------------------------------
+  sophia:
+    role: character
+    # `small`: reasoning OFF, 900 tokens, utility lane. She answers in two or
+    # three sentences, and a character who takes as long to think as the
+    # narrator doubles the turn for a line of dialogue. Switch her to `big` if
+    # you are specifically testing whether a character agent reasons well.
+    profile: small
+    prompt: prompts/sophia.md
+
+    # Hers alone. `sophia_aside` is the second one on purpose: two voices on
+    # one agent is the shape the ownership rule in negotiate.py actually has to
+    # discriminate, and a one-voice agent never tests it.
+    voices:
+      - sophia_dialogue
+      - sophia_aside
+
+    # Whether people want her around is hers to move directly.
+    writes:
+      - popularity
+
+    # Influence only WITH A REASON, recorded in the state journal beside the
+    # number. This is the interesting half of the bench: it is the only grant
+    # in this story that exercises the reason-required path, so if you are
+    # testing that writes carry their justification, this is the write to
+    # watch.
+    writes_with_reason:
+      - influence
+
+# ---------------------------------------------------------------------------
+# How their proposals are reconciled when they disagree.
+#
+# First match wins, in declared order. A rule with no `when` never fires, and
+# every intent named here must be one plan.py accepts -- narrate, speak,
+# interrupt, offer, withhold, silent -- because an unknown intent is silently
+# downgraded to `silent` and the rule would simply never match.
+#
+# The engine's own two rules (safety outranks every agent goal; no agent may
+# speak as a voice it does not own) are applied ahead of this table and are not
+# reorderable from here.
+# ---------------------------------------------------------------------------
+negotiation:
+  # She is mid-sentence and the world wants to cut in. She finishes;
+  # `keep_loser_beat` turns the world's interruption into what happens next
+  # instead of throwing its content away.
+  - name: her_scene_finishes
+    when:
+      sophia: speak
+      world: interrupt
+    winner: sophia
+    keep_loser_beat: true
+    detail: her line completes; the world's beat becomes the aftermath
+
+  # The counterpart, and the one that stops her being the whole story. When the
+  # world is asserting a fact -- the bell, the deadline, the Dean at the door --
+  # she does not get to talk over it. She gets the last word, not the first.
+  - name: the_timetable_wins
+    when:
+      world: narrate
+      sophia: interrupt
+    winner: world
+    keep_loser_beat: true
+    detail: the campus runs on its own clock; she reacts, she does not override
+
+  # A door someone in authority is holding open is not hers to close. She may
+  # be furious about it on the meters; she may not narrate it shut.
+  - name: staff_hold_the_door
+    when:
+      world: offer
+      sophia: withhold
+    winner: world
+    keep_loser_beat: true
+    detail: an offer from staff stands; her refusal is a reaction, not a veto
