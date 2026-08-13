@@ -52,6 +52,7 @@ import yaml
 
 from engine.config import get_config
 from engine.game import checks as checks_module
+from engine.game import effects as effects_module
 from engine.game import inventory as inventory_module
 from engine.game.locations import get_location
 from engine.game.rng import FORAGE, world_rng
@@ -250,14 +251,20 @@ def _wear_node(state: GameState, node_id: str) -> int:
     days = max(1, int((_cfg().get("depletion") or {}).get("recovery_days", 6) or 6))
     effect = _node_effect(state, node_id)
     if effect is None:
-        effect = TimedEffect(
-            id=f"forage:{node_id}",
-            kind=NODE_EFFECT_KIND,
-            text=f"worked ground ({node_id})",
-            delta=0,
-            expires_day=state.world_day + days,
+        # Created through the one writer; the wear count below mutates the
+        # record the writer handed back.
+        effects_module.apply_effect(
+            state,
+            {
+                "type": "timed_effect",
+                "id": f"forage:{node_id}",
+                "kind": NODE_EFFECT_KIND,
+                "text": f"worked ground ({node_id})",
+                "delta": 0,
+                "expires_day": state.world_day + days,
+            },
         )
-        state.active_effects.append(effect)
+        effect = _node_effect(state, node_id)
     effect.delta = int(effect.delta) + 1
     effect.expires_day = state.world_day + days
     return int(effect.delta)

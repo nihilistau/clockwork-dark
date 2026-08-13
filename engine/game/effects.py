@@ -697,7 +697,12 @@ def _e_flag(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dic
     name = str(effect.get("flag") or effect.get("name") or "").strip()
     if not name:
         return _unknown("flag", effect)
-    value = bool(effect.get("value", True))
+    # Flags are booleans in content, but the assistant's cooldowns keep a turn
+    # NUMBER under a flag key, and a writer that coerced it would turn "last
+    # appeared on turn 40" into "has appeared". Scalars pass through untouched;
+    # anything structured is collapsed to a bool, exactly as it always was.
+    raw = effect.get("value", True)
+    value = raw if isinstance(raw, (bool, int, float, str)) else bool(raw)
     state.flags[name] = value
     return {
         "type": "flag",
@@ -705,6 +710,50 @@ def _e_flag(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dic
         "value": value,
         "ok": True,
         "text": f"flag {name}={value}",
+    }
+
+
+@effect_kind("timed_effect")
+def _e_timed_effect(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    Append an arbitrary ``TimedEffect`` record -- the daily-marker trick.
+
+    Four systems keep "what happened today" as a timed effect so the clock's
+    expiry sweep IS the reset rule: the labour shift cap (``kind: shift``),
+    forage node wear (``kind: forage_node``), today's haggle (``kind: haggle``)
+    and once-per-day item use (``kind: item_use``). Each used to append to the
+    live effects list directly from its own module, which was four quiet
+    exceptions to the one-writer rule; they route through here now, and the
+    receipt is what makes the marker visible in a turn log.
+
+    ``expires_day`` accepts the same forms as ``check_penalty``: an absolute
+    day, a relative ``"+2"``, or nothing for tomorrow.
+    """
+    timed = TimedEffect(
+        id=str(
+            effect.get("id")
+            or _next_id("effect", state.active_effects, state.world_day)
+        ),
+        kind=str(effect.get("kind") or "marker").strip(),
+        text=str(effect.get("text") or ""),
+        delta=_int(effect.get("delta"), 0),
+        skills=[str(s) for s in (effect.get("skills") or [])],
+        expires_day=resolve_day(state, effect.get("expires_day"), default_days=1),
+    )
+    state.active_effects.append(timed)
+    return {
+        "type": "timed_effect",
+        "id": timed.id,
+        "kind": timed.kind,
+        "delta": timed.delta,
+        "expires_day": timed.expires_day,
+        "ok": True,
+        # Bookkeeping, not narration: a marker that says "worked the forge
+        # today" is for the engine's arithmetic, never for the player's prose.
+        "hidden": True,
+        "text": f"{timed.text or timed.id} (until day {timed.expires_day})",
     }
 
 

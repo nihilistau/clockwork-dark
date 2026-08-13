@@ -342,7 +342,10 @@ def apply_mutations(
 
     # Set last: a beat is only "fired" once its effects are in. Setting it
     # first would make a mid-application failure permanent and silent.
-    state.flags[beat_flag(beat_id, prefix=flag_prefix)] = True
+    effects_module.apply_effect(
+        state,
+        {"type": "flag", "flag": beat_flag(beat_id, prefix=flag_prefix), "value": True},
+    )
 
     logger.info(
         "[clocks] Beat applied (operation=apply_mutations, beat=%s, source=%s, "
@@ -579,7 +582,9 @@ def _auto_advance(state: GameState, clock: str, spec: dict[str, Any], ledger: Op
             step = 1.0
         advance(state, clock, step, why=f"advance_when:{rule_id}")
         if once:
-            state.flags[beat_flag(rule_id)] = True
+            effects_module.apply_effect(
+                state, {"type": "flag", "flag": beat_flag(rule_id), "value": True}
+            )
         applied.append({"type": "clock_advance", "value": f"{clock}{step:+g}"})
     return applied
 

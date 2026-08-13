@@ -422,6 +422,13 @@ def apply_archetype(state: GameState, archetype: str) -> dict[str, Any]:
             )
             state.archetype = fallback
 
+    # DELIBERATELY DIRECT, not routed through effects.apply_effect: these lines
+    # BUILD a new character's starting state before any turn exists. There is
+    # no live state to protect, no receipt anyone could read, and the deltas
+    # the effect writer applies would be clamped against defaults this very
+    # code is in the middle of replacing. The single-writer rule governs
+    # mutation of a running game; construction is the one sanctioned exception,
+    # and the guard test whitelists this file for exactly that reason.
     for stat, value in (entry.get("stats") or {}).items():
         if hasattr(state.stats, stat):
             setattr(state.stats, stat, int(value))

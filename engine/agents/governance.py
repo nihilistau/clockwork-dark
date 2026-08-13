@@ -564,8 +564,11 @@ class RulesGovernor:
         for violation in result.violations:
             ctx.add_violation(violation.rule_id, violation.message, violation.severity)
         # Recording an out-of-range value and leaving it there would let the
-        # next turn read a percentage above 100.
-        state.awareness = max(0.0, min(100.0, state.awareness))
+        # next turn read a percentage above 100. A zero-delta write through the
+        # one writer IS the clamp: the awareness kind bounds to [0, 100].
+        from engine.game import effects as effects_module
+
+        effects_module.apply_effect(state, {"type": "awareness", "delta": 0.0})
 
     @staticmethod
     def _check_evil_progress(engine: Any, ctx: TurnContext, state: GameState) -> None:

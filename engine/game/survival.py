@@ -143,9 +143,13 @@ def tick(state: GameState, hours: float) -> dict[str, Any]:
     hunger_cfg = rules.get("hunger", {})
 
     before = state.hunger
-    state.hunger = min(
-        float(hunger_cfg.get("max", 100.0)),
-        before + float(hunger_cfg.get("per_hour", 2.0)) * float(hours),
+    # The rules' own ceiling is applied to the DELTA, so the one writer gets a
+    # movement it can apply verbatim: the hunger kind clamps to the engine's
+    # [0, 100] band, and this keeps a story's tighter `max` binding too.
+    ceiling = float(hunger_cfg.get("max", 100.0))
+    gain = float(hunger_cfg.get("per_hour", 2.0)) * float(hours)
+    effects_module.apply_effect(
+        state, {"type": "hunger", "delta": min(ceiling, before + gain) - before}
     )
 
     marks = _thresholds(rules)
@@ -173,8 +177,10 @@ def tick(state: GameState, hours: float) -> dict[str, Any]:
     cap = stamina_cap(state, rules)
     clamped = 0
     if state.stats.stamina > cap:
+        # The hunger cap is enforced as a negative delta through the writer,
+        # like every other stamina movement in this function.
         clamped = state.stats.stamina - cap
-        state.stats.stamina = cap
+        effects_module.apply_effect(state, {"type": "stamina", "delta": -clamped})
 
     stage = hunger_stage(state, rules)
     if stage == "starving" and hunger_stage_of(before, rules) != "starving":
@@ -300,7 +306,11 @@ def rest(state: GameState, kind: str = "rest_short") -> dict[str, Any]:
     else:
         restored = int(stamina_spec)
     if restored > 0:
-        state.stats.stamina = min(cap, state.stats.stamina + restored)
+        # Bounded against the hunger cap BEFORE the write -- the stat writer
+        # only knows max_stamina, and the cap can sit below it.
+        gain = min(cap, state.stats.stamina + restored) - state.stats.stamina
+        if gain > 0:
+            effects_module.apply_effect(state, {"type": "stamina", "delta": gain})
     if hp_delta:
         effects_module.apply_effect(state, {"type": "hp", "delta": hp_delta})
 

@@ -154,16 +154,24 @@ def _record_shift(state: GameState, job_id: str) -> None:
     marker_id = f"shift:{job_id}"
     effect = next((e for e in _shift_effects(state) if e.id == marker_id), None)
     if effect is None or effect.expires_day < state.world_day:
+        # Created (and any stale one cleared) through the one writer; the
+        # count bump below mutates the record the writer handed back.
         if effect is not None:
-            state.active_effects.remove(effect)
-        effect = TimedEffect(
-            id=marker_id,
-            kind=SHIFT_EFFECT_KIND,
-            text=f"worked {job_id} today",
-            delta=0,
-            expires_day=state.world_day,
+            effects_module.apply_effect(
+                state, {"type": "clear_condition", "id": marker_id}
+            )
+        effects_module.apply_effect(
+            state,
+            {
+                "type": "timed_effect",
+                "id": marker_id,
+                "kind": SHIFT_EFFECT_KIND,
+                "text": f"worked {job_id} today",
+                "delta": 0,
+                "expires_day": state.world_day,
+            },
         )
-        state.active_effects.append(effect)
+        effect = next(e for e in _shift_effects(state) if e.id == marker_id)
     effect.delta = int(effect.delta) + 1
     effect.expires_day = state.world_day
 

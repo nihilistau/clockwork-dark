@@ -271,9 +271,18 @@ def record_appearance(state: GameState, decision: AssistantDecision) -> None:
     """
     if not decision.appear:
         return
-    state.flags[FLAG_LAST_TURN] = state.turn_number
+    # Through the one writer. These flags carry turn NUMBERS, not booleans --
+    # the flag kind passes scalars through untouched, so the cooldown
+    # arithmetic that reads them keeps working.
+    from engine.game import effects as effects_module
+
+    effects_module.apply_effect(
+        state, {"type": "flag", "flag": FLAG_LAST_TURN, "value": state.turn_number}
+    )
     if decision.intent == INTENT_GIFT:
-        state.flags[FLAG_GIFT_TURN] = state.turn_number
+        effects_module.apply_effect(
+            state, {"type": "flag", "flag": FLAG_GIFT_TURN, "value": state.turn_number}
+        )
 
 
 __all__ = [

@@ -14,6 +14,7 @@ from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from typing import Any, Iterator, Optional
 
+from engine.game import effects as effects_module
 from engine.game.clock import advance_time
 from engine.game.dice import DiceResult, resolve_check, roll_dice
 from engine.game.evil_ticker import EvilTicker
@@ -21,7 +22,7 @@ from engine.game.locations import get_edge, get_location
 from engine.game.plot import PlotFormula
 from engine.game.rng import DICE as RNG_DICE
 from engine.game.rng import world_rng
-from engine.game.state import GameState, InventoryItem
+from engine.game.state import GameState
 from engine.world.world_sim import WorldSim
 
 
@@ -111,7 +112,12 @@ class GameEngine:
                 message=f"Unknown location: {location_id}.",
             )
 
-        self.state.stats.stamina -= stamina_cost
+        # Both costs go through the one writer (CLAUDE.md rule 3): the stamina
+        # spend and the awareness drift used to be inline arithmetic here, the
+        # only travel mutations with no receipt and no clamp of their own.
+        effects_module.apply_effect(
+            self.state, {"type": "stamina", "delta": -stamina_cost}
+        )
         self.state.location_id = location_id
         # Travel time goes through the clock so evil, survival and expiries all
         # advance with it. The old inline arithmetic moved the calendar without
@@ -119,7 +125,9 @@ class GameEngine:
         advance_time(self.state, float(hours))
 
         awareness_delta = float(edge.get("awareness_delta", 0))
-        self.state.awareness = min(100.0, self.state.awareness + awareness_delta)
+        effects_module.apply_effect(
+            self.state, {"type": "awareness", "delta": awareness_delta}
+        )
         PlotFormula.update_story_pressure(self.state)
 
         return MoveResult(
@@ -230,13 +238,9 @@ class GameEngine:
         }
 
     def add_item(self, item_id: str, name: str, qty: int = 1) -> None:
-        """Add or stack inventory item."""
-        for entry in self.state.inventory:
-            if entry.id == item_id:
-                entry.qty += qty
-                return
-        self.state.inventory.append(
-            InventoryItem(id=item_id, name=name, qty=qty, tags=[])
+        """Add or stack an inventory item, through the one writer."""
+        effects_module.apply_effect(
+            self.state, {"type": "item", "item_id": item_id, "name": name, "qty": qty}
         )
 
     def get_evil_snapshot(self) -> dict[str, str | float]:

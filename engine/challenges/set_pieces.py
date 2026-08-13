@@ -212,7 +212,11 @@ def resolve(state: GameState, **kwargs: Any) -> runner.ChallengeResult:
     piece = load_set_pieces().get(piece_id) or {}
     grants = str(piece.get("grants_flag", "")).strip()
     if grants:
-        state.flags[grants] = True
+        from engine.game import effects as effects_module
+
+        effects_module.apply_effect(
+            state, {"type": "flag", "flag": grants, "value": True}
+        )
         logger.info(
             "[set_pieces] Set-piece completed (operation=resolve, id=%s, flag=%s)",
             piece_id,

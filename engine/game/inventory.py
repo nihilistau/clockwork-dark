@@ -638,7 +638,10 @@ def evaluate_collections(state: GameState) -> list[dict[str, Any]]:
             applied = effects_module.apply_effects(
                 state, list(spec.get("effects") or [])
             )
-            state.flags[_collection_flag(set_id)] = True
+            effects_module.apply_effect(
+                state,
+                {"type": "flag", "flag": _collection_flag(set_id), "value": True},
+            )
             logger.info(
                 "[inventory] Collection completed (operation=evaluate_collections, set=%s)",
                 set_id,
@@ -869,7 +872,6 @@ def use(state: GameState, item_id: str) -> dict[str, Any]:
         ordinary player mistakes.
     """
     from engine.game.clock import advance_time
-    from engine.game.state import TimedEffect
 
     item_id = str(item_id)
     spec = use_spec(item_id)
@@ -938,13 +940,15 @@ def use(state: GameState, item_id: str) -> dict[str, Any]:
     if bool(spec.get("once_per_day")):
         # Same trick as the labour shift cap in engine/game/economy.py: the
         # clock's expiry sweep IS the reset rule, so no new save field.
-        state.active_effects.append(
-            TimedEffect(
-                id=marker,
-                kind="item_use",
-                text=f"used {name_of(item_id).lower()}",
-                expires_day=state.world_day,
-            )
+        effects_module.apply_effect(
+            state,
+            {
+                "type": "timed_effect",
+                "id": marker,
+                "kind": "item_use",
+                "text": f"used {name_of(item_id).lower()}",
+                "expires_day": state.world_day,
+            },
         )
 
     logger.info(

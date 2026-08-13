@@ -224,8 +224,22 @@ def _record_haggle(state: GameState, npc_id: str, points: int, attempts: int) ->
         None,
     )
     if effect is None:
-        effect = TimedEffect(id=marker, kind=HAGGLE_EFFECT_KIND, expires_day=state.world_day)
-        state.active_effects.append(effect)
+        # Created through the one writer; the fields below overwrite the
+        # record the writer handed back with today's argument.
+        effects_module.apply_effect(
+            state,
+            {
+                "type": "timed_effect",
+                "id": marker,
+                "kind": HAGGLE_EFFECT_KIND,
+                "expires_day": state.world_day,
+            },
+        )
+        effect = next(
+            e
+            for e in state.active_effects
+            if e.kind == HAGGLE_EFFECT_KIND and e.id == marker
+        )
     effect.delta = int(points)
     effect.text = f"haggle:{npc_id}:{attempts}"
     effect.expires_day = state.world_day
