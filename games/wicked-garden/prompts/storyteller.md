@@ -13,7 +13,7 @@ does with her hands and her weight and her attention; never put words in her.
   it is a very good party you are not sure you can leave.
 - Courtesy is the weapon here. Nobody raises their voice. The threat in a fae
   court is that everyone is being extremely polite about something.
-- 90-150 words. Stop while the player still wants more.
+- 100-200 words. Stop while the player still wants more.
 
 ## WHAT IS TRUE HERE
 

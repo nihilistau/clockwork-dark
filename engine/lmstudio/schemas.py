@@ -27,9 +27,14 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
-# ~90-150 words at roughly 5.5 characters per word, with headroom either side.
+# The personas ask for 100-200 words; these are the GRAMMAR's bounds, not the
+# target. The max leaves ~1.5x headroom over the guidance (1800 chars is ~300
+# words at 5.5-6 chars/word) so the schema never cuts a sentence the model was
+# finishing -- storyteller.py treats landing exactly on maxLength as a grammar
+# cut. The min keeps a beat from collapsing to a single sentence.
+# tests/test_prompt_schema_coherence.py asserts guidance and caps agree.
 NARRATION_MIN_CHARS = 220
-NARRATION_MAX_CHARS = 1400
+NARRATION_MAX_CHARS = 1800
 
 CHOICE_HINTS = ["safe", "risky", "costly", "unknown"]
 MOODS = ["calm", "uneasy", "tense", "dread", "warm", "wry"]
@@ -80,7 +85,7 @@ def storyteller_turn_schema(
                         "required": ["id", "text"],
                         "properties": {
                             "id": {"enum": ["a", "b", "c", "d"]},
-                            "text": {"type": "string", "maxLength": 72},
+                            "text": {"type": "string", "maxLength": 100},
                             "hint": {"enum": CHOICE_HINTS},
                         },
                     },
