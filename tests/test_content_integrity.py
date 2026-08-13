@@ -36,6 +36,9 @@ from engine.games import registry, validation
 from engine.skills.builtin.assistant import HINTS_BY_TIER, LORE_SNIPPETS
 
 _ROOT = Path(__file__).resolve().parents[1]
+# The flagship's content tree. These tests are flagship-specific by charter,
+# so the literal path is fine here -- engine code resolves via the manifest.
+_DATA = _ROOT / "games" / "clockwork-dark" / "data"
 
 
 def _flagship():
@@ -203,7 +206,7 @@ def test_loader_returns_empty_on_a_missing_file(tmp_path: Path):
 
 def _load_all(directory: str, key: str) -> list[dict]:
     rows: list[dict] = []
-    for path in sorted((_ROOT / directory).rglob("*.yaml")):
+    for path in sorted((_DATA / directory).rglob("*.yaml")):
         with path.open(encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
         rows.extend(data.get(key) or [])
@@ -240,7 +243,7 @@ def test_every_quest_item_has_a_registry_entry():
 
 
 def test_recipes_cover_baking_herbalism_and_mending():
-    recipes = _load_all("data/recipes", "recipes")
+    recipes = _load_all("recipes", "recipes")
     assert len(recipes) >= 14
     assert {"baking", "herbalism", "mending"} <= {r.get("category") for r in recipes}
     assert {r["skill"] for r in recipes} <= validation.story_skills(_flagship())
@@ -248,7 +251,7 @@ def test_recipes_cover_baking_herbalism_and_mending():
 
 
 def test_lore_corpus_expanded():
-    files = sorted((_ROOT / "data" / "lore").glob("*.md"))
+    files = sorted((_DATA / "lore").glob("*.md"))
     assert len(files) >= 18
     sections = sum(f.read_text(encoding="utf-8").count("\n## ") for f in files)
     assert sections >= 60
@@ -280,7 +283,7 @@ def test_assistant_hints_stay_in_world():
 
 
 def test_rumor_pool_expanded_across_tiers():
-    with (_ROOT / "data" / "world" / "rumors.yaml").open(encoding="utf-8") as fh:
+    with (_DATA / "world" / "rumors.yaml").open(encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     rumors = data["rumors"]
     assert len(rumors) >= 55
@@ -291,10 +294,10 @@ def test_rumor_pool_expanded_across_tiers():
         assert per_tier.get(tier, 0) >= 15, per_tier
 
 
-@pytest.mark.parametrize("directory", ["data/items", "data/recipes"])
+@pytest.mark.parametrize("directory", ["items", "recipes"])
 def test_new_data_directories_are_versioned(directory: str):
     """Every content file declares a schema version, as the rest of the tree does."""
-    for path in sorted((_ROOT / directory).rglob("*.yaml")):
+    for path in sorted((_DATA / directory).rglob("*.yaml")):
         with path.open(encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
         assert data.get("version") == 1, path

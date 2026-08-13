@@ -47,6 +47,16 @@ _ALLOWED: dict[str, frozenset[str]] = {
 }
 _ALLOWED_PREFIXES = ("data/saves", "data/media", "data/cache", "data/telemetry")
 
+# A second, semantically different category: literals resolved against a STORY
+# root (a manifest's directory), never the repo root. The validator probes each
+# story's tree for a canon dictionary at these relative spots -- the Garden
+# keeps its under data/canon/. These never touch repo-root data/ and cannot
+# leak one story's content into another; they stay listed here so the main
+# gate below keeps rejecting genuine repo-root literals.
+_ALLOWED_STORY_RELATIVE: dict[str, frozenset[str]] = {
+    "engine/games/validation.py": frozenset({"data/canon/state-dictionary.json"}),
+}
+
 
 def _engine_sources() -> list[Path]:
     files = sorted(_ENGINE.rglob("*.py"))
@@ -58,7 +68,9 @@ def test_engine_names_no_repo_root_content() -> None:
     offenders: list[str] = []
     for path in _engine_sources():
         rel = path.relative_to(_ROOT).as_posix()
-        allowed = _ALLOWED.get(rel, frozenset())
+        allowed = _ALLOWED.get(rel, frozenset()) | _ALLOWED_STORY_RELATIVE.get(
+            rel, frozenset()
+        )
         for lineno, line in enumerate(
             path.read_text(encoding="utf-8").splitlines(), start=1
         ):
@@ -89,4 +101,23 @@ def test_the_allowlist_is_only_runtime_outputs() -> None:
                 f"{rel} allows {literal!r}, which is not an engine runtime "
                 "output -- data/saves, data/media, data/cache, data/telemetry "
                 "are the only trees that stayed at the repo root"
+            )
+
+
+def test_the_story_relative_allowlist_is_really_story_relative() -> None:
+    """
+    A story-relative row must be used as one. The named file must resolve the
+    literal against a manifest root (never bare, never against the repo root),
+    which is checked the cheap honest way: the literal appears only alongside
+    a root/manifest join in that file.
+    """
+    for rel, literals in _ALLOWED_STORY_RELATIVE.items():
+        path = _ROOT / rel
+        assert path.is_file(), f"story-relative allowlist names a missing file: {rel}"
+        text = path.read_text(encoding="utf-8")
+        for literal in literals:
+            assert literal in text, f"{rel} no longer uses {literal!r}; remove the row"
+            assert not (_ROOT / literal).exists(), (
+                f"{literal!r} exists at the repo root -- a story-relative probe "
+                "that also resolves at the repo root is the inheritance bug"
             )
