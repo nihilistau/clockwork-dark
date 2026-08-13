@@ -201,7 +201,7 @@ def _commit(
     nothing to roll back.
 
     ``by=`` carries the proposing agent into the state store, so its per-value
-    ``owners`` ACL and its write journal both see who asked. An effect the store
+    ``owners`` ACL sees who asked and the receipt records it. An effect the store
     refuses comes back as a receipt with ``ok: False`` and is collected as a
     refusal rather than discarded -- the plan filter catches most of these
     first, and the two together are belt and braces on the one permission that
