@@ -484,9 +484,9 @@ comms:
 governance:
   directives:
     # First in the chain: standing constraints come before tone. Emits nothing
-    # at all when the story configures no boundaries and no ceiling, which is
-    # both shipped games -- zero prompt tokens, which matters because the
-    # budget overflow (R-01) was caused by exactly this kind of addition.
+    # at all when the session's safety policy is inert -- zero prompt tokens,
+    # which matters because the budget overflow (R-01) was caused by exactly
+    # this kind of addition.
     - SafetyDirective
     - EvilPhaseTone
     - DoomSignsInterceptor

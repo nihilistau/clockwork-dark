@@ -17,9 +17,12 @@ WHAT RUNS NOW, for a story that declares two or more agents:
                  same player action, seeing only what its scopes allow
     2. NEGOTIATE the story's rule table decides whose intent leads, which
                  choices reach the player, and what each side gives up
-    3. COMMIT    the accepted effects are applied ONCE, atomically, through the
+    3. GOVERN    the PHASE_COMMIT chain reviews the reconciled proposals while
+                 they are still proposals -- the safety ceiling lives here, and
+                 a hook may veto the turn's effects outright
+    4. COMMIT    the accepted effects are applied ONCE, atomically, through the
                  single writer, with the proposing agent recorded
-    4. NARRATE   downstream and unchanged, except that it now knows the answer
+    5. NARRATE   downstream and unchanged, except that it now knows the answer
 
 The ordering is the point. An agent that has already written cannot be argued
 with, so nothing is written until the argument is over.
@@ -30,10 +33,11 @@ moved, the world's consequence did not -- would leave a state neither agent
 proposed and no rule produced.
 
 INERT WITHOUT A ROSTER. A story declaring fewer than two agents gets
-``ran=False`` and the caller keeps the path it had. That is both shipped games,
-which is why this lands without touching either.
+``ran=False`` and the caller keeps the path it had. The flagship declares no
+roster and keeps the turn it always had; The Wicked Garden ships an
+``agents.yaml`` with two agents, and this pipeline is its turn.
 
-Version: v0.1.0 [2026-08-09]
+Version: v0.2.0 [2026-08-13]
 """
 
 from __future__ import annotations
@@ -67,6 +71,10 @@ class PipelineResult:
     #: Writes an agent asked for and did not get, from either the plan filter or
     #: the store's own ACL.
     refused: list[dict[str, Any]] = field(default_factory=list)
+    #: Non-empty when a PHASE_COMMIT governor vetoed the turn: nothing was
+    #: applied, every proposed write is in ``refused``, and the negotiated turn
+    #: is marked blocked so the narrator declines in fiction.
+    veto: str = ""
 
     @property
     def lead(self) -> str:
@@ -98,6 +106,7 @@ class PipelineResult:
             "plans": [p.to_dict() for p in self.plans.values()],
             "receipts": list(self.receipts),
             "refused": list(self.refused),
+            "veto": self.veto,
         }
 
 
@@ -132,9 +141,64 @@ def _gather(
         return dict(pool.map(_one, specs))
 
 
-def _commit(state: Any, turn: NegotiatedTurn, *, ledger: Any = None) -> tuple[list, list]:
+def _govern_commit(
+    state: Any,
+    turn: NegotiatedTurn,
+    plans: dict[str, AgentPlan],
+    governance: Any = None,
+) -> str:
+    """
+    Run the PHASE_COMMIT governance chain over the reconciled turn.
+
+    This is the call that did not exist: ``GovernancePipeline.run_commit`` and
+    the ``governance.commit`` config key were both shipped, and nothing invoked
+    the one phase with veto authority. It runs here, BEFORE the transaction, so
+    the safety ceiling reviews proposals while they are still proposals -- a
+    redirect clears the offending plans' effects (which is why ``proposed`` is
+    gathered after this call), and a veto stops the commit entirely.
+
+    Args:
+        governance: Explicit pipeline, overriding the configured one. Tests use
+            this to exercise one hook in isolation.
+
+    Returns:
+        The veto reason, or "" when the turn may commit. Never raises: the
+        chain already skips a hook that throws, so an exception here means the
+        pipeline could not be BUILT at all, and an unbuildable governance
+        config must not cost the player the turn.
+    """
+    try:
+        from engine.agents.governance import TurnContext, get_governance
+
+        pipeline = governance if governance is not None else get_governance()
+        ctx = TurnContext(state=state, plans=dict(plans), negotiated=turn)
+        ctx = pipeline.run_commit(ctx)
+        return str(ctx.veto or "")
+    except Exception as exc:  # noqa: BLE001 -- see docstring
+        logger.warning(
+            "[pipeline] Commit governance unavailable, proceeding "
+            "(operation=_govern_commit): %s",
+            exc,
+        )
+        return ""
+
+
+def _commit(
+    state: Any,
+    turn: NegotiatedTurn,
+    *,
+    plans: Optional[dict[str, AgentPlan]] = None,
+    ledger: Any = None,
+    governance: Any = None,
+) -> tuple[list, list, str]:
     """
     Apply every accepted plan's effects, atomically, through the one writer.
+
+    The PHASE_COMMIT governance chain runs first, before the transaction opens:
+    it is the one chain with authority over whether these proposals are applied
+    at all (engine/agents/governance.py::run_commit). A veto marks the turn
+    blocked and refuses every proposed write; nothing is applied, so there is
+    nothing to roll back.
 
     ``by=`` carries the proposing agent into the state store, so its per-value
     ``owners`` ACL and its write journal both see who asked. An effect the store
@@ -149,13 +213,33 @@ def _commit(state: Any, turn: NegotiatedTurn, *, ledger: Any = None) -> tuple[li
     receipts: list[dict[str, Any]] = []
     refused: list[dict[str, Any]] = []
 
+    veto = _govern_commit(state, turn, plans or {}, governance)
+    if veto:
+        turn.blocked = True
+        turn.block_reason = turn.block_reason or veto
+        for agent, plan in turn.accepted.items():
+            for effect in plan.effects:
+                refused.append(
+                    {"agent": agent, **effect.to_effect(), "why": f"vetoed: {veto}"}
+                )
+        logger.warning(
+            "[pipeline] Turn vetoed, nothing applied (operation=_commit, "
+            "reason=%s, refused=%d)",
+            veto,
+            len(refused),
+        )
+        return receipts, refused, veto
+
+    # Gathered AFTER governance: a redirected plan's effects were cleared by
+    # the chain, and applying a list snapshotted before it would re-apply the
+    # exact writes the redirect dropped.
     proposed = [
         (agent, effect)
         for agent, plan in turn.accepted.items()
         for effect in plan.effects
     ]
     if not proposed:
-        return receipts, refused
+        return receipts, refused, ""
 
     tx = StateTransaction(state)
     try:
@@ -182,7 +266,7 @@ def _commit(state: Any, turn: NegotiatedTurn, *, ledger: Any = None) -> tuple[li
         len(receipts),
         len(refused),
     )
-    return receipts, refused
+    return receipts, refused, ""
 
 
 def run_pipeline(
@@ -193,9 +277,10 @@ def run_pipeline(
     safety_block: str = "",
     llm_fn: Optional[Callable[..., Any]] = None,
     roster: Any = None,
+    governance: Any = None,
 ) -> PipelineResult:
     """
-    Plan, negotiate and commit, ahead of narration.
+    Plan, negotiate, govern and commit, ahead of narration.
 
     Args:
         state: The live game state. Written only in the commit phase.
@@ -205,6 +290,8 @@ def run_pipeline(
             story rule and cannot be reordered out of the way.
         llm_fn: Injected model, for tests.
         roster: Override, for tests. Defaults to the active story's.
+        governance: Explicit GovernancePipeline for the PHASE_COMMIT review.
+            Tests use it; the turn defaults to the configured one.
 
     Returns:
         ``ran=False`` for a story with fewer than two declared agents, with
@@ -227,7 +314,9 @@ def run_pipeline(
     negotiator = Negotiator(roster.rules, owned_voices=roster.owned_voices())
     turn = negotiator.negotiate(plans, safety_block=safety_block)
 
-    receipts, refused = _commit(state, turn, ledger=ledger)
+    receipts, refused, veto = _commit(
+        state, turn, plans=plans, ledger=ledger, governance=governance
+    )
     # Writes the plan filter refused before they ever reached the store.
     for plan in plans.values():
         for row in plan.refused:
@@ -235,14 +324,15 @@ def run_pipeline(
 
     logger.info(
         "[pipeline] Turn negotiated (operation=run_pipeline, lead=%s, agents=%d, "
-        "resolutions=%d, blocked=%s)",
+        "resolutions=%d, blocked=%s, veto=%s)",
         turn.lead,
         len(plans),
         len(turn.resolutions),
         turn.blocked,
+        bool(veto),
     )
     return PipelineResult(
-        ran=True, turn=turn, plans=plans, receipts=receipts, refused=refused
+        ran=True, turn=turn, plans=plans, receipts=receipts, refused=refused, veto=veto
     )
 
 

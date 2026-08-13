@@ -462,7 +462,8 @@ def test_the_store_refuses_a_write_that_slipped_past_the_filter(garden: GameStat
             effects=[ProposedEffect(kind="value", payload={"name": "corruption", "delta": 5})],
         )
     }
-    receipts, refused = pipeline_module._commit(garden, turn)
+    receipts, refused, veto = pipeline_module._commit(garden, turn)
+    assert veto == ""
     assert receipts[0]["ok"] is False
     assert refused and refused[0]["agent"] == "sophia"
     assert garden.meters.get("corruption", 5) == 5

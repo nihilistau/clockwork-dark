@@ -245,9 +245,10 @@ class GovernancePipeline:
 
         logger.info(
             "[governance] Pipeline built (operation=from_config, pre=%d, "
-            "directive=%d, post=%d, media=%d)",
+            "directive=%d, commit=%d, post=%d, media=%d)",
             len(chains.get(PHASE_PRE, [])),
             len(chains.get(PHASE_DIRECTIVE, [])),
+            len(chains.get(PHASE_COMMIT, [])),
             len(chains.get(PHASE_POST, [])),
             len(chains.get(PHASE_MEDIA, [])),
         )

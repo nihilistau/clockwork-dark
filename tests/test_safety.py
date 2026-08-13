@@ -771,9 +771,10 @@ class TestAgainstTheRealPipeline:
     TurnContext, not by the stand-ins above.
 
     The stand-ins keep this package from depending on engine.agents; these
-    prove the duck typing is the right shape. Chains are passed explicitly
-    because ``from_config`` does not read ``governance.commit`` yet -- see the
-    NOT WIRED table in docs/SAFETY.md.
+    prove the duck typing is the right shape. Chains are passed explicitly to
+    exercise one hook in isolation; the CONFIGURED chain -- ``governance.commit``
+    read by ``from_config`` and run by ``pipeline._commit`` -- is proven in
+    tests/test_governance_commit.py.
     """
 
     def test_the_directive_chain_carries_the_block(self, active_policy):

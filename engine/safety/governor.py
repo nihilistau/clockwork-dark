@@ -29,13 +29,14 @@ future readers to be careful. ``_redirect`` is the one path that clears
 effects, because a redirect means the fiction interrupted and the thing did not
 occur.
 
-NOT WIRED. Registration is explicit -- ``register_safety_interceptors()`` --
-and nothing in ``engine/`` calls it yet, because the call sites are in
-``engine/agents/`` which this workstream does not own. Until that one line
-lands, these classes are importable, unit-tested and inert. The exact wiring
-lines are in ``docs/SAFETY.md``.
+WIRED. ``engine/agents/governance.py`` calls ``register_safety_interceptors()``
+at import (``_register_safety``), so both classes resolve by their config
+names; ``config/default.yaml`` puts SafetyDirective in ``governance.directives``
+and SafetyCeiling in ``governance.commit``; and the commit chain itself is run
+by ``engine/agents/pipeline.py::_commit`` before the turn's transaction, which
+is what makes the ceiling a ceiling rather than a report.
 
-Version: v0.1.0 [2026-08-08]
+Version: v0.2.0 [2026-08-13]
 """
 
 from __future__ import annotations

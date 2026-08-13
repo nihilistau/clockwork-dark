@@ -121,6 +121,7 @@ SETTING_ALLOWLIST: dict[str, str] = {
     # doom clock it does not have.
     "comms.interceptors": "per-message interceptor chain, by class name",
     "governance.directives": "GM prompt directive chain, by class name",
+    "governance.commit": "pre-commit governor chain (veto authority), by class name",
     "governance.post": "post-turn governor chain, by class name",
     "governance.media": "media governor chain, by class name",
     # -- set-piece pacing -------------------------------------------------
