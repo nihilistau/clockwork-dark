@@ -11,6 +11,7 @@ The screens that are THIS story's, as one Blueprint.
     GET /api/items             the pack
     GET /api/recipes           the recipe book
     GET /api/trade             who will barter, and at what price
+    GET /api/notices           the notice board: contracts posted here
 
 WHY THESE ARE NOT ENGINE ROUTES. Each one answers a question that only makes
 sense if the story asked it. A story with no quests should not serve an empty
@@ -545,6 +546,41 @@ def recipe_book(state: Any) -> dict[str, Any]:
     }
 
 
+def notice_board(state: Any) -> dict[str, Any]:
+    """
+    The notice board: what is posted in the square right now.
+
+    docs/GOVERNANCE.md carried this in NOT WIRED as "the contract catalogue it
+    would serve from exists; the render does not". The catalogue is
+    ``data/tables/labour.yaml`` read through ``engine/game/economy.py``, and
+    this is the server half of the render: every contract the engine would
+    actually honour here, with its wage arithmetic attached, plus the jobs
+    posted for other places so the board is a reason to travel.
+
+    Presentation only. Taking a shift is a turn through the ``work`` skill,
+    and ``economy.available`` has already filtered out anything the engine
+    would refuse -- a board must never post work the player cannot take.
+    """
+    from engine.game import economy
+    from engine.game.locations import get_location
+
+    posted = economy.snapshot(state)
+    here = str(getattr(state, "location_id", "") or "")
+    return {
+        "location_id": here,
+        "location_name": str((get_location(here) or {}).get("name") or here),
+        "configured": bool(posted.get("configured")),
+        "phase": str(posted.get("phase") or ""),
+        "shifts_worked_today": int(posted.get("shifts_worked_today", 0) or 0),
+        "shifts_per_day": int(posted.get("shifts_per_day", 0) or 0),
+        # The contracts the player could take right now, wage breakdown and
+        # all -- economy.available's rows, unrewrapped, so the board and the
+        # `query_work` skill can never disagree about what is on offer.
+        "notices": list(posted.get("here") or []),
+        "elsewhere": list(posted.get("elsewhere") or []),
+    }
+
+
 def trade_offer(state: Any) -> dict[str, Any]:
     """
     Who will barter with the player right now, and at what price.
@@ -697,6 +733,21 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
             return jsonify({"error": "session not found"}), 404
         return jsonify(trade_offer(session.engine.state))
 
+    @blueprint.get("/api/notices")
+    def api_notices() -> Any:
+        """
+        The notice board: posted contracts where the player stands.
+
+        Session-required, because a board is meaningless without a location
+        and a day -- every row's wage moves with standing, phase and the
+        shifts already worked.
+        """
+        try:
+            session = store.require(request.args.get("session_id", ""))
+        except KeyError:
+            return jsonify({"error": "session not found"}), 404
+        return jsonify(notice_board(session.engine.state))
+
     return blueprint
 
 
@@ -706,6 +757,7 @@ __all__ = [
     "codex_souls",
     "codex_things",
     "item_catalog",
+    "notice_board",
     "quest_journal",
     "recipe_book",
     "story_blueprint",
