@@ -96,6 +96,13 @@ class AgentSpec:
         profile: LM Studio profile. A character agent that must answer quickly
             and a world agent that may think are not the same call.
         prompt: Path to this agent's persona, relative to the story root.
+        pipeline: Whether this agent takes part in the plan -> negotiate ->
+            commit turn. Defaults to True because a declared agent normally IS
+            a negotiation participant; the flagship's companion is the case
+            that needed the flag -- it is a real member of the cast with an id
+            and a persona, but it speaks AFTER narration through the assistant
+            director, so counting it as a negotiator would spend a model call
+            asking it to plan a turn it never leads.
     """
 
     id: str
@@ -106,6 +113,7 @@ class AgentSpec:
     writes_with_reason: tuple[str, ...] = ()
     profile: str = "big"
     prompt: str = ""
+    pipeline: bool = True
 
     @property
     def all_writes(self) -> tuple[str, ...]:
@@ -130,6 +138,19 @@ class Roster:
 
     def of_role(self, role: str) -> list[AgentSpec]:
         return [a for a in self.agents.values() if a.role == role]
+
+    def pipeline_agents(self) -> list[AgentSpec]:
+        """
+        The agents that plan and negotiate, in declared order.
+
+        This is the list the multi-agent turn counts and gathers -- a declared
+        agent with ``pipeline: false`` is still in the cast (its voices are
+        owned, its scopes filter prompts, its writes reach the schema) but it
+        does not propose, so it cannot trip the pipeline's two-participant
+        threshold. The flagship's companion is exactly this: present, named,
+        and deliberately not a negotiator.
+        """
+        return [a for a in self.agents.values() if a.pipeline]
 
     def owned_voices(self) -> dict[str, tuple[str, ...]]:
         """The mapping ``Negotiator`` needs to enforce voice ownership."""
@@ -212,6 +233,7 @@ def parse_roster(data: Any, *, slug: str = "") -> Roster:
             writes_with_reason=_tuple("writes_with_reason"),
             profile=str(raw.get("profile", "big")),
             prompt=str(raw.get("prompt", "") or ""),
+            pipeline=bool(raw.get("pipeline", True)),
         )
 
     roster.rules = rules_from_data(data.get("negotiation"))

@@ -126,7 +126,7 @@ per-value `owners` ACL and onto the effect receipt.
 | Thing | Status |
 |---|---|
 | Agent write attribution | **Wired.** `engine/agents/pipeline.py` commits every accepted effect through `apply_effect(..., by=agent, turn=...)`, so the store's `owners` ACL and the receipt both see who asked. Writes outside the pipeline are `WRITER_ENGINE`, which is what they are. |
-| The plan/negotiate pipeline | **Live.** `engine/agents/pipeline.py` runs plan → negotiate → commit ahead of narration for any story whose `agents.yaml` declares two or more agents. The Wicked Garden declares two (`gm` + `sophia`) and takes this path; the flagship declares no roster and runs the single-agent turn unchanged. |
+| The plan/negotiate pipeline | **Live.** `engine/agents/pipeline.py` runs plan → negotiate → commit ahead of narration for any story whose `agents.yaml` declares two or more pipeline participants. The Wicked Garden declares two (`gm` + `sophia`) and takes this path; the flagship's roster declares its canon pair with the companion at `pipeline: false`, so it has one participant and runs the single-agent turn unchanged. |
 
 ## NOT WIRED
 

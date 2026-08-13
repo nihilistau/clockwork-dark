@@ -9,8 +9,9 @@ negotiation however good the parts were.
 
 What this suite holds:
 
-  * the shipped games are untouched -- fewer than two declared agents means the
-    pipeline does not run, and the turn is the one they had
+  * the shipped games are untouched -- fewer than two pipeline PARTICIPANTS
+    means the pipeline does not run, and the turn is the one they had; the
+    flagship's roster declares two agents and one participant on purpose
   * an agent proposes; nothing is written until the argument is over
   * ONE commit, atomic: no turn ends in a state neither agent proposed
   * permissions hold at both walls -- the plan filter and the store's ACL
@@ -94,10 +95,11 @@ def _speaks(answers: dict[str, dict[str, Any]]) -> Any:
 
 def test_a_story_with_no_roster_does_not_run_a_pipeline() -> None:
     """
-    The flagship declares no agents.yaml, and an empty roster is what any
-    story that has not written one resolves to. (The Wicked Garden DOES ship
-    one; that is the other side of the seam and is tested against a roster
-    rather than against its absence.)
+    An empty roster is what any story that has not written an agents.yaml
+    resolves to, and it must cost nothing. (Both shipped games declare one
+    now -- the Garden's is the two-participant shape, the flagship's is a
+    declared cast with a single participant -- so the empty roster is the
+    legacy shim's path, held here rather than by a shipped game.)
 
     `ran=False` is what keeps this additive: the caller falls through to the
     turn it had, the narration prompt gets no extra block, and the payload grows
@@ -108,6 +110,77 @@ def test_a_story_with_no_roster_does_not_run_a_pipeline() -> None:
     assert result.turn.accepted == {}
     assert result.receipts == []
     assert pipeline_module.narration_block(result) == ""
+
+
+def test_the_flagships_shipped_roster_does_not_trip_the_pipeline() -> None:
+    """
+    The flagship now SHIPS an agents.yaml -- its canon ids had to live in the
+    story rather than in engine literals -- and the single most important
+    property of that file is that it changes nothing about the flagship's turn.
+
+    Its companion is `pipeline: false` (it speaks after narration, through the
+    assistant director), so the roster declares two agents and ONE negotiation
+    participant, which is below MIN_AGENTS. A regression here would spend two
+    model calls per flagship turn negotiating with an agent that never leads.
+    """
+    import yaml
+
+    with (_ROOT / "games" / "clockwork-dark" / "agents.yaml").open(
+        encoding="utf-8"
+    ) as handle:
+        roster = parse_roster(yaml.safe_load(handle), slug="clockwork-dark")
+
+    # The canon pair, by their canon ids (CLAUDE.md: do not rename).
+    assert set(roster.agents) == {"clockwork_storyteller", "clockwork_assistant"}
+    assert [a.id for a in roster.pipeline_agents()] == ["clockwork_storyteller"]
+
+    result = pipeline_module.run_pipeline(GameState(), "look around", roster=roster)
+    assert result.ran is False
+
+
+def test_a_pipeline_false_agent_is_present_but_not_a_participant() -> None:
+    """
+    `pipeline: false` declares identity without declaring a negotiator.
+
+    The flag is per-agent and additive: with it, the cast still owns its
+    voices; without a second participant, the pipeline stays inert. Adding a
+    third agent that DOES plan brings the count back over the threshold, which
+    is what proves the gate counts participants rather than declarations.
+    """
+    two = parse_roster(
+        {
+            "agents": {
+                "narrator": {"role": "world"},
+                "sidekick": {"role": "companion", "pipeline": False},
+            }
+        },
+        slug="t",
+    )
+    assert [a.id for a in two.pipeline_agents()] == ["narrator"]
+    # The declared-but-not-planning agent still owns its voices.
+    assert "sidekick" in two.owned_voices()
+    assert pipeline_module.run_pipeline(GameState(), "wait", roster=two).ran is False
+
+    three = parse_roster(
+        {
+            "agents": {
+                "narrator": {"role": "world"},
+                "rival": {"role": "character"},
+                "sidekick": {"role": "companion", "pipeline": False},
+            }
+        },
+        slug="t",
+    )
+
+    def silent(messages: list[dict[str, Any]]) -> str:
+        return json.dumps({"intent": "silent", "beat": ""})
+
+    result = pipeline_module.run_pipeline(
+        GameState(), "wait", roster=three, llm_fn=silent
+    )
+    assert result.ran is True
+    # Only the two participants planned; the sidekick was never asked.
+    assert set(result.plans) == {"narrator", "rival"}
 
 
 def test_a_single_declared_agent_is_a_narrator_not_a_negotiation() -> None:
@@ -399,7 +472,11 @@ def test_the_roster_grant_reaches_the_store(garden: GameState) -> None:
 
 
 def test_a_shipped_game_gains_no_agent_writable_values() -> None:
-    """An empty roster grants nothing, so the flagship's schema is untouched."""
+    """
+    The flagship's roster declares its cast and no `writes:`, so nothing is
+    folded into the schema's owners -- its state moves through @skill tools
+    with the engine as the writer, exactly as it did before the roster existed.
+    """
     from engine.games.registry import activate, deactivate
     from engine.state.active import active_schema
 

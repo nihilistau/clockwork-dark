@@ -32,10 +32,14 @@ ONE COMMIT, NOT TWO. Every accepted effect lands inside one
 moved, the world's consequence did not -- would leave a state neither agent
 proposed and no rule produced.
 
-INERT WITHOUT A ROSTER. A story declaring fewer than two agents gets
-``ran=False`` and the caller keeps the path it had. The flagship declares no
-roster and keeps the turn it always had; The Wicked Garden ships an
-``agents.yaml`` with two agents, and this pipeline is its turn.
+INERT WITHOUT TWO NEGOTIATORS. A story declaring fewer than two PIPELINE
+participants gets ``ran=False`` and the caller keeps the path it had. Both
+shipped games ship an ``agents.yaml`` now, and the count is of participants
+rather than of declared agents on purpose: the flagship's roster names its
+narrator and its companion, but the companion is ``pipeline: false`` -- it
+speaks after narration through the assistant director -- so the flagship
+keeps the single-agent turn it always had. The Wicked Garden declares two
+participants, and this pipeline is its turn.
 
 Version: v0.2.0 [2026-08-13]
 """
@@ -53,9 +57,11 @@ from engine.agents.planner import plan_for
 
 logger = logging.getLogger(__name__)
 
-#: Below this, there is nobody to negotiate with. A single declared agent is a
+#: Below this, there is nobody to negotiate with. A single PARTICIPANT is a
 #: narrator, and running a negotiation against itself would spend a model call
-#: to reach the conclusion it started from.
+#: to reach the conclusion it started from. Counted over the roster's
+#: ``pipeline_agents()``, not its whole cast: a ``pipeline: false`` agent is
+#: declared identity, not a negotiator.
 MIN_AGENTS = 2
 
 
@@ -127,8 +133,12 @@ def _gather(
     A thread pool rather than the media queue: these are blocking HTTP calls to
     LM Studio, and the lane config (`lmstudio.lanes`) is what actually bounds
     concurrency against the model server.
+
+    Only pipeline participants plan. A ``pipeline: false`` agent (the
+    flagship's companion) gets its turn elsewhere, after narration, and asking
+    it for a proposal here would be a model call the negotiator ignores.
     """
-    specs = list(roster.agents.values())
+    specs = list(roster.pipeline_agents())
     policy = roster.knowledge()
 
     def _one(spec: Any) -> tuple[str, AgentPlan]:
@@ -294,8 +304,8 @@ def run_pipeline(
             Tests use it; the turn defaults to the configured one.
 
     Returns:
-        ``ran=False`` for a story with fewer than two declared agents, with
-        everything else empty. Never raises for an agent-side failure: a model
+        ``ran=False`` for a story with fewer than two pipeline participants,
+        with everything else empty. Never raises for an agent-side failure: a model
         outage produces silent plans and a turn that still happens.
     """
     if roster is None:
@@ -307,7 +317,8 @@ def run_pipeline(
             logger.debug("[pipeline] No roster available: %s", exc)
             roster = None
 
-    if not roster or len(getattr(roster, "agents", {})) < MIN_AGENTS:
+    participants = roster.pipeline_agents() if roster else []
+    if len(participants) < MIN_AGENTS:
         return PipelineResult(ran=False)
 
     plans = _gather(roster, state, player_action, llm_fn)

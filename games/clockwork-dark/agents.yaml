@@ -1,0 +1,49 @@
+# The Clockwork Dark -- the cast that narrates it.
+#
+# Two agents, and both ids are CANON (CLAUDE.md: do not rename). They were
+# born as Python literals in engine/agents/storyteller.py and assistant.py,
+# which meant the engine's default cast was one story's cast -- the same bug,
+# in agent form, that paths.* had in content form. The engine now resolves an
+# agent's id through the active roster and keeps the old literals only as the
+# fallback for a story that declares no roster at all; this file is where the
+# flagship's names actually live.
+#
+# WHAT THIS DECLARATION DELIBERATELY DOES NOT DO: run the multi-agent turn.
+# The pipeline (engine/agents/pipeline.py) counts negotiation PARTICIPANTS,
+# and this story has one. The companion is a real member of the cast with an
+# id, a persona and a profile, but it speaks AFTER the narrator has committed,
+# through the assistant director -- it proposes nothing, it negotiates
+# nothing, and `pipeline: false` below is the honest declaration of that
+# shape. One participant is below the pipeline's threshold, so this story
+# keeps the single-agent turn it has always had. The Wicked Garden's roster is
+# the two-participant shape; this file is the other one.
+#
+# No `writes:` anywhere, also deliberately. This story's state moves through
+# the engine's @skill tools and effects.apply_effect with the engine as the
+# writer; neither agent asks the state store for a value of its own, and a
+# grant here would be folded into the schema's owners for no caller.
+#
+# Version: v0.1.0 [2026-08-13]
+
+agents:
+  # -------------------------------------------------------------------------
+  # The narrator. The world, the dice, and the brass thing in the Wound.
+  # -------------------------------------------------------------------------
+  clockwork_storyteller:
+    role: world
+    profile: big
+    prompt: prompts/storyteller.md
+
+  # -------------------------------------------------------------------------
+  # The companion. A voice at your shoulder, not a hand on the state.
+  #
+  # It reads the finished prose and reacts -- a quip, a hint, a warning, a
+  # gift -- on the assistant director's schedule. It leads no turns, so it is
+  # declared out of the negotiation entirely rather than counted as a
+  # participant who never speaks first.
+  # -------------------------------------------------------------------------
+  clockwork_assistant:
+    role: companion
+    profile: small
+    prompt: prompts/assistant.md
+    pipeline: false
