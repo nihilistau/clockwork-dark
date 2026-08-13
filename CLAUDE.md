@@ -75,7 +75,7 @@ for what is built but not yet called.
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\doctor.py            # environment, config, content
-.\.venv\Scripts\python.exe -m pytest tests\ -q          # green, 1 xfail
+.\.venv\Scripts\python.exe -m pytest tests\ -q          # fully green, no xfail
 .\.venv\Scripts\python.exe launcher.py --check          # local services and what each outage costs
 .\.venv\Scripts\python.exe scripts\simulate.py --policy all --turns 200
 ```

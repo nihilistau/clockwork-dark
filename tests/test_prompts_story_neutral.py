@@ -243,8 +243,7 @@ def test_no_story_is_handed_the_flagships_imagery(slug):
         assert image not in gated, f"{slug} was handed the flagship's {image!r}"
 
 
-@pytest.mark.parametrize("slug", ["wicked-garden", "dev-story"])
-def test_the_machinery_is_masked_even_with_no_story_table(slug):
+def test_the_machinery_is_masked_even_with_no_story_table():
     """
     The half the first fix missed.
 
@@ -252,10 +251,17 @@ def test_the_machinery_is_masked_even_with_no_story_table(slug):
     `spoilers.yaml` redacting NOTHING -- including `evil_progress` and the
     phase ids, which are the engine's own identifiers and leak out of any
     story. They are covered by `ENGINE_TERMS` now, in story-neutral words.
+
+    The Wicked Garden is the only shipped story in that position, so it is the
+    only one parametrised. `dev-story` was here too and had to come out the day
+    it shipped a `spoilers.yaml` of its own -- a test named "with no story
+    table" pointed at a story that has one asserts the opposite of its name,
+    and would have passed for the wrong reason if the file had been empty
+    rather than absent.
     """
     from engine.lore.interceptors import AwarenessGateInterceptor, story_spoiler_terms
 
-    registry.activate(slug)
+    registry.activate("wicked-garden")
     assert story_spoiler_terms() == (), "this story is supposed to declare none"
     gated = AwarenessGateInterceptor().gate(SPOILER_LINE, 0.0)
     assert "evil_progress" not in gated
