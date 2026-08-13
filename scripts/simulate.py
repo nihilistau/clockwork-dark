@@ -40,13 +40,23 @@ doom clock, and exists so "the clock answers to conduct" is a measurement
 untouched as the exposed-but-unengaged control. The evil block now reports the
 doom_resistance a run actually held, plus set-pieces played and won.
 
+WHAT ``--game`` DOES, AND WHAT THE POLICIES CANNOT. The five policies are
+FLAGSHIP-OWNED by design: they walk Edgewood's location ids, buy from
+Edgewood's vendors, and drill flagship skills. ``--game`` activates the named
+story first and then dispatches by shape -- a deck-shaped story (``paths.decks``
+and no quests/encounters) goes to ``scripts/simulate_decks.py``, the flagship
+runs the policy harness exactly as before, and any OTHER graph story is refused
+with its reason: the policies would walk it into location ids it does not have.
+No ``--game`` means the flagship, byte-for-byte as it always did.
+
 Usage:
     python scripts/simulate.py --turns 200 --seed 42 --policy cautious
     python scripts/simulate.py --policy all --json > balance.json
     python scripts/simulate.py --policy pauper --turns 200   # can you live broke?
     python scripts/simulate.py --policy hero --turns 200     # does pushing back buy time?
+    python scripts/simulate.py --game wicked-garden --runs 200   # the deck walker
 
-Version: v0.3.0 [2026-08-14]
+Version: v0.4.0 [2026-08-14]
 """
 
 from __future__ import annotations
@@ -1378,13 +1388,110 @@ def simulate(
     )
 
 
+#: The one graph story the policies can actually play. Their location ids,
+#: vendor names and skill picks are all Edgewood's; see the module docstring.
+FLAGSHIP_SLUG = "clockwork-dark"
+
+
+def story_shape(manifest: Any) -> str:
+    """
+    Which harness a story's manifest asks for.
+
+    ``deck``: declares ``paths.decks`` and no quests or encounters -- the
+    Garden shape, walked by ``scripts/simulate_decks.py``. ``graph``: declares
+    quests or encounters -- the flagship shape, run by the policies here.
+    Anything else is ``other`` and has no harness yet.
+    """
+    paths = getattr(manifest, "paths", None) or {}
+    if "decks" in paths and "quests" not in paths and "encounters" not in paths:
+        return "deck"
+    if "quests" in paths or "encounters" in paths:
+        return "graph"
+    return "other"
+
+
+def _dispatch_game(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Optional[int]:
+    """
+    Activate ``--game`` and route by shape. None means "run the policies here".
+
+    Activation happens BEFORE any policy runs so every loader in this module
+    reads the requested story's content; the engine's cache reset refreshes
+    the module-level ``LOCATIONS`` mapping in place.
+    """
+    from engine.games.registry import activate
+
+    manifest = activate(args.game)
+    shape = story_shape(manifest)
+
+    if shape == "deck":
+        # The deck walker lives beside this script; imported by path so the
+        # scripts directory needs no package machinery.
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import simulate_decks
+
+        report = simulate_decks.simulate_deck_story(
+            runs=args.runs,
+            seed=args.seed,
+            max_days=args.max_days,
+            thread_rate=args.thread_rate,
+        )
+        if args.json:
+            print(json.dumps(report, indent=2))
+        else:
+            print(simulate_decks._render(report))
+        return 0
+
+    if manifest.slug != FLAGSHIP_SLUG:
+        parser.error(
+            f"the scripted policies are flagship-owned -- they walk Edgewood's "
+            f"location ids and vendors, which '{manifest.slug}' does not have. "
+            f"This harness can run '{FLAGSHIP_SLUG}' (graph) or any deck-shaped "
+            f"story (paths.decks, no quests/encounters); '{manifest.slug}' is "
+            f"{shape}-shaped and has no headless harness yet."
+        )
+    return None
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Headless balance harness for The Clockwork Dark."
+        description=(
+            "Headless balance harness. Default: the flagship's five scripted "
+            "policies. --game <slug> activates a story first and dispatches "
+            "by shape: deck-shaped stories run scripts/simulate_decks.py; "
+            "graph stories other than the flagship are refused, because the "
+            "policies are flagship-owned."
+        )
     )
     parser.add_argument("--turns", type=int, default=200, help="Turns to play.")
     parser.add_argument("--seed", type=int, default=42, help="World seed.")
+    parser.add_argument(
+        "--game",
+        default="",
+        help=(
+            "Story slug to activate and simulate. Deck-shaped stories dispatch "
+            "to the deck walker; graph stories other than the flagship are "
+            "refused (the policies are flagship-owned). Default: the flagship."
+        ),
+    )
+    parser.add_argument(
+        "--runs",
+        type=int,
+        default=200,
+        help="Deck stories only: seeded runs to walk.",
+    )
+    parser.add_argument(
+        "--max-days",
+        type=int,
+        default=30,
+        help="Deck stories only: day budget per run.",
+    )
+    parser.add_argument(
+        "--thread-rate",
+        type=float,
+        default=0.35,
+        help="Deck stories only: per-chapter chance the policy seals a bargain.",
+    )
     parser.add_argument(
         "--policy",
         default="cautious",
@@ -1402,6 +1509,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     parser.add_argument("--json", action="store_true", help="Emit JSON, not prose.")
     args = parser.parse_args(argv)
+
+    if args.game:
+        dispatched = _dispatch_game(args, parser)
+        if dispatched is not None:
+            return dispatched
 
     names = sorted(POLICIES) if args.policy == "all" else [args.policy]
     reports = [
