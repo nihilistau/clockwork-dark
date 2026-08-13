@@ -157,6 +157,25 @@ def test_a_scaffolded_story_is_discovered_and_validates_clean(story_root, templa
 
 
 @pytest.mark.parametrize("template", TEMPLATES)
+def test_a_scaffolded_story_passes_the_shared_content_validator(story_root, template):
+    """
+    registry.validate() checks the manifest; validate_story() checks the
+    CONTENT — referential integrity, endings/epilogue agreement, vendor ids,
+    the lot. A template that scaffolds validator errors teaches every new
+    author that red output is normal, which is the one lesson a template must
+    never teach. Held to zero errors AND zero advisories: the templates are
+    exemplary or they are wrong.
+    """
+    from engine.games import validation
+
+    _scaffold(story_root, template)
+    manifest = registry.get(f"probe-{template}")
+    assert manifest is not None
+    issues = validation.validate_story(manifest)
+    assert issues == [], "\n".join(str(i) for i in issues)
+
+
+@pytest.mark.parametrize("template", TEMPLATES)
 def test_every_template_declares_the_engine_default_scene(story_root, template):
     """
     tests/test_scene_seam.py holds every SHIPPED game to this; a template

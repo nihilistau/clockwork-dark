@@ -75,6 +75,10 @@ paths:
   # Vendor stock overrides -- what a named vendor actually keeps on the shelf.
   # Base prices derive from each item's `value`; this file is the exceptions.
   economy: "games/{{slug}}/data/economy.yaml"
+  # Who is where, hour by hour. Declared BECAUSE economy is: every vendor id
+  # in economy.yaml must be an npc scheduled here, or the shop has no keeper
+  # and the validator says so.
+  npc_schedules: "games/{{slug}}/data/world/npc_schedules.yaml"
   # The livelihood tables: forage, labour, trade spreads, boons and
   # complications on natural 20s and 1s.
   tables: "games/{{slug}}/data/tables"

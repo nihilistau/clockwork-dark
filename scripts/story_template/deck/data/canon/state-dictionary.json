@@ -1,0 +1,20 @@
+{
+  "description": [
+    "{{title}}'s declared vocabulary -- the canon dictionary, in the shape",
+    "the Garden established (games/wicked-garden/data/canon/). The content",
+    "validator reads it: a flag written anywhere in the content must appear",
+    "here or be read somewhere, and a gate on a flag nothing writes is an",
+    "error either way. ending_gallery_unlocked is the teaching case: the",
+    "CLIENT reads it to unlock the ending gallery, so no YAML ever tests it,",
+    "and declaring it here is how a story says 'this write has a reader you",
+    "cannot see from the data'. Add every flag your decks and endings write."
+  ],
+  "flags": {
+    "booleans": {
+      "day_one": [
+        "asked_the_wrong_question",
+        "ending_gallery_unlocked"
+      ]
+    }
+  }
+}
