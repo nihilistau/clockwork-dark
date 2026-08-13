@@ -33,12 +33,20 @@ nothing foraged; and every death was reported as one number when the only
 death anybody was dying of was starvation. The `livelihood` block and the
 `pauper` policy exist so those claims can be checked rather than asserted.
 
+WHAT THE R-06 CLOSE ADDED: the `hero` policy -- engaged, not merely exposed.
+It pursues quests and set-pieces, earns the doom_resistance that slows the
+doom clock, and exists so "the clock answers to conduct" is a measurement
+(baker >= 2x hero evil per in-game day) rather than a claim. `reckless` stays
+untouched as the exposed-but-unengaged control. The evil block now reports the
+doom_resistance a run actually held, plus set-pieces played and won.
+
 Usage:
     python scripts/simulate.py --turns 200 --seed 42 --policy cautious
     python scripts/simulate.py --policy all --json > balance.json
     python scripts/simulate.py --policy pauper --turns 200   # can you live broke?
+    python scripts/simulate.py --policy hero --turns 200     # does pushing back buy time?
 
-Version: v0.2.0 [2026-08-08]
+Version: v0.3.0 [2026-08-14]
 """
 
 from __future__ import annotations
@@ -56,6 +64,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from engine.challenges import set_pieces as set_pieces_module  # noqa: E402
 from engine.config import get_config  # noqa: E402
 from engine.game import checks as checks_module  # noqa: E402
 from engine.game import encounter as encounter_module  # noqa: E402
@@ -175,6 +184,9 @@ class TurnSample:
     evil_phase: str
     awareness: float
     active_arc: str
+    #: Earned reprieve against the doom clock (R-06). Sampled so a run can
+    #: show whether a policy actually SUSTAINS engagement or only visits it.
+    doom_resistance: float = 0.0
 
 
 @dataclass
@@ -221,6 +233,10 @@ class RunResult:
     items_foraged: int = 0
     items_sold: int = 0
     starvation_deaths: int = 0
+    #: Set-piece engagement (R-06). The hero policy is the only one that seeks
+    #: them out, but any policy standing on an unlocked one would count here.
+    set_pieces_played: int = 0
+    set_pieces_won: int = 0
     #: Base worth of everything still in the pack at the last turn. A run that
     #: ends broke but carrying forty coppers of brass has an economy; one that
     #: ends broke and empty does not.
@@ -239,6 +255,7 @@ Action = tuple[str, dict[str, Any]]
 _IDLE_CHECKS = {
     "baker": ("craft", "standard"),
     "cautious": ("survival", "easy"),
+    "hero": ("lore", "standard"),
     "reckless": ("nerve", "hard"),
     "pauper": ("survival", "standard"),
 }
@@ -372,6 +389,32 @@ def _common_upkeep(state: GameState, policy: str) -> Optional[Action]:
                 # coin buys.
                 best = min(paying, key=lambda r: float(r.get("hours", 24)))
                 return ("work", {"job_id": best["id"]})
+
+    # STARVING somewhere with nothing to eat, nothing to pick and nobody
+    # hiring: walk toward food instead of dying in place. No real player
+    # stands in the square repeating themselves until they fall over, and
+    # a policy that does measures the stall, not the game. The R-06 arc
+    # retune packed quest starts closer together and turned exactly that
+    # stall into extra `cautious` starvation deaths (8 -> 12 at seed 42)
+    # in a world the doom mechanics had left DORMANT.
+    if survival.hunger_stage(state) == "starving" and not _edible(state):
+        vendor, food_id = STAPLE_FOOD
+        price = trade_module.quote(state, vendor, food_id, trade_module.BUY, 1).get(
+            "unit_price", 0
+        )
+        target = ""
+        if price and state.stats.gold >= price:
+            target = vendor_locations().get(vendor, "")
+        elif state.stats.stamina >= 45:
+            # The kitchens that pay in meals, nearest first -- the same list
+            # the baker walks.
+            target = _nearest_hiring(
+                state, ("edgewood_bakery", "well_row", "the_forge", "fallow_farm")
+            )
+        if target and target != state.location_id:
+            hops = route(state.location_id, target)
+            if hops:
+                return ("travel", {"to": hops[0]})
     return None
 
 
@@ -381,6 +424,8 @@ _APPROACH_PREFERENCE: dict[str, tuple[str, ...]] = {
     "reckless": ("fight", "talk", "sneak", "pay", "flee"),
     "baker": ("talk", "pay", "flee", "sneak", "fight"),
     "pauper": ("talk", "flee", "sneak", "pay", "fight"),
+    # The hero stands their ground but is not stupid about it.
+    "hero": ("talk", "sneak", "pay", "fight", "flee"),
 }
 
 
@@ -575,9 +620,175 @@ def policy_reckless(state: GameState) -> Action:
     return ("check", {"skill": skill, "difficulty": difficulty, "hours": 1.0})
 
 
+def _condition_places(condition: Any) -> list[tuple[str, str]]:
+    """
+    Every place a condition tree names, as ``(predicate, location_id)`` pairs.
+
+    Walks the same YAML shapes ``quests.evaluate_condition`` accepts, but only
+    reads -- it exists so a policy can answer "where is this stage waiting for
+    me to stand" without re-implementing the predicate grammar.
+    """
+    out: list[tuple[str, str]] = []
+    if isinstance(condition, dict):
+        for key, value in condition.items():
+            if key in ("at_location", "visited"):
+                values = value if isinstance(value, list) else [value]
+                out.extend((str(key), str(v)) for v in values)
+            else:
+                out.extend(_condition_places(value))
+    elif isinstance(condition, list):
+        for entry in condition:
+            out.extend(_condition_places(entry))
+    return out
+
+
+def _quest_destination(state: GameState) -> str:
+    """
+    The place an active quest stage is waiting for the player to stand.
+
+    Quest evaluation runs at every turn end, so a stage gated on
+    ``at_location`` plus flags completes on the very turn the player arrives --
+    the policy raises flags wherever it happens to be (they persist) and then
+    walks. Among the waiting places, the LOWEST evil_multiplier wins: the hero
+    holds the nearest line first and walks into the current only when nothing
+    closer needs doing, which is also what keeps an engaged run from reading
+    as mere exposure.
+    """
+    visited = set((state.quests.get("_meta") or {}).get("visited") or [])
+    candidates: list[str] = []
+    for definition, record in QuestEngine.active_quests(state):
+        stage = QuestEngine.current_stage(definition, record)
+        if stage is None:
+            continue
+        for kind, loc in _condition_places(stage.get("complete_when")):
+            if loc not in LOCATIONS or loc == state.location_id:
+                continue
+            if kind == "visited" and loc in visited:
+                continue
+            if loc not in candidates:
+                candidates.append(loc)
+    if not candidates:
+        return ""
+    return min(
+        candidates,
+        key=lambda lid: (float(LOCATIONS[lid].get("evil_multiplier", 1.0)), lid),
+    )
+
+
+def _set_piece_destination(state: GameState) -> str:
+    """
+    Location of the first set-piece whose flag gates are open, or empty string.
+
+    ``set_pieces.available`` answers only for where the player STANDS; seeking
+    one out needs the same gates checked minus the location, which is what the
+    ``location_id`` override below does.
+    """
+    for piece_id, piece in sorted(set_pieces_module.load_set_pieces().items()):
+        where = str(piece.get("location_id", "")).strip()
+        if not where or where not in LOCATIONS:
+            continue
+        unplaced = {**piece, "location_id": ""}
+        if set_pieces_module.is_available(state, unplaced):
+            return where
+    return ""
+
+
+def policy_hero(state: GameState) -> Action:
+    """
+    Engaged, not merely exposed: pursues quests and set-pieces on purpose.
+
+    THE R-06 CONTROL PAIR IS hero/reckless. Both leave the village; only this
+    one finishes what it starts, so only this one earns the doom_resistance
+    that slows the clock. ``reckless`` stays untouched as the exposed-but-
+    unengaged control. The policy is deterministic: everything it reads is
+    state, and everything it rolls goes through the world RNG streams.
+    """
+    upkeep = _common_upkeep(state, "hero")
+    if upkeep:
+        return upkeep
+
+    if state.stats.stamina < 45:
+        village = LOCATIONS.get(state.location_id, {}).get("ring", 0) >= 1
+        return ("rest", {"kind": "sleep_bed" if village else "sleep_rough"})
+
+    # A set-piece here and now is the most engaged thing on offer.
+    pieces = set_pieces_module.available(state)
+    if pieces:
+        return ("set_piece", {"id": str(pieces[0].get("id", ""))})
+
+    # Say what the fiction has earned: raising a stage's narrative flag is the
+    # sim's stand-in for actually doing the thing the objective asks.
+    flag_id = _pending_flag(state)
+    if flag_id:
+        return ("flag", {"flag_id": flag_id})
+
+    # Nothing is asking for anywhere YET. Awareness is the hinge every arc gate
+    # turns on, and the caravan doorway is where listening happens (it carries
+    # an awareness_delta) -- so listen FIRST. This sits above the wage branch
+    # on purpose: an earlier draft worked for bread before it listened and
+    # spent ten days in the bakery at awareness 7, which is the baker's run
+    # with extra steps. 20 clears the Whisper gate (min_awareness 15) with a
+    # margin; the rest arrives with the quests themselves.
+    if state.awareness < 20:
+        goal = (
+            "edgewood_square"
+            if state.location_id == "tinker_caravan"
+            else "tinker_caravan"
+        )
+        hops = route(state.location_id, goal)
+        if hops:
+            return ("travel", {"to": hops[0]})
+
+    # Food comes from the margins, not the counter. An earlier draft worked
+    # bakery shifts whenever the purse ran low and spent half its run behind
+    # the oven -- a hero policy that lives the baker's life measures nothing.
+    # Forage like the pauper does, in the two quietest grounds on the map,
+    # before hunger becomes a stamina cap.
+    if survival.hunger_stage(state) != "fed" and not _edible(state):
+        grounds = [
+            loc
+            for loc in ("herb_glen", "forest_clearing")
+            if foraging_module.forageable(loc)
+        ]
+        if grounds:
+            if state.location_id in grounds:
+                return ("forage", {})
+            hops = route(state.location_id, grounds[0])
+            if hops:
+                return ("travel", {"to": hops[0]})
+
+    target = _quest_destination(state) or _set_piece_destination(state)
+    if target and target != state.location_id:
+        hops = route(state.location_id, target)
+        if hops:
+            return ("travel", {"to": hops[0]})
+
+    # Nothing is asking for anywhere. Awareness is the hinge every arc gate
+    # turns on, and the caravan doorway is where listening happens (it carries
+    # an awareness_delta) -- so walk the caravan<->shrine pair until the story
+    # bites: one warded doorstep to listen at, one to think on.
+    # Story satisfied for now: keep vigil at the shrine rather than loitering
+    # in the square. The hero's idle hours are spent on the most warded ground
+    # in the valley, studying the mural -- which is what an engaged player
+    # does with a quiet afternoon, and it is the half of engagement that mere
+    # exposure (see `reckless`) never buys.
+    if state.location_id != "edgewood_shrine":
+        hops = route(state.location_id, "edgewood_shrine")
+        if hops:
+            return ("travel", {"to": hops[0]})
+
+    # Four hours, not two: a vigil is an evening, not an errand. The engaged
+    # player's calendar runs on the story's clock, and short idle turns were
+    # compressing the defended half of the run into fewer in-game days than
+    # the fiction spends.
+    skill, difficulty = _IDLE_CHECKS["hero"]
+    return ("check", {"skill": skill, "difficulty": difficulty, "hours": 4.0})
+
+
 POLICIES: dict[str, Callable[[GameState], Action]] = {
     "baker": policy_baker,
     "cautious": policy_cautious,
+    "hero": policy_hero,
     "pauper": policy_pauper,
     "reckless": policy_reckless,
 }
@@ -765,6 +976,37 @@ class Simulation:
                     args = {"approach": "flee"}
             advance_time(state, 0.5)
 
+        elif action == "set_piece":
+            # Through the same start/resolve pair the skill tools call. The
+            # policy plays to win: it submits the stored answer and takes the
+            # first option, which measures a player who engages with the scene
+            # rather than the odds of guessing.
+            started = set_pieces_module.start(state, str(args["id"]))
+            outcome = started
+            rounds = 0
+            while state.challenge and rounds < MAX_ENCOUNTER_ROUNDS:
+                stored = state.challenge
+                kind = str(stored.get("kind", ""))
+                if kind == "puzzle":
+                    outcome = set_pieces_module.resolve(
+                        state, answer=str(stored.get("answer", "")), ledger=self.ledger
+                    )
+                elif kind == "decision_tree":
+                    node = (stored.get("nodes") or {}).get(stored.get("current", "")) or {}
+                    options = node.get("options") or []
+                    choice = str(options[0].get("id", "")) if options else ""
+                    outcome = set_pieces_module.resolve(
+                        state, choice=choice, ledger=self.ledger
+                    )
+                else:
+                    outcome = set_pieces_module.resolve(state, ledger=self.ledger)
+                rounds += 1
+            if getattr(started, "status", "") != "error":
+                self.result.set_pieces_played += 1
+                if getattr(outcome, "success", False):
+                    self.result.set_pieces_won += 1
+            advance_time(state, 1.0)
+
         elif action == "flag":
             QuestEngine.set_narrative_flag(state, str(args["flag_id"]))
             advance_time(state, 0.5)
@@ -834,6 +1076,7 @@ class Simulation:
                 evil_phase=state.evil_phase.value,
                 awareness=round(state.awareness, 1),
                 active_arc=state.active_arc,
+                doom_resistance=round(state.doom_resistance, 1),
             )
         )
 
@@ -992,6 +1235,12 @@ def summarize(result: RunResult) -> dict[str, Any]:
         },
         "evil": {
             "per_in_game_day": round(evil_per_day, 5),
+            # Engagement instrumentation (R-06): did this policy EARN and HOLD
+            # reprieve, or merely visit it? Mean over the whole run is the
+            # number the engagement factor actually integrates.
+            "doom_resistance": _distribution([float(s.doom_resistance) for s in samples]),
+            "set_pieces_played": result.set_pieces_played,
+            "set_pieces_won": result.set_pieces_won,
             "days_to_consuming_projected": (
                 round(consuming_at / evil_per_day, 1) if evil_per_day > 0 else None
             ),
@@ -1069,6 +1318,8 @@ def _render(report: dict[str, Any]) -> str:
         f"({summary['hours_elapsed']}h, {summary['in_game_hours_per_turn']}h/turn)",
         f"evil                 {summary['final_evil_progress']} "
         f"({summary['final_evil_phase']}), {evil['per_in_game_day']}/day",
+        f"engagement           resistance {evil['doom_resistance']}  "
+        f"set-pieces {evil['set_pieces_won']}/{evil['set_pieces_played']}",
         f"projected CONSUMING  day {evil['days_to_consuming_projected']} "
         f"(~{evil['turns_to_consuming_projected']} turns)",
         f"phase first seen     {evil['first_day_in_phase']}",
