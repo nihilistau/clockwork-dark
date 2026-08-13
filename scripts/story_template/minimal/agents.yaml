@@ -1,0 +1,66 @@
+# {{title}} -- the cast.
+#
+# TWO AGENTS IS THE SWITCH. `engine/agents/pipeline.py` sets MIN_AGENTS = 2:
+# with two or more pipeline agents every turn runs plan -> negotiate -> commit
+# before the narrator writes a word. There is no separate flag -- the count of
+# blocks below IS the flag. What it costs: one extra model call per turn.
+#
+# TO TURN THE PIPELINE OFF: delete the `alex:` block AND the `negotiation:`
+# table (a rule naming a missing agent is a hard RosterError at load, not a
+# silent skip), and move `alex_dialogue` under `world`'s voices. You are then
+# on the cheap single-agent narration path.
+#
+# THIS FILE DECLARES; three engine layers enforce:
+#   voices -> engine/agents/negotiate.py   (who may speak as whom)
+#   reads  -> engine/agents/knowledge.py   (who is shown which secrets)
+#   writes -> engine/state/store.py        (refused AND journalled)
+#
+# Version: v0.1.0
+
+agents:
+  # The world: narration and everyone who is not Alex.
+  world:
+    role: world
+    # `big` is the narration profile: reasoning on, its own LM Studio lane.
+    profile: big
+    # The leaf name is looked up under paths.prompts.
+    prompt: prompts/storyteller.md
+    voices:
+      - narration
+    writes:
+      - standing
+
+  # A character with their own voice and their own model call. An AGENT plans
+  # against the same state the narrator does and may move meters it owns; an
+  # NPC is scenery with a schedule row and costs nothing. Alex exists so the
+  # scaffold demonstrates the difference -- rename freely.
+  alex:
+    role: character
+    # `small`: reasoning off, utility lane. A character who takes as long to
+    # think as the narrator doubles the turn for a line of dialogue.
+    profile: small
+    prompt: prompts/alex.md
+    voices:
+      - alex_dialogue
+    # Alex may move `standing` only WITH A STATED REASON, recorded in the
+    # state journal beside the number. This is the one interesting permission
+    # in the scaffold: watch it in the journal when Alex takes offence.
+    writes_with_reason:
+      - standing
+
+# How proposals are reconciled when the two disagree. First match wins, in
+# declared order. Intents must be ones plan.py accepts (narrate, speak,
+# interrupt, offer, withhold, silent) -- an unknown intent downgrades to
+# `silent` and the rule never matches. The engine's own two rules (safety
+# outranks everything; no agent speaks as a voice it does not own) run first
+# and are not reorderable from here.
+negotiation:
+  # Alex finishes their sentence; the world's interruption becomes what
+  # happens next instead of being thrown away.
+  - name: let_them_finish
+    when:
+      alex: speak
+      world: interrupt
+    winner: alex
+    keep_loser_beat: true
+    detail: the line completes; the world's beat becomes the aftermath

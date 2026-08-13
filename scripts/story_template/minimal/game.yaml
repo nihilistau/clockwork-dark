@@ -1,0 +1,131 @@
+# {{title}} -- the manifest. This file is the whole of what makes it a game.
+#
+# Scaffolded from the `minimal` template: the smallest thing this engine will
+# validate and play. Three rooms, two items, two agents, one meter. Everything
+# here is meant to be rewritten -- the comments say why each key exists so you
+# know what you are rewriting.
+#
+# THE ONE RULE THAT SHAPES THIS FILE: an UNDECLARED `paths.*` key resolves to
+# NOTHING, not to some default story's content. Declare what you ship; omit
+# what you do not; the omission is an authoring decision. The full worked
+# example of every subsystem is games/dev-story/ -- when a stub here is not
+# enough, that is where to look.
+#
+# Version: v0.1.0
+
+# `id` must equal the directory name -- the directory is what the CLI, the
+# save namespace and the API actually address, and a mismatch is logged loudly.
+id: {{slug}}
+title: "{{title}}"
+version: "0.1.0"
+# Checked at activation. Refusing to load beats mis-running on an old engine.
+engine_requires: ">=0.2.0"
+
+# One or two sentences for the picker card.
+blurb: >-
+  A new story. Three rooms, one meter, and two agents who already disagree
+  about something. Replace this sentence with your own premise.
+
+# ---------------------------------------------------------------------------
+# Which client plugin draws this story. DECLARED, not inferred from the
+# directory name -- this story borrows The Wicked Garden's skin rather than
+# shipping a ui/src/stories/{{slug}}/ directory, because every such directory
+# becomes its own chunk in the COMMITTED dist/ tree. Build your own skin later
+# and this is the one line that changes.
+# ---------------------------------------------------------------------------
+ui:
+  plugin: wicked-garden
+
+# ---------------------------------------------------------------------------
+# Which scene serves this story. The engine default, DECLARED rather than
+# inherited, so game.yaml answers the question -- and the day this story ships
+# its own screens, the change is one line here. `name` keys the
+# `scene.clockwork.*` config block, which is where host and port live.
+# ---------------------------------------------------------------------------
+scene:
+  name: clockwork
+  module: engine.scenes.default_scene
+  blueprint: "engine.scenes.default_api:story_blueprint"
+
+# ---------------------------------------------------------------------------
+# Engine settings. Only keys on SETTING_ALLOWLIST (engine/games/manifest.py)
+# are honoured; anything else is a hard validation error, never a silent drop.
+# ---------------------------------------------------------------------------
+settings:
+  world:
+    # Nothing ticks until you decide it should. The engine's background tick
+    # is tuned for a story where travel costs hours; a fresh story whose
+    # clock moves underneath it is a story whose conditions drift while you
+    # write it. Raise these when time becomes one of your mechanics.
+    tick_hours: 0.0
+    tick_max_hours: 0.0
+    # No doom clock. 0.0 pins the pressure phase at `dormant` forever; give
+    # it a rate only if background dread is part of your design.
+    evil_base_rate_per_day: 0.0
+
+  # The prompt shapers this story runs. The engine's full default chain
+  # narrates a doom ledger this story does not keep; these two are the
+  # genuinely story-neutral ones -- SafetyDirective (standing constraints,
+  # silent when none are configured) and StorytellerMind (the GM's
+  # cruelty/generosity/patience knobs, names no story).
+  governance:
+    directives:
+      - SafetyDirective
+      - StorytellerMind
+
+# ---------------------------------------------------------------------------
+# What this story ships. Validation requires every declared path to EXIST.
+#
+# Deliberately absent, and what each would add:
+#   quests, encounters, economy, tables, recipes  -- the graph template's half
+#   decks, clocks, threads, endings, epilogues    -- the deck template's half
+#   npc_schedules, factions, world_rumors         -- a living world on a clock
+#   art_root, art_manifest, art_subjects          -- authored plates over the
+#                                                    procedural silhouette
+# To add one: ship the file, name it here. Nothing outside this directory
+# changes.
+# ---------------------------------------------------------------------------
+paths:
+  locations: "games/{{slug}}/data/world/locations.yaml"
+  # Without this the narrator falls back to a story-neutral persona and a
+  # WARNING naming this key. The voice of the story lives in these files.
+  prompts: "games/{{slug}}/prompts"
+  # archetypes.yaml and spoilers.yaml are found INSIDE this directory by
+  # fixed filename -- they do not get their own path keys.
+  rules: "games/{{slug}}/data/rules"
+  items: "games/{{slug}}/data/items"
+  # The save root. The store appends the slug, so runs land in
+  # data/saves/{{slug}}/. Validated on its PARENT (it may not exist yet).
+  saves: "data/saves"
+
+entry:
+  # Where a new run starts. Must exist in data/world/locations.yaml -- rename
+  # one and you must rename the other.
+  location_id: front_room
+
+  # What character creation offers. The ids must exist in
+  # data/rules/archetypes.yaml; the key must be PRESENT even if empty --
+  # `archetypes: []` means "no classes, creation offers a name", while
+  # omitting the key entirely is a validation error.
+  archetypes: [newcomer]
+
+  # What a turn says when the model is unreachable. One sentence, no
+  # mechanics, in this story's register. Omit it and the engine speaks its
+  # own neutral line.
+  fallback_narration: >-
+    The room waits, without impatience, for whatever you do next.
+
+  # The first frame of a new run: shown before the model says anything, so a
+  # run opens instantly and deterministically. The choice ids a/b/c are what
+  # the UI posts back.
+  opening:
+    narration: >-
+      The front room is warm and slightly too quiet, the way rooms are when
+      someone has just stopped talking. Alex is by the window, arms crossed,
+      not quite looking at you. The kettle in the back room has begun its
+      slow climb to a boil, and someone is going to have to say something
+      before it gets there.
+    choices:
+      - { id: a, text: "Say something first" }
+      - { id: b, text: "Wait Alex out" }
+      - { id: c, text: "Go and see to the kettle" }

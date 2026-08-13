@@ -1,0 +1,88 @@
+# {{title}} -- threads: contracts the world remembers.
+#
+# Read by engine/game/threads.py through `paths.threads`.
+#
+#   Offer -> Terms -> Seal -> Thread
+#
+# A thread is offered, its terms are stated, it is sealed by some act, and
+# then it STAYS -- active, discharged, broken or transformed -- until
+# something resolves it. Nothing about it is prose an agent can quietly stop
+# honouring three turns later. In a story with no coin, this IS the economy.
+#
+# Version: v0.1.0
+
+version: 1
+
+# The story's tag vocabulary. An offer naming a tag not on this list has it
+# DROPPED at bounding, with a note on the offer -- a bargain tagged with a
+# promise the fiction cannot keep is worse than none. Empty list = any tag.
+tags:
+  - Hospitality
+  - Debt
+  - Secrecy
+
+# What can end a thread early AT ALL here, and what each costs. A thread's
+# own `can_cut_with` is INTERSECTED with these keys, so no contract can
+# advertise an escape route the world does not implement.
+cutters:
+  # A thing you say rather than hold, gated on state; the denial text is
+  # what a refused player is told.
+  formal_apology:
+    kind: invocation
+    requires: { value: { name: favor, min: 40 } }
+    denied_text: "The host is not, at present, receiving apologies from you."
+
+# Sealed automatically when a gift is accepted without asking its price
+# (engine/game/threads.py::accept_gift). The winter garden card in the deck
+# is written to trip exactly this. Delete the block and gifts are free.
+gift_obligation:
+  template: guests_debt
+
+templates:
+
+  # The house fed you, warmed you, cut you a flower out of season. That was
+  # not free, and nobody ever said it was.
+  guests_debt:
+    source: the_host
+    tags: [Hospitality, Debt]
+    terms: >-
+      One service to the house, named by the host, at an hour of their
+      choosing. Hospitality repaid in kind releases you.
+    can_cut_with: [formal_apology]
+    # Days from seal until due; threads.expire_due breaks any live thread
+    # past its day -- silence is an answer too.
+    due_in_days: 3
+    on_seal:
+      - { type: value, name: favor, delta: 4, why: "the host approves of guests who accept" }
+    on_discharge:
+      - { type: value, name: favor, delta: 5 }
+      - { type: value, name: composure, delta: 2 }
+    on_break:
+      - { type: value, name: favor, delta: -10 }
+      - { type: value, name: composure, delta: -4 }
+
+    # RENEGOTIATE IS NOT ACCEPT/REFUSE: each variant is a DIFFERENT
+    # contract with its own terms and costs, inheriting whatever it does
+    # not restate.
+    renegotiations:
+
+      name_it_now:
+        label: "Ask what the service is, before accepting"
+        terms: >-
+          The service is named tonight, done tomorrow, and then it is over
+          and the account is closed.
+        tags: [Debt]
+        due_in_days: 1
+        on_seal:
+          - { type: value, name: composure, delta: 3, why: "you set the terms and held your voice steady" }
+          - { type: value, name: favor, delta: -2, why: "the host prefers accounts left open" }
+
+      say_no:
+        label: "Decline, politely, completely"
+        # `outcome: none` -- the negotiation ends in NO contract. Refusing
+        # well is a real move, and it still costs and earns.
+        outcome: none
+        terms: "No thread. The host smiles, and files something away."
+        on_seal:
+          - { type: value, name: composure, delta: 4 }
+          - { type: value, name: favor, delta: -5 }

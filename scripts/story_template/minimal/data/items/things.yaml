@@ -1,0 +1,51 @@
+# {{title}} -- two objects, one of each shape.
+#
+# Read by engine/game/inventory.py through `paths.items`. Every `*.yaml` in
+# the directory is merged into one id -> row registry, first file to claim an
+# id wins -- a second category file needs no wiring, just drop it in.
+#
+#   spare_key   a plain object: carried, referenced, otherwise inert
+#   cup_of_tea  a `use:` that CONSUMES itself and moves the declared meter
+#
+# `use.effects` may only touch state this story declares. `type: value` writes
+# a state.yaml meter through the one validated writer; effect kinds aimed at
+# pools this story does not run (hp, stamina, hunger) would produce receipts
+# about nothing.
+#
+# `value:` is copper for an economy this story does not have -- kept small and
+# honest so wiring `paths.economy` later has something to read.
+#
+# Version: v0.1.0
+
+version: 1
+
+items:
+
+  - id: spare_key
+    name: "Spare Key"
+    description: >-
+      The one from under the flowerpot, which everyone knows about and nobody
+      admits to. Having it says something about where you stand here.
+    tags: [house, key]
+    weight: 0.05
+    value: 0
+    stack: false
+
+  - id: cup_of_tea
+    name: "Cup of Tea"
+    description: >-
+      Made properly, which takes four minutes and cannot be rushed. The
+      universal solvent for household disagreements.
+    tags: [house, consumable, gift]
+    weight: 0.3
+    value: 1
+    use:
+      verb: "drink"
+      hours: 0
+      # Spends one from the stack. Without `consumes` the verb repeats
+      # forever, which is fine for a bench and fatal for a game.
+      consumes: 1
+      effects:
+        - { type: value, name: standing, delta: 2, why: "you made one for them too" }
+      text: "Too hot, then exactly right, then gone."
+    stack: true

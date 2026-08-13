@@ -1,0 +1,18 @@
+# {{title}} -- what you are.
+#
+# Found by fixed filename inside `paths.rules`. One archetype, carrying no
+# stats and no skill bonuses: this shape rolls no dice, so a bonus would
+# modify a check that never happens. In a deck story, what you ARE is
+# usually the premise, and one honest answer beats a menu.
+#
+# Version: v0.1.0
+
+default: guest
+
+archetypes:
+  guest:
+    name: "Guest"
+    blurb: >-
+      Invited, expected, and already accounted for. What the house finds
+      interesting about you is the story's business to reveal.
+    summary: "A guest. The invitation did not say for how long."

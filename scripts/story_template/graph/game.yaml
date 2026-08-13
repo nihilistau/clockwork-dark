@@ -1,0 +1,105 @@
+# {{title}} -- the manifest.
+#
+# Scaffolded from the `graph` template: flagship-shaped. A travel graph with
+# hours on the edges, quests in arcs, encounters on the roads, and a
+# livelihood economy -- vendors, paid work, forage tables, boons on a natural
+# twenty. This is The Clockwork Dark's skeleton with Edgewood removed; each
+# stub is one working instance of its system, meant to be multiplied.
+#
+# THE ONE RULE THAT SHAPES THIS FILE: an UNDECLARED `paths.*` key resolves to
+# NOTHING. Declare what you ship; omit what you do not. The full worked
+# example of every subsystem is games/dev-story/.
+#
+# Version: v0.1.0
+
+id: {{slug}}
+title: "{{title}}"
+version: "0.1.0"
+engine_requires: ">=0.2.0"
+
+blurb: >-
+  A crossroads, a village green, a wood that gives if you know how to ask,
+  and a mill that pays. Replace this sentence with your own premise.
+
+# This story borrows an existing skin rather than shipping its own UI
+# directory; every ui/src/stories/<slug>/ becomes its own chunk in the
+# COMMITTED dist/ tree. The flagship's skin fits graph-shaped stories.
+ui:
+  plugin: clockwork-dark
+
+# The engine default scene, DECLARED rather than inherited, so game.yaml
+# answers the question. `name` keys the `scene.clockwork.*` config block.
+scene:
+  name: clockwork
+  module: engine.scenes.default_scene
+  blueprint: "engine.scenes.default_api:story_blueprint"
+
+# Only keys on SETTING_ALLOWLIST (engine/games/manifest.py) are honoured;
+# anything else is a hard validation error.
+settings:
+  world:
+    # A graph story is the shape the engine's clock was tuned FOR, so this
+    # template leaves the tick running at a gentle rate rather than zeroing
+    # it: travel costs hours, work costs hours, and the world moves while you
+    # decide. Tune with scripts/simulate.py before you trust a number.
+    tick_hours: 1.0
+    tick_max_hours: 4.0
+    # No background doom until you decide the story has one. If yours does,
+    # this rate and the per-location `evil_multiplier` dials in
+    # locations.yaml are the two halves of it.
+    evil_base_rate_per_day: 0.0
+
+  # The story-neutral pair. The engine's fuller default chain narrates a doom
+  # ledger; add interceptors back deliberately when your story keeps one.
+  governance:
+    directives:
+      - SafetyDirective
+      - StorytellerMind
+
+# Every declared path must EXIST at validation. Deliberately absent here:
+# decks/clocks/threads/endings/epilogues (the deck template's half), recipes
+# (nothing crafted yet), npc_schedules/factions/world_rumors (add these when
+# somebody lives here -- a vendor with a faction needs the faction declared),
+# art paths (the procedural silhouette carries a new story fine).
+paths:
+  locations: "games/{{slug}}/data/world/locations.yaml"
+  prompts: "games/{{slug}}/prompts"
+  # skills.yaml, archetypes.yaml and spoilers.yaml are found INSIDE this
+  # directory by fixed filename.
+  rules: "games/{{slug}}/data/rules"
+  items: "games/{{slug}}/data/items"
+  # The offer board: arcs.yaml plus one directory per arc.
+  quests: "games/{{slug}}/data/quests"
+  # Road danger. Every *.yaml in the directory merges into one table.
+  encounters: "games/{{slug}}/data/encounters"
+  # Vendor stock overrides -- what a named vendor actually keeps on the shelf.
+  # Base prices derive from each item's `value`; this file is the exceptions.
+  economy: "games/{{slug}}/data/economy.yaml"
+  # The livelihood tables: forage, labour, trade spreads, boons and
+  # complications on natural 20s and 1s.
+  tables: "games/{{slug}}/data/tables"
+  saves: "data/saves"
+
+entry:
+  # Must exist in data/world/locations.yaml.
+  location_id: crossroads
+
+  # Two, so character creation is a real choice. Ids must exist in
+  # data/rules/archetypes.yaml; the key must be PRESENT even if `[]`.
+  archetypes: [wanderer, settler]
+
+  fallback_narration: >-
+    The road holds still a moment, as if the world had lost its place in the
+    telling and needed to find the line again.
+
+  opening:
+    narration: >-
+      The crossroads takes no side. Four ways out, one milestone worn smooth
+      of its numbers, and your own two feet at the middle of it. North, the
+      green and its houses; east, the mill working against the stream; the
+      wood crowds the west road close enough to touch. You have a little
+      daylight, less coin, and nobody here owes you anything yet.
+    choices:
+      - { id: a, text: "Take the north road to the green" }
+      - { id: b, text: "Follow the stream to the mill" }
+      - { id: c, text: "Step off the road into the wood" }

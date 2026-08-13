@@ -1,0 +1,32 @@
+# {{title}} -- vendor stock. Prices in copper.
+#
+# Read through `paths.economy`. Every TOP-LEVEL key is an NPC id -- the
+# loader treats this file as a flat vendor table, so nothing else may live
+# at the top level (no `version:`, no shared blocks).
+#
+# This file is the OVERRIDE layer, not the whole market: every item already
+# has a price everywhere, derived from its registry `value` through the
+# spread in data/tables/trade.yaml. A row here is a vendor naming their own
+# number for something they particularly stock or particularly want.
+#
+# THE SPREAD IS THE LIVING. A vendor sells above value and buys below it;
+# nobody is cheating anybody. Watch that no pair of vendors prices an item
+# into a profitable round trip -- arbitrage is not supposed to be a career.
+#
+# Every id on both sides must exist in data/items/*.yaml.
+#
+# Version: v0.1.0
+
+# ------------------------------------------------------------
+# The miller -- sells bread, buys what the wood provides.
+# The id must match the vendor profile in data/tables/trade.yaml.
+# ------------------------------------------------------------
+npc_miller:
+  sells:
+    bread_roll: { price: 2, name: "Bread roll" }
+  buys:
+    field_mushroom: { price: 1, name: "Field mushroom" }
+    hedge_berries: { price: 1, name: "Hedge berries" }
+    # The miller pays real money for curios, which makes the wood's uncommon
+    # table worth the walk -- the one deliberate price signal in the stub.
+    old_coin: { price: 4, name: "Old coin" }

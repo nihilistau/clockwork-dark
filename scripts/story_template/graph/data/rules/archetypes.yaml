@@ -1,0 +1,36 @@
+# {{title}} -- what you can be.
+#
+# Found by fixed filename inside `paths.rules`. Two, so creation is a choice
+# rather than a formality. `stats` are deltas on the engine's baseline;
+# `skill_bonus` feeds checks.py directly -- keep both small, because every
+# point here is a point on every roll for the whole run.
+#
+# This file is what EXISTS; game.yaml's `entry.archetypes` is what is
+# OFFERED. Add a key here AND there, or the new archetype is invisible.
+#
+# Version: v0.1.0
+
+default: wanderer
+
+archetypes:
+  wanderer:
+    name: "Wanderer"
+    blurb: >-
+      You have been moving long enough that arriving feels like a skill.
+      Good on the road, unknown in the village.
+    summary: "Feet before friends. The road taught you what it costs."
+    stats:
+      grit: 1
+    skill_bonus:
+      survival: 1
+
+  settler:
+    name: "Settler"
+    blurb: >-
+      You came here to stay, which everyone finds more suspicious than
+      passing through. Good with your hands and with names.
+    summary: "Hands before miles. You mean to still be here in spring."
+    stats:
+      craft: 1
+    skill_bonus:
+      persuasion: 1

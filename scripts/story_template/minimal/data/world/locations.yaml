@@ -1,0 +1,73 @@
+# {{title}} -- the place graph. Three rooms.
+#
+# Read by engine/game/locations.py, which is forgiving by design: a bad entry
+# is LOGGED AND SKIPPED, never raised. If a new room does not appear, look in
+# the log for "[locations]" before you look at the engine.
+#
+# WHAT THE LOADER REQUIRES of an entry -- everything else is optional:
+#   name              non-empty, or the entry is skipped
+#   ring              an integer 0-4, or the entry is skipped
+#   evil_multiplier   clamped into 0.1-3.0 (default 1.0). This story sets
+#                     `evil_base_rate_per_day: 0.0`, so it scales nothing --
+#                     all three rooms carry the loader's floor so nobody
+#                     mistakes an unused dial for a tuned one.
+#
+# EDGES: write both directions of every connection -- a one-way edge is
+# treated as a typo and mirrored with a warning (`one_way: true` exists for
+# doors that genuinely do not open from the other side). Per edge:
+#   hours            travel time on the world clock; 0 for a door
+#   danger_dc        encounter probability. 0 everywhere here, because this
+#                    story declares no `paths.encounters` -- a danger roll
+#                    against an empty table is a roll that can never pay off
+#   awareness_delta  hidden awareness gained by making the trip; 0 here
+#                    because nothing in this story reads awareness yet
+#
+# Version: v0.1.0
+
+version: 1
+
+# `ring` groups places; the loader only requires 0-4 and the number is free
+# to mean something local (here: 0 = indoors, 1 = out).
+rings:
+  0: "The House"
+  1: "Outside"
+
+locations:
+
+  front_room:
+    name: "Front Room"
+    ring: 0
+    evil_multiplier: 0.1
+    # ID PINNED: game.yaml's `entry.location_id` names this room. Rename both
+    # or a new run starts nowhere. The display name is free to change.
+    summary: >-
+      A warm room with two good chairs and one bad one, a window onto the
+      street, and whatever conversation was happening before you arrived.
+    tags: [interior, house, social]
+    connections:
+      back_room: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      doorstep: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  back_room:
+    name: "Back Room"
+    ring: 0
+    evil_multiplier: 0.1
+    # A leaf node on purpose: one room, one exit, so "can the player get back
+    # out of a dead end" is testable without building one.
+    summary: >-
+      The kettle, the sink, a table with one short leg, and a calendar that is
+      a month behind.
+    tags: [interior, house, private]
+    connections:
+      front_room: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  doorstep:
+    name: "Doorstep"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      Three steps down to the street. The world is out there and is, for the
+      moment, not this story's problem.
+    tags: [outdoors, threshold]
+    connections:
+      front_room: { hours: 0, danger_dc: 0, awareness_delta: 0 }

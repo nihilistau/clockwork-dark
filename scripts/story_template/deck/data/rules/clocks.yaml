@@ -1,0 +1,64 @@
+# {{title}} -- one progress clock.
+#
+# Read by engine/game/clocks.py through `paths.clocks`.
+#
+# A clock is a counter that ends in a SCENE -- that is what separates it
+# from a meter. `favor` at 80 is a quantity the fiction reads; `suspicion`
+# at 4 is a promise the engine keeps, and what it keeps is `forces_scene:`.
+#
+# THE OTHER HALF OF THIS CLOCK IS IN state.yaml, under `clocks:` -- bounds
+# and visibility there, behaviour here. Delete either half and the clock
+# stops; delete the state.yaml half and it stops SILENTLY.
+#
+# Every `id:` in this file must be unique: beat and rule ids are the
+# idempotency flags, and two sharing one would fire once between them.
+#
+# Version: v0.1.0
+
+version: 1
+
+clocks:
+
+  # What the host has begun to wonder about you. Four segments from "a
+  # flicker at dinner" to "the household is told to watch you".
+  suspicion:
+    label: "The host is wondering"
+
+    # Engine-side pressure: rules that wind the clock whether or not any
+    # agent narrates it. Each fires ONCE (the default), remembered by id --
+    # rename an id and it fires again on an old save.
+    advance_when:
+      - id: suspicion_from_the_wrong_question
+        when: { flag: asked_the_wrong_question }
+        by: 1
+
+      # The coupling that makes a clock interesting: a meter the story
+      # moves feeds a setpiece the engine will force. Composure held too
+      # high reads as concealment, to a host who keeps accounts.
+      - id: suspicion_from_perfect_composure
+        when: { value: { name: composure, min: 85 } }
+        by: 1
+
+    beats:
+      # Halfway: nothing forced yet, just the temperature changing.
+      - id: suspicion_half
+        at: 2
+        rumors:
+          - "A door that was never locked before is locked now."
+        set_flags: [household_watching]
+
+      # `at: max` rather than `at: 4`, so retuning the range in state.yaml
+      # cannot silently strand the last beat.
+      - id: suspicion_full
+        at: max
+        effects:
+          - { type: value, name: favor, delta: -6, why: "being wondered about is not being wanted" }
+        # The setpiece the clock owes. Names a deck in data/scenes/ by its
+        # FILENAME id -- a forced scene naming nothing is a promise with no
+        # scene behind it.
+        forces_scene: day_one
+        text: "The host stops wondering out loud, which is how you know the wondering is finished."
+        # Empty the counter once the scene is owed. The BEAT stays fired
+        # (idempotent, remembered by flag); reset_to resets the number, not
+        # the beat -- clear the beat's flag for a genuinely recurring scene.
+        reset_to: 0

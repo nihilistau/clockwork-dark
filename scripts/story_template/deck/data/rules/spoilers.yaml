@@ -1,0 +1,16 @@
+# {{title}} -- what the narration may not name yet.
+#
+# Found by fixed filename inside `paths.rules`; read by
+# engine/lore/interceptors.py. Below `awareness.spoiler_gate_threshold` each
+# `term` is rewritten to `instead`, out of narration and out of prompt
+# blocks wrapped in `mark_spoiler`. Above it, nothing is touched.
+#
+# Engine identifiers are masked for every story by the engine's own table;
+# a row here supplies YOUR wording for YOUR secrets.
+#
+# Version: v0.1.0
+
+spoilers:
+  # The one thing this house is organised around not saying.
+  - term: "the previous guest"
+    instead: "whoever it was the household does not mention"

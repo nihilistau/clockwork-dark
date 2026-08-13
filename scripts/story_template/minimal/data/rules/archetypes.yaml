@@ -1,0 +1,21 @@
+# {{title}} -- what you are.
+#
+# Found by fixed filename inside `paths.rules`. One archetype, carrying
+# nothing: no `stats`, no `skill_bonus`, because this story rolls no dice yet
+# and a bonus would modify a check that never happens.
+#
+# TO ADD ONE: copy the block, give it a new key, and add that key to
+# `entry.archetypes` in game.yaml. The two lists are separate on purpose --
+# this file is what EXISTS, the manifest is what is OFFERED.
+#
+# Version: v0.1.0
+
+default: newcomer
+
+archetypes:
+  newcomer:
+    name: "Newcomer"
+    blurb: >-
+      You have just arrived, which is the one fact everyone in the house
+      already knows about you.
+    summary: "A person, recently arrived. The story supplies the rest."

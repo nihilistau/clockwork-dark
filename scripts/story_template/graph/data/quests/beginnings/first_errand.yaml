@@ -1,0 +1,73 @@
+# {{title}} -- one quest, three stages.
+#
+# Read by engine/game/quests.py. THE DIRECTORY NAME IS THE ARC (`beginnings`,
+# declared in ../arcs.yaml) and `id:` below is the quest id; both must be
+# right or the quest loads and never offers itself.
+#
+# EVERY `complete_when` IS ENGINE-EVALUABLE TO THE LETTER -- a place stood
+# in, an item held, a flag set. A stage the model can argue its way through
+# is not a stage. Predicates used below: at_location, has_item. The full
+# grammar is `_PREDICATES` in engine/game/quests.py.
+#
+# `narrative_flags` is how a stage hands the narrator ONE flag it may set
+# when the fiction gets there; nothing else sets it.
+#
+# Version: v0.1.0
+
+id: first_errand
+arc: beginnings
+name: "The Miller's Errand"
+summary: >-
+  The miller wants mushrooms for the evening pot and will pay in bread and
+  coin. The wood is right there. How hard can it be.
+
+start_text: >-
+  The miller does not look up from the scale. "Wood's full of mushrooms
+  after a rain like that. Bring me a decent handful and there's bread in it
+  for you, and a coin if they're clean."
+
+stages:
+  - id: into_the_wood
+    objective: "Walk the west road into the Old Wood."
+    complete_when:
+      all:
+        - at_location: old_wood
+    complete_text: >-
+      The road's noise gives out a tree-length behind you, all at once, the
+      way a door closes.
+
+  - id: find_the_mushrooms
+    objective: "Forage a field mushroom from the wood."
+    # Foraging is the engine's (data/tables/forage.yaml); the quest only
+    # watches the bag. That is the division of labour everywhere in this
+    # shape of story: systems produce, quests observe.
+    complete_when:
+      all:
+        - has_item: field_mushroom
+    complete_text: >-
+      Broad caps, unbroken, smelling of the underside of leaves. Even the
+      miller will have to call these decent.
+
+  - id: back_to_the_mill
+    objective: "Bring them back to the mill."
+    complete_when:
+      all:
+        - at_location: the_mill
+        - has_item: field_mushroom
+    complete_text: >-
+      The miller turns one over, grunts, and the grunt is the good one.
+    on_complete:
+      effects:
+        - { type: item, item_id: bread_roll, name: "Bread Roll", qty: 2 }
+        - { type: stat, stat: gold, delta: 3 }
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_first_errand_done }
+    - type: ledger_fact
+      text: "You ran the miller's errand and were paid in bread and coin."
+      kind: event
+
+complete_text: >-
+  Word gets around a place this size. By evening, three people you have not
+  met know you as the one who does what they say they will.

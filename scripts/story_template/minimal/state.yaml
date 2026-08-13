@@ -1,0 +1,44 @@
+# {{title}} -- state declaration. One meter.
+#
+# THIS FILE IS OPTIONAL. Delete it and the story runs on the engine spine
+# alone (HP, gold, stamina -- GameState's own typed fields). What it buys you
+# is state the ENGINE has never heard of: declare a value here and it is
+# validated, clamped, journalled and saved without an engine change.
+#
+#   backing: bag      the value lives in the generic `meters` container on the
+#                     spine. (`backing: field` binds to an existing typed
+#                     attribute instead, via a dotted `path:` -- for values the
+#                     engine already owns.)
+#   visibility        public -> raw number reaches the browser
+#                     veiled -> a band word and glyphs, no number
+#                     hidden -> never leaves the server
+#
+# NO `owners:` ON PURPOSE. agents.yaml already says who may write `standing`,
+# and more precisely than a flat list can: engine/state/active.py folds the
+# roster's `writes:` / `writes_with_reason:` grants into this schema at load.
+# Declaring owners here TOO would be a second copy that can disagree with the
+# first. Add `owners:` only for a value no declared agent writes, or if you
+# delete agents.yaml.
+#
+# Version: v0.1.0
+
+version: 1
+slug: {{slug}}
+
+meters:
+  # How the household regards you. One meter, because the first question a new
+  # story answers is "what does a turn move" -- add the second meter when you
+  # know what the second answer is.
+  standing:
+    backing: bag
+    min: 0
+    max: 100
+    default: 50
+    # Public so you can watch writes land while you build. A finished story
+    # would likely veil it: numbers read as scores, and scores get optimised.
+    visibility: public
+    label: Standing
+
+# Which declared values the load menu shows on a save row.
+summary:
+  - standing

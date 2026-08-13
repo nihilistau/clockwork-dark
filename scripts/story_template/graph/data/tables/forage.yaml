@@ -1,0 +1,86 @@
+# {{title}} -- foraging: what standing in the wood for two hours gets you.
+#
+# Read by engine/game/foraging.py through `paths.tables`. This is the
+# system that keeps a broke player alive long enough to earn -- a graph
+# story with prices but no free food is a countdown, not a survival system.
+# The flagship's copy of this file documents every knob and the measured
+# reasons behind its numbers; this stub keeps the shape with one table.
+#
+# It is not a free button. The prices: hours, stamina, a real check against
+# the node's DC, depletion of worked ground, and the season.
+#
+# Version: v0.1.0
+
+version: 1
+
+forage:
+  # "Can you find food out here" is one question; the skill is fixed.
+  skill: survival
+
+  # Spent per attempt, found or not.
+  hours: 2.0
+  stamina_cost: 6
+
+  # A location is forageable when its tags in locations.yaml intersect this
+  # list. In this template that is the Old Wood alone.
+  location_tags: [forage, wild]
+
+  # Node DCs map onto the BANDS in data/rules/skills.yaml -- checks.py
+  # deliberately refuses raw DCs.
+  bands:
+    - { upto: 8, band: trivial }
+    - { upto: 11, band: easy }
+    - { upto: 14, band: standard }
+    - { band: hard }
+
+  # Draws per degree of success. Partial is one pick on purpose: you found
+  # SOMETHING, which is the whole reason partial exists.
+  picks:
+    crit_success: 4
+    success: 3
+    partial: 2
+    failure: 0
+
+  # The chance at the uncommon pool, rolled once per attempt.
+  uncommon:
+    degrees: [crit_success, success]
+    chance: { crit_success: 0.85, success: 0.30 }
+
+  # Worked ground gives less, gets harder, and forgets you only if left
+  # alone. The floor is above zero ON PURPOSE: a worked-out node must get
+  # bad, not become a wall -- a hard zero rebuilds the starvation soft-lock
+  # one layer further in.
+  depletion:
+    yield_step: 0.68
+    yield_floor: 0.34
+    dc_step: 1
+    dc_cap: 5
+    recovery_days: 1
+
+  # Season is derived from world_day; no new state field.
+  season:
+    days_each: 30
+    order: [spring, summer, autumn, winter]
+    modifiers:
+      spring: { check: 0, yield: 1.0, label: "spring" }
+      summer: { check: 1, yield: 1.2, label: "summer" }
+      autumn: { check: 2, yield: 1.4, label: "autumn" }
+      winter: { check: -2, yield: 0.6, label: "winter" }
+
+# Yield tables. A table applies when the location's tags intersect `tags`.
+#   item_id   must exist in data/items/*.yaml
+#   weight    relative draw weight within its pool
+#   qty       [low, high] inclusive, before season and depletion
+#   seasons   optional filter; omit for all year. Winter must leave
+#             SOMETHING edible in every pool, or you have authored a
+#             thirty-day starvation window with no counterplay.
+tables:
+
+  - id: wood_margin
+    label: "the leaf litter and the hedge line"
+    tags: [wild, forage]
+    common:
+      - { item_id: field_mushroom, weight: 30, qty: [1, 3] }
+      - { item_id: hedge_berries, weight: 24, qty: [1, 3], seasons: [summer, autumn] }
+    uncommon:
+      - { item_id: old_coin, weight: 10, qty: [1, 1] }

@@ -1,0 +1,18 @@
+# {{title}} -- natural 1 complications (d20). Same contract as boons.yaml:
+# the engine picks, the effects are structured, the LLM only narrates.
+#
+# A complication is a cost, not a punishment: it should make the next hour
+# more interesting, never end the run on a die face.
+#
+# Version: v0.1.0
+
+complications:
+  - id: wasted_effort
+    text: "It takes twice as long as it should and gives back nothing."
+    effects:
+      - { type: stamina, delta: -5 }
+
+  - id: torn_and_muddy
+    text: "Whatever else happened, the ground got its share of you."
+    effects:
+      - { type: check_penalty, delta: -1, days: 1, text: "scraped and muddy" }

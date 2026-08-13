@@ -1,0 +1,46 @@
+# {{title}} -- epilogue index.
+#
+# Read by engine/game/epilogue.py through `paths.epilogues`. THE FILENAME IS
+# FIXED (epilogue_index.yaml) -- something must be findable without already
+# having been read. The prose is NOT fixed: `prose_source` names it, so the
+# cards can be split per ending later without an engine change. Structure
+# here, finished prose there; they change for different reasons.
+#
+# One row per ending in data/rules/endings.yaml, ids matching EXACTLY:
+# a locked ending with no row here is an ERROR and the player sees nothing.
+#
+# The time line template substitutes `{garden_days}` -- that is the ENGINE's
+# placeholder name for state.world_day, whatever your story calls its days.
+# `{mortal_days}` reads the declared value `time_debt_mortal_days`, which
+# this story does not declare, so it is not used here: a sentence that
+# always says "0 days" is worse than no sentence.
+#
+# Version: v0.1.0
+
+version: 1
+prose_source: epilogue_cards.yaml
+
+time_line_template: >-
+  You were a guest for {garden_days} {garden_days_word}, by the house's count.
+
+render_order: [title, card_m, card_g, echoes, time_line, gallery_unlock]
+
+endings:
+
+  - id: the_guest_departs
+    class: the_guest_departs
+    title: "Out by the Front Door"
+    # THE GALLERY KEY IS NOT THE ENDING ID: a finale unlocks art by this
+    # key, so two endings can share a plate and an ending can be renamed
+    # without orphaning its picture.
+    gallery_key: gate_from_outside
+    echo_speaker: [the_host]
+    ng_plus_seed: remembered_guest
+
+  - id: the_long_stay
+    class: the_long_stay
+    title: "The Long Stay"
+    gallery_key: bright_rectangle
+    # NO ECHO: nobody had a last word about it, which is the ending.
+    echo_speaker: []
+    ng_plus_seed: null

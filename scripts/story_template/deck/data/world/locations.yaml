@@ -1,0 +1,57 @@
+# {{title}} -- the places. Three, authored, no travel economy.
+#
+# In a deck-shaped story the map is a stage set, not a graph to optimise:
+# edges cost no hours (the day advances when a chapter ends, not when you
+# walk), carry no danger (there are no encounter tables to pay off a roll)
+# and grant no awareness. The loader still requires `name` and `ring`
+# (0-4), and still skips-and-logs bad entries rather than raising.
+#
+# Version: v0.1.0
+
+version: 1
+
+rings:
+  0: "The Threshold"
+  1: "The House"
+
+locations:
+
+  the_gate:
+    name: "The Gate"
+    ring: 0
+    evil_multiplier: 0.1
+    # ID PINNED: game.yaml's `entry.location_id`. Deliberately outside the
+    # house -- the crossing is the story's first question, so it is where a
+    # run starts. Whether anything can travel BACK here is an authoring
+    # decision: an entry with no inbound edges is only ever a beginning.
+    summary: >-
+      Wrought iron, open exactly wide enough for one person. The lines in
+      the raked gravel run up to the door and do not come back.
+    tags: [outdoors, threshold]
+    connections:
+      long_hall: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  long_hall:
+    name: "The Long Hall"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      Portraits the length of it, every frame recently dusted, every face
+      turned slightly toward the door you came in by. Your host receives
+      here, at the far end, where the light is arranged to their advantage.
+    tags: [interior, formal, social]
+    connections:
+      the_gate: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+      winter_garden: { hours: 0, danger_dc: 0, awareness_delta: 0 }
+
+  winter_garden:
+    name: "The Winter Garden"
+    ring: 1
+    evil_multiplier: 0.1
+    summary: >-
+      Glass and iron and warm green air, a season the house keeps indoors
+      out of preference. Things grow here that should not be in bloom, and
+      the host is proudest of exactly those.
+    tags: [interior, garden, private]
+    connections:
+      long_hall: { hours: 0, danger_dc: 0, awareness_delta: 0 }

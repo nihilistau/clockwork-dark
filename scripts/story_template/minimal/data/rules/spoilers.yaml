@@ -1,0 +1,27 @@
+# {{title}} -- what the narration may not name yet.
+#
+# Found by fixed filename inside `paths.rules`; read by
+# engine/lore/interceptors.py. Below `awareness.spoiler_gate_threshold` each
+# `term` is rewritten to `instead` -- out of the model's narration, and out of
+# any prompt block wrapped in `mark_spoiler`. Above the threshold, nothing is
+# touched: the gate is a gate, not a censor.
+#
+# YOU DO NOT LIST ENGINE IDENTIFIERS HERE. `evil_progress` and the phase ids
+# are masked for every story by the engine's own table (`ENGINE_TERMS`), in
+# words that name no story. Add a row for one only to give it YOUR wording --
+# story rows are applied first and win.
+#
+# `term` matches case-insensitively, word-bounded, with a leading "the"
+# swallowed. Set `case_sensitive: true` where the casing IS the secret.
+#
+# ONE ROW, honest for a story with one secret. Delete the row (keep the file)
+# and this story simply redacts nothing of its own.
+#
+# Version: v0.1.0
+
+spoilers:
+  # The example secret: what actually happened before the player arrived.
+  # Replace with your own reveal -- the term the narration must not say, and
+  # the words it says instead.
+  - term: "the argument about the lease"
+    instead: "whatever it was that soured the house"

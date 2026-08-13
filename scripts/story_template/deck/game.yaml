@@ -1,0 +1,102 @@
+# {{title}} -- the manifest.
+#
+# Scaffolded from the `deck` template: Garden-shaped. No dice, no travel
+# economy, no doom clock -- what this shape runs on instead is authored
+# day-decks, progress clocks that end in forced scenes, threads (contracts
+# the world remembers), gated endings and the epilogue cards behind them.
+# Each stub is one working instance, meant to be multiplied.
+#
+# THE ONE RULE THAT SHAPES THIS FILE: an UNDECLARED `paths.*` key resolves
+# to NOTHING. Declare what you ship; omit what you do not. The full worked
+# example of every subsystem is games/dev-story/; the full-scale version of
+# this shape is games/wicked-garden/.
+#
+# Version: v0.1.0
+
+id: {{slug}}
+title: "{{title}}"
+version: "0.1.0"
+engine_requires: ">=0.2.0"
+
+blurb: >-
+  A house that has decided to host you, a host who keeps accounts, and days
+  that are chapters rather than hours. Replace this sentence with your own
+  premise.
+
+# Borrowed skin: the Garden's UI fits deck-shaped stories (meters, clocks,
+# chapter days). A ui/src/stories/{{slug}}/ directory would become its own
+# chunk in the COMMITTED dist/ tree, so borrow until you mean it.
+ui:
+  plugin: wicked-garden
+
+# The engine default scene, DECLARED rather than inherited.
+scene:
+  name: clockwork
+  module: engine.scenes.default_scene
+  blueprint: "engine.scenes.default_api:story_blueprint"
+
+settings:
+  world:
+    # A day here is a CHAPTER, not a commute. Time advances when the story
+    # says a day ends, never behind the player's back -- the flagship's tick
+    # is tuned for a story where you walk between villages.
+    tick_hours: 0.0
+    tick_max_hours: 0.0
+    # No doom clock. The pressure in this shape is the named clocks in
+    # data/rules/clocks.yaml, which count something the story chose.
+    evil_base_rate_per_day: 0.0
+
+  # The story-neutral pair; the engine's fuller chain narrates a doom ledger
+  # this story does not keep.
+  governance:
+    directives:
+      - SafetyDirective
+      - StorytellerMind
+
+# Deliberately absent: quests (this shape's days are authored decks, not an
+# offer board), economy/tables/encounters/recipes (nothing here is bought,
+# rolled or crafted), npc_schedules/factions (add when somebody keeps
+# hours), art paths (the silhouette carries a new story fine).
+paths:
+  locations: "games/{{slug}}/data/world/locations.yaml"
+  prompts: "games/{{slug}}/prompts"
+  # archetypes.yaml and spoilers.yaml are found INSIDE this directory by
+  # fixed filename; clocks/threads/endings sit beside them but are addressed
+  # by their own keys below -- an undeclared key resolves to nothing
+  # regardless of what sits in the directory.
+  rules: "games/{{slug}}/data/rules"
+
+  # The structural systems that make this shape what it is.
+  decks: "games/{{slug}}/data/scenes"
+  clocks: "games/{{slug}}/data/rules/clocks.yaml"
+  threads: "games/{{slug}}/data/rules/threads.yaml"
+  endings: "games/{{slug}}/data/rules/endings.yaml"
+  epilogues: "games/{{slug}}/data/epilogues"
+  saves: "data/saves"
+
+entry:
+  # Must exist in data/world/locations.yaml. Starting OUTSIDE the house is
+  # the point: crossing the threshold is the story's first real choice, and
+  # a story should open on its opening question.
+  location_id: the_gate
+
+  # One, and it should be an answer, not a menu: what you ARE is usually the
+  # premise in this shape. `archetypes: []` is legal if creation should
+  # offer only a name -- but the key must be PRESENT either way.
+  archetypes: [guest]
+
+  fallback_narration: >-
+    The house holds its breath politely, the way houses do when they are
+    waiting to see what you will do next.
+
+  opening:
+    narration: >-
+      The gate is open, which is not the same as welcoming. Beyond it the
+      house stands with every window lit and no shadow moving in any of
+      them, and the gravel walk has been raked so recently the lines are
+      still sharp. Somewhere inside, your host is already seated, already
+      certain you will come in. The invitation said nothing about leaving.
+    choices:
+      - { id: a, text: "Walk up and knock" }
+      - { id: b, text: "Circle the house first" }
+      - { id: c, text: "Stand at the gate and make them come to you" }

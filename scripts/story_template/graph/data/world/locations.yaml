@@ -1,0 +1,87 @@
+# {{title}} -- the travel graph. Four places, a real map in miniature.
+#
+# Read by engine/game/locations.py, forgiving by design: a bad entry is
+# LOGGED AND SKIPPED. Required per entry: `name`, `ring` (0-4);
+# `evil_multiplier` is clamped into 0.1-3.0 and scales the doom rate, which
+# this template sets to 0.0 -- the dial is left at 1.0 here so switching doom
+# on later behaves sensibly from day one.
+#
+# EDGES carry the numbers a graph story runs on:
+#   hours            the price of distance; the tick and the encounter roll
+#                    both key off travel actually costing something
+#   danger_dc        encounter probability on that edge -- the wood road
+#                    carries the only nonzero one, matching the one encounter
+#                    file this template ships
+#   awareness_delta  hidden awareness gained by making the trip
+#
+# Write BOTH directions of every edge; a one-way edge is treated as a typo
+# and mirrored with a warning (`one_way: true` for a genuine one-way door).
+#
+# Version: v0.1.0
+
+version: 1
+
+rings:
+  0: "The Crossroads"
+  1: "The Settled Ground"
+  2: "The Wild Edge"
+
+locations:
+
+  crossroads:
+    name: "The Crossroads"
+    ring: 0
+    evil_multiplier: 1.0
+    # ID PINNED: game.yaml's `entry.location_id`. Rename both or neither.
+    summary: >-
+      Four roads and a milestone worn smooth. Everyone passes through;
+      nobody stays. The hub of the graph, which makes it the place a broken
+      edge shows up first.
+    tags: [outdoors, road, hub]
+    connections:
+      village_green: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      the_mill: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      old_wood: { hours: 2, danger_dc: 8, awareness_delta: 1 }
+
+  village_green:
+    name: "The Village Green"
+    ring: 1
+    evil_multiplier: 0.8
+    summary: >-
+      Grass kept short by geese, houses facing inward, a well with a good
+      rope. Where the quests will come from, once somebody here has a name.
+    tags: [outdoors, village, safe, social]
+    connections:
+      crossroads: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      # A second route to the mill, so the graph has a cycle: shortest-path
+      # bugs show up as a wrong answer instead of no answer.
+      the_mill: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+
+  the_mill:
+    name: "The Mill"
+    ring: 1
+    evil_multiplier: 1.0
+    # The economy's anchor: the template's one job and one vendor both live
+    # here, so work and trade are reachable two hops from the start.
+    summary: >-
+      The wheel turns against the stream all day, and the miller counts
+      everything twice. Flour dust settles on whatever stands still.
+    tags: [interior, village, trade, work]
+    connections:
+      crossroads: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      village_green: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+
+  old_wood:
+    name: "The Old Wood"
+    ring: 2
+    evil_multiplier: 1.3
+    # The `forage` and `wild` tags are what data/tables/forage.yaml keys on:
+    # a location can be foraged when its tags intersect the table's
+    # `location_tags`. Remove them and the wood stops giving, silently.
+    summary: >-
+      Older than the roads and unconcerned by them. Mushrooms after rain,
+      berries along the margin, and further in, the kind of quiet that is
+      listening back.
+    tags: [outdoors, wild, forage]
+    connections:
+      crossroads: { hours: 2, danger_dc: 8, awareness_delta: 1 }

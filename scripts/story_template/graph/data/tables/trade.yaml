@@ -1,0 +1,33 @@
+# {{title}} -- trade rules: spreads and vendor profiles.
+#
+# Read by engine/game/trade.py through `paths.tables`. Two halves:
+#
+#   trade:    the numbers every price passes through. A vendor SELLS at
+#             value x buy and BUYS at value x sell; the gap is their living,
+#             and a full round trip is supposed to lose money.
+#   vendors:  who trades at all. `location` must exist in locations.yaml.
+#             `deals_in` filters by item tag -- a vendor with no row for an
+#             item will still quote it, at their spread, if its tags match.
+#
+# `faction:` is omitted from the profile ON PURPOSE: this template declares
+# no `paths.factions`, and a vendor billing to an undeclared faction is a
+# reference into nothing. Add the faction file first, then the key.
+#
+# Version: v0.1.0
+
+version: 1
+
+trade:
+  # What a thing worth `value` actually costs / fetches, before overrides.
+  spread:
+    buy: 1.25
+    sell: 0.45
+
+vendors:
+  npc_miller:
+    name: "The Miller"
+    location: the_mill
+    deals_in: [food, provisions, curio]
+    # A miller's margin on bread is thin and everyone knows it; the personal
+    # spread overrides the global one for this vendor only.
+    spread: { buy: 1.1, sell: 0.5 }

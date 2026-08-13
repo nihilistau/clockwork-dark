@@ -1,0 +1,51 @@
+# {{title}} -- epilogue prose.
+#
+# Read by engine/game/epilogue.py; found because epilogue_index.yaml names
+# this file in `prose_source`, never by its own name.
+#
+# TWO CARDS PER ENDING, because the renderer draws two:
+#   card_m   AFTER -- the world beyond the story, once you are out of it
+#   card_g   HERE -- what this place looks like without you in it
+#
+# The engine substitutes nothing inside these; braces here would be literal.
+# `echoes` is a list of {speaker, text}; the index's `echo_speaker` declares
+# WHO gets the last word, this file is what they say. An ending with an
+# empty `echo_speaker` has no `echoes` block, and the silence is the point.
+#
+# Version: v0.1.0
+
+version: 1
+
+cards:
+
+  the_guest_departs:
+    title: "Out by the Front Door"
+    card_m: |-
+      The road is exactly where you left it, which surprises you more than
+      it should. For a while you are careful about invitations.
+
+      Then careless. Then, eventually, ordinary about them -- which is the
+      only way anyone recovers from that kind of hospitality.
+    card_g: |-
+      The house resets your room the same evening. Sheets, water, a flower
+      out of season on the sill.
+
+      It is not for the next guest. There is no next guest yet. The house
+      simply prefers to be ready.
+    echoes:
+      - speaker: the_host
+        text: |-
+          A guest who leaves well is rarer than one who stays. You may tell
+          people you were missed; it will even be true.
+
+  the_long_stay:
+    title: "The Long Stay"
+    card_m: |-
+      Letters arrive for you at the house now. You do not remember telling
+      anyone the address, but then, you would not have needed to.
+
+      Somewhere a lease in your name lapses quietly, unmourned.
+    card_g: |-
+      Your chair -- it has become your chair -- keeps its place by the fire.
+      The household works around you the way rivers work around stones,
+      which is to say: patiently, and with the certainty of the sea.

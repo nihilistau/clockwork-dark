@@ -1,0 +1,138 @@
+# {{title}} -- one day-chapter deck, three cards.
+#
+# Read by engine/content/deck.py through `paths.decks`. THE FILENAME IS THE
+# DECK ID: deck.load_deck("day_one") looks for day_one.yaml here. Rename the
+# file and the id changes with it -- clocks.yaml forces this deck by that id.
+#
+# HOW A HAND IS DEALT: every `required: true` card is included in authored
+# order (they do not consume draw slots), then `draw:` pool cards are picked
+# from the eligible ones, weighted, from the seeded `deck` RNG stream -- the
+# same seed lays out the same day.
+#
+# THE menu/sequence TAG CONTRACT -- every card declares one:
+#   sequence   beats are STEPS; all resolve, in order
+#   menu       beats are ALTERNATIVES; exactly the chosen one resolves.
+#              A menu card resolved without `chosen` takes the first beat
+#              and logs a WARNING -- a fallback, not the contract.
+#
+# WHAT A BEAT MAY BE -- exactly one of these, never both:
+#   gate:  a hard threshold (`when:`) and/or a seeded hidden check
+#          (`check:`), branching on_pass / on_fail. Deterministic, replays.
+#   band:  a RANGE (`favor: +2..6`) an agent picks inside by judged quality;
+#          with no quality supplied it resolves to the MIDPOINT, so tests
+#          and the simulator need no model.
+# A beat with neither is text-only and passes with no effects -- legal.
+#
+# Effects are clamped by the story's own scale (about a sixth of a meter's
+# range per beat): write +40 and you get +17 and a note on the receipt.
+#
+# Version: v0.1.0
+
+id: day_one
+
+# One pool card of the two below per deal; the other lands in Hand.rejected
+# as "not drawn" -- a deck where everything always deals is a script.
+draw: 1
+
+cards:
+
+  # =====================================================================
+  # SPINE -- always dealt.
+  # =====================================================================
+
+  - id: D1_01_received
+    required: true
+    tags: [sequence, gm]
+    title: "Received"
+    text: >-
+      INTENT: the host takes your measure before you sit down. SEQUENCE --
+      both beats resolve, in order.
+    beats:
+      # A gate with both a threshold and a seeded check: composure is the
+      # price of admission; the check is whether the moment favours you.
+      - id: D1_01_the_once_over
+        text: >-
+          The host looks at you the way an appraiser looks at a clock: with
+          affection, for the mechanism.
+        gate:
+          when: { value: { name: composure, min: 40 } }
+          check:
+            # A named stream, so this roll cannot shift the deck's own
+            # draws. Never bare random: a seeded story must replay.
+            stream: beat
+            chance: 0.6
+          on_pass:
+            text: "You give nothing away, and they notice you giving nothing away, and approve."
+            effects:
+              - { type: value, name: favor, delta: 4 }
+          on_fail:
+            # FAIL FORWARD: the beat still happens, it just costs.
+            text: "Something in your face answers a question you were not asked."
+            effects:
+              - { type: value, name: composure, delta: -3 }
+
+      # A band: an amount inside an engine-owned range, no pass or fail.
+      - id: D1_01_the_seat_offered
+        text: >-
+          Where you are seated, relative to the fire and the door. Judged,
+          not rolled.
+        band:
+          value: favor
+          min: 1
+          max: 5
+          text: "How the seating went."
+
+  # =====================================================================
+  # POOL -- `draw: 1` of these two.
+  # =====================================================================
+
+  - id: D1_02_the_gallery_walk
+    tags: [menu]
+    title: "The Gallery Walk"
+    # `when:` gates a pool card; failing it lands in Hand.rejected with the
+    # reason, because a card that quietly never appears is indistinguishable
+    # from a broken one.
+    when: { value: { name: favor, min: 40 } }
+    weight: 2.0
+    text: >-
+      INTENT: the host shows you the portraits and watches which ones you
+      look at longest. MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: admire_the_portraits
+        text: "You give the portraits what they want, which is an audience."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 4 }
+              - { type: value, name: composure, delta: -2 }
+
+      - id: ask_who_is_missing
+        text: >-
+          There is a brighter rectangle on the wallpaper where a frame used
+          to hang. Asking about it sets `asked_the_wrong_question` -- the
+          flag data/rules/clocks.yaml watches. This is the beat that starts
+          the suspicion clock.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: asked_the_wrong_question }
+              - { type: value, name: composure, delta: 3 }
+
+  - id: D1_03_the_winter_garden
+    tags: [sequence]
+    once: true
+    # `once: true` -- dealt at most once per save, remembered by flag;
+    # afterwards rejected as "already drawn".
+    title: "The Winter Garden"
+    weight: 1.0
+    beats:
+      - id: D1_03_out_of_season
+        text: >-
+          The host cuts a bloom that has no business existing in this month
+          and offers it to you. Accepting a gift is not free here -- see
+          `gift_obligation` in data/rules/threads.yaml.
+        band:
+          value: favor
+          min: 2
+          max: 6
+          text: "How graciously the offer went."
