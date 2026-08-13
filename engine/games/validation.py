@@ -35,9 +35,10 @@ advisories to failures.
 
 The CLI face is ``scripts/validate_content.py``; the pytest face is
 ``tests/test_story_content_integrity.py``. Both call into here, so the logic
-has one home.
+has one home. ``scripts/author.py`` is the third face: it validates drafts by
+handing this module a synthetic manifest whose paths include them.
 
-Version: v0.1.0 [2026-08-13]
+Version: v0.2.0 [2026-08-14]
 """
 
 from __future__ import annotations
@@ -81,6 +82,14 @@ ENGINE_EVIL_PHASES = frozenset({"dormant", "stirring", "spreading", "consuming"}
 ENGINE_FLAG_PREFIXES: tuple[str, ...] = ("deck_drawn_", "ending_closed_")
 
 _IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+
+#: Directory name reserved for work in progress (``scripts/author.py`` writes
+#: drafts under ``games/<slug>/data/drafts/``). A draft is not shipped content:
+#: every directory scan below skips a ``drafts/`` directory nested anywhere
+#: under a declared content path, so a story can carry half-finished YAML
+#: without failing its own build -- and without the drafts silently joining the
+#: live registries either.
+DRAFTS_DIRNAME = "drafts"
 
 #: Relative locations (from the story root) where a canon dictionary may live.
 CANON_DICTIONARY_CANDIDATES = (
@@ -439,7 +448,7 @@ def load_story_items(
     if directory is None:
         return registry, issues
 
-    for path in sorted(directory.rglob("*.yaml")):
+    for path in _yaml_files(directory):
         data = _read_yaml(path)
         source = _rel(manifest, path)
         if not isinstance(data, dict):
@@ -505,9 +514,15 @@ def _rel(manifest: GameManifest, path: Path) -> str:
 
 
 def _yaml_files(directory: Optional[Path]) -> list[Path]:
+    """Every shipped ``*.yaml`` under a directory. A ``drafts/`` subtree is
+    work in progress, not content, and is skipped -- see ``DRAFTS_DIRNAME``."""
     if directory is None or not directory.is_dir():
         return []
-    return sorted(directory.rglob("*.yaml"))
+    return sorted(
+        path
+        for path in directory.rglob("*.yaml")
+        if DRAFTS_DIRNAME not in path.relative_to(directory).parts[:-1]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1547,6 +1562,7 @@ def summarize(issues: Iterable[Issue]) -> tuple[int, int]:
 
 __all__ = [
     "CANON_DICTIONARY_CANDIDATES",
+    "DRAFTS_DIRNAME",
     "ENGINE_BANDS",
     "ENGINE_EVIL_PHASES",
     "ENGINE_FLAG_PREFIXES",
