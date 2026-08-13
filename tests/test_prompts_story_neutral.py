@@ -37,6 +37,19 @@ SHIPPED = (
 )
 
 
+def _require(slug: str) -> None:
+    """
+    Skip when the story is not in this checkout.
+
+    ``dev-story`` is gitignored -- it exists on the maintainer's machine and in
+    no fresh clone or worktree -- so a test that hard-fails on its absence
+    fails every checkout that is not that machine. Skipping keeps the
+    cross-checks exhaustive wherever the story IS present.
+    """
+    if not (project_root() / "games" / slug / "game.yaml").is_file():
+        pytest.skip(f"games/{slug} is not present in this checkout (gitignored)")
+
+
 @pytest.fixture(autouse=True)
 def _restore_active_game():
     """Leave the process on whatever story it was running."""
@@ -56,6 +69,7 @@ def test_each_story_narrates_from_its_own_file(slug, _title):
     names itself -- and the invariant under test is whose words arrive, not
     what they say.
     """
+    _require(slug)
     registry.activate(slug)
     own = (project_root() / "games" / slug / "prompts" / "storyteller.md")
     assert own.is_file(), f"{slug} ships no storyteller.md"
@@ -69,11 +83,17 @@ def test_no_two_stories_are_handed_the_same_narrator():
     Before the fix all three of these were byte-identical: the flagship's
     persona, because only the flagship had one and the engine handed it out.
     """
+    present = [
+        (slug, title)
+        for slug, title in SHIPPED
+        if (project_root() / "games" / slug / "game.yaml").is_file()
+    ]
+    assert len(present) >= 2, "fewer than two stories in this checkout"
     seen: dict[str, str] = {}
-    for slug, _title in SHIPPED:
+    for slug, _title in present:
         registry.activate(slug)
         seen[slug] = prompts.storyteller_persona()
-    assert len(set(seen.values())) == len(SHIPPED), {k: v[:60] for k, v in seen.items()}
+    assert len(set(seen.values())) == len(present), {k: v[:60] for k, v in seen.items()}
 
 
 def test_the_flagship_owns_its_own_voice_on_disk():
@@ -116,6 +136,7 @@ def test_a_story_with_no_examples_gets_none_rather_than_the_flagship_s(slug):
     like, so an inherited one teaches every story to sound like Edgewood. None
     is the correct answer; the flagship's is not.
     """
+    _require(slug)
     registry.activate(slug)
     assert prompts.storyteller_examples() == []
 
@@ -168,6 +189,7 @@ def test_the_companion_is_story_owned_too(slug, title):
     The volatile half stays the engine's -- forms, hint tier and place are
     state, not voice -- so those are asserted present as well.
     """
+    _require(slug)
     registry.activate(slug)
     state = GameState()
     prompt = prompts.assistant_system_prompt(state, hint_tier=2)
@@ -235,6 +257,7 @@ def test_no_story_is_handed_the_flagships_imagery(slug):
     A fae court has no wheat and no village. Whatever the gate does for another
     story, it must never reach for Edgewood's nouns to do it.
     """
+    _require(slug)
     from engine.lore.interceptors import AwarenessGateInterceptor
 
     registry.activate(slug)
@@ -259,6 +282,7 @@ def test_the_machinery_is_masked_even_with_no_story_table():
     and would have passed for the wrong reason if the file had been empty
     rather than absent.
     """
+    _require(slug)
     from engine.lore.interceptors import AwarenessGateInterceptor, story_spoiler_terms
 
     registry.activate("wicked-garden")
