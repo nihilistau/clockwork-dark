@@ -10,8 +10,8 @@
 # THE CLOCKS DRIVE THE DAY, not the player. `clocks.yaml` already declares what
 # `briar_hunger`, `ashen_pressure` and `mortal_collapse` do when they fill, and
 # the crisis card here reads them rather than picking a crisis by author fiat.
-# `sophia_break` is declared in state.yaml with no beats in clocks.yaml -- it is
-# HER patience, and what it drives is the terms card at the end of this file.
+# `sophia_break` is HER patience: short of its ceiling it drives the terms card
+# at the end of this file, and at 5/5 clocks.yaml takes the unmasking on Day 8.
 #
 # EXACTLY ONE DEEP FACTION SCENE. The others become sting cameos. That is the
 # design's rule and it is what makes Day 7 a triage rather than a checklist, so

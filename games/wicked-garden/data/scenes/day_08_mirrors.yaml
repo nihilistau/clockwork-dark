@@ -320,6 +320,70 @@ cards:
               - { type: value, name: knowledge, delta: 4 }
               - { type: value, name: corruption, delta: 3 }
 
+  - id: D8_06b_sophia_unmasked
+    required: true
+    tags: [menu, setpiece, sophia]
+    title: "The Mask, Set Down"
+    text: >-
+      INTENT: the `sophia_break` setpiece. clocks.yaml owes this scene from the
+      moment her patience fills, and tonight the Garden pays it. Not a tantrum
+      and not a battle -- a Sovereign who stops performing. The glamour is set
+      down like a garment, the room empties itself without being told, and what
+      is underneath has been holding a mortal-shaped politeness for nine days.
+      She names the ledger in the court's own grammar: her patience was a gift,
+      a gift is a contract, and the player has been spending it without once
+      asking the price.
+      CONSTRAINT: fires only where the break actually happened --
+      `sophia_mask_slipped`, which clocks.yaml sets when the clock reaches its
+      ceiling; on every other run this card deals and stays silent, like the
+      Deep's mouth above it. Menace, not heat: nothing is taken tonight, and
+      that is the frightening part. Nothing she says may be false.
+      MENU -- resolve exactly one beat.
+    beats:
+      - id: hold_still_and_witness
+        text: >-
+          Look at what she is until she puts the shape back on. Knowledge no
+          court tutor would sell, at the price of having seen it.
+        gate:
+          when: { flag: sophia_mask_slipped }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 6 }
+              - { type: value, name: corruption, delta: 4, why: "some sights are fae-touched" }
+
+      - id: reach_for_her_anyway
+        text: >-
+          Cross the room while she is between shapes. The one gesture nine days
+          of court theatre never produced, and she will keep it longer than any
+          vow sworn at the pools.
+        gate:
+          when: { flag: sophia_mask_slipped }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: desire, delta: 5 }
+              - { type: value, name: sophia_break, delta: -1, why: "someone stayed" }
+
+      - id: name_the_gift_a_contract
+        text: >-
+          Say the law to her face while the face is off: a gift extended
+          unasked binds the giver too. True, and she knows it is true, and the
+          saying of it is a blade with no handle.
+        gate:
+          when:
+            all:
+              - { flag: sophia_mask_slipped }
+              - { value: { name: knowledge, min: 40 } }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 6 }
+              - { type: value, name: knowledge, delta: 4 }
+              - { type: value, name: favor, delta: -6 }
+          on_fail:
+            text: "You reach for the law with the wrong hand, and she watches you drop it."
+            effects:
+              - { type: value, name: favor, delta: -4 }
+
   - id: D8_07_night_before
     required: true
     tags: [menu, night, sophia, intimate]

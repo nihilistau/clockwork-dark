@@ -1,5 +1,5 @@
 """
-The Wicked Garden's authored content: ten day chapters, 23 endings, 46 cards.
+The Wicked Garden's authored content: ten day chapters, 23 endings, 47 cards.
 
 WHAT THIS SUITE IS FOR. A beat that names a value, item, location or flag which
 does not exist does not raise. ``effects.apply_effect`` returns an ``_unknown``
@@ -581,6 +581,100 @@ def test_every_condition_in_every_scene_evaluates(garden: GameState) -> None:
             if isinstance(node.get("when"), (dict, list)):
                 scan(node["when"])
     assert unknown == set()
+
+
+# ---------------------------------------------------------------------------
+# 2b. Every pressure clock keeps its promise
+# ---------------------------------------------------------------------------
+
+
+def _pressure_clock_ids(schema_doc: Any, docs: list[Any]) -> set[str]:
+    """
+    Every id a story treats as a pressure clock, derived from its own files.
+
+    Two sources, and the union is the point:
+
+      1. the `clocks:` block of its state.yaml -- declaring a value there IS
+         the claim that it forces a scene at its ceiling;
+      2. every `{clock: {name: ...}}` predicate anywhere in its content -- a
+         gate written in the clock grammar is content asserting the same claim.
+
+    A helper over parsed documents rather than over this story's paths, so the
+    check can be lifted verbatim when every story grows one.
+    """
+    out = set(schema_doc.get("clocks") or {})
+    for doc in docs:
+        for node in _walk(doc):
+            clock = node.get("clock")
+            if isinstance(clock, dict):
+                name = clock.get("name") or clock.get("clock")
+                if name:
+                    out.add(str(name))
+    return out
+
+
+def _every_garden_doc() -> list[Any]:
+    """The ten days, the rules, the roster, the tables, the side decks."""
+    return [
+        *_authored_docs().values(),
+        _read(RULES / "clocks.yaml"),
+        _read(RULES / "threads.yaml"),
+        _read(GARDEN / "agents.yaml"),
+        *(_read(path) for path in _side_deck_paths()),
+        *(_read(path) for path in sorted((GARDEN / "data" / "tables").glob("*.yaml"))),
+    ]
+
+
+def test_every_pressure_clock_has_a_beat_table() -> None:
+    """
+    state.yaml's clocks block promises "At 5 the story stops asking and takes a
+    scene -- see clocks.yaml". A clock declared or gated but absent from
+    clocks.yaml keeps that promise nowhere: the store accepts every write, every
+    `{clock: ...}` gate answers, and the ceiling is mute -- which is exactly how
+    `sophia_break` shipped, wound in seven decks and never firing a scene.
+    """
+    used = _pressure_clock_ids(_read(GARDEN / "state.yaml"), _every_garden_doc())
+    table = set(_read(RULES / "clocks.yaml").get("clocks") or {})
+    assert used <= table, f"clocks with no beat table: {sorted(used - table)}"
+
+
+def test_the_beat_table_only_names_declared_clocks() -> None:
+    """
+    The reverse direction. `clocks.value_of` reads an undeclared name as 0.0
+    forever, so a beat table over one is a setpiece that can never fire, with
+    no error anywhere -- the same silence, from the other side.
+    """
+    declared = set(_read(GARDEN / "state.yaml").get("clocks") or {})
+    table = set(_read(RULES / "clocks.yaml").get("clocks") or {})
+    assert table <= declared, f"beat tables over undeclared clocks: {sorted(table - declared)}"
+
+
+def test_her_patience_filling_forces_the_unmasking(garden: GameState) -> None:
+    """
+    The `sophia_break` promise, kept through the real resolver: at its ceiling
+    the clock owes `sophia_unmasked`, sets the durable flag, and the Day 8 card
+    that answers the scene actually opens on it.
+    """
+    from engine.game import clocks
+
+    effects.apply_effect(garden, {"type": "value", "name": "sophia_break", "set": 5})
+    clocks.resolve(garden)
+
+    assert "sophia_unmasked" in clocks.forced_scenes(garden)
+    assert garden.flags.get("sophia_mask_slipped") is True
+
+    card = next(
+        c
+        for c in deck_module.load_deck("day_08_mirrors").cards
+        if c.id == "D8_06b_sophia_unmasked"
+    )
+    result = deck_module.resolve_beat(garden, card.beats[0], by="test")
+    assert result.passed is True
+
+    # Soothing her afterwards eases the clock but cannot un-force the scene:
+    # the card gates on the flag, not the number, and that is deliberate.
+    clocks.advance(garden, "sophia_break", -1, why="soothed")
+    assert "sophia_unmasked" in clocks.forced_scenes(garden)
 
 
 # ---------------------------------------------------------------------------

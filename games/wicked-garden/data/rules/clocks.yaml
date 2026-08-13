@@ -1,7 +1,13 @@
-# Progress Clocks — worked example (The Wicked Garden)
-# ====================================================
+# Progress Clocks — The Wicked Garden
+# ===================================
 #
-# NOT LOADED BY EITHER SHIPPED GAME. See README.md in this directory.
+# LOADED: game.yaml names this file as `paths.clocks`, and every clock in
+# state.yaml's `clocks:` block must have a beat table here. That block's own
+# comment is a promise — "At 5 the story stops asking and takes a scene — see
+# clocks.yaml" — and a clock missing from this file keeps that promise
+# nowhere: it stores fine, gates fine, and is mute at its ceiling, which is
+# exactly how `sophia_break` shipped. tests/test_wicked_garden_scenes.py now
+# holds the two files to the same set.
 #
 # A clock is declared TWICE and the split is the point:
 #
@@ -80,6 +86,34 @@ clocks:
         effects:
           - { type: value, name: knowledge, delta: 2, why: "the Vale explains himself" }
         reset_to: 0
+
+  # ---------------------------------------------------------------------
+  # Sophia's composure. The one clock that is a person. The day scripts
+  # wind it every time she is managed in public, defied, or bargained
+  # around -- and wind it DOWN when she is soothed, which is why
+  # engine/game/clocks.py names this clock as the reason `advance` takes a
+  # negative delta. No `advance_when`: her patience is only ever spent by
+  # something the player did, and an engine rule that drained it on its own
+  # would make her a weather system rather than a person.
+  # ---------------------------------------------------------------------
+  sophia_break:
+    label: "Her patience"
+    beats:
+      - id: sophia_break_4
+        at: 4
+        rumors:
+          - "The court has started answering her before she finishes the question."
+
+      # The setpiece: she stops performing. The card that answers this is
+      # D8_06b_sophia_unmasked in day_08_mirrors.yaml, gated on the flag set
+      # here -- the flag rather than the clock, because being soothed
+      # afterwards can ease her patience back below its ceiling but cannot
+      # make the player un-see what was under the mask.
+      - id: sophia_break_full
+        at: max
+        set_flags: [sophia_mask_slipped]
+        forces_scene: sophia_unmasked
+        text: "Her patience was a gift, and a gift here is a contract. It has just been called in."
 
   # ---------------------------------------------------------------------
   # What the mortal world is doing while you are here. Wound by the day
