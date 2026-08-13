@@ -1,9 +1,10 @@
 # Missing plates — The Wicked Garden
 
-Eight subjects are authored in `subjects.yaml` and have no image in
+8 subject(s) are authored in `subjects.yaml` and have no image in
 `plates/`, so each falls through the resolution chain to the procedural
-silhouette. One of them is `mortal_threshold`, the entry location, which is
-why a new run opens on a placeholder.
+silhouette.
+One of them is `mortal_threshold`, the entry location, which is why a new run
+opens on a placeholder.
 
 **Generated, not written.** Every prompt below is the output of
 `engine.media.art.render_prose` / `render_tags` against the shipped
@@ -12,13 +13,13 @@ fourth copy of the art voice free to drift from the three that ship. After
 editing a subject, re-run the generator rather than editing the prompts here:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\art_missing.py
+.\.venv\Scripts\python.exe scripts\art_missing.py --game wicked-garden
 ```
 
 ## Order to work in
 
-1. **`unknown`** — the fallback plate. One image and the procedural silhouette
-   stops appearing anywhere, including for the five locations below it.
+1. **`unknown`** — the fallback plate. One image and the procedural
+   silhouette stops appearing for every location that has none of its own.
 2. **`mortal_threshold`** — the entry location, so this is the first screen of
    every new run.
 3. The rest, in any order. Each one only shows up if the player goes there.
