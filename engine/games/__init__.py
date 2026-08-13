@@ -24,10 +24,11 @@ Version: v0.1.0 [2026-08-08]
 from __future__ import annotations
 
 # The engine's own version, matched against each manifest's
-# ``engine_requires`` gate at activation. It MUST track
-# ``engine.persistence.saves.ENGINE_VERSION``; tests/test_games.py asserts the
-# two are equal, because a manifest that gates on an engine version the save
-# envelope disagrees with is a gate that means nothing.
+# ``engine_requires`` gate at activation. This is the ONE home for the string:
+# ``engine.persistence.saves`` imports it for the save envelope, so a manifest
+# gate and a save's recorded engine version cannot disagree by construction.
+# tests/test_games.py still asserts the two agree -- the assertion now proves
+# the import rather than a copy.
 ENGINE_VERSION = "0.2.0"
 
 __all__ = ["ENGINE_VERSION"]

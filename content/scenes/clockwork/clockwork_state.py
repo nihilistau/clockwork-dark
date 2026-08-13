@@ -673,9 +673,10 @@ def run_turn(
         # nothing is written until the argument is over, and the narrator then
         # writes ONCE, knowing the answer.
         #
-        # `ran=False` for a story declaring fewer than two agents, which is both
-        # shipped games: `agreed` is empty, the block is empty, and the turn
-        # below is byte-for-byte the turn they had.
+        # `ran=False` for a story declaring fewer than two agents -- the
+        # flagship, which declares no roster: `agreed` is empty, the block is
+        # empty, and the turn below is byte-for-byte the turn it had. The
+        # Wicked Garden declares two agents and takes the pipeline path.
         # A non-empty `safety` means the gate refused this direction --
         # `_review_input` returns {} when the input is allowed. The REDIRECT
         # beat is passed, never `reasons`: those name the player's own declared

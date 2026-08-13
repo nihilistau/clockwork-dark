@@ -2,7 +2,7 @@
 The Multi-Agent Turn
 ====================
 
-plan → negotiate → commit, in front of narration.
+plan → negotiate → govern → commit, in front of narration.
 
 WHAT RAN BEFORE. Two agents, strictly sequential and one-directional: the
 narrator ran to completion and committed, then the second agent was handed the

@@ -128,9 +128,10 @@ def active_roster() -> Any:
     read together on any turn that involves an agent -- and a roster left over
     from the previous story would grant its permissions to this one's agents.
 
-    Returns an EMPTY roster when a story declares no ``agents.yaml``, which is
-    both shipped games: they run the engine's built-in narrator and companion,
-    exactly as before.
+    Returns an EMPTY roster when a story declares no ``agents.yaml``. The
+    flagship declares none and runs the engine's built-in narrator and
+    companion, exactly as before; The Wicked Garden ships a two-agent roster,
+    which is what sends its turns through the plan/negotiate/commit pipeline.
     """
     global _roster
     if _roster is not None:

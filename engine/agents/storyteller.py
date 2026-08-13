@@ -695,7 +695,8 @@ class StorytellerAgent:
                 this story runs one. The narrator REPORTS this rather than
                 re-deciding it -- the point of planning before narrating is
                 that the argument is over by the time the prose starts. Empty
-                for a single-agent story, which is both shipped games.
+                for a single-agent story such as the flagship; The Wicked
+                Garden declares two agents and passes the agreed turn here.
 
         Returns:
             StorytellerTurnResult with narration and evaluation.

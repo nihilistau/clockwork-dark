@@ -93,9 +93,13 @@ def test_engine_version_matches_the_save_envelope() -> None:
     The gate and the save envelope must agree on what version this is.
 
     ``engine_requires`` is meaningless if the number it compares against is
-    not the number written into every save.
+    not the number written into every save. The string now has ONE home --
+    ``engine.games.ENGINE_VERSION``, imported by the save module -- so this
+    assertion proves the import stays in place rather than that two copies
+    happen to match.
     """
     assert ENGINE_VERSION == saves_module.ENGINE_VERSION
+    assert saves_module.ENGINE_VERSION is ENGINE_VERSION
 
 
 @pytest.mark.parametrize(

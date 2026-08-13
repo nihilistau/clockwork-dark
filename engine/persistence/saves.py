@@ -53,12 +53,17 @@ from typing import Any, Optional
 
 from engine.config import get_config
 from engine.game.state import CURRENT_SAVE_VERSION, GameState
+
+# ONE home for the engine's version: engine/games/__init__.py is authoritative
+# (it is what manifests' ``engine_requires`` gates against), and the save
+# envelope imports it rather than repeating the string. tests/test_games.py
+# asserts the two agree, which this import makes true by construction.
+from engine.games import ENGINE_VERSION  # noqa: F401  (re-exported)
 from engine.persistence.atomic import append_jsonl, read_json, write_json_atomic
 from engine.persistence.migrations import MigrationError, migrate
 
 logger = logging.getLogger(__name__)
 
-ENGINE_VERSION = "0.2.0"
 AUTOSAVE_SLOT = "auto"
 
 
