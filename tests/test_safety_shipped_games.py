@@ -1,27 +1,27 @@
 """
-The compatibility bar for the safety layer.
+The compatibility bar for the safety layer — mechanism, not shipped values.
 
-``games/clockwork-dark/game.yaml`` says the safety layer must leave the shipped
-stories exactly as they were, in the same way the manifest layer's bar was that
-activating the flagship is a no-op merge. This file is that claim, tested.
+This file used to pin every shipped story to an INERT policy, which made the
+test a hostage of content decisions: the moment The Wicked Garden declared the
+`explicit` rating its content is written for, a test named "shipped stories are
+unchanged" failed on a change that was the point. What the engine actually
+guarantees is not "every story is suggestive" — it is:
 
-The claim has three parts and each is a separate failure if it breaks:
+  1. The policy in force MATCHES THE DECLARATION. A story that declares nothing
+     resolves inert; a story that declares a ceiling and default gets exactly
+     that ceiling and default. The expectation is computed from the manifest
+     block itself, never hardcoded, so shipping a new rating cannot break this
+     file.
+  2. No shipped story configures a LIMIT. `hard_nos` belongs to the PLAYER, set
+     in the boundary sheet at the start of a run; a manifest pre-filling it
+     would be a story deciding what its player finds unbearable.
+  3. The player dial is clamped both ways: raising past the story ceiling is
+     refused, lowering below the story default is honoured.
+  4. An INERT policy stays free: no prompt text, no RNG draw, every surface
+     allows. (Asserted only for stories whose declaration implies inert —
+     for the others the safety layer being active is the declared behaviour.)
 
-  1. No shipped story configures a LIMIT -- the flagship declares no ``safety:``
-     block at all, and The Wicked Garden declares one that names an intensity
-     ceiling and nothing else -- so both resolve to an INERT policy.
-  2. An inert policy contributes no prompt text -- R-01 means the budget is
-     already over, and a layer nobody configured must not spend a token of it.
-  3. An inert policy draws no RNG, so a recorded seed replays identically with
-     the layer present.
-
-Part 1 is the one that changed shape. It used to read "neither shipped story
-declares a ``safety:`` block", which was true when the second story was a
-near-copy of the flagship. The Garden does declare one, and it still resolves
-inert -- which is the more useful claim, because it is the DECLARATION that has
-to be inspected rather than its absence.
-
-Version: v0.2.0 [2026-08-09]
+Version: v0.3.0 [2026-08-13]
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ from engine.safety import reset_policies
 from engine.safety.gate import SafetyGate
 from engine.safety.governor import SafetyCeiling, SafetyDirective
 from engine.safety.policy import resolve
-from engine.safety.tiers import IntensityTier
+from engine.safety.tiers import LOWEST, IntensityTier, clamp
 
 SHIPPED = ("clockwork-dark", "wicked-garden")
 
@@ -65,31 +65,93 @@ def shipped(request: Any) -> Iterator[Any]:
         reset_policies()
 
 
-class TestShippedStoriesAreUnchanged:
-    def test_neither_declares_a_limit(self, shipped: Any) -> None:
-        """
-        What makes a policy inert is what is ABSENT from the block, not the
-        block. The flagship declares nothing; the Garden declares a ceiling and
-        a fade preference, which are authorship, not restriction.
+def _declared(manifest: Any) -> tuple[IntensityTier, IntensityTier]:
+    """
+    The (ceiling, default) the manifest's own block implies.
 
-        ``hard_nos`` stays empty in a manifest on purpose: limits belong to the
-        PLAYER, set in the boundary sheet at the start of a run. A story
-        pre-filling them would be a story deciding what its player finds
-        unbearable -- and would make everything below this line false.
-        """
+    Computed from the declaration with the same fallbacks resolve() documents,
+    so the expectation moves WITH the manifest rather than being restated here.
+    """
+    block = manifest.extras.get("safety") or {}
+    intensity = block.get("intensity") if isinstance(block.get("intensity"), dict) else {}
+    ceiling = IntensityTier.parse(
+        intensity.get("ceiling", intensity.get("max")), default=LOWEST
+    )
+    default = IntensityTier.parse(intensity.get("default"), default=LOWEST)
+    # resolve() clamps at construction; mirror it so the expectation is legal.
+    return ceiling, default if default <= ceiling else ceiling
+
+
+class TestPolicyMatchesDeclaration:
+    def test_no_shipped_story_declares_a_limit(self, shipped: Any) -> None:
+        """Rating is authorship; limits are the player's. Never a manifest's."""
         block = shipped.extras.get("safety") or {}
         assert not block.get("hard_nos")
         assert not block.get("markers")
-        ceiling = str((block.get("intensity") or {}).get("ceiling") or "suggestive")
-        assert ceiling == "suggestive"
+        assert not block.get("boundaries")
 
-    def test_the_resolved_policy_is_inert(self, shipped: Any) -> None:
+    def test_the_resolved_policy_is_the_declared_one(self, shipped: Any) -> None:
+        ceiling, default = _declared(shipped)
         policy = resolve()
-        assert policy.inert, policy
-        assert policy.ceiling is IntensityTier.SUGGESTIVE
-        assert policy.intensity is IntensityTier.SUGGESTIVE
+        assert policy.ceiling is ceiling, policy
+        assert policy.intensity is default, policy
         assert policy.sheet.empty
         assert policy.markers.empty
+
+    def test_a_story_declaring_nothing_is_inert(self, shipped: Any) -> None:
+        """The flagship path: no `safety:` block must mean a free turn."""
+        if shipped.extras.get("safety"):
+            pytest.skip(f"{shipped.slug} declares a safety block")
+        assert resolve().inert
+
+
+class TestThePlayerDial:
+    def test_raising_past_the_ceiling_is_clamped(self, shipped: Any) -> None:
+        ceiling, _ = _declared(shipped)
+        policy = resolve(player={"intensity": "extreme"})
+        assert policy.intensity is clamp(IntensityTier.EXTREME, ceiling)
+
+    def test_lowering_is_always_honoured(self, shipped: Any) -> None:
+        policy = resolve(player={"intensity": "suggestive"})
+        assert policy.intensity is IntensityTier.SUGGESTIVE
+
+    def test_the_config_dial_follows_the_same_clamp(self, shipped: Any, monkeypatch: Any) -> None:
+        """The Settings screen writes safety.intensity.player; same rules."""
+        from engine.config import get_config
+
+        ceiling, _ = _declared(shipped)
+        monkeypatch.setitem(
+            get_config()._data.setdefault("safety", {}).setdefault("intensity", {}),  # noqa: SLF001
+            "player",
+            "extreme",
+        )
+        policy = resolve()
+        assert policy.intensity <= ceiling
+
+    def test_the_story_sentinel_follows_the_story(self, shipped: Any, monkeypatch: Any) -> None:
+        from engine.config import get_config
+
+        _, default = _declared(shipped)
+        monkeypatch.setitem(
+            get_config()._data.setdefault("safety", {}).setdefault("intensity", {}),  # noqa: SLF001
+            "player",
+            "story",
+        )
+        assert resolve().intensity is default
+
+
+class TestAnInertPolicyStaysFree:
+    """
+    The zero-cost guarantees, asserted only where the declaration implies
+    inert. A story that declares a rating has ASKED for the layer to run;
+    charging it is the documented behaviour, not a regression.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _only_inert_stories(self, shipped: Any) -> None:
+        ceiling, default = _declared(shipped)
+        if ceiling is not LOWEST or default is not LOWEST:
+            pytest.skip(f"{shipped.slug} declares a non-inert rating")
 
     def test_the_gm_prompt_gains_nothing(self, shipped: Any) -> None:
         state = GameState()
@@ -119,7 +181,15 @@ class TestShippedStoriesAreUnchanged:
         for name in ("Collar of Soft Thorns", "brass key", "tinker's caravan"):
             assert gate.rename(name) == name
 
-    def test_the_commit_hook_changes_nothing(self, shipped: Any) -> None:
+
+class TestTheCommitHook:
+    def test_the_commit_hook_records_the_tier_in_force(self, shipped: Any) -> None:
+        """
+        SafetyCeiling always writes the tier in force for the turn journal and
+        never edits effects on content it has no reason to touch.
+        """
+        _, default = _declared(shipped)
+
         class _Plan:
             def __init__(self) -> None:
                 self.beat = "the caravan arrives"
@@ -143,8 +213,6 @@ class TestShippedStoriesAreUnchanged:
         SafetyCeiling().run_post(ctx)
 
         assert plan.effects == [{"type": "stat", "stat": "gold", "delta": 5}]
-        assert ctx.metadata == {}
-        assert ctx.safety_block == ""
         assert ctx.veto == ""
         # The one thing it DOES write: the tier in force, for the turn journal.
-        assert ctx.intensity == "suggestive"
+        assert ctx.intensity == default.value

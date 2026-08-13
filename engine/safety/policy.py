@@ -292,12 +292,24 @@ def resolve(
         # A story raises its OWN ceiling. It is repo content, reviewed like
         # code -- unlike an agent, whose ceiling requests go through the
         # ratchet above and are refused.
+        #
+        # ``ceiling`` is the documented spelling (docs/SAFETY.md and both
+        # shipped manifests use it); ``max``/``max_intensity`` are accepted for
+        # compatibility. This lookup used to read only ``max``, so a manifest's
+        # declared ``ceiling:`` was silently ignored and every story got the
+        # engine default.
+        intensity_block = (
+            story.get("intensity") if isinstance(story.get("intensity"), dict) else {}
+        )
+        ceiling_raw = (
+            intensity_block.get("ceiling", intensity_block.get("max"))
+            if intensity_block
+            else story.get("max_intensity")
+        )
         engine_ceiling = IntensityTier.parse(
-            (story.get("intensity") or {}).get("max")
-            if isinstance(story.get("intensity"), dict)
-            else story.get("max_intensity"),
+            ceiling_raw,
             default=engine_ceiling,
-            source="manifest safety.intensity.max",
+            source="manifest safety.intensity.ceiling",
         )
         engine_default = IntensityTier.parse(
             (story.get("intensity") or {}).get("default")
@@ -326,9 +338,20 @@ def resolve(
         source = "config+manifest"
 
     intensity = engine_default
+    # The player's standing dial, written by the Settings screen into
+    # config/local.yaml. "story" (or empty) means "follow the story's own
+    # default" -- it is a sentinel, not a tier, so it must be checked before
+    # parse() would log it as junk. The dial can sit anywhere on the ladder;
+    # construction clamps it to the story ceiling, so a dial above the ceiling
+    # is honoured as far as the story allows and no further.
+    dial = str(cfg.get("safety.intensity.player", "") or "").strip().lower()
+    if dial and dial != "story":
+        intensity = IntensityTier.parse(
+            dial, default=engine_default, source="config safety.intensity.player"
+        )
     if player:
         intensity = IntensityTier.parse(
-            player.get("intensity"), default=engine_default, source="player"
+            player.get("intensity"), default=intensity, source="player"
         )
         sheet = sheet.merged_with(
             BoundarySheet.from_mapping(player.get("boundaries"), source="player")

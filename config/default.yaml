@@ -283,6 +283,11 @@ safety:
     # Where a new session's dial starts. Never above the ceiling; a higher
     # value here is clamped, not honoured.
     default: suggestive
+    # The PLAYER's standing dial, written by the Settings screen into
+    # config/local.yaml. "story" means "follow the active story's own default".
+    # Any tier name overrides the story default, clamped to the story ceiling:
+    # lowering is always honoured, raising past the ceiling never is.
+    player: "story"
 
   # Player-facing Fade control. Content above the session's tier collapses to
   # summary whether or not this is on -- this is about offering the button, not

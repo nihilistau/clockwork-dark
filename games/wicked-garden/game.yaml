@@ -30,11 +30,13 @@ blurb: >-
 # config/local.yaml move it. `extras` carries it verbatim, and `to_dict()`
 # publishes it over GET /api/games so the picker can show a rating for free.
 #
-# The ceiling is what this content is AUTHORED to. The shipped scenes are
-# written at `suggestive`: atmosphere, tension, power and threat, with the
-# explicit variants the design specifies left as marked hooks rather than
-# written. Raising the ceiling is a deliberate act by whoever owns the install,
-# and it does not conjure content that is not there.
+# The ceiling is the hardest register this story is allowed to reach; the
+# default is where a fresh run starts. This story declares both at `explicit`:
+# the LLM narrates to the register the run is set to, and the marked hooks in
+# the day chapters are written to be taken. The PLAYER can lower the working
+# intensity at any time from the Settings screen (`safety.intensity.player`
+# in config/local.yaml, clamped to this ceiling) — lowering is always honoured,
+# raising past the ceiling never is.
 #
 # `hard_nos` is empty and stays empty. Limits belong to the PLAYER, set in the
 # boundary sheet at the start of a run; a story pre-filling them would be a
@@ -42,8 +44,8 @@ blurb: >-
 # ---------------------------------------------------------------------------
 safety:
   intensity:
-    ceiling: suggestive
-    default: suggestive
+    ceiling: explicit
+    default: explicit
   fade:
     available: true
   aftercare:

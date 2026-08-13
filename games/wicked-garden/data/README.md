@@ -12,9 +12,12 @@ Source of truth for every id, in this order:
 2. The design docs under `Design_files/Wicked-Garden/docs/design/`.
 3. The concept pack under `Design_files/Wicked-Garden/concept/`.
 
-Content is authored to the **suggestive** ceiling declared in `game.yaml`.
-Atmosphere, tension, power and threat are in scope. Explicit material is not,
-and the explicit variants the design specifies are left as marked hooks.
+Content is rated **explicit** — the ceiling and default declared in
+`game.yaml`. Atmosphere, tension, power and threat are the spine, and the
+narrator may take the marked hooks in the day chapters to the explicit
+register the run is set to. The player can lower the working intensity at any
+time from the Settings screen; lowering is always honoured, raising past the
+declared ceiling never is.
 Everyone depicted is an adult; the design says so repeatedly and so does this
 content, including in the negative prompt of `art/subjects.yaml`.
 

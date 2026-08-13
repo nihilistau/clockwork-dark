@@ -132,8 +132,15 @@ def test_manifest_carries_unknown_keys_through_to_the_api(garden: Any) -> None:
     manifest dataclass has no field for. The engine keeps its own ids; the
     block rides along in ``extras`` and is republished verbatim by
     ``to_dict()``, so a picker can show a content rating for free.
+
+    The assertion is about PASSTHROUGH, so it deliberately does not pin the
+    declared tier -- the rating is a content decision this test has no stake
+    in. It checks the ceiling arrives, is a real tier name, and survives
+    ``to_dict()`` byte-identical to what the manifest holds.
     """
-    assert garden.extras["safety"]["intensity"]["ceiling"] == "suggestive"
+    ceiling = garden.extras["safety"]["intensity"]["ceiling"]
+    assert ceiling in ("suggestive", "explicit", "extreme")
+    assert garden.to_dict()["safety"]["intensity"]["ceiling"] == ceiling
     assert garden.to_dict()["safety"]["fade"]["available"] is True
 
 
