@@ -153,11 +153,8 @@ def test_agent_ids_are_the_only_clockwork_identifiers_left() -> None:
         # Both are deliberate compat identities documented in the module; the
         # day the asset home and config key are renamed, this row goes too.
         "engine/scenes/default_scene.py",
-        "engine/skills/builtin/assistant.py",  # pack= -- S4 owns
-        "engine/skills/builtin/items.py",  # pack= -- S4 owns
-        "engine/skills/builtin/livelihood.py",  # pack= -- S4 owns
-        "engine/skills/builtin/mechanics.py",  # pack= -- S4 owns
-        "engine/skills/builtin/quests.py",  # pack= -- S4 owns
+        # The builtin skill pack was renamed to "core"; the five skills/builtin
+        # rows that stood here are gone and must not return.
     }
     actual: set[str] = set()
     for path in sorted(_ENGINE.rglob("*.py")):
