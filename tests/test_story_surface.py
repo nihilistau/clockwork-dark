@@ -317,12 +317,15 @@ def test_every_shipped_story_still_resolves_to_its_own_plugin() -> None:
     The compatibility bar. Not run under `temp_story`, which redirects
     `games_root` at a temp directory and would put the real games out of reach.
 
-    No shipped story declares a `ui:` block, so every one must resolve exactly
-    as it did when the client keyed off the directory name.
+    Both shipped stories DECLARE their `ui:` block now, and each declares the
+    plugin the slug fallback would have picked -- so the client resolves
+    exactly as it did when the block was omitted, but by declaration rather
+    than by coincidence of directory naming. The slug fallback itself is still
+    real and still held, by the malformed-block test below.
     """
     for shipped in (CLOCKWORK, GARDEN):
         manifest = registry.get(shipped)
-        assert manifest.ui_plugin == ""
+        assert manifest.ui_plugin == shipped
         assert manifest.to_dict()["ui_plugin"] == shipped
 
 

@@ -22,6 +22,14 @@ blurb: >-
   One day here is ten days at home, and the toll is charged whether you spend
   it well or not. Please her, match her, escape her, or be consumed.
 
+# Which client plugin draws this story. The value is what an omitted block
+# would have resolved to anyway -- the server falls back to the slug -- but
+# the fallback exists for scratch stories, not shipped ones: a story the repo
+# ships says which skin it wears rather than relying on its directory being
+# named after one.
+ui:
+  plugin: wicked-garden
+
 # ---------------------------------------------------------------------------
 # Which scene serves this story, declared rather than inherited.
 #

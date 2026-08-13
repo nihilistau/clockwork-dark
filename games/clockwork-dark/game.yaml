@@ -86,6 +86,14 @@ scene:
   module: engine.scenes.default_scene
   blueprint: "engine.scenes.default_api:story_blueprint"
 
+# Which client plugin draws this story. The value is what an omitted block
+# would have resolved to anyway -- the server falls back to the slug -- but
+# the fallback exists for scratch stories, not shipped ones: a story the repo
+# ships says which skin it wears rather than relying on its directory being
+# named after one.
+ui:
+  plugin: clockwork-dark
+
 # EVERY PATH THIS STORY READS, INCLUDING THE ONES IT USED TO INHERIT.
 #
 # config/default.yaml carried this list until v0.2.2 -- which meant the engine's

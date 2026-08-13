@@ -3,15 +3,19 @@
  *
  * WHAT IS AND IS NOT HERE
  * -----------------------
- * The components are real and rendered; the STORY is not written yet. There is
- * no `games/wicked-garden/` on the server, so this plugin can never be the
- * active one and the game path never loads it. It exists for two reasons:
+ * The components are real and rendered, and so is the story: The Wicked
+ * Garden ships at `games/wicked-garden/` and its manifest declares
+ * `ui: {plugin: wicked-garden}`, so this plugin IS the active one whenever
+ * that story runs. (This header used to say the opposite -- the plugin
+ * predates the story it was built for, and for a while the component kit was
+ * the only way to see it.) Two things remain true from that era:
  *
  *   1. it is the second implementation of the plugin contract, which is the
  *      only way to know the contract is a seam and not a description of the
  *      flagship;
- *   2. everything it declares is reachable today through the component kit at
- *      `?kit=wicked-garden`, drawn from fixtures that are labelled as fixtures.
+ *   2. everything it declares is also reachable through the component kit at
+ *      `?kit=wicked-garden`, drawn from fixtures that are labelled as
+ *      fixtures, so the parts can be inspected without playing to them.
  *
  * Nothing here fabricates game state. The Ledger below reads `state.meters` --
  * the story's own declared block, projected by the server from its state.yaml

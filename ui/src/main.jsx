@@ -11,10 +11,12 @@
  * A story with no plugin, a plugin that throws, or a server with no catalogue
  * all land in the same place: core alone, which is a complete client.
  *
- * There is no longer a SHIPPED story exercising that path -- `drowned-carillon`
- * was it, and it was deleted -- so it is held by `tests/test_story_surface.py`
- * rather than by a game somebody plays. Worth knowing: a path proved only by a
- * test is a path that rots more quietly than one a player walks.
+ * No shipped story exercises that path: both declare `ui: {plugin: ...}` in
+ * their manifests and ship the plugin they name. It exists for the story that
+ * is a directory and a game.yaml and nothing else yet, and it is held by
+ * `tests/test_story_surface.py` rather than by a game somebody plays. Worth
+ * knowing: a path proved only by a test is a path that rots more quietly than
+ * one a player walks.
  */
 import React from "react";
 import { createRoot } from "react-dom/client";
