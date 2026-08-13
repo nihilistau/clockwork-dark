@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 
@@ -403,6 +403,33 @@ def _held(state: Any, item_id: str, qty: int = 1) -> bool:
     return any(i.id == item_id and i.qty >= qty for i in state.inventory)
 
 
+def _craft_yield(degree: str, recipe: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """
+    What one attempt at a recipe hands back, by degree.
+
+        crit_success    the declared output plus one -- the batch came out right
+        success         the declared output
+        partial         the output with some of the batch wasted (half, min one)
+        failure         the recipe's declared salvage, or nothing
+
+    The recipe declares WHAT; this table declares HOW WELL, so a content author
+    never has to write four quantity rows per recipe and the degrees mean the
+    same thing in every category.
+    """
+    if degree == "failure":
+        salvage = recipe.get("salvage")
+        return dict(salvage) if isinstance(salvage, dict) and salvage.get("id") else None
+    output = recipe.get("output")
+    if not isinstance(output, dict) or not output.get("id"):
+        return None
+    qty = max(1, int(output.get("qty", 1) or 1))
+    if degree == "crit_success":
+        qty += 1
+    elif degree == "partial":
+        qty = max(1, qty // 2)
+    return {"id": str(output["id"]), "qty": qty}
+
+
 @skill(
     pack="clockwork",
     description=(
@@ -422,10 +449,17 @@ def craft_item(recipe_id: str) -> str:
     a baker could buy bread and be given bread, and that was the whole fantasy.
 
     Inputs and time are spent on the attempt, not on success: a failed bake
-    still costs you the morning, or the risk is not a risk.
+    still costs you the morning, or the risk is not a risk. The refusals --
+    unknown recipe, wrong station, missing tool, short of inputs -- all come
+    BEFORE anything is spent, because a player must be able to ask and be told
+    no without paying for the question.
+
+    Degrees, resolved by engine/game/checks.py on the recipe's declared band:
+    a critical success adds one to the batch, a partial success wastes some of
+    it, and a failure falls back to the recipe's declared salvage.
     """
-    from engine.game import effects as effects_module
     from engine.game import checks
+    from engine.game import inventory as inventory_module
     from engine.game.clock import advance_time
 
     engine = get_active_engine()
@@ -453,32 +487,45 @@ def craft_item(recipe_id: str) -> str:
              ", ".join(str(m.get("id")) for m in missing)}
         )
 
+    # Time first, and unconditionally -- the same shape as foraging: a failed
+    # bake still cost the morning. advance_time runs hunger, the evil ticker
+    # and expiries, so a six-hour forge shift is a real six hours.
     advance_time(state, float(recipe.get("hours", 1)))
-    for item in inputs:
-        effects_module.apply_effect(
-            state,
-            {"type": "remove_item", "id": str(item.get("id")), "qty": int(item.get("qty", 1))},
-        )
+
+    # Inputs are consumed on the attempt, pass or fail, through the effect
+    # dispatcher -- the only sanctioned writer of game state.
+    consumed = [
+        inventory_module.take(state, str(item.get("id")), int(item.get("qty", 1)))
+        for item in inputs
+    ]
 
     result = checks.resolve(
         state, str(recipe.get("skill", "craft")), str(recipe.get("band", "standard"))
     )
     passed = result.degree in ("crit_success", "success", "partial")
-    granted = recipe.get("output") if passed else recipe.get("salvage")
+    granted = _craft_yield(result.degree, recipe)
 
-    if isinstance(granted, dict) and granted.get("id"):
-        effects_module.apply_effect(
-            state,
-            {"type": "item", "id": str(granted["id"]), "qty": int(granted.get("qty", 1))},
-        )
+    produced = None
+    if granted is not None:
+        receipt = inventory_module.grant(state, str(granted["id"]), int(granted["qty"]))
+        produced = {
+            "id": str(granted["id"]),
+            "name": inventory_module.name_of(str(granted["id"])),
+            "qty": int(granted["qty"]),
+            "effect": receipt,
+        }
 
     return json.dumps(
         {
             "success": passed,
             "recipe_id": recipe_id,
+            "degree": result.degree,
             "check": result.to_dict(),
-            "produced": granted if granted else None,
+            "consumed": consumed,
+            "produced": produced,
+            "salvaged": bool(result.degree == "failure" and granted is not None),
             "hours": float(recipe.get("hours", 1)),
+            "world_day": state.world_day,
             "text": str(recipe.get("success_text" if passed else "failure_text", "")).strip(),
         }
     )
