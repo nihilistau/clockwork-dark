@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterator, Optional
 
 from engine.game import effects as effects_module
+from engine.game import foraging
 from engine.game.clock import advance_time
 from engine.game.dice import DiceResult, resolve_check, roll_dice
 from engine.game.evil_ticker import EvilTicker
@@ -80,17 +81,27 @@ class GameEngine:
             )
 
         edge = get_edge(current, location_id)
+        # A discovered hidden path (engine/game/foraging.py) is a way through
+        # the wood the map does not draw. It can OPEN a leg the graph lacks and
+        # SHORTEN one it has; it can never lengthen one, and an undiscovered
+        # path changes nothing -- the graph answers exactly as before.
+        shortcut = foraging.shortcut_hours(self.state, current, location_id)
         if edge is None:
-            return MoveResult(
-                success=False,
-                from_id=current,
-                to_id=location_id,
-                hours=0,
-                stamina_cost=0,
-                message=f"Cannot travel from {current} to {location_id}.",
-            )
+            if shortcut is None:
+                return MoveResult(
+                    success=False,
+                    from_id=current,
+                    to_id=location_id,
+                    hours=0,
+                    stamina_cost=0,
+                    message=f"Cannot travel from {current} to {location_id}.",
+                )
+            # A quiet way, by definition: no road, no toll, nobody watching.
+            edge = {"hours": shortcut, "danger_dc": 0, "awareness_delta": 0}
 
         hours = int(edge.get("hours", 1))
+        if shortcut is not None:
+            hours = min(hours, shortcut)
         stamina_cost = max(1, hours * 5)
         if self.state.stats.stamina < stamina_cost:
             return MoveResult(

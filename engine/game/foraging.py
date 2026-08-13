@@ -300,6 +300,161 @@ def _pick_node(state: GameState, location_id: str, node_id: str = "") -> Optiona
 
 
 # ---------------------------------------------------------------------------
+# hidden paths
+# ---------------------------------------------------------------------------
+#
+# ``engine/game/procgen.py::_build_forest`` has generated two hidden paths per
+# world -- each with a label, a destination and a seeded DC -- since PR7, and
+# until now no code had ever read one (docs/DESIGN_REVIEW listed them beside
+# the forage nodes this module already rescued). They are wired the same way:
+# the seeded pool is dealt round-robin across the forageable places, a good
+# survival roll while working the ground can notice one, and a noticed path is
+# a real shortcut -- travel between its two ends costs SHORTCUT_HOURS whether
+# or not the map draws a road there.
+
+#: GameState.flags key prefix recording a discovered path. A flag rather than a
+#: new save field: flags already serialize, and discovery is exactly the kind
+#: of one-way fact the flag store exists for.
+PATH_FLAG_PREFIX = "hidden_path_found:"
+
+#: What a discovered path costs to walk. One hour: shorter than every forest
+#: edge in the shipped map, which is what makes finding one worth the roll.
+SHORTCUT_HOURS = 1
+
+
+def hidden_paths(state: GameState) -> list[dict[str, Any]]:
+    """The seeded path pool, as procgen minted it."""
+    return [
+        p
+        for p in ((state.procgen.forest or {}).get("hidden_paths") or [])
+        if isinstance(p, dict) and p.get("id")
+    ]
+
+
+def path_home(state: GameState, path_id: str) -> str:
+    """
+    Which place a path starts from.
+
+    Dealt round-robin across the forageable places in id order -- the identical
+    rule ``nodes_at`` uses, for the identical reason: procgen stamped no usable
+    location on them, and the deal is deterministic for a seed with no RNG.
+    """
+    places = sorted(_all_forageable_places())
+    if not places:
+        return ""
+    for index, path in enumerate(hidden_paths(state)):
+        if str(path.get("id")) == str(path_id):
+            return places[index % len(places)]
+    return ""
+
+
+def paths_at(state: GameState, location_id: str) -> list[dict[str, Any]]:
+    """The hidden paths that start from one place, discovered or not."""
+    return [
+        p
+        for p in hidden_paths(state)
+        if path_home(state, str(p.get("id"))) == location_id
+    ]
+
+
+def path_discovered(state: GameState, path_id: str) -> bool:
+    """True once a path has been found. Flags survive the save round-trip."""
+    return bool(state.flags.get(f"{PATH_FLAG_PREFIX}{path_id}"))
+
+
+def discovered_paths(state: GameState) -> list[dict[str, Any]]:
+    """Every found path, with both ends attached. For the UI and the prompts."""
+    out = []
+    for path in hidden_paths(state):
+        path_id = str(path.get("id"))
+        if not path_discovered(state, path_id):
+            continue
+        out.append(
+            {
+                "id": path_id,
+                "label": str(path.get("label") or "hidden path"),
+                "from_id": path_home(state, path_id),
+                "leads_to": str(path.get("leads_to") or ""),
+                "hours": SHORTCUT_HOURS,
+            }
+        )
+    return out
+
+
+def shortcut_hours(state: GameState, from_id: str, to_id: str) -> Optional[int]:
+    """
+    Hours for this leg by a discovered hidden path, or None.
+
+    Bidirectional on purpose -- a deer track you know runs both ways -- and
+    only ever an improvement: the caller takes the smaller of this and the
+    road, so a path can never make a trip longer.
+    """
+    for row in discovered_paths(state):
+        if not row["from_id"] or not row["leads_to"]:
+            continue
+        if {from_id, to_id} == {row["from_id"], row["leads_to"]}:
+            return SHORTCUT_HOURS
+    return None
+
+
+def _discover_path(
+    state: GameState, location_id: str, result: Any
+) -> Optional[dict[str, Any]]:
+    """
+    A good roll while working the ground can also notice a path.
+
+    Reuses the forage attempt's own survival check rather than drawing again:
+    the path's seeded DC (procgen mints 10-16) is the bar, and the roll already
+    on the table either clears it or does not. Deterministic for a seed, and
+    adding the feature cannot shift any RNG stream -- which is the whole of the
+    stream discipline this module runs on.
+
+    At most one path per attempt, easiest first: finding both ways out of the
+    wood in one afternoon of mushroom-picking would cheapen both.
+    """
+    if not getattr(result, "success", False):
+        return None
+    candidates = sorted(
+        (p for p in paths_at(state, location_id)
+         if not path_discovered(state, str(p.get("id")))),
+        key=lambda p: int(p.get("dc", 12) or 12),
+    )
+    for path in candidates:
+        path_id = str(path.get("id"))
+        if int(result.total) < int(path.get("dc", 12) or 12):
+            continue
+        from engine.game import effects as effects_module
+
+        receipt = effects_module.apply_effect(
+            state,
+            {"type": "flag", "flag": f"{PATH_FLAG_PREFIX}{path_id}", "value": True},
+        )
+        label = str(path.get("label") or "hidden path")
+        leads_to = str(path.get("leads_to") or "")
+        logger.info(
+            "[forage] Hidden path discovered (operation=_discover_path, "
+            "path=%s, at=%s, leads_to=%s)",
+            path_id,
+            location_id,
+            leads_to,
+        )
+        return {
+            "id": path_id,
+            "label": label,
+            "from_id": location_id,
+            "leads_to": leads_to,
+            "hours": SHORTCUT_HOURS,
+            "dc": int(path.get("dc", 12) or 12),
+            "effect": receipt,
+            "text": (
+                f"Working the ground, you find a {label} -- "
+                f"a quicker way through to {leads_to.replace('_', ' ')}."
+            ),
+        }
+    return None
+
+
+# ---------------------------------------------------------------------------
 # yield draws
 # ---------------------------------------------------------------------------
 
@@ -585,12 +740,18 @@ def forage(
         for item_id, qty in gained.items()
     ]
 
+    # A good roll can also notice one of procgen's hidden paths -- the seam
+    # that makes the forest margin worth walking rather than a yield table.
+    discovery = _discover_path(state, location_id, result)
+
     if found:
         text = "You come back with " + ", ".join(f"{f['qty']}x {f['name'].lower()}" for f in found) + "."
     elif result.degree == "failure":
         text = "Two hours of looking, and the ground gives you nothing."
     else:
         text = "Nothing here worth carrying."
+    if discovery is not None:
+        text = f"{text} {discovery['text']}"
 
     logger.info(
         "[forage] Worked ground (operation=forage, location=%s, node=%s, "
@@ -627,6 +788,7 @@ def forage(
         "node_recovers_day": (
             _node_effect(state, node_key).expires_day if _node_effect(state, node_key) else 0
         ),
+        "discovery": discovery,
         "world_day": state.world_day,
         "text": text,
     }
@@ -638,6 +800,10 @@ def snapshot(state: GameState) -> dict[str, Any]:
         "configured": configured(),
         "season": season_of(state) if configured() else "",
         "here": preview(state),
+        # Only what has been FOUND. The undiscovered pool must not reach a
+        # prompt: a narrator told where the deer tracks are will hand the
+        # player the forest without a single survival roll.
+        "hidden_paths": discovered_paths(state),
         "places": [
             {
                 "location_id": loc_id,
