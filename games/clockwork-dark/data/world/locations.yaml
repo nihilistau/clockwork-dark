@@ -57,7 +57,10 @@ version: 1
 # ever written. This list used to be a Python tuple in
 # engine/game/locations.py, which made one story's canon the engine's;
 # the loader now reads it from whatever graph file the active story declares,
-# and a story that pins none simply omits the key.
+# and a story that pins none simply omits the key. The content validator
+# (engine/games/validation.py) reads the same list and fails the build if one
+# goes missing -- a rename surfaces as a named error in this file instead of
+# as a quest that can no longer complete.
 canon:
   - forest_clearing
   - edgewood_square

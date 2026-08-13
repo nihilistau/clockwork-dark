@@ -38,6 +38,36 @@ import yaml
 from engine.config import set_overlay
 from engine.content import deck as deck_module  # noqa: F401  -- also the fixture's loader
 
+# The reference scanners live in the shared validator now, because they ARE the
+# generalised check: engine/games/validation.py runs them over every story's
+# structural files, and this suite runs them with the Garden's own bespoke
+# framing. One set of scanners, or the two would drift about what counts as a
+# reference.
+from engine.games.validation import (
+    canon_flags as _shared_canon_flags,
+)
+from engine.games.validation import (
+    engine_owned_flag as _engine_owned,
+)
+from engine.games.validation import (
+    flags_read as _flags_read,
+)
+from engine.games.validation import (
+    flags_written as _flags_written,
+)
+from engine.games.validation import (
+    item_refs as _item_refs,
+)
+from engine.games.validation import (
+    location_refs as _location_refs,
+)
+from engine.games.validation import (
+    value_refs as _value_refs,
+)
+from engine.games.validation import (
+    walk as _walk,
+)
+
 # The state layer registers `value`, `clock` and `track`; threads and endings
 # register theirs. Imported for the side effect, so a condition in a scene file
 # is evaluated against the full grammar rather than a partial one.
@@ -84,9 +114,6 @@ DAY_FILES = [
     "day_09_finale",
 ]
 
-#: Flags the ENGINE writes, by prefix. Content never spells these out; they are
-#: here so a scan that meets one does not report it as unresolvable.
-ENGINE_FLAG_PREFIXES = ("deck_drawn_", "ending_closed_")
 
 
 # ---------------------------------------------------------------------------
@@ -127,17 +154,6 @@ def garden() -> Iterator[GameState]:
 def _read(path: Path) -> Any:
     with path.open(encoding="utf-8") as handle:
         return yaml.safe_load(handle) or {}
-
-
-def _walk(node: Any) -> Iterator[dict[str, Any]]:
-    """Every dict anywhere in a parsed YAML tree."""
-    if isinstance(node, dict):
-        yield node
-        for value in node.values():
-            yield from _walk(value)
-    elif isinstance(node, list):
-        for value in node:
-            yield from _walk(value)
 
 
 def _scene_docs() -> dict[str, Any]:
@@ -201,112 +217,12 @@ def _canon_flags() -> set[str]:
     """
     Flags the DESIGN declares, plus the ones the shipped rules declare.
 
-    Three sources, and each is a different kind of authority:
-
-      1. `flags.booleans` in the state dictionary -- the design's own list.
-      2. `flags.enums`, expanded to one flag per value. A deck beat cannot write
-         a `track` (see engine/challenges/spec.py), so `act2_compass` is spelled
-         `act2_compass_love_and_door`. thorn_labyrinth.yaml established this and
-         the day chapters follow it.
-      3. `set_flags` on a clock beat -- clocks.yaml is shipped mechanics and a
-         flag it writes is declared by definition.
+    The expansion itself (booleans, enum spellings, clock ``set_flags``) is
+    ``engine.games.validation.canon_flags`` -- the generalised check runs the
+    same expansion for any story with a canon dictionary, and this suite must
+    agree with it about what counts as declared.
     """
-    doc = _dictionary()
-    flags = doc.get("flags") or {}
-    out: set[str] = set()
-    for group in (flags.get("booleans") or {}).values():
-        out.update(str(f) for f in group)
-    for enum_name, values in (flags.get("enums") or {}).items():
-        if not isinstance(values, list):
-            continue  # `$ref` entries; the referenced enum is expanded already
-        for value in values:
-            if str(value) == "none":
-                continue
-            out.add(f"{enum_name}_{value}")
-    for clock in (_read(RULES / "clocks.yaml").get("clocks") or {}).values():
-        for beat in (clock or {}).get("beats") or []:
-            out.update(str(f) for f in (beat.get("set_flags") or []))
-    return out
-
-
-# ---------------------------------------------------------------------------
-# Reference scanners
-# ---------------------------------------------------------------------------
-
-
-def _value_refs(doc: Any) -> set[str]:
-    """Every declared-value name a document names, read or written."""
-    out: set[str] = set()
-    for node in _walk(doc):
-        if node.get("type") == "value" and node.get("name"):
-            out.add(str(node["name"]))
-        # `{value: {name: favor, min: 70}}` -- the predicate form.
-        inner = node.get("value")
-        if isinstance(inner, dict) and (inner.get("name") or inner.get("value")):
-            out.add(str(inner.get("name") or inner.get("value")))
-        # `{clock: {name: briar_hunger, min: 3}}`
-        clock = node.get("clock")
-        if isinstance(clock, dict) and (clock.get("name") or clock.get("clock")):
-            out.add(str(clock.get("name") or clock.get("clock")))
-        # A band names its value directly.
-        band = node.get("band")
-        if isinstance(band, dict) and (band.get("value") or band.get("name")):
-            out.add(str(band.get("value") or band.get("name")))
-        # A score row: `{value: corruption, at: 100, weight: 0.4}`
-        if isinstance(node.get("value"), str) and "weight" in node:
-            out.add(str(node["value"]))
-    return out
-
-
-def _item_refs(doc: Any) -> set[str]:
-    out: set[str] = set()
-    for node in _walk(doc):
-        if node.get("type") in ("item", "remove_item"):
-            item_id = node.get("item_id") or node.get("id")
-            if item_id:
-                out.add(str(item_id))
-        for key in ("has_item", "not_has_item"):
-            if key in node:
-                raw = node[key]
-                out.update(str(v) for v in (raw if isinstance(raw, list) else [raw]))
-    return out
-
-
-def _location_refs(doc: Any) -> set[str]:
-    out: set[str] = set()
-    for node in _walk(doc):
-        for key in ("at_location", "visited"):
-            if key in node:
-                raw = node[key]
-                out.update(str(v) for v in (raw if isinstance(raw, list) else [raw]))
-    return out
-
-
-def _flags_written(doc: Any) -> set[str]:
-    out: set[str] = set()
-    for node in _walk(doc):
-        if node.get("type") == "flag":
-            name = node.get("flag") or node.get("name")
-            if name:
-                out.add(str(name))
-        out.update(str(f) for f in (node.get("set_flags") or []))
-    return out
-
-
-def _flags_read(doc: Any) -> set[str]:
-    out: set[str] = set()
-    for node in _walk(doc):
-        if node.get("type") in ("flag", "value", "item", "remove_item", "track"):
-            continue  # an effect, not a predicate
-        for key in ("flag", "not_flag"):
-            if key in node:
-                raw = node[key]
-                out.update(str(v) for v in (raw if isinstance(raw, list) else [raw]))
-    return out
-
-
-def _engine_owned(flag: str) -> bool:
-    return flag.startswith(ENGINE_FLAG_PREFIXES)
+    return _shared_canon_flags(_dictionary(), _read(RULES / "clocks.yaml"))
 
 
 # ---------------------------------------------------------------------------

@@ -33,8 +33,21 @@ cards:
         text: "Enter carrying nothing."
         # A HARD THRESHOLD. No dice: this is a fact about the state, and a fact
         # resolved by a roll is a fact the player cannot plan around.
+        #
+        # "Carrying nothing" means none of HER tokens and not the Vale's
+        # passport. The design's "rose token" never shipped as an item id --
+        # day_05_labyrinth.yaml's `enter_with_her_token` spells the same
+        # concept as the three gifts below, and this gate must agree with it:
+        # it briefly named `rose_token`, an id that exists nowhere, so the
+        # clause was always false and a player wearing the collar still read
+        # as empty-handed.
         gate:
-          when: { none: [{ has_item: rose_token }, { has_item: ashen_passport }] }
+          when:
+            none:
+              - { has_item: kiss_petal }
+              - { has_item: collar_soft_thorns }
+              - { has_item: thorn_ring }
+              - { has_item: ashen_passport }
           on_pass:
             text: "The briars do not know what to make of you, and are interested."
             effects:

@@ -1,5 +1,5 @@
 """
-Content integrity — cross-file referential checks.
+Content integrity — the flagship's own assertions.
 
 WHY THIS FILE EXISTS: after P9 the data tree carries several hundred ids that
 only mean something because another file agrees with them. A vendor stocks an
@@ -7,11 +7,14 @@ item id, a recipe consumes one, a quest grants one, the art manifest keys one,
 and none of those files import each other. At this volume the dominant defect
 is not a broken function, it is `wild_mushroom` versus `wild_mushrooms` -- a
 reference that resolves to nothing, raises nothing, and quietly produces a shop
-entry that cannot be bought. A referential-integrity pass catches that class
-outright and is worth more here than any unit test on the loaders.
+entry that cannot be bought.
 
-The heavy lifting lives in scripts/validate_content.py so the same checks can
-run from the command line during content work.
+THE REFERENTIAL PASS ITSELF MOVED. ``engine/games/validation.py`` runs it for
+EVERY story through its manifest, ``tests/test_story_content_integrity.py``
+asserts it per game, and ``scripts/validate_content.py`` is the CLI face. What
+stays here is what is genuinely The Clockwork Dark's: its canon ids, its
+original edge costs, its content volumes, and the unit tests for the location
+loader.
 """
 
 from __future__ import annotations
@@ -29,46 +32,16 @@ from engine.game.locations import (
     get_edge,
     load_locations,
 )
+from engine.games import registry, validation
 from engine.skills.builtin.assistant import HINTS_BY_TIER, LORE_SNIPPETS
-from scripts import validate_content
 
 _ROOT = Path(__file__).resolve().parents[1]
 
 
-# ---------------------------------------------------------------------------
-# the whole tree
-# ---------------------------------------------------------------------------
-
-
-def test_content_tree_has_no_broken_references():
-    """The one assertion this file exists for."""
-    errors = validate_content.errors_only()
-    assert not errors, "\n".join(str(e) for e in errors)
-
-
-def test_validator_reports_warnings_separately():
-    """Advisories must not be able to fail a build by accident."""
-    issues = validate_content.validate()
-    assert all(i.severity in {"error", "warning"} for i in issues)
-
-
-def test_validator_actually_detects_a_broken_reference():
-    """
-    Negative control.
-
-    A green integrity suite is only meaningful if the checks can go red. This
-    feeds the economy check a registry that is missing every item it stocks.
-    """
-    npc_ids = validate_content.load_npc_ids()
-    issues = validate_content.check_economy(items={}, npc_ids=npc_ids)
-    assert issues
-    assert any("not in games/clockwork-dark/data/items/" in i.message for i in issues)
-
-
-def test_validator_detects_a_dead_recipe_input():
-    """The recipe check must notice an input that no longer exists."""
-    issues = validate_content.check_recipes(items={})
-    assert any("input item" in i.message for i in issues)
+def _flagship():
+    manifest = registry.get("clockwork-dark")
+    assert manifest is not None
+    return manifest
 
 
 # ---------------------------------------------------------------------------
@@ -83,11 +56,22 @@ def test_canon_ids_survive_the_move_to_yaml():
     assert CANONICAL_LOCATION_IDS == frozenset(CANON_IDS)
 
 
+def test_the_graph_declares_the_same_canon_the_engine_pins():
+    """
+    The `canon:` list in data/world/locations.yaml and the module tuple in
+    engine/game/locations.py are two homes for one fact. The graph's copy is
+    what the story validator enforces; this holds the two together so neither
+    can drift.
+    """
+    doc = validation.load_story_locations(_flagship())
+    assert validation.canon_location_ids(doc) == list(CANON_IDS)
+
+
 def test_original_edge_costs_are_unchanged():
     """
     The five original places kept their exact travel numbers.
 
-    games/clockwork-dark/data/encounters/*.yaml and games/clockwork-dark/data/quests/** were balanced against these, and
+    data/encounters/*.yaml and data/quests/** were balanced against these, and
     tests/test_encounter.py asserts content exists for every dangerous edge.
     """
     assert get_edge("forest_clearing", "edgewood_square") == {
@@ -227,18 +211,20 @@ def _load_all(directory: str, key: str) -> list[dict]:
 
 
 def test_item_registry_is_a_real_registry():
-    items, issues = validate_content.load_items()
+    items, issues = validation.load_story_items(_flagship())
     assert not issues, "\n".join(str(i) for i in issues)
     assert len(items) >= 60
     tagged = {
         tag for row in items.values() for tag in (row.get("tags") or [])
     }
-    assert validate_content.ITEM_TAGS == tagged
+    # The flagship uses exactly the engine's tag set -- its items predate
+    # per-story tags and the engine branches on every one of these.
+    assert validation.ENGINE_ITEM_TAGS == tagged
 
 
 def test_every_quest_item_has_a_registry_entry():
     """P7 introduced these in quest effects and nowhere else."""
-    items, _ = validate_content.load_items()
+    items, _ = validation.load_story_items(_flagship())
     for item_id in (
         "festival_honey",
         "cut_reed",
@@ -254,22 +240,22 @@ def test_every_quest_item_has_a_registry_entry():
 
 
 def test_recipes_cover_baking_herbalism_and_mending():
-    recipes = _load_all("games/clockwork-dark/data/recipes", "recipes")
+    recipes = _load_all("data/recipes", "recipes")
     assert len(recipes) >= 14
     assert {"baking", "herbalism", "mending"} <= {r.get("category") for r in recipes}
-    assert {r["skill"] for r in recipes} <= validate_content.SKILLS
-    assert {r["band"] for r in recipes} <= validate_content.BANDS
+    assert {r["skill"] for r in recipes} <= validation.story_skills(_flagship())
+    assert {r["band"] for r in recipes} <= validation.story_bands(_flagship())
 
 
 def test_lore_corpus_expanded():
-    files = sorted((_ROOT / "games" / "clockwork-dark" / "data" / "lore").glob("*.md"))
+    files = sorted((_ROOT / "data" / "lore").glob("*.md"))
     assert len(files) >= 18
     sections = sum(f.read_text(encoding="utf-8").count("\n## ") for f in files)
     assert sections >= 60
 
 
 def test_assistant_hint_corpus_loaded_from_yaml():
-    """The literals are gone; the pools come from games/clockwork-dark/data/assistant/hints.yaml."""
+    """The literals are gone; the pools come from data/assistant/hints.yaml."""
     total = sum(len(pool) for pool in HINTS_BY_TIER.values())
     assert total >= 40
     for tier in (1, 2, 3):
@@ -294,7 +280,7 @@ def test_assistant_hints_stay_in_world():
 
 
 def test_rumor_pool_expanded_across_tiers():
-    with (_ROOT / "games" / "clockwork-dark" / "data" / "world" / "rumors.yaml").open(encoding="utf-8") as fh:
+    with (_ROOT / "data" / "world" / "rumors.yaml").open(encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     rumors = data["rumors"]
     assert len(rumors) >= 55
@@ -305,7 +291,7 @@ def test_rumor_pool_expanded_across_tiers():
         assert per_tier.get(tier, 0) >= 15, per_tier
 
 
-@pytest.mark.parametrize("directory", ["games/clockwork-dark/data/items", "games/clockwork-dark/data/recipes"])
+@pytest.mark.parametrize("directory", ["data/items", "data/recipes"])
 def test_new_data_directories_are_versioned(directory: str):
     """Every content file declares a schema version, as the rest of the tree does."""
     for path in sorted((_ROOT / directory).rglob("*.yaml")):

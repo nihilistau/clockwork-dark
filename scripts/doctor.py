@@ -167,6 +167,40 @@ def check_games(report: Report) -> None:
                f"{len(registered_caches())} caches invalidated on activation")
 
 
+def check_story_content(report: Report) -> None:
+    """
+    Run the shared referential-integrity pass over every story on disk.
+
+    One summary line per game -- N errors / N advisories -- with the first few
+    errors shown so the doctor points somewhere. The full listing is
+    ``scripts/validate_content.py --game <slug> --warnings``; a doctor that
+    printed four hundred findings would be a doctor nobody runs.
+    """
+    from engine.games.registry import active_slug, discover
+    from engine.games.validation import errors_only, validate_story, warnings_only
+
+    current = active_slug()
+    shown_per_game = 3
+
+    for slug, manifest in sorted(discover().items()):
+        label = f"{slug}{' (active)' if slug == current else ''}"
+        issues = validate_story(manifest)
+        errors = errors_only(issues)
+        warnings = warnings_only(issues)
+        if not errors:
+            report.add("Content integrity", label, OK if not warnings else WARN,
+                       f"0 errors / {len(warnings)} advisories")
+            continue
+        report.add("Content integrity", label, FAIL,
+                   f"{len(errors)} errors / {len(warnings)} advisories - "
+                   f"run: python scripts/validate_content.py --game {slug}")
+        for issue in errors[:shown_per_game]:
+            report.add("Content integrity", label, FAIL, str(issue))
+        if len(errors) > shown_per_game:
+            report.add("Content integrity", label, FAIL,
+                       f"... and {len(errors) - shown_per_game} more")
+
+
 def check_inherited_content(report: Report) -> None:
     """
     Which stories are silently reading another story's content.
@@ -392,6 +426,7 @@ def main(argv: list[str] | None = None) -> int:
         check_config,
         check_games,
         check_state_schemas,
+        check_story_content,
         check_inherited_content,
         check_services,
         check_content,
