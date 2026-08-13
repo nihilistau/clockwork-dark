@@ -15,6 +15,11 @@ distilled from, and because it puts a third row under every per-story test —
 one that shares almost nothing with either big story. Break it freely on a
 branch; the suite runs its rows, so leave it working on main.
 
+Writing a story of your own? The end-to-end guide — manifest contract, content
+types, the authoring tools, verification — is
+[docs/AUTHORING.md](../../docs/AUTHORING.md); this README is its worked
+example.
+
 ---
 
 ## What to edit for what

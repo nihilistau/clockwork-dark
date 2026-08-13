@@ -9,6 +9,11 @@ starts as, teaching comments included.
 .\.venv\Scripts\python.exe scripts\new_story.py my-story --template minimal
 ```
 
+The end-to-end authoring guide — the manifest contract, every content type's
+sharp edges, the LLM-assisted loop, and how to verify a story — is
+[docs/AUTHORING.md](../../docs/AUTHORING.md). The templates teach their own
+keys; that document teaches what cuts across them.
+
 ## Why these live here and not under games/
 
 Everything under `games/` with a `game.yaml` is a real story:

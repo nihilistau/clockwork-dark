@@ -8,6 +8,9 @@ This file guides Claude Code (and other coding agents) when working in this repo
 2. **Read** [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) — what the overhaul found and what is still open
 3. **Read** [docs/CLAUDE_CODE_BRIEF.md](docs/CLAUDE_CODE_BRIEF.md) — build spec and golden rules. Parts of it are historical and marked **CURRENT:** where they have drifted
 4. For visual/asset work, use [docs/CLAUDE_DESIGN_BRIEF.md](docs/CLAUDE_DESIGN_BRIEF.md) instead
+5. For story/content work — creating a story, editing a `games/<slug>/` tree,
+   or using the authoring tools — read [docs/AUTHORING.md](docs/AUTHORING.md)
+   first. It is the document that replaces reading engine source for that job
 
 Authority order when they disagree: **the code**, then DESIGN.md, then
 DESIGN_REVIEW.md, then CLAUDE_CODE_BRIEF.md.
