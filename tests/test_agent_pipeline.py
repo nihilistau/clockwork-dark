@@ -416,11 +416,11 @@ def test_a_write_says_who_and_why_after_the_turn(garden: GameState) -> None:
     """
     "She took something from you", attached to the number that moved.
 
-    The store's write journal held this and threw it away: it is per-store,
+    The store's write journal held this and threw it away: it was per-store,
     `store_for()` builds a fresh store per call, and `clear_journal()` -- "called
     per turn, after it has been read" -- was called by nothing and read by
-    nothing. The receipt is what actually survives a turn, so `by` and `why`
-    ride out on it.
+    nothing. The journal is deleted; the receipt is what actually survives a
+    turn, so `by` and `why` ride out on it.
     """
     result = pipeline_module.run_pipeline(
         garden,

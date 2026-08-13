@@ -20,7 +20,6 @@ _EXPORTS = {
     "load_schema": "engine.state.schema",
     "parse_schema": "engine.state.schema",
     "StateStore": "engine.state.store",
-    "WriteRecord": "engine.state.store",
     "WRITER_ENGINE": "engine.state.store",
 }
 

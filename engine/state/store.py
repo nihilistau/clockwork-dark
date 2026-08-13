@@ -9,27 +9,29 @@ One API over a story's declared state, whatever it is physically made of.
 inherited from the flagship or an entry in a generic bag the story invented.
 The schema knows; nothing else has to.
 
-WHY A WRITE JOURNAL. Today nothing records WHICH agent changed a value or why.
-The receipts carry the skill, the args and the result -- not the caller -- so
-"the companion moved a stat it should not be able to touch" is not a question
-the engine can answer. The journal makes every write attributable, and it is the
-enforcement point for per-agent field ACLs: a value declares its ``owners``, and
-a write by anyone else is refused AND recorded. Recording the refusal matters
-more than the refusal: a model repeatedly trying to grant itself favor is a
-prompt defect, and it is invisible if you only ever drop the attempt.
+ATTRIBUTION LIVES ON THE RECEIPT, NOT HERE. This class used to keep a write
+journal -- every write appended a record with who, why, before and after. It was
+recorded and discarded: ``store_for()`` builds a fresh store per call, so every
+record died the moment its caller returned, and ``clear_journal()`` ("called per
+turn, after it has been read") was called by nothing. The two fields that made
+it worth having, ``by`` and ``why``, ride out on the effect receipt instead
+(``engine/game/effects.py::_e_value``), which is the artifact that actually
+survives a turn. What stays here is the enforcement: a value declares its
+``owners``, a write by anyone else is refused, and the refusal is logged at
+WARNING -- a model repeatedly trying to grant itself favor is a prompt defect,
+and it must be visible somewhere durable rather than silently dropped.
 
 WHY WRITES CLAMP RATHER THAN RAISE. A meter is a number with bounds, and a model
 proposing 140 on a 0-100 scale means "as high as it goes", not "crash the turn".
-The clamp is recorded in the journal so the overshoot is still visible.
+The receipt carries ``before``/``after``, so the overshoot is still visible.
 
-Version: v0.1.0 [2026-08-08]
+Version: v0.2.0 [2026-08-13]
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from engine.state.schema import (
     BACKING_FIELD,
@@ -46,32 +48,6 @@ logger = logging.getLogger(__name__)
 #: The engine itself, for writes that are not any agent's doing (the clock
 #: ticking a value, a migration, a test). Always permitted.
 WRITER_ENGINE = "engine"
-
-
-@dataclass
-class WriteRecord:
-    """One attempted write, permitted or not."""
-
-    name: str
-    before: float
-    after: float
-    by: str
-    why: str = ""
-    turn: int = 0
-    clamped: bool = False
-    refused: bool = False
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "before": self.before,
-            "after": self.after,
-            "by": self.by,
-            "why": self.why,
-            "turn": self.turn,
-            "clamped": self.clamped,
-            "refused": self.refused,
-        }
 
 
 def _resolve_owner(target: Any, path: str) -> tuple[Any, str]:
@@ -102,7 +78,6 @@ class StateStore:
     def __init__(self, state: Any, schema: StateSchema) -> None:
         self.state = state
         self.schema = schema
-        self.journal: list[WriteRecord] = []
 
     # -- reading ---------------------------------------------------------
 
@@ -143,16 +118,17 @@ class StateStore:
         turn: int = 0,
     ) -> float:
         """
-        Write a declared value, clamped to its bounds and recorded.
+        Write a declared value, clamped to its bounds.
 
         Args:
             name: Declared value name.
             value: Desired value, before clamping.
             by: Who is writing. ``WRITER_ENGINE`` is always permitted; anyone
                 else must appear in the value's declared ``owners``.
-            why: Reason, recorded. Cheap to pass and the only thing that makes
-                the journal readable after the fact.
-            turn: Turn number, for the journal.
+            why: Reason. Carried into the refusal log line here; a permitted
+                write's reason reaches the player through the effect receipt
+                (``effects.py::_e_value``), the artifact that survives a turn.
+            turn: Turn number, for the log.
 
         Returns:
             The value actually stored -- which may differ from ``value`` after
@@ -165,19 +141,16 @@ class StateStore:
         before = self.get(name)
 
         if by != WRITER_ENGINE and not spec.writable_by(by):
-            # Refused, and RECORDED. Silently dropping this would hide exactly
-            # the behaviour worth seeing.
-            self.journal.append(
-                WriteRecord(
-                    name=name, before=before, after=before, by=by,
-                    why=why, turn=turn, refused=True,
-                )
-            )
+            # Refused, and LOGGED. Silently dropping this would hide exactly
+            # the behaviour worth seeing: a model repeatedly trying to move a
+            # value it does not own is a prompt defect.
             logger.warning(
                 "[state] Write refused, agent does not own this value "
-                "(operation=set, name=%s, by=%s, owners=%s)",
+                "(operation=set, name=%s, by=%s, why=%s, turn=%s, owners=%s)",
                 name,
                 by,
+                why,
+                turn,
                 list(spec.owners),
             )
             return before
@@ -194,12 +167,6 @@ class StateStore:
         else:
             self._bag(spec)[name] = after
 
-        self.journal.append(
-            WriteRecord(
-                name=name, before=before, after=after, by=by, why=why,
-                turn=turn, clamped=after != wanted,
-            )
-        )
         return after
 
     def adjust(
@@ -248,14 +215,6 @@ class StateStore:
             out[spec.name] = row
         return out
 
-    def refusals(self) -> list[WriteRecord]:
-        """Writes that were turned away. The interesting half of the journal."""
-        return [record for record in self.journal if record.refused]
-
-    def clear_journal(self) -> None:
-        """Drop the journal. Called per turn, after it has been read."""
-        self.journal.clear()
-
     # -- internals -------------------------------------------------------
 
     def _bag(self, spec: ValueSpec) -> dict[str, float]:
@@ -272,4 +231,4 @@ class StateStore:
         return self.state.tracks
 
 
-__all__ = ["WRITER_ENGINE", "StateStore", "WriteRecord"]
+__all__ = ["WRITER_ENGINE", "StateStore"]

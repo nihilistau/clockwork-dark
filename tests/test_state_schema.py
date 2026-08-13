@@ -157,14 +157,15 @@ def test_bag_values_survive_a_save_round_trip():
 def test_writes_clamp_rather_than_raise():
     """
     A model proposing 140 on a 0-100 scale means "as high as it goes", not
-    "crash the turn". The overshoot is still recorded.
+    "crash the turn". ``set`` returns what was actually stored, so the caller
+    can see the clamp without a journal.
     """
     store = StateStore(GameState(), _garden_like())
 
-    store.set("favor", 140, why="overshoot")
+    stored = store.set("favor", 140, why="overshoot")
 
+    assert stored == 100
     assert store.get("favor") == 100
-    assert store.journal[-1].clamped is True
 
 
 def test_an_unbounded_meter_is_not_clamped():
@@ -175,7 +176,7 @@ def test_an_unbounded_meter_is_not_clamped():
     assert store.get("time_debt") == 500
 
 
-# -- the write journal and the ACL --------------------------------------------
+# -- the ACL ------------------------------------------------------------------
 
 
 def test_the_engine_may_always_write():
@@ -184,7 +185,6 @@ def test_the_engine_may_always_write():
     store.set("favor", 30, by=WRITER_ENGINE, why="toll")
 
     assert store.get("favor") == 30
-    assert not store.refusals()
 
 
 def test_an_agent_may_write_only_what_it_owns():
@@ -195,22 +195,30 @@ def test_an_agent_may_write_only_what_it_owns():
     assert store.get("autonomy") == 40
 
 
-def test_a_write_by_a_non_owner_is_refused_and_recorded():
+def test_a_write_by_a_non_owner_is_refused_and_logged(caplog):
     """
-    Recording the refusal matters more than the refusal.
+    Seeing the refusal matters more than the refusal.
 
     An agent repeatedly trying to move a value it does not own is a prompt
     defect, and it is completely invisible if the attempt is only ever dropped.
+    The store used to record this in a per-store journal nothing ever read; the
+    durable trace is the WARNING line, and the receipt path
+    (test_agent_pipeline.py::test_a_write_says_who_and_why_after_the_turn)
+    carries who-and-why for permitted writes.
     """
+    import logging
+
     store = StateStore(GameState(), _garden_like())
 
-    store.set("favor", 99, by="sophia", why="she would like to")
+    with caplog.at_level(logging.WARNING, logger="engine.state.store"):
+        returned = store.set("favor", 99, by="sophia", why="she would like to")
 
     assert store.get("favor") == 15, "a non-owner moved the value"
-    refused = store.refusals()
-    assert len(refused) == 1
-    assert refused[0].name == "favor"
-    assert refused[0].by == "sophia"
+    assert returned == 15, "a refused write must hand back the standing value"
+    assert any(
+        "Write refused" in record.message and "sophia" in record.getMessage()
+        for record in caplog.records
+    ), "the refusal left no trace"
 
 
 def test_values_are_engine_only_unless_a_story_says_otherwise():
@@ -219,16 +227,6 @@ def test_values_are_engine_only_unless_a_story_says_otherwise():
 
     assert schema.get("favor").owners == ()
     assert schema.get("autonomy").owners == ("sophia",)
-
-
-def test_the_journal_records_why():
-    store = StateStore(GameState(), _garden_like())
-    store.adjust("favor", 5, by=WRITER_ENGINE, why="kept a promise", turn=7)
-
-    record = store.journal[-1]
-    assert record.why == "kept a promise"
-    assert record.turn == 7
-    assert (record.before, record.after) == (15, 20)
 
 
 # -- veiled presentation ------------------------------------------------------
