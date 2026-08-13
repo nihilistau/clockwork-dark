@@ -4,9 +4,10 @@
 # duplication was the bug: it made one story's content the ENGINE's answer, so
 # any story omitting a key read this one's files. The engine's defaults are
 # empty now and this manifest is the single place the flagship's content is
-# named. The values did not move, which is the compatibility bar: turning the
-# engine into a multi-game engine must not move a single content file, and the
-# whole existing test suite must pass with this manifest active.
+# named. The seam landed in two steps: first the manifest took over WITHOUT
+# moving a file (the compatibility bar for the merge itself), then the content
+# moved from the repo root's data/ into games/clockwork-dark/data/ so both
+# shipped stories use the same layout.
 #
 # WHAT THIS MANIFEST DELIBERATELY DOES NOT DECLARE, as of engine v0.2.0:
 #
@@ -73,38 +74,45 @@ blurb: >-
 # config/default.yaml carried this list until v0.2.2 -- which meant the engine's
 # defaults were one story's content, and any story omitting a key silently read
 # Edgewood's. The defaults are empty now, so this block is the only thing
-# pointing at the flagship's files. The values are unchanged to the character:
-# the content stays in data/ rather than moving under games/clockwork-dark/,
-# because moving it would be a large silent rename of every path in the repo
-# and buys nothing this manifest does not already buy.
+# pointing at the flagship's files.
+#
+# The content lives under games/clockwork-dark/data/, the same layout every
+# other story uses. It sat at the repo root's data/ until v0.2.2 as a
+# compatibility measure while the manifest seam landed; once no engine or
+# tooling code named the root location, keeping the flagship's files in a
+# privileged spot only preserved the illusion that they were the engine's.
+#
+# `saves` is the exception and points at the repo root on purpose: saves are a
+# runtime OUTPUT the engine owns (data/saves/<slug>/ is gitignored), not story
+# content, and every story shares that default.
 paths:
   saves: "data/saves"
-  lore: "data/lore"
-  lore_db: "data/lore/lore.db"
-  economy: "data/economy.yaml"
-  procgen_templates: "data/procgen_templates/edgewood.yaml"
-  world_schedules: "data/world/schedules.yaml"
-  npc_schedules: "data/world/npc_schedules.yaml"
-  factions: "data/world/factions.yaml"
-  world_rumors: "data/world/rumors.yaml"
-  comfyui_templates: "data/procgen_templates/comfyui.yaml"
-  art_subjects: "data/art/subjects.yaml"
-  art_manifest: "data/art/manifest.yaml"
+  lore: "games/clockwork-dark/data/lore"
+  lore_db: "games/clockwork-dark/data/lore/lore.db"
+  economy: "games/clockwork-dark/data/economy.yaml"
+  procgen_templates: "games/clockwork-dark/data/procgen_templates/edgewood.yaml"
+  world_schedules: "games/clockwork-dark/data/world/schedules.yaml"
+  npc_schedules: "games/clockwork-dark/data/world/npc_schedules.yaml"
+  factions: "games/clockwork-dark/data/world/factions.yaml"
+  world_rumors: "games/clockwork-dark/data/world/rumors.yaml"
+  comfyui_templates: "games/clockwork-dark/data/procgen_templates/comfyui.yaml"
+  art_subjects: "games/clockwork-dark/data/art/subjects.yaml"
+  art_manifest: "games/clockwork-dark/data/art/manifest.yaml"
   # The directory every path in `art_manifest` resolves against. This story
   # relied on the engine default for it, and the engine default WAS this
   # directory -- the flagship's own static tree, which is exactly why no engine
   # may default it. Declared here now; the value is unchanged.
   art_root: "content/scenes/clockwork/static/art"
-  rules: "data/rules"
-  tables: "data/tables"
-  quests: "data/quests"
-  locations: "data/world/locations.yaml"
-  assistant_hints: "data/assistant/hints.yaml"
-  items: "data/items"
-  recipes: "data/recipes"
-  encounters: "data/encounters"
-  doom_effects: "data/rules/doom_effects.yaml"
-  challenges: "data/challenges"
+  rules: "games/clockwork-dark/data/rules"
+  tables: "games/clockwork-dark/data/tables"
+  quests: "games/clockwork-dark/data/quests"
+  locations: "games/clockwork-dark/data/world/locations.yaml"
+  assistant_hints: "games/clockwork-dark/data/assistant/hints.yaml"
+  items: "games/clockwork-dark/data/items"
+  recipes: "games/clockwork-dark/data/recipes"
+  encounters: "games/clockwork-dark/data/encounters"
+  doom_effects: "games/clockwork-dark/data/rules/doom_effects.yaml"
+  challenges: "games/clockwork-dark/data/challenges"
 
 entry:
   # CLAUDE.md pins this id as canon. Do not rename it.

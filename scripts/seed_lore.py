@@ -2,7 +2,7 @@
 Seed Lore Database
 ==================
 
-Ingest ``data/lore/*.md`` into SQLite FTS for RAG retrieval.
+Ingest ``games/clockwork-dark/data/lore/*.md`` into SQLite FTS for RAG retrieval.
 
 Version: v0.1.0 [2026-06-20]
 

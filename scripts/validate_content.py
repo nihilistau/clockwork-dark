@@ -129,7 +129,7 @@ def _yaml_files(*relative: str) -> list[Path]:
 
 def load_items() -> tuple[dict[str, dict[str, Any]], list[Issue]]:
     """
-    Build the item registry from data/items/*.yaml.
+    Build the item registry from games/clockwork-dark/data/items/*.yaml.
 
     Returns:
         (registry keyed by item id, issues found while building it).
@@ -138,7 +138,7 @@ def load_items() -> tuple[dict[str, dict[str, Any]], list[Issue]]:
     registry: dict[str, dict[str, Any]] = {}
     origin: dict[str, str] = {}
 
-    for path in _yaml_files("data/items"):
+    for path in _yaml_files("games/clockwork-dark/data/items"):
         data = _read_yaml(path)
         if not isinstance(data, dict):
             issues.append(Issue(_rel(path), "-", "file is not a YAML mapping"))
@@ -166,20 +166,20 @@ def load_items() -> tuple[dict[str, dict[str, Any]], list[Issue]]:
 
 
 def load_npc_ids() -> set[str]:
-    """Every NPC id declared in data/world/npc_schedules.yaml."""
-    data = _read_yaml(_ROOT / "data/world/npc_schedules.yaml") or {}
+    """Every NPC id declared in games/clockwork-dark/data/world/npc_schedules.yaml."""
+    data = _read_yaml(_ROOT / "games/clockwork-dark/data/world/npc_schedules.yaml") or {}
     return {str(k) for k in (data.get("npcs") or {})}
 
 
 def load_faction_ids() -> set[str]:
-    """Every faction id declared in data/world/factions.yaml."""
-    data = _read_yaml(_ROOT / "data/world/factions.yaml") or {}
+    """Every faction id declared in games/clockwork-dark/data/world/factions.yaml."""
+    data = _read_yaml(_ROOT / "games/clockwork-dark/data/world/factions.yaml") or {}
     return {str(k) for k in (data.get("factions") or {})}
 
 
 def load_arc_ids() -> set[str]:
-    """Every arc id declared in data/quests/arcs.yaml."""
-    data = _read_yaml(_ROOT / "data/quests/arcs.yaml") or {}
+    """Every arc id declared in games/clockwork-dark/data/quests/arcs.yaml."""
+    data = _read_yaml(_ROOT / "games/clockwork-dark/data/quests/arcs.yaml") or {}
     return {str(k) for k in (data.get("arcs") or {})}
 
 
@@ -189,7 +189,7 @@ def load_recipes() -> tuple[list[tuple[str, dict[str, Any]]], list[Issue]]:
     rows: list[tuple[str, dict[str, Any]]] = []
     seen: dict[str, str] = {}
 
-    for path in _yaml_files("data/recipes"):
+    for path in _yaml_files("games/clockwork-dark/data/recipes"):
         data = _read_yaml(path)
         if not isinstance(data, dict):
             issues.append(Issue(_rel(path), "-", "file is not a YAML mapping"))
@@ -224,7 +224,7 @@ def load_recipes() -> tuple[list[tuple[str, dict[str, Any]]], list[Issue]]:
 def check_locations() -> list[Issue]:
     """Graph shape: canon ids present, edges resolve, edges symmetric, all reachable."""
     issues: list[Issue] = []
-    source = "data/world/locations.yaml"
+    source = "games/clockwork-dark/data/world/locations.yaml"
 
     for canon in CANON_IDS:
         if canon not in LOCATIONS:
@@ -251,7 +251,7 @@ def check_locations() -> list[Issue]:
             issues.append(Issue(source, loc_id, "no ring assigned"))
 
     # A place nobody can walk to is content that will never be seen. The start
-    # location is fixed at forest_clearing (data/rules/death.yaml respawns
+    # location is fixed at forest_clearing (games/clockwork-dark/data/rules/death.yaml respawns
     # there too), so reachability is measured from it.
     reachable: set[str] = set()
     frontier = ["forest_clearing"] if "forest_clearing" in LOCATIONS else []
@@ -271,7 +271,7 @@ def check_locations() -> list[Issue]:
 def check_items(items: dict[str, dict[str, Any]], art: dict[str, Any]) -> list[Issue]:
     """Item field shape and art-key resolution."""
     issues: list[Issue] = []
-    source = "data/items/*.yaml"
+    source = "games/clockwork-dark/data/items/*.yaml"
     art_items = (art.get("items") or {}) if isinstance(art, dict) else {}
 
     for item_id, row in sorted(items.items()):
@@ -298,7 +298,7 @@ def check_items(items: dict[str, dict[str, Any]], art: dict[str, Any]) -> list[I
                 Issue(
                     source,
                     item_id,
-                    f"art key {art_key!r} is not in data/art/manifest.yaml items:",
+                    f"art key {art_key!r} is not in games/clockwork-dark/data/art/manifest.yaml items:",
                 )
             )
     return issues
@@ -307,7 +307,7 @@ def check_items(items: dict[str, dict[str, Any]], art: dict[str, Any]) -> list[I
 def check_art_manifest() -> list[Issue]:
     """Every path in the manifest resolves to a shipped file; keys name real things."""
     issues: list[Issue] = []
-    path = _ROOT / "data/art/manifest.yaml"
+    path = _ROOT / "games/clockwork-dark/data/art/manifest.yaml"
     source = _rel(path)
     data = _read_yaml(path)
     if not isinstance(data, dict):
@@ -357,7 +357,7 @@ def check_art_manifest() -> list[Issue]:
 def check_economy(items: dict[str, dict[str, Any]], npc_ids: set[str]) -> list[Issue]:
     """Vendors are real NPCs and stock real items at sane prices."""
     issues: list[Issue] = []
-    path = _ROOT / "data/economy.yaml"
+    path = _ROOT / "games/clockwork-dark/data/economy.yaml"
     source = _rel(path)
     data = _read_yaml(path)
     if not isinstance(data, dict):
@@ -372,7 +372,7 @@ def check_economy(items: dict[str, dict[str, Any]], npc_ids: set[str]) -> list[I
                 Issue(
                     source,
                     str(vendor_id),
-                    "top-level key is not an npc id in data/world/npc_schedules.yaml",
+                    "top-level key is not an npc id in games/clockwork-dark/data/world/npc_schedules.yaml",
                 )
             )
         for side in ("sells", "buys"):
@@ -382,7 +382,7 @@ def check_economy(items: dict[str, dict[str, Any]], npc_ids: set[str]) -> list[I
                         Issue(
                             source,
                             str(item_id),
-                            f"{vendor_id}.{side} references an item not in data/items/",
+                            f"{vendor_id}.{side} references an item not in games/clockwork-dark/data/items/",
                         )
                     )
                 price = (entry or {}).get("price") if isinstance(entry, dict) else None
@@ -432,7 +432,7 @@ def check_recipes(items: dict[str, dict[str, Any]]) -> list[Issue]:
             item_id = str((entry or {}).get("id") or "")
             if item_id not in items:
                 issues.append(
-                    Issue(source, recipe_id, f"input item {item_id!r} is not in data/items/")
+                    Issue(source, recipe_id, f"input item {item_id!r} is not in games/clockwork-dark/data/items/")
                 )
 
         for key in ("output", "salvage"):
@@ -444,13 +444,13 @@ def check_recipes(items: dict[str, dict[str, Any]]) -> list[Issue]:
             item_id = str((block or {}).get("id") or "")
             if item_id not in items:
                 issues.append(
-                    Issue(source, recipe_id, f"{key} item {item_id!r} is not in data/items/")
+                    Issue(source, recipe_id, f"{key} item {item_id!r} is not in games/clockwork-dark/data/items/")
                 )
 
         for tool_id in row.get("tools") or []:
             if str(tool_id) not in items:
                 issues.append(
-                    Issue(source, recipe_id, f"tool {tool_id!r} is not in data/items/")
+                    Issue(source, recipe_id, f"tool {tool_id!r} is not in games/clockwork-dark/data/items/")
                 )
     return issues
 
@@ -515,7 +515,7 @@ def check_quests(
     """Quest arcs, locations, items, factions -- and that every arc is real."""
     issues: list[Issue] = []
     arc_ids = load_arc_ids()
-    quest_paths = [p for p in _yaml_files("data/quests") if p.name != "arcs.yaml"]
+    quest_paths = [p for p in _yaml_files("games/clockwork-dark/data/quests") if p.name != "arcs.yaml"]
 
     for path in quest_paths:
         data = _read_yaml(path)
@@ -528,10 +528,10 @@ def check_quests(
             issues.append(Issue(source, "-", "quest has no id"))
         arc = str(data.get("arc") or "")
         # A quest on an arc that does not exist can never become active: the
-        # arc gate in data/quests/arcs.yaml is what makes it reachable at all.
+        # arc gate in games/clockwork-dark/data/quests/arcs.yaml is what makes it reachable at all.
         if arc not in arc_ids:
             issues.append(
-                Issue(source, quest_id or "-", f"arc {arc!r} is not in data/quests/arcs.yaml")
+                Issue(source, quest_id or "-", f"arc {arc!r} is not in games/clockwork-dark/data/quests/arcs.yaml")
             )
         if not data.get("stages"):
             issues.append(Issue(source, quest_id or "-", "quest has no stages"))
@@ -540,18 +540,18 @@ def check_quests(
     for source, ids in sorted(ref_items.items()):
         for item_id in sorted(ids):
             if item_id not in items:
-                issues.append(Issue(source, item_id, "item is not in data/items/"))
+                issues.append(Issue(source, item_id, "item is not in games/clockwork-dark/data/items/"))
     for source, ids in sorted(ref_locations.items()):
         for loc_id in sorted(ids):
             if loc_id not in LOCATIONS:
                 issues.append(
-                    Issue(source, loc_id, "location is not in data/world/locations.yaml")
+                    Issue(source, loc_id, "location is not in games/clockwork-dark/data/world/locations.yaml")
                 )
     for source, ids in sorted(ref_factions.items()):
         for faction in sorted(ids):
             if faction not in faction_ids:
                 issues.append(
-                    Issue(source, faction, "faction is not in data/world/factions.yaml")
+                    Issue(source, faction, "faction is not in games/clockwork-dark/data/world/factions.yaml")
                 )
     return issues
 
@@ -562,24 +562,24 @@ def check_encounters(
 ) -> list[Issue]:
     """Encounter edges resolve in the graph, and referenced ids exist."""
     issues: list[Issue] = []
-    paths = _yaml_files("data/encounters")
+    paths = _yaml_files("games/clockwork-dark/data/encounters")
     ref_items, ref_locations, ref_factions = _referenced_ids(paths)
 
     for source, ids in sorted(ref_locations.items()):
         for loc_id in sorted(ids):
             if loc_id and loc_id not in LOCATIONS:
                 issues.append(
-                    Issue(source, loc_id, "location is not in data/world/locations.yaml")
+                    Issue(source, loc_id, "location is not in games/clockwork-dark/data/world/locations.yaml")
                 )
     for source, ids in sorted(ref_items.items()):
         for item_id in sorted(ids):
             if item_id not in items:
-                issues.append(Issue(source, item_id, "item is not in data/items/"))
+                issues.append(Issue(source, item_id, "item is not in games/clockwork-dark/data/items/"))
     for source, ids in sorted(ref_factions.items()):
         for faction in sorted(ids):
             if faction not in faction_ids:
                 issues.append(
-                    Issue(source, faction, "faction is not in data/world/factions.yaml")
+                    Issue(source, faction, "faction is not in games/clockwork-dark/data/world/factions.yaml")
                 )
 
     # The edge itself, not just its endpoints: an encounter keyed to a leg
@@ -603,7 +603,7 @@ def check_encounters(
 def check_npc_schedules() -> list[Issue]:
     """NPC homes and routine slots point at places that exist."""
     issues: list[Issue] = []
-    path = _ROOT / "data/world/npc_schedules.yaml"
+    path = _ROOT / "games/clockwork-dark/data/world/npc_schedules.yaml"
     source = _rel(path)
     data = _read_yaml(path) or {}
     for npc_id, cfg in (data.get("npcs") or {}).items():
@@ -622,7 +622,7 @@ def check_npc_schedules() -> list[Issue]:
 def check_rumors(npc_ids: set[str]) -> list[Issue]:
     """Rumour tiers, awareness gates, phases and speakers."""
     issues: list[Issue] = []
-    path = _ROOT / "data/world/rumors.yaml"
+    path = _ROOT / "games/clockwork-dark/data/world/rumors.yaml"
     source = _rel(path)
     data = _read_yaml(path) or {}
     seen: set[str] = set()
@@ -660,7 +660,7 @@ def check_rumors(npc_ids: set[str]) -> list[Issue]:
 def check_assistant_hints() -> list[Issue]:
     """Hint tiers and lore snippet gates."""
     issues: list[Issue] = []
-    path = _ROOT / "data/assistant/hints.yaml"
+    path = _ROOT / "games/clockwork-dark/data/assistant/hints.yaml"
     source = _rel(path)
     data = _read_yaml(path)
     if not isinstance(data, dict):
@@ -703,7 +703,7 @@ def check_lore() -> list[Issue]:
     nothing to retrieval.
     """
     issues: list[Issue] = []
-    lore_dir = _ROOT / "data/lore"
+    lore_dir = _ROOT / "games/clockwork-dark/data/lore"
     for path in sorted(lore_dir.glob("*.md")):
         source = _rel(path)
         try:
@@ -743,7 +743,7 @@ def validate() -> list[Issue]:
     items, issues = load_items()
     npc_ids = load_npc_ids()
     faction_ids = load_faction_ids()
-    art = _read_yaml(_ROOT / "data/art/manifest.yaml") or {}
+    art = _read_yaml(_ROOT / "games/clockwork-dark/data/art/manifest.yaml") or {}
 
     issues.extend(check_locations())
     issues.extend(check_items(items, art))

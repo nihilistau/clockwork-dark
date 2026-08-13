@@ -1,7 +1,7 @@
 """
 Encounter art resolution.
 
-An encounter declares ``art:`` as a key into ``data/art/manifest.yaml``'s
+An encounter declares ``art:`` as a key into ``games/clockwork-dark/data/art/manifest.yaml``'s
 ``enemies:`` block, ``engine/game/encounter.py::begin`` copies it onto the
 scene alongside ``art_kind: enemy``, and
 ``engine/media/providers/shipped.py::lookup`` turns it into a file in the
@@ -60,7 +60,7 @@ def test_every_declared_art_key_resolves_to_a_shipped_file():
 def test_the_manifest_key_and_the_file_on_disk_agree():
     """`lookup` returns None for a missing file, so check the mapping directly."""
     manifest = yaml.safe_load(
-        (_ROOT / "data/art/manifest.yaml").read_text(encoding="utf-8")
+        (_ROOT / "games/clockwork-dark/data/art/manifest.yaml").read_text(encoding="utf-8")
     )
     art_root = _ROOT / "content/scenes/clockwork/static/art"
     for key in sorted(_declared_art()):

@@ -62,7 +62,7 @@ def test_validator_actually_detects_a_broken_reference():
     npc_ids = validate_content.load_npc_ids()
     issues = validate_content.check_economy(items={}, npc_ids=npc_ids)
     assert issues
-    assert any("not in data/items/" in i.message for i in issues)
+    assert any("not in games/clockwork-dark/data/items/" in i.message for i in issues)
 
 
 def test_validator_detects_a_dead_recipe_input():
@@ -87,7 +87,7 @@ def test_original_edge_costs_are_unchanged():
     """
     The five original places kept their exact travel numbers.
 
-    data/encounters/*.yaml and data/quests/** were balanced against these, and
+    games/clockwork-dark/data/encounters/*.yaml and games/clockwork-dark/data/quests/** were balanced against these, and
     tests/test_encounter.py asserts content exists for every dangerous edge.
     """
     assert get_edge("forest_clearing", "edgewood_square") == {
@@ -254,7 +254,7 @@ def test_every_quest_item_has_a_registry_entry():
 
 
 def test_recipes_cover_baking_herbalism_and_mending():
-    recipes = _load_all("data/recipes", "recipes")
+    recipes = _load_all("games/clockwork-dark/data/recipes", "recipes")
     assert len(recipes) >= 14
     assert {"baking", "herbalism", "mending"} <= {r.get("category") for r in recipes}
     assert {r["skill"] for r in recipes} <= validate_content.SKILLS
@@ -262,14 +262,14 @@ def test_recipes_cover_baking_herbalism_and_mending():
 
 
 def test_lore_corpus_expanded():
-    files = sorted((_ROOT / "data" / "lore").glob("*.md"))
+    files = sorted((_ROOT / "games" / "clockwork-dark" / "data" / "lore").glob("*.md"))
     assert len(files) >= 18
     sections = sum(f.read_text(encoding="utf-8").count("\n## ") for f in files)
     assert sections >= 60
 
 
 def test_assistant_hint_corpus_loaded_from_yaml():
-    """The literals are gone; the pools come from data/assistant/hints.yaml."""
+    """The literals are gone; the pools come from games/clockwork-dark/data/assistant/hints.yaml."""
     total = sum(len(pool) for pool in HINTS_BY_TIER.values())
     assert total >= 40
     for tier in (1, 2, 3):
@@ -294,7 +294,7 @@ def test_assistant_hints_stay_in_world():
 
 
 def test_rumor_pool_expanded_across_tiers():
-    with (_ROOT / "data" / "world" / "rumors.yaml").open(encoding="utf-8") as fh:
+    with (_ROOT / "games" / "clockwork-dark" / "data" / "world" / "rumors.yaml").open(encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     rumors = data["rumors"]
     assert len(rumors) >= 55
@@ -305,7 +305,7 @@ def test_rumor_pool_expanded_across_tiers():
         assert per_tier.get(tier, 0) >= 15, per_tier
 
 
-@pytest.mark.parametrize("directory", ["data/items", "data/recipes"])
+@pytest.mark.parametrize("directory", ["games/clockwork-dark/data/items", "games/clockwork-dark/data/recipes"])
 def test_new_data_directories_are_versioned(directory: str):
     """Every content file declares a schema version, as the rest of the tree does."""
     for path in sorted((_ROOT / directory).rglob("*.yaml")):

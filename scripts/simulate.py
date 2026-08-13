@@ -76,8 +76,8 @@ from engine.skills.builtin.mechanics import trade as trade_skill  # noqa: E402
 from engine.world.world_sim import WorldSim  # noqa: E402
 
 #: Where each vendor stands. This used to be a hardcoded dict here, because
-#: data/economy.yaml names NPCs without saying where they are and nothing in
-#: the engine knew either. data/tables/trade.yaml now declares it, so the
+#: games/clockwork-dark/data/economy.yaml names NPCs without saying where they are and nothing in
+#: the engine knew either. games/clockwork-dark/data/tables/trade.yaml now declares it, so the
 #: harness reads the same file the game does.
 def vendor_locations() -> dict[str, str]:
     """Vendor id -> location id, from the active game's trade table."""
@@ -415,7 +415,7 @@ def policy_baker(state: GameState) -> Action:
         return ("rest", {"kind": "sleep_bed"})
 
     # Work if there is work. This is the whole of the Quiet Life arc's economy
-    # and until data/tables/labour.yaml existed there was no such action: the
+    # and until games/clockwork-dark/data/tables/labour.yaml existed there was no such action: the
     # baker policy's entire day was a craft check against nothing, for nothing.
     shift = _best_shift(state)
     if shift:
@@ -477,7 +477,7 @@ def policy_pauper(state: GameState) -> Action:
     if upkeep:
         return upkeep
 
-    # 40, not 30. The `exhausted` situational in data/rules/skills.yaml bites
+    # 40, not 30. The `exhausted` situational in games/clockwork-dark/data/rules/skills.yaml bites
     # at 20 and a forage costs 6, so a policy that rests at 30 spends most of
     # its life inside a -3 on the only check that feeds it.
     if state.stats.stamina < 40:

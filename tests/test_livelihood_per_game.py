@@ -2,7 +2,8 @@
 Livelihood systems, per game that has them.
 
 THE BUG THIS FILE EXISTS FOR: ``engine/game/checks.py::_load_table`` hardcoded
-``data/tables/`` instead of resolving through ``get_config()``. With two games
+the flagship's tables directory instead of resolving through ``get_config()``.
+With two games
 installed that meant a natural 20 in the second story drew an Edgewood forest
 boon -- silently, because every content loader in this engine degrades to an
 empty list rather than raising. It fixed itself into invisibility.

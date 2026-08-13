@@ -106,7 +106,7 @@ def load_skill_rules() -> dict[str, Any]:
 
 
 def load_archetypes() -> dict[str, Any]:
-    """Load data/rules/archetypes.yaml."""
+    """Load the story's ``archetypes.yaml`` from its ``paths.rules`` directory."""
     return _load_yaml(_rules_path("archetypes.yaml"), "archetypes")
 
 
@@ -114,7 +114,7 @@ def tables_path(filename: str) -> Optional[Path]:
     """
     Resolve a random table file through ``paths.tables``.
 
-    This used to be ``_ROOT / "data" / "tables" / filename``, hardcoded, so a
+    This used to be hardcoded to the flagship's ``data/tables`` directory, so a
     second game drew boons and complications out of Edgewood's tables --
     silently, because the loader degrades to an empty list rather than raising,
     and the only symptom was a nat 20 in another story handing the player a

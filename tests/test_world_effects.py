@@ -72,7 +72,7 @@ def test_repeated_clock_advances_do_not_refire_a_beat(state):
 
 def test_the_shipped_beat_table_loads():
     table = world_effects.load_doom_effects()
-    assert table, "data/rules/doom_effects.yaml must load"
+    assert table, "games/clockwork-dark/data/rules/doom_effects.yaml must load"
     for beat_id, spec in table.items():
         assert isinstance(spec, dict), beat_id
         assert 0.0 <= float(spec["at_progress"]) <= 1.0, beat_id

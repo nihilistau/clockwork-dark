@@ -129,7 +129,7 @@ def test_difficulty_is_a_band_so_there_is_no_dc_to_inflate(state):
     A raw DC is not part of the schema at all.
 
     Upstream took an integer ``dc`` straight from the model. Bands route
-    through data/rules/skills.yaml, so difficulty stays reviewable.
+    through games/clockwork-dark/data/rules/skills.yaml, so difficulty stays reviewable.
     """
     result = spec_module.validate(
         _gauntlet(steps=[{"skill": "nerve", "dc": 999, "difficulty": "hard"}])

@@ -5,7 +5,7 @@ WHY THIS EXISTS. `dice_result` carries no image url and
 engine/media/providers/shipped.py has no ``kind == "dice"`` branch, so the
 browser resolves the painted face itself from a path it builds in the story's
 own DiceToast. That is a second copy of a mapping whose first copy
-is data/art/manifest.yaml, and a second copy nobody checks is how this codebase
+is games/clockwork-dark/data/art/manifest.yaml, and a second copy nobody checks is how this codebase
 got a manifest entry pointing at ``things/mushrooms.png``, a file that never
 existed.
 
@@ -25,8 +25,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 ART = ROOT / "content" / "scenes" / "clockwork" / "static" / "art"
-MANIFEST = ROOT / "data" / "art" / "manifest.yaml"
-SUBJECTS = ROOT / "data" / "art" / "subjects.yaml"
+MANIFEST = ROOT / "games" / "clockwork-dark" / "data" / "art" / "manifest.yaml"
+SUBJECTS = ROOT / "games" / "clockwork-dark" / "data" / "art" / "subjects.yaml"
 TOAST = (
     ROOT / "ui" / "src" / "stories" / "clockwork-dark" / "parts" / "DiceToast.jsx"
 )
@@ -147,7 +147,7 @@ def test_every_face_has_a_saved_prompt_for_both_pipelines():
 def test_the_comfyui_client_has_the_dice_prompts_too():
     """ComfyUI reads its own template file; it gets an equivalent, not a stub."""
     templates = yaml.safe_load(
-        (ROOT / "data" / "procgen_templates" / "comfyui.yaml").read_text(encoding="utf-8")
+        (ROOT / "games" / "clockwork-dark" / "data" / "procgen_templates" / "comfyui.yaml").read_text(encoding="utf-8")
     )
     faces = {int(k): v for k, v in (templates.get("dice") or {}).get("faces", {}).items()}
     assert sorted(faces) == list(range(1, SIDES + 1))

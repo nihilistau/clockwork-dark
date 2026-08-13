@@ -14,7 +14,7 @@ script is how those get filled.
     python scripts/generate_art.py --prompts --items    print, generate nothing
     python scripts/generate_art.py --all --provider comfyui
 
-Anything already covered by data/art/manifest.yaml or already on disk is
+Anything already covered by games/clockwork-dark/data/art/manifest.yaml or already on disk is
 skipped, so re-running is cheap and interrupting is safe.
 
 WHY --items EXISTS. 52 of the 81 declared items had no packed plate, and this
@@ -108,7 +108,7 @@ def promote_items(dry_run: bool = False) -> list[tuple[str, str]]:
 
     Returns:
         (item_id, relative path under the art root) for every plate promoted,
-        which is exactly the ``items:`` block data/art/manifest.yaml wants.
+        which is exactly the ``items:`` block games/clockwork-dark/data/art/manifest.yaml wants.
     """
     from engine.media.providers.base import cached_image
     from engine.media.providers.shipped import ART_ROOT
@@ -199,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=(
             "Copy generated item plates from the disposable cache into the "
-            "shipped pack and print the data/art/manifest.yaml items: block"
+            "shipped pack and print the games/clockwork-dark/data/art/manifest.yaml items: block"
         ),
     )
     parser.add_argument("--list", action="store_true", help="Report gaps and exit")

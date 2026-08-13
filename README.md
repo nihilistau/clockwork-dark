@@ -135,7 +135,7 @@ from the shipped pack, encounters, quests, and saves.
 ## Optional first-run extras
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\seed_lore.py       # ingest data/lore/*.md into the RAG index
+.\.venv\Scripts\python.exe scripts\seed_lore.py       # ingest games/clockwork-dark/data/lore/*.md into the RAG index
 .\.venv\Scripts\python.exe scripts\generate_art.py    # pre-generate art for gaps in the shipped pack
 ```
 

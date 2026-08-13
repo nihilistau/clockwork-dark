@@ -94,7 +94,7 @@ the game capable of giving any back. A permanent soft-lock, reachable inside the
 first hour of play.
 
 The fix is deliberately *not* passive regeneration. Awake regen is zero, and the
-knob is in `data/rules/survival.yaml` so the decision is visible in data rather
+knob is in `games/clockwork-dark/data/rules/survival.yaml` so the decision is visible in data rather
 than implied by an absent line of code. Rest is the only thing that restores
 stamina, it costs hours, and hours are what the evil clock eats. Rest **never
 refuses**: a bed you cannot reach downgrades to sleeping rough. Any gate on rest
@@ -385,7 +385,7 @@ file downgrades instead of refusing, and
 asserts it from the final state of both playthroughs.
 
 ### R-05 · major · There is no repeatable income, so the player starves — FIXED
-`data/economy.yaml`, `data/rules/survival.yaml`, `engine/game/procgen.py`
+`games/clockwork-dark/data/economy.yaml`, `games/clockwork-dark/data/rules/survival.yaml`, `engine/game/procgen.py`
 
 The live balance problem, and the simulator's loudest finding.
 
@@ -405,7 +405,7 @@ The observed steady state, in every policy:
 
 Gold reaches zero within a handful of turns and never returns. From then on the
 player starves, drops to 0 hp, respawns at 35% hp with half their (zero) gold and
-a fresh −2 wound, and starves again. `data/rules/death.yaml` already anticipated
+a fresh −2 wound, and starves again. `games/clockwork-dark/data/rules/death.yaml` already anticipated
 this and feeds you 45 hunger points on respawn — which buys about two turns.
 Skill success rates collapse under the stacked starvation and wound penalties:
 craft **7.6%**, survival **13.9%**, persuasion **4.3%**.
@@ -425,7 +425,7 @@ None of these are in `engine/` and none were made here.
 **Now:** fix 1 landed as the `forage` skill (`engine/game/foraging.py`,
 `engine/skills/builtin/livelihood.py`) reading the forest nodes procgen
 already generates, plus repeatable labour through the `work` skill
-(`data/tables/labour.yaml`, `engine/game/economy.py`). The `pauper` simulator
+(`games/clockwork-dark/data/tables/labour.yaml`, `engine/game/economy.py`). The `pauper` simulator
 policy — no buying, ever — survives 200 turns spending zero gold.
 
 ### R-06 · major · Every playstyle converges on the same doomsday clock

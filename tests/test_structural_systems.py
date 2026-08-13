@@ -34,7 +34,7 @@ from engine.state.schema import load_schema
 
 # The REAL story, not a fixture beside it.
 #
-# These files began life as worked examples under data/rules/examples/, because
+# These files began life as worked examples in a rules/examples/ scratch tree, because
 # the game they described did not exist yet. It does now, so they moved into it
 # and this points at the shipped article. That is strictly stronger: a test
 # driving a copy proves the loaders work on a copy, and the copy is free to
@@ -217,7 +217,7 @@ def test_challenge_ceilings_derive_from_the_running_story(garden: GameState) -> 
 
 def test_the_engines_own_balance_numbers_still_win() -> None:
     """
-    Gold is 25 because of data/economy.yaml, not because of a min/max pair.
+    Gold is 25 because of games/clockwork-dark/data/economy.yaml, not because of a min/max pair.
 
     The base table is the floor under the derivation, not a thing it replaces.
     """

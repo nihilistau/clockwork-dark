@@ -89,7 +89,7 @@ def test_starving_costs_hp_per_hour():
     The assertion used to be a hardcoded ``- 4``, which pinned the test to
     ``starving_hp_per_hour: 1.0`` and made a balance change look like a
     regression. The invariant worth defending is that the rate in
-    data/rules/survival.yaml is the rate the engine charges -- not what that
+    games/clockwork-dark/data/rules/survival.yaml is the rate the engine charges -- not what that
     number happens to be this week.
     """
     rate = float(survival.load_rules()["hunger"]["starving_hp_per_hour"])

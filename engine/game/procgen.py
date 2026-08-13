@@ -9,7 +9,7 @@ Two flagship answers used to be welded in here and both are gone:
                          nothing. A new run in the second story began on a
                          location id its map does not contain.
 
-    the template path    ``"data/procgen_templates/edgewood.yaml"`` was the
+    the template path    ``data/procgen_templates/edgewood.yaml`` was the
                          string-literal fallback for ``paths.procgen_templates``,
                          so a story whose config lost that key silently
                          generated Edgewood.

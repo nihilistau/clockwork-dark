@@ -49,7 +49,7 @@ def test_search_returns_relevant_chunk(lore_db: LoreManager):
 
 def test_ingest_directory(lore_db: LoreManager):
     root = Path(__file__).resolve().parents[1]
-    lore_dir = root / "data" / "lore"
+    lore_dir = root / "games" / "clockwork-dark" / "data" / "lore"
     count = lore_db.ingest_directory(lore_dir)
     assert count >= 3
     hits = lore_db.search("forest clearing birch", limit=2)

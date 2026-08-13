@@ -175,7 +175,7 @@ class ConfigManager:
 
         THE CALLER'S DEFAULT IS DELIBERATELY NOT USED FOR A KEY THE CONFIG
         DECLARES. Every such literal in this engine was one story's answer --
-        ``"data/quests"``, ``"data/tables"``, ``"data/world/locations.yaml"`` --
+        ``data/quests``, ``data/tables``, ``data/world/locations.yaml`` --
         and returning it would rebuild, in Python, exactly the inheritance the
         empty defaults exist to remove. A key the config declares and no story
         claims resolves to "", which every loader reads as "this story ships

@@ -101,7 +101,7 @@ R003 records the claim as a `warning` violation and increments
 
 ---
 
-## 2. World effects — `engine/world/world_effects.py`, `data/rules/doom_effects.yaml`
+## 2. World effects — `engine/world/world_effects.py`, `games/clockwork-dark/data/rules/doom_effects.yaml`
 
 `evil_progress` used to be a number that went up and changed adjectives. A player
 at 0.85 walked into the same square and met the same five villagers standing in
@@ -137,7 +137,7 @@ so they are silently deleted from the world.
 
 ---
 
-## 3. Challenges — `engine/challenges/`, `data/challenges/`
+## 3. Challenges — `engine/challenges/`, `games/clockwork-dark/data/challenges/`
 
 Multi-step encounters the Storyteller can compose and the engine owns. Kinds:
 `skill_gauntlet`, `decision_tree`, `puzzle`, `dice_table`.
@@ -145,7 +145,7 @@ Multi-step encounters the Storyteller can compose and the engine owns. Kinds:
 **The model proposes; the engine bounds.** `spec.py` is the bounding layer:
 
 - **Difficulty is a band, never a raw DC.** Upstream took an integer `dc` from the
-  model. Bands route through `data/rules/skills.yaml`, so there is no number to
+  model. Bands route through `games/clockwork-dark/data/rules/skills.yaml`, so there is no number to
   inflate and difficulty stays reviewable in one place.
 - **Rewards are clamped per effect and capped in count** (`EFFECT_CEILINGS`,
   `MAX_EFFECTS`, `MAX_ITEM_QTY`). Gold caps at 25. Upstream had no ceiling at all.
@@ -242,7 +242,7 @@ Formerly in this table, now wired: `Oracle.record_turn` and `/api/metrics`
 `content/scenes/clockwork/clockwork_api.py::notice_board`, served at
 `GET /api/notices` from `engine/game/economy.py`'s snapshot,
 `tests/test_notice_board.py`; and the rolled-d20 stills — all 20 plates and all
-20 interface faces exist and are mapped in `data/art/manifest.yaml`
+20 interface faces exist and are mapped in `games/clockwork-dark/data/art/manifest.yaml`
 (`dice_plates` / `dice_faces`), held by `tests/test_dice_art.py`.
 
 ### NOT WIRED

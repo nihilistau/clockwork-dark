@@ -70,12 +70,12 @@ def test_the_verb_list_names_the_real_systems():
     make ``verbs_for`` optimistic -- which would turn the gate above into a
     test that passes because it stopped looking.
     """
-    assert "eat" in inventory.verbs_for("loaf")  # data/rules/survival.yaml
-    assert "craft" in inventory.verbs_for("barley_flour")  # data/recipes/*.yaml
+    assert "eat" in inventory.verbs_for("loaf")  # games/clockwork-dark/data/rules/survival.yaml
+    assert "craft" in inventory.verbs_for("barley_flour")  # games/clockwork-dark/data/recipes/*.yaml
     assert "craft" in inventory.verbs_for("mortar_and_pestle")  # a recipe tool
-    assert "equip" in inventory.verbs_for("wool_cloak")  # data/items/gear.yaml
+    assert "equip" in inventory.verbs_for("wool_cloak")  # games/clockwork-dark/data/items/gear.yaml
     assert "use" in inventory.verbs_for("bandage")  # a use: block
-    assert "collect" in inventory.verbs_for("hare_foot")  # data/tables/collections.yaml
+    assert "collect" in inventory.verbs_for("hare_foot")  # games/clockwork-dark/data/tables/collections.yaml
     assert "quest" in inventory.verbs_for("cut_reed")  # a has_item condition
     assert inventory.verbs_for("no_such_item_at_all") == []
 
@@ -90,12 +90,12 @@ def test_the_three_unreachable_items_are_reachable():
     quietly drops one is visible.
     """
     quests = "\n".join(
-        p.read_text(encoding="utf-8") for p in (_ROOT / "data" / "quests").rglob("*.yaml")
+        p.read_text(encoding="utf-8") for p in (_ROOT / "games" / "clockwork-dark" / "data" / "quests").rglob("*.yaml")
     )
     recipes = "\n".join(
-        p.read_text(encoding="utf-8") for p in (_ROOT / "data" / "recipes").glob("*.yaml")
+        p.read_text(encoding="utf-8") for p in (_ROOT / "games" / "clockwork-dark" / "data" / "recipes").glob("*.yaml")
     )
-    collections = (_ROOT / "data" / "tables" / "collections.yaml").read_text(encoding="utf-8")
+    collections = (_ROOT / "games" / "clockwork-dark" / "data" / "tables" / "collections.yaml").read_text(encoding="utf-8")
 
     # goat_bell: granted by lost_goat, required by lost_goat.
     assert "item_id: goat_bell" in quests
@@ -120,7 +120,7 @@ def test_every_item_has_a_generation_prompt_for_both_backends():
     from engine.media.art import render_prose, render_tags
 
     subjects = yaml.safe_load(
-        (_ROOT / "data" / "art" / "subjects.yaml").read_text(encoding="utf-8")
+        (_ROOT / "games" / "clockwork-dark" / "data" / "art" / "subjects.yaml").read_text(encoding="utf-8")
     )
     described = set(subjects["items"]) - {"defaults"}
     registry = set(inventory.load_items())
@@ -167,7 +167,7 @@ def test_every_item_has_its_own_shipped_plate():
     assert not unpainted, f"items with no shipped plate: {unpainted}"
 
     manifest = yaml.safe_load(
-        (_ROOT / "data" / "art" / "manifest.yaml").read_text(encoding="utf-8")
+        (_ROOT / "games" / "clockwork-dark" / "data" / "art" / "manifest.yaml").read_text(encoding="utf-8")
     )
     plates = {i: manifest["items"][i] for i in registry}
     shared = sorted(p for p in set(plates.values()) if list(plates.values()).count(p) > 1)

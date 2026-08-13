@@ -13,7 +13,7 @@ can read.
 The prompts are not duplicated here. Both dialects come out of the same place
 as every other subject in the game:
 
-    data/art/subjects.yaml  ->  engine/media/art.py
+    games/clockwork-dark/data/art/subjects.yaml  ->  engine/media/art.py
         render_prose(f"dice_face_{n}", kind="dice")   Grok Imagine  (default)
         render_tags (f"dice_face_{n}", kind="dice")   ComfyUI SDXL  (+negative)
 
@@ -26,7 +26,7 @@ ComfyUI is not driven from here. It is not running on this machine and its
 client (engine/media/comfyui.py) submits a bare CLIPTextEncode node rather than
 a real SDXL workflow, so a "generate with comfy" flag would be a promise this
 script cannot keep. --prompts prints exactly what to paste into a workflow, and
-the same strings are mirrored in data/procgen_templates/comfyui.yaml, which is
+the same strings are mirrored in games/clockwork-dark/data/procgen_templates/comfyui.yaml, which is
 the file that client reads.
 
 Version: v0.1.0 [2026-08-08]
@@ -221,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
 
     faces = face_map()
     if not faces:
-        print("data/art/manifest.yaml has no dice_plates: map", file=sys.stderr)
+        print("games/clockwork-dark/data/art/manifest.yaml has no dice_plates: map", file=sys.stderr)
         return 2
 
     if args.thumbs:

@@ -760,7 +760,7 @@ def test_clockwork_is_reserved_for_the_late_phases():
 def test_every_art_key_exists_in_the_manifest():
     from engine.config import get_config
 
-    path = encounter._ROOT / str(get_config().get("paths.art_manifest", "data/art/manifest.yaml"))
+    path = encounter._ROOT / str(get_config().get("paths.art_manifest", "games/clockwork-dark/data/art/manifest.yaml"))
     with path.open(encoding="utf-8") as fh:
         enemies = set((yaml.safe_load(fh) or {}).get("enemies", {}))
 

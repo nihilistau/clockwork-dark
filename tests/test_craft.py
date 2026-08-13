@@ -1,5 +1,5 @@
 """
-Crafting — the `craft_item` skill against data/recipes/*.yaml.
+Crafting — the `craft_item` skill against games/clockwork-dark/data/recipes/*.yaml.
 
 WHAT THESE TESTS ARE DEFENDING. DESIGN.md makes "mundane craft as dignity" a
 pillar, and the recipe files shipped for a full phase with a header reading

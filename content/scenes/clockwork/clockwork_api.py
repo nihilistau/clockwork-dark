@@ -245,28 +245,21 @@ def codex_things(state: Any) -> list[dict[str, Any]]:
     The Things. Everything the art pack knows about, priced where a vendor
     trades in it, and marked when the player is carrying one.
     """
-    import yaml
-
-    from engine.config import project_root
     from engine.media.providers.shipped import load_manifest
 
     prices: dict[str, dict[str, Any]] = {}
-    try:
-        with (project_root() / "data" / "economy.yaml").open(encoding="utf-8") as handle:
-            economy = yaml.safe_load(handle) or {}
-        for vendor_id, vendor in economy.items():
-            for side in ("sells", "buys"):
-                for item_id, row in (vendor.get(side) or {}).items():
-                    prices.setdefault(
-                        str(item_id),
-                        {
-                            "name": str(row.get("name") or item_id),
-                            "price": int(row.get("price", 0)),
-                            "from": str(vendor_id).replace("npc_", "").title(),
-                        },
-                    )
-    except (OSError, yaml.YAMLError) as exc:
-        logger.warning("[clockwork_api] Economy unreadable: %s", exc)
+    economy = _load_economy()
+    for vendor_id, vendor in economy.items():
+        for side in ("sells", "buys"):
+            for item_id, row in (vendor.get(side) or {}).items():
+                prices.setdefault(
+                    str(item_id),
+                    {
+                        "name": str(row.get("name") or item_id),
+                        "price": int(row.get("price", 0)),
+                        "from": str(vendor_id).replace("npc_", "").title(),
+                    },
+                )
 
     carried = {i.id: i.qty for i in (getattr(state, "inventory", None) or [])}
     things: list[dict[str, Any]] = []
@@ -314,6 +307,31 @@ def _story_dir(key: str) -> Optional[Path]:
         return None
     candidate = Path(rel)
     return candidate if candidate.is_absolute() else (project_root() / candidate)
+
+
+def _load_economy() -> dict[str, Any]:
+    """
+    The story's vendor economy, or {} when it declares none.
+
+    Resolved through ``paths.economy`` like every other loader in this module.
+    Two callers used to open ``project_root() / data/economy.yaml`` directly --
+    the last two repo-root content literals in this file, left over from when
+    the flagship's economy WAS at the repo root. A story with no economy is an
+    answer (debug), not an error; an unreadable file it did declare is one
+    (warning).
+    """
+    import yaml
+
+    path = _story_dir("paths.economy")
+    if path is None:
+        return {}
+    try:
+        with path.open(encoding="utf-8") as handle:
+            data = yaml.safe_load(handle) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        logger.warning("[clockwork_api] Economy unreadable: %s", exc)
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def _load_item_registry() -> dict[str, dict[str, Any]]:
@@ -588,17 +606,9 @@ def trade_offer(state: Any) -> dict[str, Any]:
     Presentation only: nothing here moves an item or a coin. The engine's
     `trade` skill is the single writer, and it runs inside a turn.
     """
-    import yaml
-
-    from engine.config import project_root
     from engine.game.procgen import npcs_at_location
 
-    try:
-        with (project_root() / "data" / "economy.yaml").open(encoding="utf-8") as handle:
-            economy = yaml.safe_load(handle) or {}
-    except (OSError, yaml.YAMLError) as exc:
-        logger.warning("[clockwork_api] Economy unreadable: %s", exc)
-        economy = {}
+    economy = _load_economy()
 
     here = npcs_at_location(state.procgen, state.location_id)
     carried = {i.id: {"name": i.name, "qty": i.qty} for i in state.inventory}

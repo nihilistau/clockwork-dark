@@ -101,7 +101,7 @@ The **EvilTicker** runs continuously:
 
 ### Story Arcs (Awareness-Gated)
 
-Arcs and their gates live in `data/quests/arcs.yaml`; the gates are ordinary
+Arcs and their gates live in `games/clockwork-dark/data/quests/arcs.yaml`; the gates are ordinary
 quest predicates. Arcs are **monotonic** — they only ever open, never re-lock,
 because the fiction cannot un-happen.
 
@@ -117,7 +117,7 @@ player, so its arrival alone cannot be the Whisper gate — that would drag ever
 baker into the arc on a dice roll. What separates the two arcs is not that the
 trader came, it is that the player **listened** to him.
 
-24 quests, six per arc (`data/quests/<arc>/*.yaml`). Each arc is **valid**. The
+24 quests, six per arc (`games/clockwork-dark/data/quests/<arc>/*.yaml`). Each arc is **valid**. The
 game never punishes the baker for baking.
 
 > **Caveat, measured.** Convergence's `min_phase: spreading` term is a timer, not
@@ -317,7 +317,7 @@ Stamina has an **effective cap** below `max_stamina` while hungry. A player at
 ### Survival & Rest (`engine/game/survival.py`)
 
 Awake stamina regeneration is **zero, on purpose**, and the knob is in
-`data/rules/survival.yaml` so the decision is visible in data rather than implied
+`games/clockwork-dark/data/rules/survival.yaml` so the decision is visible in data rather than implied
 by an absent line of code. Rest is the only thing in the game that raises
 stamina, and it costs hours — which is what the evil clock eats. Stopping to
 sleep is the most expensive safe thing you can do, and it has to stay that way.
@@ -330,7 +330,7 @@ rebuilds the soft-lock**; see DESIGN_REVIEW.md issue R-04.
 
 - Standard: `d20 + itemised modifiers vs DC`
 - **The model never supplies a DC.** It names a difficulty *band*; the engine
-  derives the number from `data/rules/skills.yaml`:
+  derives the number from `games/clockwork-dark/data/rules/skills.yaml`:
   `trivial 8 · easy 10 · standard 13 · hard 16 · severe 19 · legendary 22`
 - Skill taxonomy (seven): `persuasion`, `stealth`, `sympathy`, `lore`, `craft`,
   `survival`, `nerve`
@@ -342,7 +342,7 @@ rebuilds the soft-lock**; see DESIGN_REVIEW.md issue R-04.
 - Four degrees by margin: `crit_success` (+10), `success` (0), `partial` (−4),
   `failure`. **Partial is not success.**
 - Natural 20 draws a boon, natural 1 a complication, both from
-  `data/tables/*.yaml` — never LLM invention. Advantage reads the *kept* die, so
+  `games/clockwork-dark/data/tables/*.yaml` — never LLM invention. Advantage reads the *kept* die, so
   it genuinely buys a second chance at the boon.
 
 ### Conflict as a scene, not a combat system (`engine/game/encounter.py`)
@@ -353,7 +353,7 @@ every roadside argument into a five-minute minigame. A conflict is a **scene**:
 one to three contested checks against a threat's `resolve`. The player picks an
 *approach* (talk, fight, sneak, pay, walk away) and the engine resolves it
 through `checks.py` like everything else. `flee` is merged into every encounter
-by `data/encounters/rules.yaml`, because a scene with no legal exit is a
+by `games/clockwork-dark/data/encounters/rules.yaml`, because a scene with no legal exit is a
 soft-lock.
 
 Approach availability is **engine-authored**: anything the player cannot pay for,
@@ -364,7 +364,7 @@ Consequences are **wounds**, not hit points: *"a knife-line across your forearm,
 −2 to craft until day 9"* survives into the next scene and reads back into
 narration for free.
 
-### Death (`data/rules/death.yaml`)
+### Death (`games/clockwork-dark/data/rules/death.yaml`)
 
 Death is a **setback**, not a game over. You wake in Edgewood Square ten hours
 later at 35% hp, half your purse gone, carrying a −2 wound that takes five days
@@ -375,8 +375,8 @@ you.
 
 ### Crafting & Professions
 
-Recipes exist in `data/recipes/*.yaml` and items in `data/items/*.yaml`. Buying
-and selling run through the `trade` skill against `data/economy.yaml`.
+Recipes exist in `games/clockwork-dark/data/recipes/*.yaml` and items in `games/clockwork-dark/data/items/*.yaml`. Buying
+and selling run through the `trade` skill against `games/clockwork-dark/data/economy.yaml`.
 `craft_item(recipe_id)` is a real skill
 (`engine/skills/builtin/mechanics.py`, `tests/test_craft.py`): refusals —
 unknown recipe, wrong station, missing tool, short of inputs — come **before**
@@ -531,7 +531,7 @@ Reproduce with:
   PR7 and read by nothing at all until P7
 - Shrine with incomplete mural (lore hook)
 - NPCs run **hourly routines** with activity strings
-  (`engine/world/npc_sim.py`, `data/world/npc_schedules.yaml`), so who is in the
+  (`engine/world/npc_sim.py`, `games/clockwork-dark/data/world/npc_schedules.yaml`), so who is in the
   room depends on the hour rather than on a static location field
 
 ### Forest (seeded)
@@ -545,11 +545,11 @@ Reproduce with:
   shortcuts: `GameEngine.move_to` prices a discovered path's two ends at
   `SHORTCUT_HOURS` (`engine/game/foraging.py::shortcut_hours`,
   `tests/test_hidden_paths.py`)
-- Encounter tables are banded by evil phase (`data/encounters/*.yaml`)
+- Encounter tables are banded by evil phase (`games/clockwork-dark/data/encounters/*.yaml`)
 
 ### Trader & Tinker Schedule
 
-From `data/world/schedules.yaml`. Each event draws from its **own named RNG
+From `games/clockwork-dark/data/world/schedules.yaml`. Each event draws from its **own named RNG
 stream**, so they are independent of each other and replay from the save seed.
 
 | Event | Probability | Effect |
@@ -563,7 +563,7 @@ engine writes down the **day they were first seen** (`quests["_meta"]`) — the
 Whisper gate needs "the caravan came on day six" ten days later, by which time
 the event itself is long gone from state.
 
-Templates in `data/procgen_templates/`.
+Templates in `games/clockwork-dark/data/procgen_templates/`.
 
 ---
 
@@ -574,7 +574,7 @@ Templates in `data/procgen_templates/`.
 Images resolve through a **four-tier provider chain**
 (`engine/media/providers/`), in this order:
 
-1. **Shipped art pack** — `data/art/manifest.yaml`. Instant, and what a shipped
+1. **Shipped art pack** — `games/clockwork-dark/data/art/manifest.yaml`. Instant, and what a shipped
    example game should do.
 2. **Disk cache** — keyed by `(subject_id, kind, time_of_day, evil_phase)`.
 3. **Live generation** — `media.live_generation`, **off by default**. Grok
@@ -911,7 +911,7 @@ of it.
 - **Done when:** serialize round-trip; evil monotonic; phase boundaries tested
 
 ### PR3 — Skills + Rules Engine ✅ (M)
-- **Files:** `engine/skills/registry.py`, `builtin/mechanics.py`, `engine/mcp/scene_rules_engine.py`, `data/economy.yaml`, `content/scenes/clockwork/clockwork_skills.py`, `test_skill_enforcement.py`
+- **Files:** `engine/skills/registry.py`, `builtin/mechanics.py`, `engine/mcp/scene_rules_engine.py`, `games/clockwork-dark/data/economy.yaml`, `content/scenes/clockwork/clockwork_skills.py`, `test_skill_enforcement.py`
 - **Dependencies:** PR2
 - **Done when:** SceneRulesEngine R001–R005 tests pass; **not** Evaluator (that's PR5)
 
@@ -931,17 +931,17 @@ of it.
 - **Done when:** Agency silent/help branches, form system, grant_hint/reveal_lore/change_form skills, STT stub, mock LLM tests pass
 
 ### PR7 — ProcGen Edgewood ✅ (M)
-- **Files:** `engine/game/procgen.py`, `data/procgen_templates/edgewood.yaml`, extended `ProcgenResult`
+- **Files:** `engine/game/procgen.py`, `games/clockwork-dark/data/procgen_templates/edgewood.yaml`, extended `ProcgenResult`
 - **Dependencies:** PR2
 - **Done when:** Same seed yields identical NPCs/buildings/forest; 8 NPCs (5 canon + 3 procedural), 12 buildings, `new_game_state()` helper, tests pass
 
 ### PR8 — WorldSim + Traders ✅ (M)
-- **Files:** `engine/world/world_sim.py`, `engine/world/schedules.py`, `data/world/schedules.yaml`
+- **Files:** `engine/world/world_sim.py`, `engine/world/schedules.py`, `games/clockwork-dark/data/world/schedules.yaml`
 - **Dependencies:** PR2, PR7
 - **Done when:** `WorldSim.on_tick` advances evil + schedules; forced `caravan_arrival` stores rumor/event; militia gated by awareness; tests pass
 
 ### PR9 — Media Pipeline ✅ (L)
-- **Files:** `engine/media/comfyui.py`, `tts.py`, `cutscene.py`, `pipeline.py`, `interceptors.py`, `data/procgen_templates/comfyui.yaml`
+- **Files:** `engine/media/comfyui.py`, `tts.py`, `cutscene.py`, `pipeline.py`, `interceptors.py`, `games/clockwork-dark/data/procgen_templates/comfyui.yaml`
 - **Dependencies:** PR4
 - **Done when:** ComfyUI queue receives image jobs (mock/placeholder), TTS text fallback, cutscene phase-shift budget, Storyteller turn emits `media` dict, tests pass
 
@@ -951,7 +951,7 @@ of it.
 - **Done when:** Browser loads `:5573`; REST + Socket.IO `player_choice` emits `turn_update`; health/new/choice/state routes work; tests pass
 
 ### PR11 — RAG Lore Seed ✅ (M)
-- **Files:** `engine/lore/manager.py`, `engine/lore/interceptors.py`, `scripts/seed_lore.py`, `data/lore/*.md`
+- **Files:** `engine/lore/manager.py`, `engine/lore/interceptors.py`, `scripts/seed_lore.py`, `games/clockwork-dark/data/lore/*.md`
 - **Dependencies:** PR1
 - **Done when:** `seed_lore.py` ingests markdown; FTS retrieval returns chunks; LoreInject + AwarenessGate wired to Storyteller; tests pass
 
@@ -993,7 +993,7 @@ to 600+ during the overhaul; it stands at ~1,400 now.
 
 | Question | Status |
 |----------|--------|
-| Permadeath? | **Settled.** Respawn in Edgewood Square: 10 hours lost, 35% hp, half the purse, a −2 wound for 5 days. `state.ended` only on a second death during `consuming`. See `data/rules/death.yaml` |
+| Permadeath? | **Settled.** Respawn in Edgewood Square: 10 hours lost, 35% hp, half the purse, a −2 wound for 5 days. `state.ended` only on a second death during `consuming`. See `games/clockwork-dark/data/rules/death.yaml` |
 | Video cutscene budget | **Settled.** Phase shifts only (`media.cutscene_budget: phase_shift_only`) |
 | Live image generation | **Settled: off by default.** A Grok Imagine still takes 2–3 minutes, which cannot sit inside a real-time turn. Shipped art pack first, then cache, then procedural SVG |
 | Spoken narration | **Settled: off by default.** Measured at ~21× slower than realtime on the reference machine (73.9 s of compute for 3.44 s of audio) |

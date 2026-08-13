@@ -105,8 +105,8 @@ media:
   # Imagine still takes 2-3 minutes, which cannot sit inside a real-time turn.
   # ComfyUI is seconds and is the backend worth turning this on for.
   #
-  # With this off, images come from the shipped art pack (see
-  # data/art/manifest.yaml) and the disk cache -- which is instant, and is what
+  # With this off, images come from the shipped art pack (the active story's
+  # paths.art_manifest) and the disk cache -- which is instant, and is what
   # a shipped example game should do. Use scripts/generate_art.py to fill gaps
   # ahead of time rather than paying for them mid-turn.
   live_generation: false

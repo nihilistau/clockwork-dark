@@ -33,7 +33,7 @@ from engine.game.state import EvilPhase, GameState
 
 
 def test_registry_reads_values_the_engine_never_used_to_load():
-    """data/items/*.yaml carried a `value` that no runtime code had ever read."""
+    """games/clockwork-dark/data/items/*.yaml carried a `value` that no runtime code had ever read."""
     assert inventory.value_of("loaf") == 2
     assert inventory.value_of("hide_roll") == 24
     assert inventory.name_of("wild_mushroom") == "Wild mushroom"

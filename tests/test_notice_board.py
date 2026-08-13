@@ -1,7 +1,7 @@
 """
 The notice board — the server half of a render GOVERNANCE.md listed as unbuilt.
 
-The contract catalogue (data/tables/labour.yaml, read through
+The contract catalogue (games/clockwork-dark/data/tables/labour.yaml, read through
 engine/game/economy.py) has existed since P12 with no surface a client could
 ask. ``notice_board`` is that surface: a pure view-model of the state, plus a
 ``GET /api/notices`` route on the story blueprint.

@@ -416,7 +416,7 @@ def test_activation_repoints_every_content_system(garden: Any) -> None:
     assert "loaf" not in items, "the Garden is serving Edgewood's pantry"
 
     # Random tables are per-game too, as of the paths.tables fix. Before it,
-    # engine/game/checks.py hardcoded data/tables/ and a second story drew
+    # engine/game/checks.py hardcoded the flagship's tables directory and a second story drew
     # Edgewood's draws.
     collection_ids = {row["id"] for row in inventory_module.load_collections()}
     assert "sophias_gifts" in collection_ids

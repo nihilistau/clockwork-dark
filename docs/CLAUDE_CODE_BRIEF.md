@@ -103,8 +103,11 @@ engine/
 ui/                Vite + React 18 client; `npm run build` emits into
                    content/scenes/clockwork/static/dist, which is COMMITTED
 
-data/              rules/  tables/  quests/<arc>/  encounters/  items/
-                   recipes/  world/  art/  lore/  procgen_templates/
+data/              saves/  media/ — engine-owned runtime output ONLY.
+                   **CURRENT:** the flagship's content (rules/ tables/
+                   quests/<arc>/ encounters/ items/ recipes/ world/ art/
+                   lore/ procgen_templates/) moved to
+                   games/clockwork-dark/data/, the same layout every story uses.
 
 scripts/           doctor.py  simulate.py  generate_art.py  seed_lore.py  start.ps1
 ```
@@ -122,11 +125,11 @@ clockwork-dark/
 │   ├── DESIGN.md
 │   ├── CLAUDE_DESIGN_BRIEF.md
 │   └── CLAUDE_CODE_BRIEF.md       # This file
-├── data/
-│   ├── lore/                      # Markdown → RAG
-│   ├── recipes/
-│   ├── procgen_templates/
-│   └── saves/                     # JSON game saves
+├── data/                          # Runtime output only (saves/, media/).
+│   └── saves/                     # JSON game saves, per game slug
+│                                  # **CURRENT:** story content (lore/, recipes/,
+│                                  # procgen_templates/, ...) lives under
+│                                  # games/<slug>/data/ — see games/clockwork-dark/data/
 ├── engine/
 │   ├── __init__.py
 │   ├── config.py                  # ConfigManager
@@ -200,7 +203,7 @@ Explicit port/adapt list. **Read source before writing target.**
 | Anubis `src/game/engine.py` | `engine/game/engine.py` | Replace grid movement with `move_to(location_id)` graph |
 | Anubis `src/framework/council.py` | `engine/agents/storyteller.py` | Slim pipeline: Proposer optional, Evaluator required |
 | Anubis `src/agents/evaluator.py` | `engine/agents/evaluator.py` | Rubric: tone, lore, length, no-hallucinated-mechanics |
-| Anubis `scripts/seed_lore.py` | `scripts/seed_lore.py` | Point at `data/lore/` |
+| Anubis `scripts/seed_lore.py` | `scripts/seed_lore.py` | Point at `games/clockwork-dark/data/lore/` |
 | Anubis ComfyUI agent | `engine/media/comfyui.py` | Add video workflow hook |
 | CosySim `engine/lmstudio/client.py` | `engine/lmstudio/client.py` | Direct port |
 | CosySim `engine/agents/stream_processor.py` | `engine/agents/stream_processor.py` | Add `[CUTSCENE:id]` tag pattern |
@@ -530,7 +533,7 @@ if random.random() < state.storyteller_mind.intervention_willingness:
 
 1. Storyteller stream contains `[IMAGE:edgewood_square_dawn]`
 2. `StreamProcessor` → `image_requests[]`
-3. `ComfyUIMediaInterceptor` enqueues with prompt template from `data/procgen_templates/comfyui.yaml`
+3. `ComfyUIMediaInterceptor` enqueues with prompt template from `games/clockwork-dark/data/procgen_templates/comfyui.yaml`
 4. Cache key: `hash(location_id + time_of_day + phase_bucket)`
 5. Socket.IO emit `image_ready` with URL
 
@@ -801,7 +804,7 @@ also finished. There is no next PR; there is an open-issues list in
 | PR8 | Caravan event fires on forced tick |
 | PR9 | Mock ComfyUI receives queue item |
 | PR10 | Browser loads `:5573`; choice emits `turn_update` |
-| PR11 | `seed_lore.py` ingests `data/lore/`; retrieval returns chunk |
+| PR11 | `seed_lore.py` ingests `games/clockwork-dark/data/lore/`; retrieval returns chunk |
 | PR12 | `test_vertical_slice.py` passes |
 
 ---
