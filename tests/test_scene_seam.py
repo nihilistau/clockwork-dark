@@ -364,3 +364,64 @@ def test_game_session_is_importable_from_both_homes():
 
     assert StoryName is EngineName
 
+
+# -- 4. a scratch story on the engine default -------------------------------
+
+
+def test_a_scratch_story_with_no_scene_block_plays_a_turn_on_the_engine_scene(
+    tmp_path, monkeypatch
+):
+    """
+    The whole seam, end to end, for a story that ships almost nothing: a
+    temp-dir manifest with no `scene:` block resolves to the ENGINE's default
+    scene module -- not to any shipped story's package -- and that module's
+    turn completes for it with a canned narrator and no local model.
+
+    This is the test a third story is born passing. If it breaks, the engine
+    default has grown a dependency on something only a shipped story declares.
+    """
+    import yaml
+
+    manifest_dir = tmp_path / "games" / "scratch-story"
+    manifest_dir.mkdir(parents=True)
+    (manifest_dir / "game.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "id": "scratch-story",
+                "title": "Scratch Story",
+                "entry": {
+                    "location_id": "somewhere",
+                    "opening": {
+                        "narration": "A blank room.",
+                        "choices": [{"id": "a", "text": "Look"}],
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    data = yaml.safe_load((manifest_dir / "game.yaml").read_text(encoding="utf-8"))
+    manifest = from_dict(data, slug="scratch-story")
+
+    # 1. It resolves to the engine's own scene and screens.
+    spec = resolve_scene(manifest)
+    assert spec.module == DEFAULT_SCENE_MODULE
+    assert spec.module.startswith("engine.scenes.")
+
+    # 2. And the engine turn runs for it, opening on ITS declared frame.
+    import engine.scenes.default_state as state_module
+    from engine.persistence.saves import SaveStore
+    from engine.scenes.default_state import DefaultSessionStore, run_turn
+
+    monkeypatch.setattr("engine.games.registry.entry_manifest", lambda: manifest)
+    saves = SaveStore(root=tmp_path / "saves", slug="scratch-story")
+    monkeypatch.setattr(state_module, "get_save_store", lambda: saves)
+
+    session = DefaultSessionStore().create(seed=7, llm_fn=lambda _m: MOCK_STORYTELLER)
+    assert session.last_turn["narration"] == "A blank room."
+    assert [c["text"] for c in session.last_turn["choices"]] == ["Look"]
+
+    payload = run_turn(session, "The player chooses: Look")
+    for key in ("narration", "choices", "state", "assistant", "tool_receipts"):
+        assert key in payload, f"the turn payload lost {key}"
+    assert payload["narration"], "the turn produced no narration"
