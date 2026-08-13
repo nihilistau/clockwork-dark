@@ -261,7 +261,8 @@ appears by name in check receipts.
 These were not fixed by the overhaul itself. They are recorded here rather
 than left for the next reader to rediscover; the ones marked **FIXED** were
 closed by later work, each with a **Now:** note giving the call site, in the
-style R-03 set. R-06 is the one still live.
+style R-03 set. R-06, the last one live, closed with the engagement work —
+none remain open.
 
 ### R-01 · major · The prompt is fitted, then inflated past the budget — FIXED
 `engine/agents/storyteller.py::_build_messages`
@@ -428,7 +429,7 @@ already generates, plus repeatable labour through the `work` skill
 (`games/clockwork-dark/data/tables/labour.yaml`, `engine/game/economy.py`). The `pauper` simulator
 policy — no buying, ever — survives 200 turns spending zero gold.
 
-### R-06 · major · Every playstyle converges on the same doomsday clock
+### R-06 · major · Every playstyle converges on the same doomsday clock — FIXED
 `config/default.yaml`, `engine/game/evil_ticker.py`, `engine/game/locations.py`
 
 The design says evil advances faster around a disengaged player
@@ -454,6 +455,59 @@ protect the quiet-life player.
 Suggested direction, not applied: widen the location multiplier range, or make
 `inaction_bonus` a *deceleration* for engagement rather than an acceleration for
 disengagement, so that pushing back visibly buys time.
+
+**Now:** both halves of the suggested direction landed, and the clock answers
+to conduct. Measured with `scripts/simulate.py`, 200 turns, seed 42 (the new
+`hero` policy pursues quests and set-pieces; `reckless` is unchanged as the
+exposed-but-unengaged control):
+
+| policy (200 turns, seed 42) | before: evil/day | after: evil/day | after: final evil | deaths |
+|---|---|---|---|---|
+| hero (engaged) | — | 0.0070 | 0.18 (dormant) | 4 |
+| cautious | 0.0053 | 0.0068 | 0.18 (dormant) | 3 |
+| baker | 0.0056 | 0.0143 | 0.50 (spreading) | 0 |
+| pauper | 0.0044 | 0.0193 | 0.56 (spreading) | 1 |
+| reckless | 0.0064 | 0.0149 | 0.70 (spreading) | 24 |
+
+The baker's world now falls **2.03×** faster per in-game day than the hero's
+(was: every policy within 13%), exposure still costs (reckless ≥ baker), and
+the median run ends in SPREADING instead of everyone parking in DORMANT.
+What changed:
+
+1. **The location band widened** past the point where the inaction bonus can
+   cancel it: hearth ring 0.25–0.4, mid ring 0.8–1.2, the Millhaven road and
+   beyond 1.6–2.2 (`games/clockwork-dark/data/world/locations.yaml`).
+2. **Engagement buys time.** A new `GameState.doom_resistance` (0–100, hidden,
+   neutral zero) is granted only through the new `doom_resistance` effect kind
+   — quest rewards scaled by arc (whisper +12, march +18, convergence +25,
+   plus per-stage milestones; the community-tending Quiet Life quests +6–8 and
+   the bakery apprenticeship deliberately 0) and set-piece victories (+12,
+   ceiling 15 in the spec bounder). `EvilTicker.advance` replaces the bare
+   inaction bonus with `engagement_factor = inaction_bonus × (1 −
+   resistance/100 × world.evil_engagement_slowdown_max)`, hard-floored at 0.25
+   — pushing back buys time, it never stops the clock — and decays the
+   resistance at `world.doom_resistance_decay_per_day` inside the same
+   advance, so the reprieve is spent, not kept. Both knobs are in the
+   manifest `SETTING_ALLOWLIST`.
+3. **The base rate came back up** (0.006 → 0.028) because the widened band and
+   the slowdown halved the typical effective multiple, and because at 0.006
+   every 200-turn run ended DORMANT, which made both mechanisms unobservable.
+   The sweep behind the number is in `config/default.yaml`.
+4. **`plot_involvement` now measures the player, not the world.** The arc term
+   read `active_arc`, which climbs on world state (`min_phase: spreading`), so
+   the baker was collecting Convergence's 35 involvement points for standing
+   in a village while the world fell — slowing their own doom exactly when it
+   should have run free. It now counts the furthest arc the player has a quest
+   record in (`engine/game/plot.py`).
+
+The related paragraph above also moved: the Whisper arc's ten-day quarantine
+(and the caravan's 8%/day arrival roll) were sized for an eighty-day world and
+spent a third of a forty-day one before pushing back was possible; they are
+three days and 25%/day now. No regression on R-05's canary: `pauper` still
+survives 200 turns at zero gold, and the reckless death count (24) is inside
+its old band because its world stops just short of CONSUMING — push the base
+rate one more notch (0.032) and it does not, which is measured in the config
+comment as the reason the rate stops where it does.
 
 ### R-07 · minor · `evil_base_rate_per_day` is defensible but a little fast
 `config/default.yaml`

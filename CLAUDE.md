@@ -63,15 +63,14 @@ the point.
 Closed: **R-01** (prompt budget overflow), **R-02** (`SceneRulesEngine` never
 called), **R-03** (the clock — 10.02 → 4.40 mean h/turn, deaths 129 → 35),
 **R-05** (no repeatable food economy — foraging closes it; the `pauper` policy
-now survives 200 turns spending zero gold).
+now survives 200 turns spending zero gold), **R-06** (the doomsday clock now
+answers to conduct: widened per-location multipliers plus earned
+`doom_resistance` put the disengaged baker at 2.03× the engaged hero's evil
+per in-game day — 0.0143 vs 0.0070 — where every playstyle used to land
+within 13%; the median 200-turn run ends in SPREADING; measured by the new
+`hero` policy in `scripts/simulate.py`).
 
-Still live: **R-06**. The doomsday clock diverges by playstyle far more than it
-did — 467 turns to CONSUMING for a reckless player against 1109 for a cautious
-one — but that is mostly the *turn cost* of those lives differing, not the rate.
-Per in-game day the baker and the reckless player are still within 13%
-(0.00564 vs 0.00635), because the location multiplier and the inaction bonus
-remain the same size and opposite in sign. The cause named in the review is
-untouched.
+The design review's open-issue list is empty.
 
 See [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) for the measurements behind
 each, and the **NOT WIRED** tables in [docs/GOVERNANCE.md](docs/GOVERNANCE.md)
