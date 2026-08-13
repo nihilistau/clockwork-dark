@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterator, Optional
 
 from engine.game import effects as effects_module
-from engine.game import foraging
+from engine.game import foraging, inventory
 from engine.game.clock import advance_time
 from engine.game.dice import DiceResult, resolve_check, roll_dice
 from engine.game.evil_ticker import EvilTicker
@@ -47,6 +47,10 @@ class MoveResult:
     # still succeeds either way -- an encounter is what you walked into, not a
     # reason the walk failed.
     encounter: dict[str, Any] = field(default_factory=dict)
+    # True when the leg was walked over the carry limit and priced accordingly
+    # -- see engine/game/inventory.py::travel_stamina_multiplier. Carried so
+    # the receipt can say WHY the leg cost half again what the road charges.
+    overloaded: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -58,6 +62,7 @@ class MoveResult:
             "message": self.message,
             "awareness_delta": self.awareness_delta,
             "encounter": dict(self.encounter),
+            "overloaded": self.overloaded,
         }
 
 
@@ -102,7 +107,14 @@ class GameEngine:
         hours = int(edge.get("hours", 1))
         if shortcut is not None:
             hours = min(hours, shortcut)
-        stamina_cost = max(1, hours * 5)
+        # Carry weight bites here and only here. An over-limit pack scales what
+        # a leg costs (engine/game/inventory.py::travel_stamina_multiplier);
+        # the walk is never refused, no check is docked, and rest never reads
+        # it -- gating rest is CLAUDE.md rule 6's soft-lock.
+        overloaded = inventory.overloaded(self.state)
+        stamina_cost = max(
+            1, int(hours * 5 * inventory.travel_stamina_multiplier(self.state))
+        )
         if self.state.stats.stamina < stamina_cost:
             return MoveResult(
                 success=False,
@@ -150,6 +162,7 @@ class GameEngine:
             message=f"Arrived at {location_id}.",
             awareness_delta=awareness_delta,
             encounter=self._roll_travel_encounter(current, location_id),
+            overloaded=overloaded,
         )
 
     def _roll_travel_encounter(self, from_id: str, to_id: str) -> dict[str, Any]:

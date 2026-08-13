@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from engine.game import survival
+from engine.game import inventory, survival
 from engine.game.clock import advance_time, set_clock
 from engine.game.engine import GameEngine
 from engine.game.state import GameState, InventoryItem
@@ -342,7 +342,10 @@ def test_no_stamina_softlock():
         destination = (
             "millhaven_gate" if state.location_id == "edgewood_square" else "edgewood_square"
         )
-        cost = max(1, 4 * 5)
+        # 60 loaves is 36 kg -- over the carry limit, so travel is priced at
+        # the overload multiplier until enough of the bread has been eaten.
+        # Recomputed per leg because the pack lightens as the loop eats.
+        cost = max(1, int(4 * 5 * inventory.travel_stamina_multiplier(state)))
 
         recoveries = 0
         while state.stats.stamina < cost:

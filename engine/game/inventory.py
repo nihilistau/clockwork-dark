@@ -78,9 +78,16 @@ EQUIP_SLOTS = (
     "charm",
 )
 
-#: Base carry allowance in kilograms before anything is worn. Reported, not
-#: enforced: see ``carry_limit``.
+#: Base carry allowance in kilograms before anything is worn.
 BASE_CARRY_KG = 25.0
+
+#: What travel stamina costs scale by while the pack is over the limit.
+#: 1.5: a two-hour leg goes from 10 stamina to 15, which is a real price the
+#: player can walk off by selling or dropping something, and small enough that
+#: `scripts/simulate.py --policy all --turns 200 --seed 42` shows no change in
+#: death rates (no simulated policy ever packs past 25 kg). Applied to TRAVEL
+#: and to nothing else -- never to rest, which is CLAUDE.md rule 6.
+OVERLOADED_TRAVEL_MULTIPLIER = 1.5
 
 
 def _items_dir() -> Optional[Path]:
@@ -725,12 +732,14 @@ def carry_limit(state: GameState) -> float:
     """
     Carry allowance in kilograms: the base plus whatever a worn pack adds.
 
-    **NOT WIRED as a penalty.** Nothing refuses a pickup or docks a check for
-    being over it; ``engine/game/checks.py`` has no encumbrance situational and
-    this module does not add one. It is reported by ``snapshot`` so a pack is a
-    visible, growing number rather than an invisible claim, and so the rule --
-    when someone writes it -- has a limit that was chosen once rather than
-    sixty times in a hurry.
+    What being over it does: travel stamina scales by
+    ``OVERLOADED_TRAVEL_MULTIPLIER`` (read by ``GameEngine.move_to`` through
+    ``travel_stamina_multiplier``), and ``to_client_dict`` reports the state so
+    the sheet can show it. What it deliberately does NOT do: nothing refuses a
+    pickup, no check is docked (``engine/game/checks.py`` has no encumbrance
+    situational), and rest never reads it -- rest is the only thing that
+    restores stamina, and gating it rebuilds the soft-lock CLAUDE.md rule 6
+    exists to prevent.
     """
     bonus = 0.0
     for item_id in equipped(state).values():
@@ -746,8 +755,8 @@ def carried_weight(state: GameState) -> float:
     """
     Total carried weight in kilograms.
 
-    Compared against ``carry_limit`` for reporting only -- see that function for
-    why nothing enforces it yet.
+    Compared against ``carry_limit`` by ``overloaded`` -- see that function and
+    ``carry_limit`` for exactly what the comparison does and does not touch.
     """
     total = 0.0
     for entry in state.inventory:
@@ -757,6 +766,26 @@ def carried_weight(state: GameState) -> float:
         except (TypeError, ValueError):
             continue
     return round(total, 2)
+
+
+def overloaded(state: GameState) -> bool:
+    """
+    True when the pack weighs more than the allowance. Strictly more: a pack
+    AT the limit is a full pack, not a penalised one.
+    """
+    return carried_weight(state) > carry_limit(state)
+
+
+def travel_stamina_multiplier(state: GameState) -> float:
+    """
+    What a travel leg's stamina cost scales by, given the pack.
+
+    Read by ``GameEngine.move_to`` and nowhere else on purpose. In particular
+    it must never reach ``engine/game/survival.py::rest`` -- rest is the only
+    thing that restores stamina, and CLAUDE.md rule 6 says a gate on it is a
+    soft-lock the game already shipped once.
+    """
+    return OVERLOADED_TRAVEL_MULTIPLIER if overloaded(state) else 1.0
 
 
 def describe(state: GameState) -> list[dict[str, Any]]:

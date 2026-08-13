@@ -383,6 +383,10 @@ class GameState:
             "world_hour": self.world_hour,
             "time_of_day": self.time_of_day,
             "inventory": [i.to_dict() for i in self.inventory],
+            # Pack weight against allowance, with the over-limit state the
+            # travel cost multiplier reads -- so the sheet can say WHY the next
+            # leg will cost half again, instead of the number moving silently.
+            "carry": self._carry_block(),
             "reputations": dict(self.reputations),
             "wounds": [asdict(w) for w in self.wounds],
             "hunger": round(self.hunger, 1),
@@ -399,6 +403,26 @@ class GameState:
             "turn_number": self.turn_number,
             "ended": self.ended,
         }
+
+    def _carry_block(self) -> dict[str, Any]:
+        """
+        Pack weight, allowance, and whether travel is being priced for it.
+
+        Never raises: a story with no item registry weighs everything at zero,
+        and a failure here must cost the sheet a row, not the player a turn.
+        """
+        try:
+            from engine.game import inventory as inventory_module
+
+            weight = inventory_module.carried_weight(self)
+            limit = inventory_module.carry_limit(self)
+            return {
+                "weight": weight,
+                "limit": limit,
+                "overloaded": weight > limit,
+            }
+        except Exception:  # noqa: BLE001 -- see docstring
+            return {}
 
     def _declared_client_values(self) -> dict[str, Any]:
         """
