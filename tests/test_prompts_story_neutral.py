@@ -282,7 +282,7 @@ def test_the_machinery_is_masked_even_with_no_story_table():
     and would have passed for the wrong reason if the file had been empty
     rather than absent.
     """
-    _require(slug)
+    _require("wicked-garden")
     from engine.lore.interceptors import AwarenessGateInterceptor, story_spoiler_terms
 
     registry.activate("wicked-garden")
