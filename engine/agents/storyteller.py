@@ -71,6 +71,14 @@ from engine.media.pipeline import MediaPipeline
 
 logger = logging.getLogger(__name__)
 
+#: What a faded scene reads as when there is no model pass left to write the
+#: summary at a distance. Deliberately complete-sounding and deliberately
+#: silent about the fade itself: the contract (docs/SAFETY.md) is that the
+#: player loses the detail, keeps the consequences, and is never told that
+#: anything was skipped.
+FADE_FALLBACK_LINE = (
+    "The hour passes at a remove, and what it cost and what it settled stand."
+)
 
 
 @dataclass
@@ -130,9 +138,17 @@ class StorytellerTurnResult:
     narration_complete: bool = True
     # finish_reason of the generation that produced the accepted narration.
     finish_reason: str = ""
+    # The narration review's verdict (engine/safety), serialised, when it had
+    # anything to say. Empty for an ALLOW and always empty for an inert policy
+    # -- both shipped stories -- so no payload grows a key it did not have.
+    safety: dict[str, Any] = field(default_factory=dict)
+    # The player-facing summary card when the review FADED the scene. The
+    # client renders it (a later phase); mechanically everything already
+    # applied, because a fade is a change of camera, not of world.
+    fade_card: Optional[dict[str, Any]] = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        out = {
             "narration": self.narration,
             "choices": self.choices,
             "parsed": self.parsed,
@@ -147,6 +163,12 @@ class StorytellerTurnResult:
             "narration_complete": self.narration_complete,
             "finish_reason": self.finish_reason,
         }
+        # Same rule as the turn payload: an inert policy adds no key at all.
+        if self.safety:
+            out["safety"] = self.safety
+        if self.fade_card:
+            out["fade_card"] = self.fade_card
+        return out
 
 
 # The model writing the whole turn object a second time, escaped, INSIDE the
@@ -862,6 +884,73 @@ class StorytellerAgent:
             rejected_draft = raw
             retries += 1
 
+        # The last safety surface (docs/SAFETY.md attach point 4): review what
+        # was actually WRITTEN, before it reaches the player. The earlier
+        # surfaces read intent; this one reads what the model did with it.
+        # An inert policy -- both shipped stories -- takes the short-circuit:
+        # no review, no RNG drawn, no new payload keys, and the turn is
+        # byte-for-byte the turn it had. Runs BEFORE the commit so a hard-no
+        # verdict can still make "this did not happen" true.
+        safety_dict: dict[str, Any] = {}
+        fade_card_dict: Optional[dict[str, Any]] = None
+        try:
+            # Imported here for the same reason governance is below: keeping
+            # the seam lazy keeps a story that never configures it from paying
+            # for the import, and a broken gate must cost the review, never
+            # the turn.
+            from engine.safety import SafetyGate
+            from engine.safety.verdict import Disposition
+
+            gate = SafetyGate.for_state(self.engine.state)
+        except Exception as exc:  # noqa: BLE001 -- see the comment above
+            logger.warning(
+                "[storyteller] Safety gate unavailable (operation=run_turn): %s",
+                exc,
+            )
+            gate = None
+
+        if gate is not None and not gate.inert:
+            reviewed = str(parsed.get("narration", raw) or "")
+            verdict = gate.review_narration(reviewed)
+            if verdict.blocked:
+                # A hard no reached the prose. The thing did not happen: the
+                # draft's effects roll back with the draft, and the player is
+                # handed the in-fiction interruption -- never the content, and
+                # never a refusal string.
+                tx.rollback()
+                tool_receipts = []
+                parsed["narration"] = verdict.fallback
+                safety_dict = verdict.to_dict()
+                logger.info(
+                    "[storyteller] Narration redirected by the safety gate "
+                    "(operation=run_turn, reasons=%s)",
+                    list(verdict.reasons),
+                )
+            elif verdict.disposition is Disposition.FADE:
+                # Above the session's tier. The scene HAPPENED -- every
+                # mechanical outcome keeps, which is why nothing here touches
+                # the transaction -- but the player is not shown the detail.
+                outcomes = tuple(
+                    line
+                    for line in (
+                        str((r.get("result") or {}).get("text") or "").strip()
+                        for r in tool_receipts
+                        if isinstance(r, dict)
+                    )
+                    if line
+                )
+                card = gate.fade_card(
+                    verdict, summary=FADE_FALLBACK_LINE, outcomes=outcomes
+                )
+                parsed["narration"] = FADE_FALLBACK_LINE
+                safety_dict = verdict.to_dict()
+                fade_card_dict = card.to_dict() if card is not None else None
+            elif verdict.disposition is Disposition.SUBSTITUTE:
+                # Same scene, renamed nouns. Mechanics untouched by design --
+                # rename is a pure string function and cannot be handed an id.
+                parsed["narration"] = gate.rename(reviewed)
+                safety_dict = verdict.to_dict()
+
         tx.commit()
 
         self.engine.state.turn_number += 1
@@ -915,4 +1004,6 @@ class StorytellerAgent:
                 generation.complete and not parsed.get("salvaged")
             ),
             finish_reason=generation.finish_reason,
+            safety=safety_dict,
+            fade_card=fade_card_dict,
         )

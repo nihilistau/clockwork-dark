@@ -33,13 +33,14 @@ from typing import Any, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
-#: Named RNG stream for redirect selection.
-#:
-#: Defined here rather than in ``engine/game/rng.py`` because this package owns
-#: it, but it follows that module's rule exactly: a named constant so a typo is
-#: an ImportError, and a stream of its own so choosing a redirect cannot shift
-#: an encounter roll. See the wiring note in docs/SAFETY.md about promoting it.
-SAFETY_REDIRECT = "safety.redirect"
+# The redirect stream constant lives with the other canonical stream names in
+# engine/game/rng.py now -- docs/SAFETY.md carried its promotion as owed
+# tidiness -- and is imported back here so existing importers keep working.
+# ``engine.game.rng`` reaches only ``engine.game.state``, which sits at the
+# bottom of the dependency graph, so this does not close a cycle; ``pick``
+# still imports ``world_rng`` lazily because a draw needs a state and this
+# module must produce a redirect even without one.
+from engine.game.rng import SAFETY_REDIRECT  # noqa: E402
 
 
 @dataclass(frozen=True)

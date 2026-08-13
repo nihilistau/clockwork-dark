@@ -59,6 +59,11 @@ TRADE = "trade"
 DECK = "deck"
 BEAT = "beat"
 THREAD = "thread"
+# Safety redirects draw on their own stream so choosing an in-fiction
+# interruption cannot shift an encounter roll. Consumed by
+# engine/safety/redirect.py, which imports it back from here -- it lived there
+# first, and docs/SAFETY.md always said promoting it was tidiness owed.
+SAFETY_REDIRECT = "safety.redirect"
 
 
 def _mix(seed: int, stream: str, counter: int) -> int:

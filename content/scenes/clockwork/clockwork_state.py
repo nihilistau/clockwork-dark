@@ -778,6 +778,15 @@ def run_turn(
     # all, so both shipped stories ship the payload they shipped before.
     if safety:
         turn_payload["safety"] = safety
+    # The narration review's half of the same layer (attach point 4): the
+    # verdict on what was actually written, and the summary card when the
+    # scene was faded. Separate keys because the shapes differ -- `safety` is
+    # the input review's redirect beat, `safety_narration` is a serialised
+    # verdict -- and merging them would make the client guess which fired.
+    if storyteller_result.safety:
+        turn_payload["safety_narration"] = storyteller_result.safety
+    if storyteller_result.fade_card:
+        turn_payload["fade_card"] = storyteller_result.fade_card
 
     # The turn journal: who proposed what, which rule fired, what it cost the
     # loser, and every effect the commit applied or refused. Added only when a
