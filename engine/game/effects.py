@@ -55,7 +55,7 @@ So the writer is still singular and every effect still returns a receipt; what
 changed is that "the state" is now the state the running story declared rather
 than the state this file was written against.
 
-Version: v0.3.0 [2026-08-08]
+Version: v0.3.1 [2026-08-14]
 """
 
 from __future__ import annotations
@@ -83,6 +83,7 @@ EffectHandler = Callable[[GameState, dict[str, Any], "EffectContext"], dict[str,
 AWARENESS_MIN, AWARENESS_MAX = 0.0, 100.0
 REPUTATION_MIN, REPUTATION_MAX = -100, 100
 HUNGER_MIN, HUNGER_MAX = 0.0, 100.0
+DOOM_RESISTANCE_MIN, DOOM_RESISTANCE_MAX = 0.0, 100.0
 
 # Effect type aliases that are just `stat` with the name baked in. Kept so a
 # content author can write `{type: hp, delta: -2}` instead of the longer form.
@@ -405,6 +406,36 @@ def _e_awareness(
         "ok": True,
         "hidden": True,
         "text": f"awareness {state.awareness - before:+.0f}",
+    }
+
+
+@effect_kind("doom_resistance")
+def _e_doom_resistance(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    Earned reprieve against the doom clock (R-06).
+
+    THE ONLY WRITER OF ``state.doom_resistance`` BESIDES ITS DECAY. Quest
+    rewards, set-piece victories and anything else that represents pushing back
+    grant it through here; ``EvilTicker.advance`` spends it down at a
+    configured rate per in-game day. Bounded 0-100 like awareness, and hidden
+    like awareness: the player experiences it as the dark slowing, never as a
+    number in the narration.
+    """
+    before = state.doom_resistance
+    state.doom_resistance = _clamp(
+        before + _float(effect.get("delta")), DOOM_RESISTANCE_MIN, DOOM_RESISTANCE_MAX
+    )
+    return {
+        "type": "doom_resistance",
+        "delta": _float(effect.get("delta")),
+        "applied": state.doom_resistance - before,
+        "before": round(before, 1),
+        "after": round(state.doom_resistance, 1),
+        "ok": True,
+        "hidden": True,
+        "text": f"doom resistance {state.doom_resistance - before:+.0f}",
     }
 
 

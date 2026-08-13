@@ -13,7 +13,7 @@ Never merge them. The previous single ``to_dict(include_hidden=)`` silently
 dropped both AgentMinds, so any round trip reset evil progress, awareness and
 trust to defaults.
 
-Version: v0.2.0 [2026-08-07]
+Version: v0.2.1 [2026-08-14]
 """
 
 from __future__ import annotations
@@ -205,6 +205,12 @@ class GameState:
     evil_progress: float = 0.0
     plot_involvement: float = 0.0
     story_pressure: float = 0.0
+    # Earned reprieve against the doom clock, 0-100. Granted only through the
+    # `doom_resistance` effect kind (quest rewards, set-piece victories), spent
+    # by decay inside EvilTicker.advance. Neutral zero: a story with no doom
+    # clock never writes it and never reads it. Hidden like awareness -- the
+    # player feels it as the dark slowing down, never as a number.
+    doom_resistance: float = 0.0
     # Absolute hours since the start of day 1. world_day and world_hour are
     # DERIVED from this and must never be assigned directly -- see
     # engine/game/clock.py::advance_time, the only writer.

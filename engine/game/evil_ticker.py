@@ -22,7 +22,13 @@ carried a phase line, and the turn still measured a doom delta, for a story
 with no doom in it. The state fields stay (zeroed, save shape untouched); the
 reads are what became conditional.
 
-Version: v0.2.0 [2026-08-13]
+R-06 (v0.3.0): the tick answers to conduct. ``engagement_factor`` replaces the
+bare inaction bonus -- earned ``doom_resistance`` (granted only through the
+``doom_resistance`` effect kind, spent by decay here) slows the tick by up to
+``world.evil_engagement_slowdown_max``, hard-floored at 0.25 so pushing back
+buys time and never stops the clock.
+
+Version: v0.3.0 [2026-08-14]
 """
 
 from __future__ import annotations
@@ -107,13 +113,30 @@ def phase_from_progress(progress: float) -> EvilPhase:
     return result
 
 
+#: Hard floor on the combined engagement factor. Whatever a story sets
+#: ``world.evil_engagement_slowdown_max`` to, engagement can slow the clock to
+#: a quarter speed and no further -- the doom is bought time against, never
+#: paused, and evil_progress stays strictly non-decreasing by construction.
+ENGAGEMENT_FACTOR_FLOOR = 0.25
+
+
 class EvilTicker:
-    """Advances evil_progress based on world time and location."""
+    """Advances evil_progress based on world time, location and engagement."""
 
     @staticmethod
     def base_rate_per_day() -> float:
         """Configured daily evil advance rate."""
         return float(get_config().get("world.evil_base_rate_per_day", 0.01))
+
+    @staticmethod
+    def engagement_slowdown_max() -> float:
+        """Fraction of the rate that doom_resistance at 100 can remove."""
+        return float(get_config().get("world.evil_engagement_slowdown_max", 0.5))
+
+    @staticmethod
+    def resistance_decay_per_day() -> float:
+        """Points of doom_resistance spent per in-game day."""
+        return float(get_config().get("world.doom_resistance_decay_per_day", 4.0))
 
     @staticmethod
     def inaction_bonus(state: GameState) -> float:
@@ -128,6 +151,31 @@ class EvilTicker:
         """
         detachment = max(0.0, 1.0 - (state.plot_involvement / 100.0))
         return 1.0 + detachment * 0.35
+
+    @staticmethod
+    def engagement_factor(state: GameState) -> float:
+        """
+        The R-06 term: what the player's conduct does to the doom rate.
+
+        Two halves, opposite in sign and NO LONGER the same size:
+
+          * ``inaction_bonus`` -- detachment accelerates, up to x1.35. Unchanged.
+          * earned ``doom_resistance`` decelerates, up to the configured
+            ``world.evil_engagement_slowdown_max`` fraction at 100 resistance.
+
+        The old shape cancelled: the disengaged player sat behind low location
+        multipliers and the engaged player walked into high ones, so the two
+        extremes landed within 13% of each other per in-game day. Resistance is
+        what breaks the symmetry, because it is granted only for finishing the
+        story's own pushback -- exposure without engagement earns none.
+
+        Floored at ``ENGAGEMENT_FACTOR_FLOOR``: pushing back buys time, it does
+        not stop the clock.
+        """
+        resistance = max(0.0, min(100.0, state.doom_resistance))
+        slowdown = (resistance / 100.0) * EvilTicker.engagement_slowdown_max()
+        factor = EvilTicker.inaction_bonus(state) * (1.0 - slowdown)
+        return max(ENGAGEMENT_FACTOR_FLOOR, factor)
 
     @staticmethod
     def advance(state: GameState, *, days_elapsed: float = 1.0) -> float:
@@ -158,10 +206,26 @@ class EvilTicker:
             EvilTicker.base_rate_per_day()
             * days_elapsed
             * multiplier
-            * EvilTicker.inaction_bonus(state)
+            * EvilTicker.engagement_factor(state)
         )
-        state.evil_progress = max(0.0, min(1.0, state.evil_progress + delta))
+        # delta >= 0 by construction (rate, days, multiplier and the floored
+        # factor are all non-negative), so progress never moves backward.
+        state.evil_progress = min(1.0, state.evil_progress + max(0.0, delta))
         state.evil_phase = phase_from_progress(state.evil_progress)
+
+        # Reprieve is SPENT, not kept: earned resistance fades at a configured
+        # rate per in-game day, so holding the dark back is something the
+        # player keeps doing rather than something they did once. Decayed AFTER
+        # the tick above so the resistance the player had protects the days it
+        # was held for, and only inside the doom-enabled branch -- a story with
+        # no doom clock has nothing to resist. This is the one writer of
+        # doom_resistance besides the `doom_resistance` effect kind.
+        if state.doom_resistance > 0.0:
+            state.doom_resistance = max(
+                0.0,
+                state.doom_resistance
+                - EvilTicker.resistance_decay_per_day() * days_elapsed,
+            )
         return state.evil_progress
 
     @staticmethod
@@ -173,4 +237,5 @@ class EvilTicker:
             "story_pressure": state.story_pressure,
             "plot_involvement": state.plot_involvement,
             "awareness": state.awareness,
+            "doom_resistance": state.doom_resistance,
         }

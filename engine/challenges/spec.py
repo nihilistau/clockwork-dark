@@ -157,6 +157,10 @@ EFFECT_CEILINGS: dict[str, int] = {
     "awareness": 10,
     "hunger": 25,
     "reputation": 10,
+    # One scene's worth of pushback against the doom clock (R-06). Sized
+    # against the quest grants: a set-piece victory is worth about one
+    # whisper-arc quest, never a march arc's whole reward.
+    "doom_resistance": 15,
 }
 
 #: Item quantity ceiling for an `item` effect.
@@ -170,7 +174,7 @@ MAX_ITEM_QTY = 3
 #: ending intent set by a dice table is not a scene, it is a hijack.
 ALLOWED_EFFECT_TYPES: frozenset[str] = frozenset(
     {"gold", "hp", "stamina", "focus", "craft", "awareness", "hunger",
-     "reputation", "item", "remove_item", "flag"}
+     "reputation", "item", "remove_item", "flag", "doom_resistance"}
 )
 
 #: Effect types AUTHORED content may use and a model-composed spec may not.

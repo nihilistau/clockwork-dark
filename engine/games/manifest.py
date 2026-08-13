@@ -106,6 +106,15 @@ SETTING_ALLOWLIST: dict[str, str] = {
     # R-06: every playstyle converging on the same doomsday clock is this
     # constant. A story with no doom clock at all sets it to 0.
     "world.evil_base_rate_per_day": "how fast background pressure accrues per in-game day",
+    # R-06, the other half: how much sustained engagement is worth. A story
+    # whose pushback is rarer or costlier than the flagship's tunes how much
+    # clock a full doom_resistance buys and how fast the reprieve fades.
+    "world.evil_engagement_slowdown_max": (
+        "fraction of the doom rate that full doom_resistance removes"
+    ),
+    "world.doom_resistance_decay_per_day": (
+        "points of earned doom_resistance spent per in-game day"
+    ),
     # -- what the player is told, and when ------------------------------
     # Reveal thresholds are pure story pacing: they decide when the narration
     # stops being coy. Nothing outside the prompt layer reads them.
