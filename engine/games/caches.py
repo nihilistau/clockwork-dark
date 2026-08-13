@@ -73,6 +73,10 @@ logger = logging.getLogger(__name__)
 # empty-but-populated cache that never reloads.
 NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
     ("engine.game.procgen", "_TEMPLATE_CACHE"),
+    # Whether the active story declares a doom clock at all. Asked on every
+    # prompt build; a swap that kept it warm would narrate one story's
+    # apocalypse into another, which is the exact bug the flag exists to end.
+    ("engine.game.evil_ticker", "_DOOM_DECLARED"),
     ("engine.world.schedules", "_SCHEDULE_CACHE"),
     ("engine.world.schedules", "_RUMOR_CACHE"),
     ("engine.world.npc_sim", "_SCHEDULE_CACHE"),

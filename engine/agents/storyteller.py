@@ -80,6 +80,39 @@ FADE_FALLBACK_LINE = (
     "The hour passes at a remove, and what it cost and what it settled stand."
 )
 
+#: The engine's own line for a turn the model never answered. Deliberately
+#: placeless: it names no forest, no village, no court, because it is handed to
+#: whichever story is running. A story that wants weather in this sentence
+#: declares ``entry.fallback_narration`` in its manifest.
+NEUTRAL_FALLBACK_NARRATION = (
+    "The moment holds where it is, quiet and unhurried, waiting on you."
+)
+
+
+def fallback_narration() -> str:
+    """
+    The canned line shown when the LLM is unavailable, in the story's voice.
+
+    Read through the registry WITHOUT activating anything -- this runs inside a
+    failing turn, and repointing config plus a dozen cache resets is the last
+    thing a failing turn should trigger. The canned line used to be a literal
+    here ("The forest holds its breath..."), which put the flagship's forest
+    into every story's outage.
+    """
+    try:
+        from engine.games.registry import entry_manifest
+
+        manifest = entry_manifest()
+        if manifest is not None and manifest.fallback_narration:
+            return manifest.fallback_narration
+    except Exception as exc:  # noqa: BLE001 -- a failing turn must still speak
+        logger.debug(
+            "[storyteller] No declared fallback narration "
+            "(operation=fallback_narration): %s",
+            exc,
+        )
+    return NEUTRAL_FALLBACK_NARRATION
+
 
 @dataclass
 class Generation:
@@ -750,8 +783,14 @@ class StorytellerAgent:
         # R004 needs the pre-turn value to prove evil_progress never fell. Read
         # here, before the transaction can be rolled back and replayed, so a
         # retry compares against the turn's true starting point rather than
-        # against a partially applied draft.
-        evil_before = float(self.engine.state.evil_progress)
+        # against a partially applied draft. A story with no doom clock skips
+        # the measurement entirely -- None makes the R004 governor stand down
+        # rather than audit a number the story does not keep.
+        from engine.game.evil_ticker import doom_enabled
+
+        evil_before: Optional[float] = (
+            float(self.engine.state.evil_progress) if doom_enabled() else None
+        )
 
         while retries <= self.MAX_RETRIES:
             if retries:
@@ -776,13 +815,7 @@ class StorytellerAgent:
                 logger.warning(
                     "[storyteller] LLM unavailable (operation=run_turn): %s", exc
                 )
-                generation = Generation(
-                    raw=(
-                        "The forest holds its breath. "
-                        "Smoke drifts from a distant chimney."
-                    ),
-                    complete=True,
-                )
+                generation = Generation(raw=fallback_narration(), complete=True)
                 self._llm_failed = True
 
             raw = generation.raw

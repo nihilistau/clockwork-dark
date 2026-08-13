@@ -205,6 +205,12 @@ entry:
   # therefore only ever a starting point, which is exactly right.
   location_id: mortal_threshold
 
+  # What a turn says when the model is unreachable. Without this the engine
+  # speaks its neutral line; with it, even an outage stays in the Garden's
+  # register. One sentence, no mechanics.
+  fallback_narration: >-
+    The garden holds itself very still, and the briars lean closer to listen.
+
   # DAY-00. The crossing is the first thing the story asks you to decide, and
   # the toll is named before you choose rather than after -- 05-BACKSTORY:113,
   # "consent is complicated in fantasy; meta-consent is absolute", applies to

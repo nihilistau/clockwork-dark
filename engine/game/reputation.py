@@ -33,13 +33,11 @@ logger = logging.getLogger(__name__)
 _ROOT = Path(__file__).resolve().parents[2]
 _FACTION_CACHE: Optional[dict[str, Any]] = None
 
-# Canonical faction ids. Use these rather than string literals at call sites so
-# a typo is an ImportError instead of a silently orphaned reputation key.
-EDGEWOOD = "edgewood"
-MERCHANTS = "merchants"
-MILITIA = "militia"
-TINKERS = "tinkers"
-UNNAMED_SAINTS = "unnamed_saints"
+# Faction ids are the STORY's, declared in its factions file and addressed by
+# the strings that file uses. The engine used to export the flagship's five as
+# module constants (EDGEWOOD, MERCHANTS, MILITIA, TINKERS, UNNAMED_SAINTS);
+# nothing ever imported them, and an engine constant per story faction is the
+# engine memorising one story's world.
 
 _UNKNOWN_STANDING = "unknown"
 

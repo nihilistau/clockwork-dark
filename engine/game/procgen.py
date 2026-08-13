@@ -1,7 +1,7 @@
 """
 Procgen — seeded village and margin for whichever story is running.
 
-Two flagship answers used to be welded in here and both are gone:
+The flagship's answers used to be welded in here and all of them are gone:
 
     the entry location   ``location_id="forest_clearing"`` was a Python default,
                          so ``entry.location_id`` in every game.yaml was
@@ -14,10 +14,20 @@ Two flagship answers used to be welded in here and both are gone:
                          so a story whose config lost that key silently
                          generated Edgewood.
 
-Both now come from the active manifest, with the flagship's answer as the last
-resort so nothing changes for The Clockwork Dark.
+    the placement ids    procedural villagers stood in ``edgewood_square``,
+                         forage nodes and the barrow in ``forest_clearing``,
+                         and hidden paths led to three ids of the flagship's
+                         margin -- all Python literals, so a story with no
+                         templates still generated a small invisible Edgewood
+                         (six forage nodes, two hidden paths and a barrow, on
+                         ids its own map does not contain).
 
-Version: v0.2.0 [2026-08-08]
+Everything now comes from the active manifest and its declared template file.
+A story with no ``paths.procgen_templates`` generates NOTHING, which is an
+answer, and the last-resort entry location is the first id in the loaded
+graph rather than any story's name.
+
+Version: v0.3.0 [2026-08-13]
 """
 
 from __future__ import annotations
@@ -38,13 +48,6 @@ logger = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).resolve().parents[2]
 _TEMPLATE_CACHE: Optional[dict[str, Any]] = None
-
-# Last-resort STARTING LOCATION, used only when no manifest is readable at all.
-# It is the flagship's, and it is deliberately still here: a build that cannot
-# read a manifest has to put a new character somewhere, and there is no such
-# thing as a run with no location. The template path that sat beside it is gone
-# -- a story with no procgen templates generates nothing, which is an answer.
-_FALLBACK_LOCATION = "forest_clearing"
 
 
 def _templates_path() -> Optional[Path]:
@@ -141,7 +144,10 @@ def _build_procedural_npcs(
                 "id": f"npc_villager_{idx + 1}",
                 "name": name,
                 "role": role,
-                "location_id": "edgewood_square",
+                # Where the story's template says villagers stand. This was
+                # the literal "edgewood_square" -- the engine placing every
+                # story's crowd in the flagship's village.
+                "location_id": str(templates.get("village_location", "")),
                 "traits": npc_traits,
                 "canon": False,
             }
@@ -168,7 +174,7 @@ def _build_procedural_buildings(
                 "id": f"building_proc_{idx + 1}",
                 "name": name,
                 "type": btype,
-                "location_id": "edgewood_square",
+                "location_id": str(templates.get("village_location", "")),
                 "canon": False,
             }
         )
@@ -176,42 +182,56 @@ def _build_procedural_buildings(
 
 
 def _build_forest(rng: random.Random, templates: dict[str, Any]) -> dict[str, Any]:
-    """Generate forest margin features."""
+    """
+    Generate margin features -- forage nodes, hidden paths, an optional barrow.
+
+    Every id and placement here is TEMPLATE content. The old body carried the
+    flagship's answers as code defaults ("forest_clearing", three margin ids,
+    "barrow_dungeon", "Hollow Hill"), so a story with no template still grew a
+    small invisible Edgewood at ids its own map does not contain. A template
+    that omits a pool now generates none of that feature.
+    """
     counts = templates.get("counts", {})
-    resources = templates.get("forage_resources", ["mushroom"])
-    barrow_names = templates.get("barrow_names", ["Hollow Hill"])
+    margin = str(templates.get("margin_location", ""))
+    resources = templates.get("forage_resources", [])
+    path_labels = templates.get("hidden_path_labels", [])
+    path_targets = templates.get("hidden_path_targets", [])
+    barrow_id = str(templates.get("barrow_id", ""))
+    barrow_names = templates.get("barrow_names", [])
 
     forage_nodes = []
-    for idx in range(int(counts.get("forage_nodes", 6))):
-        forage_nodes.append(
-            {
-                "id": f"forage_{idx + 1}",
-                "resource": rng.choice(resources),
-                "dc": rng.randint(6, 14),
-                "location_id": "forest_clearing",
-            }
-        )
+    if resources:
+        for idx in range(int(counts.get("forage_nodes", 0))):
+            forage_nodes.append(
+                {
+                    "id": f"forage_{idx + 1}",
+                    "resource": rng.choice(resources),
+                    "dc": rng.randint(6, 14),
+                    "location_id": margin,
+                }
+            )
 
     hidden_paths = []
-    for idx in range(int(counts.get("hidden_paths", 2))):
-        hidden_paths.append(
-            {
-                "id": f"hidden_path_{idx + 1}",
-                "label": rng.choice(
-                    ["deer track", "mossy shortcut", "root-choked gap", "dry creek bed"]
-                ),
-                "leads_to": rng.choice(["deeper_forest", "old_barrows", "herb_glen"]),
-                "dc": rng.randint(10, 16),
-            }
-        )
+    if path_labels and path_targets:
+        for idx in range(int(counts.get("hidden_paths", 0))):
+            hidden_paths.append(
+                {
+                    "id": f"hidden_path_{idx + 1}",
+                    "label": rng.choice(path_labels),
+                    "leads_to": rng.choice(path_targets),
+                    "dc": rng.randint(10, 16),
+                }
+            )
 
-    barrow = {
-        "id": "barrow_dungeon",
-        "name": rng.choice(barrow_names),
-        "optional": True,
-        "dc": rng.randint(12, 16),
-        "location_id": "forest_clearing",
-    }
+    barrow: dict[str, Any] = {}
+    if barrow_id and barrow_names:
+        barrow = {
+            "id": barrow_id,
+            "name": rng.choice(barrow_names),
+            "optional": True,
+            "dc": rng.randint(12, 16),
+            "location_id": margin,
+        }
 
     return {
         "forage_nodes": forage_nodes,
@@ -221,9 +241,11 @@ def _build_forest(rng: random.Random, templates: dict[str, Any]) -> dict[str, An
 
 
 def _build_festival(rng: random.Random, templates: dict[str, Any]) -> dict[str, Any]:
-    """Pick one seasonal festival."""
-    names = templates.get("festival_names", ["Harvest Lantern"])
-    seasons = templates.get("festival_seasons", ["autumn"])
+    """Pick one seasonal festival. Empty when the story declares no pool."""
+    names = templates.get("festival_names", [])
+    seasons = templates.get("festival_seasons", [])
+    if not names or not seasons:
+        return {}
     return {
         "name": rng.choice(names),
         "season": rng.choice(seasons),
@@ -256,7 +278,7 @@ def generate_world(seed: int) -> ProcgenResult:
         {**npc, "canon": True}
         for npc in templates.get("canon_npcs", [])
     ]
-    proc_npc_count = int(counts.get("procedural_npcs", 3))
+    proc_npc_count = int(counts.get("procedural_npcs", 0))
     procedural_npcs = _build_procedural_npcs(rng, templates, proc_npc_count)
     npcs = canon_npcs + procedural_npcs
 
@@ -265,7 +287,7 @@ def generate_world(seed: int) -> ProcgenResult:
         for b in templates.get("canon_buildings", [])
     ]
     # Vary the count so village size differs by seed too, not just contents.
-    target_buildings = int(counts.get("buildings", 12)) + rng.randint(-2, 4)
+    target_buildings = int(counts.get("buildings", 0)) + rng.randint(-2, 4)
     proc_building_count = max(0, target_buildings - len(canon_buildings))
     procedural_buildings = _build_procedural_buildings(
         rng,
@@ -336,18 +358,33 @@ def entry_location_id() -> str:
     """
     Where a new run starts, taken from the active story's manifest.
 
-    Falls back to the flagship's ``forest_clearing`` when no manifest is
-    readable, which is the value this module hardcoded before.
+    A build with no readable manifest falls back to the FIRST location in the
+    loaded graph (file order -- the author put it first for a reason), then to
+    an empty id. The engine used to answer ``forest_clearing`` here, which was
+    one story's forest handed to every story that could not say otherwise.
     """
+    declared = ""
     try:
         from engine.games.registry import entry_location
 
-        return entry_location(_FALLBACK_LOCATION)
+        declared = entry_location("")
     except Exception as exc:  # noqa: BLE001 -- never block a new game on this
         logger.debug(
             "[procgen] Manifest entry unavailable (operation=entry_location_id): %s", exc
         )
-        return _FALLBACK_LOCATION
+    if declared:
+        return declared
+    try:
+        from engine.game.locations import LOCATIONS
+
+        if LOCATIONS:
+            return next(iter(LOCATIONS))
+    except Exception as exc:  # noqa: BLE001 -- same rule as above
+        logger.debug(
+            "[procgen] Location graph unavailable (operation=entry_location_id): %s",
+            exc,
+        )
+    return ""
 
 
 def new_game_state(
@@ -419,7 +456,9 @@ def apply_archetype(state: GameState, archetype: str) -> dict[str, Any]:
     entries = spec.get("archetypes", {}) or {}
     entry = entries.get(archetype)
     if entry is None:
-        fallback = str(spec.get("default", "wayfarer"))
+        # The story's own rules file names its default; the engine no longer
+        # supplies one (the literal here was "wayfarer" -- the flagship's).
+        fallback = str(spec.get("default", ""))
         entry = entries.get(fallback, {})
         if entry:
             logger.info(

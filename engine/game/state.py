@@ -191,9 +191,15 @@ class GameState:
 
     session_id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     player_name: str = "Traveler"
-    archetype: str = "wayfarer"
+    # Empty means "the active story's manifest answers" -- see
+    # engine/game/procgen.py::new_game_state, which is where real runs are
+    # built. These two carried the flagship's answers ("wayfarer",
+    # "forest_clearing") as dataclass defaults, so every bare GameState() in
+    # the engine was implicitly a Clockwork Dark character standing in
+    # Edgewood's forest.
+    archetype: str = ""
     stats: PlayerStats = field(default_factory=PlayerStats)
-    location_id: str = "forest_clearing"
+    location_id: str = ""
     awareness: float = 0.0
     evil_phase: EvilPhase = EvilPhase.DORMANT
     evil_progress: float = 0.0

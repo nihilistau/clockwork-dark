@@ -10,24 +10,14 @@ import { fetchArchetypes, fetchGames } from "../api.js";
 
 // Shown only until GET /api/archetypes answers, and only if it never does.
 //
-// This used to be the whole list, hardcoded -- the third and last copy of the
-// flagship's answer, and the only one carrying display text. Two problems with
-// that: a second story offered its own archetypes in the game picker and then
-// drew Edgewood's three here, and the copy had DRIFTED from the rules file it
-// claimed to match (it advertised "lore · sympathy" for the tinker where
-// data/rules/archetypes.yaml grants craft and lore, so the screen promised a
-// skill bonus the engine does not give).
-//
-// Ids still must resolve against the active story's rules: an id that does not
-// falls back to the default, so the player's choice would be quietly discarded.
-const ARCHETYPE_FALLBACK = [
-  {
-    id: "wayfarer",
-    name: "Wayfarer",
-    blurb: "Cloak, staff, road boots. You have slept under more hedges than roofs.",
-    note: "",
-  },
-];
+// EMPTY, deliberately. This used to be one flagship archetype ("wayfarer",
+// with display text) -- the last story noun in the core client, offered to
+// whatever story was actually running whenever the route was down. The
+// fieldset already hides itself when there is nothing to pick from, and the
+// server asks the active story's manifest when `archetype` arrives empty, so
+// a dead route degrades to "a person who walked in" rather than to another
+// story's class.
+const ARCHETYPE_FALLBACK = [];
 
 /**
  * The game picker.

@@ -246,7 +246,7 @@ def grant_hint(tier: int = 0) -> str:
     trigger=TRIGGER_OPTIONAL,
     agents=[AGENT_ASSISTANT],
 )
-def reveal_lore(topic: str = "edgewood") -> str:
+def reveal_lore(topic: str = "") -> str:
     """Return lore snippet if hint tier permits."""
     engine = get_active_engine()
     state = engine.state

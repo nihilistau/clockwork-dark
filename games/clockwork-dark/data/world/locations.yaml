@@ -52,6 +52,19 @@
 
 version: 1
 
+# The five ids CLAUDE.md pins as canon for THIS story. Renaming any of them
+# invalidates this game's quests, encounters, npc_schedules and every save
+# ever written. This list used to be a Python tuple in
+# engine/game/locations.py, which made one story's canon the engine's;
+# the loader now reads it from whatever graph file the active story declares,
+# and a story that pins none simply omits the key.
+canon:
+  - forest_clearing
+  - edgewood_square
+  - edgewood_bakery
+  - tinker_caravan
+  - millhaven_gate
+
 # Human labels for the rings. Referenced by the loader's validation bounds and
 # by anything that wants to say "the Marches" instead of "ring 2".
 rings:

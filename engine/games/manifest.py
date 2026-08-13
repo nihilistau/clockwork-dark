@@ -35,6 +35,7 @@ validate that the paths point at files that exist.
     entry:
       location_id: bellfounders_quay
       archetypes: [net_mender, lamp_keeper, bell_founder]
+      fallback_narration: "The tide keeps its own count; the bells wait."
     save_summary: [tide, chapter]
 
 WHY ``settings:`` IS AN ALLOWLIST AND NOT A CONFIG MERGE. ``config_overlay()``
@@ -323,6 +324,18 @@ class GameManifest:
     def entry_location(self) -> str:
         """Location id a new run starts in. Empty when the manifest omits it."""
         return str(self.entry.get("location_id") or "")
+
+    @property
+    def fallback_narration(self) -> str:
+        """
+        The canned line a turn shows when the LLM is unavailable.
+
+        Empty when the manifest declares none, in which case the engine speaks
+        its own story-neutral sentence. This used to be a literal in
+        ``engine/agents/storyteller.py`` -- the flagship's forest, breathed at
+        every story's player whenever the model was down.
+        """
+        return str(self.entry.get("fallback_narration") or "").strip()
 
     @property
     def archetypes(self) -> list[str]:

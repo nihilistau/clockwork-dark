@@ -254,6 +254,12 @@ class ScheduleRoll:
     ) -> list[SimEvent]:
         """Roll caravan_arrival — 8% per day after day 5."""
         cfg = (schedules or load_schedules()).get("caravan_arrival", {})
+        # An event the story's schedules file does not declare does not fire.
+        # The code defaults below used to fill in the flagship's caravan master
+        # and square, so a story with no such event still staged one, cast with
+        # another story's NPC at a place its map does not contain.
+        if not cfg:
+            return []
         min_day = int(cfg.get("min_day", 5))
         if state.world_day < min_day:
             return []
@@ -265,7 +271,7 @@ class ScheduleRoll:
             return []
 
         duration = int(cfg.get("duration_days", 2))
-        npc_id = str(cfg.get("npc_id", "npc_odran"))
+        npc_id = str(cfg.get("npc_id", ""))
         # The caravan master is the one carrying the news, so his attributed
         # rumours are preferred over the general pool.
         rumor = pick_rumor(
@@ -274,7 +280,7 @@ class ScheduleRoll:
             source_npc=npc_id,
             schedules=schedules or load_schedules(),
         )
-        location_id = str(cfg.get("location_id", "edgewood_square"))
+        location_id = str(cfg.get("location_id", ""))
         goods = list(cfg.get("goods", []))
 
         return [
@@ -299,6 +305,8 @@ class ScheduleRoll:
     ) -> list[SimEvent]:
         """Roll tinker_camp — 5% per week."""
         cfg = (schedules or load_schedules()).get("tinker_camp", {})
+        if not cfg:  # undeclared event; see check_caravan
+            return []
         if _event_active(state, "tinker_camp"):
             return []
 
@@ -307,8 +315,8 @@ class ScheduleRoll:
             return []
 
         duration = int(cfg.get("duration_days", 3))
-        npc_id = str(cfg.get("npc_id", "npc_ilya"))
-        location_id = str(cfg.get("location_id", "tinker_caravan"))
+        npc_id = str(cfg.get("npc_id", ""))
+        location_id = str(cfg.get("location_id", ""))
         goods = list(cfg.get("goods", []))
 
         return [
@@ -332,6 +340,8 @@ class ScheduleRoll:
     ) -> list[SimEvent]:
         """Roll militia_press — only if Awareness >= threshold."""
         cfg = (schedules or load_schedules()).get("militia_press", {})
+        if not cfg:  # undeclared event; see check_caravan
+            return []
         min_awareness = float(cfg.get("min_awareness", 20))
         if state.awareness < min_awareness:
             return []
@@ -343,8 +353,8 @@ class ScheduleRoll:
             return []
 
         duration = int(cfg.get("duration_days", 1))
-        npc_id = str(cfg.get("npc_id", "npc_sera"))
-        location_id = str(cfg.get("location_id", "edgewood_square"))
+        npc_id = str(cfg.get("npc_id", ""))
+        location_id = str(cfg.get("location_id", ""))
 
         return [
             SimEvent(

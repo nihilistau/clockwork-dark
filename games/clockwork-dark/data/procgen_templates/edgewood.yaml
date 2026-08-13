@@ -7,6 +7,29 @@ counts:
   forage_nodes: 6
   hidden_paths: 2
 
+# Where generated content is placed. These ids were literals in
+# engine/game/procgen.py — the engine deciding that every story's villagers
+# stand in Edgewood Square — and belong to this template now.
+village_location: edgewood_square   # procedural villagers and buildings
+margin_location: forest_clearing    # forage nodes and the barrow
+
+# The optional dungeon seeded at the margin. `barrow_id` is the id the rest of
+# this story's content addresses it by.
+barrow_id: barrow_dungeon
+
+# Where a discovered hidden path can lead. Must be ids in this story's graph,
+# or move_to rejects the shortcut the moment it is found.
+hidden_path_targets:
+  - deeper_forest
+  - old_barrows
+  - herb_glen
+
+hidden_path_labels:
+  - deer track
+  - mossy shortcut
+  - root-choked gap
+  - dry creek bed
+
 bakery_job_day: 3
 
 canon_npcs:

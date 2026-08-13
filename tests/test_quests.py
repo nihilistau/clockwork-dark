@@ -669,7 +669,7 @@ def test_quest_round_trips_through_save_dict() -> None:
 
 
 def test_meta_block_is_never_mistaken_for_a_quest() -> None:
-    state = GameState()
+    state = GameState(location_id="forest_clearing")
     QuestEngine.evaluate(state)
     assert META_KEY in state.quests
     assert META_KEY not in progress_records(state)

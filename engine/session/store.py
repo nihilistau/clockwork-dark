@@ -58,10 +58,12 @@ ResumeBuilder = Callable[[GameState, StoryLedger], dict[str, Any]]
 
 LLMFn = Callable[[list[dict[str, Any]]], str]
 
-# The flagship's first archetype, used only when the active manifest declares
-# none. Not a policy: ``entry.archetypes`` is validated at activation, so both
-# shipped games always answer before this is reached.
-FALLBACK_ARCHETYPE = "wayfarer"
+# What a run starts as when no manifest is readable at all: nobody in
+# particular. This was the flagship's "wayfarer" -- one story's noun stamped on
+# any build that could not answer -- and it is unreachable in practice, because
+# ``entry.archetypes`` is validated at activation and both shipped games answer
+# long before this is asked.
+FALLBACK_ARCHETYPE = ""
 
 
 def default_archetype(fallback: str = FALLBACK_ARCHETYPE) -> str:

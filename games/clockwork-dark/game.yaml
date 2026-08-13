@@ -136,6 +136,12 @@ entry:
   location_id: forest_clearing
   archetypes: [wayfarer, hearthkeeper, tinker_apprentice]
 
+  # What a turn says when the model is unreachable. This exact sentence lived
+  # in engine/agents/storyteller.py as every story's outage line; it is the
+  # flagship's forest, so it belongs to the flagship.
+  fallback_narration: >-
+    The forest holds its breath. Smoke drifts from a distant chimney.
+
   # The first frame of a new run. Declared here rather than written into
   # content/scenes/clockwork/clockwork_state.py, where it used to be two module
   # constants -- and where, because that scene is the one every story runs on

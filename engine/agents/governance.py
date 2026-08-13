@@ -601,7 +601,18 @@ class RulesGovernor:
         held inside the rules engine. Reading it through that module is what
         makes the refresh take effect; a ``from ... import`` here would
         reintroduce the stale-map bug in a second game.
+
+        Stands down entirely for a story that declares no location graph, and
+        for a state with no position: both are declarations ("this story has
+        no map" / "nobody is anywhere yet"), not corruptions, and flagging
+        them every turn teaches players of graph-less stories to ignore R001.
         """
+        if not state.location_id:
+            return
+        from engine.mcp import scene_rules_engine as rules_module
+
+        if not rules_module.LOCATION_IDS:
+            return
         result = engine.validate_location(state, state.location_id)
         for violation in result.violations:
             # R002 cannot fire for a self-target, so anything here is R001.

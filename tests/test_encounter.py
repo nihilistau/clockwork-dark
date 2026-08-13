@@ -195,6 +195,9 @@ def force_degree(monkeypatch, degree: str) -> None:
 
 def state_at(day: int = 3, hour: int = 12, **kwargs) -> GameState:
     """A state pinned to a day and hour without side effects."""
+    # Pinned explicitly: these are flagship-map tests, and the engine no longer
+    # starts a bare GameState anywhere in particular.
+    kwargs.setdefault("location_id", "forest_clearing")
     state = GameState(rng_seed=kwargs.pop("rng_seed", 1234), **kwargs)
     set_clock(state, day=day, hour=hour)
     return state

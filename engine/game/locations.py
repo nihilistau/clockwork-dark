@@ -25,11 +25,14 @@ Every public name predates this rewrite and keeps its signature:
 ``LOCATIONS``, ``CANONICAL_LOCATION_IDS``, ``get_location``, ``get_edge``,
 ``can_travel``, ``evil_multiplier_for``.
 
-Note on ``CANONICAL_LOCATION_IDS``: it is the five ids pinned by CLAUDE.md
-("Canon IDs -- do not rename"), NOT the whole graph. Use ``LOCATION_IDS`` for
-"every place that exists".
+Note on ``CANONICAL_LOCATION_IDS``: it is the ids the ACTIVE story pins as
+canon (the top-level ``canon:`` list of its graph file), NOT the whole graph
+-- and no longer the engine's opinion: the tuple of five flagship ids that
+used to sit here belongs to ``games/clockwork-dark/data/world/locations.yaml``
+now, and a story that pins nothing gets an empty tuple. Use ``LOCATION_IDS``
+for "every place that exists".
 
-Version: v0.2.1 [2026-08-08]
+Version: v0.2.2 [2026-08-13]
 """
 
 from __future__ import annotations
@@ -45,19 +48,6 @@ from engine.config import get_config
 logger = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).resolve().parents[2]
-
-# The five ids CLAUDE.md pins as canon. Renaming any of these invalidates
-# data/quests/**, data/encounters/**, data/world/npc_schedules.yaml and every
-# save file ever written.
-CANON_IDS: tuple[str, ...] = (
-    "forest_clearing",
-    "edgewood_square",
-    "edgewood_bakery",
-    "tinker_caravan",
-    "millhaven_gate",
-)
-
-CANONICAL_LOCATION_IDS = frozenset(CANON_IDS)
 
 # Validation bounds. Deliberately generous -- these catch a transposed digit or
 # a missing key, not a designer's judgement about how bad a road is.
@@ -85,6 +75,27 @@ def _locations_path() -> Optional[Path]:
 
 def _in_range(value: float, bounds: tuple[float, float]) -> bool:
     return bounds[0] <= value <= bounds[1]
+
+
+def _canon_ids_from(data: Any) -> tuple[str, ...]:
+    """
+    The graph document's top-level ``canon:`` list, cleaned.
+
+    A story pins the ids its other content depends on -- renaming one
+    invalidates that story's quests, encounters, schedules and saves -- and it
+    does so IN ITS OWN FILE. The engine used to hold one story's five here as a
+    Python tuple, which made the flagship's canon every story's; absent now
+    simply means "this story pins none".
+    """
+    if not isinstance(data, dict):
+        return ()
+    raw = data.get("canon") or []
+    if not isinstance(raw, (list, tuple)):
+        logger.error(
+            "[locations] `canon` is not a list, ignoring (operation=_canon_ids_from)"
+        )
+        return ()
+    return tuple(str(cid).strip() for cid in raw if str(cid).strip())
 
 
 def _clean_edge(
@@ -319,24 +330,17 @@ def load_locations(path: Optional[Path] = None) -> dict[str, dict[str, Any]]:
 
     _mirror_missing_returns(graph)
 
-    # CANON_IDS are The Clockwork Dark's canon, not the engine's. A second game
-    # ships its own map and shares none of them, so "all five absent" means
-    # "different story", not "broken file" -- logging ERROR five times per load
-    # taught players to ignore the one message that matters. A PARTIAL match is
-    # still an error: that is the flagship map with places missing, which is
-    # exactly the quest/encounter/schedule breakage the check was written for.
-    missing_canon = [cid for cid in CANON_IDS if cid not in graph]
-    if missing_canon and len(missing_canon) < len(CANON_IDS):
+    # Canon ids come from the SAME document as the graph now, so a missing one
+    # is always an error: the story pinned an id its own map does not contain,
+    # which is exactly the quest/encounter/schedule breakage the check was
+    # written for. (When the engine owned the list, "all five absent" had to be
+    # forgiven as "different story"; that ambiguity is gone.)
+    missing_canon = [cid for cid in _canon_ids_from(data) if cid not in graph]
+    if missing_canon:
         logger.error(
             "[locations] Canon ids absent from the graph "
             "(operation=load_locations, missing=%s)",
             missing_canon,
-        )
-    elif missing_canon:
-        logger.debug(
-            "[locations] No canon ids present; this is not the flagship map "
-            "(operation=load_locations, places=%d)",
-            len(graph),
         )
 
     edge_count = sum(len(s["connections"]) for s in graph.values())
@@ -349,9 +353,43 @@ def load_locations(path: Optional[Path] = None) -> dict[str, dict[str, Any]]:
     return graph
 
 
+def load_canon_ids(path: Optional[Path] = None) -> tuple[str, ...]:
+    """
+    Read the ids the active story pins as canon.
+
+    Args:
+        path: Optional override for the YAML file, used by tests and tools.
+
+    Returns:
+        The graph file's top-level ``canon:`` list. Empty when the story
+        declares no graph, the file is unreadable, or it pins none -- the
+        engine itself pins no location ids.
+    """
+    source = path or _locations_path()
+    if source is None:
+        return ()
+    try:
+        with source.open(encoding="utf-8") as fh:
+            data = yaml.safe_load(fh) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        logger.error(
+            "[locations] Unreadable location graph "
+            "(operation=load_canon_ids, path=%s): %s",
+            source,
+            exc,
+        )
+        return ()
+    return _canon_ids_from(data)
+
+
 LOCATIONS: dict[str, dict[str, Any]] = load_locations()
 
-# Every place that exists, as opposed to the five canon ids above.
+# The ids the active story pins as canon -- see the module docstring. Empty
+# for a story that pins none; the engine keeps no id literals of its own.
+CANON_IDS: tuple[str, ...] = load_canon_ids()
+CANONICAL_LOCATION_IDS = frozenset(CANON_IDS)
+
+# Every place that exists, as opposed to the pinned canon ids above.
 LOCATION_IDS = frozenset(LOCATIONS)
 
 
@@ -361,7 +399,10 @@ def reload_locations(path: Optional[Path] = None) -> dict[str, dict[str, Any]]:
 
     Mutating the existing dict rather than rebinding it matters: several
     modules do ``from engine.game.locations import LOCATIONS`` at import time
-    and would otherwise keep a stale reference forever.
+    and would otherwise keep a stale reference forever. ``LOCATION_IDS``,
+    ``CANON_IDS`` and ``CANONICAL_LOCATION_IDS`` are immutable and REBOUND
+    instead; anything holding one across a game swap goes through the module
+    attribute (or the RE_EXPORTS table in ``engine/games/caches.py``).
 
     Args:
         path: Optional override for the YAML file.
@@ -369,10 +410,12 @@ def reload_locations(path: Optional[Path] = None) -> dict[str, dict[str, Any]]:
     Returns:
         The refreshed ``LOCATIONS`` mapping.
     """
-    global LOCATION_IDS
+    global CANON_IDS, CANONICAL_LOCATION_IDS, LOCATION_IDS
     fresh = load_locations(path)
     LOCATIONS.clear()
     LOCATIONS.update(fresh)
+    CANON_IDS = load_canon_ids(path)
+    CANONICAL_LOCATION_IDS = frozenset(CANON_IDS)
     LOCATION_IDS = frozenset(LOCATIONS)
     return LOCATIONS
 
@@ -410,8 +453,8 @@ def ring_of(location_id: str) -> int:
         location_id: Location id.
 
     Returns:
-        Ring number, or 1 (Edgewood) for an unknown id -- the neutral middle
-        of the map is a safer guess than either extreme.
+        Ring number, or 1 for an unknown id -- the neutral middle of the map
+        is a safer guess than either extreme.
     """
     loc = LOCATIONS.get(location_id)
     if loc is None:

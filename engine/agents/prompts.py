@@ -40,6 +40,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from engine.game.evil_ticker import doom_enabled
 from engine.game.locations import LOCATIONS
 from engine.game.state import GameState
 from engine.lore.interceptors import mark_spoiler
@@ -421,16 +422,28 @@ def _declared_condition(state: GameState) -> str:
 
 def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
     """Block 1 -- volatile world facts."""
-    loc = LOCATIONS.get(state.location_id, {})
     who = state.player_name
     if state.archetype:
         who = f"{who}, {state.archetype}"
     parts = [
         "WORLD STATE",
         f"Player: {who}",
-        f"Place: {loc.get('name', state.location_id)} ({state.location_id})",
-        f"Time: day {state.world_day}, {state.world_hour:02d}:00 ({state.time_of_day})",
     ]
+
+    # The Place line resolves through whatever graph the ACTIVE story loaded
+    # (`LOCATIONS` is reloaded in place on activation). A story with no graph
+    # gets the id verbatim rather than a KeyError or another story's name, and
+    # a state with no location at all simply has no Place line.
+    loc = LOCATIONS.get(state.location_id, {})
+    place_name = str(loc.get("name") or "")
+    if place_name:
+        parts.append(f"Place: {place_name} ({state.location_id})")
+    elif state.location_id:
+        parts.append(f"Place: {state.location_id}")
+
+    parts.append(
+        f"Time: day {state.world_day}, {state.world_hour:02d}:00 ({state.time_of_day})"
+    )
 
     # The player's condition, from the STORY'S declared meters.
     #
@@ -460,15 +473,25 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
     # GM-only. Wrapped for the awareness gate so a low-awareness run cannot have
     # the antagonist named back at it, and phrased qualitatively -- raw floats
     # invite the model to paraphrase them as "about forty percent along".
-    phase = str(evil_snapshot.get("evil_phase", "dormant"))
+    #
+    # The phase clause exists only for a story that DECLARES a doom clock.
+    # Pressure is the engine's own pacing meter and stays for everyone; the
+    # phase is one story's apocalypse, and telling a doom-less story's narrator
+    # "the pattern is dormant" is handing it a pattern to invent.
     pressure = float(evil_snapshot.get("story_pressure", 0.0))
     tone = "quiet" if pressure < 25 else "restless" if pressure < 55 else "urgent"
-    parts.append(
-        mark_spoiler(
+    if doom_enabled():
+        phase = str(evil_snapshot.get("evil_phase", "dormant"))
+        gm_line = (
             "GM ONLY (never state or hint at these as numbers): "
             f"the pattern is {phase}; the story wants to be {tone}."
         )
-    )
+    else:
+        gm_line = (
+            "GM ONLY (never state or hint at these as numbers): "
+            f"the story wants to be {tone}."
+        )
+    parts.append(mark_spoiler(gm_line))
     return "\n".join(parts)
 
 
