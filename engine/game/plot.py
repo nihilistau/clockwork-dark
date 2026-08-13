@@ -15,7 +15,7 @@ It is now the involvement weight of the arc they are actually in, declared in
 weighs 0 on purpose: a player who bakes bread is not behind schedule, so the
 Storyteller should feel no pressure to escalate on them.
 
-Version: v0.2.0 [2026-08-07]
+Version: v0.3.0 [2026-08-14]
 """
 
 from __future__ import annotations
@@ -37,16 +37,34 @@ class PlotFormula:
     @staticmethod
     def arc_weight(state: GameState) -> float:
         """
-        Involvement contributed by the story arc the player is currently in.
+        Involvement contributed by the furthest arc the player has ENTERED.
+
+        Entered means "has a quest record in it" -- started counts, finished
+        counts, watching does not. It deliberately does NOT read
+        ``state.active_arc``: that ladder climbs on world state (Convergence
+        unlocks on ``min_phase: spreading``), so a baker who never asked a
+        single question was collecting Convergence's 35 involvement points for
+        standing in a village while the world fell. Involvement is the term the
+        doom clock's inaction bonus hangs off (R-06), which made that
+        mis-measurement expensive: the most disengaged run in the game slowed
+        its own doom precisely when the doom got going.
 
         Args:
             state: Current game state.
 
         Returns:
-            The arc's declared ``involvement``, or 0.0 for an arc the content
-            pack does not describe.
+            The highest declared ``involvement`` among arcs the player has
+            quest records in, or 0.0 when they have none (or the content pack
+            does not describe their arcs).
         """
-        return arc_involvement(state.active_arc)
+        from engine.game.quests import load_quests, progress_records
+
+        definitions = load_quests()
+        weight = 0.0
+        for quest_id in progress_records(state):
+            arc = str((definitions.get(quest_id) or {}).get("arc", ""))
+            weight = max(weight, arc_involvement(arc))
+        return weight
 
     @staticmethod
     def compute(state: GameState) -> float:

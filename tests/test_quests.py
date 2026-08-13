@@ -147,7 +147,14 @@ def test_quiet_life_is_unlocked_by_default() -> None:
 
 
 def test_whisper_unlocks_exactly_at_its_threshold() -> None:
-    """Caravan seen, ten days elapsed, and awareness at the gate -- not before."""
+    """
+    Caravan seen, the wait elapsed, and awareness at the gate -- not before.
+
+    The wait is three days now, not ten: the R-06 retune fit the whole doom
+    arc inside roughly forty days, and a ten-day quarantine on the first
+    pushback arc spent a third of a run before pushing back was possible
+    (games/clockwork-dark/data/quests/arcs.yaml).
+    """
     state = GameState()
     _set_day(state, 6)
     _seen(state, "caravan_arrival", 6)
@@ -162,7 +169,7 @@ def test_whisper_unlocks_exactly_at_its_threshold() -> None:
     other = GameState()
     _set_day(other, 6)
     _seen(other, "caravan_arrival", 6)
-    _set_day(other, 15)
+    _set_day(other, 8)
     other.awareness = 40.0
     QuestEngine.evaluate(other)
     assert "whisper" not in other.arcs_unlocked
@@ -694,10 +701,28 @@ def test_plot_involvement_uses_the_arc_not_a_dead_flag() -> None:
     state.flags["main_quest_started"] = True
     assert PlotFormula.compute(state) == baseline
 
-    state.active_arc = "march"
+    # Entering an arc means having a quest record in it. A march quest makes
+    # the player a march participant wherever the world ladder stands.
+    state.quests["militia_press"] = {"quest_id": "militia_press", "status": "active"}
     assert PlotFormula.compute(state) == pytest.approx(baseline + 20.0)
-    state.active_arc = "convergence"
+    state.quests["the_sacrifice"] = {"quest_id": "the_sacrifice", "status": "active"}
     assert PlotFormula.compute(state) == pytest.approx(baseline + 35.0)
+
+
+def test_plot_involvement_ignores_the_world_driven_arc_ladder() -> None:
+    """
+    ``active_arc`` climbs on WORLD state (Convergence unlocks on
+    ``min_phase: spreading``), so it cannot be the involvement term: a baker
+    who never asked a question was collecting Convergence's 35 points for
+    standing in a village while the world fell -- and involvement feeds the
+    doom clock's inaction bonus (R-06), so the most disengaged run in the game
+    slowed its own doom exactly when the doom got going.
+    """
+    state = GameState()
+    baseline = PlotFormula.compute(state)
+    state.active_arc = "convergence"
+    assert PlotFormula.compute(state) == pytest.approx(baseline)
+    assert PlotFormula.arc_weight(state) == 0.0
 
 
 def test_plot_involvement_survives_an_unknown_arc() -> None:
