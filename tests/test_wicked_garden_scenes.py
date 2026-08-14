@@ -986,10 +986,19 @@ def test_a_locked_ending_always_has_a_card_to_show(garden: GameState) -> None:
     assert blank == []
 
 
-def test_epilogues_are_inert_for_a_story_that_declares_none() -> None:
+def test_epilogues_are_inert_for_a_story_that_declares_none(
+    story_declaring_nothing: str,
+) -> None:
     """
-    The Clockwork Dark ships no epilogues, and adding this module cost it
-    nothing. Same contract as clocks, threads and decks.
+    An undeclared `paths.epilogues` is a module that does not run.
+
+    This used to read the claim off The Clockwork Dark, which shipped no
+    epilogues -- but "the flagship happens to declare none" and "an undeclared
+    path is inert" are different statements, and only the second is about the
+    engine. The flagship ships eight epilogues now, so the absence is built
+    (`story_declaring_nothing` in conftest) rather than borrowed from a
+    manifest that was free to change under it. Same contract as clocks,
+    threads and decks.
     """
     assert epilogue_module.load_index() == {}
     assert epilogue_module.declared() == {}

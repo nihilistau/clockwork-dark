@@ -69,12 +69,22 @@ def _seen(state: GameState, event_id: str, day: int) -> None:
 
 
 def test_content_pack_shape() -> None:
-    """Four arcs, six quests each, every stage engine-completable."""
+    """
+    Four arcs, every stage engine-completable, and one arc carries a door.
+
+    Twenty-five, not the original twenty-four: `banking_the_fire` is the quiet
+    life's FINALE door, the one quest whose completion locks an ending and
+    plays its Speak/Act/Seal. Six-per-arc was a pleasing symmetry rather than a
+    rule, and the asymmetry is the point -- the flagship's other three doors
+    are convergence quests that already existed, so only the quiet path needed
+    a new one built. A player who bakes bread for forty days can now finish the
+    game, which DESIGN.md has claimed since the beginning.
+    """
     arcs = load_arcs()
     assert set(arcs) == {"quiet_life", "whisper", "march", "convergence"}
 
     definitions = load_quests()
-    assert len(definitions) == 24
+    assert len(definitions) == 25
 
     per_arc: dict[str, int] = {}
     for quest_id, definition in definitions.items():
@@ -87,7 +97,7 @@ def test_content_pack_shape() -> None:
                 f"{quest_id}:{stage['id']} has no engine-evaluable completion"
             )
     assert per_arc == {
-        "quiet_life": 6,
+        "quiet_life": 7,
         "whisper": 6,
         "march": 6,
         "convergence": 6,

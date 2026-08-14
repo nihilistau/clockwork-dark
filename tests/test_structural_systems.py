@@ -97,13 +97,25 @@ def _set(state: GameState, name: str, value: float) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_every_system_is_inert_without_a_declaration() -> None:
+def test_every_system_is_inert_without_a_declaration(
+    story_declaring_nothing: str,
+) -> None:
     """
-    The Clockwork Dark declares no clocks, threads, endings or decks.
+    A story that says nothing gets an empty table from every loader.
 
-    This is the compatibility bar and it is why the simulator output is
-    unchanged: a story that says nothing gets an empty table from every loader,
-    and an empty table is a system that does not run.
+    This is the compatibility bar, and it used to be asserted against The
+    Clockwork Dark because the flagship declared none of the four. It now
+    declares `endings` (and `epilogues`) -- so asserting inertness through it
+    would have been asserting a fact about ONE story's manifest while claiming
+    to test the engine. The claim was always about an undeclared path, so the
+    absence is built rather than borrowed (`story_declaring_nothing` in
+    conftest, which explains why a config overlay cannot express it): an empty
+    table is a system that does not run, whoever is running.
+
+    Note what this also proves, which is the asymmetry docs/AUTHORING.md 2.2
+    names: the flagship's `endings.yaml` sits INSIDE its rules directory, and
+    a story that does not declare `paths.endings` gets nothing regardless of
+    what happens to be sitting in any directory.
     """
     assert clocks.load_clocks() == {}
     assert threads.templates() == {}
@@ -117,12 +129,38 @@ def test_every_system_is_inert_without_a_declaration() -> None:
     assert clocks.forced_scenes(state) == []
 
 
-def test_a_story_with_no_endings_cannot_softlock_its_finale() -> None:
+def test_a_story_with_no_endings_cannot_softlock_its_finale(
+    story_declaring_nothing: str,
+) -> None:
     """No declared endings means no finale to lock, not a finale with no exit."""
     report = endings.eligible(GameState())
     assert report.eligible == []
     assert report.fail_forward == ""
     assert endings.resolve(GameState()) == ""
+
+
+def test_the_flagship_still_declares_no_clocks_threads_or_decks() -> None:
+    """
+    What the flagship's compatibility bar actually is, now that it has a finale.
+
+    Three of the four structural systems are still inert for The Clockwork
+    Dark, which is why its simulator output did not move when endings landed:
+    the finale chain is reached through quest `on_complete` effects on the
+    graph it already had, not through a day deck or a progress clock. If this
+    ever fails, the flagship has grown a system whose cost has to be measured
+    against `scripts/simulate.py` before it ships.
+    """
+    assert clocks.load_clocks() == {}
+    assert threads.templates() == {}
+    assert deck_module.deck_ids() == []
+
+    # ...and the one it DOES declare is real: eight endings, a declared
+    # fail-forward, and never an empty eligible set.
+    assert len(endings.declared()) == 8
+    assert endings.fail_forward_id() == "the_dark_keeps_its_hours"
+    report = endings.eligible(GameState())
+    assert report.eligible == ["the_dark_keeps_its_hours"]
+    assert report.forced is True
 
 
 # ---------------------------------------------------------------------------

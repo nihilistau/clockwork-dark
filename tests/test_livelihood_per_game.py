@@ -146,13 +146,32 @@ def test_a_broke_player_can_forage_food_where_there_is_ground_to_forage(activate
 
 @pytest.mark.parametrize("activated", GAMES, indirect=True)
 def test_a_shift_can_be_worked_where_there_is_paid_work(activated: str):
+    """
+    Work the engine OFFERS actually runs.
+
+    This used to take the alphabetically first job, which silently assumed the
+    board's first row was ungated. It stopped being true the moment the
+    flagship posted work behind a crafted item and an evil phase
+    (`camp_kitchens` requires road bread and is not hiring while the world is
+    dormant), and the failure read as "labour is broken" rather than "the test
+    picked a posting the engine correctly refuses". A gated job declining to
+    run is the gate working; what must never happen is `economy.available`
+    offering a shift that `economy.work` then refuses, so the offered rows are
+    what is on trial here.
+    """
     jobs = economy.jobs()
     assert jobs, f"{activated} declares no paid work"
 
-    job_id, job = next(iter(sorted(jobs.items())))
-    state = new_game_state(seed=42, location_id=str(job.get("location_id") or ""))
-    outcome = economy.work(state, job_id)
-    assert "check" in outcome, f"{activated}: {job_id} would not run: {outcome}"
+    offered = 0
+    for job_id, job in sorted(jobs.items()):
+        state = new_game_state(seed=42, location_id=str(job.get("location_id") or ""))
+        if not any(row["id"] == job_id for row in economy.available(state)):
+            continue  # gated shut right now, by item, standing or phase
+        offered += 1
+        outcome = economy.work(state, job_id)
+        assert "check" in outcome, f"{activated}: offered {job_id} would not run: {outcome}"
+
+    assert offered, f"{activated} offers no workable shift anywhere on a fresh run"
 
 
 @pytest.mark.parametrize("activated", ALL_GAMES, indirect=True)
