@@ -1,0 +1,92 @@
+# Drafted by scripts/author.py [2026-08-15] -- review before promoting.
+# game: slow-water  kind: deck
+# brief: Draft the deck 'day_one': Boarding and the first day of professional weeping. Use the id 'day_one'. 
+id: day_one
+draw: 1
+cards:
+- id: boarding_the_barge
+  title: The Boarding
+  text: You step onto the wet boards of the afterdeck, your borrowed blacks heavy with the
+    scent of cedar and old dust. Iva Ravel is waiting by the rail; she does not offer a hand,
+    only a sharp, assessing look that weighs the quality of your grief against the coins in
+    her purse.
+  tags:
+  - sequence
+  - gm
+  beats:
+  - id: first_impression
+    text: Iva asks if you are a 'quiet' mourner or a 'vocal' one. How do you respond?
+    gate:
+      check:
+        stream: beat
+        chance: 0.5
+      on_pass:
+        text: She nods, satisfied by your professionalism.
+        effects:
+        - type: value
+          name: favor
+          delta: 1
+      on_fail:
+        text: She narrows her eyes, noting your lack of decorum.
+        effects:
+        - type: value
+          name: suspicion
+          delta: 1
+- id: the_first_lament
+  title: The First Lament
+  text: 'As the sun dips below the riverbank, you take your place in the saloon. The air is
+    thick with the smell of tallow and unwashed linen. You perform the first ritual: a low,
+    rhythmic sobbing that signals to any onlooker on the shore that this vessel carries a
+    heavy burden.'
+  tags:
+  - sequence
+  - gm
+  beats:
+  - id: perform_grief
+    text: The performance is easy, but the weight of the silence following your tears is harder
+      to manage. Do you focus on the technicality of the sound or the emotion behind it?
+    gate:
+      check:
+        stream: beat
+        chance: 0.5
+      on_pass:
+        text: You maintain a perfect mask.
+        effects:
+        - type: value
+          name: composure
+          delta: 1
+      on_fail:
+        text: A crack forms in your professional veneer.
+        effects:
+        - type: value
+          name: composure
+          delta: 1
+- id: unspoken_observation
+  title: Unspoken Observation
+  text: While you are settling things in the small cabin near the hold, you catch a glimpse
+    of Tobin Ravel. He is staring at the door, his hands trembling slightly as he holds an
+    empty glass. He looks less like a mourner and more like a man waiting for a storm to break.
+  tags:
+  - sequence
+  - gm
+  beats:
+  - id: read_the_room
+    text: You attempt to gauge the mood of the youngest Ravel without appearing intrusive.
+    gate:
+      check:
+        stream: beat
+        chance: 0.5
+      on_pass:
+        text: He looks away quickly, but you catch a glimpse of something—fear, perhaps, or
+          exhaustion.
+        effects:
+        - type: value
+          name: suspicion
+          delta: 1
+      on_fail:
+        text: He catches you watching and turns his back to you, muttering something under
+          his breath.
+        effects:
+        - type: value
+          name: favor
+          delta: 1

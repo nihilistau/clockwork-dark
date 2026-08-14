@@ -36,11 +36,17 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
-**1813 passing, 17 skipped**, no expected failures (measured 2026-08-15), plus
+**1846 passing, 18 skipped**, no expected failures (measured 2026-08-15), plus
 **95 client tests** under `ui/tests/` run by `npm test --prefix ui`. Run both
 for the real numbers rather than trusting this line — it has been stale before,
-and the "1776 passing, 15 skipped" this replaces was itself off by one against a
-clean `a5cedbf`, which measured 1775/16.
+and the "1776 passing, 15 skipped" two revisions back was itself off by one
+against a clean `a5cedbf`, which measured 1775/16. The jump from 1813 is the
+fifth game (every per-story test parametrises over `registry.discover()`) plus
+five new validator checks.
+
+**`npm test` needs `vitest`, which a plain checkout does not have.** It is a
+devDependency and `ui/node_modules` here carries only `vite`, so the client
+line above is unverified in this tree; run `npm ci --prefix ui` first.
 
 Two fixes landed from playing against a live LM Studio. **The evaluator checks
 the cast** (`engine/agents/cast.py`): the persona's "never introduce a named
@@ -99,13 +105,25 @@ end-to-end — input review, a pre-commit `SafetyCeiling`, and narration review
 with fade cards. The card now RENDERS (`ui/src/core/parts/FadeCard.jsx`, drawn
 by `Play.jsx` under the log), which was the open half. See docs/SAFETY.md.
 
-Four games ship: `clockwork-dark` (flagship), `wicked-garden` (the deck
+Five games ship: `clockwork-dark` (flagship), `wicked-garden` (the deck
 exemplar), `neon-city` (NEON CITY: THE CROSSING — survival/expedition in the
 NeonCity canon, graph-shaped with the timestamp/debt clocks and threads wired
 in, and its own bespoke UI plugin: black canvas, cyan accent, gold mono ₵, the
-heat ladder as chrome), and `dev-story` (the annotated bench, which borrows the
-Garden's skin and is the shipped proof the borrow path still works). Pick one
-with `launcher.py --game <slug>`.
+heat ladder as chrome), `dev-story` (the annotated bench, which borrows the
+Garden's skin and is the shipped proof the borrow path still works), and
+`slow-water` (THE SLOW WATER — nine days upriver on a funeral barge, deck-shaped,
+borrowing the Garden's skin). Pick one with `launcher.py --game <slug>`.
+
+**The Slow Water is the suite's proving run**, not a flagship: scaffolded with
+`scripts/new_story.py`, drafted from its own `BIBLE.md` by `scripts/author.py`,
+repaired, promoted, then hand-finished (locations, clock, endings, epilogues,
+forced scene). Drafting it found four shapes the model produces that **load,
+validate and play** while doing nothing or saying the quiet part out loud — an
+`on_fail` behind a gate that cannot fail, a `value` effect wearing an item
+row's fields, a beat that gates and bands, and `text: composure +1` in the
+slot the player reads. Three are now ungrammatical in the drafting schema;
+all four are caught by `engine/games/validation.py` for hand-written content.
+See [docs/AUTHORING.md](docs/AUTHORING.md) §4.1.
 
 `drowned-carillon` was **deleted**. It was the flagship with different nouns,
 which made it a poor proof of the engine/story seam — it could not fail in any

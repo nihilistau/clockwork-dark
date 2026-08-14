@@ -1,0 +1,133 @@
+# The Slow Water -- two endings.
+#
+# Read by engine/game/endings.py through `paths.endings`.
+#
+# TWO GATES, SEPARATE ON PURPOSE:
+#   requires:     you have EARNED this ending
+#   completable:  nothing still live makes it IMPOSSIBLE
+# Folding them together loses the lock text a UI renders -- the player
+# should be told which of the two is in their way.
+#
+# `beats:` is the three-beat ending module, Speak / Act / Seal: ordinary
+# bounded beats in the deck grammar, played once by endings.run_module after
+# lock(), before the epilogue hands over a card.
+#
+# The order of operations, from a REPL:
+#   endings.eligible(state) -> set_intent -> lock -> run_module ->
+#   epilogue.for_state(state)
+#
+# THE TWO ENDINGS ARE THE TWO COLUMNS OF THE DAY-BOOK -- what you were paid
+# for, and what you actually did. The story's whole question is whether
+# those match, so the finale asks it directly rather than scoring a morality
+# the fiction never claimed to measure.
+#
+# Version: v0.2.0
+
+version: 1
+
+# ALWAYS ELIGIBLE, BY DECLARATION: if nothing else qualifies, this id is
+# added with `forced: true`. The finale must never softlock, so exactly one
+# card can never be locked out -- and it is a real ending, not an apology.
+fail_forward: the_other_column
+
+classes:
+
+  # No `variants:` blocks anywhere, so each CLASS id below IS an ending id,
+  # and data/epilogues/epilogue_index.yaml must agree with these ids
+  # exactly -- a locked ending with no epilogue row is an ERROR and a blank
+  # last screen.
+
+  # ---------------------------------------------------------------------
+  # You did the job you were hired to do, all of it, including the half
+  # nobody wrote down.
+  # ---------------------------------------------------------------------
+  paid_in_full:
+    label: "Paid in Full"
+    requires:
+      all:
+        - { id: standing, value: { name: favor, min: 60 } }
+        - { id: the_mask, value: { name: composure, min: 50 } }
+    # You cannot close the account while the engagement is still running.
+    completable:
+      id: accounts_settled
+      none:
+        - { thread: { template: mourners_contract, status: active } }
+    lock_reasons:
+      standing: "The Ravels have not finished deciding what you are to them."
+      the_mask: "Too much of your own face has got into the work."
+      accounts_settled: "The engagement is still running, and it is theirs to end."
+    # Continuous 0.0-1.0 closeness, for foreshadowing long before anything
+    # is eligible; `at:` is the reading that counts as 1.0.
+    score:
+      - { value: favor, at: 80, weight: 0.5 }
+      - { value: composure, at: 80, weight: 0.5 }
+    beats:
+      - id: paid_in_full_speak
+        text: >-
+          SPEAK. At the graveside you say the words for a man you never met,
+          and you say them well enough that two of his children look away.
+        gate:
+          on_pass:
+            text: "Nobody watching would call it anything but grief."
+            effects:
+              - { type: value, name: favor, delta: 4 }
+      - id: paid_in_full_act
+        text: >-
+          ACT. Iva counts the fee into your hand on the bank, in daylight,
+          where the counting can be seen being done honestly.
+        gate:
+          # A gate may carry a threshold: below it the beat FAILS FORWARD --
+          # the ending still happens, it just costs.
+          when: { value: { name: composure, min: 60 } }
+          on_pass:
+            text: "Your hand is steady for it, which is the last professional thing you do here."
+            effects:
+              - { type: value, name: composure, delta: 4 }
+          on_fail:
+            text: "There is a note more than was agreed, and you take that too, and you both watch you take it."
+            effects:
+              - { type: value, name: composure, delta: -3 }
+      - id: paid_in_full_seal
+        text: >-
+          SEAL. You walk back down the towpath while the barge is still
+          being turned. Nine days up. A day and a half down, alone, on foot.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # No `requires` at all: this is what is left, and it is a real ending.
+  # ---------------------------------------------------------------------
+  the_other_column:
+    label: "The Other Column"
+    score:
+      - { when: { value: { name: composure, max: 45 } }, weight: 0.6 }
+      - { when: { value: { name: favor, max: 55 } }, weight: 0.4 }
+    beats:
+      - id: the_other_column_speak
+        text: >-
+          SPEAK. Something true gets out of you at the graveside, in the
+          wrong register, in front of everyone, and it is not for him.
+        gate:
+          on_pass:
+            text: "It is the first unpaid thing you have said in eleven funerals."
+            effects:
+              - { type: value, name: composure, delta: -2 }
+      - id: the_other_column_act
+        text: >-
+          ACT. You write the day up in the book that night, both columns,
+          and the second one runs longer than the first for once.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: -2 }
+      - id: the_other_column_seal
+        text: >-
+          SEAL. The Ravels go home by road. You are told the fee will be
+          sent on, in a tone that means it will be, and that it is the last
+          thing that will be.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }

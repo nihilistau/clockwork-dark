@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Optional, Union
@@ -1153,6 +1154,7 @@ class StoryValidator:
                 if card_id in seen_cards:
                     self._add(source, card_id, "duplicate card id in this deck")
                 seen_cards.add(card_id)
+                self._check_beat_shapes(source, card_id, card)
 
         # Clock table: every clock it drives must be declared in state.yaml as
         # a clock. A clock the schema does not declare is a write the store
@@ -1175,6 +1177,10 @@ class StoryValidator:
                 for clock_id in sorted(clock_refs(doc)):
                     if clock_id not in self.declared_clocks and clock_id not in self.declared_values:
                         self._add(source, clock_id, "clock is not declared in state.yaml")
+
+        # Effect rows that apply_effect will drop on the floor.
+        for source, doc in docs.items():
+            self._check_effect_rows(source, doc)
 
         # Generic reference resolution over every structural document.
         for source, doc in docs.items():
@@ -1213,6 +1219,132 @@ class StoryValidator:
                     "flag is written but never read and not canon",
                     severity="error" if dictionary is not None else "warning",
                 )
+
+    def _check_effect_rows(self, source: str, doc: Any) -> None:
+        """
+        Effect rows whose kind and fields disagree, which ``apply_effect``
+        discards without a word.
+
+        ``_e_value`` resolves its target from ``name``/``value``/``id`` and
+        returns ``_unknown`` when none is present -- deliberately, so old or
+        foreign content cannot abort a turn. The cost of that mercy is that a
+        ``value`` row carrying another kind's fields (``item_id``/``qty`` is
+        the one a drafting model reaches for) is a no-op that reads like a
+        working effect. A whole nine-day deck set came back that way: every
+        beat had effects, no meter could move, and nothing anywhere said so.
+        """
+        wants = {"value": ("name", "value", "id"), "flag": ("flag",), "item": ("item_id", "item")}
+        for node in walk(doc):
+            kind = node.get("type")
+            if not isinstance(kind, str) or kind not in wants:
+                continue
+            if any(key in node for key in wants[kind]):
+                continue
+            # Name the foreign keys it DID carry -- "value(item_id, qty)" says
+            # which other kind's row this was written as, which is the whole
+            # diagnosis. Bare "value" would send the author hunting.
+            carried = ", ".join(sorted(k for k in node if k != "type")) or "nothing"
+            self._add(
+                source,
+                f"{kind}({carried})",
+                f"`{kind}` effect names no "
+                f"`{wants[kind][0]}`; apply_effect discards this row in silence",
+            )
+
+    #: A beat text that is ONLY a declared value and a signed number --
+    #: "composure +1", "favor -2". Anchored and whole-string on purpose: prose
+    #: that happens to mention a meter is fine and common, and only a text
+    #: consisting of nothing else is unambiguously a receipt in the wrong slot.
+    _RECEIPT_AS_PROSE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*([+-])\s*\d+(\.\d+)?\s*$")
+
+    def _check_beat_prose(self, source: str, ref: str, beat: Any) -> None:
+        """
+        Beat text that is a mechanical receipt rather than a sentence.
+
+        A drafting model, asked for a beat whose effect moves ``composure``,
+        will sometimes write ``text: composure +1`` -- putting the delta in
+        the slot the PLAYER reads. The effect beside it is correct, so nothing
+        breaks and nothing warns; the story simply says "composure +1" out
+        loud. In a story whose meters are declared ``veiled`` that is the one
+        thing the visibility setting exists to prevent, and the narrator
+        persona forbids it in the same words.
+
+        Seen in a drafted finale: four of eight beats read ``composure +1``,
+        ``suspicion +1``, ``favor +1``.
+        """
+        texts: list[str] = []
+        gate = (beat or {}).get("gate")
+        if isinstance(gate, dict):
+            for branch in ("on_pass", "on_fail"):
+                node = gate.get(branch)
+                if isinstance(node, dict) and isinstance(node.get("text"), str):
+                    texts.append(node["text"])
+        band = (beat or {}).get("band")
+        if isinstance(band, dict) and isinstance(band.get("text"), str):
+            texts.append(band["text"])
+
+        known = self.declared_values | self.declared_clocks
+        for text in texts:
+            match = self._RECEIPT_AS_PROSE.match(text)
+            if match is None:
+                continue
+            name = match.group(1)
+            if self.schema_loaded and name not in known:
+                continue
+            self._add(
+                source,
+                ref,
+                f"beat text is a mechanical receipt ({text.strip()!r}), not prose; "
+                "the player reads this slot",
+            )
+
+    def _check_beat_shapes(self, source: str, card_id: str, card: Any) -> None:
+        """
+        ``_resolve_gate`` starts at ``passed = True`` and only lowers it on a
+        ``when`` threshold or a ``check`` roll (engine/content/deck.py). So a
+        gate carrying neither always takes ``on_pass`` -- and an ``on_fail``
+        written beside it is text no seed can ever reach.
+
+        Only that pairing is reported. A gate with ``on_pass`` alone and no
+        condition is a shipped idiom, not a defect: it is how both deck
+        stories write "this beat always happens, and here is what it costs"
+        (205 beats in the Garden alone). Flagging those would fail
+        ``--strict`` on a convention the engine supports.
+
+        Caught on drafted content that read as a working story and validated
+        clean -- the model writes gates that look conditional. Nothing else
+        here looks at beat shape, and a beat that runs without erroring is
+        exactly the defect a green suite keeps.
+        """
+        for beat in (card or {}).get("beats") or []:
+            gate = (beat or {}).get("gate")
+            ref = f"{card_id}/{(beat or {}).get('id') or '-'}"
+            self._check_beat_prose(source, ref, beat)
+
+            # One beat is one question. `_bind_beat` keeps the gate, drops the
+            # band and logs -- at deck-load time, into a stream nobody reads
+            # during authoring. The band's text and award are then authored
+            # content that cannot run at any seed.
+            if isinstance(gate, dict) and isinstance((beat or {}).get("band"), dict):
+                self._add(
+                    source,
+                    ref,
+                    "beat declares both `gate` and `band`; the loader keeps the "
+                    "gate and discards the band",
+                )
+
+            if not isinstance(gate, dict):
+                continue
+            if "when" in gate or isinstance(gate.get("check"), dict):
+                continue
+            if not isinstance(gate.get("on_fail"), dict):
+                continue
+            self._add(
+                source,
+                ref,
+                "gate has neither `when` nor `check`, so it always passes and "
+                "`on_fail` is unreachable",
+            )
 
     # -- endings and epilogues ---------------------------------------------
 

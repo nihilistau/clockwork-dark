@@ -1,0 +1,48 @@
+# Drafted by scripts/author.py [2026-08-15] -- review before promoting.
+# game: slow-water  kind: deck
+# brief: Draft the deck 'day_four': Discovery of the screwdriver and the weight of secrets. Use the id 'day_f
+id: day_four
+draw: 1
+cards:
+- id: the_cold_steel
+  title: The Cold Steel
+  text: You reach into your coat for a handkerchief and find the screwdriver. It is heavy,
+    out of place, and entirely unbidden.
+  tags:
+  - sequence
+  beats:
+  - id: discovery_composure
+    text: The weight of it against your ribs makes the mask slip. Lose 1 composure.
+    gate:
+      check:
+        stream: beat
+        chance: 0.5
+      on_pass:
+        text: You tuck it away with practiced, steady hands.
+      on_fail:
+        text: Your fingers tremble as you find the tool.
+- id: the_new_screws
+  title: The New Screws
+  text: You remember the lid in the hold. The screws were bright, untarnished by river salt
+    or age.
+  tags:
+  - sequence
+  beats:
+  - id: check_lore
+    text: Roll + lore to confirm if the hardware matches the era of the casket.
+    gate:
+      check:
+        stream: beat
+        chance: 0.5
+      on_pass:
+        text: The discrepancy is undeniable. The box has been tampered with.
+      on_fail:
+        text: You can't quite be sure, but the doubt remains.
+- id: the_unspoken_meal
+  title: The Unspoken Meal
+  text: In the saloon, the clatter of spoons against porcelain feels like a countdown.
+  tags:
+  - sequence
+  beats:
+  - id: suspicion_rise
+    text: The Ravels are watching your hands. Increase suspicion by 1.

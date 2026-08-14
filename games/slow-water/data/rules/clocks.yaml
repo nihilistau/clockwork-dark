@@ -1,0 +1,55 @@
+# The Slow Water -- what the clock DOES.
+#
+# Read by engine/game/clocks.py through `paths.clocks`. This is the second
+# half of a two-file declaration: state.yaml says what `suspicion` IS
+# (bag-backed, 0-4, veiled), and this says what it does. Delete either half
+# and the clock stops -- delete the state.yaml half and it stops SILENTLY,
+# because value_of reads 0.0 and `at: max` never resolves.
+#
+# WHAT THE CLOCK MEASURES HERE: not whether the player has worked out what
+# is in the box -- that is theirs to hold -- but whether the FAMILY has
+# decided that they have. Those are different quantities and the story is
+# the gap between them.
+#
+# Version: v0.2.0
+
+version: 1
+
+clocks:
+
+  suspicion:
+    label: "What they have decided about you"
+
+    advance_when:
+      # A mask that never slips is its own tell. Someone paid to grieve who
+      # grieves flawlessly for nine days in front of a family that is not
+      # grieving at all becomes, eventually, the strangest thing aboard.
+      - id: suspicion_from_a_flawless_mask
+        when: { value: { name: composure, min: 85 } }
+        by: 1
+
+      # Going below and looking at the lid. The day-decks write this flag
+      # where they put the player in the hold; the canon dictionary declares
+      # it so the two-direction check can hold both ends.
+      - id: suspicion_from_the_hold
+        when: { flag: counted_the_screws }
+        by: 1
+
+    beats:
+      - id: suspicion_half
+        at: 2
+        rumors:
+          - "The hatch to the hold has a padlock on it that was not bought for this trip."
+        set_flags: [family_watching]
+
+      - id: suspicion_full
+        at: max
+        effects:
+          - { type: value, name: favor, delta: -6, why: "being a problem is not the same as being staff" }
+        # PINNED to data/scenes/the_reckoning.yaml's `id`. A forced scene
+        # names a deck by that id, not by its filename or its title.
+        forces_scene: the_reckoning
+        text: >-
+          They stop wondering about you where you can hear it, which is how
+          you know the wondering has finished and something else has started.
+        reset_to: 0

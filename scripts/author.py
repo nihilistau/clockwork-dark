@@ -235,18 +235,50 @@ def _predicate_schema(vocab: Vocabulary) -> dict[str, Any]:
 
 
 def _effect_schema(vocab: Vocabulary) -> dict[str, Any]:
-    """Effects a deck/card beat may carry, shaped for effects.apply_effect."""
-    return _obj(
-        {
-            "type": {"enum": ["value", "flag", "item"]},
-            "name": _enum_or_string(vocab.values | vocab.clocks),
-            "delta": {"type": "number"},
-            "flag": {"type": "string"},
-            "item_id": _enum_or_string(vocab.items),
-            "qty": {"type": "integer", "minimum": 1, "maximum": 9},
-        },
-        ["type"],
-    )
+    """Effects a deck/card beat may carry, shaped for effects.apply_effect.
+
+    ONE BRANCH PER KIND, DISCRIMINATED BY A ``const`` type. A single flat
+    object with ``type`` as an enum and every other key optional -- which is
+    what this was -- lets the model pair a type with another kind's fields,
+    and ``{type: value, item_id: favor, qty: 1}`` is the pairing it reaches
+    for. That row is not an error anywhere: ``_e_value`` resolves its name
+    from ``name``/``value``/``id`` only, finds none, and returns ``_unknown``,
+    so the effect is DISCARDED IN SILENCE. Observed on a repair pass that
+    rewrote nine day-decks into content where no meter could ever move, and
+    which validated clean and played without a warning.
+
+    So each branch requires the fields its kind actually reads. The ``item``
+    branch is offered only to stories that ship items, because a story with
+    no item vocabulary granting an item is another unsamplable-by-design
+    case rather than a fixable one.
+    """
+    branches = [
+        _obj(
+            {
+                "type": {"const": "value"},
+                "name": _enum_or_string(vocab.values | vocab.clocks),
+                "delta": {"type": "number"},
+                "why": {"type": "string", "maxLength": 120},
+            },
+            ["type", "name", "delta"],
+        ),
+        _obj(
+            {"type": {"const": "flag"}, "flag": {"type": "string"}},
+            ["type", "flag"],
+        ),
+    ]
+    if any(vocab.items):
+        branches.append(
+            _obj(
+                {
+                    "type": {"const": "item"},
+                    "item_id": _enum_or_string(vocab.items),
+                    "qty": {"type": "integer", "minimum": 1, "maximum": 9},
+                },
+                ["type", "item_id", "qty"],
+            )
+        )
+    return {"anyOf": branches} if len(branches) > 1 else branches[0]
 
 
 def _card_schema(vocab: Vocabulary) -> dict[str, Any]:
@@ -261,24 +293,47 @@ def _card_schema(vocab: Vocabulary) -> dict[str, Any]:
         },
         [],
     )
-    gate = _obj(
-        {
-            "when": when,
-            "check": _obj(
-                {"stream": {"enum": ["beat"]}, "chance": {"type": "number", "minimum": 0, "maximum": 1}},
-                ["stream", "chance"],
-            ),
-            "on_pass": _obj(
-                {"text": {"type": "string", "maxLength": 400}, "effects": {"type": "array", "maxItems": 3, "items": _effect_schema(vocab)}},
-                ["text"],
-            ),
-            "on_fail": _obj(
-                {"text": {"type": "string", "maxLength": 400}, "effects": {"type": "array", "maxItems": 3, "items": _effect_schema(vocab)}},
-                ["text"],
-            ),
-        },
-        ["on_pass"],
+    def _gate_branch() -> dict[str, Any]:
+        return _obj(
+            {
+                "text": {"type": "string", "maxLength": 400},
+                "effects": {"type": "array", "maxItems": 3, "items": _effect_schema(vocab)},
+            },
+            ["text"],
+        )
+
+    _check = _obj(
+        {"stream": {"enum": ["beat"]}, "chance": {"type": "number", "minimum": 0, "maximum": 1}},
+        ["stream", "chance"],
     )
+
+    # THREE BRANCHES, SO THE BROKEN SHAPE CANNOT BE SAMPLED. A flat object
+    # requiring only `on_pass` let the model write `on_fail` beside a gate
+    # with no condition -- and `_resolve_gate` opens at `passed = True`, so
+    # that failure text is unreachable at every seed. It is the model's
+    # favourite mistake: a whole nine-day draft came back with beats named
+    # `stealth_check` and `nerve_check` that could not fail, and it read
+    # like working content.
+    #
+    # So `on_fail` exists only on the branches that carry something able to
+    # fail: a `when` threshold or a `check` roll. The third branch has no
+    # `on_fail` property at all, which under additionalProperties: False
+    # makes the bad pairing ungrammatical rather than merely invalid. Same
+    # reasoning as the per-turn intent grammar (engine/lmstudio/schemas.py):
+    # constrain the sampler, do not correct it afterwards.
+    gate = {
+        "anyOf": [
+            _obj(
+                {"when": when, "check": _check, "on_pass": _gate_branch(), "on_fail": _gate_branch()},
+                ["when", "on_pass"],
+            ),
+            _obj(
+                {"when": when, "check": _check, "on_pass": _gate_branch(), "on_fail": _gate_branch()},
+                ["check", "on_pass"],
+            ),
+            _obj({"on_pass": _gate_branch()}, ["on_pass"]),
+        ]
+    }
     band = _obj(
         {
             "value": _enum_or_string(vocab.values | vocab.clocks),
@@ -288,15 +343,23 @@ def _card_schema(vocab: Vocabulary) -> dict[str, Any]:
         },
         ["value", "min", "max"],
     )
-    beat = _obj(
-        {
-            "id": _id_schema(),
-            "text": {"type": "string", "maxLength": 600},
-            "gate": gate,
-            "band": band,
-        },
-        ["id", "text"],
-    )
+    # A BEAT IS ONE QUESTION, so it resolves one way. `_bind_beat` keeps the
+    # gate, discards the band and logs it at deck-load time -- which means a
+    # beat carrying both ships a band whose text and award no seed can reach.
+    # A flat object with both optional invited exactly that, and the model
+    # took the invitation on 12 beats across four decks.
+    #
+    # Two branches, so a beat is a gate-beat or a band-beat and cannot be
+    # sampled as both. A beat with neither is still legal: plain narration
+    # with no resolution is a real and common thing to write.
+    beat_body = {"id": _id_schema(), "text": {"type": "string", "maxLength": 600}}
+    beat = {
+        "anyOf": [
+            _obj({**beat_body, "gate": gate}, ["id", "text", "gate"]),
+            _obj({**beat_body, "band": band}, ["id", "text", "band"]),
+            _obj(dict(beat_body), ["id", "text"]),
+        ]
+    }
     return _obj(
         {
             "id": _id_schema(),
@@ -1241,15 +1304,26 @@ class Author:
 
     # -- repair ------------------------------------------------------------
 
-    def repair(self, *, max_attempts: int = MAX_REPAIR_ATTEMPTS) -> DraftReport:
+    def repair(
+        self,
+        *,
+        max_attempts: int = MAX_REPAIR_ATTEMPTS,
+        progress: Optional[Callable[[str], None]] = None,
+    ) -> DraftReport:
         """Feed validator errors back to the model, at most ``max_attempts``
         per draft file, rewriting each corrected draft in place.
+
+        Args:
+            progress: called per attempt. Same reason as ``from_bible``: this
+                is up to ``max_attempts`` model calls per broken file, and a
+                silent half-hour is indistinguishable from a hang.
 
         Returns:
             The final report. ``by_draft`` still naming a file means the model
             never produced a clean version of it, and the report says so
             rather than the loop trying forever.
         """
+        say = progress or (lambda _note: None)
         attempts: dict[pathlib.Path, int] = {}
         report = self.validate_drafts()
         while True:
@@ -1260,8 +1334,13 @@ class Author:
             }
             if not fixable:
                 break
+            say(f"repairing {len(fixable)} file(s) with errors...")
             for path, errors in fixable.items():
                 attempts[path] = attempts.get(path, 0) + 1
+                say(
+                    f"attempt {attempts[path]}/{max_attempts} on {path.name} "
+                    f"({len(errors)} error(s))"
+                )
                 try:
                     self._repair_one(path, errors)
                 except AuthorError as exc:
@@ -1489,13 +1568,26 @@ class Author:
             )
         return _envelope("author_plan", _obj(props, required))
 
-    def from_bible(self, bible_path: str | pathlib.Path) -> list[pathlib.Path]:
+    def from_bible(
+        self,
+        bible_path: str | pathlib.Path,
+        *,
+        progress: Optional[Callable[[str], None]] = None,
+    ) -> list[pathlib.Path]:
         """Batch mode: plan the content set from a story bible, then draft
         each piece with the bible and the already-drafted siblings as context.
+
+        Args:
+            progress: called with a one-line note as each entry lands. A bible
+                run is one model call per planned entry and takes tens of
+                minutes on a local model; reporting only at the end (as this
+                did) leaves no way to tell drafting from a hung socket, which
+                is how a working run gets killed. Silence is not free.
 
         Returns:
             Every draft path written, in the order drafted.
         """
+        say = progress or (lambda _note: None)
         bible = pathlib.Path(bible_path).read_text(encoding="utf-8").strip()
         if not bible:
             raise AuthorError(f"story bible {bible_path} is empty")
@@ -1513,22 +1605,34 @@ class Author:
                 f"bible does not touch.\n\nSTORY BIBLE:\n{bible}",
             },
         ]
+        say("planning the content set from the bible...")
         plan = self._complete_json(
             "plan", messages, envelope, profile="big", max_tokens=3000
         )
 
+        queue = [
+            (kind, str((entry or {}).get("id") or "").strip(), str((entry or {}).get("brief") or "").strip())
+            for kind, plural in self._PLAN_ROWS
+            for entry in plan.get(plural) or []
+        ]
+        queue = [row for row in queue if row[1]]
+        tally = ", ".join(
+            f"{sum(1 for k, _, _ in queue if k == kind)} {plural}"
+            for kind, plural in self._PLAN_ROWS
+            if any(k == kind for k, _, _ in queue)
+        )
+        say(f"planned {len(queue)} entries: {tally or 'nothing'}")
+
         written: list[pathlib.Path] = []
-        for kind, plural in self._PLAN_ROWS:
-            for entry in plan.get(plural) or []:
-                entry_id = str((entry or {}).get("id") or "").strip()
-                entry_brief = str((entry or {}).get("brief") or "").strip()
-                if not entry_id:
-                    continue
-                brief = (
-                    f"Draft the {kind} '{entry_id}': {entry_brief}\n"
-                    f"Use the id '{entry_id}'.\n\nSTORY BIBLE:\n{bible}"
-                )
-                written.append(self.draft(kind, brief))
+        for index, (kind, entry_id, entry_brief) in enumerate(queue, start=1):
+            say(f"[{index}/{len(queue)}] drafting {kind} '{entry_id}'...")
+            brief = (
+                f"Draft the {kind} '{entry_id}': {entry_brief}\n"
+                f"Use the id '{entry_id}'.\n\nSTORY BIBLE:\n{bible}"
+            )
+            path = self.draft(kind, brief)
+            written.append(path)
+            say(f"[{index}/{len(queue)}] wrote {path}")
         return written
 
 
@@ -1567,6 +1671,17 @@ def _read_brief(source: str) -> str:
     if source == "-":
         return sys.stdin.read()
     return pathlib.Path(source).read_text(encoding="utf-8")
+
+
+def _say(note: str) -> None:
+    """Progress line, flushed.
+
+    Python block-buffers stdout when it is a pipe rather than a console, so
+    an unflushed run redirected to a file or a CI log stays empty for its
+    whole length and then arrives at once -- indistinguishable from a hang on
+    a job whose individual steps take minutes.
+    """
+    print(f"[author] {note}", flush=True)
 
 
 def _print_report(report: DraftReport) -> None:
@@ -1620,9 +1735,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             return 0
 
         if args.from_bible:
-            written = author.from_bible(args.from_bible)
-            for path in written:
-                print(f"[author] drafted {path}")
+            author.from_bible(args.from_bible, progress=_say)
             report = author.validate_drafts()
             _print_report(report)
             if not report.clean:
@@ -1630,7 +1743,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             return 0
 
         if args.repair:
-            report = author.repair()
+            report = author.repair(progress=_say)
             _print_report(report)
             return 0 if report.clean else 1
 

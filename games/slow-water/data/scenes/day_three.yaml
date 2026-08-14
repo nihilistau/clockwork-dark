@@ -1,0 +1,72 @@
+# Drafted by scripts/author.py [2026-08-15] -- review before promoting.
+# game: slow-water  kind: deck
+# brief: Draft the deck 'day_three': Quiet tensions rise in the saloon. Use the id 'day_three'. STORY BIBLE: 
+id: day_three
+draw: 1
+cards:
+- id: saloon_dinner_tension
+  title: The Weight of Silverware
+  text: Dinner is served in the saloon. The clink of heavy silver against fine china feels
+    like a series of small, sharp accusations in the silence between courses.
+  tags:
+  - sequence
+  beats:
+  - id: dinner_composure_check
+    text: Maintain your professional mask while Tobin's eyes track every twitch of your jaw.
+    gate:
+      check:
+        stream: beat
+        chance: 0.5
+      on_pass:
+        text: You remain as still as the stone in the riverbed. Your composure holds.
+        effects:
+        - type: value
+          name: composure
+          delta: 0
+      on_fail:
+        text: A momentary lapse—a swallowed sob or a nervous glance—is caught by Iva's sharp
+          eyes.
+        effects:
+        - type: value
+          name: suspicion
+          delta: 1
+  - id: saloon_iva_whisper
+    text: Iva leans across the table to reach for the salt, her shoulder brushing yours. She
+      doesn't look at you as she speaks.
+    gate:
+      check:
+        stream: beat
+        chance: 0.5
+      on_pass:
+        text: You navigate her scrutiny with practiced indifference.
+        effects:
+        - type: value
+          name: favor
+          delta: 1
+      on_fail:
+        text: Your hesitation is a confession in itself.
+        effects:
+        - type: value
+          name: suspicion
+          delta: 2
+  - id: saloon_tobin_drunkenness
+    text: Tobin spills a splash of wine onto the white tablecloth, watching it bloom like
+      a red bruise.
+    gate:
+      check:
+        stream: beat
+        chance: 0.5
+      on_pass:
+        text: You offer a polite, hollow silence that satisfies no one but preserves your
+          position.
+        effects:
+        - type: value
+          name: composure
+          delta: 1
+      on_fail:
+        text: You lose your footing in the conversation, and the tension snaps.
+        effects:
+        - type: value
+          name: favor
+          delta: -1
+  once: true

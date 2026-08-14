@@ -1,0 +1,123 @@
+# The Slow Water -- the manifest.
+#
+# Scaffolded from the `deck` template: Garden-shaped. No dice, no travel
+# economy, no doom clock -- what this shape runs on instead is authored
+# day-decks, progress clocks that end in forced scenes, threads (contracts
+# the world remembers), gated endings and the epilogue cards behind them.
+# Each stub is one working instance, meant to be multiplied.
+#
+# THE ONE RULE THAT SHAPES THIS FILE: an UNDECLARED `paths.*` key resolves
+# to NOTHING. Declare what you ship; omit what you do not. The full worked
+# example of every subsystem is games/dev-story/; the full-scale version of
+# this shape is games/wicked-garden/.
+#
+# Version: v0.1.0
+
+id: slow-water
+title: "The Slow Water"
+version: "0.1.0"
+engine_requires: ">=0.2.0"
+
+blurb: >-
+  You are paid to weep for strangers. Nine days upriver on a funeral barge,
+  the family that hired you is not grieving, and the screws in the coffin
+  lid are newer than the wood.
+
+# Borrowed skin: the Garden's UI fits deck-shaped stories (meters, clocks,
+# chapter days). A ui/src/stories/slow-water/ directory would become its own
+# chunk in the COMMITTED dist/ tree, so borrow until you mean it.
+ui:
+  plugin: wicked-garden
+
+# The engine default scene, DECLARED rather than inherited.
+scene:
+  name: clockwork
+  module: engine.scenes.default_scene
+  blueprint: "engine.scenes.default_api:story_blueprint"
+
+settings:
+  world:
+    # A day here is a CHAPTER, not a commute. Time advances when the story
+    # says a day ends, never behind the player's back -- the flagship's tick
+    # is tuned for a story where you walk between villages.
+    tick_hours: 0.0
+    tick_max_hours: 0.0
+    # No doom clock. The pressure in this shape is the named clocks in
+    # data/rules/clocks.yaml, which count something the story chose.
+    evil_base_rate_per_day: 0.0
+
+  # The story-neutral pair; the engine's fuller chain narrates a doom ledger
+  # this story does not keep.
+  governance:
+    directives:
+      - SafetyDirective
+      - StorytellerMind
+
+# Deliberately absent: quests (this shape's days are authored decks, not an
+# offer board), economy/tables/encounters/recipes (nothing here is bought,
+# rolled or crafted), npc_schedules/factions (add when somebody keeps
+# hours), art paths (the silhouette carries a new story fine).
+paths:
+  locations: "games/slow-water/data/world/locations.yaml"
+  prompts: "games/slow-water/prompts"
+  # archetypes.yaml and spoilers.yaml are found INSIDE this directory by
+  # fixed filename; clocks/threads/endings sit beside them but are addressed
+  # by their own keys below -- an undeclared key resolves to nothing
+  # regardless of what sits in the directory.
+  rules: "games/slow-water/data/rules"
+
+  # The structural systems that make this shape what it is.
+  decks: "games/slow-water/data/scenes"
+  clocks: "games/slow-water/data/rules/clocks.yaml"
+  threads: "games/slow-water/data/rules/threads.yaml"
+  endings: "games/slow-water/data/rules/endings.yaml"
+  epilogues: "games/slow-water/data/epilogues"
+  saves: "data/saves"
+
+entry:
+  # Must exist in data/world/locations.yaml. The afterdeck is where a hired
+  # mourner is contractually supposed to stand -- so the story opens on the
+  # player already at work, and the first question is what they do with the
+  # part of the job nobody is watching.
+  location_id: afterdeck
+
+  # One, and it should be an answer, not a menu: what you ARE is usually the
+  # premise in this shape. `archetypes: []` is legal if creation should
+  # offer only a name -- but the key must be PRESENT either way.
+  archetypes: [mourner]
+
+  fallback_narration: >-
+    The river goes on doing the only thing it does, and the boat goes on
+    letting it, and there is a moment with nothing in it but that.
+
+  opening:
+    narration: >-
+      Eleven funerals, and this is the first one where nobody has cried but
+      you. You have the afterdeck to yourself, which is where the contract
+      says you should be: visible, grieving, worth the day rate. Behind you
+      the saloon lamps are lit and the Ravels are eating their second course
+      and talking about river depths. Below your feet, in the hold, their
+      father is going upriver in a box whose screws are newer than the wood
+      around them. Nine days to the source. You have been doing this long
+      enough to know that is a great many meals.
+    # (a) GOES INSIDE, so it declares the move. An opening choice that MOVES,
+    # SPENDS or RISKS anything carries a structured `intent`, and the ENGINE
+    # resolves it before the narrator writes the next beat
+    # (engine/game/intents.py). Without one a choice is only a sentence handed
+    # to a model: it narrates the player crossing the threshold and the save
+    # still reads `the_gate`.
+    #
+    # A deck story still has a place graph and still moves through it -- the
+    # cards are what happens in a day, not where you are standing. `target`
+    # must be a place `the_gate` connects to in data/world/locations.yaml.
+    #
+    # (b) and (c) declare nothing on purpose. Going below to look at the box
+    # is the story's whole question and must be earned, not offered in the
+    # first breath; and staying put is refusing to move. Both are the
+    # narrator's job, and an intent on either would resolve nothing.
+    choices:
+      - id: a
+        text: "Go in to the table before they send someone for you"
+        intent: { action: travel, target: saloon }
+      - { id: b, text: "Stay at the rail and give them the grief they paid for" }
+      - { id: c, text: "Watch the hold hatch and count how often someone checks it" }

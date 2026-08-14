@@ -538,6 +538,88 @@ Bureaucratic dread, played warm. Nothing explicit; the ceiling is suggestive.
    If your locations file carries per-entry commentary you care about, review
    the diff before committing — or draft into a fresh file and merge by hand.
 
+### 4.1 The four mistakes the model made, and where they are caught now
+
+All four were found by drafting `games/slow-water/` from a bible and reading
+the result. All four produced content that **loaded, validated and played** —
+the reason to write them down is that none announced itself, and three of
+them had been possible in the schema since the tool was written.
+
+**A gate that cannot fail.** The model likes beats named `stealth_check`,
+`nerve_check`, `perfect_grief` — and wrote them with an `on_fail` branch and
+no `when` or `check`. `_resolve_gate` opens at `passed = True`
+(`engine/content/deck.py`), so those beats always take `on_pass` and the
+failure text is unreachable at every seed. A whole nine-day draft came back
+that way and read like working content.
+
+*Now:* the gate schema is three `anyOf` branches, and `on_fail` exists only
+on the two that carry something able to fail, so the pairing is
+ungrammatical rather than merely invalid. The validator reports it too, for
+hand-written content — but **only** when an `on_fail` is present. A gate
+with `on_pass` alone and no condition is a shipped idiom meaning "this beat
+always happens, and here is what it costs" (205 beats in the Garden), and
+flagging those would fail `--strict` on a convention the engine supports.
+
+**An effect that is silently discarded.** After a repair pass the drafts came
+back with `{type: value, item_id: favor, qty: 1}` — a value row wearing an
+item row's fields. `_e_value` resolves its target from `name`/`value`/`id`,
+finds none, and returns `_unknown`: the row is dropped without a word, by
+design, so that foreign or old content cannot abort a turn. The result was
+nine decks in which every beat had effects and no meter could move.
+
+*Now:* `_effect_schema` is one branch per kind discriminated by a `const`
+type, each requiring the fields its kind actually reads, with the `item`
+branch offered only to stories that ship items. The validator reports the
+mismatch as an error wherever it appears.
+
+**A beat that gates and bands.** `_bind_beat` keeps the gate, discards the
+band and logs it — at deck-load time, into a stream nobody reads while
+authoring. Twelve beats across four decks carried both, so twelve authored
+band texts and awards could not run at any seed.
+
+*Now:* the beat schema is two branches, gate-beat or band-beat (a beat with
+neither is still legal — plain narration is a real thing to write), and the
+validator reports the pairing.
+
+**A receipt where the prose goes.** Asked for a beat whose effect moves
+`composure`, the model sometimes writes `text: composure +1` — putting the
+delta in the slot the *player* reads. The effect beside it is correct, so
+nothing breaks and nothing warns; the story simply says "composure +1" out
+loud. In a story whose meters are declared `veiled`, that is the one thing
+the visibility setting exists to prevent, and the narrator persona forbids it
+in the same words. Four of eight beats in a drafted finale read this way.
+
+*Now:* the validator reports a beat text that is **only** a declared value
+and a signed number. The pattern is anchored and whole-string on purpose —
+prose that happens to mention a meter is fine and common, and only a text
+consisting of nothing else is unambiguously a receipt in the wrong slot.
+
+The shared lesson is the one the turn grammar already encodes
+(`engine/lmstudio/schemas.py`): **constrain the sampler, do not correct it
+afterwards.** A flat object with a `type` enum and every other key optional
+will eventually be filled in with another kind's fields, and the engine's
+tolerance for unknown rows is exactly what makes that invisible.
+
+### 4.2 What no validator will catch: the model writes sequences, not choices
+
+Across the nine day-decks drafted for `slow-water`, **none** of the 23 cards
+came back tagged `menu` — the tag that makes the player pick which beat
+resolves. All 23 are `sequence` cards, which play automatically. The only
+menu card in that story is hand-authored.
+
+This is not a defect any check can flag, because a deck of sequences is
+legal, loads fine and reads well. It is a shape: the model writes consecutive
+moments fluently and mutually-exclusive alternatives badly, and its sequence
+beats are composed to *follow* one another. That means they cannot be
+rescued by retagging — a sequence retagged `menu` offers the player several
+halves of one paragraph.
+
+If you want choices inside your days, **ask for them in the bible in those
+words** ("each day should offer two or three mutually exclusive things the
+player can do, not a run of moments"), check the tag census after drafting,
+and expect to write the pivotal ones yourself. Card-level agency is the part
+of a deck story the tool is currently worst at.
+
 ---
 
 ## 5. Verification

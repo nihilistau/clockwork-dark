@@ -415,3 +415,145 @@ def test_validator_detects_duplicate_card_ids(tmp_path: Path) -> None:
         i.ref_id == "c1" and "duplicate card id" in i.message
         for i in validation.errors_only(issues)
     )
+
+
+def test_validator_detects_an_on_fail_no_seed_can_reach(tmp_path: Path) -> None:
+    """
+    ``_resolve_gate`` opens at ``passed = True``, so a gate with no ``when``
+    and no ``check`` always takes ``on_pass``. The ``on_fail`` beside it is
+    dead text that loads, validates and never runs -- the shape a drafting
+    model produces when it writes a gate that only looks conditional.
+    """
+    decks = tmp_path / "scenes"
+    decks.mkdir()
+    (decks / "day.yaml").write_text(
+        "id: day\n"
+        "cards:\n"
+        "  - id: c1\n"
+        "    beats:\n"
+        "      - id: b1\n"
+        "        gate:\n"
+        "          on_pass: {text: 'runs every time'}\n"
+        "          on_fail: {text: 'no seed reaches this'}\n",
+        encoding="utf-8",
+    )
+    issues = validation.validate_story(_story(tmp_path, {"decks": str(decks)}))
+    assert any(
+        i.ref_id == "c1/b1" and "`on_fail` is unreachable" in i.message
+        for i in validation.errors_only(issues)
+    )
+
+
+def test_validator_detects_beat_text_that_is_a_receipt(tmp_path: Path) -> None:
+    """
+    ``text: composure +1`` -- the delta written into the slot the PLAYER
+    reads. The effect beside it is correct, so nothing breaks and nothing
+    warns; the story just says the quiet part out loud, in a shape whose
+    meters are declared veiled precisely so it cannot.
+    """
+    decks = tmp_path / "scenes"
+    decks.mkdir()
+    (decks / "day.yaml").write_text(
+        "id: day\n"
+        "cards:\n"
+        "  - id: c1\n"
+        "    beats:\n"
+        "      - id: b1\n"
+        "        gate:\n"
+        "          check: {stream: beat, chance: 0.5}\n"
+        "          on_pass: {text: 'composure +1'}\n"
+        "          on_fail: {text: 'A sob escapes you, unbidden and ugly.'}\n",
+        encoding="utf-8",
+    )
+    issues = validation.validate_story(_story(tmp_path, {"decks": str(decks)}))
+    messages = [i.message for i in validation.errors_only(issues) if i.ref_id == "c1/b1"]
+    assert any("mechanical receipt" in m for m in messages), messages
+    # The prose branch beside it must NOT be reported -- the check is for a
+    # text that is ONLY a value and a number, not one that reads naturally.
+    assert not any("unbidden" in m for m in messages), messages
+
+
+def test_validator_detects_a_beat_that_gates_and_bands(tmp_path: Path) -> None:
+    """
+    One beat is one question. ``_bind_beat`` keeps the gate, drops the band
+    and logs it at deck-load time, so the band's text and award become
+    content no seed can reach -- and the only notice is a line in a stream
+    nobody reads while authoring.
+    """
+    decks = tmp_path / "scenes"
+    decks.mkdir()
+    (decks / "day.yaml").write_text(
+        "id: day\n"
+        "cards:\n"
+        "  - id: c1\n"
+        "    beats:\n"
+        "      - id: b1\n"
+        "        gate:\n"
+        "          check: {stream: beat, chance: 0.5}\n"
+        "          on_pass: {text: 'kept'}\n"
+        "        band:\n"
+        "          value: favor\n"
+        "          min: 1\n"
+        "          max: 5\n"
+        "          text: 'discarded'\n",
+        encoding="utf-8",
+    )
+    issues = validation.validate_story(_story(tmp_path, {"decks": str(decks)}))
+    assert any(
+        i.ref_id == "c1/b1" and "discards the band" in i.message
+        for i in validation.errors_only(issues)
+    )
+
+
+def test_validator_detects_a_value_effect_apply_effect_would_discard(tmp_path: Path) -> None:
+    """
+    ``{type: value, item_id: ..., qty: ...}`` -- a value row wearing an item
+    row's fields. ``_e_value`` finds no name, returns ``_unknown``, and the
+    beat's effect vanishes without a warning. A repair pass produced exactly
+    this across nine decks: every beat had effects, no meter could move.
+    """
+    decks = tmp_path / "scenes"
+    decks.mkdir()
+    (decks / "day.yaml").write_text(
+        "id: day\n"
+        "cards:\n"
+        "  - id: c1\n"
+        "    beats:\n"
+        "      - id: b1\n"
+        "        gate:\n"
+        "          on_pass:\n"
+        "            text: 'she nods'\n"
+        "            effects:\n"
+        "              - {type: value, item_id: favor, qty: 1}\n",
+        encoding="utf-8",
+    )
+    issues = validation.validate_story(_story(tmp_path, {"decks": str(decks)}))
+    assert any(
+        "discards this row in silence" in i.message
+        for i in validation.errors_only(issues)
+    )
+
+
+def test_validator_allows_an_unconditional_gate_with_only_on_pass(tmp_path: Path) -> None:
+    """
+    The counter-control, and the reason the check above is narrow. Both deck
+    stories write ``gate:`` with ``on_pass`` alone to mean "this beat always
+    happens, and here is what it costs" -- 205 beats in the Garden. Reporting
+    those would fail ``--strict`` on a convention the engine supports, so the
+    absence of a condition is only a defect when an ``on_fail`` claims to
+    depend on one.
+    """
+    decks = tmp_path / "scenes"
+    decks.mkdir()
+    (decks / "day.yaml").write_text(
+        "id: day\n"
+        "cards:\n"
+        "  - id: c1\n"
+        "    beats:\n"
+        "      - id: b1\n"
+        "        gate:\n"
+        "          on_pass: {text: 'always, and that is the intent'}\n",
+        encoding="utf-8",
+    )
+    issues = validation.validate_story(_story(tmp_path, {"decks": str(decks)}))
+    assert not [i for i in issues if "gate has neither" in i.message]

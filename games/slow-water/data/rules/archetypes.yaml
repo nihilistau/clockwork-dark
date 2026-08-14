@@ -1,0 +1,19 @@
+# The Slow Water -- what you are.
+#
+# Found by fixed filename inside `paths.rules`. One archetype, carrying no
+# stats and no skill bonuses: this shape rolls no dice, so a bonus would
+# modify a check that never happens. In a deck story, what you ARE is
+# usually the premise, and one honest answer beats a menu.
+#
+# Version: v0.1.0
+
+default: mourner
+
+archetypes:
+  mourner:
+    name: "Hired Mourner"
+    blurb: >-
+      Paid by the day to grieve where the family would rather not be seen
+      doing it. You have done eleven of these. You are good at it, which is
+      a harder thing to admit than being bad at it would be.
+    summary: "A professional mourner. Eleven funerals, and this is the twelfth."

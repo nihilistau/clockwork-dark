@@ -1,0 +1,116 @@
+# Drafted by scripts/author.py [2026-08-15] -- review before promoting.
+# game: slow-water  kind: deck
+# brief: Draft the deck 'day_five': The river slows; the towpath becomes necessary. Use the id 'day_five'. ST
+id: day_five
+draw: 3
+cards:
+- id: towpath_mud
+  title: The Towpath Walk
+  text: The river has grown shallow and silt-heavy. You are forced off the boards of the afterdeck
+    to walk alongside the barge through thick, sucking mud. The rhythm of your footsteps matches
+    the heavy trudge of the tow-horses.
+  tags:
+  - sequence
+  beats:
+  - id: tobin_whisper
+    text: Tobin Ravel stumbles slightly in the mud, his eyes glassy from too much cheap brandy.
+      He leans toward you, close enough that you can smell the yeast on his breath.
+    band:
+      value: suspicion
+      min: 1
+      max: 5
+  - id: tobin_question
+    text: 'Tobin: ''You''ve been on this river a long time. Do you ever wonder if the water
+      remembers what it carries?'''
+    band:
+      value: composure
+      min: 1
+      max: 5
+  - id: tobin_reaction
+    text: He is looking for a reaction—a crack in your professional mask. If you show too
+      much sympathy, he may push further; if you show too little, the silence will be heavy.
+    band:
+      value: composure
+      min: 1
+      max: 5
+  - id: tobin_outcome_sympathy
+    text: You offer a soft word. He looks relieved, then immediately regrets it and turns
+      away to stare at the water.
+    band:
+      value: favor
+      min: 1
+      max: 5
+  - id: tobin_outcome_nerve
+    text: You maintain your mask. He scoffs at your coldness and continues his drunken trek.
+    band:
+      value: suspicion
+      min: 1
+      max: 5
+- id: iva_observation
+  title: Iva's Gaze
+  text: While the others focus on the mud and the horses, Iva Ravel walks with a rigid grace
+    that defies the uneven ground. She watches you as much as she watches the path ahead.
+  tags:
+  - sequence
+  beats:
+  - id: iva_confrontation
+    text: 'Iva: ''The mud is thick today. It makes it very easy for things to be buried without
+      anyone noticing the weight of them.'''
+    band:
+      value: suspicion
+      min: 1
+      max: 5
+  - id: iva_test
+    text: She is testing the limits of your discretion. She wants to know if you are a witness
+      or an accomplice.
+    band:
+      value: composure
+      min: 1
+      max: 5
+  - id: iva_outcome_persuasion
+    text: You navigate her scrutiny with practiced ease. She nods once—a gesture of professional
+      respect, or perhaps just acknowledgment of a fellow actor.
+    band:
+      value: favor
+      min: 1
+      max: 5
+  - id: iva_outcome_stealth
+    text: You say nothing. You keep your eyes on the towpath. She sees through the silence.
+    band:
+      value: suspicion
+      min: 1
+      max: 5
+- id: towpath_solitude
+  title: The Weight of the Bank
+  text: You find a moment of distance from the family, walking near the reeds where the river
+    laps against the bank.
+  tags:
+  - sequence
+  beats:
+  - id: river_sound
+    text: The sound of the water is different here—slower, more insistent. It sounds like
+      something being dragged through silt.
+    band:
+      value: composure
+      min: 1
+      max: 5
+  - id: survival_check
+    text: The ground is treacherous. You must navigate the slippery embankment to keep pace
+      with the barge.
+    band:
+      value: composure
+      min: 1
+      max: 5
+  - id: survival_outcome_easy
+    text: You find your footing easily. The river continues its slow journey.
+    band:
+      value: composure
+      min: 1
+      max: 5
+  - id: survival_outcome_hard
+    text: You slip, your hands plunging into the freezing muck. You recover quickly, but the
+      indignity lingers.
+    band:
+      value: composure
+      min: 1
+      max: 5
