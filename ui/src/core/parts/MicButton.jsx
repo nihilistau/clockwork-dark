@@ -115,6 +115,19 @@ export default function MicButton({ sessionId, disabled = false, onTranscript })
     [releaseStream]
   );
 
+  // A turn starting mid-press disables the button, and a disabled button stops
+  // receiving pointer events -- so `onPointerUp` would never fire and the
+  // recorder would run on, wedged, with the OS microphone indicator lit. The
+  // press is cancelled instead: the turn the player just triggered is the one
+  // they meant, not the sentence they were half way through saying.
+  useEffect(() => {
+    if (!disabled) return;
+    if (recorderRef.current?.state === "recording") {
+      cancelledRef.current = true;
+      recorderRef.current.stop();
+    }
+  }, [disabled]);
+
   const send = useCallback(
     async (blob) => {
       const controller = new AbortController();

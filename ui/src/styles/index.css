@@ -980,9 +980,16 @@ input[type="radio"] {
 
 .mic__note {
   flex-basis: 100%;
-  min-height: 0;
   color: var(--text-muted);
   font-size: var(--text-sm);
+}
+
+
+/* Stays mounted so a screen reader has a live region to announce into, but
+   takes no row in the flex layout while it has nothing to say. */
+
+.mic__note:empty {
+  display: none;
 }
 
 
