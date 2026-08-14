@@ -54,6 +54,7 @@ import yaml
 
 from engine.game import effects as effects_module
 from engine.game.state import GameState
+from engine.state.schema import VISIBILITY_VEILED, ValueSpec
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,13 @@ class EligibilityReport:
     eligible: list[str] = field(default_factory=list)
     #: id -> the clauses that failed, in the order the story declared them.
     locked: dict[str, list[str]] = field(default_factory=dict)
+    #: Ids whose ``completable`` half failed -- not "you have not earned it"
+    #: but "something still live makes it impossible". Kept apart from
+    #: ``locked`` because the two are different problems with different
+    #: remaining moves, and a gallery draws them as different tiers: a locked
+    #: ending is still open, an unreachable one is an outline. The reasons for
+    #: both are in ``locked``; this is only which KIND of failure it was.
+    unreachable: list[str] = field(default_factory=list)
     #: id -> 0.0-1.0. Computed for EVERY declared ending, eligible or not --
     #: the whole point of a continuous score is to foreshadow what is not yet
     #: available.
@@ -100,6 +108,7 @@ class EligibilityReport:
         return {
             "eligible": list(self.eligible),
             "locked": {k: list(v) for k, v in self.locked.items()},
+            "unreachable": list(self.unreachable),
             "scores": dict(self.scores),
             "fail_forward": self.fail_forward,
             "forced": self.forced,
@@ -173,6 +182,12 @@ def declared() -> dict[str, Any]:
             out[str(variant_id)] = {
                 "class": str(class_id),
                 "label": variant.get("label") or body.get("label") or str(variant_id),
+                # One line of prose about the SHAPE of the ending, shown even
+                # for one the player cannot reach -- the outline is allowed to
+                # be evocative, the title is not. Optional: a story that writes
+                # none simply has none, and the client says nothing rather than
+                # inventing a tease the author did not write.
+                "tease": str(variant.get("tease") or body.get("tease") or ""),
                 "requires": _merge_conditions(body.get("requires"), variant.get("requires")),
                 "completable": _merge_conditions(
                     body.get("completable"), variant.get("completable")
@@ -221,15 +236,36 @@ def _clause_list(condition: Any) -> list[Any]:
     predicate that fails is one. Anything else is reported whole, because
     decomposing an ``any`` into reasons would produce a lock message that lists
     alternatives the player only needed one of.
+
+    NESTED ``all`` IS FLATTENED, and it has to be. ``_merge_conditions`` builds
+    a variant's gate as ``{all: [<the class's own all>, <the variant's own
+    all>]}``, so a one-level split handed back two clauses that were each a
+    whole tree with no ``id`` on it -- which meant `lock_reasons` could not
+    match and every variant's lock text fell through to a rendered Python dict.
+    The story had written the prose; nothing could find it.
     """
     if condition is None:
         return []
+
+    # A bare list is an implicit `all`, which is how the shared condition
+    # grammar already reads one.
     if isinstance(condition, list):
-        return list(condition)
-    if isinstance(condition, dict) and "all" in condition and len(condition) == 1:
-        raw = condition["all"]
-        return list(raw) if isinstance(raw, list) else [raw]
-    return [condition]
+        raw: list[Any] = list(condition)
+    elif isinstance(condition, dict) and "all" in condition and len(condition) == 1:
+        inner = condition["all"]
+        raw = list(inner) if isinstance(inner, list) else [inner]
+    else:
+        return [condition]
+
+    out: list[Any] = []
+    for clause in raw:
+        # A named `all` is a clause the story chose to speak about as one
+        # thing, so it is reported whole rather than taken apart.
+        if isinstance(clause, dict) and clause.get("id"):
+            out.append(clause)
+        else:
+            out.extend(_clause_list(clause))
+    return out
 
 
 def _reasons(
@@ -364,6 +400,7 @@ def eligible(
         if not gate_ok:
             reasons += _reasons(state, body.get("requires"), labels, ledger)
         if not done_ok:
+            report.unreachable.append(ending_id)
             # Distinguished in the text, because "you have not earned it" and
             # "something in the way" are different problems with different
             # remaining moves.
@@ -375,12 +412,18 @@ def eligible(
 
     # Stable order, so the mirror pool lays the cards out the same way twice.
     report.eligible.sort()
+    report.unreachable.sort()
 
     if report.fail_forward and report.fail_forward not in report.eligible:
         # Its own gate did not pass, so it is here purely by declaration. That
         # is the point: it is the ending that is always available.
         report.eligible.append(report.fail_forward)
         report.locked.pop(report.fail_forward, None)
+        # It is eligible, so it is neither locked NOR out of reach. Leaving it
+        # in `unreachable` would draw the one ending that is always available
+        # as the outline of a thing you cannot have.
+        if report.fail_forward in report.unreachable:
+            report.unreachable.remove(report.fail_forward)
         logger.info(
             "[endings] Fail-forward added by declaration "
             "(operation=eligible, fail_forward=%s)",
@@ -400,6 +443,121 @@ def eligible(
         )
 
     return report
+
+
+# ---------------------------------------------------------------------------
+# Projection for the browser
+# ---------------------------------------------------------------------------
+
+#: The closeness score, projected the way a VEILED meter is projected.
+#:
+#: `score:` is a continuous 0-1 written for foreshadowing, and shipping the
+#: float would hand the player a dial to optimise against -- the same defect the
+#: veiled-meter rule exists to prevent, arriving through a different key. So it
+#: crosses the wire as one of the SAME five band words, produced by the SAME
+#: code, and there is no number on the client to back-compute a width from.
+_CLOSENESS = ValueSpec(
+    name="closeness",
+    minimum=0.0,
+    maximum=1.0,
+    visibility=VISIBILITY_VEILED,
+)
+
+#: What a gallery draws each ending as.
+TIER_UNLOCKED = "unlocked"
+TIER_LOCKED = "locked"
+TIER_SILHOUETTE = "silhouette"
+
+
+def _gates(state: GameState, condition: Any, ledger: Optional[Any]) -> list[str]:
+    """
+    The failed clauses rendered as the engine's own condition, unlabelled.
+
+    The twin of ``_reasons``: that one answers "what does the story say is in
+    your way", this one answers "what does the machine actually test". They are
+    separate because a client shows the first to everybody and the second only
+    to a player who asked for the numbers.
+    """
+    from engine.game.quests import evaluate_condition
+
+    return [
+        _describe(clause)
+        for clause in _clause_list(condition)
+        if not evaluate_condition(state, clause, ledger=ledger)
+    ]
+
+
+def to_client(
+    state: GameState,
+    *,
+    ledger: Optional[Any] = None,
+) -> dict[str, Any]:
+    """
+    The finale, projected for the browser. Reads; writes nothing.
+
+    Empty for a story that declares no endings table, which is what makes this
+    safe to call unconditionally from serialization: the payload simply does not
+    grow the key, and a client keyed off its presence shows nothing rather than
+    an empty screen.
+
+    WHAT IS DELIBERATELY WITHHELD. An ending nothing can reach from here ships
+    its shape and its tease and NOT its title -- a silhouette that carries the
+    name of the thing it is a silhouette of is not a silhouette. And no ending
+    ships its score as a number; see ``_CLOSENESS``.
+
+    Returns:
+        ``{}``, or a block with ``fail_forward``, ``forced``, ``intent``,
+        ``locked``, ``settled`` and a ``gallery`` list of
+        ``{id, tier, tease, lock_reason, gate, closeness}`` (plus ``title``
+        for anything not a silhouette), in declared order.
+    """
+    table = declared()
+    if not table:
+        return {}
+
+    report = eligible(state, ledger=ledger)
+    unreachable = set(report.unreachable)
+    open_set = set(report.eligible)
+
+    gallery: list[dict[str, Any]] = []
+    for ending_id, body in table.items():
+        if ending_id in open_set:
+            tier = TIER_UNLOCKED
+        elif ending_id in unreachable:
+            tier = TIER_SILHOUETTE
+        else:
+            tier = TIER_LOCKED
+
+        row: dict[str, Any] = {
+            "id": ending_id,
+            "tier": tier,
+            "closeness": _CLOSENESS.band(report.scores.get(ending_id, 0.0)),
+        }
+        if tier != TIER_SILHOUETTE:
+            row["title"] = str(body.get("label") or ending_id)
+        if body.get("tease"):
+            row["tease"] = str(body["tease"])
+        if tier != TIER_UNLOCKED:
+            reasons = report.locked.get(ending_id) or []
+            row["lock_reason"] = "; ".join(reasons)
+            gate = _gates(state, body.get("requires"), ledger) + _gates(
+                state, body.get("completable"), ledger
+            )
+            row["gate"] = " and ".join(gate)
+        gallery.append(row)
+
+    committed = locked(state)
+    return {
+        "fail_forward": report.fail_forward,
+        "forced": report.forced,
+        "intent": intent(state),
+        "locked": committed,
+        # Whether the run's ending is still a question. A client offers "swear
+        # toward this" against THIS and not against a day number, because the
+        # engine is the only thing that knows the finale has already committed.
+        "settled": committed != NONE_ID,
+        "gallery": gallery,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -694,6 +852,9 @@ __all__ = [
     "REASON_FAIL_FORWARD",
     "TRACK_ELIGIBLE",
     "TRACK_INTENT",
+    "TIER_LOCKED",
+    "TIER_SILHOUETTE",
+    "TIER_UNLOCKED",
     "TRACK_LOCKED",
     "TRACK_MODULE",
     "TRACK_SCORES",
@@ -711,4 +872,5 @@ __all__ = [
     "resolve",
     "run_module",
     "set_intent",
+    "to_client",
 ]

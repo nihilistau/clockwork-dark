@@ -195,6 +195,19 @@ def load_rules() -> dict[str, Any]:
     return _read_table(str(path), mtime)
 
 
+def is_declared() -> bool:
+    """
+    Whether this story has a bargain system AT ALL.
+
+    Distinct from "the player currently owes nobody anything", and the
+    distinction is the whole of how a client knows not to draw a contracts
+    screen: a story with no threads table gets no block in the payload and
+    therefore no permanently empty modal, while a story that ships one gets the
+    block on day one with nothing in it yet, which is a real empty state.
+    """
+    return bool(load_rules())
+
+
 def templates() -> dict[str, Any]:
     return load_rules().get("templates") or {}
 
@@ -723,6 +736,11 @@ def summary(state: GameState) -> list[dict[str, Any]]:
             "terms": t.get("terms"),
             "due_day": t.get("due_day"),
             "can_cut_with": list(t.get("can_cut_with") or []),
+            # What the seal actually WAS. A contract that says only "sealed"
+            # loses the one detail this story's bargains turn on -- a word said
+            # aloud and a coin halved are different promises, and a screen that
+            # renders the scroll has to be able to say which one this is.
+            "sealed_by": t.get("sealed_by") or "",
         }
         for t in active(state)
     ]
@@ -1146,6 +1164,7 @@ __all__ = [
     "discharge",
     "expire_due",
     "get",
+    "is_declared",
     "item_threads",
     "load_rules",
     "offer",

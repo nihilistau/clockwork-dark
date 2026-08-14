@@ -373,7 +373,9 @@ class GameState:
         The hand-written keys below are The Clockwork Dark's contract and stay
         exactly as they are -- the sheet, the reducer and a dozen components
         read them by name. Everything a STORY declares arrives under ``meters``
-        instead, projected from its schema.
+        instead, projected from its schema, and the two systems that cannot be
+        said as a number arrive beside it under ``threads`` and ``endings`` --
+        see ``_structural_block``.
 
         Why both: this allowlist was one of three independent hardcoded payload
         contracts (here, the ``turn_update`` literal, and the reducer's own
@@ -385,6 +387,7 @@ class GameState:
         """
         return {
             **self._declared_client_values(),
+            **self._structural_block(),
             "session_id": self.session_id,
             "player_name": self.player_name,
             "archetype": self.archetype,
@@ -457,6 +460,56 @@ class GameState:
             return {}
 
         return {"meters": declared} if declared else {}
+
+    def _structural_block(self) -> dict[str, Any]:
+        """
+        The structural systems the story DECLARES, projected for the browser.
+
+        ``meters`` covers everything a story can express as a number with
+        bounds. Two of its systems cannot be said that way at all: a thread is a
+        contract with terms and a due day, and ending eligibility is a list of
+        ids with a reason attached to each. ``StateStore.get`` returns a float,
+        so neither was projectable through the schema and neither reached the
+        client -- which is why two finished screens sat unreachable for months
+        with the data for both sitting in ``GameState``.
+
+        DECLARATION IS THE SWITCH, not a slug. A key appears here only when the
+        story declares the system that fills it (``paths.threads``,
+        ``paths.endings``), so a story that ships neither gets a payload
+        identical to the one it got before this method existed, and a client
+        keyed off the key's PRESENCE draws no screen for a system the story does
+        not have. A story that declares threads and owes nobody anything yet
+        gets ``[]``, which is a real empty state and a different thing.
+
+        THE VEILED RULE TRAVELS WITH THE DATA. An ending's continuous 0-1 score
+        is projected as a band word by the same code that bands a veiled meter,
+        and a silhouette's title never leaves the server -- see
+        ``engine/game/endings.py::to_client``.
+
+        Never raises, for the same reason ``_carry_block`` does not: an ending
+        table with a malformed gate must cost the player a panel, not the turn
+        they just played.
+        """
+        out: dict[str, Any] = {}
+
+        try:
+            from engine.game import threads as threads_module
+
+            if threads_module.is_declared():
+                out["threads"] = threads_module.summary(self)
+        except Exception:  # noqa: BLE001 -- see docstring
+            pass
+
+        try:
+            from engine.game import endings as endings_module
+
+            finale = endings_module.to_client(self)
+            if finale:
+                out["endings"] = finale
+        except Exception:  # noqa: BLE001 -- see docstring
+            pass
+
+        return out
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> GameState:

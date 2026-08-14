@@ -1233,3 +1233,172 @@ def test_a_beat_may_read_a_live_thread(garden: GameState) -> None:
 
     threads.accept_gift(garden, "living_silk", from_id="sophia")
     assert deck_module.resolve_beat(garden, beat).passed is True
+
+
+# ---------------------------------------------------------------------------
+# The payload
+#
+# `meters` covers everything a story can say as a number with bounds. Threads
+# and ending eligibility cannot be said that way -- `StateStore.get` returns a
+# float, and one of these is a contract while the other is a list of ids -- so
+# both stopped at the server, with two finished screens waiting on them. These
+# are the properties that make the new block safe: declaration is the switch,
+# and the veiled rule travels with the data.
+# ---------------------------------------------------------------------------
+
+
+def test_a_story_declaring_neither_system_gets_neither_key(
+    story_declaring_nothing: str,
+) -> None:
+    """
+    Silence, not an empty screen.
+
+    The key's PRESENCE is what a client keys its overlay off, so a story with no
+    bargains and no finale must not grow one -- that is the difference between
+    "this story has none of that" and "this story has one and it is empty".
+    """
+    payload = GameState().to_client_dict()
+    assert "threads" not in payload
+    assert "endings" not in payload
+
+
+def test_declaring_threads_serves_the_block_before_anything_is_owed(
+    garden: GameState,
+) -> None:
+    """An empty list is a real empty state, and a different thing from absence."""
+    assert garden.to_client_dict()["threads"] == []
+
+
+def test_a_sealed_thread_reaches_the_browser(garden: GameState) -> None:
+    threads.accept_gift(garden, "living_silk", from_id="sophia")
+    served = garden.to_client_dict()["threads"]
+    assert len(served) == 1
+    assert served[0]["id"]
+    assert served[0]["terms"]
+    # Effect hooks are the engine's business and must not ride out with it.
+    assert "on_break" not in served[0]
+    assert "on_discharge" not in served[0]
+
+
+def test_a_discharged_thread_leaves_the_payload(garden: GameState) -> None:
+    """The scroll is the LIVE hand, not a history of everything ever signed."""
+    threads.accept_gift(garden, "living_silk", from_id="sophia")
+    thread_id = garden.to_client_dict()["threads"][0]["id"]
+    threads.discharge(garden, thread_id, why="paid")
+    assert garden.to_client_dict()["threads"] == []
+
+
+def test_the_finale_block_carries_every_declared_ending(garden: GameState) -> None:
+    served = garden.to_client_dict()["endings"]
+    assert {row["id"] for row in served["gallery"]} == set(endings.declared())
+    assert served["fail_forward"] == endings.fail_forward_id()
+    assert served["settled"] is False
+
+
+def test_the_fail_forward_is_never_drawn_as_out_of_reach(garden: GameState) -> None:
+    """
+    It is the ending that is always available, by declaration. Drawing it as a
+    silhouette would tell the player the one door that cannot close is closed.
+    """
+    served = garden.to_client_dict()["endings"]
+    row = next(r for r in served["gallery"] if r["id"] == served["fail_forward"])
+    assert row["tier"] == endings.TIER_UNLOCKED
+
+
+def test_no_ending_ships_its_score_as_a_number(garden: GameState) -> None:
+    """
+    The veiled rule, arriving through a different key.
+
+    `score:` is a continuous 0-1 written for foreshadowing. Shipping the float
+    hands the player a dial to optimise against, which is the exact defect the
+    veiled-meter rule exists to prevent -- so it crosses as one of the same five
+    band words, and there is no number on the client to back-compute from.
+    """
+    from engine.state.schema import VEILED_BANDS
+
+    served = garden.to_client_dict()["endings"]
+    assert "scores" not in served
+    for row in served["gallery"]:
+        assert row["closeness"] in VEILED_BANDS
+        assert "score" not in row
+
+
+def test_a_silhouette_withholds_its_title(garden: GameState) -> None:
+    """
+    A silhouette carrying the name of the thing it is a silhouette of is not
+    one. The server withholds it; the client is not trusted to.
+    """
+    # Fill the roots. `completable: {none: [{clock: {name: briar_hunger,
+    # full: true}}]}` is what makes the door home impossible rather than
+    # unearned, which is the distinction the tier draws.
+    _set(garden, "briar_hunger", 5)
+    gallery = garden.to_client_dict()["endings"]["gallery"]
+    silhouettes = [r for r in gallery if r["tier"] == endings.TIER_SILHOUETTE]
+    assert silhouettes, "nothing was made unreachable; the assertion below is vacuous"
+    for row in gallery:
+        assert ("title" in row) is (row["tier"] != endings.TIER_SILHOUETTE)
+
+
+def test_locked_and_out_of_reach_are_different_tiers(garden: GameState) -> None:
+    """
+    `requires` and `completable` are separate on purpose, and the payload keeps
+    them separate: "you have not earned it" and "something is in the way" are
+    different problems with different remaining moves.
+    """
+    report = endings.eligible(garden)
+    gallery = {r["id"]: r for r in garden.to_client_dict()["endings"]["gallery"]}
+    for ending_id in report.unreachable:
+        assert gallery[ending_id]["tier"] == endings.TIER_SILHOUETTE
+    for ending_id in report.eligible:
+        assert gallery[ending_id]["tier"] == endings.TIER_UNLOCKED
+
+
+def test_a_variants_lock_text_is_the_prose_its_story_wrote(garden: GameState) -> None:
+    """
+    `_merge_conditions` nests one `all` inside another, and a one-level split
+    handed back trees with no `id` on them -- so `lock_reasons` could not match
+    and every variant's lock text rendered as a Python dict. The story had
+    written the prose; nothing could find it.
+    """
+    gallery = garden.to_client_dict()["endings"]["gallery"]
+    row = next(r for r in gallery if r["id"] == "E1a")
+    assert "You do not know the shape of the door." in row["lock_reason"]
+
+
+def test_the_gate_string_is_the_engines_own_condition(garden: GameState) -> None:
+    """
+    Separate from the lock reason on purpose: a story author writes the reason,
+    the gate is what the machine tests, and only a player who asked sees it.
+    """
+    gallery = garden.to_client_dict()["endings"]["gallery"]
+    locked_rows = [r for r in gallery if r["tier"] != endings.TIER_UNLOCKED]
+    assert locked_rows
+    assert any(r.get("gate") for r in locked_rows)
+    for row in gallery:
+        if row["tier"] == endings.TIER_UNLOCKED:
+            assert "gate" not in row
+
+
+def test_serving_the_finale_writes_nothing(garden: GameState) -> None:
+    """
+    `to_client_dict` is serialization. `recompute` is the writer and this is its
+    read-only twin -- a payload build that quietly committed eligibility would
+    make every screen refresh a state change.
+    """
+    before = garden.to_save_dict()
+    garden.to_client_dict()
+    assert garden.to_save_dict() == before
+
+
+def test_a_broken_ending_table_costs_a_panel_and_not_the_turn(
+    garden: GameState, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same contract `_carry_block` holds: never raise inside a payload."""
+
+    def boom(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("a gate the story got wrong")
+
+    monkeypatch.setattr(endings, "to_client", boom)
+    payload = garden.to_client_dict()
+    assert "endings" not in payload
+    assert payload["session_id"] == garden.session_id
