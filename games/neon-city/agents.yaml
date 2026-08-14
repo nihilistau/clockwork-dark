@@ -1,0 +1,120 @@
+# NEON CITY: THE CROSSING -- the cast that narrates it.
+#
+# Three agents; two of them are pipeline participants, which is the switch
+# that turns on the multi-agent turn (MIN_AGENTS = 2 in
+# engine/agents/pipeline.py): plan -> negotiate -> commit, one extra model
+# call per turn, spent on the one relationship this story cannot fake --
+# the world and the signal disagreeing about what you should know.
+#
+# WHO IS NOT HERE, AND WHY. Mira Vex was the obvious companion, and she is
+# deliberately NOT an agent: she is a scheduled vendor (npc_schedules.yaml),
+# and dev-story's bench documents exactly what promoting a scheduled body to
+# an agent produces -- two of her, and the simulated one wins any question
+# about where she is. The companion slot is THE LINE instead: the Grid's
+# earpiece channel, a voice with no body anywhere on the map, which is the
+# only kind of character the companion shape can carry without duplication.
+#
+# Version: v0.1.0 [2026-08-14]
+
+agents:
+  # -------------------------------------------------------------------------
+  # The world. The Sprawl, the weather, the prices, every scheduled soul,
+  # and the enormous patient indifference under the Shadow zone.
+  # -------------------------------------------------------------------------
+  gm:
+    role: world
+    profile: big
+    prompt: prompts/storyteller.md
+
+    voices:
+      - narration
+      - mira_vex
+      - lyra_vance
+      - ivo_dane
+      - grease
+      - dr_sable
+      - rho
+      - dita_halvorsen
+      - frankie
+      - ines_barbosa
+      - wren_solis
+      - the_archivist
+      - epilogue_card_m
+      - epilogue_card_g
+
+    # The world knows what is behind the header stamp.
+    reads:
+      - gm_secrets
+
+    # The count noticing you is the world's call to make. Heat's declared
+    # owner in state.yaml; the grant here folds into the schema at load.
+    writes:
+      - heat
+
+  # -------------------------------------------------------------------------
+  # 0xGH0ST. A signal, not a person: heard, never met, never explained.
+  #
+  # `reads` grants NOTHING beyond public_world, and that absence is the
+  # design (BIBLE.md appendix 7): canon tags its events Ghost_Net but never
+  # confirms the relationship, and the bible forbids resolving it. An agent
+  # that could read gm_secrets would KNOW whether it wants you to reach the
+  # core or to run -- and then so would the model, and then so would you.
+  # Its ignorance is load-bearing. Do not grant it.
+  # -------------------------------------------------------------------------
+  ghost:
+    role: character
+    profile: big
+    prompt: prompts/ghost.md
+
+    voices:
+      - ghost
+
+    # Its attention has a price, canon heat_impact +0 to +8 -- and only
+    # ever with the reason journalled beside the number. It may warn you
+    # AND cost you in the same breath; the journal is what keeps that
+    # honest.
+    writes_with_reason:
+      - heat
+
+  # -------------------------------------------------------------------------
+  # The Line. The Grid's earpiece: whoever is on shift at the counter end
+  # -- Mira's cadence some nights, Lyra's arithmetic others, never a body.
+  # A voice at your shoulder, not a hand on the state: it speaks after the
+  # narrator has committed, proposes nothing, negotiates nothing.
+  # -------------------------------------------------------------------------
+  the_line:
+    role: companion
+    profile: small
+    prompt: prompts/the_line.md
+    pipeline: false
+
+    voices:
+      - line_whisper
+
+# ---------------------------------------------------------------------------
+# How the two participants' proposals reconcile. First match wins.
+# ---------------------------------------------------------------------------
+negotiation:
+  # The broadcast never leads. 0xGH0ST is always slightly ahead of you and
+  # never in front of you: when it tries to talk over the world, the world
+  # keeps the lead and the message lands as the thing your dead phone does
+  # AFTER the street has finished happening.
+  - name: the_broadcast_never_leads
+    when:
+      gm: narrate
+      ghost: interrupt
+    winner: gm
+    keep_loser_beat: true
+    detail: the signal arrives as aftermath; it is always slightly ahead of you, never in front
+
+  # And the world never censors it. When the signal has traffic and the
+  # world would rather set scenery, the message lands first and the scenery
+  # becomes what the message was ahead of. Nobody has ever kept 0xGH0ST off
+  # a screen it wanted.
+  - name: nobody_keeps_it_off_a_screen
+    when:
+      ghost: speak
+      gm: interrupt
+    winner: ghost
+    keep_loser_beat: true
+    detail: no one has ever kept 0xGH0ST off a screen it wanted; the world's beat becomes its backdrop

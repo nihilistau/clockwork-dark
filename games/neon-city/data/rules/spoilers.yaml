@@ -1,0 +1,32 @@
+# NEON CITY: THE CROSSING -- what the narration may not name yet.
+#
+# Found by fixed filename inside `paths.rules`; read by
+# engine/lore/interceptors.py. Below `awareness.spoiler_gate_threshold` each
+# `term` is rewritten to `instead`, in both directions. Above the threshold,
+# nothing is touched.
+#
+# The masked vocabulary is the story's spine: Cathedral, Intake, Floor 87,
+# and what the count actually is. Awareness is earned on the Uptown and
+# Shadow edges and through the_file arc; the arc's fourth quest is where the
+# real words are paid for.
+#
+# Version: v0.1.0 [2026-08-14]
+
+spoilers:
+  - term: "Cathedral"
+    instead: "whatever the header stamp answers to"
+
+  - term: "Intake"
+    instead: "wherever the feeds drain to"
+
+  - term: "Floor 87"
+    instead: "a floor the lift directory does not list"
+
+  - term: "the count"
+    instead: "the thing that filed you"
+
+  - term: "the Core Hall"
+    instead: "whatever is under the Shadow zone"
+
+  - term: "a render"
+    instead: "the recording, if that is what it is"
