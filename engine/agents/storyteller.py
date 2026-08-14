@@ -482,6 +482,7 @@ class StorytellerAgent:
                     on_delta(text)
             return Generation(raw=raw, complete=True, finish_reason="stop")
 
+        from engine.game.intents import legal_intents
         from engine.lmstudio.backend import get_backend
         from engine.lmstudio.schemas import storyteller_turn_schema
         from engine.memory.context import present_npc_ids
@@ -489,7 +490,14 @@ class StorytellerAgent:
         backend = self._client or get_backend()
         # The schema this path built and then never sent. `structured_output`
         # decides whether it actually goes on the wire.
-        schema = storyteller_turn_schema(npc_ids=present_npc_ids(self.engine.state))
+        #
+        # `intents` is what lets a choice carry a mechanic. Built from the LIVE
+        # state on every attempt, so a retry after the world moved cannot offer
+        # a road that has since closed.
+        schema = storyteller_turn_schema(
+            npc_ids=present_npc_ids(self.engine.state),
+            intents=legal_intents(self.engine.state),
+        )
         response_format = backend.structured_output(schema)
 
         self.last_reasoning = ""
@@ -751,6 +759,7 @@ class StorytellerAgent:
         *,
         on_delta: Optional[Callable[[str], None]] = None,
         agreed_block: str = "",
+        intent_receipts: Optional[list[dict[str, Any]]] = None,
     ) -> StorytellerTurnResult:
         """
         Execute one Storyteller turn with tools and evaluator retry.
@@ -759,6 +768,14 @@ class StorytellerAgent:
             player_action: Player choice or free-text action.
             on_delta: Called with narration text as it streams. This is what
                 puts words on screen during generation instead of after it.
+            intent_receipts: What the engine already resolved for this turn --
+                the structured intent the player's chosen option declared, run
+                before a word was written. These go into the MECHANICAL
+                RESULTS block of the FIRST prompt, not just a retry's, which is
+                the whole point: the narrator is told the outcome and asked to
+                render it, so "never invent a dice result" is achievable rather
+                than merely demanded. Empty when the choice carried no
+                mechanic, which is the ordinary case for pure conversation.
             agreed_block: What the multi-agent negotiation already settled, if
                 this story runs one. The narrator REPORTS this rather than
                 re-deciding it -- the point of planning before narrating is
@@ -774,7 +791,12 @@ class StorytellerAgent:
         raw = ""
         rejected_draft = ""
         parsed: dict[str, Any] = {}
-        tool_receipts: list[dict[str, Any]] = []
+        # Already applied to the world before this method was entered. They are
+        # carried through every retry unchanged and are NOT inside the
+        # transaction below: a rejected draft must not un-walk a walk the
+        # player actually took.
+        resolved: list[dict[str, Any]] = list(intent_receipts or [])
+        tool_receipts: list[dict[str, Any]] = list(resolved)
         processed_tags: dict[str, list[str]] = {}
         self._lore_chunks = []
         evaluation = EvaluationResult(
@@ -812,7 +834,14 @@ class StorytellerAgent:
             messages = self._build_messages(
                 player_action,
                 retry_notes=retry_notes if retries else None,
-                receipts=tool_receipts if retries else None,
+                # The engine's own resolutions go in on the FIRST attempt.
+                # `receipts=... if retries else None` was correct while the
+                # only receipts were the model's own tool calls, which by
+                # definition did not exist yet -- but the intent the player
+                # chose was resolved before this loop started, and withholding
+                # it would leave the narrator guessing at an outcome it is
+                # forbidden to invent.
+                receipts=tool_receipts if (retries or resolved) else None,
                 rejected_draft=rejected_draft,
                 agreed_block=agreed_block,
             )
@@ -833,7 +862,7 @@ class StorytellerAgent:
 
             raw = generation.raw
             parsed = parse_storyteller_response(raw)
-            tool_receipts = execute_tool_calls(
+            tool_receipts = resolved + execute_tool_calls(
                 parsed.get("tool_calls", []),
                 self.engine,
             )
@@ -969,7 +998,13 @@ class StorytellerAgent:
                 # handed the in-fiction interruption -- never the content, and
                 # never a refusal string.
                 tx.rollback()
-                tool_receipts = []
+                # The DRAFT's effects go with the draft. What the player's own
+                # chosen intent already resolved does not: it was applied
+                # before this method was entered and before any prose existed,
+                # so it is outside the transaction by construction, and
+                # dropping its receipt would leave the payload claiming a move
+                # the state has already taken.
+                tool_receipts = list(resolved)
                 parsed["narration"] = verdict.fallback
                 safety_dict = verdict.to_dict()
                 logger.info(

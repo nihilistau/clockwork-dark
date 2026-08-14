@@ -251,13 +251,32 @@ def opening_narration() -> str:
     return str(_declared_entry_opening().get("narration") or "")
 
 
-def opening_choices() -> list[dict[str, str]]:
+def opening_choices() -> list[dict[str, Any]]:
+    """
+    The options the very first frame offers, as the manifest declares them.
+
+    An opening choice may declare an ``intent`` exactly as a narrated one does,
+    and the flagship's first option -- "Follow the smoke toward Edgewood" --
+    is the reason. It was the choice in the original bug report: the model
+    narrated the walk, the engine was never asked, and the save read
+    ``forest_clearing`` afterwards. The opening is written by an author rather
+    than sampled from a grammar, so nothing constrains it here; `execute_intent`
+    re-checks it against the live graph like any other, and an author who
+    mistypes a destination gets a refusal in the log rather than a phantom walk.
+    """
     rows = _declared_entry_opening().get("choices") or []
-    return [
-        {"id": str(c.get("id") or ""), "text": str(c.get("text") or "")}
-        for c in rows
-        if isinstance(c, dict) and c.get("text")
-    ]
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict) or not row.get("text"):
+            continue
+        choice: dict[str, Any] = {
+            "id": str(row.get("id") or ""),
+            "text": str(row.get("text") or ""),
+        }
+        if isinstance(row.get("intent"), dict):
+            choice["intent"] = dict(row["intent"])
+        out.append(choice)
+    return out
 
 
 def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
@@ -287,7 +306,7 @@ def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
             "while you were away, and neither has anything else."
         )
 
-    choices: list[dict[str, str]] = [
+    choices: list[dict[str, Any]] = [
         {"id": "resume_look", "text": "Take stock of where you are"},
     ]
     try:
@@ -296,7 +315,18 @@ def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
         row = LOCATIONS.get(state.location_id) or {}
         for other in list((row.get("connections") or {}))[:2]:
             name = str((LOCATIONS.get(str(other)) or {}).get("name") or other)
-            choices.append({"id": f"resume_go_{other}", "text": f"Set out for {name}"})
+            choices.append(
+                {
+                    "id": f"resume_go_{other}",
+                    "text": f"Set out for {name}",
+                    # The intent is what makes this option a road rather than a
+                    # sentence. Without it a reloaded run offered "Set out for
+                    # Edgewood Square" and going nowhere was the only thing it
+                    # could do -- the same defect the whole mechanism exists to
+                    # close, rebuilt on the resume path where nobody would look.
+                    "intent": {"action": "travel", "target": str(other)},
+                }
+            )
     except Exception as exc:  # noqa: BLE001 — a missing road must not cost the resume
         logger.debug("[default_state] No roads for resume choices: %s", exc)
     choices.append({"id": "resume_wait", "text": "Wait, and listen"})
@@ -356,6 +386,14 @@ class DefaultSessionStore(EngineSessionStore):
 SessionStore = DefaultSessionStore
 
 
+def _chosen(session: GameSession, choice_id: str) -> dict[str, Any]:
+    """The option the player picked, out of the turn they picked it from."""
+    for choice in session.last_turn.get("choices", []) or []:
+        if isinstance(choice, dict) and choice.get("id") == choice_id:
+            return choice
+    return {}
+
+
 def resolve_player_action(
     session: GameSession,
     choice_id: str,
@@ -365,11 +403,49 @@ def resolve_player_action(
     if custom_text and custom_text.strip():
         return custom_text.strip()
 
-    choices = session.last_turn.get("choices", [])
-    for choice in choices:
-        if choice.get("id") == choice_id:
-            return f"The player chooses: {choice.get('text', choice_id)}"
+    choice = _chosen(session, choice_id)
+    if choice:
+        return f"The player chooses: {choice.get('text', choice_id)}"
     return f"The player chooses option {choice_id}"
+
+
+def resolve_player_intent(
+    session: GameSession,
+    choice_id: str,
+    custom_text: Optional[str] = None,
+) -> dict[str, Any]:
+    """
+    The mechanic the chosen option declared, if it declared one.
+
+    THIS IS THE MISSING HALF OF ``resolve_player_action``. That function turns a
+    choice into a SENTENCE, and for the whole life of the project a sentence was
+    all a choice ever became -- ``f"The player chooses: {text}"`` went to the
+    narrator and nothing went to the engine. The model then wrote the player
+    walking into Edgewood while the save still said ``forest_clearing``, because
+    the only channel that could have moved them (a ``tool_calls`` array) is
+    forbidden by the turn grammar and has been since structured output landed.
+
+    A choice now carries an ``intent`` (see ``engine/game/intents.py``), and
+    ``run_turn`` executes it through the ordinary skills before a word of the
+    next beat is written.
+
+    Args:
+        session: Active session, whose ``last_turn`` holds the options the
+            player was actually shown.
+        choice_id: The option they picked.
+        custom_text: Free text, if they typed instead of picking. Typed input
+            declares no intent by definition -- nobody wrote an option for it,
+            so there is nothing pre-authorised to run.
+
+    Returns:
+        The intent object, or ``{}``. Empty is the ordinary case: an option
+        that is pure conversation stays pure, and a model or a save that
+        carries no intent at all degrades to exactly the old behaviour.
+    """
+    if custom_text and custom_text.strip():
+        return {}
+    intent = _chosen(session, choice_id).get("intent")
+    return intent if isinstance(intent, dict) else {}
 
 
 def _evaluate_quests(session: GameSession) -> list[dict[str, Any]]:
@@ -585,6 +661,7 @@ def run_turn(
     session: GameSession,
     player_action: str,
     *,
+    intent: Optional[dict[str, Any]] = None,
     emit_callback: Optional[Callable[[str, dict[str, Any]], None]] = None,
 ) -> dict[str, Any]:
     """
@@ -593,6 +670,11 @@ def run_turn(
     Args:
         session: Active game session.
         player_action: Resolved player action text.
+        intent: The mechanic the chosen option declared, from
+            ``resolve_player_intent``. Executed by the ENGINE below, before
+            anything plans or narrates. Optional throughout: a caller that
+            passes none, a model that declares none and a save written before
+            intents existed all take the path the turn took before.
         emit_callback: Optional (event_name, payload) emitter for Socket.IO.
 
     Returns:
@@ -622,6 +704,29 @@ def run_turn(
         tick_hours = WorldSim.realtime_tick_hours(state.last_sim_tick_at)
         if tick_hours > 0:
             WorldSim.on_tick(state, hours=tick_hours)
+
+        # THE PLAYER'S CHOICE, RESOLVED BY THE ENGINE.
+        #
+        # This is the line the game did not have. A choice was a sentence handed
+        # to a narrator; the world it described was never asked to change, and
+        # the only channel that could have changed it -- a `tool_calls` array --
+        # is unsamplable under the turn grammar.
+        #
+        # It runs HERE, after the background tick and before anything plans or
+        # writes, for three reasons. The agents must negotiate against the state
+        # the player's action produced rather than the one it replaced. The
+        # narrator must be told the outcome instead of inventing it. And it must
+        # be outside the narration transaction, so a draft the evaluator rejects
+        # cannot un-walk a walk that was really taken.
+        #
+        # Legality is re-checked inside `execute_intent` against the live state,
+        # so an intent that has gone illegal since it was written comes back as
+        # an engine-authored refusal -- which is narration input, never silence.
+        intent_receipts: list[dict[str, Any]] = []
+        if intent:
+            from engine.agents.tool_dispatcher import execute_intent
+
+            intent_receipts = execute_intent(intent, session.engine)
 
         # Push narration to the browser as it is generated. Without this the
         # player watches a frozen screen for the whole completion, then the
@@ -701,6 +806,7 @@ def run_turn(
                 player_action,
                 on_delta=stream_to_client,
                 agreed_block=narration_block(agreed),
+                intent_receipts=intent_receipts,
             )
         finally:
             # The agent outlives the turn. Leaving the sink attached would have
@@ -779,6 +885,19 @@ def run_turn(
         # the player noticing something is wrong three turns later.
         "governance": storyteller_result.governance,
     }
+    # What the engine was asked to do and what it decided. Present only on a
+    # turn that actually carried a mechanic, same rule as `safety` -- a pure
+    # conversation turn ships the payload it always shipped.
+    #
+    # `resolved` is the honest half: an intent can be declared, re-checked
+    # against a world that has moved, and REFUSED, and a client or a transcript
+    # that only saw `intent` would have no way to tell the two apart.
+    if intent:
+        turn_payload["intent"] = dict(intent)
+        turn_payload["intent_resolved"] = bool(
+            intent_receipts and all(r.get("success") for r in intent_receipts)
+        )
+
     # Only when the gate had something to say -- an inert policy adds no key at
     # all, so both shipped stories ship the payload they shipped before.
     if safety:
@@ -931,6 +1050,7 @@ __all__ = [
     "nominal_tick_hours",
     "opening",
     "resolve_player_action",
+    "resolve_player_intent",
     "resume_opening",
     "run_turn",
     "scene_image_url",

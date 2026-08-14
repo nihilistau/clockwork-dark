@@ -31,7 +31,23 @@ The LLM is a fixed function of the turn number, and the policy is a function of
 engine state alone, so both runs replay exactly. Summarization is stubbed out:
 a playtest that phones a local model is not a test, it is a demo.
 
-Version: v0.1.0 [2026-08-07]
+THE CHANNEL THIS RUNS ON (v0.2.0)
+---------------------------------
+Both policies used to queue a ``tool_calls`` array onto the mock's reply, and
+that is how eighty turns of green tests hid the largest defect in the project.
+The live turn schema forbids a ``tool_calls`` key -- ``additionalProperties:
+False``, no such property -- so with structured output on, no model has ever
+been able to send one. This playtest was driving a channel that did not exist
+in play, and the channel that did exist could not move the player at all.
+
+The policies declare INTENTS now (``engine/game/intents.py``): the option the
+player picks carries the mechanic, and the engine resolves it before the next
+beat is written. That is the production path, byte for byte. And ``ScriptedLLM``
+validates every reply it produces against the live grammar as it produces it,
+so this file cannot drift back into testing an imaginary model without failing
+on the turn it does.
+
+Version: v0.2.0 [2026-08-14]
 """
 
 from __future__ import annotations
@@ -44,13 +60,18 @@ from unittest.mock import patch
 
 import pytest
 
+from schema_check import validate
+
 from content.scenes.clockwork.clockwork_state import SessionStore, run_turn
 from engine.agents import storyteller as storyteller_module
 from engine.game import encounter as encounter_module
+from engine.game import intents as intents_module
 from engine.game import survival
+from engine.game.intents import legal_intents
 from engine.game.locations import LOCATIONS
 from engine.game.quests import QuestEngine
 from engine.game.state import GameState
+from engine.lmstudio.schemas import storyteller_turn_schema
 from engine.memory.budget import estimate_messages
 from engine.memory.context import default_budget
 from engine.persistence import reset_save_store
@@ -101,15 +122,34 @@ class ScriptedLLM:
     Deterministic stand-in for the Storyteller and the Assistant.
 
     The session hands the same callable to both agents, so the persona line is
-    what tells them apart -- the Assistant gets prose, the Storyteller gets the
-    turn object with whatever tool calls the policy queued for this turn.
+    what tells them apart -- the Assistant gets prose, the Storyteller gets a
+    turn object.
+
+    IT DECIDES WHEN A REAL NARRATOR WOULD. The policy runs here, against the
+    state as it stands at the end of the turn being narrated, and its intent is
+    hung off the first option. That is not a detail: an option is written on
+    turn N and executed when the player picks it on turn N+1, so an intent
+    chosen from turn N-1's state is an intent chosen from a world that no longer
+    exists -- and the grammar says so, because the enums move with the state.
+
+    Every reply is checked against the live grammar as it is produced. The
+    violations are RECORDED rather than raised, because ``StorytellerAgent``
+    catches everything around the inference call and turns it into "the LLM is
+    unavailable" -- so an exception here would be swallowed into a fallback
+    narration and the guard would fail silently, which is the same species of
+    problem it exists to catch. ``play`` asserts the list is empty.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self, state: GameState, policy: Callable[[GameState], Decision]
+    ) -> None:
+        self.state = state
+        self.policy = policy
         self.turn = 0
-        self.beat = "You work."
-        self.tool_calls: list[dict[str, Any]] = []
+        #: (label, beat, intent) for the option the LAST reply put on the table.
+        self.decision: Decision = ("", "", {})
         self.storyteller_prompts: list[list[dict[str, Any]]] = []
+        self.violations: list[str] = []
         self.calls = 0
 
     def __call__(self, messages: list[dict[str, Any]]) -> str:
@@ -118,23 +158,36 @@ class ScriptedLLM:
             return "The cat looks at the door, then at you, and settles again."
 
         self.storyteller_prompts.append([dict(m) for m in messages])
-        return json.dumps(
-            {
-                "narration": narration_for(self.turn, self.beat),
-                "choices": [
-                    {"id": "a", "text": "Keep working"},
-                    {"id": "b", "text": "Step outside"},
-                ],
-                "tool_calls": self.tool_calls,
-            }
-        )
+        label, beat, intent = self.policy(self.state)
+        self.decision = (label, beat, intent)
+
+        choices: list[dict[str, Any]] = [
+            {"id": "a", "text": f"Keep on: {label}"[:100]},
+            {"id": "b", "text": "Stand still and let the hour pass"},
+        ]
+        if intent:
+            choices[0]["intent"] = dict(intent)
+        payload = {
+            "narration": narration_for(self.turn, beat),
+            "choices": choices,
+        }
+
+        schema = storyteller_turn_schema(intents=legal_intents(self.state))["schema"]
+        problems = validate(payload, schema)
+        if problems:
+            self.violations.append(
+                f"turn {self.turn} at {self.state.location_id}: " + "; ".join(problems)
+            )
+        return json.dumps(payload)
 
 
 # ---------------------------------------------------------------------------
 # policies
 # ---------------------------------------------------------------------------
 
-Decision = tuple[str, str, list[dict[str, Any]]]  # (action label, beat, tool calls)
+#: (action label, beat, intent). The intent is what the engine executes; the
+#: label and the beat are what the diagnostics and the mock narration read.
+Decision = tuple[str, str, dict[str, Any]]
 
 
 def next_hop(from_id: str, to_id: str) -> str:
@@ -183,9 +236,30 @@ def _encounter_decision(state: GameState, order: tuple[str, ...]) -> Optional[De
             return (
                 f"approach:{approach}",
                 "The road has produced a problem and you meet it.",
-                [{"name": "encounter_approach", "args": {"approach": approach}}],
+                {"action": "encounter", "target": approach},
             )
-    return ("approach:flee", "You do not stay.", [{"name": "flee", "args": {}}])
+    return (
+        "approach:flee",
+        "You do not stay.",
+        {"action": "encounter", "target": "flee"},
+    )
+
+
+def _purchasable(state: GameState, item_id: str) -> str:
+    """
+    The composite ``npc/item`` target for buying something here, or "".
+
+    Asked of the ENGINE's catalogue rather than assembled from a vendor id this
+    file happens to know, so the policy cannot queue a purchase the grammar
+    would not have offered -- which is the whole difference between this
+    playtest and the one it replaced.
+    """
+    buy = next(
+        (v for v in intents_module.legal_intents(state) if v.action == "buy"), None
+    )
+    if buy is None:
+        return ""
+    return next((t for t in buy.targets if t.endswith(f"/{item_id}")), "")
 
 
 def _upkeep(state: GameState) -> Optional[Decision]:
@@ -193,23 +267,16 @@ def _upkeep(state: GameState) -> Optional[Decision]:
     if survival.hunger_stage(state) in ("hungry", "starving"):
         item_id = _edible(state)
         if item_id:
-            return ("eat", "You eat.", [{"name": "eat", "args": {"item_id": item_id}}])
+            return ("eat", "You eat.", {"action": "eat", "target": item_id})
 
-    if (
-        state.location_id == "edgewood_bakery"
-        and state.stats.gold >= 2
-        and not _edible(state)
-    ):
-        return (
-            "buy",
-            "Maris wraps a loaf without being asked twice.",
-            [
-                {
-                    "name": "trade",
-                    "args": {"action": "buy", "item_id": "loaf", "npc_id": "npc_maris"},
-                }
-            ],
-        )
+    if state.location_id == "edgewood_bakery" and not _edible(state):
+        target = _purchasable(state, "loaf")
+        if target:
+            return (
+                "buy",
+                "Maris wraps a loaf without being asked twice.",
+                {"action": "buy", "target": target},
+            )
     return None
 
 
@@ -230,7 +297,7 @@ def baker_policy(state: GameState) -> Decision:
             return (
                 f"move:{hop}",
                 "You walk in out of the weather.",
-                [{"name": "move_to", "args": {"location_id": hop}}],
+                {"action": "travel", "target": hop},
             )
 
     upkeep = _upkeep(state)
@@ -241,7 +308,7 @@ def baker_policy(state: GameState) -> Decision:
         return (
             "rest",
             "You sleep in the room above the ovens.",
-            [{"name": "rest", "args": {"kind": "sleep_bed"}}],
+            {"action": "rest", "target": "sleep_bed"},
         )
 
     flag_id = _pending_flag(state)
@@ -249,18 +316,13 @@ def baker_policy(state: GameState) -> Decision:
         return (
             f"flag:{flag_id}",
             "You do the thing that was asked of you.",
-            [{"name": "set_narrative_flag", "args": {"flag_id": flag_id}}],
+            {"action": "flag", "target": flag_id},
         )
 
     return (
         "craft",
         "You shape dough until your forearms complain.",
-        [
-            {
-                "name": "resolve_skill_check",
-                "args": {"skill": "craft", "difficulty": "standard", "reason": "baking"},
-            }
-        ],
+        {"action": "check", "target": "craft", "difficulty": "standard"},
     )
 
 
@@ -280,7 +342,7 @@ def road_policy(state: GameState) -> Decision:
         return (
             "rest",
             "You put your back against a wall and stop.",
-            [{"name": "rest", "args": {"kind": "sleep_bed"}}],
+            {"action": "rest", "target": "sleep_bed"},
         )
 
     flag_id = _pending_flag(state)
@@ -288,23 +350,23 @@ def road_policy(state: GameState) -> Decision:
         return (
             f"flag:{flag_id}",
             "You do the thing that was asked of you.",
-            [{"name": "set_narrative_flag", "args": {"flag_id": flag_id}}],
+            {"action": "flag", "target": flag_id},
         )
 
-    target = (
+    destination = (
         "edgewood_square" if state.location_id == "millhaven_gate" else "millhaven_gate"
     )
-    hop = next_hop(state.location_id, target)
+    hop = next_hop(state.location_id, destination)
     if hop:
         return (
             f"move:{hop}",
             "The road goes on and you go on with it.",
-            [{"name": "move_to", "args": {"location_id": hop}}],
+            {"action": "travel", "target": hop},
         )
     return (
         "wait",
         "You wait, and the hour turns over.",
-        [{"name": "resolve_skill_check", "args": {"skill": "nerve", "difficulty": "easy"}}],
+        {"action": "check", "target": "nerve", "difficulty": "easy"},
     )
 
 
@@ -326,6 +388,9 @@ class Playthrough:
     #: pass rewrote the system blocks. The two differ, which is the point.
     assembled: list[list[dict[str, Any]]] = field(default_factory=list)
     quest_events: list[dict[str, Any]] = field(default_factory=list)
+    #: Replies the mock produced that the live grammar would have refused.
+    #: Must always be empty -- see ScriptedLLM.
+    violations: list[str] = field(default_factory=list)
     resume: dict[str, Any] = field(default_factory=dict)
     start: dict[str, Any] = field(default_factory=dict)
     final_state: Optional[GameState] = None
@@ -380,7 +445,7 @@ def play(
     """
     run = Playthrough(name=name)
     save_store = SaveStore(root=store_root)
-    llm = ScriptedLLM()
+    llm: Optional[ScriptedLLM] = None
 
     build = storyteller_module.build_storyteller_messages
 
@@ -401,8 +466,14 @@ def play(
     ), patch.object(
         storyteller_module, "build_storyteller_messages", recording_build
     ):
-        session = SessionStore().create(seed=SEED, llm_fn=llm)
+        session = SessionStore().create(seed=SEED, llm_fn=None)
         state = session.engine.state
+        # The mock needs the live state to check its own replies against the
+        # grammar, and the state does not exist until the session does. Both
+        # agents are handed the same callable, exactly as `create` would have.
+        llm = ScriptedLLM(state, policy)
+        session.storyteller.llm_fn = llm
+        session.assistant.llm_fn = llm
         run.start = {
             "world_day": state.world_day,
             # Needed to measure elapsed HOURS rather than whole days: the
@@ -413,11 +484,13 @@ def play(
             "location_id": state.location_id,
         }
 
+        # The first move has no narrated option behind it, exactly as the
+        # opening frame does not: the manifest declares the opening choices and
+        # the engine executes whichever the player picks.
+        action, _, intent = policy(state)
+
         for index in range(TURNS):
-            action, beat, tool_calls = policy(state)
             llm.turn = index + 1
-            llm.beat = beat
-            llm.tool_calls = tool_calls
 
             # Force the background world tick every turn: production runs it
             # once per `world.tick_interval_seconds` of REAL time, which no
@@ -425,7 +498,9 @@ def play(
             state.last_sim_tick_at = 0.0
 
             try:
-                payload = run_turn(session, f"The player chooses: {action}")
+                payload = run_turn(
+                    session, f"The player chooses: {action}", intent=intent
+                )
             except Exception as exc:  # noqa: BLE001 — recorded, then asserted on
                 run.error = f"turn {index + 1} ({action}): {type(exc).__name__}: {exc}"
                 break
@@ -454,7 +529,28 @@ def play(
             if index + 1 == RESUME_AFTER_TURN:
                 run.resume = _resume_check(session)
 
+            # The NEXT turn's move is the one the narrator just put on the
+            # table, taken back out of the turn payload rather than recomputed.
+            # This is the production loop and nothing weaker would do: the
+            # option the player sees and the mechanic the engine runs have to be
+            # the same object, and the whole defect was that they never were.
+            offered = next(
+                (
+                    c.get("intent")
+                    for c in payload.get("choices", [])
+                    if isinstance(c, dict) and c.get("intent")
+                ),
+                {},
+            )
+            action, _, chosen = llm.decision
+            assert offered == chosen, (
+                f"{run.name}: the option on the table and the mechanic behind "
+                f"it disagree: offered={offered!r} chosen={chosen!r}"
+            )
+            intent = offered or {}
+
         run.prompts = llm.storyteller_prompts
+        run.violations = list(llm.violations)
         run.ledger_facts = len(session.ledger.facts)
         run.final_state = session.engine.state
 
@@ -537,6 +633,58 @@ def test_no_unhandled_exception(runs: list[Playthrough]) -> None:
         assert not run.error, f"{run.error}\n{run.table()}"
         assert len(run.rows) == TURNS, (
             f"{run.name} stopped after {len(run.rows)} turns\n{run.table()}"
+        )
+
+
+def test_the_mock_never_emitted_a_shape_the_sampler_could_not(
+    runs: list[Playthrough],
+) -> None:
+    """
+    THE GUARD. A mock that can say what the model cannot is not a stand-in.
+
+    This file used to hang a ``tool_calls`` array off every reply, eighty turns
+    a run, green throughout -- while the live turn grammar forbade that key
+    outright (``additionalProperties: False``, no such property) and no real
+    model had ever been able to send one. So the suite was exercising a channel
+    that did not exist in play, and the channel that did exist could not move
+    the player at all. That is how the largest defect in the project stayed
+    invisible for months.
+
+    Every reply is now checked against the schema the sampler is actually given,
+    built from the same live state. A violation is recorded rather than raised
+    because ``StorytellerAgent`` catches everything around inference and calls
+    it "the LLM is unavailable" -- so an exception here would be swallowed into
+    a fallback narration, and a guard that fails silently is the thing it exists
+    to prevent.
+    """
+    for run in runs:
+        assert run.violations == [], (
+            f"{run.name}: {len(run.violations)} ungrammatical replies\n"
+            + "\n".join(run.violations[:5])
+        )
+
+
+def test_a_choice_that_carried_a_mechanic_actually_moved_the_world(
+    runs: list[Playthrough],
+) -> None:
+    """
+    The point of the whole channel, over a real run rather than one turn.
+
+    Both policies travel; the baker to the bakery and the road runner up and
+    down the Millhaven road. If declared intents were being dropped, both runs
+    would sit in the forest clearing narrating journeys for forty turns -- which
+    is precisely what the bug report described.
+    """
+    for run in runs:
+        resolved = [p for p in run.payloads if p.get("intent_resolved")]
+        assert len(resolved) > TURNS // 2, (
+            f"{run.name}: only {len(resolved)} of {len(run.payloads)} turns "
+            f"resolved the mechanic their option declared\n{run.table()}"
+        )
+        places = {r["location_id"] for r in run.rows}
+        assert len(places) > 1, (
+            f"{run.name}: never left {places}; declared travel is not reaching "
+            f"the engine\n{run.table()}"
         )
 
 

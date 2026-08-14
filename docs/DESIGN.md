@@ -28,7 +28,7 @@ engine/story separation (Overhaul II) landed
 
 **The Clockwork Dark** is a local-first, AI-driven roleplaying game set on the frontier edge of a dying world. The player wakes in a forest beside **Edgewood**, the last comfortable village before the deep woods give way to the Marches and, further in, the Heartlands — where something called the **Clockwork Dark** is winding itself into the bones of civilization.
 
-Unlike scripted RPGs, every scene is narrated in real time by autonomous local LLM agents. Unlike pure AI chat games, **mechanical truth lives in a deterministic engine**: dice land where the engine says they land, inventory changes only through validated tool calls, and the world's evil clock advances whether the player becomes a baker or a hero.
+Unlike scripted RPGs, every scene is narrated in real time by autonomous local LLM agents. Unlike pure AI chat games, **mechanical truth lives in a deterministic engine**: dice land where the engine says they land, a choice that moves or spends anything is resolved by the engine before the next word is written, and the world's evil clock advances whether the player becomes a baker or a hero.
 
 The game merges two proven architectures:
 
@@ -72,7 +72,8 @@ not.
 | **Assistant** | Companion agent (`clockwork_assistant`) — speaks to player; may help or withhold |
 | **Hard Engine** | Deterministic Python game logic — sole authority on stats, dice, inventory, travel |
 | **Soft Layer** | LLM agents, interceptors, media queue — probabilistic presentation |
-| **Skill** | `@skill`-decorated function the LLM must call for mechanical resolution |
+| **Skill** | `@skill`-decorated function — the only way a mechanic is resolved |
+| **Intent** | `{action, target}` a choice declares; the ENGINE executes it before narrating. Enums built per turn from what the engine will accept (`engine/game/intents.py`) |
 | **Tag** | Inline stream token (`[IMAGE:…]`, `[STAT:…]`, etc.) parsed from LLM output |
 
 **Evil phases (canonical):** `DORMANT` → `STIRRING` → `SPREADING` → `CONSUMING`
@@ -221,10 +222,13 @@ patience: float                  # 0-100: low → more aggressive world events
 ```json
 {
   "narration": "Second-person prose, 220–1400 chars…",
-  "choices": [{"id": "a", "text": "…", "hint": "risky"}],
+  "choices": [
+    {"id": "a", "text": "Follow the smoke toward Edgewood", "hint": "safe",
+     "intent": {"action": "travel", "target": "edgewood_square"}},
+    {"id": "b", "text": "Ask her what she meant by that"}
+  ],
   "npc_voices": [{"npc_id": "npc_maris", "line": "…"}],
-  "ledger_delta": {"facts": [], "names": {}, "npc_disposition": {}, "promises": []},
-  "tool_calls": [{"name": "resolve_skill_check", "args": {"skill": "craft", "difficulty": "hard"}}]
+  "ledger_delta": {"facts": [], "names": {}, "npc_disposition": {}, "promises": []}
 }
 ```
 
@@ -233,13 +237,61 @@ someone who is not in the room is unsampleable. `minItems: 2` on `choices` makes
 the zero-choice soft-lock unreachable. `minLength`/`maxLength` state the length
 rubric the evaluator was scoring against silently.
 
+### The mechanic lives in the choice
+
+**`intent` is how a narration turn changes the world**, and it is the same trick
+as `npc_id` applied to actions. `engine/game/intents.py::legal_intents` builds a
+catalogue every turn from what the engine will *actually accept in this exact
+state* — the roads that leave this location plus any hidden path foraging has
+opened, the configured rest kinds, the food actually in the pack, the story's
+declared skills, what a vendor standing here will sell and can be afforded, the
+quest flags the current stage allows. The schema turns that into one branch per
+verb, discriminated by a `const` action, so **an unreachable destination is
+unsamplable rather than merely wrong.** Branching matters: a flat `action` enum
+beside a flat `target` enum would make `{"action": "travel", "target":
+"persuasion"}` legal grammar.
+
+A choice with no mechanical consequence declares no intent — pure conversation
+stays pure — and `intent` is never required. A story the engine can honour
+nothing for gets **no `intent` property at all**, so its grammar and its payload
+are byte-for-byte what they were.
+
+The order of a turn is what makes "never invent an outcome" achievable:
+
+1. The player picks a choice. `resolve_player_intent` reads the intent off it.
+2. `run_turn` executes it **before anything plans or narrates**, through the
+   ordinary skills (`GameEngine.move_to`, `checks.resolve`, `survival.rest`, …),
+   so every write still funnels through `effects.apply_effect` and
+   `clock.advance_time`.
+3. The receipt goes into the **MECHANICAL RESULTS — AUTHORITATIVE** block of the
+   narrator's first prompt. The model is *told* the outcome and asked to render
+   it.
+
+Legality is re-checked at execution against the live state, because an intent is
+written on turn N and run on turn N+1 and the world moves in between. **A refusal
+is engine-authored and reaches the prose**: it is rendered as an explicit "this
+did NOT happen, and here is why", never as silence. The one sentence a player
+must never read is that they walked somewhere they did not.
+
 **Gone from the contract, deliberately:** `stat_changes`, `items_gained`,
 `items_lost`, and `skill_check` with its `dc_mod`. The model used to be asked for
 all four and the engine threw all four away, so the only thing they did was
-create an incentive to try. Every mechanical effect now goes through a tool call
-and `engine/game/effects.py::apply_effect`. The parser still tolerates the old
-keys on input (`engine/agents/storyteller.py::parse_storyteller_response`) so a
-model trained on the old prompt cannot crash a turn — but nothing reads them.
+create an incentive to try. The parser still tolerates the old keys on input
+(`engine/agents/storyteller.py::parse_storyteller_response`) so a model trained
+on the old prompt cannot crash a turn — but nothing reads them.
+
+**`tool_calls` is not in the contract and never was reachable.** The schema sets
+`additionalProperties: False` and declares no such property, so with the grammar
+on a tool call cannot be sampled; nothing sent a tool manifest either. For most
+of the project's life this was the *only* documented way for a turn to change
+anything, which meant travel, dice, rest, food and trade were dead in real play —
+a player chose "Follow the smoke toward Edgewood", the model narrated the walk,
+and the save still read `forest_clearing` with the stamina untouched.
+`scripts/simulate.py` never noticed because it calls engine methods directly, and
+every mock LLM in the suite emitted a `tool_calls` key no real model could send.
+The dispatcher survives (`execute_tool_calls`) because the intent path and the
+negotiation pipeline share its receipt shape; the channel a player's choice
+travels is `intent`.
 
 `structured_output: auto` (config) probes the server once and caches the answer;
 small quantized models often ignore schemas entirely, so the brace-counting
@@ -284,11 +336,10 @@ sequenceDiagram
     participant A as Assistant
     participant M as Media Queue
 
-    P->>E: action (choice / voice / text)
-    E->>E: validate + pre-resolve movement
-    E->>S: event signal + GameState snapshot
-    S->>E: tool calls (roll_dice, etc.)
-    E-->>S: mechanical results
+    P->>E: choice (id + its declared intent)
+    E->>E: execute the intent — move_to / checks.resolve / rest / trade
+    E->>S: GameState snapshot + MECHANICAL RESULTS receipts
+    S-->>S: narrate the outcome it was handed
     S->>M: tags IMAGE VOICE CUTSCENE
     S-->>P: narration + choices (SSE stream)
     E->>A: optional context (trust tier)
@@ -336,7 +387,10 @@ Both agents share the **CosySim interceptor pipeline** but use different model p
 
 ## Game Mechanics (Hard Engine)
 
-All mechanics live in `engine/game/`. Agents access them **only** through `@skill` tools with `TRIGGER_REQUIRED` where enforcement matters.
+All mechanics live in `engine/game/`. They are reached **only** through the
+`@skill` registry — and in real play only through a choice's declared `intent`
+(`engine/game/intents.py`), which the engine executes before narration. See
+*The mechanic lives in the choice*, above.
 
 ### Player Stats
 
@@ -817,10 +871,12 @@ flowchart LR
 
 What actually runs, in the order a turn hits it:
 
-1. **The model cannot express a mechanical change.** `stat_changes`,
+1. **The model cannot express a mechanical OUTCOME.** `stat_changes`,
    `items_gained`, `items_lost` and `skill_check` are not in the output schema.
-   The only way to move a number is a tool call, and every tool call funnels
-   through `engine/game/effects.py::apply_effect`.
+   What it can express is an *intent* on a choice — "this option is a walk to
+   `edgewood_square`" — chosen from an enum the engine built this turn from what
+   it will accept. The engine resolves it, and every resolution funnels through
+   `engine/game/effects.py::apply_effect` and `clock.advance_time`.
 2. **Skills are partitioned by an agent allowlist**
    (`engine/skills/registry.py::SkillDef.agents`, enforced in
    `engine/agents/tool_dispatcher.py`). Trigger/category metadata used to be

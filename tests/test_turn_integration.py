@@ -86,9 +86,18 @@ def test_no_streaming_without_an_emit_callback():
 
 
 # -- tool execution ------------------------------------------------------
+#
+# NOT THE PRODUCTION CHANNEL, and the tests below say so in their names now.
+# The live turn grammar forbids a `tool_calls` key outright
+# (engine/lmstudio/schemas.py: additionalProperties False, no such property),
+# so no model has ever sent one. What these cover is the DISPATCHER -- its
+# allowlist, its tolerance of malformed arguments -- which is real code reached
+# from `execute_intent` and from an injected llm_fn. The channel a player's
+# choice actually travels is the structured intent; see tests/test_turn_intent.py
+# and the note at the top of engine/game/intents.py.
 
 
-def test_model_tool_calls_reach_the_engine():
+def test_the_dispatcher_executes_a_move_it_is_handed():
     session = SessionStore().create(seed=42, llm_fn=_llm(
         tool_calls=[{"name": "move_to", "args": {"location_id": "edgewood_square"}}]
     ))

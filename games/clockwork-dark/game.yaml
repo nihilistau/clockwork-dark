@@ -165,7 +165,20 @@ entry:
     narration: >-
       You wake beneath birch trees at the forest's edge. Mist clings to the
       ferns; somewhere ahead, hearth smoke threads the grey.
+    # An opening choice that MOVES, SPENDS or RISKS anything declares its
+    # `intent`, and the engine resolves it before the second beat is written.
+    #
+    # THIS IS THE BUG REPORT. A player picked (a), the model narrated them
+    # walking into the village, and the save afterwards read `turn 1 |
+    # forest_clearing | 10.0h | stamina 100`. The narration and the world had
+    # nothing to do with each other, because a choice was only ever a sentence
+    # handed to a narrator. See engine/game/intents.py.
+    #
+    # (b) and (c) declare none on purpose: searching and listening are what the
+    # narrator is for, and an intent that resolves nothing would be noise.
     choices:
-      - { id: a, text: "Follow the smoke toward Edgewood" }
+      - id: a
+        text: "Follow the smoke toward Edgewood"
+        intent: { action: travel, target: edgewood_square }
       - { id: b, text: "Search the clearing for supplies" }
       - { id: c, text: "Listen — something watches without moving" }

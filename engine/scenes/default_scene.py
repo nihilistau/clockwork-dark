@@ -46,6 +46,7 @@ from engine.persistence import MigrationError
 from engine.scenes.default_state import (
     SessionStore,
     resolve_player_action,
+    resolve_player_intent,
     run_turn,
 )
 from engine.scenes.flask_scene import FlaskScene
@@ -207,12 +208,17 @@ class DefaultScene(FlaskScene):
             except KeyError:
                 return jsonify({"error": "session not found"}), 404
 
+            choice_id = str(body.get("choice_id", ""))
             action = resolve_player_action(
-                session,
-                str(body.get("choice_id", "")),
-                body.get("custom_text"),
+                session, choice_id, body.get("custom_text")
             )
-            turn = run_turn(session, action)
+            # The mechanic the option declared, alongside the sentence it
+            # became. Both come from the same choice; only one of them used to
+            # exist.
+            intent = resolve_player_intent(
+                session, choice_id, body.get("custom_text")
+            )
+            turn = run_turn(session, action, intent=intent)
             return jsonify(turn)
 
         @socketio.on("connect")
@@ -257,12 +263,14 @@ class DefaultScene(FlaskScene):
                 return
 
             try:
+                choice_id = str(data.get("choice_id", ""))
                 action = resolve_player_action(
-                    session,
-                    str(data.get("choice_id", "")),
-                    data.get("custom_text"),
+                    session, choice_id, data.get("custom_text")
                 )
-                run_turn(session, action, emit_callback=_emit)
+                intent = resolve_player_intent(
+                    session, choice_id, data.get("custom_text")
+                )
+                run_turn(session, action, intent=intent, emit_callback=_emit)
             except Exception as exc:  # noqa: BLE001 — last line of defence
                 # Without this the handler raised into Socket.IO, no event was
                 # emitted, and the client's busy flag never cleared: every

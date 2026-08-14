@@ -118,6 +118,13 @@ CHOICES
 Offer 2-4. Each must be a genuinely different intention, not three phrasings of
 the same one. Keep each under 12 words.
 
+A choice that MOVES, SPENDS or RISKS anything also declares an `intent`, chosen
+from WHAT A CHOICE CAN MAKE HAPPEN THIS TURN. That is a declaration, not a
+result: the ENGINE resolves it after the player picks it and hands you the
+outcome before you write the next beat. Never write the outcome yourself, and
+never write a choice as though it has already been taken. A choice that is only
+talk or only looking declares no intent at all.
+
 CONTINUITY
 You are given a running summary, recent turns, and a list of remembered facts
 and names. Use them exactly as given. A name already spoken is that name every
@@ -376,6 +383,49 @@ def _encounter_block(state: GameState) -> str:
     return "\n".join(lines)
 
 
+def _intents_block(state: GameState) -> str:
+    """
+    What a choice is allowed to make happen this turn, in words.
+
+    The grammar already forbids everything else -- the ``intent`` enums are
+    built from this same catalogue, so an unreachable destination cannot be
+    sampled at all. This block exists because a constraint is not an
+    instruction: the sampler can stop the model naming a road that is not
+    there, and only the prompt can tell it that naming the road it IS on is how
+    a choice becomes a walk.
+
+    Empty for a story the engine can honour nothing for, which keeps that
+    story's prompt byte-identical to the one it had.
+    """
+    try:
+        from engine.game.intents import legal_intents
+
+        verbs = legal_intents(state)
+    except Exception as exc:  # noqa: BLE001 -- a prompt line is not worth a turn
+        logger.debug("[prompts] No intent catalogue: %s", exc)
+        return ""
+    if not verbs:
+        return ""
+
+    lines = [
+        "WHAT A CHOICE CAN MAKE HAPPEN THIS TURN",
+        "A choice that MOVES, SPENDS or RISKS anything carries an `intent` "
+        "naming one of these. The ENGINE resolves it and tells you the outcome "
+        "next turn -- you never decide it and never write it as already done. "
+        "A choice that is only talk or only looking carries no intent.",
+    ]
+    for verb in verbs:
+        if not verb.options:
+            lines.append(f"- {verb.action}")
+            continue
+        rendered = ", ".join(
+            f"{target} ({label})" if label != target else target
+            for target, label in verb.options
+        )
+        lines.append(f"- {verb.action}: {rendered}")
+    return "\n".join(lines)
+
+
 def _condition_block(state: GameState) -> str:
     """Only mention conditions that are actually true, to save tokens and noise."""
     bits = []
@@ -463,6 +513,7 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
     for block in (
         _npcs_present_block(state),
         _encounter_block(state),
+        _intents_block(state),
         _objectives_block(state),
         _events_block(state),
         _rumors_block(state),
@@ -550,6 +601,18 @@ def receipts_block(receipts: list[dict[str, Any]]) -> str:
     This is the block that makes "never invent dice results" achievable. The
     old prompt asked for tool calls and narration in the same message, so the
     model could not possibly know an outcome it was forbidden to invent.
+
+    IT HAD NEVER BEEN POPULATED IN PRODUCTION. The only receipts that reached it
+    came from a ``tool_calls`` array the turn grammar forbids, so on a live turn
+    this function was handed an empty list and returned "". It carries the
+    player's own resolved intent now (``engine/game/intents.py``), which is what
+    turns the block from a promise into an input.
+
+    A REFUSAL IS RENDERED LOUDLY, and that is the point of the first branch. An
+    intent can be legal when it is written and illegal by the time it runs --
+    the stamina spent, the hour gone, the road closed. The one sentence a player
+    must never read is that they walked somewhere they did not, so the engine's
+    "no" is stated as a no rather than left to be inferred from a missing line.
     """
     if not receipts:
         return ""
@@ -558,6 +621,14 @@ def receipts_block(receipts: list[dict[str, Any]]) -> str:
              "Do not restate the numbers; render them as events."]
     for receipt in receipts:
         result = receipt.get("result") or {}
+        if receipt.get("refused"):
+            lines.append(
+                f"- REFUSED: the {receipt.get('skill')} did NOT happen. "
+                f"Reason: {result.get('error', 'the engine declined')}. "
+                "Write the attempt and why it came to nothing. Do not write it "
+                "as succeeding."
+            )
+            continue
         if not receipt.get("success", False):
             lines.append(f"- {receipt.get('skill')} failed: {result.get('error', 'unknown')}")
             continue
