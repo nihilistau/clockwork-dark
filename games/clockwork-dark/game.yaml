@@ -138,6 +138,12 @@ paths:
   encounters: "games/clockwork-dark/data/encounters"
   doom_effects: "games/clockwork-dark/data/rules/doom_effects.yaml"
   challenges: "games/clockwork-dark/data/challenges"
+  # The finale chain. Three doors carry the lock -- the quiet-life door
+  # (banking_the_fire), the sacrifice, and the last quiet thing -- and every
+  # locked ending resolves to a card in data/epilogues/. See the header of
+  # data/rules/endings.yaml for the shape.
+  endings: "games/clockwork-dark/data/rules/endings.yaml"
+  epilogues: "games/clockwork-dark/data/epilogues"
 
 entry:
   # CLAUDE.md pins this id as canon. Do not rename it.

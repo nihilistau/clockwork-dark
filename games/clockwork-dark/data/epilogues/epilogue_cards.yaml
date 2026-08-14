@@ -1,0 +1,385 @@
+# The Clockwork Dark -- epilogue prose.
+#
+# Read by engine/game/epilogue.py; found through the index's `prose_source`.
+# Two cards per ending: `card_m` is the VILLAGE side (Edgewood, the mornings,
+# what the life turned into); `card_g` is the DARK side (the pattern, the
+# forest margin, what the wound does next). Both always render, because both
+# go on being true -- that is the game's thesis, stated at the end of the last
+# convergence quest: "Edgewood has bread. The road is still coming."
+#
+# Register: frontier plainness, dread underneath. Bread, weather, tools,
+# ledgers. Nothing shouts. No game nouns, no dice talk, and the pattern is
+# never named on these cards unless the run paid to name it.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+cards:
+
+  the_hearth_holds:
+    title: "The Hearth Holds"
+    card_m: |-
+      You stop being the stranger sometime in the second winter. There is no
+      ceremony for it. One market-day Odran forgets to charge you the
+      stranger's price, and the week after, old Wenna dies and it is you they
+      send to sit up with the body, because sitting up is what neighbours do
+      and nobody thinks to explain it to you. That is the whole of the
+      paper-work. You belong to the place now the way the well does.
+
+      The mornings take the shape Maris always said they would. Fire at four.
+      Flour at five. The first batch out while the mist is still deciding, and
+      the smell of it going down Well Row like a bell that feeds people. Some
+      years are lean and some are not. Two of the loaves are always wrong and
+      you always know exactly why, which is what the years buy you.
+
+      You never learn what it was, out there past the tree line, in the dark
+      under the birches. You know that you do not know. On certain evenings --
+      wrong rain, a lamb born strange, a verse the children sing one word off
+      -- you feel the shape of the question pass over the village like the
+      shadow of a cloud, and you put another log on, and it passes. Not
+      knowing is not the same as being spared. You chose the oven anyway, on
+      purpose, every morning, and the mornings added up to a life.
+    card_g: |-
+      The dark does not forget Edgewood. The dark does not remember it
+      either. It works the way weather works, patient and impersonal, and a
+      village that keeps its fires banked and its bread rising is simply a
+      place where the pattern finds less purchase -- fewer cold hearths,
+      fewer empty rooms, fewer people alone enough at night to listen.
+
+      At the forest's edge the ferns lean the way they always leaned. A cat
+      sits on the fallen birch at the margin, most nights, facing out. Nobody
+      sends it. Nothing gets past it that minds being seen.
+
+      The wound is still out there, doing its slow arithmetic. But every
+      morning at four a light comes on at the bottom of Well Row, and the sum
+      has to start over.
+    echoes:
+      - speaker: npc_maris
+        text: |-
+          I never asked where you walked in from. Bakers don't ask -- flour
+          comes in sacks, help comes in strangers, you take both as they
+          arrive. But I will tell you what I told the oven the first morning
+          you worked the peel like you meant to stay: that one will do. That
+          one will do.
+
+  the_long_witness:
+    title: "The Long Witness"
+    card_m: |-
+      You stay. That is the whole of it, and it is not nothing: the ones who
+      saw what you saw mostly leave, and the ones who stay mostly stop
+      seeing. You did neither. You keep the ledger in the flour-cupboard
+      where the damp cannot get it -- dates, not numbers; the numbering
+      stopped helping -- and you write in the evenings, in oak gall and
+      soot, in a hand that stays steady on purpose.
+
+      The village decides you are a little odd and entirely theirs, in that
+      order. People bring you their wrong things now: an egg with a seam in
+      it, a song their grandmother sang differently, a key that turns the
+      wrong way and always did. You look. You write it down. You tell them
+      the truth, which is that you do not know, and the truth turns out to
+      be a thing a village can live next to, provided somebody has agreed to
+      hold it.
+
+      You are not a hero. You are what a place has instead: the one who
+      stayed with what they knew.
+    card_g: |-
+      The pattern prefers to work unobserved. This is not a feeling it has;
+      it is a fact about how it works, the way frost prefers still air. Doors
+      sag slower on hinges somebody oils. Roads shorten slower past
+      milestones somebody reads.
+
+      Your ledger is a milestone. Every dated line is a nail through some
+      small lie the world was being told about itself, and the pattern must
+      now work around each one, and working around things costs it time, and
+      time is the only coin the frontier has ever actually banked.
+
+      It will outlast you, the ledger. Oak gall and soot outlast everything.
+      Whoever opens the flour-cupboard in forty years will find the whole
+      slow war, dated, in a steady hand -- and will know it did not come
+      from nowhere, whatever has come by then.
+    echoes:
+      - speaker: npc_odran
+        text: |-
+          Carters talk, you know how it is. Half of it's weather and half of
+          it's tolls, and then somebody names your village and it goes
+          quiet, and somebody says -- there's one there who writes it down.
+          Says it careful, like the words cost. That's you, that is. The one
+          who writes it down.
+
+  the_counted_march:
+    title: "The Counted March"
+    card_m: |-
+      Sera strikes your name off the roll herself, once, cleanly, and pays
+      out the last of your wage from the box she keeps under the gatehouse
+      floor -- which you were never shown and were always meant to know
+      about, because that is how the militia says thank you.
+
+      What you remember afterward is not the drills or the tolls. It is the
+      arithmetic. A sergeant doing sums with people at a plank table; a
+      list copied by lamplight; the nights the count came out wrong and
+      somebody had to decide by how much. You stood inside that arithmetic
+      and you kept your own remainder. Not everyone did. You know the names
+      on both sides of that line, and you do not say them at table.
+
+      In Edgewood they are a little careful with you now, the way people
+      are careful with a scythe hung in the right place. It is not fear.
+      It is knowing what a thing is for, and being glad it is on the wall.
+    card_g: |-
+      The road inward has soldiers on it, and the soldiers are counting,
+      and the thing at the far end of the road is counting too. It counts
+      faster. It never sleeps and never argues about the roster, and every
+      levy that breaks, every gate left unwatched, every bribe taken at the
+      toll bridge is a carry in its favour.
+
+      But a wall walked at first grey by somebody who cares what changed in
+      the night is a real number on the other side of the page. You were
+      that number, season after season. The pattern's sums run long because
+      of the likes of you -- and it has noticed, in the way weather notices
+      a well-built roof: no malice, no mercy, just a longer way round.
+    echoes:
+      - speaker: npc_sera
+        text: |-
+          I count everything. You know that. What came through the gate,
+          what went back out, what the night moved. So take it as a count
+          and not a kindness when I say: the nights you stood that wall, I
+          wrote a smaller number at the bottom of the report. You can do
+          the arithmetic on that yourself. You were there for it.
+
+  the_named_wound:
+    title: "The Named Wound"
+    card_m: |-
+      They chose it knowing. Years on, that is still the sentence you say
+      over the proof, and it still holds the weight. Whatever Edgewood
+      decided in the square that evening -- to hold, to go, to split like a
+      seam and be two smaller stubbornnesses -- it decided with the name on
+      the table where everyone could look at the shape of the thing, and
+      nobody afterward could say the village was herded. It walked.
+
+      The saying cost you what saying it truly costs. There is a wound in
+      you that keeps its own weather, and on the mornings it aches you knead
+      anyway, because Maris taught you that the hands can know a thing the
+      rest of you is still arguing about.
+
+      Children who were not born that evening know the story of the meeting.
+      They get it wrong in the usual ways -- braver, shorter, more shouting.
+      They get one thing right, because the village corrects them every
+      time: everyone was there, and everyone was told, and then everyone
+      chose. That correction is your monument. There is no other kind worth
+      having here.
+    card_g: |-
+      A named thing can still do everything it could do before. That is the
+      first bitterness of naming, and you drank it early. The pattern did
+      not pause when the word was said in the square. The road is still
+      coming. The rain is still sometimes wrong.
+
+      But a named thing can be pointed at. It can be watched for, taught to
+      children, written into the shrine wall's unfinished mural by an old
+      woman who suddenly understood what the sixty-year gap in the paint was
+      waiting for. It can be met with its coat off. Unnamed, it was the
+      weather. Named, it is an enemy -- and enemies, unlike weather, can be
+      outlasted.
+
+      Somewhere inward, where the mechanism does its patient work, one
+      variable in the long sum now refuses to stay hidden. It is written on
+      a table in a village at the forest's edge, in ordinary ink, and it
+      cannot be unwritten. That was the whole trick. It was not a small one.
+    echoes:
+      - speaker: npc_maris
+        text: |-
+          I came straight from the oven, you remember. Flour on my sleeves
+          the whole meeting. I have thought about that since -- how you said
+          the worst thing any of us ever heard, and I stood there floured
+          like it was a market day, and afterward I went back and the bread
+          still rose. That was what you gave us, I think. The truth, and the
+          bread still rising. Both. That's rarer than you know.
+
+  the_price_asked:
+    title: "The Price Asked"
+    card_m: |-
+      One valley, for one season, at that price. You did the sum before you
+      paid; you do it again on the bad nights, and it always comes out the
+      same, which is not the comfort people imagine. Right answers are cold
+      company. The valley, though. The valley is warm.
+
+      You watch it the way other people watch their children. Rain on its
+      weather. Lambs the right way round. The road through it exactly as
+      long as it was last year, measured, because you measure it now, every
+      quarter, with a chain, and the carters have stopped asking why.
+
+      What you gave does not come back. There is a shape in you where it
+      sat, and the shape does not fill, and you have learned to carry it
+      the way you carry the weather in an old wound -- noted, allowed for,
+      not discussed. Ilya was right. Sympathy takes a like for a like, and
+      the shapes it accepts are short. You knew the terms. You paid at the
+      table. The valley keeps its own time, and that is the receipt.
+    card_g: |-
+      The pattern does not resent the payment. Resentment is for things
+      with faces. It accepted a like for a like because that is the law it
+      runs on -- older than it, deeper than it, the one law it cannot
+      convert -- and one green valley now sits inside its workings like a
+      seized gear, ticking to a different clock, and everything the
+      mechanism builds around that valley has to be built crooked.
+
+      Crooked work is slow work. Slow work is the only defeat the pattern
+      knows.
+
+      It will try the valley again next season, or the one after; the law
+      lets it. And on a table in a house at the forest's edge there is a
+      cleared space, kept clear, dusted weekly -- because the one who paid
+      once has already worked out what they would put on it the second
+      time, and the mechanism, if it can be said to know anything, knows
+      that too.
+    echoes:
+      - speaker: npc_ilya
+        text: |-
+          Nine prices on the felt, and people always ask about the pin.
+          They never ask about the price I wrote down and did not say. You
+          paid that one without haggling. In my book -- the far column, the
+          one not in coin -- there is a date, and no sum, because some sums
+          you do not write where the curious can read them. You know what
+          it cost. The valley does not, and must never. That is the trade.
+
+  the_pin_and_the_join:
+    title: "The Pin and the Join"
+    card_m: |-
+      The road stopped getting shorter. Nobody measures such things but
+      you, so nobody celebrates; there is no feast-day for a distance
+      holding still. The carters just notice, over a year or two, that the
+      Millhaven run takes the hours it took, and the hedgerows at the join
+      have gone back to arguing their boundary like honest hedges, and
+      whatever it was about that stretch of road, it seems to have thought
+      better of it.
+
+      A true name of yours is in a tinker's keeping, gone wherever the
+      caravan went. You feel its absence on quiet mornings, the way you
+      feel a pulled tooth with your tongue -- not pain, exactly. Room.
+      People find you harder to describe than they used to. Letters reach
+      you a day late, as if the address had to think about it. A small
+      price. You have seen the ledger the big ones are written in.
+
+      Edgewood never learns what you did at the join. You have a life
+      there anyway -- work, weather, bread, a cat that sits with you some
+      evenings, facing the treeline, keeping whatever accounts cats keep.
+    card_g: |-
+      It was never a ward. Wards ask the dark, politely, to go around.
+      The ninth pin does not ask. Driven into the join of a road that was
+      teaching itself to be shorter, it states -- in the old grammar, the
+      one the pattern itself is written in -- that this seam does not
+      close. The mechanism reads it every time it comes back to the sum,
+      and every time, the sum will not carry.
+
+      Held is not healed. Ask any scar. Four miles of world are still
+      missing, folded away somewhere the maps cannot follow; the pin only
+      insists the theft stops at four. But insistence, it turns out, is a
+      thing metal can do better than men -- it does not tire, or doubt, or
+      wake at the wrong hour and wonder.
+
+      Eight prices left on the felt, wherever the felt is now. The caravan
+      does not come back in the spring. Some things, once sold, a seller
+      does not care to be near.
+    echoes:
+      - speaker: npc_ilya
+        text: |-
+          You would want to be very clear which one you came for, I said,
+          and you were, which is why I sold it. I have carried the ninth
+          through eleven of these valleys and nine of these springs waiting
+          to meet the one buyer who wanted it for what it is. The nail does
+          not love the wood, friend. It just will not let go. I hoped you
+          would be like that. I think you are.
+
+  the_stopped_wheel:
+    title: "The Stopped Wheel"
+    card_m: |-
+      The square is quiet the way a stopped mechanism is quiet -- not
+      resting, finished. The oven at the bottom of Well Row is cold, and
+      you have stopped lighting it for anyone but yourself, because bread
+      is for eating and the eaters are gone: walked inward, or carted out,
+      or changed in the still way, overnight, that was always the worst
+      way because it left the faces.
+
+      You keep the circuit. Dawn, the well, the rounds, the names. You say
+      every name once each, out loud, at the doors that belonged to them
+      -- not because anything hears, but because the saying is a thing
+      living order does, and you are what is left of living order at the
+      forest's edge, and while you do the rounds, the ledger of what
+      Edgewood was stays open by exactly one line.
+
+      It is not a life. It is a keeping. Somebody kept the shrine wall
+      unfinished for sixty years so the right hand could finish it;
+      somebody kept the count; now somebody keeps this. You do not expect
+      to be relieved. You go on keeping it anyway, and that -- as a woman
+      with flour on her sleeves would have told you -- is the whole job.
+    card_g: |-
+      The pattern has what it came for. The valley, the road, the
+      Heartlands beyond: converted, regular, correct. Rain falls on
+      schedule now, exactly, which is how you can tell it is no longer
+      weather. Lambs are born the right way round in the right numbers,
+      and none of them cry. The mechanism has achieved what living order
+      never could -- a world with nothing wrong in it -- and the result is
+      a silence with the exact shape of everything that used to be here.
+
+      Ticking is not time. The thing that walks the roads keeps a perfect
+      schedule and no appointments, because appointments are promises and
+      promises need somebody to keep them.
+
+      At the margin of what used to be Edgewood, one hearth still banks its
+      coals at dusk, off schedule, unpredictable, wrong. The mechanism
+      returns to that irregularity again and again, the way a tongue
+      returns to a broken tooth. It cannot resolve it. One keeper, one
+      fire, one list of names said at doors: too small to convert, too
+      stubborn to zero. The sum will not close while you live, and you
+      have decided, in the old grammar of the frontier, to be a long time
+      dying.
+    echoes: []
+
+  the_dark_keeps_its_hours:
+    title: "The Dark Keeps Its Hours"
+    card_m: |-
+      Your story at the forest's edge ends the way most true stories do:
+      without an ending. One evening the book is set down and not picked
+      back up -- work the next morning, weather after that, and by the
+      time anyone thinks to ask what became of the one who walked in from
+      the birch trees that spring, the answer is the ordinary one. Stayed
+      a while. Did what there was to do. Life closed over the question
+      like water.
+
+      The forest is darker at the margins than the year you came.
+      Everyone says so; everyone says it the way they say the winters are
+      longer -- true, nobody's fault, nothing to be done by suppertime.
+      Doors get locked that were not locked. The caravan comes later each
+      spring, and leaves earlier, and one year the well-water tastes of
+      brass for a week and the village agrees not to discuss it.
+
+      You were there for all of it. That is what can be said for you --
+      and it is not nothing, whatever the tally-keepers of great deeds
+      would make of it. The dark kept its hours. So did you. On the
+      frontier, showing up for your own life every morning is the oldest
+      form of defiance, and the commonest, which is why nobody sings
+      about it.
+    card_g: |-
+      The pattern's ledger has a line for everything, and its line for you
+      is short. Present, it says, in effect. Accounted for. No entanglement.
+      It spent no more thought on you than frost spends on one blade of
+      grass -- which is to say: it counted you, because it counts
+      everything, and it moved on to the entries that resist.
+
+      This is what most lives look like from inside the long dark: not
+      victims, not heroes. Weather to it, as it was weather to you. The
+      wound goes on with its work at the pace your presence neither
+      hastened nor much delayed, and the village goes on with its work in
+      the shrinking daylight, and between those two arithmetics a whole
+      world of mornings happened -- bread, rain, small wages, a cat on a
+      fallen birch -- that the ledger has no column for.
+
+      The dark keeps its hours. It has never once understood what the
+      hours are for.
+    echoes:
+      - speaker: npc_odran
+        text: |-
+          I'll tell you what I tell them on the Millhaven road when your
+          village comes up. There's a place at the forest's edge where the
+          bread's fair, the well's sweet, and nobody asks a carter's
+          business -- and it's still there, friend. Whatever else is true
+          about those trees. It is still there. Some years that's the whole
+          of the good news, and I carry it the length of the road.

@@ -1,0 +1,93 @@
+# The Clockwork Dark -- epilogue index.
+#
+# Read by engine/game/epilogue.py through `paths.epilogues`. One row per
+# ending in data/rules/endings.yaml; eight ids, matching that file exactly.
+#
+# `{garden_days}` is the ENGINE's placeholder name for world days elapsed,
+# whatever the story is about; here it is the days since the birch trees.
+# `{mortal_days}` is deliberately not used: it reads a declared value this
+# story does not declare (`time_debt_mortal_days` is the Garden's ledger, not
+# Edgewood's), and a sentence that always says "0 days" is worse than no
+# sentence.
+#
+# The hollow clause keys on the same undeclared value -- it reads a permanent
+# 0, so a threshold of 1 means the clause NEVER fires. Declared explicitly so
+# nobody has to rediscover why it is absent.
+#
+# `card_m` is the village side -- Edgewood, the mornings, what the life turned
+# into. `card_g` is the dark side -- the pattern, the forest margin, what the
+# wound does next. Every ending gets both, because both go on being true; that
+# pairing IS this game ("Edgewood has bread. The road is still coming. Both of
+# those go on being true").
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+prose_source: epilogue_cards.yaml
+
+time_line_template: >-
+  It was {garden_days} {garden_days_word} from the birch trees to this.
+
+render_order: [title, card_m, card_g, echoes, time_line, gallery_unlock]
+
+hollow_clause_if_time_debt_gte: 1
+hollow_clause_text: ""
+
+endings:
+
+  - id: the_hearth_holds
+    class: the_hearth_holds
+    title: "The Hearth Holds"
+    gallery_key: banked_oven
+    echo_speaker: [npc_maris]
+    ng_plus_seed: a_year_of_mornings
+
+  - id: the_long_witness
+    class: the_long_witness
+    title: "The Long Witness"
+    gallery_key: dated_ledger
+    echo_speaker: [npc_odran]
+    ng_plus_seed: the_kept_list
+
+  - id: the_counted_march
+    class: the_counted_march
+    title: "The Counted March"
+    gallery_key: struck_roll
+    echo_speaker: [npc_sera]
+    ng_plus_seed: null
+
+  - id: the_named_wound
+    class: the_named_wound
+    title: "The Named Wound"
+    gallery_key: ink_on_the_table
+    echo_speaker: [npc_maris]
+    ng_plus_seed: they_chose_it_knowing
+
+  - id: the_price_asked
+    class: the_price_asked
+    title: "The Price Asked"
+    gallery_key: empty_table
+    echo_speaker: [npc_ilya]
+    ng_plus_seed: null
+
+  - id: the_pin_and_the_join
+    class: the_pin_and_the_join
+    title: "The Pin and the Join"
+    gallery_key: eight_shadows
+    echo_speaker: [npc_ilya]
+    ng_plus_seed: the_held_join
+
+  - id: the_stopped_wheel
+    class: the_stopped_wheel
+    title: "The Stopped Wheel"
+    gallery_key: cold_square
+    # NO ECHO. There is nobody left to have a last word, which is the ending.
+    echo_speaker: []
+    ng_plus_seed: null
+
+  - id: the_dark_keeps_its_hours
+    class: the_dark_keeps_its_hours
+    title: "The Dark Keeps Its Hours"
+    gallery_key: long_dusk
+    echo_speaker: [npc_odran]
+    ng_plus_seed: null

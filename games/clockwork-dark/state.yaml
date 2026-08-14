@@ -126,6 +126,20 @@ meters:
     default: 0.0
     visibility: hidden
     label: The pattern
+  # Earned reprieve against the doom clock (R-06). Granted only through the
+  # `doom_resistance` effect kind, spent by daily decay in
+  # engine/game/evil_ticker.py. Declared so the ending gates and score rows in
+  # data/rules/endings.yaml can read it through the `value` predicate; hidden
+  # for the same reason awareness is -- the player meets pushback as fiction,
+  # never as a number.
+  doom_resistance:
+    backing: field
+    path: doom_resistance
+    min: 0.0
+    max: 100.0
+    default: 0.0
+    visibility: hidden
+    label: Earned reprieve
   plot_involvement:
     backing: field
     path: plot_involvement

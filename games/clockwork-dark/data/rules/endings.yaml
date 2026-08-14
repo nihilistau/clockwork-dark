@@ -1,0 +1,527 @@
+# The Clockwork Dark -- eight endings.
+#
+# Read by engine/game/endings.py through `paths.endings`. Variant-less: each
+# class id IS an ending id, and data/epilogues/epilogue_index.yaml agrees with
+# these ids exactly.
+#
+# THE SHAPE OF THE FINALE, for a graph story with no last day. Three doors
+# carry `{type: ending_lock}`:
+#
+#   banking_the_fire        the quiet door. A late quiet_life quest, opened by
+#                           a provisioned larder, that lets a player CHOOSE to
+#                           close the book by the hearth. Locks with no id --
+#                           whatever the run has earned.
+#   the_sacrifice           the paid door. Locks `the_price_asked` by name:
+#                           the like-for-like is terminal by construction.
+#   the_last_quiet_thing    the last door. The bake after everything. Locks
+#                           with no id -- the run that walked the whole arc
+#                           gets whichever of these it actually became.
+#
+# An id-less lock resolves through engine/game/endings.py::resolve -- the
+# highest-scoring ELIGIBLE ending, else the declared fail-forward -- so the
+# score rows below are not decoration: they are the tiebreak when a run has
+# earned more than one of these. Ties on score break alphabetically by id.
+#
+# TWO GATES, SEPARATE ON PURPOSE: `requires` is "you have earned this";
+# `completable` is "nothing still live makes it impossible". The lock text a
+# UI renders needs to tell the player which one is in their way. The
+# `completable` obstructions below all point the same direction -- a world at
+# the end of its rope closes every door but the last two -- which is how the
+# consumed and stopped-wheel endings come to dominate late locks without any
+# special-case code.
+#
+# EVERY GATE IS ENGINE-EVALUABLE. quest_completed reads progress records
+# (status is COMPLETED before on_complete effects run, so a quest may gate on
+# itself in its own lock). The nf_* flags are narrative flags the quests
+# declare and the Storyteller sets; saints_marked_you is written by the
+# terminal-death rules (data/rules/death.yaml); evil_progress and
+# doom_resistance are declared in state.yaml. All of them are canon --
+# data/canon/state-dictionary.json is the vocabulary.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+# ALWAYS ELIGIBLE, BY DECLARATION. The failure state is a real ending with a
+# real card: the dark kept its hours, and you went on living inside them. It
+# reads true for a run the world consumed AND for a run that simply never
+# became any of the other seven, which is what a fail-forward has to be.
+fail_forward: the_dark_keeps_its_hours
+
+classes:
+
+  # ---------------------------------------------------------------------
+  # THE HEARTH HOLDS -- the baker's ending. The quiet life is a complete
+  # experience; this is the game saying so in its own grammar. Low
+  # awareness is a REQUIREMENT, not a failure: the player who never
+  # learned the word "clockwork" earned an ending where nobody says it.
+  # ---------------------------------------------------------------------
+  the_hearth_holds:
+    label: "The Hearth Holds"
+    requires:
+      all:
+        - id: a_place_here
+          any:
+            - { quest_completed: bakery_apprentice }
+            - { quest_completed: winter_stores }
+            - { quest_completed: neighbours_roof }
+            - { quest_completed: shrine_mural }
+            - { quest_completed: lost_goat }
+            - { quest_completed: festival_bake }
+        - { id: book_closed, flag: nf_hearth_book_closed }
+        - { id: unknowing, max_awareness: 40 }
+    completable:
+      id: village_stands
+      none:
+        - { min_phase: consuming }
+    lock_reasons:
+      a_place_here: "Nobody in Edgewood would miss you yet, and that is the whole of what this ending is made of."
+      book_closed: "You have not said you are staying. Not out loud, not to yourself."
+      unknowing: "You have seen too much to pretend the mornings are only mornings."
+      village_stands: "There is no hearth to hold. The village is emptying around the oven."
+    score:
+      - { when: { quest_completed: bakery_apprentice }, weight: 0.3 }
+      - { when: { quest_completed: winter_stores }, weight: 0.2 }
+      - { when: { max_awareness: 15 }, weight: 0.3 }
+      - { when: { reputation: { faction: edgewood, min: 20 } }, weight: 0.2 }
+    beats:
+      - id: hearth_holds_speak
+        text: >-
+          SPEAK. You tell Maris you are staying, and she says "I know," the
+          way she says the oven is hot -- a fact the morning was already
+          built on. Nobody in Edgewood congratulates anybody for staying.
+          Staying is what the place is made of.
+        gate:
+          on_pass:
+            effects:
+              - { type: reputation, faction: edgewood, delta: 5 }
+      - id: hearth_holds_act
+        text: >-
+          ACT. The next morning is a morning. Fire at four, the long peel,
+          the count of loaves going out the door in aprons and under arms.
+          Somewhere past the tree line the world is doing whatever the world
+          does. The bread does not care, and needs turning.
+        gate:
+          on_pass:
+            effects:
+              - { type: stamina, delta: -5 }
+      - id: hearth_holds_seal
+        text: >-
+          SEAL. Years from now somebody will ask how long you have been at
+          the ovens, and you will have to count on your fingers, and lose
+          the count, and it will not matter. The fire is banked. It holds
+          till morning. That was always the whole job.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # THE LONG WITNESS -- the whisper arc's ending. You knew, and you
+  # stayed anyway. Knowing is the gate; staying is the same door the
+  # baker uses, or the last quiet thing itself.
+  # ---------------------------------------------------------------------
+  the_long_witness:
+    label: "The Long Witness"
+    requires:
+      all:
+        - { id: eyes_open, min_awareness: 30 }
+        - id: listened
+          any:
+            - { quest_completed: childs_drawing }
+            - { quest_completed: not_right }
+            - { quest_completed: rumour_made_true }
+            - { quest_completed: the_wrong_map }
+            - { quest_completed: ward_charms }
+            - { quest_completed: wrong_lyrics }
+            - { min_awareness: 50 }
+        - id: stayed
+          any:
+            - { flag: nf_hearth_book_closed }
+            - { quest_completed: the_last_quiet_thing }
+    completable:
+      id: world_still_turning
+      none:
+        - { value: { name: evil_progress, min: 1.0 } }
+    lock_reasons:
+      eyes_open: "You have not seen anything you could not explain to yourself by breakfast."
+      listened: "The wrong things have been in front of you for weeks. You have not once looked twice."
+      stayed: "Knowing is not this. Staying with what you know is this, and you have not chosen it."
+      world_still_turning: "There is nothing left to witness. The wheel has stopped."
+    score:
+      - { when: { min_awareness: 50 }, weight: 0.3 }
+      - { when: { quest_completed: childs_drawing }, weight: 0.1 }
+      - { when: { quest_completed: the_wrong_map }, weight: 0.1 }
+      - { when: { quest_completed: wrong_lyrics }, weight: 0.1 }
+      - { when: { quest_completed: ward_charms }, weight: 0.1 }
+      - { value: doom_resistance, at: 40, weight: 0.3 }
+    beats:
+      - id: long_witness_speak
+        text: >-
+          SPEAK. You do not make a speech. You tell one person one true
+          thing -- the verse, the vantage, the lamb born wrong -- and let
+          them decide what to do with a fact that heavy. That is what you
+          have instead of a sword: the habit of saying what is actually
+          there.
+        gate:
+          on_pass:
+            effects:
+              - { type: awareness, delta: 4 }
+      - id: long_witness_act
+        text: >-
+          ACT. You keep the list. Eleven wrong things, then fourteen, then
+          you stop numbering and start dating them instead, which is worse
+          and more useful. When the children ask why you write in the
+          evenings you say it is accounts. It is accounts.
+        gate:
+          on_pass:
+            effects:
+              - { type: focus, delta: -1 }
+      - id: long_witness_seal
+        text: >-
+          SEAL. Whatever comes, somebody will know it did not come from
+          nowhere. The paper is cheap and the ink is oak gall and soot, and
+          both will outlast you, which is the arrangement you have made your
+          peace with.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # THE COUNTED MARCH -- the march arc's ending. You stood where the
+  # counting was done and let it count you. Militia standing is the gate;
+  # the same hearth door closes the book, because mustering out is done
+  # with the larder squared like everything else on the frontier.
+  # ---------------------------------------------------------------------
+  the_counted_march:
+    label: "The Counted March"
+    requires:
+      all:
+        - { id: marched, arc_unlocked: march }
+        - { id: counted, reputation: { faction: militia, min: 20 } }
+        - id: served
+          any:
+            - { quest_completed: militia_press }
+            - { quest_completed: conscription_list }
+            - { quest_completed: toll_roads }
+            - { quest_completed: refugees }
+            - { quest_completed: seras_compromise }
+            - { quest_completed: burned_farmstead }
+        - { id: mustered_out, flag: nf_hearth_book_closed }
+    completable:
+      id: still_on_the_rolls
+      none:
+        - { flag: saints_marked_you }
+    lock_reasons:
+      marched: "The road inward has soldiers on it, and you have not once stood where they could count you."
+      counted: "Sera's ledger has your name in the column for strangers. Strangers are not mustered out; they are moved on."
+      served: "You have watched the arithmetic being done with people. Watching is not a discharge."
+      mustered_out: "The sergeant cannot strike a name that has not said it is done."
+      still_on_the_rolls: "The saints have you marked, and the militia does not muster the marked. It buries them."
+    score:
+      - { when: { reputation: { faction: militia, min: 40 } }, weight: 0.4 }
+      - { when: { quest_completed: seras_compromise }, weight: 0.2 }
+      - { when: { quest_completed: conscription_list }, weight: 0.2 }
+      - { value: doom_resistance, at: 40, weight: 0.2 }
+    beats:
+      - id: counted_march_speak
+        text: >-
+          SPEAK. Sera reads your name off the roll and looks up to check the
+          face against it, which she has never once needed to do. "Done,
+          then," she says. It is the longest sentence anyone in the levy has
+          spent on a discharge this season.
+        gate:
+          on_pass:
+            effects:
+              - { type: reputation, faction: militia, delta: 5 }
+      - id: counted_march_act
+        text: >-
+          ACT. You walk the toll road one last time without a ledger in
+          your hand, past the gate you stood, past the field where the
+          arithmetic was people. Some of what happened on that road held
+          because you were on it. Nobody will write that down. You were
+          there. You know which nights.
+        gate:
+          on_pass:
+            effects:
+              - { type: awareness, delta: 3 }
+      - id: counted_march_seal
+        text: >-
+          SEAL. The line on the roll is struck through once, cleanly, the
+          way Sera does everything. The paper keeps the name under the ink.
+          Papers do. That is what they are for, whatever the sergeants say.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # THE NAMED WOUND -- the convergence's civic ending. You named the
+  # thing, and then you made a village decide its own fate knowing.
+  # Locked by the last quiet thing's id-less lock, which is to say: by
+  # showing up for the morning firing afterward.
+  # ---------------------------------------------------------------------
+  the_named_wound:
+    label: "The Named Wound"
+    requires:
+      all:
+        - { id: named, quest_completed: naming_the_wound }
+        - { id: decided, quest_completed: what_edgewood_keeps }
+    completable:
+      id: wheel_still_turning
+      none:
+        - { value: { name: evil_progress, min: 1.0 } }
+    lock_reasons:
+      named: "It is still eleven separate wrong things to you. It has a shape, and you have not paid what looking at it costs."
+      decided: "Edgewood does not know what you know, and what it does not know it cannot choose about."
+      wheel_still_turning: "The name is still true. There is nothing left for it to be true about."
+    score:
+      - { when: { quest_completed: naming_the_wound }, weight: 0.4 }
+      - { when: { quest_completed: what_edgewood_keeps }, weight: 0.4 }
+      - { when: { flag: nf_edgewood_stay }, weight: 0.1 }
+      - { value: doom_resistance, at: 50, weight: 0.1 }
+    beats:
+      - id: named_wound_speak
+        text: >-
+          SPEAK. The written name sits on the table in the square where
+          anyone can look at it, and people do -- sideways, the way you
+          look at a wasp. Ink is only ink. That was the whole trick, and
+          you paid for it, and the paying does not show unless someone
+          knows where to look.
+        gate:
+          on_pass:
+            effects:
+              - { type: awareness, delta: 4 }
+      - id: named_wound_act
+        text: >-
+          ACT. The village does what it voted to do. Carts or barricades or
+          both; lists; arguments about a dresser. You carry your end. A
+          world-scale decision turns out to be made of furniture and you
+          have the splinters to prove it.
+        gate:
+          on_pass:
+            effects:
+              - { type: stamina, delta: -8 }
+      - id: named_wound_seal
+        text: >-
+          SEAL. Whatever the pattern takes in the end, it will not take a
+          village that did not know. That is not victory. On the bad
+          mornings you say it anyway, out loud, over the proof: they chose
+          it knowing. They chose it knowing.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # THE PRICE ASKED -- the sacrifice's ending, locked BY NAME from
+  # the_sacrifice's on_complete: paying the like-for-like is terminal by
+  # construction ("One valley. Not the world... You would want to be sure
+  # you had done the sum.").
+  # ---------------------------------------------------------------------
+  the_price_asked:
+    label: "The Price Asked"
+    requires:
+      all:
+        - { id: paid, quest_completed: the_sacrifice }
+        - { id: hand_off_it, flag: nf_sacrifice_paid }
+    lock_reasons:
+      paid: "Sympathy takes a like for a like, and you have not put anything on the table."
+      hand_off_it: "It is still in your hands. Everything is negotiable until your hand comes off it."
+    score:
+      - { when: { quest_completed: the_sacrifice }, weight: 0.6 }
+      - { when: { flag: nf_sacrifice_paid }, weight: 0.2 }
+      - { when: { quest_completed: naming_the_wound }, weight: 0.2 }
+    beats:
+      - id: price_asked_speak
+        text: >-
+          SPEAK. There is nothing to say and Ilya does not pretend
+          otherwise. He writes the date in his book of prices, in the
+          column he keeps for the ones that are not coin, and turns the
+          page before the ink is dry so nobody can read it back.
+        gate:
+          on_pass:
+            effects:
+              - { type: reputation, faction: unnamed_saints, delta: 5 }
+      - id: price_asked_act
+        text: >-
+          ACT. The valley goes on being a valley. Rain arrives on the
+          weather and not against it, lambs are born the right way round,
+          and a road stays the length it has always been. Nobody thanks
+          you. Nobody knows. Both of those were in the price.
+        gate:
+          on_pass:
+            effects:
+              - { type: awareness, delta: 3 }
+      - id: price_asked_seal
+        text: >-
+          SEAL. One valley, one season, at that price. Some nights you do
+          the sum again in the dark, carrying the one, checking the
+          remainder, and it always comes out the same: worth it, and gone.
+          Both true. Neither one keeps you warm.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # THE PIN AND THE JOIN -- the ninth pin carried to where the road's two
+  # ends meet. The rarest gate in the table: the pin taken from Ilya's
+  # felt, still held (not spent as the sacrifice), and the join walked so
+  # you know where the opposite of a ward belongs.
+  # ---------------------------------------------------------------------
+  the_pin_and_the_join:
+    label: "The Pin and the Join"
+    requires:
+      all:
+        - { id: pin_taken, flag: nf_ninth_taken }
+        - { id: pin_held, has_item: { id: ninth_pin, qty: 1 } }
+        - { id: join_walked, quest_completed: the_heartland_road }
+    completable:
+      id: wheel_still_turning
+      none:
+        - { value: { name: evil_progress, min: 1.0 } }
+    lock_reasons:
+      pin_taken: "The ninth pin is still on Ilya's felt, and he has never once said it is not for sale."
+      pin_held: "You had it, and you spent it, or you left it somewhere a pin like that should never be left."
+      join_walked: "You do not know where it goes. It goes where the two ends of the road were made to meet."
+      wheel_still_turning: "The join has closed over. There is nowhere left to set anything."
+    score:
+      - { when: { flag: nf_ninth_taken }, weight: 0.4 }
+      - { when: { has_item: { id: ninth_pin, qty: 1 } }, weight: 0.3 }
+      - { when: { quest_completed: the_heartland_road }, weight: 0.3 }
+    beats:
+      - id: pin_join_speak
+        text: >-
+          SPEAK. A true name of yours is in Ilya's keeping and the pin is
+          in yours, and at the place where four missing miles pretend to be
+          none, you say the name Edgewood uses for you -- out loud, once --
+          so that whatever is listening files the wrong one.
+        gate:
+          on_pass:
+            effects:
+              - { type: focus, delta: -2 }
+      - id: pin_join_act
+        text: >-
+          ACT. It is not a ward. It goes in the way a nail goes into green
+          wood, reluctant and then all at once, and the hedgerows on either
+          side of the join shiver in no wind at all. The road does not get
+          longer. It stops getting shorter, which pins have never once been
+          for, except this one.
+        gate:
+          on_pass:
+            effects:
+              - { type: awareness, delta: 5 }
+      - id: pin_join_seal
+        text: >-
+          SEAL. Ilya rolls his felt with eight shadows where nine prices
+          used to lie, and does not come back in the spring. The join
+          holds. Held is not healed -- ask any scar -- but held is a word a
+          village can live next to, and this one does.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # THE STOPPED WHEEL -- the death of the world. evil_progress is clamped
+  # to 1.0 and monotone (engine/game/evil_ticker.py), so this gate, once
+  # true, stays true; the completable obstructions on the endings above
+  # all close at the same reading, so a late lock falls through to here
+  # or to the fail-forward and nowhere else.
+  # ---------------------------------------------------------------------
+  the_stopped_wheel:
+    label: "The Stopped Wheel"
+    requires:
+      - { id: wheel_stopped, value: { name: evil_progress, min: 1.0 } }
+    lock_reasons:
+      wheel_stopped: "The world is still turning. This is not that ending, yet."
+    score:
+      - { value: evil_progress, at: 1.0, weight: 1.0 }
+    beats:
+      - id: stopped_wheel_speak
+        text: >-
+          SPEAK. There is no one to say it to, so you say it to the oven,
+          which is cold, in the square, which is quiet the way a stopped
+          mechanism is quiet: it is done. Living order has become
+          mechanism, all the way to the horizon, and mechanism does not
+          answer.
+        gate:
+          on_pass:
+            effects:
+              - { type: focus, delta: -2 }
+      - id: stopped_wheel_act
+        text: >-
+          ACT. You do the day anyway. Water, fire, food, the small circuit
+          of staying alive, performed in a world that has stopped needing
+          it -- because the alternative is to stop too, and something in
+          you, some last unconverted inch, declines.
+        gate:
+          on_pass:
+            effects:
+              - { type: stamina, delta: -5 }
+      - id: stopped_wheel_seal
+        text: >-
+          SEAL. Ticking is not time. Whatever walks the roads now keeps a
+          perfect schedule and no appointments. You keep yours: dawn, the
+          well, the cold hearth, the names of everyone, said once each. A
+          mechanism cannot do that. It is the only thing left it cannot do.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # THE DARK KEEPS ITS HOURS -- the fail-forward. No `requires` at all:
+  # this is what is left when nothing else qualifies, and the finale must
+  # never softlock. It has to read true for a run the consuming world
+  # marked for death AND for a run that closed the book without ever
+  # becoming baker, witness, marcher or namer -- so its register is the
+  # game's own thesis line: the evil ticks either way.
+  # ---------------------------------------------------------------------
+  the_dark_keeps_its_hours:
+    label: "The Dark Keeps Its Hours"
+    score:
+      - { when: { min_phase: consuming }, weight: 0.4 }
+      - { when: { flag: saints_marked_you }, weight: 0.3 }
+      - { value: evil_progress, at: 1.0, weight: 0.3 }
+    beats:
+      - id: dark_hours_speak
+        text: >-
+          SPEAK. You say nothing in particular, to nobody in particular,
+          which is how most lives are actually lived. The forest is darker
+          at the margins than it was the year you came. Everyone says so.
+          Everyone says it the way they say the winters are longer -- true,
+          and nobody's fault, and nothing to be done by suppertime.
+        gate:
+          when: { flag: saints_marked_you }
+          on_pass:
+            effects:
+              - { type: focus, delta: -1 }
+          on_fail:
+            text: >-
+              Though nobody has marked you and nothing has singled you out.
+              The dark is not interested in you. That is the mercy in it,
+              if you want one.
+      - id: dark_hours_act
+        text: >-
+          ACT. You do what there is to do. Bread if there is flour, work if
+          there is hiring, the road when the road is safe enough. The
+          pattern out past the tree line keeps its own hours and does not
+          consult you, and you return the courtesy for as long as that
+          arrangement holds.
+        gate:
+          on_pass:
+            effects:
+              - { type: stamina, delta: -3 }
+      - id: dark_hours_seal
+        text: >-
+          SEAL. The book closes the way most books close: not slammed, not
+          finished, just set down one evening and not picked back up. The
+          dark kept its hours. So did you. Nobody who tallies such things
+          would call that nothing.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
