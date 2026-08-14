@@ -824,6 +824,18 @@ def run_turn(
         tick_hours = WorldSim.realtime_tick_hours(state.last_sim_tick_at)
         if tick_hours > 0:
             WorldSim.on_tick(state, hours=tick_hours)
+            # What people said to each other while the clock moved. Here rather
+            # than inside `on_tick` because gossip writes to the LEDGER, and
+            # `WorldSim` is handed state alone -- passing it a ledger would put
+            # narrative memory inside the world simulator, which is the seam
+            # this codebase keeps carefully apart.
+            try:
+                from engine.world.gossip import spread
+
+                for line in spread(state, session.ledger):
+                    logger.debug("[default_state] %s", line)
+            except Exception as exc:  # noqa: BLE001 -- talk must not cost a turn
+                logger.debug("[default_state] Gossip skipped: %s", exc)
 
         # THE PLAYER'S CHOICE, RESOLVED BY THE ENGINE.
         #

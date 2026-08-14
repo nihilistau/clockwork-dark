@@ -64,6 +64,11 @@ THREAD = "thread"
 # engine/safety/redirect.py, which imports it back from here -- it lived there
 # first, and docs/SAFETY.md always said promoting it was tidiness owed.
 SAFETY_REDIRECT = "safety.redirect"
+# Gossip moves facts between NPCs who share a room. Its own stream because it
+# fires on the background tick, which runs a variable number of times depending
+# on how long the player sat on the menu -- borrowing any other stream would let
+# real-world idle time shift an encounter roll.
+GOSSIP = "gossip"
 
 
 def _mix(seed: int, stream: str, counter: int) -> int:
