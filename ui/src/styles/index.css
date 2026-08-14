@@ -213,9 +213,43 @@ input[type="radio"] {
 
 
 .status--error {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   color: var(--text-danger);
   font-family: var(--font-ui);
   letter-spacing: normal;
+}
+
+
+/* The press that spends the input the client is still holding. Underlined
+   rather than boxed: it sits inside a status line, and a second bordered
+   control in the footer would read as a sixth icon button. */
+
+.status__retry {
+  flex: none;
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  background: transparent;
+  border: 0;
+  color: var(--accent-brass);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+
+.status__retry:hover:not(:disabled) {
+  color: var(--text-candlelight);
+}
+
+
+.status__retry:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+  text-decoration: none;
 }
 
 
@@ -730,6 +764,49 @@ input[type="radio"] {
 }
 
 
+/* Ruled lines where the first paragraph is going to be. Deliberately the shape
+   of prose and not a spinner: on a reasoning model the opening of a run can be
+   two minutes of nothing, and the honest picture of that wait is a page being
+   set rather than a wheel going round. */
+
+.log__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+
+.log__rule {
+  height: 0.7em;
+  border-radius: var(--radius-pill);
+  background: var(--state-hover-fill);
+  animation: skeleton 1.8s var(--ease-quiet) infinite;
+}
+
+
+.log__rule:nth-child(2) {
+  animation-delay: 0.25s;
+}
+
+
+.log__rule--short {
+  width: 62%;
+  animation-delay: 0.5s;
+}
+
+
+@keyframes skeleton {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+
+
 /* ---------- thinking ---------- */
 
 .thinking {
@@ -767,6 +844,13 @@ input[type="radio"] {
 }
 
 
+.thinking__elapsed {
+  font-family: var(--font-mono);
+  font-style: normal;
+  color: var(--text-disabled);
+}
+
+
 @keyframes pulse {
   0%,
   100% {
@@ -797,6 +881,22 @@ input[type="radio"] {
      player could see that choices existed and not read one. One chip's worth is
      the floor; past that the column overflows and scrolls, which is reachable. */
   min-height: 44px;
+}
+
+
+/* A settled turn that offered nothing. It used to render as an absence, which
+   on a screen whose whole vocabulary is "here is what you may do" reads as a
+   fault rather than as an open floor. Same row height as a chip, so the layout
+   does not jump between a turn with choices and one without. */
+
+.choices__empty {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  color: var(--text-muted);
 }
 
 
@@ -2359,6 +2459,28 @@ input[type="radio"] {
 }
 
 
+.reasoning__elapsed {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-disabled);
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* Said once, when the wait stops being ordinary. Two minutes is normal here;
+   a player who does not know that is watching a broken game. */
+
+.reasoning__patience {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-2);
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+
 .reasoning__toggle:hover .reasoning__label {
   color: var(--text-candlelight);
 }
@@ -2938,6 +3060,77 @@ input[type="radio"] {
 }
 
 
+/* ---------- the fade card ----------
+   A scene resolved at summary resolution, typeset as an authored beat.
+
+   The palette is deliberately NOT the error palette. A fade is a cut in a
+   film, and the client's danger colour would tell the player something went
+   wrong when what happened is that the story chose an angle. It is set off
+   from the narration by a rule and a lift, the way a section break is, and the
+   OUTCOMES are the loudest thing on it -- a player who reads a fade as
+   "nothing happened" will spend the next turn re-doing something already
+   done. */
+
+.fade {
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  background: var(--surface-card);
+  border-left: 2px solid var(--accent-brass);
+  border-radius: var(--radius-sm);
+}
+
+
+.fade__heading {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--accent-brass);
+}
+
+
+.fade__summary {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  color: var(--text-narration);
+}
+
+
+.fade__kicker {
+  margin: var(--space-3) 0 var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+
+.fade__outcomes {
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--text-body);
+}
+
+
+.fade__outcome {
+  margin: var(--space-1) 0;
+}
+
+
+.fade__aftercare {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-2);
+  border-top: var(--border-hair) solid var(--line-soft);
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+
 /* ---------- reduced motion ----------
    effects.css already zeroes the durations, but these are ANIMATIONS with
    their own timing and would keep running: the flicker on every painted frame,
@@ -2950,8 +3143,15 @@ input[type="radio"] {
   .scene::after,
   .empty--waiting .empty__mark,
   .thinking__dot,
+  /* The skeleton still has to READ as a placeholder without the breath, so it
+     holds at its lit opacity rather than being switched off. */
+  .log__rule,
   .mic[data-state="recording"] .mic__glyph {
     animation: none;
+  }
+
+  .log__rule {
+    opacity: 0.55;
   }
 
   .chip:active:not(:disabled),

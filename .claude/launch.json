@@ -20,6 +20,18 @@
       "port": 5601
     },
     {
+      "name": "garden-src",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": ["launcher.py", "--game", "wicked-garden", "--port", "5573"],
+      "port": 5573
+    },
+    {
+      "name": "clockwork-src",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": ["launcher.py", "--game", "clockwork-dark", "--port", "5573"],
+      "port": 5573
+    },
+    {
       "name": "clockwork",
       "runtimeExecutable": ".venv\\Scripts\\python.exe",
       "runtimeArgs": ["launcher.py", "--game", "clockwork-dark", "--port", "5602"],

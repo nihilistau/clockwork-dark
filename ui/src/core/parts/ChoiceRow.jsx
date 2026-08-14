@@ -14,7 +14,7 @@ const HINT_LABEL = {
   unknown: "unknown",
 };
 
-export default function ChoiceRow({ choices, busy, onChoose }) {
+export default function ChoiceRow({ choices, busy, onChoose, settled = false }) {
   useEffect(() => {
     if (busy) return undefined;
     function onKey(event) {
@@ -31,7 +31,22 @@ export default function ChoiceRow({ choices, busy, onChoose }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [choices, busy, onChoose]);
 
-  if (!choices.length) return null;
+  // A settled turn that offered nothing.
+  //
+  // This used to render `null`, so the band above the compose box simply went
+  // away and the screen read as broken rather than as open. It is a state the
+  // engine reaches honestly -- a scene that ends on a question, a narrator that
+  // offered none, an answer that came back without its envelope -- and the
+  // compose box below is still the right move. So say that, rather than
+  // vanish. Silent while the turn is still running: nothing is missing yet.
+  if (!choices.length) {
+    if (!settled) return null;
+    return (
+      <p className="choices__empty" role="status">
+        Nothing is offered. The next move is yours to name.
+      </p>
+    );
+  }
 
   return (
     <div className="choices" role="group" aria-label="Choices">

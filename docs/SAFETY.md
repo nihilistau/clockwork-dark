@@ -294,12 +294,12 @@ The mechanism is wired into the running turn. Where each seam lives:
 | Narration review + fade card | `engine/agents/storyteller.py::run_turn`, after the retry loop, before the commit — attach point 4 |
 | The RNG stream | `SAFETY_REDIRECT = "safety.redirect"` lives in `engine/game/rng.py` with the other named streams; `engine/safety/redirect.py` imports it |
 | The player dial | `safety.intensity.player` in `config/default.yaml`, written by the Settings screen (`engine/api/settings.py`), clamped to the story ceiling at policy construction |
+| Fade-card render | `ui/src/core/parts/FadeCard.jsx`, drawn by `Play.jsx` under the log from `state.fadeCard`. Per-turn and not sticky: the card belongs to the scene that faded. Typeset as an authored beat rather than as a warning — a fade is a cut, not an error — and the outcomes are the loudest thing on it, because a player who reads a fade as "nothing happened" re-does something already done |
 
 ### NOT WIRED
 
 | What | File | Status |
 |---|---|---|
-| Fade-card render | `ui/` | `fade_card` reaches the browser in the turn payload; nothing in `ui/` draws it yet. A later UI phase |
 | Cosmetic rename on display | inventory / choice rendering in `ui/` | attach point 5 — `gate.rename` covers narration prose, but display labels (items, locations, choices) are rendered without it. A later UI phase |
 
 ---

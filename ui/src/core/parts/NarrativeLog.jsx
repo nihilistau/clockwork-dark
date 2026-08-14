@@ -81,7 +81,7 @@ function useSentenceAnnouncer(entries) {
   return announcement;
 }
 
-export default function NarrativeLog({ entries }) {
+export default function NarrativeLog({ entries, busy = false }) {
   const scroller = useRef(null);
   const stick = useRef(true);
   const [limit, setLimit] = useState(WINDOW);
@@ -124,7 +124,22 @@ export default function NarrativeLog({ entries }) {
         <Entry key={entry.id} entry={entry} />
       ))}
 
-      {entries.length === 0 && (
+      {/* Waiting for the FIRST paragraph is a different wait from waiting for
+          the next one. On this hardware the opening of a run can be two
+          minutes of nothing, and "the page is blank" is the wrong sentence for
+          it -- it says the page is empty when the page is being written. Ruled
+          lines rather than a spinner: it is the shape of what is coming, and
+          it is `aria-hidden` because a screen reader gains nothing from three
+          rectangles and the live indicator below the log already speaks. */}
+      {entries.length === 0 && busy && (
+        <div className="log__skeleton" aria-hidden="true">
+          <span className="log__rule" />
+          <span className="log__rule" />
+          <span className="log__rule log__rule--short" />
+        </div>
+      )}
+
+      {entries.length === 0 && !busy && (
         <p className="log__empty">The page is blank. Something is about to be written on it.</p>
       )}
 

@@ -146,7 +146,8 @@ export function Header({ world, title, mark, badge }) {
  * the four client controls, which is a complete and honest footer -- there is
  * simply nothing story-specific to open.
  */
-export function Footer({ world, connected, error, overlays = [], onOpenOverlay,
+export function Footer({ world, connected, error, onRetry, canRetry = true,
+                         overlays = [], onOpenOverlay,
                          onOpenSaves, onOpenSettings, onOpenMenu,
                          muted, onToggleMute }) {
   const day = world?.world_day ?? 1;
@@ -159,8 +160,23 @@ export function Footer({ world, connected, error, overlays = [], onOpenOverlay,
       </span>
       <div className="chrome__right">
         {error ? (
+          /* Every failure in this client used to end here: one line of text,
+             and a player who had to remember what they typed and type it
+             again. The input is still held; this is the button that spends
+             it. Announced together with the message, so a screen-reader user
+             hears the failure AND that there is something to do about it. */
           <span className="status status--error" role="status">
             {error}
+            {onRetry && (
+              <button
+                type="button"
+                className="status__retry"
+                onClick={onRetry}
+                disabled={!canRetry}
+              >
+                Try again
+              </button>
+            )}
           </span>
         ) : (
           <span className={`status ${connected ? "" : "status--warn"}`} role="status">
