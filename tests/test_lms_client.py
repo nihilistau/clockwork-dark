@@ -12,10 +12,11 @@ from engine.config import reset_config
 from engine.lmstudio.client import (
     LMSClient,
     _ToolCallAccumulator,
+    compat_cap,
     extract_reasoning,
     reset_lms_client,
 )
-from engine.lmstudio.profiles import resolve_profile
+from engine.lmstudio.profiles import resolve_profile, wire_cap
 
 
 def _sse_lines(*chunks: str) -> bytes:
@@ -296,4 +297,96 @@ def test_stream_reports_real_token_counts():
     assert result.input_tokens == 11
     assert result.output_tokens == 22
     assert result.reasoning_tokens == 7
+    client.close()
+
+
+# -- the two budgets -------------------------------------------------------
+
+
+def test_content_and_reasoning_are_budgeted_separately():
+    """
+    The defect this whole seam exists for.
+
+    One combined cap is not a budget, it is a race. Measured on this machine,
+    narration spent 1098-2630 tokens thinking inside a 3000-token ceiling, so
+    the answer got the remainder -- often a severed sentence, sometimes nothing.
+    `max_tokens` is the answer's floor now and `reasoning_budget` is bought
+    separately; the wire cap is their sum.
+    """
+    reset_config()
+    big = resolve_profile("big")
+    assert big.max_tokens > 0
+    assert big.reasoning_budget >= 2997, "must clear the worst measured think"
+    assert big.wire_cap("on") == big.max_tokens + big.reasoning_budget
+    # Reasoning off spends nothing on thinking, so it buys nothing extra.
+    assert big.wire_cap("off") == big.max_tokens
+
+
+def test_a_negative_reasoning_budget_cannot_shrink_the_answer():
+    """A bad config value must not eat into the content floor."""
+    assert wire_cap(1000, -500, "on") == 1000
+
+
+def test_uncapped_stays_uncapped():
+    """A non-positive cap means 'no ceiling'; adding to it would invent one."""
+    assert wire_cap(0, 3200, "on") == 0
+
+
+def test_compat_transport_pays_for_reasoning_it_cannot_switch_off():
+    """
+    Honouring `reasoning: off` on this route would starve the request.
+
+    /v1/chat/completions ignores every reasoning control. Measured: the big
+    profile set to "off" still burned 2331 and 2630 reasoning tokens on two
+    consecutive narration turns, because a schema-constrained call has to ride
+    this route. So the budget is granted unconditionally here.
+    """
+    assert compat_cap(1200, 3200) == 4400
+
+
+def test_compat_chat_sends_the_summed_ceiling():
+    reset_lms_client()
+    client = LMSClient(base_url="http://test.local/v1")
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+                "usage": {"completion_tokens": 5},
+            },
+        )
+
+    _mock(client, handler)
+    client.chat(
+        [{"role": "user", "content": "hi"}],
+        model="m",
+        max_tokens=1200,
+        reasoning_budget=3200,
+    )
+    assert seen["max_tokens"] == 4400
+    client.close()
+
+
+def test_compat_stream_sends_the_summed_ceiling():
+    reset_lms_client()
+    client = LMSClient(base_url="http://test.local/v1")
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, content=_sse_lines("hi"))
+
+    _mock(client, handler)
+    generator = client.chat_stream(
+        [{"role": "user", "content": "hi"}],
+        model="m",
+        max_tokens=900,
+        reasoning_budget=800,
+    )
+    for _ in generator:
+        pass
+    assert seen["max_tokens"] == 1700
     client.close()

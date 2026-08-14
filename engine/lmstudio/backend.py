@@ -24,6 +24,14 @@ Everything else goes native, because only native can stop a reasoning model
 from spending the entire token budget thinking -- the confirmed cause of
 ``content: ""`` reaching the player as a frozen screen.
 
+THE TWO BUDGETS
+---------------
+``max_tokens`` here, and everywhere below it, means the CONTENT budget: what
+the answer may spend. The profile's ``reasoning_budget`` is added on top by the
+transport, because only the transport knows whether the reasoning mode it was
+handed will actually be honoured -- the native route honours ``off``, the
+OpenAI-compatible route ignores it and thinks anyway.
+
 THE RETRY
 ---------
 ``LMSResponse.starved_by_reasoning`` (finish_reason "length" AND empty content)
@@ -31,7 +39,14 @@ is treated as its own failure class, not as "the model wrote nothing". When it
 fires, the request is retried once on the native transport with
 ``reasoning="off"``, which is the only thing that reliably fixes it.
 
-Version: v0.1.0 [2026-08-08]
+That retry is now a net under a floor rather than the floor itself. It used to
+fire on nearly every narration turn, and each firing cost a full wasted
+generation -- 1753-2997 reasoning tokens at ~16 tok/s, so two to three minutes
+thrown away before the real answer began. With content and reasoning budgeted
+separately it should almost never fire; if it does, the log names which of the
+two budgets ran short.
+
+Version: v0.2.0 [2026-08-14]
 """
 
 from __future__ import annotations
@@ -41,7 +56,7 @@ import threading
 from typing import Any, Callable, Generator, Optional
 
 from engine.config import get_config
-from engine.lmstudio.client import LMSClient, get_lms_client
+from engine.lmstudio.client import LMSClient, compat_cap, get_lms_client
 from engine.lmstudio.events import LMSResponse, LMSStreamEvent
 from engine.lmstudio.gate import inference_slot
 from engine.lmstudio.native import NativeClient
@@ -206,7 +221,11 @@ class LMStudioBackend:
                 [{"role": "user", "content": 'Reply with {"ok": true}'}],
                 model=mp.model,
                 temperature=0.0,
-                max_tokens=2000,
+                max_tokens=200,
+                # This route cannot turn reasoning off, so the probe has to pay
+                # for thinking too -- otherwise a reasoning model fails a probe
+                # about whether the SERVER supports grammars.
+                reasoning_budget=mp.reasoning_budget,
                 response_format=_response_format(probe_schema, name="probe"),
             )
             ok = '"ok"' in response.content
@@ -254,6 +273,9 @@ class LMStudioBackend:
             LMSResponse with both output channels populated.
         """
         mp = resolve_profile(profile)
+        # `cap` is the CONTENT budget throughout this module. The transports add
+        # `reasoning_budget` on top themselves, because only they know whether
+        # the mode they were handed will actually be honoured.
         cap = int(max_tokens or mp.max_tokens)
         temp = float(mp.temperature if temperature is None else temperature)
         mode = str(reasoning or mp.reasoning)
@@ -266,6 +288,7 @@ class LMStudioBackend:
                     temperature=temp,
                     max_tokens=cap,
                     reasoning=mode,
+                    reasoning_budget=mp.reasoning_budget,
                     context_length=mp.context_tokens,
                 )
         else:
@@ -275,6 +298,7 @@ class LMStudioBackend:
                     model=mp.model,
                     temperature=temp,
                     max_tokens=cap,
+                    reasoning_budget=mp.reasoning_budget,
                     tools=tools,
                     tool_choice=tool_choice,
                     response_format=response_format,
@@ -316,9 +340,12 @@ class LMStudioBackend:
 
         logger.warning(
             "[backend] Retrying with reasoning='off' after starvation "
-            "(operation=_retry_without_reasoning, model=%s, max_tokens=%s)",
+            "(operation=_retry_without_reasoning, model=%s, content_budget=%s, "
+            "reasoning_budget=%s). This is the last-resort net; with the two "
+            "budgets set correctly it should not fire.",
             mp.model,
             cap,
+            mp.reasoning_budget,
         )
         with inference_slot(label=f"{label or mp.name}:retry", lane=mp.lane):
             return self.native_client().chat(
@@ -327,6 +354,9 @@ class LMStudioBackend:
                 temperature=temperature,
                 max_tokens=cap,
                 reasoning="off",
+                # Deliberately not granted: the point of the retry is to spend
+                # the whole ceiling on the answer.
+                reasoning_budget=0,
                 context_length=mp.context_tokens,
             )
 
@@ -356,6 +386,7 @@ class LMStudioBackend:
             LMSResponse via StopIteration.value.
         """
         mp = resolve_profile(profile)
+        # The CONTENT budget. The transport adds `reasoning_budget` to it.
         cap = int(max_tokens or mp.max_tokens)
         temp = float(mp.temperature if temperature is None else temperature)
         mode = str(reasoning or mp.reasoning)
@@ -367,6 +398,7 @@ class LMStudioBackend:
                 temperature=temp,
                 max_tokens=cap,
                 reasoning=mode,
+                reasoning_budget=mp.reasoning_budget,
                 context_length=mp.context_tokens,
                 on_event=on_event,
                 on_delta=on_delta,
@@ -378,6 +410,7 @@ class LMStudioBackend:
                 model=mp.model,
                 temperature=temp,
                 max_tokens=cap,
+                reasoning_budget=mp.reasoning_budget,
                 on_event=on_event,
                 on_delta=on_delta,
                 on_reasoning=on_reasoning,
@@ -432,9 +465,11 @@ def chat_probe(
             of a large model can legitimately exceed this; the result says
             "timeout" and names that as a possibility rather than claiming the
             server is broken.
-        max_tokens: Enough for a real short answer plus a reasoning preamble.
-            Small enough to stay fast, large enough that a model which thinks
-            before it speaks is not scored as broken for thinking.
+        max_tokens: The CONTENT budget for the probe -- enough for a real short
+            answer. The profile's ``reasoning_budget`` is added on top by the
+            transport, so a model which thinks before it speaks is not scored
+            as broken for thinking, and the probe no longer has to guess a
+            combined number that covers both.
 
     Returns:
         ``{"ok", "status", "detail", "model", "bound", "transport",
@@ -503,7 +538,10 @@ def chat_probe(
         "model": mp.model,
         "messages": messages,
         "temperature": 0.0,
-        "max_tokens": max_tokens,
+        # Raw compat post: reasoning cannot be turned off here, so the budget
+        # for it is granted. A diagnostic that starves where the product does
+        # not is a diagnostic that lies.
+        "max_tokens": compat_cap(max_tokens, mp.reasoning_budget),
         "stream": False,
     }
 
@@ -551,7 +589,8 @@ def chat_probe(
             "HTTP 200 with an empty content channel, on the real path AND on a "
             "plain retry -- the model spends its whole budget reasoning. Set "
             f"lmstudio.profiles.{profile}.reasoning: off, or raise its "
-            "max_tokens so thinking and answering both fit."
+            f"reasoning_budget (now {mp.reasoning_budget}) so thinking has room "
+            "of its own instead of taking the answer's."
         )
         return result
 

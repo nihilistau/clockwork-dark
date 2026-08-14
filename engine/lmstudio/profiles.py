@@ -16,11 +16,32 @@ asks the server what it actually has and binds by capability.
 Profiles also now carry a ``reasoning`` policy. This is the load-bearing field:
 utility work (summaries, mechanics, the Assistant, quest evaluation) runs with
 ``reasoning="off"`` so a 400-token cap buys 400 tokens of ANSWER rather than 400
-tokens of deliberation and an empty string. Narration keeps reasoning on,
-because a slow local turn is more interesting with the model's thinking visible
-than with a frozen screen.
+tokens of deliberation and an empty string.
 
-Version: v0.3.0 [2026-08-08]
+TWO BUDGETS, NOT ONE
+--------------------
+``max_tokens`` used to be the whole story, and it caps reasoning + content
+COMBINED. That is not a budget, it is a race: on this machine the narration
+model spent 1753-2997 tokens thinking inside a 3000-token cap, so the answer got
+whatever was left -- often nothing, usually a sentence severed mid-word. Every
+single turn was either truncated or paid for a second full generation.
+
+So a profile now carries two numbers. ``max_tokens`` is what the ANSWER may
+spend and is never negotiable. ``reasoning_budget`` is the extra headroom
+granted for thinking, added on top when reasoning is on and dropped entirely
+when it is off. What goes on the wire is their sum; what the content channel is
+guaranteed is ``max_tokens``. Deliberation can no longer squeeze prose to zero,
+because it is no longer spending the same tokens.
+
+``reasoning_budget`` is HEADROOM, not a ceiling: nothing stops the model
+thinking past it, it just stops thinking from being paid for out of the prose.
+A true cap would be better and does not exist on this stack -- neither LM
+Studio's two APIs nor Gemma's own capability docs offer one, and the compat
+route silently accepts cap keys while ignoring them. config/default.yaml
+records every variant that was tried and what it returned, so nobody has to
+repeat the search.
+
+Version: v0.4.0 [2026-08-14]
 """
 
 from __future__ import annotations
@@ -47,7 +68,13 @@ class ModelProfile:
     name: str
     model: str
     temperature: float = 0.8
+    # The CONTENT budget: what the answer itself may spend. Reasoning is paid
+    # for separately out of `reasoning_budget`, so this is a floor the model's
+    # deliberation cannot eat into.
     max_tokens: int = 1500
+    # Headroom granted for thinking, ON TOP of `max_tokens`. Added to the wire
+    # cap when reasoning is on; ignored entirely when it is off.
+    reasoning_budget: int = 0
     # off | low | medium | high | on. Honoured only on the native transport;
     # the OpenAI-compatible endpoint ignores every reasoning control.
     reasoning: str = "on"
@@ -73,17 +100,48 @@ class ModelProfile:
     def reasoning_disabled(self) -> bool:
         return self.reasoning == "off"
 
+    def wire_cap(self, reasoning: Optional[str] = None) -> int:
+        """The number that actually goes on the wire, for a given mode."""
+        return wire_cap(
+            self.max_tokens,
+            self.reasoning_budget,
+            self.reasoning if reasoning is None else reasoning,
+        )
 
-# Defaults per profile. `max_tokens` caps reasoning + content COMBINED, so a
-# reasoning-on profile needs headroom for both; a reasoning-off profile does
-# not. See engine/memory/budget.py for why raising these is only safe once the
+
+def wire_cap(content_tokens: int, reasoning_budget: int, reasoning: str) -> int:
+    """
+    Combine the two budgets into the single cap LM Studio understands.
+
+    Both endpoints take one ceiling that covers reasoning AND content, so the
+    separation has to be reconstructed here: ask for the sum, and the content
+    budget survives as the part deliberation cannot reach.
+
+    Args:
+        content_tokens: What the answer may spend. Returned unchanged when
+            reasoning is off, or when it is non-positive (meaning "no cap").
+        reasoning_budget: Headroom for thinking. Negative values are floored
+            at zero rather than silently shrinking the answer.
+        reasoning: The mode this request will actually run in.
+    """
+    content = int(content_tokens)
+    if content <= 0 or reasoning == "off":
+        return content
+    return content + max(0, int(reasoning_budget))
+
+
+# Defaults per profile. `max_tokens` is the CONTENT budget; `reasoning_budget`
+# is the headroom for thinking added on top of it. See the comments in
+# config/default.yaml for the measurements each number came from, and
+# engine/memory/budget.py for why raising either is only safe once the prompt
 # budget is derived from the real context window.
 _PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
-    # Narration. Reasoning stays ON and is shown to the player as a live
-    # "the world is deciding..." channel.
+    # Narration. Reasoning is shown to the player as a live "the world is
+    # deciding..." channel when it is on -- and costs minutes when it is.
     "big": {
         "temperature": 0.85,
-        "max_tokens": 3000,
+        "max_tokens": 1200,
+        "reasoning_budget": 3200,
         "reasoning": "on",
         "lane": "narration",
         "require_tools": True,
@@ -91,10 +149,13 @@ _PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
         "min_context": 8192,
     },
     # Utility: summarizer, mechanics, Assistant, quest evaluation. Reasoning
-    # OFF -- these calls want an answer, not an essay about the answer.
+    # OFF -- these calls want an answer, not an essay about the answer. The
+    # budget is not zero because "off" is a request the OpenAI-compatible route
+    # cannot honour, and a schema-constrained utility call has to ride it.
     "small": {
         "temperature": 0.6,
         "max_tokens": 900,
+        "reasoning_budget": 800,
         "reasoning": "off",
         "lane": "utility",
         "require_tools": False,
@@ -104,6 +165,7 @@ _PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
     "draft": {
         "temperature": 0.3,
         "max_tokens": 256,
+        "reasoning_budget": 0,
         "reasoning": "off",
         "lane": "utility",
         "require_tools": False,
@@ -231,6 +293,7 @@ def resolve_profile(profile: str, *, refresh: bool = False) -> ModelProfile:
             model=(_preferred_ids(profile, settings) or (OFFLINE_MODEL,))[0],
             temperature=float(settings["temperature"]),
             max_tokens=int(settings["max_tokens"]),
+            reasoning_budget=int(settings.get("reasoning_budget", 0) or 0),
             reasoning=str(settings["reasoning"]),
             lane=str(settings["lane"]),
             ttl=int(cfg.get("lmstudio.ttl_seconds", 900) or 0),
@@ -242,6 +305,7 @@ def resolve_profile(profile: str, *, refresh: bool = False) -> ModelProfile:
             model=info.id,
             temperature=float(settings["temperature"]),
             max_tokens=int(settings["max_tokens"]),
+            reasoning_budget=int(settings.get("reasoning_budget", 0) or 0),
             reasoning=str(settings["reasoning"]),
             lane=str(settings["lane"]),
             ttl=int(cfg.get("lmstudio.ttl_seconds", 900) or 0),
@@ -253,12 +317,15 @@ def resolve_profile(profile: str, *, refresh: bool = False) -> ModelProfile:
         )
         logger.info(
             "[profiles] Resolved profile (operation=resolve_profile, profile=%s, "
-            "model=%s, reasoning=%s, lane=%s, max_tokens=%s, ctx=%s)",
+            "model=%s, reasoning=%s, lane=%s, content_budget=%s, "
+            "reasoning_budget=%s, wire_cap=%s, ctx=%s)",
             profile,
             resolved.model,
             resolved.reasoning,
             resolved.lane,
             resolved.max_tokens,
+            resolved.reasoning_budget,
+            resolved.wire_cap(),
             resolved.context_tokens,
         )
 

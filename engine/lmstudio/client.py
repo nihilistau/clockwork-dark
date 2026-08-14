@@ -37,11 +37,27 @@ import httpx
 
 from engine.config import get_config
 from engine.lmstudio.events import LMSResponse, LMSStreamEvent, ToolCall
-from engine.lmstudio.profiles import ModelProfile, resolve_profile
+from engine.lmstudio.profiles import ModelProfile, resolve_profile, wire_cap
 
 logger = logging.getLogger(__name__)
 
 _client_instance: Optional["LMSClient"] = None
+
+
+def compat_cap(max_tokens: int, reasoning_budget: int) -> int:
+    """
+    The wire ceiling for this transport, which always budgets for reasoning.
+
+    Unlike the native route, ``/v1/chat/completions`` has no working way to
+    turn reasoning off -- every knob is ignored (see native.py for the
+    measurements). So a request routed here will think whether or not it was
+    asked to, and the reasoning budget is granted UNCONDITIONALLY. Honouring a
+    ``reasoning: off`` that the server will ignore is how a schema-constrained
+    call ends up with an empty content channel: structured output constrains
+    the content channel only, and gives no protection at all against the
+    deliberation that precedes it.
+    """
+    return wire_cap(max_tokens, reasoning_budget, "on")
 
 
 def extract_reasoning(payload: dict[str, Any]) -> str:
@@ -254,6 +270,7 @@ class LMSClient:
         tool_choice: Optional[str] = None,
         response_format: Optional[dict[str, Any]] = None,
         ttl: int = 0,
+        reasoning_budget: int = 0,
     ) -> LMSResponse:
         """
         Non-streaming chat completion.
@@ -262,13 +279,19 @@ class LMSClient:
         the generator's return value, so latency, finish_reason and token counts
         were lost on the only path actually used -- and tool calls could not be
         returned at all.
+
+        Args:
+            max_tokens: The CONTENT budget.
+            reasoning_budget: Headroom for thinking, always added here -- this
+                transport cannot stop a reasoning model from reasoning.
         """
         resolved = model or resolve_profile("big").model
+        cap = compat_cap(max_tokens, reasoning_budget)
         payload: dict[str, Any] = {
             "model": resolved,
             "messages": messages,
             "temperature": temperature,
-            "max_tokens": max_tokens,
+            "max_tokens": cap,
             "stream": False,
         }
         if tools:
@@ -312,7 +335,7 @@ class LMSClient:
             finish_reason=str(first.get("finish_reason", "")),
             transport="openai",
         )
-        _log_outcome("chat", result, max_tokens)
+        _log_outcome("chat", result, max_tokens, reasoning_budget)
         return result
 
     def chat_stream(
@@ -329,6 +352,7 @@ class LMSClient:
         tools: Optional[list[dict[str, Any]]] = None,
         tool_choice: Optional[str] = None,
         ttl: int = 0,
+        reasoning_budget: int = 0,
     ) -> Generator[str, None, LMSResponse]:
         """
         Stream chat completion tokens.
@@ -349,13 +373,17 @@ class LMSClient:
             tools: Function definitions. Streamed tool-call argument fragments
                 are accumulated by index and flushed on
                 ``finish_reason == "tool_calls"``.
+            max_tokens: The CONTENT budget.
+            reasoning_budget: Headroom for thinking, always added here -- this
+                transport cannot stop a reasoning model from reasoning.
         """
         resolved = model or resolve_profile("big").model
+        cap = compat_cap(max_tokens, reasoning_budget)
         payload: dict[str, Any] = {
             "model": resolved,
             "messages": messages,
             "temperature": temperature,
-            "max_tokens": max_tokens,
+            "max_tokens": cap,
             "stream": True,
             # Real token counts instead of the zeros this used to report.
             "stream_options": {"include_usage": True},
@@ -503,7 +531,7 @@ class LMSClient:
             finish_reason=finish_reason,
             transport="openai",
         )
-        _log_outcome("chat_stream", result, max_tokens)
+        _log_outcome("chat_stream", result, max_tokens, reasoning_budget)
         return result
 
     def infer_stream(
@@ -521,6 +549,7 @@ class LMSClient:
             model=mp.model,
             temperature=mp.temperature,
             max_tokens=mp.max_tokens,
+            reasoning_budget=mp.reasoning_budget,
             on_event=on_event,
             on_reasoning=on_reasoning,
             ttl=mp.ttl,
@@ -549,32 +578,51 @@ class LMSClient:
         return proc.result()
 
 
-def _log_outcome(operation: str, result: LMSResponse, max_tokens: int) -> None:
-    """Report an empty content channel as the specific failure it is."""
+def _log_outcome(
+    operation: str, result: LMSResponse, content_budget: int, reasoning_budget: int
+) -> None:
+    """
+    Report an empty content channel as the specific failure it is.
+
+    Both budgets are named, and ``short=`` says which one ran out, because the
+    two want opposite fixes: more ``reasoning_budget`` versus more
+    ``max_tokens``. A single ``max_tokens=3000`` in the log could never
+    distinguish "it thought too much" from "it had more to say".
+    """
+    cap = compat_cap(content_budget, reasoning_budget)
+    short = "reasoning_budget" if result.reasoning_tokens >= max(1, reasoning_budget) else "max_tokens"
     if result.starved_by_reasoning:
         logger.error(
             "[LMSClient] REASONING STARVED THE OUTPUT — content is empty because "
             "the model spent the entire token budget thinking "
-            "(operation=%s, model=%s, max_tokens=%s, output_tokens=%s, "
-            "reasoning_tokens=%s, reasoning_chars=%s). This transport cannot "
-            "disable reasoning; route via engine.lmstudio.backend to use "
-            "/api/v1/chat with reasoning='off'.",
+            "(operation=%s, model=%s, content_budget=%s, reasoning_budget=%s, "
+            "wire_cap=%s, output_tokens=%s, reasoning_tokens=%s, "
+            "reasoning_chars=%s, short=%s). This transport cannot disable "
+            "reasoning; route via engine.lmstudio.backend to use /api/v1/chat "
+            "with reasoning='off', or raise reasoning_budget.",
             operation,
             result.model,
-            max_tokens,
+            content_budget,
+            reasoning_budget,
+            cap,
             result.output_tokens,
             result.reasoning_tokens,
             len(result.reasoning_content),
+            short,
         )
     elif result.truncated:
         logger.warning(
-            "[LMSClient] Response truncated at max_tokens "
-            "(operation=%s, model=%s, max_tokens=%s, chars=%s, reasoning_tokens=%s)",
+            "[LMSClient] Response truncated at the wire cap "
+            "(operation=%s, model=%s, content_budget=%s, reasoning_budget=%s, "
+            "wire_cap=%s, chars=%s, reasoning_tokens=%s, short=%s)",
             operation,
             result.model,
-            max_tokens,
+            content_budget,
+            reasoning_budget,
+            cap,
             len(result.content),
             result.reasoning_tokens,
+            short,
         )
 
 

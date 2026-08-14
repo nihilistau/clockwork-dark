@@ -67,12 +67,12 @@ class Budget:
         ``reserve_output: 900``, giving ``(8192 - 900) * 0.85 = 6198`` tokens of
         prompt. Two things were wrong with that.
 
-        First, ``reserve_output`` has to cover ``max_tokens``, and ``max_tokens``
-        on a reasoning model caps reasoning PLUS content. The narration profile
-        now asks for 3000 tokens to leave the model room to think and still
-        write; reserving 900 against that would put 2100 tokens of output into
-        a window the prompt had already claimed, and LM Studio truncates the
-        prompt silently from the front -- taking the system persona with it.
+        First, ``reserve_output`` has to cover the whole generation, and on a
+        reasoning model that is content PLUS thinking -- ``ModelProfile.wire_cap()``,
+        not ``max_tokens`` alone. Reserving less than that would put the
+        difference into a window the prompt had already claimed, and LM Studio
+        truncates the prompt silently from the front -- taking the system
+        persona with it.
 
         Second, 8192 was a guess about a model nobody had identified. The bound
         model reports what it was actually loaded with (nemotron here: loaded at
@@ -86,9 +86,10 @@ class Budget:
         try:
             mp = resolve_profile(profile)
             context = int(mp.context_tokens)
-            # Reserve the full generation ceiling, plus a floor so a profile
-            # with a small cap still leaves room for a reply.
-            reserve = max(int(mp.max_tokens), int(cfg.get("lmstudio.reserve_output", 900)))
+            # Reserve the full generation ceiling -- content and reasoning
+            # both -- plus a floor so a profile with a small cap still leaves
+            # room for a reply.
+            reserve = max(int(mp.wire_cap()), int(cfg.get("lmstudio.reserve_output", 900)))
         except Exception:  # noqa: BLE001 -- offline dev falls back to config
             context = int(cfg.get("lmstudio.context_tokens", 8192))
             reserve = int(cfg.get("lmstudio.reserve_output", 900))

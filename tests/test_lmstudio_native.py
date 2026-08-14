@@ -437,3 +437,91 @@ def test_structured_output_json_schema_mode_wraps_the_schema():
         assert wrapped["json_schema"]["schema"] == {"type": "object"}
     finally:
         set_overlay(None)
+
+
+# -- the two budgets ------------------------------------------------------
+
+
+def test_reasoning_budget_is_added_on_top_of_the_answer():
+    """
+    ``max_output_tokens`` is one ceiling covering both channels, so the split
+    has to be reconstructed in the payload: ask for the sum, and the content
+    budget survives as the part deliberation cannot reach.
+    """
+    client = NativeClient(base_url="http://test.local/v1")
+    payload = client._payload(
+        [{"role": "user", "content": "hi"}],
+        model="m",
+        temperature=0.5,
+        max_tokens=1200,
+        reasoning="on",
+        context_length=8192,
+        stream=False,
+        reasoning_budget=3200,
+    )
+    assert payload["max_output_tokens"] == 4400
+    client.close()
+
+
+def test_reasoning_off_buys_no_thinking_headroom():
+    """Nothing will be spent thinking, so nothing is reserved for it."""
+    client = NativeClient(base_url="http://test.local/v1")
+    payload = client._payload(
+        [{"role": "user", "content": "hi"}],
+        model="m",
+        temperature=0.5,
+        max_tokens=1200,
+        reasoning="off",
+        context_length=8192,
+        stream=False,
+        reasoning_budget=3200,
+    )
+    assert payload["max_output_tokens"] == 1200
+    client.close()
+
+
+def test_truncation_is_judged_against_the_wire_cap_not_the_content_budget():
+    """
+    The ceiling the server was given is the sum, so that is what a run has to
+    reach to count as truncated. Comparing against the content budget alone
+    would report every ordinary reasoning turn as cut off.
+    """
+    body = {
+        "output": [
+            {"type": "reasoning", "content": "thinking"},
+            {"type": "message", "content": "The clearing dims."},
+        ],
+        "stats": {"total_output_tokens": 2129, "reasoning_output_tokens": 1854},
+    }
+    client = _native_client(lambda r: httpx.Response(200, json=body))
+    result = client.chat(
+        [{"role": "user", "content": "hi"}],
+        model="m",
+        max_tokens=1200,
+        reasoning="on",
+        reasoning_budget=3200,
+    )
+    # 2129 is well past the 1200 content budget and well short of the 4400 cap.
+    assert not result.truncated
+    assert result.reasoning_tokens == 1854
+    client.close()
+
+
+def test_the_backend_hands_both_budgets_to_the_transport():
+    """A profile's reasoning budget must survive the routing hop."""
+    reset_config()
+    seen: dict = {}
+
+    class _Spy:
+        def chat(self, messages, **kwargs):
+            seen.update(kwargs)
+            return LMSResponse(content="ok", finish_reason="stop")
+
+    backend = LMStudioBackend(native=_Spy(), prefer_native=True)
+    backend._native_available = True
+    backend.chat([{"role": "user", "content": "hi"}], profile="big")
+
+    from engine.lmstudio.profiles import resolve_profile
+
+    assert seen["reasoning_budget"] == resolve_profile("big").reasoning_budget
+    assert seen["max_tokens"] == resolve_profile("big").max_tokens

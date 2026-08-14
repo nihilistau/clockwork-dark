@@ -63,6 +63,7 @@ import httpx
 
 from engine.config import get_config
 from engine.lmstudio.events import NATIVE_EVENT_TYPES, LMSResponse, LMSStreamEvent
+from engine.lmstudio.profiles import wire_cap
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +186,16 @@ class NativeClient:
         reasoning: str,
         context_length: int,
         stream: bool,
+        reasoning_budget: int = 0,
     ) -> dict[str, Any]:
+        """
+        Build the request body.
+
+        ``max_output_tokens`` is the one ceiling this endpoint offers and it
+        covers reasoning AND content, so the two budgets are summed here:
+        ``max_tokens`` (the answer) plus ``reasoning_budget`` (the thinking),
+        the latter dropped when reasoning is off because none will be spent.
+        """
         system_prompt, input_parts = messages_to_native(messages)
         if not input_parts:
             # The endpoint rejects an empty `input`. A system-only prompt is a
@@ -196,7 +206,7 @@ class NativeClient:
             "model": model,
             "input": input_parts,
             "temperature": temperature,
-            "max_output_tokens": max_tokens,
+            "max_output_tokens": wire_cap(max_tokens, reasoning_budget, reasoning),
             "stream": stream,
         }
         if system_prompt:
@@ -233,9 +243,11 @@ class NativeClient:
 
         # The native endpoint reports no finish_reason. Hitting the ceiling is
         # inferred from the token count, which is exact: a run capped at 60
-        # returns total_output_tokens == 60. Without this, `truncated` and
-        # `starved_by_reasoning` would never fire on the native path and the
-        # empty-content bug would go back to being invisible.
+        # returns total_output_tokens == 60. Compared against the WIRE cap --
+        # content plus reasoning -- because that is the number the server was
+        # given. Without this, `truncated` and `starved_by_reasoning` would
+        # never fire on the native path and the empty-content bug would go back
+        # to being invisible.
         finish_reason = ""
         if max_tokens > 0 and output_tokens >= max_tokens:
             finish_reason = "length"
@@ -263,8 +275,16 @@ class NativeClient:
         max_tokens: int = 1500,
         reasoning: str = "on",
         context_length: int = 0,
+        reasoning_budget: int = 0,
     ) -> LMSResponse:
-        """Non-streaming native completion."""
+        """
+        Non-streaming native completion.
+
+        Args:
+            max_tokens: The CONTENT budget -- what the answer may spend.
+            reasoning_budget: Headroom for thinking, added on top when
+                reasoning is on. The wire cap is their sum.
+        """
         payload = self._payload(
             messages,
             model=model,
@@ -273,7 +293,9 @@ class NativeClient:
             reasoning=reasoning,
             context_length=context_length,
             stream=False,
+            reasoning_budget=reasoning_budget,
         )
+        cap = int(payload["max_output_tokens"])
         t0 = time.perf_counter()
         response = self._client.post(
             f"{self.root}/api/v1/chat", json=payload, timeout=self.timeout
@@ -292,10 +314,10 @@ class NativeClient:
         result = self._from_result(
             response.json(),
             model=model,
-            max_tokens=max_tokens,
+            max_tokens=cap,
             latency_ms=(time.perf_counter() - t0) * 1000,
         )
-        _log_outcome("chat", result, max_tokens)
+        _log_outcome("chat", result, max_tokens, reasoning_budget, reasoning)
         return result
 
     def chat_stream(
@@ -307,6 +329,7 @@ class NativeClient:
         max_tokens: int = 1500,
         reasoning: str = "on",
         context_length: int = 0,
+        reasoning_budget: int = 0,
         on_event: Optional[Callable[[LMSStreamEvent], None]] = None,
         on_delta: Optional[Callable[[str], None]] = None,
         on_reasoning: Optional[Callable[[str], None]] = None,
@@ -337,7 +360,9 @@ class NativeClient:
             reasoning=reasoning,
             context_length=context_length,
             stream=True,
+            reasoning_budget=reasoning_budget,
         )
+        cap = int(payload["max_output_tokens"])
 
         t0 = time.perf_counter()
         content_parts: list[str] = []
@@ -395,7 +420,7 @@ class NativeClient:
         latency = (time.perf_counter() - t0) * 1000
         if final_result:
             result = self._from_result(
-                final_result, model=model, max_tokens=max_tokens, latency_ms=latency
+                final_result, model=model, max_tokens=cap, latency_ms=latency
             )
             # chat.end is authoritative for stats, but the streamed deltas are
             # authoritative for text: a consumer already saw exactly these.
@@ -409,7 +434,7 @@ class NativeClient:
                 latency_ms=latency,
                 transport="native",
             )
-        _log_outcome("chat_stream", result, max_tokens)
+        _log_outcome("chat_stream", result, max_tokens, reasoning_budget, reasoning)
         return result
 
 
@@ -467,34 +492,55 @@ def _to_event(etype: str, data: dict[str, Any], model: str) -> LMSStreamEvent:
     )
 
 
-def _log_outcome(operation: str, result: LMSResponse, max_tokens: int) -> None:
+def _log_outcome(
+    operation: str,
+    result: LMSResponse,
+    content_budget: int,
+    reasoning_budget: int,
+    reasoning: str,
+) -> None:
     """
-    Say loudly when reasoning ate the whole budget.
+    Say loudly when reasoning ate the whole budget, and WHICH budget was short.
 
     The production symptom was a frozen screen and a log that said nothing. An
     empty content channel behind a full reasoning channel is a specific,
     diagnosable, retryable failure and must never be reported as "the model
     wrote nothing".
+
+    Both budgets are named because they now fail for different reasons and take
+    different fixes: a reasoning overrun wants a bigger ``reasoning_budget`` (or
+    ``reasoning: off``), a content overrun wants a bigger ``max_tokens``. One
+    number could never tell those two apart.
     """
+    cap = wire_cap(content_budget, reasoning_budget, reasoning)
+    over_reasoning = result.reasoning_tokens >= max(1, reasoning_budget)
     if result.starved_by_reasoning:
         logger.error(
             "[native] REASONING STARVED THE OUTPUT — content is empty because "
             "the model spent the entire token budget thinking "
-            "(operation=%s, model=%s, max_tokens=%s, output_tokens=%s, "
-            "reasoning_tokens=%s). Retry with reasoning='off' or a larger cap.",
+            "(operation=%s, model=%s, content_budget=%s, reasoning_budget=%s, "
+            "wire_cap=%s, output_tokens=%s, reasoning_tokens=%s, short=%s). "
+            "Retry with reasoning='off' or raise reasoning_budget.",
             operation,
             result.model,
-            max_tokens,
+            content_budget,
+            reasoning_budget,
+            cap,
             result.output_tokens,
             result.reasoning_tokens,
+            "reasoning_budget" if over_reasoning else "max_tokens",
         )
     elif result.truncated:
         logger.warning(
             "[native] Response hit the token ceiling "
-            "(operation=%s, model=%s, max_tokens=%s, reasoning_tokens=%s, chars=%s)",
+            "(operation=%s, model=%s, content_budget=%s, reasoning_budget=%s, "
+            "wire_cap=%s, reasoning_tokens=%s, chars=%s, short=%s)",
             operation,
             result.model,
-            max_tokens,
+            content_budget,
+            reasoning_budget,
+            cap,
             result.reasoning_tokens,
             len(result.content),
+            "reasoning_budget" if over_reasoning else "max_tokens",
         )

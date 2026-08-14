@@ -27,10 +27,11 @@ lmstudio:
   # Fallback window used only when model discovery fails. The real number comes
   # from the bound model's loaded_context_length via the registry.
   context_tokens: 8192
-  # Must cover the largest profile max_tokens, because max_tokens caps
-  # reasoning + content COMBINED. The old 900 was set when narration asked for
-  # 1500; a prompt budgeted against it overflowed the window and LM Studio
-  # truncates the prompt from the front, silently dropping the system persona.
+  # Floor for the output reserve. The real number is the largest profile's WIRE
+  # CAP -- max_tokens + reasoning_budget -- because that is the whole generation
+  # the window has to hold. The old 900 was set when narration asked for 1500;
+  # a prompt budgeted against it overflowed the window and LM Studio truncates
+  # the prompt from the front, silently dropping the system persona.
   reserve_output: 3200
 
   # Seconds to wait for one completion. This used to be hardcoded at 180 in
@@ -70,25 +71,102 @@ lmstudio:
   # from GET /api/v0/models -- the previous ids (local-model,
   # local-model-small, local-model-draft) existed on no server anywhere.
   profiles:
-    # Narration. Reasoning stays ON: on a slow local turn the model's thinking
-    # is the most interesting thing on screen, and the UI shows it as a
-    # separate live channel. 3000 tokens because the cap covers reasoning AND
-    # content, and 400 was entirely eaten by reasoning in the reported bug.
+    # Narration.
+    #
+    # TWO BUDGETS. `max_tokens` is what the ANSWER may spend. `reasoning_budget`
+    # is the room granted for thinking, added ON TOP. What goes on the wire is
+    # their sum; what the prose is guaranteed is max_tokens. Before this split
+    # there was one combined 3000 and the answer got whatever thinking left
+    # behind. Verbatim from a turn on this machine:
+    #   Response truncated at max_tokens (max_tokens=3000, chars=466,
+    #     reasoning_tokens=2883)
+    #   Narration was CUT OFF at max_tokens ... the last sentence is severed
+    #   REASONING STARVED THE OUTPUT (output_tokens=3000, reasoning_tokens=2997)
+    #
+    # Three real turns on the old single cap of 3000, gemma-4-26b-a4b-it-qat:
+    #   reasoning 2069 + content 269 = 2338 of 3000   (662 to spare)
+    #   reasoning 2263 + content 347 = 2610 of 3000   (390 to spare)
+    #   reasoning 1822 + content 280 = 2102 of 3000   (898 to spare)
+    # Never a comfortable margin, and a 2883-token think leaves 117 tokens for
+    # a 300-token answer. That is the severed sentence, and it is luck of the
+    # draw which turn gets it.
+    #
+    # max_tokens: 1200. Content measured 269-353 tokens (900-1140 characters)
+    # for a full envelope -- prose, three choices with hints, mood. 1200 is
+    # three times the largest observed answer. This was never the short number.
+    #
+    # reasoning_budget: 3200. Thinking measured 1098-2630 tokens across seven
+    # turns, and 2997 in the reported failure. 3200 clears the top of the
+    # observed range. The same three turns re-run on 1200 + 3200 spent 2129,
+    # 1451 and 1471 of 4400 -- no truncation, no starvation, no retry.
+    #
+    # THIS IS HEADROOM, NOT A CAP, AND THAT IS NOT A CHOICE. A real ceiling on
+    # thinking would be better than budgeting around it, so it was looked for
+    # in both LM Studio's API and Gemma's own capability docs. It does not
+    # exist. Do not go looking again:
+    #   * Gemma's thinking documentation
+    #     (ai.google.dev/gemma/docs/capabilities/thinking) exposes ONE control,
+    #     the binary `enable_thinking` chat-template kwarg. No thinking_budget,
+    #     no token cap, no graded depth. The Gemini-family `thinking_budget`
+    #     parameter is not a Gemma feature.
+    #   * /api/v1/chat rejects every cap key outright -- `thinking_budget`,
+    #     `max_reasoning_tokens` and `thinking: {budget_tokens}` each come back
+    #     400 "Unrecognized key(s) in object".
+    #   * /v1/chat/completions is worse: it ACCEPTS those keys with a 200 and
+    #     ignores them. Asking for 500 returned 606, 350 and 793 reasoning
+    #     tokens on three tries -- ordinary variance, no cap. A silently
+    #     ignored limit is how this bug hid for so long.
+    #   * `chat_template_kwargs.enable_thinking: false` is ignored here too, on
+    #     gemma-4 as it already was on nemotron: 668 reasoning tokens against a
+    #     351-token baseline on the same prompt.
+    #   * Graded `reasoning: "low"|"medium"|"high"` is refused by this model --
+    #     400 "Reasoning setting 'low' is not supported". Only off and on work.
+    # So the only honest implementation is to buy thinking its own room and
+    # keep the answer's room out of its reach. That is what these two are.
+    #
+    # reasoning: "on", AND HERE IS THE PRICE, because it is not small.
+    # Measured at ~16 tok/s, thinking adds 1100-2600 tokens of generation
+    # BEFORE the first word of prose: 106-189 seconds of wall clock per turn,
+    # nearly all of it spent before the player sees anything. The same prompt
+    # answered with reasoning genuinely off takes 17-21 seconds.
+    #
+    # You cannot buy that speed by setting this to "off". Narration is a
+    # schema-constrained request, schemas ride /v1/chat/completions, and that
+    # route ignores every reasoning control -- measured: this profile set to
+    # "off" still burned 2331 and 2630 reasoning tokens on two consecutive
+    # turns. The switch only bites when the request can take the native route,
+    # which means `structured_output: off` above. That IS the fast turn -- 17.0,
+    # 20.4 and 21.2 seconds measured -- but it costs the grammar, and without
+    # the grammar the model writes prose instead of the envelope: the three
+    # authored choices collapse to the generic "Look around / Continue"
+    # fallback and nothing streams to the browser at all, because the streamer
+    # reads narration out of a JSON envelope that is no longer there.
+    #
+    # So the honest position: on this model a narration turn costs about two
+    # minutes, the thinking is real work the player can watch in the reasoning
+    # panel, and the budgets above are what stop it from eating the answer.
+    # The lever worth pulling for speed is a smaller or non-reasoning narration
+    # model, not this flag.
     big:
       model: ""
       temperature: 0.85
-      max_tokens: 3000
+      max_tokens: 1200
+      reasoning_budget: 3200
       reasoning: "on"
       lane: "narration"
       require_tools: true
       prefer_non_reasoning: false
       min_context: 8192
     # Utility: summarizer, mechanics, Assistant, quest evaluation. Reasoning
-    # OFF, so the token cap buys answer rather than deliberation.
+    # OFF, so the token cap buys answer rather than deliberation. The budget is
+    # not zero because "off" is a request the OpenAI-compatible route ignores,
+    # and a schema-constrained utility call (scripts/author.py, the planner)
+    # has no choice but to ride that route -- see engine/lmstudio/client.py.
     small:
       model: ""
       temperature: 0.6
       max_tokens: 900
+      reasoning_budget: 800
       reasoning: "off"
       lane: "utility"
       require_tools: false
@@ -98,6 +176,7 @@ lmstudio:
       model: ""
       temperature: 0.3
       max_tokens: 256
+      reasoning_budget: 0
       reasoning: "off"
       lane: "utility"
       require_tools: false

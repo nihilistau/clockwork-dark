@@ -236,6 +236,7 @@ class AssistantAgent:
                 model=mp.model,
                 temperature=mp.temperature,
                 max_tokens=int(get_config().get("assistant.max_tokens", mp.max_tokens)),
+                reasoning_budget=mp.reasoning_budget,
             ).content
 
         return get_backend().chat(
