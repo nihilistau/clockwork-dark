@@ -26,15 +26,152 @@
  * desire, time_debt_mortal_days) are the ones the design set declares. A meter
  * it does not recognise still renders, as a vine with its own label.
  */
-import React from "react";
+import React, { useCallback, useState } from "react";
 
 import Meters from "@core/parts/Meters.jsx";
 import PaintFrame from "@core/parts/PaintFrame.jsx";
-import { AnalystContext, loadAnalyst } from "./analyst.js";
+import {
+  AnalystContext,
+  AnalystSetContext,
+  loadAnalyst,
+  saveAnalyst,
+} from "./analyst.js";
+import Companion from "./parts/Companion.jsx";
+import CourtOverlay from "./parts/CourtOverlay.jsx";
 import EpilogueCard from "./parts/EpilogueCard.jsx";
-import { HourglassMeter, VINES, VineMeter } from "./parts/Meters.jsx";
+import OmenSting from "./parts/OmenSting.jsx";
+import { CourtIcon } from "./parts/Marks.jsx";
+import { BANDS, HourglassMeter, VINES, VineMeter } from "./parts/Meters.jsx";
 
 const HOURGLASS = "time_debt_mortal_days";
+
+/**
+ * The story's own slice: what the meters last said, and the omen that owes the
+ * player a flash.
+ *
+ * `analyst` used to live here and no longer does. It was inert -- the slice
+ * declared it, `Wrap` read it, and nothing in the client could write it,
+ * because `Play.jsx` hands its slots no `dispatch`. It is a player preference
+ * held in `Wrap` and persisted to localStorage; see ./analyst.js.
+ */
+const initialState = { bands: {}, decade: 0, omen: null, seen: false };
+
+/**
+ * The omens, and the thresholds they are omens OF.
+ *
+ * "Critical thresholds trigger one-time omen full-art stings." The engine
+ * ships no omen channel, and it does not need to: every threshold worth a
+ * sting is a value the player is already being shown, so the crossing is
+ * detectable from two consecutive payloads. What the client must NOT do is
+ * invent a threshold the fiction does not have, so there are four.
+ *
+ * Each id is minted once. `OmenSting` keeps its own fired-set, so crossing a
+ * line, retreating and crossing it again does not re-fire -- an omen that
+ * repeats is a status bar with a flash on it.
+ */
+const OMENS = [
+  {
+    id: "corruption-utmost",
+    meter: "corruption",
+    at: "utmost",
+    tone: "gold",
+    kicker: "An omen",
+    line: "The gold under your skin has stopped being under it.",
+  },
+  {
+    id: "favor-utmost",
+    meter: "favor",
+    at: "utmost",
+    tone: "rose",
+    kicker: "An omen",
+    line: "She has run out of ways to want you more. That is not the safe end of the scale.",
+  },
+  {
+    id: "autonomy-none",
+    meter: "autonomy",
+    at: "none",
+    tone: "rose",
+    kicker: "An omen",
+    line: "You reach for the part of you that refuses, and find you have spent it.",
+  },
+  {
+    id: "desire-utmost",
+    meter: "desire",
+    at: "utmost",
+    tone: "rose",
+    kicker: "An omen",
+    line: "The heat stops being weather and starts being a direction.",
+  },
+];
+
+/** Band word per meter, from the payload. Veiled values carry no number. */
+function readBands(meters) {
+  const out = {};
+  for (const row of Object.values(meters || {})) {
+    if (row && row.band) out[row.name] = row.band;
+  }
+  return out;
+}
+
+function sameBands(a, b) {
+  const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+  for (const key of keys) if ((a || {})[key] !== (b || {})[key]) return false;
+  return true;
+}
+
+/**
+ * The first omen this payload earned, or null.
+ *
+ * NEVER on the first payload the client sees. A resumed save arrives with its
+ * meters already deep, and firing four stings at once for thresholds the
+ * player crossed days ago would be the client narrating history it did not
+ * witness. `seen` is what makes the first payload a baseline rather than an
+ * event.
+ */
+function detect(slice, bands, decade) {
+  if (!slice.seen) return null;
+
+  for (const omen of OMENS) {
+    const now = bands[omen.meter];
+    const before = slice.bands[omen.meter];
+    if (now === omen.at && before !== omen.at) return omen;
+  }
+
+  // The hourglass is the one PUBLIC value in the story, and the only one that
+  // carries a number. Every fiftieth mortal day is a beat the design asks for
+  // out loud -- the ash hourglass turning over.
+  if (decade > slice.decade) {
+    return {
+      id: `debt-${decade}`,
+      tone: "gold",
+      kicker: "The hourglass",
+      line: `${decade * 50} days gone at home, and the grain has not stopped.`,
+    };
+  }
+  return null;
+}
+
+/**
+ * Derive this story's slice from the core state that was just reduced.
+ *
+ * Returns the SAME object when nothing moved, because the store uses identity
+ * to decide whether to rebuild `state` -- a fresh object per streamed token
+ * would re-render the companion column sixty times a second.
+ */
+function reduce(slice, action, next) {
+  if (action.type === "RESET") return initialState;
+  if (action.type !== "SOCKET") return slice;
+
+  const bands = readBands(next.meters);
+  const debt = Number(next.meters?.[HOURGLASS]?.value ?? 0);
+  const decade = Math.floor(debt / 50);
+  const omen = detect(slice, bands, decade);
+
+  if (slice.seen && !omen && decade === slice.decade && sameBands(slice.bands, bands)) {
+    return slice;
+  }
+  return { bands, decade, omen: omen || slice.omen, seen: true };
+}
 
 /**
  * The Garden's sheet.
@@ -162,29 +299,92 @@ export default {
   title: "The Wicked Garden",
   documentTitle: "The Wicked Garden",
   beginLabel: "Step through the hedge",
-  asideLabel: "The court",
+  // The Companion tab's label. "The court" moved to the overlay it now names;
+  // the column is one person and says so.
+  asideLabel: "Sophia",
 
   theme: () => import("./theme/wicked-garden.css"),
 
-  // Analyst mode is a player preference, read once at load. It is deliberately
-  // NOT in the core prefs blob: it means nothing to any other story, and a
-  // shared settings shape that grows a field per story is the thing this whole
-  // change exists to stop.
-  initialState: { analyst: false },
+  initialState,
+  reduce,
 
   Wordmark,
   Ledger,
   Stage,
   Ending: EndingScreen,
 
-  // Everything the Garden draws reads analyst mode from context rather than
-  // from props, because it reaches ten levels down into an ending card.
-  Wrap: ({ children, state }) => (
-    <AnalystContext.Provider value={state.story.analyst ?? loadAnalyst()}>
-      {children}
-    </AnalystContext.Provider>
+  /**
+   * Sophia's column, and the Companion tab on a phone.
+   *
+   * Declaring this is what makes the tab exist at all: `Play.jsx` drops the
+   * Companion tab for a story with no `Aside`, so the one story in the repo
+   * whose subject is a live companion was the one with nowhere to put her on a
+   * narrow viewport.
+   */
+  Aside: Companion,
+
+  /**
+   * The omen layer.
+   *
+   * A free-floating sting over the play screen, fired once per threshold from
+   * the slice above. It reads the client's reduce-motion preference through
+   * the same `document.documentElement.dataset` core already writes, and the
+   * component turns the flash into a still card when it is set -- the design's
+   * own accessibility list says "disable pollen storms / flash omens", and a
+   * full-screen flash is exactly the thing that hurts people.
+   */
+  Toast: ({ state }) => (
+    <OmenSting
+      omen={state.story.omen}
+      suppressed={document.documentElement.dataset.reduceMotion === "true"}
+    />
   ),
 
-  overlays: [],
+  /**
+   * Analyst mode, and the only thing in this story that holds client state.
+   *
+   * `Wrap` is above every screen and survives every turn, which is what the
+   * preference needs: a slot cannot hold it (slots get no `dispatch`) and the
+   * store cannot own it (it is a preference, not game state, and RESET would
+   * wipe it on every new run).
+   */
+  Wrap: ({ children }) => {
+    const [analyst, setAnalyst] = useState(loadAnalyst);
+    const set = useCallback((on) => {
+      setAnalyst(on);
+      saveAnalyst(on);
+    }, []);
+    return (
+      <AnalystContext.Provider value={analyst}>
+        <AnalystSetContext.Provider value={set}>{children}</AnalystSetContext.Provider>
+      </AnalystContext.Provider>
+    );
+  },
+
+  // ONE overlay, and the reason there is only one is worth stating.
+  //
+  // Three of this story's five finished components are on screen now -- the
+  // court board here, the omen sting above, and the petal and seal buttons
+  // inside both. The other two are NOT WIRED, and neither is waiting on a
+  // component:
+  //
+  //   ContractScroll   needs the player's live bargains. `state.threads` is a
+  //                    real field on GameState and `threads.summary()` is
+  //                    written for exactly this, but `to_client_dict` does not
+  //                    carry it and no route serves it, so nothing about a
+  //                    thread ever reaches the browser.
+  //   EndingGallery    needs the eligible set and the lock reasons.
+  //                    `endings.recompute` writes them to
+  //                    `state.tracks.ending_eligible`, and `tracks` is neither
+  //                    in the payload nor projectable through the schema --
+  //                    `StateStore.get` returns a float, and the eligible set
+  //                    is a list of ids.
+  //
+  // Both are one payload key away and both are engine-side. Wiring either one
+  // against a key that does not exist would put a permanently empty modal in
+  // the footer, which is the disease this seam was built to cure.
+  overlays: [
+    { id: "court", key: "c", label: "The court", Icon: CourtIcon, Component: CourtOverlay },
+  ],
   onboarding: [],
 };

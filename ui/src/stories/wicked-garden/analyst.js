@@ -28,6 +28,26 @@ export const AnalystContext = createContext(false);
 
 export const useAnalyst = () => useContext(AnalystContext);
 
+/**
+ * The setter, on its own context.
+ *
+ * Separate from `AnalystContext` rather than folded into it as `{on, set}`
+ * because `useAnalyst()` returns a BOOLEAN to four components already, and
+ * widening that shape to add a writer would touch every one of them to buy
+ * nothing.
+ *
+ * It exists at all because the preference had no way to be changed. The plugin
+ * declared `initialState: {analyst: false}` and `Wrap` read it, but nothing in
+ * the client ever wrote it -- and a story slot cannot write it either, because
+ * `Play.jsx` hands its slots `{state, busy, onCustom, onChoose, onOpenOverlay,
+ * onOpenMenu, showDiceBreakdown}` and no `dispatch`. So the switch lives in the
+ * plugin's own `Wrap`, which is the one place in this story that can hold state
+ * and is above everything that reads it.
+ */
+export const AnalystSetContext = createContext(() => {});
+
+export const useSetAnalyst = () => useContext(AnalystSetContext);
+
 export function loadAnalyst() {
   try {
     return window.localStorage.getItem(KEY) === "1";

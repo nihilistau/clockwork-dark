@@ -988,6 +988,73 @@
   justify-content: center;
 }
 
+/* ---------- the companion column ----------
+   Sophia's channel. Sized off core's own column so the three-column grid stays
+   the grid core laid out -- the story fills the slot, it does not re-plan the
+   page. */
+
+.companion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.companion__face {
+  width: 100%;
+}
+
+.companion__who {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-xl);
+  color: var(--wg-gold-soft);
+}
+
+.companion__line {
+  margin: 0;
+  font-family: var(--font-narration);
+  color: var(--text-narration);
+  border-left: 2px solid var(--wg-rose);
+  padding-left: var(--space-3);
+}
+
+/* Silence is a real turn and is typeset as one: the same measure as her line,
+   dimmed and italic, so the column never collapses to nothing between turns. */
+.companion__silent {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  color: var(--text-muted);
+  padding-left: var(--space-3);
+}
+
+.companion__switch {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--wg-edge-soft);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  color: var(--text-body);
+  cursor: pointer;
+}
+
+.companion__switch-note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* The sentence under the board that says what the board is showing. Without it
+   three nodes read as an empty court rather than as an honest one. */
+.court__note {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+}
+
 /* ---------- reduced motion ----------
    Everything above that moves. The stings, the growth and the bloom are all
    feeling rather than information -- except the vine's WIDTH and the
