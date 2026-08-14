@@ -49,12 +49,36 @@ HOW LM STUDIO IS POINTED AT IT, AND THE ONE THING THAT DOES NOT WORK
 There are two ways to name an MCP server on a request, and only one of them
 can name this one. Measured against the live server on this machine:
 
-* ``{"type": "ephemeral_mcp", "server_url": "http://127.0.0.1:8770/mcp/sse"}``
-  is REFUSED, with::
+* ``{"type": "ephemeral_mcp", "server_url": ...}`` is REFUSED for every
+  address this machine can offer, with::
 
       Unable to connect to remote MCP server 'game-skills' at url
-      'http://127.0.0.1:8770/mcp/sse'. URL resolves to a non-public address.
+      '<url>'. URL resolves to a non-public address.
       We only allow public addresses for dynamic remote MCP connections.
+
+  Re-measured 2026-08-15 against a live LM Studio, because "it cannot reach
+  localhost" is a big claim to rest on one URL. SEVEN forms were tried and all
+  seven came back with that same message, ``type: mcp_connection_error``,
+  ``param: integrations``:
+
+  ===================================  =========================
+  form                                 result
+  ===================================  =========================
+  SSE  ``http://localhost:8770``       refused
+  SSE  ``http://127.0.0.1:8770``       refused
+  SSE  ``http://192.168.1.110:8770``   refused  (LAN IP)
+  SSE  ``http://<hostname>:8770``      refused
+  HTTP ``http://127.0.0.1:8771/mcp``   refused
+  HTTP ``http://192.168.1.110:8771``   refused
+  a URL already registered in mcp.json refused  (ephemerally)
+  ===================================  =========================
+
+  The LAN IP is the informative one: 192.168.1.110 is routable on this
+  network and is still "non-public", so the check is against RFC1918 and
+  loopback both, not merely ``127.0.0.1``. Streamable HTTP fares no better
+  than SSE, so the URL SUFFIX does not decide how the address is classified.
+  Registering the same server in ``mcp.json`` first does not launder its URL
+  for ephemeral use either -- the two routes are judged independently.
 
   That is a policy, not a bug, and it is why LM Studio's own docs call
   ``mcp.json`` "the recommended approach for using MCP servers that take
@@ -129,6 +153,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import socket
 import threading
 import time
@@ -669,6 +694,64 @@ def _entry_name(session_id: str) -> str:
     return f"{MCP_JSON_PREFIX}{session_id}"
 
 
+#: Set once per process, so a run leaves ONE backup rather than one per turn.
+_backed_up: set[Path] = set()
+
+
+def backup_once(path: Path) -> Optional[Path]:
+    """
+    Copy ``mcp.json`` to a timestamped sibling before this process first writes.
+
+    That file is not ours. It holds whatever MCP servers the player has
+    registered, and this module edits it in place; a backup is the difference
+    between a bug here costing a run and costing their setup. Taken ONCE per
+    process — a per-turn backup would bury the good copy under near-identical
+    ones.
+
+    Returns:
+        The backup path, the existing one if this process already took it, or
+        None when there was nothing to copy or the copy failed. A failed backup
+        is logged and does NOT stop the write: the file's own atomic rename is
+        what protects it from corruption, and refusing to register would cost
+        tool calling for a belt-and-braces measure.
+    """
+    if path in _backed_up or not path.exists():
+        return None
+    stamp = time.strftime("%Y%m%dT%H%M%S")
+    backup = path.with_name(f"{path.name}.bak-{stamp}")
+    try:
+        backup.write_bytes(path.read_bytes())
+    except OSError as exc:
+        logger.warning(
+            "[mcp] Could not back up mcp.json before writing "
+            "(operation=backup_once, path=%s): %s",
+            path,
+            exc,
+        )
+        return None
+    _backed_up.add(path)
+    logger.info(
+        "[mcp] Backed up mcp.json before the first write "
+        "(operation=backup_once, backup=%s)",
+        backup,
+    )
+    return backup
+
+
+def _write_json_atomic(path: Path, document: dict[str, Any]) -> None:
+    """
+    Serialise to a sibling temp file and rename it into place.
+
+    ``write_text`` truncates first, so a process that dies mid-write leaves
+    LM Studio a half-written file and the player's other servers gone with it.
+    ``os.replace`` is atomic on Windows and POSIX alike, which is the same
+    reason ``engine/api/settings.py`` writes ``config/local.yaml`` this way.
+    """
+    temp = path.with_name(f"{path.name}.tmp")
+    temp.write_text(json.dumps(document, indent=2), encoding="utf-8")
+    os.replace(temp, path)
+
+
 def register_session(
     server_url: str,
     session_id: str,
@@ -736,7 +819,8 @@ def register_session(
                 "X-Game-Agent": agent,
             },
         }
-        target.write_text(json.dumps(document, indent=2), encoding="utf-8")
+        backup_once(target)
+        _write_json_atomic(target, document)
     except (OSError, json.JSONDecodeError) as exc:
         logger.error(
             "[mcp] Could not register with LM Studio (operation=register_session, "
@@ -797,7 +881,8 @@ def unregister_sessions(
         for key in doomed:
             servers.pop(key, None)
         if doomed:
-            target.write_text(json.dumps(document, indent=2), encoding="utf-8")
+            backup_once(target)
+            _write_json_atomic(target, document)
             logger.info(
                 "[mcp] Unregistered (operation=unregister_sessions, entries=%s)",
                 len(doomed),
@@ -857,6 +942,7 @@ __all__ = [
     "SESSION_HEADER",
     "SkillsServer",
     "available",
+    "backup_once",
     "build_server",
     "get_skills_server",
     "load_skill_packs",

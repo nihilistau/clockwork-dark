@@ -173,17 +173,61 @@ effect receipt instead, which is what actually survives a turn. What stays in
 the store is enforcement: the `owners` ACL and a WARNING-level log on every
 refusal.
 
+## The two-phase turn
+
+A turn that wants tools AND a narration grammar has to spend two calls,
+because no single LM Studio route carries both:
+
+| route | `integrations` | `response_format` | reasoning off |
+|---|---|---|---|
+| `/api/v1/chat` | accepted | 400 `unrecognized_keys` | yes |
+| `/v1/chat/completions` | ignored | accepted | no |
+
+So the turn splits:
+
+| Phase | Call | Product |
+|---|---|---|
+| **A — mechanics** | native, `reasoning: "off"`, `integrations` naming the in-process skills server, no grammar, small cap | RECEIPTS. Whatever prose it writes is discarded unread. |
+| **B — narration** | the existing schema-constrained call, fed Phase A's receipts through `prompts.receipts_block` | the turn |
+
+**Ordering is load-bearing.** Phase A runs BEFORE `StateTransaction` opens in
+`storyteller.run_turn`. A skill called inside that boundary would be rolled back
+by an evaluator retry while LM Studio — which ran the tool loop itself and has
+already been handed the receipt — never learns the roll was undone. Outside it, a
+Phase A receipt is exactly as durable as a resolved player intent, which is the
+rule `run_turn` already followed. `tests/test_two_phase_turn.py` pins the order
+with a spy, and `scripts/two_phase_live_proof.py` re-checks it on the live path.
+
+**It is off by default and it degrades to silence.** `lmstudio.mcp.enabled` is
+the only switch; with it false the turn's payload is byte-identical to the one
+that ran before Phase A existed, and a test asserts that against the turn with
+the call removed altogether. With it true, every failure — no `fastmcp`, no
+socket, no writable `mcp.json`, LM Studio down, a timeout, a model that calls
+nothing — logs at WARNING and returns `[]`, so Phase B runs the turn it runs
+today. A turn never fails because its optional half did.
+
+**Ephemeral MCP does not work here, re-measured 2026-08-15.** Seven forms were
+tried against the live server and all seven came back
+`mcp_connection_error`/"URL resolves to a non-public address": SSE and
+streamable-HTTP, `localhost`, `127.0.0.1`, `[::1]`, the machine's LAN IP
+(`192.168.1.110`), its hostname, and a URL already registered in `mcp.json`.
+The LAN IP is the informative one — it is routable and still refused, so the
+check is against RFC1918 and loopback both. LM Studio returns HTTP 400 for a
+*closed* port without attempting a connection, which places the refusal at
+address validation. The `mcp.json` plugin route (`mcp/<entry>`) is therefore
+required, not preferred. See the table in `engine/mcp/skills_server.py`.
+
 ## NOT WIRED
 
 | Thing | File | Status |
 |---|---|---|
 | Reasoning cost of structured plans | `engine/agents/pipeline.py` (the two plan calls), `engine/lmstudio/client.py` (the transport that cannot disable reasoning) | A JSON schema forces the OpenAI-compat transport, which cannot turn reasoning off. Two plan calls per turn pay that on hardware where reasoning is 800+ tokens. **Still unmeasured against a real model** — this is a cost that is not known, not a mechanism that is not called, and it is in this table so that the difference stays visible. |
-| The MCP tool layer | `engine/mcp/skills_server.py`, `engine/lmstudio/native.py` + `backend.py` (the `integrations` parameter) | Built, tested and **proven against a live LM Studio** (`scripts/mcp_live_proof.py`: the model called `query_evil_state`, the receipt came back, `reasoning_output_tokens` was 0) — and called by NOTHING in a turn. No agent passes `integrations`, and `lmstudio.mcp.enabled` is false. The two-phase turn that uses it lands separately; until it does, the `@skill` registry is still unreachable by a model during play. |
 
-Re-audited on 2026-08-14 against the tree. The first row is the odd kind:
-everything it names IS wired and running, and what is missing is a
-measurement. The second is the ordinary kind — a mechanism with no caller —
-and it is here rather than in a design document precisely so that "the model
-can call the engine" is not read as "the model does".
+Re-audited on 2026-08-15 against the tree. The remaining row is the odd kind:
+everything it names IS wired and running, and what is missing is a measurement.
 
-Version: v0.4.0 [2026-08-14]
+The MCP tool layer's row is **gone**, which is the change this version records.
+It said "called by NOTHING in a turn"; `engine/agents/mechanics.py` is now that
+caller, and the claim was retired by wiring it rather than by rewording it.
+
+Version: v0.5.0 [2026-08-15]

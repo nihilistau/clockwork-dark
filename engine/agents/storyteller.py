@@ -797,6 +797,25 @@ class StorytellerAgent:
         # transaction below: a rejected draft must not un-walk a walk the
         # player actually took.
         resolved: list[dict[str, Any]] = list(intent_receipts or [])
+
+        # PHASE A -- mechanics, and it must happen HERE: before the transaction
+        # below exists. A skill called inside that boundary is undone by an
+        # evaluator retry, and LM Studio -- which ran the tool loop and already
+        # holds the receipt -- would never learn the roll was rolled back. Out
+        # here a Phase A receipt is exactly as durable as a resolved intent,
+        # which is the rule the `resolved` list above already follows.
+        #
+        # Returns [] when `lmstudio.mcp.enabled` is false (the default), when
+        # the server or LM Studio is unavailable, or when the model called
+        # nothing -- so the turn below is untouched in every one of those cases.
+        # See engine/agents/mechanics.py.
+        from engine.agents.mechanics import run_mechanics_phase
+
+        # The registry's agent id, not this story's narrator id: skill
+        # allowlists are declared against the ROLE ("storyteller"), which is why
+        # execute_tool_calls below takes the same default.
+        resolved += run_mechanics_phase(self.engine, player_action)
+
         tool_receipts: list[dict[str, Any]] = list(resolved)
         processed_tags: dict[str, list[str]] = {}
         self._lore_chunks = []

@@ -594,6 +594,45 @@ def memory_blocks(
     return summary_block, "\n".join(lines)
 
 
+def mechanics_prompt(state: GameState) -> str:
+    """
+    Phase A's system prompt: resolve the turn, do not write it.
+
+    Short on purpose. This call has tools and no grammar, and its entire product
+    is receipts -- so every sentence spent describing prose style is a sentence
+    inviting it to spend its token cap on prose nobody reads. The counterpart to
+    ``receipts_block``, which feeds what this phase resolved into Phase B.
+
+    STORY-NEUTRAL. No persona, no place-name, no tone: a narrator's voice
+    belongs to Phase B and is loaded from the story's own ``prompts/``. Naming
+    the flagship here would rebuild, in the mechanics half, exactly the bug that
+    gave every story The Clockwork Dark's narrator.
+
+    "Call nothing" is stated as a legitimate answer because it usually is. Most
+    turns are conversation, and a model that believes it must call something
+    will roll dice at a greeting.
+    """
+    return f"""\
+You are the mechanics resolver for a text RPG. You do not narrate.
+
+Your only job is to decide which engine tools this player action requires, call
+them, and stop. The engine owns every outcome: dice, movement, stamina, time,
+inventory, trade, quests. Never state a result you did not get back from a tool.
+
+PLAYER: {state.player_name}
+PLACE: {state.location_id}, day {state.world_day}, {state.time_of_day}
+
+RULES
+- Call a tool for anything with a mechanical result. Read a value rather than
+  assuming it.
+- CALL NOTHING if the action needs nothing mechanical. Most turns are talk, and
+  an unnecessary roll is worse than no roll.
+- Do not write prose, scene description, or dialogue. Anything you write here is
+  discarded; only the tool results are kept.
+- When you are finished calling tools, reply with the single word DONE.
+"""
+
+
 def receipts_block(receipts: list[dict[str, Any]]) -> str:
     """
     Phase B input: what the engine actually resolved.
@@ -607,6 +646,13 @@ def receipts_block(receipts: list[dict[str, Any]]) -> str:
     this function was handed an empty list and returned "". It carries the
     player's own resolved intent now (``engine/game/intents.py``), which is what
     turns the block from a promise into an input.
+
+    TWO SOURCES FEED IT NOW, and they are different in kind. An INTENT receipt is
+    what the player's chosen option declared and the engine ran before a word was
+    written. A ``phase: mechanics`` receipt is what the MODEL chose to look up or
+    do in Phase A over MCP (``engine/agents/mechanics.py``). Both are already
+    true by the time this block is built, which is the only property the block
+    cares about -- it renders facts the narration must report rather than decide.
 
     A REFUSAL IS RENDERED LOUDLY, and that is the point of the first branch. An
     intent can be legal when it is written and illegal by the time it runs --

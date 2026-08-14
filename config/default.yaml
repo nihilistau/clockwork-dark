@@ -125,6 +125,20 @@ lmstudio:
     # SkillDef.agents on both list and call -- so the system-only world tick is
     # unreachable by a model whatever this says.
     allowed_tools: []
+    # PHASE A -- the mechanics half of the two-phase turn
+    # (engine/agents/mechanics.py). Gated by `enabled` above and by nothing
+    # else: with it false the turn sends exactly the payload it sent before
+    # this layer existed, and Phase A returns before it builds anything.
+    phase_a:
+      # `utility` on purpose -- Phase A picks tools, it does not write prose,
+      # and the narration lane must stay free for the text the player is
+      # watching appear. See lmstudio.lanes above.
+      profile: "utility"
+      # Small, because the OUTPUT is receipts. The tool calls themselves are
+      # what cost tokens here; the model is told to answer "DONE" and anything
+      # it writes instead is discarded unread. A generous cap would only buy
+      # prose nobody reads -- and with reasoning off, none of it is thinking.
+      max_tokens: 400
 
   # Concurrent requests per lane. LM Studio serves these in parallel. Narration
   # gets its own lane so the summarizer and the Assistant can no longer stall

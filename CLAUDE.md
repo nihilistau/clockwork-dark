@@ -38,7 +38,9 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
 **1798 passing, 18 skipped**, no expected failures (measured 2026-08-15), plus
 **95 client tests** under `ui/tests/` run by `npm test --prefix ui`. Run both
-for the real numbers rather than trusting this line — it has been stale before.
+for the real numbers rather than trusting this line — it has been stale before,
+and the "1776 passing, 15 skipped" this replaces was itself off by one against a
+clean `a5cedbf`, which measured 1775/16.
 
 Two fixes landed from playing against a live LM Studio. **The evaluator checks
 the cast** (`engine/agents/cast.py`): the persona's "never introduce a named
@@ -131,14 +133,29 @@ The design review's open-issue list is empty.
 The MCP tool layer landed: `engine/mcp/skills_server.py` reflects the `@skill`
 registry into a real MCP server (`fastmcp`, SSE, in-process so skills still
 resolve through `get_active_engine()`), and `native.py`/`backend.py` learned
-LM Studio's `integrations` parameter. Two findings worth keeping: an
-`ephemeral_mcp` integration naming a loopback URL is REFUSED ("URL resolves to
-a non-public address"), so the server is registered in LM Studio's `mcp.json`
-per run and referenced as `mcp/<entry>`; and `integrations` is now a reason to
-INSIST on the native transport rather than to avoid it, because that is the
-only route which reads the key — and the only one that can turn reasoning off.
-Proven live by `scripts/mcp_live_proof.py`. **No turn calls it yet** — see the
-NOT WIRED table in [AGENTS.md](docs/AGENTS.md).
+LM Studio's `integrations` parameter. `integrations` is a reason to INSIST on
+the native transport rather than to avoid it: it is the only route that reads
+the key, and the only one that can turn reasoning off.
+
+**A turn now calls it.** `engine/agents/mechanics.py` is Phase A — mechanics,
+reasoning off, tools, no grammar — and it runs BEFORE the `StateTransaction`
+opens in `storyteller.run_turn`, so a skill it resolves is not rolled back by an
+evaluator retry that LM Studio would never hear about. Its receipts reach Phase
+B through `prompts.receipts_block`, the block that has said "MECHANICAL RESULTS
+-- AUTHORITATIVE" since it was written. Off by default (`lmstudio.mcp.enabled`),
+byte-identical to the old turn when off, and degrading to `[]` and a logged
+warning on every failure. Proven live by `scripts/two_phase_live_proof.py`: the
+model called `query_evil_state`, the receipt reached the prompt, and the
+narration reported `dormant` instead of guessing at it.
+
+**Ephemeral MCP was re-tested and is genuinely unusable here** (2026-08-15).
+All seven forms — SSE and streamable-HTTP, `localhost`, `127.0.0.1`, `[::1]`,
+the LAN IP, the hostname, and a URL already in `mcp.json` — return "URL
+resolves to a non-public address". The LAN IP settles it: routable and still
+refused, so the check covers RFC1918, not just loopback. A *closed* port gets
+HTTP 400 with no connection attempted, which puts the refusal at address
+validation. `mcp.json` is required; entries are written atomically under the
+`engine-skills-` prefix, backed up once per process, and removed on release.
 
 See [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) for the measurements behind
 each. Four **NOT WIRED** tables remain, each naming its file:
@@ -146,7 +163,8 @@ each. Four **NOT WIRED** tables remain, each naming its file:
 [SAFETY.md](docs/SAFETY.md) (cosmetic rename on display labels),
 [STATE.md](docs/STATE.md) (an ending's authored `tease:`, which no story
 declares) and [AGENTS.md](docs/AGENTS.md) (the unmeasured reasoning cost of the
-two plan calls, and the MCP tool layer that nothing calls yet).
+two plan calls — its MCP row is gone, retired by wiring the caller rather than
+by rewording the claim).
 
 ## Verify a checkout
 
