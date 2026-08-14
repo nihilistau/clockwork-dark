@@ -38,6 +38,7 @@ import httpx
 from engine.config import get_config
 from engine.lmstudio.events import LMSResponse, LMSStreamEvent, ToolCall
 from engine.lmstudio.profiles import ModelProfile, resolve_profile, wire_cap
+from engine.lmstudio.routes import compat_base, models_url
 
 logger = logging.getLogger(__name__)
 
@@ -223,7 +224,7 @@ class LMSClient:
         api_key: str = "",
     ) -> None:
         cfg = get_config()
-        self.base_url = (base_url or cfg.get("lmstudio.base_url", "http://localhost:1234/v1")).rstrip("/")
+        self.base_url = compat_base(base_url)
         # Was hardcoded at 180. See lmstudio.timeout_seconds in
         # config/default.yaml for what that cost the authoring script.
         self.timeout = (
@@ -240,13 +241,25 @@ class LMSClient:
         self._client.close()
 
     def is_available(self) -> bool:
-        """Return True if LM Studio responds."""
-        try:
-            r = self._client.get(f"{self.base_url}/models", timeout=3.0)
-            return r.status_code == 200
-        except Exception as exc:
-            logger.debug("[LMSClient] Health check failed (operation=health): %s", exc)
-            return False
+        """
+        Return True if this is an LM Studio that can serve a turn.
+
+        Asks ``GET /api/v1/models`` and reads the SHAPE of the answer. It used
+        to GET ``{base_url}/models`` -- i.e. ``/v1/models``, a route LM Studio
+        does not own and logs an error for -- and call any 200 healthy, which on
+        this server is no test at all: unknown paths under ``/v1`` are answered
+        200 with an error body.
+        """
+        from engine.lmstudio.registry import probe_models
+
+        ok, detail = probe_models(
+            models_url(self.base_url), api_key=self.api_key, timeout=3.0
+        )
+        if not ok:
+            logger.debug(
+                "[LMSClient] Health check failed (operation=health): %s", detail
+            )
+        return ok
 
     @staticmethod
     def _apply_ttl(payload: dict[str, Any], ttl: int) -> None:

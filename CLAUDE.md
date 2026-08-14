@@ -36,9 +36,21 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
-**1707 passing, 19 skipped**, no expected failures (measured 2026-08-14), plus
-**86 client tests** under `ui/tests/` run by `npm test --prefix ui`. Run both
+**1730 passing, 19 skipped**, no expected failures (measured 2026-08-14), plus
+**95 client tests** under `ui/tests/` run by `npm test --prefix ui`. Run both
 for the real numbers rather than trusting this line — it has been stale before.
+
+Two fixes landed from playing against a live LM Studio. **The evaluator checks
+the cast** (`engine/agents/cast.py`): the persona's "never introduce a named
+character who is not present" was unenforced, and a measured turn 0 in
+`forest_clearing` opened on `Ilya's lantern` — an NPC three locations away,
+imported from the few-shot examples. The absent set is the same
+`present_npc_ids` call the turn schema's `npc_id` enum is built from, so no
+second notion of "present" exists. **The LM Studio routes are deliberate**
+(`engine/lmstudio/routes.py`): the model list is `GET /api/v1/models` and
+nothing else, validated by the SHAPE of the body, because this server answers
+routes it does not serve with 200 and an error blob — `/v1/models` was firing
+one `Unexpected endpoint or method` ERROR per doctor run.
 
 The engine/story seam is done. What landed: the multi-agent turn
 (plan → negotiate → commit, `engine/agents/pipeline.py`), the finale chain

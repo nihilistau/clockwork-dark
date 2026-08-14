@@ -31,6 +31,7 @@ from typing import Any, Optional
 import httpx
 
 from engine.config import get_config, project_root
+from engine.lmstudio.routes import MODELS_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -132,9 +133,24 @@ def probe(url: str, *, timeout: float = 3.0) -> tuple[bool, str]:
     request cannot narrate a turn, and reporting it green is how the health
     check came to pass while the game fell back to canned lines. Reachable and
     usable are different questions and this function answers the second one.
+
+    NEITHER IS A BARE 200. LM Studio answers routes it does not serve with 200
+    and an error body -- ``GET /v1/nonsense`` and ``GET /api/v9/models`` both
+    do, measured live -- so status alone would pass against a server
+    implementing none of our API. Two rules follow: LM Studio's model list is
+    checked by its SHAPE through ``registry.probe_models``, and for every other
+    service a 200 whose body is an ``{"error": ...}`` object is a failure, not
+    a pass.
     """
     if not url:
         return False, "no health url"
+
+    if url.endswith(MODELS_PATH):
+        # The one question worth asking of LM Studio: does it list models, in
+        # the shape the v1 REST API returns them.
+        from engine.lmstudio.registry import probe_models
+
+        return probe_models(url, timeout=timeout)
 
     headers: dict[str, str] = {}
     if "1234" in url or "lmstudio" in url.lower():
@@ -154,8 +170,21 @@ def probe(url: str, *, timeout: float = 3.0) -> tuple[bool, str]:
             "'Require API key' in LM Studio's server settings"
         )
     if response.status_code < 400:
+        if _is_error_body(response):
+            return False, "answered 200 with an error body -- it does not serve this route"
         return True, "ready"
     return response.status_code < 500, f"HTTP {response.status_code}"
+
+
+def _is_error_body(response: httpx.Response) -> bool:
+    """A success status carrying ``{"error": ...}`` is a failure wearing a 200."""
+    if "json" not in response.headers.get("content-type", "").lower():
+        return False
+    try:
+        payload = response.json()
+    except ValueError:
+        return False
+    return isinstance(payload, dict) and bool(payload.get("error"))
 
 
 class StackManager:

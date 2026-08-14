@@ -197,45 +197,56 @@ def test_native_stream_splits_reasoning_from_content():
 # -- registry -------------------------------------------------------------
 
 
+# The shape GET /api/v1/models actually returns, copied field-for-field from
+# the live server: `key` rather than `id`, `architecture` rather than `arch`,
+# residency expressed as `loaded_instances` rather than a `state` string, and
+# capabilities as an object rather than a list of names.
 _MODELS = {
-    "data": [
+    "models": [
         {
-            "id": "nvidia/nemotron-3-nano-4b",
+            "key": "nvidia/nemotron-3-nano-4b",
             "type": "llm",
-            "arch": "nemotron_h",
-            "state": "loaded",
+            "architecture": "nemotron_h",
+            "publisher": "nvidia",
+            "quantization": {"name": "Q4_K_M", "bits_per_weight": 4},
             "max_context_length": 1048576,
-            "loaded_context_length": 20224,
-            "capabilities": ["tool_use"],
+            "loaded_instances": [
+                {"id": "nvidia/nemotron-3-nano-4b", "config": {"context_length": 20224}}
+            ],
+            "capabilities": {"vision": False, "trained_for_tool_use": True},
         },
         {
-            "id": "gemma-4-e4b-it",
-            "type": "vlm",
-            "arch": "gemma4",
-            "state": "not-loaded",
-            "max_context_length": 131072,
-            "capabilities": ["tool_use"],
-        },
-        {
-            "id": "lfm2.5-1.2b-instruct@q8_0",
+            "key": "gemma-4-e4b-it",
             "type": "llm",
-            "arch": "lfm2",
-            "state": "not-loaded",
-            "max_context_length": 128000,
-            "capabilities": ["tool_use"],
+            "architecture": "gemma4",
+            "max_context_length": 131072,
+            "loaded_instances": [],
+            "capabilities": {"vision": True, "trained_for_tool_use": True},
         },
-        {"id": "vae", "type": "llm", "arch": None, "max_context_length": 4096},
-        {"id": "text_encoder", "type": "llm", "arch": "clip_text_model", "max_context_length": 77},
+        {
+            "key": "lfm2.5-1.2b-instruct@q8_0",
+            "type": "llm",
+            "architecture": "lfm2",
+            "max_context_length": 128000,
+            "loaded_instances": [],
+            "capabilities": {"vision": False, "trained_for_tool_use": True},
+        },
+        {"key": "vae", "type": "llm", "architecture": None, "max_context_length": 4096},
+        {
+            "key": "text_encoder",
+            "type": "llm",
+            "architecture": "clip_text_model",
+            "max_context_length": 77,
+        },
     ]
 }
 
 
 def _registry() -> ModelRegistry:
+    from engine.lmstudio.registry import parse_models_payload
+
     registry = ModelRegistry(base_url="http://test.local/v1")
-    registry._models = [
-        __import__("engine.lmstudio.registry", fromlist=["_parse"])._parse(m)
-        for m in _MODELS["data"]
-    ]
+    registry._models = parse_models_payload(_MODELS)
     return registry
 
 

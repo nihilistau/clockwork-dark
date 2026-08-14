@@ -133,33 +133,22 @@ def check_llm(report: Report) -> None:
     bounded real completion sits under it reporting what actually came back --
     including the model id the request named, which is where a failed discovery
     shows up as the fictional placeholder it is.
+
+    THE SECOND ROUND OF THE SAME DEFECT. That liveness ping asked ``/v1/models``,
+    which LM Studio does not serve -- it answered 200 and logged
+    ``Unexpected endpoint or method``, once per doctor run. It also could not
+    fail: this server returns 200 for any unknown path under ``/v1``. It now
+    asks ``GET /api/v1/models`` and validates the SHAPE of the body
+    (``engine/lmstudio/registry.probe_models``), which is the only part of the
+    answer that can distinguish a real LM Studio from a 200.
     """
-    import httpx
-
-    from engine.config import get_config
-
-    cfg = get_config()
-    base = str(cfg.get("lmstudio.base_url", "http://localhost:1234/v1")).rstrip("/")
-    key = str(cfg.get("lmstudio.api_key", "") or "")
-    headers = {"Authorization": f"Bearer {key}"} if key else {}
+    from engine.lmstudio.registry import probe_models
 
     # 1. Liveness. Says nothing about whether a turn can be narrated.
-    try:
-        ping = httpx.get(f"{base}/models", headers=headers, timeout=3.0)
-    except httpx.HTTPError as exc:
-        report.add("LM Studio", "liveness", FAIL,
-                   f"{base}/models unreachable ({type(exc).__name__})")
+    alive, detail = probe_models(timeout=3.0)
+    report.add("LM Studio", "liveness", OK if alive else FAIL, detail)
+    if not alive:
         return
-    if ping.status_code == 401:
-        report.add("LM Studio", "liveness", FAIL,
-                   "listening, but it refuses every request - set "
-                   "lmstudio.api_key in config/local.yaml, or turn off "
-                   "'Require API key' in LM Studio's server settings")
-        return
-    if ping.status_code != 200:
-        report.add("LM Studio", "liveness", FAIL, f"HTTP {ping.status_code}")
-        return
-    report.add("LM Studio", "liveness", OK, f"{base}/models answers")
 
     # 2. Can it actually complete anything? This is the question that matters.
     from engine.lmstudio.backend import chat_probe

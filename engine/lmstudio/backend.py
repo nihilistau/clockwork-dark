@@ -437,9 +437,9 @@ def chat_probe(
     """
     Ask for one completion THE WAY A TURN DOES, and report what came back.
 
-    THE GAP THIS CLOSES. Health-checking LM Studio with ``GET /v1/models`` asks
-    "is a process listening", which is not the question. On this machine that
-    ping answered while every chat call was rejected, so the doctor said ``ok``
+    THE GAP THIS CLOSES. Health-checking LM Studio by listing models asks "is a
+    process listening", which is not the question. On this machine that ping
+    answered while every chat call was rejected, so the doctor said ``ok``
     about a service that could not narrate a single turn -- the planner's
     failures were swallowed, the pipeline fell back to canned lines, and nothing
     in the health report pointed at the model.
@@ -480,8 +480,13 @@ def chat_probe(
 
     import httpx
 
+    from engine.lmstudio.routes import COMPAT_CHAT_PATH, compat_base
+
     cfg = get_config()
-    base = str(cfg.get("lmstudio.base_url", "http://localhost:1234/v1")).rstrip("/")
+    # The OpenAI-compatible route, and deliberately so: /v1/chat/completions is
+    # genuinely served (unlike /v1/models) and is the only one that takes tools
+    # and structured output, which is what the game's real path uses.
+    base = compat_base()
     key = str(cfg.get("lmstudio.api_key", "") or "")
     headers = {"Authorization": f"Bearer {key}"} if key else {}
 
@@ -548,7 +553,7 @@ def chat_probe(
     t0 = time.perf_counter()
     try:
         response = httpx.post(
-            f"{base}/chat/completions", json=payload, headers=headers, timeout=timeout
+            f"{base}{COMPAT_CHAT_PATH}", json=payload, headers=headers, timeout=timeout
         )
     except httpx.TimeoutException:
         result["status"] = "timeout"

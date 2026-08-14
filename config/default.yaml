@@ -303,7 +303,13 @@ stack:
       # Managed externally -- LM Studio is a desktop app with its own server
       # toggle. The stack only health-checks it and tells you if it is down.
       manage: false
-      health_url: "http://localhost:1234/v1/models"
+      # The LM Studio REST API's model list. NOT /v1/models: that is the
+      # OpenAI-compat shim, which LM Studio does not own and logs as
+      # "Unexpected endpoint or method ... Returning 200 anyway" -- one ERROR
+      # line in the user's server log for every doctor run and every
+      # `launcher.py --check`. engine/stack.py checks this one by the SHAPE of
+      # the body, because a 200 from this server proves nothing.
+      health_url: "http://localhost:1234/api/v1/models"
 
     voxtral_tts:
       enabled: true

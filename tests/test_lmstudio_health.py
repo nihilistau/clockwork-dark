@@ -70,26 +70,43 @@ def test_a_401_is_not_reported_as_up(monkeypatch):
         lambda *_a, **_k: httpx.Response(
             401,
             json={"error": {"code": "invalid_api_key"}},
-            request=httpx.Request("GET", "http://localhost:1234/v1/models"),
+            request=httpx.Request("GET", "http://localhost:1234/api/v1/models"),
         ),
     )
-    alive, detail = stack.probe("http://localhost:1234/v1/models")
+    alive, detail = stack.probe("http://localhost:1234/api/v1/models")
     assert alive is False
     assert "api key" in detail.lower()
     assert "config/local.yaml" in detail
 
 
-def test_a_200_is_still_up(monkeypatch):
+def test_a_real_model_list_is_up(monkeypatch):
     from engine import stack
 
     monkeypatch.setattr(
         httpx,
         "get",
         lambda *_a, **_k: httpx.Response(
-            200, json={"data": []}, request=httpx.Request("GET", "http://x/v1/models")
+            200,
+            json={"models": [{"key": "a-model", "type": "llm"}]},
+            request=httpx.Request("GET", "http://x/api/v1/models"),
         ),
     )
-    assert stack.probe("http://localhost:1234/v1/models") == (True, "ready")
+    alive, detail = stack.probe("http://localhost:1234/api/v1/models")
+    assert alive is True
+    assert "1 models" in detail
+
+
+def test_the_configured_health_url_is_the_route_lm_studio_serves():
+    """
+    The shipped ``health_url`` was ``/v1/models``, which put one
+    ``Unexpected endpoint or method`` ERROR in the user's LM Studio log per
+    doctor run and per ``launcher.py --check``.
+    """
+    from engine.config import get_config
+    from engine.lmstudio.routes import MODELS_PATH
+
+    url = str(get_config().get("stack.services.lmstudio.health_url", ""))
+    assert url.endswith(MODELS_PATH), url
 
 
 # -- 2. the chat probe reports what actually came back ---------------------
@@ -175,52 +192,138 @@ def test_an_unbound_model_is_named_before_a_request_is_spent(monkeypatch):
     assert result["model"] == "local-model"
 
 
-# -- 3. discovery survives a server without /api/v0 ------------------------
+# -- 3. discovery asks one route, and reads the answer's shape -------------
 
 
-def test_v0_discovery_is_preferred(monkeypatch):
+_V1_BODY = {
+    "models": [
+        {
+            "key": "a-model",
+            "type": "llm",
+            "architecture": "gemma3",
+            "max_context_length": 32768,
+            "loaded_instances": [{"config": {"context_length": 16384}}],
+            "capabilities": {"trained_for_tool_use": True},
+        }
+    ]
+}
+
+
+def _get(monkeypatch, handler):
+    monkeypatch.setattr(httpx, "get", handler)
+
+
+def test_discovery_asks_only_the_v1_rest_route(monkeypatch):
+    """
+    ONE question, ONE endpoint. Discovery used to ask ``/api/v0/models`` and
+    fall back to ``/v1/models``: two APIs for one fact, the second of which LM
+    Studio does not serve.
+    """
     seen: list[str] = []
 
     def fake_get(url, **_kwargs):
         seen.append(url)
-        return httpx.Response(
-            200,
-            json={"data": [{"id": "a-model", "arch": "gemma3", "max_context_length": 32768}]},
-            request=httpx.Request("GET", url),
-        )
+        return httpx.Response(200, json=_V1_BODY, request=httpx.Request("GET", url))
 
-    monkeypatch.setattr(httpx, "get", fake_get)
+    _get(monkeypatch, fake_get)
     models = ModelRegistry(base_url="http://x/v1").refresh()
-    assert seen == ["http://x/api/v0/models"]
+    assert seen == ["http://x/api/v1/models"]
     assert [m.id for m in models] == ["a-model"]
 
 
-def test_a_server_without_api_v0_still_yields_model_ids(monkeypatch):
+def test_the_v1_shape_is_parsed_as_the_server_writes_it(monkeypatch):
     """
-    THE FAILURE THIS PREVENTS. Discovery returning [] does not stop the game --
-    it makes ``resolve_profile`` fall back to the placeholder id
-    ``local-model``, which LM Studio answers with 400 on EVERY request. A
-    degraded binding with no capability data beats a fictional one.
+    ``key`` not ``id``; ``architecture`` not ``arch``; residency is the
+    presence of a loaded instance; the context to budget against is the one
+    that instance was loaded with.
     """
-    def fake_get(url, **_kwargs):
-        request = httpx.Request("GET", url)
-        if "/api/v0/" in url:
-            return httpx.Response(404, text="not found", request=request)
-        return httpx.Response(
+    _get(
+        monkeypatch,
+        lambda url, **_k: httpx.Response(
+            200, json=_V1_BODY, request=httpx.Request("GET", url)
+        ),
+    )
+    model = ModelRegistry(base_url="http://x/v1").refresh()[0]
+    assert model.id == "a-model"
+    assert model.arch == "gemma3"
+    assert model.is_loaded is True
+    assert model.usable_context == 16384
+    assert model.supports_tools is True
+
+
+def test_a_200_in_the_compat_shape_is_refused_rather_than_half_read(monkeypatch, caplog):
+    """
+    THE DEFECT THIS PINS. LM Studio answers routes it does not serve with 200 --
+    its own log says ``Unexpected endpoint or method ... Returning 200 anyway``,
+    and ``GET /v1/nonsense`` does it too. So a status code proves nothing, and
+    the compat body's ids would parse into models with no capabilities and no
+    context lengths. Refusing is the only honest answer.
+    """
+    _get(
+        monkeypatch,
+        lambda url, **_k: httpx.Response(
             200,
-            json={"data": [{"id": "gemma-4-26b"}, {"id": "qwen3-8b"}]},
-            request=request,
-        )
-
-    monkeypatch.setattr(httpx, "get", fake_get)
-    registry = ModelRegistry(base_url="http://x/v1")
-    assert sorted(m.id for m in registry.chat_models()) == ["gemma-4-26b", "qwen3-8b"]
-    # Degraded entries must still clear is_chat_model, or the fallback buys
-    # nothing at all.
-    assert all(m.is_chat_model for m in registry.chat_models())
+            json={"data": [{"id": "gemma-4-26b"}], "object": "list"},
+            request=httpx.Request("GET", url),
+        ),
+    )
+    with caplog.at_level("ERROR"):
+        assert ModelRegistry(base_url="http://x/v1").refresh() == []
+    assert "not the v1 model list" in caplog.text
 
 
-def test_both_routes_failing_still_returns_a_list_not_an_exception(monkeypatch):
+def test_a_200_carrying_an_error_body_is_not_a_model_list(monkeypatch):
+    from engine.lmstudio.registry import probe_models
+
+    _get(
+        monkeypatch,
+        lambda url, **_k: httpx.Response(
+            200,
+            json={"error": "Unexpected endpoint or method. (GET /api/v9/models)"},
+            request=httpx.Request("GET", url),
+        ),
+    )
+    ok, detail = probe_models("http://x/api/v1/models")
+    assert ok is False
+    assert "does not serve this route" in detail
+
+
+def test_a_healthy_probe_names_what_is_loaded(monkeypatch):
+    from engine.lmstudio.registry import probe_models
+
+    _get(
+        monkeypatch,
+        lambda url, **_k: httpx.Response(
+            200, json=_V1_BODY, request=httpx.Request("GET", url)
+        ),
+    )
+    ok, detail = probe_models("http://x/api/v1/models")
+    assert ok is True
+    assert "a-model" in detail
+
+
+def test_the_stack_probe_checks_the_body_not_the_status(monkeypatch):
+    """
+    ``config.stack.services.lmstudio.health_url`` is the model list, and the
+    launcher's status table must not go green on a 200 that says "unexpected
+    endpoint".
+    """
+    from engine import stack
+
+    _get(
+        monkeypatch,
+        lambda url, **_k: httpx.Response(
+            200,
+            json={"data": []},
+            request=httpx.Request("GET", url),
+        ),
+    )
+    alive, detail = stack.probe("http://localhost:1234/api/v1/models")
+    assert alive is False
+    assert "v1 model list" in detail
+
+
+def test_discovery_failing_still_returns_a_list_not_an_exception(monkeypatch):
     monkeypatch.setattr(
         httpx,
         "get",

@@ -64,6 +64,7 @@ import httpx
 from engine.config import get_config
 from engine.lmstudio.events import NATIVE_EVENT_TYPES, LMSResponse, LMSStreamEvent
 from engine.lmstudio.profiles import wire_cap
+from engine.lmstudio.routes import CHAT_PATH, rest_root
 
 logger = logging.getLogger(__name__)
 
@@ -135,9 +136,9 @@ class NativeClient:
         api_key: str = "",
     ) -> None:
         cfg = get_config()
-        compat = (base_url or cfg.get("lmstudio.base_url", "http://localhost:1234/v1")).rstrip("/")
-        # /api/v1 is a sibling of /v1, not a child.
-        self.root = compat[: -len("/v1")] if compat.endswith("/v1") else compat
+        # /api/v1 is a sibling of /v1, not a child. The derivation lives in
+        # routes.py so the chat route and the model list cannot drift apart.
+        self.root = rest_root(base_url)
         self.timeout = (
             float(cfg.get("lmstudio.timeout_seconds", 300)) if timeout is None else timeout
         )
@@ -158,7 +159,7 @@ class NativeClient:
         """
         try:
             response = self._client.post(
-                f"{self.root}/api/v1/chat",
+                f"{self.root}{CHAT_PATH}",
                 json={},
                 timeout=5.0,
             )
@@ -298,7 +299,7 @@ class NativeClient:
         cap = int(payload["max_output_tokens"])
         t0 = time.perf_counter()
         response = self._client.post(
-            f"{self.root}/api/v1/chat", json=payload, timeout=self.timeout
+            f"{self.root}{CHAT_PATH}", json=payload, timeout=self.timeout
         )
         if response.status_code >= 400:
             # The status alone says nothing. `unrecognized_keys` naming the key
@@ -371,7 +372,7 @@ class NativeClient:
 
         try:
             with self._client.stream(
-                "POST", f"{self.root}/api/v1/chat", json=payload, timeout=self.timeout
+                "POST", f"{self.root}{CHAT_PATH}", json=payload, timeout=self.timeout
             ) as response:
                 response.raise_for_status()
                 for etype, data in _iter_sse(response):

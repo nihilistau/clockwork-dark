@@ -12,11 +12,31 @@ user's server -- it has 47 models with names like
 had never heard of, and the failure surfaced far downstream as empty narration
 rather than as "you asked for a model that does not exist".
 
-``GET /api/v0/models`` is used instead of ``GET /v1/models`` because only the
-former returns ``state`` (loaded / not-loaded), ``arch``, ``capabilities`` and
-``max_context_length`` -- the three facts a binding decision needs.
+ONE ROUTE, AND ITS SHAPE IS THE PROOF
+-------------------------------------
+Discovery asks ``GET /api/v1/models`` and nothing else. It used to ask
+``/api/v0/models`` with a silent fall back to ``/v1/models``: two APIs and a
+ladder for one fact, and the bottom rung was a route LM Studio does not own
+(``engine/lmstudio/routes.py`` has the server's own error line).
 
-Version: v0.1.0 [2026-08-08]
+There is no fallback now, deliberately. LM Studio answers unknown-but-plausible
+paths with 200 and an error body -- measured live on ``GET /v1/nonsense`` and
+``GET /api/v9/models`` -- so a ladder that reads status codes cannot tell a
+served route from an unserved one, and would quietly make the wrong route
+normal. What is checked instead is the SHAPE of the answer:
+
+    {"models": [{"key", "type", "publisher", "architecture", "capabilities",
+                 "max_context_length", "loaded_instances", ...}]}
+
+Note ``key``, not ``id``, and ``models``, not ``data`` -- the compat shim's
+shape is a different API's, and accepting it would half-parse a list into
+models with no capabilities and no context lengths. A body that is not v1 is
+reported as "this server does not speak the v1 REST API" rather than silently
+half-read. A server too old to serve ``/api/v1/models`` therefore fails loudly
+here; that is the intended trade, because the alternative is the ladder that
+hid this for months.
+
+Version: v0.2.0 [2026-08-14]
 """
 
 from __future__ import annotations
@@ -29,6 +49,7 @@ from typing import Any, Optional
 import httpx
 
 from engine.config import get_config
+from engine.lmstudio.routes import MODELS_PATH, models_url, rest_root
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +95,8 @@ class ModelInfo:
     max_context_length: int = 0
     loaded_context_length: int = 0
     capabilities: tuple[str, ...] = field(default_factory=tuple)
+    #: ``capabilities.reasoning.default`` as v1 reports it: "on", "off" or "".
+    reasoning_default: str = ""
 
     @property
     def is_loaded(self) -> bool:
@@ -85,8 +108,16 @@ class ModelInfo:
 
     @property
     def is_reasoning(self) -> bool:
-        """Whether this model thinks before it answers, unbidden."""
-        return self.arch in REASONING_ARCHES
+        """
+        Whether this model thinks before it answers, unbidden.
+
+        Two sources, because neither is complete. REASONING_ARCHES is measured
+        on this machine and covers architectures that ignore every "stop
+        thinking" knob. ``reasoning_default`` is the server's own answer, which
+        ``/api/v0/models`` never carried -- gemma4 is not in the arch list and
+        reports ``reasoning.default = "on"``.
+        """
+        return self.arch in REASONING_ARCHES or self.reasoning_default == "on"
 
     @property
     def is_chat_model(self) -> bool:
@@ -131,36 +162,173 @@ class ModelUnavailable(RuntimeError):
     """
 
 
-# What a model is assumed to have when discovery came from /v1/models, which
-# reports an id and nothing else. Small enough that a budget built from it fits
-# any real chat model, large enough to clear `is_chat_model`.
-DEGRADED_ARCH = "unknown"
-DEGRADED_CONTEXT = 8192
+class NotV1Models(RuntimeError):
+    """The body at ``/api/v1/models`` was not the v1 model list.
 
-
-def _parse(raw: dict[str, Any], *, degraded: bool = False) -> ModelInfo:
+    Raised rather than half-parsed, because LM Studio returns 200 for routes it
+    does not serve. The message carries what the body actually looked like --
+    the compat shape (``data``/``id``) and an ``{"error": ...}`` blob are the
+    two that turn up in practice, and they mean different things.
     """
-    One entry from a discovery route.
 
-    Args:
-        degraded: The entry came from ``/v1/models``, which reports an id and
-            nothing else. Every capability field is then a guess, and saying so
-            here is better than letting `is_chat_model` reject the whole server
-            because OpenAI's schema has no `arch` field.
+
+def _describe(payload: Any) -> str:
+    """Name what came back, for an error a person can act on."""
+    if isinstance(payload, dict):
+        if isinstance(payload.get("error"), (dict, str)):
+            return "an error body (the server does not serve this route)"
+        if isinstance(payload.get("data"), list):
+            return (
+                "the OpenAI-compat shape ({'data': [{'id': ...}]}), which is "
+                "/v1/models answering for a route it does not own"
+            )
+        return f"a JSON object with keys {sorted(payload)[:6]}"
+    return f"{type(payload).__name__}"
+
+
+def _quant_name(raw: Any) -> str:
+    """v1 reports quantization as ``{"name", "bits_per_weight"}``."""
+    if isinstance(raw, dict):
+        return str(raw.get("name") or "")
+    return str(raw or "")
+
+
+def _loaded_context(instances: Any) -> int:
     """
-    caps = raw.get("capabilities") or []
-    arch = str(raw.get("arch") or "")
-    context = int(raw.get("max_context_length") or 0)
+    The context an instance was ACTUALLY loaded with.
+
+    v1 nests it: ``loaded_instances[].config.context_length``. It is the number
+    to budget against -- the live gemma4 advertises 262,144 and is resident at
+    160,768.
+    """
+    best = 0
+    for instance in instances or []:
+        if not isinstance(instance, dict):
+            continue
+        config = instance.get("config") or {}
+        if isinstance(config, dict):
+            best = max(best, int(config.get("context_length") or 0))
+    return best
+
+
+def _capabilities(raw: Any) -> tuple[tuple[str, ...], str]:
+    """
+    Flatten v1's capability OBJECT into the flat names the engine asks about.
+
+    ``/api/v0/models`` gave a list of strings; v1 gives
+    ``{"vision": bool, "trained_for_tool_use": bool, "reasoning": {...}}``.
+    Returns (names, reasoning_default).
+    """
+    if not isinstance(raw, dict):
+        return (), ""
+    names: list[str] = []
+    if raw.get("trained_for_tool_use"):
+        names.append("tool_use")
+    if raw.get("vision"):
+        names.append("vision")
+    reasoning = raw.get("reasoning")
+    default = ""
+    if isinstance(reasoning, dict):
+        default = str(reasoning.get("default") or "")
+    return tuple(names), default
+
+
+def _parse(raw: dict[str, Any]) -> ModelInfo:
+    """One entry of ``GET /api/v1/models``."""
+    caps, reasoning_default = _capabilities(raw.get("capabilities"))
+    instances = raw.get("loaded_instances") or []
     return ModelInfo(
-        id=str(raw.get("id", "")),
+        # `key`, not `id`. The value is the same string the chat routes want.
+        id=str(raw.get("key", "")),
         type=str(raw.get("type", "llm")),
-        arch=arch or (DEGRADED_ARCH if degraded else ""),
+        arch=str(raw.get("architecture") or ""),
         publisher=str(raw.get("publisher") or ""),
-        quantization=str(raw.get("quantization") or ""),
-        state=str(raw.get("state") or "not-loaded"),
-        max_context_length=context or (DEGRADED_CONTEXT if degraded else 0),
-        loaded_context_length=int(raw.get("loaded_context_length") or 0),
-        capabilities=tuple(str(c) for c in caps if c),
+        quantization=_quant_name(raw.get("quantization")),
+        # v1 has no `state` field: residency IS the instance list.
+        state="loaded" if instances else "not-loaded",
+        max_context_length=int(raw.get("max_context_length") or 0),
+        loaded_context_length=_loaded_context(instances),
+        capabilities=caps,
+        reasoning_default=reasoning_default,
+    )
+
+
+def parse_models_payload(payload: Any) -> list[ModelInfo]:
+    """
+    Turn a ``/api/v1/models`` body into models, or refuse it.
+
+    Raises:
+        NotV1Models: The body is not the v1 shape. This is the check that a
+            status code cannot do -- see the module docstring.
+    """
+    if not isinstance(payload, dict) or not isinstance(payload.get("models"), list):
+        raise NotV1Models(
+            f"{MODELS_PATH} did not answer with the v1 model list "
+            f"({{'models': [...]}}); it returned {_describe(payload)}"
+        )
+    entries = [e for e in payload["models"] if isinstance(e, dict)]
+    # An empty list is a legitimate answer: a server with nothing installed.
+    if entries and not any(e.get("key") for e in entries):
+        raise NotV1Models(
+            f"{MODELS_PATH} answered with a 'models' array whose entries carry "
+            "no 'key' -- this is not the v1 REST API"
+        )
+    return [_parse(e) for e in entries]
+
+
+def probe_models(
+    url: str = "",
+    *,
+    api_key: Optional[str] = None,
+    timeout: float = 3.0,
+) -> tuple[bool, str]:
+    """
+    Ask the one model-list route whether this server is a usable LM Studio.
+
+    Used by every liveness check in the project (``engine/stack.py``,
+    ``scripts/doctor.py``, ``LMSClient.is_available``) so there is one answer to
+    one question. Healthy means: it answered, it authenticated, the body is the
+    v1 shape, and there is at least one model in it.
+
+    Returns:
+        ``(ok, detail)`` -- detail is written to be read in a status table.
+    """
+    cfg = get_config()
+    target = url or models_url()
+    key = cfg.get("lmstudio.api_key", "") if api_key is None else api_key
+    headers = {"Authorization": f"Bearer {key}"} if key else {}
+
+    try:
+        response = httpx.get(target, headers=headers, timeout=timeout)
+    except httpx.HTTPError as exc:
+        return False, f"{target} unreachable ({type(exc).__name__})"
+
+    if response.status_code == 401:
+        return False, (
+            "listening, but it refuses every request: the API key is missing or "
+            "wrong. Set lmstudio.api_key in config/local.yaml, or turn off "
+            "'Require API key' in LM Studio's server settings"
+        )
+    if response.status_code >= 400:
+        return False, f"HTTP {response.status_code} from {target}"
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return False, f"{target} answered 200 with a body that is not JSON"
+
+    try:
+        models = parse_models_payload(payload)
+    except NotV1Models as exc:
+        return False, str(exc)
+
+    if not models:
+        return False, f"{target} answers, but the server has no models installed"
+
+    loaded = [m.id for m in models if m.is_loaded]
+    return True, (
+        f"{MODELS_PATH} answers: {len(models)} models, "
+        f"loaded: {', '.join(loaded) if loaded else 'none'}"
     )
 
 
@@ -175,9 +343,8 @@ class ModelRegistry:
         timeout: float = 10.0,
     ) -> None:
         cfg = get_config()
-        # /api/v0 lives beside /v1, not under it.
-        compat = (base_url or cfg.get("lmstudio.base_url", "http://localhost:1234/v1")).rstrip("/")
-        self.root = compat[: -len("/v1")] if compat.endswith("/v1") else compat
+        # /api/v1 lives beside /v1, not under it. One derivation, in routes.py.
+        self.root = rest_root(base_url)
         self.api_key = api_key or cfg.get("lmstudio.api_key", "") or ""
         self.timeout = timeout
         self._models: Optional[list[ModelInfo]] = None
@@ -204,67 +371,47 @@ class ModelRegistry:
 
     def refresh(self) -> list[ModelInfo]:
         """
-        Re-query the server. Returns [] when it is unreachable.
+        Re-query the server. Returns [] when it is unreachable or not v1.
 
-        ``/api/v0/models`` is the route that carries capabilities, arch and the
-        loaded context length. It is also LM Studio's own extension, so it can
-        be absent; when it is, ``/v1/models`` still yields the ids, which is
-        enough to stop the profile resolver falling back to a placeholder model
-        id that the server answers with 400 on every request. A degraded
-        binding beats a fictional one.
+        One request to ``GET /api/v1/models``, and the body has to look like the
+        v1 model list. There is no second route to try: see the module
+        docstring for why a status-code ladder over these APIs is worthless.
         """
-        payload: Any = None
-        degraded = False
         try:
-            payload = self._fetch("/api/v0/models")
+            payload = self._fetch(MODELS_PATH)
+            models = parse_models_payload(payload)
+        except NotV1Models as exc:
+            logger.error(
+                "[registry] Model discovery got an answer that is not the v1 "
+                "model list -- every chat request will name an unresolved model "
+                "and be rejected (operation=refresh, url=%s%s): %s",
+                self.root,
+                MODELS_PATH,
+                exc,
+            )
+            models = []
         except Exception as exc:  # noqa: BLE001 -- offline dev must still boot
-            status = getattr(getattr(exc, "response", None), "status_code", None)
-            if status in (404, 405):
-                degraded = True
-                logger.warning(
-                    "[registry] /api/v0/models is not served; falling back to "
-                    "/v1/models, which reports no capabilities or context "
-                    "lengths (operation=refresh, url=%s)",
-                    self.root,
-                )
-                try:
-                    payload = self._fetch("/v1/models")
-                except Exception as inner:  # noqa: BLE001
-                    degraded = False
-                    logger.error(
-                        "[registry] Model discovery failed on both routes "
-                        "(operation=refresh, url=%s): %s",
-                        self.root,
-                        inner,
-                    )
-            else:
-                logger.error(
-                    "[registry] Model discovery failed -- every chat request "
-                    "will name an unresolved model and be rejected "
-                    "(operation=refresh, url=%s): %s",
-                    self.root,
-                    exc,
-                )
+            logger.error(
+                "[registry] Model discovery failed -- every chat request "
+                "will name an unresolved model and be rejected "
+                "(operation=refresh, url=%s%s): %s",
+                self.root,
+                MODELS_PATH,
+                exc,
+            )
+            models = []
 
-        if payload is None:
-            with self._lock:
-                self._models = []
-            return []
-
-        entries = payload.get("data") if isinstance(payload, dict) else payload
-        models = [
-            _parse(e, degraded=degraded) for e in (entries or []) if isinstance(e, dict)
-        ]
         with self._lock:
             self._models = models
-        loaded = [m.id for m in models if m.is_loaded]
-        logger.info(
-            "[registry] Discovered models (operation=refresh, total=%s, loaded=%s, "
-            "route=%s)",
-            len(models),
-            loaded or "none",
-            "/v1/models (degraded)" if degraded else "/api/v0/models",
-        )
+        if models:
+            loaded = [m.id for m in models if m.is_loaded]
+            logger.info(
+                "[registry] Discovered models (operation=refresh, total=%s, "
+                "loaded=%s, route=%s)",
+                len(models),
+                loaded or "none",
+                MODELS_PATH,
+            )
         return models
 
     def models(self, *, refresh: bool = False) -> list[ModelInfo]:
