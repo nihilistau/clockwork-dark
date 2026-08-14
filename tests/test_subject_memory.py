@@ -235,3 +235,56 @@ def test_recall_subject_refuses_an_empty_id(engine) -> None:
     from engine.skills.builtin.memory import recall_subject
 
     assert json.loads(recall_subject(subject_id=""))["ok"] is False
+
+
+# ---------------------------------------------------------------------------
+# clues — the third kind of knowing
+# ---------------------------------------------------------------------------
+
+
+def test_a_clue_is_a_fact_and_needs_no_new_storage(ledger: StoryLedger) -> None:
+    """
+    Clues decay, archive, recall and persist exactly like everything else
+    because they ARE facts, with a `kind`. A parallel container would be a
+    second thing to keep in step with the save format.
+    """
+    ledger.learn("The shutter was forced from the inside.", subject_id="edgewood_bakery", turn=5, day=3)
+    assert [c.text for c in ledger.clues()] == ["The shutter was forced from the inside."]
+    # ...and it is recalled with the place, because a clue carries a subject.
+    assert any("forced from the inside" in f.text for f in ledger.recall("edgewood_bakery"))
+
+
+def test_clues_are_not_ordinary_facts(ledger: StoryLedger) -> None:
+    """The counter-control: the board must not fill with every fact in the run."""
+    assert ledger.facts, "fixture has facts to be confused with clues"
+    assert ledger.clues() == []
+
+
+def test_clues_survive_the_save(ledger: StoryLedger) -> None:
+    ledger.learn("Odran lied about the caravan.", subject_id="npc_odran", turn=6, day=3)
+    restored = StoryLedger.from_dict(ledger.to_dict())
+    assert [c.text for c in restored.clues()] == ["Odran lied about the caravan."]
+
+
+def test_the_board_resolves_a_subject_to_something_readable(ledger: StoryLedger) -> None:
+    """
+    A board of raw ids is a debug view. `edgewood_bakery` becomes "Edgewood
+    Bakery" through the active story's graph, and a named person becomes their
+    name.
+    """
+    from engine.games import registry
+    from engine.scenes.default_api import clue_board
+
+    registry.activate("clockwork-dark")
+    ledger.remember_name("npc_odran", "Odran")
+    ledger.learn("The shutter was forced.", subject_id="edgewood_bakery", turn=5, day=3)
+    ledger.learn("Odran lied.", subject_id="npc_odran", turn=6, day=3)
+
+    about = {row["about"] for row in clue_board(None, ledger)}
+    assert about == {"Edgewood Bakery", "Odran"}
+
+
+def test_no_ledger_no_board() -> None:
+    from engine.scenes.default_api import clue_board
+
+    assert clue_board(None, None) == []

@@ -130,7 +130,7 @@ def quest_journal(state: Any) -> dict[str, Any]:
     }
 
 
-def codex_places(state: Any) -> list[dict[str, Any]]:
+def codex_places(state: Any, ledger: Any = None) -> list[dict[str, Any]]:
     """
     The Atlas. Every canonical location, gated on having been there.
 
@@ -160,7 +160,7 @@ def codex_places(state: Any) -> list[dict[str, Any]]:
         time_of_day = state.time_of_day
         evil_phase = state.evil_phase.value
 
-    points = map_points(state)
+    points = map_points(state, ledger)
 
     places: list[dict[str, Any]] = []
     for place_id, row in LOCATIONS.items():
@@ -210,7 +210,52 @@ def codex_places(state: Any) -> list[dict[str, Any]]:
     return places
 
 
-def map_points(state: Any) -> dict[str, list[dict[str, Any]]]:
+def clue_board(state: Any, ledger: Any = None) -> list[dict[str, Any]]:
+    """
+    The player's own working-out, newest first.
+
+    THREE KINDS OF KNOWING, and this is the third. What is TRUE lives in the
+    world; what a CHARACTER knows lives in their subject memory; what the
+    PLAYER has pieced together is neither, and conflating it with either is how
+    a mystery stops being one -- a board built from world truth would hand over
+    the answer, and one built from a character's memory would show the player
+    things nobody told them.
+
+    Each clue carries what it is ABOUT, resolved to a display name where the
+    subject is a place or a named person, so the board reads as a board rather
+    than as a list of ids.
+    """
+    if ledger is None:
+        return []
+
+    names = getattr(ledger, "names", {}) or {}
+    try:
+        from engine.game.locations import LOCATIONS
+    except Exception:  # noqa: BLE001 -- a story with no graph still has clues
+        LOCATIONS = {}  # type: ignore[assignment]
+
+    out: list[dict[str, Any]] = []
+    for clue in ledger.clues():
+        subject = str(clue.subject_id or "")
+        label = (
+            str((LOCATIONS.get(subject) or {}).get("name") or "")
+            or str(names.get(subject) or "")
+            or subject.replace("_", " ")
+        )
+        out.append(
+            {
+                "id": clue.id,
+                "text": clue.text,
+                "subject_id": subject,
+                "about": label,
+                "day": clue.day,
+                "turn": clue.turn,
+            }
+        )
+    return out
+
+
+def map_points(state: Any, ledger: Any = None) -> dict[str, list[dict[str, Any]]]:
     """
     What is worth going to, per location, derived from live state.
 
@@ -254,6 +299,20 @@ def map_points(state: Any) -> dict[str, list[dict[str, Any]]]:
                 add(place_id, "objective", f"{name} — {objective}")
     except Exception as exc:  # noqa: BLE001 -- a story with no quests
         logger.debug("[api] No quest points for the map: %s", exc)
+
+    # Clues the player has learned ABOUT a place. Free, because a clue is a
+    # fact with a subject and a location id is a subject -- no map data was
+    # authored and no clue was written twice.
+    # Passed in rather than reached for: the ledger lives on the SESSION and
+    # this function is handed state, and quietly digging one out of a back
+    # reference would be the same conflation the engine/story seam removes.
+    try:
+        if ledger is not None:
+            for clue in ledger.clues(limit=40):
+                if clue.subject_id:
+                    add(clue.subject_id, "clue", clue.text)
+    except Exception as exc:  # noqa: BLE001 -- a story with no ledger
+        logger.debug("[api] No clue points for the map: %s", exc)
 
     # Vendors, for places the player has reason to walk back to.
     try:
@@ -779,7 +838,14 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
     @blueprint.get("/api/codex/places")
     def api_codex_places() -> Any:
         session = _optional_session(request.args.get("session_id", ""))
-        return jsonify({"places": codex_places(session.engine.state if session else None)})
+        return jsonify(
+            {
+                "places": codex_places(
+                    session.engine.state if session else None,
+                    session.ledger if session else None,
+                )
+            }
+        )
 
     @blueprint.get("/api/codex/souls")
     def api_codex_souls() -> Any:
@@ -844,11 +910,27 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
             return jsonify({"error": "session not found"}), 404
         return jsonify(notice_board(session.engine.state))
 
+    @blueprint.get("/api/clues")
+    def api_clues() -> Any:
+        """
+        What the PLAYER has worked out, as distinct from what is true.
+
+        Session-required: a clue board is a record of one run. Without a
+        session there is nothing to show, and showing every clue the story
+        could ever yield would be the spoiler this screen exists to avoid.
+        """
+        try:
+            session = store.require(request.args.get("session_id", ""))
+        except KeyError:
+            return jsonify({"error": "session not found"}), 404
+        return jsonify({"clues": clue_board(session.engine.state, session.ledger)})
+
     return blueprint
 
 
 __all__ = [
     "BLUEPRINT_NAME",
+    "clue_board",
     "codex_places",
     "codex_souls",
     "codex_things",

@@ -49,6 +49,12 @@ MAX_NOTES_PER_SUBJECT = 6
 MAX_DISPOSITION_STEP = 5
 TURN_BUFFER_SIZE = 6
 
+#: A fact the PLAYER has learned, as distinct from one the world holds or one a
+#: character knows. Kept as a fact `kind` rather than a parallel store: clues
+#: decay, archive, recall and persist exactly like everything else, and a second
+#: container would be a second thing to keep in step with the save format.
+KIND_CLUE = "clue"
+
 SOURCE_ENGINE = "engine"
 SOURCE_LLM = "llm"
 SOURCE_PLAYER = "player"
@@ -92,7 +98,7 @@ class LedgerFact:
 
     id: str
     text: str
-    kind: str = "fact"  # fact | name | secret | event
+    kind: str = "fact"  # fact | name | secret | event | clue
     subject_id: str = ""
     turn: int = 0
     day: int = 0
@@ -328,6 +334,42 @@ class StoryLedger:
             if not fact.archived and fact.subject_id == subject_id
         ]
         rows.sort(key=lambda f: (f.weight, f.turn), reverse=True)
+        return rows[:limit]
+
+    def learn(
+        self,
+        text: str,
+        *,
+        subject_id: str = "",
+        turn: int = 0,
+        day: int = 0,
+        source: str = SOURCE_ENGINE,
+    ) -> Optional[LedgerFact]:
+        """
+        Record something the PLAYER now knows. A clue.
+
+        A clue is a fact with ``kind="clue"`` and no new storage anywhere. The
+        distinction it draws is the one a mystery runs on: what is TRUE lives in
+        the world, what a CHARACTER knows lives in their subject memory, and
+        what the PLAYER has worked out is a third thing that is none of the
+        engine's business until they are told.
+
+        ``subject_id`` is what a clue is ABOUT -- a person, a place, a topic --
+        so a clue attached to a location becomes a point of interest on the map
+        for free (``engine/scenes/default_api.py::map_points``) and is recalled
+        when the player stands there.
+
+        Defaults to ``SOURCE_ENGINE``: clues are earned through what happened,
+        not asserted by the narrator mid-sentence.
+        """
+        return self.add_fact(
+            text, kind=KIND_CLUE, subject_id=subject_id, turn=turn, day=day, source=source
+        )
+
+    def clues(self, *, limit: int = 40) -> list[LedgerFact]:
+        """Everything the player has learned, newest first."""
+        rows = [f for f in self.facts if f.kind == KIND_CLUE and not f.archived]
+        rows.sort(key=lambda f: (f.turn, f.day), reverse=True)
         return rows[:limit]
 
     def forget(self, subject_id: str) -> int:

@@ -3575,3 +3575,52 @@ input[type="radio"] {
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
+
+
+/* ---- the clue board ----------------------------------------------------
+   What the PLAYER has worked out, grouped by what it is about. Quiet by
+   design: this is a page of notes, not a dashboard, and every colour is a
+   semantic token so a story retints it from its own palette. */
+
+.clues__group {
+  margin-bottom: var(--space-4);
+}
+
+.clues__about {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--accent-brass);
+}
+
+.clues__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.clues__item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.clues__text {
+  color: var(--text-narration);
+}
+
+.clues__day,
+.clues__empty {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.clues__empty {
+  white-space: normal;
+}

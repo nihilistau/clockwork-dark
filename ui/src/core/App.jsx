@@ -14,6 +14,7 @@ import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } 
 import Cutscene from "./parts/Cutscene.jsx";
 import Onboarding, { shouldOnboard } from "./parts/Onboarding.jsx";
 import { Icon } from "./parts/Chrome.jsx";
+import CluesScreen from "./screens/Clues.jsx";
 import Ending from "./screens/Ending.jsx";
 import MapScreen from "./screens/Map.jsx";
 import Menu from "./screens/Menu.jsx";
@@ -38,6 +39,18 @@ import { createStore } from "./store.js";
 // cap plus enough margin for the rest of a turn's work, and
 // tests/test_ui_contract.py fails the build if the two ever cross.
 const TURN_WATCHDOG_MS = 330000;
+
+/* A folded note with a corner turned: the player's own working-out, which is
+   what this board is -- not the world's truth and not anyone's testimony. */
+function ClueIcon() {
+  return (
+    <Icon>
+      <path d="M6 3.5h8.5L18 7v13.5H6z" />
+      <path d="M14.2 3.6V7.2H17.8" />
+      <path d="M9 11.5h6M9 14.6h4.5" />
+    </Icon>
+  );
+}
 
 /* Three places and the roads between them: the shape of the thing it opens,
    rather than a folded-paper map, which reads as "travel" in a client where
@@ -347,12 +360,24 @@ export default function App({ story }) {
     // own world and must win. Gated on the story actually having a graph --
     // `world.location_id` is absent for a story with no places, and an empty
     // map button is the permanently-empty modal this seam exists to prevent.
-    const hasOwn = declared.some((entry) => entry.id === "map");
-    if (hasOwn || !state.world?.location_id) return declared;
-    return [
-      ...declared,
-      { id: "map", key: "m", label: "The map", Icon: MapIcon, Component: MapScreen },
-    ];
+    const core = [];
+    if (!declared.some((entry) => entry.id === "map") && state.world?.location_id) {
+      core.push({ id: "map", key: "m", label: "The map", Icon: MapIcon, Component: MapScreen });
+    }
+    // The clue board is offered to every story: unlike the map it needs no
+    // graph, only a run. A story that has never recorded one sees the empty
+    // state, which says what will collect there -- that is an explanation, not
+    // the permanently-empty modal this seam guards against.
+    if (!declared.some((entry) => entry.id === "clues")) {
+      core.push({
+        id: "clues",
+        key: "k",
+        label: "What you know",
+        Icon: ClueIcon,
+        Component: CluesScreen,
+      });
+    }
+    return core.length ? [...declared, ...core] : declared;
   }, [story, state]);
 
   // Story overlay keys, lowercased once: {j: "journal", ...}. An empty map is
