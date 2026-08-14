@@ -36,7 +36,7 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
-**1798 passing, 18 skipped**, no expected failures (measured 2026-08-15), plus
+**1813 passing, 17 skipped**, no expected failures (measured 2026-08-15), plus
 **95 client tests** under `ui/tests/` run by `npm test --prefix ui`. Run both
 for the real numbers rather than trusting this line — it has been stale before,
 and the "1776 passing, 15 skipped" this replaces was itself off by one against a
