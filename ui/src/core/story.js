@@ -193,6 +193,14 @@ export async function loadStory(plugin, slug = plugin, title = "") {
     // hedge that is not in its one room. Stripped, it gets the look it asked
     // for and its own name. When the plugin is the story's own -- every shipped
     // story -- none of this runs.
+    //
+    // `overlays` JOINED THIS LIST after being watched in a shipped game. They
+    // look like visual slots and are not: an overlay is a whole screen written
+    // against one story's concepts, so The Slow Water -- a funeral barge
+    // borrowing the Garden -- offered "The court" and "The mirror pool", and
+    // the court drew Sophia and Mother Briar, who are not aboard and do not
+    // exist. A screen that renders another story's cast is worse than no
+    // screen. A borrower that wants overlays ships its own plugin.
     const borrowed = plugin !== slug;
     const naming = borrowed
       ? {
@@ -203,6 +211,7 @@ export async function loadStory(plugin, slug = plugin, title = "") {
           beginLabel: "",
           asideLabel: "",
           onboarding: [],
+          overlays: [],
         }
       : {};
 

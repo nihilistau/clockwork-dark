@@ -279,6 +279,50 @@ def opening_choices() -> list[dict[str, Any]]:
     return out
 
 
+def _label_intents(
+    state: GameState, choices: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """
+    Annotate each option with what its intent will actually do.
+
+    THE PROBLEM THIS MAKES VISIBLE. The narrator decides which options carry an
+    ``intent``, and it is told that a choice which is only talk carries none
+    (``engine/agents/prompts.py``). Nothing can enforce that -- no grammar reads
+    a sentence and tells conversation from movement. Measured once in The Slow
+    Water: "Ask what is required of you today" carried ``travel -> afterdeck``,
+    the prose described sitting still at the table, and the player was moved.
+
+    So the consequence is shown before it is taken. ``describe_intent`` reuses
+    the same labels ``legal_intents`` built the grammar's enum from, which means
+    the chip and the sampler cannot disagree about what a destination is called.
+
+    Adds nothing to an option with no intent, and nothing where the label comes
+    back empty -- an intent that has already gone illegal is refused at
+    execution and the refusal reaches the prose, which is where that news
+    belongs. Never allowed to cost a turn.
+    """
+    if not choices:
+        return choices
+    try:
+        from engine.game import intents as intents_module
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[default_state] No intents module to label with: %s", exc)
+        return choices
+
+    for choice in choices:
+        intent = choice.get("intent")
+        if not isinstance(intent, dict):
+            continue
+        try:
+            label = intents_module.describe_intent(state, intent)
+        except Exception as exc:  # noqa: BLE001 -- a label must never lose a turn
+            logger.debug("[default_state] Could not describe %r: %s", intent, exc)
+            continue
+        if label:
+            choice["intent_label"] = label
+    return choices
+
+
 def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
     """
     The scene a reloading player lands in.
@@ -333,7 +377,11 @@ def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
 
     return {
         "narration": narration,
-        "choices": choices,
+        # Every path that hands the client options labels them; a resumed run
+        # is where a road is MOST likely to be picked blind, because the player
+        # has been away and the header is the only thing telling them where
+        # they are.
+        "choices": _label_intents(state, choices),
         "state": state.to_client_dict(),
         "scene_image": scene_image_url(state),
         "assistant": assistant_presence(state),
@@ -350,7 +398,10 @@ def opening(state: GameState) -> dict[str, Any]:
     """
     return {
         "narration": opening_narration(),
-        "choices": opening_choices(),
+        # Labelled like any other turn's: an opening choice declares an intent
+        # exactly as a narrated one does, and the flagship's "Follow the smoke
+        # toward Edgewood" is a walk with hours on it.
+        "choices": _label_intents(state, opening_choices()),
         "state": state.to_client_dict(),
         # The opening is a scene like any other and needs its picture.
         # image_ready only fires from run_turn, so without this the very
@@ -851,7 +902,11 @@ def run_turn(
         # The narrator's options plus whatever the agents' plans put on the
         # table, deduped and renumbered. Identical to the narrator's own list
         # when no pipeline ran.
-        "choices": merge_choices(agreed, storyteller_result.choices),
+        #
+        # `_label_intents` adds the player-facing consequence to any option
+        # that declared one, so a choice that will move or spend says so on
+        # the chip instead of only in the save file afterwards.
+        "choices": _label_intents(state, merge_choices(agreed, storyteller_result.choices)),
         "state": state.to_client_dict(),
         "tool_receipts": storyteller_result.tool_receipts,
         "evaluation": storyteller_result.evaluation.to_dict(),

@@ -43,7 +43,21 @@ if (kit) {
     });
 } else {
   resolveStory().then((story) => {
-    document.title = story.documentTitle || story.title || document.title;
+    const name = story.documentTitle || story.title || "";
+    document.title = name || document.title;
+    // The overlay eyebrow (.overlay__title::before) is CSS `content`, and the
+    // flagship's name was TYPED INTO IT -- so every overlay in every story
+    // announced "THE CLOCKWORK DARK", including a funeral-barge story that
+    // borrows the Garden's skin. It is set here rather than per theme because
+    // this is the one place that already knows which story is running, and
+    // because it must also be right for a BORROWED plugin, where `loadStory`
+    // has deliberately replaced the lender's naming slots with the borrower's.
+    //
+    // `content` needs a QUOTED string; JSON.stringify supplies the quotes and
+    // escapes any inside the title. An empty name leaves the var unset-ish and
+    // the CSS fallback ("") draws nothing, which is the right answer for a
+    // story whose title we could not resolve.
+    document.documentElement.style.setProperty("--story-eyebrow", JSON.stringify(name));
     root.render(<App story={story} />);
   });
 }

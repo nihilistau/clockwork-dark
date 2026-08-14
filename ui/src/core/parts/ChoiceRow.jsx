@@ -63,6 +63,20 @@ export default function ChoiceRow({ choices, busy, onChoose, settled = false }) 
             {index + 1}
           </span>
           <span className="chip__text">{choice.text}</span>
+          {/* What the ENGINE will do if this is picked, when the option
+              declared an intent. The narrator chooses which options carry one
+              and is told that a choice which is only talk carries none, but no
+              grammar can read a sentence and tell conversation from movement:
+              a measured turn put `travel -> afterdeck` on "Ask what is required
+              of you today", and the player was moved while the prose had them
+              sitting still. It cannot be made unsamplable, so it is made
+              visible. The server writes this label from the same catalogue the
+              intent enum was built from (engine/game/intents.py). */}
+          {choice.intent_label && (
+            <span className="chip__intent" title="What this will do">
+              {choice.intent_label}
+            </span>
+          )}
           {choice.hint && choice.hint !== "unknown" && (
             <span className="chip__hint">{HINT_LABEL[choice.hint]}</span>
           )}

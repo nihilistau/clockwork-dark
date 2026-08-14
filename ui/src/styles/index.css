@@ -960,6 +960,25 @@ input[type="radio"] {
 }
 
 
+/* The mechanical consequence of a choice that declared an intent -- "Edgewood
+   Square, 1h", "lore check (standard)". Mono and muted like the hint beside
+   it: it is a receipt, not part of the sentence, and the prose must still read
+   as prose. Marked with the arrow so it cannot be mistaken for the option's
+   own words. */
+.chip__intent {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  letter-spacing: var(--tracking-label);
+  opacity: 0.85;
+}
+
+
+.chip__intent::before {
+  content: "→ ";
+}
+
+
 .chip[data-hint="risky"] .chip__hint {
   color: var(--accent-brass);
 }
@@ -2242,8 +2261,13 @@ input[type="radio"] {
 }
 
 
+/* The running story's name, set on :root by main.jsx. This was the flagship's
+   title as a literal, so all five games wore it above every overlay heading --
+   a story-content string in the CORE stylesheet, which is the one place the
+   engine/story seam work never swept because its grep-gates read Python. The
+   fallback draws nothing rather than guessing. */
 .overlay__title::before {
-  content: "The Clockwork Dark";
+  content: var(--story-eyebrow, "");
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: 400;

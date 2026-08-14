@@ -493,3 +493,35 @@ def test_styles_use_semantic_tokens_not_raw_hex():
     css = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
     hexes = re.findall(r"#[0-9a-fA-F]{3,8}\b", css)
     assert hexes == [], f"raw hex in app styles: {sorted(set(hexes))}"
+
+
+def test_the_choice_chip_reads_an_intent_label_the_server_writes():
+    """
+    The chip's mechanical affordance is a real payload key, not a hope.
+
+    A choice's `intent` is executed before the next beat is written, and the
+    narrator decides which choices carry one. It is told that a choice which is
+    only talk carries none, and nothing can enforce that -- no grammar reads a
+    sentence and tells conversation from movement. So the consequence is shown
+    instead: `engine/scenes/default_state.py::_label_intents` writes
+    `intent_label` onto every option whose intent the engine can describe, and
+    ChoiceRow renders it.
+
+    Both halves are asserted here because either alone is silent. A client
+    reading a key nobody writes renders nothing; a server writing a key nobody
+    reads is dead weight -- and this pairing is exactly the drift this file
+    exists for.
+    """
+    chip = _code_only((UI_SRC / "core" / "parts" / "ChoiceRow.jsx").read_text(encoding="utf-8"))
+    assert "choice.intent_label" in chip, "ChoiceRow does not render the intent label"
+
+    server = (ROOT / "engine" / "scenes" / "default_state.py").read_text(encoding="utf-8")
+    assert '"intent_label"' in server, "no server writes intent_label onto a choice"
+    # And it must be applied where the client actually gets its options: the
+    # turn payload AND the opening, which carries authored intents of its own.
+    # Definition plus all three paths that hand the client options: the
+    # turn payload, the opening, and the resume screen -- which is where a
+    # road is most likely to be picked blind, the player having been away.
+    assert server.count("_label_intents(") >= 4, (
+        "intent labelling is missing from one of turn / opening / resume"
+    )

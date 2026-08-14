@@ -36,17 +36,24 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
-**1846 passing, 18 skipped**, no expected failures (measured 2026-08-15), plus
+**1848 passing, 19 skipped**, no expected failures (measured 2026-08-15), plus
 **95 client tests** under `ui/tests/` run by `npm test --prefix ui`. Run both
 for the real numbers rather than trusting this line — it has been stale before,
-and the "1776 passing, 15 skipped" two revisions back was itself off by one
+and the "1776 passing, 15 skipped" three revisions back was itself off by one
 against a clean `a5cedbf`, which measured 1775/16. The jump from 1813 is the
-fifth game (every per-story test parametrises over `registry.discover()`) plus
-five new validator checks.
+fifth game (every per-story test parametrises over `registry.discover()`), five
+new validator checks, and three new UI-seam gates.
 
-**`npm test` needs `vitest`, which a plain checkout does not have.** It is a
-devDependency and `ui/node_modules` here carries only `vite`, so the client
-line above is unverified in this tree; run `npm ci --prefix ui` first.
+**The nineteenth skip is expected to become a pass.** That measurement was
+taken with a rebuilt `dist` still uncommitted, which is exactly when
+`test_the_committed_build_is_not_behind_its_source` stands down; committing the
+build in the same change puts it back in the passing column.
+
+**`npm test` needs its devDependencies installed**, which a `ui/node_modules`
+carrying only the runtime does not have — `vitest` is a devDependency and the
+script fails with "'vitest' is not recognized" until `npm install --prefix ui`
+has run once. The 95 above is measured, not inherited: 4 files, 95 passing
+(store, veiled, narrative-log, plugin-contract), re-measured 2026-08-15.
 
 Two fixes landed from playing against a live LM Studio. **The evaluator checks
 the cast** (`engine/agents/cast.py`): the persona's "never introduce a named

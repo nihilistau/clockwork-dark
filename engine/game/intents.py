@@ -348,6 +348,76 @@ def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
     return tuple(verb for verb in verbs if verb is not None)
 
 
+def describe_intent(state: GameState, intent: Any) -> str:
+    """
+    A short player-facing label for what a choice will make the engine do.
+
+    WHY THIS EXISTS. A choice's ``intent`` is executed before the next beat is
+    written, and the narrator decides which choices carry one. It is told not to
+    put an intent on a choice that is only talk (``engine/agents/prompts.py``),
+    but nothing can enforce that -- no schema can read a sentence and tell
+    movement from conversation. Measured once in The Slow Water: "Ask what is
+    required of you today" carried ``travel -> afterdeck``, the narration
+    described sitting still at the table, and the save moved the player.
+
+    Since it cannot be made unsamplable, it is made VISIBLE: the client renders
+    this beside the choice, so a player who is about to be moved can see it
+    before they commit rather than infer it from a location header afterwards.
+
+    The label is taken from ``legal_intents`` rather than recomputed, so it is
+    the SAME string the grammar's enum was built from -- one notion of what a
+    target is called, including the travel verb's "somewhere, 2h" hours.
+
+    Args:
+        state: Live game state. Read only.
+        intent: A choice's declared intent, in any shape ``normalise``
+            accepts. Anything unrecognised yields "".
+
+    Returns:
+        A label like ``"The Afterdeck, 0h"``, or the bare action for a verb
+        that takes no target (``"rest"``), or "" when there is nothing honest
+        to say -- an absent intent, or one this state would refuse anyway.
+    """
+    row = normalise(intent)
+    action = str(row.get("action") or "")
+    if not action:
+        return ""
+
+    try:
+        verb = find_verb(legal_intents(state), action)
+    except Exception as exc:  # noqa: BLE001 -- a label must never cost a turn
+        logger.debug("[intents] No catalogue to describe %r: %s", action, exc)
+        return ""
+    if verb is None:
+        # Legal when the narrator wrote it, illegal now. Saying nothing is
+        # right: `execute_intent` will refuse it and the refusal reaches the
+        # prose, which is a better place for the news than a chip.
+        return ""
+
+    target = str(row.get("target") or "")
+    if not target:
+        # A verb that takes no target at all -- its own name is the label.
+        # A verb that DOES take one, with none declared, is malformed and gets
+        # nothing rather than a half-sentence.
+        return action if not verb.options else ""
+    # Membership first: `label_for` falls back to the raw id, and an id is
+    # exactly what this is meant to keep off the screen. A target that is not
+    # in the catalogue will be refused at execution anyway.
+    if target not in verb.targets:
+        return ""
+    label = verb.label_for(target)
+
+    # `check` labels its options with the bare skill name, because that is what
+    # the catalogue is for -- the prompt block renders these too, so the labels
+    # themselves are left alone and the READING is shaped here. "lore" on a chip
+    # is cryptic; "lore check (standard)" is the sentence the engine is about to
+    # act on.
+    if action == "check":
+        band = str(row.get("difficulty") or "")
+        return f"{label} check ({band})" if band else f"{label} check"
+    return label
+
+
 def find_verb(
     verbs: tuple[IntentVerb, ...], action: str
 ) -> Optional[IntentVerb]:

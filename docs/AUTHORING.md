@@ -228,11 +228,20 @@ have ignored. Add a plugin and it is covered by writing nothing.
 becomes its own chunk in the COMMITTED `dist/` tree, so do not ship one for a
 skin that already exists. A borrowed plugin lends its **look, not its voice**:
 when `plugin != slug` the loader strips the naming slots (`title`,
-`documentTitle`, `Wordmark`, `StartIntro`, `beginLabel`, `onboarding`) and
-substitutes your story's own name from the catalogue, so a scratch story
-borrowing the Garden's skin does not announce itself as The Wicked Garden or
-invite the player through a hedge it does not have. `dev-story` borrows it
-today, which is what keeps that path exercised by something shipped.
+`documentTitle`, `Wordmark`, `StartIntro`, `beginLabel`, `asideLabel`,
+`onboarding` and **`overlays`**) and substitutes your story's own name from the
+catalogue, so a scratch story borrowing the Garden's skin does not announce
+itself as The Wicked Garden or invite the player through a hedge it does not
+have. `dev-story` borrows it today, which is what keeps that path exercised by
+something shipped.
+
+**Borrowing does not lend overlays, and that is deliberate.** An overlay looks
+like a visual slot and is not — it is a whole screen written against one
+story's concepts. The Slow Water, a funeral barge borrowing the Garden, was
+offering "The court" and "The mirror pool", and the court drew Sophia and
+Mother Briar, who are not aboard and do not exist in it. A screen rendering
+another story's cast is worse than no screen, so a borrower gets none. If your
+story wants overlays, that is the signal to ship your own plugin.
 
 **When to stop borrowing.** Borrow while the difference between your story and
 the lender's is subject matter. Build when it is *register*. NEON CITY borrowed

@@ -16,6 +16,16 @@
    ============================================================ */
 
 :root {
+  /* ---- the running story ----
+     Not a colour: the story's own name, as a QUOTED string, for the one place
+     CSS has to draw copy (`.overlay__title::before`). Empty here on purpose --
+     core must render with no story loaded, and a blank eyebrow is the honest
+     answer before one resolves. `main.jsx` sets the real value on :root once
+     the catalogue answers, which is also what makes it right for a story
+     BORROWING another's plugin. This slot previously held the flagship's title
+     as a literal, so all five games wore it. */
+  --story-eyebrow: "";
+
   /* ---- surfaces ---- */
   --surface-scene: #0a0b0d;
   --surface-narrative: #16181c;
