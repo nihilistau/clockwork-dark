@@ -1,7 +1,12 @@
-# Deck-Drawn Scene — worked example (Wicked Garden, Day 5)
-# ========================================================
+# Deck-Drawn Scene — The Wicked Garden, Day 5's labyrinth
+# =======================================================
 #
-# NOT LOADED BY EITHER SHIPPED GAME. See ../README.md.
+# LOADED IN PLAY: this file sits in the directory `paths.decks` declares, so
+# engine/content/deck.py deals it like any day chapter. The deck walker
+# (scripts/simulate_decks.py) confirms it is dealt — it sorts after
+# day_09_finale per pass, which is why lock-carrying decks walk last there.
+# An earlier banner said "NOT LOADED BY EITHER SHIPPED GAME"; that predated
+# `paths.decks` and outlived it.
 #
 # DAY-05-LABYRINTH.md: "5 chambers drawn from a deck; always include Entrance,
 # Heart Trial, Exit. GM Agent picks 2-3 middle chambers by flags."

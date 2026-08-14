@@ -1,7 +1,12 @@
-# Ending Eligibility — worked example (The Wicked Garden)
-# =======================================================
+# Ending Eligibility — The Wicked Garden
+# ======================================
 #
-# NOT LOADED BY EITHER SHIPPED GAME. See README.md in this directory.
+# LOADED IN PLAY: game.yaml declares `paths.endings` pointing at this file, and
+# engine/game/endings.py drives the finale chain from it (eligible → set_intent
+# → lock → run_module → epilogue). docs/AUTHORING.md cites this file as the
+# deck-shape exemplar. An earlier banner here said "NOT LOADED BY EITHER
+# SHIPPED GAME", which was true before the manifest declared the path and
+# wrong for a long time after.
 #
 # Thresholds are DAY-08-MIRRORS.md's illustrative table, written as conditions
 # in the shared grammar. Nothing in engine/game/endings.py knows what `autonomy`

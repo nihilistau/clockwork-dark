@@ -1,11 +1,12 @@
-# Threads — worked example (The Wicked Garden)
-# ============================================
+# Threads — The Wicked Garden
+# ===========================
 #
-# NOT LOADED BY EITHER SHIPPED GAME. See README.md in this directory.
+# LOADED IN PLAY: game.yaml declares `paths.threads` pointing at this file, and
+# engine/game/threads.py runs the contract lifecycle from it. An earlier banner
+# here said "NOT LOADED BY EITHER SHIPPED GAME", which predated the manifest
+# declaring the path and outlived it by months.
 #
 #   Offer -> Terms -> Seal -> Thread
-#
-# Consumed by engine/game/threads.py.
 #
 # Version: v0.1.0 [2026-08-08]
 
