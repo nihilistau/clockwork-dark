@@ -44,6 +44,18 @@ def voice_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
 
     @blueprint.post("/api/voice/transcribe")
     def api_transcribe() -> Any:
+        """
+        Audio in, transcript out -- and optionally the companion's reply.
+
+        ``transcribe_only=1`` stops after the transcript. That is what the
+        compose row's mic button sends, and it matters: the alternative costs
+        an Assistant LLM call on every press of a button whose entire job is to
+        put editable text in a box the player has not sent yet.
+
+        A failed transcription is still HTTP 200 with ``stt.success: false`` and
+        a message. The client renders that as a state on the button; a 500 would
+        make a quiet room look like a broken server.
+        """
         from engine.game.engine import active_engine
         from engine.media.stt import transcribe_audio
 
@@ -56,12 +68,21 @@ def voice_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
         except KeyError:
             return jsonify({"error": "session not found"}), 404
 
+        transcribe_only = str(request.form.get("transcribe_only", "")).lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+
         audio_bytes = audio.read()
         with active_engine(session.engine):
             # Transcribe once. This used to call transcribe_audio here AND
             # again inside process_voice_input -- two full ASR round trips
             # per push-to-talk, which could disagree with each other.
             stt = transcribe_audio(audio_bytes)
+            if transcribe_only:
+                return jsonify({"stt": stt, "assistant": None})
             assistant = session.assistant.process_voice_input(
                 audio_bytes,
                 scene_context=session.last_turn.get("narration", ""),

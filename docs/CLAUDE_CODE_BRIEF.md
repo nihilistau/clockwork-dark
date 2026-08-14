@@ -565,11 +565,31 @@ bytes in a turn payload take the whole turn down at `jsonify`.
 
 ### STT (Assistant input)
 
-**CURRENT.** Voxtral ASR is a **CLI, not a server** — there is no HTTP route, so
-the adapter shells out to the binary (`stt.mode: voxtral_cli`). `stt.base_url`
-is retained only for an OpenAI-compatible Whisper server if one is ever
-preferred. Transcript routes to the Assistant agent, not directly to the
-Storyteller.
+**CURRENT.** Push-to-talk is a hold-to-record mic button in the compose row
+(`ui/src/core/parts/MicButton.jsx`) posting to `POST /api/voice/transcribe`.
+The transcript lands in the compose box as editable text and **never**
+auto-submits — a mis-transcription that played a turn would be unrecoverable.
+
+Two providers behind one interface, chosen by `stt.provider`
+(`engine/media/stt.py`):
+
+- **`faster_whisper`** (default) — CTranslate2 Whisper in the game's own
+  process. No server, no CLI. The dependency is **optional**: the import is
+  lazy and its absence is a legible message on the button, not an ImportError
+  at startup. Model, device and language are config (`stt.whisper.*`) and
+  Settings-panel keys.
+- **`voxtral_http`** — `POST {stt.base_url}/v1/audio/transcriptions`, for a
+  whisper.cpp or whisper-server install.
+
+**The old `stt.mode: voxtral_cli` was a fiction.** It documented an adapter
+that shells out to the Voxtral binary; no such adapter was ever written, the
+key was read nowhere, and the only code present POSTed multipart audio to an
+HTTP endpoint nothing on this machine serves. `stt.mode` is still honoured for
+an existing `local.yaml` and `voxtral_cli` maps onto `voxtral_http`.
+
+Transcript routes to the Assistant agent, not directly to the Storyteller —
+except under `transcribe_only=1`, which the mic button sends so a press costs
+one ASR pass and no LLM call.
 
 ---
 
@@ -880,7 +900,10 @@ Listing every optional service every time trains you to ignore the block.
    carries `llm_unavailable: true`
 2. **Voxtral TTS** `:8123` — managed; loads a 2.8 GB model and runs a warm-up
    sentence before it answers, so allow ~10 minutes. Down ⇒ text only
-3. **Voxtral ASR** — CLI, invoked per request. Down ⇒ no push-to-talk
+3. **Speech-to-text** — the default provider (`faster_whisper`) is a library in
+   the game's own process, so there is no service to be down; `doctor.py`
+   reports it under **Voice**. Only `stt.provider: voxtral_http` needs a
+   server, and only then does `voxtral_asr` being down cost you push-to-talk
 4. **ComfyUI** `:8188` / **Grok** — off by default. Down ⇒ shipped art pack still works
 5. **Game** `python launcher.py clockwork` → `http://localhost:5573`
 

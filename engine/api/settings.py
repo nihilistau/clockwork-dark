@@ -119,6 +119,43 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
         "restart": False,
         "hint": "Higher is better and much slower. 3 is the measured floor that still sounds human.",
     },
+    {
+        "key": "stt.provider",
+        "label": "Push-to-talk backend",
+        "group": "Voice",
+        "type": "enum",
+        "options": ["faster_whisper", "voxtral_http"],
+        "restart": False,
+        "hint": (
+            "faster_whisper runs in the game's own process and needs no server. "
+            "voxtral_http posts to an OpenAI-compatible transcription endpoint, "
+            "which nothing on the default stack serves."
+        ),
+    },
+    {
+        "key": "stt.whisper.model",
+        "label": "Whisper model",
+        "group": "Voice",
+        "type": "text",
+        "maxlength": 120,
+        "restart": False,
+        "hint": (
+            "A faster-whisper size (tiny/base/small/medium/large-v3), a distil "
+            "model, or a HuggingFace id. The first use downloads it."
+        ),
+    },
+    {
+        "key": "stt.whisper.device",
+        "label": "Whisper device",
+        "group": "Voice",
+        "type": "enum",
+        "options": ["auto", "cuda", "cpu"],
+        "restart": False,
+        "hint": (
+            "auto takes the GPU when CTranslate2 can see one. CPU runs int8, "
+            "which is the only quantisation fast enough to feel live there."
+        ),
+    },
     # -- pictures --------------------------------------------------------
     {
         "key": "media.live_generation",

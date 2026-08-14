@@ -33,6 +33,17 @@ lmstudio:
   # truncates the prompt from the front, silently dropping the system persona.
   reserve_output: 3200
 
+  # Seconds to wait for one completion. This used to be hardcoded at 180 in
+  # both clients, which is where scripts/author.py's ReadTimeouts came from: a
+  # schema-constrained draft asks for up to 4000 tokens, structured output can
+  # only ride the OpenAI-compatible route, and that route cannot turn reasoning
+  # off -- so a large reasoning model generates a grammared answer AND an
+  # ungrammared train of thought inside the same budget. At 20 tok/s that is
+  # over 200 seconds before the first useful byte, and the client gave up at
+  # 180. Raise it for authoring runs on a big model; the game's own turns are
+  # nowhere near it.
+  timeout_seconds: 300
+
   # Idle seconds before LM Studio may evict a model. With 47 models installed
   # and JIT loading on, an un-evicted model holds VRAM the next profile needs.
   # Sent on the OpenAI-compatible path only; /api/v1/chat rejects the key.
@@ -150,11 +161,39 @@ tts:
   euler_steps: 3
 
 stt:
-  # Voxtral ASR is a CLI, not a server -- there is no HTTP route for it, so the
-  # adapter shells out to the binary. base_url is kept for an OpenAI-compatible
-  # Whisper server if one is ever preferred.
+  # Push-to-talk. `provider` replaces the old `stt.mode`, which claimed the
+  # adapter shelled out to the Voxtral ASR binary -- it never did, and the key
+  # was read nowhere at all, so push-to-talk had no working backend and no
+  # client caller either. See engine/media/stt.py.
+  #
+  #   faster_whisper  CTranslate2 Whisper in-process. Default: no server to
+  #                   start, and int8 on CPU answers a short utterance in about
+  #                   the time it takes to release the button.
+  #   voxtral_http    POST {base_url}/v1/audio/transcriptions. For a whisper.cpp
+  #                   or whisper-server install; nothing on the default stack
+  #                   serves this route.
+  #
+  # `mode` is still read when `provider` is unset, so an existing local.yaml
+  # keeps working; `voxtral_cli` maps onto voxtral_http.
+  provider: "faster_whisper"
   base_url: "http://localhost:5051"
-  mode: "voxtral_cli"
+  timeout_seconds: 30
+  language: "en"
+  whisper:
+    # Any faster-whisper size (tiny/base/small/medium/large-v3), a distil model,
+    # or a HuggingFace repo id. distil-small.en is the latency default; swap for
+    # `small` if you need a language other than English.
+    model: "distil-small.en"
+    # auto picks CUDA when CTranslate2 can see a GPU, otherwise CPU.
+    device: "auto"
+    # Blank means float16 on CUDA, int8 on CPU. int8 is not a compromise on CPU;
+    # it is the only quantisation that runs at conversational speed there.
+    compute_type: ""
+    # Blank autodetects. Fixing it is faster and stops a mumbled English clip
+    # being decoded as Welsh.
+    language: ""
+    beam_size: 1
+    vad_filter: true
 
 # ---------------------------------------------------------------------------
 # Local service stack. `python launcher.py --stack` starts everything listed
@@ -189,9 +228,17 @@ stack:
       # Loads a 2.8 GB model and runs a warm-up sentence before it answers.
       startup_timeout_seconds: 600
 
+    # Push-to-talk's default provider (stt.provider: faster_whisper) is a
+    # LIBRARY in the game's own process, not a service -- there is nothing to
+    # start and no port to health-check, so it deliberately has no entry here.
+    # `python scripts/doctor.py` reports it under Voice instead.
+    #
+    # This entry describes the OTHER provider: an OpenAI-compatible
+    # transcription server on stt.base_url. Disabled by default because nothing
+    # on this machine serves that route.
     voxtral_asr:
-      enabled: true
-      manage: false  # CLI, invoked per request
+      enabled: false
+      manage: false
       # Your checkout of voxtral-mini-realtime-rs. Set in config/local.yaml.
       root: ""
       command: "target/release/voxtral.exe"

@@ -127,7 +127,7 @@ All off by default, each for a measured reason.
 | ComfyUI `:8188` | `comfyui.enabled` | **off** | Seconds rather than minutes — the backend worth turning live generation on for |
 | Spoken narration | `tts.enabled` | **off** | Measured at ~21× slower than realtime on the reference machine (73.9 s of compute for 3.44 s of audio) |
 | Assistant voice only | `tts.assistant_enabled` | **off** | The companion's 1–3 sentence lines are the only thing worth speaking live |
-| Push-to-talk (Voxtral ASR) | `stt.mode` | CLI | Shells out to the binary; there is no HTTP route for it |
+| Push-to-talk | `stt.provider` | `faster_whisper` | Hold the mic button in the compose row; the transcript lands in the box as editable text and never auto-submits. Runs in-process, so there is no service to start — but it needs `pip install faster-whisper`, which is the one optional line in `requirements.txt`. Without it the button says so |
 
 With all of it off you still get: streamed narration, dice receipts, scene art
 from the shipped pack, encounters, quests, and saves.
