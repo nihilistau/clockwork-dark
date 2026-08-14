@@ -3,9 +3,10 @@
 **Document type:** Honest record. Not a changelog.
 **Covers:** overhaul phases P1–P11, applied to a codebase that had shipped
 PR1–PR12 and 97 passing tests.
-**Date:** 2026-08-07
-**Suite:** 97 → ~1,400 passing, no expected failures. (The count and the
-"1 expected failure" both dated quickly — run `pytest` for the real numbers
+**Date:** 2026-08-14
+**Suite:** 97 → 1,707 passing, 19 skipped, no expected failures — plus 86
+client tests under `ui/tests/`. (The count has dated quickly every time it was
+written down; run `pytest` and `npm test --prefix ui` for the real numbers
 rather than trusting this line.)
 
 ---
@@ -426,8 +427,19 @@ None of these are in `engine/` and none were made here.
 **Now:** fix 1 landed as the `forage` skill (`engine/game/foraging.py`,
 `engine/skills/builtin/livelihood.py`) reading the forest nodes procgen
 already generates, plus repeatable labour through the `work` skill
-(`games/clockwork-dark/data/tables/labour.yaml`, `engine/game/economy.py`). The `pauper` simulator
-policy — no buying, ever — survives 200 turns spending zero gold.
+(`games/clockwork-dark/data/tables/labour.yaml`, `engine/game/economy.py`).
+
+The canary is the `pauper` policy, and its numbers today (200 turns, seed 42):
+**zero starvation deaths** (one death, from something else) against the 122–189
+above, 93 meals foraged, 7 turns hungry and 3 starving out of 200, and it ends
+holding 52 gold on a starting 5. It works no shifts at all.
+
+**Corrected here rather than left standing:** this note used to say the pauper
+"survives 200 turns spending zero gold". It does not, and has not since the
+shared `_common_upkeep` in `scripts/simulate.py` grew an unconditional bakery
+restock — the run makes one purchase, 12 gold. The claim the canary actually
+supports is the one that matters and is unaffected: food has a free tier, and
+being broke is no longer fatal.
 
 ### R-06 · major · Every playstyle converges on the same doomsday clock — FIXED
 `config/default.yaml`, `engine/game/evil_ticker.py`, `engine/game/locations.py`
@@ -509,10 +521,25 @@ its old band because its world stops just short of CONSUMING — push the base
 rate one more notch (0.032) and it does not, which is measured in the config
 comment as the reason the rate stops where it does.
 
-### R-07 · minor · `evil_base_rate_per_day` is defensible but a little fast
+**Re-measured 2026-08-14** on the shipped constants
+(`world.evil_base_rate_per_day: 0.028`, `evil_engagement_slowdown_max: 0.75`,
+`doom_resistance_decay_per_day: 2.25`) with
+`scripts/simulate.py --policy all --turns 200 --seed 42`: hero 0.00704, cautious
+0.00678, baker 0.01432, pauper 0.01931, reckless 0.01487; deaths 4 / 3 / 0 / 1 /
+24. Baker ÷ hero = **2.03×**, unchanged. The table above is current.
+
+One correction to it: the R-05 line in this block said the pauper "still
+survives 200 turns at zero gold". It survives, with zero starvation deaths, but
+it is not gold-free — see R-05 for the measurement and why the canary still
+holds.
+
+### R-07 · minor · `evil_base_rate_per_day` is defensible but a little fast — SETTLED
 `config/default.yaml`
 
-Full analysis and the recommendation are below.
+Full analysis and the recommendation are below. **Now:** settled twice — lowered
+to 0.006 as recommended, then raised to 0.028 by the R-06 engagement work, for
+the reason the recommendation's own second caveat named. See the note at the end
+of that section.
 
 ---
 
@@ -563,8 +590,14 @@ changed, even if they never learn what. That is the whole premise.
 2. It changes nothing about R-05. The player still starves to death every three
    turns; they just do it in a less corrupted world.
 
-**Applied:** `config/default.yaml` now ships
-`world.evil_base_rate_per_day: 0.006`.
+**Applied, then superseded.** `config/default.yaml` shipped 0.006 for a while
+and now ships **0.028**. Both caveats above came true, in order: R-03 dropped
+the clock from ~11.5 to ~3–5.6 h/turn, and R-06's engagement work halved the
+typical effective multiple — so at 0.006 every 200-turn run ended DORMANT and
+both new mechanisms were unobservable. The sweep behind 0.028 is in the config
+comment beside the constant. This section is kept as written because the
+*reasoning* is still the reasoning; only the number moved, and it moved for the
+reason the caveats predicted.
 
 ---
 

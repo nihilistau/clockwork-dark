@@ -1,8 +1,18 @@
 # The Clockwork Dark — System Design Document
 
-**Version:** 0.2.0  
-**Status:** PR1–PR12 implemented; overhaul phases P1–P11 applied  
-**Last updated:** 2026-08-07
+**Version:** 0.3.0  
+**Status:** PR1–PR12 implemented; overhaul phases P1–P11 applied; the
+engine/story separation (Overhaul II) landed  
+**Last updated:** 2026-08-14
+
+> **What this document is now.** It was written when there was one game and the
+> engine *was* that game. There are four stories on disk today and the engine is
+> a separate thing they run on, so read the sections below in two registers: the
+> mechanics chapters describe **the engine**, and every path under
+> `games/clockwork-dark/` is **the flagship's content** — one story's answer to
+> a question the engine asks every story. Where a mechanism is only true of a
+> story that declares it, the text says so. See
+> [AUTHORING.md](AUTHORING.md) for the seam from the story author's side.
 
 > **Reading this document.** Sections below describe systems that exist and run.
 > Where something is designed but not wired, it is marked **NOT WIRED** with the
@@ -33,6 +43,20 @@ The game merges two proven architectures:
 | **Engine is truth** | LLMs narrate; they do not adjudicate mechanics |
 | **Agents have agency** | Storyteller and Assistant choose when to help, hinder, or stay silent |
 | **Player freedom is real** | Quiet life is a valid complete experience; the main plot does not require the player |
+| **The engine is not the story** | A story is a directory. Four ship; none of them is compiled in |
+
+**Four stories ship**, chosen at launch with `launcher.py --game <slug>`:
+
+| Slug | What it is | Why it is in the repo |
+|------|-----------|-----------------------|
+| `clockwork-dark` | The flagship, described by the rest of this document | The story the engine was built for |
+| `wicked-garden` | A fae-court bargain story, deck-shaped, meters and veils | The deck exemplar, and the second implementation of the UI plugin contract |
+| `neon-city` | *NEON CITY: THE CROSSING* — a graph-shaped cyberpunk expedition on a 21-day timestamp | Proof the seam holds for a story with no doom clock, no recipes and no decks |
+| `dev-story` | The annotated bench | Every declaration commented, for reading rather than playing |
+
+`drowned-carillon` was deleted. It was the flagship with different nouns, which
+made it a poor proof of anything: it could not fail in a way the flagship would
+not.
 
 ---
 
@@ -150,7 +174,24 @@ Agency parameters live in engine state and drift over sessions.
 
 ## The Two Agents
 
-### Storyteller (`clockwork_storyteller`)
+> **Identity is declared, not compiled.** `clockwork_storyteller` and
+> `clockwork_assistant` were Python literals for the project's whole life. They
+> are now rows in the flagship's own `games/clockwork-dark/agents.yaml`, and the
+> engine resolves an agent's id through
+> `engine/agents/roster.py::agent_id_for_role`. The literals survive only as the
+> fallback for a story that ships no roster — which no shipped story is, so the
+> fallback path is exercised by tests and by nothing else. They remain canon ids
+> and must not be renamed.
+>
+> A roster says more than a name: which voices an agent owns, what it may read,
+> what it may write, what it may write *only with a reason*, and which model
+> profile it runs on. That is what lets The Wicked Garden run a world agent
+> holding ten voices beside a character agent holding three, each barred from
+> the other's secrets — a cast no string constant could describe. The
+> plan → negotiate → commit turn that arbitrates between them is
+> `engine/agents/pipeline.py`.
+
+### Storyteller (role `world`; the flagship declares it as `clockwork_storyteller`)
 
 **Role:** Game Master, narrator, NPC chorus, difficulty tuner.
 
@@ -210,7 +251,7 @@ matching tool receipt. If score < 0.6, one retry with feedback. The retry rolls
 back through `engine/game/transaction.py::StateTransaction` first: a draft the
 player never saw must not keep its side effects.
 
-### Assistant (`clockwork_assistant`)
+### Assistant (role `companion`; the flagship declares it as `clockwork_assistant`)
 
 **Role:** Player-facing companion; voice/text channel; optional STT listener.
 
@@ -464,50 +505,82 @@ ran away — measured jumping day 2 to day 123 in a single 8-hour step.
 
 ### EvilTicker
 
+> **The doom clock is a capability, not a given** (`engine/game/evil_ticker.py`).
+> `doom_enabled()` asks the ACTIVE MANIFEST, and a story has one only if it
+> declares `paths.doom_effects` or a nonzero `world.evil_base_rate_per_day`. The
+> flagship declares both; NEON CITY declares neither and pins the phase at
+> `dormant`, because its pressure is heat, debt, the weather and a date on a
+> file, and a background apocalypse ticking under that would be a second
+> unannounced antagonist. The state fields stay on `GameState` (zeroed, so the
+> save shape is untouched); what stops is the tick. This existed as a bug first:
+> every payload carried a phase line and every turn measured a doom delta for
+> stories with no doom in them.
+
 ```python
 # Units: evil_progress is dimensionless 0.0–1.0
-# evil_base_rate_per_day from config
+# evil_base_rate_per_day from config (0 disables the clock entirely)
 
-evil_progress += evil_base_rate_per_day * days_elapsed * location.evil_multiplier * inaction_bonus
+evil_progress += evil_base_rate_per_day * days_elapsed * location.evil_multiplier * engagement_factor
 evil_phase = phase_from_progress(evil_progress)  # [0,0.2) DORMANT, [0.2,0.5) STIRRING, ...
 
 plot_involvement = PlotFormula.compute(state)      # engine/game/plot.py
 story_pressure = PlotFormula.update_story_pressure(state)  # on GameState
 ```
 
-`inaction_bonus` is `1 + (1 − plot_involvement/100) * 0.35` — the world moves
-faster around a player who is not pushing back. (It previously compared
-`world_day` to `turn_number`, which once the clock was fixed would have grown
-without bound simply because days pass faster than turns.)
+`engagement_factor` is `inaction_bonus × (1 − doom_resistance/100 ×
+world.evil_engagement_slowdown_max)`, hard-floored at 0.25. Two terms, pulling
+opposite ways:
+
+- `inaction_bonus` is `1 + (1 − plot_involvement/100) * 0.35` — the world moves
+  faster around a player who is not pushing back. (It previously compared
+  `world_day` to `turn_number`, which once the clock was fixed would have grown
+  without bound simply because days pass faster than turns.)
+- `doom_resistance` (0–100, hidden, neutral at zero) is **earned**, only through
+  the `doom_resistance` effect kind — quest rewards scaled by arc and set-piece
+  victories — and it **decays** at `world.doom_resistance_decay_per_day` inside
+  the same advance. Pushing back buys time; the reprieve is spent, not kept, and
+  the floor means it never stops the clock.
+
+That second term is the fix for R-06, and the floor is why it is a fix rather
+than a cheat code.
 
 `GameState` fields: `evil_progress`, `evil_phase`, `plot_involvement`, `story_pressure`, `awareness`, `procgen: ProcgenResult`.
 
 Storyteller receives full snapshot via `query_evil_state`; player UI shows only diegetic signs.
 
 **Measured pacing** — `scripts/simulate.py`, 200 turns per policy, seed 42, base
-rate 0.006. The clock runs at **3.2–6.5 in-game hours per turn** depending on
+rate **0.028**. The clock runs at **3.0–5.6 in-game hours per turn** depending on
 how the player lives. The largest term is the background world tick
-(`world.tick_hours`, 2.0), which is now proportional to the *real* time the
-player spends on a turn, capped at `world.tick_max_hours`.
+(`world.tick_hours`, 2.0), which is proportional to the *real* time the player
+spends on a turn, capped at `world.tick_max_hours`.
 
-| Policy | h/turn | Effective rate/day | CONSUMING at in-game day | ≈ turns | Deaths |
-|--------|--------|-------------------|--------------------------|---------|--------|
-| baker — never leaves Edgewood | 4.16 | 0.00564 | 142 | ~811 | 0 |
-| cautious — village circuit, road by daylight | 3.21 | 0.00534 | 150 | ~1109 | 4 |
-| pauper — no gold ever spent | 3.77 | 0.00459 | 174 | ~1125 | 1 |
-| reckless — Millhaven constantly | 6.46 | 0.00635 | 126 | ~467 | 30 |
+| Policy | h/turn | Effective rate/day | Evil at turn 200 | Projected CONSUMING | Deaths |
+|--------|--------|-------------------|------------------|---------------------|--------|
+| hero — pursues quests and set-pieces | 3.00 | 0.00704 | 0.176 (dormant) | day 114 | 4 |
+| cautious — village circuit, road by daylight | 3.21 | 0.00678 | 0.183 (dormant) | day 118 | 3 |
+| baker — never leaves Edgewood | 4.16 | 0.01432 | 0.501 (spreading) | day 56 | 0 |
+| pauper — no gold ever spent | 3.56 | 0.01931 | 0.560 (spreading) | day 41 | 1 |
+| reckless — Millhaven constantly | 5.62 | 0.01487 | 0.699 (spreading) | day 54 | 24 |
 
 Read three things out of that table. First, the mechanism works and the numbers
-are real. Second, the playstyles now genuinely diverge: the baker ends the run
-`quiet_life` and DORMANT at awareness 0, the reckless player ends `convergence`
-and STIRRING at awareness 100, and the reckless player reaches CONSUMING in
-about **40% of the turns** the cautious one needs. That spread used to be under
-10% — see [DESIGN_REVIEW.md](DESIGN_REVIEW.md) issues **R-03** (the clock, fixed)
-and **R-06** (the convergence it was masking).
+are real. Second, **the clock answers to conduct**: the disengaged baker's world
+falls 2.03× faster per in-game day than the engaged hero's, exposure still costs
+on top of that (reckless ≥ baker), and the median 200-turn run now ends in
+SPREADING rather than every playstyle parking in DORMANT. That spread was under
+13% before the engagement work — see [DESIGN_REVIEW.md](DESIGN_REVIEW.md) issues
+**R-03** (the clock) and **R-06** (the convergence it was masking); both are
+closed, and the R-06 block carries the before/after side by side.
 
-Third, **it is possible to survive without money**: the `pauper` policy spends
-zero gold across 200 turns, eats entirely from foraging, and ends richer than it
-started.
+Third, **it is possible to survive without money**: the `pauper` policy works
+no shifts, forages 93 of its meals, and takes **zero starvation deaths** in 200
+turns, ending on 52 gold from a starting 5. It is not literally gold-free — it
+makes one 12-gold purchase, through the bakery restock in `_common_upkeep` that
+every policy shares — and the earlier claim that it spent nothing was true of an
+older harness. What the canary actually proves is unchanged and is the thing
+worth proving: food has a free tier, and starvation is no longer the price of
+being broke. It is also the fastest world to fall, which is the doom mechanism
+being consistent rather than a regression — a player who never engages is
+exactly who the rate is aimed at.
 
 Earlier revisions of this section blamed the 8-hour sleep for the pace. That was
 measured and found wrong — sleep is 0.7–1.4 h/turn amortised, and was never
@@ -610,17 +683,35 @@ as bytes**; raw bytes in a turn payload take the whole turn down at `jsonify`.
 
 ### UI Layout
 
+Core owns the frame; the story fills the slots. The frame is the same for every
+story, which is what makes a story with no plugin at all a playable client.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  [Location visual — ComfyUI still or cutscene letterbox]    │
+│  Mark  Location                        HeaderBadge  Day·Time │  ← chrome
 ├──────────────┬──────────────────────────────┬───────────────┤
-│  Assistant   │  Narrative log (SSE stream)    │  Stats sheet  │
-│  bubble      │  Choice chips / text input     │  Inventory    │
-│              │  Dice toast overlay            │  Reputation   │
+│              │  Stage                        │               │
+│  Aside       │  Narrative log (streamed)     │  Ledger       │
+│              │  Fade card · Reasoning panel  │               │
+│              │  Choices / compose + mic      │               │
 ├──────────────┴──────────────────────────────┴───────────────┤
-│  [Mic]  [Send]  World day · Time · Weather (diegetic)       │
+│  Day·Time   status   [story overlays]  [mute][saves][⚙][⏸]  │  ← chrome
 └─────────────────────────────────────────────────────────────┘
+   Toast floats over the whole play screen.
 ```
+
+Defaults with no plugin: no Aside (the column collapses), no Stage, no Toast,
+and `Ledger` falls back to the generic sheet drawn from the story's declared
+meters. The flagship puts its companion, its scene still / encounter panel, its
+hand-built character sheet and its dice rail into those slots; NEON CITY puts a
+district plate and contact strip into `Stage` and a heat ladder into `Ledger`.
+The contract, slot by slot, is the header comment of `ui/src/core/story.js`.
+
+**The veiled-meter rule.** A `hidden` value never leaves the server. A `veiled`
+value arrives as a band word with **no number**, and no client may reconstruct
+one — no bar width, no percentage, no tooltip with the integer in it. The band
+is the whole truth the player is allowed, and the shape of the payload row is
+the permission. Enforced by `tests/test_ui_contract.py` and by `ui/tests/`.
 
 ---
 
@@ -631,8 +722,9 @@ as bytes**; raw bytes in a turn payload take the whole turn down at `jsonify`.
 | Layer | Choice | Rationale |
 |-------|--------|-----------|
 | Runtime | Python 3.13 | Matches both parent repos |
-| Scene server | Flask + Socket.IO (`FlaskScene` pattern) | CosySim skills/MCP/interceptors |
+| Scene server | Flask + Socket.IO (`FlaskScene` pattern), `engine/scenes/default_{scene,state,api}.py` | CosySim skills/MCP/interceptors. The default scene is the ENGINE's: it served every story already (title, opening frames and content all follow the active manifest), so in v0.3.0 it moved out of `content/scenes/clockwork/`, which kept only the shared client asset tree and shims |
 | Client | Vite + React 18 in `ui/`, built into a committed `static/dist` | Real state management for a stateful game; committed build means no Node needed to play |
+| Client per story | A plugin at `ui/src/stories/<plugin>/`, chosen by the manifest's `ui.plugin` | Core alone is a playable client; a plugin fills slots. Three ship for four stories — `dev-story` borrows the Garden's |
 | Inference | LM Studio `:1234`, SSE + `json_schema` structured output | Local-first |
 | Speculative | `draft` model 0.5B–1B → `big` 8B refine | Anubis + CosySim profiles |
 | Lore | SQLite FTS; Nexus KMS optional | Progressive enhancement |
@@ -674,7 +766,22 @@ Narrative memory is engine-owned, not a chat transcript.
 
 ### Directory Layout
 
-See [CLAUDE_CODE_BRIEF.md](CLAUDE_CODE_BRIEF.md) for full scaffold.
+See [CLAUDE_CODE_BRIEF.md](CLAUDE_CODE_BRIEF.md) for the full scaffold. The one
+division that matters most is the engine/story seam:
+
+| Tree | Owns | Rule |
+|------|------|------|
+| `engine/` | Every mechanism: clock, dice, effects, quests, encounters, memory, agents, safety, and the default scene server | Must never import from a story |
+| `games/<slug>/` | One story: `game.yaml` (the manifest), `state.yaml` (declared values), `agents.yaml` (the roster), `prompts/`, `data/` | Declares what it ships; **an undeclared `paths.*` key resolves to nothing** |
+| `ui/src/core/` | The client shell: socket, reducer, screens, chrome | Must never import a story plugin |
+| `ui/src/stories/<plugin>/` | One story's look: theme and slots | May import `@core`; the direction is one-way |
+| `content/scenes/clockwork/` | The shared client asset tree (`static/`, `templates/`) and deprecated import shims | Pinned by `ui/vite.config.js`'s build output |
+
+The undeclared-key rule is not a style preference; it is a bug that was live for
+months. Every story that omitted a `paths.*` key silently read The Clockwork
+Dark's content, and every story that omitted `paths.prompts` got a narrator who
+introduced itself as the Storyteller of The Clockwork Dark. See
+[AUTHORING.md](AUTHORING.md).
 
 ### Data Flow
 
@@ -972,7 +1079,9 @@ of it.
 The PR plan above describes how the game was *built*. It is complete. What
 followed was a correction pass, numbered P1–P11, which is where most of the
 architecture in this document actually came from. The suite went from 97 tests
-to 600+ during the overhaul; it stands at ~1,400 now.
+to 600+ during the overhaul; it stands at **1,707 passing (19 skipped)** now,
+plus 86 client tests under `ui/tests/` run by `npm test`. Run them rather than
+trusting this line — it has been stale before.
 
 | Phase | What it did |
 |-------|-------------|
@@ -986,6 +1095,23 @@ to 600+ during the overhaul; it stands at ~1,400 now.
 | **P9** | Content pass: items registry, economy, recipes, art manifest, content-integrity tests |
 | **P10** | Cutscene and settings UI; `engine/stack.py`, `launcher.py --stack/--check` |
 | **P11** | Hardening: `scripts/doctor.py`, `tests/test_vertical_slice.py`, `scripts/simulate.py`, and this documentation correction |
+
+### Overhaul II — the engine/story separation
+
+Where P1–P11 fixed mechanisms, this pass answered a different question: *what is
+the engine and what is one story's answer?* What landed:
+
+| | What it did |
+|---|---|
+| **The manifest** | A story is `games/<slug>/`, declared by `game.yaml`. An undeclared `paths.*` key resolves to nothing instead of silently falling through to the flagship's content |
+| **Declared state** | `state.yaml` — every value a story shows, with bounds, owners and a visibility (`public` / `veiled` / `hidden`). One declaration reaches the prompt, the sheet and the save |
+| **The roster** | `agents.yaml` — the cast, its voices, and what each agent may read and write. The multi-agent turn (plan → negotiate → commit) is `engine/agents/pipeline.py` |
+| **Declared capabilities** | Doom, decks, threads, endings, epilogues, recipes, challenges: each runs only for a story that declares it |
+| **The default scene** | Moved from `content/scenes/clockwork/` into `engine/scenes/`; it was serving every story already |
+| **The UI plugin** | `ui.plugin` in the manifest picks a client plugin, so two stories can share one look. A borrowed plugin lends its look and not its voice |
+| **The finale chain** | Ending eligibility → lock → Speak·Act·Seal → epilogue, all story-declared |
+| **The safety layer** | Input review, a pre-commit `SafetyCeiling`, narration review, and fade cards rendered in the client (docs/SAFETY.md) |
+| **Three more stories** | `wicked-garden`, `neon-city`, `dev-story` — each shaped differently enough to fail where the flagship would not |
 
 ---
 
@@ -1006,9 +1132,13 @@ to 600+ during the overhaul; it stands at ~1,400 now.
 
 ## Related Documents
 
+- **[AUTHORING.md](AUTHORING.md)** — How to write a story: the manifest, the declared state, the roster, the UI plugin. The document that replaces reading engine source for that job
 - **[CLAUDE_DESIGN_BRIEF.md](CLAUDE_DESIGN_BRIEF.md)** — Art direction, UI, ComfyUI prompts for design agents
 - **[CLAUDE_CODE_BRIEF.md](CLAUDE_CODE_BRIEF.md)** — Implementation spec for coding agents
 - **[DESIGN_REVIEW.md](DESIGN_REVIEW.md)** — What the overhaul found, what it fixed, and what is still open
+- **[GOVERNANCE.md](GOVERNANCE.md)** — The governance chain, and the **NOT WIRED** tables
+- **[SAFETY.md](SAFETY.md)** — Intensity, the ceiling, review, fade cards and aftercare
+- **[STATE.md](STATE.md)** — The declared-state system in full
 
 ## Tools for keeping this document honest
 
@@ -1019,6 +1149,8 @@ to 600+ during the overhaul; it stands at ~1,400 now.
 | `.venv\Scripts\python.exe scripts\simulate.py --policy all --turns 200` | Every balance number quoted above |
 | `.venv\Scripts\python.exe launcher.py --check` | Which local services are up and what you lose without each |
 | `.venv\Scripts\python.exe scripts\doctor.py` | Environment, config, content and data integrity |
+| `npm test --prefix ui` | The client: the plugin contract across all three plugins, the core reducer, and the veiled-meter rule |
+| `npm run build --prefix ui` | Rebuilds the committed `static/dist` from `ui/src`, after `tools/check-styles.mjs` passes. Nothing detects a STALE dist — it is checked in, so a `ui/src` change that is not rebuilt and committed simply does not reach a player. `tests/test_ui_contract.py` proves the dist that is there is complete and offline-clean, not that it is current |
 
 ---
 

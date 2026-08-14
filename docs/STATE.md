@@ -133,8 +133,13 @@ per-value `owners` ACL and onto the effect receipt.
 
 ## NOT WIRED
 
-| Thing | Status |
-|---|---|
-| An ending's `tease:` | Read by `endings.declared()` and shipped in the payload, and NO shipped story declares one — the Garden's gallery falls back to a per-tier line. It is an authored line and the fallback is honest, but nothing exercises the real path yet. |
+| Thing | File | Status |
+|---|---|---|
+| An ending's `tease:` | reader: `engine/game/endings.py::declared` → `to_client`. Consumers: `ui/src/stories/wicked-garden/parts/GalleryOverlay.jsx`, `ui/src/stories/neon-city/parts/RoadsOverlay.jsx`. Author: nobody | Read and shipped in the payload, and NO shipped story declares one — `grep -rn "tease:" games/` returns nothing, re-checked 2026-08-14. Both gallery screens fall back to a per-tier line. It is an authored line and the fallback is honest, but nothing exercises the real path yet. |
 
-Version: v0.4.0 [2026-08-14]
+Re-audited on 2026-08-14 against the tree. One row survives; the rows for the
+`meters` block, the `threads`/`endings` structural block, agent write
+attribution and the plan/negotiate pipeline all moved into the wired table
+above with their call sites.
+
+Version: v0.5.0 [2026-08-14]

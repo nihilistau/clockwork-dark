@@ -35,11 +35,12 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 
 ## Status
 
-**PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II waves 1–2
-complete.** ~1400 tests passing, no expected failures. Run `pytest` for the
-real number rather than trusting this line — it has been stale before.
+**PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
+**1707 passing, 19 skipped**, no expected failures (measured 2026-08-14), plus
+**86 client tests** under `ui/tests/` run by `npm test --prefix ui`. Run both
+for the real numbers rather than trusting this line — it has been stale before.
 
-The engine/story seam is the current work. What landed: the multi-agent turn
+The engine/story seam is done. What landed: the multi-agent turn
 (plan → negotiate → commit, `engine/agents/pipeline.py`), the finale chain
 (lock → Speak·Act·Seal → epilogue), a story-declared UI plugin (`ui.plugin`),
 and the removal of one story's content from the engine's defaults. What that
@@ -48,17 +49,26 @@ every story that omitted a `paths.*` key silently read The Clockwork Dark's
 content, and every story that omitted `paths.prompts` got a narrator who
 introduced itself as the Storyteller of The Clockwork Dark.
 
+The client is now three plugins for four stories (`clockwork-dark`,
+`wicked-garden`, `neon-city`; `dev-story` borrows the Garden's), the committed
+`content/scenes/clockwork/static/dist` is rebuilt from `ui/src`, and `ui/` has
+its own test suite for the first time — the plugin contract across every
+shipped plugin, the core reducer, and the veiled-meter rule.
+
 Also landed since: `craft_item` with degree outcomes, foraging that discovers
 hidden-path travel shortcuts, carry weight priced on travel (never on rest),
 the served notice board (`GET /api/notices`), and the safety layer wired
 end-to-end — input review, a pre-commit `SafetyCeiling`, and narration review
-with fade cards (docs/SAFETY.md; UI render of the card is the open half).
+with fade cards. The card now RENDERS (`ui/src/core/parts/FadeCard.jsx`, drawn
+by `Play.jsx` under the log), which was the open half. See docs/SAFETY.md.
 
 Four games ship: `clockwork-dark` (flagship), `wicked-garden` (the deck
 exemplar), `neon-city` (NEON CITY: THE CROSSING — survival/expedition in the
 NeonCity canon, graph-shaped with the timestamp/debt clocks and threads wired
-in), and `dev-story` (the annotated bench). Pick one with
-`launcher.py --game <slug>`.
+in, and its own bespoke UI plugin: black canvas, cyan accent, gold mono ₵, the
+heat ladder as chrome), and `dev-story` (the annotated bench, which borrows the
+Garden's skin and is the shipped proof the borrow path still works). Pick one
+with `launcher.py --game <slug>`.
 
 `drowned-carillon` was **deleted**. It was the flagship with different nouns,
 which made it a poor proof of the engine/story seam — it could not fail in any
@@ -67,9 +77,14 @@ the second story now, and it shares almost nothing with the flagship, which is
 the point.
 
 Closed: **R-01** (prompt budget overflow), **R-02** (`SceneRulesEngine` never
-called), **R-03** (the clock — 10.02 → 4.40 mean h/turn, deaths 129 → 35),
+called), **R-03** (the clock — 10.02 → **3.91** mean h/turn across the five policies,
+deaths 129 → **32** total, re-measured 2026-08-14),
 **R-05** (no repeatable food economy — foraging closes it; the `pauper` policy
-now survives 200 turns spending zero gold), **R-06** (the doomsday clock now
+now takes **zero starvation deaths** in 200 turns, forages 93 meals, works no
+shifts and ends on 52 gold from a starting 5. It is not literally gold-free —
+one 12-gold purchase, through the bakery restock every policy shares — and the
+older "spending zero gold" line has been corrected in DESIGN_REVIEW.md),
+**R-06** (the doomsday clock now
 answers to conduct: widened per-location multipliers plus earned
 `doom_resistance` put the disengaged baker at 2.03× the engaged hero's evil
 per in-game day — 0.0143 vs 0.0070 — where every playstyle used to land
@@ -79,17 +94,28 @@ within 13%; the median 200-turn run ends in SPREADING; measured by the new
 The design review's open-issue list is empty.
 
 See [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) for the measurements behind
-each, and the **NOT WIRED** tables in [docs/GOVERNANCE.md](docs/GOVERNANCE.md)
-for what is built but not yet called.
+each. Four **NOT WIRED** tables remain, one row apiece, each naming its file:
+[GOVERNANCE.md](docs/GOVERNANCE.md) (the notice board's browser half),
+[SAFETY.md](docs/SAFETY.md) (cosmetic rename on display labels),
+[STATE.md](docs/STATE.md) (an ending's authored `tease:`, which no story
+declares) and [AGENTS.md](docs/AGENTS.md) (the unmeasured reasoning cost of the
+two plan calls).
 
 ## Verify a checkout
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\doctor.py            # environment, config, content
 .\.venv\Scripts\python.exe -m pytest tests\ -q          # fully green, no xfail
+npm ci --prefix ui; npm test --prefix ui                # the client: plugins, reducer, veiled rule
+npm run build --prefix ui                               # rebuild the COMMITTED dist after any ui/src change
 .\.venv\Scripts\python.exe launcher.py --check          # local services and what each outage costs
 .\.venv\Scripts\python.exe scripts\simulate.py --policy all --turns 200
 ```
+
+The build output is `content/scenes/clockwork/static/dist`, and it is
+**committed** so the game plays with no node installed. Nothing detects a stale
+one: change `ui/src` without rebuilding and the change simply never reaches a
+player.
 
 ## Canon IDs (do not rename)
 

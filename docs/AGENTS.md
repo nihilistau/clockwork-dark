@@ -175,8 +175,12 @@ refusal.
 
 ## NOT WIRED
 
-| Thing | Status |
-|---|---|
-| Reasoning cost of structured plans | A JSON schema forces the OpenAI-compat transport, which cannot turn reasoning off. Two plan calls per turn pay that on hardware where reasoning is 800+ tokens. Unmeasured against a real model. |
+| Thing | File | Status |
+|---|---|---|
+| Reasoning cost of structured plans | `engine/agents/pipeline.py` (the two plan calls), `engine/lmstudio/client.py` (the transport that cannot disable reasoning) | A JSON schema forces the OpenAI-compat transport, which cannot turn reasoning off. Two plan calls per turn pay that on hardware where reasoning is 800+ tokens. **Still unmeasured against a real model** — this is a cost that is not known, not a mechanism that is not called, and it is in this table so that the difference stays visible. |
 
-Version: v0.3.0 [2026-08-13]
+Re-audited on 2026-08-14 against the tree. This row is the only one, and it is
+the odd kind: everything it names IS wired and running. What is missing is a
+measurement.
+
+Version: v0.4.0 [2026-08-14]

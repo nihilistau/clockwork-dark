@@ -169,11 +169,20 @@ ui:
 
 Empty/omitted falls back to the story's own slug — the old directory-name
 match. The client contract (slug, `theme()`, `initialState`/`reduce`/
-`bodyData`, and the component slots: `Mark`, `HeaderBadge`, `Aside`, `Ledger`,
-`Stage`, `Toast`, `MenuBanner`, `Wrap`, `StartIntro`, `Wordmark`,
-`onboarding`, `overlays`, `hideChoices`) is documented at the top of
-`ui/src/core/story.js`; every field is optional and core has a working default
-for all of them, so a story that ships no plugin still runs.
+`bodyData`, the naming slots `title`/`documentTitle`/`beginLabel`/
+`asideLabel`/`onboardingTitle`/`onboardingFinishLabel`, and the component
+slots: `Mark`, `HeaderBadge`, `Aside`, `Ledger`, `Stage`, `Toast`,
+`MenuBanner`, `Wrap`, `StartIntro`, `Wordmark`, `Ending`, `onboarding`,
+`overlays`, `hideChoices`) is documented at the top of `ui/src/core/story.js`;
+every field is optional and core has a working default for all of them, so a
+story that ships no plugin still runs.
+
+`ui/tests/plugin-contract.test.js` (`npm test --prefix ui`) holds that contract
+against **every** shipped plugin: it harvests the legal slot names from core's
+own source, so a plugin exporting a key core never reads fails, and so does a
+plugin whose `theme()` import path has moved, whose two overlays claim the same
+keyboard letter, or whose `reduce` rebuilds its slice for an action it should
+have ignored. Add a plugin and it is covered by writing nothing.
 
 **Borrowing is the supported path** — a `ui/src/stories/<slug>/` directory
 becomes its own chunk in the COMMITTED `dist/` tree, so do not ship one for a
@@ -182,7 +191,18 @@ when `plugin != slug` the loader strips the naming slots (`title`,
 `documentTitle`, `Wordmark`, `StartIntro`, `beginLabel`, `onboarding`) and
 substitutes your story's own name from the catalogue, so a scratch story
 borrowing the Garden's skin does not announce itself as The Wicked Garden or
-invite the player through a hedge it does not have.
+invite the player through a hedge it does not have. `dev-story` borrows it
+today, which is what keeps that path exercised by something shipped.
+
+**When to stop borrowing.** Borrow while the difference between your story and
+the lender's is subject matter. Build when it is *register*. NEON CITY borrowed
+the Garden's skin at v0.1.0 and outgrew it: a fae court's gold contracts,
+growing vines and ash hourglass are the wrong instrument for a story whose whole
+surface is telemetry — black canvas, one cyan accent swapped per district, gold
+mono `₵` on every price, and a five-rung heat ladder that is the game's central
+pressure. That plugin is `ui/src/stories/neon-city/`, and the migration was
+exactly one line of `game.yaml`. If you cannot name a rule of your story's
+visual identity that the borrowed skin actively contradicts, keep borrowing.
 
 ---
 
@@ -597,4 +617,4 @@ are distilled from dev-story** — when a subsystem changes shape, fix dev-story
 first (the suite runs its rows, so it cannot silently rot), then re-distil the
 templates. A template that drifts from the bench teaches the old engine.
 
-Version: v0.1.0 [2026-08-14]
+Version: v0.1.1 [2026-08-14]

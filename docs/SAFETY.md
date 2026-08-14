@@ -3,7 +3,7 @@
 *The product layer. It sits above every agent, and no character's motivation
 reaches it.*
 
-**Version:** v0.2.0 [2026-08-13] · **Code:** `engine/safety/` · **Tests:**
+**Version:** v0.2.1 [2026-08-14] · **Code:** `engine/safety/` · **Tests:**
 `tests/test_safety.py`, `tests/test_safety_shipped_games.py`,
 `tests/test_safety_wiring.py`, `tests/test_governance_commit.py`
 
@@ -300,7 +300,7 @@ The mechanism is wired into the running turn. Where each seam lives:
 
 | What | File | Status |
 |---|---|---|
-| Cosmetic rename on display | inventory / choice rendering in `ui/` | attach point 5 — `gate.rename` covers narration prose, but display labels (items, locations, choices) are rendered without it. A later UI phase |
+| Cosmetic rename on display | producer: `engine/safety/boundaries.py::BoundarySheet.rename` (wired for prose). Consumer: none — `ui/src/core/parts/ChoiceRow.jsx`, `ui/src/core/parts/Meters.jsx` and every story's inventory view render raw labels | attach point 5 — `gate.rename` covers narration prose, but display labels (items, locations, choices) are rendered without it. Re-checked 2026-08-14: `grep -rn rename ui/src/` returns nothing at all. A later UI phase |
 
 ---
 

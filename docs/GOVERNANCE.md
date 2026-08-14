@@ -247,6 +247,12 @@ Formerly in this table, now wired: `Oracle.record_turn` and `/api/metrics`
 
 ### NOT WIRED
 
-| System | Needs |
-|---|---|
-| Notice board render | the browser side. `GET /api/notices` serves the board; nothing in `ui/` draws it yet |
+| System | File | Needs |
+|---|---|---|
+| Notice board render | server half: `engine/scenes/default_api.py::notice_board` (wired, `GET /api/notices`). Client half: nothing | The browser side. Re-checked 2026-08-14: `grep -rn notices ui/src/` returns no fetch, no component and no overlay entry in any of the three plugins, so the route is reachable by curl and by no player. It is a story-shaped screen rather than a core one — the board is the flagship's — so it belongs in `ui/src/stories/clockwork-dark/` as an overlay entry, not in `ui/src/core/`. |
+
+Re-audited in full on 2026-08-14 against the tree, not against this file. One
+row survives. Everything else that was ever in this table is in the **Wiring**
+table above with its call site.
+
+Version: v0.3.0 [2026-08-14]
