@@ -78,6 +78,33 @@ export async function writeSettings(changes, { reset = false } = {}) {
 }
 
 /**
+ * Push-to-talk: audio in, transcript out.
+ *
+ * `transcribe_only` matters. Without it the route also runs an Assistant LLM
+ * turn, which is a multi-second wait and a model call charged against a button
+ * whose entire job is to put editable text in a box the player has not sent.
+ *
+ * Throws, like writeSettings and unlike the readers above: the mic button has a
+ * visible failure state and needs to know it failed. `signal` lets the caller
+ * abandon a request that has outlived the press.
+ */
+export async function transcribeAudio(sessionId, blob, { signal, filename } = {}) {
+  const form = new FormData();
+  form.append("session_id", sessionId || "");
+  form.append("transcribe_only", "1");
+  form.append("audio", blob, filename || "speech.webm");
+  const res = await fetch("/api/voice/transcribe", { method: "POST", body: form, signal });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `server said ${res.status}`);
+  const stt = data.stt || {};
+  // A provider that could not answer returns 200 with success:false and says
+  // why -- a missing dependency, a dead server, an unintelligible clip. That is
+  // a failure to the player even though the request succeeded.
+  if (!stt.success && stt.message) throw new Error(stt.message);
+  return String(stt.transcript || "");
+}
+
+/**
  * Resolve a manifest art key ("wolf") to a served URL.
  *
  * The client cannot read data/art/manifest.yaml, so this is the only way an

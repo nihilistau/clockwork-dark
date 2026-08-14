@@ -30,6 +30,7 @@
 import React, { useState } from "react";
 
 import ChoiceRow from "../parts/ChoiceRow.jsx";
+import MicButton from "../parts/MicButton.jsx";
 import NarrativeLog from "../parts/NarrativeLog.jsx";
 import ReasoningPanel, { Thinking } from "../parts/ReasoningPanel.jsx";
 import { MeterSheet } from "../parts/Meters.jsx";
@@ -90,6 +91,24 @@ export default function Play({
     onCustom(value);
   }
 
+  /**
+   * A transcript joins what is already typed; it never replaces it and never
+   * sends. Focus moves to the box with the caret at the end, because the point
+   * of not auto-submitting is that the player reads it first -- and reading it
+   * is only useful if correcting it is one keystroke away.
+   */
+  function acceptTranscript(transcript) {
+    setText((current) => (current.trim() ? `${current.trim()} ${transcript}` : transcript));
+    const box = composeRef?.current;
+    if (box) {
+      box.focus();
+      requestAnimationFrame(() => {
+        const end = box.value.length;
+        box.setSelectionRange?.(end, end);
+      });
+    }
+  }
+
   return (
     <div className="scene" data-tab={tab} data-aside={Aside ? "on" : "off"}>
       <Header
@@ -136,6 +155,11 @@ export default function Play({
               placeholder="Or say what you do…  (press / to jump here, Esc for the menu)"
               disabled={state.busy}
               aria-label="Custom action"
+            />
+            <MicButton
+              sessionId={state.sessionId}
+              disabled={state.busy || !state.sessionId}
+              onTranscript={acceptTranscript}
             />
             <button type="submit" className="btn" disabled={state.busy || !text.trim()}>
               Send

@@ -874,7 +874,9 @@ input[type="radio"] {
 
 .compose {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
+  align-items: center;
 }
 
 
@@ -894,6 +896,98 @@ input[type="radio"] {
 .compose__input::placeholder,
 .field__input::placeholder {
   color: var(--text-muted);
+}
+
+
+/* ---------- push-to-talk ---------- */
+
+/* Quieter than Send by design: this is the second way to do the same thing,
+   and the primary action should still read as the primary action. */
+
+.mic {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  background: transparent;
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font: inherit;
+  /* A held button must not select the label under the finger, and touch must
+     not scroll the page out from under a press. */
+  user-select: none;
+  touch-action: none;
+  transition: color var(--dur-fast) var(--ease-quiet),
+    border-color var(--dur-fast) var(--ease-quiet),
+    background-color var(--dur-fast) var(--ease-quiet);
+}
+
+
+.mic:hover:not(:disabled) {
+  color: var(--text-body);
+  border-color: var(--accent-brass);
+}
+
+
+.mic:disabled {
+  opacity: 0.45;
+}
+
+
+.mic__glyph {
+  font-size: 0.7em;
+  line-height: 1;
+}
+
+
+/* Live, and unmistakably so. The OS microphone indicator is somewhere off in
+   the system tray; this one is under the player's own finger. */
+
+.mic[data-state="recording"],
+.mic[data-state="requesting"] {
+  color: var(--text-danger);
+  border-color: var(--text-danger);
+  background: color-mix(in srgb, var(--text-danger) 12%, transparent);
+}
+
+
+.mic[data-state="recording"] .mic__glyph {
+  animation: mic-pulse 1.1s var(--ease-quiet) infinite;
+}
+
+
+.mic[data-state="error"] {
+  border-color: var(--text-danger);
+}
+
+
+@keyframes mic-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.25;
+  }
+}
+
+
+/* Full-width so the message never squeezes the input. Empty most of the time,
+   and it takes no room when it is. */
+
+.mic__note {
+  flex-basis: 100%;
+  min-height: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+
+.mic__note[data-state="error"] {
+  color: var(--text-danger);
 }
 
 
@@ -2848,7 +2942,8 @@ input[type="radio"] {
   .paint__bloom,
   .scene::after,
   .empty--waiting .empty__mark,
-  .thinking__dot {
+  .thinking__dot,
+  .mic[data-state="recording"] .mic__glyph {
     animation: none;
   }
 
