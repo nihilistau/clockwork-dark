@@ -36,6 +36,12 @@
       "runtimeExecutable": ".venv\\Scripts\\python.exe",
       "runtimeArgs": ["launcher.py", "--game", "clockwork-dark", "--port", "5602"],
       "port": 5602
+    },
+    {
+      "name": "neon-city",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": ["launcher.py", "--game", "neon-city", "--port", "5603"],
+      "port": 5603
     }
   ]
 }
