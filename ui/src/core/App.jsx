@@ -13,7 +13,9 @@ import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } 
 
 import Cutscene from "./parts/Cutscene.jsx";
 import Onboarding, { shouldOnboard } from "./parts/Onboarding.jsx";
+import { Icon } from "./parts/Chrome.jsx";
 import Ending from "./screens/Ending.jsx";
+import MapScreen from "./screens/Map.jsx";
 import Menu from "./screens/Menu.jsx";
 import Play from "./screens/Play.jsx";
 import Saves from "./screens/Saves.jsx";
@@ -36,6 +38,20 @@ import { createStore } from "./store.js";
 // cap plus enough margin for the rest of a turn's work, and
 // tests/test_ui_contract.py fails the build if the two ever cross.
 const TURN_WATCHDOG_MS = 330000;
+
+/* Three places and the roads between them: the shape of the thing it opens,
+   rather than a folded-paper map, which reads as "travel" in a client where
+   travel is a choice and not a mode. */
+function MapIcon() {
+  return (
+    <Icon>
+      <circle cx="6" cy="7" r="2.2" />
+      <circle cx="17.5" cy="10" r="2.2" />
+      <circle cx="10" cy="18" r="2.2" />
+      <path d="M7.9 8.2 15.6 9.4M15.9 11.9 11.4 16.2M8.4 15.9 6.7 9.4" />
+    </Icon>
+  );
+}
 
 export default function App({ story }) {
   // The reducer is the core one composed with the story's. Built once: a new
@@ -322,10 +338,22 @@ export default function App({ story }) {
   // that declares less than the one it was written for. Without this, borrowing
   // the Garden's skin bought you a scroll button that opens on nothing, which
   // is precisely the permanently-empty modal this seam exists to prevent.
-  const overlays = useMemo(
-    () => story.overlays.filter((entry) => (entry.when ? entry.when(state) : true)),
-    [story, state]
-  );
+  const overlays = useMemo(() => {
+    const declared = story.overlays.filter((entry) =>
+      entry.when ? entry.when(state) : true
+    );
+    // THE MAP IS CORE'S, and it is appended rather than merged over: a story
+    // that declares its own `map` overlay has drawn something better for its
+    // own world and must win. Gated on the story actually having a graph --
+    // `world.location_id` is absent for a story with no places, and an empty
+    // map button is the permanently-empty modal this seam exists to prevent.
+    const hasOwn = declared.some((entry) => entry.id === "map");
+    if (hasOwn || !state.world?.location_id) return declared;
+    return [
+      ...declared,
+      { id: "map", key: "m", label: "The map", Icon: MapIcon, Component: MapScreen },
+    ];
+  }, [story, state]);
 
   // Story overlay keys, lowercased once: {j: "journal", ...}. An empty map is
   // the correct behaviour for a story with no overlays, not a missing feature.

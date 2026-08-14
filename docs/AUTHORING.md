@@ -447,6 +447,26 @@ encounters must agree. Every vendor id in `economy.yaml` must be an NPC
 scheduled in `npc_schedules.yaml`, or the shop has no keeper — the validator
 says so.
 
+**The map draws itself.** Any story with a travel graph gets core's map screen
+(`ui/src/core/screens/Map.jsx`, keyboard `m`) — nodes laid out by `ring`, roads
+from `connections`, and the place you are standing in. You author nothing for
+it. A plugin that declares its own overlay with `id: "map"` replaces it.
+
+Two things you *can* author:
+
+- **`secret: true` on a location.** Two kinds of hidden exist and they are not
+  the same problem. A place you have not walked to is drawn and greyed — the
+  shape of the map is not a secret, only what is behind the next tree. A place
+  marked `secret: true` is one the player must not know EXISTS: it is withheld
+  from the payload entirely, along with any road pointing at it, because
+  drawing the edge and hiding the destination advertises the secret in the act
+  of keeping it. Walking there reveals it permanently.
+- **Nothing else.** Points of interest are DERIVED — an active quest stage that
+  names a location becomes an objective pin, a vendor who trades there becomes
+  a vendor pin. There is deliberately no map-pins file: a second place to
+  declare the same thing is a second place to forget, and the first symptom
+  would be a map pointing confidently at a quest that ended two days ago.
+
 ### 3.8 `spoilers.yaml` and the `safety:` block
 
 **Spoilers.** Fixed filename inside `paths.rules`. Rows are

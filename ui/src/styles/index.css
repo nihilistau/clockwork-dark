@@ -3432,3 +3432,146 @@ input[type="radio"] {
     text-indent: 100%;
   }
 }
+
+
+/* ---- the map -----------------------------------------------------------
+   Core's node view of the travel graph. Every colour here is a semantic
+   token, so a story retints the whole map from its own palette without
+   touching this file -- which is the same bargain every other core screen
+   makes, and the reason `tools/check-styles.mjs` refuses raw hex outside a
+   palette. */
+
+.map {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .map {
+    grid-template-columns: 1fr;
+  }
+}
+
+.map__plot {
+  width: 100%;
+  height: auto;
+  background: var(--surface-panel);
+  border: 1px solid var(--line-iron);
+  border-radius: var(--radius-sm);
+}
+
+.map__road {
+  stroke: var(--line-brass);
+  stroke-width: 1;
+  opacity: 0.45;
+}
+
+.map__node {
+  cursor: pointer;
+}
+
+.map__dot {
+  fill: var(--surface-chrome);
+  stroke: var(--line-brass);
+  stroke-width: 1.5;
+}
+
+/* Somewhere you have not stood. Drawn, because the SHAPE of the map is not a
+   secret -- a place the story marked `secret: true` never reaches the browser
+   at all, which is a different thing and handled server-side. */
+.map__node[data-known="no"] .map__dot {
+  fill: transparent;
+  stroke: var(--line-iron);
+  stroke-dasharray: 2 2;
+}
+
+.map__node[data-here="yes"] .map__dot {
+  fill: var(--accent-brass);
+  stroke: var(--accent-brass);
+}
+
+/* A place with something worth going to gets a ring, not a colour: colour is
+   already spent on "here" and "known", and a third hue would make the map a
+   legend to memorise. */
+.map__node[data-points="yes"] .map__dot {
+  stroke-width: 3;
+}
+
+.map__label {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.map__node[data-here="yes"] .map__label {
+  fill: var(--text-narration);
+}
+
+.map__detail {
+  min-width: 0;
+}
+
+.map__name {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-narration);
+  color: var(--text-narration);
+}
+
+.map__you {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  color: var(--accent-brass);
+}
+
+.map__points,
+.map__roads {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+}
+
+.map__point {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--text-narration);
+  font-size: var(--text-sm);
+}
+
+.map__point--vendor {
+  color: var(--text-muted);
+}
+
+.map__roads li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 3px 0;
+}
+
+.map__roadlink {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--text-narration);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.map__roadlink:hover {
+  color: var(--accent-brass);
+}
+
+.map__cost,
+.map__roads--none,
+.map__empty {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

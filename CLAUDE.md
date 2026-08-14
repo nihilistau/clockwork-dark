@@ -36,7 +36,7 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
-**1840 passing, 17 skipped in 3m15s**, no expected failures (measured
+**1847 passing, 18 skipped in 3m20s**, no expected failures (measured
 2026-08-15), plus **95 client tests** under `ui/tests/` (`npm test --prefix ui`,
 which needs `npm install --prefix ui` once — `vitest` is a devDependency). Run
 both for the real numbers rather than trusting this line; it has been stale

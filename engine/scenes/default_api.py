@@ -136,6 +136,15 @@ def codex_places(state: Any) -> list[dict[str, Any]]:
 
     Undiscovered places still appear -- the shape of the map is not a secret,
     only what is in it -- but carry no picture and no description.
+
+    THERE ARE TWO KINDS OF HIDDEN, and only one of them was expressible. An
+    undiscovered place is one the player has not walked to yet: it belongs on
+    the map, greyed, because knowing a road exists is not knowing what is down
+    it. A place marked ``secret: true`` is one the player must not know EXISTS,
+    and that is a spoiler rather than a fog-of-war question -- so it is withheld
+    from the payload entirely rather than drawn as a grey rectangle with a
+    tantalising road count. Walking there reveals it permanently, which is what
+    makes it a discovery instead of a lie.
     """
     from engine.game.locations import LOCATIONS
 
@@ -151,9 +160,13 @@ def codex_places(state: Any) -> list[dict[str, Any]]:
         time_of_day = state.time_of_day
         evil_phase = state.evil_phase.value
 
+    points = map_points(state)
+
     places: list[dict[str, Any]] = []
     for place_id, row in LOCATIONS.items():
         discovered = not state or place_id in visited
+        if row.get("secret") and not discovered:
+            continue
         places.append(
             {
                 "id": place_id,
@@ -183,10 +196,79 @@ def codex_places(state: Any) -> list[dict[str, Any]]:
                         "danger_dc": int(edge.get("danger_dc", 0)),
                     }
                     for other, edge in (row.get("connections") or {}).items()
+                    # A road TO a secret place is itself a secret. Drawing the
+                    # edge and omitting its destination would advertise exactly
+                    # what withholding the place was for.
+                    if not (
+                        (LOCATIONS.get(str(other)) or {}).get("secret")
+                        and str(other) not in visited
+                    )
                 ],
+                "points": points.get(place_id, []),
             }
         )
     return places
+
+
+def map_points(state: Any) -> dict[str, list[dict[str, Any]]]:
+    """
+    What is worth going to, per location, derived from live state.
+
+    DERIVED, NEVER AUTHORED TWICE. A point of interest is not a new content
+    type -- it is a view of things a story already declares. An objective is a
+    point because a quest stage names a location; a vendor is a point because
+    the economy says they trade there. Authoring a parallel "map pins" file
+    would be a second place to forget to update, and the first symptom would be
+    a map confidently pointing at a quest that ended two days ago.
+
+    Returns:
+        ``{location_id: [{kind, label}]}``. Empty for a story with no quests
+        and no economy, which is most of the deck-shaped ones.
+    """
+    points: dict[str, list[dict[str, Any]]] = {}
+    if state is None:
+        return points
+
+    def add(place_id: str, kind: str, label: str) -> None:
+        if not place_id or not label:
+            return
+        points.setdefault(place_id, []).append({"kind": kind, "label": label})
+
+    # Objectives. The location comes out of the stage definition itself via the
+    # validator's own reference walker, so a stage that names a place in ANY of
+    # the predicate shapes it supports is found without this function learning
+    # the predicate vocabulary twice.
+    try:
+        from engine.games.validation import location_refs
+        from engine.game.quests import QuestEngine
+
+        for definition, record in QuestEngine.active_quests(state):
+            stage = QuestEngine.current_stage(definition, record)
+            if not stage:
+                continue
+            objective = str(stage.get("objective") or "").strip()
+            if not objective:
+                continue
+            name = str(definition.get("name") or record.quest_id)
+            for place_id in location_refs(stage):
+                add(place_id, "objective", f"{name} — {objective}")
+    except Exception as exc:  # noqa: BLE001 -- a story with no quests
+        logger.debug("[api] No quest points for the map: %s", exc)
+
+    # Vendors, for places the player has reason to walk back to.
+    try:
+        from engine.game import trade
+        from engine.game.locations import LOCATIONS
+
+        for place_id in LOCATIONS:
+            for npc_id in trade.vendors_at(place_id):
+                listing = trade.browse(state, npc_id)
+                if listing.get("ok"):
+                    add(place_id, "vendor", str(listing.get("vendor") or npc_id))
+    except Exception as exc:  # noqa: BLE001 -- a story with no economy
+        logger.debug("[api] No vendor points for the map: %s", exc)
+
+    return points
 
 
 def codex_souls(state: Any, ledger: Any = None) -> dict[str, Any]:
