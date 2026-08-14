@@ -594,6 +594,278 @@ def test_her_patience_filling_forces_the_unmasking(garden: GameState) -> None:
 
 
 # ---------------------------------------------------------------------------
+# 2c. A dealt hand is dealt BEFORE the spine resolves
+# ---------------------------------------------------------------------------
+
+
+def _spine_writes(doc: Any) -> tuple[set[str], set[str]]:
+    """Flags set and items granted by a deck's REQUIRED cards."""
+    flags: set[str] = set()
+    items: set[str] = set()
+    for card in doc.get("cards") or []:
+        if not card.get("required"):
+            continue
+        for node in _walk(card):
+            if node.get("type") == "flag" and node.get("flag"):
+                flags.add(str(node["flag"]))
+            if node.get("type") == "item" and node.get("item_id"):
+                items.add(str(node["item_id"]))
+    return flags, items
+
+
+def _pool_gate_refs(card: Any) -> tuple[set[str], set[str]]:
+    """
+    Every flag and item a pool card's own `when:` reads, in either direction.
+
+    Both directions are bugs and they are different bugs, which is why this no
+    longer skips `none:` subtrees the way it did while two cards were still
+    carrying the negative form:
+
+      positive (`{flag: x}`)          the card can NEVER be dealt -- at deal
+                                      time the fact does not exist yet
+      negative (`{none: [{flag: x}]}`) the card is ALWAYS dealt -- the gate is
+                                      open at deal time whatever happens later,
+                                      so its intent is never enforced
+
+    Neither is visible to any other check in this suite: the flag is written,
+    the flag is read, and every id resolves.
+    """
+    when = card.get("when")
+    if not isinstance(when, (dict, list)):
+        return set(), set()
+    return _flags_read({"when": when}), _item_refs({"when": when})
+
+
+def test_no_pool_card_is_gated_on_its_own_decks_spine() -> None:
+    """
+    THE DEAL-TIME PARADOX. `deck.draw` evaluates every pool card's `when:` once,
+    at the top of the chapter, and only then are the required cards resolved. A
+    pool card whose `when:` reads a flag or item its OWN deck's spine writes is
+    therefore reading a state that does not exist yet -- and by the time it
+    does, the hand is already fixed.
+
+    Six cards shipped that way, in both directions.
+
+    FOUR POSITIVE, which made them undealable, and the walker found all four as
+    orphans: `PX_cold_moth_at_the_window` (day 0, on `resisted_call`),
+    `DX_labyrinth_edge_chase` (day 3), `DX_ashen_follow_up_moth` (day 4, on the
+    passport) and `DX_use_the_mortalslip` (day 6, on the thread her night card
+    gives). Each moved one day later, where the gate reads a fact that is
+    already true.
+
+    TWO NEGATIVE, which made them unconditional, and no orphan report could
+    show it because they were dealt constantly: `DX_wine_from_a_minor_lord`
+    (day 1, `none: gift_accepted`) offered the court's test of a refusal to
+    players wearing the collar, and `DX_lior_puddle` (day 2, `none: met_lior`)
+    offered "someone you have not met yet" to players who spent the day with
+    Lior. Moving those a day would have been wrong -- they belong to their own
+    day's fiction -- so the condition moved DOWN onto their beats, where it is
+    read at resolve time.
+
+    Deliberately NOT a check that the flag is written somewhere -- it is, which
+    is exactly why the two-direction flag check passed over all six.
+    """
+    offenders: list[str] = []
+    for name, doc in _scene_docs().items():
+        spine_flags, spine_items = _spine_writes(doc)
+        for card in doc.get("cards") or []:
+            if card.get("required"):
+                continue
+            gate_flags, gate_items = _pool_gate_refs(card)
+            clash = (gate_flags & spine_flags) | (gate_items & spine_items)
+            if clash:
+                offenders.append(f"{name}/{card['id']}: {sorted(clash)}")
+    assert offenders == [], (
+        "pool cards gated on their own deck's spine can never be dealt: "
+        f"{offenders}"
+    )
+
+
+def test_the_two_conditional_pool_cards_stay_silent_once_the_spine_has_run(
+    garden: GameState,
+) -> None:
+    """
+    The behavioural half of the fix above, and the half the walker cannot see.
+
+    Moving a condition from a card's `when:` onto its beats does NOT stop the
+    card being dealt -- it is dealt exactly as often as before (the walker
+    still reports 54 and 35 deals across 200 runs). What changes is that its
+    beats now answer the question. A collared guest is dealt the wine card and
+    nothing happens; a player who spent the day with Lior is dealt the puddle
+    and nothing happens. That is the same "deals and stays silent" shape
+    `D8_06b_sophia_unmasked` established.
+
+    Asserted through the real resolver, because "the gate is written" and "the
+    gate holds shut" are different claims and only the second is what a player
+    experiences.
+    """
+    for deck_name, card_id, flag in (
+        ("day_01_guest", "DX_wine_from_a_minor_lord", "gift_accepted"),
+        ("day_02_laws", "DX_lior_puddle", "met_lior"),
+    ):
+        card = next(
+            c for c in deck_module.load_deck(deck_name).cards if c.id == card_id
+        )
+        state = GameState(rng_seed=5)
+
+        # Before the spine sets it, every beat is live -- the scene is real for
+        # the player it was written for.
+        assert any(
+            deck_module.resolve_beat(state, beat, by="test").passed for beat in card.beats
+        ), f"{card_id} is dead even for the player it is written for"
+
+        # After, every beat is shut and writes nothing.
+        effects.apply_effect(state, {"type": "flag", "flag": flag, "value": True})
+        for beat in card.beats:
+            result = deck_module.resolve_beat(state, beat, by="test")
+            assert result.passed is False, f"{card_id}/{beat['id']} fired after {flag}"
+            assert result.effects == [], f"{card_id}/{beat['id']} wrote after {flag}"
+
+
+# ---------------------------------------------------------------------------
+# 2d. A forced setpiece has a card that answers it
+# ---------------------------------------------------------------------------
+
+#: forced scene -> (the card that answers it, the flag that card gates on).
+#:
+#: The clock declares `forces_scene:` and `clocks.forced_scenes()` reports it
+#: as owed. What discharges the debt is a REQUIRED card that is silent unless
+#: the scene is actually owed -- the D8_06b pattern. Two of these four had no
+#: answering card at all: `ashen_collects` (raised in ~8% of runs) and
+#: `empty_rooms` (raised in 100% of them, because the ten-day toll is exactly
+#: the hundred mortal days that fill the clock).
+ANSWERED_SCENES = {
+    "briar_threshold": ("day_08_mirrors", "D8_06_briar_threshold", ""),
+    "sophia_unmasked": ("day_08_mirrors", "D8_06b_sophia_unmasked", "sophia_mask_slipped"),
+    "ashen_collects": ("day_08_mirrors", "D8_06c_ashen_collects", "ashen_collection_due"),
+    "empty_rooms": ("day_09_finale", "F5b_the_empty_rooms", "mortal_life_unrecoverable"),
+}
+
+
+def test_every_forced_scene_has_an_answering_card() -> None:
+    """
+    A clock that forces a scene nothing plays is a promise kept nowhere.
+
+    `clocks.yaml` names four setpieces. Each needs a card that is dealt on
+    every run (so the deal cannot miss it) and stays silent unless the scene is
+    owed (so a run that never filled the clock is not handed a scene about a
+    thing that did not happen). That is `required: true` plus a gate on the
+    durable flag the clock beat sets -- the flag rather than the clock number,
+    because three of the four clocks can be eased back down afterwards and
+    being soothed cannot un-happen a scene.
+    """
+    declared = {
+        str(beat.get("forces_scene"))
+        for clock in (_read(RULES / "clocks.yaml").get("clocks") or {}).values()
+        for beat in (clock or {}).get("beats") or []
+        if beat.get("forces_scene")
+    }
+    assert declared == set(ANSWERED_SCENES), (
+        f"forced scenes without a row in this table: {sorted(declared - set(ANSWERED_SCENES))}"
+    )
+
+    docs = _scene_docs()
+    for scene, (deck_name, card_id, flag) in ANSWERED_SCENES.items():
+        cards = {str(c["id"]): c for c in docs[deck_name]["cards"]}
+        assert card_id in cards, f"{scene}: no card {card_id} in {deck_name}"
+        card = cards[card_id]
+        assert card.get("required"), f"{scene}: {card_id} is not on the spine"
+        if flag:
+            assert flag in _flags_read(card), (
+                f"{scene}: {card_id} does not gate on {flag}, so it would play "
+                "on runs that never owed the scene"
+            )
+
+
+def test_the_two_new_setpieces_stay_silent_when_nothing_is_owed(
+    garden: GameState,
+) -> None:
+    """
+    The other half of `required` + flag-gated: on a run that never filled the
+    clock, every beat of the answering card fails its gate and applies nothing.
+
+    Asserted through the real resolver rather than by reading the YAML, because
+    "the gate is written" and "the gate holds shut" are different claims and
+    only the second one is what the player experiences.
+    """
+    for deck_name, card_id in (
+        ("day_08_mirrors", "D8_06c_ashen_collects"),
+        ("day_09_finale", "F5b_the_empty_rooms"),
+    ):
+        card = next(
+            c for c in deck_module.load_deck(deck_name).cards if c.id == card_id
+        )
+        for beat in card.beats:
+            result = deck_module.resolve_beat(garden, beat, by="test")
+            assert result.passed is False, f"{card_id}/{beat['id']} fired unowed"
+            assert result.effects == [], f"{card_id}/{beat['id']} wrote something"
+
+
+def test_winter_collecting_opens_its_own_card(garden: GameState) -> None:
+    """
+    `ashen_pressure` at its ceiling over a live Vale debt owes `ashen_collects`,
+    and the card that answers it opens -- through the real clock resolver and
+    the real thread lifecycle, because the clock beat's `when:` reads the thread.
+
+    The flag matters more here than on any other clock: `ashen_pressure` is the
+    one clock that RESETS on firing and starts filling again, so a card gated on
+    the number would close the moment winter was paid down.
+    """
+    from engine.game import clocks, threads
+
+    proposal = threads.offer(garden, "ashen_service_owed")
+    assert proposal is not None, "the Vale's own template did not load"
+    threads.seal(garden, proposal)
+
+    effects.apply_effect(garden, {"type": "value", "name": "ashen_pressure", "set": 5})
+    clocks.resolve(garden)
+
+    assert "ashen_collects" in clocks.forced_scenes(garden)
+    assert garden.flags.get("ashen_collection_due") is True
+
+    card = next(
+        c
+        for c in deck_module.load_deck("day_08_mirrors").cards
+        if c.id == "D8_06c_ashen_collects"
+    )
+    assert deck_module.resolve_beat(garden, card.beats[0], by="test").passed is True
+
+    # The clock reset to 0 on firing. The card must still open, because the
+    # collection happened and being paid down afterwards cannot un-call it.
+    assert clocks.value_of(garden, "ashen_pressure") == 0
+    assert deck_module.resolve_beat(garden, card.beats[0], by="test").passed is True
+
+
+def test_the_mortal_debt_always_comes_due_and_is_answered(garden: GameState) -> None:
+    """
+    `mortal_collapse` fills in every complete run and that is the design, not a
+    bug: ten days at ten mortal days each is exactly the hundred that trips the
+    advance rule. The walker measures the fire rate at 1.0.
+
+    What the design owes in exchange is an ANSWER, and this asserts the whole
+    chain -- the debt trips the clock, the clock forces the scene and sets the
+    durable flag, and the finale's own card opens on it.
+    """
+    from engine.game import clocks
+
+    effects.apply_effect(
+        garden, {"type": "value", "name": "time_debt_mortal_days", "set": 100}
+    )
+    clocks.resolve(garden)
+
+    assert clocks.value_of(garden, "mortal_collapse") == 5
+    assert "empty_rooms" in clocks.forced_scenes(garden)
+    assert garden.flags.get("mortal_life_unrecoverable") is True
+
+    card = next(
+        c
+        for c in deck_module.load_deck("day_09_finale").cards
+        if c.id == "F5b_the_empty_rooms"
+    )
+    assert deck_module.resolve_beat(garden, card.beats[0], by="test").passed is True
+
+
+# ---------------------------------------------------------------------------
 # 3. Ending modules
 # ---------------------------------------------------------------------------
 
@@ -667,6 +939,110 @@ def test_the_existing_gates_still_answer_the_way_they_did(garden: GameState) -> 
     assert report.eligible == ["E4e"]
     assert report.forced is True
     assert len(report.scores) == 23
+
+
+def _cards_writing(flag: str) -> set[tuple[str, str]]:
+    """(deck, card id) for every card whose beats set ``flag``."""
+    out: set[tuple[str, str]] = set()
+    for name, doc in _scene_docs().items():
+        for card in doc["cards"]:
+            for node in _walk(card):
+                if node.get("type") == "flag" and str(node.get("flag")) == flag:
+                    out.add((name, str(card["id"])))
+    return out
+
+
+def test_two_gates_of_one_ending_are_never_beats_of_one_menu_card() -> None:
+    """
+    A `menu` card resolves EXACTLY ONE beat. So two flags an ending requires
+    together must not be the sole property of the same menu card -- if they
+    are, the ending is not rare, it is dead, and nothing else in this suite can
+    see it: both flags are written, both are read, and every id resolves.
+
+    E3b (Display thrall) shipped that way. `thrall_consent` had one author,
+    `the_almost_thrall_conversation`, and `public_seal` had one author,
+    `plan_public_leverage` -- both beats of `D8_05_war_table`. The player could
+    have either and never both, and the walker reported E3b as simply
+    unreachable with no way to tell dead from unlucky.
+
+    `thrall_consent` now has a second author on the night card
+    (`the_asking_night`), so the war table can be spent on leverage.
+    """
+    consent = _cards_writing("thrall_consent")
+    seal = _cards_writing("public_seal")
+    assert consent, "nothing writes thrall_consent"
+    assert seal, "nothing writes public_seal"
+    assert consent - seal, (
+        "every author of thrall_consent is also an author of public_seal; "
+        "E3b requires both and one menu card resolves one beat"
+    )
+
+
+def test_the_thrall_endings_are_reachable_by_a_surrender_line(
+    garden: GameState,
+) -> None:
+    """
+    E3 was PROVABLY UNREACHABLE, and the walker is what proved it: across 200
+    seeded runs the minimum autonomy ever seen was 47 against a gate of <= 40,
+    with an end mean of 94. The content simply had no autonomy-draining beats
+    worth the name -- surrender was narrated and never charged for.
+
+    The register is explicit-rated and consent-forward, so the fix is texture
+    rather than a lowered gate: chosen surrender beats across days 1-8, each
+    one a decision the player makes out loud, each one paying real autonomy for
+    real favour and heat. Menace and surrender, never non-choice -- which is
+    also why a uniform-random walker still cannot reach E3 and should not be
+    able to: `thrall_consent` is an explicit yes, and an ending reachable by
+    accident would be the one thing this content must not ship.
+
+    So this drives the line of play the register is FOR, and asserts the class
+    opens. It is the reachability claim the walker cannot make.
+    """
+    state = GameState(rng_seed=11)
+
+    def put(name: str, value: float) -> None:
+        # Through the one validated writer: `StateStore.set` refuses a writer
+        # that does not own the value, and `favor`/`desire` are agent-owned.
+        effects.apply_effect(state, {"type": "value", "name": name, "set": value})
+
+    # Where a surrender-leaning Act II lands: she is fond, the heat is real,
+    # and there is not much of the player left holding the line.
+    put("favor", 80)
+    put("desire", 70)
+    put("autonomy", 35)
+    effects.apply_effect(state, {"type": "flag", "flag": "thrall_consent"})
+
+    eligible = endings_module.eligible(state).eligible
+    assert "E3a" in eligible, f"E3a still closed at the surrender line: {eligible}"
+
+    # E3c is the deep end of the same road and needs the drop to continue.
+    put("autonomy", 20)
+    assert "E3c" in endings_module.eligible(state).eligible
+
+    # E3b is the public one: the same yes, sealed in front of the court.
+    effects.apply_effect(state, {"type": "flag", "flag": "public_seal"})
+    assert "E3b" in endings_module.eligible(state).eligible
+
+
+def test_the_surrender_beats_actually_charge_autonomy() -> None:
+    """
+    The gate is <= 40 from a default of 70, so the register has to be able to
+    move thirty points across a run. Counted from the authored files rather
+    than asserted in prose: a future edit that softens these beats back into
+    free devotion would put E3 out of reach again exactly as before, and the
+    walker only notices two hundred runs later.
+    """
+    drains: list[float] = []
+    for doc in _scene_docs().values():
+        for node in _walk(doc):
+            if (
+                node.get("type") == "value"
+                and node.get("name") == "autonomy"
+                and float(node.get("delta", 0)) <= -8
+            ):
+                drains.append(float(node["delta"]))
+    assert len(drains) >= 12, f"only {len(drains)} real autonomy costs in the whole story"
+    assert sum(drains) <= -120, f"the surrender register totals only {sum(drains)}"
 
 
 def test_the_new_e6_variants_are_reachable(garden: GameState) -> None:

@@ -243,9 +243,19 @@ cards:
         text: >-
           Consent-gated throughout, and the gate is meta rather than in-fiction.
           Sets `thrall_consent` only if the player says yes to the thing itself
-          rather than to the conversation about it.
+          rather than to the conversation about it. Reachable two ways: she
+          demanded the talk on Day 7, or the devotion compass has already bent
+          this far -- a player deep enough in the surrender line gets the
+          conversation whether or not she scheduled it, because by now they are
+          both thinking about it.
         gate:
-          when: { flag: day7_sophia_terms_demands_thrall_talk }
+          when:
+            any:
+              - { flag: day7_sophia_terms_demands_thrall_talk }
+              - all:
+                  - { flag: act2_compass_devotion }
+                  - { value: { name: autonomy, max: 45 } }
+                  - { value: { name: favor, min: 60 } }
           on_pass:
             effects:
               - { type: flag, flag: thrall_consent }
@@ -384,6 +394,53 @@ cards:
             effects:
               - { type: value, name: favor, delta: -4 }
 
+  - id: D8_06c_ashen_collects
+    required: true
+    tags: [menu, setpiece, gm]
+    title: "Winter Calls It In"
+    text: >-
+      INTENT: the `ashen_pressure` setpiece. clocks.yaml owes this scene from
+      the moment winter's patience fills over a live debt, and tonight the
+      frost decides. He does not raise his voice and does not repeat himself:
+      the errand is named, precisely, once -- carry a word across a border,
+      deliver an insult with the player's own mouth, hold a door open that
+      should have stayed shut. Cold keeps its invoices.
+      CONSTRAINT: fires only where the collection is actually due --
+      `ashen_collection_due`, which clocks.yaml sets when the pressure fills
+      over an active Vale thread; on every other run this card deals and stays
+      silent, like the Deep's mouth and the mask above it. He is never rescue
+      and never cruelty for its own sake: this is a creditor, collecting.
+      RUNTIME: discharge or break the `ashen_service_owed` thread through the
+      thread tool -- the account book is the thread's final status, not this
+      card's.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: carry_winters_errand
+        text: >-
+          Do the thing, cleanly, and be done owing him. The work leaves
+          fingerprints -- winter's errands are all shaped like small
+          betrayals of somebody.
+        gate:
+          when: { flag: ashen_collection_due }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: favor, delta: -5 }
+              - { type: value, name: corruption, delta: 2 }
+
+      - id: refuse_the_collection
+        text: >-
+          Break it to his face. He is not angry -- anger is heat -- but a
+          broken invoice is entered in a ledger that does not forgive, and the
+          frost starts filling again before the sentence is finished.
+        gate:
+          when: { flag: ashen_collection_due }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 6 }
+              - { type: value, name: corruption, delta: 3 }
+              - { type: value, name: ashen_pressure, delta: 1 }
+
   - id: D8_07_night_before
     required: true
     tags: [menu, night, sophia, intimate]
@@ -448,6 +505,41 @@ cards:
               - { type: value, name: corruption, delta: 3 }
               - { type: value, name: desire, delta: 4 }
 
+      - id: the_asking_night
+        text: >-
+          The second road to the thing itself, and the only one that is not on
+          the war table: the player asks, awake, in their own words, on the
+          last ordinary night. Sets `thrall_consent` -- the yes is to the
+          keeping, not to tonight, and she makes the player say it twice
+          before she will believe it. Consent asked for is still consent, and
+          this is the most consent-forward scene in the story precisely
+          because she was not the one who raised it.
+          WHY IT IS NOT ON D8_05: `thrall_consent` used to have exactly one
+          author, `the_almost_thrall_conversation`, which is a beat of the war
+          table -- and so is `plan_public_leverage`, the only author of
+          `public_seal`. One menu card resolves ONE beat, so E3b (Display
+          thrall) required two flags that could not both exist, and was dead
+          rather than rare. Consent lives on the night instead, where nothing
+          competes with it.
+          The two doors are the compass or her own terms: a devotion run
+          arrives here already leaning, and a run she demanded the
+          keeping-talk on can say yes to it whatever compass it walked in on
+          -- which is what makes the condemn-then-submit arc reachable.
+        gate:
+          when:
+            all:
+              - any:
+                  - { flag: act2_compass_devotion }
+                  - { flag: day7_sophia_terms_demands_thrall_talk }
+              - { value: { name: autonomy, max: 45 } }
+              - { value: { name: favor, min: 60 } }
+          on_pass:
+            effects:
+              - { type: flag, flag: thrall_consent }
+              - { type: value, name: desire, delta: 10 }
+              - { type: value, name: favor, delta: 6 }
+              - { type: value, name: autonomy, delta: -8 }
+
   - id: day8_toll
     required: true
     tags: [sequence, toll, gm]
@@ -481,14 +573,22 @@ cards:
     tags: [sequence, gm]
     once: true
     weight: 3
-    when: { value: { name: time_debt_mortal_days, min: 100 } }
+    # Ninety, not a hundred: eight tolls put every run at 80 when this hand
+    # deals, so a gate at 100 could only ever hold for debt that does not
+    # exist yet -- the card was provably undealable. At 90 it deals for a run
+    # that was charged extra (the Clearing of the Lost, the Night Market's
+    # stall that takes days) -- and ninety is where the arithmetic becomes
+    # inevitable anyway: tomorrow's toll is not optional, so a player at
+    # ninety is already past a hundred in every future that exists.
+    when: { value: { name: time_debt_mortal_days, min: 90 } }
     title: "The Hollow Clause"
     text: >-
-      INTENT: past a hundred mortal days the arithmetic stops being a cost and
-      becomes a fact about the player's life. `clocks.yaml` advances
-      `mortal_collapse` by five at this line and at 5/5 it forces the empty
-      rooms. This card is the moment the player understands that even winning
-      will not undo it.
+      INTENT: at ninety mortal days, with one unavoidable toll left, the
+      arithmetic stops being a cost and becomes a fact about the player's
+      life. The hundred-day line is no longer ahead; every road out of the
+      Garden now crosses it. `clocks.yaml` advances `mortal_collapse` by five
+      at that line and at 5/5 it forces the empty rooms. This card is the
+      moment the player understands that even winning will not undo it.
       CONSTRAINT: no comfort. No NPC. The epilogue's hollow clause is written
       here in miniature.
     beats:

@@ -82,6 +82,12 @@ clocks:
         # Only when there is actually something owed. A clock beat may carry a
         # condition beyond its number; `when` is the shared grammar.
         when: { thread: { source: ashen_vale, status: active } }
+        # The durable half of the debt: the card that answers this scene
+        # (D8_06c_ashen_collects in day_08_mirrors.yaml) gates on the flag
+        # rather than the clock, because the clock RESETS below and starts
+        # filling again -- paying winter down afterwards cannot un-call the
+        # collection that already happened.
+        set_flags: [ashen_collection_due]
         forces_scene: ashen_collects
         effects:
           - { type: value, name: knowledge, delta: 2, why: "the Vale explains himself" }
@@ -118,6 +124,17 @@ clocks:
   # ---------------------------------------------------------------------
   # What the mortal world is doing while you are here. Wound by the day
   # toll, not by anything the player can see coming.
+  #
+  # THIS CLOCK FILLS IN EVERY COMPLETE RUN, BY DESIGN. Ten days at ten
+  # mortal days each is exactly one hundred, the rule below fires on the
+  # tenth toll, and the walker measures the fire rate at 1.0 -- which is
+  # not a bug to add slack against, it is the story's thesis said as a
+  # mechanic: the mortal debt always comes due, on every route, including
+  # the ones that win (00-WORLD-CONCEPT.md:48; the epilogue's hollow
+  # clause is the same fact in prose). What the design owes in exchange is
+  # an ANSWER: the forced scene has a card -- F5b_the_empty_rooms in
+  # day_09_finale.yaml, gated on the flag set here -- so the run that pays
+  # the whole price is shown what it bought.
   # ---------------------------------------------------------------------
   mortal_collapse:
     label: "The hourglass of ash"

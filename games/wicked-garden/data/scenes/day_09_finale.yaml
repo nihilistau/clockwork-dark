@@ -443,6 +443,32 @@ cards:
           index names for that ending. Two endings carry two echoes and one
           carries none.
 
+  - id: F5b_the_empty_rooms
+    required: true
+    tags: [sequence, gm]
+    title: "The Empty Rooms"
+    text: >-
+      INTENT: the `mortal_collapse` setpiece, and the epilogue's hollow clause
+      made a room. clocks.yaml owes this scene from the moment the hourglass
+      finishes -- which on the standard pace is the tenth toll, charged one
+      card ago -- and the Garden pays it here, after the cards are read and
+      before the gallery: one look, from inside, at the set of rooms the toll
+      was quietly emptying the whole time. A bed nobody has slept in. Mail
+      sorted by a stranger. The chair still at the table.
+      CONSTRAINT: fires only where the collapse actually completed --
+      `mortal_life_unrecoverable`, which clocks.yaml sets when the clock fills;
+      on a run that somehow kept the debt short this card deals and stays
+      silent, like the Deep's mouth on Day 8. No comfort, no NPC, no fix, and
+      nobody in the Garden can see what the player is looking at.
+    beats:
+      - id: stand_in_the_rooms
+        gate:
+          when: { flag: mortal_life_unrecoverable }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 3 }
+              - { type: value, name: desire, delta: -4 }
+
   - id: F6_gallery_and_ng_plus
     required: true
     tags: [sequence, gm]
