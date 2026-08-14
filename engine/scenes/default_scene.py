@@ -159,6 +159,23 @@ class DefaultScene(FlaskScene):
         story = load_story_blueprint(resolve_scene().blueprint, self.store)
         if story is not None:
             mounted.append(story)
+
+        # THE STUDIO, ONLY WHEN ASKED FOR. It writes to `games/` -- correct for
+        # an authoring tool, wrong for a machine somebody is only playing on --
+        # so `launcher.py --studio` sets the flag and nothing else mounts it.
+        # Read from the environment rather than config because it is a
+        # per-invocation choice, not a property of the install.
+        import os
+
+        if os.environ.get("CLOCKWORK_STUDIO") == "1":
+            try:
+                from engine.studio import studio_blueprint
+
+                mounted.append(studio_blueprint())
+                logger.info("[scene] Studio mounted (operation=blueprints)")
+            except Exception as exc:  # noqa: BLE001 -- never block play
+                logger.warning("[scene] Studio unavailable: %s", exc)
+
         return mounted
 
     def register(self) -> None:

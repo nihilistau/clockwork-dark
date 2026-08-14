@@ -167,6 +167,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="List installed games and exit",
     )
+    parser.add_argument(
+        "--studio",
+        action="store_true",
+        help="Serve the authoring studio alongside the game (edit stories in the browser)",
+    )
     parser.add_argument("--port", type=int, default=None, help="Override scene port")
     parser.add_argument("--host", type=str, default=None, help="Override bind host")
     parser.add_argument(
@@ -209,6 +214,15 @@ def main(argv: list[str] | None = None) -> int:
 
         _report(StackManager().status())
         return 0
+
+    # THE STUDIO IS OPT-IN, and stays that way. It writes to `games/` on
+    # request, which is exactly right for an authoring tool and exactly wrong
+    # for a machine somebody is only playing on. A flag is the difference.
+    if args.studio:
+        import os
+
+        os.environ["CLOCKWORK_STUDIO"] = "1"
+        print("\n  Studio enabled — open  /?studio=1  to edit stories.\n")
 
     # The positional scene argument names the ACTIVE game's scene, whatever
     # that is. It was compared against the literal "clockwork", so a story

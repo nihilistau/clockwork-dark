@@ -42,6 +42,12 @@
       "runtimeExecutable": ".venv\\Scripts\\python.exe",
       "runtimeArgs": ["launcher.py", "--game", "neon-city", "--port", "5603"],
       "port": 5603
+    },
+    {
+      "name": "studio",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": ["launcher.py", "--game", "dev-story", "--studio", "--port", "5610"],
+      "port": 5610
     }
   ]
 }

@@ -519,6 +519,35 @@ size. `games/dev-story/README.md` § Art shows the intended workflow.
 
 ---
 
+## 3.9 The studio — the same job, in a browser
+
+```powershell
+.\.venv\Scripts\python.exe launcher.py --game dev-story --studio --port 5610
+# then open  http://localhost:5610/?studio=1
+```
+
+Everything below can be done from a terminal, and the studio is the same work
+with the files in front of you: every story listed with its live validation
+health, every editable file readable and writable, validate on demand, and
+`New story` running the same scaffolder as `new_story.py`.
+
+**The review queue is the part that has no terminal equivalent.** `author.py
+--promote` is all-or-nothing and blind: it validates, then moves every draft
+into the live tree at once. Validation catches what is *wrong* — see §4.1 —
+but what survives it is a question of taste, and no validator will ever have
+any. The queue shows each drafted entry with its full text, to keep, edit in
+place, or throw away one at a time.
+
+Two things it will not do, both deliberate:
+
+- **It is opt-in.** `--studio` mounts the routes; without the flag they do not
+  exist. The studio writes to `games/` on request, which is right for an
+  authoring tool and wrong for a machine somebody is only playing on.
+- **It cannot save what the engine cannot read.** YAML and JSON are parsed
+  before anything touches disk, so a syntax error is a refusal rather than a
+  broken story. Validation runs after and is *reported*, not enforced — a
+  story mid-edit is allowed to be briefly wrong, but not silently.
+
 ## 4. The AI-assisted loop — `scripts/author.py`
 
 Drafts story content as valid YAML with the model on a leash. The contract

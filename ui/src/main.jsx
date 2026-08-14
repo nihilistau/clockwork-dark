@@ -32,9 +32,30 @@ import "./styles/index.css";
 // costs a lazily-loaded chunk that a player never fetches.
 const kit = new URLSearchParams(window.location.search).get("kit");
 
+// The authoring studio, on the same terms as the kit: an explicit query param
+// and a lazily-loaded chunk a player never fetches. The ROUTES it talks to
+// exist only on a server started with `launcher.py --studio`, so this screen
+// on an ordinary server is a set of failed fetches rather than a way in.
+const studio = new URLSearchParams(window.location.search).get("studio");
+
 const root = createRoot(document.getElementById("root"));
 
-if (kit) {
+if (studio) {
+  Promise.all([import("./studio/Studio.jsx"), import("./studio/studio.css")])
+    .then(([{ default: Studio }]) => {
+      // Not "Studio — <a story>": this tool edits every story on the machine,
+      // so naming one in the tab is the same mistake as core's stylesheet
+      // wearing the flagship's title, which is what the gate in
+      // tests/test_no_story_literals_in_core_ui.py exists to catch. It caught
+      // this line.
+      document.title = "Studio";
+      root.render(<Studio />);
+    })
+    .catch((err) => {
+      console.error("[studio] failed to load", err);
+      root.render(<p style={{ padding: 24 }}>The studio would not load.</p>);
+    });
+} else if (kit) {
   import("./kits.jsx")
     .then(({ default: mountKit }) => mountKit(root, kit))
     .catch((err) => {
