@@ -668,6 +668,8 @@ npm run dev        # hot reload against the running Flask server
 game must not require Node. Jinja serves the built bundle. If you change
 anything under `ui/src/`, rebuild and commit the `dist` output in the same
 change, or the browser keeps serving the old client and nothing you did appears.
+That rule is now enforced rather than asked for: `tests/test_ui_contract.py`
+fails when a build input carries a commit the committed `dist` does not.
 
 `tests/test_ui_contract.py` asserts the Socket.IO payload shape the client
 expects, so a server-side rename fails the suite instead of silently blanking a

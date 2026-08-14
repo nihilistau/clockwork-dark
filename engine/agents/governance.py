@@ -704,8 +704,11 @@ def _register_safety() -> None:
     The dependency points one way, and this is that way.
 
     Failure is logged rather than raised. A missing safety module must not stop
-    the engine building its pipeline -- and the two shipped stories configure no
-    safety chain at all, so on those it changes nothing either way.
+    the engine building its pipeline. That failure is no longer free, though:
+    three of the four shipped stories (wicked-garden, neon-city, dev-story) name
+    ``SafetyDirective`` in ``settings.governance.directives``, so on those a
+    failed registration silently drops a directive the story asked for. Only the
+    flagship configures no safety chain and is genuinely unaffected.
     """
     try:
         from engine.safety.governor import register_safety_interceptors

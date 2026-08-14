@@ -141,7 +141,9 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
     # Progress clocks, the story-declared generalisation of the doom beats
     # above. Same reasoning for the same placement: a clock that only wound on
     # narrated turns would stop for a player who slept through the week. Inert
-    # for a story that declares none, which is both shipped games.
+    # for a story that declares none, which is now only the flagship -- the
+    # other three shipped games wind real clocks from here (wicked-garden 4,
+    # neon-city 2, dev-story 1), so this call does work on most turns played.
     try:
         from engine.game import clocks as clocks_module
 

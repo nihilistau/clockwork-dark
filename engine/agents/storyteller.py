@@ -174,7 +174,8 @@ class StorytellerTurnResult:
     finish_reason: str = ""
     # The narration review's verdict (engine/safety), serialised, when it had
     # anything to say. Empty for an ALLOW and always empty for an inert policy
-    # -- both shipped stories -- so no payload grows a key it did not have.
+    # -- of the shipped games, only the flagship. Wicked-garden, neon-city and
+    # dev-story resolve non-inert, so this key can and does appear for them.
     safety: dict[str, Any] = field(default_factory=dict)
     # The player-facing summary card when the review FADED the scene. The
     # client renders it (a later phase); mechanically everything already
@@ -967,10 +968,12 @@ class StorytellerAgent:
         # The last safety surface (docs/SAFETY.md attach point 4): review what
         # was actually WRITTEN, before it reaches the player. The earlier
         # surfaces read intent; this one reads what the model did with it.
-        # An inert policy -- both shipped stories -- takes the short-circuit:
-        # no review, no RNG drawn, no new payload keys, and the turn is
-        # byte-for-byte the turn it had. Runs BEFORE the commit so a hard-no
-        # verdict can still make "this did not happen" true.
+        # An inert policy takes the short-circuit: no review, no RNG drawn, no
+        # new payload keys, and the turn is byte-for-byte the turn it had. Of
+        # the four shipped games only the flagship still gets that; the review
+        # below runs for real on wicked-garden, neon-city and dev-story, which
+        # is where its RNG draws and payload keys actually land. Runs BEFORE the
+        # commit so a hard-no verdict can still make "this did not happen" true.
         safety_dict: dict[str, Any] = {}
         fade_card_dict: Optional[dict[str, Any]] = None
         try:

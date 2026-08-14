@@ -392,7 +392,9 @@ def entry_location(default: str = "") -> str:
     carried ``location_id="forest_clearing"`` as a Python default, so
     ``entry.location_id`` was validated and published over ``/api/games`` and
     then consumed by nothing -- a new run in any story began in Edgewood's
-    forest clearing, an id the second story's map does not contain.
+    forest clearing, an id that no other story's map contains (the Garden
+    starts at mortal_threshold, NEON CITY at the_grid, dev-story at
+    test_bedroom).
 
     Args:
         default: Returned when no manifest is readable or it declares none.

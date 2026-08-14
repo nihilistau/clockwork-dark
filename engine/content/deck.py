@@ -376,8 +376,11 @@ def load_deck(deck_id: str) -> Optional[Deck]:
     """
     Read one deck by id from the story's deck directory.
 
-    Returns None when the story ships no such deck -- which is both shipped
-    games today, and is not an error.
+    Returns None when the story ships no such deck, which is not an error. Two
+    of the four shipped games declare ``paths.decks`` and land here with a real
+    directory: wicked-garden (11 decks, one per day plus the labyrinth) and
+    dev-story (1). The flagship and neon-city declare none and take the
+    ``directory is None`` path below.
     """
     directory = _decks_dir()
     if directory is None:

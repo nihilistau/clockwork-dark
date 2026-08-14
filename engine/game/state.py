@@ -443,9 +443,11 @@ class GameState:
         """
         The story's own declared state, projected by visibility.
 
-        Empty for a story that declares no schema, which is why this is safe to
-        splat into the payload unconditionally: both shipped games see no change
-        until they describe themselves.
+        Empty for a story that declares no schema, which is why this was safe
+        to splat into the payload unconditionally when it landed. Every shipped
+        game has since described itself -- all four ship a ``state.yaml`` -- so
+        this projection contributes real keys on all of them and is no longer a
+        no-op anywhere in production.
 
         Never raises. A broken schema must cost the player a meter on the sheet,
         not the turn they just played -- and the schema is validated loudly at

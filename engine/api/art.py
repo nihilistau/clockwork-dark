@@ -21,9 +21,12 @@ is indistinguishable from having no art pack.
 
 ``/story-art/<path>`` serves ``paths.art_root`` -- the same directory the
 shipped provider resolves manifest entries against -- so a story ships art by
-declaring two paths and setting ``root: "/story-art"`` in its manifest. The
-flagship keeps ``root: "/static/art"`` and keeps being served by Flask, so
-nothing about the two shipped games changes.
+declaring two paths and setting ``root: "/story-art"`` in its manifest. That is
+now the majority case: wicked-garden, neon-city and dev-story all set
+``/story-art`` and keep their plates under ``games/<slug>/data/art/plates``.
+The flagship alone keeps ``root: "/static/art"`` and keeps being served by
+Flask out of its scene directory, which is why this blueprint had to be
+additive rather than a replacement.
 
 Every story has an art pack (or fails through to the procedural provider), so
 this is engine-shared rather than story-owned. ``shipped_art_url`` is exported

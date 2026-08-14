@@ -268,8 +268,11 @@ def character_for(engine: Any, *, llm_fn: Any = None) -> Optional[CharacterAgent
     """
     The active story's character agent, or None.
 
-    None is the answer for both shipped games and for any story that declares
-    no ``role: character``. The caller falls back to the companion, so nothing
+    None is the answer for a story that declares no ``role: character``, which
+    of the four shipped games is only the flagship. The Wicked Garden (sophia),
+    dev-story (sophia) and NEON CITY (ghost) all declare one, so this returns a
+    live agent for three of four and the fallback path below is the exception
+    rather than the rule. The caller falls back to the companion, so nothing
     changes for a story that never asked for one.
     """
     try:

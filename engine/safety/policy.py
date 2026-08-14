@@ -32,10 +32,17 @@ to the one it had. The want has nowhere to land.
 
 There is deliberately no global disable switch. "Off" is a data state, not a
 flag: a policy with no limits and a suggestive ceiling is ``inert``, and an
-inert policy short-circuits to ALLOW everywhere. That is how the two shipped
-stories -- which configure nothing -- behave exactly as they did before this
-package existed, without an escape hatch that a bad config could trip into
-turning hard limits off.
+inert policy short-circuits to ALLOW everywhere -- no escape hatch that a bad
+config could trip into turning hard limits off.
+
+WHO IS ACTUALLY INERT. Only the flagship. It declares no ``safety:`` block, so
+it resolves to a suggestive ceiling with an empty sheet and behaves exactly as
+it did before this package existed. The other three shipped stories all declare
+one and resolve NON-inert: wicked-garden and neon-city at an ``explicit``
+ceiling, dev-story at ``extreme``. The short-circuit is therefore the minority
+path in production -- every gate, directive and narration review below runs for
+real on three of the four games, and their costs (prompt budget, RNG draws,
+extra payload keys) are paid, not skipped.
 
 Version: v0.1.0 [2026-08-08]
 """
@@ -125,9 +132,12 @@ class SafetyPolicy:
         """
         True when this policy has nothing whatsoever to enforce.
 
-        The two shipped stories are inert, and ``SafetyGate`` short-circuits on
-        this so their turns take exactly the code path they took before the
-        package existed -- no matching, no directive text, no prompt budget.
+        Of the four shipped stories only the flagship is inert; wicked-garden,
+        neon-city and dev-story each declare a ``safety:`` block that lifts the
+        ceiling above ``LOWEST``. ``SafetyGate`` short-circuits on this, so the
+        flagship's turns take exactly the code path they took before the package
+        existed -- no matching, no directive text, no prompt budget -- and the
+        other three take the full path instead.
         """
         return (
             self.sheet.empty

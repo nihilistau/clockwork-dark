@@ -33,13 +33,15 @@ moved, the world's consequence did not -- would leave a state neither agent
 proposed and no rule produced.
 
 INERT WITHOUT TWO NEGOTIATORS. A story declaring fewer than two PIPELINE
-participants gets ``ran=False`` and the caller keeps the path it had. Both
+participants gets ``ran=False`` and the caller keeps the path it had. All four
 shipped games ship an ``agents.yaml`` now, and the count is of participants
 rather than of declared agents on purpose: the flagship's roster names its
 narrator and its companion, but the companion is ``pipeline: false`` -- it
 speaks after narration through the assistant director -- so the flagship
-keeps the single-agent turn it always had. The Wicked Garden declares two
-participants, and this pipeline is its turn.
+keeps the single-agent turn it always had, one participant against a threshold
+of two. The Wicked Garden (gm + sophia), dev-story (world + sophia) and NEON
+CITY (gm + ghost) each declare two participants and a rule table, so this
+pipeline is the turn for three of the four.
 
 Version: v0.2.0 [2026-08-13]
 """

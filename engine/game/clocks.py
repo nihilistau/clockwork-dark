@@ -437,7 +437,10 @@ def load_clocks() -> dict[str, Any]:
 
     A missing file yields an empty table rather than raising: a story with no
     progress clocks is a story that runs exactly as it did before this module
-    existed, which is both shipped games today.
+    existed. Of the shipped games that is the flagship alone. Wicked-garden
+    declares four (ashen_pressure, briar_hunger, sophia_break,
+    mortal_collapse), neon-city two (timestamp, debt) and dev-story one
+    (rumour_spreading) -- so the empty table is the exception, not the norm.
     """
     path = _table_path()
     if path is None:

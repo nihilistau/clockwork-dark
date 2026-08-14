@@ -294,9 +294,11 @@ def load_roster(path: Path | str, *, slug: str = "") -> Roster:
     """
     Read a story's ``agents.yaml``.
 
-    A missing file is NOT an error: the story runs the engine's built-in pair,
-    which is what both shipped games do. Keeping this additive is what lets the
-    multi-agent runtime land without touching either of them.
+    A missing file is NOT an error: the story runs the engine's built-in pair.
+    No shipped game takes that path any more -- all four declare an
+    ``agents.yaml`` -- so this is the contract for a story being authored, not
+    a description of what ships. Keeping it additive is what let the
+    multi-agent runtime land without touching the games that predated it.
     """
     source = Path(path)
     if not source.is_file():

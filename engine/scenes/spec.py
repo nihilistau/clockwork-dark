@@ -21,9 +21,13 @@ the machine, and that stays true.)
 EVERY FIELD IS OPTIONAL AND EVERY DEFAULT IS THE ENGINE'S OWN SCENE. A story
 that declares nothing runs on ``engine/scenes/default_scene.py`` with the
 default story screens from ``engine/scenes/default_api.py`` -- that is the
-point of an engine default, and it is what both shipped games run. They still
-DECLARE it, explicitly, in their manifests: a shipped story's scene should be
-readable from its ``game.yaml`` rather than known only by omission. A story
+point of an engine default, and it is what all four shipped games run -- every
+one of them names ``engine.scenes.default_scene`` with
+``engine.scenes.default_api:story_blueprint``, so no shipped story has yet
+needed its own. They still DECLARE it, explicitly, in their manifests: a
+shipped story's scene should be readable from its ``game.yaml`` rather than
+known only by omission. (What they DO vary is ``ui.plugin`` -- the flagship
+loads its own, the other three share the ``wicked-garden`` plugin.) A story
 opts out of the default screens by naming its own ``blueprint:``; it opts out
 of the whole scene by naming its own ``module:``.
 

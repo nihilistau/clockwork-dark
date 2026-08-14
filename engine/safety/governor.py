@@ -61,11 +61,14 @@ class SafetyDirective:
     """
     PHASE_DIRECTIVE: the standing content constraint, as one budgeted block.
 
-    Contributes NOTHING for an inert policy, which is what both shipped stories
-    have. That is not an optimisation -- ``build_directives`` output is fitted
-    into a prompt budget that is already over (R-01), and a safety layer that
-    cost every existing game tokens it did not ask for would be paid for by the
-    narration those games do want.
+    Contributes NOTHING for an inert policy, which of the four shipped stories
+    is only the flagship. That is not an optimisation -- ``build_directives``
+    output is fitted into a prompt budget that is already over (R-01), and a
+    safety layer that cost every existing game tokens it did not ask for would
+    be paid for by the narration those games do want. The three stories that
+    declare a ``safety:`` block (wicked-garden, neon-city, dev-story) also name
+    this directive in ``settings.governance.directives``, so they pay for it
+    deliberately: asked for, budgeted, not inherited.
     """
 
     priority = 10

@@ -61,8 +61,8 @@ LLMFn = Callable[[list[dict[str, Any]]], str]
 # What a run starts as when no manifest is readable at all: nobody in
 # particular. This was the flagship's "wayfarer" -- one story's noun stamped on
 # any build that could not answer -- and it is unreachable in practice, because
-# ``entry.archetypes`` is validated at activation and both shipped games answer
-# long before this is asked.
+# ``entry.archetypes`` is validated at activation and all four shipped games
+# answer long before this is asked (wayfarer, human, runner, human).
 FALLBACK_ARCHETYPE = ""
 
 

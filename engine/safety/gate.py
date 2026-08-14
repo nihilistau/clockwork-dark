@@ -380,8 +380,11 @@ class SafetyGate:
         """
         The standing constraint block for the GM prompt.
 
-        Returns "" for an inert policy, which is what both shipped stories get:
-        no text, no tokens, no change to a budget that is already over (R-01).
+        Returns "" for an inert policy, which of the shipped stories is only the
+        flagship: no text, no tokens, no change to a budget that is already over
+        (R-01). Wicked-garden, neon-city and dev-story resolve non-inert, so they
+        DO spend budget here -- this block is a real line item on three of four,
+        which is the reason the paragraph below is about saying less, not more.
 
         WHAT IT DOES AND DOES NOT SAY. It names the tier and the limit TOPICS.
         It never lists the limit NOUNS. Enumerating the exact surface forms a

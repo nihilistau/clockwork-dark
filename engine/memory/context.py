@@ -99,8 +99,11 @@ def build_storyteller_messages(
         retry_note: Evaluator feedback for a repair attempt.
         agreed_block: What the multi-agent negotiation already settled -- whose
             intent leads, the surviving beats, the other agent's actual words,
-            and any state already committed. Empty for a story running one
-            agent, which is both shipped games.
+            and any state already committed. Empty for a story with fewer than
+            two PIPELINE participants, which of the shipped games is only the
+            flagship -- its companion is ``pipeline: false``, so it never
+            negotiates. Wicked-garden, neon-city and dev-story each run two
+            participants, so this block is populated on their turns.
 
     Returns:
         Chat message array, trimmed to fit the budget.

@@ -40,9 +40,12 @@ def active_schema() -> StateSchema:
 
     Returns an EMPTY schema rather than raising when a story declares none, or
     when the manifest cannot be read. A story without a schema runs on the
-    engine spine, which is exactly what both shipped games did before this layer
-    existed -- refusing to start over a missing optional file would turn an
-    additive change into a breaking one.
+    engine spine, which is what every game did before this layer existed --
+    refusing to start over a missing optional file would turn an additive
+    change into a breaking one. No shipped game relies on that any more: all
+    four ship a ``state.yaml`` (clockwork-dark 15 declared values, neon-city
+    24, wicked-garden 13, dev-story 3), so the empty return is the
+    authoring-time and broken-manifest case only.
     """
     global _schema
     if _schema is not None:
@@ -94,7 +97,13 @@ def _with_roster_grants(schema: StateSchema) -> StateSchema:
     something to an agent it does not declare.
 
     Costs nothing for a story with no ``agents.yaml`` -- an empty roster grants
-    nothing, and the schema comes back untouched. That is both shipped games.
+    nothing, and the schema comes back untouched. No shipped game is that story
+    any more: all four declare a roster, and three of them actually derive
+    owners here (wicked-garden 12 values, dev-story 2, neon-city 1). The
+    flagship declares a roster that grants none, so it is the only one whose
+    schema still comes back untouched. This derivation is load-bearing for the
+    Garden specifically -- it is what gives Sophia the ``autonomy`` and
+    ``corruption`` writes described above.
     """
     roster = active_roster()
     if not roster or not schema.values:

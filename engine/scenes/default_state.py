@@ -899,7 +899,8 @@ def run_turn(
         )
 
     # Only when the gate had something to say -- an inert policy adds no key at
-    # all, so both shipped stories ship the payload they shipped before.
+    # all, which of the shipped stories is now only the flagship. The other
+    # three declare a safety block, so this key is part of their live payload.
     if safety:
         turn_payload["safety"] = safety
     # The narration review's half of the same layer (attach point 4): the
@@ -929,8 +930,10 @@ def run_turn(
     # table is asserted against every server emit (tests/test_ui_contract.py),
     # and an ending is a property of the turn that ended the story rather than
     # a thing that happens on its own schedule. Absent while a run is running
-    # and absent forever for a story that declares no endings, so both shipped
-    # games send exactly the payload they sent before.
+    # and absent forever for a story that declares no endings -- which is no
+    # shipped game any more. All four declare `paths.endings`, so every one of
+    # them can send this key, and the client must handle it rather than treat
+    # it as a Garden-only extra.
     ending = epilogue_module.for_state(state)
     if ending is not None:
         turn_payload["ending"] = ending.to_dict()

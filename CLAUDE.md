@@ -125,9 +125,15 @@ npm run build --prefix ui                               # rebuild the COMMITTED 
 ```
 
 The build output is `content/scenes/clockwork/static/dist`, and it is
-**committed** so the game plays with no node installed. Nothing detects a stale
-one: change `ui/src` without rebuilding and the change simply never reaches a
-player.
+**committed** so the game plays with no node installed. Change `ui/src` without
+rebuilding and the change never reaches a player — so
+`test_the_committed_build_is_not_behind_its_source`
+(`tests/test_ui_contract.py`) fails the suite when any build input carries a
+commit the build does not, and names the files that are ahead. It reads git
+history rather than mtimes, because a fresh clone has no meaningful mtimes, and
+it skips cleanly where history cannot be read: no `.git`, no `git` on PATH, or a
+rebuild still sitting uncommitted. Rebuild and commit `dist` in the same change
+and it passes.
 
 ## Canon IDs (do not rename)
 

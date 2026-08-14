@@ -5,11 +5,18 @@ The audit's single largest finding was drift between what the server sends and
 what the client consumes: the server emitted `dice_result` and `cutscene_start`
 to no listener, while the client listened for `narration_delta` that nothing
 emitted. These tests make that drift fail the build.
+
+There is a second drift in the same seam, one axis over: between `ui/src` and
+the committed `dist` built from it. The socket tests read the SOURCE; a player
+runs the BUILD. `test_the_committed_build_is_not_behind_its_source` is the only
+test here that knows the difference.
 """
 
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -18,6 +25,13 @@ ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "content" / "scenes" / "clockwork" / "static" / "dist"
 TEMPLATE = ROOT / "content" / "scenes" / "clockwork" / "templates" / "clockwork.html"
 UI_SRC = ROOT / "ui" / "src"
+
+# Repo-relative, because git speaks in repo-relative paths.
+DIST_PATH = "content/scenes/clockwork/static/dist"
+# Every input to the build. `package.json` is in the list because a dependency
+# bump changes the bundle without touching a line of src, and `index.html` is
+# Vite's entry document, not decoration.
+BUILD_INPUTS = ("ui/src", "ui/vite.config.js", "ui/package.json", "ui/index.html")
 
 pytestmark = pytest.mark.skipif(
     not DIST.exists(), reason="UI not built — run `cd ui && npm run build`"
@@ -56,6 +70,103 @@ def test_nothing_loads_from_a_cdn():
 def test_fonts_are_self_hosted():
     fonts = list((DIST / "fonts").glob("*.woff2"))
     assert len(fonts) >= 8, "expected the four families' latin subsets on disk"
+
+
+# ---------------------------------------------------------------------------
+# The freshness guard
+# ---------------------------------------------------------------------------
+
+
+def _git(*args: str) -> str:
+    """
+    Run git at the repo root, or skip the calling test if git cannot answer.
+
+    A source tarball, a `.git`-less export and a machine with no git installed
+    are all legitimate ways to have this repository, and none of them can be
+    asked about commit history. They skip; they do not fail.
+    """
+    if not (ROOT / ".git").exists():  # a worktree's .git is a file, hence .exists()
+        pytest.skip("not a git checkout -- build freshness cannot be judged")
+    if shutil.which("git") is None:
+        pytest.skip("git is not on PATH -- build freshness cannot be judged")
+    try:
+        done = subprocess.run(
+            ["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=30
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        pytest.skip(f"git could not be run: {exc}")
+    if done.returncode != 0:
+        pytest.skip(f"`git {' '.join(args)}` failed: {done.stderr.strip()}")
+    return done.stdout.strip()
+
+
+def test_the_committed_build_is_not_behind_its_source():
+    """
+    The dist a player runs must not be older than the source it was built from.
+
+    Every test above this one proves the committed build is COMPLETE and
+    offline-clean. None of them proves it is CURRENT. That gap let dist fall
+    roughly seventeen source files behind: the whole multi-agent shell, the
+    store, the story loader, the Play and Saves screens, ChoiceRow, Chrome,
+    NarrativeLog, ReasoningPanel, the new FadeCard and MicButton,
+    styles/index.css and several wicked-garden parts. Every one of them was
+    written, reviewed, tested and committed, and not one reached a player,
+    because what reaches a player is the dist and not the source.
+
+    Mtime cannot answer this. A fresh clone writes every file at checkout time,
+    so on the machine that matters most -- someone else's -- the source and the
+    build are always exactly the same age. Git history can: `dist_commit` is the
+    last commit that touched the build, and anything the build's inputs changed
+    between there and HEAD is a change the shipped bundle does not contain.
+
+    A tree diff rather than a timestamp comparison, deliberately. Comparing
+    `git log -1 --format=%ct` across the two paths reads committer dates, and a
+    merge or a rebase reorders those freely -- a branch cut last week and merged
+    today carries last week's dates into a position after today's build commit,
+    and the guard reads a stale dist as fresh. Diffing the build commit's tree
+    against HEAD's asks the same question in the repository's own order instead
+    of a clock's, and answers it in one call rather than one per source file.
+
+    What this cannot see: a dist committed alongside a source change but built
+    from the source as it stood before it. Only hashing the source tree into the
+    build catches that, which costs a build artefact and a hashing convention.
+    This catches the failure that actually happened.
+
+    Only committed history is judged, at both ends. An uncommitted edit under
+    `ui/src` is work in progress, not something a player can be served; and an
+    uncommitted dist is a rebuild in flight, so the last BUILD commit is no
+    longer the state being asked about and this skips rather than reporting a
+    staleness the developer has already fixed. That leaves one hole -- a stray
+    edit under dist silences the guard locally -- and it is the right trade,
+    because the tree this guard exists to protect is the committed one, which on
+    CI and on a fresh clone is always clean.
+
+    The sequence it is built to walk you through: edit src, run pytest, FAIL;
+    `npm run build`, run pytest, SKIP; commit src and dist together, PASS.
+    """
+    dirty = _git("status", "--porcelain", "--", DIST_PATH)
+    if dirty:
+        pytest.skip(
+            f"{DIST_PATH} has uncommitted changes -- a rebuild is in flight; "
+            "commit src and dist together and this judges the result"
+        )
+
+    dist_commit = _git("log", "-1", "--format=%H", "--", DIST_PATH)
+    if not dist_commit:
+        # A shallow clone whose depth does not reach the build commit, or a dist
+        # present on disk but never committed. Neither is evidence of staleness.
+        pytest.skip(f"no commit in this history touches {DIST_PATH}")
+
+    changed = _git("diff", "--name-only", dist_commit, "HEAD", "--", *BUILD_INPUTS)
+    behind = sorted(line for line in changed.splitlines() if line.strip())
+
+    assert not behind, (
+        f"the committed UI build is {len(behind)} source file(s) behind -- none of "
+        f"these changes reach a player until dist is rebuilt:\n  "
+        + "\n  ".join(behind)
+        + f"\n\nlast commit touching {DIST_PATH}: {dist_commit[:12]}"
+        + "\nfix: `cd ui && npm run build`, then commit dist in the same change."
+    )
 
 
 # -- socket contract -----------------------------------------------------

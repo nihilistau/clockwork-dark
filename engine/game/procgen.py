@@ -6,8 +6,10 @@ The flagship's answers used to be welded in here and all of them are gone:
     the entry location   ``location_id="forest_clearing"`` was a Python default,
                          so ``entry.location_id`` in every game.yaml was
                          validated, published over /api/games and consumed by
-                         nothing. A new run in the second story began on a
-                         location id its map does not contain.
+                         nothing. A new run in any other story began on a
+                         location id its map does not contain -- today that
+                         would be mortal_threshold, the_grid and test_bedroom,
+                         none of which is forest_clearing.
 
     the template path    ``data/procgen_templates/edgewood.yaml`` was the
                          string-literal fallback for ``paths.procgen_templates``,

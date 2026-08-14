@@ -399,10 +399,16 @@ class GameManifest:
         """
         Declared state values the load menu shows for this story, in order.
 
-        Empty means "the engine's own row", which is what both shipped games
-        get and is why their ``index.json`` rows are unchanged. A story with no
-        doom clock and no archetype declares its own names here instead of
-        inheriting twelve Clockwork-shaped columns it cannot fill.
+        Empty means "the engine's own row". All four shipped games leave this
+        key out of their ``game.yaml``, so this property returns () for every
+        one of them -- but only the flagship actually gets the engine's row.
+        This is the FALLBACK, not the source: ``saves.summary_values`` reads
+        ``schema.summary`` off ``state.yaml`` first and only consults this when
+        that is empty. Wicked-garden (favor, time_debt_mortal_days), neon-city
+        (credits, timestamp) and dev-story (influence, popularity) declare
+        their columns there, so they never reach this. A story with no doom
+        clock and no archetype names its own columns in one of the two places
+        rather than inheriting twelve Clockwork-shaped columns it cannot fill.
         """
         raw = self.extras.get("save_summary") or ()
         if isinstance(raw, str):
