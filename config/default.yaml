@@ -100,10 +100,25 @@ lmstudio:
     # observed range. The same three turns re-run on 1200 + 3200 spent 2129,
     # 1451 and 1471 of 4400 -- no truncation, no starvation, no retry.
     #
-    # THIS IS HEADROOM, NOT A CAP, AND THAT IS NOT A CHOICE. A real ceiling on
-    # thinking would be better than budgeting around it, so it was looked for
-    # in both LM Studio's API and Gemma's own capability docs. It does not
-    # exist. Do not go looking again:
+    # THIS IS HEADROOM, NOT A CAP -- BUT A REAL CAP DOES EXIST, one layer down.
+    #
+    # CORRECTION, and the earlier version of this comment had it flatly wrong:
+    # LM Studio enforces a true reasoning ceiling in the MODEL's own config,
+    # not in the request. The key is `llm.prediction.reasoning.budgetTokens`,
+    # set in the app's model settings or shipped in a preset --
+    #   %LOCALAPPDATA%\..\.cache\lm-studio\config-presets\<name>.preset.json
+    #   { "key": "llm.prediction.reasoning.budgetTokens",
+    #     "value": { "checked": true, "value": 600 } }
+    # paired with `llm.prediction.maxPredictedTokens`. That is why every probe
+    # below came back refused or ignored: the cap is real, it is just not
+    # something a client can ask for per request. A machine that sets it needs
+    # far less headroom here, because thinking stops on its own.
+    #
+    # These two numbers remain the engine's floor for a server that has NOT
+    # been configured that way, which is every fresh checkout. Belt and braces:
+    # the preset caps thinking, this reserves the answer's room regardless.
+    #
+    # What genuinely is NOT available, per request, so nobody probes it again:
     #   * Gemma's thinking documentation
     #     (ai.google.dev/gemma/docs/capabilities/thinking) exposes ONE control,
     #     the binary `enable_thinking` chat-template kwarg. No thinking_budget,
