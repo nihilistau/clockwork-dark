@@ -1,0 +1,20 @@
+# THE LONG CON -- what the narration may not name yet.
+#
+# Found by fixed filename inside `paths.rules`; read by
+# engine/lore/interceptors.py. Below `awareness.spoiler_gate_threshold` each
+# `term` is rewritten to `instead`, in both directions -- out of narration
+# and out of prompt blocks wrapped in `mark_spoiler`. Above the threshold,
+# nothing is touched.
+#
+# Engine identifiers (`evil_progress`, the phase ids) are masked for every
+# story by the engine's own table; add a row for one only to supply YOUR
+# wording, which wins because story rows are applied first.
+#
+# Version: v0.1.0
+
+spoilers:
+  # The example secret: what is actually wrong at the heart of your story.
+  # Awareness on the wood's edges (locations.yaml) is what eventually earns
+  # the player the real word.
+  - term: "what sleeps under the mill pond"
+    instead: "whatever it is the miller will not name"

@@ -1,0 +1,39 @@
+# THE LONG CON -- what you can be.
+#
+# Found by fixed filename inside `paths.rules`. Two, so creation is a choice
+# rather than a formality. `stats` are ABSOLUTE values, not deltas --
+# procgen.py::apply_archetype sets them outright, so `grit: 1` makes a
+# character with 1 grit, not baseline+1; declare the full spread you mean.
+# `skill_bonus` feeds checks.py directly -- keep it small, because every
+# point here is a point on every roll for the whole run.
+#
+# This file is what EXISTS; game.yaml's `entry.archetypes` is what is
+# OFFERED. Add a key here AND there, or the new archetype is invisible.
+#
+# Version: v0.1.0
+
+default: gumshoe
+
+archetypes:
+  gumshoe:
+    name: "Gumshoe"
+    blurb: >-
+      You worked the Ninth for eleven years and handed the badge back over
+      something nobody will put in writing. You know which doors open and
+      what it costs to knock.
+    summary: "Eleven years a cop, six years not. The city remembers both."
+    stats:
+      grit: 1
+    skill_bonus:
+      nerve: 1
+
+  fixer:
+    name: "Fixer"
+    blurb: >-
+      You never wore the badge. You have simply been useful to enough people
+      for long enough that a favour is a currency you can spend.
+    summary: "Never a cop. Owed by half the city and owing the other half."
+    stats:
+      craft: 1
+    skill_bonus:
+      persuasion: 1

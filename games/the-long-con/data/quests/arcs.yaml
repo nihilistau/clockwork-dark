@@ -1,0 +1,25 @@
+# THE LONG CON -- the arcs.
+#
+# Read by engine/game/quests.py::load_arcs from `<paths.quests>/arcs.yaml`.
+# Technically optional, practically required: quest files live in
+# `<paths.quests>/<arc>/*.yaml` and a quest whose arc is not unlocked loads,
+# sits in the table, and never offers itself -- present, inert, silent.
+#
+# `default: true` puts the arc in `arcs_unlocked` on turn one. A later arc
+# opens with a `requires_all` / `requires_any` gate instead.
+#
+# Version: v0.1.0
+
+version: 1
+
+arcs:
+  the_case:
+    name: "The Case"
+    default: true
+    # Plot-involvement weight while active (engine/game/plot.py). Low: an
+    # errand should not make the pacing model think a plot is under way.
+    involvement: 1
+    order: 0
+    blurb: >-
+      A woman with a good coat asks you to find a man the papers already
+      buried, and every honest answer costs somebody something.

@@ -1,0 +1,30 @@
+{
+  "description": [
+    "THE LONG CON's declared flag vocabulary -- the canon dictionary, in the",
+    "shape the Garden established. The content validator reads it: a flag",
+    "written anywhere must appear here or be read somewhere, and a gate on a",
+    "flag nothing writes is an error either way.",
+    "",
+    "IT EXISTS HERE BECAUSE THIS STORY IS A HYBRID. The two-direction check",
+    "runs over STRUCTURAL documents -- decks, clocks, threads, endings -- and",
+    "quests are not among them. `the_frame` legitimately winds on a flag the",
+    "QUEST declares in its `narrative_flags`, and the interview deck writes",
+    "flags that only prose and later scenes care about. Both directions are",
+    "correct and neither is visible to the check, so they are declared."
+  ],
+  "flags": {
+    "booleans": {
+      "the_case": [
+        "nf_read_the_obituary",
+        "nf_sonia_named_the_tailor",
+        "nf_saw_the_manifest",
+        "nf_opened_the_cold_room"
+      ],
+      "the_interview": [
+        "nf_showed_ruse_the_photograph",
+        "nf_named_the_sister",
+        "being_looked_at"
+      ]
+    }
+  }
+}

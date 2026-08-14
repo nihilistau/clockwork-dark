@@ -1,0 +1,61 @@
+# THE LONG CON -- the item registry.
+#
+# Read by engine/game/inventory.py; every *.yaml under `paths.items` merges
+# into one id -> row registry, first file to claim an id wins.
+#
+# EVERY id the other tables name must exist here. A forage row, a wage
+# in-kind or a vendor stock line pointing at a missing id resolves to
+# nothing, raises nothing, and produces a pick the player can never receive
+# -- the classic silent content bug of this shape of story.
+#
+# `value` is the copper baseline the trade spread prices from (an item with
+# value 0 cannot be sold). The `food` tag is load-bearing: eating is an
+# ENGINE mechanic (engine/game/survival.py::eat) keyed on it, so food items
+# need no `use:` block -- and a story with no repeatable source of food-tagged
+# items rebuilds the starvation soft-lock the flagship shipped with.
+#
+# Version: v0.1.0
+
+version: 1
+
+items:
+
+  - id: bread_roll
+    name: "Bread Roll"
+    description: >-
+      Yesterday's flour, this morning's oven. Solves the next few hours,
+      which is what bread is for.
+    tags: [food, provisions]
+    weight: 0.2
+    value: 2
+    stack: true
+
+  - id: field_mushroom
+    name: "Field Mushroom"
+    description: >-
+      Broad, brown, honest. The wood gives them up after rain to anyone who
+      looks at ankle height.
+    tags: [food, forage]
+    weight: 0.1
+    value: 1
+    stack: true
+
+  - id: hedge_berries
+    name: "Hedge Berries"
+    description: >-
+      A handful of dark ones from the margin, staining your palm as proof
+      you did something with the afternoon.
+    tags: [food, forage]
+    weight: 0.1
+    value: 1
+    stack: true
+
+  - id: old_coin
+    name: "Old Coin"
+    description: >-
+      Not currency anymore, if it ever was. Somebody's face on one side,
+      worn to a suggestion. The uncommon find -- worth more than it spends.
+    tags: [curio, forage]
+    weight: 0.05
+    value: 6
+    stack: true

@@ -1,0 +1,56 @@
+# THE LONG CON -- what the clock DOES.
+#
+# The second half of a two-file declaration; state.yaml holds the first. This
+# is the file that makes THE LONG CON a hybrid: a graph story that deals a
+# DECK when the pressure fills.
+#
+# `forces_scene` names a deck by its id, and the deck lives in
+# data/scenes/. No shipped story has combined a full travel graph -- roads,
+# encounters, an economy -- with an authored set-piece deck before; dev-story
+# proved decks and quests coexist, and the mechanism for dealing one mid-run
+# is exactly this.
+#
+# Version: v0.1.0
+
+version: 1
+
+clocks:
+
+  the_frame:
+    label: "How this ends up being your fault"
+
+    advance_when:
+      # Heat is attention. Attention plus a body is a suspect.
+      - id: frame_from_heat
+        when: { value: { name: heat, min: 55 } }
+        by: 1
+
+      # Standing is who will vouch for you. Nobody left is a kind of guilt in
+      # a city that runs on being vouched for.
+      - id: frame_from_no_friends
+        when: { value: { name: standing, max: 20 } }
+        by: 1
+
+      # You went down to the cold room. Somebody knows you did.
+      - id: frame_from_the_cold_room
+        when: { flag: nf_opened_the_cold_room }
+        by: 1
+
+    beats:
+      - id: frame_half
+        at: 2
+        rumors:
+          - "A man from the Ninth was asking the laundry what hours you keep."
+        set_flags: [being_looked_at]
+
+      - id: frame_full
+        at: max
+        effects:
+          - { type: value, name: standing, delta: -10, why: "being a suspect is not being a colleague" }
+        # PINNED to data/scenes/the_interview.yaml's `id`. A forced scene names
+        # a deck by that id, not by its filename or its title.
+        forces_scene: the_interview
+        text: >-
+          The car is outside the laundry when you come down, and it is not
+          keeping pace this time. It is parked.
+        reset_to: 0

@@ -1,0 +1,128 @@
+# THE LONG CON -- the interview.
+#
+# NOT A DAY. This story has no day-decks; it is a graph, and the player walks
+# it. This deck exists to be DEALT, once, when `the_frame` fills --
+# data/rules/clocks.yaml names it in `forces_scene`.
+#
+# That pairing is what makes this story a hybrid: roads with hours on them and
+# an authored set-piece in the middle of them. A clock whose forced scene does
+# not exist is a promise with nothing behind it, so the deck id here and the
+# `forces_scene:` value there are one coupling.
+#
+# The scene: Ruse finally stops being your old partner about it.
+#
+# Version: v0.1.0
+
+id: the_interview
+draw: 1
+
+cards:
+
+  # Always dealt. The confrontation IS the scene, so it does not compete on
+  # weight with anything.
+  - id: TI_01_the_small_room
+    required: true
+    tags: [sequence, gm]
+    title: "The Small Room"
+    text: >-
+      INTENT: Ruse stops being your old partner and starts being a lieutenant.
+      SEQUENCE -- both beats resolve, in order.
+    beats:
+      - id: TI_01_the_folder
+        text: >-
+          He puts a folder on the table and does not open it. It is not thick.
+          The thin ones are worse, because a thin folder means somebody has
+          already decided which pages matter.
+        gate:
+          # A real threshold: a man the city still vouches for gets asked
+          # questions. A man it does not gets told things.
+          when: { value: { name: standing, min: 35 } }
+          check:
+            stream: beat
+            chance: 0.55
+          on_pass:
+            text: >-
+              "Help me out," he says, which is a sentence with a door in it.
+              He is still, technically, asking.
+            effects:
+              - { type: value, name: standing, delta: 4, why: "he asked, in front of a witness" }
+          on_fail:
+            text: >-
+              He tells you where you were on the fourth. He is not wrong, and
+              he did not get it from you.
+            effects:
+              - { type: value, name: heat, delta: 12 }
+              - { type: value, name: standing, delta: -6 }
+      - id: TI_01_your_brother
+        text: >-
+          The third drawer of his desk has your brother's file in it and has
+          had for six years. Whether he mentions it is not up to you. Judged,
+          not rolled.
+        band:
+          value: standing
+          min: 1
+          max: 5
+          text: "How much of the old partnership is left in the room."
+
+  # The player's move.
+  - id: TI_02_what_you_give_him
+    tags: [menu]
+    title: "What You Give Him"
+    weight: 2.0
+    text: >-
+      INTENT: the choice the case has been walking toward. MENU -- resolve
+      exactly the beat the player chose.
+    beats:
+      - id: TI_02_the_photograph
+        text: >-
+          You put the photograph on the table, face up, and let him read the
+          pencil on the back himself.
+        gate:
+          check:
+            stream: beat
+            chance: 0.5
+          on_pass:
+            text: >-
+              He looks at the date for a long moment and says nothing at all,
+              which from Ruse is a confession about somebody.
+            effects:
+              - { type: value, name: heat, delta: -8, why: "you gave him something first" }
+              - { type: flag, flag: nf_showed_ruse_the_photograph }
+          on_fail:
+            text: >-
+              He turns it over, reads the pencil, and puts it in the folder.
+              You do not get it back.
+            effects:
+              - { type: value, name: standing, delta: -5 }
+              - { type: flag, flag: nf_showed_ruse_the_photograph }
+      - id: TI_02_her_name
+        text: >-
+          You say the hyphen out loud. Ruse-Bellamy. You watch his face do the
+          arithmetic he has been avoiding.
+        gate:
+          when: { value: { name: heat, max: 60 } }
+          on_pass:
+            text: >-
+              "That is my sister," he says, in the flat voice of a man who has
+              been waiting eleven days for somebody to make him say it.
+            effects:
+              - { type: value, name: standing, delta: 6 }
+              - { type: flag, flag: nf_named_the_sister }
+          on_fail:
+            text: >-
+              He is already too far gone to hear it as anything but a threat,
+              and a threat in this room is a charge in the morning.
+            effects:
+              - { type: value, name: heat, delta: 15 }
+      - id: TI_02_nothing
+        text: >-
+          You give him the eleven years and nothing else. You wait him out.
+        gate:
+          on_pass:
+            text: >-
+              The radiator knocks. He lets it. Somewhere past the frosted glass
+              a typewriter starts and stops, and neither of you says a word
+              worth writing down.
+            effects:
+              - { type: value, name: heat, delta: 6, why: "silence reads as something to hide" }
+              - { type: value, name: standing, delta: 2, why: "and as not being a rat" }

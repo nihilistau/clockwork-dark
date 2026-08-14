@@ -1,0 +1,47 @@
+/* ============================================================
+   THE LONG CON — the skin.
+
+   Small on purpose. Core lays out a complete client; this changes the palette
+   and adds the two things that make the screen feel like a wet night: rain on
+   the scene, and a masthead rule like a hat brim.
+   ============================================================ */
+
+@import "./tokens.css";
+
+/* Rain. One repeating gradient at a shallow angle, very low contrast, on the
+   play screen's root rather than on body so the start screen stays a clean
+   dark field. Off under prefers-reduced-motion at the bottom. */
+body[data-story-skin="longcon"] .scene::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: repeating-linear-gradient(
+    100deg,
+    transparent 0 6px,
+    var(--text-narration) 6px 7px
+  );
+  animation: longcon-rain 900ms linear infinite;
+}
+
+@keyframes longcon-rain {
+  from { background-position: 0 0; }
+  to { background-position: -12px 40px; }
+}
+
+body[data-story-skin="longcon"] .chrome--top {
+  border-bottom: 2px solid var(--line-iron);
+}
+
+/* The choice chips sit squarer here. A detective story is a series of
+   decisions on a form, and rounded corners argue with that. */
+body[data-story-skin="longcon"] .chip {
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-story-skin="longcon"] .scene::before {
+    animation: none;
+  }
+}

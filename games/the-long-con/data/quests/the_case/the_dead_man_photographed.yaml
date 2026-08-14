@@ -1,0 +1,82 @@
+# THE LONG CON -- the case.
+#
+# EVERY `complete_when` IS ENGINE-EVALUABLE TO THE LETTER: a place stood in, a
+# thing held, a flag the narrator was explicitly permitted to raise. A stage
+# the model can argue its way through is not a stage.
+#
+# `narrative_flags` is how a stage hands the narrator the ONE flag it may set
+# while that stage is open. `QuestEngine.allowed_narrative_flags` builds the
+# model's entire permitted vocabulary from these lists, so a flag missing here
+# can never be raised by the only thing that raises flags -- the stage would
+# wait forever, and nothing would say so.
+#
+# Version: v0.1.0
+
+id: the_dead_man_photographed
+arc: the_case
+name: "The Dead Man, Photographed"
+
+summary: >-
+  Delphine Ruse-Bellamy says the man in the photograph is her husband. The
+  papers say he went into the harbour on the fourth. The pencil on the back of
+  the photograph says the thirteenth, and one of those three things is a lie
+  that somebody has taken trouble over.
+
+start_text: >-
+  She leaves the photograph and does not leave a number. The laundry below
+  starts its afternoon, and the whole building begins to smell of steam.
+
+stages:
+
+  - id: check_the_morgue
+    objective: "Take the photograph to The Ledger and find out what they printed."
+    narrative_flags:
+      - nf_read_the_obituary
+    complete_when:
+      all:
+        - at_location: the_ledger_offices
+        - flag: nf_read_the_obituary
+    complete_text: >-
+      Four column inches, no photograph, and a name for the man who identified
+      the body: A. Ruse, Lieutenant, Ninth Precinct. Bette Farrow reads it over
+      your shoulder and says nothing, which from her is a headline.
+
+  - id: ask_the_bar
+    objective: "Ask Sonia at the Cadenza who dresses a man like that."
+    narrative_flags:
+      - nf_sonia_named_the_tailor
+    complete_when:
+      all:
+        - at_location: cadenza_bar
+        - flag: nf_sonia_named_the_tailor
+    complete_text: >-
+      "That's not a suit a man buys," Sonia says, polishing a glass that is
+      already dry. "That's a suit a man is given." She does not say by whom
+      until you stop asking, which is the only way anyone learns anything in
+      this city.
+
+  - id: the_harbour
+    objective: "Find out what comes off the boats that does not reach the weighbridge."
+    narrative_flags:
+      - nf_saw_the_manifest
+    complete_when:
+      all:
+        - at_location: harbour_road
+        - flag: nf_saw_the_manifest
+    complete_text: >-
+      A manifest corrected in pencil, in a hand you have seen on the back of a
+      photograph. The correction is nine days after the drowning and it is
+      signed for by a man the city buried.
+
+  - id: the_cold_room
+    objective: "Go down to the drying room, and take a light."
+    narrative_flags:
+      - nf_opened_the_cold_room
+    complete_when:
+      all:
+        - at_location: the_drying_room
+        - flag: nf_opened_the_cold_room
+    complete_text: >-
+      Swept very recently, and swept by somebody who knew what they were
+      sweeping up. The hook nearest the door has a coat on it, and the coat is
+      dry, and nothing in this city has been dry since the fourth.

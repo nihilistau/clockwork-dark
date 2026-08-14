@@ -1,0 +1,147 @@
+# THE LONG CON -- the manifest.
+#
+# Scaffolded from the `graph` template: flagship-shaped. A travel graph with
+# hours on the edges, quests in arcs, encounters on the roads, and a
+# livelihood economy -- vendors, paid work, forage tables, boons on a natural
+# twenty. This is The Clockwork Dark's skeleton with Edgewood removed; each
+# stub is one working instance of its system, meant to be multiplied.
+#
+# THE ONE RULE THAT SHAPES THIS FILE: an UNDECLARED `paths.*` key resolves to
+# NOTHING. Declare what you ship; omit what you do not. The full worked
+# example of every subsystem is games/dev-story/.
+#
+# Version: v0.1.0
+
+id: the-long-con
+title: "THE LONG CON"
+version: "0.1.0"
+engine_requires: ">=0.2.0"
+
+blurb: >-
+  Your brother's name is still on the glass. A woman with a good coat and a
+  bad story wants you to find a man who is already dead, the bulls want you
+  to stop looking, and the city keeps books on everybody.
+
+# This story borrows an existing skin rather than shipping its own UI
+# directory; every ui/src/stories/<slug>/ becomes its own chunk in the
+# COMMITTED dist/ tree. The flagship's skin fits graph-shaped stories.
+ui:
+  plugin: the-long-con
+
+# The engine default scene, DECLARED rather than inherited, so game.yaml
+# answers the question. `name` keys the `scene.clockwork.*` config block.
+scene:
+  name: clockwork
+  module: engine.scenes.default_scene
+  blueprint: "engine.scenes.default_api:story_blueprint"
+
+# Only keys on SETTING_ALLOWLIST (engine/games/manifest.py) are honoured;
+# anything else is a hard validation error.
+settings:
+  world:
+    # A graph story is the shape the engine's clock was tuned FOR, so this
+    # template leaves the tick running at a gentle rate rather than zeroing
+    # it: travel costs hours, work costs hours, and the world moves while you
+    # decide. Tune with scripts/simulate.py before you trust a number.
+    tick_hours: 1.0
+    tick_max_hours: 4.0
+    # No background doom until you decide the story has one. If yours does,
+    # this rate and the per-location `evil_multiplier` dials in
+    # locations.yaml are the two halves of it.
+    evil_base_rate_per_day: 0.0
+
+  # The story-neutral pair. The engine's fuller default chain narrates a doom
+  # ledger; add interceptors back deliberately when your story keeps one.
+  governance:
+    directives:
+      - SafetyDirective
+      - StorytellerMind
+
+# Every declared path must EXIST at validation. Deliberately absent here:
+# decks/clocks/threads/endings/epilogues (the deck template's half), recipes
+# (nothing crafted yet), npc_schedules/factions/world_rumors (add these when
+# somebody lives here -- a vendor with a faction needs the faction declared),
+# art paths (the procedural silhouette carries a new story fine).
+paths:
+  locations: "games/the-long-con/data/world/locations.yaml"
+  prompts: "games/the-long-con/prompts"
+  # skills.yaml, archetypes.yaml and spoilers.yaml are found INSIDE this
+  # directory by fixed filename.
+  rules: "games/the-long-con/data/rules"
+  items: "games/the-long-con/data/items"
+  # The offer board: arcs.yaml plus one directory per arc.
+  quests: "games/the-long-con/data/quests"
+  # Road danger. Every *.yaml in the directory merges into one table.
+  encounters: "games/the-long-con/data/encounters"
+  # Vendor stock overrides -- what a named vendor actually keeps on the shelf.
+  # Base prices derive from each item's `value`; this file is the exceptions.
+  economy: "games/the-long-con/data/economy.yaml"
+  # Who is where, hour by hour. Declared BECAUSE economy is: every vendor id
+  # in economy.yaml must be an npc scheduled here, or the shop has no keeper
+  # and the validator says so.
+  npc_schedules: "games/the-long-con/data/world/npc_schedules.yaml"
+  # The livelihood tables: forage, labour, trade spreads, boons and
+  # complications on natural 20s and 1s.
+  tables: "games/the-long-con/data/tables"
+  # THE HYBRID. A graph story that also declares decks and a clock -- the
+  # first shipped story to do both. `the_frame` fills and forces
+  # data/scenes/the_interview.yaml mid-run, so the roads have an authored
+  # set-piece in the middle of them rather than only encounters.
+  decks: "games/the-long-con/data/scenes"
+  clocks: "games/the-long-con/data/rules/clocks.yaml"
+  saves: "data/saves"
+
+entry:
+  # Must exist in data/world/locations.yaml.
+  location_id: the_office
+
+  # Two, so character creation is a real choice. Ids must exist in
+  # data/rules/archetypes.yaml; the key must be PRESENT even if `[]`.
+  archetypes: [gumshoe, fixer]
+
+  fallback_narration: >-
+    Rain on the window, the radiator knocking, and the particular quiet of a
+    city deciding whether to bother with you today.
+
+  opening:
+    narration: >-
+      She has been in the client chair eleven minutes and has not taken off
+      her gloves. The photograph she slid across is of a man in a good suit
+      outside a place she says she has never been, and the date pencilled on
+      the back is nine days after the papers put him in the harbour. "I am
+      not asking you to believe me," she says, which is what people say when
+      they are about to be believed. Rain finds the gap in the window frame.
+      Somewhere below, the laundry starts its afternoon and the whole
+      building begins to smell of steam and bleach.
+    # ALL THREE MOVE, SO ALL THREE DECLARE IT. An opening choice that MOVES,
+    # SPENDS or RISKS anything carries a structured `intent`, and the ENGINE
+    # resolves it -- spending the hours, the stamina and the awareness the edge
+    # declares -- before the narrator writes a word of the next beat
+    # (engine/game/intents.py).
+    #
+    # WITHOUT ONE A CHOICE IS ONLY A SENTENCE. That is not a style note, it is
+    # the largest defect this project has had: a player picked the road, the
+    # model narrated the walk, and the save still read the location they
+    # started in. The only channel that could have moved them is a `tool_calls`
+    # array the turn grammar forbids. This opening declared nothing until the
+    # mechanism was proven across all four shipped stories, so the template
+    # taught the bug.
+    #
+    # `target` must be a place `crossroads` actually connects to in
+    # data/world/locations.yaml. Legality is re-checked against the live graph
+    # at execution, so a mistyped destination is a refusal in the log rather
+    # than a phantom walk -- but it is a refusal nobody reads during a
+    # playtest, so check the spelling.
+    #
+    # Note (c) costs double and carries `danger_dc: 8`: the wood is two hours
+    # and the only edge here that can turn up an encounter. A choice is allowed
+    # to be the expensive one. It is not allowed to be free by accident.
+    choices:
+      - id: a
+        text: "Take the photograph to The Ledger's morgue"
+        intent: { action: travel, target: the_ledger_offices }
+      - id: b
+        text: "Ask Sonia at the Cadenza who wears a suit like that"
+        intent: { action: travel, target: cadenza_bar }
+      - id: c
+        text: "Let her keep talking, and watch the gloves"

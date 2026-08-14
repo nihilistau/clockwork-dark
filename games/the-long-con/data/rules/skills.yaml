@@ -1,0 +1,82 @@
+# THE LONG CON -- skill taxonomy and check rules.
+#
+# Found by fixed filename inside `paths.rules`; consumed by
+# engine/game/checks.py. Every number a check resolves with lives HERE, not
+# in Python: the model only ever names a difficulty BAND, and the engine
+# derives the DC and every modifier -- an LLM that could pick raw numbers
+# would pick flattering ones.
+#
+# THE SEVEN SKILL IDS ARE ENGINE CANON (CLAUDE.md): persuasion, stealth,
+# sympathy, lore, craft, survival, nerve. Keep the ids; rewrite every
+# description to mean something in YOUR world -- the descriptions are what
+# the model reads when choosing which skill a moment calls for.
+#
+# Version: v0.1.0
+
+version: 1
+
+# stat_mod(v) = (v - base) // divisor
+stat_mod:
+  base: 10
+  divisor: 2
+
+# skill -> backing stat on GameState.stats.
+skills:
+  persuasion:
+    stat: presence
+    description: "Talking, haggling, reading a room, holding a lie together."
+  stealth:
+    stat: agility
+    description: "Moving unseen, light hands, staying off a road."
+  sympathy:
+    stat: focus
+    description: "Feeling what a place or a person is holding back."
+  lore:
+    stat: wits
+    description: "Books, old marks, knowing what a thing means before touching it."
+  craft:
+    stat: craft
+    description: "Honest work done well, from bread to mended wheels."
+  survival:
+    stat: wits
+    description: "Forage, weather, tracks, sleeping rough and waking up."
+  nerve:
+    stat: grit
+    description: "Standing still when standing still is the hard part."
+
+# A skill the model names that is not in the taxonomy resolves against this
+# stat rather than being refused -- a refused check leaves the narrator free
+# to invent an unrolled outcome, the exact failure the engine exists to stop.
+unknown_skill_stat: wits
+
+# Difficulty BANDS (canon ids). The model never sees a raw DC.
+difficulty:
+  trivial: 8
+  easy: 10
+  standard: 13
+  hard: 16
+  severe: 19
+  legendary: 22
+default_difficulty: standard
+
+# Degrees of success by margin (total - dc), evaluated top down.
+degrees:
+  - id: crit_success
+    min_margin: 10
+  - id: success
+    min_margin: 0
+  - id: partial
+    min_margin: -4
+  - id: failure
+    min_margin: -999
+
+# Situational modifiers: (label, delta, optional skill filter, condition).
+# One shipped, as the worked example -- the grammar checks.py understands is
+# documented on the flagship's copy of this file.
+situational:
+  - id: exhausted
+    label: exhausted
+    delta: -3
+    when:
+      stat: stamina
+      lte: 20

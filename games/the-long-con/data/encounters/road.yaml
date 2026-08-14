@@ -1,0 +1,69 @@
+# THE LONG CON -- road encounters. One, as the worked example.
+#
+# Read by engine/game/encounter.py: every *.yaml under `paths.encounters`
+# merges into one table, and `band:` (default: the filename) labels where
+# these belong. An encounter can fire only where an edge carries a nonzero
+# `danger_dc` -- in this template that is the wood road alone, so this file
+# and locations.yaml agree about where danger lives. Add danger to an edge
+# without adding encounters for it and you get rolls that can never pay off.
+#
+# Row shape (the flagship's encounter files are the full reference):
+#   tier       severity class
+#   weight     draw weight among eligible rows
+#   triggers   `edges:` ("from>to") and/or `phases:` filters
+#   threat     what the player faces; `resolve` is its staying power
+#   approaches skill-shaped ways in -- each names a skill and a BAND, never
+#              a raw DC (see data/rules/skills.yaml)
+#   outcomes   per degree: text plus structured effects. The engine applies
+#              the effects; the model only narrates them.
+#
+# Version: v0.1.0
+
+band: road
+
+encounters:
+  - id: a_car_that_keeps_pace
+    tier: 1
+    weight: 30
+    triggers:
+      edges: ["cadenza_bar>harbour_road", "harbour_road>cadenza_bar"]
+    intro: >-
+      A dark saloon comes up the wet road behind you at exactly your walking
+      pace, and keeps it. Not slowing to look. Not passing. Two men in the
+      front and the near-side window already down two inches.
+    threat: { name: "A car with nowhere to be", resolve: 2 }
+    approaches:
+      face_them:
+        skill: nerve
+        difficulty: standard
+        text: "Stop walking. Turn around. Let them decide what this is."
+      talk_to_them:
+        skill: persuasion
+        difficulty: easy
+        text: "Walk to the window like a man expecting a lift"
+      lose_them:
+        skill: stealth
+        difficulty: easy
+        text: "Three lefts and a service door. You know this road."
+    outcomes:
+      crit_success:
+        text: >-
+          It goes better than it had any right to. The car turns off at the
+          weighbridge and you have the number, and the number is a start.
+        effects:
+          - { type: item, item_id: hedge_berries, name: "Hedge Berries", qty: 2 }
+      success:
+        text: "It resolves the way you meant it to, and the path is a path again."
+        effects: []
+      partial:
+        text: >-
+          Managed, at a cost -- a scratch, a scare, the better part of an
+          hour on your hands and knees in wet bracken.
+        effects:
+          - { type: stamina, delta: -5 }
+      failure:
+        text: >-
+          The wood declines to cooperate and you leave with less than you
+          brought, dignity included.
+        effects:
+          - { type: stamina, delta: -10 }

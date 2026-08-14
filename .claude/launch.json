@@ -44,6 +44,12 @@
       "port": 5603
     },
     {
+      "name": "the-long-con",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": ["launcher.py", "--game", "the-long-con", "--port", "5605"],
+      "port": 5605
+    },
+    {
       "name": "studio",
       "runtimeExecutable": ".venv\\Scripts\\python.exe",
       "runtimeArgs": ["launcher.py", "--game", "dev-story", "--studio", "--port", "5610"],

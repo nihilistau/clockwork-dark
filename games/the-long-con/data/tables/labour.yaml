@@ -1,0 +1,49 @@
+# THE LONG CON -- work and wages.
+#
+# Read by engine/game/economy.py through `paths.tables`. A job is hours for
+# money, gated on a skill, capped per day -- the cap is what stops "work"
+# becoming an infinite gold button.
+#
+# Job shape (the flagship's copy of this file documents every key):
+#   id / name / location_id     where and what; receipts cite the id
+#   skill / difficulty          band from data/rules/skills.yaml, never a DC
+#   hours / stamina_cost        spent pass OR fail
+#   base_wage                   copper at a clean success
+#   pay                         multiplier per degree of success
+#   in_kind                     items handed over on listed degrees -- often
+#                               the real pay; the mill feeds its help
+#   demand                      wage multiplier per evil phase; 0.0 means
+#                               NOT HIRING, the job leaves the board
+#
+# `faction:` and `reputation:` are omitted ON PURPOSE -- this template
+# declares no `paths.factions`. Add the faction file first, then the keys.
+#
+# Version: v0.1.0
+
+version: 1
+
+labour:
+  # Jobs per calendar day, across all employers.
+  shifts_per_day: 2
+  # A single job id may be worked this many times per day.
+  repeats_per_day: 1
+
+jobs:
+
+  - id: mill_sacks
+    name: "Haul sacks at the mill"
+    blurb: >-
+      Grain in, flour out, stairs both ways. The miller pays by the shift
+      and watches the scale, not you.
+    location_id: harbour_road
+    skill: craft
+    difficulty: easy
+    hours: 4
+    stamina_cost: 15
+    base_wage: 4
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    in_kind:
+      - { item_id: bread_roll, qty: 1, degrees: [crit_success, success] }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 0.8, consuming: 0.0 }
+    success_text: "The stack is square by mid-afternoon and the coins are real."
+    failure_text: "A sack goes over on the stairs and the afternoon goes with it."

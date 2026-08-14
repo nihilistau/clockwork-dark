@@ -1,0 +1,144 @@
+# THE LONG CON -- the city, and what it costs to cross it.
+#
+# A graph story: edges price hours, carry danger, and a few of them are the
+# only way to somewhere. Rings are how far from the office you are, which in
+# this city is also how far from anyone who will vouch for you.
+#
+#   ring 0  the office              where you start and where the client sits
+#   ring 1  the streets you work    the bar, the paper, the precinct steps
+#   ring 2  the money               the club, the hill, the harbour
+#   ring 3  what the money buys     and one place that is not on any map
+#
+# `danger_dc` is the bulls, not muggers. A high number is a street where being
+# seen is the problem.
+#
+# Version: v0.1.0
+
+version: 1
+
+rings:
+  0: "The Office"
+  1: "The Beat"
+  2: "The Money"
+  3: "The Bottom"
+
+locations:
+
+  the_office:
+    name: "Vance & Vance, Investigations"
+    ring: 0
+    evil_multiplier: 0.1
+    # ID PINNED: game.yaml's `entry.location_id`. The `& Vance` is your
+    # brother, six years dead, and the sign has never been repainted.
+    summary: >-
+      Two rooms over a laundry, a name on the glass with one too many Vances
+      in it, and a radiator that knocks like somebody wanting in. The rent is
+      paid to the end of the month, which is a way of saying it is the
+      eleventh.
+    tags: [interior, home, quiet]
+    connections:
+      cadenza_bar: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      the_ledger_offices: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      precinct_steps: { hours: 1, danger_dc: 4, awareness_delta: 1 }
+
+  cadenza_bar:
+    name: "The Cadenza"
+    ring: 1
+    evil_multiplier: 0.2
+    summary: >-
+      Low ceiling, high prices, and a piano nobody has tuned since the
+      armistice. Sonia works the bar and remembers what everybody drinks,
+      which in her case is a filing system.
+    tags: [interior, social, night]
+    connections:
+      the_office: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      harbour_road: { hours: 2, danger_dc: 6, awareness_delta: 1 }
+      club_mirado: { hours: 1, danger_dc: 3, awareness_delta: 1 }
+
+  the_ledger_offices:
+    name: "The Ledger"
+    ring: 1
+    evil_multiplier: 0.2
+    summary: >-
+      The city paper, four floors of typewriters and one working lift. They
+      keep a morgue in the basement, which is what a newspaper calls the room
+      where the dead are filed by name.
+    tags: [interior, records, day]
+    connections:
+      the_office: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      precinct_steps: { hours: 1, danger_dc: 2, awareness_delta: 0 }
+
+  precinct_steps:
+    name: "The Ninth Precinct"
+    ring: 1
+    evil_multiplier: 0.4
+    # The bulls. Walking in is a choice with a price, which is why the edge
+    # from the office is the most expensive in ring 1.
+    summary: >-
+      Granite steps worn into shallow bowls, a desk sergeant who has seen you
+      before, and somewhere above him Lieutenant Ruse, who was your partner
+      once and has not forgiven you for stopping.
+    tags: [interior, law, dangerous]
+    connections:
+      the_office: { hours: 1, danger_dc: 4, awareness_delta: 1 }
+      the_ledger_offices: { hours: 1, danger_dc: 2, awareness_delta: 0 }
+      harbour_road: { hours: 2, danger_dc: 5, awareness_delta: 1 }
+
+  club_mirado:
+    name: "Club Mirado"
+    ring: 2
+    evil_multiplier: 0.6
+    summary: >-
+      Gold leaf, a doorman with a memory, and a room upstairs the doorman has
+      never heard of. Vittorio Sarn owns it the way weather owns a season.
+    tags: [interior, money, night, dangerous]
+    connections:
+      cadenza_bar: { hours: 1, danger_dc: 3, awareness_delta: 1 }
+      hillcrest: { hours: 2, danger_dc: 4, awareness_delta: 1 }
+      harbour_road: { hours: 2, danger_dc: 6, awareness_delta: 2 }
+
+  hillcrest:
+    name: "Hillcrest"
+    ring: 2
+    evil_multiplier: 0.5
+    summary: >-
+      Where the money sleeps. Lawns like pressed felt, gates that open for
+      cars and not for men on foot, and the Bellamy house at the top of it
+      with one window lit at all the wrong hours.
+    tags: [exterior, money, quiet]
+    connections:
+      club_mirado: { hours: 2, danger_dc: 4, awareness_delta: 1 }
+      harbour_road: { hours: 3, danger_dc: 5, awareness_delta: 1 }
+
+  harbour_road:
+    name: "The Harbour Road"
+    ring: 2
+    evil_multiplier: 0.8
+    summary: >-
+      Wet all year, lit every third lamp, and busy in a way that has nothing
+      to do with shipping. What comes off the boats here goes onto trucks
+      that do not stop at the weighbridge.
+    tags: [exterior, wet, dangerous, night]
+    connections:
+      cadenza_bar: { hours: 2, danger_dc: 6, awareness_delta: 1 }
+      precinct_steps: { hours: 2, danger_dc: 5, awareness_delta: 1 }
+      club_mirado: { hours: 2, danger_dc: 6, awareness_delta: 2 }
+      hillcrest: { hours: 3, danger_dc: 5, awareness_delta: 1 }
+      the_drying_room: { hours: 1, danger_dc: 9, awareness_delta: 3 }
+
+  the_drying_room:
+    name: "The Drying Room"
+    ring: 3
+    evil_multiplier: 1.4
+    # SECRET. Not "you have not been there" -- the player must not know it
+    # EXISTS until the case puts them at its door. `codex_places` withholds a
+    # secret place from the payload entirely, and withholds the road to it
+    # too, because an edge to nowhere is the loudest possible hint.
+    secret: true
+    summary: >-
+      A cold room under a bonded warehouse where things are hung up to stop
+      being wet. It was built for fish. It has not been used for fish in some
+      time, and somebody has swept it very recently.
+    tags: [interior, cold, dangerous, secret]
+    connections:
+      harbour_road: { hours: 1, danger_dc: 9, awareness_delta: 3 }

@@ -36,8 +36,8 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
-**1904 passing, 18 skipped in 3m18s**, no expected failures (measured
-2026-08-15), plus **105 client tests** under `ui/tests/` (`npm test --prefix ui`,
+**1932 passing, 19 skipped in 3m24s**, no expected failures (measured
+2026-08-15), plus **115 client tests** under `ui/tests/` (`npm test --prefix ui`,
 which needs `npm install --prefix ui` once — `vitest` is a devDependency). Run
 both for the real numbers rather than trusting this line; it has been stale
 before.
@@ -146,12 +146,14 @@ end-to-end — input review, a pre-commit `SafetyCeiling`, and narration review
 with fade cards. The card now RENDERS (`ui/src/core/parts/FadeCard.jsx`, drawn
 by `Play.jsx` under the log), which was the open half. See docs/SAFETY.md.
 
-Four games ship: `clockwork-dark` (flagship), `wicked-garden` (the deck
+Five games ship: `clockwork-dark` (flagship), `wicked-garden` (the deck
 exemplar), `neon-city` (NEON CITY: THE CROSSING — survival/expedition in the
 NeonCity canon, graph-shaped with the timestamp/debt clocks and threads wired
 in, and its own bespoke UI plugin: black canvas, cyan accent, gold mono ₵, the
-heat ladder as chrome) and `dev-story` (the annotated bench). Pick one with
-`launcher.py --game <slug>`.
+heat ladder as chrome), `the-long-con` (THE LONG CON — noir, and the first
+HYBRID: a full graph city that also declares decks and a clock, so `the_frame`
+filling deals an authored interrogation mid-run through `forces_scene`) and
+`dev-story` (the annotated bench). Pick one with `launcher.py --game <slug>`.
 
 `slow-water` was **deleted** after doing its job. It was a proving run for the
 story-creation suite, not a story anyone should maintain: scaffolded, drafted

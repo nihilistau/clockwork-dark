@@ -103,7 +103,7 @@ const NAMES = Object.keys(PLUGINS)
 const isComponent = (value) => typeof value === "function";
 
 describe("the plugin directory", () => {
-  it("ships the three story plugins plus the engine's own", () => {
+  it("ships the four story plugins plus the engine's own", () => {
     // Not a count: the names. A plugin appearing with no story pointing at it
     // is a chunk in the committed dist/ that nothing can ever load, and one
     // disappearing is a story that silently falls back to something else.
@@ -116,6 +116,7 @@ describe("the plugin directory", () => {
       "_engine",
       "clockwork-dark",
       "neon-city",
+      "the-long-con",
       "wicked-garden",
     ]);
   });

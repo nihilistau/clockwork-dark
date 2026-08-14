@@ -1,0 +1,57 @@
+# THE LONG CON -- state declaration.
+#
+# THE HALF-AND-HALF RULE: this file says what a value IS -- bounds, default,
+# visibility, backing. data/rules/clocks.yaml says what the clock DOES. Delete
+# either half and the clock stops working; delete THIS half and it stops
+# SILENTLY, because value_of reads 0.0 and `at: max` never resolves.
+#
+# Version: v0.1.0
+
+version: 1
+slug: the-long-con
+
+meters:
+
+  # Who will still take your call. Noir's real currency: you cannot buy
+  # anything in this city that somebody does not first have to be willing to
+  # sell you.
+  standing:
+    backing: bag
+    min: 0
+    max: 100
+    default: 45
+    visibility: veiled
+    label: Standing
+
+  # How much of the city's attention you are carrying. Not guilt -- attention.
+  # A man nobody is looking at can do almost anything.
+  heat:
+    backing: bag
+    min: 0
+    max: 100
+    default: 10
+    visibility: veiled
+    label: Heat
+
+clocks:
+
+  # Four segments: how close somebody is to hanging this on you rather than on
+  # whoever did it. The full clock FORCES a scene -- see clocks.yaml -- which
+  # is what makes this a graph story with a deck in it.
+  the_frame:
+    backing: bag
+    min: 0
+    max: 4
+    default: 0
+    visibility: veiled
+    label: "The frame"
+
+# Subjects the narrator must not lose track of, beyond the people and places
+# it already recalls by id. The case itself is a thing with no face and no
+# address, and it is the one thread every scene is secretly about.
+memory:
+  topics: [the_photograph, the_drowning]
+
+summary:
+  - standing
+  - heat

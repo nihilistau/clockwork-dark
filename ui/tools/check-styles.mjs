@@ -35,6 +35,7 @@ const PALETTES = new Set([
   // list for the same reason as the others -- a palette is the one place a
   // colour may be spelled.
   "stories/_engine/theme/tokens.css",
+  "stories/the-long-con/theme/tokens.css",
 ]);
 
 function walk(dir, out = []) {

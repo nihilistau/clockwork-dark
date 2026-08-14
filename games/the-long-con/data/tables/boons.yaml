@@ -1,0 +1,26 @@
+# THE LONG CON -- natural 20 boons (d20). The engine picks one; the LLM only
+# narrates it.
+#
+# Read by engine/game/checks.py through `paths.tables`. Structured effects,
+# never prose hints: every entry resolves through engine/game/effects.py, so
+# a boon can never become a stat change the model invented for itself.
+#
+# Schema:
+#   id          stable; receipts and saves cite it, never rename
+#   text        one line of consequence, past tense, no dice talk
+#   applies_to  optional skill filter; omit for any skill
+#   effects     effect dicts for engine/game/effects.py
+#
+# Version: v0.1.0
+
+boons:
+  - id: clean_success
+    text: "It goes exactly as you meant it to, and something is left over."
+    effects:
+      - { type: stamina, delta: 5 }
+
+  - id: forager_luck
+    applies_to: [survival]
+    text: "Your eye finds what everyone else walked past."
+    effects:
+      - { type: item, item_id: field_mushroom, name: "Field Mushroom", qty: 2, tags: [food, forage] }
