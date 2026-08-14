@@ -48,6 +48,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
 from engine.agents.cast import absent_cast
+from engine.agents.continuity import known_cast
 from engine.agents.evaluator import EvaluationResult, StorytellerEvaluator
 from engine.agents.json_stream import NarrationStreamer, extract_json
 from engine.agents.prompts import evaluator_retry_prompt, storyteller_system_prompt
@@ -955,6 +956,11 @@ class StorytellerAgent:
                 # different room, and the cast has to be the one the prose
                 # describes rather than the one it started in.
                 absent_cast=absent_cast(self.engine.state, self.ledger),
+                # Read from the SAME post-tool state, and for the same reason:
+                # who the player knows is a fact about where they are standing
+                # now. The dossier for each of these is already in the prompt,
+                # so this gate asks whether the prompt was believed.
+                known_cast=known_cast(self.engine.state, self.ledger),
                 player_action=player_action,
             )
 

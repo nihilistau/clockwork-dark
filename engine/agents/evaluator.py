@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional, Sequence
 
 from engine.agents.cast import cast_note, find_intrusion
+from engine.agents.continuity import continuity_note, find_reintroduction
 
 
 _MECHANICS_CLAIM = re.compile(
@@ -51,6 +52,11 @@ class EvaluationResult:
     #: 1.0 when the prose named nobody who is absent, 0.0 when it did. A story
     #: with no NPC roster always scores 1.0 -- there is nothing to intrude.
     cast: float = 1.0
+    #: 1.0 when the prose agreed with what the world remembers, 0.0 when it
+    #: introduced somebody the ledger says the player has already met. Inert
+    #: (1.0) on turn zero and for a story with no roster: no history is not a
+    #: contradiction.
+    continuity: float = 1.0
     notes: list[str] = field(default_factory=list)
     flag: bool = False
 
@@ -76,6 +82,10 @@ class StorytellerEvaluator:
     PASS_THRESHOLD = 0.6
     MECHANICS_FAIL_THRESHOLD = 0.5
     CAST_FAIL_THRESHOLD = 0.5
+    #: Same shape as the cast gate, and for the same reason: a narrator that
+    #: has forgotten who the player knows has written the wrong scene, not a
+    #: slightly worse one, so it is a hard fail rather than a weighted nudge.
+    CONTINUITY_FAIL_THRESHOLD = 0.5
 
     def evaluate(
         self,
@@ -85,6 +95,7 @@ class StorytellerEvaluator:
         tool_receipts: list[dict[str, Any]],
         lore_snippets: list[str] | None = None,
         absent_cast: Optional[Mapping[str, Sequence[str]]] = None,
+        known_cast: Optional[Mapping[str, Sequence[str]]] = None,
         player_action: str = "",
     ) -> EvaluationResult:
         """
@@ -117,6 +128,7 @@ class StorytellerEvaluator:
         valid_json = 1.0 if parsed.get("narration") else 0.0
         choices = self._score_choices(parsed.get("choices", []))
         cast = self._score_cast(narration, absent_cast, player_action, notes)
+        continuity = self._score_continuity(narration, known_cast, notes)
 
         if not parsed.get("narration"):
             notes.append("Missing narration in JSON epilogue.")
@@ -132,11 +144,16 @@ class StorytellerEvaluator:
             + choices * 0.1
             + cast * 0.1
         )
+        # Not in the weighted sum. Both cast and continuity are GATES: a scene
+        # with the wrong people in it, or one that forgets who the player
+        # knows, does not become acceptable by scoring well on tone. Adding
+        # them to the average would let exactly that happen.
 
         passed = (
             overall >= self.PASS_THRESHOLD
             and mechanics >= self.MECHANICS_FAIL_THRESHOLD
             and cast >= self.CAST_FAIL_THRESHOLD
+            and continuity >= self.CONTINUITY_FAIL_THRESHOLD
         )
 
         return EvaluationResult(
@@ -148,6 +165,7 @@ class StorytellerEvaluator:
             valid_json=round(valid_json, 3),
             choices=round(choices, 3),
             cast=round(cast, 3),
+            continuity=round(continuity, 3),
             passed=passed,
             notes=notes,
             flag=not passed,
@@ -177,6 +195,29 @@ class StorytellerEvaluator:
         if intruder is None:
             return 1.0
         notes.append(cast_note(intruder))
+        return 0.0
+
+    @staticmethod
+    def _score_continuity(
+        narration: str,
+        known_cast: Optional[Mapping[str, Sequence[str]]],
+        notes: list[str],
+    ) -> float:
+        """
+        Penalise a narration that meets somebody the player already knows.
+
+        Inert without a `known_cast`, which is the honest default: turn zero,
+        a story with no roster, and a caller with no ledger all have no history
+        to contradict, and failing them would be inventing a rule.
+        """
+        if not known_cast:
+            return 1.0
+        forgotten = find_reintroduction(
+            narration, {k: tuple(v) for k, v in known_cast.items()}
+        )
+        if forgotten is None:
+            return 1.0
+        notes.append(continuity_note(forgotten))
         return 0.0
 
     @staticmethod
