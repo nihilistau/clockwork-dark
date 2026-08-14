@@ -299,6 +299,30 @@ class GameState:
 
         self.evil_phase = phase_from_progress(self.evil_progress)
 
+    # -- derived place ---------------------------------------------------
+
+    @property
+    def location_name(self) -> str:
+        """
+        What the ACTIVE STORY calls where the player is standing.
+
+        Resolved through the active story's graph, so it is whatever that
+        story's ``locations.yaml`` authored, and falls back to the id with its
+        underscores opened out -- which is exactly what the client used to do
+        for every story, having been given nothing else.
+
+        Never raises: a story with no graph, or an id the graph has lost, still
+        has to render a masthead.
+        """
+        fallback = str(self.location_id or "").replace("_", " ")
+        try:
+            from engine.game.locations import LOCATIONS
+
+            row = LOCATIONS.get(self.location_id) or {}
+            return str(row.get("name") or fallback)
+        except Exception:  # noqa: BLE001 -- a header must not be able to fail
+            return fallback
+
     # -- derived time ----------------------------------------------------
 
     @property
@@ -393,6 +417,16 @@ class GameState:
             "archetype": self.archetype,
             "stats": asdict(self.stats),
             "location_id": self.location_id,
+            # The AUTHORED name, so the masthead can stop inventing one.
+            #
+            # The client drew `prettyPlace(location_id)` -- the id with its
+            # underscores swapped for spaces -- because the payload carried
+            # nothing better. Every story writes `name:` for every location and
+            # no player has ever seen one: "edgewood square" instead of
+            # "Edgewood Square", "afterdeck" instead of "The Afterdeck". The
+            # ids happened to read acceptably in the shipped stories, which is
+            # why it went unnoticed rather than why it was fine.
+            "location_name": self.location_name,
             "evil_phase": self.evil_phase.value,
             "world_day": self.world_day,
             "world_hour": self.world_hour,

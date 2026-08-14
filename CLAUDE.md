@@ -36,11 +36,13 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
-**1850 passing, 18 skipped in 3m23s**, no expected failures (measured
+**1821 passing, 18 skipped in 3m15s**, no expected failures (measured
 2026-08-15), plus **95 client tests** under `ui/tests/` (`npm test --prefix ui`,
 which needs `npm install --prefix ui` once — `vitest` is a devDependency). Run
 both for the real numbers rather than trusting this line; it has been stale
-before.
+before. The drop from 1850 is exactly the 29 parametrised cases that retired
+with `slow-water`; every per-story test sweeps `registry.discover()`, so
+removing a story removes its rows and nothing else.
 
 **THE SUITE RUNS IN A THIRD OF THE TIME IT DID, AND NOTHING WAS DELETED TO DO
 IT.** It was 15m32s. 69% of that — 643.8s — was `test_turn_intent_per_game.py`
@@ -137,25 +139,23 @@ end-to-end — input review, a pre-commit `SafetyCeiling`, and narration review
 with fade cards. The card now RENDERS (`ui/src/core/parts/FadeCard.jsx`, drawn
 by `Play.jsx` under the log), which was the open half. See docs/SAFETY.md.
 
-Five games ship: `clockwork-dark` (flagship), `wicked-garden` (the deck
+Four games ship: `clockwork-dark` (flagship), `wicked-garden` (the deck
 exemplar), `neon-city` (NEON CITY: THE CROSSING — survival/expedition in the
 NeonCity canon, graph-shaped with the timestamp/debt clocks and threads wired
 in, and its own bespoke UI plugin: black canvas, cyan accent, gold mono ₵, the
-heat ladder as chrome), `dev-story` (the annotated bench, which borrows the
-Garden's skin and is the shipped proof the borrow path still works), and
-`slow-water` (THE SLOW WATER — nine days upriver on a funeral barge, deck-shaped,
-borrowing the Garden's skin). Pick one with `launcher.py --game <slug>`.
+heat ladder as chrome) and `dev-story` (the annotated bench). Pick one with
+`launcher.py --game <slug>`.
 
-**The Slow Water is the suite's proving run**, not a flagship: scaffolded with
-`scripts/new_story.py`, drafted from its own `BIBLE.md` by `scripts/author.py`,
-repaired, promoted, then hand-finished (locations, clock, endings, epilogues,
-forced scene). Drafting it found four shapes the model produces that **load,
-validate and play** while doing nothing or saying the quiet part out loud — an
-`on_fail` behind a gate that cannot fail, a `value` effect wearing an item
-row's fields, a beat that gates and bands, and `text: composure +1` in the
-slot the player reads. Three are now ungrammatical in the drafting schema;
-all four are caught by `engine/games/validation.py` for hand-written content.
-See [docs/AUTHORING.md](docs/AUTHORING.md) §4.1.
+`slow-water` was **deleted** after doing its job. It was a proving run for the
+story-creation suite, not a story anyone should maintain: scaffolded, drafted
+from a bible, repaired, promoted, hand-finished. Drafting it found four shapes
+the model produces that **load, validate and play** while doing nothing or
+saying the quiet part out loud — an `on_fail` behind a gate that cannot fail, a
+`value` effect wearing an item row's fields, a beat that gates and bands, and
+`text: composure +1` in the slot the player reads. Three are now ungrammatical
+in the drafting schema; all four are caught by `engine/games/validation.py` for
+hand-written content. The lessons outlived the story: see
+[docs/AUTHORING.md](docs/AUTHORING.md) §4.1.
 
 `drowned-carillon` was **deleted**. It was the flagship with different nouns,
 which made it a poor proof of the engine/story seam — it could not fail in any

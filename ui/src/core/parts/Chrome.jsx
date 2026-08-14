@@ -120,8 +120,16 @@ export function Header({ world, title, mark, badge }) {
     <header className="chrome chrome--top">
       <div className="chrome__left">
         {mark}
+        {/* The story's own name for the place, falling back to the opened-out
+            id. `location_name` is resolved server-side through the ACTIVE
+            story's graph, so the client never has to know what a location
+            table looks like -- and every story's authored `name:` finally
+            reaches the one screen that always shows a place. */}
         <h1 className="chrome__title">
-          {world?.location_id ? prettyPlace(world.location_id) : title || "A story"}
+          {world?.location_name
+            || (world?.location_id ? prettyPlace(world.location_id) : "")
+            || title
+            || "A story"}
         </h1>
       </div>
       <div className="chrome__right" aria-label="World clock">

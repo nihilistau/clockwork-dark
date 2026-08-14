@@ -318,9 +318,33 @@ def _label_intents(
         except Exception as exc:  # noqa: BLE001 -- a label must never lose a turn
             logger.debug("[default_state] Could not describe %r: %s", intent, exc)
             continue
+        label = _trim_echo(label, str(choice.get("text") or ""))
         if label:
             choice["intent_label"] = label
     return choices
+
+
+def _trim_echo(label: str, text: str) -> str:
+    """
+    Drop the half of a label the choice already said, keep the half it did not.
+
+    "Set out for The Saloon" with "The Saloon, 0h" beside it reads as a stutter,
+    and a chip that mostly repeats its own button teaches the player to stop
+    reading it -- which defeats the point, since the whole reason the label
+    exists is to be believed on the turn it says something surprising.
+
+    So the NAME is dropped when the text already carries it and the COST is
+    kept, because the cost is the part no choice text states. A label with no
+    cost half disappears entirely; a label whose name the text does not mention
+    survives whole.
+    """
+    label = label.strip()
+    if not label or not text:
+        return label
+    name, _, rest = label.partition(",")
+    if name.strip().casefold() not in text.casefold():
+        return label
+    return rest.strip()
 
 
 def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
@@ -860,7 +884,7 @@ def run_turn(
             # measured at 171s for NEON CITY (three agents), 90s for the Garden
             # and 82s for dev-story, against 8.4s for the flagship (fewer than
             # two PIPELINE participants, so the pipeline never ran) and 7.8s for
-            # The Slow Water (no roster at all). The shape of that spread is the
+            # a rosterless story. The shape of that spread is the
             # tell: it tracks roster size, not test difficulty.
             #
             # Production behaviour is unchanged. `StorytellerAgent.__init__`

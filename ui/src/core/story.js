@@ -196,7 +196,7 @@ export async function loadStory(plugin, slug = plugin, title = "") {
     //
     // `overlays` JOINED THIS LIST after being watched in a shipped game. They
     // look like visual slots and are not: an overlay is a whole screen written
-    // against one story's concepts, so The Slow Water -- a funeral barge
+    // against one story's concepts, so a funeral-barge test story
     // borrowing the Garden -- offered "The court" and "The mirror pool", and
     // the court drew Sophia and Mother Briar, who are not aboard and do not
     // exist. A screen that renders another story's cast is worse than no

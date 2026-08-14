@@ -237,7 +237,7 @@ something shipped.
 
 **Borrowing does not lend overlays, and that is deliberate.** An overlay looks
 like a visual slot and is not — it is a whole screen written against one
-story's concepts. The Slow Water, a funeral barge borrowing the Garden, was
+story's concepts. A funeral-barge test story borrowing the Garden was
 offering "The court" and "The mirror pool", and the court drew Sophia and
 Mother Briar, who are not aboard and do not exist in it. A screen rendering
 another story's cast is worse than no screen, so a borrower gets none. If your
@@ -549,7 +549,7 @@ Bureaucratic dread, played warm. Nothing explicit; the ceiling is suggestive.
 
 ### 4.1 The four mistakes the model made, and where they are caught now
 
-All four were found by drafting `games/slow-water/` from a bible and reading
+All four were found by drafting a test story from a bible and reading
 the result. All four produced content that **loaded, validated and played** —
 the reason to write them down is that none announced itself, and three of
 them had been possible in the schema since the tool was written.
@@ -611,7 +611,7 @@ tolerance for unknown rows is exactly what makes that invisible.
 
 ### 4.2 What no validator will catch: the model writes sequences, not choices
 
-Across the nine day-decks drafted for `slow-water`, **none** of the 23 cards
+Across the nine day-decks drafted for that story, **none** of the 23 cards
 came back tagged `menu` — the tag that makes the player pick which beat
 resolves. All 23 are `sequence` cards, which play automatically. The only
 menu card in that story is hand-authored.

@@ -356,7 +356,8 @@ def describe_intent(state: GameState, intent: Any) -> str:
     written, and the narrator decides which choices carry one. It is told not to
     put an intent on a choice that is only talk (``engine/agents/prompts.py``),
     but nothing can enforce that -- no schema can read a sentence and tell
-    movement from conversation. Measured once in The Slow Water: "Ask what is
+    movement from conversation. Measured once in a since-removed test story:
+    "Ask what is
     required of you today" carried ``travel -> afterdeck``, the narration
     described sitting still at the table, and the save moved the player.
 

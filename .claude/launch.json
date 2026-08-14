@@ -42,12 +42,6 @@
       "runtimeExecutable": ".venv\\Scripts\\python.exe",
       "runtimeArgs": ["launcher.py", "--game", "neon-city", "--port", "5603"],
       "port": 5603
-    },
-    {
-      "name": "slow-water",
-      "runtimeExecutable": ".venv\\Scripts\\python.exe",
-      "runtimeArgs": ["launcher.py", "--game", "slow-water", "--port", "5604"],
-      "port": 5604
     }
   ]
 }
