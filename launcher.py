@@ -58,7 +58,9 @@ def _report(statuses) -> bool:
     consequences = {
         "lmstudio": "no narration — the Storyteller falls back to a canned line",
         "voxtral_tts": "no spoken narration (off by default anyway)",
-        "voxtral_asr": "no push-to-talk",
+        # Only bites when stt.provider is voxtral_http. The default provider is
+        # faster-whisper, in this process, with no service to be down.
+        "voxtral_asr": "no push-to-talk on the voxtral_http provider",
         "comfyui": "no live image generation — the shipped art pack still works",
         "grok": "no live image generation — the shipped art pack still works",
     }

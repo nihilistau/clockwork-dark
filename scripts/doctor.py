@@ -18,9 +18,13 @@ so without this check the first sign of a typo in a story's meters is the game
 refusing to start with a traceback -- which is exactly the class of failure a
 doctor exists to find first.
 
+The LM Studio section asks TWO questions, because they have different answers:
+a liveness ping, and a real bounded completion. The ping used to be the whole
+check, and it passed on a server that refused every chat call.
+
 Exit code 0 if nothing is broken, 1 if something is.
 
-Version: v0.4.0 [2026-08-08]
+Version: v0.5.0 [2026-08-13]
 """
 
 from __future__ import annotations
@@ -73,6 +77,19 @@ def check_python(report: Report) -> None:
         except ImportError:
             report.add("Runtime", module, FAIL, "missing — run pip install -r requirements.txt")
 
+    # Optional. Absent is a reduced feature, not a broken checkout, so it is a
+    # WARN and it says what it costs. See the Voice section for whether the
+    # configured provider actually needs it.
+    optional = {
+        "faster_whisper": "push-to-talk transcription (stt.provider: faster_whisper)",
+    }
+    for module, feature in optional.items():
+        try:
+            __import__(module)
+            report.add("Runtime", module, OK, f"installed — {feature}")
+        except ImportError:
+            report.add("Runtime", module, WARN, f"not installed — no {feature}")
+
 
 def check_services(report: Report) -> None:
     from engine.stack import STATUS_DISABLED, STATUS_DOWN, STATUS_FAILED, StackManager
@@ -80,7 +97,10 @@ def check_services(report: Report) -> None:
     consequences = {
         "lmstudio": "no narration - the Storyteller falls back to a canned line",
         "voxtral_tts": "no spoken narration (off by default anyway)",
-        "voxtral_asr": "no push-to-talk",
+        "voxtral_asr": (
+            "no push-to-talk on the voxtral_http provider - switch "
+            "stt.provider to faster_whisper, which needs no server"
+        ),
         "comfyui": "no live image generation - the shipped art pack still works",
         "grok": "no live image generation - the shipped art pack still works",
     }
@@ -95,6 +115,128 @@ def check_services(report: Report) -> None:
                        f"{status.detail} -> {consequences.get(status.name, 'reduced features')}")
         else:
             report.add("Services", status.name, OK, status.detail)
+
+
+def check_llm(report: Report) -> None:
+    """
+    Two questions about LM Studio, asked separately because they have different
+    answers.
+
+    THE DEFECT THIS CLOSES. ``GET /v1/models`` was the whole health check, and
+    it answers "is a process listening" -- which was true on this machine while
+    every chat call was refused. The doctor said ``ok``, the planner's failures
+    were swallowed, the pipeline degraded to canned lines, and nothing in the
+    health report pointed anywhere near the model. A check that passes while the
+    thing it checks cannot do its job is worse than no check.
+
+    So: the liveness ping stays, cheap and clearly labelled as liveness, and a
+    bounded real completion sits under it reporting what actually came back --
+    including the model id the request named, which is where a failed discovery
+    shows up as the fictional placeholder it is.
+    """
+    import httpx
+
+    from engine.config import get_config
+
+    cfg = get_config()
+    base = str(cfg.get("lmstudio.base_url", "http://localhost:1234/v1")).rstrip("/")
+    key = str(cfg.get("lmstudio.api_key", "") or "")
+    headers = {"Authorization": f"Bearer {key}"} if key else {}
+
+    # 1. Liveness. Says nothing about whether a turn can be narrated.
+    try:
+        ping = httpx.get(f"{base}/models", headers=headers, timeout=3.0)
+    except httpx.HTTPError as exc:
+        report.add("LM Studio", "liveness", FAIL,
+                   f"{base}/models unreachable ({type(exc).__name__})")
+        return
+    if ping.status_code == 401:
+        report.add("LM Studio", "liveness", FAIL,
+                   "listening, but it refuses every request - set "
+                   "lmstudio.api_key in config/local.yaml, or turn off "
+                   "'Require API key' in LM Studio's server settings")
+        return
+    if ping.status_code != 200:
+        report.add("LM Studio", "liveness", FAIL, f"HTTP {ping.status_code}")
+        return
+    report.add("LM Studio", "liveness", OK, f"{base}/models answers")
+
+    # 2. Can it actually complete anything? This is the question that matters.
+    from engine.lmstudio.backend import chat_probe
+
+    probe = chat_probe(timeout=20.0)
+    label = f"model ({probe['model']})"
+    if not probe["bound"]:
+        report.add("LM Studio", label, FAIL,
+                   "not confirmed against the server - discovery failed, so "
+                   "every request names a model it has never heard of")
+    else:
+        report.add("LM Studio", label, OK, "resolved from the server's own list")
+
+    status = str(probe["status"])
+    level = OK if probe["ok"] else (WARN if status == "timeout" else FAIL)
+    report.add("LM Studio", "chat probe", level, f"{status}: {probe['detail']}")
+
+    # 3. The transport that carries narration. Tools and structured output can
+    # only go OpenAI-compat; only native can turn reasoning off.
+    try:
+        from engine.lmstudio.backend import get_backend
+
+        native = get_backend().native_available()
+    except Exception as exc:  # noqa: BLE001 -- diagnostics must not crash
+        report.add("LM Studio", "native /api/v1/chat", WARN, repr(exc))
+    else:
+        report.add(
+            "LM Studio",
+            "native /api/v1/chat",
+            OK if native else WARN,
+            "available - reasoning can be turned off"
+            if native
+            else "unavailable - reasoning cannot be disabled, so a thinking "
+                 "model can spend the whole token budget and return nothing",
+        )
+
+
+def check_voice(report: Report) -> None:
+    """
+    Push-to-talk: which provider answers, and whether it can.
+
+    Reported here rather than under Services because the default provider is a
+    LIBRARY in this process -- there is no port to health-check and no process
+    to start, so a stack entry for it would have to invent one.
+    """
+    from engine.config import get_config
+    from engine.media.stt import (
+        PROVIDER_FASTER_WHISPER,
+        PROVIDER_VOXTRAL_HTTP,
+        resolve_provider_name,
+    )
+
+    provider = resolve_provider_name()
+    report.add("Voice", "stt provider", OK, provider)
+
+    if provider == PROVIDER_FASTER_WHISPER:
+        from engine.media.stt_whisper import WhisperSTTProvider, whisper_installed
+
+        if not whisper_installed():
+            report.add("Voice", "faster-whisper", WARN,
+                       "not installed - push-to-talk returns a legible error "
+                       "instead of a transcript. pip install faster-whisper")
+            return
+        model, device, compute = WhisperSTTProvider().binding()
+        report.add("Voice", "faster-whisper", OK,
+                   f"{model} on {device} ({compute}) - the first press pays "
+                   "for the model load")
+        return
+
+    if provider == PROVIDER_VOXTRAL_HTTP:
+        from engine.stack import probe as probe_url
+
+        base = str(get_config().get("stt.base_url", "")).rstrip("/")
+        alive, detail = probe_url(f"{base}/v1/models") if base else (False, "no base_url")
+        report.add("Voice", "transcription server", OK if alive else WARN,
+                   f"{base}: {detail} - no push-to-talk without it"
+                   if not alive else f"{base}: {detail}")
 
 
 def check_config(report: Report) -> None:
@@ -429,6 +571,8 @@ def main(argv: list[str] | None = None) -> int:
         check_story_content,
         check_inherited_content,
         check_services,
+        check_llm,
+        check_voice,
         check_content,
         check_ui,
         check_saves,
