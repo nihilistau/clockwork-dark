@@ -1,0 +1,151 @@
+/* ============================================================
+   NEON CITY: THE CROSSING — palette.
+
+   The one file in this story allowed to spell a colour (tools/check-styles.mjs
+   holds the allowlist). Values are verbatim from the NeonCity design system so
+   a drift here is a drift from the canon:
+
+     C:/Projects/NeonCity/README.md   -> the eight non-negotiables, the scene
+                                         accent table
+     games/neon-city/BIBLE.md §7.4    -> the story's own restatement of them
+
+   THE THREE THAT ARE NOT NEGOTIABLE, restated where they are spelled:
+
+     1. Black is the canvas. Literal #000000, not "almost black". Every other
+        surface in this sheet is a translucent pane sitting ON that black, which
+        is why they are rgba() and not opaque greys -- the four-layer scene
+        background has to show through or the depth is a flat picture of depth.
+     2. Credits are #f59e0b gold, in mono, with the ₵ glyph. Never recoloured,
+        never abbreviated to "credits", never tinted by district.
+     3. The scene accent is cyan #06b6d4, and it is a VARIABLE: swapping
+        `--nc-accent` on one element retones everything downstream of it, which
+        is how a district reads as itself without a second stylesheet.
+
+   TYPE. The design system asks for Orbitron / Inter / JetBrains Mono. This
+   product self-hosts four families and no more (tests/test_ui_contract.py
+   forbids a webfont request leaving the machine, and the game must boot with
+   no network), so the trio maps onto what is on disk:
+
+     display   -> --font-ui at 0.16em tracking, ALL CAPS. Orbitron's job here
+                  is width and geometry; tracked caps is the honest substitute
+                  and reads as the same voice at wordmark size.
+     data      -> --font-mono (IBM Plex Mono). A grotesque mono with tabular
+                  figures -- the property JetBrains Mono was picked for. EVERY
+                  number in this story goes through it.
+     body      -> --font-ui (Source Sans 3), for narration and prose.
+
+   Unscoped `:root` is safe: this sheet only exists in the document when this
+   story is active -- it is a lazily-imported chunk fetched by `theme()`, and
+   two story themes are never loaded at once.
+   ============================================================ */
+
+:root {
+  /* ---- the canvas ---- */
+  --nc-black: #000000;         /* the canvas. Literally this. */
+  --nc-ink: #05070a;           /* the one step off black, for seams only */
+
+  /* ---- glass (panes ON the black, never opaque) ---- */
+  --nc-glass: rgba(10, 14, 20, 0.72);
+  --nc-glass-deep: rgba(6, 9, 14, 0.86);
+  --nc-glass-lift: rgba(18, 24, 33, 0.78);
+  --nc-hairline: rgba(148, 163, 184, 0.22);
+  --nc-hairline-lit: rgba(6, 182, 212, 0.45);
+
+  /* ---- the scene accent, and the districts that retone it ----
+     Per README's scene table and BIBLE §7.4. `--nc-accent` is the live one;
+     the named colours below are what a district sets it to. */
+  --nc-cyan: #06b6d4;          /* neoncity / intel — CATHEDRAL, OmniCorp */
+  --nc-grid: #00ff88;          /* the Grid */
+  --nc-rose: #ff006e;          /* the Strip */
+  --nc-violet: #a855f7;        /* the DeepState bunker */
+  --nc-red: #ef4444;           /* the SynthSec Grid Point */
+  --nc-amber: #ffab00;         /* the Junkyard */
+  --nc-accent: var(--nc-cyan);
+
+  /* ---- money. Never recoloured. ---- */
+  --nc-gold: #f59e0b;
+
+  /* ---- the heat ladder ----
+     Five rungs, and the ramp is deliberately monotone-into-red: Clean is the
+     absence of colour, Burned is the only pure alarm in the product. A player
+     should be able to read the rung by hue alone across the room. */
+  --nc-heat-clean: #64748b;
+  --nc-heat-noticed: #06b6d4;
+  --nc-heat-wanted: #ffab00;
+  --nc-heat-hunted: #f97316;
+  --nc-heat-burned: #ef4444;
+
+  /* ---- text ---- */
+  --nc-white: #e6edf3;
+  --nc-grey: #94a3b8;
+  --nc-grey-dim: #64748b;
+  --nc-grey-faint: #3f4c5c;
+
+  /* ---- structure ---- */
+  --nc-radius: 4px;            /* corners are nearly square: this is a HUD */
+  --nc-blur-subtle: 4px;
+  --nc-blur-medium: 24px;
+  --nc-blur-deep: 32px;
+
+  /* ---- core's aliases, re-pointed ----
+     Everything below is a name CORE reads. Overriding them here is what makes
+     the shared chrome, log, choices, compose box and modal shell read as the
+     Sprawl without a single core rule knowing this story exists. */
+  --surface-scene: var(--nc-black);
+  --surface-narrative: rgba(8, 11, 16, 0.66);
+  --surface-panel: var(--nc-glass);
+  --surface-ledger: var(--nc-glass-deep);
+  --surface-chrome: rgba(3, 5, 8, 0.92);
+  --surface-card: var(--nc-glass-lift);
+  --surface-overlay: rgba(0, 0, 0, 0.88);
+
+  --text-narration: var(--nc-white);
+  --text-body: #cbd5e1;
+  --text-muted: var(--nc-grey);
+  --text-on-dark: var(--nc-white);
+  --text-candlelight: var(--nc-cyan);
+  --text-danger: #fca5a5;
+  --text-affirm: #5eead4;
+  --text-display: #f1f5f9;
+  --text-stat: var(--nc-white);
+  --text-ledger: #cbd5e1;
+  --text-parchment: var(--nc-grey);
+  --text-smallcaps: var(--nc-grey);
+  --text-disabled: var(--nc-grey-faint);
+
+  --line-ink: var(--nc-black);
+  --line-soft: var(--nc-hairline);
+  --line-brass: var(--nc-hairline-lit);
+  --line-iron: rgba(148, 163, 184, 0.14);
+  --line-rust-deep: rgba(6, 182, 212, 0.28);
+
+  --accent-candle: var(--nc-accent);
+  --accent-brass: var(--nc-gold);
+  --accent-moss: var(--nc-grid);
+  --rust-clock: var(--nc-grey-dim);
+  --status-danger: var(--nc-red);
+  --status-corruption: var(--nc-violet);
+  --focus-ring: var(--nc-accent);
+
+  --state-hover-fill: rgba(6, 182, 212, 0.1);
+  --state-active-fill: rgba(6, 182, 212, 0.18);
+  --state-select-fill: rgba(6, 182, 212, 0.14);
+
+  --outcome-success: var(--nc-grid);
+  --outcome-success-dim: rgba(0, 255, 136, 0.1);
+  --outcome-failure: #fca5a5;
+  --outcome-failure-dim: rgba(239, 68, 68, 0.12);
+  --outcome-crit: var(--nc-gold);
+  --outcome-crit-dim: rgba(245, 158, 11, 0.14);
+}
+
+/* ---- district retone ----
+   ONE variable swap per district, written on <body> by the plugin's
+   `bodyData`. Core writes the attribute and has no idea what it means; the
+   rules downstream read `--nc-accent` and nothing else, so adding a district
+   is adding four lines here. */
+body[data-district="grid"] { --nc-accent: var(--nc-grid); }
+body[data-district="strip"] { --nc-accent: var(--nc-rose); }
+body[data-district="bunker"] { --nc-accent: var(--nc-violet); }
+body[data-district="gridpoint"] { --nc-accent: var(--nc-red); }
+body[data-district="junkyard"] { --nc-accent: var(--nc-amber); }

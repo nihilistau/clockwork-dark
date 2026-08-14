@@ -39,6 +39,17 @@
  *                 first paint, after core's, so story rules win ties without
  *                 anyone writing !important.
  *
+ *   The naming slots, listed here because they are part of the contract and
+ *   were previously only described further down, in the paragraph about what
+ *   BORROWING strips. `ui/tests/plugin-contract.test.js` harvests the real set
+ *   from core's own source, so this list can be checked rather than trusted:
+ *
+ *   documentTitle       The browser tab (main.jsx).
+ *   beginLabel          The start screen's begin button.
+ *   asideLabel          The Companion tab's label on a narrow viewport.
+ *   onboardingTitle     Heading of the first-run shell.
+ *   onboardingFinishLabel  Its last button.
+ *
  *   initialState  The story's own slice of the store, at `state.story`.
  *   reduce(slice, action, coreNext) -> slice
  *                 Runs after the core reducer on every action, with the already
@@ -60,6 +71,12 @@
  *                 down and has no business being threaded as a prop).
  *   StartIntro    Copy block on the start screen.
  *   Wordmark      The start screen's title treatment.
+ *   Ending        Replaces core's generic last screen. Takes its own props --
+ *                 {ending, state, story, onNewRun, onOpenSaves} -- because it
+ *                 is a SCREEN and not a slot. Core's default walks the
+ *                 payload's render order and draws any story correctly; a
+ *                 story overrides it only when its last page is typeset rather
+ *                 than listed, which is the Garden's case and nobody else's.
  *   onboarding    Cards for the first-run shell. No cards, no first-run modal.
  *   overlays      [{id, key, label, Icon, Component, when}] -- one keyboard
  *                 shortcut, one footer button and one modal per entry.

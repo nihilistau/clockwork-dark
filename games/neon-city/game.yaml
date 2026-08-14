@@ -27,14 +27,19 @@ blurb: >-
   anyone the city is looking for. Cross the Sprawl. Argue with the gate.
   Decide who holds the pen.
 
-# Borrowing a shipped skin is the supported path (docs/AUTHORING.md 2.5): a
-# borrowed plugin lends its look, not its voice -- the loader strips the
-# naming slots and substitutes this story's own name. The Garden's dark,
-# meter-forward skin fits a story told in bands and veils. A bespoke NeonCity
-# plugin (black canvas, #06b6d4 accents, gold mono for every price) is a
-# later phase; when it lands, this line is the whole migration.
+# The bespoke plugin landed, and this line was the whole migration -- exactly
+# as the note it replaces predicted. This story borrowed `wicked-garden` at
+# v0.1.0, which is a supported path (docs/AUTHORING.md 2.5): a borrowed plugin
+# lends its look, not its voice, and the loader strips the naming slots so the
+# borrower keeps its own name. What it could not lend was the register. A fae
+# court's gold contracts, growing vines and ash hourglass are the wrong
+# furniture for a story made of telemetry, so `ui/src/stories/neon-city/`
+# now carries the identity BIBLE.md section 7.4 specifies: literal black
+# canvas, #06b6d4 scene accent swapped per district, gold mono ₵ on every
+# price, tracked all-caps labels, one-pixel borders, and the heat ladder as
+# real chrome.
 ui:
-  plugin: wicked-garden
+  plugin: neon-city
 
 # The engine default scene, DECLARED rather than inherited, so game.yaml
 # answers the question. `name` keys the `scene.clockwork.*` config block.

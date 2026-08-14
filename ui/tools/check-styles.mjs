@@ -30,6 +30,7 @@ const PALETTES = new Set([
   "stories/clockwork-dark/theme/colors.css",
   "stories/clockwork-dark/theme/phases.css",
   "stories/wicked-garden/theme/tokens.css",
+  "stories/neon-city/theme/tokens.css",
 ]);
 
 function walk(dir, out = []) {
