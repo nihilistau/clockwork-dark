@@ -1,0 +1,245 @@
+# NEON CITY: THE CROSSING -- state declaration.
+#
+# Two families. The `field`-backed values DESCRIBE the engine spine this graph
+# story actually runs on -- HP, stamina, hunger, the purse -- exactly the
+# flagship's strategy, because checks.py, survival.py and the economy write
+# those attributes and this story wants all of them. The `bag`-backed values
+# are the Sprawl's own: heat, the standings, and the two clocks (the
+# timestamp, Collections) whose DOING half is data/rules/clocks.yaml.
+#
+# THE HALF-AND-HALF RULE (docs/AUTHORING.md 3.1): this file says what a clock
+# IS; clocks.yaml says what it DOES. Delete either half and the clock fails --
+# silently, if you delete this one.
+#
+# VISIBILITY. `heat` and the timestamp are veiled on purpose: the interface
+# shows a band word, never the integer. The bible's heat ladder (Clean /
+# Noticed / Wanted / Hunted / Burned) is exactly a band display, and the
+# timestamp surfaces as the file's confidence, never a countdown -- numbers
+# read as scores, and scores get optimised. The per-face standings are hidden:
+# how Mira actually rates you is something you find out at her counter.
+#
+# OWNERS. Empty means engine-only. The narrator may move heat (the count
+# noticing you is the world's call); everything else moves through quest and
+# encounter effects with the engine as writer. See agents.yaml.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+slug: neon-city
+
+meters:
+  # -- body (engine fields; the crossing is paid for in these) -----------
+  hp:
+    backing: field
+    path: stats.hp
+    min: 0
+    max: 20
+    default: 20
+    visibility: public
+    label: Condition
+  stamina:
+    backing: field
+    path: stats.stamina
+    min: 0
+    max: 100
+    default: 100
+    visibility: public
+    label: Energy
+  focus:
+    backing: field
+    path: stats.focus
+    min: 0
+    max: 10
+    default: 10
+    visibility: public
+    label: Focus
+  hunger:
+    backing: field
+    path: hunger
+    min: 0
+    max: 100
+    default: 0
+    visibility: public
+    label: Hunger
+
+  # -- the purse ---------------------------------------------------------
+  # Canon START_CREDITS. `stats.gold` is the engine's purse field -- wages,
+  # prices and fences all move it -- and this story calls the same number by
+  # its own sign. Prices are always written in whole chips.
+  credits:
+    backing: field
+    path: stats.gold
+    min: 0
+    default: 2000
+    visibility: public
+    label: "Credits"
+  craft:
+    backing: field
+    path: stats.craft
+    min: 0
+    default: 10
+    visibility: public
+    label: Craft
+
+  # -- attributes (3-18; checks derive modifiers) ------------------------
+  grit:
+    backing: field
+    path: stats.grit
+    min: 3
+    max: 18
+    default: 10
+    visibility: public
+  agility:
+    backing: field
+    path: stats.agility
+    min: 3
+    max: 18
+    default: 10
+    visibility: public
+  wits:
+    backing: field
+    path: stats.wits
+    min: 3
+    max: 18
+    default: 10
+    visibility: public
+  presence:
+    backing: field
+    path: stats.presence
+    min: 3
+    max: 18
+    default: 10
+    visibility: public
+
+  # -- hidden engine spine ----------------------------------------------
+  # Awareness gates the rumour tiers (0xGH0ST's broadcasts sharpen as you
+  # learn what to listen for) and the spoiler mask over Cathedral, Intake and
+  # Floor 87. The player meets it as fiction, never as a number.
+  awareness:
+    backing: field
+    path: awareness
+    min: 0
+    max: 100
+    default: 0
+    visibility: hidden
+    label: Awareness
+  plot_involvement:
+    backing: field
+    path: plot_involvement
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    visibility: hidden
+  story_pressure:
+    backing: field
+    path: story_pressure
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    visibility: hidden
+
+  # -- the Sprawl's own -------------------------------------------------
+  # The pressure ladder. 0-100 and it never fades by itself: it is BOUGHT
+  # down (ID scrubs, Mira's favour, Dane's four seconds) or earned up by
+  # crime, contraband and the count's attention. Veiled: the player gets the
+  # tier, never the integer. Bands per the bible: Clean 0 / Noticed 20 /
+  # Wanted 45 / Hunted 70 / Burned 90.
+  heat:
+    backing: bag
+    min: 0
+    max: 100
+    default: 0
+    visibility: veiled
+    label: Heat
+    owners: [gm]
+
+  # Per-face standings, 0-100 from stranger to sworn. The bible's thresholds
+  # in one column: Mira 15 takes your name off a list, Dane 15 tells you the
+  # sweep schedule, Sable 20 patches you off the books, Lyra 25 opens the
+  # Ghost_Net door. Hidden -- how they rate you is theirs to show.
+  standing_mira:
+    backing: bag
+    min: 0
+    max: 100
+    default: 0
+    visibility: hidden
+    label: Mira
+  standing_lyra:
+    backing: bag
+    min: 0
+    max: 100
+    default: 0
+    visibility: hidden
+    label: Lyra
+  standing_dane:
+    backing: bag
+    min: 0
+    max: 100
+    default: 0
+    visibility: hidden
+    label: Dane
+  standing_grease:
+    backing: bag
+    min: 0
+    max: 100
+    default: 0
+    visibility: hidden
+    label: Grease
+  standing_sable:
+    backing: bag
+    min: 0
+    max: 100
+    default: 0
+    visibility: hidden
+    label: Sable
+  standing_rho:
+    backing: bag
+    min: 0
+    max: 100
+    default: 0
+    visibility: hidden
+    label: Rho
+  standing_dita:
+    backing: bag
+    min: 0
+    max: 100
+    default: 0
+    visibility: hidden
+    label: Dita
+  standing_frankie:
+    backing: bag
+    min: 0
+    max: 100
+    default: 0
+    visibility: hidden
+    label: Frankie
+
+clocks:
+  # The shard's header, 0-21, wound one segment per world day by clocks.yaml.
+  # Quests make it SLIP -- a negative advance through the one validated
+  # writer -- which in the fiction is the file's confidence dropping and
+  # somebody rescheduling. Veiled: the interface may show the band (the
+  # confidence), never a countdown.
+  timestamp:
+    backing: bag
+    min: 0
+    max: 21
+    default: 0
+    visibility: veiled
+    label: The file
+
+  # Collections. Fills while you are broke; the beats are the reminder, the
+  # visit, and the consequence. Hidden -- debt is a thing that arrives, not a
+  # gauge you watch.
+  debt:
+    backing: bag
+    min: 0
+    max: 4
+    default: 0
+    visibility: hidden
+    label: Collections
+
+# The load menu: what the run has left, and how long the file gives it.
+summary:
+  - credits
+  - timestamp

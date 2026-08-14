@@ -1,0 +1,166 @@
+# NEON CITY: THE CROSSING -- the manifest.
+#
+# The fourth story, and the first in the NeonCity canon: a survival/expedition
+# on the engine's graph. Somebody sold you forty seconds of your own death,
+# with a timestamp twenty-one days out, and the walk from Mira's counter to
+# the thing that filed it crosses every district of the Sprawl. No doom clock
+# -- the pressure here is heat, debt, the weather, and the date on the file.
+#
+# The design doc is BIBLE.md in this directory; every name, price and gate
+# number in the content is checked against it, and it against the NeonCity
+# canon files it cites.
+#
+# THE ONE RULE THAT SHAPES THIS FILE: an UNDECLARED `paths.*` key resolves to
+# NOTHING. Declare what you ship; omit what you do not.
+#
+# Version: v0.1.0 [2026-08-14]
+
+id: neon-city
+title: "NEON CITY: THE CROSSING"
+version: "0.1.0"
+engine_requires: ">=0.2.0"
+
+blurb: >-
+  Somebody sold you forty seconds of your own death. It came with a timestamp,
+  twenty-one days out, and a header stamp nobody will read twice. The thing
+  that filed it sits below the Shadow zone, behind a checkpoint that refuses
+  anyone the city is looking for. Cross the Sprawl. Argue with the gate.
+  Decide who holds the pen.
+
+# Borrowing a shipped skin is the supported path (docs/AUTHORING.md 2.5): a
+# borrowed plugin lends its look, not its voice -- the loader strips the
+# naming slots and substitutes this story's own name. The Garden's dark,
+# meter-forward skin fits a story told in bands and veils. A bespoke NeonCity
+# plugin (black canvas, #06b6d4 accents, gold mono for every price) is a
+# later phase; when it lands, this line is the whole migration.
+ui:
+  plugin: wicked-garden
+
+# The engine default scene, DECLARED rather than inherited, so game.yaml
+# answers the question. `name` keys the `scene.clockwork.*` config block.
+scene:
+  name: clockwork
+  module: engine.scenes.default_scene
+  blueprint: "engine.scenes.default_api:story_blueprint"
+
+# ---------------------------------------------------------------------------
+# Content rating.
+#
+# BIBLE.md section 8: the register is what the canon calls "mature" -- street
+# violence with invoices attached, body-horror-adjacent chrome, transactional
+# substance references, the player's own forecast death. The engine's tier
+# vocabulary is suggestive < explicit < extreme and has no "mature" rung, so
+# the bible's rating maps to `explicit`, ceiling and default both: the bible
+# is explicit that this story has no meaningful softer cut and that shipping
+# one would gut the register ("mark the story mature-only ... rather than
+# auto-softening prose"). The PLAYER can still lower the working intensity
+# from the Settings screen; lowering is always honoured.
+#
+# Out of scope regardless of tier, per the bible: sexual content beyond
+# canon-level innuendo, harm to children on the page, torture scenes,
+# self-harm framing around the timestamp. Those are voice rules the prompts
+# carry, not tiers.
+#
+# `hard_nos` is absent and stays absent: limits belong to the player.
+# ---------------------------------------------------------------------------
+safety:
+  intensity:
+    ceiling: explicit
+    default: explicit
+  fade:
+    available: true
+  aftercare:
+    default: false
+
+# Only keys on SETTING_ALLOWLIST (engine/games/manifest.py) are honoured.
+settings:
+  world:
+    # Expedition pace. Travel costs hours, work costs hours, and the
+    # twenty-one-day timestamp is counted in the same world days everything
+    # else spends -- so the tick stays on, at the graph shape's gentle rate.
+    tick_hours: 1.0
+    tick_max_hours: 4.0
+    # NO DOOM CLOCK. The bible is categorical: this story's pressure is heat,
+    # debt, weather and the timestamp, all of them declared clocks and meters
+    # in state.yaml and data/rules/clocks.yaml. The evil phase stays pinned at
+    # `dormant` and no background apocalypse runs under the one on the file.
+    evil_base_rate_per_day: 0.0
+
+  # The story-neutral pair. The engine's fuller default chain narrates a doom
+  # ledger this story does not keep.
+  governance:
+    directives:
+      - SafetyDirective
+      - StorytellerMind
+
+# WHAT THIS STORY DELIBERATELY SHIPS NONE OF, one line each:
+#
+#   recipes            nothing is crafted; the Sprawl sells finished goods and
+#                      buys raw salvage, and the gap is the economy.
+#   decks              graph shape; the expedition is quests on a map, not
+#                      authored day-chapters.
+#   challenges         set-pieces are quest stages and encounters.
+#   doom_effects       there is no doom clock (see settings above).
+#   procgen_templates  every district is authored; nothing is generated.
+#   comfyui_templates  no ComfyUI pipeline authored yet; subjects.yaml carries
+#                      both prompt dialects for when the art pass runs.
+#   assistant_hints    the companion voices are agents with personas
+#                      (agents.yaml), not a hint corpus.
+paths:
+  locations: "games/neon-city/data/world/locations.yaml"
+  prompts: "games/neon-city/prompts"
+  # skills.yaml, archetypes.yaml, spoilers.yaml, survival.yaml and death.yaml
+  # are found INSIDE this directory by fixed filename.
+  rules: "games/neon-city/data/rules"
+  items: "games/neon-city/data/items"
+  quests: "games/neon-city/data/quests"
+  encounters: "games/neon-city/data/encounters"
+  economy: "games/neon-city/data/economy.yaml"
+  npc_schedules: "games/neon-city/data/world/npc_schedules.yaml"
+  tables: "games/neon-city/data/tables"
+  factions: "games/neon-city/data/world/factions.yaml"
+  world_rumors: "games/neon-city/data/world/rumors.yaml"
+  world_schedules: "games/neon-city/data/world/schedules.yaml"
+  lore: "games/neon-city/data/lore"
+  lore_db: "games/neon-city/data/lore/lore.db"
+  # Structural systems, declared per story.
+  clocks: "games/neon-city/data/rules/clocks.yaml"
+  threads: "games/neon-city/data/rules/threads.yaml"
+  endings: "games/neon-city/data/rules/endings.yaml"
+  epilogues: "games/neon-city/data/epilogues"
+  # Art. The pack is empty at v0.1.0 -- the procedural silhouette carries the
+  # story until the batch render runs -- but the subjects file is the full
+  # brief for that render, and art_root has to exist and be declared so the
+  # manifest's paths resolve against this story's own tree, not another's.
+  art_subjects: "games/neon-city/data/art/subjects.yaml"
+  art_manifest: "games/neon-city/data/art/manifest.yaml"
+  art_root: "games/neon-city/data/art/plates"
+  saves: "data/saves"
+
+entry:
+  # The Grid: the underground market where Mira slides the shard across the
+  # counter. The last place your name is an asset instead of a liability.
+  location_id: the_grid
+
+  # Three, from the fiction. Ids must exist in data/rules/archetypes.yaml.
+  archetypes: [runner, ex_corpo, wirehead]
+
+  # One sentence, no mechanics, in-register, for when the model is down.
+  fallback_narration: >-
+    The Grid's tickers stutter, hold one frame too long, and resume as if
+    nothing in the feed had blinked.
+
+  # The first frame of a new run: the forty-second file, priced at nothing.
+  opening:
+    narration: >-
+      Mira Vex slides the shard across her counter and does not name a number,
+      which is how you know the night has gone sideways. Forty seconds of rain
+      on wet asphalt, somebody breathing badly -- you, it turns out -- shot
+      from an angle nobody was standing at. Clean, unhurried, filed like a
+      delivery receipt. The header stamp is corporate. The timestamp is
+      twenty-one days out. "Whatever that is," Mira says, "it is not a threat.
+      Threats are written by people. That was filed."
+    choices:
+      - { id: a, text: "Jack the shard and watch all forty seconds" }
+      - { id: b, text: "Ask Mira what it costs, since nothing here is free" }
+      - { id: c, text: "Pocket it unwatched and walk out into the rain" }
