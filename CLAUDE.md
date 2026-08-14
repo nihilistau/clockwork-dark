@@ -36,7 +36,7 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
-**1776 passing, 15 skipped**, no expected failures (measured 2026-08-15), plus
+**1798 passing, 18 skipped**, no expected failures (measured 2026-08-15), plus
 **95 client tests** under `ui/tests/` run by `npm test --prefix ui`. Run both
 for the real numbers rather than trusting this line — it has been stale before.
 
@@ -60,6 +60,29 @@ last one fixed is worth stating plainly, because it was invisible for months:
 every story that omitted a `paths.*` key silently read The Clockwork Dark's
 content, and every story that omitted `paths.prompts` got a narrator who
 introduced itself as the Storyteller of The Clockwork Dark.
+
+**The intent loop is now proven in every game, not just the flagship**
+(`tests/test_turn_intent_per_game.py`, parametrised over
+`registry.discover()`). The MECHANISM was always story-agnostic; the AUTHORING
+was not. Only the flagship's opening had ever declared an `intent`, so The
+Wicked Garden's "Step through" — which *is* the crossing its whole first act
+hangs on — was a sentence handed to a narrator with the engine never asked, and
+NEON CITY and dev-story opened the same way. All three templates under
+`scripts/story_template/` taught the bug too, so a fresh scaffold inherited it.
+Every opening that means a mechanic now declares one, and each is driven
+through a real `run_turn` with the outcome read off `GameState`.
+
+Two things that fell out of doing it. **A story with no `survival.yaml` could
+walk itself into a stamina soft-lock**: travel spent stamina, no rest verb
+exists for such a story, and the Garden measured a refusal on its FOURTEENTH
+leg with nothing able to give any back — CLAUDE.md rule 6's soft-lock rebuilt
+by absence instead of by a gate. `GameEngine.move_to` now prices stamina only
+where `survival.rest_kinds()` is non-empty; the flagship and NEON CITY are
+untouched. And **the legality probe was noisy**: asking whether `rest` or
+`check` was legal logged a WARNING per turn naming `survival.yaml`/`skills.yaml`
+for the two stories that deliberately ship neither. A fixed-name file absent
+from a rules directory that EXISTS is now DEBUG ("ships none of this"); a
+declared rules directory that does not exist is still a WARNING.
 
 The client is now three plugins for four stories (`clockwork-dark`,
 `wicked-garden`, `neon-city`; `dev-story` borrows the Garden's), the committed

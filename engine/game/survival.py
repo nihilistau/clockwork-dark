@@ -68,7 +68,27 @@ def _read_rules(path_str: str, _mtime: float) -> dict[str, Any]:
 
 
 def load_rules() -> dict[str, Any]:
-    """Load data/rules/survival.yaml."""
+    """
+    Load data/rules/survival.yaml.
+
+    THE THREE CASES, AND WHY ONLY ONE OF THEM IS LOUD. ``survival.yaml`` is one
+    of the fixed filenames found INSIDE ``paths.rules`` (docs/AUTHORING.md
+    §2.2), so a story never declares it directly and cannot omit it directly
+    either -- it either ships the file or it does not:
+
+    1. No ``paths.rules`` at all -- this story ships no rules. Silent.
+    2. ``paths.rules`` names a directory that EXISTS, and no survival.yaml in
+       it -- this story ships no hunger, rest or food. Also silent, and this is
+       the case that used to shout. The Wicked Garden and Dev Story both
+       declare a rules directory (for archetypes, clocks, endings, threads) and
+       deliberately ship no survival rules, and every legality probe that asked
+       whether ``rest`` was a legal verb logged a WARNING naming a file the
+       author decided not to write. "Undeclared means ships none, silently" is
+       the repo's rule and an absent fixed-name file is the only way to say it.
+    3. ``paths.rules`` names a directory that is NOT THERE -- the manifest
+       points at nothing. That is a real fault and stays a WARNING, so a story
+       that DOES declare a rules path it typoed is still caught.
+    """
     path = _rules_path()
     if path is None:
         logger.debug("[survival] Story declares no rules (operation=load_rules)")
@@ -76,9 +96,18 @@ def load_rules() -> dict[str, Any]:
     try:
         mtime = path.stat().st_mtime
     except OSError:
-        logger.warning(
-            "[survival] Rules file missing (operation=load_rules, path=%s)", path
-        )
+        if path.parent.is_dir():
+            logger.debug(
+                "[survival] Story ships no survival rules "
+                "(operation=load_rules, path=%s)",
+                path,
+            )
+        else:
+            logger.warning(
+                "[survival] Rules directory missing "
+                "(operation=load_rules, path=%s)",
+                path.parent,
+            )
         return {}
     return _read_rules(str(path), mtime)
 

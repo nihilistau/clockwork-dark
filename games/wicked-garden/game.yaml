@@ -139,6 +139,22 @@ settings:
 #
 # Each resolves empty now, which every loader reads as "this story ships none
 # of this". If one of them is ever authored, it goes in the block below.
+#
+# AND TWO THAT ARE OMITTED BY ABSENCE RATHER THAN BY OMISSION. `paths.rules`
+# below names a directory, and five filenames are found INSIDE it by fixed name
+# (docs/AUTHORING.md §2.2) -- there is no key to leave out, so not shipping the
+# file IS the declaration. This story ships archetypes, clocks, endings and
+# threads in there, and deliberately not these:
+#
+#   survival.yaml      no hunger, no stamina, no food. Time in the Garden is
+#                      counted by the ten-day toll, not by meals.
+#   skills.yaml        no dice at all. Nothing here is resolved by a roll; a
+#                      bargain is resolved by its terms.
+#
+# That absence is load-bearing and visible: `legal_intents` offers this story
+# `travel` and NOTHING else -- no `rest`, no `eat`, no `check` -- because the
+# engine only offers a verb it can honour. If either file ever appears in that
+# directory, this story silently grows a mechanic it was designed without.
 paths:
   # Content authored for this story.
   #
@@ -231,8 +247,30 @@ entry:
       far side has been waiting long enough to be patient about it. You know,
       the way you know things in dreams, that a day spent past that arch costs
       ten at home — and that the counting starts the moment you step through.
+    # (a) IS THE CROSSING, so it declares it. An opening choice that MOVES,
+    # SPENDS or RISKS anything carries a structured `intent` and the engine
+    # resolves it before the second beat is written (engine/game/intents.py).
+    # Without one, "Step through" was a sentence handed to a narrator: the
+    # model wrote the player past the arch and the save still read
+    # `mortal_threshold`, which is the defect the intent mechanism exists to
+    # close -- it was only ever proven on the flagship's opening.
+    #
+    # The target is the one edge leaving here, and it is ONE-WAY on purpose
+    # (data/world/locations.yaml: no `gate_of_briars -> mortal_threshold` edge
+    # exists or may exist). So this intent is the point of no return, which is
+    # exactly what the narration has just finished warning about. It costs the
+    # hour the edge declares and the awareness the crossing is worth; the
+    # engine spends both.
+    #
+    # (b) and (c) declare NOTHING, and each for its own reason. Asking the toll
+    # is talk -- the narrator's whole job, and an intent there would resolve
+    # nothing. Turning around is not a travel action in this story: going home
+    # is an ENDING, priced by the endings spine, and a travel intent would hand
+    # it out for an hour of walking. There is deliberately no edge to name.
     choices:
-      - { id: a, text: "Step through" }
+      - id: a
+        text: "Step through"
+        intent: { action: travel, target: gate_of_briars }
       - { id: b, text: "Ask what it costs, and wait for an answer" }
       - { id: c, text: "Turn around and go home" }
   # One, and it is the point of the story rather than a placeholder. Being

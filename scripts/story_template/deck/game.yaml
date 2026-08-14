@@ -96,7 +96,23 @@ entry:
       them, and the gravel walk has been raked so recently the lines are
       still sharp. Somewhere inside, your host is already seated, already
       certain you will come in. The invitation said nothing about leaving.
+    # (a) GOES INSIDE, so it declares the move. An opening choice that MOVES,
+    # SPENDS or RISKS anything carries a structured `intent`, and the ENGINE
+    # resolves it before the narrator writes the next beat
+    # (engine/game/intents.py). Without one a choice is only a sentence handed
+    # to a model: it narrates the player crossing the threshold and the save
+    # still reads `the_gate`.
+    #
+    # A deck story still has a place graph and still moves through it -- the
+    # cards are what happens in a day, not where you are standing. `target`
+    # must be a place `the_gate` connects to in data/world/locations.yaml.
+    #
+    # (b) and (c) declare nothing on purpose. Circling the house is looking,
+    # and standing at the gate is refusing to move; both are the narrator's
+    # job, and an intent on either would resolve nothing.
     choices:
-      - { id: a, text: "Walk up and knock" }
+      - id: a
+        text: "Walk up and knock"
+        intent: { action: travel, target: long_hall }
       - { id: b, text: "Circle the house first" }
       - { id: c, text: "Stand at the gate and make them come to you" }

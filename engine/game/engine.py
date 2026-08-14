@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterator, Optional
 
 from engine.game import effects as effects_module
-from engine.game import foraging, inventory
+from engine.game import foraging, inventory, survival
 from engine.game.clock import advance_time
 from engine.game.dice import DiceResult, resolve_check, roll_dice
 from engine.game.evil_ticker import EvilTicker
@@ -112,8 +112,30 @@ class GameEngine:
         # the walk is never refused, no check is docked, and rest never reads
         # it -- gating rest is CLAUDE.md rule 6's soft-lock.
         overloaded = inventory.overloaded(self.state)
-        stamina_cost = max(
-            1, int(hours * 5 * inventory.travel_stamina_multiplier(self.state))
+        # CLAUDE.md RULE 6, ONE LAYER DOWN. Stamina is only a resource in a
+        # story that ships a way to get it back. `rest_kinds()` reads
+        # `survival.yaml` inside `paths.rules`, and a story that ships none has
+        # no rest verb at all (engine/game/intents.py::_rest returns None) --
+        # so charging a walk against a meter nothing can refill is not a cost,
+        # it is a countdown to a dead save.
+        #
+        # THIS WAS REACHABLE AND SHIPPED. The Wicked Garden declares a travel
+        # graph and deliberately no survival rules: no hunger, no stamina, no
+        # food, because time there is counted by the ten-day toll. It still
+        # paid 5 stamina per hour walked, and measured, a run hit "Not enough
+        # stamina." on its FOURTEENTH leg with nothing in the story able to
+        # give any back. That is the exact soft-lock rule 6 exists to forbid,
+        # rebuilt by absence rather than by a gate. Dev Story leaks the same
+        # way, one point per interior door.
+        #
+        # Stories that DO ship survival rules -- the flagship, NEON CITY --
+        # are untouched: `rest_kinds()` is non-empty, and the arithmetic below
+        # is exactly what it was, carry multiplier and all.
+        prices_stamina = bool(survival.rest_kinds())
+        stamina_cost = (
+            max(1, int(hours * 5 * inventory.travel_stamina_multiplier(self.state)))
+            if prices_stamina
+            else 0
         )
         if self.state.stats.stamina < stamina_cost:
             return MoveResult(

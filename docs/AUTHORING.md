@@ -160,6 +160,46 @@ story-neutral line (it used to breathe the flagship's forest at every story's
 player). `opening:` is the deterministic first frame — narration plus choices
 with ids `a`/`b`/`c`, which is what the UI posts back.
 
+**An opening choice that MOVES, SPENDS or RISKS anything must declare an
+`intent`**, exactly as a narrated choice does (`engine/game/intents.py`):
+
+```yaml
+      - id: a
+        text: "Step through"
+        intent: { action: travel, target: gate_of_briars }
+```
+
+Judge it per option. A choice that walks somewhere carries `travel`; one that
+buys carries `buy`; one the fiction puts a real risk on carries `check`. A
+choice that talks, looks or listens carries **nothing**, and that is the
+ordinary case — an intent that resolves nothing is noise.
+
+This is the one place the rule is easy to forget, because the opening is
+written by an author rather than sampled from a grammar: nothing constrains it
+at authoring time, and `execute_intent` re-checks it against the live world, so
+a mistyped destination is a silent refusal in a log during a playtest while the
+narrator walks the player somewhere the save disagrees about. It was forgotten
+for three of the four shipped stories — The Wicked Garden's "Step through" *is*
+the crossing the whole first act hangs on and declared nothing, so the model
+narrated the crossing and the save still read `mortal_threshold`. The mechanism
+had only ever been authored into the flagship's opening.
+
+Two traps worth knowing before you write one. A `flag` intent is scoped to the
+**current quest stage**, and at turn 0 no quest has ticked, so
+`allowed_narrative_flags` is empty and an opening `flag` intent always refuses —
+let the quest raise its own flag. And a verb only exists where the engine can
+honour it, so check what your story actually affords before declaring it:
+
+```powershell
+.\.venv\Scripts\python.exe -c "from engine.games import registry; registry.activate('my-story'); from engine.game.procgen import new_game_state; from engine.game.intents import legal_intents; s=new_game_state(seed=1); print([(v.action, list(v.targets)) for v in legal_intents(s)])"
+```
+
+`tests/test_turn_intent_per_game.py` holds all of this against **every**
+discovered story: each authored opening intent is driven through a real
+`run_turn` and the outcome read back off `GameState`, and any story with a
+travel graph must be able to move. Your story is swept the moment its directory
+exists.
+
 ### 2.5 `ui:` — the plugin, declared not inferred
 
 ```yaml
@@ -617,4 +657,4 @@ are distilled from dev-story** — when a subsystem changes shape, fix dev-story
 first (the suite runs its rows, so it cannot silently rot), then re-distil the
 templates. A template that drifts from the bench teaches the old engine.
 
-Version: v0.1.1 [2026-08-14]
+Version: v0.1.2 [2026-08-15]

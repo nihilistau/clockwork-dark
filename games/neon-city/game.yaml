@@ -165,7 +165,36 @@ entry:
       delivery receipt. The header stamp is corporate. The timestamp is
       twenty-one days out. "Whatever that is," Mira says, "it is not a threat.
       Threats are written by people. That was filed."
+    # An opening choice that MOVES, SPENDS or RISKS anything declares a
+    # structured `intent`, and the ENGINE resolves it before the narrator
+    # writes the second beat (engine/game/intents.py). Two of these three do
+    # something; the third is talk, and talk is what the narrator is for.
+    #
+    # (a) RISKS. Jacking a corporate render and reading what is actually in it
+    # is `lore` -- "knowing the machine: protocols, header stamps, trace
+    # arithmetic" (data/rules/skills.yaml). `standard` is DC 13. The engine
+    # rolls it, itemises every modifier and hands the narrator the receipt, so
+    # what the player learns from the forty seconds is an outcome rather than a
+    # thing the model decided. NOT a `flag` intent, though `forty_seconds`
+    # stage 0 does raise `nf_shard_watched`: narrative flags are scoped to the
+    # CURRENT quest stage, and at turn 0 no quest has ticked yet, so
+    # `allowed_narrative_flags` is empty and the intent would come back a
+    # refusal. The quest raises its own flag once it is running.
+    #
+    # (b) declares NOTHING, on purpose. Asking Mira a question is talk. What
+    # she is not saying is the hook of `what_mira_wont_say`, and that quest is
+    # gated behind finishing this one and 15 standing with her -- putting a
+    # check here would let the opening frame reach past both gates.
+    #
+    # (c) MOVES. `ghost_alley` of the Grid's four neighbours because it is the
+    # only edge out of here that carries `awareness_delta: 1`, and it is where
+    # the shard came through. One hour, five stamina, danger_dc 4. Walking out
+    # with the file unwatched is a real decision and it costs real things.
     choices:
-      - { id: a, text: "Jack the shard and watch all forty seconds" }
+      - id: a
+        text: "Jack the shard and watch all forty seconds"
+        intent: { action: check, target: lore, difficulty: standard }
       - { id: b, text: "Ask Mira what it costs, since nothing here is free" }
-      - { id: c, text: "Pocket it unwatched and walk out into the rain" }
+      - id: c
+        text: "Pocket it unwatched and walk out into the rain"
+        intent: { action: travel, target: ghost_alley }

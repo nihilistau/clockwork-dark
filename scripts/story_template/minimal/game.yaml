@@ -125,7 +125,23 @@ entry:
       not quite looking at you. The kettle in the back room has begun its
       slow climb to a boil, and someone is going to have to say something
       before it gets there.
+    # ONE OF THESE DOES SOMETHING, AND IT SAYS SO. An opening choice that
+    # MOVES, SPENDS or RISKS anything carries a structured `intent`, which the
+    # ENGINE resolves before the narrator writes the next beat
+    # (engine/game/intents.py). Without one a choice is only a sentence handed
+    # to a model: it narrates the walk, the world is never asked, and the save
+    # still reads `front_room` afterwards.
+    #
+    # (c) leaves the room, so it declares the leg. `target` must be a place
+    # `front_room` connects to in data/world/locations.yaml.
+    #
+    # (a) and (b) declare NOTHING, and that is the ordinary case -- most
+    # choices are talk, and talk is the whole of what the narrator is for. An
+    # intent that resolves nothing is noise. Judge it per option: does this
+    # option change the world, or does it change the conversation?
     choices:
       - { id: a, text: "Say something first" }
       - { id: b, text: "Wait Alex out" }
-      - { id: c, text: "Go and see to the kettle" }
+      - id: c
+        text: "Go and see to the kettle"
+        intent: { action: travel, target: back_room }

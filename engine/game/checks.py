@@ -91,11 +91,30 @@ def _load_yaml(path: Optional[Path], label: str) -> dict[str, Any]:
     try:
         mtime = path.stat().st_mtime
     except OSError:
-        logger.warning(
-            "[checks] Rules file missing (operation=_load_yaml, label=%s, path=%s)",
-            label,
-            path,
-        )
+        # The directory the story declared IS there and this optional
+        # fixed-name file simply is not in it: the story ships none of this
+        # content, which is an authoring decision and not a fault. Same rule as
+        # `path is None` above, one level down -- see
+        # engine/game/survival.py::load_rules for the full statement of the
+        # three cases. The Wicked Garden and Dev Story both declare a rules
+        # directory and ship no skills.yaml, and every turn's legality probe
+        # used to log a WARNING naming a file nobody meant to write.
+        if path.parent.is_dir():
+            logger.debug(
+                "[checks] Story ships none of this content "
+                "(operation=_load_yaml, label=%s, path=%s)",
+                label,
+                path,
+            )
+        else:
+            # The declared directory itself is absent -- the manifest points at
+            # nothing, which is a real fault and stays loud.
+            logger.warning(
+                "[checks] Rules directory missing "
+                "(operation=_load_yaml, label=%s, path=%s)",
+                label,
+                path.parent,
+            )
         return {}
     return _read_yaml(str(path), mtime)
 

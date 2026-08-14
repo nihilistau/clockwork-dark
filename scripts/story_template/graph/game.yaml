@@ -103,7 +103,36 @@ entry:
       green and its houses; east, the mill working against the stream; the
       wood crowds the west road close enough to touch. You have a little
       daylight, less coin, and nobody here owes you anything yet.
+    # ALL THREE MOVE, SO ALL THREE DECLARE IT. An opening choice that MOVES,
+    # SPENDS or RISKS anything carries a structured `intent`, and the ENGINE
+    # resolves it -- spending the hours, the stamina and the awareness the edge
+    # declares -- before the narrator writes a word of the next beat
+    # (engine/game/intents.py).
+    #
+    # WITHOUT ONE A CHOICE IS ONLY A SENTENCE. That is not a style note, it is
+    # the largest defect this project has had: a player picked the road, the
+    # model narrated the walk, and the save still read the location they
+    # started in. The only channel that could have moved them is a `tool_calls`
+    # array the turn grammar forbids. This opening declared nothing until the
+    # mechanism was proven across all four shipped stories, so the template
+    # taught the bug.
+    #
+    # `target` must be a place `crossroads` actually connects to in
+    # data/world/locations.yaml. Legality is re-checked against the live graph
+    # at execution, so a mistyped destination is a refusal in the log rather
+    # than a phantom walk -- but it is a refusal nobody reads during a
+    # playtest, so check the spelling.
+    #
+    # Note (c) costs double and carries `danger_dc: 8`: the wood is two hours
+    # and the only edge here that can turn up an encounter. A choice is allowed
+    # to be the expensive one. It is not allowed to be free by accident.
     choices:
-      - { id: a, text: "Take the north road to the green" }
-      - { id: b, text: "Follow the stream to the mill" }
-      - { id: c, text: "Step off the road into the wood" }
+      - id: a
+        text: "Take the north road to the green"
+        intent: { action: travel, target: village_green }
+      - id: b
+        text: "Follow the stream to the mill"
+        intent: { action: travel, target: the_mill }
+      - id: c
+        text: "Step off the road into the wood"
+        intent: { action: travel, target: old_wood }

@@ -230,18 +230,45 @@ entry:
 
   # The test scene.
   #
-  # PLACEHOLDERS -- EDIT FREELY. The narration and all three choice texts exist
-  # to be replaced with whatever you are testing this hour. The ids a/b/c are
-  # what the UI posts back, and the engine renumbers merged choices to a/b/c...
-  # in order anyway (engine/agents/pipeline.py::merge_choices), so keep them
-  # lowercase single letters and you will not surprise yourself.
+  # MOSTLY PLACEHOLDERS -- EDIT FREELY, with one exception noted below. The
+  # narration and choices (b)/(c) exist to be replaced with whatever you are
+  # testing this hour. The ids a/b/c are what the UI posts back, and the engine
+  # renumbers merged choices to a/b/c... in order anyway
+  # (engine/agents/pipeline.py::merge_choices), so keep them lowercase single
+  # letters and you will not surprise yourself.
   opening:
     narration: >-
       This is a test scene. You are in a bedroom: a bed, a window with the
       curtain half drawn, a lamp on the near table, a door. Sophia is here,
       sitting on the end of the bed with her phone face-down beside her,
       waiting for you to say something.
+    #
+    # WORKED EXAMPLE: the two kinds of choice, one of each.
+    #
+    # (a) MOVES, so it declares a structured `intent` and the ENGINE resolves
+    # it -- before the narrator writes a word of the next beat
+    # (engine/game/intents.py, executed by engine/scenes/default_state.py::
+    # run_turn). This is the shape to copy. Without it a choice is only a
+    # sentence handed to a model: it narrated the walk, the world was never
+    # asked, and the save still read `test_bedroom` afterwards. `target` must
+    # be a place `test_bedroom` actually connects to in
+    # data/world/locations.yaml -- legality is re-checked against the live
+    # graph at execution, so a mistyped destination is a refusal in the log,
+    # never a phantom walk. It is a real move and it is deliberately FREE: the
+    # bedroom->hallway edge declares `hours: 0`, because a house is not a road
+    # and this bench measures whether movement HAPPENS, not what it costs.
+    #
+    # (b) and (c) declare nothing, which is the ordinary case and equally
+    # correct. Talking to Sophia and looking out of a window are what the
+    # narrator is for; an intent there would resolve nothing and an option that
+    # does nothing is worse than no option.
+    #
+    # PLACEHOLDERS -- (b) and (c) exist to be replaced with whatever you are
+    # testing this hour. Keep (a) a real move, or this story stops being the
+    # proof that the mechanism works.
     choices:
-      - { id: a, text: "buttonA_test_text" }
+      - id: a
+        text: "Open the door and step out into the hallway"
+        intent: { action: travel, target: hallway }
       - { id: b, text: "buttonB_test_text" }
       - { id: c, text: "buttonC_test_text" }
