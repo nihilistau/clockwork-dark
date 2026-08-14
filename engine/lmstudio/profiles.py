@@ -62,6 +62,12 @@ class ModelProfile:
     supports_tools: bool = False
     arch: str = ""
     is_reasoning_model: bool = False
+    # Whether `model` is an id the SERVER confirmed it has. False means the
+    # placeholder below -- an id LM Studio has never heard of, which it answers
+    # with HTTP 400 on every single request. Callers that report health must be
+    # able to tell those two apart; nothing could, which is how "doctor says ok,
+    # every chat call 400s" stayed true for months.
+    bound: bool = False
 
     @property
     def reasoning_disabled(self) -> bool:
@@ -243,6 +249,7 @@ def resolve_profile(profile: str, *, refresh: bool = False) -> ModelProfile:
             supports_tools=info.supports_tools,
             arch=info.arch,
             is_reasoning_model=info.is_reasoning,
+            bound=True,
         )
         logger.info(
             "[profiles] Resolved profile (operation=resolve_profile, profile=%s, "

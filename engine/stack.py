@@ -127,8 +127,11 @@ def probe(url: str, *, timeout: float = 3.0) -> tuple[bool, str]:
     even once the key was correctly configured, which is exactly the kind of
     misleading status that sends you debugging a service that is fine.
 
-    A bare 401 still counts as reachable -- the process is up, it just wants
-    credentials -- but it is reported as such.
+    A bare 401 is NOT healthy. It used to be: "the process is up, it just wants
+    credentials" is true and useless, because a server that refuses every
+    request cannot narrate a turn, and reporting it green is how the health
+    check came to pass while the game fell back to canned lines. Reachable and
+    usable are different questions and this function answers the second one.
     """
     if not url:
         return False, "no health url"
@@ -145,7 +148,11 @@ def probe(url: str, *, timeout: float = 3.0) -> tuple[bool, str]:
         return False, type(exc).__name__
 
     if response.status_code == 401:
-        return True, "listening, but the API key is missing or wrong"
+        return False, (
+            "listening, but it refuses every request: the API key is missing or "
+            "wrong. Set lmstudio.api_key in config/local.yaml, or turn off "
+            "'Require API key' in LM Studio's server settings"
+        )
     if response.status_code < 400:
         return True, "ready"
     return response.status_code < 500, f"HTTP {response.status_code}"

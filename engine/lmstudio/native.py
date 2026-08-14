@@ -130,14 +130,16 @@ class NativeClient:
         self,
         *,
         base_url: Optional[str] = None,
-        timeout: float = 180.0,
+        timeout: Optional[float] = None,
         api_key: str = "",
     ) -> None:
         cfg = get_config()
         compat = (base_url or cfg.get("lmstudio.base_url", "http://localhost:1234/v1")).rstrip("/")
         # /api/v1 is a sibling of /v1, not a child.
         self.root = compat[: -len("/v1")] if compat.endswith("/v1") else compat
-        self.timeout = timeout
+        self.timeout = (
+            float(cfg.get("lmstudio.timeout_seconds", 300)) if timeout is None else timeout
+        )
         self.api_key = api_key or cfg.get("lmstudio.api_key", "") or ""
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         self._client = httpx.Client(timeout=timeout, headers=headers)
@@ -276,6 +278,16 @@ class NativeClient:
         response = self._client.post(
             f"{self.root}/api/v1/chat", json=payload, timeout=self.timeout
         )
+        if response.status_code >= 400:
+            # The status alone says nothing. `unrecognized_keys` naming the key
+            # it rejected, or a model id it has never heard of, is in the body.
+            logger.error(
+                "[native] LM Studio refused the request (operation=chat, "
+                "status=%s, model=%s): %s",
+                response.status_code,
+                model,
+                " ".join(response.text.split())[:400] or "(empty body)",
+            )
         response.raise_for_status()
         result = self._from_result(
             response.json(),

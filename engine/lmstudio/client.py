@@ -158,6 +158,44 @@ class _ToolCallAccumulator:
         return bool(self._slots)
 
 
+def _raise_for_status(
+    response: httpx.Response,
+    operation: str,
+    model: str,
+    payload: dict[str, Any],
+) -> None:
+    """
+    ``raise_for_status``, but the server's own words survive it.
+
+    THE GAP THIS CLOSES. ``httpx.HTTPStatusError`` renders as "Client error
+    '400 Bad Request' for url ..." and nothing else. LM Studio puts the ACTUAL
+    reason in the body -- "Model 'local-model' not found",
+    "'response_format.type' must be 'json_schema' or 'text'", a template error
+    naming an unsupported role -- and every one of those was being thrown away
+    one frame below the only place that could have used it. The planner catches
+    the exception and treats the agent as silent (engine/agents/planner.py), so
+    a 400 arrived at the player as a canned line and left no diagnosable trace
+    anywhere.
+    """
+    if response.status_code < 400:
+        return
+    try:
+        body = " ".join(response.text.split())[:400]
+    except Exception:  # noqa: BLE001 -- an unreadable body must not mask the status
+        body = "(body unreadable)"
+    logger.error(
+        "[LMSClient] LM Studio refused the request (operation=%s, status=%s, "
+        "model=%s, structured=%s, tools=%s): %s",
+        operation,
+        response.status_code,
+        model,
+        bool(payload.get("response_format")),
+        bool(payload.get("tools")),
+        body or "(empty body)",
+    )
+    response.raise_for_status()
+
+
 class LMSClient:
     """HTTP client for LM Studio chat completions with SSE streaming."""
 
@@ -165,12 +203,16 @@ class LMSClient:
         self,
         base_url: Optional[str] = None,
         *,
-        timeout: float = 180.0,
+        timeout: Optional[float] = None,
         api_key: str = "",
     ) -> None:
         cfg = get_config()
         self.base_url = (base_url or cfg.get("lmstudio.base_url", "http://localhost:1234/v1")).rstrip("/")
-        self.timeout = timeout
+        # Was hardcoded at 180. See lmstudio.timeout_seconds in
+        # config/default.yaml for what that cost the authoring script.
+        self.timeout = (
+            float(cfg.get("lmstudio.timeout_seconds", 300)) if timeout is None else timeout
+        )
         self.api_key = api_key or cfg.get("lmstudio.api_key", "") or ""
         headers: dict[str, str] = {}
         if self.api_key:
@@ -243,10 +285,12 @@ class LMSClient:
                 json=payload,
                 timeout=self.timeout,
             )
-            response.raise_for_status()
+            _raise_for_status(response, "chat", resolved, payload)
             data = response.json()
         except httpx.HTTPError as exc:
-            logger.error("[LMSClient] Chat failed (operation=chat): %s", exc)
+            logger.error(
+                "[LMSClient] Chat failed (operation=chat, model=%s): %s", resolved, exc
+            )
             raise
 
         choices = data.get("choices") or []
@@ -342,7 +386,9 @@ class LMSClient:
                 json=payload,
                 timeout=self.timeout,
             ) as response:
-                response.raise_for_status()
+                if response.status_code >= 400:
+                    response.read()
+                _raise_for_status(response, "chat_stream", resolved, payload)
                 for raw_line in response.iter_lines():
                     line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
                     if not line or not line.startswith("data:"):

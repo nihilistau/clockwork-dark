@@ -395,6 +395,131 @@ class LMStudioBackend:
             self._native.close()
 
 
+def chat_probe(
+    *,
+    profile: str = "big",
+    timeout: float = 20.0,
+    max_tokens: int = 16,
+) -> dict[str, Any]:
+    """
+    Ask the server for one tiny completion and report what actually came back.
+
+    THE GAP THIS CLOSES. Health-checking LM Studio with ``GET /v1/models`` asks
+    "is a process listening", which is not the question. On this machine that
+    ping answered while every chat call was rejected, so the doctor said ``ok``
+    about a service that could not narrate a single turn -- the planner's
+    failures were swallowed, the pipeline fell back to canned lines, and nothing
+    in the health report pointed at the model.
+
+    Deliberately NOT routed through ``LMSClient``: that raises on a bad status
+    and the response body -- the only part that says *why* -- is lost with it.
+    This posts the payload itself so the server's own words reach the report.
+
+    Args:
+        profile: Which profile's resolved model to probe. Defaults to the
+            narration profile, because that is the one a turn depends on.
+        timeout: Seconds. Short on purpose -- a doctor that hangs for three
+            minutes on a wedged server is a doctor nobody runs. A cold JIT load
+            of a large model can legitimately exceed this; the result says
+            "timeout" and names that as a possibility rather than claiming the
+            server is broken.
+        max_tokens: Tiny. This is a liveness question, not a generation.
+
+    Returns:
+        ``{"ok", "status", "detail", "model", "bound", "transport",
+        "latency_ms", "content"}``. ``status`` is one of ``ok``, ``http``,
+        ``timeout``, ``unreachable``, ``empty``.
+    """
+    import time
+
+    import httpx
+
+    cfg = get_config()
+    base = str(cfg.get("lmstudio.base_url", "http://localhost:1234/v1")).rstrip("/")
+    key = str(cfg.get("lmstudio.api_key", "") or "")
+    headers = {"Authorization": f"Bearer {key}"} if key else {}
+
+    mp = resolve_profile(profile)
+    result: dict[str, Any] = {
+        "ok": False,
+        "status": "unreachable",
+        "detail": "",
+        "model": mp.model,
+        "bound": mp.bound,
+        "transport": "openai",
+        "latency_ms": 0.0,
+        "content": "",
+    }
+
+    # A model id the server never confirmed is a guaranteed 400. Say so before
+    # spending a request proving it.
+    if not mp.bound:
+        result["detail"] = (
+            f"model {mp.model!r} was never confirmed against the server -- "
+            "discovery failed, so every chat request names a model LM Studio "
+            "has never heard of"
+        )
+
+    payload = {
+        "model": mp.model,
+        "messages": [{"role": "user", "content": "Reply with the single word: ready"}],
+        "temperature": 0.0,
+        "max_tokens": max_tokens,
+        "stream": False,
+    }
+
+    t0 = time.perf_counter()
+    try:
+        response = httpx.post(
+            f"{base}/chat/completions", json=payload, headers=headers, timeout=timeout
+        )
+    except httpx.TimeoutException:
+        result["status"] = "timeout"
+        result["latency_ms"] = (time.perf_counter() - t0) * 1000
+        result["detail"] = (
+            f"no answer in {timeout:g}s -- a cold JIT load of a large model can "
+            "take longer than this, so try again once it is resident"
+        )
+        return result
+    except httpx.HTTPError as exc:
+        result["status"] = "unreachable"
+        result["detail"] = f"{type(exc).__name__}: {exc}"
+        return result
+
+    result["latency_ms"] = (time.perf_counter() - t0) * 1000
+
+    if response.status_code != 200:
+        body = " ".join(response.text.split())[:300]
+        result["status"] = "http"
+        result["detail"] = f"HTTP {response.status_code}: {body or '(empty body)'}"
+        return result
+
+    try:
+        data = response.json()
+        message = ((data.get("choices") or [{}])[0].get("message") or {})
+        content = str(message.get("content") or "").strip()
+    except Exception as exc:  # noqa: BLE001 -- a 200 that is not JSON is its own answer
+        result["status"] = "http"
+        result["detail"] = f"200 but unreadable: {exc}"
+        return result
+
+    result["content"] = content
+    if not content:
+        # The empty-narration bug, seen from outside. A 200 with no content is
+        # the shape a reasoning model returns when it spent the budget thinking.
+        result["status"] = "empty"
+        result["detail"] = (
+            "HTTP 200 with an empty content channel -- the model answered with "
+            "reasoning only. Turn reasoning off for this profile."
+        )
+        return result
+
+    result["ok"] = True
+    result["status"] = "ok"
+    result["detail"] = f"{content[:60]!r} in {result['latency_ms']:.0f}ms"
+    return result
+
+
 _backend: Optional[LMStudioBackend] = None
 _backend_lock = threading.Lock()
 

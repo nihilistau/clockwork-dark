@@ -131,16 +131,34 @@ class ModelUnavailable(RuntimeError):
     """
 
 
-def _parse(raw: dict[str, Any]) -> ModelInfo:
+# What a model is assumed to have when discovery came from /v1/models, which
+# reports an id and nothing else. Small enough that a budget built from it fits
+# any real chat model, large enough to clear `is_chat_model`.
+DEGRADED_ARCH = "unknown"
+DEGRADED_CONTEXT = 8192
+
+
+def _parse(raw: dict[str, Any], *, degraded: bool = False) -> ModelInfo:
+    """
+    One entry from a discovery route.
+
+    Args:
+        degraded: The entry came from ``/v1/models``, which reports an id and
+            nothing else. Every capability field is then a guess, and saying so
+            here is better than letting `is_chat_model` reject the whole server
+            because OpenAI's schema has no `arch` field.
+    """
     caps = raw.get("capabilities") or []
+    arch = str(raw.get("arch") or "")
+    context = int(raw.get("max_context_length") or 0)
     return ModelInfo(
         id=str(raw.get("id", "")),
         type=str(raw.get("type", "llm")),
-        arch=str(raw.get("arch") or ""),
+        arch=arch or (DEGRADED_ARCH if degraded else ""),
         publisher=str(raw.get("publisher") or ""),
         quantization=str(raw.get("quantization") or ""),
         state=str(raw.get("state") or "not-loaded"),
-        max_context_length=int(raw.get("max_context_length") or 0),
+        max_context_length=context or (DEGRADED_CONTEXT if degraded else 0),
         loaded_context_length=int(raw.get("loaded_context_length") or 0),
         capabilities=tuple(str(c) for c in caps if c),
     )
@@ -168,35 +186,84 @@ class ModelRegistry:
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
 
+    def _fetch(self, path: str) -> Any:
+        """GET one discovery route, raising with the server's own words."""
+        response = httpx.get(
+            f"{self.root}{path}", headers=self._headers(), timeout=self.timeout
+        )
+        if response.status_code == 401:
+            raise ModelUnavailable(
+                "LM Studio requires an API key and none is configured. Set "
+                "lmstudio.api_key in config/local.yaml, or turn off "
+                "'Require API key' in LM Studio's server settings. Until then "
+                "EVERY request is refused, including the ones the health check "
+                "does not make."
+            )
+        response.raise_for_status()
+        return response.json()
+
     def refresh(self) -> list[ModelInfo]:
-        """Re-query the server. Returns [] when it is unreachable."""
+        """
+        Re-query the server. Returns [] when it is unreachable.
+
+        ``/api/v0/models`` is the route that carries capabilities, arch and the
+        loaded context length. It is also LM Studio's own extension, so it can
+        be absent; when it is, ``/v1/models`` still yields the ids, which is
+        enough to stop the profile resolver falling back to a placeholder model
+        id that the server answers with 400 on every request. A degraded
+        binding beats a fictional one.
+        """
+        payload: Any = None
+        degraded = False
         try:
-            response = httpx.get(
-                f"{self.root}/api/v0/models",
-                headers=self._headers(),
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
-            payload = response.json()
+            payload = self._fetch("/api/v0/models")
         except Exception as exc:  # noqa: BLE001 -- offline dev must still boot
-            logger.warning(
-                "[registry] Model discovery failed (operation=refresh, url=%s): %s",
-                self.root,
-                exc,
-            )
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            if status in (404, 405):
+                degraded = True
+                logger.warning(
+                    "[registry] /api/v0/models is not served; falling back to "
+                    "/v1/models, which reports no capabilities or context "
+                    "lengths (operation=refresh, url=%s)",
+                    self.root,
+                )
+                try:
+                    payload = self._fetch("/v1/models")
+                except Exception as inner:  # noqa: BLE001
+                    degraded = False
+                    logger.error(
+                        "[registry] Model discovery failed on both routes "
+                        "(operation=refresh, url=%s): %s",
+                        self.root,
+                        inner,
+                    )
+            else:
+                logger.error(
+                    "[registry] Model discovery failed -- every chat request "
+                    "will name an unresolved model and be rejected "
+                    "(operation=refresh, url=%s): %s",
+                    self.root,
+                    exc,
+                )
+
+        if payload is None:
             with self._lock:
                 self._models = []
             return []
 
         entries = payload.get("data") if isinstance(payload, dict) else payload
-        models = [_parse(e) for e in (entries or []) if isinstance(e, dict)]
+        models = [
+            _parse(e, degraded=degraded) for e in (entries or []) if isinstance(e, dict)
+        ]
         with self._lock:
             self._models = models
         loaded = [m.id for m in models if m.is_loaded]
         logger.info(
-            "[registry] Discovered models (operation=refresh, total=%s, loaded=%s)",
+            "[registry] Discovered models (operation=refresh, total=%s, loaded=%s, "
+            "route=%s)",
             len(models),
             loaded or "none",
+            "/v1/models (degraded)" if degraded else "/api/v0/models",
         )
         return models
 
