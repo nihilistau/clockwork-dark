@@ -872,7 +872,16 @@ def run_turn(
                     "url": portrait,
                 },
             )
-        if assistant_result.spoke:
+        # Three of the four branches above leave `assistant_result` None, and
+        # BOTH of the ones a pipeline story takes are among them -- so every
+        # Wicked Garden turn raised here, after the payload was already built
+        # and the player had already watched the narration stream in.
+        #
+        # A character's line needs no event of its own: it rides in the turn
+        # payload's `assistant` block, which the client's turn_update reducer
+        # renders. This event exists for the companion, who speaks on an agency
+        # roll the payload alone does not announce.
+        if assistant_result is not None and assistant_result.spoke:
             emit_callback(
                 "assistant_speak",
                 {

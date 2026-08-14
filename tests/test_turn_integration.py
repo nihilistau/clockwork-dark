@@ -214,3 +214,86 @@ def test_world_advances_over_a_session():
 
     assert session.engine.state.world_day > start_day
     assert session.engine.state.evil_progress > start_evil
+
+
+# -- the pipeline path, all the way to the socket ------------------------
+#
+# Nothing exercised the emit block with a multi-agent roster. The pipeline
+# tests drive `run_pipeline` directly and stop at its result; the turn tests
+# ran the flagship, whose companion is `pipeline: false` and which therefore
+# takes the one branch that produces a real assistant result. So the branches
+# where `assistant_result` is None -- BOTH of the ones a pipeline story takes
+# -- reached `emit_callback` untested, and every Wicked Garden turn died on
+# `'NoneType' object has no attribute 'spoke'` after its payload was built.
+
+
+@pytest.fixture
+def garden():
+    """The Wicked Garden active, the way a `--game wicked-garden` run has it."""
+    from engine.games.registry import activate, deactivate
+
+    activate("wicked-garden")
+    try:
+        yield
+    finally:
+        deactivate()
+
+
+def _plans(monkeypatch, answers):
+    """
+    Run the REAL pipeline over the Garden's shipped roster, with only the model
+    injected -- the roster, the negotiation and the commit are the ones a live
+    turn uses. `run_turn` deliberately passes no `llm_fn`, so the seam has to be
+    opened here rather than through the session's.
+    """
+    from engine.scenes import default_state as module
+
+    real = module.run_pipeline
+
+    def planning(state, player_action, **kwargs):
+        def llm(messages):
+            system = messages[0]["content"]
+            for marker, answer in answers.items():
+                if marker in system:
+                    return json.dumps(answer)
+            return json.dumps({"intent": "silent", "beat": ""})
+
+        return real(state, player_action, llm_fn=llm, **kwargs)
+
+    monkeypatch.setattr(module, "run_pipeline", planning)
+
+
+def test_a_pipeline_turn_reaches_the_client_when_a_character_speaks(garden, monkeypatch):
+    _plans(monkeypatch, {
+        "SOPHIA": {"intent": "speak", "beat": "she answers", "line": "There you are."},
+    })
+    session = SessionStore().create(seed=42, llm_fn=_llm())
+
+    events = _events(session, "The player chooses: step through")
+
+    turn = next(p for n, p in events if n == "turn_update")
+    assert turn["negotiation"]["ran"] is True
+    # The companion column carries HER line -- the slot is "the other voice",
+    # and `character` marks who it is.
+    assert turn["assistant"]["character"] == "sophia"
+    assert turn["assistant"]["text"] == "There you are."
+    assert turn["assistant"]["spoke"] is True
+
+
+def test_a_silent_pipeline_turn_reaches_the_client(garden, monkeypatch):
+    """
+    Silence is a real outcome of a negotiation and must not take the turn down.
+
+    This is the branch the live Garden bug fired on: both agents plan silent,
+    the pipeline still ran, and no companion is summoned to fill the gap.
+    """
+    _plans(monkeypatch, {})
+    session = SessionStore().create(seed=42, llm_fn=_llm())
+
+    events = _events(session, "The player chooses: wait")
+
+    turn = next(p for n, p in events if n == "turn_update")
+    assert turn["negotiation"]["ran"] is True
+    assert turn["assistant"]["spoke"] is False
+    # No line, so no line event -- the column renders from the turn payload.
+    assert not [n for n, _ in events if n == "assistant_speak"]
