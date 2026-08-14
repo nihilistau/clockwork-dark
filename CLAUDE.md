@@ -36,19 +36,43 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
-**1848 passing, 19 skipped**, no expected failures (measured 2026-08-15), plus
-**95 client tests** under `ui/tests/` run by `npm test --prefix ui`. Run both
-for the real numbers rather than trusting this line — it has been stale before,
-and the "1776 passing, 15 skipped" three revisions back was itself off by one
-against a clean `a5cedbf`, which measured 1775/16. The jump from 1813 is the
-fifth game (every per-story test parametrises over `registry.discover()`), five
-new validator checks, and three new UI-seam gates.
+**1850 passing, 18 skipped in 3m23s**, no expected failures (measured
+2026-08-15), plus **95 client tests** under `ui/tests/` (`npm test --prefix ui`,
+which needs `npm install --prefix ui` once — `vitest` is a devDependency). Run
+both for the real numbers rather than trusting this line; it has been stale
+before.
 
-**Read that as 1849/18 on a committed tree.** The 1848/19 was measured with a
-rebuilt `dist` still uncommitted, which is exactly when
-`test_the_committed_build_is_not_behind_its_source` stands down. With the build
-committed that file runs 20 passed / 0 skipped, so the nineteenth skip is a
-pass again — derived from that one file, not from a second full run.
+**THE SUITE RUNS IN A THIRD OF THE TIME IT DID, AND NOTHING WAS DELETED TO DO
+IT.** It was 15m32s. 69% of that — 643.8s — was `test_turn_intent_per_game.py`
+making real, blocking HTTP calls to LM Studio while believing it was mocked;
+that file is now 11.6s and still asserts exactly what it did. Four separate
+paths were reaching the model server from tests:
+
+1. `run_turn` called `run_pipeline` with no `llm_fn`, so every story roster
+   planned against the real backend. There was no way for any caller to stub
+   the pipeline's agents. It now passes `session.storyteller.llm_fn`.
+2. Two files stubbed the Storyteller and left the Assistant live.
+3. Prompt budgeting (`default_budget` → `resolve_profile` → registry) queries
+   the model list to size a prompt, BEFORE the injected `llm_fn` short-circuit —
+   so no amount of agent stubbing could have helped.
+4. `chat_probe`'s rewrite moved posting onto an `httpx.Client` instance, which
+   silently un-mocked seven `test_lmstudio_health.py` tests. They had been
+   passing against the live server, in the file that opens "Everything here is
+   mocked".
+
+None of it failed anything. The pipeline swallows model outages by design and
+the real server answers much like the fixtures, so the only symptom was the
+clock — and quiet non-determinism, since a live model's plans vary per run.
+
+**`tests/conftest.py::_no_live_model_calls` is what makes it stay fixed**: any
+test opening a connection to the configured model server fails, unless marked
+`@pytest.mark.live`. It records the breach and asserts at TEARDOWN, because the
+first version raised at the call site and the pipeline's own error tolerance
+swallowed it — the guard was defeated by exactly the forgiveness that hid the
+bug. Discovery, the native probe and the summarizer are pinned to deterministic
+offline answers beside it; `test_vertical_slice.py` had pinned the summarizer
+for itself since it was written ("a playtest must not depend on a local model
+being up") and was the only file that did.
 
 **`npm test` needs its devDependencies installed**, which a `ui/node_modules`
 carrying only the runtime does not have — `vitest` is a devDependency and the
@@ -196,7 +220,7 @@ by rewording the claim).
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\doctor.py            # environment, config, content
-.\.venv\Scripts\python.exe -m pytest tests\ -q          # fully green, no xfail
+.\.venv\Scripts\python.exe -m pytest tests\ -q          # fully green, no xfail, ~3m20s
 npm ci --prefix ui; npm test --prefix ui                # the client: plugins, reducer, veiled rule
 npm run build --prefix ui                               # rebuild the COMMITTED dist after any ui/src change
 .\.venv\Scripts\python.exe launcher.py --check          # local services and what each outage costs

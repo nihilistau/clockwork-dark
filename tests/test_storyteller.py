@@ -103,7 +103,35 @@ def test_storyteller_retries_on_hallucination():
     assert any(r["skill"] == "resolve_skill_check" for r in result.tool_receipts)
 
 
-def test_tool_calls_execute_move():
+def test_the_tool_dispatcher_executes_a_move_when_it_is_handed_one():
+    """
+    THE DISPATCHER, NOT THE TURN. Read the name carefully before trusting this.
+
+    This exercises ``execute_tool_calls`` (``storyteller.py``): given a reply
+    that already contains a ``tool_calls`` array, the move is applied. It says
+    NOTHING about whether a real turn can produce such a reply, and it was
+    called ``test_tool_calls_execute_move`` for most of the project's life,
+    which is how it got read as proof that a choice moves the player.
+
+    It was not. Under the shipped ``structured_output: auto``
+    (``config/default.yaml``), the turn grammar sets
+    ``additionalProperties: False`` and declares no ``tool_calls`` property, so
+    the key is UNSAMPLABLE and this path never runs. A player picked "Follow
+    the smoke toward Edgewood", the narrator wrote the walk, and the save still
+    read ``forest_clearing`` -- with this test green the whole time.
+
+    The path is not dead, which is why the test stays: under
+    ``structured_output: off`` (the native transport, the only one that can
+    turn reasoning off) no grammar is sent and a fenced block like the one
+    below IS parseable. It is config-dependent, and
+    ``test_the_turn_grammar_forbids_tool_calls`` below pins that rule so the
+    two halves cannot drift apart.
+
+    What actually proves a choice moves the player is
+    ``tests/test_turn_intent.py::test_a_travel_choice_actually_moves_the_player``
+    and its per-story sibling, both of which drive a real ``run_turn`` and read
+    the answer off ``GameState``.
+    """
     state = GameState(location_id="forest_clearing")
     state.stats.stamina = 50
     engine = GameEngine(state)
@@ -122,3 +150,27 @@ def test_tool_calls_execute_move():
     result = agent.run_turn("Walk to the village.")
     assert state.location_id == "edgewood_square"
     assert result.tool_receipts[0]["success"] is True
+
+
+def test_the_turn_grammar_forbids_tool_calls():
+    """
+    The reachability rule the test above depends on, stated once.
+
+    With a grammar on the wire, ``tool_calls`` cannot be sampled: the schema
+    closes the object and never declares the property. That is the whole reason
+    the intent channel had to exist, and it is asserted here rather than left as
+    a claim in a docstring, so that adding the property back cannot silently
+    resurrect a second way to change the world.
+    """
+    from engine.lmstudio.schemas import storyteller_turn_schema
+
+    schema = storyteller_turn_schema()["schema"]
+    assert schema.get("additionalProperties") is False, (
+        "the turn object is open again; anything the model invents would be "
+        "carried into the parsed turn"
+    )
+    assert "tool_calls" not in (schema.get("properties") or {}), (
+        "the turn grammar declares tool_calls -- a narration turn can change "
+        "the world by a second route, and engine/game/intents.py is no longer "
+        "the only one"
+    )

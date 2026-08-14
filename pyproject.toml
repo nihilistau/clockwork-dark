@@ -19,3 +19,8 @@ dev = ["pytest>=8.0"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# Kept in step with pytest.ini, which is the file pytest actually reads when
+# both exist. See tests/conftest.py::_no_live_model_calls.
+markers = [
+    "live: this test is ALLOWED to open a real connection to the model server",
+]

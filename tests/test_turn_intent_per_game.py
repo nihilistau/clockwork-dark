@@ -165,9 +165,26 @@ def scripted(state: GameState) -> Any:
 
 
 def _session_at_entry() -> Any:
-    """A fresh run of whatever story is active, wired to the scripted model."""
+    """
+    A fresh run of whatever story is active, wired to the scripted model.
+
+    EVERY agent, not just the Storyteller. Wiring only the narrator left the
+    Assistant -- and, through ``run_turn`` -> ``run_pipeline``, the whole
+    story roster -- resolving the real backend, so this file made blocking HTTP
+    calls to LM Studio on every turn while reading as though it were mocked. It
+    was 69% of the suite's wall clock and the assertions were quietly dependent
+    on a live model's output.
+
+    The Storyteller's is assigned after ``create`` rather than passed into it
+    because ``scripted`` needs the state that ``create`` returns; the Assistant
+    has no such constraint and could take it either way, so both are set here
+    where the pairing is visible. ``tests/conftest.py::_no_live_model_calls``
+    fails the test if either is ever missed again.
+    """
     session = SessionStore().create(seed=42, llm_fn=None)
-    session.storyteller.llm_fn = scripted(session.engine.state)
+    fake = scripted(session.engine.state)
+    session.storyteller.llm_fn = fake
+    session.assistant.llm_fn = fake
     return session
 
 

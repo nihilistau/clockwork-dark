@@ -847,6 +847,26 @@ def run_turn(
             state,
             player_action,
             ledger=session.ledger,
+            # THE SESSION'S MODEL, NOT THE PIPELINE'S OWN DEFAULT.
+            #
+            # `SessionStore._build` hands `llm_fn` to the Storyteller and the
+            # Assistant and to nothing else, so before this line there was NO
+            # WAY FOR A CALLER TO STUB THE PIPELINE'S AGENTS -- `_gather` fell
+            # through to the real backend and made what its docstring calls
+            # "blocking HTTP calls to LM Studio", several per turn.
+            #
+            # That made every test of a multi-agent story quietly non-hermetic
+            # and non-deterministic, and it was 69% of the suite's wall clock:
+            # measured at 171s for NEON CITY (three agents), 90s for the Garden
+            # and 82s for dev-story, against 8.4s for the flagship (fewer than
+            # two PIPELINE participants, so the pipeline never ran) and 7.8s for
+            # The Slow Water (no roster at all). The shape of that spread is the
+            # tell: it tracks roster size, not test difficulty.
+            #
+            # Production behaviour is unchanged. `StorytellerAgent.__init__`
+            # stores `llm_fn` exactly as given, so a real run passes None here
+            # and `run_pipeline` resolves its backend as it always did.
+            llm_fn=session.storyteller.llm_fn,
             safety_block=str(
                 (safety or {}).get("redirect") or (safety or {}).get("disposition") or ""
             ),

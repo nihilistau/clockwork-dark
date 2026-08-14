@@ -252,8 +252,17 @@ def _plans(monkeypatch, answers):
     """
     Run the REAL pipeline over the Garden's shipped roster, with only the model
     injected -- the roster, the negotiation and the commit are the ones a live
-    turn uses. `run_turn` deliberately passes no `llm_fn`, so the seam has to be
-    opened here rather than through the session's.
+    turn uses.
+
+    This wrapper intercepts rather than going through the session because it
+    answers PER AGENT, keyed on a marker in each one's system prompt, which a
+    single `session.storyteller.llm_fn` cannot express as readably.
+
+    It used to say `run_turn` passed no `llm_fn` "so the seam has to be opened
+    here". That is no longer true and was the bug: with no seam, every OTHER
+    multi-agent test reached LM Studio for real. `run_turn` now passes the
+    session's model, so this wrapper drops the one it is handed in favour of
+    its own -- an explicit override, not a workaround for a missing hook.
     """
     from engine.scenes import default_state as module
 
@@ -267,6 +276,7 @@ def _plans(monkeypatch, answers):
                     return json.dumps(answer)
             return json.dumps({"intent": "silent", "beat": ""})
 
+        kwargs.pop("llm_fn", None)
         return real(state, player_action, llm_fn=llm, **kwargs)
 
     monkeypatch.setattr(module, "run_pipeline", planning)

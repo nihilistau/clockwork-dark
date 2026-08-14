@@ -23,6 +23,12 @@ from engine.lmstudio.backend import chat_probe
 from engine.lmstudio.profiles import ModelProfile
 from engine.lmstudio.registry import ModelRegistry, reset_registry
 
+#: The tests that are ABOUT discovery carry `@pytest.mark.real_discovery`
+#: individually, so the conftest pin does not replace the code under test.
+#: The rest take the pin, which is what keeps them off the network -- seven
+#: of them were reaching a live LM Studio for real, in the file that opens
+#: by saying everything here is mocked.
+
 
 @pytest.fixture(autouse=True)
 def _clean():
@@ -38,12 +44,29 @@ def _profile(model: str = "gemma-4-26b", bound: bool = True) -> ModelProfile:
 
 
 def _post(monkeypatch, response_or_error):
-    def fake_post(_url, **_kwargs):
+    """
+    Answer every POST, module-level and client-instance alike.
+
+    IT USED TO PATCH ONLY ``httpx.post``. That was complete when ``chat_probe``
+    posted directly; it stopped being complete when the probe was rewritten to
+    run the real ``LMStudioBackend.chat`` path, because that path posts through
+    an ``httpx.Client`` INSTANCE (``engine/lmstudio/client.py``), which a
+    module-level patch never sees. Seven tests in this file then fell through
+    to the actual LM Studio on this machine and passed against it -- in the
+    file whose docstring opens "Everything here is mocked".
+
+    Nothing failed, because the real server answers much like the fixture. The
+    only symptom was that the tests needed it running, and the socket guard in
+    tests/conftest.py is what finally said so.
+    """
+
+    def answer():
         if isinstance(response_or_error, Exception):
             raise response_or_error
         return response_or_error
 
-    monkeypatch.setattr(httpx, "post", fake_post)
+    monkeypatch.setattr(httpx, "post", lambda _url, **_kwargs: answer())
+    monkeypatch.setattr(httpx.Client, "post", lambda self, _url, **_kwargs: answer())
 
 
 def _response(status: int, json_body=None, text: str = "") -> httpx.Response:
@@ -56,6 +79,7 @@ def _response(status: int, json_body=None, text: str = "") -> httpx.Response:
 # -- 1. a server that refuses is not healthy -------------------------------
 
 
+@pytest.mark.real_discovery
 def test_a_401_is_not_reported_as_up(monkeypatch):
     """
     ``probe`` used to answer (True, "listening, but the API key is missing").
@@ -79,6 +103,7 @@ def test_a_401_is_not_reported_as_up(monkeypatch):
     assert "config/local.yaml" in detail
 
 
+@pytest.mark.real_discovery
 def test_a_real_model_list_is_up(monkeypatch):
     from engine import stack
 
@@ -213,6 +238,7 @@ def _get(monkeypatch, handler):
     monkeypatch.setattr(httpx, "get", handler)
 
 
+@pytest.mark.real_discovery
 def test_discovery_asks_only_the_v1_rest_route(monkeypatch):
     """
     ONE question, ONE endpoint. Discovery used to ask ``/api/v0/models`` and
@@ -231,6 +257,7 @@ def test_discovery_asks_only_the_v1_rest_route(monkeypatch):
     assert [m.id for m in models] == ["a-model"]
 
 
+@pytest.mark.real_discovery
 def test_the_v1_shape_is_parsed_as_the_server_writes_it(monkeypatch):
     """
     ``key`` not ``id``; ``architecture`` not ``arch``; residency is the
@@ -251,6 +278,7 @@ def test_the_v1_shape_is_parsed_as_the_server_writes_it(monkeypatch):
     assert model.supports_tools is True
 
 
+@pytest.mark.real_discovery
 def test_a_200_in_the_compat_shape_is_refused_rather_than_half_read(monkeypatch, caplog):
     """
     THE DEFECT THIS PINS. LM Studio answers routes it does not serve with 200 --
@@ -272,6 +300,7 @@ def test_a_200_in_the_compat_shape_is_refused_rather_than_half_read(monkeypatch,
     assert "not the v1 model list" in caplog.text
 
 
+@pytest.mark.real_discovery
 def test_a_200_carrying_an_error_body_is_not_a_model_list(monkeypatch):
     from engine.lmstudio.registry import probe_models
 
@@ -323,6 +352,7 @@ def test_the_stack_probe_checks_the_body_not_the_status(monkeypatch):
     assert "v1 model list" in detail
 
 
+@pytest.mark.real_discovery
 def test_discovery_failing_still_returns_a_list_not_an_exception(monkeypatch):
     monkeypatch.setattr(
         httpx,
@@ -332,6 +362,7 @@ def test_discovery_failing_still_returns_a_list_not_an_exception(monkeypatch):
     assert ModelRegistry(base_url="http://x/v1").refresh() == []
 
 
+@pytest.mark.real_discovery
 def test_a_401_during_discovery_says_what_to_change(monkeypatch, caplog):
     """The measured state of this machine. The message has to be actionable."""
     monkeypatch.setattr(

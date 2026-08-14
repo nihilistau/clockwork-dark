@@ -146,6 +146,7 @@ def test_a_travel_choice_actually_moves_the_player() -> None:
     session = SessionStore().create(seed=42, llm_fn=None)
     state = session.engine.state
     session.storyteller.llm_fn = scripted(state)
+    session.assistant.llm_fn = session.storyteller.llm_fn
 
     intent = opening_intent(session, "a")
     assert intent == {"action": "travel", "target": "edgewood_square"}, (
@@ -204,6 +205,8 @@ def test_the_move_is_reported_to_the_narrator_before_it_writes() -> None:
         return reply
 
     session.storyteller.llm_fn = recording
+
+    session.assistant.llm_fn = session.storyteller.llm_fn
     run_turn(
         session,
         "The player chooses: Follow the smoke toward Edgewood",
@@ -232,6 +235,7 @@ def test_the_resolved_move_survives_a_rejected_draft() -> None:
     state = session.engine.state
     # Too short to pass the evaluator, which forces the retry path.
     session.storyteller.llm_fn = scripted(state, narration="You go. " * 30)
+    session.assistant.llm_fn = session.storyteller.llm_fn
 
     run_turn(
         session,
@@ -334,6 +338,8 @@ def test_an_intent_that_went_illegal_is_refused_and_the_narrator_is_told() -> No
         return reply
 
     session.storyteller.llm_fn = recording
+
+    session.assistant.llm_fn = session.storyteller.llm_fn
     state.stats.stamina = 1  # not enough for any leg out of here
 
     payload = run_turn(
@@ -362,6 +368,7 @@ def test_an_intent_for_a_road_that_does_not_exist_is_refused() -> None:
     session = SessionStore().create(seed=42, llm_fn=None)
     state = session.engine.state
     session.storyteller.llm_fn = scripted(state)
+    session.assistant.llm_fn = session.storyteller.llm_fn
 
     payload = run_turn(
         session,
@@ -380,6 +387,7 @@ def test_a_turn_with_no_intent_behaves_exactly_as_before() -> None:
     session = SessionStore().create(seed=42, llm_fn=None)
     state = session.engine.state
     session.storyteller.llm_fn = scripted(state)
+    session.assistant.llm_fn = session.storyteller.llm_fn
     before = state.location_id
 
     payload = run_turn(session, "The player listens.")
