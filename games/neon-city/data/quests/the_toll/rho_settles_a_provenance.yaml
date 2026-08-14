@@ -1,0 +1,62 @@
+# Version: v0.1.0 [2026-08-14]
+
+id: rho_settles_a_provenance
+arc: the_toll
+name: "Rho Settles a Provenance"
+summary: >-
+  A piece on Rho's cloth has a history: Ghost_Net lost it in the spring
+  and never reported the loss, which for an outfit that verifies
+  everything is itself information. Authenticate it, then survive what the
+  answer means.
+
+start_text: >-
+  Rho turns the piece over once. "Provenance amuses me the way weather
+  amuses other people. This one has weather. Authenticate it -- quietly --
+  and I will move my gap in your favour, permanently. That is not an offer
+  I have made this year."
+
+stages:
+  - id: authenticate
+    objective: "Authenticate the piece against the alley's memory."
+    narrative_flags:
+      - nf_provenance_traced
+    complete_when:
+      all:
+        - at_location: ghost_alley
+        - flag: nf_provenance_traced
+    complete_text: >-
+      The alley remembers. Ghost_Net logged the piece into a courier run in
+      the spring -- Halloran's run, three stops before his last one -- and
+      then the log stops, cleanly, the way logs do not.
+    on_complete:
+      effects:
+        - { type: awareness, delta: 6 }
+
+  - id: return_or_resell
+    objective: "Return it to Ghost_Net, or let Rho resell it with its history filed off."
+    narrative_flags:
+      - nf_prov_returned
+      - nf_prov_resold
+    complete_when:
+      any:
+        - flag: nf_prov_returned
+        - flag: nf_prov_resold
+    complete_text: >-
+      The piece leaves the cloth. What follows it -- gratitude, margin, or
+      a checksum that keeps coming back clean against your name -- was
+      decided the moment you chose the counter.
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_provenance_done }
+    - { type: flag, flag: rho_gap_moved }
+    - { type: value, name: standing_rho, delta: 14, why: "the gap moves in your favour, permanently, as quoted" }
+    - { type: reputation, faction: ghost_net, delta: 8 }
+    - type: ledger_fact
+      kind: secret
+      text: "The piece on Rho's cloth passed through Halloran's spring run. Ghost_Net lost it and chose not to report the loss."
+
+complete_text: >-
+  "There is no other secret," Rho says, folding the cloth, and for the
+  first time you understand the sentence is not about the fencing
+  business. Nothing in this city is lost. It is only ever unreported.

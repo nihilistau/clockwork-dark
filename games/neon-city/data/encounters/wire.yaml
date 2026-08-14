@@ -1,0 +1,151 @@
+# NEON CITY: THE CROSSING -- the wire: high-danger edges. The undercroft
+# run, the Bunker road, and the lift approach (danger 12 in
+# locations.yaml).
+#
+# Version: v0.1.0 [2026-08-14]
+
+band: wire
+
+encounters:
+
+  - id: undercroft_squatters
+    tier: 2
+    weight: 25
+    triggers:
+      edges: ["ripper_street>synthsec_gridpoint", "synthsec_gridpoint>ripper_street"]
+    intro: >-
+      Light where there should be none: a squatter camp in the undercroft's
+      wide gallery, tarps and a cook-fire and a dozen people who heard you
+      forty metres ago. They live under the wire because nobody counts
+      down here. They intend to keep it that way.
+    threat: { name: "The undercroft's residents", resolve: 3 }
+    approaches:
+      pay_respects:
+        skill: persuasion
+        difficulty: standard
+        text: "Name yourself, name your business, offer the fire something"
+      go_around:
+        skill: stealth
+        difficulty: hard
+        text: "Take the flooded parallel gallery, quietly"
+      walk_through:
+        skill: nerve
+        difficulty: hard
+        text: "Walk the middle of the gallery like you have done it before"
+    outcomes:
+      crit_success:
+        text: >-
+          An old man by the fire knows the rotation topside better than
+          SynthSec does, and trades it for your news of the street.
+        effects:
+          - { type: awareness, delta: 4 }
+      success:
+        text: "Passage, granted the way the undercroft grants everything: by deciding you are not worth the trouble."
+        effects: []
+      partial:
+        text: "Passage, for a price -- the fire takes a toll in goods or credits, and takes its time about it."
+        effects:
+          - { type: stat, stat: gold, delta: -70 }
+          - { type: stamina, delta: -8 }
+      failure:
+        text: >-
+          The gallery empties around you in a way that is worse than a
+          fight, and the flooded parallel is the only road left open.
+        effects:
+          - { type: stamina, delta: -14 }
+          - { type: stat, stat: hp, delta: -2 }
+
+  - id: sweep_team
+    tier: 3
+    weight: 20
+    triggers:
+      edges: ["synthsec_gridpoint>deepstate_bunker", "deepstate_bunker>synthsec_gridpoint", "omnicorp_plaza>synthsec_gridpoint", "synthsec_gridpoint>omnicorp_plaza"]
+    intro: >-
+      A SynthSec sweep, off-schedule: four of them with a drone up,
+      walking a grid across ground that is supposed to be empty. Whatever
+      they are looking for has a description, and you are about to be
+      compared against it.
+    threat: { name: "An off-schedule sweep team", resolve: 4 }
+    approaches:
+      dead_ground:
+        skill: stealth
+        difficulty: hard
+        text: "Read the drone's lattice and hold the dead ground"
+      contractor_bluff:
+        skill: persuasion
+        difficulty: hard
+        text: "Be a subcontractor with a work order and a schedule grievance"
+      spoof_the_drone:
+        skill: craft
+        difficulty: hard
+        text: "Feed the drone a signature it is not looking for"
+    outcomes:
+      crit_success:
+        text: >-
+          The lattice passes over you twice and learns nothing, and their
+          radio chatter hands you the sweep schedule for the week.
+        effects:
+          - { type: awareness, delta: 4 }
+          - { type: item, item_id: patrol_log, name: "Patrol Log", qty: 1, tags: [data, scavenge] }
+      success:
+        text: "The grid completes one square short of your position and folds up after itself."
+        effects: []
+      partial:
+        text: >-
+          You hold the dead ground for two cold hours while the sweep
+          finishes being thorough.
+        effects:
+          - { type: stamina, delta: -12 }
+      failure:
+        text: >-
+          The drone gets a clean signature. They do not approach -- worse:
+          they log, tag, and move on, and the description is better now.
+        effects:
+          - { type: value, name: heat, delta: 8, why: "a clean signature on a sweep log" }
+
+  - id: the_dark_takes_inventory
+    tier: 3
+    weight: 18
+    triggers:
+      edges: ["shadow_crossing>the_lift", "the_lift>shadow_crossing"]
+    intro: >-
+      Between the crossing and the lift head the dark gets organised:
+      sounds with intervals, movement with intent, something pacing the
+      route just past the reach of any honest light. Nothing out here is
+      counted. That was never the mercy it sounds like.
+    threat: { name: "Something pacing you in the dark", resolve: 3 }
+    approaches:
+      read_the_intervals:
+        skill: survival
+        difficulty: hard
+        text: "Time it, map it, and move inside its gaps"
+      stand_still:
+        skill: nerve
+        difficulty: severe
+        text: "Stop. Stand. Let it look. Be more than it expected."
+      kill_the_light:
+        skill: stealth
+        difficulty: hard
+        text: "Go dark and finish the walk by feel"
+    outcomes:
+      crit_success:
+        text: >-
+          It breaks off with what you would call, in anything counted,
+          respect. The route to the slab shed is yours, and you know its
+          gaps now.
+        effects:
+          - { type: awareness, delta: 5 }
+      success:
+        text: "The intervals hold. Whatever paces the dark stays in it, and you reach the far ground with your pulse merely loud."
+        effects: []
+      partial:
+        text: "You outlast it at the cost of an hour braced in the wet and a torch you will not get back."
+        effects:
+          - { type: stamina, delta: -12 }
+      failure:
+        text: >-
+          It touches distance with you once -- a rush, a weight, gone --
+          and leaves you on the ground with the dark ringing.
+        effects:
+          - { type: stat, stat: hp, delta: -4 }
+          - { type: stamina, delta: -12 }

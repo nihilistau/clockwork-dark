@@ -1,0 +1,57 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# The alley's region quest: the data half of the scavenge loop, taught the
+# way the yard taught the salvage half. Systems produce (the alley's forage
+# table yields the shards); the quest observes the bag.
+
+id: dead_drops
+arc: the_toll
+name: "Dead Drops"
+summary: >-
+  Lyra's line is short-handed and the alley's drops do not clear
+  themselves. Work the taped seams, bring her two shards worth reading,
+  and learn what the alley pays -- and what it remembers.
+
+start_text: >-
+  "Two shards," Lyra says, eyes on her screens. "Any two that read clean.
+  The alley grows them like mould grows -- the trick is knowing which
+  seams to peel. You will be watched while you learn. That is not a
+  warning; it is how the alley says hello."
+
+stages:
+  - id: work_the_seams
+    objective: "Scavenge two dead-drop shards from Ghost Alley."
+    complete_when:
+      all:
+        - has_item: { id: dead_drop_shard, qty: 2 }
+    complete_text: >-
+      Two shards, peeled from taped seams at ankle height. One is
+      somebody's insurance. The other is somebody's goodbye. The alley
+      does not distinguish; it only keeps.
+
+  - id: deliver_to_the_line
+    objective: "Deliver them to Lyra's line."
+    narrative_flags:
+      - nf_drops_delivered
+    complete_when:
+      all:
+        - at_location: ghost_alley
+        - flag: nf_drops_delivered
+    complete_text: >-
+      She reads both in under a minute, files both, pays without being
+      asked. "Trace is arithmetic," she says. "You now have a coefficient.
+      Keep it small."
+    on_complete:
+      effects:
+        - { type: stat, stat: gold, delta: 250 }
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_dead_drops_done }
+    - { type: value, name: standing_lyra, delta: 8, why: "you worked the line and did not read what you were not paid to read -- as far as she can prove" }
+    - { type: reputation, faction: ghost_net, delta: 8 }
+
+complete_text: >-
+  Data is the alley's harvest: dead drops, cache keys, fragments of ICE
+  with the teeth still in them. Worthless to Grease, gold to Rho and
+  Lyra, and Frankie pays more than either -- and tells the room.

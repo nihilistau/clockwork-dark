@@ -1,0 +1,71 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# The lift's canon gate: keys AND crew. The keys are an item three roads
+# supply (Wren's counter, the Floor 87 set, Frankie's miracle); the crew is
+# the standing the whole game was for -- Dita's sealed cut, or whoever the
+# threads earned, sworn in fiction and flagged by the narrator.
+
+id: keys_and_hands
+arc: the_count
+name: "Keys and Hands"
+summary: >-
+  The doors want codes and the winch wants three pairs of hands -- two
+  beside yours, minimum. Keys: Wren's slate at her price, the Floor 87
+  set, or Frankie paid to conjure one. Hands: whoever your threads earned.
+  Nobody descends alone.
+
+preconditions:
+  all:
+    - flag: lift_reached
+
+start_text: >-
+  The interlock panel is older than the alphabet its labels use, but the
+  shape of it is legible to anyone who has worked a winch: three stations,
+  three pairs of hands, held simultaneously. The doors state their terms
+  the way the whole city has been stating them since the counter: keys,
+  crew, no exceptions, no reasons accepted.
+
+stages:
+  - id: the_keys
+    objective: "Hold lift access codes, from whichever counter would sell you them."
+    complete_when:
+      all:
+        - has_item: access_codes
+    complete_text: >-
+      The codes are cold-boot old, prefix-stamped in a numbering that does
+      not start at one. Wherever they came from -- the Bunker's slate, the
+      Intake office, Frankie's folded miracle -- they are real, and the
+      panel wakes half a light when you approach it.
+
+  - id: the_hands
+    objective: "Commit a crew: two beside yours, sworn where the dark can hear it."
+    narrative_flags:
+      - nf_crew_sworn
+    complete_when:
+      all:
+        - flag: nf_crew_sworn
+        - any:
+            - flag: dita_crewed
+            - flag: danes_arrangement
+            - flag: anchor_family
+    complete_text: >-
+      They come because the threads held: the number said out loud, the
+      arrangement kept, the ledger's other column settled. Nobody makes a
+      speech. Somebody checks the winch grease. It is the most loyalty the
+      Sprawl knows how to show.
+    on_complete:
+      effects:
+        - { type: flag, flag: crew_committed }
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_keys_hands_done }
+    - type: ledger_fact
+      kind: event
+      text: "The lift is live: codes in the panel, three pairs of hands on the winch. You will not be back this way."
+
+complete_text: >-
+  The lift is live. The doors do not care how good your reasons are; they
+  care that there are codes in the panel and hands on the interlocks, and
+  now there are. What is left is the date on the file, and the shaft. You
+  will not be back this way.

@@ -1,0 +1,55 @@
+# Version: v0.1.0 [2026-08-14]
+
+id: what_mira_wont_say
+arc: the_file
+name: "What Mira Won't Say"
+summary: >-
+  Mira ran ten seconds of the shard before she sold it to you. Then she
+  stopped. She has watched worse for breakfast. Whatever is in the ten
+  seconds is not gore; it is information, and she is sitting on it.
+
+preconditions:
+  all:
+    - quest_completed: forty_seconds
+    - value: { name: standing_mira, min: 15 }
+
+start_text: >-
+  You have stood at her counter often enough now to have earned the real
+  currency of the Grid, which is not credits: it is being someone whose
+  questions get answered. She sees the question coming and puts both hands
+  flat on the glass.
+
+stages:
+  - id: ask_her
+    objective: "Ask Mira what was in the ten seconds."
+    narrative_flags:
+      - nf_mira_asked
+    complete_when:
+      all:
+        - at_location: the_grid
+        - flag: nf_mira_asked
+    complete_text: >-
+      "The courier," she says. "Halloran. He came through Ghost Alley with
+      the shard on him -- and his heart already stopped. Four minutes
+      stopped, by the telemetry. The render was already running him. It
+      walked him to my counter, it put the shard down, and then it let him
+      fall over." She takes her hands off the glass. "You were sold that
+      thing by whatever filed you. I was just the counter it happened on."
+    on_complete:
+      effects:
+        - { type: awareness, delta: 10 }
+        - { type: value, name: standing_mira, delta: 10, why: "she told you the thing she was not going to tell anyone" }
+
+on_complete:
+  effects:
+    - { type: flag, flag: mira_told_you }
+    - { type: flag, flag: quest_mira_done }
+    - type: ledger_fact
+      kind: secret
+      text: "Halloran was dead four minutes before he delivered the shard. The render was running him. Whatever filed you is still filing."
+
+complete_text: >-
+  Whatever filed you is still filing. It did not send you a threat; it
+  sent you a receipt, by a courier it was already puppeting, to a counter
+  it knew you trusted. The question is no longer what it wants. The
+  question is what it counts you as.

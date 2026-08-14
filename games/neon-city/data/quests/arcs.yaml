@@ -1,0 +1,72 @@
+# NEON CITY: THE CROSSING -- the four arcs.
+#
+# Read by engine/game/quests.py::load_arcs. Directory name = arc id; gates
+# are ordinary quest predicates and only ever OPEN doors. A player can
+# refuse the whole thing and just live in the Grid; the timestamp does not
+# refuse them back -- data/rules/clocks.yaml winds either way, which is the
+# story's version of "the evil ticks whether you become a hero or a baker".
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+arcs:
+  the_file:
+    name: "The File"
+    default: true
+    involvement: 5
+    order: 0
+    blurb: >-
+      Understand what you bought. Forty seconds, a header stamp, a courier
+      who had a name, and the ten seconds Mira will not talk about.
+
+  the_toll:
+    name: "The Toll"
+    involvement: 15
+    order: 1
+    unlock_text: >-
+      You know where you are going now. What is left is the price of the
+      ground between here and there.
+    blurb: >-
+      Earn passage. The yard, the Strip, the Pit, the Anchor, the Plaza --
+      every district is a debt you pay to pass, and Collections keeps its
+      own schedule.
+    requires_all:
+      - flag: floor87_named
+    requires_any:
+      # Somebody has to rate you before the Sprawl works for you.
+      - value: { name: standing_mira, min: 15 }
+      - value: { name: standing_lyra, min: 15 }
+      - reputation: { faction: blackmarket, min: 15 }
+
+  the_gate:
+    name: "The Gate"
+    involvement: 25
+    order: 2
+    unlock_text: >-
+      The wire is real now: you have stood in front of it. The checkpoint
+      passes nobody the city is hunting, and it has exactly three doors.
+    blurb: >-
+      The Grid Point. Papers, the tunnels, or a corporal with nothing left
+      to guard. The Bunker only finds the cool.
+    requires_all:
+      - visited: synthsec_gridpoint
+    requires_any:
+      - quest_completed: plaza_wages
+      - quest_completed: collections_calls
+      - quest_completed: yard_shift
+
+  the_count:
+    name: "The Count"
+    involvement: 35
+    order: 3
+    unlock_text: >-
+      A door is open in the wire. Past it there is no count, and you are
+      about to learn why that was never the mercy it sounds like.
+    blurb: >-
+      The crossing and the descent. Keys, hands, the appointment, and the
+      question the whole walk was for: who holds the pen.
+    requires_any:
+      - flag: gate_option_papers
+      - flag: gate_option_tunnels
+      - flag: gate_option_dane

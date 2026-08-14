@@ -1,0 +1,68 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# The permanent heat is the point: Uptown work pays in access, and access
+# is the count getting a better look at you. The stage grammar cannot
+# branch rewards on which payment the player chose, so the quest pays the
+# middle of the canon fork -- a smaller credit line AND the pass -- and the
+# narration carries the choice's texture.
+
+id: plaza_wages
+arc: the_toll
+name: "Plaza Wages"
+summary: >-
+  Celine Dorr's office hires the kind of people she would never be seen
+  with. One clean corporate errand, paid in access -- a Floor 87 visitor
+  pass -- and the count gets a better look at you than it has ever had.
+
+start_text: >-
+  The office is on the ninth floor and smells of nothing at all. "One
+  errand," Dorr says, not looking up. "Clean hands, no questions, no
+  names. Payment in credits, or -- for the right kind of contractor -- in
+  a door." She slides a laminate across the desk, face down.
+
+stages:
+  - id: the_errand
+    objective: "Run Dorr's errand through the Plaza, clean."
+    narrative_flags:
+      - nf_errand_done
+    complete_when:
+      all:
+        - at_location: omnicorp_plaza
+        - flag: nf_errand_done
+    complete_text: >-
+      A package the weight of a deck, a desk on a floor with no
+      nameplates, a receipt signed by an initial. Nothing about it is
+      illegal. Everything about it is deniable. The distinction is the
+      entire Uptown economy.
+    on_complete:
+      effects:
+        - { type: value, name: heat, delta: 6, why: "every camera in the Plaza feeds Intake, and you walked past forty of them" }
+
+  - id: paid_in_a_door
+    objective: "Take the payment: credits on the desk, and the laminate if you will have it."
+    narrative_flags:
+      - nf_pass_taken
+    complete_when:
+      all:
+        - flag: nf_pass_taken
+    complete_text: >-
+      The laminate is a visitor pass for a floor the lift directory does
+      not list. Dorr watches you pocket it with the first genuine
+      expression she has shown: professional pity.
+    on_complete:
+      effects:
+        - { type: item, item_id: floor87_pass, name: "Floor 87 Visitor Pass", qty: 1, tags: [quest, papers] }
+        - { type: stat, stat: gold, delta: 800 }
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_plaza_wages_done }
+    - { type: reputation, faction: omnicorp, delta: 14 }
+    - type: ledger_fact
+      kind: event
+      text: "You ran a clean errand for Celine Dorr's office and were paid partly in a Floor 87 visitor pass."
+
+complete_text: >-
+  Uptown pays better than the Downzone and costs more than it pays. The
+  difference is not on the payslip: it is in the count's picture of you,
+  which is six cameras sharper than it was this morning, permanently.

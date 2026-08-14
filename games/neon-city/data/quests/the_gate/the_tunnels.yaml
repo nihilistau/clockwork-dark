@@ -1,0 +1,85 @@
+# Version: v0.1.0 [2026-08-14]
+
+id: the_tunnels
+arc: the_gate
+name: "The Tunnels"
+summary: >-
+  Dita, fifteen percent, said out loud. The Colosseum undercroft runs from
+  Ripper Street to outside the wire -- no scan, no mast, and it delivers
+  you into the dark with the walk still to do. Rehearse it empty-handed
+  first. She insists, and she is right to.
+
+preconditions:
+  all:
+    - flag: gate_intel
+
+start_text: >-
+  Dita finishes the napkin junction she is drawing before she looks up.
+  "Fifteen percent. Said out loud, to whoever the crew ends up being, up
+  front. That is the whole negotiation." She taps the napkin. "Rehearsal
+  first, empty pockets. The undercroft forgives nothing you have not
+  walked."
+
+stages:
+  - id: recruit_her
+    objective: "Say the number back to her, out loud, and shake on the rehearsal."
+    narrative_flags:
+      - nf_dita_recruited
+    complete_when:
+      all:
+        - at_location: velvet_pit
+        - flag: nf_dita_recruited
+    complete_text: >-
+      "Fifteen," you say, out loud, in front of the bar. She nods once.
+      Everyone who burned her did it in a room where nobody heard the
+      number; you have just made this the other kind of room.
+    on_complete:
+      effects:
+        - { type: value, name: standing_dita, delta: 10, why: "the number, said out loud, before the job" }
+
+  - id: rehearse_it_empty
+    objective: "Run the undercroft to the Grid Point once, empty-handed."
+    narrative_flags:
+      - nf_rehearsal_done
+    complete_when:
+      all:
+        - at_location: synthsec_gridpoint
+        - flag: nf_rehearsal_done
+    complete_text: >-
+      Three hours of service dark, Dita navigating by feel and pulse-count,
+      and then the night sky on the wrong side of the wire. Behind you,
+      the checkpoint's floodlights. In front of you, nothing at all, which
+      out here is not good news.
+    on_complete:
+      effects:
+        - { type: stamina, delta: -15 }
+        - { type: awareness, delta: 5 }
+
+  - id: mark_the_window
+    objective: "Mark the ninety-second window where the checkpoint used to be."
+    narrative_flags:
+      - nf_window_marked
+    complete_when:
+      all:
+        - flag: nf_window_marked
+    complete_text: >-
+      "Curfew moves the checkpoints, it doesn't remove them," she says.
+      "So we go where the checkpoint used to be, ninety seconds after they
+      finish moving it." You watch the rotation twice. The window is real,
+      and it is exactly as wide as she said and no wider.
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_tunnels_done }
+    - { type: flag, flag: undercroft_mapped }
+    - { type: flag, flag: gate_option_tunnels }
+    - { type: value, name: standing_dita, delta: 8, why: "you walked the rehearsal and did not ask how she knows" }
+    - type: ledger_fact
+      kind: secret
+      text: "The undercroft runs from Ripper Street to outside the wire. The checkpoint rotation leaves a ninety-second window, and Dita drives it by feel."
+
+complete_text: >-
+  Option two, priced: three hours of dark, fifteen percent, and a
+  ninety-second window. The Hunted player's only door, and it costs like
+  one. The gate now has two doors, and one of them does not know your
+  face.

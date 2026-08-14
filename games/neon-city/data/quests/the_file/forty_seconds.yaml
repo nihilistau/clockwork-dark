@@ -1,0 +1,72 @@
+# Version: v0.1.0 [2026-08-14]
+
+id: forty_seconds
+arc: the_file
+name: "Forty Seconds"
+summary: >-
+  Mira will not price the shard, which from Mira Vex is the most alarming
+  price there is. Forty seconds, a corporate header, a timestamp twenty-one
+  days out. Watch it. Then decide who else does.
+
+start_text: >-
+  "Take it," Mira says, and slides the shard flat across the glass with one
+  finger, the way you push something you do not want back. "No charge." She
+  has never once said those two words to you in that order.
+
+stages:
+  - id: jack_it
+    objective: "Jack the shard and watch all forty seconds."
+    narrative_flags:
+      - nf_shard_watched
+    complete_when:
+      all:
+        - has_item: the_shard
+        - flag: nf_shard_watched
+    complete_text: >-
+      Rain on wet asphalt. Somebody breathing badly -- you, it turns out --
+      shot from an angle nobody was standing at. Clean, unhurried, filed
+      like a delivery receipt. Forty seconds, and the last four are the
+      quietest thing you have ever heard.
+    on_complete:
+      effects:
+        - { type: awareness, delta: 5 }
+        - { type: value, name: heat, delta: 2, why: "the shard phones nothing home, but jacking it left a session record somewhere" }
+
+  - id: walk_it_to_a_reader
+    objective: "Walk it to a reader -- Lyra reads it properly and keeps a copy; Frankie pays and tells the room."
+    narrative_flags:
+      - nf_read_lyra
+      - nf_read_frankie
+    complete_when:
+      any:
+        - all:
+            - at_location: ghost_alley
+            - flag: nf_read_lyra
+        - all:
+            - at_location: club_noir
+            - flag: nf_read_frankie
+    complete_text: >-
+      The verdict, whoever delivers it, is the same shape: this is not a
+      recording. There is no camera in it. Somebody modelled you. Somebody
+      good.
+    on_complete:
+      effects:
+        - { type: flag, flag: shard_read }
+        - { type: value, name: standing_lyra, delta: 6, why: "you brought her the most interesting thing on the line this year" }
+        - { type: value, name: standing_frankie, delta: 6, why: "he saw it early, which to Frankie is the whole of friendship" }
+
+on_start:
+  effects:
+    - { type: item, item_id: the_shard, name: "The Shard", qty: 1, tags: [quest, data] }
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_forty_seconds_done }
+    - type: ledger_fact
+      kind: event
+      text: "The shard is a render, not a recording. The header stamp is corporate; the timestamp is twenty-one days out."
+
+complete_text: >-
+  Whatever filed you did not use a camera. It used a model of you accurate
+  enough to know how you breathe when you are frightened. It has had
+  nineteen years of practice.

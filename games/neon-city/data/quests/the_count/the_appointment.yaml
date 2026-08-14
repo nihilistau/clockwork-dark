@@ -1,0 +1,83 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# The timestamp made flesh. If the player is ahead of the file, it fires
+# as the forecast resolving AROUND them; if the clock beat them to it
+# (`timestamp_due`), it fires wherever they stand. The choice flags are
+# read by the endings table: `appointment_broken` is the spine of THE WALK
+# AWAY, and `appointment_missed` (the fail path) closes THE QUIET FLOOR.
+# The big slip lands here.
+
+id: the_appointment
+arc: the_count
+name: "The Appointment"
+summary: >-
+  The timestamp is close now, and you are either ahead of it or inside it.
+  One night, one choice: keep it and be more than it measured, break the
+  pattern and be somewhere it cannot see, or send a proxy in your coat.
+  The proxy lives. That is not the part that keeps you up.
+
+preconditions:
+  all:
+    - flag: timestamp_final_week
+
+start_text: >-
+  The header does not change, which is how you know it is getting close:
+  everything else in the city updates. 0xGH0ST's traffic has started
+  addressing the date directly, in bursts, timestamped, always slightly
+  ahead of you. Somewhere an alley by a drainage grate is waiting to be
+  the place in the file, or to stay empty. Both cannot happen.
+
+expires_after_days: 9
+
+stages:
+  - id: one_night_one_choice
+    objective: "Decide what the appointment gets: you, your absence, or a proxy in your coat."
+    narrative_flags:
+      - appointment_kept
+      - appointment_broken
+      - appointment_proxy
+    complete_when:
+      any:
+        - flag: appointment_kept
+        - flag: appointment_broken
+        - flag: appointment_proxy
+    complete_text: >-
+      The night passes. Rain comes off the ledges at the third-floor line,
+      exactly on model. Somebody is breathing badly somewhere, or nobody
+      is, and forty seconds after the header's minute, the world declines
+      to end -- or ends for a telemetry doppel whose pulse was never
+      yours. Somewhere below the Shadow zone, a variable is scored wrong.
+    on_complete:
+      effects:
+        - { type: awareness, delta: 10 }
+
+on_complete:
+  effects:
+    - { type: flag, flag: appointment_resolved }
+    - { type: flag, flag: quest_appointment_done }
+    # THE BIG SLIP. The file's date resolved wrong; somewhere, a confidence
+    # rating collapses and somebody reschedules against a model that has
+    # just been proven mis-fitted.
+    - { type: value, name: timestamp, delta: -3, why: "the forecast met its minute and scored wrong" }
+    - type: ledger_fact
+      kind: event
+      text: "The appointment came, and what it measured was not what arrived. The file stays open, and the count knows it is wrong about you."
+
+on_fail:
+  effects:
+    - { type: flag, flag: appointment_missed }
+    - type: ledger_fact
+      kind: event
+      text: "The appointment came and went without an answer. The file will read that as confirmation."
+
+fail_text: >-
+  The date passes and you gave it no answer at all -- no presence, no
+  absence chosen, no proxy. In the file's terms that is not defiance; it
+  is a data point landing exactly on model. Somewhere, a confidence
+  rating ticks up.
+
+complete_text: >-
+  The alley by the drainage grate stayed empty, or held the wrong pulse,
+  or held you and more than the model measured. Any of the three is a
+  scoring error, and a scoring error in a nineteen-year model is the
+  loudest thing you have ever done quietly.

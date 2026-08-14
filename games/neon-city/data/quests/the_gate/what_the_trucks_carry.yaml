@@ -1,0 +1,90 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# The arc's big slip: -2 on the timestamp. The count's logistics have a
+# hole in them now, and the hole is shaped like a man who finally knows
+# what he was guarding.
+
+id: what_the_trucks_carry
+arc: the_gate
+name: "What the Trucks Carry"
+summary: >-
+  Trucks go out full and come back full; nobody unloads them at the Grid
+  Point. Log the rotation, get inside a manifest, and bring Dane the
+  answer he has guarded six years without having. Gate option three: a
+  corporal with nothing left to guard.
+
+preconditions:
+  all:
+    - flag: gate_intel
+
+start_text: >-
+  "Trucks go out full and come back full," Dane said, at the bar, to the
+  middle distance. "Nobody unloads them here." He was not asking you to
+  find out. He has been very careful, for fourteen months, not to ask
+  anyone that.
+
+stages:
+  - id: log_the_rotation
+    objective: "Log the truck rotation from the approach ditches -- two patrol logs' worth."
+    complete_when:
+      all:
+        - has_item: { id: patrol_log, qty: 2 }
+    complete_text: >-
+      Two route sheets, cross-checked: the trucks run a loop, gate to
+      Intake to gate, six days in seven. Weight in equals weight out, to
+      the kilo. Whatever they carry, none of it stays anywhere.
+
+  - id: crack_a_manifest
+    objective: "Board one or crack its manifest feed."
+    narrative_flags:
+      - nf_manifest_cracked
+    complete_when:
+      all:
+        - at_location: synthsec_gridpoint
+        - flag: nf_manifest_cracked
+    complete_text: >-
+      The cargo column resolves. Not goods. Not people. Drives -- storage,
+      racked and cycled, hauled up full of the city's day and hauled back
+      scrubbed. The trucks are a circulatory system. The gate is a valve
+      on a vein, and Dane has been standing on the vein for fourteen
+      months.
+    on_complete:
+      effects:
+        - { type: item, item_id: truck_manifest, name: "Truck Manifest", qty: 1, tags: [quest, data] }
+        - { type: value, name: heat, delta: 6, why: "manifest feeds log their readers" }
+        - { type: awareness, delta: 8 }
+
+  - id: bring_him_the_answer
+    objective: "Bring Dane the manifest."
+    complete_when:
+      all:
+        - at_location: synthsec_gridpoint
+        - has_item: truck_manifest
+        - flag: nf_dane_told
+    narrative_flags:
+      - nf_dane_told
+    complete_text: >-
+      He reads it twice, at the gate, in uniform, in full view of the mast
+      -- which reads faces, and his face right now is worth reading. Then
+      he folds it into his jacket, next to the care-plan statements.
+      "Fourteen months," he says. "Guarding the laundry run."
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_trucks_done }
+    - { type: flag, flag: gate_option_dane }
+    - { type: value, name: standing_dane, delta: 30, why: "you gave him the one thing SynthSec never would: the answer" }
+    - { type: reputation, faction: synthsec, delta: -8 }
+    # THE SECOND SLIP, the big earned one before the appointment: the
+    # count's logistics have a hole in them now.
+    - { type: value, name: timestamp, delta: -2, why: "the count's logistics have a hole in them now" }
+    - type: ledger_fact
+      kind: secret
+      text: "The trucks haul storage drives -- the city's day, up full, back scrubbed. Dane knows now, and a man with nothing left to guard is a door."
+
+complete_text: >-
+  Option three does not have a price, which is what makes it the most
+  expensive: a man who believed he was guarding something, shown that he
+  was guarding a courier loop, deciding in real time what his six years
+  were for. The gate will open. What it costs him is not your bill -- and
+  you will pay it anyway, later, in the currency of having watched.

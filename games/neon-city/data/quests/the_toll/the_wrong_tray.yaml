@@ -1,0 +1,73 @@
+# Version: v0.1.0 [2026-08-14]
+
+id: the_wrong_tray
+arc: the_toll
+name: "The Wrong Tray"
+summary: >-
+  Jun's braindance tray on the Strip has a cut batch in it -- the Ripper
+  batch, the one that leaves renters with gaps where their evenings were.
+  Trace the batch, find the cutter, and decide whether Frankie hears.
+
+start_text: >-
+  Jun holds the chip up to the light like a jeweller with a fake. "Third
+  one this week. My supplier swears blind. Somebody is cutting my batch
+  between the presser and my tray, and my renters are coming back short
+  their own memories. Find the somebody. I will make it worth the walk."
+
+stages:
+  - id: trace_the_batch
+    objective: "Trace the cut batch back through the Strip's supply line."
+    narrative_flags:
+      - nf_tray_traced
+    complete_when:
+      all:
+        - at_location: neon_strip
+        - flag: nf_tray_traced
+    complete_text: >-
+      Presser to runner to lockbox to tray: four hands, and the third one
+      has a second lockbox. The cutting happens in a stairwell with a
+      camera that has been conveniently broken for five weeks.
+
+  - id: confront_the_cutter
+    objective: "Confront the cutter in the stairwell."
+    narrative_flags:
+      - nf_cutter_confronted
+    complete_when:
+      all:
+        - flag: nf_cutter_confronted
+    complete_text: >-
+      He does not run and he does not apologise. He names his margin, his
+      reasons, and his employer's initials, in that order, professionally
+      -- a man itemising, because in this city even confession is an
+      invoice.
+    on_complete:
+      effects:
+        - { type: value, name: heat, delta: 4, why: "stairwell conversations travel" }
+
+  - id: does_frankie_hear
+    objective: "Decide if Frankie hears about it -- or if it stays between you and Jun."
+    narrative_flags:
+      - nf_tray_frankie_told
+      - nf_tray_kept_quiet
+    complete_when:
+      any:
+        - flag: nf_tray_frankie_told
+        - flag: nf_tray_kept_quiet
+    complete_text: >-
+      Either way, Jun's tray runs clean by the weekend. What changed hands
+      to make that true is between the people it is between.
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_wrong_tray_done }
+    - { type: stat, stat: gold, delta: 350 }
+    - { type: value, name: standing_frankie, delta: 8, why: "whichever way you called it, he respects a person who knows information has a price" }
+    - type: ledger_fact
+      kind: event
+      text: "Somebody was cutting Jun's braindance batch in a Strip stairwell. The renters were paying in memory."
+
+complete_text: >-
+  Braindance rents you somebody else's evening. The cut batch was renting
+  the renters', without asking, and the margin on that is the oldest
+  margin there is: taking what people will not notice missing until it
+  matters.

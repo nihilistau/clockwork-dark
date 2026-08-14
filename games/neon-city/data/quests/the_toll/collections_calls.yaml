@@ -1,0 +1,67 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# The fiction wrapper around the debt machinery: the clock's `visit` beat
+# (data/rules/clocks.yaml) sets `collections_visited`, which opens this;
+# the arrangement the final stage narrates is the `collections_marker`
+# thread (data/rules/threads.yaml), whose seal sets `debt_marker` and whose
+# break is canonical burn material for the fail-forward ending.
+
+id: collections_calls
+arc: the_toll
+name: "Collections Calls"
+summary: >-
+  You missed a day, and the city noticed before you did. The reminder was
+  paper. The visit was two people who know your walk. What comes next is
+  an arrangement, and arrangements are survivable -- now.
+
+preconditions:
+  all:
+    - flag: collections_visited
+
+start_text: >-
+  They do not threaten. Threats are written by people, and Collections
+  works for whoever you owe -- the ledger merely wants to know how the
+  number becomes zero, and it has sent two professionals to take dictation.
+
+stages:
+  - id: hear_the_terms
+    objective: "Hear the terms all the way through."
+    narrative_flags:
+      - nf_terms_heard
+    complete_when:
+      all:
+        - flag: nf_terms_heard
+    complete_text: >-
+      The taller one recites: principal, the visit's fee, the date. No
+      interest -- Collections does not do interest; it does consequences.
+      The date is not far away. The date is never far away.
+
+  - id: the_arrangement
+    objective: "Make the arrangement -- or make it worse."
+    narrative_flags:
+      - nf_marker_taken
+      - nf_marker_refused
+    complete_when:
+      any:
+        - flag: nf_marker_taken
+        - flag: nf_marker_refused
+    complete_text: >-
+      It concludes the way these things conclude: with a number, a date,
+      and everyone knowing exactly where everyone stands. In its own way
+      it is the most honest conversation the Sprawl offers.
+    on_complete:
+      effects:
+        - { type: value, name: heat, delta: 2, why: "a visit is a matter of record now" }
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_collections_done }
+    - { type: value, name: standing_mira, delta: 5, why: "if Collections comes for you, Mira hears first, and she heard you handled it like an adult" }
+    - type: ledger_fact
+      kind: event
+      text: "Collections called. There is an arrangement now, with a number and a date on it."
+
+complete_text: >-
+  Two debts you cannot cover is how names stop being said in this city.
+  One debt, arranged, is just Tuesday. The trick -- the entire trick -- is
+  knowing which of the two you are carrying.

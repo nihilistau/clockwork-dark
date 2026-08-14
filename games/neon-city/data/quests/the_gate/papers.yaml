@@ -1,0 +1,59 @@
+# Version: v0.1.0 [2026-08-14]
+
+id: papers
+arc: the_gate
+name: "Papers"
+summary: >-
+  A forged ID spends fine twice; the third time is a problem. Commission
+  one, test it somewhere cheap, and know its limit before the mast does.
+  Gate option one: the paperwork route, priced in nerve.
+
+preconditions:
+  all:
+    - flag: gate_intel
+
+start_text: >-
+  Rho does not unfold the cloth for paper jobs; there is a drawer. "Two
+  clean spends, then it ages. Where you are taking it, the reader is not a
+  bored doorman -- it is a mast that has read faces for six years and has
+  never once been bribed. Test the paper first. Somewhere survivable."
+
+stages:
+  - id: commission_it
+    objective: "Commission a forged ID from Rho or Frankie."
+    complete_when:
+      all:
+        - has_item: forged_id
+    complete_text: >-
+      The laminate is warm from the press. Your face, a stranger's name,
+      and a history shallow enough to wade through -- which is why it has
+      two good spends in it and not three.
+
+  - id: test_its_limit
+    objective: "Test it somewhere cheap, and learn exactly where it breaks."
+    narrative_flags:
+      - nf_id_tested
+    complete_when:
+      all:
+        - flag: nf_id_tested
+    complete_text: >-
+      A Strip checkpoint, a bored scanner, a heartbeat of amber before the
+      green. It spends. But you watched the amber, and now you know what
+      the mast will see: a face arguing with its own paperwork.
+    on_complete:
+      effects:
+        - { type: value, name: heat, delta: 3, why: "test spends leave test records" }
+        - { type: awareness, delta: 4 }
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_papers_done }
+    - { type: flag, flag: gate_option_papers }
+    - type: ledger_fact
+      kind: event
+      text: "The forged ID has two good spends and a visible limit. The mast reads faces, and the paper knows it."
+
+complete_text: >-
+  Option one, priced: a clean identity, a controlled test, and a known
+  limit. The gate will take the paper or it will take you, and the
+  difference is four seconds of a corporal deciding where to look.

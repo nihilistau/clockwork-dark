@@ -1,0 +1,75 @@
+# Version: v0.1.0 [2026-08-14]
+
+id: the_anchor_ledger
+arc: the_toll
+name: "The Anchor Ledger"
+summary: >-
+  Ines keeps two columns: money, and the other one. A regular stopped
+  coming three weeks ago with the other column still open. Find out which
+  kind of stopped, and settle the favour for her.
+
+start_text: >-
+  Ines does not show anyone the ledger. She shows you a line of it, one
+  finger covering the rest. "Marek. Crane rigger. Owed me a listening, not
+  a credit -- and he has not been in for three weeks. Find out which kind
+  of stopped this is. I will know what to do with either answer."
+
+stages:
+  - id: ask_the_yard
+    objective: "Ask after Marek where the crane crews drink and work."
+    narrative_flags:
+      - nf_marek_traced
+    complete_when:
+      all:
+        - at_location: junkyard_sprawl
+        - flag: nf_marek_traced
+    complete_text: >-
+      The crews go quiet in the specific way of men who know exactly one
+      thing each. Assembled: Marek took a night job on the north face,
+      once, for money he would not name. Then he stopped being on
+      schedules.
+
+  - id: which_kind_of_stopped
+    objective: "Find out which kind of stopped -- and what he wanted listened to."
+    narrative_flags:
+      - nf_marek_found
+    complete_when:
+      all:
+        - flag: nf_marek_found
+    complete_text: >-
+      Alive. Two districts over, working under a different name, missing
+      two fingers, and paid enough to stay missing. What he wanted
+      listened to was this: what the north-face crews bury has serials,
+      and some of it was still warm when it went in.
+    on_complete:
+      effects:
+        - { type: awareness, delta: 6 }
+        - { type: value, name: heat, delta: 3, why: "asking after buried serials is a noisy hobby" }
+
+  - id: tell_ines
+    objective: "Bring Ines her answer."
+    narrative_flags:
+      - nf_ines_told
+    complete_when:
+      all:
+        - at_location: rusty_anchor
+        - flag: nf_ines_told
+    complete_text: >-
+      She listens the whole way through without pouring anything, which is
+      the Anchor's version of standing at attention. Then she draws one
+      line in the ledger, and under it, a shorter one. Your name is on the
+      shorter one.
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_anchor_ledger_done }
+    - { type: flag, flag: anchor_family }
+    - { type: reputation, faction: blackmarket, delta: 8 }
+    - type: ledger_fact
+      kind: secret
+      text: "Ines's other column is settled. When Collections moves in the Downzone, she hears first, and now she names names to you."
+
+complete_text: >-
+  Rest at the Anchor stops costing you anything that night, and never
+  starts again. Nobody announces it. The tab simply stops arriving, which
+  is how the Downzone says family.

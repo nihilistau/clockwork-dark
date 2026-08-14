@@ -1,0 +1,70 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# The one-way edge, taken or refused. Refusal (`nf_walk_away`) is a real
+# road: THE WALK AWAY reads it, and the quest completes without the hall.
+# The engine's `visited: core_hall` record -- not a flag -- is what the
+# endings use to know whether the descent actually happened.
+
+id: the_descent
+arc: the_count
+name: "The Descent"
+summary: >-
+  Down further than the city is old. One-way. Three pairs of hands on the
+  winch, codes in the panel, and one decision left that is genuinely
+  yours: ride it down, or pay the crew off at the doors and refuse the
+  room at the bottom.
+
+preconditions:
+  all:
+    - quest_completed: keys_and_hands
+
+start_text: >-
+  The winch takes all three stations to wake. The cage rises to meet the
+  doors with a patience that has outlasted every corporation that ever
+  claimed this ground. Dita checks the brake gear twice and then looks at
+  you, once, with the expression of a driver who has delivered to the door
+  and does not get a vote on what walks through it.
+
+stages:
+  - id: the_doors
+    objective: "Ride the lift down -- or pay the crew off and drop the keys down the shaft."
+    narrative_flags:
+      - nf_descend
+      - nf_walk_away
+    complete_when:
+      any:
+        - flag: nf_descend
+        - flag: nf_walk_away
+    complete_text: >-
+      The decision is made at the doors, out loud, in front of the people
+      whose hands made it possible -- which is the only honest place to
+      make it. The shaft accepts riders and refusals with the same
+      silence.
+
+  - id: the_hall
+    objective: "Walk the hall to the core -- or begin the walk back that nobody makes."
+    complete_when:
+      any:
+        - at_location: core_hall
+        - flag: nf_walk_away
+    complete_text: >-
+      Below: cold, and the hum, and shelving that goes back further than
+      the towers do. Or above: the dark crossing, taken in reverse, with
+      the file still open behind you. Either way, there are no prices
+      where you are walking. Everything is already spent.
+    on_complete:
+      effects:
+        - { type: awareness, delta: 10 }
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_descent_done }
+    - type: ledger_fact
+      kind: event
+      text: "The lift's decision is made: the hall below, or the walk back nobody makes. The doors did not care which."
+
+complete_text: >-
+  Nineteen years of accumulated weight, describing a city that agreed to
+  be the description -- or the memory of a shaft, receding behind you in
+  the dark. The question was never whether the count is true. Only who
+  holds the pen.

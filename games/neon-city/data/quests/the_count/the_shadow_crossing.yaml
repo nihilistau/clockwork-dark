@@ -1,0 +1,75 @@
+# Version: v0.1.0 [2026-08-14]
+
+id: the_shadow_crossing
+arc: the_count
+name: "The Shadow Crossing"
+summary: >-
+  Past the wire there is no count, and you are about to learn why that was
+  never the mercy it sounds like. Provision first. The crossing is four
+  hours on the worst ground in the Sprawl, in whatever the sky decides,
+  and everything you need, you carried.
+
+start_text: >-
+  The expedition plans itself in a bar, the way they all do: food, patches,
+  a weather window argued over twice. Past the wire there are no vendors,
+  no cameras, no prices -- and the absence of prices, out here, is the
+  absence of the only law the Sprawl reliably keeps.
+
+stages:
+  - id: provision
+    objective: "Provision for the dark: food in the bag, weather on your back."
+    narrative_flags:
+      - nf_provisioned
+    complete_when:
+      all:
+        - flag: nf_provisioned
+        - any:
+            - has_item: sealed_ration
+            - has_item: synth_food
+            - has_item: protein_paste
+    complete_text: >-
+      The bag is packed the way Dita packs a route: everything justified,
+      nothing sentimental. What you carry is what there is. There is no
+      counter past the wire that will sell you your mistake back.
+
+  - id: the_crossing_itself
+    objective: "Make the crossing to the dark ground beyond the wire."
+    complete_when:
+      all:
+        - at_location: shadow_crossing
+    complete_text: >-
+      Four hours. No streetlights, no cameras, no count. The dark out here
+      is not empty -- it is unattended, which you now understand is a
+      different thing entirely. The weather arrives with nothing between
+      you and it, exactly as advertised.
+    on_complete:
+      effects:
+        - { type: flag, flag: shadow_crossed }
+        - { type: awareness, delta: 8 }
+
+  - id: the_lift_head_found
+    objective: "Find the lift head."
+    complete_when:
+      all:
+        - at_location: the_lift
+    complete_text: >-
+      A poured-slab shed older than every logo in the city, and inside it,
+      doors. The lift under the Grid Point goes down further than the city
+      is old. The winch interlocks want three pairs of hands. The doors
+      want codes. Neither cares how far you have walked.
+    on_complete:
+      effects:
+        - { type: flag, flag: lift_reached }
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_crossing_done }
+    - type: ledger_fact
+      kind: event
+      text: "The crossing is made. The lift head stands in a slab shed past the dark ground, wanting keys and a crew."
+
+complete_text: >-
+  You crossed the only ground in the Sprawl the count cannot see, and
+  spent the whole walk learning what the cameras were keeping off the
+  streets. The lift head hums behind its doors. It has been patient longer
+  than the city has existed, and it can be patient four days more.

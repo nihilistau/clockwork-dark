@@ -1,0 +1,66 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# The one gate this engine can enforce to the letter: the stage predicate
+# reads the declared heat meter, so the Bunker genuinely does not open
+# above 40. Canon numbers (BIBLE.md 4.7): heat <= 40 AND DeepState
+# standing >= -30.
+
+id: heat_forty
+arc: the_gate
+name: "Heat Forty"
+summary: >-
+  The Bunker only finds the cool. Spend your heat down to forty the hard
+  way -- favours, scrubs, six quiet hours -- then cross to the door that
+  is not on any map, and be decided about.
+
+preconditions:
+  all:
+    - flag: gate_intel
+    - reputation: { faction: deepstate, min: -30 }
+
+start_text: >-
+  Wren finds you, which is how it works; nobody finds Wren. A different
+  name than last year, the same flat voice: "There is a counter past the
+  wire that would take your custom. It has one requirement and the
+  requirement is not money. Arrive quiet. Forty or under. It will know."
+
+stages:
+  - id: spend_it_down
+    objective: "Get your heat to forty or under, by whatever ladder you can afford."
+    complete_when:
+      all:
+        - value: { name: heat, max: 40 }
+    complete_text: >-
+      Scrubs, favours, six hours in the Anchor's back room watching the
+      street forget you. The city's attention is a debt like any other: it
+      can be paid down, and you have just learned exactly what your
+      anonymity costs per point.
+
+  - id: cross_to_the_door
+    objective: "Cross to the Bunker, quiet, and be decided about."
+    complete_when:
+      all:
+        - at_location: deepstate_bunker
+    complete_text: >-
+      The door is not on any map and was not there on the rehearsal. It is
+      there now, because you are cool enough to be worth deciding about.
+      Inside: shelving that goes back further than the towers do, and an
+      old man blotting a page like it is 1908.
+    on_complete:
+      effects:
+        - { type: awareness, delta: 8 }
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_heat_forty_done }
+    - { type: flag, flag: bunker_entered }
+    - { type: reputation, faction: deepstate, delta: 10 }
+    - type: ledger_fact
+      kind: secret
+      text: "The Bunker found you at forty heat. The Archivist's greeting: 'You were a promising entry. Entries close.'"
+
+complete_text: >-
+  "You were a promising entry," the Archivist says, in the tense of the
+  record, not unkindly. "Entries close." Wren's counter is open behind
+  him: dossiers, access codes, the only honest map of the Shadow zone --
+  at a markup, and worth it. The forecast on your shard is theirs.

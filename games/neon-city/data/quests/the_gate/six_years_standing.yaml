@@ -1,0 +1,64 @@
+# Version: v0.1.0 [2026-08-14]
+
+id: six_years_standing
+arc: the_gate
+name: "Six Years Standing"
+summary: >-
+  Dane has stood SynthSec gates six years, this one fourteen months, and
+  the transfer keeps expiring. He drinks at the Anchor, alone, at the
+  short end of the bar. The gate has three doors, and the cheapest one is
+  learning what the man standing it actually wants.
+
+start_text: >-
+  Ines tips her head a quarter-inch toward the short end of the bar, where
+  a folded uniform jacket is holding a stool. "Gate corporal. In here
+  three nights a week. Buys his own, talks to nobody." A beat. "You could
+  be nobody."
+
+stages:
+  - id: drink_where_he_drinks
+    objective: "Drink where Dane drinks, and let him talk first."
+    narrative_flags:
+      - nf_dane_met
+    complete_when:
+      all:
+        - at_location: rusty_anchor
+        - flag: nf_dane_met
+    complete_text: >-
+      Third drink, he talks -- not to you exactly, to the middle distance.
+      Six years standing gates. Fourteen months at this one. Transfer
+      requested twice; approval expired twice. "Coincidence twice," he
+      says, and laughs at exactly none of it.
+    on_complete:
+      effects:
+        - { type: value, name: standing_dane, delta: 8, why: "you bought no information and asked no questions, which he noticed" }
+
+  - id: the_mast_reads_faces
+    objective: "Learn how the gate actually works -- and what the four hundred is for."
+    narrative_flags:
+      - nf_mast_learned
+    complete_when:
+      all:
+        - flag: nf_mast_learned
+    complete_text: >-
+      "Head down, no eye contact with the mast. It reads faces, not
+      badges." He turns the glass a half-turn. "...It's four hundred.
+      Don't look pleased about it." The four hundred is not for him. His
+      kid is in a NeoTech care plan, and it went up again.
+    on_complete:
+      effects:
+        - { type: awareness, delta: 5 }
+        - { type: value, name: standing_dane, delta: 6, why: "you heard the number without flinching and the reason without commenting" }
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_six_years_done }
+    - { type: flag, flag: gate_intel }
+    - type: ledger_fact
+      kind: secret
+      text: "The Grid Point mast reads faces, not badges. Dane's wave-through is four hundred, and the four hundred is a care-plan instalment."
+
+complete_text: >-
+  The gate stops being a wall and becomes a man: tired, exact, six years
+  deep in a job he no longer believes has a purpose, guarding trucks that
+  go out full and come back full. Walls do not have doors. Men do.

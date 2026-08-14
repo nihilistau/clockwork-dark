@@ -1,0 +1,286 @@
+# NEON CITY: THE CROSSING -- street encounters: the city's toll on moving
+# through it. Low and medium edges (danger 3-9 in locations.yaml).
+#
+# Read by engine/game/encounter.py. The canon travel table scales with heat
+# tier; this engine's triggers filter on edges, days and flags, not meters,
+# so the tiers are expressed the way the engine can express them: the
+# outcomes MOVE heat, and the harder rows live on the hotter edges. The
+# canon four exits map onto the seven skills everywhere: TALK persuasion,
+# FIGHT nerve, SLIP stealth, HACK craft or lore.
+#
+# Version: v0.1.0 [2026-08-14]
+
+band: streets
+
+encounters:
+
+  - id: street_toll
+    tier: 1
+    weight: 30
+    intro: >-
+      Three of them, unhurried, across the narrow point of the walk. The
+      one in front names a number, politely, the way a meter names a fare.
+      It is not a robbery. It is a toll. The distinction matters to them.
+    threat: { name: "A toll crew at the narrow point", resolve: 2 }
+    approaches:
+      talk_the_rate_down:
+        skill: persuasion
+        difficulty: easy
+        text: "Argue the fare like a local, because tourists pay list"
+      stand_the_ground:
+        skill: nerve
+        difficulty: standard
+        text: "Decline, flatly, and let them price the decline"
+      slip_the_point:
+        skill: stealth
+        difficulty: standard
+        text: "Be past them before the number finishes"
+    outcomes:
+      crit_success:
+        text: >-
+          The one in front knows somebody you know, and the toll converts
+          to a nod. Word of the nod travels further than the toll would
+          have.
+        effects:
+          - { type: reputation, faction: blackmarket, delta: 2 }
+      success:
+        text: "You pass, unpriced, and the crew files you under local."
+        effects: []
+      partial:
+        text: "You pass, lighter. The fare was real and so was the arithmetic."
+        effects:
+          - { type: stat, stat: gold, delta: -40 }
+      failure:
+        text: >-
+          The toll collects itself, plus a handling fee for the attitude,
+          and the corner remembers your face at its own resolution.
+        effects:
+          - { type: stat, stat: gold, delta: -90 }
+          - { type: value, name: heat, delta: 2, why: "the corner remembers" }
+
+  - id: a_tail
+    tier: 1
+    weight: 22
+    intro: >-
+      Reflections agree: somebody has been four shopfronts behind you for
+      three turnings. Amateur, or paid to look like one -- the second kind
+      is the kind that files reports.
+    threat: { name: "A tail, four shopfronts back", resolve: 2 }
+    approaches:
+      lose_them:
+        skill: stealth
+        difficulty: standard
+        text: "Two crowds and a service door: be nobody"
+      brace_them:
+        skill: nerve
+        difficulty: standard
+        text: "Stop, turn, and ask them the time"
+      read_them:
+        skill: sympathy
+        difficulty: standard
+        text: "Watch the watcher long enough to know who pays them"
+    outcomes:
+      crit_success:
+        text: >-
+          You lose them so cleanly you gain their route instead, and the
+          route says who is curious about you this week.
+        effects:
+          - { type: awareness, delta: 3 }
+      success:
+        text: "Two crowds later there is no fourth shopfront. The city closes behind you."
+        effects: []
+      partial:
+        text: >-
+          Lost them -- probably -- at the cost of an hour of doubling back
+          in the wet.
+        effects:
+          - { type: stamina, delta: -6 }
+      failure:
+        text: >-
+          They peel off satisfied, which is worse than being followed:
+          somewhere a report gets filed, and reports feed upward here.
+        effects:
+          - { type: value, name: heat, delta: 4, why: "the tail filed its report" }
+
+  - id: camera_sweep
+    tier: 1
+    weight: 20
+    triggers:
+      edges: ["the_grid>neon_strip", "neon_strip>the_grid", "neon_strip>omnicorp_plaza", "omnicorp_plaza>neon_strip", "neon_strip>club_noir", "club_noir>neon_strip", "neon_strip>velvet_pit", "velvet_pit>neon_strip"]
+    intro: >-
+      Half the Strip's cameras track something in unison for four seconds
+      -- a bird, a drone, you -- and then pretend they did not. The
+      best-fed lenses in Midtown are being fed.
+    threat: { name: "A camera sweep on the Strip", resolve: 1 }
+    approaches:
+      hack_the_gap:
+        skill: craft
+        difficulty: standard
+        text: "Ride the reset cycle: eight seconds of honest blindness"
+      read_the_pattern:
+        skill: lore
+        difficulty: standard
+        text: "Know the sweep's geometry and walk its dead ground"
+      just_walk:
+        skill: nerve
+        difficulty: easy
+        text: "Be boring. Cameras are bored by boring."
+    outcomes:
+      crit_success:
+        text: >-
+          You cross in the dead ground with time to spare, and the sweep
+          teaches you something about where the feeds drain.
+        effects:
+          - { type: awareness, delta: 2 }
+          - { type: value, name: heat, delta: -2, why: "the sweep logged an absence" }
+      success:
+        text: "The sweep passes over a person of no interest, which took work."
+        effects: []
+      partial:
+        text: "Mostly dead ground. One lens got a shoulder and half a jaw."
+        effects:
+          - { type: value, name: heat, delta: 2, why: "half a jaw is half a match" }
+      failure:
+        text: >-
+          Four seconds, full face, good light. Somewhere upstream a
+          confidence interval narrows.
+        effects:
+          - { type: value, name: heat, delta: 5, why: "four seconds, full face, good light" }
+
+  - id: glitch_weather
+    tier: 1
+    weight: 18
+    intro: >-
+      The rain arrives ahead of its own forecast and wrong for the season
+      -- fat drops that hiss faintly on the hoardings. Acid, early. The
+      street empties with practised speed, and the awnings are already
+      claimed.
+    threat: { name: "Acid rain, early and unforecast", resolve: 2 }
+    approaches:
+      read_the_sky:
+        skill: survival
+        difficulty: easy
+        text: "Call the squall's width and wait it out dry"
+      run_the_gap:
+        skill: nerve
+        difficulty: standard
+        text: "It is four streets. Run the four streets."
+      buy_shelter:
+        skill: persuasion
+        difficulty: easy
+        text: "Talk your way under somebody's claimed awning"
+    outcomes:
+      crit_success:
+        text: >-
+          You call the squall to the minute and spend it dry, watching the
+          street learn the difference between weather and the forecast of
+          weather.
+        effects:
+          - { type: awareness, delta: 2 }
+      success:
+        text: "Dry enough, cheap enough, and moving again inside the hour."
+        effects: []
+      partial:
+        text: "You make it through with your collar smoking faintly and your eyes streaming."
+        effects:
+          - { type: stamina, delta: -6 }
+      failure:
+        text: >-
+          The squall was wider than it looked. The burn is shallow but it
+          is everywhere the shell did not cover.
+        effects:
+          - { type: stat, stat: hp, delta: -2 }
+          - { type: stamina, delta: -8 }
+
+  - id: patrol_stop
+    tier: 2
+    weight: 20
+    triggers:
+      edges: ["neon_strip>omnicorp_plaza", "omnicorp_plaza>neon_strip", "omnicorp_plaza>synthsec_gridpoint", "synthsec_gridpoint>omnicorp_plaza", "velvet_pit>ripper_street", "ripper_street>velvet_pit", "junkyard_sprawl>ripper_street", "ripper_street>junkyard_sprawl"]
+    intro: >-
+      SynthSec, two of them, contract-polite. "Compliance check,
+      individual," the shorter one says, and the words have no edges at
+      all. The scanner is already warm.
+    threat: { name: "A SynthSec compliance stop", resolve: 3 }
+    approaches:
+      paperwork_voice:
+        skill: persuasion
+        difficulty: standard
+        text: "Answer in the voice paperwork trusts"
+      clean_scan:
+        skill: craft
+        difficulty: hard
+        text: "Feed the scanner a duller version of yourself"
+      bored_compliance:
+        skill: nerve
+        difficulty: easy
+        text: "Comply, slowly, expensively boring"
+    outcomes:
+      crit_success:
+        text: >-
+          The scan comes back so unremarkable the shorter one apologises,
+          which SynthSec bills as a courtesy.
+        effects:
+          - { type: value, name: heat, delta: -3, why: "a logged non-event is its own alibi" }
+      success:
+        text: "Waved through. The scanner keeps four seconds it will never look at."
+        effects: []
+      partial:
+        text: >-
+          Through, eventually, minus the standing-still hour and a citation
+          for an infraction invented on the spot.
+        effects:
+          - { type: stat, stat: gold, delta: -60 }
+          - { type: stamina, delta: -5 }
+      failure:
+        text: >-
+          Something in the scan disagrees with something in a database, and
+          the disagreement is filed under your face.
+        effects:
+          - { type: value, name: heat, delta: 6, why: "flagged at a compliance stop" }
+          - { type: stamina, delta: -8 }
+
+  - id: collections_shadow
+    tier: 2
+    weight: 12
+    triggers:
+      requires_flag: debt_marker
+    intro: >-
+      A two-person crew falls into step half a street back -- not hiding,
+      which is the message. Collections does not chase. It accompanies,
+      until the arithmetic changes.
+    threat: { name: "A Collections crew, keeping pace", resolve: 2 }
+    approaches:
+      talk_terms:
+        skill: persuasion
+        difficulty: standard
+        text: "Stop and talk numbers like a professional"
+      lose_them_once:
+        skill: stealth
+        difficulty: hard
+        text: "Lose them -- today. Today is all losing them buys."
+      walk_it_off:
+        skill: nerve
+        difficulty: easy
+        text: "Let them accompany. Free security, of a kind."
+    outcomes:
+      crit_success:
+        text: >-
+          You name a payment date unprompted and the taller one actually
+          writes it down. Professional respect, at Collections rates.
+        effects:
+          - { type: reputation, faction: blackmarket, delta: 2 }
+      success:
+        text: "They peel off at the district line. The message was the walk itself."
+        effects: []
+      partial:
+        text: "They peel off, having priced your route, your pace, and your shoes."
+        effects:
+          - { type: stamina, delta: -5 }
+      failure:
+        text: >-
+          A reminder changes hands at the narrow point -- nothing broken,
+          everything meant. The number has a handling fee on it now.
+        effects:
+          - { type: stat, stat: gold, delta: -80 }
+          - { type: stamina, delta: -8 }

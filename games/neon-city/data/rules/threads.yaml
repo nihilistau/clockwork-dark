@@ -1,0 +1,196 @@
+# NEON CITY: THE CROSSING -- the contracts the Sprawl remembers.
+#
+# Read by engine/game/threads.py through `paths.threads`. A thread is
+# offered, its terms are stated, it is sealed by some act, and then it
+# STAYS -- active, discharged, broken -- until something resolves it. In
+# this story a thread is how the Sprawl does everything important: the
+# marker Collections holds, Dita's fifteen percent, Dane's four seconds,
+# Wren's invoice. Money is the moral system; these are the instruments.
+#
+# The endings read them: A NAME THEY STOPPED SAYING is fed by broken
+# markers, and THE WALK AWAY requires paying the crew off -- discharging,
+# not breaking. The distinction is the whole of the last act.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+# The story's tag vocabulary. An offer naming a tag off this list has it
+# dropped at bounding.
+tags:
+  - Debt
+  - Passage
+  - Crew
+  - Silence
+  - Provenance
+
+# What can end a thread early AT ALL in this story, and what each costs.
+cutters:
+  # Money closes most things here. Checked as an invocation gated on the
+  # purse, because the payment itself is the discharge effect.
+  paid_in_full:
+    kind: invocation
+    requires: { value: { name: credits, min: 400 } }
+    denied_text: "The number is the number. Come back when you are holding it."
+
+  # Mira's word. She takes names off lists; standing is what buys the ask.
+  miras_word:
+    kind: invocation
+    requires: { value: { name: standing_mira, min: 15 } }
+    denied_text: "Mira looks at you the way she prices things, and does not reach for the shelf."
+
+  # A forged identity walks away from certain obligations. The cutter key
+  # IS the item id (threads.py checks the inventory for it), and it is
+  # consumed: the paper spends, and the third spend was always the problem.
+  forged_id:
+    kind: item
+    consumes: true
+
+gift_obligation:
+  # Nothing from Mira Vex is free. Accepting a gift without asking what it
+  # costs seals the Grid's own marker.
+  template: grid_marker
+
+templates:
+
+  # ---------------------------------------------------------------------
+  # The marker Collections holds. Offered by the collections_calls quest;
+  # the arrangement that makes the debt survivable now and canonical burn
+  # material later.
+  # ---------------------------------------------------------------------
+  collections_marker:
+    source: collections
+    tags: [Debt]
+    terms: "What you owe, plus the cost of the visit, by the date named. The date is not renegotiated twice."
+    can_cut_with: [paid_in_full, miras_word]
+    due_in_days: 4
+    on_seal:
+      - { type: flag, flag: debt_marker }
+    on_discharge:
+      - { type: stat, stat: gold, delta: -300 }
+      - { type: value, name: heat, delta: -3, why: "a settled ledger is a quiet ledger" }
+      - { type: flag, flag: marker_settled }
+    on_break:
+      - { type: value, name: heat, delta: 10, why: "Collections files what it cannot collect" }
+      - { type: reputation, faction: blackmarket, delta: -12 }
+      - { type: flag, flag: marker_broken }
+    renegotiations:
+      pay_half_now:
+        label: "Put half on the table tonight"
+        terms: "Half now, half by the date, and the visit's fee is waived as a courtesy nobody calls a courtesy."
+        tags: [Debt]
+        requires: { value: { name: credits, min: 200 } }
+        due_in_days: 6
+        on_seal:
+          - { type: stat, stat: gold, delta: -200 }
+        on_break:
+          - { type: value, name: heat, delta: 8 }
+          - { type: reputation, faction: blackmarket, delta: -8 }
+      work_it_off:
+        label: "Offer the crew a job instead of the money"
+        terms: "One named errand for the people they answer to. Then the marker burns, and you were never in the book."
+        tags: [Debt, Silence]
+        due_in_days: 3
+        on_seal:
+          - { type: value, name: heat, delta: 4, why: "the errand is not a clean one" }
+        on_discharge:
+          - { type: reputation, faction: blackmarket, delta: 6 }
+        on_break:
+          - { type: value, name: heat, delta: 12 }
+          - { type: reputation, faction: blackmarket, delta: -10 }
+
+  # ---------------------------------------------------------------------
+  # The Grid's own marker: you took something off a counter without asking
+  # the price. Sealed automatically by gift_obligation.
+  # ---------------------------------------------------------------------
+  grid_marker:
+    source: the_grid
+    tags: [Debt]
+    terms: "One favour back, named later, at a moment that suits the Grid and not you."
+    can_cut_with: [paid_in_full, miras_word, forged_id]
+    due_in_days: 7
+    on_discharge:
+      - { type: value, name: standing_mira, delta: 5 }
+      - { type: reputation, faction: blackmarket, delta: 4 }
+    on_break:
+      - { type: value, name: standing_mira, delta: -10 }
+      - { type: reputation, faction: blackmarket, delta: -8 }
+
+  # ---------------------------------------------------------------------
+  # Dita's cut. Fifteen percent, said out loud to the whole crew, up front.
+  # Sealing it is what puts her on the winch; breaking it is how you learn
+  # why everyone who burned her did it in a room where nobody heard the
+  # number.
+  # ---------------------------------------------------------------------
+  ditas_cut:
+    source: dita_halvorsen
+    tags: [Crew, Passage]
+    terms: "Fifteen percent, said out loud, up front. She drives; you do not ask how she knows the tunnels are clear."
+    can_cut_with: [paid_in_full]
+    due_in_days: 10
+    on_seal:
+      - { type: value, name: standing_dita, delta: 10 }
+      - { type: flag, flag: dita_crewed }
+    on_discharge:
+      - { type: stat, stat: gold, delta: -300 }
+      - { type: value, name: standing_dita, delta: 10 }
+      - { type: reputation, faction: blackmarket, delta: 6 }
+    on_break:
+      - { type: value, name: standing_dita, delta: -40 }
+      - { type: reputation, faction: blackmarket, delta: -15 }
+      - { type: flag, flag: crew_burned }
+    renegotiations:
+      twenty_for_silence:
+        label: "Offer twenty, for the route staying unmapped afterwards"
+        terms: "Twenty percent, and the tunnel map dies with the job. Nobody retraces you."
+        tags: [Crew, Passage, Silence]
+        due_in_days: 10
+        on_seal:
+          - { type: value, name: standing_dita, delta: 14 }
+          - { type: flag, flag: dita_crewed }
+          - { type: value, name: heat, delta: -4, why: "a route nobody can retrace" }
+        on_break:
+          - { type: value, name: standing_dita, delta: -40 }
+          - { type: flag, flag: crew_burned }
+
+  # ---------------------------------------------------------------------
+  # Dane's arrangement. Four hundred and four seconds of looking at the
+  # ground. It is not a bribe; it is a care plan instalment with a gate
+  # attached, and he needs it to be treated like one.
+  # ---------------------------------------------------------------------
+  danes_arrangement:
+    source: ivo_dane
+    tags: [Passage, Silence]
+    terms: "Four hundred, don't look pleased about it, and the mast never happens to be watching when you cross. Standing offer while nobody says the word bribe."
+    can_cut_with: [paid_in_full]
+    due_in_days: 9
+    on_seal:
+      - { type: stat, stat: gold, delta: -400 }
+      - { type: value, name: standing_dane, delta: 8 }
+      - { type: flag, flag: danes_arrangement }
+    on_discharge:
+      - { type: value, name: standing_dane, delta: 8 }
+    on_break:
+      - { type: value, name: standing_dane, delta: -30 }
+      - { type: value, name: heat, delta: 8, why: "a gate corporal with a reason to file you" }
+
+  # ---------------------------------------------------------------------
+  # Wren's invoice. The Bunker does not sell; it invests in outcomes. What
+  # you take from the counter is priced in a favour DeepState will name
+  # when the record requires it.
+  # ---------------------------------------------------------------------
+  wrens_price:
+    source: wren_solis
+    tags: [Debt, Silence, Provenance]
+    terms: "Taken against account. The price is on it; the balance is a thing DeepState does with you later, once, without cruelty."
+    can_cut_with: [paid_in_full]
+    due_in_days: 12
+    on_seal:
+      - { type: flag, flag: deepstate_account }
+    on_discharge:
+      - { type: reputation, faction: deepstate, delta: 12 }
+    on_break:
+      - { type: reputation, faction: deepstate, delta: -25 }
+      - type: ledger_fact
+        kind: secret
+        text: "The Archivist has moved you to a different shelf."

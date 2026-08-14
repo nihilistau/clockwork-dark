@@ -1,0 +1,64 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# THE FINALE LOCK. The choice flags are the pen roads; the on_complete
+# carries `{type: ending_lock}` with NO id -- whatever the run has earned
+# (engine/game/endings.py::resolve: the intent if eligible, else the
+# highest-scoring eligible ending, else the declared fail-forward) -- and
+# then `{type: ending_module}` plays the locked ending's Speak - Act - Seal.
+# The epilogue card rides the same turn's payload
+# (engine/scenes/default_state.py). Both effect kinds are authored-content-
+# only; no model can compose them mid-turn.
+
+id: who_holds_the_pen
+arc: the_count
+name: "Who Holds the Pen"
+summary: >-
+  The choice itself. Sign for it, publish it, shelf it, cut it -- or be
+  already walking back. The count does not care which any more than
+  weather does. Everyone else in the city does, forever.
+
+preconditions:
+  all:
+    - quest_completed: the_descent
+
+start_text: >-
+  The core does not acknowledge you. It describes you -- has been
+  describing you since before you knew it existed, will finish this
+  sentence about you whatever you do to it. On the nearest rack a cursor
+  advances, patient, indifferent, mid-entry. The question was never
+  whether the count is true. Only who holds the pen. Your hand is the one
+  that is here.
+
+stages:
+  - id: the_choice
+    objective: "Decide who holds the pen."
+    narrative_flags:
+      - nf_pen_sign
+      - nf_pen_broadcast
+      - nf_pen_shelf
+      - nf_pen_cut
+    complete_when:
+      any:
+        - flag: nf_pen_sign
+        - flag: nf_pen_broadcast
+        - flag: nf_pen_shelf
+        - flag: nf_pen_cut
+        - flag: nf_walk_away
+    complete_text: >-
+      It is decided. Not announced -- decided, the way prices are decided:
+      by what somebody was actually willing to pay, at the counter, when
+      the number was real.
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_pen_done }
+    # Lock whatever the run earned, then play its Speak - Act - Seal.
+    - { type: ending_lock }
+    - { type: ending_module }
+
+complete_text: >-
+  Somewhere above, the city goes on pricing itself by the minute, not yet
+  knowing that the ledger under it has changed hands -- or stopped, or
+  opened, or stayed exactly as it was with one entry left deliberately
+  unresolved. The rain keeps its own schedule now. Or it always did, and
+  now there is nobody to say otherwise.

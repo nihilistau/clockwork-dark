@@ -1,0 +1,166 @@
+# NEON CITY: THE CROSSING -- epilogue prose.
+#
+# Read by engine/game/epilogue.py; found through the index's `prose_source`.
+# Two cards per ending: `card_m` is AFTER (the city, the months, what the
+# choice turned into); `card_g` is BELOW (what the hall and the count look
+# like once you are done with them). `echoes` are the last words, spoken by
+# whoever the index names.
+#
+# Register per BIBLE.md section 7: clipped, present tense where it can be,
+# numbers where numbers exist, no dice talk, no game nouns, nobody
+# monologues.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+cards:
+
+  quiet_floor:
+    title: "The Quiet Floor"
+    card_m: |-
+      You do not switch it off. You sign for it. The badge photo takes four
+      minutes; the clearance takes nine days; nobody ever says the word
+      Cathedral in a meeting, and after a while you notice you have stopped
+      saying it too.
+
+      By the end of the first quarter you have edited nineteen confidence
+      ratings. Eleven people are alive who were scheduled not to be. You have
+      stopped counting the other kind.
+    card_g: |-
+      The hall hums the way it always hummed. It does not know you work here
+      now, any more than weather knows.
+
+      Rain still comes off the ledge at the third-floor line in an alley you
+      have not visited since. You checked the feed once, from your desk, and
+      closed it before the forty seconds were up.
+    echoes:
+      - speaker: mira_vex
+        text: |-
+          A corporate lanyard walked past my counter last month wearing your
+          face. It nodded. I charged it list price, and it paid, so I suppose
+          things change after all.
+
+  open_signal:
+    title: "Open Signal"
+    card_m: |-
+      The count goes public at 04:00 on a Tuesday -- every rating, every
+      routing table, unredacted. For a week the city is unbearable. Everyone
+      reads their own file twice: once to see, once to argue.
+
+      Then the strangest thing. A forecast everyone can read is a forecast
+      everyone can spite. Weddings on days the tables called unlikely.
+      Resignations the models never priced. By spring the ratings are
+      worthless, and worthless is the word for a chain that no longer holds
+      anyone.
+    card_g: |-
+      The hall still hums, describing a city that has stopped agreeing to be
+      the description. Its confidence intervals widen month by month, patient
+      as ever, wrong as everything.
+
+      The city is loud and stupid and unpredictable and, for the first time
+      in nineteen years, genuinely unwritten.
+    echoes:
+      - speaker: lyra_vance
+        text: |-
+          Trace is arithmetic. It is always arithmetic. You made the sum
+          public and the city stopped adding up. I keep a copy of everything,
+          you know that. There has never been less worth keeping. It is
+          wonderful.
+
+  long_quiet:
+    title: "The Long Quiet"
+    card_m: |-
+      It goes back on the shelf, and the shelf goes back to being nowhere.
+      Intake keeps its hours. The trucks go out full and come back full. The
+      only difference is decimal: the numbers Intake produces are now very
+      slightly, very deliberately wrong, and the error is curated by people
+      who were curating before the towers had names.
+
+      You are not told what the error protects. You are told the error is
+      load-bearing. From the Archivist, that is a confession of love.
+    card_g: |-
+      You get a shelf. Not a title -- a shelf, with a number, and the
+      numbering does not start at one.
+
+      Sometimes, filing, you pass the drive with your forty seconds on it.
+      The label is in the Archivist's hand, present tense. You have never
+      once taken it down.
+    echoes:
+      - speaker: the_archivist
+        text: |-
+          You were a promising entry. Entries close. Yours has been converted
+          to a standing reference, which is not power -- power is loud and it
+          ends. This is only patience, and now it is also yours.
+
+  blackout:
+    title: "Blackout"
+    card_m: |-
+      The city goes stupid overnight. Traffic snarls for six days. Prices
+      wobble like a table with a shortened leg. SynthSec triples patrols
+      against a threat that no longer files predictions, which means they
+      are guarding the city from its own free will, which even they notice
+      eventually.
+
+      Nobody got anything: not the towers, not the street, not the shelf,
+      not you. That was the entire point, and it is the only point nobody
+      can take off you.
+    card_g: |-
+      The hall is dark and does not hum. Eleven minutes of plasma cutter,
+      and nineteen years of accumulated weight became scrap that not even
+      the yard will price.
+
+      It rains that night, hard, off the ledges at the third-floor line --
+      and nowhere in the world is there a file that says it was going to.
+    echoes:
+      - speaker: ghost
+        text: |-
+          SIGNAL LOST AT SOURCE. ALL OF THEM. // I said make it count. //
+          Checked twice. Nothing is counting. // 0xGH0ST out.
+
+  walk_away:
+    title: "The Walk Away"
+    card_m: |-
+      You pay the crew off at the lift head, in full, out loud. The keys go
+      down the shaft; eleven seconds, no landing you can hear. Then the walk
+      back, across ground nobody crosses twice, in weather no one is
+      modelling.
+
+      The Sprawl takes you back the way it takes everything back: at a
+      price, without comment. Mira slides your first coffee across the
+      counter and does not name a number, and this time you understand the
+      grammar of that.
+    card_g: |-
+      Somewhere below, a very old drive keeps a page open on a variable that
+      never resolved. The count does not grieve; it allocates. A thread is
+      assigned to you, then a smaller one, then a scheduled review.
+
+      It is not a long shelf. You are on it. The file stays open forever,
+      which in that hall is the only kind of victory that costs nothing but
+      everything you came for.
+    echoes:
+      - speaker: dita_halvorsen
+        text: |-
+          You said the number before the job and paid it after, at the door,
+          with the dark listening. I have driven for crews eleven years.
+          That has happened four times. I count it the way other people
+          count money.
+
+  a_name_they_stopped_saying:
+    title: "A Name They Stopped Saying"
+    card_m: |-
+      It does not happen in the alley by the drainage grate. That was always
+      the tell -- the render was a forecast, and forecasts are what happen
+      when nobody interferes, and somebody always interferes. What actually
+      happens is smaller. A door that does not open. A fixer who stops
+      answering. A price that is no longer offered to you at any counter in
+      the Grid.
+
+      The city does not kill people like you. It stops returning them.
+    card_g: |-
+      Below the Shadow zone, a file completes. Confidence: high. Outcome:
+      within parameters. The hall does not pause -- pausing is for systems
+      that distinguish one entry from another, and it has never needed to.
+
+      The Sprawl keeps your name for about eleven weeks. That is longer than
+      most.

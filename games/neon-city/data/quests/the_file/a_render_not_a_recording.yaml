@@ -1,0 +1,69 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# The first timestamp slip: a modelled you is a you that can be
+# mis-modelled. The negative value effect on the declared `timestamp` clock
+# is the doom_resistance-shaped reprieve of BIBLE.md 4.5, wired to the real
+# clock (engine/game/clocks.py documents negative advances as intended).
+
+id: a_render_not_a_recording
+arc: the_file
+name: "A Render, Not a Recording"
+summary: >-
+  Lyra's verdict wants proof. Three comparison captures from the Strip's
+  cameras -- real lenses, real angles -- and she can show you the angle
+  nobody was standing at, on paper, with a confidence figure attached.
+
+preconditions:
+  all:
+    - flag: shard_read
+
+start_text: >-
+  "Bring me three captures off the Strip," Lyra says. "Any three. Real
+  cameras have opinions -- height, parallax, rain on the housing. Your
+  forty seconds has none. I will show you what that means, and then you
+  will wish I had not."
+
+stages:
+  - id: gather_captures
+    objective: "Scavenge three camera captures from the Neon Strip."
+    complete_when:
+      all:
+        - has_item: { id: camera_capture, qty: 3 }
+    complete_text: >-
+      Three lifted frame-sets: a queue, a doorway, a crossing. Ordinary
+      angles with ordinary flaws, which is exactly what makes them
+      evidence.
+
+  - id: watch_her_prove_it
+    objective: "Bring them to Lyra and watch her prove the angle."
+    narrative_flags:
+      - nf_render_shown
+    complete_when:
+      all:
+        - at_location: ghost_alley
+        - flag: nf_render_shown
+    complete_text: >-
+      She overlays all four. Three of them argue with each other the way
+      real lenses do. Yours does not argue with anything. It is not a view
+      of the street. It is the street, described.
+    on_complete:
+      effects:
+        - { type: item, item_id: confidence_paper, name: "The Confidence Rating", qty: 1, tags: [quest, data] }
+        - { type: value, name: standing_lyra, delta: 10, why: "you did the legwork and sat still for the answer" }
+
+on_complete:
+  effects:
+    - { type: flag, flag: render_proven }
+    - { type: flag, flag: quest_render_done }
+    - { type: awareness, delta: 8 }
+    # THE FIRST SLIP. Somewhere, your confidence rating drops, and somebody
+    # reschedules.
+    - { type: value, name: timestamp, delta: -1, why: "a modelled you is a you that can be mis-modelled" }
+    - type: ledger_fact
+      kind: secret
+      text: "The shard is a render with a confidence rating. Lyra kept a copy. She keeps a copy of everything."
+
+complete_text: >-
+  On the walk home the rain comes off the ledges at the third-floor line,
+  exactly like it does in the file, and you understand that the file was
+  never a picture of the street. The street is a picture of the file.

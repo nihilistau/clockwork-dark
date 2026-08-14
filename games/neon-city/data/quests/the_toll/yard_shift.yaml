@@ -1,0 +1,81 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# The salvage economy, tutorialised in fiction: work the crane, haul the
+# find, choose the buyer. The repeatable version is the `crane_shift` job in
+# data/tables/labour.yaml; this is the once, with the chassis attached.
+
+id: yard_shift
+arc: the_toll
+name: "Yard Shift"
+summary: >-
+  Grease has a corp-current drone chassis nobody came looking for, and
+  "nobody came looking" is the part that keeps her awake. Work a crane
+  shift for Petrossian, haul it off the north face, and decide whose
+  counter it lands on.
+
+start_text: >-
+  "Twelve hours, no talking," Grease says, thumb at the crane. "Petrossian
+  pays shift rate. And when you are up there -- there is a chassis on the
+  north face, current serials, no owner. Take it cheap, take it away. I
+  want it gone more than I want the margin."
+
+stages:
+  - id: work_the_shift
+    objective: "Work a crane shift for Petrossian. Twelve hours, no talking."
+    narrative_flags:
+      - nf_shift_worked
+    complete_when:
+      all:
+        - at_location: junkyard_sprawl
+        - flag: nf_shift_worked
+    complete_text: >-
+      Twelve tons an hour, and by hour four your hands know the levers
+      better than your head does. Petrossian pays without counting it in
+      front of you, which in the yard is a compliment.
+    on_complete:
+      effects:
+        - { type: stat, stat: gold, delta: 260 }
+        - { type: stamina, delta: -20 }
+
+  - id: haul_the_chassis
+    objective: "Haul the chassis down off the north face."
+    narrative_flags:
+      - nf_chassis_hauled
+    complete_when:
+      all:
+        - at_location: junkyard_sprawl
+        - flag: nf_chassis_hauled
+    complete_text: >-
+      It comes down in one piece, corp serials bright as the day they were
+      etched. Past the crane, on the north face, you notice the ground has
+      been turned over in rectangles, and you decide you did not.
+    on_complete:
+      effects:
+        - { type: item, item_id: drone_chassis, name: "Drone Chassis", qty: 1, tags: [salvage, scavenge, tech] }
+        - { type: awareness, delta: 4 }
+
+  - id: choose_the_buyer
+    objective: "Choose the buyer: Grease at yard rate, or haul it to the Grid for full rate."
+    narrative_flags:
+      - nf_chassis_sold_yard
+      - nf_chassis_sold_grid
+    complete_when:
+      any:
+        - flag: nf_chassis_sold_yard
+        - flag: nf_chassis_sold_grid
+    complete_text: >-
+      Sold, one counter or the other, and the difference between the two
+      prices is the exact cost of carrying it across town -- which is the
+      whole economy of the Sprawl in one transaction.
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_yard_shift_done }
+    - { type: value, name: standing_grease, delta: 12, why: "you made the thing that kept her awake be somewhere else" }
+    - { type: value, name: standing_mira, delta: 8, why: "good salvage, honestly come by, is the Grid's favourite sentence" }
+    - { type: reputation, faction: blackmarket, delta: 8 }
+
+complete_text: >-
+  Scavenge in the Downzone, fence in Midtown, spend on passage. Nobody
+  teaches you the loop; the yard just runs you through it once and lets
+  the arithmetic do the teaching.

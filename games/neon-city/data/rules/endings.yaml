@@ -1,0 +1,347 @@
+# NEON CITY: THE CROSSING -- six endings.
+#
+# Read by engine/game/endings.py through `paths.endings`. Six classes mapped
+# from the canon nine (BIBLE.md section 6), variant-less: each class id IS an
+# ending id, and data/epilogues/epilogue_index.yaml agrees with these ids
+# exactly.
+#
+# THE SHAPE OF THE FINALE. The pen choice is made in the Core Hall: the
+# quest `who_holds_the_pen` hands the narrator one choice flag per road
+# (nf_pen_sign / nf_pen_broadcast / nf_pen_shelf / nf_pen_cut), the walk-away
+# refusal is flagged at the lift (nf_walk_away, in `the_descent`), and the
+# quest's on_complete carries `{type: ending_lock}` with no id -- whatever
+# the run has EARNED. A player who chose a road their run does not back
+# (signed for it with no corporate standing, say) falls through to the
+# highest-scoring eligible ending, else the declared fail-forward. The id
+# belongs to the player, not to the beat.
+#
+# TWO GATES, SEPARATE ON PURPOSE: `requires` is "you have earned this";
+# `completable` is "nothing still live makes it impossible". The lock text a
+# UI renders needs to tell the player which one is in their way.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+# ALWAYS ELIGIBLE, BY DECLARATION. The failure state is a real ending with a
+# real card -- canon `burned`, and it only fires when nothing else qualifies.
+fail_forward: a_name_they_stopped_saying
+
+classes:
+
+  # ---------------------------------------------------------------------
+  # THE QUIET FLOOR -- sign for it. Maps quiet_floor / beta_city /
+  # standing_order.
+  # ---------------------------------------------------------------------
+  quiet_floor:
+    label: "The Quiet Floor"
+    requires:
+      all:
+        - { id: signed, flag: nf_pen_sign }
+        - id: corporate_standing
+          any:
+            - { reputation: { faction: omnicorp, min: 25 } }
+            - { reputation: { faction: neotech, min: 25 } }
+            - { reputation: { faction: synthsec, min: 25 } }
+        - { id: below_wanted, value: { name: heat, max: 44 } }
+        - { id: survived, not_flag: appointment_missed }
+    completable:
+      id: crew_kept
+      none:
+        - { flag: crew_burned }
+    lock_reasons:
+      signed: "Nobody has offered you a pen, and you have not asked for one."
+      corporate_standing: "No tower knows your name in the way that gets a name onto an editing list."
+      below_wanted: "There is paper on you. Towers do not hand pens to paper."
+      survived: "The appointment came and went without you. So did the offer."
+      crew_kept: "You burned the people who carried you here, and the towers watched you do it."
+    score:
+      - { value: heat, at: 0, weight: 0.4 }
+      - { when: { reputation: { faction: omnicorp, min: 15 } }, weight: 0.3 }
+      - { when: { flag: floor87_named }, weight: 0.3 }
+    beats:
+      - id: quiet_floor_speak
+        text: >-
+          SPEAK. You say yes in a room with carpet thick enough to eat the
+          word, and the person opposite notes the time. Nobody shakes hands.
+          Handshakes are for transactions that might not clear.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: heat, delta: -10, why: "the towers tidy what they hire" }
+      - id: quiet_floor_act
+        text: >-
+          ACT. Your first rating edit takes four minutes and a two-key
+          confirmation. Somewhere in the city, a door that was going to stay
+          shut on somebody opens on schedule instead.
+        gate:
+          on_pass:
+            effects:
+              - { type: awareness, delta: 5 }
+      - id: quiet_floor_seal
+        text: >-
+          SEAL. Your name becomes one of four that can edit a confidence
+          rating. The other three never ask what you did before. The record
+          says they already know.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # OPEN SIGNAL -- publish it. Maps open_signal / house_rules.
+  # ---------------------------------------------------------------------
+  open_signal:
+    label: "Open Signal"
+    requires:
+      all:
+        - { id: broadcast, flag: nf_pen_broadcast }
+        - id: street_standing
+          any:
+            - { reputation: { faction: ghost_net, min: 25 } }
+            - { reputation: { faction: blackmarket, min: 25 } }
+    completable:
+      id: not_owned
+      none:
+        - { flag: deepstate_account }
+    lock_reasons:
+      broadcast: "You have nothing to publish and no wire to publish it on."
+      street_standing: "The street does not trust you enough to believe what you would show it."
+      not_owned: "DeepState holds your account, and what you publish, they edit first."
+    score:
+      - { when: { reputation: { faction: ghost_net, min: 15 } }, weight: 0.4 }
+      - { when: { flag: nf_manifest_wire }, weight: 0.3 }
+      - { when: { flag: render_proven }, weight: 0.3 }
+    beats:
+      - id: open_signal_speak
+        text: >-
+          SPEAK. You do not say anything. At 04:00 on a Tuesday, every screen
+          in the Sprawl says it for you: every rating, every routing table,
+          unredacted, alphabetical. The alphabetical part is what makes it
+          undeniable.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: heat, delta: 15, why: "everyone knows exactly who did this" }
+      - id: open_signal_act
+        text: >-
+          ACT. For a week the city is unbearable. You spend it in the Grid,
+          watching people read their own files, which nobody is prepared for
+          and everybody does twice.
+        gate:
+          on_pass:
+            effects:
+              - { type: reputation, faction: ghost_net, delta: 10 }
+      - id: open_signal_seal
+        text: >-
+          SEAL. Then the strangest thing: a forecast everyone can read is a
+          forecast everyone can spite. By spring the ratings are worthless,
+          and the city is loud and stupid and genuinely unwritten.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # THE LONG QUIET -- shelf it. Maps long_quiet.
+  # ---------------------------------------------------------------------
+  long_quiet:
+    label: "The Long Quiet"
+    requires:
+      all:
+        - { id: shelved, flag: nf_pen_shelf }
+        - { id: bunker, flag: bunker_entered }
+        - { id: not_hostile, reputation: { faction: deepstate, min: -30 } }
+    completable:
+      id: record_intact
+      none:
+        - { flag: marker_broken }
+    lock_reasons:
+      shelved: "You have not seen the shelving, so you cannot put anything on it."
+      bunker: "The door that is not on any map has not found you worth finding."
+      not_hostile: "DeepState has resolved you as a hostile variable, and hostile variables do not get shelves."
+      record_intact: "You broke a marker the record was watching. The record does not shelve what it cannot trust."
+    score:
+      - { when: { flag: bunker_entered }, weight: 0.5 }
+      - { when: { reputation: { faction: deepstate, min: 10 } }, weight: 0.3 }
+      - { value: heat, at: 0, weight: 0.2 }
+    beats:
+      - id: long_quiet_speak
+        text: >-
+          SPEAK. The Archivist asks one question -- whether you read it --
+          and blots the page before you answer, which is the answer. Wren
+          does not look up from the counter. That is Wren's version of
+          respect.
+        gate:
+          on_pass:
+            effects:
+              - { type: reputation, faction: deepstate, delta: 10 }
+      - id: long_quiet_act
+        text: >-
+          ACT. It goes back on the shelf and the shelf goes back to being
+          nowhere. Intake keeps producing numbers that are now very
+          slightly, very deliberately wrong, and nobody who could notice is
+          paid to.
+        gate:
+          on_pass:
+            effects:
+              - { type: awareness, delta: 5 }
+      - id: long_quiet_seal
+        text: >-
+          SEAL. You get a shelf. Not a title -- a shelf, with a number, and
+          the numbering does not start at one. The Archivist writes your
+          name in the present tense, which you understand, eventually, to be
+          the rarest thing in the book.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # BLACKOUT -- cut it. Maps blackout. The hard road: no patron, heat held
+  # under Hunted, and eleven minutes of plasma cutter.
+  # ---------------------------------------------------------------------
+  blackout:
+    label: "Blackout"
+    requires:
+      all:
+        - { id: cut, flag: nf_pen_cut }
+        - { id: below_hunted, value: { name: heat, max: 69 } }
+    completable:
+      id: no_patron
+      none:
+        - { flag: deepstate_account }
+    lock_reasons:
+      cut: "You have not decided to be the one who ends it, and deciding is most of the eleven minutes."
+      below_hunted: "The city is hunting you, and a hunted hand shakes on the cutter."
+      no_patron: "DeepState invested in you. They do not permit their outcomes to burn their archive."
+    score:
+      - { value: heat, at: 0, weight: 0.3 }
+      - { when: { flag: shadow_crossed }, weight: 0.4 }
+      - { when: { flag: render_proven }, weight: 0.3 }
+    beats:
+      - id: blackout_speak
+        text: >-
+          SPEAK. Nothing. There is nobody to say it to. The hall hums at the
+          pitch it has hummed at for nineteen years, and you set the cutter
+          against the first trunk line and check your watch.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: heat, delta: 10, why: "every feed in the city loses you at once, which is itself a signature" }
+      - id: blackout_act
+        text: >-
+          ACT. Eleven minutes. The last output it produces is a routing
+          table with your name in it, timestamped four seconds from now, and
+          it is correct, and being right does not save it.
+        gate:
+          on_pass:
+            effects:
+              - { type: awareness, delta: 8 }
+      - id: blackout_seal
+        text: >-
+          SEAL. The city goes stupid overnight. Traffic snarls, prices
+          wobble, six months of appointments fail to be kept. Nobody got
+          anything. That was the entire point.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # THE WALK AWAY -- refuse the room. The lift reached and not taken; the
+  # crew paid off, the keys dropped down the shaft. Maps neon_crown's
+  # independence, inverted for the expedition shape.
+  # ---------------------------------------------------------------------
+  walk_away:
+    label: "The Walk Away"
+    requires:
+      all:
+        - { id: refused, flag: nf_walk_away }
+        - { id: at_the_door, flag: lift_reached }
+        - { id: pattern_broken, flag: appointment_broken }
+    completable:
+      id: crew_squared
+      none:
+        - { flag: crew_burned }
+        # Engine-true rather than a flag: descending IS having stood in the
+        # hall, and `visited` is the record the engine already keeps.
+        - { visited: core_hall }
+    lock_reasons:
+      refused: "You have not stood at the doors and declined them, which is the only place declining counts."
+      at_the_door: "The lift is still a rumour to you. You cannot walk away from a room you never reached."
+      pattern_broken: "The count scored you once and you kept the appointment it wrote. Walking away needs the score to be wrong."
+      crew_squared: "You went down, or you burned the people who would have waited at the top. Either way the walk back is closed."
+    score:
+      - { when: { flag: appointment_broken }, weight: 0.5 }
+      - { when: { flag: lift_reached }, weight: 0.3 }
+      - { value: heat, at: 0, weight: 0.2 }
+    beats:
+      - id: walk_away_speak
+        text: >-
+          SPEAK. You say the numbers out loud: what the crew is owed, plus
+          the wait. Dita takes her cut without counting it, which from Dita
+          is a eulogy.
+        gate:
+          on_pass:
+            effects:
+              - { type: reputation, faction: blackmarket, delta: 8 }
+      - id: walk_away_act
+        text: >-
+          ACT. The keys go down the shaft. Eleven seconds, no sound of a
+          landing. The doors do not care how good your reasons are, and for
+          once that is the doors' problem.
+        gate:
+          on_pass:
+            effects:
+              - { type: awareness, delta: 5 }
+      - id: walk_away_seal
+        text: >-
+          SEAL. You walk back across the Shadow zone the way nobody does,
+          and the file stays open forever, unresolved -- which in that hall
+          is the only kind of victory that costs nothing but everything you
+          came for.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }
+
+  # ---------------------------------------------------------------------
+  # A NAME THEY STOPPED SAYING -- the failure state. Maps `burned`. No
+  # `requires` at all: this is what is left when nothing else qualifies,
+  # and the finale must never softlock.
+  # ---------------------------------------------------------------------
+  a_name_they_stopped_saying:
+    label: "A Name They Stopped Saying"
+    score:
+      - { when: { value: { name: heat, min: 70 } }, weight: 0.4 }
+      - { when: { flag: marker_broken }, weight: 0.3 }
+      - { when: { flag: timestamp_due }, weight: 0.3 }
+    beats:
+      - id: name_stopped_speak
+        text: >-
+          SPEAK. Mira looks at you for a long moment and then, carefully, at
+          the door behind you. Nobody says anything, because nothing that is
+          happening is the kind of thing that gets said.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: standing_mira, delta: -10 }
+      - id: name_stopped_act
+        text: >-
+          ACT. It does not happen in the alley by the drainage grate; that
+          was always the tell. What actually happens is smaller: a door that
+          does not open, a fixer who stops answering, a price that is
+          suddenly not offered to you.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: heat, delta: 5, why: "the city closing its counters is its own kind of filing" }
+      - id: name_stopped_seal
+        text: >-
+          SEAL. The Sprawl keeps your name for about eleven weeks. That is
+          longer than most.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: ending_gallery_unlocked }

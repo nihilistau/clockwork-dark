@@ -1,0 +1,73 @@
+# NEON CITY: THE CROSSING -- epilogue index.
+#
+# Read by engine/game/epilogue.py through `paths.epilogues`. One row per
+# ending in data/rules/endings.yaml; six ids, matching that file exactly.
+#
+# `{garden_days}` is the ENGINE's placeholder name for world days elapsed,
+# whatever the story is about; here it is the days of the crossing.
+# `{mortal_days}` is deliberately not used: it reads a declared value this
+# story does not declare, and a sentence that always says "0 days" is worse
+# than no sentence.
+#
+# The hollow clause keys on `time_debt_mortal_days`, which this story does
+# not declare -- the value reads a permanent 0, so a threshold of 1 means
+# the clause NEVER fires. Declared explicitly so nobody has to rediscover
+# why it is absent.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+prose_source: epilogue_cards.yaml
+
+time_line_template: >-
+  The crossing took {garden_days} {garden_days_word}, counter to hall.
+
+render_order: [title, card_m, card_g, echoes, time_line, gallery_unlock]
+
+hollow_clause_if_time_debt_gte: 1
+hollow_clause_text: ""
+
+endings:
+
+  - id: quiet_floor
+    class: quiet_floor
+    title: "The Quiet Floor"
+    gallery_key: rating_desk
+    echo_speaker: [mira_vex]
+    ng_plus_seed: one_of_four
+
+  - id: open_signal
+    class: open_signal
+    title: "Open Signal"
+    gallery_key: tuesday_0400
+    echo_speaker: [lyra_vance]
+    ng_plus_seed: unwritten_city
+
+  - id: long_quiet
+    class: long_quiet
+    title: "The Long Quiet"
+    gallery_key: numbered_shelf
+    echo_speaker: [the_archivist]
+    ng_plus_seed: null
+
+  - id: blackout
+    class: blackout
+    title: "Blackout"
+    gallery_key: dark_routing_hall
+    echo_speaker: [ghost]
+    ng_plus_seed: stupid_city
+
+  - id: walk_away
+    class: walk_away
+    title: "The Walk Away"
+    gallery_key: open_file
+    echo_speaker: [dita_halvorsen]
+    ng_plus_seed: null
+
+  - id: a_name_they_stopped_saying
+    class: a_name_they_stopped_saying
+    title: "A Name They Stopped Saying"
+    gallery_key: closed_counter
+    # NO ECHO. Nobody had a last word about it, which is the ending.
+    echo_speaker: []
+    ng_plus_seed: null

@@ -1,0 +1,93 @@
+# Version: v0.1.0 [2026-08-14]
+
+id: the_dead_courier
+arc: the_file
+name: "The Dead Courier"
+summary: >-
+  The man who carried the shard had a name. Halloran: a room above a noodle
+  stall in Ghost Alley, four months paid up front in cash. SynthSec closed
+  his file in fifty-two minutes, which is not how long a file takes when
+  anyone wants it open.
+
+preconditions:
+  all:
+    - quest_completed: forty_seconds
+
+start_text: >-
+  Lyra says it without looking up: "The courier came through the alley. He
+  had a room here. Rent paid to spring. Men who plan to disappear do not
+  prepay; men who plan to come back do."
+
+stages:
+  - id: walk_his_route
+    objective: "Walk Halloran's last route through Ghost Alley."
+    narrative_flags:
+      - nf_route_walked
+    complete_when:
+      all:
+        - at_location: ghost_alley
+        - flag: nf_route_walked
+    complete_text: >-
+      Noodle stall, dry-cleaner, junction box, dead camera, home. A careful
+      man's route: every step of it has a reason, and the reasons are all
+      about being ordinary. He was ordinary at exactly the same time every
+      night for four months, and then he was a closed file.
+
+  - id: crack_the_drop
+    objective: "Find and crack the dead drop his caution says exists."
+    narrative_flags:
+      - nf_drop_cracked
+    complete_when:
+      all:
+        - at_location: ghost_alley
+        - flag: nf_drop_cracked
+    complete_text: >-
+      Taped inside the junction box, wrapped against the rain: traffic
+      logs, a routing stamp, and a note that is just a time of day,
+      underlined twice.
+    on_complete:
+      effects:
+        - { type: item, item_id: halloran_drop, name: "Halloran's Dead Drop", qty: 1, tags: [quest, data] }
+        - { type: item, item_id: routing_stamp, name: "OmniCorp Routing Stamp", qty: 1, tags: [quest, data] }
+        - { type: awareness, delta: 6 }
+
+  - id: who_gets_the_manifest
+    objective: "Decide who gets it: a name in SynthSec, the alley's screens, or your pocket."
+    narrative_flags:
+      - nf_manifest_synthsec
+      - nf_manifest_wire
+      - nf_manifest_pocket
+    complete_when:
+      any:
+        - flag: nf_manifest_synthsec
+        - flag: nf_manifest_wire
+        - flag: nf_manifest_pocket
+    complete_text: >-
+      It is done, whichever way you did it. A dead man's caution is spent
+      now, and spending it was your call to make because nobody else knew
+      it existed.
+    on_complete:
+      effects:
+        - { type: stat, stat: gold, delta: 900 }
+        - { type: value, name: heat, delta: 4, why: "moving a dead courier's cargo moves the same needles he moved" }
+
+on_start:
+  effects:
+    # The drop is found by working the route; the item lands when the
+    # narrator says the box is open. Nothing else grants it.
+    - type: ledger_fact
+      kind: secret
+      text: "Halloran kept a dead drop somewhere on his route through Ghost Alley."
+
+on_complete:
+  effects:
+    - { type: flag, flag: quest_dead_courier_done }
+    - { type: value, name: standing_mira, delta: 8, why: "she hears everything first, and what she heard was you being careful with a dead man's caution" }
+    - type: ledger_fact
+      kind: event
+      text: "Halloran's file was closed in fifty-two minutes. His drop held traffic logs and an OmniCorp routing stamp."
+
+complete_text: >-
+  Fifty-two minutes. You keep coming back to it. A mugging gets a week; a
+  missing person gets a month. Fifty-two minutes is not an investigation.
+  It is housekeeping.

@@ -1,0 +1,163 @@
+# NEON CITY: THE CROSSING -- two progress clocks.
+#
+# Read by engine/game/clocks.py through `paths.clocks`. THE OTHER HALF of
+# each clock is state.yaml's `clocks:` block -- bounds and visibility live
+# there; what each segment DOES lives here.
+#
+# THE TIMESTAMP. The shard's header reads twenty-one days out. The clock is
+# wound one segment per world day by the min_day ladder below -- through
+# `clock.advance_time`, so it moves for a player who sleeps through the
+# week, which is the entire dread of it. Quests make it SLIP: a negative
+# `{type: value, name: timestamp}` effect through the one validated writer
+# (engine/game/clocks.py::advance documents negative deltas as the intended
+# shape). The ladder runs PAST day 21 on purpose: the clock clamps at 21,
+# so a slip does not merely subtract -- it hands the ladder more days to
+# re-wind, which is exactly what "somebody rescheduled" means. Total slack
+# is seven days, one more than the largest sum of earnable slips, so a
+# maximally careful runner buys a week and no one buys forever.
+#
+# COLLECTIONS. Daily upkeep is canon; this engine has no rent ledger, so
+# the debt clock watches the honest signal it does have -- a purse that
+# stays empty as the days pass -- plus the `debt_marker` flag the arcs set
+# when somebody extends you credit. Reminder, visit, consequence: the canon
+# escalation, ending in the knockout shape (you wake on Ripper Street short
+# a clinic bill) without a combat roll anywhere.
+#
+# NO `forces_scene:` ANYWHERE. This story ships no decks; a forced scene
+# naming nothing is a promise with no scene behind it. The setpieces these
+# clocks owe are quests, gated on the flags the beats set.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+clocks:
+
+  # ---------------------------------------------------------------------
+  # The file's date, coming due.
+  # ---------------------------------------------------------------------
+  timestamp:
+    label: "The file"
+
+    advance_when:
+      - { id: ts_day_01, when: { min_day: 1 }, by: 1 }
+      - { id: ts_day_02, when: { min_day: 2 }, by: 1 }
+      - { id: ts_day_03, when: { min_day: 3 }, by: 1 }
+      - { id: ts_day_04, when: { min_day: 4 }, by: 1 }
+      - { id: ts_day_05, when: { min_day: 5 }, by: 1 }
+      - { id: ts_day_06, when: { min_day: 6 }, by: 1 }
+      - { id: ts_day_07, when: { min_day: 7 }, by: 1 }
+      - { id: ts_day_08, when: { min_day: 8 }, by: 1 }
+      - { id: ts_day_09, when: { min_day: 9 }, by: 1 }
+      - { id: ts_day_10, when: { min_day: 10 }, by: 1 }
+      - { id: ts_day_11, when: { min_day: 11 }, by: 1 }
+      - { id: ts_day_12, when: { min_day: 12 }, by: 1 }
+      - { id: ts_day_13, when: { min_day: 13 }, by: 1 }
+      - { id: ts_day_14, when: { min_day: 14 }, by: 1 }
+      - { id: ts_day_15, when: { min_day: 15 }, by: 1 }
+      - { id: ts_day_16, when: { min_day: 16 }, by: 1 }
+      - { id: ts_day_17, when: { min_day: 17 }, by: 1 }
+      - { id: ts_day_18, when: { min_day: 18 }, by: 1 }
+      - { id: ts_day_19, when: { min_day: 19 }, by: 1 }
+      - { id: ts_day_20, when: { min_day: 20 }, by: 1 }
+      - { id: ts_day_21, when: { min_day: 21 }, by: 1 }
+      # The slack the slips spend. Only reachable after a slip has pulled
+      # the clock below its ceiling; otherwise the clamp eats them.
+      - { id: ts_day_22, when: { min_day: 22 }, by: 1 }
+      - { id: ts_day_23, when: { min_day: 23 }, by: 1 }
+      - { id: ts_day_24, when: { min_day: 24 }, by: 1 }
+      - { id: ts_day_25, when: { min_day: 25 }, by: 1 }
+      - { id: ts_day_26, when: { min_day: 26 }, by: 1 }
+      - { id: ts_day_27, when: { min_day: 27 }, by: 1 }
+      - { id: ts_day_28, when: { min_day: 28 }, by: 1 }
+
+    beats:
+      # A third of the balance spent. Nothing forced -- the city just gets
+      # one degree more specific about you.
+      - id: timestamp_week_one
+        at: 7
+        rumors:
+          - "Somebody upstream re-ran a forecast this week and did not say whose."
+        effects:
+          - { type: awareness, delta: 3, why: "a week of the file holding its date" }
+        text: "A week gone. Somewhere, a confidence rating has not moved, which is worse than if it had."
+
+      # Two thirds. The final-week flag is what the last arc's preconditions
+      # and 0xGH0ST's late traffic key on.
+      - id: timestamp_week_two
+        at: 14
+        set_flags: [timestamp_final_week]
+        world_events:
+          - event_id: forecast_traffic_spike
+            text: "Forecast traffic out of Uptown has doubled, and none of it is about weather."
+        effects:
+          - { type: awareness, delta: 4, why: "the file's date is close enough to feel" }
+        text: "Two weeks gone. The date on the file has stopped being arithmetic and started being a place."
+
+      # Due. The appointment is a quest, not a beat -- this beat is the fact
+      # of the date arriving, wherever you happen to be standing.
+      - id: timestamp_due
+        at: max
+        set_flags: [timestamp_due]
+        world_events:
+          - event_id: the_date_arrives
+            text: "It is the day on the header. The rain is the rain from the render."
+        text: "The timestamp is tonight. You are either ahead of it or inside it."
+
+  # ---------------------------------------------------------------------
+  # Collections. Works for whoever you owe; escalates on its own clock.
+  # ---------------------------------------------------------------------
+  debt:
+    label: "Collections"
+
+    advance_when:
+      # The honest signal: days passing with nothing in the purse. Each rung
+      # fires once, so a runner who recovers stops climbing.
+      - id: debt_broke_early
+        when: { all: [ { min_day: 2 }, { value: { name: credits, max: 80 } } ] }
+        by: 1
+      - id: debt_broke_mid
+        when: { all: [ { min_day: 5 }, { value: { name: credits, max: 120 } } ] }
+        by: 1
+      - id: debt_broke_late
+        when: { all: [ { min_day: 9 }, { value: { name: credits, max: 150 } } ] }
+        by: 1
+      - id: debt_broke_deep
+        when: { all: [ { min_day: 13 }, { value: { name: credits, max: 150 } } ] }
+        by: 1
+      # The marker: an arc quest extended you credit and set the flag.
+      - id: debt_marker_taken
+        when: { flag: debt_marker }
+        by: 1
+
+    beats:
+      # The reminder. Polite, itemised, unsigned.
+      - id: debt_reminder
+        at: 2
+        rumors:
+          - "Somebody was asking after your ledger at the Anchor, politely, by name."
+        text: "A reminder finds you: itemised, dated, unsigned. Collections does not need to sign things."
+
+      # The visit. The quest `collections_calls` opens on this flag.
+      - id: debt_visit
+        at: 3
+        set_flags: [collections_visited]
+        world_events:
+          - event_id: collections_crew_seen
+            text: "A two-person crew has been standing across from Mira's counter for an hour, not buying."
+        text: "The visit. Two of them, unhurried, and the taller one knows your walk."
+
+      # The consequence: the canon knockout shape, applied as arithmetic.
+      - id: debt_consequence
+        at: max
+        set_flags: [collections_consequence]
+        effects:
+          - { type: stat, stat: gold, delta: -150 }
+          - { type: stamina, delta: -30 }
+          - type: ledger_fact
+            kind: event
+            text: "Collections settled your account the way Collections settles accounts."
+        text: >-
+          It happens between one streetlight and the next, professionally,
+          nothing personal in it anywhere. The arrangement afterwards is
+          simple: what you owe, plus the cost of the visit.

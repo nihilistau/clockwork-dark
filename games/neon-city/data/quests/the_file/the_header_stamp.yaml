@@ -1,0 +1,72 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# `floor87_named` is the arc gate the_toll keys on, and the moment the
+# spoiler vocabulary starts being earned.
+
+id: the_header_stamp
+arc: the_file
+name: "The Header Stamp"
+summary: >-
+  Something in the shard's header made Frankie's smile stop for a second.
+  The stamp decodes against a registry that is not public, and Frankie
+  retails everything except the one thing that frightened him.
+
+preconditions:
+  all:
+    - flag: shard_read
+
+start_text: >-
+  Frankie deals himself a card he does not look at. "Stamp registry.
+  Corporate header authorities, cross-indexed. It exists, and for a price
+  it could exist for you. The price is that you do not tell me what you
+  find. I have decided I was never curious."
+
+stages:
+  - id: get_the_registry
+    objective: "Buy or steal the stamp registry extract at Club Noir."
+    narrative_flags:
+      - nf_registry_bought
+      - nf_registry_stolen
+    complete_when:
+      all:
+        - at_location: club_noir
+        - any:
+            - flag: nf_registry_bought
+            - flag: nf_registry_stolen
+    complete_text: >-
+      A registry extract, warm from somebody's printer tray. Frankie does
+      not watch you take it, with the deliberate not-watching of a man who
+      deals cards for a living.
+    on_complete:
+      effects:
+        - { type: item, item_id: stamp_registry, name: "Stamp Registry Extract", qty: 1, tags: [quest, data] }
+        - { type: value, name: heat, delta: 5, why: "registries notice being read" }
+
+  - id: read_it
+    objective: "Decode the shard's header against the registry."
+    narrative_flags:
+      - nf_registry_read
+    complete_when:
+      all:
+        - has_item: stamp_registry
+        - flag: nf_registry_read
+    complete_text: >-
+      The stamp resolves in three hops. An authority called CATHEDRAL. A
+      processing tier called INTAKE. And a floor: eighty-seven, in a tower
+      whose lift directory stops at eighty-six.
+    on_complete:
+      effects:
+        - { type: awareness, delta: 10 }
+
+on_complete:
+  effects:
+    - { type: flag, flag: floor87_named }
+    - { type: flag, flag: quest_header_stamp_done }
+    - type: ledger_fact
+      kind: secret
+      text: "The header authority is called Cathedral. Intake is Floor 87 of the OmniCorp tower, one floor above the directory."
+
+complete_text: >-
+  Cathedral. Intake. Floor 87. Three proper nouns, and the city rearranges
+  itself around them: every camera on the Strip is suddenly a tributary,
+  and you know now where the river drains.

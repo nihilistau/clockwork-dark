@@ -1,0 +1,154 @@
+# NEON CITY: THE CROSSING -- the Shadow crossing itself: the severe edge
+# (danger 15 in locations.yaml). Full weather exposure, no vendors, no
+# count. Everything you need, you carried.
+#
+# Version: v0.1.0 [2026-08-14]
+
+band: shadow
+
+encounters:
+
+  - id: storm_front
+    tier: 3
+    weight: 30
+    triggers:
+      edges: ["synthsec_gridpoint>shadow_crossing", "shadow_crossing>synthsec_gridpoint"]
+    intro: >-
+      The sky closes like a ledger. A storm front, the real kind, the kind
+      the canon of this ground was written about -- and there is nothing
+      between you and it: no awnings, no doorways, no city. The crossing
+      has one hard rule and the rule is arriving.
+    threat: { name: "A storm front over open ground", resolve: 4 }
+    approaches:
+      find_the_bones:
+        skill: survival
+        difficulty: hard
+        text: "Find pre-corporate bones -- culverts, slab, anything with a roof-shape"
+      outpace_it:
+        skill: nerve
+        difficulty: severe
+        text: "The front has a speed. Have a better one."
+      read_the_front:
+        skill: lore
+        difficulty: hard
+        text: "Read the front's build and cross behind its first line"
+    outcomes:
+      crit_success:
+        text: >-
+          A pre-corporate culvert, dry, humming faintly, older than every
+          logo in the city. You wait out the worst of it sitting on
+          history, and take some of the history with you.
+        effects:
+          - { type: item, item_id: precorp_cable, name: "Pre-Corporate Cable", qty: 1, tags: [artifact, scavenge] }
+      success:
+        text: "Wet, upright, across. The storm spends itself on ground that has outlasted worse."
+        effects:
+          - { type: stamina, delta: -8 }
+      partial:
+        text: >-
+          The front catches you in the open for twenty minutes that cost a
+          day's strength, and the acid finds every seam the shell has.
+        effects:
+          - { type: stamina, delta: -16 }
+          - { type: stat, stat: hp, delta: -3 }
+      failure:
+        text: >-
+          The crossing closes. There is no arguing with it -- the one hard
+          wait in this whole expedition, spent pressed into dead ground
+          while the sky files its objection to your schedule.
+        effects:
+          - { type: stamina, delta: -20 }
+          - { type: stat, stat: hp, delta: -4 }
+
+  - id: the_unattended
+    tier: 3
+    weight: 22
+    triggers:
+      edges: ["synthsec_gridpoint>shadow_crossing", "shadow_crossing>synthsec_gridpoint"]
+    intro: >-
+      Wrecks in the dark ground, and between them, movement: people, if
+      that word still fits -- the uncounted, living past the wire because
+      every camera forgot them and they have decided to return the favour.
+      They have seen your light for an hour. They own the ground you need.
+    threat: { name: "The uncounted, on their own ground", resolve: 4 }
+    approaches:
+      trade_words:
+        skill: sympathy
+        difficulty: hard
+        text: "Show empty hands and trade news for passage"
+      pay_in_kind:
+        skill: persuasion
+        difficulty: standard
+        text: "Everything out here is barter. Open the bag."
+      go_wide:
+        skill: survival
+        difficulty: severe
+        text: "Cede the ground and take the long way, in the weather"
+    outcomes:
+      crit_success:
+        text: >-
+          An old woman among them knew the lift shed when the slab was
+          new, and tells you what the doors wanted then. It is what they
+          want now.
+        effects:
+          - { type: awareness, delta: 6 }
+      success:
+        text: "Passage, traded fair. Out here fair is the only currency that has kept its value."
+        effects: []
+      partial:
+        text: "Passage costs the bag a meal and the torch, and the dark keeps the receipt."
+        effects:
+          - { type: stat, stat: gold, delta: -50 }
+          - { type: stamina, delta: -8 }
+      failure:
+        text: >-
+          The ground closes. The long way takes the hours the weather
+          wanted, and the weather collects.
+        effects:
+          - { type: stamina, delta: -18 }
+          - { type: stat, stat: hp, delta: -3 }
+
+  - id: patrol_at_the_wire
+    tier: 2
+    weight: 18
+    triggers:
+      edges: ["synthsec_gridpoint>shadow_crossing", "shadow_crossing>synthsec_gridpoint"]
+    intro: >-
+      Floodlight, sweeping wrong: a wire patrol working the fence line off
+      its printed rotation, close enough to the crossing's mouth that your
+      route and their boredom are about to intersect.
+    threat: { name: "A wire patrol off its rotation", resolve: 3 }
+    approaches:
+      hold_the_dark:
+        skill: stealth
+        difficulty: hard
+        text: "The dark is deep here. Be part of it until they turn."
+      the_window:
+        skill: lore
+        difficulty: standard
+        text: "Rotations have windows even when they move. Find tonight's."
+      face_it_out:
+        skill: nerve
+        difficulty: severe
+        text: "Walk like a contractor. The wire believes in work orders."
+    outcomes:
+      crit_success:
+        text: >-
+          The patrol turns on schedule after all -- their off-rotation was
+          itself a rotation, and now you hold both patterns.
+        effects:
+          - { type: awareness, delta: 4 }
+      success:
+        text: "The floodlight sweeps a metre short and the dark keeps its opinion of you private."
+        effects: []
+      partial:
+        text: "You hold the dark until your legs cramp and the cold gets its share."
+        effects:
+          - { type: stamina, delta: -10 }
+      failure:
+        text: >-
+          The light finds you for two full seconds. They do not pursue past
+          the wire -- but the mast gets told, and the mast remembers.
+        effects:
+          - { type: value, name: heat, delta: 7, why: "two seconds in a floodlight at the wire" }
+          - { type: stamina, delta: -8 }
