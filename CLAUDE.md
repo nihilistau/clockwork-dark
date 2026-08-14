@@ -105,13 +105,25 @@ within 13%; the median 200-turn run ends in SPREADING; measured by the new
 
 The design review's open-issue list is empty.
 
+The MCP tool layer landed: `engine/mcp/skills_server.py` reflects the `@skill`
+registry into a real MCP server (`fastmcp`, SSE, in-process so skills still
+resolve through `get_active_engine()`), and `native.py`/`backend.py` learned
+LM Studio's `integrations` parameter. Two findings worth keeping: an
+`ephemeral_mcp` integration naming a loopback URL is REFUSED ("URL resolves to
+a non-public address"), so the server is registered in LM Studio's `mcp.json`
+per run and referenced as `mcp/<entry>`; and `integrations` is now a reason to
+INSIST on the native transport rather than to avoid it, because that is the
+only route which reads the key — and the only one that can turn reasoning off.
+Proven live by `scripts/mcp_live_proof.py`. **No turn calls it yet** — see the
+NOT WIRED table in [AGENTS.md](docs/AGENTS.md).
+
 See [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) for the measurements behind
-each. Four **NOT WIRED** tables remain, one row apiece, each naming its file:
+each. Four **NOT WIRED** tables remain, each naming its file:
 [GOVERNANCE.md](docs/GOVERNANCE.md) (the notice board's browser half),
 [SAFETY.md](docs/SAFETY.md) (cosmetic rename on display labels),
 [STATE.md](docs/STATE.md) (an ending's authored `tease:`, which no story
 declares) and [AGENTS.md](docs/AGENTS.md) (the unmeasured reasoning cost of the
-two plan calls).
+two plan calls, and the MCP tool layer that nothing calls yet).
 
 ## Verify a checkout
 

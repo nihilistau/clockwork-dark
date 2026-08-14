@@ -15,14 +15,24 @@ capability                   /api/v1/chat       /v1/chat/completions
 control reasoning            YES (reasoning=)   NO -- every knob ignored
 typed SSE (reasoning split)  YES                emulated from deltas
 real token stats             YES                needs stream_options
-tool calling                 NO (400)           YES
+tools (inline functions)     NO (400)           YES
+tools (MCP integrations)     YES                NO -- key not read
 structured output            NO (400)           YES
 ===========================  =================  ======================
 
-So: a request that needs tools or ``response_format`` must go OpenAI-compat.
-Everything else goes native, because only native can stop a reasoning model
-from spending the entire token budget thinking -- the confirmed cause of
-``content: ""`` reaching the player as a frozen screen.
+So: a request that needs inline ``tools=`` or ``response_format`` must go
+OpenAI-compat. Everything else goes native, because only native can stop a
+reasoning model from spending the entire token budget thinking -- the confirmed
+cause of ``content: ""`` reaching the player as a frozen screen.
+
+``integrations`` INVERTS THE RULE. Tool calling used to be a reason to avoid
+the native route; over MCP it is a reason to INSIST on it, because that is the
+only route that reads the key at all. A request carrying integrations therefore
+goes native or does not go -- falling back to compat would silently drop the
+tools and return an answer the model invented instead of resolved. What still
+cannot be combined is integrations and ``response_format``: the native route
+rejects the latter with 400 ``unrecognized_keys`` even alongside integrations,
+which is why the tool call and the grammared narration are two calls.
 
 THE TWO BUDGETS
 ---------------
@@ -143,14 +153,30 @@ class LMStudioBackend:
         *,
         tools: Optional[list[dict[str, Any]]] = None,
         response_format: Optional[dict[str, Any]] = None,
+        integrations: Optional[list[Any]] = None,
     ) -> bool:
         """
         Decide the transport for one request.
 
-        Tools and structured output are rejected outright by ``/api/v1/chat``
-        (``unrecognized_keys``), so those requests have no choice.
+        Inline ``tools`` and structured output are rejected outright by
+        ``/api/v1/chat`` (``unrecognized_keys``), so those requests have no
+        choice. ``integrations`` is the opposite case: only the native route
+        reads it, so a request carrying MCP servers must go native even though
+        it is, in every other sense, a tool call.
         """
-        if tools or response_format:
+        if response_format:
+            return False
+        if integrations:
+            if self.native_available():
+                return True
+            logger.error(
+                "[backend] MCP integrations were requested but the native API is "
+                "unavailable (operation=use_native). The OpenAI-compatible route "
+                "does not read `integrations`, so the model will answer with NO "
+                "tools -- inventing outcomes the engine should have resolved."
+            )
+            return False
+        if tools:
             return False
         return self.native_available()
 
@@ -254,6 +280,7 @@ class LMStudioBackend:
         tools: Optional[list[dict[str, Any]]] = None,
         tool_choice: Optional[str] = None,
         response_format: Optional[dict[str, Any]] = None,
+        integrations: Optional[list[Any]] = None,
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         reasoning: Optional[str] = None,
@@ -265,6 +292,8 @@ class LMStudioBackend:
 
         Args:
             profile: Logical profile; supplies model, lane, reasoning policy.
+            integrations: MCP servers the model may call tools on. Forces the
+                native transport -- see ``use_native``.
             reasoning: Override the profile's reasoning policy for this call.
             retry_on_starvation: Retry once with reasoning off if the content
                 channel comes back empty behind a full reasoning channel.
@@ -280,7 +309,9 @@ class LMStudioBackend:
         temp = float(mp.temperature if temperature is None else temperature)
         mode = str(reasoning or mp.reasoning)
 
-        if self.use_native(tools=tools, response_format=response_format):
+        if self.use_native(
+            tools=tools, response_format=response_format, integrations=integrations
+        ):
             with inference_slot(label=label or profile, lane=mp.lane):
                 result = self.native_client().chat(
                     messages,
@@ -290,6 +321,7 @@ class LMStudioBackend:
                     reasoning=mode,
                     reasoning_budget=mp.reasoning_budget,
                     context_length=mp.context_tokens,
+                    integrations=integrations,
                 )
         else:
             with inference_slot(label=label or profile, lane=mp.lane):
@@ -368,6 +400,7 @@ class LMStudioBackend:
         tools: Optional[list[dict[str, Any]]] = None,
         tool_choice: Optional[str] = None,
         response_format: Optional[dict[str, Any]] = None,
+        integrations: Optional[list[Any]] = None,
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         reasoning: Optional[str] = None,
@@ -391,7 +424,9 @@ class LMStudioBackend:
         temp = float(mp.temperature if temperature is None else temperature)
         mode = str(reasoning or mp.reasoning)
 
-        if self.use_native(tools=tools, response_format=response_format):
+        if self.use_native(
+            tools=tools, response_format=response_format, integrations=integrations
+        ):
             generator = self.native_client().chat_stream(
                 messages,
                 model=mp.model,
@@ -400,6 +435,7 @@ class LMStudioBackend:
                 reasoning=mode,
                 reasoning_budget=mp.reasoning_budget,
                 context_length=mp.context_tokens,
+                integrations=integrations,
                 on_event=on_event,
                 on_delta=on_delta,
                 on_reasoning=on_reasoning,

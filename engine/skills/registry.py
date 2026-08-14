@@ -4,7 +4,38 @@ Skill Registry
 
 @skill decorator — LLM-callable mechanical tools.
 
-Version: v0.1.0 [2026-06-20]
+WHAT A SKILL MAY DECLARE, AND WHY THE LIST IS SHORT
+---------------------------------------------------
+Five fields used to sit on ``SkillDef`` that nothing ever read: ``cooldown``,
+``cost``, ``prerequisites``, ``tags``, and two of the four trigger constants.
+No shipped skill set a non-default for any of them and no caller consulted them
+— ``SkillRegistry.invoke`` went straight to ``skill_def.func(**kwargs)``. That
+is the same decorative-metadata bug this file's header once called out about
+``agents``, which WAS load-bearing everywhere except the dispatcher.
+
+They are deleted rather than enforced, and the reasoning matters because
+CosySim's ``execute_skill`` + ``CooldownTracker`` is the obvious thing to port:
+
+* CosySim's skills call ComfyUI, a vector store and the filesystem — genuinely
+  rate-limited things a wall-clock cooldown protects. Every skill here is a
+  pure in-process mutation of one player's ``GameState``. There is nothing to
+  rate-limit; a real-seconds cooldown would also break replay, because the same
+  seed would resolve differently depending on how fast the model answered.
+* ``cost`` and ``prerequisites`` would be a SECOND economy beside the one the
+  engine already runs. Actions are priced in stamina and in-game hours by
+  ``effects.apply_effect`` and ``clock.advance_time``, which critical rules 2
+  and 3 name as the only writers. A skill-level cost would be a second writer
+  of the same budget, disagreeing with the first.
+* ``TRIGGER_AUTO`` was a value no skill ever carried and no code could produce.
+  ``TRIGGER_REQUIRED`` labelled six skills "the model must call this first" and
+  nothing made that true; the obligation lives in the prompt, which is the only
+  place it CAN live, since no server can force a model to call a tool.
+
+What survives is what runs: ``trigger`` now distinguishes exactly the two cases
+the code acts on — ``system`` (defaults the skill to the system agent, out of
+the model's reach) and ``optional`` (everything else).
+
+Version: v0.2.0 [2026-08-14]
 """
 
 from __future__ import annotations
@@ -14,9 +45,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
-TRIGGER_AUTO = "auto"
 TRIGGER_OPTIONAL = "optional"
-TRIGGER_REQUIRED = "required"
 TRIGGER_SYSTEM = "system"
 
 AGENT_STORYTELLER = "storyteller"
@@ -36,10 +65,6 @@ class SkillDef:
     category: str
     func: Callable[..., str]
     trigger: str = TRIGGER_OPTIONAL
-    cooldown: float = 0.0
-    cost: float = 1.0
-    tags: list[str] = field(default_factory=list)
-    prerequisites: list[str] = field(default_factory=list)
     # Which agents may call this. The trigger/category metadata was previously
     # decorative: the dispatcher executed anything present in the registry, so
     # a system-only time skill was fully reachable by the model.
@@ -107,10 +132,6 @@ def skill(
     category: str = "GAME",
     name: Optional[str] = None,
     trigger: str = TRIGGER_OPTIONAL,
-    cooldown: float = 0.0,
-    cost: float = 1.0,
-    tags: Optional[list[str]] = None,
-    prerequisites: Optional[list[str]] = None,
     agents: Optional[list[str]] = None,
     params_schema: Optional[dict[str, Any]] = None,
 ) -> Callable[[Callable[..., str]], Callable[..., str]]:
@@ -131,10 +152,6 @@ def skill(
                 category=category,
                 func=func,
                 trigger=trigger,
-                cooldown=cooldown,
-                cost=cost,
-                tags=tags or [],
-                prerequisites=prerequisites or [],
                 agents=list(resolved_agents),
                 params_schema=params_schema,
             )

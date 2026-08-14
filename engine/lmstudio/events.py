@@ -30,6 +30,12 @@ NATIVE_EVENT_TYPES: frozenset[str] = frozenset(
         "reasoning.delta",
         "reasoning.end",
         "tool_call.start",
+        # Observed on a live 0.3.x server driving an MCP integration, and NOT
+        # in the published streaming-events list, which names four tool_call
+        # frames. The real sequence is start -> name -> arguments -> success.
+        # This is exactly the drift the frozenset exists to catch: without the
+        # entry, every tool call logged "Unknown event" once per call.
+        "tool_call.name",
         "tool_call.arguments",
         "tool_call.success",
         "tool_call.failure",

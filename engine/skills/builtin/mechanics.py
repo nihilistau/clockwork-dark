@@ -20,7 +20,7 @@ from engine.game.engine import get_active_engine
 from engine.skills.registry import (
     AGENT_STORYTELLER,
     AGENT_SYSTEM,
-    TRIGGER_REQUIRED,
+    TRIGGER_OPTIONAL,
     TRIGGER_SYSTEM,
     skill,
 )
@@ -32,7 +32,7 @@ _ROOT = Path(__file__).resolve().parents[3]
     pack="core",
     description="Roll dice. MUST call before narrating any roll outcome.",
     category="GAME",
-    trigger=TRIGGER_REQUIRED,
+    trigger=TRIGGER_OPTIONAL,
 )
 def roll_dice(sides: int = 20, modifier: int = 0, reason: str = "") -> str:
     """Roll dice via engine."""
@@ -50,7 +50,7 @@ def roll_dice(sides: int = 20, modifier: int = 0, reason: str = "") -> str:
         "or a modifier -- the engine derives both."
     ),
     category="GAME",
-    trigger=TRIGGER_REQUIRED,
+    trigger=TRIGGER_OPTIONAL,
 )
 def resolve_skill_check(
     skill: str,
@@ -186,7 +186,7 @@ def sleep_until(hour: int = 6) -> str:
     pack="core",
     description="Move player to location_id along the location graph.",
     category="GAME",
-    trigger=TRIGGER_REQUIRED,
+    trigger=TRIGGER_OPTIONAL,
 )
 def move_to(location_id: str) -> str:
     """Travel via engine."""
@@ -268,7 +268,7 @@ def advance_world_tick(days: float = 1.0, force_event: str = "") -> str:
     pack="core",
     description="Storyteller-only: full evil and pressure snapshot.",
     category="NARRATIVE",
-    trigger=TRIGGER_REQUIRED,
+    trigger=TRIGGER_OPTIONAL,
 )
 def query_evil_state() -> str:
     """Evil snapshot for GM narration."""
@@ -285,7 +285,7 @@ def query_evil_state() -> str:
         "is happening. Call this before describing a scene you did not open."
     ),
     category="NARRATIVE",
-    trigger=TRIGGER_REQUIRED,
+    trigger=TRIGGER_OPTIONAL,
 )
 def query_encounter() -> str:
     """
@@ -319,7 +319,7 @@ def query_encounter() -> str:
         "approaches list. One to three rounds and the scene is over."
     ),
     category="GAME",
-    trigger=TRIGGER_REQUIRED,
+    trigger=TRIGGER_OPTIONAL,
 )
 def encounter_approach(approach: str) -> str:
     """

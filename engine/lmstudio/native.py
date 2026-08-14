@@ -25,7 +25,7 @@ WHAT THE NATIVE ENDPOINT DOES NOT DO
 Verified by probing the live server -- all four are rejected with
 ``unrecognized_keys``:
 
-* ``tools``            -- no tool calling
+* ``tools``            -- no OpenAI-style function definitions
 * ``response_format``  -- no structured output / json_schema
 * ``ttl``              -- no idle-eviction hint
 * per-message ``role`` -- ``input`` is a flat array of ``{type, content}``
@@ -34,12 +34,28 @@ Verified by probing the live server -- all four are rejected with
 So this is not a drop-in replacement. ``backend.py`` routes each request to
 whichever transport can actually serve it.
 
+WHAT IT DOES DO, THAT THE COMPAT ROUTE CANNOT: ``integrations``
+---------------------------------------------------------------
+Tool calling on this route arrives as MCP servers rather than as inline
+function definitions. ``integrations`` takes a list of
+
+    {"type": "ephemeral_mcp", "server_label": ..., "server_url": ...,
+     "allowed_tools": [...], "headers": {...}}
+
+or a bare id string naming a server already registered in LM Studio's
+``mcp.json``. LM Studio runs the tool loop ITSELF -- it connects to that URL,
+lists the tools, calls them, and reports each one back through the
+``tool_call.start|arguments|success|failure`` SSE events. So this is the route
+that can have BOTH tool calling and ``reasoning: "off"``, which the
+OpenAI-compatible route can never offer. See ``engine/mcp/skills_server.py``
+for the server on the other end.
+
 REQUEST SHAPE (verified)::
 
     {"model": ..., "system_prompt": ..., "reasoning": "off"|"low"|"medium"|"high"|"on",
      "input": [{"type": "text", "content": "..."}],
      "max_output_tokens": int, "context_length": int, "temperature": float,
-     "stream": bool}
+     "integrations": [...], "stream": bool}
 
 RESPONSE SHAPE (verified)::
 
@@ -62,7 +78,12 @@ from typing import Any, Callable, Generator, Optional
 import httpx
 
 from engine.config import get_config
-from engine.lmstudio.events import NATIVE_EVENT_TYPES, LMSResponse, LMSStreamEvent
+from engine.lmstudio.events import (
+    NATIVE_EVENT_TYPES,
+    LMSResponse,
+    LMSStreamEvent,
+    ToolCall,
+)
 from engine.lmstudio.profiles import wire_cap
 from engine.lmstudio.routes import CHAT_PATH, rest_root
 
@@ -188,6 +209,7 @@ class NativeClient:
         context_length: int,
         stream: bool,
         reasoning_budget: int = 0,
+        integrations: Optional[list[Any]] = None,
     ) -> dict[str, Any]:
         """
         Build the request body.
@@ -216,6 +238,11 @@ class NativeClient:
             payload["reasoning"] = reasoning
         if context_length > 0:
             payload["context_length"] = context_length
+        if integrations:
+            payload["integrations"] = list(integrations)
+        # `response_format` is NEVER added here, integrations or not. The
+        # endpoint rejects it with 400 `unrecognized_keys`, which is why the
+        # narration grammar and the tool loop have to be separate calls.
         return payload
 
     @staticmethod
@@ -277,6 +304,7 @@ class NativeClient:
         reasoning: str = "on",
         context_length: int = 0,
         reasoning_budget: int = 0,
+        integrations: Optional[list[Any]] = None,
     ) -> LMSResponse:
         """
         Non-streaming native completion.
@@ -285,6 +313,9 @@ class NativeClient:
             max_tokens: The CONTENT budget -- what the answer may spend.
             reasoning_budget: Headroom for thinking, added on top when
                 reasoning is on. The wire cap is their sum.
+            integrations: MCP servers LM Studio may call tools on. It runs the
+                whole loop server-side, so a non-streaming call returns only
+                the final answer -- the receipts are visible on ``chat_stream``.
         """
         payload = self._payload(
             messages,
@@ -295,6 +326,7 @@ class NativeClient:
             context_length=context_length,
             stream=False,
             reasoning_budget=reasoning_budget,
+            integrations=integrations,
         )
         cap = int(payload["max_output_tokens"])
         t0 = time.perf_counter()
@@ -331,6 +363,7 @@ class NativeClient:
         reasoning: str = "on",
         context_length: int = 0,
         reasoning_budget: int = 0,
+        integrations: Optional[list[Any]] = None,
         on_event: Optional[Callable[[LMSStreamEvent], None]] = None,
         on_delta: Optional[Callable[[str], None]] = None,
         on_reasoning: Optional[Callable[[str], None]] = None,
@@ -345,6 +378,9 @@ class NativeClient:
         real image generation off it.
 
         Args:
+            integrations: MCP servers LM Studio may call tools on. Each call it
+                makes arrives as ``tool_call.*`` events and is collected into
+                the returned ``LMSResponse.tool_calls``.
             on_event: Receives every typed SSE event, reasoning included.
             on_delta: Receives message content deltas.
             on_reasoning: Receives reasoning deltas, for a live "the world is
@@ -362,12 +398,14 @@ class NativeClient:
             context_length=context_length,
             stream=True,
             reasoning_budget=reasoning_budget,
+            integrations=integrations,
         )
         cap = int(payload["max_output_tokens"])
 
         t0 = time.perf_counter()
         content_parts: list[str] = []
         reasoning_parts: list[str] = []
+        tool_calls: list[ToolCall] = []
         final_result: dict[str, Any] = {}
 
         try:
@@ -391,6 +429,26 @@ class NativeClient:
                         content_parts.append(delta)
                         if on_delta:
                             on_delta(delta)
+                    elif etype in ("tool_call.success", "tool_call.failure"):
+                        # LM Studio ran the tool itself against the MCP server
+                        # named in `integrations`; this frame is the receipt.
+                        # Collected rather than merely logged, so the caller can
+                        # show the player what the engine actually resolved.
+                        event = _to_event(etype, data, model)
+                        tool_calls.append(
+                            ToolCall(
+                                id=event.tool_call_id,
+                                name=event.tool_name,
+                                arguments=dict(event.tool_arguments),
+                            )
+                        )
+                        logger.info(
+                            "[native] Tool call %s (operation=chat_stream, tool=%s, "
+                            "args=%s)",
+                            "succeeded" if etype.endswith("success") else "FAILED",
+                            event.tool_name or "(unnamed)",
+                            event.tool_arguments,
+                        )
                     elif etype == "chat.end":
                         final_result = data.get("result") or {}
                     elif etype == "error":
@@ -435,6 +493,7 @@ class NativeClient:
                 latency_ms=latency,
                 transport="native",
             )
+        result.tool_calls = tool_calls
         _log_outcome("chat_stream", result, max_tokens, reasoning_budget, reasoning)
         return result
 
@@ -476,7 +535,11 @@ def _to_event(etype: str, data: dict[str, Any], model: str) -> LMSStreamEvent:
     return LMSStreamEvent(
         event_type=etype,
         content=str(data.get("content") or ""),
-        tool_name=str(data.get("tool") or data.get("name") or ""),
+        # Three spellings, all observed on one live tool call: `tool_name` on
+        # tool_call.name, `tool` on tool_call.arguments and tool_call.success.
+        # `name` is kept for the OpenAI-compatible client, which translates its
+        # flatter chunks into this same vocabulary.
+        tool_name=str(data.get("tool") or data.get("tool_name") or data.get("name") or ""),
         tool_arguments=arguments if isinstance(arguments, dict) else {},
         tool_output=str(data.get("output") or ""),
         tool_call_id=str(data.get("tool_call_id") or data.get("id") or ""),

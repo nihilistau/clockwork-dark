@@ -178,9 +178,12 @@ refusal.
 | Thing | File | Status |
 |---|---|---|
 | Reasoning cost of structured plans | `engine/agents/pipeline.py` (the two plan calls), `engine/lmstudio/client.py` (the transport that cannot disable reasoning) | A JSON schema forces the OpenAI-compat transport, which cannot turn reasoning off. Two plan calls per turn pay that on hardware where reasoning is 800+ tokens. **Still unmeasured against a real model** — this is a cost that is not known, not a mechanism that is not called, and it is in this table so that the difference stays visible. |
+| The MCP tool layer | `engine/mcp/skills_server.py`, `engine/lmstudio/native.py` + `backend.py` (the `integrations` parameter) | Built, tested and **proven against a live LM Studio** (`scripts/mcp_live_proof.py`: the model called `query_evil_state`, the receipt came back, `reasoning_output_tokens` was 0) — and called by NOTHING in a turn. No agent passes `integrations`, and `lmstudio.mcp.enabled` is false. The two-phase turn that uses it lands separately; until it does, the `@skill` registry is still unreachable by a model during play. |
 
-Re-audited on 2026-08-14 against the tree. This row is the only one, and it is
-the odd kind: everything it names IS wired and running. What is missing is a
-measurement.
+Re-audited on 2026-08-14 against the tree. The first row is the odd kind:
+everything it names IS wired and running, and what is missing is a
+measurement. The second is the ordinary kind — a mechanism with no caller —
+and it is here rather than in a design document precisely so that "the model
+can call the engine" is not read as "the model does".
 
 Version: v0.4.0 [2026-08-14]

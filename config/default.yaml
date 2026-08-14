@@ -59,6 +59,73 @@ lmstudio:
   # `reasoning: off` on the native transport does.
   structured_output: auto
 
+  # Tool calling, over MCP. This is how the @skill registry becomes reachable
+  # by a model at all: LM Studio's native route takes an `integrations` list of
+  # MCP servers, connects to them itself, and runs the tool loop server-side.
+  # The server is engine/mcp/skills_server.py, in the game's own process.
+  #
+  # WHY THIS IS THE ONLY WAY IT WORKS. /api/v1/chat rejects OpenAI-style
+  # `tools` AND `response_format` with 400 unrecognized_keys, but accepts
+  # `integrations` -- and it is the only route that honours `reasoning: off`.
+  # The compat route accepts `tools` and ignores every reasoning knob, which
+  # costs two to three minutes of wasted thinking per turn. So tool calling and
+  # the narration grammar cannot ride one call; the MCP layer is the half that
+  # can also stay cheap.
+  #
+  # OFF BY DEFAULT, like every other generation feature here. It opens a
+  # listening socket and it has no production caller yet -- the two-phase turn
+  # that uses it lands separately.
+  mcp:
+    enabled: false
+    # Loopback on purpose. LM Studio runs on the same machine (rule 11), and
+    # this endpoint executes game mechanics for whoever asks -- see
+    # `allowed_tools` below for what is refused, and note that the agent
+    # allowlist, not the network, is the real boundary.
+    host: "127.0.0.1"
+    port: 8770
+    # SSE. Not a style choice: this is the transport CosySim has run against a
+    # live LM Studio for a year (its config pins http://localhost:8700/mcp/sse),
+    # and porting the proven combination beat reasoning one out of the spec.
+    path: "/mcp/sse"
+    server_label: "game-skills"
+    # plugin | ephemeral -- how LM Studio is TOLD about this server.
+    #
+    # `ephemeral` sends the URL on the request, and LM Studio refuses it:
+    #   "URL resolves to a non-public address. We only allow public addresses
+    #    for dynamic remote MCP connections."
+    # That is policy, not a bug -- an ephemeral URL is one the model's host was
+    # handed at request time, and letting one reach loopback would make every
+    # prompt a port scanner. LM Studio's docs say as much: mcp.json is "the
+    # recommended approach for using MCP servers that take actions on your
+    # computer."
+    #
+    # `plugin` writes an entry into that mcp.json -- one per run, named
+    # engine-skills-<session>, carrying the session in its headers -- and references
+    # it as mcp/<entry>. Measured working end to end: the model called
+    # query_evil_state, the receipt came back, reasoning_output_tokens was 0,
+    # and LM Studio picked the file up with no restart. Entries are removed when
+    # the run ends and pruned wholesale at startup.
+    #
+    # Leave `ephemeral` for a skills server that really is on a public address.
+    integration: plugin
+    # Where LM Studio keeps mcp.json. Empty = look in the known locations
+    # (~/.cache/lm-studio/mcp.json, then ~/.lmstudio/mcp.json). Set it in
+    # config/local.yaml if yours is elsewhere; nothing outside the
+    # `engine-skills-` prefix in that file is ever read or rewritten.
+    mcp_json: ""
+    # LM Studio watches mcp.json and reloads asynchronously. A request sent in
+    # the same breath as the write comes back with "Cannot find plugin handle
+    # for plugin: mcp/engine-skills-<id>" -- measured, reproducibly. This is the
+    # pause after writing. Affordable because registration happens ONCE per
+    # run, not once per turn; put it in a turn's critical path and it is a
+    # stall the player feels.
+    register_settle_seconds: 1.5
+    # Narrower than the agent allowlist, when a caller wants it. EMPTY means
+    # "every skill this agent may call", which is already filtered by
+    # SkillDef.agents on both list and call -- so the system-only world tick is
+    # unreachable by a model whatever this says.
+    allowed_tools: []
+
   # Concurrent requests per lane. LM Studio serves these in parallel. Narration
   # gets its own lane so the summarizer and the Assistant can no longer stall
   # the text the player is watching appear -- the old single global semaphore

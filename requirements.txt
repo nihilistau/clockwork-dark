@@ -11,3 +11,11 @@ python-socketio>=5.11.0
 # than an ImportError at startup. Installing it also pulls CTranslate2, and the
 # first transcription downloads the model named by stt.whisper.model.
 faster-whisper>=1.0.0
+
+# OPTIONAL. The MCP tool layer -- engine/mcp/skills_server.py, which is how a
+# model reaches the @skill registry at all. Absent, `lmstudio.mcp.enabled` has
+# no effect, the server never starts, and the game plays and tests exactly as
+# before; tool calling is simply off. Pinned to the version CosySim runs
+# against a live LM Studio, because that is the combination this was ported
+# from rather than reasoned out of the spec.
+fastmcp>=3.2.4
