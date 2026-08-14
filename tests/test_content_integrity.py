@@ -301,3 +301,68 @@ def test_new_data_directories_are_versioned(directory: str):
         with path.open(encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
         assert data.get("version") == 1, path
+
+
+# ---------------------------------------------------------------------------
+# few-shot examples
+# ---------------------------------------------------------------------------
+
+#: Scenery that exists ONLY in prompts/examples.json. See the test below.
+EXAMPLE_ONLY_NOUNS = ("Coldharrow", "Harrowmere", "salt-house", "drover")
+
+
+def test_the_few_shots_are_set_somewhere_the_game_is_not():
+    """
+    A few-shot donates its FURNITURE, not just its format.
+
+    Both examples used to be set in real Edgewood -- Maris at her flue, a
+    watchman at the gate -- and the model duly imported them. A fresh run whose
+    opening was a forest clearing narrated "you turn your back on the watchman",
+    and it read as plausible, because Edgewood does have a gate watch. That is
+    the whole problem: the leak was invisible.
+
+    They are now set at Coldharrow and Harrowmere, which exist nowhere in this
+    story. The model may still borrow the scenery -- that is what few-shots do
+    -- but borrowing it is now a visible bug rather than a plausible sentence.
+    This test keeps those nouns unique, so the diagnostic stays sharp.
+    """
+    examples = _ROOT / "games" / "clockwork-dark" / "prompts" / "examples.json"
+    text = examples.read_text(encoding="utf-8")
+    for noun in EXAMPLE_ONLY_NOUNS:
+        assert noun.lower() in text.lower(), f"examples no longer mention {noun!r}"
+
+    haystack = [p for p in _DATA.rglob("*") if p.is_file() and p.suffix in {".yaml", ".json", ".md"}]
+    for noun in EXAMPLE_ONLY_NOUNS:
+        for path in haystack:
+            body = path.read_text(encoding="utf-8", errors="ignore")
+            assert noun.lower() not in body.lower(), (
+                f"{noun!r} is example-only scenery but now appears in {path.name}; "
+                "either rename it here or pick different scenery for the few-shot, "
+                "or a leaked example stops being detectable"
+            )
+
+
+def test_the_few_shots_still_voice_real_npcs():
+    """
+    Foreign scenery, real cast: `npc_id` is an enum built from whoever is in the
+    room, so an example naming an invented id would teach a shape the grammar
+    can never accept.
+    """
+    import json
+
+    examples = _ROOT / "games" / "clockwork-dark" / "prompts" / "examples.json"
+    rows = json.loads(examples.read_text(encoding="utf-8"))
+    voiced = set()
+    for row in rows:
+        if row.get("role") != "assistant":
+            continue
+        payload = json.loads(row["content"])
+        for voice in payload.get("npc_voices") or []:
+            voiced.add(voice["npc_id"])
+        for subject in (payload.get("ledger_delta") or {}).get("npc_disposition") or {}:
+            voiced.add(subject)
+    assert voiced, "the examples no longer demonstrate npc_voices at all"
+
+    schedules = _DATA / "world" / "npc_schedules.yaml"
+    known = set((yaml.safe_load(schedules.read_text(encoding="utf-8")) or {}).get("npcs") or {})
+    assert voiced <= known, f"examples voice unknown npcs: {sorted(voiced - known)}"

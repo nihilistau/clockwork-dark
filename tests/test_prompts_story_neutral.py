@@ -106,7 +106,18 @@ def test_the_flagship_owns_its_own_voice_on_disk():
 
 
 def test_the_flagship_still_ships_its_two_worked_examples():
-    """Extracting the literals to a file must not have dropped the few-shots."""
+    """
+    Extracting the literals to a file must not have dropped the few-shots.
+
+    The claim is about SHAPE, not scenery. This used to assert "Maris" appeared
+    in the first exchange, which quietly pinned the examples to Edgewood's cast
+    -- and the examples were deliberately re-scened away from it, because a
+    few-shot donates its furniture and a leak set in the real village is
+    indistinguishable from ordinary narration. See
+    tests/test_content_integrity.py::test_the_few_shots_are_set_somewhere_the_game_is_not.
+    """
+    import json
+
     registry.activate("clockwork-dark")
     rows = prompts.storyteller_examples()
     assert len(rows) == 5
@@ -117,7 +128,11 @@ def test_the_flagship_still_ships_its_two_worked_examples():
         "user",
         "assistant",
     ]
-    assert "Maris" in rows[0]["content"]
+    # Both worked answers are the JSON envelope a real turn must produce.
+    for row in (rows[1], rows[4]):
+        payload = json.loads(row["content"])
+        assert payload["narration"].strip()
+        assert 2 <= len(payload["choices"]) <= 4
 
 
 #: Parametrised over the stories that SHIP no examples.json -- derived from the

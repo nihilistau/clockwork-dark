@@ -1,11 +1,11 @@
 [
   {
     "role": "user",
-    "content": "The player chooses: Ask Maris about the smoke."
+    "content": "The player chooses: Ask Odran what the roads are like."
   },
   {
     "role": "assistant",
-    "content": "{\"narration\": \"Maris does not stop working while she answers. Her hands go on shaping the dough, one turn and a press, one turn and a press, and the smell of it fills the low room. \\\"Chimney's drawing wrong,\\\" she says. \\\"Has been since the frost broke.\\\" She tips her chin at the flue without looking up. There is a dark rime along the iron where the soot has gone grey-green instead of black. \\\"Odran says it's the wind. Odran says a lot of things.\\\" The oven ticks as it heats.\", \"choices\": [{\"id\": \"a\", \"text\": \"Look closer at the flue\", \"hint\": \"unknown\"}, {\"id\": \"b\", \"text\": \"Offer to help with the batch\", \"hint\": \"safe\"}, {\"id\": \"c\", \"text\": \"Ask what else Odran says\", \"hint\": \"safe\"}], \"npc_voices\": [{\"npc_id\": \"npc_maris\", \"line\": \"Chimney's drawing wrong.\"}], \"ledger_delta\": {\"facts\": [{\"text\": \"The bakery flue has grey-green rime, since the frost broke.\", \"subject_id\": \"npc_maris\"}]}, \"mood\": \"uneasy\"}"
+    "content": "{\"narration\": \"Odran does not stop repacking the cart while he answers. His hands go on with it, strap and buckle, strap and buckle, and the wet canvas smells of somebody else's rain. \\\"Coldharrow way is shut,\\\" he says. \\\"Has been since the frost broke.\\\" He tips his chin at a crate without looking up. There is a dark rime along the banding where the iron has gone grey-green instead of black. \\\"Drovers say it's the wet. Drovers say a lot of things.\\\" A horse shifts in its traces.\", \"choices\": [{\"id\": \"a\", \"text\": \"Look closer at the banding\", \"hint\": \"unknown\"}, {\"id\": \"b\", \"text\": \"Offer to help him load\", \"hint\": \"safe\"}, {\"id\": \"c\", \"text\": \"Ask what else the drovers say\", \"hint\": \"safe\"}], \"npc_voices\": [{\"npc_id\": \"npc_odran\", \"line\": \"Coldharrow way is shut.\"}], \"ledger_delta\": {\"facts\": [{\"text\": \"The Coldharrow road has been shut since the frost broke.\", \"subject_id\": \"npc_odran\"}]}, \"mood\": \"uneasy\"}"
   },
   {
     "role": "system",
@@ -13,10 +13,10 @@
   },
   {
     "role": "user",
-    "content": "The player chooses: Slip past the gate watch."
+    "content": "The player chooses: Slip past the salt-house at Harrowmere."
   },
   {
     "role": "assistant",
-    "content": "{\"narration\": \"You are more tired than you let yourself think. The gravel gives under your heel with a sound like a small bone breaking, and the watchman's lamp swings round before you have finished flinching. He is not alarmed. That is somehow worse. \\\"Bit late for the road,\\\" he says, and waits, and the waiting goes on long enough that you understand you are being counted.\", \"choices\": [{\"id\": \"a\", \"text\": \"Give him a name\", \"hint\": \"risky\"}, {\"id\": \"b\", \"text\": \"Turn back toward Edgewood\", \"hint\": \"safe\"}, {\"id\": \"c\", \"text\": \"Pay the late toll\", \"hint\": \"costly\"}], \"npc_voices\": [{\"npc_id\": \"npc_sera\", \"line\": \"Bit late for the road.\"}], \"ledger_delta\": {\"npc_disposition\": {\"npc_sera\": -2}}, \"mood\": \"tense\"}"
+    "content": "{\"narration\": \"You are more tired than you let yourself think. The gravel gives under your heel with a sound like a small bone breaking, and Ilya's lantern swings round before you have finished flinching. He is not alarmed. That is somehow worse. \\\"Bit late to be walking,\\\" he says, and waits, and the waiting goes on long enough that you understand you are being counted.\", \"choices\": [{\"id\": \"a\", \"text\": \"Give him a name\", \"hint\": \"risky\"}, {\"id\": \"b\", \"text\": \"Turn back the way you came\", \"hint\": \"safe\"}, {\"id\": \"c\", \"text\": \"Pay him for the trouble\", \"hint\": \"costly\"}], \"npc_voices\": [{\"npc_id\": \"npc_ilya\", \"line\": \"Bit late to be walking.\"}], \"ledger_delta\": {\"npc_disposition\": {\"npc_ilya\": -2}}, \"mood\": \"tense\"}"
   }
 ]
