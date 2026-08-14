@@ -399,10 +399,10 @@ def chat_probe(
     *,
     profile: str = "big",
     timeout: float = 20.0,
-    max_tokens: int = 16,
+    max_tokens: int = 200,
 ) -> dict[str, Any]:
     """
-    Ask the server for one tiny completion and report what actually came back.
+    Ask for one completion THE WAY A TURN DOES, and report what came back.
 
     THE GAP THIS CLOSES. Health-checking LM Studio with ``GET /v1/models`` asks
     "is a process listening", which is not the question. On this machine that
@@ -411,9 +411,18 @@ def chat_probe(
     failures were swallowed, the pipeline fell back to canned lines, and nothing
     in the health report pointed at the model.
 
-    Deliberately NOT routed through ``LMSClient``: that raises on a bad status
-    and the response body -- the only part that says *why* -- is lost with it.
-    This posts the payload itself so the server's own words reach the report.
+    IT MUST TEST THE PATH THE GAME USES. The first version of this probe posted
+    raw to the OpenAI-compatible route with a 16-token budget -- a transport and
+    a budget no turn ever asks for. On a reasoning model that starves instantly,
+    so the doctor reported FAIL while the game beside it narrated fine: the real
+    path prefers ``/api/v1/chat`` (where ``reasoning: "off"`` is honoured) and
+    retries once on starvation. A health check that fails where the product
+    succeeds trains people to ignore it, which is worse than not checking.
+
+    So the probe runs ``LMStudioBackend.chat`` first -- same transport choice,
+    same retry -- and only falls back to posting raw when that raises, because
+    ``LMSClient`` discards the response body and the body is the only part that
+    says *why*.
 
     Args:
         profile: Which profile's resolved model to probe. Defaults to the
@@ -423,7 +432,9 @@ def chat_probe(
             of a large model can legitimately exceed this; the result says
             "timeout" and names that as a possibility rather than claiming the
             server is broken.
-        max_tokens: Tiny. This is a liveness question, not a generation.
+        max_tokens: Enough for a real short answer plus a reasoning preamble.
+            Small enough to stay fast, large enough that a model which thinks
+            before it speaks is not scored as broken for thinking.
 
     Returns:
         ``{"ok", "status", "detail", "model", "bound", "transport",
@@ -460,9 +471,37 @@ def chat_probe(
             "has never heard of"
         )
 
+    messages = [{"role": "user", "content": "Reply with the single word: ready"}]
+
+    # 1. The real path. This is what a turn gets, including the transport
+    #    choice and the starvation retry, so its verdict is the product's.
+    t_real = time.perf_counter()
+    try:
+        answer = get_backend().chat(
+            messages, profile=profile, max_tokens=max_tokens, temperature=0.0
+        )
+        content = str(getattr(answer, "content", "") or "").strip()
+        if content:
+            result["latency_ms"] = (time.perf_counter() - t_real) * 1000
+            result["content"] = content
+            result["ok"] = True
+            result["status"] = "ok"
+            result["transport"] = str(getattr(answer, "transport", "") or "backend")
+            spent = int(getattr(answer, "reasoning_tokens", 0) or 0)
+            thinking = f", {spent} reasoning tokens" if spent else ""
+            result["detail"] = (
+                f"{content[:60]!r} in {result['latency_ms']:.0f}ms{thinking}"
+            )
+            return result
+        # A 200 with nothing in it, even after the retry. Fall through to the
+        # raw post so the report can carry the server's own words.
+    except Exception as exc:  # noqa: BLE001 -- the raw post below explains it
+        logger.debug("[backend] Probe's real path failed, falling back: %s", exc)
+
+    # 2. The diagnostic path, only reached when the real one could not answer.
     payload = {
         "model": mp.model,
-        "messages": [{"role": "user", "content": "Reply with the single word: ready"}],
+        "messages": messages,
         "temperature": 0.0,
         "max_tokens": max_tokens,
         "stream": False,
@@ -509,8 +548,10 @@ def chat_probe(
         # the shape a reasoning model returns when it spent the budget thinking.
         result["status"] = "empty"
         result["detail"] = (
-            "HTTP 200 with an empty content channel -- the model answered with "
-            "reasoning only. Turn reasoning off for this profile."
+            "HTTP 200 with an empty content channel, on the real path AND on a "
+            "plain retry -- the model spends its whole budget reasoning. Set "
+            f"lmstudio.profiles.{profile}.reasoning: off, or raise its "
+            "max_tokens so thinking and answering both fit."
         )
         return result
 
