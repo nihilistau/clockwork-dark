@@ -54,7 +54,10 @@ the served notice board (`GET /api/notices`), and the safety layer wired
 end-to-end — input review, a pre-commit `SafetyCeiling`, and narration review
 with fade cards (docs/SAFETY.md; UI render of the card is the open half).
 
-Two games ship: `clockwork-dark` (flagship) and `wicked-garden`. Pick one with
+Four games ship: `clockwork-dark` (flagship), `wicked-garden` (the deck
+exemplar), `neon-city` (NEON CITY: THE CROSSING — survival/expedition in the
+NeonCity canon, graph-shaped with the timestamp/debt clocks and threads wired
+in), and `dev-story` (the annotated bench). Pick one with
 `launcher.py --game <slug>`.
 
 `drowned-carillon` was **deleted**. It was the flagship with different nouns,

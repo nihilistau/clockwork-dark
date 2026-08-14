@@ -1,0 +1,20 @@
+# NEON CITY: THE CROSSING -- shipped art manifest.
+#
+# Maps game ids to plates under `paths.art_root`
+# (games/neon-city/data/art/plates/, served at /story-art/). The pack is
+# EMPTY at v0.1.0: nothing is mapped, every subject resolves through the
+# chain -- shipped -> cache -> live (off by default) -> procedural SVG --
+# and lands on the procedural silhouette, which carries a new story fine.
+#
+# The batch render is a later phase. When it runs, subjects.yaml is the
+# brief (both prompt dialects), scripts/art_missing.py --game neon-city
+# writes the gap list, and every generated plate gets one line here.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+root: "/story-art"
+
+locations: {}
+portraits: {}
+items: {}

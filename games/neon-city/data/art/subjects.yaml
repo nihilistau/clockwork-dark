@@ -1,0 +1,512 @@
+# ============================================================
+# NEON CITY: THE CROSSING -- art subjects. ONE source, TWO dialects:
+# engine/media/art.py renders `prose` for Grok Imagine and `tags` (plus the
+# negative) for ComfyUI SDXL from the same structured fields.
+#
+# VISUAL IDENTITY (BIBLE.md 7.4): black canvas; scene accent #06b6d4 (the
+# CATHEDRAL cyan); district accents where a plate is district-specific --
+# Grid #00ff88, Strip #ff006e, Bunker #a855f7, Grid Point #ef4444, Junkyard
+# #ffab00. Rain as texture, neon as light source, faces lit by screens.
+# Gold mono for money when money is in frame. No emoji, no text, no
+# lettering anywhere in any frame.
+#
+# The pack is EMPTY at v0.1.0 -- manifest.yaml maps nothing, the procedural
+# silhouette carries the story -- and this file is the complete brief for
+# the batch render when the art pass runs. scripts/art_missing.py writes
+# the gap list from it.
+#
+# Version: v0.1.0 [2026-08-14]
+# ============================================================
+
+style:
+  prose: >-
+    Cinematic cyberpunk illustration on a near-black canvas, rain-slick
+    surfaces, neon as the only light source, cyan accent light threading the
+    dark, heavy atmosphere, painterly grain, faces and objects lit by screens
+    and signage, no text or lettering anywhere in the frame.
+  tags: >-
+    cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan
+    accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric
+    haze, no text, no watermark
+  negative: >-
+    daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
+    colors, text, lettering, watermark, logo, blurry, low quality, clean
+    streets, emoji, user interface elements
+  loras:
+    - {name: Neon_Noir, weight: 0.6}
+    - {name: Rain_City, weight: 0.4}
+
+formats:
+  location: {aspect: "16:9", width: 1344, height: 768}
+  portrait: {aspect: "3:4", width: 768, height: 1024}
+  item: {aspect: "1:1", width: 256, height: 256}
+  cutscene: {aspect: "16:9", width: 512, height: 288}
+
+locations:
+
+  the_grid:
+    subject: "An underground night market in a converted service vault"
+    details: "counter rows under strung cabling, green neon accents, ticker screens scrolling prices, crowd of traders, condensation on concrete"
+    times:
+      dawn:
+        setting: "half the counters shuttered, one figure restocking from unmarked crates"
+        light: "green neon and one work lamp, everything else in vault-dark"
+      day:
+        setting: "full trade, three conversations deep at every counter"
+        light: "dense green-white neon, no daylight ever reaches here"
+      dusk:
+        setting: "the evening surge, couriers threading the crowd"
+        light: "tickers casting scrolling light across faces"
+      night:
+        setting: "thinner crowd, serious buyers, shutters half down"
+        light: "pools of green neon with long dark gaps between them"
+
+  neon_strip:
+    subject: "A canyon of light and appetite through Midtown at street level"
+    details: "stacked signage, magenta neon, crowds under umbrellas, camera masts at intervals, steam from food stalls"
+    times:
+      dawn:
+        setting: "the morning after: cleaners, litter, signage still burning"
+        light: "grey wet first light losing to magenta neon"
+      day:
+        setting: "thin daytime crowd under dead signage"
+        light: "flat overcast day, the neon waiting"
+      dusk:
+        setting: "the evening flood beginning, every sign waking"
+        light: "magenta and cyan neon doubling in the wet street"
+      night:
+        setting: "full flood, a river crossing made of people"
+        light: "total neon saturation, rain as falling light"
+
+  club_noir:
+    subject: "A casino interior dressed as a cathedral nave"
+    details: "black marble, gold table lamps, card tables in pools of light, a vaulted dark ceiling, dealers in black"
+    times:
+      dawn:
+        setting: "the last table still playing, chips being counted"
+        light: "one table lamp, the nave in darkness"
+      day:
+        setting: "empty tables under cloths, a cleaner moving slowly"
+        light: "work lights, the gold dimmed"
+      dusk:
+        setting: "tables uncovering, the first serious money arriving"
+        light: "table lamps lighting one by one down the nave"
+      night:
+        setting: "full play, secrets moving with the cards"
+        light: "gold pools on green baize, black between the tables"
+
+  velvet_pit:
+    subject: "A low-ceilinged speakeasy below street level"
+    details: "a long zinc bar, booth shadows, a fence's cloth spread on a back table, bottles lit from behind"
+    times:
+      dawn:
+        setting: "chairs on tables, one booth still occupied"
+        light: "back-bar glow only"
+      day:
+        setting: "quiet trade, deals in the booths"
+        light: "dim amber, no windows"
+      dusk:
+        setting: "filling up, the hiring hall coming to order"
+        light: "amber bar light, faces in half shadow"
+      night:
+        setting: "full, loud, every table a negotiation"
+        light: "warm dark, the cloth's corner lit by one lamp"
+
+  junkyard_sprawl:
+    subject: "Mountains of dead technology under a crane line"
+    details: "stacked drone hulls and server racks, amber work lights, a crane cab lit high up, oily puddles"
+    times:
+      dawn:
+        setting: "mist between the stacks, the crane starting up"
+        light: "amber floods and grey first light"
+      day:
+        setting: "crews working the faces, sparks off a cutting torch"
+        light: "flat industrial daylight, amber accents"
+      dusk:
+        setting: "shift change, tallies being argued"
+        light: "the yard lights waking, stack shadows going long"
+      night:
+        setting: "empty faces, the north face very dark"
+        light: "isolated amber pools, the crane cab lit alone"
+
+  ripper_street:
+    subject: "A street of chop shops and back-room clinics"
+    details: "shopfronts of chrome limbs and parts bins, a red cross in dead neon, awnings dripping, a recovery chair visible through glass"
+    times:
+      dawn:
+        setting: "the night's work sleeping it off, shutters half up"
+        light: "pale wet light, one clinic sign burning"
+      day:
+        setting: "open trade, parts changing hands off folding tables"
+        light: "overcast day, neon crosses buzzing"
+      dusk:
+        setting: "the queue forming at Sable's door"
+        light: "red and white clinic neon in the wet"
+      night:
+        setting: "the late shift: stretchers, cash, no questions"
+        light: "clinic light spilling across dark pavement"
+
+  ghost_alley:
+    subject: "A dead-end lane where netrunners meet in the flesh"
+    details: "taped junction boxes, a noodle stall's steam, dead screens that sometimes wake, cable bundles overhead"
+    times:
+      dawn:
+        setting: "empty, the noodle stall lighting its burner"
+        light: "blue-grey dark, one steam-lit lamp"
+      day:
+        setting: "quiet, one figure at a junction box"
+        light: "thin daylight that never reaches the alley floor"
+      dusk:
+        setting: "the broker line's hours beginning"
+        light: "screen-light waking in upper windows"
+      night:
+        setting: "figures at intervals, all pretending not to wait"
+        light: "cyan screen-glow, the rest in true dark"
+
+  rusty_anchor:
+    subject: "A dockside-style tavern interior that remembers everyone"
+    details: "a long scarred bar, keg stack, a ledger under the taps, crews at plank tables, steamed windows"
+    times:
+      dawn:
+        setting: "chairs down, Ines counting kegs"
+        light: "grey window light, the bar lamps off"
+      day:
+        setting: "eaters and one quiet negotiation"
+        light: "warm lamps against a wet grey window"
+      dusk:
+        setting: "shift crowd arriving, the room getting loud"
+        light: "amber bar light, faces warm"
+      night:
+        setting: "crews forged over synth-beer, one man alone at the short end"
+        light: "low warm light, the ledger in shadow"
+
+  omnicorp_plaza:
+    subject: "A vast corporate plaza between glass towers at street level"
+    details: "polished stone, sparse figures, silent security drones, camera masts, tower glass rising out of frame"
+    times:
+      dawn:
+        setting: "empty acres of stone, sprinklers washing it"
+        light: "cold blue pre-dawn, tower lights above"
+      day:
+        setting: "lanyards crossing at intervals, security watching"
+        light: "white corporate daylight, no warmth in it"
+      dusk:
+        setting: "the exodus, a thousand identical coats"
+        light: "tower glass burning with sunset it does not share"
+      night:
+        setting: "empty, lit like a stage nobody performs on"
+        light: "white security floods, drone running-lights"
+
+  synthsec_gridpoint:
+    subject: "A militarized checkpoint between the city and the dark"
+    details: "wire fencing, a sensor mast, a gatehouse, red floodlights, a truck lane with a barrier arm, one corporal at the gate"
+    times:
+      dawn:
+        setting: "shift change, trucks queued at the wire"
+        light: "red floods against grey first light"
+      day:
+        setting: "papers being checked, the mast turning slowly"
+        light: "hard flat light, red accents"
+      dusk:
+        setting: "the day's last crossings, the dark side going black"
+        light: "red floodlight and long shadows through wire"
+      night:
+        setting: "the gate an island of light with nothing beyond it"
+        light: "red floods, the mast's status lights, absolute dark past the wire"
+
+  deepstate_bunker:
+    subject: "An archive hall below ground, shelving receding past the light"
+    details: "numbered drive racks going back into dark, a single desk with a blotter, a counter with tags face down, violet accent light"
+    times:
+      dawn:
+        setting: "unchanged; the hall does not have mornings"
+        light: "violet accents over dark shelving, one desk lamp"
+      day:
+        setting: "unchanged, one figure at the counter"
+        light: "the same violet dark, the same lamp"
+      dusk:
+        setting: "unchanged, the blotter mid-page"
+        light: "lamp and violet dark, always"
+      night:
+        setting: "unchanged; time is a thing that happens upstairs"
+        light: "the desk lamp, and the dark taking the rest"
+
+  shadow_crossing:
+    subject: "Open dead ground between a distant wire and a far structure, no lights anywhere"
+    details: "wrecks half-sunk in mud, rain moving in sheets, pre-corporate concrete stubs, a tiny torch-beam scale figure"
+    times:
+      dawn:
+        setting: "grey light finding the wrecks one at a time"
+        light: "weak colourless dawn under full cloud"
+      day:
+        setting: "flat waste under a low sky, the city a glow behind"
+        light: "dim storm-light, no shadows"
+      dusk:
+        setting: "the dark arriving early and completely"
+        light: "the last light on wet mud, the city's neon a far smear"
+      night:
+        setting: "true dark, rain, something's suggestion of movement"
+        light: "one hand torch against everything"
+
+  the_lift:
+    subject: "A freight lift head inside a poured-slab shed older than the city"
+    details: "massive slab walls, a winch mechanism with three stations, lift doors of pitted metal, cable spools, one cage lamp"
+    times:
+      dawn:
+        setting: "the shed interior, doors shut, dust unmoved"
+        light: "one cage lamp, slab-dark corners"
+      day:
+        setting: "the winch stations, the panel's single waking light"
+        light: "torchlight and the panel's cyan point"
+      dusk:
+        setting: "figures at the winch, the doors considering"
+        light: "cage lamp and torches, cyan on the panel"
+      night:
+        setting: "the doors open on a descending dark"
+        light: "the shaft swallowing every lumen offered"
+
+  core_hall:
+    subject: "An immense server hall of pre-corporate scale, cold and humming"
+    details: "rack rows receding beyond sight, cyan status lights by the million, poured stone older than any logo, a single human figure for scale"
+    times:
+      dawn:
+        setting: "the hall; it has no dawn"
+        light: "a million cyan points in absolute black"
+      day:
+        setting: "the hall, unchanged, patient"
+        light: "cyan constellation light, cold"
+      dusk:
+        setting: "the hall, indifferent"
+        light: "cyan on black, a cursor's worth of movement somewhere"
+      night:
+        setting: "the hall, describing"
+        light: "cyan points to the horizon of the room"
+
+portraits:
+  mira_vex:
+    subject: "A fixer at her market counter, red hair, green eyes, faster than her smile"
+    details: "fingerless gloves, a counter of street-tech between her and the viewer, one eyebrow pricing something"
+    setting: "the Grid's green neon behind her, ticker light on the glass"
+    mood: "fast, flat, amused at a rate she controls"
+  lyra_vance:
+    subject: "A broker lit by three screens in a dark room"
+    details: "close-cut hair, unblinking eyes with screen reflections, a headset around the neck, cable everywhere"
+    setting: "Ghost Alley's broker room, cyan screen-glow the only light"
+    mood: "precise, remote, listening to something else as well"
+  ivo_dane:
+    subject: "A gate corporal in SynthSec grey, tired and exact"
+    details: "middle years, weather-worn face, immaculate uniform worn like a debt, eyes that count"
+    setting: "the Grid Point gatehouse, red floodlight from one side"
+    mood: "tired, exact, six years deep"
+  grease:
+    subject: "A scrap queen in a crane harness, third generation and it shows"
+    details: "broad shoulders, oil-marked overalls, a priced glance, hair tied back with cable"
+    setting: "the Junkyard's amber floods and stacked hulls behind her"
+    mood: "honest by the kilo, nobody's fool"
+  dr_sable:
+    subject: "A struck-off surgeon in a spotless apron over street clothes"
+    details: "steady hands, magnifier pushed up on her forehead, eyes that have seen the whole menu"
+    setting: "the clinic's white-and-red light, a recovery chair behind"
+    mood: "brisk, unshockable, cash up front"
+  rho:
+    subject: "A fence of indeterminate everything at a table with a spread cloth"
+    details: "plain dark clothes with no labels and no history, gloved hands, face half out of the lamp light on purpose"
+    setting: "the Velvet Pit's back table, one lamp on the cloth"
+    mood: "epigrammatic, amused by provenance"
+  dita_halvorsen:
+    subject: "A wheelwoman drawing tunnel junctions on a napkin from memory"
+    details: "wiry, driving gloves tucked in an epaulette, eyes that have already left by every exit"
+    setting: "the end of the Pit's bar, amber light"
+    mood: "professional, precise about numbers, unhurried"
+  frankie:
+    subject: "An info broker dealing cards at a private table"
+    details: "slicked black hair, immaculate cuffs, a card face-down under one finger, a smile with a ledger behind it"
+    setting: "Club Noir's gold table light, black marble dark behind"
+    mood: "charming, transactional, first to know"
+  ines_barbosa:
+    subject: "A tavern keeper at her taps with a ledger below the bar"
+    details: "strong forearms, an apron older than the clientele, eyes that record"
+    setting: "the Rusty Anchor's warm lamps and steamed window"
+    mood: "warm at a fixed rate, remembers everything"
+  wren_solis:
+    subject: "A courier-faced person of no fixed name at an archive counter"
+    details: "unremarkable on purpose, neat dark clothes, price tags face down on the counter, a gaze with a shutter in it"
+    setting: "the Bunker's violet-lit shelving receding behind"
+    mood: "flat, contained, four names this year"
+  the_archivist:
+    subject: "An old archivist writing in a ledger, face never quite resolving"
+    details: "a blotter, an antique pen, hands older than the shelving, features that slide off memory"
+    setting: "a desk lamp's pool in an archive dark, shelving beyond"
+    mood: "patient, past-tense, without cruelty"
+
+items:
+  defaults:
+    setting: >-
+      the single object alone in the centre of a square frame, laid on wet
+      black asphalt or dark brushed metal, a faint cyan rim light, nothing
+      else in the frame
+    light: >-
+      one cold cyan accent light from the upper left, soft neon reflections
+      in the wet ground, deep black surround
+
+  # -- provisions ---------------------------------------------------------
+  synth_food:
+    subject: "A vacuum-pressed synthetic food brick in drab shrink-wrap"
+    details: "ration-grade, corner torn, dense extruded texture visible"
+  sprawl_ramen:
+    subject: "A steaming bag of street ramen with a tape handle"
+    details: "noodles and broth in translucent plastic, chopsticks through the tape"
+  sump_coffee:
+    subject: "A dented metal flask of black street coffee"
+    details: "steam off the mouth, oily sheen on the coffee, thumb-worn flask"
+  sealed_ration:
+    subject: "A corp-issue field ration in a foil brick, seal intact"
+    details: "serial burned off one corner, decade-old packaging design"
+  protein_paste:
+    subject: "A half-rolled tube of grey protein paste"
+    details: "nutrition grid printed small, a bead of grey at the nozzle"
+  synth_beer:
+    subject: "A condensation-beaded bottle of unlabelled synth-beer"
+    details: "amber glass, no label, a tavern's own crown cap"
+  stim_patch:
+    subject: "A translucent adhesive stimulant patch on its backing"
+    details: "micro-needle grid catching the light, one lifted corner"
+  overdrive_amp:
+    subject: "A matte-black injector ampoule with a red band"
+    details: "military lines, a dose window showing amber fluid"
+  medkit:
+    subject: "A soft-shell street medkit, unzipped a finger's width"
+    details: "worn red shell, sutures and sealant visible at the zip"
+  trauma_patch:
+    subject: "A heavy trauma patch in sterile foil, palm sized"
+    details: "clinical print, one corner dog-eared from a pocket"
+
+  # -- salvage and data ---------------------------------------------------
+  salvage_tech:
+    subject: "A bundle of salvaged circuit boards and relays tied with wire"
+    details: "gold contacts bright against corrosion, yard mud in the sockets"
+  copper_spool:
+    subject: "A tight hand-wound spool of stripped copper wire"
+    details: "bright metal where the sheath came off, heavy and honest"
+  deck_parts:
+    subject: "A cyberdeck's pulled internals laid in a neat row"
+    details: "co-processor, cooling sleeve, an input array with thumb-wear"
+  courier_wrap:
+    subject: "A weatherproof courier carry-harness, coiled"
+    details: "matte straps, sealed seams, one buckle scorched"
+  drone_chassis:
+    subject: "A grounded surveillance drone chassis, rotors snapped"
+    details: "corp serial ground off, lens cluster cracked, yard grit"
+  dropped_credstick:
+    subject: "An anonymous credstick trodden flat into wet asphalt"
+    details: "scuffed casing, contact strip still bright"
+  tourist_visor:
+    subject: "A rental AR visor with a snapped strap"
+    details: "candy-coloured shell, geofence sticker peeling"
+  dead_drop_shard:
+    subject: "A data shard wrapped in weatherproof tape"
+    details: "tape half peeled, cyan contact edge showing"
+  ice_fragment:
+    subject: "A fractured black data crystal with sharp edges"
+    details: "internal fault-lines catching cyan light, faintly wrong to look at"
+  cache_key:
+    subject: "A single-use credential key, industrial and anonymous"
+    details: "rolling code window dark, tamper seal intact"
+  camera_capture:
+    subject: "A thin frame-set cartridge from a street camera"
+    details: "evidence-grade housing, timestamp window blank"
+  patrol_log:
+    subject: "A dot-matrix patrol route sheet, folded twice"
+    details: "grey print on cheap paper, rain-spotted, one route circled"
+
+  # -- artifacts ----------------------------------------------------------
+  precorp_cable:
+    subject: "A length of pre-corporate sheathed cable, coiled"
+    details: "insulation stamped with an unregistered maker's mark, unaged"
+  precorp_tooling:
+    subject: "A machined hand tool for an unnameable job"
+    details: "tolerances too fine to measure, no wear anywhere, older than every logo"
+  one_of_one:
+    subject: "A small machined object with no production siblings"
+    details: "geometry that resolves differently at second glance, matte finish, no marks"
+
+  # -- gear ---------------------------------------------------------------
+  rain_shell:
+    subject: "A folded laminate rain poncho, taped seams"
+    details: "packs to a fist, drab, acid-spotted at the hem"
+  filter_mask:
+    subject: "A twin-cartridge civilian filter mask"
+    details: "rubber seals cracked at the edges, cartridge windows half spent"
+  climbing_rig:
+    subject: "A compact climbing harness with line and two cams"
+    details: "yard-worn webbing, chalk and oil, the line coiled tight"
+  flash_torch:
+    subject: "A heavy hand lamp with a scarred lens"
+    details: "aluminium body dented, tape grip, honest white beam off"
+  street_pistol:
+    subject: "A stamped-frame pistol with a filed serial"
+    details: "two magazines beside it, matte and history-free"
+  shock_baton:
+    subject: "A collapsed shock baton with a capacitor window"
+    details: "livestock-tool markings, charge light dark"
+  burner_deck:
+    subject: "A cheap cyberdeck with the casing screws mismatched"
+    details: "boots, works, disposable; a storm-drain-ready deck"
+  emp_grenade:
+    subject: "A drab pulse charge the size of a fist"
+    details: "arming collar taped, stencil markings sanded off"
+
+  # -- heat-work and contraband -------------------------------------------
+  id_scrub:
+    subject: "A single-use identity solvent stick in plain packaging"
+    details: "one-time chip visible through the shell, no branding"
+  cooldown_spoof:
+    subject: "A forged closure-paperwork injector chip on a lanyard"
+    details: "official-looking seal that does not survive attention"
+  burner_face:
+    subject: "A subdermal restructuring kit in a clinical case"
+    details: "applicator and ampoules in cut foam, deeply unpleasant implications"
+  ghost_protocol:
+    subject: "A matte black card with no markings at all"
+    details: "absorbs the light that hits it, one contact edge"
+  black_ice:
+    subject: "A jet-black data spike that seems to bite the light"
+    details: "faint red tracery under the surface, edges you do not test with a thumb"
+  red_lace:
+    subject: "A folded paper wrap leaking a red crystalline dust"
+    details: "wax-paper folds, a residue that catches neon"
+  forged_id:
+    subject: "A clean identity laminate with a stranger's name"
+    details: "hologram slightly too perfect, two good spends in it"
+
+  # -- quest goods --------------------------------------------------------
+  the_shard:
+    subject: "A single black data shard on wet asphalt"
+    details: "unlabelled, corporate header notch, forty seconds inside it"
+  halloran_drop:
+    subject: "A taped weatherproof package from inside a junction box"
+    details: "tape printed with rain, a careful man's knots"
+  routing_stamp:
+    subject: "A corporate routing stamp chip in an evidence sleeve"
+    details: "authority glyph etched small, older styling than the corp that uses it"
+  stamp_registry:
+    subject: "A sheaf of registry printout, still printer-warm"
+    details: "columns of authorities, one row's worth of dread"
+  confidence_paper:
+    subject: "A single sheet of paper with a decimal figure on it"
+    details: "typed, unsigned, too many decimal places to argue with"
+  truck_manifest:
+    subject: "A cargo manifest flimsy with one resolved column"
+    details: "carbon-copy grey, the cargo line legible and wrong"
+  floor87_pass:
+    subject: "A laminated visitor pass for an unlisted floor"
+    details: "corporate blank with an 87 punched where a floor code goes"
+  access_codes:
+    subject: "A cold-boot credential slate of pre-corporate make"
+    details: "numbering that does not start at one, contacts of unworn gold"
+  shadow_map:
+    subject: "A hand-drawn map of ground no satellite will admit to"
+    details: "draughtsman-precise linework, annotations in a careful hand"
+  proxy_effigy:
+    subject: "A telemetry doppel folded into a coat, boxed"
+    details: "gait servos at the joints, a pulse unit where a heart would sit"
