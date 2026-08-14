@@ -270,6 +270,161 @@ jobs:
     success_text: "Load after load, and a fistful of copper that smells of other people's grain."
     failure_text: "You drop a sack on the stair and spend the fee replacing it."
 
+  # ------------------------------------------------------------
+  # The board turns with the world. Labour rows gate on three things and
+  # only three: the evil phase (`demand`, where 0.0 means the posting comes
+  # DOWN off the board), a held item (`requires.item`) and faction standing
+  # (`requires.standing`). They cannot gate on flags, quests or arcs -- so
+  # "militia notices after the whisper" is expressed here as postings whose
+  # demand is zero while the world is dormant and climbs as it worsens,
+  # which tracks the arcs in practice because the arc gates and the phase
+  # thresholds climb together. A posting that truly needed a quest flag
+  # would need the engine's labour loader to learn the condition grammar;
+  # noted, not built (content-only change).
+  #
+  # Three of these require a CRAFTED item in hand -- brass_ward_pin
+  # (data/recipes/mending.yaml), road_bread and winter_ration
+  # (data/recipes/baking.yaml) -- which is the recipe book showing up on
+  # the notice board: the board is why you bake twice.
+  # ------------------------------------------------------------
+
+  - id: muster_drill
+    name: "Drill the new levies"
+    blurb: >-
+      Sera breaks the new hands out of step on purpose and needs somebody
+      steady to stand where the line should be. The militia only posts this
+      once there is something to drill FOR, and by then everyone can read
+      the posting two ways.
+    location_id: millhaven_barracks
+    skill: nerve
+    difficulty: standard
+    hours: 5
+    stamina_cost: 20
+    base_wage: 10
+    faction: militia
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    reputation:
+      - { faction: militia, delta: 2, degrees: [crit_success, success] }
+    requires:
+      standing: { faction: militia, minimum: friendly }
+    demand: { dormant: 0.0, stirring: 0.8, spreading: 1.4, consuming: 1.8 }
+    success_text: "The line holds when Sera hits it. She pays you without saying what it was practice for."
+    failure_text: "The line folds around you twice. Sera moves you to the wall and does not pay for the wall."
+
+  - id: carters_escort
+    name: "Walk a cart through the tolls"
+    blurb: >-
+      The factors pay a steady pair of boots to walk beside the axle from
+      the bridge to the gate. In a quiet year it is a stroll. It has
+      stopped being a quiet year, which is why it is on the board.
+    location_id: toll_bridge
+    skill: survival
+    difficulty: standard
+    hours: 6
+    stamina_cost: 22
+    base_wage: 11
+    faction: merchants
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    reputation:
+      - { faction: merchants, delta: 2, degrees: [crit_success, success] }
+    requires:
+      standing: { faction: merchants, minimum: friendly }
+    demand: { dormant: 0.0, stirring: 0.7, spreading: 1.5, consuming: 0.9 }
+    success_text: "Nothing happens the whole way, which is the product. The factor pays for every mile of nothing."
+    failure_text: "You lose the cart at the ford queue and find it an hour later, lighter."
+
+  - id: ward_rounds
+    name: "Renew the ward nails, door to door"
+    blurb: >-
+      The old women will not climb ladders any more and will not say why the
+      lintels need doing twice a season now. Bring your own pins -- Ilya's
+      bench sells the makings, if you can work brass.
+    location_id: edgewood_shrine
+    skill: lore
+    difficulty: standard
+    hours: 4
+    stamina_cost: 12
+    base_wage: 7
+    faction: unnamed_saints
+    pay: { crit_success: 1.8, success: 1.0, partial: 0.5, failure: 0.0 }
+    reputation:
+      - { faction: unnamed_saints, delta: 2, degrees: [crit_success, success] }
+    requires:
+      item: brass_ward_pin
+    demand: { dormant: 0.5, stirring: 1.1, spreading: 1.5, consuming: 1.9 }
+    success_text: "Nine lintels, nine pins, and at the last door the old woman counts your work twice and nods once."
+    failure_text: "Two pins bend going in, which brass does not do, and nobody on that doorstep says anything at all."
+
+  - id: camp_kitchens
+    name: "Bake down at the camp kitchens"
+    blurb: >-
+      The camp has ovens made of mud and nothing worth putting in them.
+      Twice-baked road bread keeps; bring a loaf of it to prove your crust
+      and they will put you to work stretching what there is.
+    location_id: refugee_camp
+    skill: craft
+    difficulty: easy
+    hours: 5
+    stamina_cost: 16
+    base_wage: 6
+    faction: edgewood
+    pay: { crit_success: 1.4, success: 1.0, partial: 0.6, failure: 0.0 }
+    in_kind:
+      - { item_id: oat_porridge, qty: 1, degrees: [crit_success, success] }
+    reputation:
+      - { faction: edgewood, delta: 2, degrees: [crit_success, success] }
+      - { faction: unnamed_saints, delta: 1, degrees: [crit_success] }
+    requires:
+      item: road_bread
+    demand: { dormant: 0.0, stirring: 0.3, spreading: 1.3, consuming: 1.7 }
+    success_text: "Forty flat loaves off mud ovens, and a queue that says thank you by not being a crowd."
+    failure_text: "The mud oven splits at the firing and takes the morning's flour with it."
+
+  - id: stores_for_the_gate
+    name: "Provision the gatehouse stores"
+    blurb: >-
+      The levy eats what the levy stores, and the quartermaster pays a
+      premium for rations put up properly -- weighed, tied, and shelved by
+      somebody who has clearly done it for a real winter. Bring one of your
+      own as the proof.
+    location_id: millhaven_gate
+    skill: survival
+    difficulty: easy
+    hours: 4
+    stamina_cost: 14
+    base_wage: 9
+    faction: militia
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.6, failure: 0.0 }
+    reputation:
+      - { faction: militia, delta: 2, degrees: [crit_success, success] }
+      - { faction: merchants, delta: 1, degrees: [crit_success] }
+    requires:
+      item: winter_ration
+    demand: { dormant: 0.6, stirring: 1.0, spreading: 1.4, consuming: 1.6 }
+    success_text: "The quartermaster weighs your ration against his thumb-worn standard and pays the premium without argument."
+    failure_text: "Half your shelving comes down at the second course. The quartermaster docks the breakage."
+
+  - id: letters_home
+    name: "Take letters at the market"
+    blurb: >-
+      Half the market cannot write and all of it suddenly has somebody on
+      the road to write to. A steady hand at a trestle table, paid by the
+      page, paid extra for reading the answers out slowly.
+    location_id: millhaven_market
+    skill: lore
+    difficulty: easy
+    hours: 3
+    stamina_cost: 8
+    base_wage: 6
+    faction: merchants
+    pay: { crit_success: 1.6, success: 1.0, partial: 0.6, failure: 0.0 }
+    reputation:
+      - { faction: merchants, delta: 1, degrees: [crit_success, success] }
+      - { faction: edgewood, delta: 1, degrees: [crit_success] }
+    demand: { dormant: 0.0, stirring: 0.0, spreading: 1.3, consuming: 1.6 }
+    success_text: "Eleven letters, four of them hard to take down and one hard to read aloud. Paid by the page, all the same."
+    failure_text: "You misdirect a letter to the wrong garrison and spend the fee chasing it."
+
   - id: refugee_camp_hands
     name: "Work the refugee camp"
     blurb: >-
