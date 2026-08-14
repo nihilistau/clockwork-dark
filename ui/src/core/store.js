@@ -94,6 +94,49 @@ function append(state, kind, text) {
   return { ...state, log: [...state.log, { id: newId(), kind, text }] };
 }
 
+/**
+ * Close a streaming entry that will never receive its `turn_update`.
+ *
+ * Three things end a turn without one -- a dropped socket, a client-side ERROR
+ * (the watchdog fires at 330s, on turns that are still running), and a server
+ * `turn_error`. All three used to null `streamingId` and leave the half-streamed
+ * paragraph sitting in the log with nothing owning it. When the real answer then
+ * arrived -- a late `turn_update`, a retry, a reconnect replaying the turn --
+ * `turn_update` saw no `streamingId`, took its append branch, and printed the
+ * SAME PROSE a second time underneath the orphan. That is the F-13 shape, and
+ * it is the one path by which this reducer could still render one turn twice.
+ *
+ * The draft is dropped rather than kept. It is a fragment of a turn that did not
+ * complete, the server's narration is authoritative and arrives whole, and
+ * keeping a prefix on screen only guarantees the reader meets the same sentences
+ * again a paragraph later.
+ */
+function closeStream(state) {
+  if (!state.streamingId) return state;
+  return {
+    ...state,
+    streamingId: null,
+    log: state.log.filter((e) => e.id !== state.streamingId),
+  };
+}
+
+/**
+ * Does the log already end on exactly this narration?
+ *
+ * The belt to `closeStream`'s braces. A `turn_update` can legitimately arrive
+ * twice for one turn -- a reconnect replaying the last payload is the shipped
+ * case -- and the append branch has no other way to tell a repeat from a new
+ * paragraph. Scans back past the player echo and any dice lines, because a
+ * replay lands after them.
+ */
+function repeatsLastNarration(log, text) {
+  for (let i = log.length - 1; i >= 0; i -= 1) {
+    if (log[i].kind !== "narration") continue;
+    return log[i].text === text;
+  }
+  return false;
+}
+
 export function reducer(state, action) {
   switch (action.type) {
     case "CONNECTED":
@@ -102,10 +145,10 @@ export function reducer(state, action) {
     case "DISCONNECTED":
       // Clearing busy matters: the old client only cleared it on turn_update
       // or error, so a dropped socket left every control disabled forever.
-      return { ...state, connected: false, busy: false, streamingId: null };
+      return { ...closeStream(state), connected: false, busy: false };
 
     case "ERROR":
-      return { ...state, error: action.message, busy: false, streamingId: null };
+      return { ...closeStream(state), error: action.message, busy: false };
 
     case "SUBMIT": {
       const next = append(state, "player", action.text);
@@ -256,11 +299,15 @@ function handleSocket(state, event, payload) {
           (e) => e.id !== state.streamingId || (e.text && e.text.trim())
         );
         next.streamingId = null;
-      } else if (payload.narration) {
+      } else if (payload.narration && !repeatsLastNarration(next.log, payload.narration)) {
         // Nothing streamed -- a non-streaming turn, or a generation that was
         // starved before it produced a single token. Append it whole. This no
         // longer consults `payload.streamed`: a starved first attempt sets that
         // flag with no entry to attach to, and the turn silently vanished.
+        //
+        // Guarded so this branch cannot print prose the log already ends on.
+        // Between the guard and `closeStream`, no sequence of events reaches a
+        // log holding one turn's narration twice.
         next = append(next, "narration", payload.narration);
       }
       return {
@@ -323,9 +370,8 @@ function handleSocket(state, event, payload) {
 
     case "turn_error":
       return {
-        ...state,
+        ...closeStream(state),
         busy: false,
-        streamingId: null,
         error: payload.message || "The turn could not be completed.",
       };
 

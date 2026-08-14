@@ -13,10 +13,33 @@
  * Announcement is per completed SENTENCE, from one dedicated live region.
  * Putting aria-live on the entries themselves meant a screen reader re-read
  * the growing paragraph on every chunk, which is unusable at streaming speed.
+ *
+ * THE SECOND COPY OF EVERY PARAGRAPH
+ * ----------------------------------
+ * That live region used to be a permanent duplicate of the turn's prose, INSIDE
+ * the log. `role="log"` carries an implicit `aria-live="polite"`, so the
+ * container announced each appended entry on its own -- and re-announced the
+ * streaming paragraph on every frame, which is the exact thing the dedicated
+ * region exists to prevent -- and then the region said the same words again.
+ * The announcement also never cleared, so the finished paragraph sat in the log
+ * a second time: a screen reader browsing back met it twice, and so did anything
+ * reading the DOM. Measured live on the flagship, two consecutive turns: one
+ * `.entry--narration` and one `.visually-hidden` holding the same 602
+ * characters.
+ *
+ * So the container's liveness is off (see ReasoningPanel for the same move on
+ * the same reason), the region is a sibling of the log rather than a child, and
+ * it clears itself once it has been spoken.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const STICK_THRESHOLD = 48;
+
+// How long an announcement stays in the DOM before it is cleared. Assistive
+// technology captures the text when the mutation happens, so this only has to
+// outlast the mutation -- and what it buys is that the paragraph is not left
+// lying in the document as a second, readable copy of the narration.
+const ANNOUNCE_LINGER_MS = 1500;
 
 // Beyond this many entries the DOM node count, not the model, is what makes
 // the stream feel slow. Older entries stay in state and are one click away.
@@ -52,9 +75,13 @@ function commonPrefix(a, b) {
 function useSentenceAnnouncer(entries) {
   const [announcement, setAnnouncement] = useState("");
   const cursor = useRef({ id: null, said: "" });
+  const linger = useRef(null);
 
   const last = entries.length ? entries[entries.length - 1] : null;
   const text = last && last.kind === "narration" ? last.text : "";
+
+  // A pending clear must not fire into an unmounted tree.
+  useEffect(() => () => clearTimeout(linger.current), []);
 
   useEffect(() => {
     if (!last || last.kind !== "narration") return;
@@ -75,7 +102,12 @@ function useSentenceAnnouncer(entries) {
 
     const fresh = ready.slice(shared).trim();
     cursor.current.said = ready;
-    if (fresh) setAnnouncement(fresh);
+    if (!fresh) return;
+    setAnnouncement(fresh);
+    // Spoken, then withdrawn. Leaving it is what put a whole second copy of the
+    // narration in the document between one turn and the next.
+    clearTimeout(linger.current);
+    linger.current = setTimeout(() => setAnnouncement(""), ANNOUNCE_LINGER_MS);
   }, [last, text]);
 
   return announcement;
@@ -109,7 +141,13 @@ export default function NarrativeLog({ entries, busy = false }) {
   );
 
   return (
-    <div className="log" ref={scroller} role="log" aria-label="Narrative">
+    <>
+    {/* `aria-live="off"` on a `role="log"`, deliberately. The role's implicit
+        politeness made this container a live region of its own, so every
+        appended entry was announced here AND again by the region below -- and
+        a streaming paragraph was re-announced on every frame it grew, which is
+        the unusable behaviour the dedicated region was added to replace. */}
+    <div className="log" ref={scroller} role="log" aria-live="off" aria-label="Narrative">
       {hidden > 0 && (
         <button
           type="button"
@@ -143,10 +181,17 @@ export default function NarrativeLog({ entries, busy = false }) {
         <p className="log__empty">The page is blank. Something is about to be written on it.</p>
       )}
 
-      <p className="visually-hidden" aria-live="polite" aria-atomic="true">
-        {announcement}
-      </p>
     </div>
+
+    {/* A SIBLING of the log, not a child. While it holds text it is a copy of
+        what the last entry says, and inside the log that copy is part of the
+        transcript -- reachable in browse mode, and present to anything reading
+        the log's DOM. Out here it is what it is: a courier, empty between
+        turns. */}
+    <p className="visually-hidden" aria-live="polite" aria-atomic="true">
+      {announcement}
+    </p>
+    </>
   );
 }
 

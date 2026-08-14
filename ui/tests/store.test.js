@@ -90,6 +90,65 @@ describe("a turn", () => {
     expect(state.log.length).toBeLessThan(before);
   });
 
+  it("never renders one turn's prose twice, whatever ended the turn first", () => {
+    // The F-13 shape, and the only way the reducer could still reach it.
+    //
+    // Three actions null `streamingId` without a turn_update -- a dropped
+    // socket, a client-side ERROR (the watchdog fires at 330s, on turns that
+    // are still running) and a server turn_error. Each used to leave the
+    // half-streamed paragraph orphaned in the log; the authoritative narration
+    // then arrived, found no `streamingId`, took the append branch, and printed
+    // the same prose a second time underneath it.
+    const PROSE = "The tavern comes into view, a low-slung building of heavy timber.";
+    const ends = [
+      { type: "DISCONNECTED" },
+      { type: "ERROR", message: "The world has not answered." },
+      socket("turn_error", { message: "no answer" }),
+    ];
+
+    for (const ending of ends) {
+      let state = reducer(started(), { type: "SUBMIT", text: "go" });
+      state = reducer(state, socket("narration_delta", { text: "The tavern comes into vi" }));
+      expect(state.streamingId).toBeTruthy();
+
+      state = reducer(state, ending);
+      expect(state.streamingId).toBeNull();
+      // The orphan goes with it, rather than waiting in the log for a twin.
+      expect(state.log.map((e) => e.text)).not.toContain("The tavern comes into vi");
+
+      state = reducer(state, socket("turn_update", { narration: PROSE }));
+      const narrations = state.log.filter((e) => e.kind === "narration").map((e) => e.text);
+      expect(narrations.filter((t) => t === PROSE)).toHaveLength(1);
+      // And nothing partial survived alongside it.
+      expect(narrations.some((t) => t !== PROSE && PROSE.startsWith(t))).toBe(false);
+    }
+  });
+
+  it("ignores a turn_update that repeats the narration already on screen", () => {
+    // A reconnect replays the last payload. The append branch has no other way
+    // to tell a replay from a new paragraph.
+    const PROSE = "You turn your back on the watchman and start walking.";
+    let state = reducer(started(), { type: "SUBMIT", text: "go" });
+    state = reducer(state, socket("turn_update", { narration: PROSE }));
+    state = reducer(state, socket("turn_update", { narration: PROSE }));
+
+    const narrations = state.log.filter((e) => e.kind === "narration").map((e) => e.text);
+    expect(narrations.filter((t) => t === PROSE)).toHaveLength(1);
+  });
+
+  it("still appends the next turn when it happens to follow the same beat", () => {
+    // The dedupe is exact-text and looks only at the last narration, so an
+    // ordinary run of turns is untouched.
+    let state = reducer(started(), socket("turn_update", { narration: "One." }));
+    state = reducer(state, { type: "SUBMIT", text: "again" });
+    state = reducer(state, socket("turn_update", { narration: "Two." }));
+    expect(state.log.filter((e) => e.kind === "narration").map((e) => e.text)).toEqual([
+      "Rain on wet asphalt.",
+      "One.",
+      "Two.",
+    ]);
+  });
+
   it("keeps a fade card for its own turn and no longer", () => {
     // A fade belongs to the scene that faded. Carrying it forward would leave
     // last scene's card sitting under this scene's narration.

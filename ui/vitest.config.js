@@ -46,7 +46,10 @@ export default mergeConfig(
       // docblock, because jsdom costs ~20s of environment setup and only one
       // file needs it -- see the note above.
       environment: "node",
-      include: ["tests/**/*.test.js"],
+      // `.jsx` too: a test that RENDERS a component is written in JSX like the
+      // component is, and @vitejs/plugin-react only transforms files whose
+      // extension says so. `narrative-log.test.jsx` is the first.
+      include: ["tests/**/*.test.{js,jsx}"],
       // The suite is small and fast; a reporter that prints every file is more
       // useful here than a progress bar.
       reporters: "default",

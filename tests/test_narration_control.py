@@ -328,6 +328,52 @@ def test_turn_update_replaces_the_streamed_text():
     )
 
 
+def test_every_way_a_turn_can_end_early_closes_the_streaming_entry():
+    """
+    Cause 3's other half, and the shape a playtest found again.
+
+    Three actions end a turn WITHOUT a ``turn_update``: a dropped socket, a
+    client-side ERROR (the watchdog fires at 330s, on turns that are still
+    running) and a server ``turn_error``. Each used to null ``streamingId`` on
+    its own and leave the half-streamed paragraph orphaned in the log -- so when
+    the authoritative narration arrived, ``turn_update`` saw no ``streamingId``,
+    took its append branch, and printed the same prose a second time underneath
+    it. They must all funnel through the one helper that takes the orphan with
+    it.
+
+    ``ui/tests/store.test.js`` drives the sequence; this only guards that a
+    fourth exit cannot be added without one.
+    """
+    store = (UI_SRC / "core" / "store.js").read_text(encoding="utf-8")
+    for case, until in (
+        ('case "DISCONNECTED"', 'case "ERROR"'),
+        ('case "ERROR"', 'case "SUBMIT"'),
+        ('case "turn_error"', 'case "resume_failed"'),
+    ):
+        body = store.split(case)[1].split(until)[0]
+        assert "closeStream(" in body, f"{case} clears streamingId without closing the entry"
+
+
+def test_the_narration_is_never_left_in_the_page_twice():
+    """
+    Measured live on the flagship, two consecutive turns: the log held one
+    ``.entry--narration`` and one ``.visually-hidden`` announcement carrying the
+    same 602 characters, which reads as the turn having been rendered twice.
+
+    Two things made that true and both are asserted here: ``role="log"`` carries
+    an implicit ``aria-live="polite"``, so the container announced every entry
+    itself on top of the dedicated region, and the region never cleared, so the
+    paragraph stayed in the log as a second readable copy.
+    """
+    log = (UI_SRC / "core" / "parts" / "NarrativeLog.jsx").read_text(encoding="utf-8")
+    assert 'role="log" aria-live="off"' in log, (
+        'role="log" is implicitly a live region; leaving it implicit announces '
+        "every entry a second time"
+    )
+    assert "ANNOUNCE_LINGER_MS" in log, "the announcement must be withdrawn, not left in the page"
+    assert 'setTimeout(() => setAnnouncement("")' in log
+
+
 def test_the_server_sends_the_completion_signal():
     state = (
         Path(__file__).resolve().parent.parent
