@@ -221,17 +221,30 @@ def _envelope(name: str, schema: dict[str, Any]) -> dict[str, Any]:
 def _predicate_schema(vocab: Vocabulary) -> dict[str, Any]:
     """The engine-evaluable subset of the shared predicate grammar.
 
-    engine/game/quests.py evaluates more, but a draft that sticks to a place
-    stood in, an item held and a flag set is a draft the engine can always
-    resolve -- 'a stage the model can argue its way through is not a stage'."""
-    return _obj(
-        {
-            "at_location": _enum_or_string(vocab.locations),
-            "has_item": _enum_or_string(vocab.items),
-            "flag": {"type": "string"},
-        },
-        [],
-    )
+    engine/game/quests.py evaluates 28 predicates; this offers five. A draft
+    that sticks to a place stood in, a place visited, an item held, a day
+    reached and a flag raised is a draft the engine can always resolve -- "a
+    stage the model can argue its way through is not a stage" -- and offering
+    ``min_phase`` to a story with no doom clock is how an unreachable goal gets
+    written.
+
+    ONE BRANCH PER PREDICATE, EACH REQUIRING ITS OWN OPERAND. This was a flat
+    object with every key optional and ``required: []``, which made the empty
+    predicate ``{}`` perfectly grammatical -- and ``evaluate_condition`` treats
+    an empty condition as TRUE ("no condition is a satisfied one"), so
+    ``complete_when: {all: [{}]}`` is a stage that completes the instant it
+    opens. That quest loads, validates and plays; it simply has no middle. The
+    branching also stops two predicates being packed into one dict, which the
+    engine reads as AND and a reader reads as a typo.
+    """
+    branches = [
+        _obj({"at_location": _enum_or_string(vocab.locations)}, ["at_location"]),
+        _obj({"visited": _enum_or_string(vocab.locations)}, ["visited"]),
+        _obj({"has_item": _enum_or_string(vocab.items)}, ["has_item"]),
+        _obj({"flag": {"type": "string"}}, ["flag"]),
+        _obj({"min_day": {"type": "integer", "minimum": 1, "maximum": 60}}, ["min_day"]),
+    ]
+    return {"anyOf": branches}
 
 
 def _effect_schema(vocab: Vocabulary) -> dict[str, Any]:
@@ -454,13 +467,27 @@ def _schema_quest(vocab: Vocabulary, count: int) -> dict[str, Any]:
         {
             "id": _id_schema(),
             "objective": {"type": "string", "minLength": 10, "maxLength": 200},
+            # THE FLAGS THIS STAGE PERMITS. Without this field a generated
+            # quest could gate a stage on `flag: nf_something` while declaring
+            # the flag nowhere -- and `allowed_narrative_flags` builds the
+            # narrator's entire permitted vocabulary from exactly these lists,
+            # so the one thing that could raise it was never allowed to. The
+            # stage then waits forever, which is a quest with no end and no
+            # error. `validation.py` checks the pairing for hand-written
+            # content too.
+            "narrative_flags": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "items": {"type": "string", "minLength": 3, "maxLength": 60},
+            },
             "complete_when": _obj(
                 {"all": {"type": "array", "minItems": 1, "maxItems": 3, "items": _predicate_schema(vocab)}},
                 ["all"],
             ),
             "complete_text": {"type": "string", "maxLength": 400},
         },
-        ["id", "objective", "complete_when"],
+        ["id", "objective", "narrative_flags", "complete_when"],
     )
     return _envelope(
         "author_quest",

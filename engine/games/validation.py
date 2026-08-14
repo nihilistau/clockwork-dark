@@ -926,6 +926,24 @@ class StoryValidator:
         arc_ids = {str(k) for k in ((arcs_doc or {}).get("arcs") or {})}
         quest_paths = [p for p in _yaml_files(directory) if p.name != "arcs.yaml"]
 
+        # Every narrative flag ANY quest in this story declares, gathered before
+        # the per-file pass. A flag is global and durable once raised, so its
+        # declaring quest and its reading quest need not be the same file, and
+        # a stage may legitimately wait on a flag an EARLIER stage declared.
+        # Scoping the check per stage produced seven false positives across two
+        # shipped stories on exactly those two shapes.
+        declared_flags: set[str] = set()
+        for path in quest_paths:
+            doc = _read_yaml(path)
+            if not isinstance(doc, dict):
+                continue
+            declared_flags.update(str(f) for f in (doc.get("narrative_flags") or []))
+            for stage in doc.get("stages") or []:
+                if isinstance(stage, dict):
+                    declared_flags.update(
+                        str(f) for f in (stage.get("narrative_flags") or [])
+                    )
+
         for path in quest_paths:
             data = _read_yaml(path)
             source = self._rel(path)
@@ -942,6 +960,7 @@ class StoryValidator:
             if not data.get("stages"):
                 self._add(source, quest_id or "-", "quest has no stages")
 
+            self._check_stage_reachability(source, quest_id, data, declared_flags)
             self._check_generic_refs(source, data)
 
     # -- encounters --------------------------------------------------------
@@ -1219,6 +1238,60 @@ class StoryValidator:
                     "flag is written but never read and not canon",
                     severity="error" if dictionary is not None else "warning",
                 )
+
+    def _check_stage_reachability(
+        self, source: str, quest_id: str, data: Any, declared_flags: set[str]
+    ) -> None:
+        """
+        Stages that end instantly, and stages nothing can ever end.
+
+        TWO WAYS TO AUTHOR A QUEST WITH NO MIDDLE, both of which load, validate
+        and play:
+
+        1. An EMPTY predicate. ``evaluate_condition`` documents that an empty
+           condition is True -- "no condition is a satisfied one" -- so
+           ``complete_when: {all: [{}]}`` completes the instant the stage opens.
+        2. A ``flag:`` predicate naming a flag NO quest in the story declares.
+           ``allowed_narrative_flags`` builds the narrator's entire permitted
+           vocabulary from ``narrative_flags`` lists, so a flag that appears in
+           none of them can never be raised by the only thing that raises them.
+
+        ONLY THE FIRST IS CHECKED HERE, and the second is worth recording as a
+        thing this file deliberately does NOT do. Flag reachability was tried
+        twice and abandoned twice. Scoped to the quest and its current stage it
+        reported seven stages across two shipped stories, every one a false
+        positive: a flag is durable once raised, so a stage may legitimately
+        wait on one an EARLIER stage declared, and a flag branch under ``any:``
+        need not be satisfiable when a sibling timeout is. Widened to the whole
+        quests directory it still reported four, because
+        ``collection_brass_evidence_complete`` and its kind are raised by the
+        COLLECTIONS system rather than by the narrator -- flags are global and
+        several engine systems write them, so "who could raise this" is a
+        question about every content type at once, not about quests.
+
+        Answering it properly means the two-direction sweep
+        ``check_decks_and_structures`` already runs for structural documents,
+        extended across quests, tables and effects. That is a real job and this
+        is not the place to half-do it: a check that fails ``--strict`` on
+        correct content is worse than no check, which is the same lesson the
+        gate check taught earlier.
+        """
+        del declared_flags  # see the docstring: the flag half is not checked here
+        for stage in data.get("stages") or []:
+            if not isinstance(stage, dict):
+                continue
+            ref = f"{quest_id or '-'}/{str(stage.get('id') or '-')}"
+
+            for node in walk(stage.get("complete_when")):
+                # A predicate dict with no keys at all. Structural keys are not
+                # predicates, so `{all: [...]}` is not the empty case.
+                if not node:
+                    self._add(
+                        source,
+                        ref,
+                        "empty predicate in `complete_when`; an empty condition "
+                        "evaluates TRUE, so this stage completes the moment it opens",
+                    )
 
     def _check_effect_rows(self, source: str, doc: Any) -> None:
         """

@@ -557,3 +557,54 @@ def test_validator_allows_an_unconditional_gate_with_only_on_pass(tmp_path: Path
     )
     issues = validation.validate_story(_story(tmp_path, {"decks": str(decks)}))
     assert not [i for i in issues if "gate has neither" in i.message]
+
+
+def test_validator_detects_a_stage_that_completes_the_moment_it_opens(tmp_path: Path) -> None:
+    """
+    `evaluate_condition` documents that an empty condition is True -- "no
+    condition is a satisfied one" -- so `complete_when: {all: [{}]}` is a stage
+    with no middle. It loads, validates and plays, and looks from the outside
+    like a quest that is going unusually well.
+    """
+    quests = tmp_path / "quests"
+    quests.mkdir()
+    (quests / "arcs.yaml").write_text("arcs:\n  main: {name: Main}\n", encoding="utf-8")
+    (quests / "q.yaml").write_text(
+        "id: q\n"
+        "arc: main\n"
+        "name: A Quest\n"
+        "stages:\n"
+        "  - id: s1\n"
+        "    objective: 'Do the thing'\n"
+        "    complete_when:\n"
+        "      all:\n"
+        "        - {}\n",
+        encoding="utf-8",
+    )
+    issues = validation.validate_story(_story(tmp_path, {"quests": str(quests)}))
+    assert any(
+        i.ref_id == "q/s1" and "completes the moment it opens" in i.message
+        for i in validation.errors_only(issues)
+    )
+
+
+def test_validator_allows_a_real_predicate(tmp_path: Path) -> None:
+    """The counter-control: an ordinary gated stage must stay silent."""
+    quests = tmp_path / "quests"
+    quests.mkdir()
+    (quests / "arcs.yaml").write_text("arcs:\n  main: {name: Main}\n", encoding="utf-8")
+    (quests / "q.yaml").write_text(
+        "id: q\n"
+        "arc: main\n"
+        "name: A Quest\n"
+        "stages:\n"
+        "  - id: s1\n"
+        "    objective: 'Do the thing'\n"
+        "    narrative_flags: [nf_did_it]\n"
+        "    complete_when:\n"
+        "      all:\n"
+        "        - flag: nf_did_it\n",
+        encoding="utf-8",
+    )
+    issues = validation.validate_story(_story(tmp_path, {"quests": str(quests)}))
+    assert not [i for i in issues if "completes the moment" in i.message]
