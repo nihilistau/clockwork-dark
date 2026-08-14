@@ -1,0 +1,96 @@
+# Version: v0.1.0 [2026-08-14]
+#
+# THE QUIET DOOR. The one quest in the game whose completion is the player
+# saying "this is my life now" -- and meaning it, because its on_complete
+# carries `{type: ending_lock}` with no id (whatever the run has EARNED:
+# engine/game/endings.py::resolve picks the highest-scoring eligible ending,
+# else the declared fail-forward) and then `{type: ending_module}` plays that
+# ending's Speak - Act - Seal. The epilogue card rides the same turn's payload.
+#
+# WHY THE GATE IS A WINTER RATION. The door opens when the larder is
+# provisioned -- winter_stores completed, or a winter_ration put up by hand
+# (data/recipes/baking.yaml::make_winter_ration; road_bread, salt_pork and
+# dried_mushrooms are all craftable too, so the whole chain pulls on the
+# recipe book). Diegetically: nobody on a frontier decides their story is
+# finished with an empty shelf. Mechanically: it keeps the door out of reach
+# of the headless policies in scripts/simulate.py, which never craft --
+# proven at seed 42 -- so shipping a finale did not move a single balance
+# number.
+#
+# NOTHING HERE EVER FORCES THE DOOR. No expiry, no failure branch, and the
+# final stage completes only on nf_hearth_book_closed -- a narrative flag the
+# Storyteller sets when the player actually chooses to stay. Declining is not
+# a flag and deliberately never became one: "one more season" is expressed by
+# the quest simply staying open, forever if need be, and a flag nothing reads
+# would be a dead lever the model could spend a tool call on for no effect
+# (tests/test_quests.py::test_every_narrative_flag_is_reachable_from_some_stage
+# is the rule). Rest is never gated; nothing here is.
+
+id: banking_the_fire
+arc: quiet_life
+name: "Banking the Fire"
+summary: >-
+  The stores are put up, the season is turning, and Maris has started leaving
+  the banking of the oven to you without saying that she is doing it. There is
+  a question in that. You can answer it whenever you like, or never.
+
+preconditions:
+  all:
+    - min_day: 20
+    - any:
+        - quest_completed: winter_stores
+        - has_item: { id: winter_ration, qty: 1 }
+
+start_text: >-
+  Maris hands you the rake for the coals and goes up to the cot early, and it
+  is not until the door shuts that you understand what happened: she has
+  stopped checking your work. The fire is yours to bank now, any evening you
+  are here to bank it. Which is, you notice, most evenings.
+
+stages:
+  - id: taking_stock
+    objective: "Walk your life here once, end to end, and see what it adds up to."
+    narrative_flags:
+      - nf_hearth_taking_stock
+    complete_when:
+      all:
+        - flag: nf_hearth_taking_stock
+        - at_location: [edgewood_square, edgewood_bakery, well_row]
+    complete_text: >-
+      The larder, the woodpile, the names you know at every door between the
+      well and the oven. Laid end to end it is not nothing. Laid end to end it
+      looks a great deal like a life.
+
+  - id: the_question
+    objective: >-
+      Decide what this place is to you. Say it at the bakery, at the morning
+      firing, where saying it counts -- or let the season turn and keep the
+      question.
+    narrative_flags:
+      - nf_hearth_book_closed
+    complete_when:
+      all:
+        - flag: nf_hearth_book_closed
+        - at_location: edgewood_bakery
+        - hour_between: [4, 10]
+    complete_text: >-
+      You say it with your hands as much as your mouth: the peel hung on its
+      pegs, the coals raked to the back, the sour set to sulk overnight. Maris
+      says "I know," the way she says the oven is hot. The book does not slam.
+      It closes the way good bread finishes -- because it is done.
+
+on_complete:
+  effects:
+    - type: flag
+      flag: quest_banking_the_fire_done
+    - type: ledger_fact
+      text: "The fire is banked and the book is closed, by choice, at the hearth."
+      kind: event
+    # Lock whatever the run earned, then play its Speak - Act - Seal.
+    - { type: ending_lock }
+    - { type: ending_module }
+
+complete_text: >-
+  Somewhere past the tree line the world keeps doing whatever the world does.
+  The fire holds till morning. So does the village. So, you have decided, do
+  you.

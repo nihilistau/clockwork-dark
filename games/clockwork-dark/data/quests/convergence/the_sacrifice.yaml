@@ -114,6 +114,15 @@ on_complete:
     - type: ledger_fact
       text: "You paid a like-for-like and one valley kept its own time."
       kind: secret
+    # THE PAID DOOR. The like-for-like is terminal by construction -- "you
+    # would want to be sure you had done the sum" -- so paying it locks the
+    # ending BY NAME (quest status is COMPLETED before on_complete runs, so
+    # the_price_asked's own gate on this quest already holds) and plays its
+    # Speak - Act - Seal. The run that wants the last morning at the ovens
+    # instead reaches the finale through what_edgewood_keeps or
+    # the_heartland_road and then the_last_quiet_thing.
+    - { type: ending_lock, ending: the_price_asked }
+    - { type: ending_module }
 
 complete_text: >-
   One valley. Not the world, not the Heartlands, not the road. One valley, for

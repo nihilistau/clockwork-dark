@@ -108,6 +108,15 @@ on_complete:
     - type: ledger_fact
       text: "Whatever else is true, Edgewood had bread that morning."
       kind: event
+    # THE LAST DOOR. The final beat of the final arc is a morning's work done
+    # properly, and finishing it closes the book. The lock carries NO id --
+    # whatever the run has EARNED (engine/game/endings.py::resolve): the named
+    # wound if Edgewood chose knowing, the pin and the join if the ninth pin
+    # is set, the long witness for the run that knew and stayed, the stopped
+    # wheel if there is nothing left to save -- else the declared
+    # fail-forward. The id belongs to the player, not to the beat.
+    - { type: ending_lock }
+    - { type: ending_module }
 
 complete_text: >-
   Edgewood has bread. The road is still coming. Both of those go on being true,
