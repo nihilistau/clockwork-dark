@@ -37,10 +37,12 @@ import {
   saveAnalyst,
 } from "./analyst.js";
 import Companion from "./parts/Companion.jsx";
+import ContractsOverlay from "./parts/ContractsOverlay.jsx";
 import CourtOverlay from "./parts/CourtOverlay.jsx";
 import EpilogueCard from "./parts/EpilogueCard.jsx";
+import GalleryOverlay from "./parts/GalleryOverlay.jsx";
 import OmenSting from "./parts/OmenSting.jsx";
-import { CourtIcon } from "./parts/Marks.jsx";
+import { CourtIcon, MirrorIcon, ScrollIcon } from "./parts/Marks.jsx";
 import { BANDS, HourglassMeter, VINES, VineMeter } from "./parts/Meters.jsx";
 
 const HOURGLASS = "time_debt_mortal_days";
@@ -361,30 +363,42 @@ export default {
     );
   },
 
-  // ONE overlay, and the reason there is only one is worth stating.
-  //
-  // Three of this story's five finished components are on screen now -- the
-  // court board here, the omen sting above, and the petal and seal buttons
-  // inside both. The other two are NOT WIRED, and neither is waiting on a
-  // component:
-  //
-  //   ContractScroll   needs the player's live bargains. `state.threads` is a
-  //                    real field on GameState and `threads.summary()` is
-  //                    written for exactly this, but `to_client_dict` does not
-  //                    carry it and no route serves it, so nothing about a
-  //                    thread ever reaches the browser.
-  //   EndingGallery    needs the eligible set and the lock reasons.
-  //                    `endings.recompute` writes them to
-  //                    `state.tracks.ending_eligible`, and `tracks` is neither
-  //                    in the payload nor projectable through the schema --
-  //                    `StateStore.get` returns a float, and the eligible set
-  //                    is a list of ids.
-  //
-  // Both are one payload key away and both are engine-side. Wiring either one
-  // against a key that does not exist would put a permanently empty modal in
-  // the footer, which is the disease this seam was built to cure.
+  /**
+   * All five of this story's finished components are on screen now.
+   *
+   * Two of them were dark for months and neither was waiting on a component:
+   * `ContractScroll` needed the player's live bargains and `EndingGallery`
+   * needed the eligible set with its lock reasons, and `to_client_dict`
+   * carried `meters` and nothing else. Both are things `StateStore` cannot
+   * describe -- `get` returns a float, and one of these is a contract while
+   * the other is a list of ids -- so the payload grew `threads` and `endings`
+   * beside `meters` rather than through it.
+   *
+   * `when` IS THE HONEST HALF OF THAT. Each key is present only for a story
+   * that declares the system behind it, so these two entries gate on the key
+   * rather than on the slug: a story borrowing this skin without bargains gets
+   * no scroll button at all, instead of one that opens on nothing. That is the
+   * disease this seam was built to cure, and wiring a screen against a key
+   * that may not exist is how it comes back.
+   */
   overlays: [
     { id: "court", key: "c", label: "The court", Icon: CourtIcon, Component: CourtOverlay },
+    {
+      id: "contracts",
+      key: "b",
+      label: "What you have signed",
+      Icon: ScrollIcon,
+      Component: ContractsOverlay,
+      when: (state) => Boolean(state.world?.threads),
+    },
+    {
+      id: "mirror",
+      key: "m",
+      label: "The mirror pool",
+      Icon: MirrorIcon,
+      Component: GalleryOverlay,
+      when: (state) => Boolean(state.world?.endings),
+    },
   ],
   onboarding: [],
 };

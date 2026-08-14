@@ -22,10 +22,20 @@ import Start from "./screens/Start.jsx";
 import { clearSaveId, connect, loadSaveId, storeSaveId } from "./socket.js";
 import { createStore } from "./store.js";
 
-// A turn can legitimately take a while on a local model. This is the last line
-// of defence against a server that dies without emitting anything: the old
-// client left every control disabled forever with nothing on screen.
-const TURN_WATCHDOG_MS = 240000;
+// The last line of defence against a server that dies without emitting
+// anything: the old client left every control disabled forever with nothing on
+// screen.
+//
+// IT HAS TO OUTLAST THE SERVER'S OWN GIVING-UP, and at 240s it did not. A
+// narration turn on a reasoning model measures 106-205 seconds of wall clock
+// (config/default.yaml, profile `big` -- thinking is 1100-2600 tokens BEFORE
+// the first word of prose), and the generation call itself is capped at
+// `lmstudio.timeout_seconds`, which ships at 300. So the old window declared
+// the world dead a full minute before the server would have reported a real
+// error with a real reason -- on turns that were still running. This is that
+// cap plus enough margin for the rest of a turn's work, and
+// tests/test_ui_contract.py fails the build if the two ever cross.
+const TURN_WATCHDOG_MS = 330000;
 
 export default function App({ story }) {
   // The reducer is the core one composed with the story's. Built once: a new
@@ -47,6 +57,14 @@ export default function App({ story }) {
   const audioRef = useRef(null);
   const watchdog = useRef(null);
   const composeRef = useRef(null);
+  // How to do the last thing again.
+  //
+  // Held as a THUNK rather than as the arguments, because the two things that
+  // can fail are shaped differently -- beginning a run is a POST, playing a
+  // turn is a socket emit -- and a retry button that only understands one of
+  // them leaves the other failure exactly as dead as it was. Every failure the
+  // player can see is now something they can press.
+  const again = useRef(null);
 
   useEffect(() => {
     const socket = connect(dispatch);
@@ -85,7 +103,12 @@ export default function App({ story }) {
     if (watchdog.current) clearTimeout(watchdog.current);
     if (state.busy) {
       watchdog.current = setTimeout(() => {
-        dispatch({ type: "ERROR", message: "No answer from the world. Try again." });
+        dispatch({
+          type: "ERROR",
+          // No longer an instruction with nothing to press: `onRetry` re-sends
+          // the same move, so the sentence can promise what the button does.
+          message: "The world has not answered. Your move is still here.",
+        });
       }, TURN_WATCHDOG_MS);
     }
     return () => watchdog.current && clearTimeout(watchdog.current);
@@ -109,6 +132,7 @@ export default function App({ story }) {
   }, [prefs.volume]);
 
   const begin = useCallback(async (payload) => {
+    again.current = () => begin(payload);
     dispatch({ type: "SUBMIT", text: "" });
     try {
       const res = await fetch("/api/game/new", {
@@ -128,15 +152,39 @@ export default function App({ story }) {
   const send = useCallback(
     (choiceId, customText, echo) => {
       if (state.busy || !state.sessionId) return;
-      dispatch({ type: "SUBMIT", text: echo });
-      socketRef.current?.emit("player_choice", {
-        session_id: state.sessionId,
-        choice_id: choiceId,
-        custom_text: customText || null,
-      });
+      const emit = (spoken) => {
+        dispatch({ type: "SUBMIT", text: spoken });
+        socketRef.current?.emit("player_choice", {
+          session_id: state.sessionId,
+          choice_id: choiceId,
+          custom_text: customText || null,
+        });
+      };
+      // A retry re-sends the move with NO echo. The player's line is already in
+      // the log from the attempt that failed, and a retry is the same move
+      // tried again, not a second thing they did -- `append` ignores empty
+      // text, so the transcript stays honest about what was actually said.
+      again.current = () => emit("");
+      emit(echo);
     },
     [state.busy, state.sessionId]
   );
+
+  /**
+   * Do the last thing again.
+   *
+   * The whole of what a failed turn used to offer was one line in the footer
+   * and a compose box the player had to retype into from memory -- and the
+   * watchdog's "No answer from the world. Try again." was an instruction with
+   * nothing to press. The input is still here; this is the press.
+   */
+  const retry = useCallback(() => {
+    if (state.busy) return;
+    // Both thunks open with a SUBMIT, which is what clears `error` and puts
+    // the turn back into flight -- so there is no separate "forget the
+    // failure" step that could leave the two out of step.
+    again.current?.();
+  }, [state.busy]);
 
   const openSaves = useCallback(async () => {
     try {
@@ -168,11 +216,31 @@ export default function App({ story }) {
     [storyInitial]
   );
 
+  /**
+   * Destroy a run, for good.
+   *
+   * The only irreversible thing this client can do, and it used to be two
+   * unchecked `fetch` calls -- no confirmation, and a failure at either end
+   * refreshed the list, showed the run still sitting there, and said nothing.
+   * A player pressing Delete twice on a server that is refusing would have had
+   * no way to tell the difference between "it will not go" and "it did not
+   * take". `loadSave` and `saveNow` both throw and report; this now does too.
+   *
+   * The confirmation itself is in `Saves.jsx`, as a second press on the same
+   * button rather than a `window.confirm`: a native dialog steals focus out of
+   * the modal's trap and cannot be styled or read in this product's voice.
+   */
   const deleteSave = useCallback(async (save) => {
-    await fetch(`/api/saves/${save.save_id}`, { method: "DELETE" });
-    const res = await fetch("/api/saves");
-    const data = await res.json();
-    dispatch({ type: "SAVES", saves: data.saves || [] });
+    try {
+      const gone = await fetch(`/api/saves/${save.save_id}`, { method: "DELETE" });
+      if (!gone.ok) throw new Error(`server said ${gone.status}`);
+      const res = await fetch("/api/saves");
+      if (!res.ok) throw new Error(`server said ${res.status}`);
+      const data = await res.json();
+      dispatch({ type: "SAVES", saves: data.saves || [] });
+    } catch (err) {
+      dispatch({ type: "ERROR", message: `Could not delete that run: ${err.message}` });
+    }
   }, []);
 
   /** Write the run to disk now, optionally into a named slot. Throws so the
@@ -200,6 +268,9 @@ export default function App({ story }) {
       // additionally makes this browser forget it, so the next reload does not
       // silently resume the thing you just walked away from.
       if (forget) clearSaveId();
+      // The last move belonged to the run being left. Keeping it would aim a
+      // retry at a session that no longer exists.
+      again.current = null;
       setShowMenu(false);
       setOverlay(null);
       dispatch({ type: "RESET", storyInitial });
@@ -242,15 +313,35 @@ export default function App({ story }) {
     Boolean(showMenu) || showSettings || Boolean(overlay) || Boolean(state.cutscene) ||
     state.screen !== "scene";
 
+  // The overlays this story can currently open.
+  //
+  // An entry may declare `when(state)`, and it gates the WHOLE entry: no footer
+  // button, no keyboard shortcut, no modal. That exists because a structural
+  // system is something a story DECLARES -- the payload carries `threads` only
+  // for a story with a threads table -- and a plugin can be borrowed by a story
+  // that declares less than the one it was written for. Without this, borrowing
+  // the Garden's skin bought you a scroll button that opens on nothing, which
+  // is precisely the permanently-empty modal this seam exists to prevent.
+  const overlays = useMemo(
+    () => story.overlays.filter((entry) => (entry.when ? entry.when(state) : true)),
+    [story, state]
+  );
+
   // Story overlay keys, lowercased once: {j: "journal", ...}. An empty map is
   // the correct behaviour for a story with no overlays, not a missing feature.
+  //
+  // Keyed off the id LIST and not the array: the filter above runs per render,
+  // so a fresh array identity every streamed token would re-bind the global
+  // keydown listener sixty times a second for a map that had not changed.
+  const overlayIds = overlays.map((entry) => entry.id).join(",");
   const overlayKeys = useMemo(() => {
     const map = {};
-    for (const entry of story.overlays) {
+    for (const entry of overlays) {
       if (entry.key) map[entry.key.toLowerCase()] = entry.id;
     }
     return map;
-  }, [story]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlayIds]);
 
   useEffect(() => {
     function onKey(event) {
@@ -291,6 +382,7 @@ export default function App({ story }) {
       <Wrap state={state}>
       <Saves
         saves={state.saves}
+        error={state.error}
         onLoad={loadSave}
         onDelete={deleteSave}
         onClose={() => dispatch({ type: "SCREEN", screen: state.sessionId ? "scene" : "start" })}
@@ -341,7 +433,10 @@ export default function App({ story }) {
     );
   }
 
-  const open = story.overlays.find((entry) => entry.id === overlay);
+  // Read off the FILTERED list: an overlay whose `when` has since gone false --
+  // a thread discharged while its scroll was open -- must close rather than
+  // keep rendering against a payload key that is no longer there.
+  const open = overlays.find((entry) => entry.id === overlay);
   const Overlay = open?.Component;
   const MenuBanner = story.MenuBanner;
 
@@ -350,8 +445,10 @@ export default function App({ story }) {
       <Play
         state={state}
         story={story}
+        overlays={overlays}
         onChoose={(choice) => send(choice.id, null, choice.text)}
         onCustom={(text) => send("custom", text, text)}
+        onRetry={retry}
         onOpenSaves={openSaves}
         onOpenSettings={() => setShowSettings(true)}
         onOpenOverlay={setOverlay}
@@ -388,7 +485,7 @@ export default function App({ story }) {
         <Menu
           world={state.world}
           banner={MenuBanner ? <MenuBanner state={state} /> : null}
-          overlays={story.overlays}
+          overlays={overlays}
           saveId={state.saveId}
           connected={state.connected}
           prefs={prefs}

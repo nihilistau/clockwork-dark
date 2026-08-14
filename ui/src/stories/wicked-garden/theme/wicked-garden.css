@@ -170,6 +170,16 @@
 
 /* ---------- the contract scroll ---------- */
 
+/* The player's whole hand, stacked. A run can hold several threads at once and
+   the design's answer to "which one" is that you read them in order, so they
+   are laid out as pages rather than as tabs. */
+
+.scrolls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
 .scroll {
   display: flex;
   flex-direction: column;
@@ -786,6 +796,27 @@
 .gallery__warn {
   margin: 0;
   font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* How near this one is, as a word. Set in the narration face rather than the
+   mono face the gate uses, because it is the story talking and not the
+   machinery -- and a band that looked like a readout would be read as one. */
+
+.gallery__near {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-style: italic;
+  font-size: var(--text-base);
+  color: var(--wg-gold-soft);
+}
+
+.gallery__forced {
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-3);
+  border-top: var(--border-hair) solid var(--wg-edge);
+  font-family: var(--font-narration);
+  font-style: italic;
   color: var(--text-muted);
 }
 

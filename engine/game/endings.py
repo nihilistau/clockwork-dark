@@ -273,8 +273,21 @@ def _reasons(
     condition: Any,
     labels: dict[str, Any],
     ledger: Optional[Any],
+    *,
+    labelled_only: bool = False,
 ) -> list[str]:
-    """Which clauses of a failed condition are the ones that failed."""
+    """
+    Which clauses of a failed condition are the ones that failed.
+
+    Args:
+        labelled_only: Drop clauses the story wrote no ``lock_reasons`` line
+            for. Off by default, because the DESIGNER-facing report must stay
+            complete -- an omission there is a gap nobody would find. On for
+            the client projection, where this slot is the story's own VOICE:
+            a rendered condition dict beside two hand-written sentences reads
+            as the prose having broken, and the machine's own answer is
+            already shipped in full as ``gate``.
+    """
     from engine.game.quests import evaluate_condition
 
     out: list[str] = []
@@ -287,7 +300,11 @@ def _reasons(
         key = ""
         if isinstance(clause, dict):
             key = str(clause.get("id") or "")
-        out.append(str(labels.get(key or str(index)) or key or _describe(clause)))
+        written = labels.get(key or str(index))
+        if written:
+            out.append(str(written))
+        elif not labelled_only:
+            out.append(str(key or _describe(clause)))
     return out
 
 
@@ -468,6 +485,25 @@ TIER_UNLOCKED = "unlocked"
 TIER_LOCKED = "locked"
 TIER_SILHOUETTE = "silhouette"
 
+#: Every key a gallery row MAY carry -- the client contract, declared once.
+#:
+#: Three of them are conditional and no live state carries all seven at once:
+#: `title` is withheld from a silhouette, `tease` exists only when the story
+#: authored one, and `lock_reason`/`gate` are absent from an ending you have
+#: already reached. A drift test that took the union over a running game would
+#: therefore call an optional key an unknown one and fail the renderer for
+#: reading a field the contract genuinely has. So the contract is stated here,
+#: and `to_client` is tested against it in both directions.
+CLIENT_ROW_KEYS: tuple[str, ...] = (
+    "id",
+    "tier",
+    "closeness",
+    "title",
+    "tease",
+    "lock_reason",
+    "gate",
+)
+
 
 def _gates(state: GameState, condition: Any, ledger: Optional[Any]) -> list[str]:
     """
@@ -538,8 +574,19 @@ def to_client(
         if body.get("tease"):
             row["tease"] = str(body["tease"])
         if tier != TIER_UNLOCKED:
-            reasons = report.locked.get(ending_id) or []
-            row["lock_reason"] = "; ".join(reasons)
+            labels = body.get("lock_reasons") or {}
+            # The story's own sentences, joined as sentences. `report.locked`
+            # is the complete designer-facing list and includes the rendered
+            # condition for anything unnamed; this slot is prose, and the
+            # machine's answer is shipped whole as `gate` two lines down.
+            written = _reasons(
+                state, body.get("requires"), labels, ledger, labelled_only=True
+            ) + _reasons(
+                state, body.get("completable"), labels, ledger, labelled_only=True
+            )
+            row["lock_reason"] = " ".join(
+                r if r.endswith((".", "!", "?", "…")) else f"{r}." for r in written
+            )
             gate = _gates(state, body.get("requires"), ledger) + _gates(
                 state, body.get("completable"), ledger
             )
@@ -852,6 +899,7 @@ __all__ = [
     "REASON_FAIL_FORWARD",
     "TRACK_ELIGIBLE",
     "TRACK_INTENT",
+    "CLIENT_ROW_KEYS",
     "TIER_LOCKED",
     "TIER_SILHOUETTE",
     "TIER_UNLOCKED",

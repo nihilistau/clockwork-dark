@@ -128,10 +128,13 @@ per-value `owners` ACL and onto the effect receipt.
 | Agent write attribution | **Wired.** `engine/agents/pipeline.py` commits every accepted effect through `apply_effect(..., by=agent, turn=...)`, so the store's `owners` ACL and the receipt both see who asked. Writes outside the pipeline are `WRITER_ENGINE`, which is what they are. |
 | The plan/negotiate pipeline | **Live.** `engine/agents/pipeline.py` runs plan → negotiate → commit ahead of narration for any story whose `agents.yaml` declares two or more pipeline participants. The Wicked Garden declares two (`gm` + `sophia`) and takes this path; the flagship's roster declares its canon pair with the companion at `pipeline: false`, so it has one participant and runs the single-agent turn unchanged. |
 
+| `ui/` consuming the `meters` block | **Wired.** `ui/src/core/parts/Meters.jsx` draws the block generically and `MeterSheet` is core's DEFAULT right-hand column, so a story with no plugin at all gets a working sheet; The Wicked Garden's own `Ledger` reads the same block and falls through to core's renderer for any row it has no metaphor for. A `veiled` row renders as a five-step glyph row and never as a track, because a bar width is a number. |
+| The two systems a number cannot describe | **Wired.** `threads` and `endings` ride out beside `meters` from `GameState._structural_block`, each key present only when the story declares the system behind it (`paths.threads`, `paths.endings`). `endings` is projected by `engine/game/endings.py::to_client`, which is `recompute`'s read-only twin. The Wicked Garden draws both — `ContractsOverlay` and `GalleryOverlay` — gated on the key's presence through the plugin contract's `when(state)`. |
+
 ## NOT WIRED
 
 | Thing | Status |
 |---|---|
-| `ui/` consuming the `meters` block | The projection reaches the browser inside `state.meters`; nothing in `ui/` draws it yet. A later UI phase. |
+| An ending's `tease:` | Read by `endings.declared()` and shipped in the payload, and NO shipped story declares one — the Garden's gallery falls back to a per-tier line. It is an authored line and the fallback is honest, but nothing exercises the real path yet. |
 
-Version: v0.3.0 [2026-08-13]
+Version: v0.4.0 [2026-08-14]

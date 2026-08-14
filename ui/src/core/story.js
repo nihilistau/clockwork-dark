@@ -61,15 +61,43 @@
  *   StartIntro    Copy block on the start screen.
  *   Wordmark      The start screen's title treatment.
  *   onboarding    Cards for the first-run shell. No cards, no first-run modal.
- *   overlays      [{id, key, label, Icon, Component}] -- one keyboard shortcut,
- *                 one footer button and one modal per entry.
+ *   overlays      [{id, key, label, Icon, Component, when}] -- one keyboard
+ *                 shortcut, one footer button and one modal per entry.
+ *                 `when(state) -> bool` is optional and gates the WHOLE entry:
+ *                 no button, no shortcut, no modal. It exists because a
+ *                 structural system is a thing a story DECLARES, and a plugin
+ *                 may be borrowed by a story that declares less than the one it
+ *                 was written for. The Garden's contracts overlay is gated on
+ *                 `state.world.threads` being present -- the payload carries
+ *                 that key only for a story with a threads table -- so a story
+ *                 borrowing this skin without bargains gets no scroll button
+ *                 rather than a permanently empty modal, which is the disease
+ *                 this seam was built to cure.
  *   hideChoices(state) -> bool
  *                 The flagship suppresses the narrator's choices while an
  *                 encounter offers engine-authored approaches.
  *
- * Every slot is a React component and receives the same props object, so a
- * story can ignore the ones it does not care about: {state, dispatch, send,
- * story, busy, onOpenOverlay}.
+ * SLOT PROPS. Every slot is a React component and receives the same object, so
+ * a story can ignore the ones it does not care about:
+ *
+ *     {state, busy, onChoose, onCustom, onOpenOverlay, onOpenMenu,
+ *      showDiceBreakdown}
+ *
+ * An overlay's Component is NOT a slot and takes its own set:
+ *
+ *     {state, sessionId, busy, onAct, onClose}
+ *
+ * There is deliberately no `dispatch`. This paragraph used to say there was,
+ * and `Play.jsx` has never passed one -- so the Garden reached for a
+ * plugin-local React context and the doc quietly described a client that does
+ * not exist. Adding it would have been the wrong repair in both directions:
+ * core's reducer owns core's slice ("core never touches this slice; the story
+ * never touches core's", four paragraphs up), and the thing the Garden wanted
+ * it for -- analyst mode -- is a PREFERENCE that is persisted to localStorage
+ * and must survive RESET, which the store is the wrong home for however it is
+ * reached. A story derives from the turn payload through `reduce`, acts on the
+ * world through `onAct`/`onCustom`, and holds client-only preferences in
+ * `Wrap`. Those three cover it, and none of them is a back door into core.
  */
 
 import { fetchGames } from "./api.js";

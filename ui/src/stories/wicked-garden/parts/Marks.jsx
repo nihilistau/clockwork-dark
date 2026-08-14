@@ -31,4 +31,41 @@ export function CourtIcon() {
   );
 }
 
+/**
+ * The contracts: a rolled scroll with a seal hanging off it.
+ *
+ * The seal is the load-bearing part of the picture, because in this story a
+ * bargain is not a piece of paper -- it is the thing that was said, and the
+ * seal is what makes it hold.
+ */
+export function ScrollIcon() {
+  return (
+    <Icon>
+      <path d="M7 4.5h9.5a1.8 1.8 0 0 1 1.8 1.8v9.4" />
+      <path d="M7 4.5A1.8 1.8 0 0 0 5.2 6.3v1.9H7" />
+      <path d="M7 4.5v11.2" />
+      <path d="M7 15.7h11.3a1.8 1.8 0 0 1-1.8 1.8H8.8" />
+      <circle cx="15.4" cy="19" r="2.3" />
+    </Icon>
+  );
+}
+
+/**
+ * The mirror pool: a still oval with three shapes waiting under it.
+ *
+ * Not a trophy cabinet and not a checklist. The gallery is a surface you look
+ * INTO, and two of its three tiers are things you cannot have -- so the mark is
+ * water with shapes below the line rather than medals in a row.
+ */
+export function MirrorIcon() {
+  return (
+    <Icon>
+      <ellipse cx="12" cy="8.4" rx="7.2" ry="3.6" />
+      <path d="M4.8 8.4c0 4.9 3.2 8.9 7.2 11.4 4-2.5 7.2-6.5 7.2-11.4" />
+      <path d="M9.2 12.4h5.6" />
+      <path d="M10.4 15.6h3.2" />
+    </Icon>
+  );
+}
+
 export default CourtIcon;

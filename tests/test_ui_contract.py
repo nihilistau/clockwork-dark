@@ -202,6 +202,176 @@ def test_no_client_recomputes_the_time_debt():
         assert not re.search(r"\*\s*10\b", code), f"{component} multiplies days by ten"
 
 
+# ---------------------------------------------------------------------------
+# The structural block
+#
+# `threads` and `endings` ride out beside `meters` and are consumed by two
+# story components that were dark for months. Same class of drift the epilogue
+# test above guards, arriving through a payload key rather than an event.
+# ---------------------------------------------------------------------------
+
+
+def _garden_part(name: str) -> str:
+    return (UI_SRC / "stories" / "wicked-garden" / "parts" / name).read_text(
+        encoding="utf-8"
+    )
+
+
+def test_the_gallery_wrapper_maps_only_keys_the_server_sends():
+    """
+    `GalleryOverlay` is the ONE place snake_case becomes camelCase.
+
+    The component takes `{id, title, tier, tease, lockReason, gate, closeness}`
+    and the server sends snake_case, so something has to translate. A second
+    translator, or a key read under a name the server never ships, is the exact
+    defect that had EpilogueCard rendering five `undefined`s -- which in React
+    is a silently empty element with nothing in any log to say why.
+    """
+    from engine.game import endings
+
+    text = _garden_part("GalleryOverlay.jsx")
+    read = set(re.findall(r"\brow\.([a-z_]+)", text))
+    assert read, "matched no field reads at all"
+    unknown = read - set(endings.CLIENT_ROW_KEYS)
+    assert not unknown, f"GalleryOverlay reads keys the server does not send: {sorted(unknown)}"
+
+
+def test_the_contracts_overlay_reads_only_keys_the_summary_sends():
+    """
+    `threads.summary()` deliberately trims the record -- the effect hooks are
+    the engine's business -- so the scroll must read the trimmed shape and not
+    the one it can see in `seal()`.
+    """
+    from engine.game import threads
+    from engine.game.state import GameState
+
+    state = GameState(session_id="drift")
+    state.threads = [
+        {
+            "id": "t_1",
+            "source": "sophia",
+            "tags": ["Protection"],
+            "terms": "a term",
+            "due_day": 4,
+            "can_cut_with": ["law"],
+            "sealed_by": "a word",
+            "status": "active",
+            "on_break": [{"type": "value"}],
+        }
+    ]
+    served = set(threads.summary(state)[0])
+
+    text = _garden_part("ContractsOverlay.jsx")
+    read = set(re.findall(r"\bthread\.([a-z_]+)", text))
+    assert read, "matched no field reads at all"
+    unknown = read - served
+    assert not unknown, f"ContractsOverlay reads keys summary() does not send: {sorted(unknown)}"
+
+
+def test_the_two_revived_overlays_gate_on_the_key_that_feeds_them():
+    """
+    A screen wired against a key that may not exist is a permanently empty
+    modal, which is the disease the plugin seam was built to cure. Both entries
+    declare `when`, and both `when`s test the payload key rather than a slug --
+    a story borrowing this skin with no bargains gets no scroll button.
+    """
+    text = (UI_SRC / "stories" / "wicked-garden" / "index.jsx").read_text(encoding="utf-8")
+    for component, key in (("ContractsOverlay", "threads"), ("GalleryOverlay", "endings")):
+        entry = text.split(f"Component: {component},")[1].split("}")[0]
+        assert "when:" in entry, f"{component} is registered with no `when` gate"
+        assert f"state.world?.{key}" in entry, f"{component} gates on the wrong key"
+    assert "wicked-garden" not in text.split("overlays: [")[1].split("],")[0]
+
+
+def _code_only(text: str) -> str:
+    """The file with its comments removed, so prose about a rule is not a use of it."""
+    code = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    return re.sub(r"^\s*//.*$", "", code, flags=re.MULTILINE)
+
+
+def test_closeness_is_used_as_a_word_and_never_as_a_number():
+    """
+    THE VEILED RULE, arriving through a new key.
+
+    An ending's `closeness` is its continuous 0-1 score banded by the same code
+    that bands a veiled meter, and it lands under the same rule: the word is
+    the whole truth the player is allowed. Looking it up in a table or putting
+    it in a class name is a use; multiplying it, or turning it into a width or
+    a percentage, is reconstructing the number the server declined to send.
+    """
+    for name in ("GalleryOverlay.jsx", "EndingGallery.jsx"):
+        code = _code_only(_garden_part(name))
+        for hit in re.findall(r"[^\n]*\bcloseness\b[^\n]*", code):
+            assert not re.search(r"closeness\s*[*/+-]|[*/+-]\s*closeness", hit), (
+                f"{name} does arithmetic on a band: {hit.strip()}"
+            )
+            assert "%" not in hit, f"{name} builds a percentage from a band: {hit.strip()}"
+            assert "width" not in hit, f"{name} builds a width from a band: {hit.strip()}"
+
+
+# ---------------------------------------------------------------------------
+# The turn watchdog
+# ---------------------------------------------------------------------------
+
+
+def test_the_watchdog_outlasts_the_servers_own_giving_up():
+    """
+    The client must never declare the world dead while the server is still
+    working, and at 240s against a 300s generation cap it did exactly that --
+    on turns that a reasoning model legitimately spends 106-205 seconds on
+    (config/default.yaml, profile `big`). The player got "no answer" and lost
+    the turn a full minute before the server would have reported a real error
+    with a real reason.
+    """
+    from engine.config import get_config
+
+    text = (UI_SRC / "core" / "App.jsx").read_text(encoding="utf-8")
+    match = re.search(r"TURN_WATCHDOG_MS\s*=\s*(\d+)", text)
+    assert match, "App.jsx no longer declares a watchdog"
+    watchdog_seconds = int(match.group(1)) / 1000
+
+    server_seconds = float(get_config().get("lmstudio.timeout_seconds", 0))
+    assert server_seconds > 0, "the generation timeout is no longer configured"
+    assert watchdog_seconds > server_seconds, (
+        f"the client gives up at {watchdog_seconds}s, before the server does at "
+        f"{server_seconds}s -- a live turn would be reported as no answer"
+    )
+
+
+def test_a_failed_turn_can_be_retried_without_retyping():
+    """
+    Every failure used to end as one line in the footer and a compose box the
+    player had to retype into from memory. The input is held; this is the
+    press. And the retry must NOT re-echo the player's line: it is already in
+    the log from the attempt that failed, and a retry is the same move tried
+    again, not a second thing they did.
+    """
+    app = (UI_SRC / "core" / "App.jsx").read_text(encoding="utf-8")
+    assert "again.current" in app, "App.jsx holds no way to repeat the last move"
+    assert 'emit("")' in app, "the retry re-echoes the player's line into the log"
+
+    chrome = (UI_SRC / "core" / "parts" / "Chrome.jsx").read_text(encoding="utf-8")
+    assert "onRetry" in chrome, "the footer offers no way to act on an error"
+
+
+def test_destroying_a_run_is_confirmed_and_reports_failure():
+    """
+    Deleting a save is the only irreversible thing this client can do and it
+    was two unchecked `fetch` calls -- no guard, and a refusal at either end
+    refreshed the list, showed the run still sitting there, and said nothing.
+    """
+    app = (UI_SRC / "core" / "App.jsx").read_text(encoding="utf-8")
+    body = app.split("const deleteSave")[1].split("const saveNow")[0]
+    assert body.count("if (!") >= 2, "deleteSave still ignores an HTTP status"
+    assert "Could not delete" in body, "a failed delete says nothing to the player"
+
+    saves = _code_only((UI_SRC / "core" / "screens" / "Saves.jsx").read_text(encoding="utf-8"))
+    assert "asking" in saves, "Delete has no confirmation step"
+    # A native dialog tears focus out of the modal's trap and speaks in the
+    # browser's voice; the guard belongs inside the focus order.
+    assert "window.confirm" not in saves
+
+
 def test_styles_use_semantic_tokens_not_raw_hex():
     """
     Raw hex in the app stylesheet breaks the four phase themes: [data-phase]

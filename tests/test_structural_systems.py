@@ -1295,6 +1295,32 @@ def test_the_finale_block_carries_every_declared_ending(garden: GameState) -> No
     assert served["settled"] is False
 
 
+def test_the_declared_row_contract_matches_what_is_actually_sent(
+    garden: GameState,
+) -> None:
+    """
+    `CLIENT_ROW_KEYS` is the client contract, stated once so a drift test has
+    something to check against -- three of its keys are conditional and no live
+    state carries all seven at once. A constant that says one thing while the
+    projection sends another is worse than no constant, so it is checked in
+    both directions: nothing unlisted is ever sent, and every listed key is
+    reachable from some state the story can actually be in.
+    """
+    _set(garden, "briar_hunger", 5)  # forces at least one silhouette
+    sent: set[str] = set()
+    for row in garden.to_client_dict()["endings"]["gallery"]:
+        assert set(row) <= set(endings.CLIENT_ROW_KEYS), f"undeclared key in {row['id']}"
+        sent |= set(row)
+
+    # `tease` is the one key no shipped story declares, so it cannot be proved
+    # through content. It is proved through the flattener instead, which is the
+    # honest way to hold a contract nothing exercises yet -- and it is listed
+    # in docs/STATE.md's NOT WIRED table for the same reason.
+    assert set(endings.CLIENT_ROW_KEYS) - sent == {"tease"}
+    flattened = endings.declared()
+    assert "tease" in flattened[next(iter(flattened))]
+
+
 def test_the_fail_forward_is_never_drawn_as_out_of_reach(garden: GameState) -> None:
     """
     It is the ending that is always available, by declaration. Drawing it as a

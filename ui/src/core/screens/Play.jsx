@@ -26,10 +26,16 @@
  * narrator's choices while an encounter offers engine-authored approaches,
  * because both lists on screen at once would offer the player two parallel
  * action sets and the engine only honours one.
+ *
+ * `overlays` arrives ALREADY FILTERED by App -- an entry may declare
+ * `when(state)`, and a story whose payload does not carry the key an overlay
+ * reads must not get a footer button for it. It defaults to the story's whole
+ * list so this screen still renders on its own in a fixture.
  */
 import React, { useState } from "react";
 
 import ChoiceRow from "../parts/ChoiceRow.jsx";
+import FadeCard from "../parts/FadeCard.jsx";
 import MicButton from "../parts/MicButton.jsx";
 import NarrativeLog from "../parts/NarrativeLog.jsx";
 import ReasoningPanel, { Thinking } from "../parts/ReasoningPanel.jsx";
@@ -47,8 +53,10 @@ const TABS = [
 export default function Play({
   state,
   story,
+  overlays = story.overlays,
   onChoose,
   onCustom,
+  onRetry,
   onOpenSaves,
   onOpenSettings,
   onOpenOverlay,
@@ -126,7 +134,15 @@ export default function Play({
         <section className="scene__col scene__col--main">
           {Stage && <Stage {...slot} />}
 
-          <NarrativeLog entries={state.log} />
+          <NarrativeLog entries={state.log} busy={state.busy} />
+
+          {/* A faded scene is an AUTHORED beat, not a paragraph that failed to
+              arrive. The safety layer resolves the moment at summary
+              resolution and hands back a card -- heading, what happened, and
+              the consequences that were applied anyway -- and until now
+              nothing drew it, so the whole thing read as the narrator losing
+              its place. See engine/safety/verdict.py::FadeCard. */}
+          <FadeCard card={state.fadeCard} />
 
           {/* The old bare "the world is deciding" indicator is now the header
               of the reasoning panel, so the same three dots either sit there
@@ -143,7 +159,19 @@ export default function Play({
           )}
 
           {!hidden && (
-            <ChoiceRow choices={state.choices} busy={state.busy} onChoose={onChoose} />
+            <ChoiceRow
+              choices={state.choices}
+              busy={state.busy}
+              onChoose={onChoose}
+              // A turn that produced no choices is a real state -- an
+              // ungrammared answer, a scene that ends on a question, a
+              // narrator that simply offered none -- and the row used to
+              // render `null` for it, so the space above the compose box went
+              // blank and the game looked broken rather than open. It is only
+              // an empty state once the turn has SETTLED: mid-turn there is
+              // nothing missing yet.
+              settled={!state.busy && state.log.length > 0}
+            />
           )}
 
           <form className="compose" onSubmit={submitCustom}>
@@ -190,7 +218,9 @@ export default function Play({
         world={state.world}
         connected={state.connected}
         error={state.error}
-        overlays={story.overlays}
+        onRetry={onRetry}
+        canRetry={!state.busy}
+        overlays={overlays}
         onOpenOverlay={onOpenOverlay}
         onOpenSaves={onOpenSaves}
         onOpenSettings={onOpenSettings}
