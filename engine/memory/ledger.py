@@ -42,6 +42,10 @@ ARCHIVE_BELOW = 0.25
 
 MAX_FACTS_PER_TURN = 3
 MAX_FACT_CHARS = 140
+#: Durable notes kept per subject. Small on purpose: notes never decay, so an
+#: unbounded list would grow into the prompt budget forever. Facts are the
+#: place for things allowed to fade.
+MAX_NOTES_PER_SUBJECT = 6
 MAX_DISPOSITION_STEP = 5
 TURN_BUFFER_SIZE = 6
 
@@ -114,16 +118,38 @@ class Promise:
 
 
 @dataclass
-class NPCRelation:
+class SubjectMemory:
     """
-    What one NPC feels and knows about the player.
+    What the world remembers about ONE SUBJECT.
 
-    ``disposition`` is the single home for this number. It was previously split
+    A subject is an NPC, a place, or any topic a story declares. It began as
+    ``NPCRelation`` -- people only -- and the widening is the point: a room the
+    player wrecked and a rumour they started are the same kind of thing to the
+    engine, and modelling them separately would mean two half-implementations
+    of remembering.
+
+    ``npc_id`` KEEPS ITS NAME rather than becoming ``subject_id``. It is the
+    dict key in every save on disk and it is read by ~10 call sites; renaming it
+    would be a migration bought for tidiness. ``kind`` is what actually
+    distinguishes a person from a place, and it defaults to ``npc`` so a save
+    written before this existed loads as exactly what it was.
+
+    ``disposition`` is the single home for that number. It was previously split
     between a never-written ``state.reputations`` and a never-written
     ``assistant_mind.trust_level``.
+
+    Attributes:
+        kind: ``npc`` | ``place`` | ``topic``. Decides how the subject is
+            rendered into a prompt -- a place has no opinion of you.
+        notes: Durable state a subject carries between visits. "The window is
+            still broken." For a person this is habit and circumstance; for a
+            room it is most of what memory means.
+        disposition/trust/met/first_met_day: meaningful for ``npc`` and left at
+            their defaults for the others rather than being modelled twice.
     """
 
     npc_id: str
+    kind: str = "npc"
     disposition: int = 0  # -100..100
     trust: int = 0
     met: bool = False
@@ -134,6 +160,18 @@ class NPCRelation:
     debts: list[str] = field(default_factory=list)
     owed: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+    @property
+    def subject_id(self) -> str:
+        """The honest name for ``npc_id``, for code that is not about people."""
+        return self.npc_id
+
+
+#: The old name. Kept because it reads correctly at the call sites that really
+#: are about people, and because `isinstance` checks and type hints elsewhere
+#: name it. Same class -- not a subclass, so nothing can drift.
+NPCRelation = SubjectMemory
 
 
 @dataclass
@@ -240,11 +278,107 @@ class StoryLedger:
 
     def relation(self, npc_id: str) -> NPCRelation:
         """Get or create the relation record for an NPC."""
-        rel = self.relations.get(npc_id)
-        if rel is None:
-            rel = NPCRelation(npc_id=npc_id)
-            self.relations[npc_id] = rel
-        return rel
+        return self.subject(npc_id, kind="npc")
+
+    def subject(self, subject_id: str, *, kind: str = "npc") -> SubjectMemory:
+        """
+        Get or create the memory record for any subject.
+
+        ``kind`` is applied only on CREATION. A subject that already exists
+        keeps the kind it was made with, so a stray call naming a place as an
+        npc cannot retype a record mid-run.
+        """
+        record = self.relations.get(subject_id)
+        if record is None:
+            record = SubjectMemory(npc_id=subject_id, kind=kind)
+            self.relations[subject_id] = record
+        return record
+
+    def note(self, subject_id: str, text: str, *, kind: str = "place") -> None:
+        """
+        Pin durable state to a subject. Deduplicated, newest last, bounded.
+
+        This is what makes a room the same room when the player comes back:
+        the fact ledger decays and archives by design, and "the window is still
+        broken" must not fade just because nothing mentioned it for a week.
+        """
+        text = " ".join(str(text or "").split())[:MAX_FACT_CHARS]
+        if not text:
+            return
+        record = self.subject(subject_id, kind=kind)
+        if text in record.notes:
+            return
+        record.notes.append(text)
+        del record.notes[:-MAX_NOTES_PER_SUBJECT]
+
+    def recall(self, subject_id: str, *, limit: int = 4) -> list[LedgerFact]:
+        """
+        This subject's own facts, newest and heaviest first.
+
+        WHY THIS EXISTS BESIDE ``salient_facts``. That method returns ONE global
+        top-N merely biased toward the named subjects, so a talkative NPC's six
+        facts could crowd a room's only fact out of the prompt entirely -- and
+        the caller had no way to notice, because nothing was missing, it was
+        just not chosen. Recall is per-subject and budgeted per subject, which
+        is the difference between "remembered if lucky" and "remembered".
+        """
+        rows = [
+            fact
+            for fact in self.facts
+            if not fact.archived and fact.subject_id == subject_id
+        ]
+        rows.sort(key=lambda f: (f.weight, f.turn), reverse=True)
+        return rows[:limit]
+
+    def forget(self, subject_id: str) -> int:
+        """
+        Erase a subject: its record and every fact filed against it.
+
+        Returns the number of facts dropped. Deliberately destructive and
+        deliberately total -- a "forget" that left the facts behind for
+        ``salient_facts`` to surface later would be a lie told to whoever asked
+        for it.
+        """
+        before = len(self.facts)
+        self.facts = [f for f in self.facts if f.subject_id != subject_id]
+        self.relations.pop(subject_id, None)
+        return before - len(self.facts)
+
+    def export_subject(self, subject_id: str) -> dict[str, Any]:
+        """Everything remembered about one subject, as plain data."""
+        record = self.relations.get(subject_id)
+        return {
+            "subject_id": subject_id,
+            "record": asdict(record) if record is not None else None,
+            "facts": [
+                asdict(f) for f in self.facts if f.subject_id == subject_id
+            ],
+        }
+
+    def import_subject(self, payload: Any) -> bool:
+        """
+        Restore an exported subject, replacing whatever is held for it.
+
+        Replaces rather than merges: importing is how a carry-over layer seeds
+        a new run, and merging would make the result depend on what the fresh
+        run had already invented about somebody it has not met yet.
+        """
+        if not isinstance(payload, dict):
+            return False
+        subject_id = str(payload.get("subject_id") or "")
+        if not subject_id:
+            return False
+        self.forget(subject_id)
+        record = _coerce(SubjectMemory, payload.get("record"))
+        if record is not None:
+            record.npc_id = subject_id
+            self.relations[subject_id] = record
+        for raw in payload.get("facts") or []:
+            fact = _coerce(LedgerFact, raw)
+            if fact is not None:
+                fact.subject_id = subject_id
+                self.facts.append(fact)
+        return True
 
     def meet(self, npc_id: str, *, day: int, location_id: str) -> NPCRelation:
         rel = self.relation(npc_id)

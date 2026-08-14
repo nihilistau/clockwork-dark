@@ -36,13 +36,11 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
-**1821 passing, 18 skipped in 3m15s**, no expected failures (measured
+**1840 passing, 17 skipped in 3m15s**, no expected failures (measured
 2026-08-15), plus **95 client tests** under `ui/tests/` (`npm test --prefix ui`,
 which needs `npm install --prefix ui` once — `vitest` is a devDependency). Run
 both for the real numbers rather than trusting this line; it has been stale
-before. The drop from 1850 is exactly the 29 parametrised cases that retired
-with `slow-water`; every per-story test sweeps `registry.discover()`, so
-removing a story removes its rows and nothing else.
+before.
 
 **THE SUITE RUNS IN A THIRD OF THE TIME IT DID, AND NOTHING WAS DELETED TO DO
 IT.** It was 15m32s. 69% of that — 643.8s — was `test_turn_intent_per_game.py`

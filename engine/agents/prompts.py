@@ -546,15 +546,82 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
+def _mood(disposition: int) -> str:
+    if disposition >= 60:
+        return "close to you"
+    if disposition >= 30:
+        return "warm toward you"
+    if disposition <= -60:
+        return "hostile to you"
+    if disposition <= -30:
+        return "wary of you"
+    return "neutral toward you"
+
+
+def _dossier(ledger: "StoryLedger", npc_id: str) -> list[str]:
+    """
+    One character, as much as the narrator needs and no more.
+
+    WHAT THIS REPLACES. The whole of a relation used to reach the model as a
+    single sentence -- "maris has met you and is neutral toward you" -- while
+    every fact filed against that person sat in the ledger unread. The engine
+    remembered; the narrator was not told. That is why a character could greet
+    you as a stranger on your fourth visit and invent a name for the thing you
+    gave them.
+
+    TWO FIELDS ARE DELIBERATELY NOT HERE. ``known_facts`` holds fact IDs, not
+    prose -- it is an index into ``ledger.facts``, so rendering it printed
+    ``knows: 208572d68f9613c9`` at the model, and the facts it indexes are
+    already on the ``remembers:`` lines below in readable form. ``debts`` has
+    no writer anywhere in the engine; showing an always-empty field would be a
+    promise the ledger does not keep. Wire a writer first, then render it.
+    """
+    record = ledger.relations.get(npc_id)
+    if record is None or not record.met:
+        return []
+
+    name = ledger.names.get(npc_id) or npc_id
+    head = f"- {name} ({npc_id}) has met you and is {_mood(record.disposition)}."
+    if record.last_seen_location:
+        head += f" Last seen at {record.last_seen_location}, day {record.last_seen_day}."
+    out = [head]
+
+    for fact in ledger.recall(npc_id, limit=3):
+        out.append(f"    remembers: {fact.text}")
+    for note in record.notes[-2:]:
+        out.append(f"    about them: {note}")
+    if record.owed:
+        out.append(f"    you owe them: {', '.join(record.owed[-2:])}")
+    if record.tags:
+        out.append(f"    they are: {', '.join(record.tags[-3:])}")
+    return out
+
+
 def memory_blocks(
     ledger: "StoryLedger",
     *,
     present_npc_ids: tuple[str, ...] = (),
+    location_id: str = "",
+    topic_ids: tuple[str, ...] = (),
 ) -> tuple[str, str]:
     """
-    Blocks 2 and 3 -- the running summary and the live threads.
+    Blocks 2 and 3 -- the running summary and everything remembered.
 
-    Returns (summary_block, threads_block); either may be empty.
+    SUBJECTS, NOT JUST PEOPLE. This took ``present_npc_ids`` alone, so the only
+    thing the engine could recall on purpose was a person. A fact filed against
+    a room was stored correctly, ranked against every other fact in one shared
+    top-six, and reached the prompt only if it happened to win -- which is why
+    returning somewhere never felt like returning. A place and a topic now get
+    their own budgeted section, and a talkative NPC can no longer crowd out the
+    room the player is standing in.
+
+    Args:
+        present_npc_ids: Who is in the room. Each gets a dossier.
+        location_id: Where the player is. Gets its own recall and notes.
+        topic_ids: Story-declared subjects worth carrying (a case, a rumour).
+
+    Returns:
+        (summary_block, memory_block); either may be empty.
     """
     summary_block = ""
     if ledger.summary.strip():
@@ -562,7 +629,11 @@ def memory_blocks(
 
     lines: list[str] = []
 
-    facts = ledger.salient_facts(limit=6, subject_ids=present_npc_ids)
+    # The global layer stays, smaller: it is what carries a detail that belongs
+    # to no subject in particular. The per-subject sections below are what make
+    # a specific person or room reliable.
+    subjects = tuple(present_npc_ids) + ((location_id,) if location_id else ()) + tuple(topic_ids)
+    facts = ledger.salient_facts(limit=4, subject_ids=subjects)
     if facts:
         lines.append("REMEMBERED")
         lines.extend(f"- {f.text}" for f in facts)
@@ -578,18 +649,27 @@ def memory_blocks(
             due = f" (by day {promise.due_day})" if promise.due_day else ""
             lines.append(f"- {promise.from_id} owes {promise.to_id}: {promise.text}{due}")
 
+    dossiers: list[str] = []
     for npc_id in present_npc_ids:
-        rel = ledger.relations.get(npc_id)
-        if rel is None or not rel.met:
-            continue
-        mood = (
-            "warm toward you"
-            if rel.disposition >= 30
-            else "wary of you"
-            if rel.disposition <= -30
-            else "neutral toward you"
-        )
-        lines.append(f"- {npc_id} has met you and is {mood}.")
+        dossiers.extend(_dossier(ledger, npc_id))
+    if dossiers:
+        lines.append("WHO IS HERE, AND WHAT THEY REMEMBER")
+        lines.extend(dossiers)
+
+    if location_id:
+        here: list[str] = [f"    {f.text}" for f in ledger.recall(location_id, limit=3)]
+        record = ledger.relations.get(location_id)
+        if record is not None:
+            here.extend(f"    {note}" for note in record.notes[-3:])
+        if here:
+            lines.append("THIS PLACE, AS YOU LEFT IT")
+            lines.extend(here)
+
+    for topic_id in topic_ids:
+        rows = ledger.recall(topic_id, limit=3)
+        if rows:
+            lines.append(f"ON {topic_id.replace('_', ' ').upper()}")
+            lines.extend(f"    {f.text}" for f in rows)
 
     return summary_block, "\n".join(lines)
 

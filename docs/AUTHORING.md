@@ -283,6 +283,28 @@ says what a clock IS; `data/rules/clocks.yaml` says what it DOES. Delete the
 state half and the clock fails *silently* — `value_of` reads 0.0 and
 `at: max` never resolves.
 
+**`memory:` — subjects the narrator must not lose track of.** Optional, and
+separate from the value table because a topic is a memory KEY rather than a
+declared value:
+
+```yaml
+memory:
+  topics: [the_ledger_case, the_thing_in_the_cellar]
+```
+
+Every turn, the engine recalls what it knows about each person in the room,
+about the room itself, and about each declared topic, and hands all three to
+the narrator (`engine/agents/prompts.py::memory_blocks`). People and places
+need no declaration — they are recalled by their own ids automatically. A
+topic is for the rest: an open case, a rumour, a thing with no location and no
+face. A story that declares none pays nothing.
+
+Memory is written the way it always was — engine events write directly, the
+model proposes deltas that are validated — and read two ways: unprompted in
+the blocks above, and on demand through the `recall_subject` skill. A durable
+detail that must not fade ("the shutter is still off its hinge") is a **note**
+(`ledger.note`), not a fact: facts decay and archive by design, notes do not.
+
 ### 3.2 `agents.yaml` and `prompts/` — the cast
 
 Full treatment: [docs/AGENTS.md](AGENTS.md). The authoring essentials:

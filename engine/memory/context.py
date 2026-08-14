@@ -69,6 +69,27 @@ def present_npc_ids(state: GameState) -> tuple[str, ...]:
     )
 
 
+def _declared_topics(state: GameState) -> tuple[str, ...]:
+    """
+    Subjects beyond people and places that this story wants carried every turn.
+
+    A topic is a thread of the fiction the narrator must not lose track of --
+    an open case, a rumour, the thing in the cellar. Stories declare them in
+    ``state.yaml`` under ``memory.topics``; a story that declares none pays
+    nothing, which is the same bargain every other optional system makes.
+
+    Only topics the ledger actually holds something for are returned, so a
+    declared-but-empty topic never prints an empty heading.
+    """
+    try:
+        from engine.state.active import active_schema
+
+        return tuple(active_schema().topics)
+    except Exception as exc:  # noqa: BLE001 -- a story with no schema has no topics
+        logger.debug("[memory] No declared topics: %s", exc)
+        return ()
+
+
 def build_storyteller_messages(
     state: GameState,
     ledger: StoryLedger,
@@ -124,7 +145,16 @@ def build_storyteller_messages(
 
     budget = budget or default_budget()
     npc_ids = present_npc_ids(state)
-    summary_block, threads_block = memory_blocks(ledger, present_npc_ids=npc_ids)
+    # The location is passed as a SUBJECT in its own right. Without it the
+    # ledger could hold "the window is still broken" about this exact room and
+    # never say so, because recall was people-only -- the single largest reason
+    # returning somewhere never felt like returning.
+    summary_block, threads_block = memory_blocks(
+        ledger,
+        present_npc_ids=npc_ids,
+        location_id=str(getattr(state, "location_id", "") or ""),
+        topic_ids=_declared_topics(state),
+    )
 
     blocks = BlockSet()
     blocks.add("persona", "system", storyteller_persona(), evictable=False)

@@ -154,6 +154,12 @@ class StateSchema:
     #: are defined here -- a column list living in a different file from the
     #: values it references is a rename waiting to break silently.
     summary: tuple[str, ...] = ()
+    #: Subjects beyond people and places that the narrator must not lose track
+    #: of -- an open case, a rumour, the thing in the cellar. Declared under
+    #: ``memory: {topics: [...]}``. Free-form strings on purpose: a topic is a
+    #: memory KEY, not a declared value, and validating it against the value
+    #: table would be checking it against the wrong vocabulary.
+    topics: tuple[str, ...] = ()
 
     def __contains__(self, name: str) -> bool:
         return name in self.values
@@ -283,6 +289,14 @@ def parse_schema(data: dict[str, Any], *, slug: str = "") -> StateSchema:
             )
         summary.append(key)
     schema.summary = tuple(summary)
+
+    memory_block = data.get("memory") or {}
+    if not isinstance(memory_block, dict):
+        raise SchemaError(f"'memory' for '{slug}' must be a mapping")
+    raw_topics = memory_block.get("topics") or ()
+    if isinstance(raw_topics, str):
+        raw_topics = (raw_topics,)
+    schema.topics = tuple(str(t).strip() for t in raw_topics if str(t).strip())
 
     logger.info(
         "[state] Schema parsed (operation=parse_schema, slug=%s, values=%d, "
