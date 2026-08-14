@@ -1,0 +1,94 @@
+# NEON CITY: THE CROSSING -- skill taxonomy and check rules.
+#
+# Found by fixed filename inside `paths.rules`; consumed by
+# engine/game/checks.py. The model only ever names a difficulty BAND; the
+# engine derives the DC and every modifier.
+#
+# THE SEVEN SKILL IDS ARE ENGINE CANON: persuasion, stealth, sympathy, lore,
+# craft, survival, nerve. The descriptions are rewritten for the Sprawl --
+# they are what the model reads when choosing which skill a moment calls
+# for. The canon four exits map onto them: TALK is persuasion, FIGHT is
+# nerve, SLIP is stealth, HACK is craft (working the machine) or lore
+# (knowing the machine).
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+# stat_mod(v) = (v - base) // divisor
+stat_mod:
+  base: 10
+  divisor: 2
+
+skills:
+  persuasion:
+    stat: presence
+    description: "Talking your way through: haggling, bluffing a checkpoint, holding a story together while somebody paid to doubt it takes it apart."
+  stealth:
+    stat: agility
+    description: "Slipping it: moving unseen, light hands, staying off the feeds, being somewhere the cameras have agreed you are not."
+  sympathy:
+    stat: focus
+    description: "Reading what a person or a room is holding back -- the tell under the table talk, the fear under the uniform, what Mira is not saying."
+  lore:
+    stat: wits
+    description: "Knowing the machine: protocols, header stamps, trace arithmetic, what a thing means before touching it. The hack that happens in your head first."
+  craft:
+    stat: craft
+    description: "Working the machine: decks, locks, splices, jury-rigs, a winch interlock that wants three pairs of hands and gets clever ones instead."
+  survival:
+    stat: wits
+    description: "The ground: scavenging a stack, reading the weather before it bites, a route that exists at street level and on no map."
+  nerve:
+    stat: grit
+    description: "The fight, and everything shaped like one: standing it, taking the hit, being more than the moment measured."
+
+unknown_skill_stat: wits
+
+# Difficulty BANDS (canon ids). The model never sees a raw DC.
+difficulty:
+  trivial: 8
+  easy: 10
+  standard: 13
+  hard: 16
+  severe: 19
+  legendary: 22
+default_difficulty: standard
+
+degrees:
+  - id: crit_success
+    min_margin: 10
+  - id: success
+    min_margin: 0
+  - id: partial
+    min_margin: -4
+  - id: failure
+    min_margin: -999
+
+# Situational modifiers.
+situational:
+  - id: exhausted
+    label: exhausted
+    delta: -3
+    when:
+      stat: stamina
+      lte: 20
+  - id: starving
+    label: starving
+    delta: -2
+    when:
+      field: hunger
+      gte: 85
+  - id: injured
+    label: injured
+    delta: -2
+    when:
+      stat_ratio: [hp, max_hp]
+      lte: 0.4
+  # Dark is cover, even under sodium light.
+  - id: night
+    label: darkness
+    delta: 2
+    skills: [stealth]
+    when:
+      time_of_day: night

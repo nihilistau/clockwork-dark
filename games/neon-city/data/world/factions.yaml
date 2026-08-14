@@ -1,0 +1,85 @@
+# NEON CITY: THE CROSSING -- the six factions and standing bands.
+#
+# Read by engine/game/reputation.py. Canon roster per factions.js: omnicorp,
+# neotech, blackmarket, ghost_net, synthsec, deepstate. Standing is how a
+# GROUP regards the player; how one PERSON rates them is the per-face
+# standing meters in state.yaml, and the two are deliberately separate --
+# Dane can owe you everything while SynthSec still has paper on you.
+#
+# The price curve implements the canon discount formula in spirit:
+# clamp(standing/200, 0, 0.25) off list at the top of the ladder, a
+# stranger's markup at the bottom. Neutral sits above 1.0 on purpose;
+# earning your way down to list price is meant to be felt.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+defaults:
+  bands:
+    - { id: nemesis, upto: -60, label: "nemesis" }
+    - { id: hostile, upto: -30, label: "hostile" }
+    - { id: cold, upto: -10, label: "cold" }
+    - { id: neutral, upto: 14, label: "neutral" }
+    - { id: known, upto: 39, label: "known" }
+    - { id: trusted, upto: 69, label: "trusted" }
+    - { id: revered, label: "revered" }
+
+  min_score: -100
+  max_score: 100
+
+  # price = clamp(base - score / divisor, floor, ceiling)
+  # 100 standing takes 25% off list; -100 pays half again.
+  price:
+    base: 1.10
+    divisor: 400
+    floor: 0.85
+    ceiling: 1.50
+
+factions:
+
+  omnicorp:
+    name: "OmniCorp"
+    description: >-
+      The towers, the Plaza, the concrete under Club Noir, and Floor 87.
+      OmniCorp does not threaten; it files. Standing with it is a lanyard
+      that opens doors and feeds the count a better picture of you with
+      every swipe.
+
+  neotech:
+    name: "NeoTech"
+    description: >-
+      The other tower. Care plans, clinics, chrome with warranty seals --
+      NeoTech owns the parts of people that OmniCorp merely describes.
+      Dane's kid is in one of its care plans, and it went up again.
+
+  blackmarket:
+    name: "The Black Market"
+    description: >-
+      Not a place; a way of settling. The Pit, the yard, Ripper Street and
+      half of Mira's shelf run on its word. It remembers who paid fair and
+      who counted, and its memory is the only court the Downzone answers to.
+
+  ghost_net:
+    name: "Ghost_Net"
+    description: >-
+      It does not hold things; it verifies them, constantly, forever. The
+      alley, Lyra's line, and -- tagged but never confirmed -- 0xGH0ST.
+      Standing with Ghost_Net is not friendship. It is a checksum that keeps
+      coming back clean.
+
+  synthsec:
+    name: "SynthSec"
+    description: >-
+      Order at gunpoint, billed by the hour. The Grid Point wire, the sweep
+      teams, the paper that goes on people at Wanted. It is a contractor,
+      which means it can be dealt with, which nobody should mistake for it
+      being safe to deal with.
+
+  deepstate:
+    name: "DeepState"
+    description: >-
+      The shadow under the shadow; here before the city, will outlast it.
+      It does not sell; it invests in outcomes. Its counter is Wren's, its
+      memory is the Archivist's, and its interest in you is the most
+      dangerous compliment in the Sprawl.

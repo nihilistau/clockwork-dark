@@ -1,0 +1,109 @@
+# NEON CITY: THE CROSSING -- work and wages.
+#
+# Read by engine/game/economy.py. A job is hours for credits, gated on a
+# skill, capped per day. Canon payout band is 200-1200 for real jobs; the
+# shift work below sits under that band on purpose -- shifts are the floor
+# that keeps a broke runner moving, quests are the payday.
+#
+# `demand` is keyed on the engine's evil phase, which this story pins at
+# `dormant` (doom rate 0.0) -- so the dormant column is the only one that
+# will ever be read, and the others are set equal to it.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+labour:
+  shifts_per_day: 2
+  repeats_per_day: 1
+
+jobs:
+
+  - id: crane_shift
+    name: "Work a crane shift for Petrossian"
+    blurb: >-
+      Twelve tons an hour off the north stacks, no talking. Petrossian pays
+      when the tally clears and not a minute before, and the tally clerk
+      has never once been wrong in the yard's favour.
+    location_id: junkyard_sprawl
+    skill: craft
+    difficulty: standard
+    hours: 6
+    stamina_cost: 25
+    base_wage: 180
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    in_kind:
+      - { item_id: sealed_ration, qty: 1, degrees: [crit_success, success] }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
+    success_text: "The tally clears. The credits are real and your shoulders know it."
+    failure_text: "A sling slips on the north face and the shift is docked to cover the load."
+
+  - id: courier_run
+    name: "Run a package for the Grid"
+    blurb: >-
+      A sealed satchel, an address, a window. Nobody says what is in it,
+      and asking reprices the job to zero. The Grid pays on delivery and
+      remembers punctuality like a ledger remembers everything.
+    location_id: the_grid
+    skill: survival
+    difficulty: standard
+    hours: 3
+    stamina_cost: 15
+    base_wage: 140
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
+    success_text: "The window was four minutes wide and you were inside it."
+    failure_text: "The address had moved. The satchel comes back, and the fee does not."
+
+  - id: bar_shift
+    name: "Hold the bar at the Anchor"
+    blurb: >-
+      Ines pays a flat rate to anyone she trusts behind the taps while she
+      settles the other column of the ledger. The trust is the hard part;
+      the taps are just taps.
+    location_id: rusty_anchor
+    skill: persuasion
+    difficulty: easy
+    hours: 5
+    stamina_cost: 15
+    base_wage: 100
+    pay: { crit_success: 1.4, success: 1.0, partial: 0.5, failure: 0.0 }
+    in_kind:
+      - { item_id: sprawl_ramen, qty: 1, degrees: [crit_success, success] }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
+    success_text: "Nothing broke, nobody swung, and the till agrees with itself."
+    failure_text: "Two crews, one tab, and the evening costs you your cut of it."
+
+  - id: data_scrub
+    name: "Scrub archives on Lyra's line"
+    blurb: >-
+      Piecework on the broker line: dedupe, verify, strip headers, do not
+      read the contents. Everyone reads the contents. The pay docks itself
+      if you are slow about it.
+    location_id: ghost_alley
+    skill: lore
+    difficulty: standard
+    hours: 4
+    stamina_cost: 12
+    base_wage: 150
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
+    success_text: "The queue empties. The line pays out clean, to the credit."
+    failure_text: "A checksum fails three deep and the night's work unravels unpaid."
+
+  - id: table_spot
+    name: "Spot tables for the house at Noir"
+    blurb: >-
+      Stand where the house tells you, watch hands, nod at the pit boss
+      when a hand is worth nodding about. The house pays for stillness and
+      docks for imagination.
+    location_id: club_noir
+    skill: nerve
+    difficulty: standard
+    hours: 5
+    stamina_cost: 12
+    base_wage: 160
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
+    success_text: "Three nods, two of them right, and the floor manager pays without counting twice."
+    failure_text: "You watched the wrong hands. The house noticed you noticing nothing."

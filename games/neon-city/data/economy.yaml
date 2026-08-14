@@ -1,0 +1,136 @@
+# NEON CITY: THE CROSSING -- vendor stock. Prices in credits.
+#
+# Read through `paths.economy`. Every TOP-LEVEL key is an NPC id scheduled in
+# data/world/npc_schedules.yaml. This file is the OVERRIDE layer: every item
+# already has a price everywhere via its `value` and the spread in
+# data/tables/trade.yaml; a row here is a vendor naming their own number.
+#
+# The canon prices are pinned here to the credit where the bible names one:
+# the heat-work ladder at Mira and Rho (130 / 300 / 700 / 1500), synth food
+# 25, sump coffee 35, sprawl ramen 40, overdrive amp 420, Wren at her 1.25x.
+#
+# THE SPREAD IS THE LIVING. Grease sells cheap and honest (canon 0.88);
+# Grease also BUYS at yard rate, below what the same salvage fetches at the
+# Grid -- hauling it to Mira is the paid walk the scavenge loop runs on.
+# Watch the gap: no pair of vendors prices an item into a profitable round
+# trip.
+#
+# Version: v0.1.0 [2026-08-14]
+
+# ------------------------------------------------------------
+# Mira Vex -- the Grid. Street-tech, stims, scrubs; fences anything, full
+# Grid rate, which is the reason scavenge walks here from the yard.
+# ------------------------------------------------------------
+mira_vex:
+  sells:
+    synth_food: { price: 25, name: "Synth Food Brick" }
+    sump_coffee: { price: 35, name: "Sump Coffee" }
+    stim_patch: { price: 60, name: "Stim Patch" }
+    medkit: { price: 120, name: "Medkit" }
+    id_scrub: { price: 130, name: "ID Scrub" }
+    cooldown_spoof: { price: 300, name: "Cooldown Spoof" }
+    street_pistol: { price: 260, name: "Street Pistol" }
+    flash_torch: { price: 40, name: "Flash Torch" }
+    rain_shell: { price: 90, name: "Rain Shell" }
+    filter_mask: { price: 120, name: "Filter Mask" }
+  buys:
+    salvage_tech: { price: 18, name: "Salvage Tech" }
+    copper_spool: { price: 12, name: "Copper Spool" }
+    deck_parts: { price: 34, name: "Deck Parts" }
+    courier_wrap: { price: 28, name: "Courier Wrap" }
+    drone_chassis: { price: 60, name: "Drone Chassis" }
+    dropped_credstick: { price: 40, name: "Dropped Credstick" }
+    tourist_visor: { price: 16, name: "Tourist Visor" }
+
+# ------------------------------------------------------------
+# Tovah "Grease" Grzeska -- Junkyard Sprawl. Sells cheap, sells honest;
+# buys at yard rate because the yard is where the hauling has not happened.
+# ------------------------------------------------------------
+grease:
+  sells:
+    courier_wrap: { price: 40, name: "Courier Wrap" }
+    burner_deck: { price: 240, name: "Burner Deck" }
+    emp_grenade: { price: 160, name: "EMP Grenade" }
+    climbing_rig: { price: 150, name: "Climbing Rig" }
+    synth_food: { price: 22, name: "Synth Food Brick" }
+    sealed_ration: { price: 14, name: "Sealed Ration" }
+  buys:
+    salvage_tech: { price: 12, name: "Salvage Tech" }
+    copper_spool: { price: 8, name: "Copper Spool" }
+    deck_parts: { price: 24, name: "Deck Parts" }
+    drone_chassis: { price: 42, name: "Drone Chassis" }
+    tourist_visor: { price: 11, name: "Tourist Visor" }
+
+# ------------------------------------------------------------
+# Dr. Yusra Sable -- Ripper Street. Cash, no questions; repairs at 1.06x.
+# ------------------------------------------------------------
+dr_sable:
+  sells:
+    medkit: { price: 127, name: "Medkit" }
+    trauma_patch: { price: 200, name: "Trauma Patch" }
+    stim_patch: { price: 64, name: "Stim Patch" }
+    overdrive_amp: { price: 420, name: "Overdrive Amp" }
+  buys:
+    medkit: { price: 55, name: "Medkit" }
+    trauma_patch: { price: 90, name: "Trauma Patch" }
+
+# ------------------------------------------------------------
+# Rho -- the Velvet Pit. "I pay less than it is worth and more than you
+# will get elsewhere. That gap is the whole business." The only counter
+# that quotes contraband, and the best price in the Sprawl for what the
+# Shadow zone gives up.
+# ------------------------------------------------------------
+rho:
+  sells:
+    forged_id: { price: 450, name: "Forged ID" }
+    black_ice: { price: 900, name: "Black ICE" }
+    burner_face: { price: 700, name: "Burner Face" }
+    ghost_protocol: { price: 1500, name: "Ghost Protocol" }
+    red_lace: { price: 150, name: "Red Lace" }
+  buys:
+    dead_drop_shard: { price: 30, name: "Dead-Drop Shard" }
+    ice_fragment: { price: 50, name: "ICE Fragment" }
+    cache_key: { price: 85, name: "Cache Key" }
+    patrol_log: { price: 26, name: "Patrol Log" }
+    red_lace: { price: 70, name: "Red Lace" }
+    black_ice: { price: 420, name: "Black ICE" }
+    precorp_cable: { price: 70, name: "Pre-Corporate Cable" }
+    precorp_tooling: { price: 120, name: "Pre-Corporate Tooling" }
+    one_of_one: { price: 330, name: "One-of-One Artifact" }
+
+# ------------------------------------------------------------
+# Frankie DeLuca -- Club Noir. Pays more for data than anyone, and tells
+# the room; everything bought from Frankie is also sold by Frankie.
+# ------------------------------------------------------------
+frankie:
+  sells:
+    forged_id: { price: 520, name: "Forged ID" }
+    # Frankie's miracle: he can conjure a set of lift codes, for the kind of
+    # number that tells you he hopes you will not ask twice.
+    access_codes: { price: 2600, name: "Lift Access Codes" }
+  buys:
+    dead_drop_shard: { price: 44, name: "Dead-Drop Shard" }
+    ice_fragment: { price: 74, name: "ICE Fragment" }
+    cache_key: { price: 118, name: "Cache Key" }
+    camera_capture: { price: 30, name: "Camera Capture" }
+    patrol_log: { price: 40, name: "Patrol Log" }
+
+# ------------------------------------------------------------
+# Ines Barbosa -- the Rusty Anchor. The cheapest bed and board on the map.
+# ------------------------------------------------------------
+ines_barbosa:
+  sells:
+    synth_beer: { price: 10, name: "Synth-Beer" }
+    sprawl_ramen: { price: 40, name: "Sprawl Ramen" }
+    synth_food: { price: 24, name: "Synth Food Brick" }
+    sump_coffee: { price: 30, name: "Sump Coffee" }
+
+# ------------------------------------------------------------
+# Wren Solis -- the DeepState Bunker. At 1.25x, and worth it. "The price
+# is on it. The price is not a suggestion."
+# ------------------------------------------------------------
+wren_solis:
+  sells:
+    access_codes: { price: 1500, name: "Lift Access Codes" }
+    shadow_map: { price: 500, name: "The Shadow-Zone Map" }
+    patrol_log: { price: 55, name: "Patrol Log" }

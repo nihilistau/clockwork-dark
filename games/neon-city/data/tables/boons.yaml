@@ -1,0 +1,40 @@
+# NEON CITY: THE CROSSING -- natural 20 boons (d20). The engine picks one;
+# the LLM only narrates it. Structured effects, never prose hints.
+#
+# Version: v0.1.0 [2026-08-14]
+
+boons:
+  - id: clean_work
+    text: "It goes exactly as you meant it to, and something is left over."
+    effects:
+      - { type: stamina, delta: 5 }
+
+  - id: scavengers_eye
+    applies_to: [survival]
+    text: "Your eye finds what the last three crews walked past."
+    effects:
+      - { type: item, item_id: salvage_tech, name: "Salvage Tech", qty: 2, tags: [salvage, scavenge] }
+
+  - id: off_the_feed
+    applies_to: [stealth]
+    text: "A camera blinks through its reset cycle at exactly the right four seconds."
+    effects:
+      - { type: value, name: heat, delta: -3, why: "four seconds the count never saw" }
+
+  - id: room_reads_you_right
+    applies_to: [persuasion]
+    text: "Somebody in earshot decides, on no evidence, that you are good for it."
+    effects:
+      - { type: reputation, faction: blackmarket, delta: 3 }
+
+  - id: pattern_holds
+    applies_to: [lore]
+    text: "The pattern resolves a half-second before you needed it to."
+    effects:
+      - { type: awareness, delta: 3 }
+
+  - id: steady_hands
+    applies_to: [craft]
+    text: "The work squares up first time, and the spare parts are yours."
+    effects:
+      - { type: item, item_id: deck_parts, name: "Deck Parts", qty: 1, tags: [salvage, scavenge, tech] }

@@ -1,0 +1,100 @@
+# NEON CITY: THE CROSSING -- hunger, rest and food.
+#
+# Found by fixed filename inside `paths.rules`; consumed by
+# engine/game/survival.py. Energy is the expedition's fuel: every edge,
+# scavenge and shift spends it, and it comes back only through food, stims
+# and stopping. Awake regeneration is ZERO -- stamina returns when the
+# player chooses to stop, and stopping costs hours the timestamp keeps
+# counting.
+#
+# REST IS NEVER GATED (engine rule 6). The Grid's doss corner is free, the
+# Anchor is cheap, and past the wire you can always stop -- out there the
+# clocks that matter are the weather and the timestamp, not a door charge.
+# Bedded rest downgrades to rough rest outside the listed rooms rather than
+# refusing.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+hunger:
+  per_hour: 2.0
+  max: 100.0
+  thresholds:
+    peckish: 40.0
+    hungry: 60.0
+    starving: 85.0
+  hungry_stamina_cap_penalty: 20
+  # Starvation still kills, on the flagship's measured schedule: about two
+  # and a half in-game days from the threshold -- long enough to reach a
+  # counter, a stall, or the yard's ration crates.
+  starving_hp_per_hour: 0.4
+
+stamina:
+  # Not a typo. See module header: energy comes back when you stop.
+  awake_regen_per_hour: 0.0
+
+rest:
+  rest_short:
+    label: "an hour off your feet"
+    text: "A doorway, a crate, a wall out of the rain. Your legs stop arguing."
+    hours: 2
+    stamina: 15
+    hp: 0
+
+  sleep_bed:
+    label: "a bunk and a door that locks"
+    text: "A rented bunk, a locker, a door with your weight against it. You wake almost yourself."
+    hours: 8
+    stamina: full
+    hp: 2
+    # Where somebody keeps beds: the Grid's doss row, the Anchor's rooms,
+    # Sable's recovery chairs. Elsewhere this downgrades to sleeping rough
+    # rather than refusing -- refusing rest is how you rebuild the soft-lock.
+    locations: [the_grid, rusty_anchor, ripper_street]
+    fallback: sleep_rough
+
+  sleep_rough:
+    label: "a night wherever this is"
+    text: "Concrete, cable runs, and the city doing its accounting around you."
+    hours: 8
+    check:
+      skill: survival
+      difficulty: standard
+    stamina: 55
+    hp: 0
+    on_failure:
+      stamina: 25
+
+eat:
+  hours: 0.25
+  items:
+    synth_food:
+      hunger: -35
+      stamina: 5
+      text: "Extruded, fortified, gone. It solves the next six hours."
+    sprawl_ramen:
+      hunger: -40
+      stamina: 8
+      text: "Scalding, salty, and the best thing Midtown does for forty credits."
+    sump_coffee:
+      hunger: -5
+      stamina: 12
+      text: "It does not taste good. It is not supposed to. Your eyes stay open."
+    synth_beer:
+      hunger: -10
+      stamina: 0
+      text: "Cold, cheap, and the price of the room it is drunk in."
+    sealed_ration:
+      hunger: -30
+      stamina: 4
+      text: "It tastes of the decade it was packed in. It works anyway."
+    protein_paste:
+      hunger: -15
+      stamina: 0
+      text: "Grey, legal, a meal by definition only."
+  default:
+    hunger: -15
+    stamina: 0
+    text: "You eat what you have, standing up, watching the street."
+  edible_tags: [food, ration]

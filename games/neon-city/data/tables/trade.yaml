@@ -1,0 +1,80 @@
+# NEON CITY: THE CROSSING -- trade rules: spreads and vendor profiles.
+#
+# Read by engine/game/trade.py. A vendor SELLS at value x buy and BUYS at
+# value x sell; the gap is their living, and a full round trip is supposed
+# to lose money. Selling returns 40-60% of base by canon; the global sell
+# spread sits in that band.
+#
+# Grease's 0.88 is canon (npcs.js): the only vendor on the map at a
+# discount. Sable's 1.06 is her canon repair markup applied to the shelf.
+# Wren's 1.25 is the Bunker's, and the Bunker does not negotiate.
+#
+# `deals_in` filters by item tag. Only Rho's profile carries `contraband`,
+# which is the canon rule -- contraband is fenced at the Pit or not at all.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+trade:
+  spread:
+    buy: 1.20
+    sell: 0.45
+
+vendors:
+  mira_vex:
+    name: "Mira Vex"
+    location: the_grid
+    faction: blackmarket
+    deals_in: [food, provisions, stim, medical, heatwork, gear, tech, weapon, salvage, scavenge, valuables, data]
+    # The Grid's rate is the full rate; her margin is volume and being first.
+    spread: { buy: 1.15, sell: 0.55 }
+
+  grease:
+    name: "Tovah 'Grease' Grzeska"
+    location: junkyard_sprawl
+    faction: blackmarket
+    deals_in: [salvage, scavenge, gear, tech, weapon, food, ration]
+    # Canon 0.88: sells cheap, sells honest. Buys at yard rate -- the walk
+    # to the Grid is worth roughly a third, which is the scavenge loop's
+    # whole price signal.
+    spread: { buy: 0.88, sell: 0.42 }
+
+  dr_sable:
+    name: "Dr. Yusra Sable"
+    location: ripper_street
+    faction: blackmarket
+    deals_in: [medical, stim]
+    spread: { buy: 1.06, sell: 0.48 }
+
+  rho:
+    name: "Rho"
+    location: velvet_pit
+    faction: blackmarket
+    deals_in: [data, contraband, artifact, papers, tech]
+    # "I pay less than it is worth and more than you will get elsewhere."
+    spread: { buy: 1.10, sell: 0.60 }
+
+  frankie:
+    name: "Frankie DeLuca"
+    location: club_noir
+    faction: ghost_net
+    deals_in: [data, papers]
+    # Pays over the odds and tells the room; the premium is priced into
+    # what dealing with him does to the count's picture of you (quests).
+    spread: { buy: 1.30, sell: 0.68 }
+
+  ines_barbosa:
+    name: "Ines Barbosa"
+    location: rusty_anchor
+    faction: blackmarket
+    deals_in: [food, provisions]
+    spread: { buy: 1.00, sell: 0.40 }
+
+  wren_solis:
+    name: "Wren Solis"
+    location: deepstate_bunker
+    faction: deepstate
+    deals_in: [data, quest, keys]
+    # Canon 1.25x. The price is on it. The price is not a suggestion.
+    spread: { buy: 1.25, sell: 0.50 }

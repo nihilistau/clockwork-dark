@@ -1,0 +1,186 @@
+# NEON CITY: THE CROSSING -- salvage and data: what the districts give up.
+#
+# The scavenge economy's raw side. The loop the whole expedition runs on:
+# scavenge in the Downzone, fence in Midtown, spend on passage. Each item's
+# tags say which forage tables can yield it (data/tables/forage.yaml) and
+# which vendors will quote it (deals_in filters in data/tables/trade.yaml).
+#
+#   salvage    the Junkyard's yield; Grease at yard rate, the Grid full rate
+#   data       Ghost Alley's yield; Lyra and Rho pay, Frankie pays more and
+#              tells the room
+#   artifact   the Shadow crossing's yield; the only goods that make Rho go
+#              quiet, and quiet Rho pays best
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+items:
+
+  # -- junkyard salvage ---------------------------------------------------
+
+  - id: salvage_tech
+    name: "Salvage Tech"
+    description: >-
+      Boards, relays, a motor that still turns. The stacks give it up to
+      anyone willing to climb, and Grease can price it by the rattle.
+    tags: [salvage, scavenge]
+    weight: 0.8
+    value: 26
+    stack: true
+
+  - id: copper_spool
+    name: "Copper Spool"
+    description: >-
+      Stripped cable wound tight. Heavy, honest, always worth something --
+      the Downzone's version of finding coins in a coat.
+    tags: [salvage, scavenge]
+    weight: 1.0
+    value: 18
+    stack: true
+
+  - id: deck_parts
+    name: "Deck Parts"
+    description: >-
+      A cyberdeck's organs, pulled clean: co-processor, cooling sleeve, an
+      input array with somebody's thumb-wear still on it. Runners pay well
+      to avoid asking where parts come from.
+    tags: [salvage, scavenge, tech]
+    weight: 0.5
+    value: 48
+    stack: true
+
+  - id: courier_wrap
+    name: "Courier Wrap"
+    description: >-
+      A weatherproof carry-harness of the kind runners wear, come off a
+      runner who stopped needing it. Nobody asks. That is the yard's whole
+      etiquette in one transaction.
+    tags: [salvage, scavenge, gear]
+    weight: 0.6
+    value: 40
+    stack: true
+
+  - id: drone_chassis
+    name: "Drone Chassis"
+    description: >-
+      A surveillance drone, grounded, its corp serial ground off by gravel
+      or by intent. The uncommon find that pays for the week -- assuming
+      nobody comes looking, and nobody came looking is the part that keeps
+      Grease awake.
+    tags: [salvage, scavenge, tech]
+    weight: 2.0
+    value: 85
+    stack: true
+
+  # -- strip pickings -----------------------------------------------------
+
+  - id: dropped_credstick
+    name: "Dropped Credstick"
+    description: >-
+      Anonymous, half-spent, trodden flat by the Strip's ten thousand feet.
+      Whoever lost it will not miss it in a crowd that is paid to forget its
+      own pockets.
+    tags: [scavenge, valuables]
+    weight: 0.05
+    value: 45
+    stack: true
+
+  - id: tourist_visor
+    name: "Tourist Visor"
+    description: >-
+      Rental AR, walked off with, geofence long expired. Worth more in
+      parts than it ever was in rent.
+    tags: [scavenge, tech]
+    weight: 0.3
+    value: 24
+    stack: true
+
+  # -- ghost alley data ---------------------------------------------------
+
+  - id: dead_drop_shard
+    name: "Dead-Drop Shard"
+    description: >-
+      A storage shard from a taped-up alley drop: keys, correspondence,
+      somebody's insurance. Worthless to Grease. Gold to Rho and Lyra.
+    tags: [data, scavenge]
+    weight: 0.05
+    value: 36
+    stack: true
+
+  - id: ice_fragment
+    name: "ICE Fragment"
+    description: >-
+      A shattered defence routine, edges still sharp enough to study. The
+      alley trades these the way other streets trade cigarettes.
+    tags: [data, scavenge]
+    weight: 0.05
+    value: 62
+    stack: true
+
+  - id: cache_key
+    name: "Cache Key"
+    description: >-
+      A one-use credential to somebody's buried stash. The uncommon find of
+      the alley -- what the stash holds is a separate gamble, which is why
+      the key sells rather than gets used.
+    tags: [data, scavenge]
+    weight: 0.02
+    value: 105
+    stack: true
+
+  - id: camera_capture
+    name: "Camera Capture"
+    description: >-
+      A lifted frame-set from a Strip camera, timestamped, angles and all.
+      By itself, nothing: a crowd, rain, light. Against the shard's forty
+      seconds, evidence.
+    tags: [data, scavenge]
+    weight: 0.02
+    value: 22
+    stack: true
+
+  - id: patrol_log
+    name: "Patrol Log"
+    description: >-
+      A SynthSec route sheet out of the approach ditches, rotations and
+      sweep windows in dot-matrix grey. Out of date in three days. Priceless
+      for two.
+    tags: [data, scavenge]
+    weight: 0.05
+    value: 34
+    stack: true
+
+  # -- shadow crossing artifacts -----------------------------------------
+
+  - id: precorp_cable
+    name: "Pre-Corporate Cable"
+    description: >-
+      Sheathed conductor from before any of the logos, insulation stamped
+      with a maker's mark no registry carries. It should not conduct
+      anymore. It does.
+    tags: [artifact, scavenge]
+    weight: 1.2
+    value: 75
+    stack: true
+
+  - id: precorp_tooling
+    name: "Pre-Corporate Tooling"
+    description: >-
+      A hand tool for a job nobody can name, machined to a tolerance nobody
+      out here can measure. Rho turns it over twice and stops talking.
+    tags: [artifact, scavenge]
+    weight: 0.9
+    value: 130
+    stack: true
+
+  - id: one_of_one
+    name: "One-of-One Artifact"
+    description: >-
+      There is no second one. There was never a production run. Whatever
+      poured the slab under the lift made this, once, and the best fence in
+      the Sprawl will go quiet over it, and quiet Rho pays best.
+    tags: [artifact, scavenge]
+    weight: 0.7
+    value: 340
+    stack: true

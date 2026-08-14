@@ -1,0 +1,53 @@
+# NEON CITY: THE CROSSING -- what a knockout is.
+#
+# Found by fixed filename inside `paths.rules`; consumed by
+# engine/game/encounter.py::check_death. Canon: death on the street is a
+# SETBACK -- you wake on Ripper Street, short a clinic bill, and the world
+# kept its own hours the whole time you were down. The timestamp does not
+# pause for you; that is the real cost.
+#
+# There is no `terminal:` block, on purpose. The flagship's true game over
+# keys on doom phases this story pins at dormant; here the run ends the way
+# the bible says runs end -- the endings table, including the fail-forward
+# A NAME THEY STOPPED SAYING, which the debt and heat clocks feed. A bad
+# roll costs a knockout, never the save.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+threshold: 0
+
+respawn:
+  location_id: ripper_street
+
+  # Hours you are simply not present for. The file keeps its date.
+  hours: 10
+
+  hp_fraction: 0.35
+  stamina_fraction: 0.30
+
+  # The clinic bill, canon shape: somebody carried you in, and the ledger
+  # got its share before you woke.
+  gold_loss_fraction: 0.4
+  gold_loss_min: 50
+
+  wound:
+    text: "the long ache of whatever put you down"
+    severity: 3
+    check_penalty: -2
+    skills: [craft, stealth, survival, nerve]
+    heals_on_day: "+5"
+
+  effects:
+    # Whoever hauled you to the recovery row also got something into you.
+    - type: hunger
+      delta: -45
+    - type: ledger_fact
+      kind: engine
+      text: "You woke on Ripper Street short a clinic bill, with no memory of the carry."
+
+  text: >-
+    You come to in Sable's recovery row with a drain in your arm and a bill
+    already itemised. Your credsticks are lighter. Nobody says who brought
+    you in, and on this street nobody will.

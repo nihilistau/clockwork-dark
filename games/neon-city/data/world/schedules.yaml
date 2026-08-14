@@ -1,0 +1,29 @@
+# NEON CITY: THE CROSSING -- world schedule.
+#
+# Read by engine/world/schedules.py. FRICTION NOTE, left here on purpose:
+# the event ids this module rolls are fixed in code (caravan_arrival,
+# tinker_camp, militia_press) -- flagship-shaped mechanics a second graph
+# story can only reuse under those names or leave dormant. This story
+# leaves them dormant (no config blocks, so every probability reads 0)
+# and uses the file for what IS story-neutral: the ambient rumour pool.
+#
+# The Sprawl's own pressure events are the clock beats in
+# data/rules/clocks.yaml, which emit world events by their own ids.
+#
+# 0xGH0ST's broadcasts live in data/world/rumors.yaml, tiered by
+# awareness. These are the other channel: street chatter, overheard at
+# counters and bars, no signal in it -- mostly.
+#
+# Version: v0.1.0 [2026-08-14]
+
+rumors:
+  - "The Strip's cameras did a full-sweep synchronise at 03:00. Nobody ordered it. Nobody will say nobody ordered it."
+  - "Grease pulled a corp-current chassis out of the north face and wants it gone more than she wants the margin."
+  - "A booth at Noir paid out four hands running. The house let it. The house never lets it."
+  - "Two SynthSec trucks ran the gate loop twice in one night. Out full, back full, both times."
+  - "Somebody at the Pit is buying provenance stories. Not goods -- the stories."
+  - "Rent on the alley end of Ripper Street went up by exactly the cost of a cooldown spoof. Nobody thinks that is a coincidence."
+  - "The acid came early over the Junkyard on Tuesday. The weather feeds called it forty minutes after it started."
+  - "A room over the noodle stall in Ghost Alley is paid up four months ahead, and nobody has gone in or out."
+  - "Dane at the Grid Point requested his transfer again. The paperwork expired again. Coincidence, again."
+  - "Frankie asked three separate people what they knew about floor numbering in the towers. Frankie never asks. Frankie pays."

@@ -1,0 +1,153 @@
+# NEON CITY: THE CROSSING -- provisions: food, drink, stims and medicine.
+#
+# Read by engine/game/inventory.py; every *.yaml under `paths.items` merges
+# into one registry. `value` is the credit baseline the trade spread prices
+# from; the signature canon prices are pinned per-vendor in economy.yaml.
+#
+# The `food` tag is load-bearing: eating is an engine mechanic keyed on it,
+# and the nutrition table is data/rules/survival.yaml. The free food loop the
+# graph shape demands is the scavenge economy: protein paste and sealed
+# rations turn up in the Junkyard's and the crossing's forage tables, so a
+# broke runner can eat without ever holding a credit.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+items:
+
+  # -- food ---------------------------------------------------------------
+
+  - id: synth_food
+    name: "Synth Food Brick"
+    description: >-
+      Extruded, fortified, flavour listed as "savoury". It solves the next
+      six hours, which is what food is for. Nobody has ever finished one
+      slowly.
+    tags: [food, provisions]
+    weight: 0.3
+    value: 20
+    stack: true
+
+  - id: sprawl_ramen
+    name: "Sprawl Ramen"
+    description: >-
+      Broth, noodles, and something the stall's licence calls chicken. Served
+      scalding in a bag with a strip of tape for a handle. The best forty
+      credits Midtown sells.
+    tags: [food, provisions]
+    weight: 0.4
+    value: 32
+    stack: true
+
+  - id: sump_coffee
+    name: "Sump Coffee"
+    description: >-
+      Black, thick, allegedly filtered. It does not taste good. It is not
+      supposed to taste good. It is supposed to keep your eyes open until
+      the job is done, and it keeps that promise.
+    tags: [food, provisions, stim]
+    weight: 0.2
+    value: 28
+    stack: true
+
+  - id: sealed_ration
+    name: "Sealed Ration"
+    description: >-
+      Corp-issue field meal, seal intact, serial burned off. The yard turns
+      these up in crates nobody came looking for. Tastes of the decade it
+      was packed in.
+    tags: [food, ration, scavenge]
+    weight: 0.4
+    value: 12
+    stack: true
+
+  - id: protein_paste
+    name: "Protein Paste"
+    description: >-
+      A tube of grey that meets the legal definition of a meal. Scavenged by
+      the dozen from vending lines and dead couriers' pockets. Squeeze,
+      swallow, do not read the ingredients.
+    tags: [food, ration, scavenge]
+    weight: 0.1
+    value: 6
+    stack: true
+
+  - id: synth_beer
+    name: "Synth-Beer"
+    description: >-
+      The Anchor's own, brewed in a tank Ines will not show anyone. Cheap,
+      cold, and the price of sitting in the one room in the Downzone where
+      nobody is working an angle on you.
+    tags: [food, provisions]
+    weight: 0.5
+    value: 8
+    stack: true
+
+  # -- stims --------------------------------------------------------------
+
+  - id: stim_patch
+    name: "Stim Patch"
+    description: >-
+      Peel, slap, and the fatigue moves politely to one side for a few
+      hours. It does not leave. It waits.
+    tags: [stim, medical]
+    weight: 0.05
+    value: 55
+    stack: true
+    use:
+      verb: "slap on"
+      consumes: 1
+      effects:
+        - { type: stamina, delta: 25 }
+
+  - id: overdrive_amp
+    name: "Overdrive Amp"
+    description: >-
+      The top of the ladder. Three days of you, spent in one night. The
+      label says medical. The price says otherwise.
+    tags: [stim, medical, contraband]
+    weight: 0.1
+    value: 380
+    stack: true
+    use:
+      verb: "crack"
+      consumes: 1
+      once_per_day: true
+      effects:
+        - { type: stamina, delta: 70 }
+        - { type: hunger, delta: 15 }
+
+  # -- medicine -----------------------------------------------------------
+
+  - id: medkit
+    name: "Medkit"
+    description: >-
+      Sterile enough. Sutures, sealant, two ampoules of something that
+      stops the shaking. The crossing is paid for in condition, and this
+      buys a little of it back on the worst ground in the Sprawl.
+    tags: [medical]
+    weight: 0.6
+    value: 110
+    stack: true
+    use:
+      verb: "patch up with"
+      consumes: 1
+      hours: 0.5
+      effects:
+        - { type: stat, stat: hp, delta: 5 }
+
+  - id: trauma_patch
+    name: "Trauma Patch"
+    description: >-
+      Sable's own compound, dispensed without questions. Seals what should
+      have a surgeon in it long enough to reach one.
+    tags: [medical]
+    weight: 0.2
+    value: 190
+    stack: true
+    use:
+      verb: "press on"
+      consumes: 1
+      effects:
+        - { type: stat, stat: hp, delta: 9 }

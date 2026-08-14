@@ -1,0 +1,118 @@
+# NEON CITY: THE CROSSING -- awareness-gated rumours, and 0xGH0ST.
+#
+# Read through `paths.world_rumors`. Three tiers keyed to hidden awareness:
+# what you have learned to listen for decides what the city sounds like.
+#
+#   tier 1  min_awareness  0   street noise; nothing named
+#   tier 2  min_awareness 20   names, places, the shape of the machine
+#   tier 3  min_awareness 45   0xGH0ST traffic, verbatim register: clipped,
+#                              imperative, timestamped, slightly ahead of you
+#
+# 0xGH0ST is a signal, not a person: never met, never seen, never explained
+# (BIBLE.md NEVER-rules). Its lines carry the canon message bank's cadence,
+# four of them verbatim from it. `source_npc` is never set on tier-3 rows --
+# a broadcast has no body for the schedule to stand anywhere.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+fallback: "The Grid's tickers scroll their prices, and the prices are the only news that admits to being news."
+
+tier_weights:
+  1: 1.0
+  2: 3.0
+  3: 6.0
+
+rumors:
+
+  # -- tier 1: street noise, nothing named --------------------------------
+
+  - id: rain_on_schedule
+    tier: 1
+    min_awareness: 0
+    text: "The rain has been arriving on the forecast's minute all month. People have started leaving before it starts, which is new."
+
+  - id: lift_directory
+    tier: 1
+    min_awareness: 0
+    text: "A tower lift held its doors on an empty floor for a full minute last week. The directory says the floor is mechanical services."
+
+  - id: quiet_bounties
+    tier: 1
+    min_awareness: 0
+    source_npc: ines_barbosa
+    text: "Three regulars stopped coming in the same fortnight. No funerals, no goodbyes. Just tabs, settled by transfer, from nowhere."
+
+  - id: yard_rectangles
+    tier: 1
+    min_awareness: 0
+    source_npc: grease
+    text: "The ground past the crane on the north face has been turned over in rectangles again. Nobody works that face. Nobody talks about it either."
+
+  - id: honest_prices
+    tier: 1
+    min_awareness: 0
+    source_npc: mira_vex
+    text: "Prices in the Grid have been odd -- not high, ODD. Like somebody upstream knows what you want before you reach the counter."
+
+  # -- tier 2: names and the shape of the machine -------------------------
+
+  - id: intake_feeds
+    tier: 2
+    min_awareness: 20
+    source_npc: lyra_vance
+    text: "Every braindance, every clinic scan, every arena feed -- scrubbed of names and fed upward. Ask where 'upward' ends and the line goes quiet."
+
+  - id: trucks_full
+    tier: 2
+    min_awareness: 20
+    text: "The Grid Point trucks go out full and come back full. Weight in equals weight out. Whatever the cargo is, it circulates."
+
+  - id: fifty_two_minutes
+    tier: 2
+    min_awareness: 20
+    text: "SynthSec closed the dead courier's file in fifty-two minutes. A mugging gets a week. Fifty-two minutes is housekeeping."
+
+  - id: bunker_finds_you
+    tier: 2
+    min_awareness: 20
+    text: "There is a counter past the wire that is not on any map. You do not find it. It finds you, and only if you arrive quiet."
+
+  - id: renders_not_recordings
+    tier: 2
+    min_awareness: 20
+    source_npc: frankie
+    text: "Word at the back tables: somebody in this city was sold footage of their own death, and the footage has no camera in it."
+
+  # -- tier 3: 0xGH0ST traffic (canon bank, extended in kind) -------------
+
+  - id: ghost_package
+    tier: 3
+    min_awareness: 45
+    text: "Your dead phone lights, once: 'They moved the package. Check the drop point. You have 2 hours.' No sender. No battery, either."
+
+  - id: ghost_briefing
+    tier: 3
+    min_awareness: 45
+    text: "A ticker mid-scroll, for four seconds, all caps: 'Your name came up in a SynthSec briefing. Lay low. Delete this.' The ticker resumes prices."
+
+  - id: ghost_intercept
+    tier: 3
+    min_awareness: 45
+    text: "A screen you were not watching: 'Corp comms intercepted. They know about the node. Sending now.' Nothing arrives. Or it already did."
+
+  - id: ghost_timestamp
+    tier: 3
+    min_awareness: 45
+    text: "Every screen in the alley at once, timestamped ahead of your watch: 'The date on your file is a forecast, not a promise. Forecasts are wrong when you make them wrong.'"
+
+  - id: ghost_gate
+    tier: 3
+    min_awareness: 45
+    text: "One line, buried in a patrol log you did not scavenge yet: 'The mast reads faces. The corporal reads the ground. Different doors. 0xGH0ST.'"
+
+  - id: ghost_goodbye
+    tier: 3
+    min_awareness: 45
+    text: "It arrives on a dead channel, plainly addressed: 'I'm 0xGH0ST. I'm everywhere. But I won't be here much longer. Make it count.'"

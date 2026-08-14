@@ -1,0 +1,92 @@
+# NEON CITY: THE CROSSING -- what you were before the shard.
+#
+# Found by fixed filename inside `paths.rules`. Three, from the fiction, each
+# with a starting kit that says what the life left in your pockets.
+#
+# `stats` are ABSOLUTE values applied at character creation
+# (engine/game/procgen.py::apply_archetype sets them directly; the engine
+# baseline is 10). Spreads are kept close to baseline: a runner out of their
+# depth, not a class that cannot fail. `skill_bonus` feeds checks.py.
+# `start_gold` is the purse -- canon START_CREDITS is 2000 and every life
+# starts there; the kit is where the lives differ.
+#
+# This file is what EXISTS; game.yaml's `entry.archetypes` is what is
+# OFFERED. Both lists agree.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+default: runner
+
+archetypes:
+  runner:
+    name: "Runner"
+    blurb: >-
+      A freelance operator, which is the Sprawl's word for somebody who does
+      what the job says and asks the second question never. You know the
+      ground, you know the windows, and the Grid knows your handle, which
+      cuts both ways.
+    summary: "You know the ground. The ground knows you back."
+    stats:
+      grit: 10
+      agility: 12
+      wits: 10
+      presence: 10
+      craft: 10
+    skill_bonus:
+      survival: 1
+      stealth: 1
+    start_gold: 2000
+    starting_items:
+      # The kit of somebody who lives out of a harness: weatherproofing and
+      # a day of not having to stop.
+      - { id: courier_wrap, name: "Courier Wrap", qty: 1, tags: [salvage, scavenge, gear] }
+      - { id: rain_shell, name: "Rain Shell", qty: 1, tags: [gear, provisions] }
+      - { id: protein_paste, name: "Protein Paste", qty: 3, tags: [food, ration, scavenge] }
+
+  ex_corpo:
+    name: "Ex-Corpo"
+    blurb: >-
+      You had a lanyard, a floor, a chair that knew your weight. Then a
+      clearance changed and no memo said why. You still read a room in
+      org-chart, which is a skill down here, and a smell they catch on you,
+      which is not.
+    summary: "The tower let go of you. Its manners did not."
+    stats:
+      grit: 9
+      agility: 10
+      wits: 11
+      presence: 12
+      craft: 10
+    skill_bonus:
+      persuasion: 1
+      lore: 1
+    start_gold: 2000
+    starting_items:
+      # Severance, of a kind: a clean identity bought the week it got bad,
+      # and the habit of decent coffee.
+      - { id: forged_id, name: "Forged ID", qty: 1, tags: [contraband, papers] }
+      - { id: sump_coffee, name: "Sump Coffee", qty: 2, tags: [food, provisions, stim] }
+
+  wirehead:
+    name: "Wirehead"
+    blurb: >-
+      More hours in the wires than on the street, and it shows in both
+      directions. You think in trace arithmetic and handshake timings; the
+      alley rates you, and the sun is a rumour you have chosen not to
+      verify.
+    summary: "The wires are honest. It is the street that lies."
+    stats:
+      grit: 9
+      agility: 10
+      wits: 13
+      presence: 9
+      craft: 11
+    skill_bonus:
+      lore: 1
+      craft: 1
+    start_gold: 2000
+    starting_items:
+      # A deck that boots and the pieces of the last one.
+      - { id: burner_deck, name: "Burner Deck", qty: 1, tags: [gear, tech] }
+      - { id: deck_parts, name: "Deck Parts", qty: 1, tags: [salvage, scavenge, tech] }

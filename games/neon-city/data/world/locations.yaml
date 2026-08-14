@@ -1,0 +1,256 @@
+# NEON CITY: THE CROSSING -- the travel graph. Fourteen waypoints, four
+# altitudes: Midtown, the Downzone, Uptown, the Shadow zone, and one hall
+# below all of them. Canonical district ids from the NeonCity canon kept
+# where they exist (BIBLE.md section 2).
+#
+# Read by engine/game/locations.py. Edges carry hours (the price of
+# distance), danger_dc (encounter probability -- the bands in
+# data/encounters/ must agree with every nonzero value here) and
+# awareness_delta (what making the trip teaches you about the count).
+#
+# DANGER LADDER, matched to the encounter files: 3-4 low, 8-9 medium,
+# 12 high, 15 severe. Both directions of every edge are written; the lift's
+# descent is the one genuine `one_way: true` in the story.
+#
+# THE GATES ARE NOT EDGES. The engine's travel system carries no predicates,
+# so the Grid Point's heat-70 refusal, the Bunker's heat<=40 door and the
+# lift's keys-and-crew interlock are enforced where this engine can enforce
+# them: quest preconditions and arc unlocks (data/quests/), encounter
+# pressure on the gated edges, ending gates that read heat, and the
+# narrator's standing law (prompts/storyteller.md). See BIBLE.md 4.7.
+#
+# `evil_multiplier` dials are left at 1.0 throughout: the doom rate is 0.0
+# in this story and the dial only matters if that ever changes.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+rings:
+  0: "The Grid"
+  1: "Midtown and the Downzone"
+  2: "Uptown"
+  3: "The Shadow Zone"
+  4: "Below"
+
+locations:
+
+  the_grid:
+    name: "The Grid"
+    ring: 0
+    evil_multiplier: 1.0
+    # ID PINNED: game.yaml's `entry.location_id`.
+    summary: >-
+      Underground marketplace, off-the-books, verified by reputation.
+      Everything has a price here and the price is honest, which is the most
+      anyone in this city will do for you. Six factions agree not to burn it
+      down and everyone pays rent to all six. The last place your name is an
+      asset instead of a liability.
+    tags: [interior, market, hub, safe, social, trade]
+    connections:
+      neon_strip: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+      ghost_alley: { hours: 1, danger_dc: 4, awareness_delta: 1 }
+      ripper_street: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+      rusty_anchor: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+
+  neon_strip:
+    name: "The Neon Strip"
+    ring: 1
+    evil_multiplier: 1.0
+    summary: >-
+      Light, noise and appetite; the whole city comes here to forget. For an
+      expedition it is a river crossing made of people -- fast, loud, and
+      full of eyes that are paid to remember faces. The Strip's cameras are
+      the best-fed in Midtown.
+    tags: [outdoors, midtown, crowd, cameras, scavenge]
+    connections:
+      the_grid: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+      omnicorp_plaza: { hours: 2, danger_dc: 9, awareness_delta: 2 }
+      club_noir: { hours: 0.5, danger_dc: 3, awareness_delta: 0 }
+      velvet_pit: { hours: 0.5, danger_dc: 3, awareness_delta: 0 }
+
+  club_noir:
+    name: "Club Noir"
+    ring: 1
+    evil_multiplier: 1.0
+    summary: >-
+      A casino dressed as a cathedral. The house always wins, but tonight
+      could be different. You do not cross Club Noir; you transact it --
+      Frankie deals cards and secrets in equal measure at the back tables.
+      OmniCorp owns the concrete. Kestrel owns what happens inside it.
+    tags: [interior, midtown, social, trade]
+    connections:
+      neon_strip: { hours: 0.5, danger_dc: 3, awareness_delta: 0 }
+      velvet_pit: { hours: 0.5, danger_dc: 3, awareness_delta: 0 }
+
+  velvet_pit:
+    name: "The Velvet Pit"
+    ring: 1
+    evil_multiplier: 1.0
+    summary: >-
+      A speakeasy where deals outnumber drinks. Listen closely; everyone is
+      selling. The expedition's hiring hall: Rho's cloth for what you carried
+      out of the Downzone, Dita at the end of the bar with the tunnel map in
+      her head, and the Pit's real government is the bar tab.
+    tags: [interior, midtown, social, trade]
+    connections:
+      neon_strip: { hours: 0.5, danger_dc: 3, awareness_delta: 0 }
+      club_noir: { hours: 0.5, danger_dc: 3, awareness_delta: 0 }
+      ripper_street: { hours: 1, danger_dc: 8, awareness_delta: 0 }
+
+  junkyard_sprawl:
+    name: "Junkyard Sprawl"
+    ring: 1
+    evil_multiplier: 1.0
+    summary: >-
+      Mountains of dead tech; one runner's scrap is another's payday. The
+      richest scavenging on the map and the most honest ground on it. The
+      north face, past the crane, is where Rust's crews bury things with
+      corp serials and people inside them. Stay off it in daylight. And at
+      night.
+    tags: [outdoors, downzone, scavenge, salvage, exposed]
+    connections:
+      ripper_street: { hours: 1, danger_dc: 8, awareness_delta: 0 }
+      rusty_anchor: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+
+  ripper_street:
+    name: "Ripper Street"
+    ring: 1
+    evil_multiplier: 1.0
+    summary: >-
+      Chop shops and ripperdocs; anything bolted to a body can be bought or
+      sold. The expedition's field hospital and quartermaster's row -- Dr.
+      Sable's table for what the crossing does to you. The street itself is
+      safe-ish because everyone here is armed and busy. Knockouts wake here,
+      short a clinic bill.
+    tags: [outdoors, downzone, trade, work, scavenge, medical]
+    connections:
+      the_grid: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+      ghost_alley: { hours: 0.5, danger_dc: 3, awareness_delta: 0 }
+      velvet_pit: { hours: 1, danger_dc: 8, awareness_delta: 0 }
+      junkyard_sprawl: { hours: 1, danger_dc: 8, awareness_delta: 0 }
+      # The Colosseum undercroft: the tunnel route that delivers you outside
+      # the wire with no scan and the walk still to do. Dita drives it by
+      # feel. The Hunted player's only door, and it costs like one.
+      synthsec_gridpoint: { hours: 3, danger_dc: 12, awareness_delta: 2 }
+
+  ghost_alley:
+    name: "Ghost Alley"
+    ring: 1
+    evil_multiplier: 1.0
+    summary: >-
+      A nowhere lane where netrunners meet in the flesh, just this once.
+      Halloran kept a room here with four months paid up front in cash.
+      Lyra's broker line terminates here, and 0xGH0ST's broadcasts come in
+      cleaner in the alley than anywhere else in the city, which nobody can
+      explain.
+    tags: [outdoors, downzone, scavenge, data, quiet]
+    connections:
+      the_grid: { hours: 1, danger_dc: 4, awareness_delta: 1 }
+      ripper_street: { hours: 0.5, danger_dc: 3, awareness_delta: 0 }
+
+  rusty_anchor:
+    name: "The Rusty Anchor"
+    ring: 1
+    evil_multiplier: 1.0
+    summary: >-
+      A tavern that remembers everyone, where crews are forged over cheap
+      synth-beer and Ines keeps a ledger of who owes what to whom -- not
+      money; money is the easy column. The cheapest bed and board on the
+      map. The only tax is that everything said in it is remembered.
+    tags: [interior, downzone, safe, social, rest, trade]
+    connections:
+      the_grid: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+      junkyard_sprawl: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+
+  omnicorp_plaza:
+    name: "OmniCorp Plaza"
+    ring: 2
+    evil_multiplier: 1.0
+    summary: >-
+      Glass towers and silent security; the money looks down on the rest of
+      the city. The paperwork route to the Shadow zone -- Plaza, the
+      SynthSec Barracks corridor, the Grid Point -- and every camera here
+      feeds Intake directly. Walking Uptown is telling the count exactly
+      where you are.
+    tags: [outdoors, uptown, cameras, corporate, exposed]
+    connections:
+      neon_strip: { hours: 2, danger_dc: 9, awareness_delta: 2 }
+      # The Barracks corridor and the approach, taken together.
+      synthsec_gridpoint: { hours: 2, danger_dc: 9, awareness_delta: 2 }
+
+  synthsec_gridpoint:
+    name: "SynthSec Grid Point"
+    ring: 3
+    evil_multiplier: 1.0
+    summary: >-
+      A militarized checkpoint between the city and the dark. They are
+      watching. Cpl. Ivo Dane stands the gate, counting days to a transfer
+      that will not come. Trucks go out full and come back full; nobody
+      unloads them here. The mast reads faces, not badges, and it passes
+      nobody the city is hunting.
+    tags: [outdoors, shadow, checkpoint, military, scavenge]
+    connections:
+      omnicorp_plaza: { hours: 2, danger_dc: 9, awareness_delta: 2 }
+      ripper_street: { hours: 3, danger_dc: 12, awareness_delta: 2 }
+      deepstate_bunker: { hours: 2, danger_dc: 12, awareness_delta: 3 }
+      shadow_crossing: { hours: 4, danger_dc: 15, awareness_delta: 3 }
+
+  deepstate_bunker:
+    name: "The DeepState Bunker"
+    ring: 3
+    evil_multiplier: 1.0
+    summary: >-
+      It is not on any map. You only find it when it wants finding. Shelving
+      that goes back further than the towers do -- drives, numbered, and the
+      numbering does not start at one. The Archivist blots the page like it
+      is 1908. The Bunker does not sell; it invests in outcomes, and
+      occasionally an outcome is you.
+    tags: [interior, shadow, quiet, trade]
+    connections:
+      synthsec_gridpoint: { hours: 2, danger_dc: 12, awareness_delta: 3 }
+
+  shadow_crossing:
+    name: "The Shadow Crossing"
+    ring: 3
+    evil_multiplier: 1.0
+    summary: >-
+      The dark between the wire and the lift head. No streetlights, no
+      cameras, no count -- which sounds like relief until you understand
+      what the cameras were keeping off the streets. The weather out here is
+      the same weather, with nothing between you and it. Everything you
+      need, you carried.
+    tags: [outdoors, shadow, wild, scavenge, exposed]
+    connections:
+      synthsec_gridpoint: { hours: 4, danger_dc: 15, awareness_delta: 3 }
+      the_lift: { hours: 1, danger_dc: 12, awareness_delta: 3 }
+
+  the_lift:
+    name: "The Lift"
+    ring: 3
+    evil_multiplier: 1.0
+    summary: >-
+      A freight lift head in a poured-slab shed older than every logo in the
+      city. The doors want codes and the winch wants three pairs of hands.
+      It goes down. It is not documented to come up. The shed holds the last
+      cache on the map; take what you can carry. You will not be back this
+      way.
+    tags: [interior, shadow, scavenge, threshold]
+    connections:
+      shadow_crossing: { hours: 1, danger_dc: 12, awareness_delta: 3 }
+      # The descent. One-way, on purpose, and the only such edge in the
+      # story: there are no prices below the lift and no road back up it.
+      core_hall: { hours: 1, danger_dc: 0, awareness_delta: 5, one_way: true }
+
+  core_hall:
+    name: "The Core Hall"
+    ring: 4
+    evil_multiplier: 1.0
+    summary: >-
+      Cold, and the hum. Not sinister -- enormous, patient, entirely
+      indifferent. Nineteen years of accumulated weight describing a city
+      that agreed to be the description. The question was never whether the
+      count is true. Only who holds the pen. The ending chosen here is the
+      exit.
+    tags: [interior, below, finale]
+    connections: {}

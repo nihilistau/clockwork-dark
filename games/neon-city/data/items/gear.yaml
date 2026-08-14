@@ -1,0 +1,204 @@
+# NEON CITY: THE CROSSING -- gear, heat-work and contraband.
+#
+# The spend side of the scavenge economy: what passage actually costs. The
+# heat-work ladder is canon to the credit (pressure.js): ID Scrub 130/-8,
+# Cooldown Spoof 300/-25, Burner Face 700/-45, Ghost Protocol 1500/-80 --
+# `value` is set so Mira's and Rho's pinned prices in economy.yaml land on
+# those numbers, and each one's `use:` block moves the declared `heat` meter
+# through the one validated writer.
+#
+# Contraband carries the `contraband` tag; the trade layer's vendor
+# `deals_in` filters mean only Rho quotes it, which is the canon rule
+# ("fence it or eat the Heat") expressed as data.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+items:
+
+  # -- expedition gear ----------------------------------------------------
+
+  - id: rain_shell
+    name: "Rain Shell"
+    description: >-
+      Laminate poncho, taped seams, packs to a fist. The sky out past the
+      wire is the same sky, with nothing between you and it except this.
+    tags: [gear, provisions]
+    weight: 0.5
+    value: 80
+    stack: true
+
+  - id: filter_mask
+    name: "Filter Mask"
+    description: >-
+      Twin-cartridge, civilian rated, which the acid rain has never once
+      respected. Better than a wet rag. Everything is better than a wet
+      rag.
+    tags: [gear]
+    weight: 0.4
+    value: 110
+    stack: true
+
+  - id: climbing_rig
+    name: "Climbing Rig"
+    description: >-
+      Harness, line, two cams. The stacks are climbed, not walked, and the
+      difference between the two is this rig and a working respect for
+      gravity.
+    tags: [gear]
+    weight: 1.5
+    value: 140
+    stack: true
+
+  - id: flash_torch
+    name: "Flash Torch"
+    description: >-
+      A hand lamp that throws honest white light, which past the wire makes
+      you the brightest thing for four kilometres. Use with judgement.
+    tags: [gear, tech]
+    weight: 0.3
+    value: 35
+    stack: true
+
+  - id: street_pistol
+    name: "Street Pistol"
+    description: >-
+      Stamped frame, filed serial, sold with two magazines and no history.
+      Carrying it changes conversations before it changes anything else.
+    tags: [gear, weapon]
+    weight: 0.9
+    value: 240
+    stack: false
+
+  - id: shock_baton
+    name: "Shock Baton"
+    description: >-
+      Collapsible, capacitor-driven, technically a livestock tool. Ends an
+      argument without opening a file the way a gunshot does.
+    tags: [gear, weapon]
+    weight: 0.7
+    value: 165
+    stack: false
+
+  - id: burner_deck
+    name: "Burner Deck"
+    description: >-
+      A cyberdeck that boots, does the job, and can be dropped in a storm
+      drain without grief. Grease sells them by the crate and they work,
+      which from the yard is a promise.
+    tags: [gear, tech]
+    weight: 1.1
+    value: 220
+    stack: false
+
+  - id: emp_grenade
+    name: "EMP Grenade"
+    description: >-
+      A pulse charge in a drab shell. Kills drones, cameras, and every
+      excuse within eight metres. The yard's answer to being watched.
+    tags: [gear, weapon, contraband]
+    weight: 0.4
+    value: 150
+    stack: true
+
+  # -- heat-work: the canon ladder ---------------------------------------
+
+  - id: id_scrub
+    name: "ID Scrub"
+    description: >-
+      A single-use identity solvent: one database, one alias, gone. The
+      bottom rung of the ladder, and the one that gets climbed weekly.
+    tags: [heatwork]
+    weight: 0.05
+    value: 118
+    stack: true
+    use:
+      verb: "run"
+      consumes: 1
+      effects:
+        - { type: value, name: heat, delta: -8, why: "an alias dissolved on schedule" }
+
+  - id: cooldown_spoof
+    name: "Cooldown Spoof"
+    description: >-
+      Forged closure paperwork injected into the right queue: your file
+      marked resolved by someone with signing authority who does not exist.
+      Holds until somebody audits, and nobody audits.
+    tags: [heatwork]
+    weight: 0.05
+    value: 272
+    stack: true
+    use:
+      verb: "file"
+      consumes: 1
+      effects:
+        - { type: value, name: heat, delta: -25, why: "the file reads resolved" }
+
+  - id: burner_face
+    name: "Burner Face"
+    description: >-
+      Subdermal work, temporary, expensive, and deeply unpleasant for about
+      forty minutes. The cameras keep looking for a face you no longer
+      quite have.
+    tags: [heatwork]
+    weight: 0.1
+    value: 636
+    stack: true
+    use:
+      verb: "sit through"
+      consumes: 1
+      hours: 1
+      effects:
+        - { type: value, name: heat, delta: -45, why: "the cameras lost the face" }
+
+  - id: ghost_protocol
+    name: "Ghost Protocol"
+    description: >-
+      The top of the ladder. A coordinated purge across every feed that
+      matters, bought from people you will never meet. For most purposes
+      you briefly stop existing, which is exactly as comfortable as it
+      sounds.
+    tags: [heatwork]
+    weight: 0.05
+    value: 1364
+    stack: true
+    use:
+      verb: "trigger"
+      consumes: 1
+      effects:
+        - { type: value, name: heat, delta: -80, why: "for most purposes, you briefly stopped existing" }
+
+  # -- contraband ---------------------------------------------------------
+
+  - id: black_ice
+    name: "Black ICE"
+    description: >-
+      The kind that bites back. Sold quietly, and buying it puts your
+      handle on a manifest somewhere, permanently. Rho says this out loud
+      before taking the money, which passes for ethics on the cloth.
+    tags: [contraband, tech]
+    weight: 0.1
+    value: 820
+    stack: true
+
+  - id: red_lace
+    name: "Red Lace"
+    description: >-
+      A folded wrap of the Downzone's favourite bad idea. Lucrative, hot,
+      and heavier in the pocket than its weight explains.
+    tags: [contraband]
+    weight: 0.05
+    value: 130
+    stack: true
+
+  - id: forged_id
+    name: "Forged ID"
+    description: >-
+      A clean identity with two good spends in it. The third time is a
+      problem: the mast reads faces, not badges, and forgeries age like
+      milk in front of it.
+    tags: [contraband, papers]
+    weight: 0.05
+    value: 420
+    stack: true

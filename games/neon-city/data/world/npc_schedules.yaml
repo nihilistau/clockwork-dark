@@ -1,0 +1,123 @@
+# NEON CITY: THE CROSSING -- who is where, hour by hour.
+#
+# Read by engine/world/npc_sim.py via `paths.npc_schedules`. Every top-level
+# key in data/economy.yaml must be an npc id declared here -- a vendor with
+# stock but no schedule is a shop the player can never stand in front of.
+#
+# Eleven souls: the bible's ten, with the Archivist and Wren Solis each given
+# their own row because they keep different hours at the same counter. The
+# cast per npcs.js; every routine writes what a person in the doorway could
+# see. 0xGH0ST is NOT here and never will be -- a signal, not a person; it
+# lives in data/world/rumors.yaml and schedules.yaml as a broadcast voice.
+#
+# EVERY CHARACTER COVERS ALL 24 HOURS. `available: false` marks the hours a
+# body is present but not open for business.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+npcs:
+
+  mira_vex:
+    name: "Mira Vex"
+    role: vendor
+    home: the_grid
+    routine:
+      - { hours: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21], location: the_grid, activity: "working her counter, three conversations deep, pricing what a runner just laid on the glass without touching it" }
+      - { hours: [22, 23, 0, 1], location: the_grid, activity: "counting the day's take with the shutter half down, still answering knocks she recognises" }
+      - { hours: [2, 3, 4, 5, 6, 7, 8], location: the_grid, activity: "gone behind the back curtain; the stall watches itself", available: false }
+      - { hours: [9], location: the_grid, activity: "restocking from crates that arrived without paperwork" }
+
+  lyra_vance:
+    name: "Lyra Vance"
+    role: broker
+    home: ghost_alley
+    routine:
+      - { hours: [20, 21, 22, 23, 0, 1, 2, 3], location: ghost_alley, activity: "at the end of the broker line, three screens lit, reading traffic like weather" }
+      - { hours: [4, 5], location: ghost_alley, activity: "burning the night's session to cold storage, one drive at a time" }
+      - { hours: [6, 7, 8, 9, 10, 11, 12], location: ghost_alley, activity: "offline; the line rings through to nothing", available: false }
+      - { hours: [13, 14, 15, 16, 17, 18, 19], location: the_grid, activity: "drinking sump coffee near Mira's counter, listening to the room with her eyes closed" }
+
+  ivo_dane:
+    name: "Cpl. Ivo Dane"
+    role: gate corporal
+    home: synthsec_gridpoint
+    routine:
+      - { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], location: synthsec_gridpoint, activity: "standing the gate, checking papers against a mast that reads faces instead" }
+      - { hours: [18, 19], location: synthsec_gridpoint, activity: "logging the day's trucks, out full and back full, nobody unloading" }
+      - { hours: [20, 21, 22], location: rusty_anchor, activity: "drinking alone at the short end of the bar, uniform jacket folded over the stool" }
+      - { hours: [23, 0, 1, 2, 3, 4, 5], location: synthsec_gridpoint, activity: "bunked behind the wire", available: false }
+
+  grease:
+    name: "Tovah 'Grease' Grzeska"
+    role: vendor
+    home: junkyard_sprawl
+    routine:
+      - { hours: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], location: junkyard_sprawl, activity: "pricing a dead drone by the sound it made when it landed, third generation and it shows" }
+      - { hours: [19, 20], location: rusty_anchor, activity: "eating standing up, arguing crane schedules with anyone fool enough to hold one" }
+      - { hours: [21, 22, 23, 0, 1, 2, 3, 4, 5, 6], location: junkyard_sprawl, activity: "asleep in the crane cab with the yard lights on", available: false }
+
+  dr_sable:
+    name: "Dr. Yusra Sable"
+    role: vendor
+    home: ripper_street
+    routine:
+      - { hours: [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], location: ripper_street, activity: "elbow-deep in somebody's afternoon, cash box open, questions closed" }
+      - { hours: [0, 1, 2], location: ripper_street, activity: "the late shift: patching what the night brings in, off the books" }
+      - { hours: [3, 4, 5, 6, 7, 8, 9, 10], location: ripper_street, activity: "asleep in the recovery chair nobody else wanted", available: false }
+      - { hours: [11], location: ripper_street, activity: "autoclaving the table and counting sutures" }
+
+  rho:
+    name: "Rho"
+    role: vendor
+    home: velvet_pit
+    routine:
+      - { hours: [16, 17, 18, 19, 20, 21, 22, 23, 0, 1], location: velvet_pit, activity: "at the back table with the cloth spread, buying what nobody will admit losing" }
+      - { hours: [2, 3], location: velvet_pit, activity: "folding the cloth, which is the only visible sign the day has ended" }
+      - { hours: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], location: velvet_pit, activity: "not here; nobody saw Rho leave and nobody ever has", available: false }
+
+  dita_halvorsen:
+    name: "Dita Halvorsen"
+    role: wheelwoman
+    home: velvet_pit
+    routine:
+      - { hours: [18, 19, 20, 21, 22, 23, 0], location: velvet_pit, activity: "at the end of the bar, drawing tunnel junctions on a napkin from memory and getting them right" }
+      - { hours: [1, 2, 3, 4], location: ripper_street, activity: "walking the undercroft mouth, timing the checkpoint rotation against her own pulse" }
+      - { hours: [5, 6, 7, 8, 9, 10, 11, 12], location: velvet_pit, activity: "asleep upstairs; the barman takes messages", available: false }
+      - { hours: [13, 14, 15, 16, 17], location: velvet_pit, activity: "stripping and reassembling a service-tunnel lock, for practice, blindfolded" }
+
+  frankie:
+    name: "Frankie DeLuca"
+    role: vendor
+    home: club_noir
+    routine:
+      - { hours: [19, 20, 21, 22, 23, 0, 1, 2, 3], location: club_noir, activity: "dealing cards and secrets in equal measure at the back tables, hair slicked, count running" }
+      - { hours: [4, 5], location: club_noir, activity: "settling the night's information debts over one drink he never finishes" }
+      - { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15], location: club_noir, activity: "gone up to wherever Frankie goes; the tables sleep", available: false }
+      - { hours: [16, 17, 18], location: neon_strip, activity: "walking the Strip slow, being seen, collecting what being seen collects" }
+
+  ines_barbosa:
+    name: "Ines Barbosa"
+    role: vendor
+    home: rusty_anchor
+    routine:
+      - { hours: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], location: rusty_anchor, activity: "pulling synth-beer and updating the ledger of who owes what to whom -- the column that is not money" }
+      - { hours: [0, 1], location: rusty_anchor, activity: "turning chairs onto tables around whoever has not finished leaving" }
+      - { hours: [2, 3, 4, 5, 6, 7, 8], location: rusty_anchor, activity: "asleep behind the bar wall; the door answers to a knock she knows", available: false }
+      - { hours: [9], location: rusty_anchor, activity: "taking delivery of kegs and counting them twice" }
+
+  wren_solis:
+    name: "Wren Solis"
+    role: vendor
+    home: deepstate_bunker
+    routine:
+      - { hours: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], location: deepstate_bunker, activity: "at the counter with the price tags face down; the price is on it and the price is not a suggestion" }
+      - { hours: [21, 22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8], location: deepstate_bunker, activity: "elsewhere, under one of this year's four names", available: false }
+
+  the_archivist:
+    name: "The Archivist"
+    role: keeper
+    home: deepstate_bunker
+    routine:
+      - { hours: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], location: deepstate_bunker, activity: "writing in the record, blotting the page like it is 1908, referring to the living in the past tense" }

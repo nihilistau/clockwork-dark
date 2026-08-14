@@ -1,0 +1,122 @@
+# NEON CITY: THE CROSSING -- quest goods and keys.
+#
+# The items the arcs turn on. Most have value 0 -- they cannot be sold,
+# because what they buy is not sold in credits -- and the ones with a price
+# are the ones the fiction prices: Wren's slate at 1.25x, Frankie's
+# conjured codes, the Shadow-zone map.
+#
+# Version: v0.1.0 [2026-08-14]
+
+version: 1
+
+items:
+
+  - id: the_shard
+    name: "The Shard"
+    description: >-
+      Forty seconds of rain on wet asphalt, somebody breathing badly -- you,
+      it turns out -- shot from an angle nobody was standing at. The header
+      stamp is corporate. The timestamp is twenty-one days out.
+    tags: [quest, data]
+    weight: 0.02
+    value: 0
+    stack: false
+
+  - id: halloran_drop
+    name: "Halloran's Dead Drop"
+    description: >-
+      The courier's insurance: traffic logs, a routing stamp, four months of
+      a careful man's caution in one taped package. SynthSec closed his file
+      in fifty-two minutes. This is what they closed it on.
+    tags: [quest, data]
+    weight: 0.1
+    value: 0
+    stack: false
+
+  - id: routing_stamp
+    name: "OmniCorp Routing Stamp"
+    description: >-
+      A header authority pulled from Halloran's logs. Not proof of anything
+      by itself -- a stamp is a door, and doors are about what is behind
+      them.
+    tags: [quest, data]
+    weight: 0.02
+    value: 0
+    stack: false
+
+  - id: stamp_registry
+    name: "Stamp Registry Extract"
+    description: >-
+      The corporate registry rows that decode a header stamp. Somewhere in
+      the middle columns, between acronyms, two words: Cathedral. Intake.
+      And a floor number.
+    tags: [quest, data]
+    weight: 0.02
+    value: 0
+    stack: false
+
+  - id: confidence_paper
+    name: "The Confidence Rating"
+    description: >-
+      Lyra's read of the shard, on actual paper because paper cannot be
+      traced twice: render provenance, model angle, and a confidence figure
+      with too many decimal places to argue with.
+    tags: [quest, data]
+    weight: 0.02
+    value: 0
+    stack: false
+
+  - id: truck_manifest
+    name: "Truck Manifest"
+    description: >-
+      What the trucks carry, in and out of the Grid Point, six years of
+      full-both-ways resolved into one cargo column. Dane has guarded this
+      answer without ever having it.
+    tags: [quest, data]
+    weight: 0.05
+    value: 0
+    stack: false
+
+  - id: floor87_pass
+    name: "Floor 87 Visitor Pass"
+    description: >-
+      A laminated day-pass for a floor that does not appear in the tower's
+      lift directory. Payment in access, as offered. The count gets a
+      better look at you every time you show it.
+    tags: [quest, papers]
+    weight: 0.02
+    value: 0
+    stack: false
+
+  - id: access_codes
+    name: "Lift Access Codes"
+    description: >-
+      A cold-boot credential set for doors older than every logo in the
+      city. Wren sells them with the price face down. Floor 87's intake
+      office holds a set. Dane has seen them and wishes he had not.
+    tags: [quest, keys]
+    weight: 0.02
+    value: 1200
+    stack: false
+
+  - id: shadow_map
+    name: "The Shadow-Zone Map"
+    description: >-
+      The only honest map of the ground past the wire, drawn by whoever
+      DeepState sends when it wants the ground looked at. At Wren's markup,
+      and worth it.
+    tags: [quest, data]
+    weight: 0.05
+    value: 400
+    stack: false
+
+  - id: proxy_effigy
+    name: "The Proxy"
+    description: >-
+      A telemetry doppel in a coat: your gait, your pulse signature, your
+      route, walking a night you have decided not to walk yourself. The
+      proxy lives. That is not the part that keeps you up.
+    tags: [quest, tech]
+    weight: 1.0
+    value: 0
+    stack: false
