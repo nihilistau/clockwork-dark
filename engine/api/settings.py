@@ -273,13 +273,33 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
     },
     {
         "key": "lmstudio.profiles.big.max_tokens",
-        "label": "Narration token cap",
+        "label": "Room to answer",
         "group": "The model",
         "type": "int",
         "min": 512,
         "max": 8000,
         "restart": False,
-        "hint": "Covers reasoning AND prose combined. Too low and thinking eats the whole answer.",
+        "hint": (
+            "Tokens the narration itself may spend. Thinking is paid for "
+            "separately below, so this floor is never eaten by deliberation. "
+            "A full turn — prose, three choices, mood — measured 172 tokens."
+        ),
+    },
+    {
+        "key": "lmstudio.profiles.big.reasoning_budget",
+        "label": "Room to think",
+        "group": "The model",
+        "type": "int",
+        "min": 0,
+        "max": 8000,
+        "restart": False,
+        "hint": (
+            "Extra tokens granted for reasoning, ON TOP of the answer's. A "
+            "thinking model needs room to think as well as room to speak; give "
+            "it one budget for both and the thought eats the sentence. Measured "
+            "here at 1753–2997 tokens of thinking per turn, so 3200 covers it. "
+            "Ignored entirely when thinking is off."
+        ),
     },
     {
         "key": "lmstudio.profiles.big.reasoning",
@@ -288,7 +308,14 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
         "type": "enum",
         "options": ["on", "off"],
         "restart": False,
-        "hint": "On feeds the live reasoning panel. Off is faster and blanker.",
+        "hint": (
+            "On feeds the live reasoning panel, and thinking is most of the "
+            "turn: 106–189 seconds measured here, against 17–21 with it truly "
+            "off. Turning it off may change nothing — a narration turn is "
+            "schema-constrained, and that route ignores this setting. Only "
+            "switching structured output off frees it, and that costs the "
+            "authored choices and live streaming."
+        ),
     },
     {
         "key": "lmstudio.context_tokens",
