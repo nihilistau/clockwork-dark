@@ -44,10 +44,11 @@ against a clean `a5cedbf`, which measured 1775/16. The jump from 1813 is the
 fifth game (every per-story test parametrises over `registry.discover()`), five
 new validator checks, and three new UI-seam gates.
 
-**The nineteenth skip is expected to become a pass.** That measurement was
-taken with a rebuilt `dist` still uncommitted, which is exactly when
-`test_the_committed_build_is_not_behind_its_source` stands down; committing the
-build in the same change puts it back in the passing column.
+**Read that as 1849/18 on a committed tree.** The 1848/19 was measured with a
+rebuilt `dist` still uncommitted, which is exactly when
+`test_the_committed_build_is_not_behind_its_source` stands down. With the build
+committed that file runs 20 passed / 0 skipped, so the nineteenth skip is a
+pass again — derived from that one file, not from a second full run.
 
 **`npm test` needs its devDependencies installed**, which a `ui/node_modules`
 carrying only the runtime does not have — `vitest` is a devDependency and the
