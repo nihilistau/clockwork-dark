@@ -47,6 +47,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
+from engine.agents.cast import absent_cast
 from engine.agents.evaluator import EvaluationResult, StorytellerEvaluator
 from engine.agents.json_stream import NarrationStreamer, extract_json
 from engine.agents.prompts import evaluator_retry_prompt, storyteller_system_prompt
@@ -901,6 +902,11 @@ class StorytellerAgent:
                 parsed,
                 tool_receipts=tool_receipts,
                 lore_snippets=[c.text for c in self._lore_chunks],
+                # Read AFTER the tools ran: a turn that travelled has a
+                # different room, and the cast has to be the one the prose
+                # describes rather than the one it started in.
+                absent_cast=absent_cast(self.engine.state, self.ledger),
+                player_action=player_action,
             )
 
             # A cut-short generation is retried even when the evaluator is

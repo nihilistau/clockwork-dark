@@ -3,16 +3,25 @@ Storyteller Evaluator
 =====================
 
 Quality gate for Storyteller output — especially anti-hallucination
-for mechanical claims without tool receipts.
+for mechanical claims without tool receipts, and for characters who are not
+in the room.
 
-Version: v0.1.0 [2026-06-20]
+Two criteria can fail a turn on their own rather than by dragging the weighted
+total down: a mechanical outcome with no tool receipt, and a named character
+who is not present. Both are the same kind of error — the model asserting
+something the engine did not give it — and both are worth a retry even when the
+prose around them is good.
+
+Version: v0.2.0 [2026-08-14]
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Mapping, Optional, Sequence
+
+from engine.agents.cast import cast_note, find_intrusion
 
 
 _MECHANICS_CLAIM = re.compile(
@@ -39,6 +48,9 @@ class EvaluationResult:
     valid_json: float
     choices: float
     passed: bool
+    #: 1.0 when the prose named nobody who is absent, 0.0 when it did. A story
+    #: with no NPC roster always scores 1.0 -- there is nothing to intrude.
+    cast: float = 1.0
     notes: list[str] = field(default_factory=list)
     flag: bool = False
 
@@ -51,6 +63,7 @@ class EvaluationResult:
             "length": self.length,
             "valid_json": self.valid_json,
             "choices": self.choices,
+            "cast": self.cast,
             "passed": self.passed,
             "notes": self.notes,
             "flag": self.flag,
@@ -62,6 +75,7 @@ class StorytellerEvaluator:
 
     PASS_THRESHOLD = 0.6
     MECHANICS_FAIL_THRESHOLD = 0.5
+    CAST_FAIL_THRESHOLD = 0.5
 
     def evaluate(
         self,
@@ -70,6 +84,8 @@ class StorytellerEvaluator:
         *,
         tool_receipts: list[dict[str, Any]],
         lore_snippets: list[str] | None = None,
+        absent_cast: Optional[Mapping[str, Sequence[str]]] = None,
+        player_action: str = "",
     ) -> EvaluationResult:
         """
         Score a Storyteller turn.
@@ -79,6 +95,14 @@ class StorytellerEvaluator:
             parsed: Parsed JSON epilogue dict.
             tool_receipts: Skills invoked this turn.
             lore_snippets: Optional RAG chunks for lore check.
+            absent_cast: ``{npc_id: (surface forms...)}`` from
+                ``engine.agents.cast.absent_cast`` -- characters this story
+                knows who are NOT in the scene and whom the player has never
+                met. Empty or omitted (a story with no NPC roster, or a
+                caller with no state) makes the criterion inert rather than
+                failing.
+            player_action: The player's own words, so a character the PLAYER
+                named is not counted against the narrator.
 
         Returns:
             EvaluationResult with pass/fail.
@@ -92,6 +116,7 @@ class StorytellerEvaluator:
         length = self._score_length(narration)
         valid_json = 1.0 if parsed.get("narration") else 0.0
         choices = self._score_choices(parsed.get("choices", []))
+        cast = self._score_cast(narration, absent_cast, player_action, notes)
 
         if not parsed.get("narration"):
             notes.append("Missing narration in JSON epilogue.")
@@ -99,15 +124,20 @@ class StorytellerEvaluator:
             notes.append("Mechanical outcome claimed without tool receipt.")
 
         overall = (
-            tone * 0.2
-            + lore * 0.2
+            tone * 0.15
+            + lore * 0.15
             + mechanics * 0.3
             + length * 0.1
             + valid_json * 0.1
             + choices * 0.1
+            + cast * 0.1
         )
 
-        passed = overall >= self.PASS_THRESHOLD and mechanics >= self.MECHANICS_FAIL_THRESHOLD
+        passed = (
+            overall >= self.PASS_THRESHOLD
+            and mechanics >= self.MECHANICS_FAIL_THRESHOLD
+            and cast >= self.CAST_FAIL_THRESHOLD
+        )
 
         return EvaluationResult(
             overall=round(overall, 3),
@@ -117,10 +147,37 @@ class StorytellerEvaluator:
             length=round(length, 3),
             valid_json=round(valid_json, 3),
             choices=round(choices, 3),
+            cast=round(cast, 3),
             passed=passed,
             notes=notes,
             flag=not passed,
         )
+
+    @staticmethod
+    def _score_cast(
+        narration: str,
+        absent_cast: Optional[Mapping[str, Sequence[str]]],
+        player_action: str,
+        notes: list[str],
+    ) -> float:
+        """
+        Penalise a narration that walks an absent character into the scene.
+
+        The note is the feedback the retry gets, so it names the character.
+        Anything else ("do not invent people") is unactionable: the model has
+        no way to know which of the names it wrote was the wrong one.
+        """
+        if not absent_cast:
+            return 1.0
+        intruder = find_intrusion(
+            narration,
+            {k: tuple(v) for k, v in absent_cast.items()},
+            player_action=player_action,
+        )
+        if intruder is None:
+            return 1.0
+        notes.append(cast_note(intruder))
+        return 0.0
 
     @staticmethod
     def _score_tone(narration: str) -> float:

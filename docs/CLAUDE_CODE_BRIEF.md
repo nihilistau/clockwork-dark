@@ -461,14 +461,33 @@ if not should_assistant_speak(mind.help_probability, world_rng(state, ASSISTANT)
 
 | Criterion | Weight |
 |-----------|--------|
-| Tone match (grounded fantasy) | 0.2 |
-| Lore accuracy (RAG check) | 0.2 |
+| Tone match (grounded fantasy) | 0.15 |
+| Lore accuracy (RAG check) | 0.15 |
 | No hallucinated mechanics | 0.3 |
 | Length 40–200 words narration | 0.1 |
 | Valid JSON epilogue | 0.1 |
 | Choice quality (2–4 distinct) | 0.1 |
+| Cast — nobody absent is named | 0.1 |
 
-Fail if `no_hallucinated_mechanics < 0.5` regardless of overall score.
+Fail if `no_hallucinated_mechanics < 0.5` **or** `cast < 0.5`, regardless of
+overall score. Both are the model asserting something the engine did not give
+it, and both survive good prose around them.
+
+**CURRENT: the cast criterion** (`engine/agents/cast.py`). The persona has
+always said "never introduce a named character who is not present in WORLD
+STATE"; nothing enforced it, and a measured turn 0 in `forest_clearing` opened
+on "Ilya's lantern" — the tinker, three locations away, imported out of the
+few-shot examples. The absent set comes from the SAME `present_npc_ids` call
+the per-turn schema's `npc_id` enum is built from, so the prose gate and the
+enum cannot disagree. Precision rules, because a gate that fails good turns is
+worse than the leak: a story with no roster scores 1.0 and is inert; an AGENT
+companion (The Wicked Garden's Sophia) is not an NPC and never appears; a
+character the player has already met is a callback, not an intrusion; crowd ids
+(`court_generic`), ranks (`Sergeant`), roles worn as names (`The Lunch Lady`)
+and ordinary words never stand alone; a name the PLAYER used is not the
+narrator's doing; and the match is whole-word and capitalised. The retry note
+names the offending character, because "do not invent people" tells the model
+nothing about which name to cut.
 
 ---
 
