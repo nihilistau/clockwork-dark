@@ -1,8 +1,10 @@
 # {{title}} -- what you can be.
 #
 # Found by fixed filename inside `paths.rules`. Two, so creation is a choice
-# rather than a formality. `stats` are deltas on the engine's baseline;
-# `skill_bonus` feeds checks.py directly -- keep both small, because every
+# rather than a formality. `stats` are ABSOLUTE values, not deltas --
+# procgen.py::apply_archetype sets them outright, so `grit: 1` makes a
+# character with 1 grit, not baseline+1; declare the full spread you mean.
+# `skill_bonus` feeds checks.py directly -- keep it small, because every
 # point here is a point on every roll for the whole run.
 #
 # This file is what EXISTS; game.yaml's `entry.archetypes` is what is
