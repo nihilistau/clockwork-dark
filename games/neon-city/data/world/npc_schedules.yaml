@@ -26,8 +26,13 @@ npcs:
     routine:
       - { hours: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21], location: the_grid, activity: "working her counter, three conversations deep, pricing what a runner just laid on the glass without touching it" }
       - { hours: [22, 23, 0, 1], location: the_grid, activity: "counting the day's take with the shutter half down, still answering knocks she recognises" }
-      - { hours: [2, 3, 4, 5, 6, 7, 8], location: the_grid, activity: "gone behind the back curtain; the stall watches itself", available: false }
-      - { hours: [9], location: the_grid, activity: "restocking from crates that arrived without paperwork" }
+      - { hours: [2, 3, 4, 5, 6, 7], location: the_grid, activity: "gone behind the back curtain; the stall watches itself", available: false }
+      # THE STORY OPENS AT HOUR 8, at her counter, with her sliding a shard
+      # across it. Hour 8 sat inside the unavailable block, so `npc_sim` told
+      # the narrator she was gone while the opening narration had her speaking
+      # -- entry.location_id and the entry hour have to agree with the schedule
+      # of anyone the opening puts in the room.
+      - { hours: [8, 9], location: the_grid, activity: "at the counter before the day's trade, restocking from crates that arrived without paperwork -- the hour she keeps for business that is not for the shelf" }
 
   lyra_vance:
     name: "Lyra Vance"
