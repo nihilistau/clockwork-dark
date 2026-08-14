@@ -1,0 +1,44 @@
+/* ============================================================
+   The engine's own palette — the look a story gets when it ships none.
+
+   THIS IS THE ONE PALETTE THAT MUST NOT HAVE A VOICE. Every other sheet in
+   `stories/` is a specific world: the flagship's brass and lamplight, the
+   Garden's wine and gold, NEON CITY's black and cyan. A story that has not
+   chosen yet was being handed one of those by borrowing, and inherited its
+   mood along with its spacing — a funeral barge in the Garden's wine, offering
+   a screen called "The court".
+
+   So this is deliberately quiet: warm-neutral ink on near-black paper, one
+   restrained accent, no motif. It should read as "a story, not yet dressed"
+   rather than as a fifth aesthetic competing with the four real ones. If it
+   ever starts to look like a world, it has failed at its job.
+
+   Allowed to spell colours: `ui/tools/check-styles.mjs` holds the palette
+   allowlist, and this file is on it.
+   ============================================================ */
+
+[data-story-skin="engine"] {
+  /* ---- surfaces: paper under ink, not a theme ---- */
+  --surface-scene: #0c0c0d;
+  --surface-narrative: #151517;
+  --surface-panel: #131315;
+  --surface-ledger: #141416;
+  --surface-chrome: #0a0a0b;
+
+  /* ---- text: warm enough to read for an hour ---- */
+  --text-narration: #ded9d1;
+  --text-muted: #8d8a85;
+  --text-danger: #c46a5c;
+
+  /* ---- lines ---- */
+  --line-ink: #060607;
+  --line-soft: rgba(222, 217, 209, 0.10);
+  --line-brass: #6f6a60;
+  --line-iron: #262629;
+  --line-rust-deep: #3b3630;
+
+  /* ---- one accent, and it is a pewter rather than a colour with an
+         opinion. Gold would read as the flagship, wine as the Garden,
+         cyan as NEON CITY. ---- */
+  --accent-brass: #9a9287;
+}

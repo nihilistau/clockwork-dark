@@ -224,16 +224,33 @@ plugin whose `theme()` import path has moved, whose two overlays claim the same
 keyboard letter, or whose `reduce` rebuilds its slice for an action it should
 have ignored. Add a plugin and it is covered by writing nothing.
 
-**Borrowing is the supported path** — a `ui/src/stories/<slug>/` directory
-becomes its own chunk in the COMMITTED `dist/` tree, so do not ship one for a
-skin that already exists. A borrowed plugin lends its **look, not its voice**:
+**Declare nothing and you get the engine's own skin.** `ui/src/stories/_engine/`
+is a real plugin that deliberately has no world: a quiet warm-neutral palette,
+a wordmark that renders your story's name, onboarding that explains what a turn
+is rather than what your fiction is, and core's map. It is the honest starting
+point for a new story and a perfectly good permanent home for one that never
+wants its own look. `dev-story` wears it.
+
+This replaced a bad choice. A story with no plugin used to run on bare core —
+no theme, no wordmark — so it looked broken rather than plain, and the only
+cure was to borrow another STORY's plugin and inherit its voice along with its
+spacing.
+
+**Borrowing another story's plugin is still supported and now rarely right.** A
+`ui/src/stories/<slug>/` directory becomes its own chunk in the COMMITTED
+`dist/` tree, so do not ship one for a skin that already exists — but borrow
+`wicked-garden` only if your story genuinely wants to look like the Garden, not
+merely to look like *something*. For that, `_engine` is the answer. A borrowed
+plugin lends its **look, not its voice**:
 when `plugin != slug` the loader strips the naming slots (`title`,
 `documentTitle`, `Wordmark`, `StartIntro`, `beginLabel`, `asideLabel`,
 `onboarding` and **`overlays`**) and substitutes your story's own name from the
 catalogue, so a scratch story borrowing the Garden's skin does not announce
 itself as The Wicked Garden or invite the player through a hedge it does not
-have. `dev-story` borrows it today, which is what keeps that path exercised by
-something shipped.
+have. Nothing shipped borrows another story's plugin today — `dev-story` moved
+to `_engine` when the engine got its own — so this path is held by
+`ui/tests/plugin-contract.test.js` rather than by a running game. If you borrow,
+you are the one exercising it.
 
 **Borrowing does not lend overlays, and that is deliberate.** An overlay looks
 like a visual slot and is not — it is a whole screen written against one

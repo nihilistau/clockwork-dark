@@ -103,11 +103,21 @@ const NAMES = Object.keys(PLUGINS)
 const isComponent = (value) => typeof value === "function";
 
 describe("the plugin directory", () => {
-  it("ships exactly the three plugins the games declare", () => {
-    // Not a count: the names. A fourth plugin appearing with no story pointing
-    // at it is a chunk in the committed dist/ that nothing can ever load, and
-    // one disappearing is a story that silently falls back to core.
-    expect(NAMES).toEqual(["clockwork-dark", "neon-city", "wicked-garden"]);
+  it("ships the three story plugins plus the engine's own", () => {
+    // Not a count: the names. A plugin appearing with no story pointing at it
+    // is a chunk in the committed dist/ that nothing can ever load, and one
+    // disappearing is a story that silently falls back to something else.
+    //
+    // `_engine` is the odd one and belongs here: it is pointed at by every
+    // story that declares no `ui.plugin` -- the default rather than a choice --
+    // and by `dev-story` explicitly. Underscore-prefixed so it sorts first and
+    // so nobody mistakes it for a game; `games/_engine/` does not exist.
+    expect(NAMES).toEqual([
+      "_engine",
+      "clockwork-dark",
+      "neon-city",
+      "wicked-garden",
+    ]);
   });
 
   it("harvested a plausible slot list from core", () => {
@@ -140,6 +150,16 @@ describe.each(NAMES)("plugin: %s", (name) => {
     // or `loadStory`'s `found.slug || slug` silently swaps in the story's.
     expect(plugin.slug).toBeTypeOf("string");
     expect(plugin.slug.length).toBeGreaterThan(0);
+
+    // THE ENGINE'S PLUGIN DELIBERATELY HAS NO TITLE, and that is the point of
+    // it. It is worn by any number of stories at once, so a `title` here would
+    // put one name in the tab of every story that ships no plugin -- which is
+    // the exact bug it exists to replace. `loadStory` supplies the running
+    // story's name from the catalogue instead.
+    if (name === "_engine") {
+      expect(plugin.title).toBeUndefined();
+      return;
+    }
     expect(plugin.title).toBeTypeOf("string");
     expect(plugin.title.length).toBeGreaterThan(0);
   });

@@ -137,7 +137,15 @@ const BY_PLUGIN = Object.fromEntries(
   ])
 );
 
-/** The plugin a story gets when it ships none. Pure core. */
+/**
+ * The engine's own plugin id — the default for a story that declares none.
+ *
+ * Underscore-prefixed so it sorts away from the story plugins and so nobody
+ * mistakes it for a game: `games/_engine/` does not and must not exist.
+ */
+export const ENGINE_PLUGIN = "_engine";
+
+/** The last resort, if even the engine's plugin is missing. Pure core. */
 export const CORE_ONLY = Object.freeze({
   slug: "",
   title: "",
@@ -165,13 +173,23 @@ export function listStories() {
  *           the plugin is BORROWED -- see below.
  */
 export async function loadStory(plugin, slug = plugin, title = "") {
-  const loader = BY_PLUGIN[plugin];
+  let loader = BY_PLUGIN[plugin];
   if (!loader) {
-    // A story that ships no plugin still has a NAME. Returning bare CORE_ONLY
-    // meant `story.title` was empty and the start screen fell back to the
-    // literal "A story" -- observed on a real launch, above a picker that was
-    // correctly displaying the story's actual title two lines below.
-    return { ...CORE_ONLY, slug, title, documentTitle: title };
+    // A story that ships no plugin gets THE ENGINE'S plugin, not bare core.
+    //
+    // This used to return CORE_ONLY, which is a fallback rather than a skin --
+    // no theme, no wordmark, no onboarding -- so an undressed story looked
+    // broken rather than plain. The available cure was worse: declaring
+    // another STORY's plugin, which lends its voice along with its spacing and
+    // is how a funeral barge came to offer a screen called "The court".
+    // `_engine` is neither: a real plugin that deliberately has no world.
+    loader = BY_PLUGIN[ENGINE_PLUGIN];
+    if (!loader) {
+      // Only if the engine's own plugin has been deleted. Still carries the
+      // title: `story.title` being empty made the start screen read "A story"
+      // above a picker correctly showing the real name two lines below.
+      return { ...CORE_ONLY, slug, title, documentTitle: title };
+    }
   }
   try {
     const module = await loader();
@@ -201,7 +219,14 @@ export async function loadStory(plugin, slug = plugin, title = "") {
     // the court drew Sophia and Mother Briar, who are not aboard and do not
     // exist. A screen that renders another story's cast is worse than no
     // screen. A borrower that wants overlays ships its own plugin.
-    const borrowed = plugin !== slug;
+    //
+    // THE ENGINE'S OWN PLUGIN IS NOT A BORROW. It has no world to lend and no
+    // voice to strip: no title, no beginLabel, and a Wordmark that renders
+    // whatever name it is handed. Stripping it would blank the only naming it
+    // has and leave the story worse dressed than before. What it DOES need is
+    // the running story's identity, since it carries none of its own.
+    const engine = found.slug === ENGINE_PLUGIN;
+    const borrowed = !engine && plugin !== slug;
     const naming = borrowed
       ? {
           title: title || slug,
@@ -214,6 +239,18 @@ export async function loadStory(plugin, slug = plugin, title = "") {
           overlays: [],
         }
       : {};
+
+    if (engine) {
+      return {
+        ...CORE_ONLY,
+        ...found,
+        // The story's own name and slug, never the plugin's -- otherwise every
+        // undressed story would report itself as "_engine".
+        slug,
+        title: title || slug,
+        documentTitle: title || slug,
+      };
+    }
 
     return { ...CORE_ONLY, ...found, ...naming, slug: found.slug || slug };
   } catch (err) {

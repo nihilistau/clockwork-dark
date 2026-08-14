@@ -31,6 +31,10 @@ const PALETTES = new Set([
   "stories/clockwork-dark/theme/phases.css",
   "stories/wicked-garden/theme/tokens.css",
   "stories/neon-city/theme/tokens.css",
+  // The engine's own palette: the look a story gets when it ships none. On the
+  // list for the same reason as the others -- a palette is the one place a
+  // colour may be spelled.
+  "stories/_engine/theme/tokens.css",
 ]);
 
 function walk(dir, out = []) {

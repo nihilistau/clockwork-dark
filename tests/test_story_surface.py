@@ -385,7 +385,15 @@ def test_a_borrowed_plugin_lends_its_look_and_not_its_voice() -> None:
     into another story's screen -- which is exactly the failure this is for.
     """
     text = (UI_SRC / "core" / "story.js").read_text(encoding="utf-8")
-    assert re.search(r"const\s+borrowed\s*=\s*plugin\s*!==\s*slug", text)
+    # A borrow is still "the plugin is not this story's own"...
+    assert re.search(r"const\s+borrowed\s*=.*plugin\s*!==\s*slug", text)
+    # ...with ONE exemption, and it has to be the engine's own plugin. That one
+    # has no world to lend and no voice to strip -- no title, no beginLabel,
+    # and a Wordmark that renders whatever name it is handed -- so stripping it
+    # would blank the only naming it has and leave the story worse dressed than
+    # bare core, which is the thing it exists to fix.
+    assert re.search(r"const\s+engine\s*=\s*found\.slug\s*===\s*ENGINE_PLUGIN", text)
+    assert re.search(r"const\s+borrowed\s*=\s*!engine\s*&&", text)
     block = text.split("const naming")[1].split("return {")[0]
     for slot in ("title", "documentTitle", "Wordmark", "StartIntro", "beginLabel", "onboarding"):
         assert slot in block, f"{slot} survives a borrowed plugin"

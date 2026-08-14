@@ -41,12 +41,18 @@ blurb: >-
 # the directory name. There is no ui/src/stories/dev-story/ and there is not
 # meant to be one -- a bench that had to carry a front end would cost a build
 # step every time you renamed it, and every such directory becomes its own
-# chunk in the COMMITTED dist/ tree. Borrowing is the supported path
-# (engine/games/manifest.py::ui_plugin), and this manifest is the story the
-# key was added for.
+# chunk in the COMMITTED dist/ tree.
+#
+# IT USED TO BORROW THE GARDEN'S. That worked and it was wrong: a borrowed
+# plugin lends its VOICE along with its spacing, so the annotated bench wore a
+# fae court's palette and was offered screens about a cast it does not have.
+# `_engine` is the engine's own plugin -- a real skin with deliberately no
+# world -- and it is the honest answer for a story that has not chosen a look.
+# Declaring it explicitly rather than relying on the fallback, because this
+# file's job is to show what a manifest can say.
 # ---------------------------------------------------------------------------
 ui:
-  plugin: wicked-garden
+  plugin: _engine
 
 # ---------------------------------------------------------------------------
 # Which scene serves this story, declared rather than inherited.

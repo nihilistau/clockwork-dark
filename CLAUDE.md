@@ -36,8 +36,8 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 ## Status
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
-**1850 passing, 17 skipped in 3m14s**, no expected failures (measured
-2026-08-15), plus **95 client tests** under `ui/tests/` (`npm test --prefix ui`,
+**1849 passing, 18 skipped in 3m15s**, no expected failures (measured
+2026-08-15), plus **105 client tests** under `ui/tests/` (`npm test --prefix ui`,
 which needs `npm install --prefix ui` once — `vitest` is a devDependency). Run
 both for the real numbers rather than trusting this line; it has been stale
 before.
@@ -124,11 +124,20 @@ for the two stories that deliberately ship neither. A fixed-name file absent
 from a rules directory that EXISTS is now DEBUG ("ships none of this"); a
 declared rules directory that does not exist is still a WARNING.
 
-The client is now three plugins for four stories (`clockwork-dark`,
-`wicked-garden`, `neon-city`; `dev-story` borrows the Garden's), the committed
-`content/scenes/clockwork/static/dist` is rebuilt from `ui/src`, and `ui/` has
-its own test suite for the first time — the plugin contract across every
-shipped plugin, the core reducer, and the veiled-meter rule.
+The client is three story plugins (`clockwork-dark`, `wicked-garden`,
+`neon-city`) plus **the engine's own** (`_engine`), which is what a story gets
+when it declares no `ui.plugin` and what `dev-story` wears. That last one
+replaced a bad pair of options: run on bare `CORE_ONLY` and look broken rather
+than plain, or borrow another STORY's plugin and inherit its voice with its
+spacing. `_engine` is a real skin that deliberately has no world — quiet
+neutral palette, a wordmark that renders the running story's name, onboarding
+about what a turn is rather than about any fiction. Nothing shipped borrows
+another story's plugin now, so that path is held by
+`ui/tests/plugin-contract.test.js` rather than by a running game.
+
+The committed `content/scenes/clockwork/static/dist` is rebuilt from `ui/src`,
+and `ui/` has its own test suite — the plugin contract across every shipped
+plugin, the core reducer, and the veiled-meter rule.
 
 Also landed since: `craft_item` with degree outcomes, foraging that discovers
 hidden-path travel shortcuts, carry weight priced on travel (never on rest),

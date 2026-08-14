@@ -1,0 +1,38 @@
+/* ============================================================
+   The engine's own skin.
+
+   Almost nothing. Core's stylesheet already lays out a complete, readable
+   client; this only repoints the palette and adds the two touches that stop an
+   undressed story looking like a broken dressed one.
+
+   The rule this file lives by: if a change here would make a story LOOK like
+   something, it belongs in that story's own plugin instead. This is the sheet
+   for a world nobody has described yet.
+   ============================================================ */
+
+@import "./tokens.css";
+
+/* The palette applies through an attribute rather than a bare `:root` so that
+   loading this sheet cannot recolour a story that has its own. `bodyData`
+   writes it; core has no idea what a skin is. */
+
+/* The masthead rule. Core draws the header; this gives it a hairline so the
+   scene has a top edge without borrowing anyone's ornament. */
+body[data-story-skin="engine"] .chrome--top {
+  border-bottom: 1px solid var(--line-iron);
+}
+
+/* Narration gets a little more air than core's default. An undressed story is
+   usually a new one, and new prose is read more carefully than familiar prose. */
+body[data-story-skin="engine"] .log__entry {
+  line-height: 1.7;
+}
+
+/* The one piece of ornament, and it is punctuation rather than an image: a
+   thin rule under the wordmark on the start screen, so the title has somewhere
+   to sit. A story with a real identity replaces this with its own treatment. */
+body[data-story-skin="engine"] .wordmark--engine {
+  display: inline-block;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line-brass);
+}
