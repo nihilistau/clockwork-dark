@@ -415,6 +415,24 @@ cards:
               - { type: value, name: desire, delta: 6 }
               - { type: value, name: autonomy, delta: -4 }
 
+      - id: send_for_her
+        text: >-
+          The surrender register: do not wait to be visited. Send a bloomkin
+          with four words -- *come and collect me* -- and let her hear that the
+          day of independence ended with the player asking to be gathered back
+          in. She arrives unhurried, which is its own message, and stays.
+        gate:
+          when: { value: { name: favor, min: 40 } }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: desire, delta: 8 }
+              - { type: value, name: autonomy, delta: -10 }
+          on_fail:
+            text: "The bloomkin returns alone, with the message held politely upside down. She is not fond enough yet to come when called."
+            effects:
+              - { type: value, name: desire, delta: 2 }
+
       - id: the_crack
         text: >-
           RARE. Only if the player used iron today or stood in the crypt. She is
@@ -540,19 +558,39 @@ cards:
     tags: [sequence, gm]
     once: true
     weight: 0.5
-    when: { none: [{ flag: met_lior }] }
+    # THE NOT-YET-MET CHECK IS ON THE BEAT, NOT ON THE CARD.
+    # `when: {none: [{flag: met_lior}]}` used to sit up here, where
+    # `deck.draw` evaluates it at the TOP of the day -- before
+    # D2_03_choose_a_teacher has been resolved and before `met_lior` can
+    # exist. The gate was therefore open on every run, and a card whose entire
+    # premise is "someone you have not met yet" could be dealt to a player who
+    # spent the whole day with Lior. Down here it is read at resolve time,
+    # which is when the answer exists.
+    #
+    # THE BAND BECAME A GATE, and that is the cost of the fix: a band beat
+    # carries no condition (`deck.py` keeps the gate and drops the band when a
+    # beat declares both), so gating this at all means spending the authored
+    # 1..4 range. +2 is what the range already resolved to with no agent
+    # judging it -- `DEFAULT_QUALITY` is the midpoint, 1 + 3*0.5 = 2.5, which
+    # rounds to 2 -- so every run the simulator and the tests ever walked is
+    # unchanged, and what is lost is only an agent's room to say the moment
+    # landed well.
     title: "Someone You Have Not Met Yet"
     text: >-
       A reflection in standing water finishes a sentence the player has not
       started. It is friendly. It is charging for the friendliness already and
       the invoice has not arrived.
+      CONSTRAINT: only for a player who has NOT chosen the mirrors today. This
+      is Lior before the introduction; on a run that spent the day at the pools
+      the card is dealt and stays silent.
     beats:
       - id: look_away_first
-        band:
-          value: knowledge
-          min: 1
-          max: 4
-          text: "What the water let you keep."
+        text: "What the water let you keep."
+        gate:
+          when: { none: [{ flag: met_lior }] }
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 2, why: "the water let you keep it" }
 
   - id: DX_the_aviary_door
     tags: [sequence, gm]

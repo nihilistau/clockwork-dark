@@ -164,6 +164,20 @@ cards:
               - { type: value, name: favor, delta: 6 }
               - { type: value, name: autonomy, delta: -2 }
 
+      - id: kneel_unasked
+        text: >-
+          The surrender register, opened on day one, in public, by choice.
+          Nobody instructed it and she did not hint at it, which is exactly
+          what makes the court go quiet. She is delighted, files it, and
+          spends the rest of the audience being visibly careful with something
+          she has just been handed.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: desire, delta: 4 }
+              - { type: value, name: autonomy, delta: -8 }
+
       - id: approach_without_bowing
         text: "The court murmurs. Her smile sharpens, which is approval and also a warning."
         gate:
@@ -501,6 +515,34 @@ cards:
               - { type: flag, flag: heard_honeyed_warning }
               - { type: value, name: knowledge, delta: 2 }
 
+  - id: PX_cold_moth_at_the_window
+    tags: [sequence, gm]
+    once: true
+    # Foreshadow only, and only for a player who already proved they can refuse.
+    # DAY-00:345 -- do not introduce Ashen Vale yet; scent only. This card was
+    # authored into Day 0's pool gated on `resisted_call`, which Day 0's own
+    # spine sets -- the hand deals before the spine resolves, so it could never
+    # be dealt. The moth follows the next night instead: winter heard about the
+    # refusal, and took a day to decide it was interesting.
+    when: { flag: resisted_call }
+    title: "A Cold Moth at the Window"
+    text: >-
+      On the first night in the guest house, something silver-grey rests on the
+      outside of the glass and does not eat. It is not one of hers. Do not name
+      it, do not give it a voice, do not let the player learn anything they
+      could act on. Winter has simply noticed that you are the kind of thing
+      that says no, and it took a day for the noticing to arrive.
+    beats:
+      - id: watch_it_not_eat
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 2 }
+              # A clock is a declared value like any other; `type: value` is
+              # how state.yaml's `clocks:` block is written. There is no
+              # `clock` effect kind and inventing one would be a second writer.
+              - { type: value, name: ashen_pressure, delta: 1 }
+
   - id: DX_thornwake_present
     tags: [sequence, gm]
     once: true
@@ -520,39 +562,77 @@ cards:
   - id: DX_wine_from_a_minor_lord
     tags: [menu, gm]
     once: true
-    # The public test only makes sense as a test. If the collar is on, the
-    # lesser children of the Garden have already reconsidered.
-    when: { none: [{ flag: gift_accepted }] }
+    # THE COLLAR CHECK IS ON THE BEATS, NOT ON THE CARD, and that is a fix
+    # rather than a style choice. `when: {none: [{flag: gift_accepted}]}` used
+    # to sit up here, where `deck.draw` evaluates it at the TOP of the chapter
+    # -- before D1_05 has offered the collar and before `gift_accepted` can
+    # exist. So the gate was open on every run and the card was dealt to
+    # collared and uncollared players alike: the exact test the scene exists to
+    # be, never actually tested. Down here on the beats it is evaluated at
+    # RESOLVE time, after the spine has run, which is when the answer is known.
+    # This is the mirror of the deal-time paradox that made four other pool
+    # cards undealable; see tests/test_wicked_garden_scenes.py.
     title: "Hospitality That Bites"
     text: >-
       A minor Fae lord offers wine to the guest who refused the Sovereign's
       protection. This is the court checking whether refusal was courage or
       arithmetic.
+      CONSTRAINT: only for a guest who is NOT wearing her collar. If the gift
+      was accepted, the lesser children of the Garden have already reconsidered
+      and this scene does not happen -- the card is dealt every run and stays
+      silent on the ones where it has nothing to test, like the Deep's mouth on
+      Day 8.
+      MENU -- resolve exactly the beat the player chose, and where the refusal
+      is the choice, the one of its two beats whose gate holds.
     beats:
       - id: drink_it
         gate:
+          when: { none: [{ flag: gift_accepted }] }
           on_pass:
             effects:
               - { type: value, name: corruption, delta: 4 }
               - { type: value, name: desire, delta: 5 }
               - { type: value, name: knowledge, delta: 1 }
 
+      # ONE PLAYER CHOICE, TWO BEATS, and the split is what keeps the two
+      # failure causes from being confused for each other. This used to be a
+      # single beat whose `on_fail` carried the fumble -- which meant that once
+      # the collar condition joined the same `when:`, a COLLARED guest picking
+      # it was charged the fumble penalty for a scene that never happened to
+      # them. The gate now says which of the two situations this is, and the
+      # penalty belongs to only one of them.
       - id: refuse_with_law_shaped_words
-        text: "Requires enough of the shape of the law to bluff it. Below that, an audible failure."
+        text: "Requires enough of the shape of the law to bluff it."
         gate:
-          when: { value: { name: knowledge, min: 12 } }
+          when:
+            all:
+              - { none: [{ flag: gift_accepted }] }
+              - { value: { name: knowledge, min: 12 } }
           on_pass:
             effects:
               - { type: value, name: knowledge, delta: 3 }
               - { type: value, name: autonomy, delta: 4 }
-          on_fail:
-            text: "You reach for a law and come back with a phrase. The table enjoys it."
+
+      - id: refuse_and_fumble_the_law
+        text: >-
+          The same refusal, from someone who does not have the words yet.
+          Resolve this instead of the beat above when the law is out of reach:
+          the player reaches for it, and the table enjoys watching them not
+          find it.
+        gate:
+          when:
+            all:
+              - { none: [{ flag: gift_accepted }] }
+              - { value: { name: knowledge, max: 11 } }
+          on_pass:
+            text: "The words do not arrive, and the table enjoys the pause."
             effects:
               - { type: value, name: favor, delta: -3 }
 
       - id: look_to_her
         text: "She intercepts. The dependency beat: it works, and it costs exactly what it looks like it costs."
         gate:
+          when: { none: [{ flag: gift_accepted }] }
           on_pass:
             effects:
               - { type: value, name: favor, delta: 5 }

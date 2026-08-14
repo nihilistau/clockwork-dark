@@ -153,6 +153,21 @@ cards:
               - { type: value, name: favor, delta: 12 }
               - { type: value, name: autonomy, delta: -6 }
 
+      - id: rose_kneel_at_the_heart
+        text: >-
+          The surrender answer she did not ask for and cannot stop thinking
+          about. Kneel at the living rose and offer the decision itself -- not
+          a thorn, the deciding. It is obedience with its eyes open, which is a
+          different and rarer flower, and the briars part for it like a court
+          bowing.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: labyrinth_result_devoted }
+              - { type: value, name: favor, delta: 10 }
+              - { type: value, name: desire, delta: 6 }
+              - { type: value, name: autonomy, delta: -14 }
+
       - id: rose_cut_a_path_for_yourself
         text: "Bloody autonomy. You get out and you get out torn, and she can see both."
         gate:
@@ -377,6 +392,25 @@ cards:
               - { type: value, name: knowledge, delta: 5 }
               - { type: value, name: favor, delta: -5 }
 
+      - id: ask_to_be_kept_tonight
+        text: >-
+          The surrender register, spoken first: not presented with a token but
+          asked, in the player's own words, to be kept for the night. She goes
+          very still, the way predators and people who have been lonely a long
+          time both go still, and then she keeps them -- thoroughly, and with
+          more care than the court will ever be allowed to see.
+        gate:
+          when: { value: { name: favor, min: 45 } }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 6 }
+              - { type: value, name: desire, delta: 10 }
+              - { type: value, name: autonomy, delta: -12 }
+          on_fail:
+            text: "She considers it, and sends you to sleep alone. Whatever tonight was going to be, you have not yet earned the version of her that stays."
+            effects:
+              - { type: value, name: desire, delta: 3 }
+
       - id: nobody_is_waiting
         text: >-
           Blasphemy, or a run that went badly enough that she declined to be
@@ -404,6 +438,29 @@ cards:
   # =====================================================================
   # POOL — one is dealt, on top of whatever `thorn_labyrinth` returns.
   # =====================================================================
+
+  - id: DX_ashen_follow_up_moth
+    tags: [sequence, gm]
+    once: true
+    weight: 2
+    # Moved from day_04's pool, where it was gated on the passport that day's
+    # own spine grants -- the hand had already been dealt before the item could
+    # exist. The moth arrives the morning of the labyrinth instead, which is
+    # when a north-mouth instruction is actually worth having.
+    when: { has_item: ashen_passport }
+    title: "The North Mouth"
+    text: >-
+      A moth with a message in it, waiting on the labyrinth's outer hedge. The
+      north mouth opens for bearers of honest cold, and it does not want her
+      perfume on them when they arrive. This is an instruction for tonight
+      disguised as a courtesy.
+    beats:
+      - id: read_the_moth
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: knowledge, delta: 3 }
+              - { type: value, name: ashen_pressure, delta: 1 }
 
   - id: DX_lior_in_the_water
     tags: [menu, gm]

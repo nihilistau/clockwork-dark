@@ -122,6 +122,19 @@ cards:
               - { type: value, name: favor, delta: 8 }
               - { type: value, name: autonomy, delta: -2 }
 
+      - id: stay_where_she_can_see_you
+        text: >-
+          The surrender answer to a jealous morning: offer to spend the whole
+          day inside her sightline, said plainly, before she can demand
+          anything. It is the reassurance she actually wanted and could not
+          ask for, and both of them know what it cost to give.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: desire, delta: 4 }
+              - { type: value, name: autonomy, delta: -12 }
+
       - id: tell_her_you_might_listen_again
         text: >-
           Honest, and expensive, and the only answer on this card that can earn
@@ -627,19 +640,56 @@ cards:
             effects:
               - { type: value, name: knowledge, delta: 3 }
 
-  - id: DX_ashen_follow_up_moth
-    tags: [sequence, gm]
+  # The follow-up moth used to be dealt HERE, gated on the passport -- an item
+  # granted by this day's own spine. The hand deals before the spine resolves,
+  # so the gate could never hold at deal time. It lives in day_05's pool now:
+  # the moth arrives the morning of the labyrinth, which is when the north
+  # mouth instruction is actually worth having.
+
+  - id: DX_labyrinth_edge_chase
+    tags: [menu, gm]
     once: true
-    when: { has_item: ashen_passport }
-    title: "The North Mouth"
+    weight: 3
+    # Only where the evening actually broke. DAY-03:260. Both flags are set by
+    # Day 3's own spine, and this card used to sit in Day 3's pool -- where the
+    # hand had already been dealt before either flag could exist. The chase
+    # happens the morning after instead: the hedge remembers overnight.
+    when:
+      any:
+        - { flag: public_defied_sophia }
+        - { all: [{ has_item: ashen_clasp }, { clock: { name: sophia_break, min: 1 } }] }
+    title: "Enjoy the Labyrinth's Hospitality"
     text: >-
-      A moth with a message in it. The labyrinth's north mouth opens for bearers
-      of honest cold, and it does not want her perfume on them when they arrive.
-      This is a Day 5 instruction disguised as a courtesy.
+      INTENT: a short chase, not the Day 5 trial, run the morning after the
+      feast broke. Briar walls rearrange while the player is inside them.
+      Statues of the lost turn to watch and do not help.
+      CONSTRAINT: no clear of the labyrinth here and no `labyrinth_completed`.
+      Three ways out, all of them fast.
     beats:
-      - id: read_the_moth
+      - id: follow_the_cold_moth
         gate:
           on_pass:
             effects:
               - { type: value, name: knowledge, delta: 3 }
-              - { type: value, name: ashen_pressure, delta: 1 }
+              - { type: value, name: ashen_route, delta: 1, why: "you followed his moth in the dark" }
+
+      - id: follow_the_rose_scent
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 5 }
+              - { type: value, name: autonomy, delta: -2 }
+
+      - id: cut_out_with_chalk_or_law
+        gate:
+          when:
+            any:
+              - { has_item: salt_circle_chalk }
+              - { flag: law_hospitality }
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 5 }
+          on_fail:
+            text: "You try to draw a shape you half remember. The hedge closes it for you, politely, from the wrong side."
+            effects:
+              - { type: value, name: labyrinth_lost, delta: 1 }

@@ -501,6 +501,24 @@ cards:
               - { type: value, name: desire, delta: 10 }
               - { type: value, name: autonomy, delta: -5 }
 
+      - id: devotion_night_ask_for_the_words
+        text: >-
+          Devotion, deepened by request: ask her to say the keeping-words aloud
+          -- the thrall foreshadow, spoken as a story about a thing that has
+          not been agreed to. Consent for the telling is not consent for the
+          thing, and she says that part herself, twice, which is the most
+          careful she is in the whole act. Hearing it still costs.
+        gate:
+          when:
+            all:
+              - { flag: act2_compass_devotion }
+              - { value: { name: desire, min: 40 } }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 5 }
+              - { type: value, name: desire, delta: 10 }
+              - { type: value, name: autonomy, delta: -12 }
+
       - id: love_and_door_night
         text: >-
           She gives the Mortalslip Thread: one message out, to a world that has
@@ -590,34 +608,11 @@ cards:
           max: 5
           text: "How long you looked."
 
-  - id: DX_use_the_mortalslip
-    tags: [menu, gm]
-    once: true
-    when: { has_item: mortalslip_thread }
-    title: "One Message Out"
-    text: >-
-      INTENT: the mortal-world mini-scene, and the horror of it is arithmetic.
-      Whatever the player sends arrives seventy days late, into a life that has
-      already finished reacting to their absence. A reply may come back and be
-      about something else entirely.
-      CONSTRAINT: she will react on the player's return, and the reaction is not
-      jealousy. It is closer to grief.
-    beats:
-      - id: send_it
-        gate:
-          on_pass:
-            effects:
-              - { type: flag, flag: mortalslip_used }
-              - { type: remove_item, item_id: mortalslip_thread }
-              - { type: value, name: autonomy, delta: 6 }
-              - { type: value, name: desire, delta: -4 }
-
-      - id: keep_it_unspent
-        text: "Carrying it is its own scene. She notices that it is still in the room."
-        gate:
-          on_pass:
-            effects:
-              - { type: value, name: autonomy, delta: 2 }
+  # The mortalslip card used to be dealt HERE, gated on an item this day's own
+  # night card gives -- the hand had already been dealt before the thread could
+  # exist. It waits a night and deals from day_07's pool instead, which is also
+  # the truer arithmetic: the gift is given in the dark, and the first chance
+  # to spend it comes with the morning.
 
   - id: DX_rootlings
     tags: [sequence, gm]

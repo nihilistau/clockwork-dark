@@ -401,28 +401,11 @@ cards:
           max: 3
           text: "How much of the Garden came in with you."
 
-  - id: PX_cold_moth_at_the_window
-    tags: [sequence, gm]
-    once: true
-    # Foreshadow only, and only for a player who already proved they can refuse.
-    # DAY-00:345 -- do not introduce Ashen Vale yet; scent only.
-    when: { flag: resisted_call }
-    title: "A Cold Moth at the Window"
-    text: >-
-      Something silver-grey rests on the outside of the glass and does not eat.
-      It is not one of hers. Do not name it, do not give it a voice, do not let
-      the player learn anything they could act on. Winter has simply noticed
-      that you are the kind of thing that says no.
-    beats:
-      - id: watch_it_not_eat
-        gate:
-          on_pass:
-            effects:
-              - { type: value, name: knowledge, delta: 2 }
-              # A clock is a declared value like any other; `type: value` is
-              # how state.yaml's `clocks:` block is written. There is no
-              # `clock` effect kind and inventing one would be a second writer.
-              - { type: value, name: ashen_pressure, delta: 1 }
+  # The cold moth used to be dealt HERE, gated on `resisted_call` -- a flag Day
+  # 0's own spine sets. The hand deals before the spine resolves, so the gate
+  # could never hold at deal time and the card was provably undealable. The
+  # moth follows the NEXT night now: it lives in day_01's pool, same gate,
+  # which is also the better fiction -- winter takes a day to hear about a no.
 
   - id: PX_first_bloomkin
     tags: [sequence, gm]

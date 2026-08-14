@@ -468,6 +468,21 @@ cards:
               - { type: value, name: favor, delta: 10 }
               - { type: value, name: desire, delta: 6 }
 
+      - id: seal_yourself_to_her
+        text: >-
+          The surrender seal. Only where her terms were the keeping-talk, and
+          only said in the player's own words -- tonight is not the ritual and
+          she will not let it become the ritual, but the shape of the night is
+          hers and the player hands her the shape. Menace and tenderness at the
+          same temperature.
+        gate:
+          when: { flag: day7_sophia_terms_demands_thrall_talk }
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 8 }
+              - { type: value, name: desire, delta: 10 }
+              - { type: value, name: autonomy, delta: -12 }
+
       - id: seal_with_winter
         gate:
           when: { value: { name: ashen_route, min: 2 } }
@@ -610,6 +625,39 @@ cards:
               - { type: value, name: knowledge, delta: 3 }
               - { type: value, name: autonomy, delta: 2 }
 
+  - id: DX_use_the_mortalslip
+    tags: [menu, gm]
+    once: true
+    # Moved from day_06's pool: the thread is given by Day 6's own night card,
+    # after that day's hand was already dealt, so the card could never appear.
+    # The first morning a player can hold the gift and a dealt hand at once is
+    # this one.
+    when: { has_item: mortalslip_thread }
+    title: "One Message Out"
+    text: >-
+      INTENT: the mortal-world mini-scene, and the horror of it is arithmetic.
+      Whatever the player sends arrives seventy days late, into a life that has
+      already finished reacting to their absence. A reply may come back and be
+      about something else entirely.
+      CONSTRAINT: she will react on the player's return, and the reaction is not
+      jealousy. It is closer to grief.
+    beats:
+      - id: send_it
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: mortalslip_used }
+              - { type: remove_item, item_id: mortalslip_thread }
+              - { type: value, name: autonomy, delta: 6 }
+              - { type: value, name: desire, delta: -4 }
+
+      - id: keep_it_unspent
+        text: "Carrying it is its own scene. She notices that it is still in the room."
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: autonomy, delta: 2 }
+
   - id: DX_night_market_ledger
     tags: [menu, gm]
     once: true
@@ -634,6 +682,20 @@ cards:
               - { type: value, name: knowledge, delta: 5 }
               - { type: value, name: autonomy, delta: -6 }
               - { type: value, name: corruption, delta: 4 }
+
+      - id: pay_the_stall_in_days
+        text: >-
+          The one stall that will not extend credit quotes its price up front,
+          in the only coin a mortal here has too much of: days. Ten of them,
+          paid while the vendor watches the hourglass take the payment. What it
+          sells is real -- a true answer about the hundred-day line -- and the
+          purchase is the lesson.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: time_debt_mortal_days, delta: 10, why: "paid the stall in days" }
+              - { type: value, name: knowledge, delta: 5 }
+              - { type: value, name: corruption, delta: 2 }
 
       - id: read_the_ledger_and_leave
         gate:

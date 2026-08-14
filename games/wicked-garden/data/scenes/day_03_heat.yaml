@@ -180,6 +180,20 @@ cards:
               - { type: value, name: autonomy, delta: 2 }
               - { type: value, name: equality_seed, delta: 1 }
 
+      - id: be_still_for_her_hands
+        text: >-
+          The surrender register, chosen out loud: stand still and give her the
+          whole hour. She takes it -- slowly, with commentary, enjoying being
+          obeyed more than she enjoys the lacing -- and something that was the
+          player's walks out of the room wearing her knots. Menace and heat in
+          the same gesture; nothing is taken that was not offered.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: favor, delta: 5 }
+              - { type: value, name: desire, delta: 8 }
+              - { type: value, name: autonomy, delta: -12 }
+
       - id: hide_the_iron
         text: >-
           A pin of mortal iron under living silk, at a feast full of things that
@@ -456,6 +470,21 @@ cards:
               - { type: value, name: desire, delta: 12 }
               - { type: value, name: autonomy, delta: -5 }
 
+      - id: give_her_the_night_to_spend
+        text: >-
+          Deeper than the peak: hand her the governance of the evening and say
+          so, in words, before anything is touched. She spends it the way she
+          spends everything -- deliberately, and keeping the receipt. The
+          largest single surrender available in Act I, and every grain of it is
+          chosen.
+        gate:
+          on_pass:
+            effects:
+              - { type: flag, flag: night3_intimate_soft }
+              - { type: value, name: favor, delta: 10 }
+              - { type: value, name: desire, delta: 12 }
+              - { type: value, name: autonomy, delta: -14 }
+
       - id: the_argument_instead
         text: >-
           Invite her and then have the fight that was underneath the evening.
@@ -554,50 +583,11 @@ cards:
   # POOL — two are dealt.
   # =====================================================================
 
-  - id: DX_labyrinth_edge_chase
-    tags: [menu, gm]
-    once: true
-    weight: 3
-    # Only where the evening actually broke. DAY-03:260.
-    when:
-      any:
-        - { flag: public_defied_sophia }
-        - { all: [{ has_item: ashen_clasp }, { clock: { name: sophia_break, min: 1 } }] }
-    title: "Enjoy the Labyrinth's Hospitality"
-    text: >-
-      INTENT: a short chase, not the Day 5 trial. Briar walls rearrange while
-      the player is inside them. Statues of the lost turn to watch and do not
-      help.
-      CONSTRAINT: no clear of the labyrinth here and no `labyrinth_completed`.
-      Three ways out, all of them fast.
-    beats:
-      - id: follow_the_cold_moth
-        gate:
-          on_pass:
-            effects:
-              - { type: value, name: knowledge, delta: 3 }
-              - { type: value, name: ashen_route, delta: 1, why: "you followed his moth in the dark" }
-
-      - id: follow_the_rose_scent
-        gate:
-          on_pass:
-            effects:
-              - { type: value, name: favor, delta: 5 }
-              - { type: value, name: autonomy, delta: -2 }
-
-      - id: cut_out_with_chalk_or_law
-        gate:
-          when:
-            any:
-              - { has_item: salt_circle_chalk }
-              - { flag: law_hospitality }
-          on_pass:
-            effects:
-              - { type: value, name: autonomy, delta: 5 }
-          on_fail:
-            text: "You try to draw a shape you half remember. The hedge closes it for you, politely, from the wrong side."
-            effects:
-              - { type: value, name: labyrinth_lost, delta: 1 }
+  # The labyrinth-edge chase used to be dealt HERE, gated on flags Day 3's own
+  # spine sets (`public_defied_sophia`, the clasp) -- the hand deals before the
+  # spine resolves, so it could never be dealt. It runs the morning after now,
+  # from day_04's pool, which is also the better fiction: the hedge remembers
+  # overnight.
 
   - id: DX_mara_silhouette
     tags: [sequence, gm]
