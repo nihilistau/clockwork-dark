@@ -154,3 +154,56 @@ def test_continuity_is_a_gate_and_not_a_weighted_nudge() -> None:
     bad = _evaluate("Maris introduces herself and asks who you are. " * 8, known_cast=CAST)
     assert good.passed is True
     assert bad.passed is False
+
+
+# ---------------------------------------------------------------------------
+# the recap — the other half of "the world does not forget"
+# ---------------------------------------------------------------------------
+
+
+def test_a_fresh_save_has_no_previously() -> None:
+    """A brand-new run has nothing behind it, and must not pretend it does."""
+    from engine.game.state import GameState
+    from engine.scenes.default_state import _recap
+
+    assert _recap(GameState(session_id="r"), StoryLedger()) == ""
+
+
+def test_a_returning_player_is_told_where_they_were() -> None:
+    from engine.game.state import GameState
+    from engine.games import registry
+    from engine.scenes.default_state import _recap
+
+    registry.activate("clockwork-dark")
+    state = GameState(session_id="r")
+    state.location_id = "edgewood_bakery"
+    state.world_clock_hours = 52.0
+
+    ledger = StoryLedger()
+    ledger.summary = "You worked a shift at the mill and told Maris a rumour."
+    ledger.add_promise("look for the goat", to_id="the weller boy", due_day=6)
+
+    recap = _recap(state, ledger)
+    assert recap.startswith("PREVIOUSLY")
+    assert "mill" in recap
+    assert "look for the goat" in recap
+    # The authored place name, not the id -- this is prose a player reads.
+    assert "Edgewood Bakery" in recap
+    assert "day 3" in recap
+
+
+def test_the_recap_costs_no_model_call() -> None:
+    """
+    The running summary is already in the ledger, written by the summarizer
+    during play. Spending an inference at load to re-say it would make opening
+    a save depend on LM Studio being up -- the exact property the suite spent
+    this session removing. Asserted structurally: the recap reads the ledger
+    and nothing else.
+    """
+    import inspect
+
+    from engine.scenes import default_state
+
+    source = inspect.getsource(default_state._recap)
+    for forbidden in ("llm_fn", "summarize(", "backend", "chat("):
+        assert forbidden not in source, f"the recap reaches for {forbidden}"

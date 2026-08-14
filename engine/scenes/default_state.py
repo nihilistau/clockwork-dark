@@ -347,6 +347,47 @@ def _trim_echo(label: str, text: str) -> str:
     return rest.strip()
 
 
+def _recap(state: GameState, ledger: StoryLedger) -> str:
+    """
+    "Previously..." — what a player returning after a week needs to be told.
+
+    NO MODEL CALL. The running summary is already in the ledger: the summarizer
+    built it during play, every time the turn buffer evicted. Spending an
+    inference at resume to re-say what has been written down since turn six
+    would be slow, non-deterministic, and would make loading a save depend on
+    LM Studio being up -- which is the property the test suite spent tonight
+    getting rid of.
+
+    Deliberately short, and deliberately not a scene. It is scaffolding above
+    the last thing that happened, not a replacement for it: the last narration
+    still follows, because what the player actually wants is usually the
+    sentence they stopped reading.
+
+    Empty for a run with nothing behind it. A brand-new save has no previously.
+    """
+    lines: list[str] = []
+
+    summary = str(getattr(ledger, "summary", "") or "").strip()
+    if summary:
+        lines.append(summary)
+
+    try:
+        promises = [p for p in ledger.open_promises()][:2]
+    except Exception as exc:  # noqa: BLE001 -- a recap must not cost the load
+        logger.debug("[default_state] No promises for the recap: %s", exc)
+        promises = []
+    for promise in promises:
+        due = f" by day {promise.due_day}" if promise.due_day else ""
+        lines.append(f"Owed: {promise.text}{due}.")
+
+    if not lines:
+        return ""
+
+    where = state.location_name or str(state.location_id or "").replace("_", " ")
+    lines.append(f"You left off on day {state.world_day}, at {where}.")
+    return "PREVIOUSLY\n" + "\n".join(lines)
+
+
 def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
     """
     The scene a reloading player lands in.
@@ -373,6 +414,10 @@ def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
             "You pick up the thread where you left it. The hour has not moved "
             "while you were away, and neither has anything else."
         )
+
+    recap = _recap(state, ledger)
+    if recap:
+        narration = f"{recap}\n\n{narration}"
 
     choices: list[dict[str, Any]] = [
         {"id": "resume_look", "text": "Take stock of where you are"},
