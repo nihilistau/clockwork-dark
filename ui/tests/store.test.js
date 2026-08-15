@@ -149,17 +149,6 @@ describe("a turn", () => {
     ]);
   });
 
-  it("keeps a fade card for its own turn and no longer", () => {
-    // A fade belongs to the scene that faded. Carrying it forward would leave
-    // last scene's card sitting under this scene's narration.
-    let state = reducer(started(), { type: "SUBMIT", text: "go" });
-    state = reducer(state, socket("turn_update", { fade_card: { heading: "It went quiet." } }));
-    expect(state.fadeCard.heading).toBe("It went quiet.");
-
-    state = reducer(state, socket("turn_update", { narration: "The next thing." }));
-    expect(state.fadeCard).toBeNull();
-  });
-
   it("makes an ending stick once it arrives", () => {
     // A reconnect replaying the last payload must not take the ending screen
     // away again.

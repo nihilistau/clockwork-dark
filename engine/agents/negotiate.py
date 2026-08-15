@@ -7,19 +7,15 @@ Reconciling two agents' proposals into one turn, before anything is committed.
 WHY RULES ARE DATA. A second story's design states its conflict resolutions as a
 table -- "Sophia blocks exit vs player invoked the Threshold Law correctly: the
 law wins, and her regard shifts"; "her private scene vs a world event: the scene
-completes and the event becomes aftermath"; "product safety vs any character
-goal: safety wins". Those are that story's dramatic priorities, not the
-engine's. Written as Python they would be one story's `if` chain in a module
-every story imports, which is the exact shape this whole overhaul is undoing.
+completes and the event becomes aftermath". Those are that story's dramatic
+priorities, not the engine's. Written as Python they would be one story's `if`
+chain in a module every story imports, which is the exact shape this whole
+overhaul is undoing.
 
 So a rule is a row: which agents, which intents, who wins, and what it costs.
-A story ships its own table; the engine ships the two rules that are structural
+A story ships its own table; the engine ships the rules that are structural
 rather than dramatic and therefore belong to everyone:
 
-    SAFETY_FIRST   a refusal from the safety layer outranks every agent goal,
-                   including the world's. Not overridable by a story table --
-                   a story that could reorder this could write itself above the
-                   player's stated limits.
     OWNERSHIP      an agent may not act as a voice it does not own, or write a
                    value it does not own. Enforced elsewhere too (the skill ACL
                    at dispatch, the state store's per-field owners); repeated
@@ -47,7 +43,6 @@ from engine.agents.plan import AgentPlan, ProposedChoice
 logger = logging.getLogger(__name__)
 
 #: Structural rules the engine always applies, ahead of any story table.
-RULE_SAFETY = "safety_first"
 RULE_OWNERSHIP = "ownership"
 #: Applied last, when nothing else decided it.
 RULE_CONFIDENCE = "confidence"
@@ -89,8 +84,8 @@ class NegotiatedTurn:
     #: Plans as accepted, keyed by agent. Effects are applied from these.
     accepted: dict[str, AgentPlan] = field(default_factory=dict)
     resolutions: list[Resolution] = field(default_factory=list)
-    #: Set when the safety layer refused the turn's direction entirely. The
-    #: caller is expected to redirect IN FICTION rather than emit a refusal.
+    #: Set when a governor blocked the turn entirely. The caller still gets
+    #: choices and a lead so it can decline in fiction.
     blocked: bool = False
     block_reason: str = ""
 
@@ -191,19 +186,12 @@ class Negotiator:
         self.rules = list(rules or [])
         self.owned_voices = dict(owned_voices or {})
 
-    def negotiate(
-        self,
-        plans: dict[str, AgentPlan],
-        *,
-        safety_block: str = "",
-    ) -> NegotiatedTurn:
+    def negotiate(self, plans: dict[str, AgentPlan]) -> NegotiatedTurn:
         """
         Decide the turn.
 
         Args:
             plans: Every agent's proposal, keyed by agent id.
-            safety_block: Non-empty when the safety layer refused this
-                direction. Applied FIRST and unconditionally.
 
         Returns:
             The agreed turn. Never raises: a negotiation that could fail would
@@ -211,22 +199,6 @@ class Negotiator:
             highest-confidence plan leads -- is always available.
         """
         turn = NegotiatedTurn()
-
-        # 1. Safety. Ahead of everything, not orderable by a story table.
-        if safety_block:
-            turn.blocked = True
-            turn.block_reason = safety_block
-            turn.resolutions.append(
-                Resolution(rule=RULE_SAFETY, winner="safety", detail=safety_block)
-            )
-            logger.info(
-                "[negotiate] Turn direction refused by the safety layer "
-                "(operation=negotiate, reason=%s)",
-                safety_block,
-            )
-            # Deliberately NOT an early return: the caller still needs choices
-            # and a lead so it can redirect in fiction rather than show the
-            # player an out-of-character refusal.
 
         live = {a: p for a, p in plans.items() if not p.silent}
         if not live:
@@ -353,7 +325,6 @@ class Negotiator:
 __all__ = [
     "RULE_CONFIDENCE",
     "RULE_OWNERSHIP",
-    "RULE_SAFETY",
     "NegotiatedTurn",
     "Negotiator",
     "Resolution",

@@ -58,7 +58,6 @@ The engine ships only the rules that are structural rather than dramatic:
 
 | Rule | Why it is not a story's to reorder |
 |---|---|
-| `safety_first` | A story that could rank itself above the player's stated limits would make the safety layer advisory. |
 | `ownership` | An agent may not speak as a voice it does not own. Enforced at the point the *intent* is visible, so the attempt is recorded rather than silently dropped. |
 
 Two deliberate details: a rule with an empty `when` is **inert, not universal**

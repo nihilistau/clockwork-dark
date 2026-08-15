@@ -35,7 +35,6 @@
 import React, { useState } from "react";
 
 import ChoiceRow from "../parts/ChoiceRow.jsx";
-import FadeCard from "../parts/FadeCard.jsx";
 import MicButton from "../parts/MicButton.jsx";
 import NarrativeLog from "../parts/NarrativeLog.jsx";
 import ReasoningPanel, { Thinking } from "../parts/ReasoningPanel.jsx";
@@ -139,13 +138,6 @@ export default function Play({
 
           <NarrativeLog entries={state.log} busy={state.busy} />
 
-          {/* A faded scene is an AUTHORED beat, not a paragraph that failed to
-              arrive. The safety layer resolves the moment at summary
-              resolution and hands back a card -- heading, what happened, and
-              the consequences that were applied anyway -- and until now
-              nothing drew it, so the whole thing read as the narrator losing
-              its place. See engine/safety/verdict.py::FadeCard. */}
-          <FadeCard card={state.fadeCard} />
 
           {/* The old bare "the world is deciding" indicator is now the header
               of the reasoning panel, so the same three dots either sit there

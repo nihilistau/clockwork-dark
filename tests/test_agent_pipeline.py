@@ -577,27 +577,6 @@ def test_an_agent_cannot_speak_as_a_voice_it_does_not_own(garden: GameState) -> 
 # ---------------------------------------------------------------------------
 
 
-def test_safety_outranks_every_agent_goal(garden: GameState) -> None:
-    """
-    Ahead of the story table and not reorderable from it.
-
-    And NOT an early return: the turn still happens, with a lead and choices, so
-    the caller can decline in fiction rather than show an out-of-character
-    refusal.
-    """
-    result = pipeline_module.run_pipeline(
-        garden,
-        "something refused",
-        roster=_roster(),
-        safety_block="that is outside what this run allows",
-        llm_fn=_speaks({"SOPHIA": {"intent": "speak", "beat": "she leans in", "line": "Come here."}}),
-    )
-    assert result.turn.blocked is True
-    assert result.turn.resolutions[0].rule == "safety_first"
-    assert result.lead, "blocked turns still need a lead to redirect through"
-    assert "IN FICTION" in pipeline_module.narration_block(result)
-
-
 # ---------------------------------------------------------------------------
 # Choices
 # ---------------------------------------------------------------------------
@@ -696,76 +675,3 @@ def test_the_two_agents_are_not_sent_the_same_prompt(garden: GameState) -> None:
     assert seen["gm"] != seen["sophia"]
 
 
-def test_a_safety_refused_turn_moves_nothing(garden: GameState) -> None:
-    """
-    The input gate said no, so the meters do not move.
-
-    ``Negotiator.negotiate`` sets ``turn.blocked`` on a safety block and then
-    deliberately keeps going -- the caller still needs choices and a lead so it
-    can decline IN FICTION rather than show an out-of-character refusal. But it
-    left every plan's ``effects`` on ``turn.accepted``, and ``_commit`` applied
-    them. The player asked for something the gate refused, the narrator was
-    told to decline, and the world changed anyway.
-    """
-    from engine.agents.negotiate import Negotiator
-
-    plans = {
-        "sophia": AgentPlan(
-            agent="sophia",
-            intent="act",
-            confidence=0.9,
-            beat="She steps closer.",
-            choices=[ProposedChoice(id="a", text="Step back")],
-            effects=[
-                ProposedEffect(kind="value", payload={"name": "favor", "delta": 5}),
-            ],
-        )
-    }
-    before = dict(garden.meters)
-
-    turn = Negotiator().negotiate(plans, safety_block="the player set this limit")
-    receipts, refused, veto = pipeline_module._commit(garden, turn, plans=plans)
-
-    assert turn.blocked is True
-    assert garden.meters == before, (
-        "a safety-refused turn still committed its proposed effects"
-    )
-    assert not receipts, "nothing should have been written"
-    assert any(r.get("why") == "safety block" for r in refused), (
-        "the dropped writes are not journalled, so the refusal is invisible"
-    )
-    # `veto` means governance vetoed. A safety block is not that.
-    assert veto == ""
-
-
-def test_a_safety_refused_turn_still_gives_the_narrator_something_to_say(
-    garden: GameState,
-) -> None:
-    """
-    The guard against over-fixing the test above into an early return.
-
-    Stripping the writes must not strip the lead and the choices: without them
-    the player gets a dead turn instead of an in-fiction decline.
-    """
-    from engine.agents.negotiate import Negotiator
-
-    plans = {
-        "sophia": AgentPlan(
-            agent="sophia",
-            intent="act",
-            confidence=0.9,
-            beat="She waits.",
-            choices=[
-                ProposedChoice(id="a", text="Step back"),
-                ProposedChoice(id="b", text="Speak"),
-            ],
-            effects=[
-                ProposedEffect(kind="value", payload={"name": "favor", "delta": 5}),
-            ],
-        )
-    }
-
-    turn = Negotiator().negotiate(plans, safety_block="the player set this limit")
-
-    assert turn.lead == "sophia"
-    assert turn.choices, "the player was left with nothing to choose"

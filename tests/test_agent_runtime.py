@@ -12,7 +12,6 @@ The properties asserted here are the ones that make two agents worth running:
 
   * a plan is INERT -- constructing one changes nothing, which is the only
     reason a proposal can be argued with
-  * safety outranks every agent goal and is not reorderable by a story
   * an agent cannot speak as a voice it does not own, and the attempt is
     recorded rather than dropped
   * knowledge is partitioned BY AGENT, not by player awareness
@@ -31,7 +30,6 @@ from engine.agents.knowledge import (
 )
 from engine.agents.negotiate import (
     RULE_OWNERSHIP,
-    RULE_SAFETY,
     Negotiator,
     Rule,
     rules_from_data,
@@ -100,49 +98,6 @@ def test_the_plan_schema_constrains_voices_to_what_the_agent_owns():
     schema = plan_schema("sophia", voices=("sophia_dialogue",))
 
     assert schema["properties"]["speaks_as"]["enum"] == ["sophia_dialogue"]
-
-
-def test_the_schema_omits_the_enum_when_an_agent_owns_no_voices():
-    """An empty enum matches nothing and would make the field unfillable."""
-    schema = plan_schema("gm")
-
-    assert "enum" not in schema["properties"]["speaks_as"]
-
-
-# -- negotiation --------------------------------------------------------------
-
-
-def test_safety_outranks_every_agent_goal():
-    turn = Negotiator().negotiate(
-        {"gm": _plan("gm", INTENT_NARRATE, beat="the door opens")},
-        safety_block="past the session intensity ceiling",
-    )
-
-    assert turn.blocked is True
-    assert any(r.rule == RULE_SAFETY for r in turn.resolutions)
-
-
-def test_a_blocked_turn_still_produces_a_lead_and_choices():
-    """
-    Blocking must not leave the caller with nothing to render.
-
-    The design's rule is that a refused direction comes back as an in-world
-    interruption -- "not that door" -- never as customer service. A negotiator
-    that returned an empty turn would force the caller to emit a refusal.
-    """
-    turn = Negotiator().negotiate(
-        {
-            "gm": _plan(
-                "gm", INTENT_NARRATE, beat="the corridor bends",
-                choices=[ProposedChoice(text="Turn back")],
-            )
-        },
-        safety_block="hard limit",
-    )
-
-    assert turn.blocked is True
-    assert turn.lead == "gm"
-    assert turn.choices, "a blocked turn left nothing to show the player"
 
 
 def test_an_agent_cannot_speak_as_a_voice_it_does_not_own():

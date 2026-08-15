@@ -192,10 +192,7 @@ plugin, the core reducer, and the veiled-meter rule.
 
 Also landed since: `craft_item` with degree outcomes, foraging that discovers
 hidden-path travel shortcuts, carry weight priced on travel (never on rest),
-the served notice board (`GET /api/notices`), and the safety layer wired
-end-to-end — input review, a pre-commit `SafetyCeiling`, and narration review
-with fade cards. The card now RENDERS (`ui/src/core/parts/FadeCard.jsx`, drawn
-by `Play.jsx` under the log), which was the open half. See docs/SAFETY.md.
+and the served notice board (`GET /api/notices`).
 
 Five games ship: `clockwork-dark` (flagship), `wicked-garden` (the deck
 exemplar), `neon-city` (NEON CITY: THE CROSSING — survival/expedition in the
@@ -293,15 +290,11 @@ validation. `mcp.json` is required; entries are written atomically under the
 `engine-skills-` prefix, backed up once per process, and removed on release.
 
 See [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) for the measurements behind
-each. Four **NOT WIRED** tables remain, each naming its file:
+each. Three **NOT WIRED** tables remain, each naming its file:
 [GOVERNANCE.md](docs/GOVERNANCE.md) (the notice board's browser half, plus the
 challenge/scene/negotiation panels — all presentation gaps, none of them
 playability gaps, because those systems reach the player as ordinary choice
-chips), [SAFETY.md](docs/SAFETY.md) (cosmetic rename on display labels, **the
-player boundary sheet**, and **the Fade control** — the last two were documented
-as player-facing and neither exists: `set_policy` has no production caller and
-`fade_available` has no reader, so the limits sheet is permanently empty),
-[STATE.md](docs/STATE.md) (an ending's authored `tease:`, which no story
+chips), [STATE.md](docs/STATE.md) (an ending's authored `tease:`, which no story
 declares) and [AGENTS.md](docs/AGENTS.md) (the unmeasured reasoning cost of the
 two plan calls — its MCP row is gone, retired by wiring the caller rather than
 by rewording the claim).

@@ -51,7 +51,7 @@ PHASE_DIRECTIVE = "directive"
 #: POST has always run after `tx.commit()`, which makes it a post-mortem audit:
 #: it can record that something was wrong and clamp a value back into range,
 #: but it cannot stop the turn that did it. Everything that has to decide
-#: whether a change happens at all -- the safety ceiling, per-agent write
+#: whether a change happens at all -- per-agent write
 #: permission, an ending gate that must never offer an impossible card -- needs
 #: to run while the answer is still a proposal. The rollback machinery to
 #: support this already existed and was proven by the evaluator retry loop; the
@@ -173,12 +173,6 @@ class TurnContext:
     choices: list[dict[str, Any]] = field(default_factory=list)
     #: Structured creative direction emitted this turn, if any.
     briefs: dict[str, Any] = field(default_factory=dict)
-    #: Content intensity in force. The safety layer owns this; an agent may
-    #: never raise it.
-    intensity: str = ""
-    #: Non-empty when the safety layer refused this turn's direction. The
-    #: caller redirects IN FICTION rather than emitting a refusal.
-    safety_block: str = ""
     #: Set by a PHASE_COMMIT hook to stop the proposed changes being applied.
     #: Distinct from `abort`, which stops the remaining chain: a veto rejects
     #: the turn's effects, and the caller is expected to roll back.
@@ -692,37 +686,6 @@ def _register_legacy_interceptors() -> None:
 
 
 _register_legacy_interceptors()
-
-
-def _register_safety() -> None:
-    """
-    Make the safety governors resolvable by config name.
-
-    Registered here rather than by ``engine.safety`` importing this module: the
-    safety layer must not depend on the governance layer, because it also has
-    to work at seams governance does not reach (player input, display strings).
-    The dependency points one way, and this is that way.
-
-    Failure is logged rather than raised. A missing safety module must not stop
-    the engine building its pipeline. That failure is no longer free, though:
-    three of the four shipped stories (wicked-garden, neon-city, dev-story) name
-    ``SafetyDirective`` in ``settings.governance.directives``, so on those a
-    failed registration silently drops a directive the story asked for. Only the
-    flagship configures no safety chain and is genuinely unaffected.
-    """
-    try:
-        from engine.safety.governor import register_safety_interceptors
-
-        register_safety_interceptors()
-    except Exception as exc:  # noqa: BLE001 -- see docstring
-        logger.warning(
-            "[governance] Safety interceptors unavailable "
-            "(operation=_register_safety): %s",
-            exc,
-        )
-
-
-_register_safety()
 
 
 __all__ = [

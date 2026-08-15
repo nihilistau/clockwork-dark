@@ -8,7 +8,7 @@ MOVED FROM ``content/scenes/clockwork/clockwork_state.py`` in v0.3.0, by
 copy rather than rewrite: this module was already the turn handler for EVERY
 story -- the flagship, The Wicked Garden, and any story that declares no
 ``scene:`` block -- and nothing left in it was Clockwork's. The opening frame
-is read from the active manifest's ``entry.opening``; the safety review, the
+is read from the active manifest's ``entry.opening``; the
 plan->negotiate->commit pipeline, quest evaluation, telemetry, memory and
 autosave all resolve through the active game. What made it "Clockwork's" was
 only its address, and one story owning the file every story runs on is the
@@ -21,7 +21,7 @@ lock). ``DefaultSessionStore`` below binds the manifest-declared opening
 frames into that generic store.
 
 ON ``run_turn``'S SHAPE. It is a single straight-line function whose steps --
-background tick, safety review, narration stream, reasoning stream, quest
+background tick, narration stream, reasoning stream, quest
 evaluation, telemetry, memory fold, autosave, then the socket emissions -- are
 deliberately not split into a pipeline of extension points nobody has asked
 for. Both shipped stories run it as-is; the pipeline seam it already carries
@@ -49,47 +49,6 @@ from engine.session import default_archetype
 from engine.world.world_sim import WorldSim
 
 logger = logging.getLogger(__name__)
-
-def _review_input(session: GameSession, player_action: str) -> dict[str, Any]:
-    """
-    Run the safety gate over what the player just asked for.
-
-    Returns a small dict rather than the Verdict object so the turn payload can
-    carry it without the scene layer importing safety types, and so a build
-    without the safety package degrades to an empty dict rather than an
-    ImportError on the hot path.
-
-    Never raises. The gate has its own fallbacks, and this adds one more:
-    a safety layer that can stop a player typing is a worse outcome than one
-    that occasionally fails open on input, which is the seam where a false
-    positive costs the most and protects the least.
-    """
-    try:
-        from engine.safety import SafetyGate
-
-        gate = SafetyGate.for_state(session.engine.state)
-        if gate.inert:
-            return {}
-        verdict = gate.review_input(player_action)
-        if verdict.allowed:
-            return {}
-        logger.info(
-            "[default_state] Safety verdict on input "
-            "(operation=_review_input, disposition=%s)",
-            verdict.disposition,
-        )
-        return {
-            "disposition": str(verdict.disposition),
-            # The redirect BEAT, not the reasons. `verdict.reasons` names the
-            # player's own limit topics, and putting those anywhere near prose
-            # would echo back the thing they asked not to read.
-            "redirect": verdict.redirect,
-            "fallback": verdict.fallback,
-        }
-    except Exception as exc:  # noqa: BLE001 -- see docstring
-        logger.debug("[default_state] Safety gate unavailable: %s", exc)
-        return {}
-
 
 def _character_agent(session: GameSession) -> Any:
     """
@@ -807,14 +766,6 @@ def run_turn(
     # not exist -- `player_action` went straight from the socket handler into
     # the Storyteller with nothing looking at it.
     #
-    # Reviewed HERE rather than at the two call sites of
-    # `resolve_player_action` because both of them end up in this function, and
-    # a check that has to be remembered twice is a check that will be forgotten
-    # once. A hard-no hit is a REDIRECT, not a refusal: the turn still runs and
-    # the fiction declines, which is the difference between a story and a
-    # dialog box.
-    safety = _review_input(session, player_action)
-
     with active_engine(session.engine):
         # Ask the world how much time it has actually earned rather than
         # granting a flat block. This was the R-03 bug: a fixed 6 hours per
@@ -944,11 +895,6 @@ def run_turn(
         # flagship, which declares no roster: `agreed` is empty, the block is
         # empty, and the turn below is byte-for-byte the turn it had. The
         # Wicked Garden declares two agents and takes the pipeline path.
-        # A non-empty `safety` means the gate refused this direction --
-        # `_review_input` returns {} when the input is allowed. The REDIRECT
-        # beat is passed, never `reasons`: those name the player's own declared
-        # limits, and routing them into a prompt would echo back the thing they
-        # asked not to read.
         agreed = run_pipeline(
             state,
             player_action,
@@ -973,9 +919,6 @@ def run_turn(
             # stores `llm_fn` exactly as given, so a real run passes None here
             # and `run_pipeline` resolves its backend as it always did.
             llm_fn=session.storyteller.llm_fn,
-            safety_block=str(
-                (safety or {}).get("redirect") or (safety or {}).get("disposition") or ""
-            ),
         )
 
         try:
@@ -1078,7 +1021,7 @@ def run_turn(
         "governance": storyteller_result.governance,
     }
     # What the engine was asked to do and what it decided. Present only on a
-    # turn that actually carried a mechanic, same rule as `safety` -- a pure
+    # turn that actually carried a mechanic -- a pure
     # conversation turn ships the payload it always shipped.
     #
     # `resolved` is the honest half: an intent can be declared, re-checked
@@ -1090,24 +1033,10 @@ def run_turn(
             intent_receipts and all(r.get("success") for r in intent_receipts)
         )
 
-    # Only when the gate had something to say -- an inert policy adds no key at
-    # all, which of the shipped stories is now only the flagship. The other
-    # three declare a safety block, so this key is part of their live payload.
-    if safety:
-        turn_payload["safety"] = safety
-    # The narration review's half of the same layer (attach point 4): the
-    # verdict on what was actually written, and the summary card when the
-    # scene was faded. Separate keys because the shapes differ -- `safety` is
-    # the input review's redirect beat, `safety_narration` is a serialised
-    # verdict -- and merging them would make the client guess which fired.
-    if storyteller_result.safety:
-        turn_payload["safety_narration"] = storyteller_result.safety
-    if storyteller_result.fade_card:
-        turn_payload["fade_card"] = storyteller_result.fade_card
 
     # The turn journal: who proposed what, which rule fired, what it cost the
     # loser, and every effect the commit applied or refused. Added only when a
-    # negotiation actually happened, same as `safety` -- a turn where one agent
+    # negotiation actually happened -- a turn where one agent
     # narrated has nothing to report and should not carry an empty block.
     #
     # `to_dict()` never includes a plan's `private`. A character's real motive

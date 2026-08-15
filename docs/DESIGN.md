@@ -1166,7 +1166,6 @@ the engine and what is one story's answer?* What landed:
 | **The default scene** | Moved from `content/scenes/clockwork/` into `engine/scenes/`; it was serving every story already |
 | **The UI plugin** | `ui.plugin` in the manifest picks a client plugin, so two stories can share one look. A borrowed plugin lends its look and not its voice |
 | **The finale chain** | Ending eligibility → lock → Speak·Act·Seal → epilogue, all story-declared |
-| **The safety layer** | Input review, a pre-commit `SafetyCeiling`, narration review, and fade cards rendered in the client (docs/SAFETY.md) |
 | **Three more stories** | `wicked-garden`, `neon-city`, `dev-story` — each shaped differently enough to fail where the flagship would not |
 
 ---
@@ -1193,7 +1192,6 @@ the engine and what is one story's answer?* What landed:
 - **[CLAUDE_CODE_BRIEF.md](CLAUDE_CODE_BRIEF.md)** — Implementation spec for coding agents
 - **[DESIGN_REVIEW.md](DESIGN_REVIEW.md)** — What the overhaul found, what it fixed, and what is still open
 - **[GOVERNANCE.md](GOVERNANCE.md)** — The governance chain, and the **NOT WIRED** tables
-- **[SAFETY.md](SAFETY.md)** — Intensity, the ceiling, review, fade cards and aftercare
 - **[STATE.md](STATE.md)** — The declared-state system in full
 
 ## Tools for keeping this document honest

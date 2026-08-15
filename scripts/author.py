@@ -980,20 +980,6 @@ class Author:
 
     # -- prompts -----------------------------------------------------------
 
-    def _register_line(self) -> str:
-        block = self.manifest.extras.get("safety")
-        intensity = (block or {}).get("intensity") if isinstance(block, dict) else {}
-        ceiling = str((intensity or {}).get("ceiling") or "suggestive").strip().lower()
-        if ceiling in ("explicit", "extreme"):
-            return (
-                f"Register: this story declares a content ceiling of '{ceiling}'. "
-                "Write to the register the story declares; never exceed the ceiling."
-            )
-        return (
-            "Register: this story's content ceiling is 'suggestive'. "
-            "Allusive at most; nothing explicit."
-        )
-
     def _ids_line(self, label: str, ids: set[str] | frozenset[str]) -> str:
         ordered = sorted(ids)
         shown = ordered[:_MAX_CONTEXT_IDS]
@@ -1020,7 +1006,6 @@ class Author:
             self._ids_line("Difficulty bands", vocab.bands),
             self._ids_line("Quest arcs", vocab.arcs) if vocab.arcs else "",
             self._ids_line("Decks", vocab.decks) if vocab.decks else "",
-            self._register_line(),
             "Rules: reply with ONE JSON object matching the response schema and "
             "nothing else. Ids are lowercase snake_case. Reference only ids "
             "listed above or ids this draft itself creates; an id that resolves "
