@@ -1,0 +1,63 @@
+# THE LONG CON -- the prose behind each ending.
+#
+# Read through data/epilogues/epilogue_index.yaml's `prose_source`. One entry
+# per `id:` in that file's `endings:` list.
+#
+#   card_m  the mortal card: what happens to you
+#   card_g  the city's card: what the place does with it
+#
+# Version: v0.1.0 [2026-08-15]
+
+version: 1
+
+cards:
+
+  clean_hands:
+    title: "Clean Hands"
+    card_m: |-
+      The Ledger runs it on the fourth page, under a headline that manages to be
+      accurate and dull at the same time, which is Bette's whole craft. Your
+      name is in the eleventh paragraph, spelled right.
+
+      Work comes in for a while after that. Not good work -- nobody with good
+      work wants a man who reads manifests -- but enough of it, and it pays on
+      time, and none of it involves going down any stairs with a light.
+    card_g: |-
+      The Ninth Precinct reassigns a lieutenant to a desk in a building with no
+      windows, which in this city is the loudest thing anybody can say. The
+      drying room gets a new lock, and the hook nearest the door stays empty,
+      and the men who work down there stop putting their coats on it.
+
+  the_frame_holds:
+    title: "The Frame Holds"
+    card_m: |-
+      They are very polite about it. That is what nobody warns you: there is no
+      shouting, no lamp swung round, nothing you could describe afterwards as
+      the moment it went wrong. There is a typed page, and a pen, and a man
+      apologising for the temperature of the room.
+
+      You sign it. Everything on the page is true. That turns out not to be the
+      same thing as the page being true, and you have twenty years to think
+      about the difference.
+    card_g: |-
+      The case closes. The Ledger runs four column inches, no photograph. A
+      woman in good gloves collects a photograph from an evidence clerk who
+      does not ask her to sign for it, and the rain goes on doing what it has
+      done since the fourth.
+
+  carrying_it:
+    title: "Carrying It"
+    card_m: |-
+      You know all of it. Who the man in the photograph was, who signed for him
+      nine days after he drowned, whose hand corrected the manifest in pencil,
+      and what is hanging on the hook nearest the door.
+
+      Knowing is not evidence. Knowing is not a client. Knowing is a thing you
+      carry up three flights every morning and put in the drawer that locks,
+      and the drawer is the only part of this that ever stays shut.
+    card_g: |-
+      Nothing happens. That is the ending. The boats come in, the weighbridge
+      records what it is told to record, and the city goes on being a place
+      that runs on being vouched for by men who are not going to vouch for you.
+
+      In eleven months somebody else will ask about a photograph.

@@ -24,6 +24,16 @@ id: day_00_prologue
 # the mortal world thinning, not side content.
 draw: 2
 
+# WHEN THIS DAY IS DEALT. The scene director (engine/content/director.py)
+# deals the first deck whose `when` passes and that has not been dealt yet,
+# so this line is what makes the day decks reachable by PLAYING rather than
+# only by scripts/simulate_decks.py. Without it nothing ever dealt them, and
+# this game's only `ending_lock` sits on a card in day_09_finale.
+#
+# `min_day` is the existing quest predicate -- scheduling a deck costs no
+# new grammar.
+when: { min_day: 0 }
+
 cards:
 
   # =====================================================================

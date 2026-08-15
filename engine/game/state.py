@@ -249,6 +249,14 @@ class GameState:
     # shape varies by kind and must not force a save migration per field.
     # See engine/challenges/.
     challenge: dict[str, Any] = field(default_factory=dict)
+    # The authored scene currently being played: a hand dealt from a deck, and
+    # how far through it the player is. Empty dict when no scene is running,
+    # which for a story declaring no `paths.decks` is always -- the flagship and
+    # NEON CITY never fill this. A plain dict for the same reason as the two
+    # above, and card IDS rather than card objects so the save stays small and a
+    # mid-run content edit degrades to "that card is gone" instead of silently
+    # replaying a stale copy. See engine/content/director.py.
+    scene: dict[str, Any] = field(default_factory=dict)
     # Quests and arcs (P7). quests maps quest_id -> progress record.
     quests: dict[str, Any] = field(default_factory=dict)
     active_arc: str = "quiet_life"
@@ -447,6 +455,10 @@ class GameState:
             # The player has to be able to see the step they are on and the
             # options they may pick, or a challenge is unplayable.
             "challenge": dict(self.challenge),
+            # Same rule for an authored scene: the card in front of them and how
+            # far through the hand they are. Empty for every story that declares
+            # no decks.
+            "scene": dict(self.scene),
             "quests": dict(self.quests),
             "active_arc": self.active_arc,
             "turn_number": self.turn_number,

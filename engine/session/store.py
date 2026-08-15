@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
@@ -174,6 +175,20 @@ class GameSession:
         return self.engine.state.session_id
 
 
+def _is_busy(session: GameSession) -> bool:
+    """
+    Whether a turn is currently running for this session.
+
+    Probed by acquiring the turn lock and immediately releasing it, which is
+    the only reliable signal available: a turn against a local model can take
+    minutes, so elapsed time says nothing about whether anyone is still there.
+    """
+    if not session.lock.acquire(blocking=False):
+        return True
+    session.lock.release()
+    return False
+
+
 class SessionStore:
     """
     In-memory session registry backed by on-disk saves.
@@ -194,6 +209,9 @@ class SessionStore:
         save_store: Optional[Callable[[], Any]] = None,
     ) -> None:
         self._sessions: dict[str, GameSession] = {}
+        #: ``session_id -> monotonic timestamp of last access``. Feeds
+        #: ``sweep_idle`` and nothing else.
+        self._seen: dict[str, float] = {}
         self._guard = threading.RLock()
         self._opening: OpeningBuilder = opening or _blank_opening
         self._resume_opening: ResumeBuilder = resume_opening or _blank_resume
@@ -221,6 +239,18 @@ class SessionStore:
         )
         with self._guard:
             self._sessions[state.session_id] = session
+            self._seen[state.session_id] = time.monotonic()
+
+        # Swept here rather than per turn, and rather than on a timer thread:
+        # sessions only accumulate by being created, so this is the exact rate
+        # the problem appears at, it stays off the turn's hot path, and there
+        # is no background thread to reason about. A no-op unless
+        # `session.idle_sweep_enabled` is on.
+        try:
+            self.sweep_idle()
+        except Exception as exc:  # noqa: BLE001 -- housekeeping must not fail a run
+            logger.warning("[session] Idle sweep failed (operation=_build): %s", exc)
+
         return session
 
     def create(
@@ -290,7 +320,53 @@ class SessionStore:
 
     def get(self, session_id: str) -> Optional[GameSession]:
         with self._guard:
-            return self._sessions.get(session_id)
+            session = self._sessions.get(session_id)
+            if session is not None:
+                self._seen[session_id] = time.monotonic()
+            return session
+
+    def sweep_idle(self, ttl_minutes: Optional[float] = None) -> list[str]:
+        """
+        Release sessions nobody has touched for a while.
+
+        OFF BY DEFAULT (``session.idle_sweep_enabled``). Evicting a live run
+        loses a player's game, and the cost of NOT sweeping is memory in a
+        long-lived process -- so the failure modes are not symmetric and the
+        conservative default is the right one until this has miles on it.
+
+        A session whose turn lock is held is never evicted, whatever its age: a
+        turn can legitimately take minutes against a local model, and the lock
+        is the only reliable signal that someone is still in there.
+
+        Returns:
+            The session ids released.
+        """
+        from engine.config import get_config
+
+        cfg = get_config()
+        if not bool(cfg.get("session.idle_sweep_enabled", False)):
+            return []
+        if ttl_minutes is None:
+            ttl_minutes = float(cfg.get("session.idle_ttl_minutes", 60))
+        # Floored at one minute on purpose: a misconfigured `idle_ttl_minutes: 0`
+        # would otherwise evict every session on the next `create`, including
+        # the one the player is sitting in.
+        cutoff = time.monotonic() - max(1.0, float(ttl_minutes)) * 60.0
+
+        with self._guard:
+            stale = [
+                sid
+                for sid, session in self._sessions.items()
+                if self._seen.get(sid, 0.0) < cutoff and not _is_busy(session)
+            ]
+
+        for session_id in stale:
+            logger.info(
+                "[session] Releasing idle session (operation=sweep_idle, id=%s)",
+                session_id,
+            )
+            self.delete(session_id)
+        return stale
 
     def require(self, session_id: str) -> GameSession:
         session = self.get(session_id)
@@ -299,8 +375,41 @@ class SessionStore:
         return session
 
     def delete(self, session_id: str) -> None:
+        """
+        Forget a run, and everything else that was holding onto it.
+
+        THE SINGLE TEARDOWN DOOR. Three registries kept a reference to a live
+        run and none of their release functions had a production caller:
+        ``mechanics.register_engine`` is called at the top of EVERY mechanics
+        phase and ``release_engine`` was called only from a test, so every
+        ``GameEngine`` -- and through it every ``GameState``, inventory, roster
+        and world-event list -- was retained for the life of the process. The
+        skills server's per-session registration had the same shape, and
+        additionally writes a row into ``mcp.json`` per session.
+
+        Never raises: releasing an auxiliary registry that is not installed, or
+        that has already forgotten this id, is not a reason to fail the caller
+        that is trying to clean up.
+        """
         with self._guard:
             self._sessions.pop(session_id, None)
+            self._seen.pop(session_id, None)
+
+        try:
+            from engine.agents.mechanics import release_engine
+
+            release_engine(session_id)
+        except Exception as exc:  # noqa: BLE001 -- see docstring
+            logger.debug("[session] Engine release skipped (id=%s): %s", session_id, exc)
+
+        try:
+            from engine.mcp.skills_server import active_server
+
+            server = active_server()
+            if server is not None:
+                server.release(session_id)
+        except Exception as exc:  # noqa: BLE001 -- see docstring
+            logger.debug("[session] Skills release skipped (id=%s): %s", session_id, exc)
 
 
 __all__ = [

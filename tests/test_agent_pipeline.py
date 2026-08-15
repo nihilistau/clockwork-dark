@@ -31,7 +31,13 @@ from typing import Any, Iterator
 import pytest
 
 from engine.agents import pipeline as pipeline_module
-from engine.agents.plan import AgentPlan, ProposedEffect, parse_plan, plan_schema
+from engine.agents.plan import (
+    AgentPlan,
+    ProposedChoice,
+    ProposedEffect,
+    parse_plan,
+    plan_schema,
+)
 from engine.agents.roster import Roster, parse_roster
 from engine.game.state import GameState
 
@@ -688,3 +694,78 @@ def test_the_two_agents_are_not_sent_the_same_prompt(garden: GameState) -> None:
     pipeline_module.run_pipeline(garden, "look", roster=_roster(), llm_fn=capture)
     assert set(seen) == {"gm", "sophia"}
     assert seen["gm"] != seen["sophia"]
+
+
+def test_a_safety_refused_turn_moves_nothing(garden: GameState) -> None:
+    """
+    The input gate said no, so the meters do not move.
+
+    ``Negotiator.negotiate`` sets ``turn.blocked`` on a safety block and then
+    deliberately keeps going -- the caller still needs choices and a lead so it
+    can decline IN FICTION rather than show an out-of-character refusal. But it
+    left every plan's ``effects`` on ``turn.accepted``, and ``_commit`` applied
+    them. The player asked for something the gate refused, the narrator was
+    told to decline, and the world changed anyway.
+    """
+    from engine.agents.negotiate import Negotiator
+
+    plans = {
+        "sophia": AgentPlan(
+            agent="sophia",
+            intent="act",
+            confidence=0.9,
+            beat="She steps closer.",
+            choices=[ProposedChoice(id="a", text="Step back")],
+            effects=[
+                ProposedEffect(kind="value", payload={"name": "favor", "delta": 5}),
+            ],
+        )
+    }
+    before = dict(garden.meters)
+
+    turn = Negotiator().negotiate(plans, safety_block="the player set this limit")
+    receipts, refused, veto = pipeline_module._commit(garden, turn, plans=plans)
+
+    assert turn.blocked is True
+    assert garden.meters == before, (
+        "a safety-refused turn still committed its proposed effects"
+    )
+    assert not receipts, "nothing should have been written"
+    assert any(r.get("why") == "safety block" for r in refused), (
+        "the dropped writes are not journalled, so the refusal is invisible"
+    )
+    # `veto` means governance vetoed. A safety block is not that.
+    assert veto == ""
+
+
+def test_a_safety_refused_turn_still_gives_the_narrator_something_to_say(
+    garden: GameState,
+) -> None:
+    """
+    The guard against over-fixing the test above into an early return.
+
+    Stripping the writes must not strip the lead and the choices: without them
+    the player gets a dead turn instead of an in-fiction decline.
+    """
+    from engine.agents.negotiate import Negotiator
+
+    plans = {
+        "sophia": AgentPlan(
+            agent="sophia",
+            intent="act",
+            confidence=0.9,
+            beat="She waits.",
+            choices=[
+                ProposedChoice(id="a", text="Step back"),
+                ProposedChoice(id="b", text="Speak"),
+            ],
+            effects=[
+                ProposedEffect(kind="value", payload={"name": "favor", "delta": 5}),
+            ],
+        )
+    }
+
+    turn = Negotiator().negotiate(plans, safety_block="the player set this limit")
+
+    assert turn.lead == "sophia"
+    assert turn.choices, "the player was left with nothing to choose"

@@ -291,6 +291,245 @@ def _scene_open(state: GameState) -> bool:
         return False
 
 
+def _absent(label: str, exc: Exception) -> None:
+    """
+    Log a verb builder's failure at the right volume.
+
+    Every builder here swallows exceptions, and it must: a story that ships no
+    forage table, no vendors or no threads has to yield no verb rather than
+    lose the turn. But that same catch will happily swallow a BUG, and it did
+    -- ``foraging.nodes_at`` takes ``(state, location_id)`` and was called with
+    one argument, so the resulting TypeError was logged at DEBUG and the
+    ``forage`` verb simply never appeared. Silent, and indistinguishable from
+    "this story does not forage".
+
+    A TypeError or AttributeError from an engine module is a programming error
+    every time. Those are WARNINGs with a traceback; a genuinely absent system
+    stays at DEBUG.
+    """
+    if isinstance(exc, (TypeError, AttributeError)):
+        logger.warning(
+            "[intents] Verb builder failed (operation=%s) -- this is a bug, "
+            "not a story without the system: %s",
+            label,
+            exc,
+            exc_info=True,
+        )
+    else:
+        logger.debug("[intents] No %s: %s", label, exc)
+
+
+def _challenge_open(state: GameState) -> bool:
+    """Whether a running set-piece owns this turn."""
+    return bool(getattr(state, "challenge", None))
+
+
+def _challenge(state: GameState) -> Optional[IntentVerb]:
+    """
+    The next step of the running challenge.
+
+    A PUZZLE IS THE ONE VERB WHOSE TARGET CANNOT BE AN ENUM: its input is the
+    player's own words. ``intent_schema`` already omits the target enum when a
+    verb declares no options, so the schema handles this without a special
+    case -- the verb simply carries an empty options tuple and the model writes
+    free text.
+    """
+    try:
+        from engine.challenges import runner
+
+        step = runner.present(state)
+    except Exception as exc:  # noqa: BLE001 -- a story with no challenges
+        _absent("challenge", exc)
+        return None
+    if step is None:
+        return None
+    targets = tuple(
+        (str(o.get("id")), str(o.get("text") or o.get("id")))
+        for o in (step.options or [])
+        if o.get("id")
+    )
+    return IntentVerb("challenge", targets[:_MAX_OPTIONS])
+
+
+def _set_piece(state: GameState) -> Optional[IntentVerb]:
+    """
+    Set-pieces whose gates are open here and now.
+
+    ``set_pieces.available`` already filters on location and flags, so every id
+    it returns will start.
+    """
+    try:
+        from engine.challenges import set_pieces
+
+        rows = set_pieces.available(state)
+    except Exception as exc:  # noqa: BLE001 -- a story with no challenges
+        _absent("set-pieces", exc)
+        return None
+    targets = tuple(
+        (str(p.get("id")), str(p.get("title") or p.get("id")))
+        for p in rows
+        if p.get("id")
+    )
+    return IntentVerb("set_piece", targets[:_MAX_OPTIONS]) if targets else None
+
+
+def _work(state: GameState) -> Optional[IntentVerb]:
+    """
+    Shifts that can be worked here, now.
+
+    ``economy.available`` already filters on requirements, the hour and today's
+    cap, so an offered job is a job that will run.
+    """
+    try:
+        from engine.game import economy
+
+        rows = economy.available(state, state.location_id)
+    except Exception as exc:  # noqa: BLE001 -- a story with no labour table
+        _absent("labour", exc)
+        return None
+    targets = tuple(
+        (str(j.get("id")), str(j.get("name") or j.get("id")))
+        for j in rows
+        if j.get("id")
+    )
+    return IntentVerb("work", targets[:_MAX_OPTIONS]) if targets else None
+
+
+def _forage(state: GameState) -> Optional[IntentVerb]:
+    """Forageable ground at this location, if the story ships any."""
+    try:
+        from engine.game import foraging
+
+        if not foraging.forageable(state.location_id):
+            return None
+        nodes = foraging.nodes_at(state, state.location_id)
+    except Exception as exc:  # noqa: BLE001 -- a story with no forage table
+        _absent("foraging", exc)
+        return None
+    targets = tuple(
+        (str(n.get("id")), str(n.get("name") or n.get("id")))
+        for n in (nodes or [])
+        if n.get("id")
+    )
+    # NO NODES MEANS NO VERB, even though the location's TAGS admit foraging.
+    # `forageable()` answers from tags alone, and the node pool is dealt out
+    # per save -- so a tag-only check offers a verb whose skill can only ever
+    # answer "you find no ground here worth working". A verb that is guaranteed
+    # to refuse is worse than an absent one: it spends an option slot, an enum
+    # token in every prompt, and a turn.
+    return IntentVerb("forage", targets[:_MAX_OPTIONS]) if targets else None
+
+
+def _sell(state: GameState) -> Optional[IntentVerb]:
+    """
+    What the player is carrying that someone here will actually buy.
+
+    THE ECONOMY'S MISSING HALF. ``buy`` has been reachable since intents
+    shipped and ``sell`` has not, so gold had a sink and no faucet -- while
+    ``scripts/simulate.py``, which set every balance constant, drove selling
+    directly.
+    """
+    try:
+        from engine.game import trade
+
+        vendors = trade.vendors_at(state.location_id)
+    except Exception as exc:  # noqa: BLE001 -- a story with no vendors
+        _absent("vendors", exc)
+        return None
+
+    targets: list[tuple[str, str]] = []
+    for npc_id in vendors:
+        for item in state.inventory:
+            try:
+                if not trade.deals_in(npc_id, item.id):
+                    continue
+                quote = trade.quote(state, npc_id, item.id, side="sell")
+            except Exception:  # noqa: BLE001 -- one bad row must not kill the verb
+                continue
+            price = quote.get("unit_price") if isinstance(quote, dict) else None
+            label = f"{item.name or item.id}" + (f" for {price}" if price else "")
+            targets.append((f"{npc_id}/{item.id}", label))
+            if len(targets) >= _MAX_OPTIONS:
+                break
+        if len(targets) >= _MAX_OPTIONS:
+            break
+    return IntentVerb("sell", tuple(targets)) if targets else None
+
+
+def _bargain(state: GameState) -> Optional[IntentVerb]:
+    """Thread templates this story declares that can be struck now."""
+    try:
+        from engine.game import threads
+
+        rows = threads.offerable(state)
+    except Exception as exc:  # noqa: BLE001 -- a story with no threads
+        _absent("threads", exc)
+        return None
+    targets = tuple(
+        (str(t.get("id")), str(t.get("title") or t.get("id")))
+        for t in (rows or [])
+        if t.get("id")
+    )
+    return IntentVerb("bargain", targets[:_MAX_OPTIONS]) if targets else None
+
+
+def _discharge(state: GameState) -> Optional[IntentVerb]:
+    """
+    Live threads the player can settle.
+
+    The one the player actually needs: a debt you cannot pay is not a bargain,
+    it is a trap.
+    """
+    try:
+        from engine.game import threads
+
+        rows = threads.active(state)
+    except Exception as exc:  # noqa: BLE001 -- a story with no threads
+        _absent("active threads", exc)
+        return None
+    targets = tuple(
+        (str(t.get("id")), str(t.get("title") or t.get("id")))
+        for t in (rows or [])
+        if isinstance(t, dict) and t.get("id")
+    )
+    return IntentVerb("discharge", targets[:_MAX_OPTIONS]) if targets else None
+
+
+def _card_open(state: GameState) -> bool:
+    """Whether a dealt authored scene owns this turn."""
+    try:
+        from engine.content import director
+
+        return bool(director.active(state))
+    except Exception as exc:  # noqa: BLE001 -- a story with no decks
+        _absent("scene director", exc)
+        return False
+
+
+def _card(state: GameState) -> Optional[IntentVerb]:
+    """
+    The answers the dealt card allows.
+
+    ``director.options`` calls ``deck.chosen_beats`` for the menu/sequence
+    distinction rather than reimplementing the tag check, so a beat offered here
+    is a beat ``resolve`` will accept.
+    """
+    try:
+        from engine.content import director
+
+        rows = director.options(state)
+    except Exception as exc:  # noqa: BLE001 -- a story with no decks
+        _absent("scene options", exc)
+        return None
+    if not rows:
+        return None
+    targets = tuple(
+        (str(r["id"]), str(r.get("text") or r["id"]))
+        for r in rows[:_MAX_OPTIONS]
+    )
+    return IntentVerb("card", targets) if targets else None
+
+
 def _encounter(state: GameState) -> Optional[IntentVerb]:
     """
     The approaches the open scene allows, engine-authored.
@@ -328,6 +567,24 @@ def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
         engine can honour nothing for, which is what keeps the ``intent``
         property out of that story's grammar entirely.
     """
+    if _challenge_open(state):
+        # A running set-piece owns the turn for the same reason an encounter
+        # does: its steps are the only legal moves, and offering travel would
+        # let the narrator walk the player out of a gauntlet the runner still
+        # believes is open.
+        step = _challenge(state)
+        return (step,) if step is not None else ()
+
+    if _card_open(state):
+        # A dealt card is the turn, and answering it is the only thing on
+        # offer. Same rule as the encounter branch below and for the same
+        # reason: the engine owns the option list while a scene is open, so the
+        # narrator cannot walk the player out of a scene the director believes
+        # is still running. Checked FIRST because a card can open an encounter
+        # but never the reverse.
+        card = _card(state)
+        return (card,) if card is not None else ()
+
     if _scene_open(state):
         # A scene is running and the engine owns the option list. Offering
         # travel here would let the narrator walk the player out of a
@@ -343,7 +600,25 @@ def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
 
     verbs = [
         builder(state)
-        for builder in (_travel, _rest, _eat, _check, _buy, _flag)
+        for builder in (
+            _travel,
+            _rest,
+            _eat,
+            _check,
+            _buy,
+            # The economy's other half. `sell`, `work` and `forage` were
+            # implemented, data-complete and unreachable: 17 jobs, a forage
+            # table and a whole trade module that no choice could ever invoke,
+            # while scripts/simulate.py drove all three directly and set every
+            # balance constant against them.
+            _sell,
+            _work,
+            _forage,
+            _set_piece,
+            _bargain,
+            _discharge,
+            _flag,
+        )
     ]
     return tuple(verb for verb in verbs if verb is not None)
 
@@ -445,6 +720,14 @@ SKILL_FOR_ACTION: dict[str, str] = {
     "buy": "trade",
     "flag": "set_narrative_flag",
     "encounter": "encounter_approach",
+    "card": "resolve_scene_card",
+    "sell": "trade_sell",
+    "work": "work",
+    "forage": "forage",
+    "set_piece": "start_set_piece",
+    "challenge": "resolve_challenge",
+    "bargain": "strike_bargain",
+    "discharge": "discharge_thread",
 }
 
 #: Which key in a skill's result means IT DID NOT HAPPEN, per verb. ``None``
@@ -474,6 +757,23 @@ REFUSAL_KEY_FOR_ACTION: dict[str, Optional[str]] = {
     "buy": "ok",
     "flag": "success",
     "encounter": "ok",
+    # A beat the card does not carry, or a resolve against a scene that has
+    # already closed, is a genuine refusal and the narrator must be told --
+    # otherwise the card silently applies nothing and the prose describes a
+    # consequence the engine never produced.
+    "card": "ok",
+    # `trade_sell` reports a refused sale the way `trade` does.
+    "sell": "ok",
+    # `work` and `forage` both report a shift or a search that did not happen
+    # under `success`. Note this is NOT the same as a shift that went badly:
+    # a failed check still worked the hours, and those come back success=True
+    # with a poor outcome, exactly like `resolve_skill_check`.
+    "work": "success",
+    "forage": "success",
+    "set_piece": "ok",
+    "challenge": "ok",
+    "bargain": "ok",
+    "discharge": "ok",
 }
 
 
@@ -590,6 +890,28 @@ def to_tool_call(
         return name, {"flag_id": target}
     if action == "encounter":
         return name, {"approach": target}
+    if action == "card":
+        return name, {"chosen": target}
+    if action == "sell":
+        # Same composite shape as `buy`: one enum entry has to name both the
+        # vendor and the goods, because a flat pair of enums would make
+        # "sell the baker's oven to the baker" samplable.
+        npc_id, _, item_id = target.partition("/")
+        return name, {"npc_id": npc_id, "item_id": item_id, "qty": 1}
+    if action == "work":
+        return name, {"job_id": target}
+    if action == "forage":
+        return name, {"node_id": target}
+    if action == "set_piece":
+        return name, {"piece_id": target}
+    if action == "challenge":
+        # A puzzle's answer is free text and a gauntlet's choice is an enum
+        # entry; the skill takes both and uses whichever it was given.
+        return name, {"choice": target, "answer": target}
+    if action == "bargain":
+        return name, {"template_id": target}
+    if action == "discharge":
+        return name, {"thread_id": target}
     raise KeyError(action)
 
 

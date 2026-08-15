@@ -757,6 +757,23 @@ input[type="radio"] {
 }
 
 
+/* A quest starting, advancing, completing or failing. Reads as an engine fact
+   rather than as prose -- same mono treatment as a dice line, because it is the
+   same kind of thing: something the world did, not something the narrator said.
+   Slightly less muted than the rest, because a completion is the one the player
+   is waiting for. */
+
+.entry--quest {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  /* `--text-body`, not `--text-muted`: a completion is the line the player has
+     been waiting for, so it sits a step brighter than a dice roll. Both tokens
+     are defined by core's own fallback palette, which is the requirement --
+     core has to render with no story plugin loaded at all. */
+  color: var(--text-body);
+}
+
+
 .log__empty {
   font-family: var(--font-narration);
   font-style: italic;

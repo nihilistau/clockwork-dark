@@ -256,8 +256,13 @@ def test_archetype_affinity_is_small_and_itemised():
 @pytest.mark.parametrize(
     "face,degree",
     [
-        (18, "crit_success"),  # margin +10, exactly the boundary
-        (17, "success"),       # margin +9
+        # The crit boundary moved from margin +10 to +6. At +10 over a
+        # `standard` DC of 13 the band needed a total of 23, and the best
+        # shipped build tops out at 24 on a natural 20 -- so it was a 5% band
+        # for one archetype and impossible for the rest. See
+        # test_every_declared_degree_is_reachable_by_some_shipped_build.
+        (14, "crit_success"),  # margin +6, exactly the boundary
+        (13, "success"),       # margin +5
         (8, "success"),        # margin  0, exactly the boundary
         (7, "partial"),        # margin -1
         (4, "partial"),        # margin -4, exactly the boundary
@@ -409,3 +414,64 @@ def test_default_rng_is_the_deterministic_dice_stream():
     # And consecutive draws differ rather than repeating a frozen value.
     faces = {checks.resolve(a, "lore").natural for _ in range(12)}
     assert len(faces) > 1
+
+
+def test_every_declared_degree_is_reachable_by_some_shipped_build():
+    """
+    A band nobody can roll into is dead content, and one had been for the whole
+    life of the game.
+
+    `crit_success` required margin 10 over a `standard` DC of 13, i.e. a total
+    of 23. The best build in the flagship is a hearthkeeper at the forge: craft
+    14 (+2) plus `skill_bonus.craft: 2` is +4, so a natural 20 makes 24 -- a 5%
+    band for one archetype at one skill, and mathematically IMPOSSIBLE for a
+    wayfarer, whose craft 8 tops out at 19. Content behind it never fired:
+    `forge_bellows`'s charcoal payout, its 1.6x wage, three reputation rows,
+    and `craft_item`'s crit batch bonus.
+
+    THE NUMBER IS NOT THE GUARD -- this is. Tuning `min_margin` back up until
+    the band goes dead again fails here rather than in a player's run.
+    """
+    import yaml
+
+    from engine.games import registry
+
+    registry.activate("clockwork-dark")
+    try:
+        rules = yaml.safe_load(
+            open("games/clockwork-dark/data/rules/skills.yaml", encoding="utf-8")
+        )
+        archetypes = yaml.safe_load(
+            open("games/clockwork-dark/data/rules/archetypes.yaml", encoding="utf-8")
+        )
+
+        dc = int(rules["difficulty"][rules.get("default_difficulty", "standard")])
+        degrees = rules["degrees"]
+
+        # The best total any shipped build can roll on a natural 20, before
+        # situational modifiers -- every one of which in this table is a
+        # PENALTY except two, so this is a genuine ceiling.
+        best = -99
+        for arch in (archetypes.get("archetypes") or archetypes).values():
+            if not isinstance(arch, dict):
+                continue
+            stats = arch.get("stats") or {}
+            bonuses = arch.get("skill_bonus") or {}
+            for skill, value in stats.items():
+                stat_mod = (int(value) - 10) // 2
+                best = max(best, 20 + stat_mod + int(bonuses.get(skill, 0)))
+
+        top_margin = best - dc
+        unreachable = [
+            str(d.get("id"))
+            for d in degrees
+            if int(d.get("min_margin", 0)) > top_margin
+        ]
+        assert not unreachable, (
+            f"these degrees cannot be rolled by any shipped archetype at "
+            f"difficulty '{rules.get('default_difficulty')}' (DC {dc}, best "
+            f"possible total {best}, so best margin {top_margin}): "
+            f"{unreachable}. Any content gated on them is dead."
+        )
+    finally:
+        registry.deactivate()

@@ -261,12 +261,14 @@ def _wear_node(state: GameState, node_id: str) -> int:
                 "kind": NODE_EFFECT_KIND,
                 "text": f"worked ground ({node_id})",
                 "delta": 0,
-                "expires_day": state.world_day + days,
+                "expires_day": effects_module.duration_day(state, days),
             },
         )
         effect = _node_effect(state, node_id)
     effect.delta = int(effect.delta) + 1
-    effect.expires_day = state.world_day + days
+    # `duration_day`, so `recovery_days: 1` means the node is worn TODAY and
+    # fresh tomorrow. `world_day + days` kept it worn for two.
+    effect.expires_day = effects_module.duration_day(state, days)
     return int(effect.delta)
 
 

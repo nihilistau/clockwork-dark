@@ -142,6 +142,27 @@ so they are silently deleted from the world.
 Multi-step encounters the Storyteller can compose and the engine owns. Kinds:
 `skill_gauntlet`, `decision_tree`, `puzzle`, `dice_table`.
 
+> **Reachable since 2026-08-15, and this section previously described a system
+> no player could enter.** `set_pieces.start` / `resolve` / `available` had no
+> caller anywhere in `engine/` — only `scripts/simulate.py` and the tests — so
+> the flagship's two authored set-pieces, and the two `doom_resistance` grants
+> that live on them, could not be reached by playing. There was also no
+> challenge SKILL at all, so the gap was deeper than a missing choice.
+>
+> Two intent verbs close it (`engine/game/intents.py`): `set_piece` starts one
+> from `available()`, and `challenge` advances the running one, suppressing
+> every other verb while it is open — the same rule an encounter follows. A
+> puzzle is the one verb whose target cannot be an enum, because its input is
+> the player's own words; `intent_schema` already omits the enum for a verb
+> with no options, so that needed no special case. `runner.present()` is new:
+> a challenge that has already started still has to be renderable, or a player
+> who saved mid-gauntlet reloads into a step nothing can draw.
+>
+> `resolve_challenge` calls `set_pieces.resolve`, **not** `runner.resolve` —
+> only the former grants the terminal flag, and a gauntlet won without its flag
+> is a gauntlet the player gets to win again. Held by
+> `tests/test_wired_verbs.py` and `tests/test_reachability.py`.
+
 **The model proposes; the engine bounds.** `spec.py` is the bounding layer:
 
 - **Difficulty is a band, never a raw DC.** Upstream took an integer `dc` from the
@@ -185,7 +206,15 @@ is not more trustworthy than a model, just wrong less often.
 ### Storage
 
 `GameState.challenge` (new field). A challenge survives a reload mid-gauntlet,
-and ships to the client via `to_client_dict` so the UI can render the step.
+and ships to the client via `to_client_dict`.
+
+**On the claim that "the UI can render the step":** no component reads
+`state.challenge`, and that was true when this line was written too. It matters
+less than it sounds, because the challenge's options now arrive as ordinary
+choice chips through `legal_intents` — so the step IS playable and IS visible,
+just as choices rather than as a bespoke panel. A dedicated panel would read
+better and remains unbuilt; it is in the NOT WIRED table below rather than
+implied by this sentence.
 
 ---
 
@@ -250,9 +279,18 @@ Formerly in this table, now wired: `Oracle.record_turn` and `/api/metrics`
 | System | File | Needs |
 |---|---|---|
 | Notice board render | server half: `engine/scenes/default_api.py::notice_board` (wired, `GET /api/notices`). Client half: nothing | The browser side. Re-checked 2026-08-14: `grep -rn notices ui/src/` returns no fetch, no component and no overlay entry in any of the three plugins, so the route is reachable by curl and by no player. It is a story-shaped screen rather than a core one — the board is the flagship's — so it belongs in `ui/src/stories/clockwork-dark/` as an overlay entry, not in `ui/src/core/`. |
+| Challenge panel | producer: `engine/game/state.py::to_client_dict` ships `challenge`. Consumer: nothing in `ui/src/` | A component reading `state.challenge` to draw the step, its progress and its options as a panel. **Not a playability gap** — since 2026-08-15 the options arrive as ordinary choice chips through `legal_intents`, so a gauntlet can be played start to finish without this. It is a presentation gap: a four-step gauntlet reads as four unrelated turns. |
+| Scene panel | producer: `to_client_dict` ships `scene`. Consumer: nothing in `ui/src/` | Same shape and same non-blocking status as the row above, for the dealt card (`engine/content/director.py`). The card's prose reaches the player through the narrator, which is the design; what is missing is the "card 3 of 7" framing. |
+| Negotiation / governance panels | producers: `engine/scenes/default_state.py` ships `negotiation` and `governance` on the turn payload. Consumers: nothing | An analyst-mode panel. `negotiation` carries lead, beats, resolutions and refusals for the three stories that run a pipeline, and the player currently has no way to know a second agent won, lost or gave something up. `governance` carries R001–R005 breaches. Both are debug-shaped rather than player-shaped, which is why they are last. |
 
-Re-audited in full on 2026-08-14 against the tree, not against this file. One
-row survives. Everything else that was ever in this table is in the **Wiring**
-table above with its call site.
+Re-audited in full on 2026-08-15 against the tree, not against this file. The
+2026-08-14 pass claimed one surviving row and was **wrong**: challenges were
+documented above as a live system while `set_pieces.start` had no caller in
+`engine/` at all, which is the failure mode a NOT WIRED table exists to
+prevent — debt nobody wrote a row for is invisible, because there is no marker
+to grep. `tests/test_reachability.py` is the machine-checked answer to that:
+it walks the engine's own call graph and fails on a subsystem with no
+production caller, so this table can no longer be the only thing standing
+between an unwired system and a reader who believes the docs.
 
-Version: v0.3.0 [2026-08-14]
+Version: v0.4.0 [2026-08-15]

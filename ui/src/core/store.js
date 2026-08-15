@@ -310,6 +310,22 @@ function handleSocket(state, event, payload) {
         // log holding one turn's narration twice.
         next = append(next, "narration", payload.narration);
       }
+
+      // A QUEST FINISHING WAS SILENT. The server has always carried
+      // `quest_events` -- started, advanced, completed, failed -- and nothing
+      // in the client read the key, so the only way a player learned a quest
+      // had completed was if the narrator happened to mention it, and the
+      // narrator is not told either. A stage that awards gold and an item paid
+      // out with no line on screen anywhere.
+      //
+      // Appended AFTER the narration so it reads as a consequence of the turn
+      // rather than a heading for it.
+      for (const event of payload.quest_events || []) {
+        if (event && event.text) {
+          next = append(next, "quest", event.text);
+        }
+      }
+
       return {
         ...next,
         choices: payload.choices || [],
@@ -369,6 +385,18 @@ function handleSocket(state, event, payload) {
       return { ...state, cutscene: null };
 
     case "turn_error":
+      // CONTENTION IS NOT FAILURE. `busy` means "a turn is already running and
+      // yours never started" -- the running turn is fine and is still
+      // streaming. Tearing the stream down here deleted prose the player was
+      // already reading, and cleared `busy` so every control came back live
+      // while the server was still generating. A stray second keypress, or a
+      // second tab on the same session, was enough to do it.
+      if (payload.busy) {
+        return {
+          ...state,
+          error: payload.message || "A turn is already in progress.",
+        };
+      }
       return {
         ...closeStream(state),
         busy: false,

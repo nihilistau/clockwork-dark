@@ -51,6 +51,59 @@ MODEL_ENDPOINTS = _model_endpoints()
 
 
 @pytest.fixture(autouse=True)
+def _content_caches_are_per_test() -> Iterator[None]:
+    """
+    Drop every memoized content answer after each test.
+
+    WHY THIS EXISTS. The engine memoizes answers derived from the active
+    story's manifest -- ``evil_ticker._DOOM_DECLARED`` is the one that bit --
+    and invalidates them through ``engine/games/caches.py`` when a story is
+    ACTIVATED or deactivated. That contract is correct in production, where
+    the manifest only ever changes by activation.
+
+    Tests break it. ``tests/test_scene_seam.py`` monkeypatches
+    ``engine.games.registry.entry_manifest`` to return a synthetic manifest
+    without activating anything, something asks ``doom_enabled()`` inside that
+    window, and the answer -- False, because the synthetic manifest declares no
+    doom -- is memoized into a module global. The monkeypatch is undone at
+    teardown; the memo is not, and nothing calls the invalidator because
+    nothing activated.
+
+    The result was a test that passed alone, passed in the full suite, and
+    failed in between: ``test_turn_integration.py::test_world_advances_over_a_session``
+    watched ``advance_time`` produce exactly zero evil, because the ticker had
+    been told this story has no doom clock by a manifest belonging to a
+    different test. It cost real time to find precisely because the config, the
+    active slug and the resolved paths were all identical -- only the memo
+    differed.
+
+    SCOPED TO THE MANIFEST-DERIVED MEMOS, not to ``reset_all_caches()``. The
+    full reset also runs the RELOADERS, which include
+    ``lmstudio.profiles/registry/backend/gate`` -- those are derived from CONFIG
+    rather than from the manifest, they cannot be poisoned this way, and
+    clearing them per test forces model re-resolution on every single one. That
+    version took the suite from 3m40s to 6m35s and broke two prompt-budget
+    tests, because a cleared profile cache resolves the budget from config
+    fallbacks instead of from the bound model.
+
+    ``NULLED_ATTRIBUTES`` is exactly the set at risk -- each entry is a plain
+    ``Optional`` memo of something read out of the active story -- and setting
+    them to None costs nothing.
+    """
+    import sys
+
+    from engine.games.caches import NULLED_ATTRIBUTES
+
+    try:
+        yield
+    finally:
+        for module_name, attribute in NULLED_ATTRIBUTES:
+            module = sys.modules.get(module_name)
+            if module is not None and hasattr(module, attribute):
+                setattr(module, attribute, None)
+
+
+@pytest.fixture(autouse=True)
 def _no_live_model_calls(request: Any, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """
     Fail any test that opens a real connection to the model server.

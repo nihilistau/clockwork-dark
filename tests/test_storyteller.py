@@ -174,3 +174,34 @@ def test_the_turn_grammar_forbids_tool_calls():
         "the world by a second route, and engine/game/intents.py is no longer "
         "the only one"
     )
+
+def test_an_outage_does_not_latch_on_for_the_rest_of_the_session():
+    """
+    ``llm_unavailable`` reports THIS turn, not the worst turn so far.
+
+    ``_llm_failed`` was set once in ``__init__`` and raised on the first
+    backend failure, and the agent is session-scoped -- so a single transient
+    LM Studio hiccup pinned "The Storyteller is unreachable" on screen for the
+    remainder of the run, while narration streamed in perfectly well behind the
+    banner. Nothing ever lowered it.
+    """
+    state = GameState(location_id="forest_clearing")
+    engine = GameEngine(state)
+    calls = {"n": 0}
+
+    def llm(_messages):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("LM Studio is not answering")
+        return GOOD_RESPONSE
+
+    agent = StorytellerAgent(engine, llm_fn=llm)
+
+    first = agent.run_turn("The player looks toward the village smoke.")
+    assert first.llm_unavailable is True, "the outage was not reported at all"
+
+    second = agent.run_turn("The player starts down the path.")
+    assert second.llm_unavailable is False, (
+        "the banner stayed up on a turn the model answered -- the failure flag "
+        "is per-agent instead of per-turn"
+    )

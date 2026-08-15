@@ -129,6 +129,55 @@ def reset_store() -> SessionStore:
     return _store
 
 
+def run_guarded(
+    session: Any,
+    action: str,
+    intent: Any,
+    *,
+    emit_callback: Optional[Any] = None,
+) -> tuple[Optional[dict[str, Any]], str, bool]:
+    """
+    Run one turn under the session lock.
+
+    BOTH turn entry points go through here. They did not: the socket handler
+    took ``session.lock`` and wrapped the call, and ``POST /api/game/choice``
+    did neither -- so two concurrent posts, or one post racing an in-flight
+    socket turn, mutated a single ``GameState`` at the same time. The lock's own
+    comment in ``engine/session/store.py`` says that corrupts state "in ways no
+    test would reproduce", which is exactly why it must not be optional at one
+    of the two doors.
+
+    Args:
+        session: The live session. Its lock is the mutex.
+        action: The player's sentence for this turn.
+        intent: The structured mechanic the chosen option declared, or None.
+        emit_callback: Socket emitter, or None for the HTTP path.
+
+    Returns:
+        ``(payload, error, busy)``. Exactly one of ``payload`` and ``error`` is
+        meaningful. ``busy`` marks CONTENTION rather than failure -- a turn is
+        already running and this one never started, so the caller must report it
+        without tearing down the running turn's UI.
+    """
+    if not session.lock.acquire(blocking=False):
+        return None, "A turn is already in progress.", True
+    try:
+        payload = run_turn(session, action, intent=intent, emit_callback=emit_callback)
+        return payload, "", False
+    except Exception as exc:  # noqa: BLE001 — last line of defence
+        # Without this the socket handler raised into Socket.IO, no event was
+        # emitted, and the client's busy flag never cleared: every button
+        # disabled forever with no message on screen. The HTTP path had the
+        # matching failure -- a Flask HTML 500 body returned to a JSON client.
+        logger.exception(
+            "[default_scene] Turn failed (operation=run_guarded, id=%s)",
+            getattr(session, "session_id", "") or "",
+        )
+        return None, f"The turn could not be completed: {exc}", False
+    finally:
+        session.lock.release()
+
+
 class DefaultScene(FlaskScene):
     """The engine's default play scene, serving whichever story is active."""
 
@@ -235,7 +284,11 @@ class DefaultScene(FlaskScene):
             intent = resolve_player_intent(
                 session, choice_id, body.get("custom_text")
             )
-            turn = run_turn(session, action, intent=intent)
+            turn, error, busy = run_guarded(session, action, intent)
+            if busy:
+                return jsonify({"error": error}), 409
+            if turn is None:
+                return jsonify({"error": error}), 500
             return jsonify(turn)
 
         @socketio.on("connect")
@@ -273,35 +326,25 @@ class DefaultScene(FlaskScene):
             def _emit(event: str, payload: dict[str, Any]) -> None:
                 emit(event, payload, room=session_id)
 
+            choice_id = str(data.get("choice_id", ""))
+            action = resolve_player_action(
+                session, choice_id, data.get("custom_text")
+            )
+            intent = resolve_player_intent(
+                session, choice_id, data.get("custom_text")
+            )
             # One turn at a time per session. The client also guards, but a
             # double-click or a reconnect race must not reach the engine.
-            if not session.lock.acquire(blocking=False):
-                emit("turn_error", {"message": "A turn is already in progress."})
-                return
-
-            try:
-                choice_id = str(data.get("choice_id", ""))
-                action = resolve_player_action(
-                    session, choice_id, data.get("custom_text")
-                )
-                intent = resolve_player_intent(
-                    session, choice_id, data.get("custom_text")
-                )
-                run_turn(session, action, intent=intent, emit_callback=_emit)
-            except Exception as exc:  # noqa: BLE001 — last line of defence
-                # Without this the handler raised into Socket.IO, no event was
-                # emitted, and the client's busy flag never cleared: every
-                # button disabled forever with no message on screen.
-                logger.exception(
-                    "[default_scene] Turn failed (operation=player_choice, id=%s)",
-                    session_id,
-                )
-                emit(
-                    "turn_error",
-                    {"message": f"The turn could not be completed: {exc}"},
-                )
-            finally:
-                session.lock.release()
+            _, error, busy = run_guarded(
+                session, action, intent, emit_callback=_emit
+            )
+            if error:
+                # `busy` is the difference between "your keypress did nothing"
+                # and "the turn died". The client tears down the in-flight
+                # stream on a turn_error, so a stray second press used to
+                # delete the prose the FIRST turn had already put on screen.
+                # Flagged, the reducer keeps the stream and shows the message.
+                emit("turn_error", {"message": error, "busy": busy})
 
         @socketio.on("resume")
         def on_resume(data: dict[str, Any]) -> None:

@@ -790,6 +790,13 @@ class StorytellerAgent:
         """
         retries = 0
         retry_notes: list[str] = []
+        # Per-TURN, not per-agent. This used to be set once in __init__ and
+        # raised on the first backend failure, and the agent is session-scoped:
+        # one transient LM Studio hiccup pinned "The Storyteller is unreachable"
+        # on screen for the rest of the run, while prose streamed in fine behind
+        # the banner. It reports what happened on THIS turn or it reports
+        # nothing useful.
+        self._llm_failed = False
         raw = ""
         rejected_draft = ""
         parsed: dict[str, Any] = {}

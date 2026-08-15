@@ -711,6 +711,49 @@ def active(state: GameState) -> list[dict[str, Any]]:
     return [t for t in state.threads if t.get("status") == STATUS_ACTIVE]
 
 
+def offerable(state: GameState) -> list[dict[str, Any]]:
+    """
+    Templates that could be struck right now, as ``{id, title}`` rows.
+
+    THE MISSING HALF. This module exposes ``offer``, ``seal``, ``renegotiate``,
+    ``discharge``, ``cut`` and the rest -- 1177 lines -- and three shipped
+    stories declare ``paths.threads`` and ship a full ``threads.yaml``. Nothing
+    in the engine ever CREATED a thread, so ``state.threads`` was permanently
+    empty, ``expire_due`` swept an empty list every tick, and the ``thread`` /
+    ``no_thread`` predicates registered into the quest, ending and clock
+    grammars were permanently false for anything written against them.
+
+    A template already sealed is not offered again: a contract is a thing you
+    are on the hook for once.
+
+    Args:
+        state: Game state. Read only -- this runs while a prompt is assembled.
+
+    Returns:
+        Rows in declaration order, ``[]`` for a story shipping no threads.
+    """
+    try:
+        declared = templates()
+    except Exception as exc:  # noqa: BLE001 -- a story with no thread rules
+        logger.debug("[threads] No templates: %s", exc)
+        return []
+
+    held = {str(t.get("template_id") or "") for t in state.threads}
+    rows: list[dict[str, Any]] = []
+    for template_id, raw in declared.items():
+        if not isinstance(raw, dict):
+            continue
+        if str(template_id) in held:
+            continue
+        rows.append(
+            {
+                "id": str(template_id),
+                "title": str(raw.get("title") or raw.get("what") or template_id),
+            }
+        )
+    return rows
+
+
 def by_tag(state: GameState, tag: str, *, status: str = STATUS_ACTIVE) -> list[dict[str, Any]]:
     """Threads carrying a tag. ``status=""`` means any status."""
     return [

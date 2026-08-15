@@ -79,7 +79,24 @@ class TimeAdvance:
 
 
 def _sweep_expiries(state: GameState) -> tuple[list[str], list[str]]:
-    """Drop timed effects and wounds whose day has passed."""
+    """
+    Drop timed effects and wounds whose day has passed.
+
+    TWO INVARIANTS, AND THEY ARE NOT THE SAME ONE. The comparators differ
+    because the fields mean different things, and reading them as synonyms is
+    what made every duration in the game run a day long.
+
+    ``expires_day`` is THE LAST DAY STILL IN FORCE, so it survives its own day
+    and goes the day after. That is load-bearing beyond durations:
+    ``economy._record_shift`` stamps ``expires_day = world_day`` to mean "today
+    only", and a ``<=`` here would evict the daily shift markers on the first
+    intra-day ``advance_time`` -- resetting the work cap several times a day.
+    Durations reach this field through ``effects.duration_day``, which is where
+    "for N days" is converted.
+
+    ``heals_on_day`` is THE DAY IT HEALS, so it goes ON that day. It was ``<``,
+    which kept a three-day wound for four.
+    """
     day = state.world_day
 
     expired = [e.id for e in state.active_effects if e.expires_day < day]
@@ -88,10 +105,10 @@ def _sweep_expiries(state: GameState) -> tuple[list[str], list[str]]:
             e for e in state.active_effects if e.expires_day >= day
         ]
 
-    healed = [w.id for w in state.wounds if w.heals_on_day and w.heals_on_day < day]
+    healed = [w.id for w in state.wounds if w.heals_on_day and w.heals_on_day <= day]
     if healed:
         state.wounds = [
-            w for w in state.wounds if not (w.heals_on_day and w.heals_on_day < day)
+            w for w in state.wounds if not (w.heals_on_day and w.heals_on_day <= day)
         ]
 
     return expired, healed

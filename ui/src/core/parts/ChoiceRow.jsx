@@ -14,13 +14,33 @@ const HINT_LABEL = {
   unknown: "unknown",
 };
 
-export default function ChoiceRow({ choices, busy, onChoose, settled = false }) {
+export default function ChoiceRow({
+  choices,
+  busy,
+  onChoose,
+  settled = false,
+  // True while an overlay owns the screen -- map, clues, journal, gallery, or
+  // the pause menu. `Play` stays MOUNTED underneath every one of them, so this
+  // window listener went on firing behind them: pressing "1" over the pause
+  // menu submitted a turn the player could not see. App already computes this
+  // for its own listener; it is threaded down rather than recomputed so there
+  // is only ever one answer to "is the screen blocked".
+  blocked = false,
+}) {
   useEffect(() => {
-    if (busy) return undefined;
+    if (busy || blocked) return undefined;
     function onKey(event) {
       // Never steal a digit the player is typing into the action box.
       const tag = event.target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || event.metaKey || event.ctrlKey) return;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        event.target?.isContentEditable ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey
+      )
+        return;
       const index = Number(event.key) - 1;
       if (Number.isInteger(index) && index >= 0 && index < choices.length) {
         event.preventDefault();
@@ -29,7 +49,7 @@ export default function ChoiceRow({ choices, busy, onChoose, settled = false }) 
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [choices, busy, onChoose]);
+  }, [choices, busy, blocked, onChoose]);
 
   // A settled turn that offered nothing.
   //

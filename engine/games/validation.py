@@ -1158,12 +1158,19 @@ class StoryValidator:
 
         # Card ids unique per deck; a duplicated id makes `resolve_card`
         # ambiguous about which card a client chose.
+        #
+        # The deck and card ids are collected in this same pass because
+        # `check_forced_scenes` below needs both, and walking the deck
+        # directory twice to answer one question would be silly.
+        known_decks: set[str] = set()
+        known_cards: set[str] = set()
         for path in _yaml_files(self._dir("decks")):
             data = _read_yaml(path)
             source = self._rel(path)
             if not isinstance(data, dict):
                 self._add(source, "-", "deck file is not a YAML mapping")
                 continue
+            known_decks.add(str(data.get("id") or path.stem))
             seen_cards: set[str] = set()
             for card in data.get("cards") or []:
                 card_id = str((card or {}).get("id") or "")
@@ -1173,7 +1180,10 @@ class StoryValidator:
                 if card_id in seen_cards:
                     self._add(source, card_id, "duplicate card id in this deck")
                 seen_cards.add(card_id)
+                known_cards.add(card_id)
                 self._check_beat_shapes(source, card_id, card)
+
+        self._check_forced_scenes(known_decks, known_cards)
 
         # Clock table: every clock it drives must be declared in state.yaml as
         # a clock. A clock the schema does not declare is a write the store
@@ -1370,6 +1380,65 @@ class StoryValidator:
                 f"beat text is a mechanical receipt ({text.strip()!r}), not prose; "
                 "the player reads this slot",
             )
+
+    def _check_forced_scenes(
+        self, known_decks: set[str], known_cards: set[str]
+    ) -> None:
+        """
+        Every ``forces_scene:`` names a deck or a card that actually exists.
+
+        A CLOCK IS A PROMISE THE ENGINE KEEPS -- that is the sentence in
+        ``engine/game/clocks.py``'s own docstring, and it is the whole
+        difference between a clock and a meter. ``forces_scene`` is how the
+        promise is written down, and until this check existed the word
+        ``forces_scene`` appeared NOWHERE in this validator. The result: The
+        Wicked Garden's four forced scenes all named label-shaped fragments
+        rather than ids, so four clocks filled, raised a scene nothing could
+        resolve, and left it pending forever -- measured at 100% pending across
+        a 40-run walk, with zero validation errors reported.
+
+        Both forms are legal, because both are useful and both ship:
+        naming a DECK deals that whole deck; naming a CARD forces that one card
+        into the next hand. Only naming neither is an error.
+        """
+        clocks_path = self._file("clocks")
+        if clocks_path is None:
+            return
+        doc = _read_yaml(clocks_path)
+        if not isinstance(doc, dict):
+            return
+        source = self._rel(clocks_path)
+
+        def _walk(node: Any) -> Any:
+            if isinstance(node, dict):
+                if "forces_scene" in node:
+                    yield str(node.get("forces_scene") or "").strip()
+                for value in node.values():
+                    yield from _walk(value)
+            elif isinstance(node, list):
+                for value in node:
+                    yield from _walk(value)
+
+        for scene_id in _walk(doc):
+            if not scene_id:
+                self._add(source, "-", "forces_scene is empty")
+                continue
+            if scene_id in known_decks or scene_id in known_cards:
+                continue
+            if not known_decks:
+                self._add(
+                    source,
+                    scene_id,
+                    "forces_scene is declared but this story ships no decks, "
+                    "so the clock's promise can never be kept",
+                )
+            else:
+                self._add(
+                    source,
+                    scene_id,
+                    "forces_scene names neither a deck nor a card that exists "
+                    "(engine/content/director.py resolves it against both)",
+                )
 
     def _check_beat_shapes(self, source: str, card_id: str, card: Any) -> None:
         """

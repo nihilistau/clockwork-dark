@@ -35,12 +35,63 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 
 ## Status
 
-**PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.**
-**1932 passing, 19 skipped in 3m24s**, no expected failures (measured
-2026-08-15), plus **115 client tests** under `ui/tests/` (`npm test --prefix ui`,
+**PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.
+Overhaul III (reachability) complete.**
+**2020 passing, 18 skipped in 3m38s**, no expected failures (measured
+2026-08-15), plus **126 client tests** under `ui/tests/` (`npm test --prefix ui`,
 which needs `npm install --prefix ui` once — `vitest` is a devDependency). Run
 both for the real numbers rather than trusting this line; it has been stale
 before.
+
+**THE GAME WAS SMALLER IN PLAY THAN IT WAS ON DISK, AND EVERY TEST WAS GREEN.**
+Three whole subsystems and eleven registered skills had no production caller.
+Each was well covered in isolation, which is exactly why nothing failed: a test
+IS a caller, so a well-tested dead subsystem looks identical to a live one.
+
+- **`engine/content/deck.py`** — `draw`/`resolve_card` were reached only by
+  `scripts/simulate_decks.py` and the tests. The Wicked Garden's 11 decks / 136
+  cards / 386 beats are the largest body of authored prose in the repo, and its
+  only `ending_lock` sits on a card in `day_09_finale`. **The game could not be
+  finished by playing it.**
+- **`clocks.forced_scenes()`** — six shipped `forces_scene:` beats raised a
+  world event nothing answered; 100% pending across a 40-run walk. The Garden's
+  four named card-id *fragments* rather than ids, so they could never have
+  resolved. THE LONG CON's entire "graph city with a deck in the middle of it"
+  pitch is this coupling.
+- **`engine/challenges/set_pieces.py`** — no caller, no challenge SKILL at all,
+  while `docs/GOVERNANCE.md` documented it as live. Two of the flagship's four
+  non-quest `doom_resistance` grants live behind it.
+- **`engine/game/threads.py`** — 1177 lines, three games shipping
+  `threads.yaml`, nothing that could ever create a thread, so every `thread` /
+  `no_thread` gate was permanently false.
+
+And `SKILL_FOR_ACTION` carried seven verbs while forage, work (17 jobs), sell,
+haggle and craft (22 recipes) were implemented, data-complete and unreachable.
+**`buy` was reachable and `sell` was not** — the economy was a pure sink with no
+faucet. Meanwhile `scripts/simulate.py`, which set every balance constant in
+`config/default.yaml`, drove sell/forage/work/set_piece directly: the numbers
+were tuned against a game nobody could play.
+
+All of it is wired now — `engine/content/director.py` deals a scene inside
+`run_turn`, and eight new intent verbs (`card`, `sell`, `work`, `forage`,
+`set_piece`, `challenge`, `bargain`, `discharge`) reach the rest. Inert by
+CONSTRUCTION for the graph stories: `deck_ids()` reads `paths.decks`, the
+flagship and NEON CITY declare none, so `due()` returns on its first line and
+their turns are byte-identical — asserted in `tests/test_scene_director.py`
+rather than assumed.
+
+**`tests/test_reachability.py` is what makes it stay fixed.** It walks the
+engine's own call graph — `engine/` only, since tests and scripts are precisely
+the callers that hid the problem — and fails on a load-bearing entry point with
+no production caller. It carries a positive control (`encounter`, unquestionably
+live) because a detector that can only answer "dead" is not a detector, and an
+explicit allowlist where an exception is deliberate, each row with its reason.
+
+**Every shipped game can now be played to an ending** — `tests/test_finales.py`,
+over all five, driving `ending_lock → ending_module → epilogue`. Two of the five
+could not do this at all before: THE LONG CON declared no `endings:`, no
+`epilogues:` and its only quest had no `on_complete` (four stages, then
+nothing), and dev-story declared three endings and emitted neither effect.
 
 **THE SUITE RUNS IN A THIRD OF THE TIME IT DID, AND NOTHING WAS DELETED TO DO
 IT.** It was 15m32s. 69% of that — 643.8s — was `test_turn_intent_per_game.py`
@@ -189,6 +240,31 @@ within 13%; the median 200-turn run ends in SPREADING; measured by the new
 
 The design review's open-issue list is empty.
 
+Closed in Overhaul III, beyond the reachability work above: **the turn payload
+disagreed with the save** (quest rewards applied AFTER `to_client_dict`, so the
+screen showed the purse from before the reward and a quest-fired ending reported
+a turn late); **one LM Studio blip pinned "Storyteller unreachable" for the whole
+session** (`_llm_failed` was set in `__init__` and never lowered);
+**`POST /api/game/choice` ran turns with no session lock**; **the save index was
+an unlocked read-modify-write** on a process-wide singleton, so concurrent
+autosaves lost each other, and it was 537 KB / 1302 rows re-parsed and fsynced
+every turn with nothing that ever pruned one; **prompt eviction popped the
+running summary before turn history**, inverting `EVICTION_ORDER`, and
+everything appended after `fit()` was outside the budget it computed; **a
+safety-REFUSED input still committed both agents' effects**; **every duration ran
+a day long** (`{days: 1}` lasted two — fixed at the conversion via
+`effects.duration_day`, NOT at the sweep comparator, because
+`economy._record_shift` stamps `expires_day = world_day` for "today only" and a
+`<=` there would reset the work cap every intra-day tick); and **`crit_success`
+was mathematically unreachable** — margin 10 over DC 13 needs a total of 23
+against a best-in-game +4, so it was a 5% band for one archetype and impossible
+for the rest, with `forge_bellows`'s payout, its 1.6× wage, three reputation
+rows and `craft_item`'s batch bonus all dead behind it.
+
+Re-measured after the duration fix: **31 deaths across the five policies**
+(baseline 32) and the R-06 doom asymmetry holds at **1.96×** engaged-to-
+disengaged (baseline 2.03×). Nothing material moved.
+
 The MCP tool layer landed: `engine/mcp/skills_server.py` reflects the `@skill`
 registry into a real MCP server (`fastmcp`, SSE, in-process so skills still
 resolve through `get_active_engine()`), and `native.py`/`backend.py` learned
@@ -218,12 +294,55 @@ validation. `mcp.json` is required; entries are written atomically under the
 
 See [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) for the measurements behind
 each. Four **NOT WIRED** tables remain, each naming its file:
-[GOVERNANCE.md](docs/GOVERNANCE.md) (the notice board's browser half),
-[SAFETY.md](docs/SAFETY.md) (cosmetic rename on display labels),
+[GOVERNANCE.md](docs/GOVERNANCE.md) (the notice board's browser half, plus the
+challenge/scene/negotiation panels — all presentation gaps, none of them
+playability gaps, because those systems reach the player as ordinary choice
+chips), [SAFETY.md](docs/SAFETY.md) (cosmetic rename on display labels, **the
+player boundary sheet**, and **the Fade control** — the last two were documented
+as player-facing and neither exists: `set_policy` has no production caller and
+`fade_available` has no reader, so the limits sheet is permanently empty),
 [STATE.md](docs/STATE.md) (an ending's authored `tease:`, which no story
 declares) and [AGENTS.md](docs/AGENTS.md) (the unmeasured reasoning cost of the
 two plan calls — its MCP row is gone, retired by wiring the caller rather than
 by rewording the claim).
+
+**These tables are no longer the only guard, and that is the point.** The
+2026-08-14 audit declared GOVERNANCE.md down to one surviving row while
+challenges sat documented as live with no caller anywhere in `engine/`. Debt
+that nobody writes a row for is invisible in a repo that records debt in prose
+and has zero TODO/FIXME markers by convention — there is nothing to grep.
+`tests/test_reachability.py` answers that mechanically now.
+
+Still open and deliberately deferred, recorded here rather than fixed: THE LONG
+CON's tables and items are still the graph template's (it sells mushrooms as
+cigarettes); neon-city ships **zero** art plates against 75 subjects, its entry
+location included; the Garden has 11 of 23 endings unreachable and 4 orphan
+cards; `engine/studio/api.py:14` documents a `POST /api/studio/draft/accept`
+route that does not exist, so there is still no path from the studio to live
+content.
+
+**One order-dependent test was found and fixed rather than recorded.**
+`test_world_advances_over_a_session` passed alone, passed in the full suite,
+and failed in between, watching `advance_time` produce exactly zero evil. The
+config, the active slug and the loaded locations were IDENTICAL in the passing
+and failing cases, which is why it read as flakiness rather than as state: the
+only difference was `evil_ticker._DOOM_DECLARED`, a module-level memo of
+"does the running story have a doom clock at all". `tests/test_scene_seam.py`
+monkeypatches `entry_manifest` to a synthetic manifest without activating
+anything, something asks `doom_enabled()` inside that window, and the answer —
+False, because that manifest declares no doom — outlives the patch. The
+registered invalidator only runs on activation, and nothing activated.
+
+An autouse fixture in `tests/conftest.py` now nulls every memo in
+`caches.NULLED_ATTRIBUTES` after each test. Deliberately NOT
+`reset_all_caches()`: that also reruns the LM Studio reloaders, which are
+config-derived rather than manifest-derived, cannot be poisoned this way, and
+cost the suite 3m40s → 6m35s plus two prompt-budget failures when a cleared
+profile cache resolved the budget from config fallbacks. The scoped version
+costs about 30s (3m40s → 4m10s) and is held by a PAIR of tests in
+`test_session_isolation.py` — the first poisons the memo and deliberately does
+not clean up, the second asserts the world still ticks — because the obvious
+single-test version passes with or without the fixture and guards nothing.
 
 ## Verify a checkout
 

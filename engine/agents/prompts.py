@@ -383,6 +383,44 @@ def _encounter_block(state: GameState) -> str:
     return "\n".join(lines)
 
 
+def _scene_block(state: GameState) -> str:
+    """
+    The authored card in front of the player, if a scene is open.
+
+    Same contract as ``_encounter_block``: the text is AUTHORED, the options are
+    engine-fixed, and the narrator renders them rather than inventing. This is
+    the whole point of dealing a hand before narration -- the card's prose is a
+    writer's, not a sampler's, and a narrator told to "narrate the scene" with
+    no card in the prompt would write its own.
+
+    Empty string for a story that declares no decks, which is the same
+    contribution ``_intents_block`` makes for a story with no legal intents.
+    """
+    try:
+        from engine.content import director
+
+        card = director.current_card(state)
+        if card is None:
+            return ""
+        rows = director.options(state)
+    except Exception as exc:  # noqa: BLE001 -- a story with no decks
+        logger.debug("[prompts] No scene director: %s", exc)
+        return ""
+
+    lines = ["THE SCENE IN FRONT OF THE PLAYER, AUTHORED -- render it, do not replace it:"]
+    if card.title:
+        lines.append(str(card.title))
+    if card.text:
+        lines.append(str(card.text))
+    if rows:
+        lines.append(
+            "Their options are fixed by the engine. Offer these and no others:"
+        )
+        for row in rows:
+            lines.append(f"- {row['id']}: {row['text']}")
+    return "\n".join(lines)
+
+
 def _intents_block(state: GameState) -> str:
     """
     What a choice is allowed to make happen this turn, in words.
@@ -513,6 +551,7 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
     for block in (
         _npcs_present_block(state),
         _encounter_block(state),
+        _scene_block(state),
         _intents_block(state),
         _objectives_block(state),
         _events_block(state),

@@ -66,7 +66,13 @@ clocks:
       - id: briar_hunger_full
         at: max
         set_flags: [briar_finale_pending]
-        forces_scene: briar_threshold
+        # NAMES THE CARD, NOT A LABEL. `forces_scene` is resolved by
+        # engine/content/director.py against real deck and card ids: a value that
+        # matches neither is a promise with nothing behind it. These four were
+        # label-shaped fragments, so all four clocks raised a forced scene that
+        # nothing could ever answer -- measured at 100%% pending across a 40-run
+        # walk. engine/games/validation.py checks this now.
+        forces_scene: D8_06_briar_threshold
         text: "Tomorrow you grow or you feed."
 
   # ---------------------------------------------------------------------
@@ -88,7 +94,13 @@ clocks:
         # filling again -- paying winter down afterwards cannot un-call the
         # collection that already happened.
         set_flags: [ashen_collection_due]
-        forces_scene: ashen_collects
+        # NAMES THE CARD, NOT A LABEL. `forces_scene` is resolved by
+        # engine/content/director.py against real deck and card ids: a value that
+        # matches neither is a promise with nothing behind it. These four were
+        # label-shaped fragments, so all four clocks raised a forced scene that
+        # nothing could ever answer -- measured at 100%% pending across a 40-run
+        # walk. engine/games/validation.py checks this now.
+        forces_scene: D8_06c_ashen_collects
         effects:
           - { type: value, name: knowledge, delta: 2, why: "the Vale explains himself" }
         reset_to: 0
@@ -118,7 +130,13 @@ clocks:
       - id: sophia_break_full
         at: max
         set_flags: [sophia_mask_slipped]
-        forces_scene: sophia_unmasked
+        # NAMES THE CARD, NOT A LABEL. `forces_scene` is resolved by
+        # engine/content/director.py against real deck and card ids: a value that
+        # matches neither is a promise with nothing behind it. These four were
+        # label-shaped fragments, so all four clocks raised a forced scene that
+        # nothing could ever answer -- measured at 100%% pending across a 40-run
+        # walk. engine/games/validation.py checks this now.
+        forces_scene: D8_06b_sophia_unmasked
         text: "Her patience was a gift, and a gift here is a contract. It has just been called in."
 
   # ---------------------------------------------------------------------
@@ -146,5 +164,11 @@ clocks:
       - id: mortal_collapse_full
         at: max
         set_flags: [mortal_life_unrecoverable]
-        forces_scene: empty_rooms
+        # NAMES THE CARD, NOT A LABEL. `forces_scene` is resolved by
+        # engine/content/director.py against real deck and card ids: a value that
+        # matches neither is a promise with nothing behind it. These four were
+        # label-shaped fragments, so all four clocks raised a forced scene that
+        # nothing could ever answer -- measured at 100%% pending across a 40-run
+        # walk. engine/games/validation.py checks this now.
+        forces_scene: F5b_the_empty_rooms
         text: "Somewhere, tenfold days have finished rewriting a life that still thinks it might have you back."

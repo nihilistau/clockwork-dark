@@ -125,19 +125,31 @@ class BlockSet:
         if content and content.strip():
             self.blocks.append(Block(name, role, content, evictable))
 
-    def fit(self, budget: Budget) -> list[dict[str, str]]:
+    def fit(self, budget: Budget, *, reserved: int = 0) -> list[dict[str, str]]:
         """
         Drop blocks in EVICTION_ORDER until the prompt fits.
 
         Turn history goes first because the running summary already covers the
         same ground in compressed form; the summary goes last because losing it
         costs the model every memory it has.
+
+        Args:
+            budget: The window this prompt has to fit inside.
+            reserved: Tokens already spoken for by messages the CALLER will
+                append after this returns -- few-shot examples, the turn
+                buffer, receipts, the agreed block, the player's own line.
+                Without it this method fitted the blocks against the whole
+                window and the caller then appended an unbounded amount on top,
+                so the prompt that was measured and the prompt that went on the
+                wire were different objects. LM Studio truncates from the
+                front, which takes the persona first.
         """
+        allowance = max(0, budget.available - max(0, reserved))
         working = list(self.blocks)
         self.dropped = []
 
         for name in EVICTION_ORDER:
-            if estimate_messages(self._render(working)) <= budget.available:
+            if estimate_messages(self._render(working)) <= allowance:
                 break
             remaining = [b for b in working if not (b.name == name and b.evictable)]
             if len(remaining) != len(working):
@@ -146,7 +158,7 @@ class BlockSet:
 
         # Last resort: trim the oldest turn entries one at a time.
         while (
-            estimate_messages(self._render(working)) > budget.available
+            estimate_messages(self._render(working)) > allowance
             and any(b.evictable for b in working)
         ):
             for index, block in enumerate(working):

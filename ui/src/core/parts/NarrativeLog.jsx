@@ -211,6 +211,16 @@ const Entry = React.memo(function Entry({ entry }) {
   if (entry.kind === "system") {
     return <p className="entry entry--system">{entry.text}</p>;
   }
+  // A quest starting, advancing, completing or failing. The server has always
+  // sent these and the client never read them, so finishing a quest -- and
+  // collecting whatever it paid -- happened in silence.
+  if (entry.kind === "quest") {
+    return (
+      <p className="entry entry--quest">
+        <span className="entry__label">Quest</span> {entry.text}
+      </p>
+    );
+  }
   return (
     <p className={`entry entry--narration ${entry.streaming ? "is-streaming" : ""}`}>
       {entry.text}

@@ -313,11 +313,11 @@ def test_a_full_clock_forces_a_setpiece(garden: GameState) -> None:
     _set(garden, "briar_hunger", 5)
     clocks.resolve(garden)
 
-    assert clocks.forced_scenes(garden) == ["briar_threshold"]
+    assert clocks.forced_scenes(garden) == ["D8_06_briar_threshold"]
     entry = next(e for e in garden.world_events if e.get("forces_scene"))
     assert entry["expires_day"] == clocks.PERMANENT_HORIZON_DAY
 
-    clocks.mark_scene_played(garden, "briar_threshold")
+    clocks.mark_scene_played(garden, "D8_06_briar_threshold")
     assert clocks.forced_scenes(garden) == []
 
 
@@ -330,7 +330,7 @@ def test_a_beat_may_be_gated_on_more_than_its_number(garden: GameState) -> None:
     proposal = threads.offer(garden, "ashen_service_owed", source="ashen_vale")
     threads.seal(garden, proposal)
     clocks.resolve(garden)
-    assert clocks.forced_scenes(garden) == ["ashen_collects"]
+    assert clocks.forced_scenes(garden) == ["D8_06c_ashen_collects"]
 
 
 def test_a_recurring_clock_empties_and_refills(garden: GameState) -> None:
@@ -352,7 +352,7 @@ def test_engine_side_pressure_winds_a_clock_and_fires_it_the_same_turn(
     _set(garden, "time_debt_mortal_days", 120)
     clocks.resolve(garden)
     assert clocks.value_of(garden, "mortal_collapse") == 5
-    assert "empty_rooms" in clocks.forced_scenes(garden)
+    assert "F5b_the_empty_rooms" in clocks.forced_scenes(garden)
 
 
 def test_auto_advance_fires_once_not_every_turn(garden: GameState) -> None:

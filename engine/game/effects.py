@@ -284,6 +284,32 @@ def resolve_day(state: GameState, raw: Any, *, default_days: int = 1) -> int:
     return _int(raw, state.world_day + default_days)
 
 
+def duration_day(state: GameState, days: int) -> int:
+    """
+    The last day a thing lasting ``days`` days is still in force.
+
+    NOT ``resolve_day``. The sweep in ``engine/game/clock.py`` drops an effect
+    when ``expires_day < world_day`` -- i.e. ``expires_day`` is the last day it
+    is STILL ACTIVE, not the first day it is gone. ``resolve_day`` returns
+    ``world_day + days``, so ``{days: 1}`` applied on day 5 stamped 6 and the
+    effect was in force on both day 5 and day 6: every duration in the game ran
+    a day longer than it read.
+
+    The comparator is deliberately not the thing that changed.
+    ``economy._record_shift`` stamps ``expires_day = world_day`` meaning "today
+    only", and flipping the sweep to ``<=`` would evict that on the first
+    intra-day ``advance_time`` -- taking the daily shift cap with it.
+
+    Args:
+        state: Game state, read for ``world_day``.
+        days: How many days it should last. Zero or less means today only.
+
+    Returns:
+        Absolute world day, inclusive.
+    """
+    return state.world_day + max(0, int(days) - 1)
+
+
 def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
@@ -698,11 +724,17 @@ def _e_check_penalty(
     day = state.world_day
     # `days` is the natural way to write "for two days" in a table; it is
     # converted here so the clock's expiry sweep sees an absolute day.
-    expires = resolve_day(
-        state,
-        effect.get("expires_day"),
-        default_days=max(1, _int(effect.get("days"), 1)),
-    )
+    #
+    # Through `duration_day`, not `resolve_day`: the sweep keeps an effect while
+    # `expires_day >= world_day`, so a one-day penalty stamped `world_day + 1`
+    # was in force on two days. An ABSOLUTE `expires_day` written by content
+    # still passes through `resolve_day` untouched -- that is a date, not a
+    # duration.
+    raw_expiry = effect.get("expires_day")
+    if raw_expiry in (None, ""):
+        expires = duration_day(state, max(1, _int(effect.get("days"), 1)))
+    else:
+        expires = resolve_day(state, raw_expiry, default_days=1)
     timed = TimedEffect(
         id=str(effect.get("id") or _next_id("effect", state.active_effects, day)),
         kind="check_penalty",

@@ -284,14 +284,34 @@ class DeckWalk:
         self._play_forced_decks()
 
     def _play_forced_decks(self) -> None:
-        """A filled clock may force a scene that IS a deck. Play it, mark it,
-        bounded -- a scene that refills its own clock must not loop the walk.
-        Forced scenes that are cards inside later decks (the Garden's shape)
-        are left pending for those decks' own gates to answer."""
+        """
+        Answer what a filled clock owes, the way the live engine now does.
+
+        A ``forces_scene`` may name a DECK (play it) or a single CARD inside one
+        (that card's own gate answers it when its deck comes round). Both are
+        legal and both ship; ``engine/content/director.py`` is the production
+        resolver and this walk must not disagree with it.
+
+        The card case used to be skipped AND left raised forever, so the walk
+        reported 100% of the Garden's forced scenes pending at end -- which read
+        as a broken promise when what was actually broken was this accounting.
+        A card-shaped forced scene is retired here once its deck has dealt the
+        card, which is the same moment the director retires it.
+
+        Bounded either way: a scene that refills its own clock must not loop.
+        """
+        known_decks = set(deck_module.deck_ids())
         for scene_id in clocks_module.forced_scenes(self.state):
             if scene_id not in self.result.forced_raised:
                 self.result.forced_raised.append(scene_id)
-            if scene_id not in deck_module.deck_ids():
+            if scene_id not in known_decks:
+                # A card id. Retire it once the card has actually been dealt --
+                # `dealt` is this walk's record of every card it played.
+                played = any(
+                    scene_id in cards for cards in self.result.dealt.values()
+                )
+                if played:
+                    clocks_module.mark_scene_played(self.state, scene_id)
                 continue
             if self._forced_plays >= MAX_FORCED_PLAYS:
                 continue

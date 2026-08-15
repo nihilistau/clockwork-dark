@@ -89,6 +89,13 @@ paths:
   # set-piece in the middle of them rather than only encounters.
   decks: "games/the-long-con/data/scenes"
   clocks: "games/the-long-con/data/rules/clocks.yaml"
+  # HOW THE CASE ENDS. Neither of these was declared, and the story's only
+  # quest carried no `on_complete` -- so finishing all four stages awarded
+  # nothing, set no flag, and the city carried on with nothing left to do. The
+  # three classes are decided by `heat` and `standing`, which is the whole
+  # shape of the thing: what the answer cost you to get.
+  endings: "games/the-long-con/data/rules/endings.yaml"
+  epilogues: "games/the-long-con/data/epilogues"
   saves: "data/saves"
 
 entry:

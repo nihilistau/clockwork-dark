@@ -226,18 +226,29 @@ def _commit(
     refused: list[dict[str, Any]] = []
 
     veto = _govern_commit(state, turn, plans or {}, governance)
-    if veto:
+
+    # A turn the SAFETY layer refused is as blocked as one governance vetoed,
+    # and it was not treated that way. `Negotiator.negotiate` sets
+    # `turn.blocked` for a safety block and deliberately does not return early
+    # -- the caller still needs choices and a lead so it can decline IN FICTION
+    # rather than show an out-of-character refusal -- but it leaves every plan's
+    # `effects` sitting on `turn.accepted`, and the loop below applied them. So
+    # the player asked for something the input gate refused, the narrator was
+    # told to decline it, and the meters moved anyway.
+    #
+    # `veto` is still returned unchanged: it means "governance vetoed", and a
+    # safety block is not that. What both share is that nothing gets written.
+    if veto or turn.blocked:
+        why = f"vetoed: {veto}" if veto else "safety block"
         turn.blocked = True
         turn.block_reason = turn.block_reason or veto
         for agent, plan in turn.accepted.items():
             for effect in plan.effects:
-                refused.append(
-                    {"agent": agent, **effect.to_effect(), "why": f"vetoed: {veto}"}
-                )
+                refused.append({"agent": agent, **effect.to_effect(), "why": why})
         logger.warning(
-            "[pipeline] Turn vetoed, nothing applied (operation=_commit, "
+            "[pipeline] Turn blocked, nothing applied (operation=_commit, "
             "reason=%s, refused=%d)",
-            veto,
+            turn.block_reason or why,
             len(refused),
         )
         return receipts, refused, veto

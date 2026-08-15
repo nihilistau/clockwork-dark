@@ -264,3 +264,110 @@ describe("createStore", () => {
     expect(composed(initial, { type: "CONNECTED" }).connected).toBe(true);
   });
 });
+
+describe("contention is not failure", () => {
+  const socket = (event, payload = {}) => ({ type: "SOCKET", event, payload });
+
+  const started = () =>
+    reducer(
+      initialState,
+      socket("game_started", {
+        session_id: "s1",
+        state: { world_day: 1 },
+        opening: { narration: "You come out of the wood." },
+      }),
+    );
+
+  it("a busy turn_error leaves the running turn's prose alone", () => {
+    // The server rejects a second `player_choice` while one is in flight. That
+    // is the GUARD working -- the first turn is still generating and still
+    // streaming onto the screen. Treating it as a dead turn ran `closeStream`,
+    // which deleted the in-flight entry, and cleared `busy`, which re-enabled
+    // every control while the server was still working. One stray double-press
+    // was enough, and so was a second tab on the same session.
+    let state = reducer(started(), { type: "SUBMIT", text: "go" });
+    state = reducer(state, socket("narration_delta", { text: "The tavern comes into vi" }));
+    const streamingId = state.streamingId;
+    expect(streamingId).toBeTruthy();
+
+    state = reducer(
+      state,
+      socket("turn_error", { message: "A turn is already in progress.", busy: true }),
+    );
+
+    expect(state.streamingId).toBe(streamingId);
+    expect(state.log.map((e) => e.text)).toContain("The tavern comes into vi");
+    expect(state.busy).toBe(true);
+    expect(state.error).toBe("A turn is already in progress.");
+  });
+
+  it("a real turn_error still tears the turn down", () => {
+    // The guard against over-fixing the case above: an actual failure must
+    // still clear `busy` and drop the orphaned draft.
+    let state = reducer(started(), { type: "SUBMIT", text: "go" });
+    state = reducer(state, socket("narration_delta", { text: "The tavern comes into vi" }));
+
+    state = reducer(state, socket("turn_error", { message: "the turn broke" }));
+
+    expect(state.streamingId).toBeNull();
+    expect(state.busy).toBe(false);
+    expect(state.log.map((e) => e.text)).not.toContain("The tavern comes into vi");
+  });
+});
+
+describe("quest events reach the player", () => {
+  const socket = (event, payload = {}) => ({ type: "SOCKET", event, payload });
+
+  const started = () =>
+    reducer(
+      initialState,
+      socket("game_started", {
+        session_id: "s1",
+        state: { world_day: 1 },
+        opening: { narration: "You come out of the wood." },
+      }),
+    );
+
+  it("appends a log entry for each quest event on the turn", () => {
+    // The server has always carried `quest_events` -- started, advanced,
+    // completed, failed -- and nothing in the client read the key. So a stage
+    // that awards gold and an item paid out with no line on screen anywhere,
+    // and the only way a player learned a quest had finished was if the
+    // narrator happened to mention it. The narrator is not told either.
+    let state = reducer(started(), { type: "SUBMIT", text: "go" });
+    state = reducer(
+      state,
+      socket("turn_update", {
+        narration: "The oven ticks as it cools.",
+        quest_events: [
+          { kind: "completed", quest_id: "bakery_apprentice", text: "Quest complete: Bakery Apprentice." },
+          { kind: "started", quest_id: "lost_goat", text: "New: The Lost Goat." },
+        ],
+      }),
+    );
+
+    const quests = state.log.filter((e) => e.kind === "quest").map((e) => e.text);
+    expect(quests).toEqual([
+      "Quest complete: Bakery Apprentice.",
+      "New: The Lost Goat.",
+    ]);
+  });
+
+  it("adds nothing on a turn with no quest events", () => {
+    let state = reducer(started(), { type: "SUBMIT", text: "go" });
+    state = reducer(state, socket("turn_update", { narration: "Nothing happens." }));
+    expect(state.log.some((e) => e.kind === "quest")).toBe(false);
+  });
+
+  it("ignores an event with no text rather than rendering a blank line", () => {
+    let state = reducer(started(), { type: "SUBMIT", text: "go" });
+    state = reducer(
+      state,
+      socket("turn_update", {
+        narration: "Nothing happens.",
+        quest_events: [{ kind: "advanced", quest_id: "x" }],
+      }),
+    );
+    expect(state.log.some((e) => e.kind === "quest")).toBe(false);
+  });
+});

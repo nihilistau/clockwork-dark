@@ -193,7 +193,14 @@ def test_check_penalty_effect_roundtrips():
     assert eff.kind == "check_penalty"
     assert eff.delta == -2
     assert eff.skills == ["nerve"]
-    assert eff.expires_day == 4
+    # Day 2 and day 3 -- two days, because `days: 2` says two days.
+    #
+    # This asserted 4, which is what `world_day + days` produced and is three
+    # days of penalty (2, 3 and 4): the sweep in engine/game/clock.py keeps an
+    # effect while `expires_day >= world_day`, so `expires_day` is the last day
+    # STILL IN FORCE. Every duration in the game ran one day long. Durations
+    # now convert through `effects.duration_day`; see tests/test_durations.py.
+    assert eff.expires_day == 3
 
 
 def test_timed_effects_expire_through_the_clock():
@@ -337,6 +344,9 @@ def test_every_effect_type_survives_a_full_save_roundtrip():
     assert reloaded.reputations == {"edgewood": -4}
     assert [(i.id, i.qty) for i in reloaded.inventory] == [("loaf", 2)]
     assert reloaded.wounds[0].heals_on_day == 5
-    assert reloaded.active_effects[0].expires_day == 4
+    # `days: 1` is in force TODAY and gone tomorrow. It asserted 4 (day 3 plus
+    # one), which kept a one-day penalty for two -- see the note on
+    # test_check_penalty_effect_roundtrips and tests/test_durations.py.
+    assert reloaded.active_effects[0].expires_day == 3
     assert reloaded.flags == {"was_watched": True}
     assert reloaded.to_save_dict() == state.to_save_dict()

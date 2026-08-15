@@ -41,6 +41,10 @@ stages:
       the body: A. Ruse, Lieutenant, Ninth Precinct. Bette Farrow reads it over
       your shoulder and says nothing, which from her is a headline.
 
+    on_complete:
+      effects:
+        # Asking a newspaper about a body is a thing a newspaper remembers.
+        - { type: value, name: heat, delta: 8, why: "you asked The Ledger about a dead man" }
   - id: ask_the_bar
     objective: "Ask Sonia at the Cadenza who dresses a man like that."
     narrative_flags:
@@ -55,6 +59,10 @@ stages:
       until you stop asking, which is the only way anyone learns anything in
       this city.
 
+    on_complete:
+      effects:
+        - { type: value, name: heat, delta: 10, why: "Sonia's bar is not a private room" }
+        - { type: value, name: standing, delta: -8, why: "you spent a favour to get a name" }
   - id: the_harbour
     objective: "Find out what comes off the boats that does not reach the weighbridge."
     narrative_flags:
@@ -68,6 +76,10 @@ stages:
       photograph. The correction is nine days after the drowning and it is
       signed for by a man the city buried.
 
+    on_complete:
+      effects:
+        - { type: value, name: heat, delta: 14, why: "somebody counted you counting crates" }
+        - { type: value, name: standing, delta: -10, why: "the harbour talks, and it talks about you" }
   - id: the_cold_room
     objective: "Go down to the drying room, and take a light."
     narrative_flags:
@@ -80,3 +92,29 @@ stages:
       Swept very recently, and swept by somebody who knew what they were
       sweeping up. The hook nearest the door has a coat on it, and the coat is
       dry, and nothing in this city has been dry since the fourth.
+
+    on_complete:
+      effects:
+        - { type: value, name: heat, delta: 25, why: "you went down there with a light" }
+        - { type: value, name: standing, delta: -12, why: "nobody vouches for a man who opens a locked room" }
+# THE END OF THE CASE, which this story declared nowhere.
+#
+# THE LONG CON shipped with no `endings:` and no `epilogues:` at all, and its
+# only quest had no `on_complete` -- so finishing all four stages awarded
+# nothing, set no flag, and the story simply carried on with nothing left to
+# do. A game that cannot conclude is not a shipped game.
+#
+# The lock carries NO id: `endings.resolve` picks the highest-scoring ELIGIBLE
+# class from what the run actually earned, and falls forward otherwise. Which
+# ending you get is what your heat and your standing made of you, and that is
+# the whole point of a story about being framed.
+on_complete:
+  effects:
+    - { type: flag, flag: the_case_closed }
+    - type: ledger_fact
+      text: >-
+        You know who the dead man was, who signed for him nine days after he
+        drowned, and what is hanging in the drying room.
+      kind: event
+    - { type: ending_lock }
+    - { type: ending_module }

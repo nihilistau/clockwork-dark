@@ -57,8 +57,26 @@ default_difficulty: standard
 # Degrees of success by margin (total - dc). Evaluated top down; first match
 # wins, so order matters.
 degrees:
+  # WAS 10, WHICH MADE THIS BAND UNREACHABLE. A `standard` check is DC 13, so
+  # margin 10 needs a total of 23. The best build in the game is a hearthkeeper
+  # at the forge: craft 14 gives +2, `skill_bonus.craft: 2` gives another, so
+  # +4 -- a natural 20 reaches 24, and that is a 5% band for ONE archetype at
+  # ONE skill. A wayfarer at the forge has craft 8, i.e. -1 and no affinity,
+  # topping out at 19 against a requirement of 23: mathematically impossible,
+  # at every difficulty from `standard` upward, for the whole run.
+  #
+  # Content that could therefore never fire: `forge_bellows` pays its
+  # charcoal_sack on `degrees: [crit_success]` alone, its 1.6x wage is
+  # crit-only, three reputation rows in labour.yaml are crit-only, and
+  # `craft_item`'s "+1 to the batch on a crit" has never once applied.
+  #
+  # 6 puts it at roughly a fifth of rolls on a specialist's own skill and a
+  # twentieth off-specialty, which is the shape a degree ladder wants. The
+  # NUMBER is not the guard, though: tests/test_checks.py now asserts that
+  # every declared degree is reachable by some shipped archetype, so this
+  # cannot silently go dead again.
   - id: crit_success
-    min_margin: 10
+    min_margin: 6
   - id: success
     min_margin: 0
   - id: partial

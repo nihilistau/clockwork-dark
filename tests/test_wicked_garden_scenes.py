@@ -576,7 +576,7 @@ def test_her_patience_filling_forces_the_unmasking(garden: GameState) -> None:
     effects.apply_effect(garden, {"type": "value", "name": "sophia_break", "set": 5})
     clocks.resolve(garden)
 
-    assert "sophia_unmasked" in clocks.forced_scenes(garden)
+    assert "D8_06b_sophia_unmasked" in clocks.forced_scenes(garden)
     assert garden.flags.get("sophia_mask_slipped") is True
 
     card = next(
@@ -590,7 +590,7 @@ def test_her_patience_filling_forces_the_unmasking(garden: GameState) -> None:
     # Soothing her afterwards eases the clock but cannot un-force the scene:
     # the card gates on the flag, not the number, and that is deliberate.
     clocks.advance(garden, "sophia_break", -1, why="soothed")
-    assert "sophia_unmasked" in clocks.forced_scenes(garden)
+    assert "D8_06b_sophia_unmasked" in clocks.forced_scenes(garden)
 
 
 # ---------------------------------------------------------------------------
@@ -734,11 +734,20 @@ def test_the_two_conditional_pool_cards_stay_silent_once_the_spine_has_run(
 #: answering card at all: `ashen_collects` (raised in ~8% of runs) and
 #: `empty_rooms` (raised in 100% of them, because the ten-day toll is exactly
 #: the hundred mortal days that fill the clock).
+#: KEYED ON THE CARD ID, because that is now what `forces_scene` says.
+#:
+#: These four used to be label-shaped fragments -- `briar_threshold` rather
+#: than `D8_06_briar_threshold` -- and this table was the only place the two
+#: were connected. `engine/content/director.py` resolves `forces_scene` against
+#: real deck and card ids, so the labels named nothing it could deal and the
+#: coupling lived entirely in the flag convention below plus this dict.
+#: `engine/games/validation.py::_check_forced_scenes` checks it now, on every
+#: story, so the connection is machine-verified rather than conventional.
 ANSWERED_SCENES = {
-    "briar_threshold": ("day_08_mirrors", "D8_06_briar_threshold", ""),
-    "sophia_unmasked": ("day_08_mirrors", "D8_06b_sophia_unmasked", "sophia_mask_slipped"),
-    "ashen_collects": ("day_08_mirrors", "D8_06c_ashen_collects", "ashen_collection_due"),
-    "empty_rooms": ("day_09_finale", "F5b_the_empty_rooms", "mortal_life_unrecoverable"),
+    "D8_06_briar_threshold": ("day_08_mirrors", ""),
+    "D8_06b_sophia_unmasked": ("day_08_mirrors", "sophia_mask_slipped"),
+    "D8_06c_ashen_collects": ("day_08_mirrors", "ashen_collection_due"),
+    "F5b_the_empty_rooms": ("day_09_finale", "mortal_life_unrecoverable"),
 }
 
 
@@ -765,14 +774,14 @@ def test_every_forced_scene_has_an_answering_card() -> None:
     )
 
     docs = _scene_docs()
-    for scene, (deck_name, card_id, flag) in ANSWERED_SCENES.items():
+    for card_id, (deck_name, flag) in ANSWERED_SCENES.items():
         cards = {str(c["id"]): c for c in docs[deck_name]["cards"]}
-        assert card_id in cards, f"{scene}: no card {card_id} in {deck_name}"
+        assert card_id in cards, f"no card {card_id} in {deck_name}"
         card = cards[card_id]
-        assert card.get("required"), f"{scene}: {card_id} is not on the spine"
+        assert card.get("required"), f"{card_id} is not on the spine"
         if flag:
             assert flag in _flags_read(card), (
-                f"{scene}: {card_id} does not gate on {flag}, so it would play "
+                f"{card_id} does not gate on {flag}, so it would play "
                 "on runs that never owed the scene"
             )
 
@@ -820,7 +829,7 @@ def test_winter_collecting_opens_its_own_card(garden: GameState) -> None:
     effects.apply_effect(garden, {"type": "value", "name": "ashen_pressure", "set": 5})
     clocks.resolve(garden)
 
-    assert "ashen_collects" in clocks.forced_scenes(garden)
+    assert "D8_06c_ashen_collects" in clocks.forced_scenes(garden)
     assert garden.flags.get("ashen_collection_due") is True
 
     card = next(
@@ -854,7 +863,7 @@ def test_the_mortal_debt_always_comes_due_and_is_answered(garden: GameState) -> 
     clocks.resolve(garden)
 
     assert clocks.value_of(garden, "mortal_collapse") == 5
-    assert "empty_rooms" in clocks.forced_scenes(garden)
+    assert "F5b_the_empty_rooms" in clocks.forced_scenes(garden)
     assert garden.flags.get("mortal_life_unrecoverable") is True
 
     card = next(

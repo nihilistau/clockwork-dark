@@ -81,6 +81,21 @@ on_complete:
     - type: ledger_fact
       text: "You registered, got the card, and found the library. Nobody made a fuss."
       kind: event
+    # THE FINALE CHAIN, which this bench declared and never reached.
+    #
+    # data/rules/endings.yaml has carried three ending classes with their
+    # Speak/Act/Seal beats, and data/epilogues/ three cards, since they were
+    # written -- and nothing anywhere in this story emitted `ending_lock` or
+    # `ending_module`, so `endings.locked()` was permanently empty and
+    # `epilogue.for_state()` permanently None. A bench whose README promises
+    # "one small working instance of every subsystem" was missing the last one.
+    #
+    # The lock carries NO id on purpose: `endings.resolve` picks the
+    # highest-scoring ELIGIBLE class from what the run actually earned, and
+    # falls forward to `just_another_term` otherwise. That is the behaviour
+    # worth demonstrating -- an ending the player's choices chose.
+    - { type: ending_lock }
+    - { type: ending_module }
 
 complete_text: >-
   You are on the list. It is not an achievement and it is a considerable relief.

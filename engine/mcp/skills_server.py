@@ -902,6 +902,18 @@ _server: Optional[SkillsServer] = None
 _server_lock = threading.Lock()
 
 
+def active_server() -> Optional[SkillsServer]:
+    """
+    The running server, or None -- and never starts one.
+
+    Teardown needs to ask "is there a server holding this session?" without
+    that question being the thing that boots a server. ``get_skills_server``
+    starts one on first use, which makes it exactly the wrong call to reach for
+    while cleaning a session up.
+    """
+    return _server
+
+
 def get_skills_server(
     resolve_engine: Optional[EngineResolver] = None,
 ) -> Optional[SkillsServer]:

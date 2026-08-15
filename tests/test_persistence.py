@@ -215,3 +215,155 @@ def test_migration_does_not_mutate_input():
     original = {"save_version": 1, "world_day": 4, "world_hour": 2}
     migrate(original)
     assert original["world_day"] == 4, "load must not rewrite the caller's dict"
+
+
+def test_concurrent_saves_do_not_lose_entries_from_the_index(tmp_path):
+    """
+    Two sessions autosaving at once both stay in the load menu.
+
+    The index was read-modify-written with no lock, on a PROCESS-WIDE singleton
+    shared by every session under threading-mode Socket.IO. Session B loaded the
+    index before A wrote it, so B's write dropped A's row: A's `save.json`
+    survived on disk and the run disappeared from `list_saves()` -- the only
+    place a player can see it -- permanently.
+    """
+    import threading
+
+    from engine.game.state import GameState
+    from engine.persistence.saves import SaveStore
+
+    store = SaveStore(root=tmp_path / "saves", slug="clockwork-dark")
+    ids = [f"run{n:02d}" for n in range(24)]
+    barrier = threading.Barrier(len(ids))
+    errors: list[BaseException] = []
+
+    def _save(save_id: str) -> None:
+        try:
+            barrier.wait(timeout=10)
+            store.save(GameState(location_id="forest_clearing"), save_id=save_id)
+        except BaseException as exc:  # noqa: BLE001 -- reported below
+            errors.append(exc)
+
+    threads = [threading.Thread(target=_save, args=(i,)) for i in ids]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=20)
+
+    assert not errors, f"a concurrent save raised: {errors[0]!r}"
+    listed = {s.save_id for s in store.list_saves()}
+    missing = set(ids) - listed
+    assert not missing, f"{len(missing)} concurrent saves were lost from the index"
+
+
+def test_the_index_is_bounded_and_never_drops_a_manual_slot(tmp_path, monkeypatch):
+    """
+    Autosaves are pruned oldest-first; a named slot is not prunable at all.
+
+    The index is re-parsed and fsynced every turn and grew by one row per run
+    ever started, with nothing that ever removed one -- a working checkout
+    measured 537 KB across 1302 entries. But the index IS the load menu, so a
+    bound that could drop a save the player deliberately named would delete
+    their run from the only place they can see it.
+    """
+    from engine.game.state import GameState
+    from engine.persistence.saves import AUTOSAVE_SLOT, SaveStore
+
+    monkeypatch.setattr(
+        "engine.persistence.saves.SaveStore._index_limit", lambda self: 10
+    )
+    store = SaveStore(root=tmp_path / "saves", slug="clockwork-dark")
+    state = GameState(location_id="forest_clearing")
+
+    store.save(state, save_id="keepsake", slot="chapter-one")
+    for n in range(40):
+        store.save(state, save_id=f"auto{n:02d}", slot=AUTOSAVE_SLOT)
+
+    listed = store.list_saves()
+    assert len(listed) <= 10, f"index is unbounded at {len(listed)} entries"
+    assert "keepsake" in {s.save_id for s in listed}, (
+        "a manual save slot was pruned -- the player's named run is gone from "
+        "the load menu"
+    )
+    # The survivors are the NEWEST autosaves, not an arbitrary subset.
+    autos = sorted(s.save_id for s in listed if s.slot == AUTOSAVE_SLOT)
+    assert autos and autos[-1] == "auto39"
+
+
+def test_compact_reduces_an_index_that_grew_before_the_bound_existed(
+    tmp_path, monkeypatch
+):
+    """Pruning otherwise only happens on the next save, which may never come."""
+    from engine.game.state import GameState
+    from engine.persistence.saves import AUTOSAVE_SLOT, SaveStore
+
+    store = SaveStore(root=tmp_path / "saves", slug="clockwork-dark")
+    state = GameState(location_id="forest_clearing")
+    for n in range(30):
+        store.save(state, save_id=f"auto{n:02d}", slot=AUTOSAVE_SLOT)
+    assert len(store.list_saves()) == 30
+
+    monkeypatch.setattr(
+        "engine.persistence.saves.SaveStore._index_limit", lambda self: 5
+    )
+    dropped = store.compact()
+
+    assert dropped == 25
+    assert len(store.list_saves()) == 5
+
+
+def test_reindex_restores_rows_that_pruning_hid(tmp_path, monkeypatch):
+    """
+    Pruning is reversible, which is what makes it safe to do automatically.
+
+    The index is a derived LISTING, not the data: every run's real content is
+    its own `save.json`, so dropping a row hides a run from the load menu
+    without touching it. `reindex()` walks the directories and puts them back.
+    """
+    from engine.game.state import GameState
+    from engine.persistence.saves import AUTOSAVE_SLOT, SaveStore
+
+    store = SaveStore(root=tmp_path / "saves", slug="clockwork-dark")
+    state = GameState(location_id="forest_clearing")
+    for n in range(30):
+        store.save(state, save_id=f"auto{n:02d}", slot=AUTOSAVE_SLOT)
+    assert len(store.list_saves()) == 30
+
+    # Prune hard.
+    monkeypatch.setattr(
+        "engine.persistence.saves.SaveStore._index_limit", lambda self: 5
+    )
+    store.compact()
+    assert len(store.list_saves()) == 5
+    # The runs themselves are untouched -- this is the whole claim.
+    assert len(list((tmp_path / "saves").iterdir())) >= 30
+
+    # Raise the bound and rebuild.
+    monkeypatch.setattr(
+        "engine.persistence.saves.SaveStore._index_limit", lambda self: 100
+    )
+    restored = store.reindex()
+
+    assert restored == 30, "reindex did not recover every save on disk"
+    assert {s.save_id for s in store.list_saves()} == {
+        f"auto{n:02d}" for n in range(30)
+    }
+
+
+def test_reindex_recovers_from_a_corrupt_index(tmp_path):
+    """An unreadable index used to mean every run was gone, as far as a player
+    could tell. The saves were always right there."""
+    from engine.game.state import GameState
+    from engine.persistence.saves import SaveStore
+
+    store = SaveStore(root=tmp_path / "saves", slug="clockwork-dark")
+    state = GameState(location_id="forest_clearing")
+    for n in range(4):
+        store.save(state, save_id=f"run{n}")
+
+    (tmp_path / "saves" / "index.json").write_text("{ this is not json",
+                                                   encoding="utf-8")
+    assert store.list_saves() == []
+
+    assert store.reindex() == 4
+    assert len(store.list_saves()) == 4

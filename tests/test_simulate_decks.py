@@ -246,3 +246,107 @@ def test_shape_detection_reads_the_manifests_not_the_slugs():
     assert simulate.story_shape(registry.get("clockwork-dark")) == "graph"
     assert simulate.story_shape(registry.get("wicked-garden")) == "deck"
     assert simulate.story_shape(registry.get("dev-story")) == "graph"
+
+
+# ---------------------------------------------------------------------------
+# Shipped-game acceptance: a ratchet, not a wish
+# ---------------------------------------------------------------------------
+
+#: Per-game allowances for content that the deck walker can prove is
+#: unreachable. THE POINT IS THAT THESE ONLY EVER GO DOWN.
+#:
+#: The template assertion above demands zero, which is right for a scaffold and
+#: impossible to demand of a shipped story today: The Wicked Garden has 11 of
+#: its 23 endings unreachable and 4 orphan cards, measured, and authoring
+#: eleven new routes is a content project rather than a bug fix. Asserting zero
+#: would mean deleting the assertion the first time it failed, which is how a
+#: gate becomes decoration.
+#:
+#: So the honest gate is a ceiling that cannot rise. Each content pass lowers
+#: the number; nothing can raise it without this failing and saying so.
+#: THE WALK CONDITIONS ARE PART OF THE NUMBER. A shorter walk reaches fewer
+#: endings, so "unreachable" counts what this exact configuration could not
+#: reach -- 12 here, against the 11 that `scripts/simulate_decks.py --runs 40`
+#: reports. Changing these invalidates the allowances below; re-measure and
+#: write down what you get rather than nudging the ceiling up to fit.
+RATCHET_RUNS = 8
+RATCHET_SEED = 11
+RATCHET_MAX_DAYS = 12
+
+#: Measured under exactly the constants above. The CLI's 40-run walk reports 11
+#: unreachable endings and 4 orphans; a shorter walk deals fewer cards and
+#: reaches fewer endings, so it reports more of both. Neither number is "the
+#: truth" -- what matters is that this one cannot rise.
+SHIPPED_DECK_ALLOWANCES = {
+    "wicked-garden": {"unreachable_endings": 12, "orphan_cards": 10},
+}
+
+
+@pytest.mark.parametrize("slug", sorted(SHIPPED_DECK_ALLOWANCES))
+def test_a_shipped_deck_story_does_not_lose_ground(slug):
+    """
+    Unreachable endings and orphan cards in a SHIPPED game, ratcheted.
+
+    `tests/test_simulate_decks.py` asserted this for the template story only,
+    so the Garden's eleven dead endings and four orphan cards were reported by
+    `scripts/simulate_decks.py` on every run and failed nothing.
+    """
+    from engine.games import registry
+
+    allowance = SHIPPED_DECK_ALLOWANCES[slug]
+    registry.activate(slug)
+    try:
+        report = simulate_decks.simulate_deck_story(
+            runs=RATCHET_RUNS, seed=RATCHET_SEED, max_days=RATCHET_MAX_DAYS
+        )
+    finally:
+        registry.deactivate()
+
+    unreachable = report["endings"]["unreachable"]
+    # `orphans`, not `orphan_cards` -- the first version of this test read a key
+    # that does not exist, so `.get()` returned None, the count was zero and the
+    # assertion passed no matter what the walk found. Exactly the vacuous shape
+    # this file exists to catch elsewhere.
+    orphans = report["orphans"]
+
+    assert len(unreachable) <= allowance["unreachable_endings"], (
+        f"{slug} went backwards: {len(unreachable)} unreachable endings against "
+        f"an allowance of {allowance['unreachable_endings']}. New: {unreachable}"
+    )
+    assert len(orphans) <= allowance["orphan_cards"], (
+        f"{slug} went backwards: {len(orphans)} orphan cards against an "
+        f"allowance of {allowance['orphan_cards']}. New: {orphans}"
+    )
+
+
+@pytest.mark.parametrize("slug", sorted(SHIPPED_DECK_ALLOWANCES))
+def test_a_shipped_deck_story_keeps_every_promise_its_clocks_make(slug):
+    """
+    A forced scene that is raised and never answered is a promise with nothing
+    behind it -- the failure `games/the-long-con/data/scenes/the_interview.yaml`
+    warns about in prose.
+
+    The Garden raised four and answered NONE: all four named label-shaped
+    fragments rather than real ids, so 100% stayed pending across a 40-run walk
+    and nothing failed.
+    """
+    from engine.games import registry
+
+    registry.activate(slug)
+    try:
+        report = simulate_decks.simulate_deck_story(
+            runs=RATCHET_RUNS, seed=RATCHET_SEED, max_days=RATCHET_MAX_DAYS
+        )
+    finally:
+        registry.deactivate()
+
+    raised = report["forced_scenes"]["raised"]
+    pending = report["forced_scenes"]["pending_at_end"]
+    assert raised, (
+        f"{slug}: no forced scene was raised at all in this walk, so this "
+        "assertion would pass without proving anything"
+    )
+    assert not pending, (
+        f"{slug} leaves forced scenes unanswered: {pending}. A filled clock "
+        "owes the player that scene."
+    )

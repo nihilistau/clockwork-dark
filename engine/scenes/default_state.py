@@ -860,6 +860,31 @@ def run_turn(
 
             intent_receipts = execute_intent(intent, session.engine)
 
+        # THE AUTHORED SCENE, DEALT BY THE ENGINE.
+        #
+        # A story that declares `paths.decks` gets its hand dealt here. Nothing
+        # did this before: `deck.draw` was called only by
+        # scripts/simulate_decks.py and by tests, so The Wicked Garden's 11
+        # decks and 386 beats -- the largest body of authored prose in the repo
+        # -- were unreachable by playing, and its only `ending_lock` sits on a
+        # card in a deck nothing dealt. The game could not be finished.
+        #
+        # Placed HERE for the same three reasons the intent above is: after the
+        # background tick so a deck's `when:` sees the state the tick produced;
+        # after the intent so a travel that fills a clock can force its scene on
+        # the same turn; before the pipeline so the agents negotiate against the
+        # hand that was dealt; and before narration so the narrator is TOLD the
+        # card rather than inventing one.
+        #
+        # Returns [] on its first line for a story that declares no decks --
+        # which is The Clockwork Dark and NEON CITY, whose turns are unchanged
+        # by construction rather than by a flag anyone has to set.
+        from engine.content import director
+
+        intent_receipts = intent_receipts + director.ensure_scene(
+            state, ledger=session.ledger
+        )
+
         # Push narration to the browser as it is generated. Without this the
         # player watches a frozen screen for the whole completion, then the
         # paragraph appears at once.
@@ -996,6 +1021,17 @@ def run_turn(
                 character_result = None
                 assistant_result = session.assistant.run_turn(storyteller_result.narration)
 
+    # Quest evaluation APPLIES effects -- reward gold, items, boons, and the
+    # `ending_lock`/`ending_module` pair a finale quest carries. So it has to
+    # run BEFORE the payload snapshots `state`, or the screen shows the purse
+    # from before the reward while the autosave below writes the one after it,
+    # and a quest-fired ending is reported a full turn late.
+    #
+    # Not any earlier than this, though: the ledger facts it writes would then
+    # enter THIS turn's prompt instead of the next one's, which changes what the
+    # narrator was told after it has already written.
+    quest_events = _evaluate_quests(session)
+
     turn_payload = {
         "session_id": state.session_id,
         "save_id": session.save_id,
@@ -1096,7 +1132,6 @@ def run_turn(
 
     session.last_turn = turn_payload
 
-    quest_events = _evaluate_quests(session)
     if quest_events:
         turn_payload["quest_events"] = quest_events
 

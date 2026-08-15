@@ -461,3 +461,35 @@ def test_the_tools_return_json_not_prose():
         for name in ("query_forage", "query_work", "query_inventory"):
             payload = json.loads(SKILL_REGISTRY.invoke(name))
             assert isinstance(payload, dict), name
+
+
+def test_a_shift_crossing_midnight_is_billed_to_the_day_it_started():
+    """
+    An eight-hour shift begun in the evening does not reset today's cap and
+    pre-spend tomorrow's.
+
+    ``work()`` advances the clock BEFORE recording the shift marker, and a long
+    evening shift rolls the day inside ``advance_time`` -- which also sweeps the
+    previous day's markers. So the cap check passed against a day that no longer
+    existed, and the marker landed on the new one: the player cleared the old
+    day's limit for free and burned one of the new day's shifts before it began.
+    """
+    from engine.game.clock import advance_time
+    from engine.game.economy import _record_shift, shifts_worked
+
+    state = GameState(location_id="edgewood_square")
+    while state.world_hour != 20:
+        advance_time(state, 1)
+        state.hunger = 0.0
+        state.stats.hp = state.stats.max_hp
+    started_on = state.world_day
+
+    # The shape work() produces: clock first, marker second, billed to the start.
+    advance_time(state, 8)
+    assert state.world_day == started_on + 1, "this test needs to cross midnight"
+    _record_shift(state, "oven_shift", day=started_on)
+
+    # The new day is untouched: nothing has been worked in it yet.
+    assert shifts_worked(state) == 0, (
+        "an evening shift pre-spent one of the following day's slots"
+    )

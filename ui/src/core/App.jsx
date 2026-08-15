@@ -507,6 +507,7 @@ export default function App({ story }) {
         onOpenOverlay={setOverlay}
         onOpenMenu={() => setShowMenu(true)}
         onToggleReasoning={() => dispatch({ type: "REASONING_TOGGLE" })}
+        blocked={blocked}
         muted={muted}
         onToggleMute={toggleMute}
         showDiceBreakdown={prefs.showDiceBreakdown}

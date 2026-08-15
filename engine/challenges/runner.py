@@ -161,13 +161,7 @@ def start(
         len(validated.adjustments),
     )
 
-    presenter = {
-        "skill_gauntlet": _present_gauntlet,
-        "decision_tree": _present_tree,
-        "puzzle": _present_puzzle,
-        "dice_table": _present_dice_table,
-    }[stored["kind"]]
-    result = presenter(stored)
+    result = _present(stored)
     result.adjustments = validated.adjustments
     return result
 
@@ -296,6 +290,49 @@ def _present_dice_table(stored: dict[str, Any]) -> ChallengeResult:
 # ---------------------------------------------------------------------------
 # Resolvers
 # ---------------------------------------------------------------------------
+
+
+#: Which presenter renders each challenge kind. Named rather than inlined in
+#: `start` so `present` below can reach it: a challenge that has already
+#: STARTED still has to be renderable, or the player who saved mid-gauntlet
+#: reloads into a challenge the client cannot draw and no intent verb can
+#: offer options for.
+#:
+#: Declared HERE, below the four functions, because a module-level dict is
+#: evaluated at import.
+_PRESENTERS = {
+    "skill_gauntlet": _present_gauntlet,
+    "decision_tree": _present_tree,
+    "puzzle": _present_puzzle,
+    "dice_table": _present_dice_table,
+}
+
+
+def _present(stored: dict[str, Any]) -> ChallengeResult:
+    return _PRESENTERS[stored["kind"]](stored)
+
+
+def present(state: GameState) -> Optional[ChallengeResult]:
+    """
+    The current step of the running challenge, or None if none is running.
+
+    Read-only: this is what the intent layer asks in order to build the
+    ``challenge`` verb's options, and building a prompt must never move the
+    world.
+    """
+    stored = getattr(state, "challenge", None)
+    if not stored or stored.get("kind") not in _PRESENTERS:
+        return None
+    try:
+        return _present(stored)
+    except (KeyError, IndexError) as exc:
+        logger.warning(
+            "[challenges] Cannot present stored challenge "
+            "(operation=present, id=%s): %s",
+            stored.get("id"),
+            exc,
+        )
+        return None
 
 
 def _resolve_gauntlet(

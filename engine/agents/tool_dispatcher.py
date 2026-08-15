@@ -34,7 +34,8 @@ import engine.skills.builtin.items  # noqa: F401 — register skills
 import engine.skills.builtin.livelihood  # noqa: F401 — register skills
 import engine.skills.builtin.mechanics  # noqa: F401 — register skills
 import engine.skills.builtin.quests  # noqa: F401 — register skills
-from engine.game.engine import GameEngine, set_active_engine
+import engine.skills.builtin.scenes  # noqa: F401 — register skills
+from engine.game.engine import GameEngine, active_engine
 from engine.skills.registry import AGENT_STORYTELLER, SKILL_REGISTRY
 
 logger = logging.getLogger(__name__)
@@ -52,50 +53,60 @@ def execute_tool(name: str, args: dict[str, Any], engine: GameEngine) -> dict[st
     Returns:
         Receipt dict with skill, args, result, success.
     """
-    set_active_engine(engine)
+    # SCOPED, not set. This used to call `set_active_engine(engine)` and throw
+    # away the reset token, which leaks the binding for the life of whatever
+    # thread ran it. `run_turn` wraps its own block in `active_engine(...)`, so
+    # the inner set overwrote that binding INSIDE the with-block and the outer
+    # finally then restored the pre-with value rather than the one it set. Any
+    # caller reaching here from outside such a block -- the MCP skills server
+    # thread is the live one -- pinned its thread to this engine permanently.
+    # That is the cross-session state bug the ContextVar exists to prevent,
+    # rebuilt one layer down.
+    with active_engine(engine):
+        # The ** unpack must live inside the guard. It previously sat outside
+        # the registry's try/except, so a model emitting
+        # `"args": ["stealth", 12]` -- routine for small local models -- raised
+        # TypeError straight out of the turn handler and froze the UI.
+        if not isinstance(args, dict):
+            return {
+                "skill": name,
+                "args": args,
+                "result": {
+                    "error": f"args must be an object, got {type(args).__name__}"
+                },
+                "success": False,
+            }
 
-    # The ** unpack must live inside the guard. It previously sat outside the
-    # registry's try/except, so a model emitting `"args": ["stealth", 12]` --
-    # routine for small local models -- raised TypeError straight out of the
-    # turn handler and froze the UI.
-    if not isinstance(args, dict):
-        return {
+        try:
+            raw = SKILL_REGISTRY.invoke(name, **args)
+        except TypeError as exc:
+            return {
+                "skill": name,
+                "args": args,
+                "result": {"error": f"bad arguments for {name}: {exc}"},
+                "success": False,
+            }
+
+        try:
+            result = json.loads(raw)
+            success = isinstance(result, dict) and "error" not in result
+        except json.JSONDecodeError:
+            result = {"raw": raw}
+            success = False
+
+        receipt: dict[str, Any] = {
             "skill": name,
             "args": args,
-            "result": {"error": f"args must be an object, got {type(args).__name__}"},
-            "success": False,
+            "result": result,
+            "success": success,
         }
-
-    try:
-        raw = SKILL_REGISTRY.invoke(name, **args)
-    except TypeError as exc:
-        return {
-            "skill": name,
-            "args": args,
-            "result": {"error": f"bad arguments for {name}: {exc}"},
-            "success": False,
-        }
-
-    try:
-        result = json.loads(raw)
-        success = isinstance(result, dict) and "error" not in result
-    except json.JSONDecodeError:
-        result = {"raw": raw}
-        success = False
-
-    receipt: dict[str, Any] = {
-        "skill": name,
-        "args": args,
-        "result": result,
-        "success": success,
-    }
-    if name in ("roll_dice", "resolve_skill_check"):
-        receipt["type"] = "dice"
-    elif name == "move_to":
-        receipt["type"] = "move"
-    elif name == "query_evil_state":
-        receipt["type"] = "gm"
-    return receipt
+        if name in ("roll_dice", "resolve_skill_check"):
+            receipt["type"] = "dice"
+        elif name == "move_to":
+            receipt["type"] = "move"
+        elif name == "query_evil_state":
+            receipt["type"] = "gm"
+        return receipt
 
 
 def execute_intent(

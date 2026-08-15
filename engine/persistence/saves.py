@@ -45,6 +45,7 @@ Version: v0.4.0 [2026-08-08]
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -320,6 +321,14 @@ class SaveStore:
             self.root = Path(root)
             slug = slug or self.root.name
         self.slug = str(slug)
+        # The index is read-modify-written on every autosave, and this store is
+        # a PROCESS-WIDE singleton (`get_save_store`) shared by every session
+        # under threading-mode Socket.IO. Two sessions autosaving in the same
+        # window both loaded the index before either wrote it, so the second
+        # write dropped the first's entry: the `save.json` survived on disk and
+        # the run vanished from the load menu forever. Reentrant because
+        # `compact()` calls the same guarded helpers.
+        self._lock = threading.RLock()
 
     # -- paths -----------------------------------------------------------
 
@@ -336,11 +345,142 @@ class SaveStore:
         entries = raw.get("saves", []) if isinstance(raw, dict) else []
         return {e["save_id"]: e for e in entries if isinstance(e, dict) and "save_id" in e}
 
-    def _write_index(self, entries: dict[str, dict[str, Any]]) -> None:
+    def _index_limit(self) -> int:
+        try:
+            return max(1, int(get_config().get("saves.index_max_entries", 200)))
+        except Exception:  # noqa: BLE001 -- a config miss must not block a save
+            return 200
+
+    def _write_index(
+        self, entries: dict[str, dict[str, Any]], *, keep_backup: bool = False
+    ) -> None:
+        """
+        Persist the index, newest first, bounded.
+
+        THE BOUND IS NOT COSMETIC. This file is parsed, re-serialised and
+        fsynced on every autosave -- i.e. every turn -- and it grows by one
+        entry per run ever started, forever, with nothing anywhere that ever
+        removed one. A working checkout measured 537 KB across 1302 entries,
+        which is a megabyte of JSON I/O per turn to record a single change.
+
+        MANUAL SLOTS ARE NEVER DROPPED. Only autosaves are, oldest first: the
+        index IS the load menu (`list_saves`), so pruning a save the player
+        deliberately named would delete their run from the only place they can
+        see it. An autosave is by definition the one the engine will replace
+        anyway.
+        """
         ordered = sorted(
             entries.values(), key=lambda e: e.get("updated_at", 0.0), reverse=True
         )
-        write_json_atomic(self._index_path(), {"saves": ordered}, keep_backup=False)
+        limit = self._index_limit()
+        if len(ordered) > limit:
+            keep: list[dict[str, Any]] = []
+            autos: list[dict[str, Any]] = []
+            for entry in ordered:
+                if str(entry.get("slot", "")) == AUTOSAVE_SLOT:
+                    autos.append(entry)
+                else:
+                    keep.append(entry)
+            room = max(0, limit - len(keep))
+            dropped = len(autos) - room
+            if dropped > 0:
+                logger.info(
+                    "[persistence] Index pruned (operation=_write_index, "
+                    "dropped=%d, kept=%d, limit=%d)",
+                    dropped,
+                    len(keep) + room,
+                    limit,
+                )
+            ordered = sorted(
+                keep + autos[:room],
+                key=lambda e: e.get("updated_at", 0.0),
+                reverse=True,
+            )
+        write_json_atomic(
+            self._index_path(), {"saves": ordered}, keep_backup=keep_backup
+        )
+
+    def reindex(self) -> int:
+        """
+        Rebuild the index from the save files actually on disk.
+
+        THE INVERSE OF PRUNING, and the reason pruning is safe. The index is a
+        derived listing, not the data: every run's real content is its own
+        `save.json`, and dropping a row hides a run from the load menu without
+        touching it. This walks the directories and puts every readable save
+        back, newest first.
+
+        Also the repair for an index that was corrupted, truncated, or written
+        by a build that disagreed about the summary shape -- all of which used
+        to mean the run was simply gone as far as the player could tell.
+
+        Bounded by the same `saves.index_max_entries` afterwards, so calling
+        this on a directory with thousands of runs does not undo the bound; it
+        restores the NEWEST that fit. Raise the config key first if you want
+        more of them back.
+
+        Returns:
+            How many entries the index holds afterwards.
+        """
+        with self._lock:
+            rebuilt: dict[str, dict[str, Any]] = {}
+            for directory in sorted(p for p in self.root.iterdir() if p.is_dir()):
+                envelope = read_json(directory / "save.json")
+                if not isinstance(envelope, dict):
+                    continue
+                save_id = str(envelope.get("save_id") or directory.name)
+                raw_state = envelope.get("state")
+                if not isinstance(raw_state, dict):
+                    continue
+                known = SaveSummary.__dataclass_fields__.keys()
+                row = {
+                    "save_id": save_id,
+                    "slot": str(envelope.get("slot") or AUTOSAVE_SLOT),
+                    "updated_at": float(envelope.get("updated_at") or 0.0),
+                    "player_name": str(raw_state.get("player_name") or ""),
+                    "archetype": str(raw_state.get("archetype") or ""),
+                    "world_day": int(raw_state.get("world_day") or 0),
+                    "world_hour": int(raw_state.get("world_hour") or 0),
+                    "location_id": str(raw_state.get("location_id") or ""),
+                    "evil_phase": str(raw_state.get("evil_phase") or ""),
+                    "turn_number": int(raw_state.get("turn_number") or 0),
+                }
+                rebuilt[save_id] = {k: v for k, v in row.items() if k in known}
+                rebuilt[save_id]["created_at"] = float(
+                    envelope.get("created_at") or row["updated_at"]
+                )
+            self._write_index(rebuilt, keep_backup=True)
+            total = len(self._load_index())
+        logger.info(
+            "[persistence] Reindexed (operation=reindex, found=%d, indexed=%d)",
+            len(rebuilt),
+            total,
+        )
+        return total
+
+    def compact(self) -> int:
+        """
+        Re-write the index down to its configured bound, once.
+
+        For a checkout that accumulated entries before the bound existed --
+        pruning otherwise only happens on the next save, and a story nobody is
+        currently playing never gets one. Keeps a backup, because this is the
+        only operation here that removes rows the player did not ask to remove.
+
+        Returns:
+            How many entries were dropped.
+        """
+        with self._lock:
+            index = self._load_index()
+            before = len(index)
+            self._write_index(index, keep_backup=True)
+            after = len(self._load_index())
+        logger.info(
+            "[persistence] Compacted (operation=compact, before=%d, after=%d)",
+            before,
+            after,
+        )
+        return before - after
 
     def list_saves(self) -> list[SaveSummary]:
         """Return all known saves, newest first."""
@@ -394,23 +534,27 @@ class SaveStore:
         if memory is not None:
             write_json_atomic(directory / "memory.json", memory)
 
-        index = self._load_index()
-        created = index.get(save_id, {}).get("created_at", now)
-        index[save_id] = SaveSummary(
-            save_id=save_id,
-            slot=slot,
-            player_name=state.player_name,
-            archetype=getattr(state, "archetype", "") or "",
-            world_day=state.world_day,
-            world_hour=state.world_hour,
-            location_id=state.location_id,
-            evil_phase=getattr(getattr(state, "evil_phase", None), "value", "") or "",
-            turn_number=state.turn_number,
-            updated_at=now,
-            values=summary_values(state),
-        ).to_dict()
-        index[save_id]["created_at"] = created
-        self._write_index(index)
+        # Read-modify-write under the lock: see SaveStore.__init__.
+        with self._lock:
+            index = self._load_index()
+            created = index.get(save_id, {}).get("created_at", now)
+            index[save_id] = SaveSummary(
+                save_id=save_id,
+                slot=slot,
+                player_name=state.player_name,
+                archetype=getattr(state, "archetype", "") or "",
+                world_day=state.world_day,
+                world_hour=state.world_hour,
+                location_id=state.location_id,
+                evil_phase=(
+                    getattr(getattr(state, "evil_phase", None), "value", "") or ""
+                ),
+                turn_number=state.turn_number,
+                updated_at=now,
+                values=summary_values(state),
+            ).to_dict()
+            index[save_id]["created_at"] = created
+            self._write_index(index)
 
         logger.info(
             "[persistence] Saved (operation=save, id=%s, slot=%s, day=%s, turn=%s)",
@@ -475,10 +619,11 @@ class SaveStore:
             directory.rmdir()
             removed = True
 
-        index = self._load_index()
-        if index.pop(save_id, None) is not None:
-            self._write_index(index)
-            removed = True
+        with self._lock:
+            index = self._load_index()
+            if index.pop(save_id, None) is not None:
+                self._write_index(index)
+                removed = True
 
         if removed:
             logger.info("[persistence] Deleted (operation=delete, id=%s)", save_id)

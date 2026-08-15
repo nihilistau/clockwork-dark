@@ -67,6 +67,9 @@ export default function Play({
   showDiceBreakdown = true,
   showReasoning = true,
   composeRef,
+  // True while an overlay or the pause menu owns the screen. Play stays mounted
+  // underneath them, so the choice row's window key listener needs to know.
+  blocked = false,
 }) {
   const [tab, setTab] = useState("scene");
   const [text, setText] = useState("");
@@ -162,6 +165,7 @@ export default function Play({
             <ChoiceRow
               choices={state.choices}
               busy={state.busy}
+              blocked={blocked}
               onChoose={onChoose}
               // A turn that produced no choices is a real state -- an
               // ungrammared answer, a scene that ends on a question, a

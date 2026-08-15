@@ -4,7 +4,7 @@ A local-first AI roleplaying game where a deterministic engine holds truth and t
 
 You can become a baker in Edgewood and never learn the clock is ticking. Or you can march inward toward the Heartlands until the **Clockwork Dark** can no longer be ignored. The evil advances either way; that is the point.
 
-**Status:** playable. PR1–PR12 and overhaul phases P1–P11 complete. 600+ tests passing, 1 expected failure (a real defect, recorded in [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) as R-01).
+**Status:** playable. PR1–PR12 and overhaul phases P1–P11 complete. **2020 Python tests and 126 client tests passing, no expected failures** — R-01 is fixed (see [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md)).
 
 ---
 
@@ -62,7 +62,7 @@ stack:
 ```powershell
 .\.venv\Scripts\python.exe scripts\doctor.py     # environment, config, content, data integrity
 .\.venv\Scripts\python.exe launcher.py --check   # which local services are up, and what each outage costs
-.\.venv\Scripts\python.exe -m pytest tests\ -q   # expect green, 1 xfail
+.\.venv\Scripts\python.exe -m pytest tests\ -q   # expect fully green, no xfail
 ```
 
 `doctor.py` exits non-zero if something is actually broken. `launcher.py --check`
@@ -90,13 +90,17 @@ Other launcher modes:
 ## Games
 
 The engine is story-agnostic; the story lives in `games/<slug>/game.yaml`, which
-declares the content paths, and everything under it. Two ship:
+declares the content paths, and everything under it. Five ship, and every
+one of them can be played to an ending:
 
 
 | Slug | Story |
 |------|-------|
 | `clockwork-dark` | The Clockwork Dark — the flagship. Edgewood, the forest edge, the gear-rot |
 | `wicked-garden` | The Wicked Garden — a fae court, ten mortal days a night, no combat and no dice |
+| `neon-city` | NEON CITY: THE CROSSING — survival/expedition in the NeonCity canon, graph-shaped |
+| `the-long-con` | THE LONG CON — noir, and the first HYBRID: a graph city that also declares decks and a clock |
+| `dev-story` | The annotated bench. One small working instance of every subsystem |
 
 The Wicked Garden is the one that proves the seam. It shares almost nothing
 with the flagship: no HP, no hunger, no travel graph, no character classes, and
@@ -139,8 +143,7 @@ from the shipped pack, encounters, quests, and saves.
 .\.venv\Scripts\python.exe scripts\generate_art.py    # pre-generate art for gaps in the shipped pack
 ```
 
-Seeding lore improves the Storyteller's grounding. Note that it currently also
-triggers R-01 — see [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md).
+Seeding lore improves the Storyteller's grounding.
 
 ## Rebuilding the client
 

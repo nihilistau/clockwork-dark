@@ -186,68 +186,113 @@ def build_storyteller_messages(
         get_governance().build_directives(state, player_action=player_action),
     )
 
-    messages = blocks.fit(budget)
+    # EVERYTHING APPENDED AFTER `fit` IS BUILT FIRST, so `fit` can be told what
+    # it does not get to spend. It used to fit the blocks against the entire
+    # window and the caller then appended the examples, the turn buffer, the
+    # receipts, the agreed block and the player's line on top -- so the prompt
+    # the budget approved and the prompt that went on the wire were different
+    # objects, and the overflow was resolved by LM Studio truncating from the
+    # front, which eats the persona first.
+    from engine.memory.budget import estimate_messages
 
-    if include_examples:
-        # Examples sit immediately after the stable system blocks so they stay
-        # inside the cacheable prefix.
-        insert_at = 2
-        messages = messages[:insert_at] + storyteller_examples() + messages[insert_at:]
+    examples = storyteller_examples() if include_examples else []
 
+    history: list[dict[str, str]] = []
     for record in ledger.turn_buffer:
-        messages.append({"role": "user", "content": record.player_action})
+        history.append({"role": "user", "content": record.player_action})
         if record.narration:
-            messages.append({"role": "assistant", "content": record.narration})
+            history.append({"role": "assistant", "content": record.narration})
 
+    closing: list[dict[str, str]] = []
     if receipts:
         block = receipts_block(receipts)
         if block:
-            messages.append({"role": "system", "content": block})
+            closing.append({"role": "system", "content": block})
 
     # After the receipts and immediately before the player's line, because it is
     # the same KIND of thing a receipt is: something already true that narration
     # reports rather than decides. Inside the budget for the same reason.
     if agreed_block:
-        messages.append({"role": "system", "content": agreed_block})
+        closing.append({"role": "system", "content": agreed_block})
 
-    messages.append({"role": "user", "content": player_action})
+    closing.append({"role": "user", "content": player_action})
 
     if retry_note:
-        messages.append({"role": "user", "content": retry_note})
+        closing.append({"role": "user", "content": retry_note})
 
-    return _trim_history(messages, budget)
+    # Reserve the examples and the closing block -- NOT the turn history.
+    #
+    # The history is the one thing here that is designed to be thrown away:
+    # EVICTION_ORDER opens with "turns" for the same reason, and the running
+    # summary covers the same ground compressed. Reserving it too would make
+    # `fit` sacrifice the summary, the lore and the directives in order to
+    # protect the very block that is supposed to go first. So the structural
+    # blocks are fitted against the window minus the parts that CANNOT be
+    # dropped, and the history then fills whatever is actually left over.
+    messages = blocks.fit(budget, reserved=estimate_messages(examples + closing))
+
+    if examples:
+        # Examples sit immediately after the stable system blocks so they stay
+        # inside the cacheable prefix.
+        insert_at = 2
+        messages = messages[:insert_at] + examples + messages[insert_at:]
+
+    # Where the evictable turn history begins and ends, handed to the trimmer
+    # explicitly. It used to re-derive this by counting leading system messages,
+    # and the example splice above puts non-system messages at index 2 -- so the
+    # count stopped at 2 and everything after it, INCLUDING THE RUNNING SUMMARY,
+    # was treated as droppable history. That inverted EVICTION_ORDER, whose
+    # whole point is that the summary goes last.
+    history_start = len(messages)
+    messages.extend(history)
+    history_end = len(messages)
+    messages.extend(closing)
+
+    return _trim_history(messages, budget, history_start, history_end)
 
 
 def _trim_history(
     messages: list[dict[str, str]],
     budget: Budget,
+    history_start: int,
+    history_end: int,
 ) -> list[dict[str, str]]:
     """
-    Drop the oldest turn-history pairs until the prompt fits.
+    Drop the oldest turn-history exchanges until the prompt fits.
 
     History is trimmed rather than the system blocks because the running
     summary already covers the same ground in compressed form.
+
+    Args:
+        messages: The assembled prompt.
+        budget: The window it has to fit inside.
+        history_start: First index of the evictable turn history.
+        history_end: One past its last index.
+
+    The two indices are passed in rather than sniffed. Sniffing them -- by
+    counting leading ``system`` messages -- is what put the running summary,
+    the lore block and the governance directives on the wrong side of the line
+    once few-shot examples were spliced in at index 2. Nothing before
+    ``history_start`` or at/after ``history_end`` is evictable here: the
+    structural blocks already had their turn under ``BlockSet.fit``, and the
+    receipts, the agreed block and the player's own line are the point of the
+    request.
     """
     from engine.memory.budget import estimate_messages
 
     if estimate_messages(messages) <= budget.available:
         return messages
 
-    # Everything before the first non-example user/assistant history pair is
-    # structural and must survive; find where history begins.
-    system_count = 0
-    for message in messages:
-        if message["role"] == "system":
-            system_count += 1
-        else:
-            break
+    head = messages[:history_start]
+    history = messages[history_start:history_end]
+    closing = messages[history_end:]
 
-    head = messages[:system_count]
-    tail = messages[system_count:]
+    while history and estimate_messages(head + history + closing) > budget.available:
+        # A whole exchange at a time. Dropping the player's line but keeping the
+        # narrator's reply to it leaves the model reading an answer to a
+        # question nobody asked.
+        history.pop(0)
+        if history and history[0]["role"] == "assistant":
+            history.pop(0)
 
-    # Always keep the final player action (and any retry note).
-    keep_tail = 2 if tail and tail[-1]["role"] == "user" else 1
-    while len(tail) > keep_tail and estimate_messages(head + tail) > budget.available:
-        tail.pop(0)
-
-    return head + tail
+    return head + history + closing

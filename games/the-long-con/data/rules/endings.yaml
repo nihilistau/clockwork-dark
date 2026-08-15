@@ -1,0 +1,139 @@
+# THE LONG CON -- three ways this ends up being your fault, or not.
+#
+# Read by engine/game/endings.py through `paths.endings`.
+#
+# THE STORY SHIPPED WITH NONE OF THIS. There was no `endings:` path, no
+# `epilogues:` path, and the game's only quest had no `on_complete` at all -- so
+# finishing all four stages of the case awarded nothing, set no flag, and the
+# city simply carried on with nothing left to do. That is not a shipped game; it
+# is a first act.
+#
+# WHAT DECIDES IT. Two meters and one flag, which is the whole shape of a noir:
+#
+#   heat      how much attention you drew getting the answer
+#   standing  who is still willing to vouch for you
+#   the_frame the clock that fills when the first is high and the second is low
+#
+# The quest's lock carries NO id, so `endings.resolve` picks the
+# highest-scoring ELIGIBLE class from what the run actually earned and falls
+# forward to `carrying_it` otherwise. Which ending you get is what your heat and
+# your standing made of you.
+#
+# NO `variants:` ANYWHERE. When a class declares none, `endings.declared()`
+# returns the class body itself keyed by the class id -- so these three ids are
+# what `lock()` and data/epilogues/epilogue_index.yaml have to agree on.
+#
+# Version: v0.1.0 [2026-08-15]
+
+version: 1
+
+# ALWAYS ELIGIBLE, BY DECLARATION. A case that closes with nobody vouching for
+# you and the Ninth Precinct's car outside is still an ending -- and it is the
+# one this city hands out most. Named here so an empty eligible set is a
+# DESIGN outcome with a real card, not the engine panicking.
+fail_forward: carrying_it
+
+classes:
+
+  # ---------------------------------------------------------------------
+  # You got the answer and you got out from under it.
+  clean_hands:
+    label: "Clean Hands"
+    requires:
+      all:
+        - { id: quiet, value: { name: heat, max: 45 } }
+        - { id: vouched, value: { name: standing, min: 35 } }
+    # You cannot be the man nobody suspects while the frame is already shut.
+    completable:
+      id: not_framed
+      none:
+        - { clock: { name: the_frame, min: 4 } }
+    lock_reasons:
+      quiet: "Too many people watched you find it."
+      vouched: "There is nobody left downtown who would take your call."
+      not_framed: "The car is already parked outside the laundry."
+    score:
+      - { value: standing, at: 60, weight: 0.6 }
+      - { value: heat, at: 0, weight: 0.4 }
+    beats:
+      - id: clean_hands_speak
+        text: >-
+          SPEAK. You lay it out for Bette Farrow in the order it happened, and
+          she writes it down in the order it will print, and those turn out to
+          be the same order for once.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: standing, delta: 6, why: "the record agrees with you" }
+      - id: clean_hands_act
+        text: >-
+          ACT. You give the manifest to the one lieutenant at the Ninth who
+          still returns your calls, and you do it in a public corridor, which
+          is the only kind of trust available here.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: heat, delta: -10, why: "it stopped being only your problem" }
+      - id: clean_hands_seal
+        text: >-
+          SEAL. The coat comes off the hook and into evidence with a number on
+          it. Delphine Ruse-Bellamy takes her gloves off to sign for the
+          photograph, and her hands are perfectly steady.
+
+  # ---------------------------------------------------------------------
+  # You got the answer by becoming somebody who could be blamed for it.
+  the_frame_holds:
+    label: "The Frame Holds"
+    requires:
+      all:
+        - { id: framed, clock: { name: the_frame, min: 3 } }
+    lock_reasons:
+      framed: "They have not decided it was you yet."
+    score:
+      - { clock: the_frame, at: 4, weight: 0.7 }
+      - { value: heat, at: 90, weight: 0.3 }
+    beats:
+      - id: the_frame_holds_speak
+        text: >-
+          SPEAK. You say it to the wall of the interview room, twice, because
+          the first time the stenographer's pencil was not moving and both of
+          you noticed.
+      - id: the_frame_holds_act
+        text: >-
+          ACT. You give them the true version, which is the one with your
+          fingerprints on the drying-room door, and you watch it become the
+          version that fits the paperwork they already typed.
+        gate:
+          on_pass:
+            effects:
+              - { type: value, name: standing, delta: -8, why: "a signed statement is a signed statement" }
+      - id: the_frame_holds_seal
+        text: >-
+          SEAL. The obituary was four column inches. Yours will be shorter, and
+          it will run on a better page, and A. Ruse, Lieutenant, Ninth
+          Precinct, will be the name that identified the body.
+
+  # ---------------------------------------------------------------------
+  # The fail-forward. You know, and knowing is all you got.
+  carrying_it:
+    label: "Carrying It"
+    # No `requires`: this is the declared fail-forward and must always be
+    # eligible, or a run that earns neither of the above has nowhere to land.
+    score:
+      - { value: heat, at: 70, weight: 0.5 }
+      - { value: standing, at: 0, weight: 0.5 }
+    beats:
+      - id: carrying_it_speak
+        text: >-
+          SPEAK. There is nobody to say it to at this hour, so you say it to
+          the office, which has heard worse and kept it.
+      - id: carrying_it_act
+        text: >-
+          ACT. You put the photograph, the manifest and the pencilled date in
+          the drawer that locks, and you turn the key, and you leave the key in
+          it, because a locked drawer in this office has never stopped anyone.
+      - id: carrying_it_seal
+        text: >-
+          SEAL. Rain on the window, the radiator knocking, and the particular
+          quiet of a city that has decided not to bother with you today. It
+          will bother with you eventually. It always does.

@@ -149,11 +149,26 @@ def shifts_worked(state: GameState, job_id: str = "") -> int:
     return sum(max(0, int(e.delta)) for e in rows)
 
 
-def _record_shift(state: GameState, job_id: str) -> None:
-    """Mark one shift worked. Expires with the day."""
+def _record_shift(state: GameState, job_id: str, *, day: Optional[int] = None) -> None:
+    """
+    Mark one shift worked. Expires with the day.
+
+    Args:
+        state: Game state.
+        job_id: The job worked.
+        day: Which day to bill the shift to. Defaults to the current one.
+
+            ``work()`` passes the day the shift STARTED, because it advances
+            the clock before it gets here. An eight-hour shift begun at 19:00
+            rolled the day inside ``advance_time`` -- which also swept the old
+            day's markers -- so the cap check that passed against yesterday's
+            tally wrote its marker to today. The player reset yesterday's cap
+            for free and pre-burned one of today's shifts before today began.
+    """
     marker_id = f"shift:{job_id}"
+    billed = state.world_day if day is None else int(day)
     effect = next((e for e in _shift_effects(state) if e.id == marker_id), None)
-    if effect is None or effect.expires_day < state.world_day:
+    if effect is None or effect.expires_day < billed:
         # Created (and any stale one cleared) through the one writer; the
         # count bump below mutates the record the writer handed back.
         if effect is not None:
@@ -168,12 +183,12 @@ def _record_shift(state: GameState, job_id: str) -> None:
                 "kind": SHIFT_EFFECT_KIND,
                 "text": f"worked {job_id} today",
                 "delta": 0,
-                "expires_day": state.world_day,
+                "expires_day": billed,
             },
         )
         effect = next(e for e in _shift_effects(state) if e.id == marker_id)
     effect.delta = int(effect.delta) + 1
-    effect.expires_day = state.world_day
+    effect.expires_day = billed
 
 
 # ---------------------------------------------------------------------------
@@ -393,6 +408,13 @@ def work(
     hours = float(job.get("hours", 1) or 0)
     stamina_cost = int(job.get("stamina_cost", 0) or 0)
 
+    # The day the shift STARTED, captured before the clock moves. The cap
+    # checks above were made against this day, and the marker recorded below
+    # has to land on the same one -- a long shift begun in the evening crosses
+    # midnight inside `advance_time`, and billing it to the new day both
+    # cleared the cap it was just checked against and spent one of tomorrow's.
+    day_at_start = state.world_day
+
     # Time and stamina first, and unconditionally. A shift you were bad at
     # still took the whole day, or failing costs nothing and the check is
     # decoration.
@@ -447,7 +469,7 @@ def work(
             }
         )
 
-    _record_shift(state, job_id)
+    _record_shift(state, job_id, day=day_at_start)
 
     text = str(
         job.get("success_text" if degree != "failure" else "failure_text") or ""

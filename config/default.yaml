@@ -440,6 +440,42 @@ stack:
       # Absolute path, or just "grok" if it is on PATH.
       command: "grok"
 
+# Saves on disk.
+saves:
+  # Rows kept in a story's save index. The index is re-parsed and fsynced on
+  # every autosave -- i.e. every turn -- and it grew by one row per run ever
+  # started with nothing that ever removed one: a working checkout reached
+  # 537 KB across 1302 entries, which is a megabyte of JSON I/O per turn to
+  # record one change. Only AUTOSAVES are pruned, oldest first; a slot the
+  # player named is never dropped, because this index IS the load menu.
+  #
+  # DELIBERATELY GENEROUS. The first version of this shipped at 200, which is
+  # a fine number for a player and a terrible one for a development checkout:
+  # the machine this was written on had 1556 runs, and the bound silently took
+  # the load menu down to the newest 200 on the very next turn. Nothing was
+  # lost -- the index is a derived listing and every `save.json` was untouched,
+  # and `SaveStore.reindex()` put all 1556 back -- but "your history is gone"
+  # is what it LOOKED like, and a default nobody asked for should not be able
+  # to look like that.
+  #
+  # 2000 still bounds the runaway (the failure being guarded against is
+  # unbounded growth, not the difference between 200 and 2000 rows) while
+  # leaving any realistic history alone. Lower it if the per-turn I/O matters
+  # more to you than the listing; `reindex()` is the way back either way.
+  index_max_entries: 2000
+
+# In-memory sessions.
+session:
+  # Release runs nobody has touched in a while, freeing the GameEngine and the
+  # registries that hold it (engine/agents/mechanics.py, engine/mcp).
+  #
+  # OFF BY DEFAULT, deliberately. Evicting a live run loses a player's game;
+  # not sweeping costs memory in a long-lived process. Those failure modes are
+  # not symmetric, so this stays opt-in until it has miles on it. A session
+  # whose turn lock is held is never swept regardless of age.
+  idle_sweep_enabled: false
+  idle_ttl_minutes: 60
+
 world:
   tick_interval_seconds: 60
 
