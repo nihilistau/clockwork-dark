@@ -18,8 +18,8 @@ WHAT RUNS NOW, for a story that declares two or more agents:
     2. NEGOTIATE the story's rule table decides whose intent leads, which
                  choices reach the player, and what each side gives up
     3. GOVERN    the PHASE_COMMIT chain reviews the reconciled proposals while
-                 they are still proposals -- the safety ceiling lives here, and
-                 a hook may veto the turn's effects outright
+                 they are still proposals, and a hook may veto the
+                 turn's effects outright
     4. COMMIT    the accepted effects are applied ONCE, atomically, through the
                  single writer, with the proposing agent recorded
     5. NARRATE   downstream and unchanged, except that it now knows the answer
@@ -165,9 +165,9 @@ def _govern_commit(
     This is the call that did not exist: ``GovernancePipeline.run_commit`` and
     the ``governance.commit`` config key were both shipped, and nothing invoked
     the one phase with veto authority. It runs here, BEFORE the transaction, so
-    the safety ceiling reviews proposals while they are still proposals -- a
-    redirect clears the offending plans' effects (which is why ``proposed`` is
-    gathered after this call), and a veto stops the commit entirely.
+    a hook reviews proposals while they are still proposals -- a redirect
+    clears the offending plans' effects (which is why ``proposed`` is gathered
+    after this call), and a veto stops the commit entirely.
 
     Args:
         governance: Explicit pipeline, overriding the configured one. Tests use
@@ -227,19 +227,13 @@ def _commit(
 
     veto = _govern_commit(state, turn, plans or {}, governance)
 
-    # A turn the SAFETY layer refused is as blocked as one governance vetoed,
-    # and it was not treated that way. `Negotiator.negotiate` sets
-    # `turn.blocked` for a safety block and deliberately does not return early
-    # -- the caller still needs choices and a lead so it can decline IN FICTION
-    # rather than show an out-of-character refusal -- but it leaves every plan's
-    # `effects` sitting on `turn.accepted`, and the loop below applied them. So
-    # the player asked for something the input gate refused, the narrator was
-    # told to decline it, and the meters moved anyway.
-    #
-    # `veto` is still returned unchanged: it means "governance vetoed", and a
-    # safety block is not that. What both share is that nothing gets written.
+    # A turn a governor BLOCKED writes nothing, same as a veto. `negotiate`
+    # can mark a turn blocked without returning early -- the caller still needs
+    # choices and a lead so it can decline in fiction rather than show an
+    # out-of-character refusal -- and that used to leave every plan's `effects`
+    # sitting on `turn.accepted` for the loop below to apply.
     if veto or turn.blocked:
-        why = f"vetoed: {veto}" if veto else "safety block"
+        why = f"vetoed: {veto}" if veto else "blocked"
         turn.blocked = True
         turn.block_reason = turn.block_reason or veto
         for agent, plan in turn.accepted.items():
@@ -297,7 +291,6 @@ def run_pipeline(
     player_action: str,
     *,
     ledger: Any = None,
-    safety_block: str = "",
     llm_fn: Optional[Callable[..., Any]] = None,
     roster: Any = None,
     governance: Any = None,
@@ -308,13 +301,6 @@ def run_pipeline(
     Args:
         state: The live game state. Written only in the commit phase.
         player_action: What the player did, which both agents plan against.
-        safety_block: Non-empty when the safety layer refused this direction.
-            Passed straight to the negotiator, which applies it ahead of every
-            story rule and cannot be reordered out of the way.
-        llm_fn: Injected model, for tests.
-        roster: Override, for tests. Defaults to the active story's.
-        governance: Explicit GovernancePipeline for the PHASE_COMMIT review.
-            Tests use it; the turn defaults to the configured one.
 
     Returns:
         ``ran=False`` for a story with fewer than two pipeline participants,
@@ -336,7 +322,7 @@ def run_pipeline(
 
     plans = _gather(roster, state, player_action, llm_fn)
     negotiator = Negotiator(roster.rules, owned_voices=roster.owned_voices())
-    turn = negotiator.negotiate(plans, safety_block=safety_block)
+    turn = negotiator.negotiate(plans)
 
     receipts, refused, veto = _commit(
         state, turn, plans=plans, ledger=ledger, governance=governance

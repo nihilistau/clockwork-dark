@@ -69,10 +69,6 @@ block. The caller inserts it into the budget like any other block.
   PRs; this governor, run from `StorytellerAgent.run_turn` after `tx.commit()`,
   is what made it production code.
 - **`MediaGovernor`** (media) — replaces the bypass described above.
-- **`SafetyDirective`** (directive) and **`SafetyCeiling`** (commit) — the
-  safety layer's two hooks, defined in `engine/safety/governor.py` and
-  registered by `register_safety_interceptors()` at the bottom of
-  `engine/agents/governance.py`. See docs/SAFETY.md.
 
 ### R003 and the telemetry that motivated it
 

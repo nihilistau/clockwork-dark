@@ -18,7 +18,6 @@ from engine.scenes.default_state import (  # noqa: F401
     DefaultSessionStore,
     GameSession,
     SessionStore,
-    _review_input,
     _summarizer_fn,
     assistant_portrait_url,
     assistant_presence,

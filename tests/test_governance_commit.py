@@ -110,20 +110,6 @@ class _AlwaysVeto:
 # ---------------------------------------------------------------------------
 
 
-def test_the_configured_commit_chain_contains_the_safety_ceiling() -> None:
-    """
-    ``config/default.yaml`` names ``governance.commit: [SafetyCeiling]`` and
-    ``from_config`` reads it. This is the half that was always true; the tests
-    below are the half that was not.
-    """
-    reset_governance()
-    try:
-        chain = get_governance().chains.get(PHASE_COMMIT, [])
-        assert "SafetyCeiling" in [type(hook).__name__ for hook in chain]
-    finally:
-        reset_governance()
-
-
 def test_run_commit_runs_during_the_pipeline_commit_before_any_write(
     garden: GameState,
 ) -> None:
@@ -160,46 +146,6 @@ def test_run_commit_runs_during_the_pipeline_commit_before_any_write(
 # ---------------------------------------------------------------------------
 # An inert policy costs nothing
 # ---------------------------------------------------------------------------
-
-
-def test_an_inert_policy_story_turn_is_unchanged(garden: GameState) -> None:
-    """
-    A story that configures no safety policy gets the turn it always had.
-
-    Two identical states play the identical turn, one with no commit chain and
-    one through the real SafetyCeiling under an inert policy; they must land on
-    the same numbers with nothing blocked.
-    """
-    from engine.safety.governor import SafetyCeiling
-    from engine.safety.policy import INERT_POLICY, reset_policies, set_policy
-
-    other = GameState(rng_seed=42)
-    set_policy(INERT_POLICY, session_id=garden.session_id)
-    set_policy(INERT_POLICY, session_id=other.session_id)
-    try:
-        bare = pipeline_module.run_pipeline(
-            garden,
-            "offer the ring back",
-            roster=_roster(),
-            llm_fn=_speaks(SOPHIA_MOVES_FAVOR),
-            governance=GovernancePipeline({}),
-        )
-        governed = pipeline_module.run_pipeline(
-            other,
-            "offer the ring back",
-            roster=_roster(),
-            llm_fn=_speaks(SOPHIA_MOVES_FAVOR),
-            governance=GovernancePipeline({PHASE_COMMIT: [SafetyCeiling()]}),
-        )
-    finally:
-        reset_policies()
-
-    assert governed.veto == "" and governed.turn.blocked is False
-    assert bare.turn.blocked is False
-    assert dict(other.meters) == dict(garden.meters)
-    assert [r.get("applied") for r in governed.receipts] == [
-        r.get("applied") for r in bare.receipts
-    ]
 
 
 # ---------------------------------------------------------------------------

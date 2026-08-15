@@ -196,20 +196,6 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
         "restart": False,
         "hint": "Seconds before a cutscene will let you out of it. 0 means immediately.",
     },
-    # -- content ---------------------------------------------------------
-    {
-        "key": "safety.intensity.player",
-        "label": "Intensity",
-        "group": "Content",
-        "type": "enum",
-        "options": ["story", "suggestive", "explicit", "extreme"],
-        "restart": False,
-        "hint": (
-            "How far scenes may go. 'story' follows the active story's own "
-            "rating; a higher pick is clamped to the story's declared ceiling, "
-            "a lower one is always honoured."
-        ),
-    },
     # -- the companion ---------------------------------------------------
     {
         "key": "awareness.reveal_threshold",

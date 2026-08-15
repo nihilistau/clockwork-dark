@@ -51,16 +51,6 @@ export const initialState = {
   cutscene: null,
   audio: "",
 
-  // The turn's fade card, when the safety layer resolved a scene at summary
-  // resolution instead of at full detail: {heading, summary, outcomes[],
-  // aftercare}, from engine/safety/verdict.py::FadeCard.
-  //
-  // Deliberately PER-TURN and not sticky, unlike `ending`. A fade belongs to
-  // the scene that faded; carrying it forward would leave last scene's card
-  // sitting under this scene's narration, which reads as the fade having
-  // happened twice. Every turn_update sets it, to the card or to null.
-  fadeCard: null,
-
   // The run is over. `null` for every turn of a running game and for every
   // turn of a story that declares no endings -- the server sends the key only
   // once, on the turn that locked one. Shape is engine/game/epilogue.py's
@@ -159,7 +149,6 @@ export function reducer(state, action) {
         // The card belonged to the scene that faded. It sits under the log, so
         // leaving it up while the NEXT turn is in flight would print it beneath
         // a moment it has nothing to do with.
-        fadeCard: null,
         error: "",
         // A new turn gets a fresh thinking panel. Keeping last turn's
         // reasoning on screen while this turn deliberates is a lie about what
@@ -333,10 +322,6 @@ function handleSocket(state, event, payload) {
         meters: metersOf(payload, next.meters),
         saveId: payload.save_id || next.saveId,
         presence: payload.assistant || next.presence,
-        // The server sends the key only on a turn that actually faded, so the
-        // absent case has to clear it rather than fall through -- see the
-        // field's own note on why this one is not sticky.
-        fadeCard: payload.fade_card || null,
         // Sticky once set. The turn that locks an ending is the only one
         // carrying it, and a later turn -- an autosave echo, a reconnect
         // replaying the last payload -- must not take the ending screen away

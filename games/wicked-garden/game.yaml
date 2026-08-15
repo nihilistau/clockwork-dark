@@ -46,39 +46,6 @@ scene:
   module: engine.scenes.default_scene
   blueprint: "engine.scenes.default_api:story_blueprint"
 
-# ---------------------------------------------------------------------------
-# Content rating.
-#
-# Declared at TOP LEVEL rather than under `settings:` on purpose: a rating is
-# not a tunable, and routing it through the config overlay would let a stale
-# config/local.yaml move it. `extras` carries it verbatim, and `to_dict()`
-# publishes it over GET /api/games so the picker can show a rating for free.
-#
-# The ceiling is the hardest register this story is allowed to reach; the
-# default is where a fresh run starts. This story declares both at `explicit`:
-# the LLM narrates to the register the run is set to, and the marked hooks in
-# the day chapters are written to be taken. The PLAYER can lower the working
-# intensity at any time from the Settings screen (`safety.intensity.player`
-# in config/local.yaml, clamped to this ceiling) — lowering is always honoured,
-# raising past the ceiling never is.
-#
-# `hard_nos` is empty and stays empty. Limits belong to the PLAYER, set in the
-# boundary sheet at the start of a run; a story pre-filling them would be a
-# story deciding what its player finds unbearable.
-# ---------------------------------------------------------------------------
-safety:
-  intensity:
-    ceiling: explicit
-    default: explicit
-  fade:
-    available: true
-  aftercare:
-    default: true
-
-# ---------------------------------------------------------------------------
-# Engine settings this story declares. Only keys on the manifest allowlist are
-# honoured; anything else is a hard validation error rather than a silent drop.
-# ---------------------------------------------------------------------------
 settings:
   world:
     # A Garden day is a chapter, not a commute. The flagship's two hours per

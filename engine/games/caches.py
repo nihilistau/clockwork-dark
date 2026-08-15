@@ -167,11 +167,6 @@ RELOADERS: tuple[tuple[str, str], ...] = (
     # failure mode is the worst kind: reads succeed and return the wrong story's
     # defaults.
     ("engine.state.active", "reset_schema"),
-    # Resolved safety policy -- the intensity ceiling and boundary sheet in
-    # force. A policy resolved under the previous story is precisely the stale
-    # cache this registry exists to end, and here the stale value would be a
-    # content rating.
-    ("engine.safety", "reset_policies"),
 )
 
 # (consumer module, consumer attribute, source module, source attribute).

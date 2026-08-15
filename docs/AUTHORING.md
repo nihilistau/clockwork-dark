@@ -75,12 +75,11 @@ A manifest is a small, bounded set of things:
 | `entry:` | Where a new run starts and what it may start as. |
 | `scene:` | Which server scene serves this story. Every shipped story declares the engine default by saying so — see any template's comment. |
 | `ui:` | Which client plugin draws it. |
-| `safety:` | The story's content rating (top-level, not under `settings:` — see §3.8). |
 | `state:` / `state.yaml` | The story's own meters, clocks and tracks (§3.1). |
 | `save_summary:` | Which declared values the load menu shows. Absent means the engine's own row — what both big stories use. |
 
 Unknown top-level keys are kept verbatim in `extras` (that is how `ui:` and
-`safety:` travel), so a manifest can carry data the dataclass has not learned
+unknown keys travel), so a manifest can carry data the dataclass has not learned
 about.
 
 ### 2.1 The `paths.*` vocabulary
@@ -484,7 +483,7 @@ Two things you *can* author:
   declare the same thing is a second place to forget, and the first symptom
   would be a map pointing confidently at a quest that ended two days ago.
 
-### 3.8 `spoilers.yaml` and the `safety:` block
+### 3.8 `spoilers.yaml`
 
 **Spoilers.** Fixed filename inside `paths.rules`. Rows are
 `{term, instead}`: surface forms the awareness gate masks in narration until
@@ -495,17 +494,6 @@ story-neutral rows for identifiers the machinery leaks out of any story
 and a story that wants its own phrasing for a mechanical id simply declares
 it and wins by ordering.
 
-**Safety.** A **top-level** `safety:` block in `game.yaml` — not under
-`settings:` — declaring `intensity: {ceiling, default}`, optionally
-`fade.available` and `aftercare.default`. Full treatment:
-[docs/SAFETY.md](SAFETY.md). The authoring essentials: nothing is on by
-default — a story that declares nothing is inert and pays zero tokens;
-declaring a rating is asking for the layer to run; raise the ceiling in your
-story, never in `config/default.yaml`, which is the engine's answer for every
-story that declares nothing (and moving it there fails
-`tests/test_safety_shipped_games.py`). **Leave `hard_nos` out**: limits belong
-to the player, set in the boundary sheet at the start of a run — a story
-pre-filling them is a story deciding what its player finds unbearable.
 
 ### 3.9 Art
 
@@ -814,7 +802,7 @@ moment it exists: content integrity, prompt identity
 (`tests/test_prompts_story_neutral.py` — every discovered story must ship its
 own `prompts/storyteller.md`, and the persona the model receives must be that
 file; the engine's neutral fallback exists for runtime, not as a way to pass
-this test), the safety declaration (`tests/test_safety_shipped_games.py`),
+this test),
 the story surface. Run the full suite
 before calling the story done; it is the same bar the shipped stories clear.
 
@@ -825,7 +813,7 @@ before calling the story done; it is the same bar the shipped stories clear.
 | Where | What it teaches |
 |---|---|
 | `games/dev-story/` | **The full worked example.** One small working instance of every subsystem — thirteen locations, eight scheduled NPCs, a two-agent pipeline, a clock that forces a scene, a thread with renegotiations, three gated endings and their epilogues — each file annotated at a depth a template cannot afford. When a mechanism is unclear, it is running here with the lights on. |
-| `games/wicked-garden/` | **The deck exemplar**, full scale. Its `data/scenes/README.md` is the deck grammar's reference treatment; its `data/canon/` established the dictionary shape; its manifest shows the `safety:` block and the "what this story deliberately does not ship" comment style. |
+| `games/wicked-garden/` | **The deck exemplar**, full scale. Its `data/scenes/README.md` is the deck grammar's reference treatment; its `data/canon/` established the dictionary shape; its manifest shows the "what this story deliberately does not ship" comment style. |
 | `games/clockwork-dark/` | **The graph exemplar**, full scale. The travel graph, arcs, encounters, the livelihood economy, doom — 5,300 lines of the shape the engine's clock was tuned for. |
 | `scripts/story_template/minimal/` | The smallest thing that validates and plays a turn. Start here unless you already know your shape. |
 | `scripts/story_template/graph/` | The flagship's skeleton with Edgewood removed. |

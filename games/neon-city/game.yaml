@@ -48,36 +48,6 @@ scene:
   module: engine.scenes.default_scene
   blueprint: "engine.scenes.default_api:story_blueprint"
 
-# ---------------------------------------------------------------------------
-# Content rating.
-#
-# BIBLE.md section 8: the register is what the canon calls "mature" -- street
-# violence with invoices attached, body-horror-adjacent chrome, transactional
-# substance references, the player's own forecast death. The engine's tier
-# vocabulary is suggestive < explicit < extreme and has no "mature" rung, so
-# the bible's rating maps to `explicit`, ceiling and default both: the bible
-# is explicit that this story has no meaningful softer cut and that shipping
-# one would gut the register ("mark the story mature-only ... rather than
-# auto-softening prose"). The PLAYER can still lower the working intensity
-# from the Settings screen; lowering is always honoured.
-#
-# Out of scope regardless of tier, per the bible: sexual content beyond
-# canon-level innuendo, harm to children on the page, torture scenes,
-# self-harm framing around the timestamp. Those are voice rules the prompts
-# carry, not tiers.
-#
-# `hard_nos` is absent and stays absent: limits belong to the player.
-# ---------------------------------------------------------------------------
-safety:
-  intensity:
-    ceiling: explicit
-    default: explicit
-  fade:
-    available: true
-  aftercare:
-    default: false
-
-# Only keys on SETTING_ALLOWLIST (engine/games/manifest.py) are honoured.
 settings:
   world:
     # Expedition pace. Travel costs hours, work costs hours, and the

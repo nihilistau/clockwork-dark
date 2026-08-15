@@ -68,41 +68,6 @@ scene:
   module: engine.scenes.default_scene
   blueprint: "engine.scenes.default_api:story_blueprint"
 
-# ---------------------------------------------------------------------------
-# Content rating -- DECLARED BY THIS STORY, not by the engine.
-#
-# The engine's default is `suggestive` for both halves and it stays there. This
-# block is how a story raises its own, and it is the mechanism the config file
-# points at: "A story raises its own with a `safety:` block in its game.yaml".
-#
-# It is declared HERE rather than by editing `config/default.yaml` because that
-# file is the ENGINE's answer for every story that declares nothing -- raising
-# it there would have moved the ceiling for The Clockwork Dark and The Wicked
-# Garden too, stories whose content is authored to `suggestive`, and it fails
-# `tests/test_safety_shipped_games.py`, which exists to catch exactly that.
-# A sandbox wanting a different dial is a story-level decision, so it goes in
-# the story, and the safety tests compute their expectation from this block
-# rather than pinning a value -- a shipped rating is a declaration, not a bug.
-#
-# `hard_nos` stays absent on purpose. Limits belong to the PLAYER, set in the
-# boundary sheet at the start of a run -- a story pre-filling them is a story
-# deciding what its player finds unbearable.
-# ---------------------------------------------------------------------------
-safety:
-  intensity:
-    ceiling: extreme
-    default: explicit
-  fade:
-    available: true
-  aftercare:
-    default: true
-
-# ---------------------------------------------------------------------------
-# Engine settings. Only keys on SETTING_ALLOWLIST in engine/games/manifest.py
-# are honoured; anything else is a hard validation error rather than a silent
-# drop, so this block is kept to the three numbers that have to be zero and the
-# one chain that has to be shortened.
-# ---------------------------------------------------------------------------
 settings:
   world:
     # NOTHING TICKS WHILE YOU ARE TESTING. The flagship grants 2 in-game hours
