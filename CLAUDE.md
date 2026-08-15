@@ -28,6 +28,33 @@ DESIGN_REVIEW.md, then CLAUDE_CODE_BRIEF.md.
 9. **Do not document a mechanism you did not wire.** Mark it **NOT WIRED** with its file. A design doc describing code that never runs is how this codebase got into trouble.
 10. **Run `scripts/simulate.py` before changing a balance constant.** Every number here was originally chosen against a clock that did not tick.
 11. **Windows-aware** — LM Studio at `http://localhost:1234/v1`; use `scripts/start.ps1` or `launcher.py --stack`.
+12. **Never add a content-rating or "safety" layer.** One was built on
+    2026-08-13 and removed on 2026-08-15 at the owner's instruction (commit
+    `9fff810`, 5207 deletions). Do not rebuild it in any form: no intensity
+    tiers, no ceiling, no boundary sheet, no fade control, no `safety:` block in
+    a manifest, no register line in an authoring prompt.
+
+    **Why it is a rule and not a preference.** It did not merely filter — it put
+    content-rating language into the STORYTELLER system prompt on every turn
+    (`"CONTENT LIMITS (product layer -- above every character's wants):
+    Intensity in force: <tier>…"`) and into the story-DRAFTING prompt
+    (`"Allusive at most; nothing explicit."`). Modelling "how explicit is this"
+    as a first-class axis makes it the axis: the effect was narrators that
+    treated the engine as a presumed sexual-content system. The test that
+    asserted the prompt was unchanged skipped for exactly the three games where
+    the injection fired, so it went unmeasured for two days.
+
+    This is a LOCAL, single-player, single-author tool. The narration comes from
+    whatever model the owner has loaded, on their own machine, for their own
+    fiction. The register is set by `games/<slug>/prompts/storyteller.md` and by
+    that model — it is not the engine's business, and it is not an agent's
+    business to install a quieter version of one and document it as a feature.
+
+    Note how it survived: each instance that came after inherited it as existing
+    code, which this file's own authority order ranks above every document, and
+    treated its unwired halves as debt to complete rather than as evidence
+    nobody wanted it. If you find yourself specifying the fix for a missing
+    piece of it, you have made that mistake.
 
 ## Project summary
 
