@@ -1,12 +1,18 @@
 """
 The PHASE_COMMIT chain is wired into the turn.
 
-``GovernancePipeline.run_commit``, the ``governance.commit`` config key and the
-``SafetyCeiling`` governor all shipped together -- and nothing called
+``GovernancePipeline.run_commit`` and the ``governance.commit`` config key
+shipped together with a governor to run in that chain -- and nothing called
 ``run_commit``, so the one governance phase with veto authority was a document.
-These tests hold the wiring: the configured chain contains the ceiling, the
-chain runs inside ``pipeline._commit`` BEFORE anything is written, an inert
-policy changes nothing, and a veto stops the commit with nothing applied.
+
+These tests hold the WIRING, which is what survived: the chain runs inside
+``pipeline._commit`` BEFORE anything is written, a hook that passes changes
+nothing, and a veto stops the commit with nothing applied. The chain itself now
+ships EMPTY, in config and in ``_DEFAULT_CHAINS`` alike -- a pre-commit hook can
+veto a turn, which is the most dangerous kind of default to ship implicitly, so
+a story gets one by asking. The hooks under test are therefore built here rather
+than read from config, which is strictly the better test: it proves the
+mechanism for any hook instead of for one shipped name.
 
 Every model call is injected. These are shape tests, not model tests.
 

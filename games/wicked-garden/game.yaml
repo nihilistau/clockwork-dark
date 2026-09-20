@@ -68,12 +68,10 @@ settings:
   # story does not keep. Both fired here -- so the Garden's narrator was being
   # told to write cosy frontier life while standing at a fae threshold.
   #
-  # Kept: SafetyDirective (standing constraints, emits nothing when a story
-  # configures no limits) and StorytellerMind, which is genuinely generic --
-  # it renders the GM's cruelty/generosity/patience knobs and names no story.
+  # Kept: StorytellerMind, which is genuinely generic -- it renders the GM's
+  # cruelty/generosity/patience knobs and names no story.
   governance:
     directives:
-      - SafetyDirective
       - StorytellerMind
 
 # WHAT THIS STORY DELIBERATELY SHIPS NONE OF.

@@ -1,6 +1,6 @@
 [project]
 name = "clockwork-dark"
-version = "0.5.0"
+version = "0.5.1"
 description = "Local-first AI RPG — The Clockwork Dark"
 readme = "README.md"
 requires-python = ">=3.13"

@@ -61,11 +61,10 @@ settings:
     # `dormant` and no background apocalypse runs under the one on the file.
     evil_base_rate_per_day: 0.0
 
-  # The story-neutral pair. The engine's fuller default chain narrates a doom
+  # The story-neutral shaper. The engine's fuller default chain narrates a doom
   # ledger this story does not keep.
   governance:
     directives:
-      - SafetyDirective
       - StorytellerMind
 
 # WHAT THIS STORY DELIBERATELY SHIPS NONE OF, one line each:

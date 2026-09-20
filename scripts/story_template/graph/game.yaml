@@ -49,11 +49,10 @@ settings:
     # locations.yaml are the two halves of it.
     evil_base_rate_per_day: 0.0
 
-  # The story-neutral pair. The engine's fuller default chain narrates a doom
+  # The story-neutral shaper. The engine's fuller default chain narrates a doom
   # ledger; add interceptors back deliberately when your story keeps one.
   governance:
     directives:
-      - SafetyDirective
       - StorytellerMind
 
 # Every declared path must EXIST at validation. Deliberately absent here:

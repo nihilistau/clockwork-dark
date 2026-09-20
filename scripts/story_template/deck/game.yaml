@@ -46,11 +46,10 @@ settings:
     # data/rules/clocks.yaml, which count something the story chose.
     evil_base_rate_per_day: 0.0
 
-  # The story-neutral pair; the engine's fuller chain narrates a doom ledger
+  # The story-neutral shaper; the engine's fuller chain narrates a doom ledger
   # this story does not keep.
   governance:
     directives:
-      - SafetyDirective
       - StorytellerMind
 
 # Deliberately absent: quests (this shape's days are authored decks, not an

@@ -176,7 +176,7 @@ def test_the_garden_s_declared_settings_reach_the_overlay_and_the_api() -> None:
     overlay = manifest.config_overlay()
     assert overlay["world"]["tick_hours"] == 0.0
     assert overlay["world"]["evil_base_rate_per_day"] == 0.0
-    assert overlay["governance"]["directives"] == ["SafetyDirective", "StorytellerMind"]
+    assert overlay["governance"]["directives"] == ["StorytellerMind"]
 
     # Nothing was dropped on the way in: every declared key is an allowed one.
     assert set(manifest.allowed_settings()) == set(manifest.flat_settings())

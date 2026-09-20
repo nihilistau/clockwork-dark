@@ -14,6 +14,27 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-09-20
+
+### Fixed
+
+- **The removed layer was still named in config, in four shipped games and in
+  all three story templates.** `governance.directives` listed `SafetyDirective`
+  and `governance.commit` listed `SafetyCeiling`, so every governance build
+  logged two "Unknown interceptor named in config, skipping" warnings and every
+  freshly scaffolded story inherited a dead name — the same
+  templates-teach-the-bug shape that CLAUDE.md already records for the intent
+  loop. Worse, `tests/test_story_surface.py` *asserted* the stale name was
+  present, which locked it in: the suite would have failed if anyone removed it.
+  Found from a log line while working on something else, because the earlier
+  sweeps grepped for module paths and this was a bare string in YAML.
+- `governance.commit` is now `[]`, which is what `_DEFAULT_CHAINS` in
+  `engine/agents/governance.py` has always shipped. Config and code had
+  disagreed about whether a pre-commit veto hook ships by default; the code was
+  right, and says why.
+- `tests/test_governance_commit.py`'s docstring claimed "the configured chain
+  contains the ceiling", which stopped being true at v0.3.0.
+
 ## [0.5.0] — 2026-09-20
 
 ### Added

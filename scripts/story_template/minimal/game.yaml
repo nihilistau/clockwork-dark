@@ -63,14 +63,12 @@ settings:
     # it a rate only if background dread is part of your design.
     evil_base_rate_per_day: 0.0
 
-  # The prompt shapers this story runs. The engine's full default chain
-  # narrates a doom ledger this story does not keep; these two are the
-  # genuinely story-neutral ones -- SafetyDirective (standing constraints,
-  # silent when none are configured) and StorytellerMind (the GM's
-  # cruelty/generosity/patience knobs, names no story).
+  # The prompt shaper this story runs. The engine's full default chain
+  # narrates a doom ledger this story does not keep; StorytellerMind is the
+  # genuinely story-neutral one (the GM's cruelty/generosity/patience knobs,
+  # names no story).
   governance:
     directives:
-      - SafetyDirective
       - StorytellerMind
 
 # ---------------------------------------------------------------------------

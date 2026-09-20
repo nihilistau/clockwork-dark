@@ -89,13 +89,10 @@ settings:
   # ledger this story does not keep -- both would inject Clockwork's tone into
   # a bedroom scene that has nothing to do with it.
   #
-  # Kept: SafetyDirective (standing constraints; emits nothing at all when a
-  # story configures no limits, which is this one) and StorytellerMind, which
-  # is genuinely generic -- it renders the GM's cruelty/generosity/patience
-  # knobs and names no story.
+  # Kept: StorytellerMind, which is genuinely generic -- it renders the GM's
+  # cruelty/generosity/patience knobs and names no story.
   governance:
     directives:
-      - SafetyDirective
       - StorytellerMind
 
 # ---------------------------------------------------------------------------

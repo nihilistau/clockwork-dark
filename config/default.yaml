@@ -692,19 +692,17 @@ comms:
 # and after the token budget has been fitted (issue R-01).
 governance:
   directives:
-    # First in the chain: standing constraints come before tone. Emits nothing
-    # at all when the session's safety policy is inert -- zero prompt tokens,
-    # which matters because the budget overflow (R-01) was caused by exactly
-    # this kind of addition.
-    - SafetyDirective
     - EvilPhaseTone
     - DoomSignsInterceptor
     - StorytellerMind
   # Runs over reconciled proposals BEFORE the transaction commits, with the
   # authority to alter them. Everything else in this file audits after the
   # fact; this is the only chain that can decide a change does not happen.
-  commit:
-    - SafetyCeiling
+  # Empty, which is what engine/agents/governance.py ships as its default for
+  # this phase: a pre-commit hook can VETO a turn's changes, and that is the
+  # most dangerous kind of default to ship implicitly. A story gets one by
+  # asking for it.
+  commit: []
   post:
     - RulesGovernor
   media:
