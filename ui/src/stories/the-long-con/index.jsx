@@ -12,6 +12,8 @@
  */
 import React from "react";
 
+import Ledger from "./parts/Ledger.jsx";
+
 /** VANCE & VANCE on frosted glass, the second one fainter than the first. */
 function DoorMark() {
   return (
@@ -65,6 +67,7 @@ export default {
   Mark: DoorMark,
   Wordmark,
   StartIntro,
+  Ledger,
 
   // NO OVERLAYS OF ITS OWN. The map and the clue board are core's now, and
   // both are exactly what this story wants: a city to cross and somewhere to

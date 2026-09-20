@@ -16,11 +16,7 @@ import React, { useEffect, useState } from "react";
 import Modal from "../parts/Modal.jsx";
 import { prettyPlace } from "../parts/Chrome.jsx";
 import { fetchGames } from "../api.js";
-
-// Mirrors the flag in parts/Onboarding.jsx. Duplicated rather than imported so
-// this screen does not reach into a component it does not own; if that key ever
-// moves, both call sites are one grep apart.
-const ONBOARD_FLAG = "clockwork_onboarded";
+import { clearOnboarded } from "../parts/Onboarding.jsx";
 
 // The keys core itself binds. Anything a story adds arrives as an overlay with
 // its own key and is spliced in below -- the old table hardcoded I/J/C/B for the
@@ -50,6 +46,7 @@ function Row({ label, hint, onClick, tone = "", disabled = false }) {
 export default function Menu({
   world,
   banner,
+  storyId,
   overlays = [],
   saveId,
   connected,
@@ -97,12 +94,8 @@ export default function Menu({
   }
 
   function replayOnboarding() {
-    try {
-      window.localStorage.removeItem(ONBOARD_FLAG);
-      setSaved("the opening cards will show next time you begin");
-    } catch {
-      /* private browsing — they show every time anyway */
-    }
+    clearOnboarded(storyId);
+    setSaved("the opening cards will show next time you begin");
   }
 
   return (
@@ -122,7 +115,8 @@ export default function Menu({
 
       <div className="menu__meta">
         <span>
-          {world?.player_name || "Traveler"} the {world?.archetype || "wayfarer"}
+          {world?.player_name || "You"}
+          {world?.archetype ? ` · ${world.archetype}` : ""}
         </span>
         <span>
           Day {world?.world_day ?? 1} · {prettyPlace(world?.location_id || "—")}

@@ -42,15 +42,108 @@
 
 .st__grid {
   display: grid;
-  grid-template-columns: 15rem 17rem minmax(0, 1fr) 22rem;
+  grid-template-columns: 15rem 22rem minmax(0, 1fr);
   gap: 1px;
   background: var(--line-iron);
   min-height: calc(100vh - 3.5rem);
 }
 
+.st__tabs {
+  display: none;
+}
+
+.st__create {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line-iron);
+  background: var(--surface-panel);
+}
+
+.st__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.st__field input,
+.st__field select {
+  min-width: 10rem;
+  padding: 5px 8px;
+  border: 1px solid var(--line-iron);
+  border-radius: var(--radius-sm);
+  background: var(--surface-scene);
+  color: var(--text-narration);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.st__group {
+  margin-bottom: var(--space-3);
+}
+
+.st__folder {
+  margin: 0 0 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.st__h--later {
+  margin-top: var(--space-5);
+}
+
+.st__btn--keep {
+  border-color: var(--accent-brass);
+  color: var(--accent-brass);
+}
+
 @media (max-width: 1200px) {
+  .st__tabs {
+    display: flex;
+    gap: 1px;
+    background: var(--line-iron);
+    border-bottom: 1px solid var(--line-iron);
+  }
+
+  .st__tab {
+    flex: 1;
+    padding: 8px 10px;
+    border: 0;
+    background: var(--surface-chrome);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+
+  .st__tab.is-on {
+    background: var(--surface-panel);
+    color: var(--text-narration);
+  }
+
   .st__grid {
-    grid-template-columns: 14rem minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .st[data-pane="stories"] .st__files,
+  .st[data-pane="stories"] .st__editor,
+  .st[data-pane="files"] .st__stories,
+  .st[data-pane="files"] .st__editor,
+  .st[data-pane="editor"] .st__stories,
+  .st[data-pane="editor"] .st__files {
+    display: none;
   }
 }
 

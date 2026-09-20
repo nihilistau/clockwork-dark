@@ -263,10 +263,10 @@ because nothing else in the suite would notice if the clock call were deleted �
 a whole content system would simply stop happening.
 
 Formerly in this table, now wired: `Oracle.record_turn` and `/api/metrics`
-(rows above); the notice board's server half —
-`engine/scenes/default_api.py::notice_board`, served at
-`GET /api/notices` from `engine/game/economy.py`'s snapshot,
-`tests/test_notice_board.py`; and the rolled-d20 stills — all 20 plates and all
+(rows above); the notice board — server half at `GET /api/notices`, client
+half at `ui/src/stories/clockwork-dark/screens/Notices.jsx` (overlay `n`);
+the challenge/scene framing chip (`ui/src/core/parts/BeatFrame.jsx`);
+and the rolled-d20 stills — all 20 plates and all
 20 interface faces exist and are mapped in `games/clockwork-dark/data/art/manifest.yaml`
 (`dice_plates` / `dice_faces`), held by `tests/test_dice_art.py`.
 
@@ -274,9 +274,7 @@ Formerly in this table, now wired: `Oracle.record_turn` and `/api/metrics`
 
 | System | File | Needs |
 |---|---|---|
-| Notice board render | server half: `engine/scenes/default_api.py::notice_board` (wired, `GET /api/notices`). Client half: nothing | The browser side. Re-checked 2026-08-14: `grep -rn notices ui/src/` returns no fetch, no component and no overlay entry in any of the three plugins, so the route is reachable by curl and by no player. It is a story-shaped screen rather than a core one — the board is the flagship's — so it belongs in `ui/src/stories/clockwork-dark/` as an overlay entry, not in `ui/src/core/`. |
-| Challenge panel | producer: `engine/game/state.py::to_client_dict` ships `challenge`. Consumer: nothing in `ui/src/` | A component reading `state.challenge` to draw the step, its progress and its options as a panel. **Not a playability gap** — since 2026-08-15 the options arrive as ordinary choice chips through `legal_intents`, so a gauntlet can be played start to finish without this. It is a presentation gap: a four-step gauntlet reads as four unrelated turns. |
-| Scene panel | producer: `to_client_dict` ships `scene`. Consumer: nothing in `ui/src/` | Same shape and same non-blocking status as the row above, for the dealt card (`engine/content/director.py`). The card's prose reaches the player through the narrator, which is the design; what is missing is the "card 3 of 7" framing. |
+| Challenge / scene panel | producers: `to_client_dict` ships `challenge` and `scene`. Consumer: `ui/src/core/parts/BeatFrame.jsx` draws the "Step 2 of 4" / "Card 3 of 7" line | A full panel (options, progress, card art) is still unbuilt. The framing chip is enough that a gauntlet no longer reads as four unrelated turns; options remain ordinary choice chips. |
 | Negotiation / governance panels | producers: `engine/scenes/default_state.py` ships `negotiation` and `governance` on the turn payload. Consumers: nothing | An analyst-mode panel. `negotiation` carries lead, beats, resolutions and refusals for the three stories that run a pipeline, and the player currently has no way to know a second agent won, lost or gave something up. `governance` carries R001–R005 breaches. Both are debug-shaped rather than player-shaped, which is why they are last. |
 
 Re-audited in full on 2026-08-15 against the tree, not against this file. The

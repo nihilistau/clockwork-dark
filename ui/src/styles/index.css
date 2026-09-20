@@ -670,6 +670,36 @@ input[type="radio"] {
 }
 
 
+/* ---------- beat frame ----------
+   A one-line "you are mid-thing" chip. Empty when neither a challenge nor a
+   dealt card is on the payload, so it costs nothing on an ordinary turn. */
+
+.beatframe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-panel);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.beatframe__title {
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-sm);
+  color: var(--text-narration);
+}
+
+
 /* ---------- log ---------- */
 
 /* The floor lives on the grid track (--log-min); `min-height: 0` here is what

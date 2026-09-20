@@ -39,8 +39,10 @@ Version: v0.1.0 [2026-08-15]
 
 from __future__ import annotations
 
+import importlib
 import logging
 import shutil
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +64,21 @@ EDITABLE = {".yaml", ".yml", ".md", ".json"}
 #: Draft trees are invisible to the validator and to every loader until they are
 #: promoted -- `engine/games/validation.py::DRAFTS_DIRNAME`.
 DRAFTS = "drafts"
+
+
+def _script_module(name: str) -> Any:
+    """
+    Import one of the `scripts/` CLIs, so the studio and the terminal agree.
+
+    `scripts/` is a directory of CLIs rather than a package, so it is not on the
+    import path. The insert is idempotent because this used to live inside the
+    request handlers: every scaffold and every accept pushed another copy of the
+    same string onto a process-wide `sys.path` that nothing ever popped.
+    """
+    scripts = str(ROOT / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    return importlib.import_module(name)
 
 
 def _safe_path(slug: str, relative: str) -> Path:
@@ -274,6 +291,43 @@ def studio_blueprint() -> Blueprint:
             )
         return jsonify({"drafts": rows})
 
+    @blueprint.post("/api/studio/draft/accept")
+    def api_accept() -> Any:
+        """
+        Promote one draft into the live tree. The other half of a review.
+
+        Placement is the same as ``scripts/author.py --promote`` for that
+        kind — directory kinds copy the file, file kinds merge — so the
+        studio and the terminal cannot disagree about where a draft lands.
+        Sibling drafts are ignored: that is the point of accepting one at
+        a time. Health is reported after, not enforced, matching PUT.
+        """
+        body = request.get_json(silent=True) or {}
+        slug = str(body.get("slug") or "")
+        relative = str(body.get("path") or "")
+        try:
+            path = _safe_path(slug, relative)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        if f"/{DRAFTS}/" not in f"/{path.as_posix()}":
+            return jsonify({"error": "only a draft may be accepted"}), 400
+        if not path.is_file():
+            return jsonify({"error": "no such draft"}), 404
+        try:
+            written = _script_module("author").Author(slug).promote_one(relative)
+        except Exception as exc:  # noqa: BLE001 -- a refusal is an answer
+            return jsonify({"error": str(exc)}), 400
+
+        from engine.games import caches
+
+        try:
+            caches.reset_all_caches()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("[studio] Cache reset failed: %s", exc)
+
+        live = written.relative_to(_safe_path(slug, "")).as_posix()
+        return jsonify({"ok": True, "live": live, "health": _health(slug)})
+
     @blueprint.post("/api/studio/draft/reject")
     def api_reject() -> Any:
         """Throw one draft away. The other half of a review."""
@@ -296,12 +350,7 @@ def studio_blueprint() -> Blueprint:
         template = str(body.get("template") or "minimal")
         title = str(body.get("title") or "").strip()
         try:
-            import sys
-
-            sys.path.insert(0, str(ROOT / "scripts"))
-            import new_story  # type: ignore
-
-            new_story.scaffold(slug, template=template, title=title)
+            _script_module("new_story").scaffold(slug, template=template, title=title)
         except Exception as exc:  # noqa: BLE001 -- a refusal is an answer
             return jsonify({"error": str(exc)}), 400
         return jsonify({"ok": True, "slug": slug, "health": _health(slug)})

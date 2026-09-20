@@ -79,7 +79,7 @@ export default function App({ story }) {
   // once would mean two focus traps fighting over the same document.
   const [overlay, setOverlay] = useState(null);
   const [onboarding, setOnboarding] = useState(
-    () => story.onboarding.length > 0 && shouldOnboard()
+    () => story.onboarding.length > 0 && shouldOnboard(story.slug)
   );
   const muted = prefs.muted;
   const socketRef = useRef(null);
@@ -454,6 +454,7 @@ export default function App({ story }) {
             cards={story.onboarding}
             title={story.onboardingTitle}
             finishLabel={story.onboardingFinishLabel}
+            storyId={story.slug}
             onDone={() => setOnboarding(false)}
           />
         )}
@@ -539,6 +540,7 @@ export default function App({ story }) {
         <Menu
           world={state.world}
           banner={MenuBanner ? <MenuBanner state={state} /> : null}
+          storyId={story.slug}
           overlays={overlays}
           saveId={state.saveId}
           connected={state.connected}

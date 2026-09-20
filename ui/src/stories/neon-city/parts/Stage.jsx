@@ -107,10 +107,10 @@ function Contact({ encounter, busy, onTake }) {
 /** The plate. Black under everything, four layers over it, image on top. */
 function Plate({ src, caption }) {
   return (
-    <figure className="nc-plate">
+    <figure className={`nc-plate ${src ? "" : "is-dark"}`}>
       <span className="nc-plate__grid" aria-hidden="true" />
       <span className="nc-plate__glow" aria-hidden="true" />
-      {src && (
+      {src ? (
         <img
           className="nc-plate__img"
           src={src}
@@ -121,6 +121,8 @@ function Plate({ src, caption }) {
           loading="lazy"
           draggable="false"
         />
+      ) : (
+        <span className="nc-plate__none" aria-hidden="true">NO FEED</span>
       )}
       <span className="nc-plate__scan" aria-hidden="true" />
       {caption && <figcaption className="nc-plate__caption">{caption}</figcaption>}

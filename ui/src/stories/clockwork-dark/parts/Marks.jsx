@@ -48,6 +48,18 @@ export function ScalesIcon() {
   );
 }
 
+/* A pinned square of paper. The board is work posted in the village, not a
+   menu of quests — the mark is the pin, not a scroll. */
+export function BoardIcon() {
+  return (
+    <Icon>
+      <path d="M6 5.2h12v13.6H6z" />
+      <path d="M8.4 8.6h7.2M8.4 11.4h7.2M8.4 14.2h5" />
+      <circle cx="12" cy="5.2" r="1.1" fill="currentColor" stroke="none" />
+    </Icon>
+  );
+}
+
 /* A rucksack. The pack screen is the only place in the product that shows you
    what you are physically carrying, so the mark is the thing itself. */
 export function PackIcon() {

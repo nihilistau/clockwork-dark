@@ -1448,6 +1448,49 @@ class Author:
         self._prune_empty_kind_dirs()
         return written
 
+    def promote_one(self, relative: str) -> pathlib.Path:
+        """Promote a single draft file. Sibling drafts are not considered.
+
+        ``promote`` refuses while ANY error stands, because it moves every
+        draft at once. The studio review queue exists so an author can keep
+        one and throw the rest away; refusing this one because of those
+        would defeat it. YAML is already on disk as a draft. Validation of
+        the live tree AFTER the move is the caller's job.
+        """
+        if self.manifest.root is None:
+            raise AuthorError("story has no root")
+        root = self.manifest.root.resolve()
+        source = (root / relative).resolve()
+        if not source.is_relative_to(root):
+            raise AuthorError("path escapes the story directory")
+        drafts_root = self.drafts_root.resolve()
+        if DRAFTS_DIRNAME not in source.parts or not source.is_relative_to(drafts_root):
+            raise AuthorError("only a draft may be accepted")
+        if not source.is_file():
+            raise AuthorError("no such draft")
+
+        matched = [d for d in self._iter_drafts() if d.path.resolve() == source]
+        if not matched:
+            raise AuthorError(f"not a known draft kind: {relative}")
+        draft = matched[0]
+        spec = KINDS[draft.kind]
+        if spec.container != "rules_file" and spec.path_key not in self.manifest.paths:
+            raise AuthorError(
+                f"cannot promote {draft.path.name}: the manifest declares no "
+                f"paths.{spec.path_key}; declare it in games/{self.slug}/game.yaml"
+            )
+        if spec.container == "file":
+            written = self._promote_into_file(draft, spec)
+        elif spec.container == "rules_file":
+            written = self._promote_spoilers(draft)
+        elif spec.container == "deck_cards":
+            written = self._promote_cards(draft)
+        else:
+            written = self._promote_into_dir(draft, spec)
+        draft.path.unlink()
+        self._prune_empty_kind_dirs()
+        return written
+
     def _promote_into_file(self, draft: Draft, spec: KindSpec) -> pathlib.Path:
         live_path = _declared(self.manifest, spec.path_key)
         assert live_path is not None

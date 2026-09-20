@@ -42,6 +42,9 @@ export const fetchItems = (sessionId) => getJSON("/api/items", { session_id: ses
 /** Every recipe, annotated with what is held and whether it can be made here. */
 export const fetchRecipes = (sessionId) => getJSON("/api/recipes", { session_id: sessionId });
 
+/** The village notice board: work posted here, and work posted elsewhere. */
+export const fetchNotices = (sessionId) => getJSON("/api/notices", { session_id: sessionId });
+
 /** Player-settable engine config: spec, live value, override state. */
 export const fetchSettings = () => getJSON("/api/settings");
 

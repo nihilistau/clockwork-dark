@@ -337,9 +337,8 @@ Still open and deliberately deferred, recorded here rather than fixed: THE LONG
 CON's tables and items are still the graph template's (it sells mushrooms as
 cigarettes); neon-city ships **zero** art plates against 75 subjects, its entry
 location included; the Garden has 11 of 23 endings unreachable and 4 orphan
-cards; `engine/studio/api.py:14` documents a `POST /api/studio/draft/accept`
-route that does not exist, so there is still no path from the studio to live
-content.
+cards. The studio review queue can now keep one draft
+(`POST /api/studio/draft/accept`); it still does not draft from the browser.
 
 **One order-dependent test was found and fixed rather than recorded.**
 `test_world_advances_over_a_session` passed alone, passed in the full suite,

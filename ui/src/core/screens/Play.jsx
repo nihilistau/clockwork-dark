@@ -34,6 +34,7 @@
  */
 import React, { useState } from "react";
 
+import BeatFrame from "../parts/BeatFrame.jsx";
 import ChoiceRow from "../parts/ChoiceRow.jsx";
 import MicButton from "../parts/MicButton.jsx";
 import NarrativeLog from "../parts/NarrativeLog.jsx";
@@ -135,6 +136,8 @@ export default function Play({
 
         <section className="scene__col scene__col--main">
           {Stage && <Stage {...slot} />}
+
+          <BeatFrame world={state.world} />
 
           <NarrativeLog entries={state.log} busy={state.busy} />
 

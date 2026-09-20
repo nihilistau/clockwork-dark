@@ -145,7 +145,7 @@ export default function Start({ onBegin, busy, onOpenSaves, story = {} }) {
   function submit(event) {
     event.preventDefault();
     onBegin({
-      player_name: name.trim() || "Traveler",
+      player_name: name.trim() || "You",
       // Empty lets the server ask the active story's manifest rather than the
       // client asserting a default it may have no business choosing.
       archetype: archetype || archetypes[0]?.id || "",
@@ -171,7 +171,7 @@ export default function Start({ onBegin, busy, onOpenSaves, story = {} }) {
             className="field__input"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Traveler"
+            placeholder="You"
             maxLength={32}
             autoFocus
           />
@@ -215,7 +215,7 @@ export default function Start({ onBegin, busy, onOpenSaves, story = {} }) {
             placeholder="random"
             inputMode="numeric"
           />
-          <span className="field__hint">Same seed, same village.</span>
+          <span className="field__hint">Same seed, same world.</span>
         </label>
 
         <button type="submit" className="btn btn--lg" disabled={busy}>

@@ -14,11 +14,15 @@ request. A studio that can be talked into writing `../../engine/game/state.py`
 is remote code execution with a nice front end, so `_safe_path` is tested
 harder than anything else here -- including the shapes that are not substrings
 anyone would grep for.
+
+Writes that need a live story use ``dev-story``. That directory is the
+annotated bench — rewrite it in place, leave it working. A probe file can
+land in its items directory and be deleted without touching a playable
+story.
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -27,6 +31,7 @@ from engine.studio.api import _safe_path, studio_blueprint
 
 
 ROOT = Path(__file__).resolve().parents[1]
+BENCH = "dev-story"
 
 
 @pytest.fixture
@@ -62,7 +67,7 @@ def test_a_path_cannot_escape_the_story(relative: str) -> None:
     and an absolute path contains no `..` at all.
     """
     with pytest.raises(ValueError):
-        _safe_path("dev-story", relative)
+        _safe_path(BENCH, relative)
 
 
 @pytest.mark.parametrize("slug", ["", "..", "../clockwork-dark", "a/b", ".hidden", "no-such-story"])
@@ -71,9 +76,9 @@ def test_a_bad_slug_is_refused(slug: str) -> None:
         _safe_path(slug, "game.yaml")
 
 
-def test_a_real_path_resolves(tmp_path: Path) -> None:
+def test_a_real_path_resolves() -> None:
     """The green control -- without it every refusal above proves nothing."""
-    resolved = _safe_path("dev-story", "game.yaml")
+    resolved = _safe_path(BENCH, "game.yaml")
     assert resolved.is_file()
     assert resolved.name == "game.yaml"
 
@@ -86,13 +91,13 @@ def test_a_real_path_resolves(tmp_path: Path) -> None:
 def test_every_story_is_listed_with_its_health(client) -> None:
     body = client.get("/api/studio/stories").get_json()
     slugs = {row["slug"] for row in body["stories"]}
-    assert {"clockwork-dark", "wicked-garden", "neon-city", "dev-story"} <= slugs
+    assert {"clockwork-dark", "wicked-garden", "neon-city", "the-long-con", "dev-story"} <= slugs
     for row in body["stories"]:
         assert row["health"]["errors"] == 0, f"{row['slug']} is not clean"
 
 
 def test_a_story_lists_its_editable_files(client) -> None:
-    body = client.get("/api/studio/story/dev-story").get_json()
+    body = client.get(f"/api/studio/story/{BENCH}").get_json()
     paths = {row["path"] for row in body["files"]}
     assert "game.yaml" in paths
     assert any(p.endswith(".md") for p in paths)
@@ -102,12 +107,12 @@ def test_a_story_lists_its_editable_files(client) -> None:
 
 
 def test_reading_a_file_returns_it_verbatim(client) -> None:
-    body = client.get("/api/studio/file?slug=dev-story&path=game.yaml").get_json()
-    assert "id: dev-story" in body["text"]
+    body = client.get(f"/api/studio/file?slug={BENCH}&path=game.yaml").get_json()
+    assert f"id: {BENCH}" in body["text"]
 
 
 def test_reading_outside_the_story_is_refused(client) -> None:
-    response = client.get("/api/studio/file?slug=dev-story&path=../../launcher.py")
+    response = client.get(f"/api/studio/file?slug={BENCH}&path=../../launcher.py")
     assert response.status_code == 400
 
 
@@ -116,19 +121,19 @@ def test_reading_outside_the_story_is_refused(client) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_broken_yaml_never_reaches_disk(client, tmp_path: Path) -> None:
+def test_broken_yaml_never_reaches_disk(client) -> None:
     """
     Parsed BEFORE anything touches disk. A syntax error is a 400 and not a
     broken story -- the editor cannot save what the game cannot read.
     """
-    original = (ROOT / "games" / "dev-story" / "game.yaml").read_text(encoding="utf-8")
+    original = (ROOT / "games" / BENCH / "game.yaml").read_text(encoding="utf-8")
     response = client.put(
         "/api/studio/file",
-        json={"slug": "dev-story", "path": "game.yaml", "text": "id: [unclosed\n"},
+        json={"slug": BENCH, "path": "game.yaml", "text": "id: [unclosed\n"},
     )
     assert response.status_code == 400
     assert "YAML" in response.get_json()["error"]
-    assert (ROOT / "games" / "dev-story" / "game.yaml").read_text(encoding="utf-8") == original
+    assert (ROOT / "games" / BENCH / "game.yaml").read_text(encoding="utf-8") == original
 
 
 def test_a_write_reports_the_health_it_caused(client) -> None:
@@ -137,12 +142,12 @@ def test_a_write_reports_the_health_it_caused(client) -> None:
     story mid-edit is allowed to be briefly wrong; the author has to be told
     that it is.
     """
-    path = ROOT / "games" / "dev-story" / "README.md"
+    path = ROOT / "games" / BENCH / "README.md"
     original = path.read_text(encoding="utf-8")
     try:
         body = client.put(
             "/api/studio/file",
-            json={"slug": "dev-story", "path": "README.md", "text": original + "\n"},
+            json={"slug": BENCH, "path": "README.md", "text": original + "\n"},
         ).get_json()
         assert body["ok"] is True
         assert body["health"]["errors"] == 0
@@ -153,7 +158,7 @@ def test_a_write_reports_the_health_it_caused(client) -> None:
 def test_writing_outside_the_story_is_refused(client) -> None:
     response = client.put(
         "/api/studio/file",
-        json={"slug": "dev-story", "path": "../../launcher.py", "text": "print(1)"},
+        json={"slug": BENCH, "path": "../../launcher.py", "text": "print(1)"},
     )
     assert response.status_code == 400
 
@@ -164,20 +169,20 @@ def test_writing_outside_the_story_is_refused(client) -> None:
 
 
 def test_validation_is_reported_per_issue(client) -> None:
-    body = client.get("/api/studio/validate/dev-story").get_json()
+    body = client.get(f"/api/studio/validate/{BENCH}").get_json()
     assert body["issues"] == []
 
 
-def test_drafts_carry_their_text(client, tmp_path: Path) -> None:
+def test_drafts_carry_their_text(client) -> None:
     """
     A review queue that listed filenames would be a worse `ls`. The point is to
     READ what the model wrote before it becomes part of the story.
     """
-    draft = ROOT / "games" / "dev-story" / "data" / "drafts" / "item" / "probe.yaml"
+    draft = ROOT / "games" / BENCH / "data" / "drafts" / "item" / "probe.yaml"
     draft.parent.mkdir(parents=True, exist_ok=True)
     draft.write_text("items:\n  probe: {name: Probe}\n", encoding="utf-8")
     try:
-        body = client.get("/api/studio/drafts/dev-story").get_json()
+        body = client.get(f"/api/studio/drafts/{BENCH}").get_json()
         rows = {row["path"]: row for row in body["drafts"]}
         key = "data/drafts/item/probe.yaml"
         assert key in rows
@@ -188,13 +193,13 @@ def test_drafts_carry_their_text(client, tmp_path: Path) -> None:
 
 
 def test_a_draft_can_be_thrown_away(client) -> None:
-    draft = ROOT / "games" / "dev-story" / "data" / "drafts" / "item" / "reject_me.yaml"
+    draft = ROOT / "games" / BENCH / "data" / "drafts" / "item" / "reject_me.yaml"
     draft.parent.mkdir(parents=True, exist_ok=True)
     draft.write_text("items:\n  x: {name: X}\n", encoding="utf-8")
 
     response = client.post(
         "/api/studio/draft/reject",
-        json={"slug": "dev-story", "path": "data/drafts/item/reject_me.yaml"},
+        json={"slug": BENCH, "path": "data/drafts/item/reject_me.yaml"},
     )
     assert response.status_code == 200
     assert not draft.exists()
@@ -207,10 +212,55 @@ def test_only_a_draft_may_be_rejected(client) -> None:
     """
     response = client.post(
         "/api/studio/draft/reject",
-        json={"slug": "dev-story", "path": "game.yaml"},
+        json={"slug": BENCH, "path": "game.yaml"},
     )
     assert response.status_code == 400
-    assert (ROOT / "games" / "dev-story" / "game.yaml").is_file()
+    assert (ROOT / "games" / BENCH / "game.yaml").is_file()
+
+
+def test_a_draft_can_be_kept(client) -> None:
+    """
+    The verb the studio exists for. One draft becomes a live file; the draft
+    itself is gone. Placement is author.py's for that kind, so a second accept
+    of the same name cannot silently overwrite.
+    """
+    draft = ROOT / "games" / BENCH / "data" / "drafts" / "item" / "studio_probe.yaml"
+    live = ROOT / "games" / BENCH / "data" / "items" / "studio_probe.yaml"
+    draft.parent.mkdir(parents=True, exist_ok=True)
+    draft.write_text(
+        "items:\n  - {id: studio_probe, name: Studio Probe, tags: [tool], value: 1, weight: 0.1}\n",
+        encoding="utf-8",
+    )
+    extras = []
+    try:
+        response = client.post(
+            "/api/studio/draft/accept",
+            json={"slug": BENCH, "path": "data/drafts/item/studio_probe.yaml"},
+        )
+        body = response.get_json()
+        assert response.status_code == 200, body
+        assert body["ok"] is True
+        assert not draft.exists()
+        landed = ROOT / "games" / BENCH / body["live"]
+        extras.append(landed)
+        assert landed.is_file()
+        assert "Studio Probe" in landed.read_text(encoding="utf-8")
+    finally:
+        draft.unlink(missing_ok=True)
+        live.unlink(missing_ok=True)
+        for path in extras:
+            path.unlink(missing_ok=True)
+
+
+def test_only_a_draft_may_be_accepted(client) -> None:
+    """Accept is a move. A live file must not be a source it can consume."""
+    original = (ROOT / "games" / BENCH / "game.yaml").read_text(encoding="utf-8")
+    response = client.post(
+        "/api/studio/draft/accept",
+        json={"slug": BENCH, "path": "game.yaml"},
+    )
+    assert response.status_code == 400
+    assert (ROOT / "games" / BENCH / "game.yaml").read_text(encoding="utf-8") == original
 
 
 def test_drafts_are_invisible_to_validation(client) -> None:
@@ -218,10 +268,10 @@ def test_drafts_are_invisible_to_validation(client) -> None:
     A half-finished draft must not fail the build. `DRAFTS_DIRNAME` is skipped
     by every loader and by the validator until a promote moves it.
     """
-    draft = ROOT / "games" / "dev-story" / "data" / "drafts" / "item" / "nonsense.yaml"
+    draft = ROOT / "games" / BENCH / "data" / "drafts" / "item" / "nonsense.yaml"
     draft.parent.mkdir(parents=True, exist_ok=True)
     draft.write_text("items:\n  broken: {tags: [not-a-real-tag]}\n", encoding="utf-8")
     try:
-        assert client.get("/api/studio/validate/dev-story").get_json()["issues"] == []
+        assert client.get(f"/api/studio/validate/{BENCH}").get_json()["issues"] == []
     finally:
         draft.unlink(missing_ok=True)

@@ -383,6 +383,18 @@
   object-fit: cover;
 }
 
+.nc-plate__none {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.28em;
+  color: var(--nc-grey-dim);
+}
+
 .nc-plate__caption {
   position: absolute;
   left: var(--space-3);

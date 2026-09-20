@@ -45,3 +45,114 @@ body[data-story-skin="longcon"] .chip {
     animation: none;
   }
 }
+
+/* Newsprint masthead. The start screen already had the door; this is the
+   type that makes the title read like a paper, not a game logo. */
+.longcon-wordmark {
+  display: block;
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-narration);
+}
+
+.longcon-intro {
+  font-family: var(--font-narration);
+  font-size: var(--text-md);
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+/* The case file: what you have worked out, under this skin. */
+body[data-story-skin="longcon"] .clues__about {
+  font-family: var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+body[data-story-skin="longcon"] .clues__item {
+  border-left: 2px solid var(--line-brass);
+  padding-left: var(--space-3);
+}
+
+.lc-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.lc-ledger__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-bottom: var(--space-3);
+  border-bottom: 2px solid var(--line-iron);
+}
+
+.lc-ledger__name {
+  font-family: var(--font-narration);
+  font-size: var(--text-lg);
+  color: var(--text-narration);
+}
+
+.lc-ledger__kind {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lc-readout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lc-readout__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.lc-readout__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lc-readout__word {
+  font-family: var(--font-narration);
+  font-size: var(--text-md);
+  color: var(--accent-brass);
+}
+
+.lc-readout__gloss {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.lc-readout__marks {
+  display: flex;
+  gap: 4px;
+}
+
+.lc-readout__mark {
+  flex: 1;
+  height: 3px;
+  background: var(--line-iron);
+}
+
+.lc-readout__mark.is-lit {
+  background: var(--accent-brass);
+}

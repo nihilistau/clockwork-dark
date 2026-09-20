@@ -19,30 +19,42 @@ import Modal from "./Modal.jsx";
 
 const FLAG = "clockwork_onboarded";
 
-export function shouldOnboard() {
+function flagKey(storyId) {
+  return storyId ? `${FLAG}:${storyId}` : FLAG;
+}
+
+export function shouldOnboard(storyId) {
   try {
-    return !window.localStorage.getItem(FLAG);
+    return !window.localStorage.getItem(flagKey(storyId));
   } catch {
     return true;
   }
 }
 
-function markOnboarded() {
+export function clearOnboarded(storyId) {
   try {
-    window.localStorage.setItem(FLAG, "1");
+    window.localStorage.removeItem(flagKey(storyId));
+  } catch {
+    /* private browsing — they show every time anyway */
+  }
+}
+
+function markOnboarded(storyId) {
+  try {
+    window.localStorage.setItem(flagKey(storyId), "1");
   } catch {
     /* private browsing — the cards will show again, which is harmless */
   }
 }
 
 export default function Onboarding({ cards = [], title = "Before you begin",
-                                     finishLabel = "Begin", onDone }) {
+                                     finishLabel = "Begin", storyId, onDone }) {
   const [index, setIndex] = useState(0);
   const card = cards[index];
   const last = index === cards.length - 1;
 
   function finish() {
-    markOnboarded();
+    markOnboarded(storyId);
     onDone();
   }
 

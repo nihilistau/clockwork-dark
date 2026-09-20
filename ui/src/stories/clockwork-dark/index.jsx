@@ -21,10 +21,12 @@ import SceneVisual from "./parts/SceneVisual.jsx";
 import Sheet from "./parts/Sheet.jsx";
 import Codex from "./screens/Codex.jsx";
 import Journal from "./screens/Journal.jsx";
+import Notices from "./screens/Notices.jsx";
 import Trade from "./screens/Trade.jsx";
 import { ONBOARDING } from "./onboarding.js";
 import {
   AtlasIcon,
+  BoardIcon,
   GearMark,
   JournalIcon,
   PackIcon,
@@ -194,6 +196,13 @@ export default {
     { id: "pack", key: "i", label: "The pack", Icon: PackIcon, Component: Inventory },
     { id: "journal", key: "j", label: "Journal", Icon: JournalIcon, Component: Journal },
     { id: "codex", key: "c", label: "Codex", Icon: AtlasIcon, Component: Codex },
+    {
+      id: "notices",
+      key: "n",
+      label: "Notice board",
+      Icon: BoardIcon,
+      Component: Notices,
+    },
     {
       id: "trade",
       key: "b",

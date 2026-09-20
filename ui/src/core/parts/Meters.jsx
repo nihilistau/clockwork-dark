@@ -179,7 +179,7 @@ export function MeterSheet({ state }) {
   return (
     <aside className="ledger" aria-label="Character">
       <header className="ledger__head">
-        <span className="ledger__name">{world.player_name || "Traveler"}</span>
+        <span className="ledger__name">{world.player_name || "You"}</span>
         {world.archetype && <span className="ledger__kind">{world.archetype}</span>}
       </header>
       <Meters meters={state.meters} />

@@ -2973,3 +2973,81 @@
 .start__wordmark span {
   font-size: 0;
 }
+
+
+/* ---------- notice board ---------- */
+
+.notice__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.notice {
+  padding: var(--space-3);
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-panel);
+}
+
+.notice--away {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  background: transparent;
+}
+
+.notice__head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.notice__title {
+  margin: 0;
+  font-family: var(--font-narration);
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--text-on-dark);
+}
+
+.notice__wage {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--accent-brass);
+}
+
+.notice__blurb {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-narration);
+  color: var(--text-muted);
+}
+
+.notice__meta {
+  margin: var(--space-2) 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.notice--away .notice__meta {
+  margin: 0;
+}
+
+.notice__away {
+  margin-top: var(--space-5);
+}
+
+.notice__away-head {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}

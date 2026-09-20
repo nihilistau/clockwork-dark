@@ -514,6 +514,8 @@ size. `games/dev-story/README.md` § Art shows the intended workflow.
 # then open  http://localhost:5610/?studio=1
 ```
 
+`dev-story` is the bench — rewrite it while the server is running. Any other
+slug works; the studio lists every story under `games/`.
 Everything below can be done from a terminal, and the studio is the same work
 with the files in front of you: every story listed with its live validation
 health, every editable file readable and writable, validate on demand, and
@@ -523,8 +525,10 @@ health, every editable file readable and writable, validate on demand, and
 --promote` is all-or-nothing and blind: it validates, then moves every draft
 into the live tree at once. Validation catches what is *wrong* — see §4.1 —
 but what survives it is a question of taste, and no validator will ever have
-any. The queue shows each drafted entry with its full text, to keep, edit in
-place, or throw away one at a time.
+any. The queue shows each drafted entry with its full text. **Keep** promotes
+that one file into the live tree (`POST /api/studio/draft/accept`, same
+placement as `author.py --promote` for the kind). Edit in place writes the
+draft where it sits. Throw away deletes it.
 
 Two things it will not do, both deliberate:
 
