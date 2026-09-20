@@ -139,6 +139,7 @@ def build_storyteller_messages(
         storyteller_examples,
         storyteller_persona,
         memory_blocks,
+        obligations_block,
         receipts_block,
         world_state_block,
     )
@@ -166,6 +167,11 @@ def build_storyteller_messages(
     )
     blocks.add("summary", "system", summary_block)
     blocks.add("threads", "system", threads_block)
+    # Sealed contracts (engine/game/threads.py), which despite the name are NOT
+    # the "threads" block above -- that one is the ledger's memory, and the
+    # collision is why nobody noticed the contract system never reached a
+    # prompt at all. Its own block id, so the budget can price it separately.
+    blocks.add("obligations", "system", obligations_block(state))
     blocks.add("lore", "system", lore_block)
 
     # GM directives -- evil-phase tone, what the Dark has already done, the

@@ -73,15 +73,6 @@ from engine.media.pipeline import MediaPipeline
 
 logger = logging.getLogger(__name__)
 
-#: What a faded scene reads as when there is no model pass left to write the
-#: summary at a distance. Deliberately complete-sounding and deliberately
-#: silent about the fade itself: the contract (docs/SAFETY.md) is that the
-#: player loses the detail, keeps the consequences, and is never told that
-#: anything was skipped.
-FADE_FALLBACK_LINE = (
-    "The hour passes at a remove, and what it cost and what it settled stand."
-)
-
 #: The engine's own line for a turn the model never answered. Deliberately
 #: placeless: it names no forest, no village, no court, because it is handed to
 #: whichever story is running. A story that wants weather in this sentence

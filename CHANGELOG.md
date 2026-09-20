@@ -14,6 +14,69 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-20
+
+### Added
+
+- **Sealed contracts reach the narrator.** `engine/game/threads.py` is 1,220
+  lines and three shipped stories declare a `threads.yaml`; a sealed thread
+  gates choices, charges its terms and comes due on a named day — and no
+  narrator had ever been told one existed. `threads.summary` has said in its own
+  docstring since it was written that it is "trimmed for a prompt block or a UI
+  list"; only the UI half was built. There is now a `CONTRACTS YOU ARE UNDER`
+  block, carrying terms, counterparty, seal, due day and cutters, and
+  withholding the effect hooks exactly as `summary` already did.
+- **Clocks reach the GM line.** `engine/game/clocks.py` is 844 lines and the
+  narrator got none of it. A `WHAT IS CLOSING IN` block now reports each clock
+  qualitatively, banded through the same `Spec.band` the client projects a
+  veiled meter with, so GM and player never hold two vocabularies for one
+  number. THE LONG CON's `the_frame` can now be felt filling instead of dealing
+  an authored interrogation out of a clear sky.
+- **The clock labels nobody read.** Every shipped clock table carries a
+  `label:` — "How this ends up being your fault", "The roots are counting",
+  "Winter, being patient" — eight across five games, and no engine module had
+  ever loaded one. They are GM-facing by construction, saying what a clock
+  *means*, which is what a narrator needs and what the player-facing label in
+  `state.yaml` deliberately does not say. They are what the new block prints.
+- **Pressure has a direction.** `story_pressure` reached the prompt as one of
+  three words, so a story easing off after a crisis and a story winding toward
+  one read identically. The GM line now says "restless, and rising" or "and
+  easing". `story_pressure_prev` is written in exactly one place —
+  `clock.advance_time`, the single writer of world time — because
+  `update_story_pressure` runs several times per turn and a naive "remember the
+  last value" would compare a turn against itself and report every story as
+  steady.
+- **`tests/test_reachability.py` now walks constants, not just calls.** v0.3.0
+  left two orphans behind and nothing noticed: `rng.SAFETY_REDIRECT`, a seeded
+  stream whose own comment said it was consumed by a module that no longer
+  existed, and `storyteller.FADE_FALLBACK_LINE`, a canned line citing a deleted
+  contract document. Neither failed anything, and both read to the next session
+  exactly like a feature somebody had not finished wiring. The sweep is
+  restricted to UPPER_CASE names on purpose — seven results instead of
+  seventy-four — and carries a positive control plus an allowlist that rots if
+  a row becomes read or disappears.
+
+### Removed
+
+- The last four remnants of the removed prompt layer: a 31-line comment block in
+  `games/clockwork-dark/game.yaml` teaching the full `safety:` manifest syntax
+  and pointing at three deleted files, an `## Intensity` section in
+  `games/dev-story/README.md`, and the two orphan constants above. The manifest
+  block was the sharpest of them — an authoring tutorial for a system that does
+  not exist, sitting in a shipped game.
+- Dead RNG streams `LOOT`, `LABOUR` and `TRADE`, and `ledger.SOURCE_PLAYER`.
+  Nothing drew or wrote any of them. Work and trade price their outcomes from
+  the tables outright, which is *why* neither has a stream; the comment claiming
+  otherwise now says so.
+
+### Fixed
+
+- `CLAUDE.md`'s status line read "2020 passing, 18 skipped in 3m38s" for a month
+  after v0.3.0 deleted three test files, in the same sentence that warns the
+  reader it has been stale before. Measured: **1867 passing, 4 skipped**, and
+  **127 client tests** against two different wrong numbers (126 and 95) in the
+  same document.
+
 ## [0.4.0] — 2026-09-20
 
 ### Added
@@ -98,7 +161,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.2.0...v0.3.0

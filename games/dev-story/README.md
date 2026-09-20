@@ -101,18 +101,4 @@ both dialects at the right pixel size. Generate what you want to look at.
 
 ---
 
-## Intensity
-
-`game.yaml` declares its own `safety:` block (`ceiling: extreme`,
-`default: explicit`). That is a **story-level** decision and it lives here
-rather than in `config/default.yaml`, which is the engine's answer for every
-story that declares nothing — raising it there moves the ceiling for The
-Clockwork Dark and The Wicked Garden too, and fails
-`tests/test_safety_shipped_games.py`.
-
-`hard_nos` is deliberately absent. Limits belong to the player, set in the
-boundary sheet at the start of a run.
-
----
-
-Version: v0.3.0 [2026-08-13]
+Version: v0.4.0 [2026-09-20]

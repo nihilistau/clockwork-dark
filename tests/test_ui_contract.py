@@ -108,7 +108,7 @@ def test_the_committed_build_is_not_behind_its_source():
     offline-clean. None of them proves it is CURRENT. That gap let dist fall
     roughly seventeen source files behind: the whole multi-agent shell, the
     store, the story loader, the Play and Saves screens, ChoiceRow, Chrome,
-    NarrativeLog, ReasoningPanel, the new FadeCard and MicButton,
+    NarrativeLog, ReasoningPanel, MicButton,
     styles/index.css and several wicked-garden parts. Every one of them was
     written, reviewed, tested and committed, and not one reached a player,
     because what reaches a player is the dist and not the source.

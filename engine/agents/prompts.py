@@ -44,6 +44,7 @@ from engine.game.evil_ticker import doom_enabled
 from engine.game.locations import LOCATIONS
 from engine.game.state import GameState
 from engine.lore.interceptors import mark_spoiler
+from engine.state.schema import VEILED_BANDS
 
 logger = logging.getLogger(__name__)
 
@@ -383,6 +384,115 @@ def _encounter_block(state: GameState) -> str:
     return "\n".join(lines)
 
 
+def obligations_block(state: GameState) -> str:
+    """
+    Contracts the player has actually sealed, with their terms and their due day.
+
+    THE GAP THIS CLOSES. ``engine/game/threads.py`` is 1,220 lines and three
+    shipped stories declare a ``threads.yaml``. A sealed thread gates choices,
+    charges its terms and comes due on a named day -- and until now the narrator
+    was never told any thread existed. ``threads.summary`` has said in its own
+    docstring since it was written that it is "trimmed for a prompt block or a
+    UI list"; only the UI half was ever built, so the engine enforced bargains
+    the prose could not refer to.
+
+    NOT GM-ONLY, and not spoiler-wrapped. The player was there when they sealed
+    it: a contract is the one piece of world state they are guaranteed to know
+    better than the narrator does. What stays out is what ``summary`` already
+    withholds -- the effect hooks -- because a model handed the numbers will
+    narrate the numbers.
+    """
+    from engine.game import threads as threads_module
+
+    if not threads_module.is_declared():
+        return ""
+    rows = threads_module.summary(state)
+    if not rows:
+        return ""
+
+    lines = ["CONTRACTS YOU ARE UNDER (the player sealed these; honour them):"]
+    for row in rows:
+        # The terms on their own line, with their own punctuation intact. They
+        # are AUTHORED prose -- a sentence somebody wrote for this bargain --
+        # and running the bookkeeping onto the end of it with a semicolon read
+        # as "...at their convenience.; made with sophia".
+        lines.append(f"- {str(row.get('terms') or '').strip() or row.get('id')}")
+        aside: list[str] = []
+        source = str(row.get("source") or "").strip()
+        if source:
+            aside.append(f"with {source}")
+        sealed = str(row.get("sealed_by") or "").strip()
+        if sealed:
+            aside.append(f"sealed by {sealed}")
+        due = row.get("due_day")
+        if due is not None:
+            aside.append(f"due day {due}")
+        cutters = [str(c) for c in (row.get("can_cut_with") or []) if c]
+        if cutters:
+            aside.append("severed only by " + ", ".join(cutters))
+        if aside:
+            lines.append(f"  ({', '.join(aside)})")
+    return "\n".join(lines)
+
+
+def _clocks_block(state: GameState) -> str:
+    """
+    What the story's named clocks are doing, as words rather than as readings.
+
+    GM-ONLY, and the caller spoiler-wraps it. A clock is the engine building
+    pressure on a schedule; before this the narrator could not feel it coming,
+    so THE LONG CON's `the_frame` filled in silence and then dealt an authored
+    interrogation out of a clear sky.
+
+    THE LABEL WAS ALREADY WRITTEN AND NOBODY READ IT. Each clock carries a
+    `label:` in the story's own clocks.yaml -- "How this ends up being your
+    fault", "The roots are counting", "Winter, being patient" -- eight of them
+    across five shipped games, and nothing in the engine had ever loaded one.
+    They are GM-facing by construction: they say what the clock MEANS, which is
+    exactly what a narrator needs and exactly what the player-facing label in
+    state.yaml ("The frame") does not say.
+
+    The reading is banded through the same `Spec.band` the client projects a
+    veiled meter with, so the GM and the player never hold two vocabularies for
+    one number, and a clock still at its floor is left out entirely rather than
+    announced as nothing.
+    """
+    from engine.game import clocks as clocks_module
+
+    names = clocks_module.clock_names()
+    if not names:
+        return ""
+
+    store = None
+    try:
+        from engine.state.active import store_for
+
+        store = store_for(state)
+    except Exception as exc:  # noqa: BLE001 -- a prompt block must not kill a turn
+        logger.debug("[prompts] No state store for clocks: %s", exc)
+    if store is None:
+        return ""
+
+    table = clocks_module.load_clocks()
+    lines: list[str] = []
+    for name in names:
+        spec = store.schema.get(name)
+        if spec is None:
+            continue
+        value = clocks_module.value_of(state, name)
+        band = spec.band(value)
+        if band == VEILED_BANDS[0]:
+            continue
+        label = str((table.get(name) or {}).get("label") or "").strip()
+        lines.append(f"- {label or spec.display_label}: {band}")
+
+    if not lines:
+        return ""
+    return "WHAT IS CLOSING IN (never name these, never count them aloud):\n" + "\n".join(
+        lines
+    )
+
+
 def _scene_block(state: GameState) -> str:
     """
     The authored card in front of the player, if a scene is open.
@@ -570,6 +680,19 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
     # "the pattern is dormant" is handing it a pattern to invent.
     pressure = float(evil_snapshot.get("story_pressure", 0.0))
     tone = "quiet" if pressure < 25 else "restless" if pressure < 55 else "urgent"
+
+    # DIRECTION, not only level. "restless" and "restless, and rising" are
+    # different scenes from the same number, and the level alone was all a
+    # narrator ever got -- so a story easing off after a crisis and a story
+    # winding toward one read identically. The threshold is deliberately coarse
+    # for the same reason the tone words are: a band that flickers every turn
+    # is noise the model will narrate.
+    drift = pressure - float(getattr(state, "story_pressure_prev", 0.0) or 0.0)
+    if drift > 2.0:
+        tone = f"{tone}, and rising"
+    elif drift < -2.0:
+        tone = f"{tone}, and easing"
+
     if doom_enabled():
         phase = str(evil_snapshot.get("evil_phase", "dormant"))
         gm_line = (
@@ -581,6 +704,9 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
             "GM ONLY (never state or hint at these as numbers): "
             f"the story wants to be {tone}."
         )
+    clocks = _clocks_block(state)
+    if clocks:
+        gm_line = f"{gm_line}\n{clocks}"
     parts.append(mark_spoiler(gm_line))
     return "\n".join(parts)
 

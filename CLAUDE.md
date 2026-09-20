@@ -29,8 +29,8 @@ DESIGN_REVIEW.md, then CLAUDE_CODE_BRIEF.md.
 10. **Run `scripts/simulate.py` before changing a balance constant.** Every number here was originally chosen against a clock that did not tick.
 11. **Windows-aware** — LM Studio at `http://localhost:1234/v1`; use `scripts/start.ps1` or `launcher.py --stack`.
 12. **Never add a content-rating or "safety" layer.** One was built on
-    2026-08-13 and removed on 2026-08-15 at the owner's instruction (commit
-    `9fff810`, 5207 deletions). Do not rebuild it in any form: no intensity
+    2026-08-13 and removed on 2026-08-15 at the owner's instruction (release
+    v0.3.0, 5207 deletions). Do not rebuild it in any form: no intensity
     tiers, no ceiling, no boundary sheet, no fade control, no `safety:` block in
     a manifest, no register line in an authoring prompt.
 
@@ -64,11 +64,13 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.
 Overhaul III (reachability) complete.**
-**2020 passing, 18 skipped in 3m38s**, no expected failures (measured
-2026-08-15), plus **126 client tests** under `ui/tests/` (`npm test --prefix ui`,
+**1880 passing, 3 skipped in 4m10s**, no expected failures (measured
+2026-09-20), plus **127 client tests** under `ui/tests/` (`npm test --prefix ui`,
 which needs `npm install --prefix ui` once — `vitest` is a devDependency). Run
 both for the real numbers rather than trusting this line; it has been stale
-before.
+before — and was again: it read "2020 passing, 18 skipped" for a month after
+v0.3.0 deleted three test files, in the sentence that warns you about exactly
+that.
 
 **THE GAME WAS SMALLER IN PLAY THAN IT WAS ON DISK, AND EVERY TEST WAS GREEN.**
 Three whole subsystems and eleven registered skills had no production caller.
@@ -114,6 +116,36 @@ no production caller. It carries a positive control (`encounter`, unquestionably
 live) because a detector that can only answer "dead" is not a detector, and an
 explicit allowlist where an exception is deliberate, each row with its reason.
 
+**It walks CONSTANTS too, since v0.5.0.** A call graph can only ask about things
+that are called, and v0.3.0 — the largest deletion in this repo's history — left
+two orphans that nothing noticed: `rng.SAFETY_REDIRECT`, a whole seeded stream
+whose own comment said it was consumed by a module that no longer existed, and
+`storyteller.FADE_FALLBACK_LINE`, a canned narration line citing a deleted
+contract document. Neither failed anything. Both read, to the next session,
+exactly like a feature somebody had not finished wiring — which is the
+inheritance pattern rule 12 exists to break. The sweep is restricted to
+UPPER_CASE names deliberately (seven results instead of seventy-four: a gate
+that cries wolf is a gate somebody deletes) and its allowlist rots if a row
+becomes read or disappears.
+
+**THE NEXT CLASS AFTER "UNREACHABLE" IS "REACHED BUT UNNARRATED".** Overhaul III
+fixed systems a player could not cause to run. What survived it was quieter:
+systems that ARE live, ARE enforced, and were invisible to the narrator, so the
+engine built pressure the prose could not spend. `threads.py` (1,220 lines,
+three stories shipping a `threads.yaml`) gated choices and charged terms while
+no narrator was ever told a contract existed — `threads.summary` has said since
+it was written that it is "trimmed for a prompt block or a UI list", and only
+the UI half was built. `clocks.py` (844 lines) filled in silence, so THE LONG
+CON's `the_frame` dealt an authored interrogation out of a clear sky. Both reach
+the prompt now (`prompts.obligations_block`, `prompts._clocks_block`), and the
+eight GM-facing `label:` strings in the shipped clock tables — "How this ends up
+being your fault", "The roots are counting" — are live for the first time; no
+engine module had ever loaded one. Held by `tests/test_prompt_pressure.py`.
+
+When auditing, "is it called?" is the first question and not the last. The
+second is **"does the narration know?"** A mechanic the prose cannot refer to is
+a mechanic the player experiences as an unexplained event.
+
 **Every shipped game can now be played to an ending** — `tests/test_finales.py`,
 over all five, driving `ending_lock → ending_module → epilogue`. Two of the five
 could not do this at all before: THE LONG CON declared no `endings:`, no
@@ -155,8 +187,9 @@ being up") and was the only file that did.
 **`npm test` needs its devDependencies installed**, which a `ui/node_modules`
 carrying only the runtime does not have — `vitest` is a devDependency and the
 script fails with "'vitest' is not recognized" until `npm install --prefix ui`
-has run once. The 95 above is measured, not inherited: 4 files, 95 passing
-(store, veiled, narrative-log, plugin-contract), re-measured 2026-08-15.
+has run once. The 127 above is measured, not inherited: 5 files, 127 passing
+(store, veiled, narrative-log, choice-row, plugin-contract), re-measured
+2026-09-20.
 
 Two fixes landed from playing against a live LM Studio. **The evaluator checks
 the cast** (`engine/agents/cast.py`): the persona's "never introduce a named

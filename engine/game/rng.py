@@ -35,7 +35,6 @@ SCHEDULE_CARAVAN = "schedule.caravan"
 SCHEDULE_TINKER = "schedule.tinker"
 SCHEDULE_MILITIA = "schedule.militia"
 ENCOUNTER = "encounter"
-LOOT = "loot"
 BOON = "boon"
 COMPLICATION = "complication"
 DICE = "dice"
@@ -44,14 +43,11 @@ PROCGEN = "procgen"
 # Multi-step challenges roll on their own stream so composing one mid-scene
 # cannot shift the outcome of the encounter or skill check around it.
 CHALLENGE = "challenge"
-# Livelihood streams (P12). Separate from LOOT on purpose: what a forage node
-# yields, what a day's labour is worth and whether a vendor moves on a price
-# are three independent questions, and folding them into one stream would mean
-# that adding a shift at the forge silently reshuffled every mushroom in the
-# forest for every seed ever recorded.
+# Foraging (P12) draws its own stream, so that adding a shift at the forge
+# cannot silently reshuffle every mushroom in the forest for every seed ever
+# recorded. It is the only livelihood verb that rolls: work and trade price
+# their outcomes from the tables outright, which is why neither has a stream.
 FORAGE = "forage"
-LABOUR = "labour"
-TRADE = "trade"
 # Structural streams (W4). Separate for the same reason as everything above: a
 # deck-drawn scene must lay out the same chambers on a replay of a seed even
 # after a later build adds a hidden check to one of its beats, and an arbitrary
@@ -59,11 +55,6 @@ TRADE = "trade"
 DECK = "deck"
 BEAT = "beat"
 THREAD = "thread"
-# Safety redirects draw on their own stream so choosing an in-fiction
-# interruption cannot shift an encounter roll. Consumed by
-# a former safety module, which imported it back from here -- it lived there
-# first, and docs/SAFETY.md always said promoting it was tidiness owed.
-SAFETY_REDIRECT = "safety.redirect"
 # Gossip moves facts between NPCs who share a room. Its own stream because it
 # fires on the background tick, which runs a variable number of times depending
 # on how long the player sat on the menu -- borrowing any other stream would let

@@ -205,6 +205,14 @@ class GameState:
     evil_progress: float = 0.0
     plot_involvement: float = 0.0
     story_pressure: float = 0.0
+    #: `story_pressure` as it stood at the previous advance of world time, so a
+    #: narrator can be told which WAY the story is leaning and not only how far.
+    #: Written in exactly one place -- `clock.advance_time`, immediately before
+    #: the recompute -- because `update_story_pressure` is called several times
+    #: per turn and a naive "remember the last value" would compare a turn
+    #: against itself and report every story as steady. Neutral zero: a fresh
+    #: state and a state loaded from a save that predates the field agree.
+    story_pressure_prev: float = 0.0
     # Earned reprieve against the doom clock, 0-100. Granted only through the
     # `doom_resistance` effect kind (quest rewards, set-piece victories), spent
     # by decay inside EvilTicker.advance. Neutral zero: a story with no doom

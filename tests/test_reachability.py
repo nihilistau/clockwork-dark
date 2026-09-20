@@ -367,3 +367,180 @@ def test_the_four_intent_tables_agree() -> None:
         f"verbs with no to_tool_call branch: {unmapped}. The intent would be "
         "declared, sampled, and then raise on execution."
     )
+
+
+# ---------------------------------------------------------------------------
+# Module-level constants
+# ---------------------------------------------------------------------------
+#
+# THE GAP THIS CLOSES, found by auditing the tree rather than by a failure.
+# Everything above walks the CALL graph, so it can only ever ask about things
+# that are called. A named constant is not called, and v0.3.0 -- the largest
+# deletion in this repo's history, 5,207 lines -- left two behind that nothing
+# noticed: `rng.SAFETY_REDIRECT`, a whole seeded stream whose own comment said
+# it was "consumed by a former safety module", and
+# `storyteller.FADE_FALLBACK_LINE`, a canned narration line citing a contract
+# document that no longer existed.
+#
+# Neither failed anything. Both read, to the next session, exactly like a
+# feature somebody had not finished wiring -- which is the inheritance pattern
+# CLAUDE.md rule 12 exists to break.
+#
+# CONSTANTS, NOT FUNCTIONS. Restricting the sweep to UPPER_CASE names keeps it
+# at seven results instead of seventy-four: public functions have legitimate
+# callers this scan cannot see (an operator running `scripts/doctor.py`, a
+# cache-clear hook invoked reflectively from `engine/games/caches.py`), and a
+# gate that cries wolf is a gate somebody deletes. A constant nobody reads is
+# a much sharper signal: it is dead, or it is a feature that was never wired.
+
+#: Production files outside `engine/` that count as readers. `launcher.py` is
+#: the application's own entry point. `tests/` and `scripts/` are deliberately
+#: absent, for the reason this module's docstring gives: they are precisely the
+#: callers that hid the original problem.
+_LAUNCHER = ENGINE.parent / "launcher.py"
+
+#: ``qualified name -> why nothing in production reads it``.
+#:
+#: Same contract as ALLOWED_UNREACHABLE above: each row is a claim, reviewable
+#: on its own terms. A row that says NOT WIRED is a CLAUDE.md rule 9 marker and
+#: must name the file that would do the wiring.
+ALLOWED_UNREAD: dict[str, str] = {
+    "schemas.ASSISTANT_TURN_SCHEMA": (
+        "NOT WIRED -- engine/agents/assistant.py passes no response_format, so "
+        "the companion runs unconstrained and the 240-char cap that IS its "
+        "'1-3 sentences' rule is carried by prose alone"
+    ),
+    "locations.CANONICAL_LOCATION_IDS": (
+        "set-membership alias of CANON_IDS, which production reads; this form "
+        "is what tests and scripts assert against"
+    ),
+    "shipped.ART_ROOT": (
+        "operator tooling: scripts/generate_art.py joins it against the repo "
+        "root to promote newly generated flagship plates"
+    ),
+}
+
+
+def _module_constants(tree: ast.Module) -> list[tuple[str, int]]:
+    """Module-level UPPER_CASE assignments, which is what a constant is here."""
+    found: list[tuple[str, int]] = []
+    for node in tree.body:
+        targets: list[ast.expr] = []
+        if isinstance(node, ast.Assign):
+            targets = list(node.targets)
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        for target in targets:
+            if isinstance(target, ast.Name) and target.id.isupper():
+                found.append((target.id, node.lineno))
+    return found
+
+
+def _names_read(tree: ast.AST) -> set[str]:
+    """
+    Every name this module reads, by any route that reaches a constant.
+
+    Loads and attribute access are the direct routes; `from x import Y` is a
+    read in the importing module even when the name is then re-exported; and a
+    bare string counts for the same reason `_string_literals` exists, since a
+    registry keyed by string is a real caller.
+    """
+    read: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            read.add(node.id)
+        elif isinstance(node, ast.Attribute):
+            read.add(node.attr)
+        elif isinstance(node, ast.alias):
+            read.add(node.name.rsplit(".", 1)[-1])
+            if node.asname:
+                read.add(node.asname)
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            read.add(node.value.strip().rsplit(".", 1)[-1])
+    return read
+
+
+@pytest.fixture(scope="module")
+def constant_reads() -> set[str]:
+    """Every name production code reads, across `engine/` and `launcher.py`."""
+    read: set[str] = set()
+    sources = list(ENGINE.rglob("*.py"))
+    if _LAUNCHER.is_file():
+        sources.append(_LAUNCHER)
+    for path in sources:
+        read |= _names_read(ast.parse(path.read_text(encoding="utf-8")))
+    return read
+
+
+def test_every_module_constant_is_read_or_declared_unread(
+    constant_reads: set[str],
+) -> None:
+    """
+    A constant nothing reads is dead code or an unwired feature. Never neither.
+    """
+    orphans: list[str] = []
+    for path in _iter_engine_files():
+        module = _module_name(path)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for name, line in _module_constants(tree):
+            qualified = f"{module}.{name}"
+            if name in constant_reads or qualified in ALLOWED_UNREAD:
+                continue
+            orphans.append(f"{qualified} ({path.name}:{line})")
+
+    assert not orphans, (
+        "these constants are defined and nothing in engine/ or launcher.py "
+        f"reads them: {sorted(orphans)}. Delete each one, or add it to "
+        "ALLOWED_UNREAD above WITH ITS REASON -- and if the reason is that it "
+        "was built and never connected, say NOT WIRED and name the file that "
+        "would connect it (CLAUDE.md rule 9)."
+    )
+
+
+def test_the_constant_allowlist_does_not_rot(constant_reads: set[str]) -> None:
+    """
+    A row for a constant that is read now, or gone now, is a lie to the reader.
+
+    The same ratchet the skill allowlist gets. Without it this list only ever
+    grows, and a list that only grows stops being read.
+    """
+    defined: set[str] = set()
+    for path in _iter_engine_files():
+        module = _module_name(path)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        defined |= {f"{module}.{n}" for n, _ in _module_constants(tree)}
+
+    gone = sorted(row for row in ALLOWED_UNREAD if row not in defined)
+    assert not gone, f"ALLOWED_UNREAD names constants that do not exist: {gone}"
+
+    now_read = sorted(
+        row for row in ALLOWED_UNREAD if row.rsplit(".", 1)[1] in constant_reads
+    )
+    assert not now_read, (
+        f"these are read in production now: {now_read}. Delete their rows so "
+        "the list keeps describing the repo instead of excusing it."
+    )
+
+
+def test_the_constant_gate_would_have_caught_the_v030_remnants() -> None:
+    """
+    A positive control, for the same reason the call-graph sweep has one.
+
+    A detector that can only ever answer "clean" is not a detector. These are
+    the two real orphans v0.3.0 left behind, reconstructed exactly as they were
+    written; the sweep must flag both.
+    """
+    source = (
+        "SAFETY_REDIRECT = 'safety.redirect'\n"
+        "FADE_FALLBACK_LINE = (\n"
+        "    'The hour passes at a remove.'\n"
+        ")\n"
+        "GOSSIP = 'gossip'\n"
+    )
+    found = {name for name, _ in _module_constants(ast.parse(source))}
+    assert found == {"SAFETY_REDIRECT", "FADE_FALLBACK_LINE", "GOSSIP"}
+
+    reads = _names_read(ast.parse("rng = world_rng(state, GOSSIP)\n"))
+    assert "GOSSIP" in reads
+    assert "SAFETY_REDIRECT" not in reads
+    assert "FADE_FALLBACK_LINE" not in reads

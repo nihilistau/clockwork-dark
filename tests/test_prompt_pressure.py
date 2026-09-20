@@ -1,0 +1,198 @@
+"""
+What the engine simulates must reach the prose that narrates it.
+
+THE GAP THESE CLOSE. Overhaul III fixed "built but unreachable". What survived
+it is a quieter thing: systems that ARE reached, are mechanically live, and are
+invisible to the narrator -- so the engine builds pressure the prose cannot
+spend.
+
+  * ``engine/game/threads.py`` is 1,220 lines and three shipped stories declare
+    a ``threads.yaml``. A sealed contract gates choices, charges its terms and
+    comes due on a named day. ``threads.summary`` has said since it was written
+    that it is "trimmed for a prompt block or a UI list" -- only the UI half was
+    built, so no narrator had ever been told a bargain existed.
+  * ``engine/game/clocks.py`` is 844 lines. THE LONG CON's whole pitch is that
+    ``the_frame`` fills and deals an authored interrogation; the narrator was
+    never told the frame was filling, so it landed out of a clear sky.
+  * ``story_pressure`` reached the prompt as one of three words. A story easing
+    off after a crisis and a story winding toward one read identically.
+
+WHAT THE FLAGSHIP PAYS. It declares neither threads nor clocks, so it gains
+neither block -- asserted here rather than assumed, which is the bar
+``tests/test_scene_director.py`` holds the scene director to. Its prompt is NOT
+byte identical, and deliberately so: the direction clause rides on
+``story_pressure``, which the existing GM line already calls "the engine's own
+pacing meter" and keeps for every story, doom clock or not.
+
+Version: v0.1.0 [2026-09-20]
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Iterator
+
+import pytest
+
+from engine.agents import prompts
+from engine.config import set_overlay
+from engine.game import clock as clock_module
+from engine.game import clocks, threads
+from engine.game.state import GameState
+from engine.state import active as active_state
+from engine.state.schema import load_schema
+
+GARDEN_SCHEMA = Path("games/wicked-garden") / "state.yaml"
+
+
+def _story_paths(slug: str) -> dict[str, str]:
+    """That story's own ``paths:``, read from the manifest that ships them."""
+    from engine.games.registry import discover
+
+    manifest = discover()[slug]
+    return {k: str(v) for k, v in (manifest.paths or {}).items()}
+
+
+@pytest.fixture()
+def garden() -> Iterator[GameState]:
+    """The Wicked Garden's shipped rules, through the real loaders."""
+    set_overlay({"paths": _story_paths("wicked-garden")})
+    active_state._schema = load_schema(GARDEN_SCHEMA, slug="wicked-garden")
+    state = GameState(rng_seed=42)
+    try:
+        yield state
+    finally:
+        active_state.reset_schema()
+        set_overlay(None)
+
+
+# ---------------------------------------------------------------------------
+# Contracts
+# ---------------------------------------------------------------------------
+
+
+def test_a_sealed_contract_reaches_the_narrator(garden: GameState) -> None:
+    """The bargain the engine will enforce is the bargain the prose can name."""
+    assert prompts.obligations_block(garden) == "", "nothing sealed yet"
+
+    proposal = threads.offer(garden, "obligation_gift", source="sophia")
+    assert proposal is not None
+    threads.seal(garden, proposal)
+
+    block = prompts.obligations_block(garden)
+    assert block, "a sealed contract produced no prompt block"
+    assert "CONTRACTS YOU ARE UNDER" in block
+    assert "sophia" in block
+
+    # The terms are the point. A block that said only "a bargain is open" would
+    # let the narrator invent what was promised, which is the failure the
+    # engine's whole intent loop exists to prevent.
+    row = threads.summary(garden)[0]
+    assert str(row["terms"]) in block
+
+
+def test_the_contract_block_withholds_the_machinery(garden: GameState) -> None:
+    """
+    ``summary`` drops the effect hooks; the block must not put them back.
+
+    A model handed the numbers narrates the numbers, which is the same reason
+    the GM line says "never state these as numbers".
+    """
+    threads.seal(garden, threads.offer(garden, "obligation_gift", source="sophia"))
+    block = prompts.obligations_block(garden)
+    assert "effects" not in block
+    assert "on_due" not in block
+
+
+def test_a_story_with_no_threads_adds_no_block() -> None:
+    """The flagship declares none, and pays nothing for the feature."""
+    assert prompts.obligations_block(GameState(rng_seed=1)) == ""
+
+
+# ---------------------------------------------------------------------------
+# Clocks
+# ---------------------------------------------------------------------------
+
+
+def test_a_filling_clock_reaches_the_gm_line(garden: GameState) -> None:
+    """Rising pressure the narrator can feel before it arrives."""
+    assert prompts._clocks_block(garden) == "", "every clock is still at its floor"
+
+    clocks.advance(garden, "briar_hunger", 3)
+    block = prompts._clocks_block(garden)
+    assert block, "an advanced clock produced no block"
+    assert "never name these" in block
+
+
+def test_the_clock_block_uses_the_label_nothing_else_reads(
+    garden: GameState,
+) -> None:
+    """
+    The GM-facing label in clocks.yaml, live at last.
+
+    Every shipped clock table carries a ``label:`` -- "The roots are counting",
+    "How this ends up being your fault" -- and no engine module had ever loaded
+    one. They say what a clock MEANS, which is what a narrator needs and what
+    the player-facing label in state.yaml deliberately does not say.
+    """
+    label = str((clocks.load_clocks().get("briar_hunger") or {}).get("label") or "")
+    assert label, "the Garden's briar_hunger declares no label to test with"
+
+    clocks.advance(garden, "briar_hunger", 3)
+    assert label in prompts._clocks_block(garden)
+
+
+def test_a_story_with_no_clocks_adds_no_block() -> None:
+    assert prompts._clocks_block(GameState(rng_seed=1)) == ""
+
+
+# ---------------------------------------------------------------------------
+# Direction
+# ---------------------------------------------------------------------------
+
+
+def _tone(state: GameState) -> str:
+    return prompts.world_state_block(state, {"story_pressure": state.story_pressure})
+
+
+def test_pressure_reports_which_way_it_is_moving() -> None:
+    """"restless" and "restless, and rising" are different scenes."""
+    state = GameState(rng_seed=1)
+    state.story_pressure = 40.0
+
+    state.story_pressure_prev = 10.0
+    assert "and rising" in _tone(state)
+
+    state.story_pressure_prev = 70.0
+    assert "and easing" in _tone(state)
+
+    state.story_pressure_prev = 40.5
+    text = _tone(state)
+    assert "and rising" not in text and "and easing" not in text
+
+
+def test_only_advance_time_writes_the_previous_reading() -> None:
+    """
+    One writer, for the reason the field's own note gives.
+
+    ``update_story_pressure`` runs several times in a turn. If each call moved
+    the previous reading, it would compare a turn against itself and report
+    every story as steady -- the bug this guards is a feature that silently
+    does nothing, which is the shape this repo keeps finding.
+    """
+    from engine.game.plot import PlotFormula
+
+    state = GameState(rng_seed=1)
+    state.story_pressure = 30.0
+    state.story_pressure_prev = 5.0
+
+    PlotFormula.update_story_pressure(state)
+    assert state.story_pressure_prev == 5.0, "recompute moved the previous reading"
+
+    clock_module.advance_time(state, 1.0)
+    assert state.story_pressure_prev != 5.0, "advance_time did not capture it"
+
+
+def test_a_save_without_the_field_loads_at_neutral_zero() -> None:
+    """A state that predates the field and a fresh one must agree."""
+    assert GameState(rng_seed=1).story_pressure_prev == 0.0

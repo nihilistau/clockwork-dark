@@ -140,6 +140,11 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
     # Fractional days now reach the ticker intact -- this is the line that
     # makes "evil ticks whether you become a hero or a baker" true.
     EvilTicker.advance(state, days_elapsed=days)
+    # The ONLY writer of `story_pressure_prev`. See the field's note in
+    # engine/game/state.py: time advances once per turn, so this is the one
+    # point where "the reading before this one" means a turn ago rather than a
+    # few microseconds ago.
+    state.story_pressure_prev = state.story_pressure
     PlotFormula.update_story_pressure(state)
 
     # Doom beats key on the evil_progress the ticker just moved, so they fire

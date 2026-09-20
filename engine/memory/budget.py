@@ -24,7 +24,12 @@ SAFETY_MARGIN = 0.15
 
 # Blocks 0 and 1 are never evicted: without the persona the model is not the
 # Storyteller, and without world state it is narrating a void.
-EVICTION_ORDER = ("turns", "lore", "threads", "summary")
+# "obligations" outranks "threads" (the ledger's memory, confusingly) on
+# purpose: a sealed contract is MECHANICALLY enforced whether or not the
+# narrator knows about it, so dropping it buys a few tokens and risks prose
+# that contradicts what the engine is about to charge. Remembered flavour
+# costs less when it goes.
+EVICTION_ORDER = ("turns", "lore", "threads", "obligations", "summary")
 
 
 def estimate_tokens(text: str) -> int:

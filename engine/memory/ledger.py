@@ -57,7 +57,6 @@ KIND_CLUE = "clue"
 
 SOURCE_ENGINE = "engine"
 SOURCE_LLM = "llm"
-SOURCE_PLAYER = "player"
 
 
 def _coerce(cls: type, raw: Any) -> Optional[Any]:
