@@ -14,6 +14,7 @@ test here that knows the difference.
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -32,6 +33,34 @@ DIST_PATH = "content/scenes/clockwork/static/dist"
 # bump changes the bundle without touching a line of src, and `index.html` is
 # Vite's entry document, not decoration.
 BUILD_INPUTS = ("ui/src", "ui/vite.config.js", "ui/package.json", "ui/index.html")
+
+
+def _version_bump_only(path: str, since: str) -> bool:
+    """
+    Whether `package.json`'s only change since `since` is its own version.
+
+    THE FALSE POSITIVE THIS REMOVES. `package.json` earns its place in
+    BUILD_INPUTS because a DEPENDENCY bump changes the bundle without touching
+    a line of src. Its `version` field does not: nothing bundles it. Once
+    releases started bumping it in step with `pyproject.toml`, every release
+    commit put this guard into a state no rebuild could clear -- `npm run build`
+    produces byte-identical output, so dist is never dirty, never committed, and
+    the file stays permanently "ahead". A guard that cannot be satisfied is one
+    somebody deletes.
+
+    Everything else in the file is still judged, so adding or upgrading a
+    dependency fails exactly as it did before.
+    """
+    if path != "ui/package.json":
+        return False
+    try:
+        before = json.loads(_git("show", f"{since}:{path}"))
+        after = json.loads((ROOT / path).read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return False
+    before.pop("version", None)
+    after.pop("version", None)
+    return before == after
 
 pytestmark = pytest.mark.skipif(
     not DIST.exists(), reason="UI not built — run `cd ui && npm run build`"
@@ -91,7 +120,18 @@ def _git(*args: str) -> str:
         pytest.skip("git is not on PATH -- build freshness cannot be judged")
     try:
         done = subprocess.run(
-            ["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=30
+            ["git", *args],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            # EXPLICIT, because `text=True` alone decodes with the locale
+            # encoding -- cp1252 on this machine -- and git speaks UTF-8. It
+            # never mattered while this only read path names, which are ASCII.
+            # `git show`ing a FILE is different: `ui/package.json`'s description
+            # holds an em-dash, cp1252 turned it into U+FFFD, and the content
+            # comparison below reported a difference that does not exist.
+            encoding="utf-8",
+            timeout=30,
         )
     except (OSError, subprocess.SubprocessError) as exc:
         pytest.skip(f"git could not be run: {exc}")
@@ -159,6 +199,7 @@ def test_the_committed_build_is_not_behind_its_source():
 
     changed = _git("diff", "--name-only", dist_commit, "HEAD", "--", *BUILD_INPUTS)
     behind = sorted(line for line in changed.splitlines() if line.strip())
+    behind = [p for p in behind if not _version_bump_only(p, dist_commit)]
 
     assert not behind, (
         f"the committed UI build is {len(behind)} source file(s) behind -- none of "

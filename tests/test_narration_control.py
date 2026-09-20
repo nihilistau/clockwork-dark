@@ -429,3 +429,62 @@ def test_no_socket_event_was_added_without_registering_it():
     inbound = set(re.findall(r'"([a-z_]+)"', socket.split("export const INBOUND")[1].split("]")[0]))
     assert "turn_update" in inbound
     assert "narration_delta" in inbound
+
+
+# -- the envelope, written as tags instead of as JSON -----------------------
+
+
+def test_scaffold_tags_are_cut_out_of_the_prose():
+    """
+    Case 4 again, XML-shaped, and the JSON-shaped guard did not catch it.
+
+    Measured in a live Wicked Garden turn on lfm2.5-vl-3b, rendered on screen
+    exactly as written here::
+
+        ...the long walk through this garden that is not
+        yours.</narration>}<action>You examine the merchant's stall...
+
+    `strip_embedded_envelope` looks for a JSON object and finds none.
+    `strip_trailing_debris` drops a trailing WORDLESS remainder, and this tail
+    is full of words. So the player read the engine's own field names as prose.
+
+    The tag names are the turn schema's keys. That is the whole tell: prose
+    does not contain `</narration>`, and a model emitting one is writing
+    scaffolding, not a story.
+    """
+    from engine.agents.storyteller import strip_scaffold_tags
+
+    leaked = (
+        "You begin the long walk through this garden that is not yours."
+        "</narration>}<action>You examine the merchant's stall."
+    )
+    assert strip_scaffold_tags(leaked) == (
+        "You begin the long walk through this garden that is not yours."
+    )
+
+
+def test_an_opening_tag_before_the_prose_is_cut_without_losing_the_prose():
+    """A leading wrapper is scaffolding too, and the story survives it."""
+    from engine.agents.storyteller import strip_scaffold_tags
+
+    assert strip_scaffold_tags("<narration>The gate closes.</narration>") == (
+        "The gate closes."
+    )
+
+
+def test_prose_with_an_angle_bracket_is_left_alone():
+    """
+    The rule is the schema's OWN key names, never "looks like a tag".
+
+    A story is allowed to contain `<` -- a letter in a diagram, a maths
+    aside, a name in brackets -- and a guard that ate those would cost more
+    than the bug it fixes.
+    """
+    from engine.agents.storyteller import strip_scaffold_tags
+
+    for kept in (
+        "She wrote 3 < 5 on the slate and underlined it.",
+        "The sign read <THE GATE OF BRIARS> in flaking paint.",
+        "He whispered <<never again>> and meant it.",
+    ):
+        assert strip_scaffold_tags(kept) == kept

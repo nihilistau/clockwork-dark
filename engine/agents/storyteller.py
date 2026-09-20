@@ -232,6 +232,45 @@ def _positional_ids(choices: Any) -> list[dict[str, str]]:
     return out
 
 
+#: The turn schema's own field names, written as tags inside the prose.
+#:
+#: The same failure as `_EMBEDDED_ENVELOPE` in a different notation, and the
+#: JSON-shaped guard cannot see it. Measured live on lfm2.5-vl-3b, rendered on
+#: screen: "...this garden that is not yours.</narration>}<action>You examine
+#: the merchant's stall." `strip_trailing_debris` leaves it because the tail is
+#: full of WORDS; `strip_embedded_envelope` leaves it because there is no JSON
+#: object to find.
+#:
+#: Anchored to the SCHEMA'S KEYS rather than to "looks like a tag". A story is
+#: allowed to contain `<` -- 3 < 5, a name in brackets -- and a guard that ate
+#: those would cost more than the bug it fixes.
+_SCAFFOLD_TAG = re.compile(
+    r"</?\s*(?:narration|action|choices?|intent|beat|thinking|think|response|output)\s*/?>",
+    re.IGNORECASE,
+)
+
+
+def strip_scaffold_tags(narration: str) -> str:
+    """
+    Remove turn-schema field names that the model wrote as tags into its prose.
+
+    Everything from the first tag to the end goes, not just the tag: what
+    follows one is the model continuing to write scaffolding, and the measured
+    case had a whole second beat after it. A tag at the very start is different
+    -- that is a wrapper around real prose, so it is unwrapped rather than
+    treated as the end of the story.
+    """
+    if "<" not in narration:
+        return narration
+    match = _SCAFFOLD_TAG.search(narration)
+    if not match:
+        return narration
+    if not narration[: match.start()].strip():
+        # A leading wrapper. Drop every tag and keep what they contained.
+        return _SCAFFOLD_TAG.sub("", narration).strip()
+    return narration[: match.start()].strip()
+
+
 def strip_embedded_envelope(narration: str) -> str:
     """
     Cut the narration where it stops being prose and starts being JSON.
@@ -888,6 +927,20 @@ class StorytellerAgent:
                 )
                 narration = cleaned
                 parsed["narration"] = cleaned
+
+            # The same leak in tag notation, which the JSON-shaped cut above
+            # cannot see. Measured live: "...that is not yours.</narration>}
+            # <action>You examine the merchant's stall."
+            untagged = strip_scaffold_tags(narration)
+            if untagged != narration:
+                logger.warning(
+                    "[storyteller] Narration contained schema field names as "
+                    "tags; cut them (operation=run_turn, before=%s, after=%s)",
+                    len(narration),
+                    len(untagged),
+                )
+                narration = untagged
+                parsed["narration"] = untagged
 
             # Fence debris is stripped unconditionally. It survives every
             # truncation check by construction: the sentence before it is

@@ -14,6 +14,61 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.6.2] — 2026-09-20
+
+### Fixed
+
+- **Sophia had a painted portrait that had never once been shown.**
+  `assistant_presence` resolved the companion's picture from `form` — the
+  Assistant Mind's current face, one of The Clockwork Dark's five, defaulting to
+  `"cat"`. A story whose companion is a named CHARACTER keys her portrait on her
+  own id, so The Wicked Garden asked for a cat, got `""`, and drew its fallback
+  wash over an unshown `portraits/sophia.jpg`. Resolved from the roster's
+  declared character now, which covers the opening and resume frames too — the
+  first frames a player sees. The flagship is unchanged: it declares no roster,
+  so the lookup falls back to `form` exactly as before.
+
+  Same disease `Companion.jsx` already documents for the `form` CAPTION —
+  "the flagship's state leaking through a slot this story shares with it". The
+  caption was fixed; nobody noticed the portrait had it too. Empty is a legal
+  answer from a portrait lookup, which is why nothing ever failed.
+- **A choice that echoes its own intent id is relabelled from the author's
+  text.** Measured live on a 3B model: the Garden's choices rendered as
+  `follow_the_scent`, `name_it_aloud`, `turn_away_hard` — the model had copied
+  the intent enum's target ids into the display text, while the beats they came
+  from carry authored prose and `legal_intents` had it all along. Showing the
+  model's copy of an id while holding the author's sentence is the wrong way
+  round for an engine whose premise is that it resolves and the model narrates.
+  Only an exact id match; real writing is never second-guessed.
+- **Schema field names leaked into the prose as tags.** Measured live and
+  rendered on screen: `...this garden that is not yours.</narration>}<action>You
+  examine the merchant's stall.` This is the same failure
+  `strip_embedded_envelope` exists for, in tag notation instead of JSON — so
+  that guard could not see it, and `strip_trailing_debris` leaves it because the
+  tail is full of words. `strip_scaffold_tags` anchors on the turn schema's own
+  key names rather than on "looks like a tag", because a story is allowed to
+  contain `<`.
+- **The build-freshness guard could not be satisfied.** Bumping
+  `ui/package.json` in step with `pyproject.toml` put
+  `test_the_committed_build_is_not_behind_its_source` into a state no rebuild
+  could clear: the version string is not bundled, so `npm run build` produces
+  byte-identical output, dist is never dirty, never committed, and the file
+  stays permanently "ahead". A guard that cannot be satisfied is one somebody
+  deletes. A version-only change is ignored now; a dependency change still
+  fails exactly as before. Its `_git` helper also decoded git's output with the
+  locale encoding — cp1252 here — which was harmless while it read only ASCII
+  path names and turned `package.json`'s em-dash into U+FFFD the moment it read
+  a file.
+
+### Notes
+
+- The Garden's scene art works everywhere it exists — 19 scene plates, all
+  serving. `mortal_threshold` is one of six locations the manifest lists as
+  having no plate *on purpose*, and it is both the entry location and where the
+  10-card prologue plays out, so a new player sees no scene art until the
+  prologue ends. That is content, not code, and it is the single most visible
+  art gap in the repo.
+
 ## [0.6.1] — 2026-09-20
 
 ### Fixed
@@ -269,7 +324,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.5.0...v0.5.1

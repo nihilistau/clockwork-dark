@@ -106,27 +106,60 @@ def scene_image_url(state: GameState) -> str:
         logger.debug("[default_state] No scene image: %s", exc)
         return ""
 
-def assistant_portrait_url(form: str) -> str:
+def portrait_url(subject: str) -> str:
     """
-    The painted portrait for one of the Assistant's five forms.
+    The painted portrait for a subject id, or "" when the story ships none.
 
     data/art/manifest.yaml has carried `assistant_forms:` -> five real files in
     static/art/souls/ since the art pack shipped, and the companion column
     rendered the emoji "🐈". Only the shipped provider is consulted: a missing
     picture must never start a generation job inside a turn.
+
+    TAKES A SUBJECT, NOT A FORM, and the rename is the bug fix. It used to be
+    `assistant_portrait_url(form)` and its only caller passed the Assistant
+    MIND's current face -- one of The Clockwork Dark's five, defaulting to
+    "cat". A story whose companion is a CHARACTER keys her portrait on her own
+    id, so the Garden asked for a cat, got "", and fell back to the wash while
+    `portraits/sophia.jpg` sat on disk unshown since the story shipped.
+
+    Empty is a legal answer here, which is exactly why nothing ever failed.
     """
-    if not form:
+    if not subject:
         return ""
     try:
         from engine.media.providers.base import ImageRequest
         from engine.media.providers.shipped import ShippedArtProvider
 
         result = ShippedArtProvider().generate(
-            ImageRequest(subject_id=str(form), kind="portrait")
+            ImageRequest(subject_id=str(subject), kind="portrait")
         )
         return result.url or ""
     except Exception as exc:  # noqa: BLE001 — a missing face is not an error
-        logger.debug("[default_state] No portrait for form %s: %s", form, exc)
+        logger.debug("[default_state] No portrait for %s: %s", subject, exc)
+        return ""
+
+
+#: Old name. The flagship's scene module re-exports it.
+assistant_portrait_url = portrait_url
+
+
+def _character_agent_id() -> str:
+    """
+    The running story's CHARACTER, if it declares one. "" otherwise.
+
+    The flagship declares no roster at all and runs the built-in narrator and
+    companion, so this is "" there and the portrait falls back to `form` --
+    which is the behaviour that was always correct for a five-faced companion
+    and always wrong for a named one.
+    """
+    try:
+        from engine.agents.roster import ROLE_CHARACTER
+        from engine.state.active import active_roster
+
+        found = active_roster().of_role(ROLE_CHARACTER)
+        return str(found[0].id) if found else ""
+    except Exception as exc:  # noqa: BLE001 -- a missing face is not an error
+        logger.debug("[default_state] No character in the roster: %s", exc)
         return ""
 
 
@@ -172,7 +205,18 @@ def assistant_presence(state: GameState, result: Any = None) -> dict[str, Any]:
         "reliable": bool(decision.get("reliable", True)),
         "gift": decision.get("gift_item") or None,
         "form": form,
-        "portrait": assistant_portrait_url(form),
+        # HER OWN FACE, WHEN THE STORY HAS ONE. `form` is the Assistant Mind's
+        # current face -- one of The Clockwork Dark's five, defaulting to "cat"
+        # -- and a story whose companion is a named CHARACTER keys her portrait
+        # on her own id. The Garden therefore asked for a cat, got "", and drew
+        # its fallback wash while `portraits/sophia.jpg` sat on disk, unshown
+        # since the story shipped. Empty is a legal answer here, which is
+        # exactly why nothing ever failed.
+        #
+        # Resolved here rather than only on the turn payload because the
+        # OPENING and a RESUME both build presence with no turn result, and
+        # those are the first frames a player sees.
+        "portrait": portrait_url(_character_agent_id()) or portrait_url(form),
         "trust": round(float(mind.trust_level), 1),
         "patience": round(float(mind.patience), 1),
         "help_probability": round(float(mind.help_probability), 2),
@@ -277,10 +321,36 @@ def _label_intents(
         except Exception as exc:  # noqa: BLE001 -- a label must never lose a turn
             logger.debug("[default_state] Could not describe %r: %s", intent, exc)
             continue
-        label = _trim_echo(label, str(choice.get("text") or ""))
+        text = str(choice.get("text") or "")
+        # THE BUTTON SAYS WHAT THE AUTHOR WROTE, NOT WHAT THE ENUM IS CALLED.
+        # Measured in a live Garden turn on a 3B model: the choices rendered as
+        # `follow_the_scent`, `name_it_aloud`, `turn_away_hard` -- the model had
+        # echoed the intent enum's target ids into the display text. The beats
+        # carry authored prose, and the engine had it the whole time:
+        # `legal_intents` builds the enum from `(id, label)` pairs and the label
+        # IS that prose. Showing the model's copy of an id while holding the
+        # author's sentence is the wrong way round for an engine whose whole
+        # premise is that it resolves and the model narrates.
+        #
+        # Only an EXACT id match, never a sentence. A model that writes its own
+        # prose keeps it; nothing here second-guesses real writing.
+        if label and _is_id_echo(text, intent):
+            choice["text"] = label
+            continue
+        label = _trim_echo(label, text)
         if label:
             choice["intent_label"] = label
     return choices
+
+
+def _is_id_echo(text: str, intent: dict[str, Any]) -> bool:
+    """Whether a choice's text is the machine id rather than a written line."""
+    bare = text.strip().lower()
+    if not bare:
+        return True
+    target = str(intent.get("target") or "").strip().lower()
+    action = str(intent.get("action") or "").strip().lower()
+    return bare == target or bare == f"{action} {target}".strip()
 
 
 def _trim_echo(label: str, text: str) -> str:
@@ -1004,6 +1074,9 @@ def run_turn(
             else {
                 **assistant_presence(state),
                 "character": character_result.agent,
+                # Her portrait is resolved inside `assistant_presence` from the
+                # roster's declared CHARACTER, so it is already correct here and
+                # on the opening and resume frames too. One source of truth.
                 "text": character_result.text,
                 "spoke": character_result.spoke,
             }

@@ -196,3 +196,78 @@ def test_only_advance_time_writes_the_previous_reading() -> None:
 def test_a_save_without_the_field_loads_at_neutral_zero() -> None:
     """A state that predates the field and a fresh one must agree."""
     assert GameState(rng_seed=1).story_pressure_prev == 0.0
+
+
+# ---------------------------------------------------------------------------
+# The companion's face
+# ---------------------------------------------------------------------------
+
+
+def test_a_story_character_gets_her_own_portrait(garden: GameState) -> None:
+    """
+    Sophia has a painted portrait that had never once been shown.
+
+    `assistant_presence` resolves `portrait` from `form` -- the Assistant
+    MIND's current face, one of The Clockwork Dark's five, defaulting to "cat".
+    The Wicked Garden's art manifest keys her portrait on `sophia`, so the
+    lookup asked for a cat, got "", and the companion column fell back to its
+    wash. `games/wicked-garden/data/art/plates/portraits/sophia.jpg` has been
+    on disk the whole time.
+
+    This is the same disease `Companion.jsx` already documents for the `form`
+    CAPTION -- "the flagship's state leaking through a slot this story shares
+    with it". The caption was fixed; nobody noticed the portrait had it too.
+    """
+    from engine.scenes.default_state import portrait_url
+
+    assert portrait_url("sophia").endswith("portraits/sophia.jpg")
+    # The flagship's vocabulary finds nothing here, which is the bug's whole
+    # mechanism and why it was invisible: an empty string is a legal answer.
+    assert portrait_url("cat") == ""
+
+
+# ---------------------------------------------------------------------------
+# A choice the player can read
+# ---------------------------------------------------------------------------
+
+
+def test_a_choice_that_echoes_its_own_intent_id_is_relabelled() -> None:
+    """
+    The button says what the AUTHOR wrote, not what the enum is called.
+
+    Measured in a live Wicked Garden turn on a 3B model: the choices rendered
+    as `follow_the_scent`, `name_it_aloud`, `turn_away_hard` -- the model had
+    echoed the intent enum's target ids straight into the display text. The
+    beats they came from carry authored prose ("Walk toward it without arguing.
+    Curiosity as the first sin, and the cheapest one."), and the engine had it
+    the whole time: `legal_intents` builds the enum from `(id, label)` pairs and
+    the label IS the authored text.
+
+    So this is not a model problem to be prompted around. The engine holds
+    better text than the model produced and was showing the model's -- the same
+    "engine resolves, LLM narrates" split the whole intent loop is built on.
+
+    Only when the text IS the id. A model that writes its own prose keeps it;
+    nothing here second-guesses a real sentence.
+    """
+    from engine.games.registry import activate, deactivate
+    from engine.scenes.default_state import _label_intents
+
+    activate("clockwork-dark")
+    try:
+        state = GameState(rng_seed=1)
+        state.location_id = "forest_clearing"
+
+        echoed, authored = _label_intents(
+            state,
+            [
+                {"text": "edgewood_square", "intent": {"action": "travel", "target": "edgewood_square"}},
+                {"text": "Follow the smoke", "intent": {"action": "travel", "target": "edgewood_square"}},
+            ],
+        )
+
+        assert echoed["text"] == "Edgewood Square, 1h", echoed
+        # Untouched: a real sentence is the narrator's job and stays its work.
+        assert authored["text"] == "Follow the smoke"
+    finally:
+        deactivate()
