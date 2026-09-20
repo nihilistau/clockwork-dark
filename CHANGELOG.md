@@ -14,6 +14,51 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-09-20
+
+### Added
+
+- **The narrator is told what the other side gave up.** `Resolution` exists to
+  record "the companion wanted to interrupt and the world won", and its own
+  docstring says that without it "the only evidence is prose that reads slightly
+  differently" — but `narration_block` sent lead, beats, the speaker's verbatim
+  line, receipts and the blocked flag, and never the resolutions. The prose
+  could not read differently because it was never told. It now receives what
+  yielded, to whom, and the reason the *author* wrote for that rule, with an
+  instruction to SHOW it rather than report it. Only resolutions with a loser:
+  the confidence fallback records a winner and nobody yielding, and dressing
+  that as a concession would have the narrator dramatise a sacrifice that did
+  not happen.
+- **A margin mark on a contested turn** (`NarrativeLog.jsx`). State, not words —
+  no engine-authored sentence goes into the log beside the narrator's prose.
+  The store keeps `negotiation` per turn, deliberately not sticky, unlike
+  `ending`.
+- **A negotiation panel for the author** (`ui/src/core/parts/NegotiationPanel.jsx`),
+  rendered by `Play.jsx` and silent unless a pipeline ran — so the flagship and
+  any single-participant story never see it. Collapsed by default; prints lead,
+  who yielded to whom, the rule's authored reason, beats, refusals and vetoes.
+  Closes the `negotiation` half of a **NOT WIRED** row in `docs/GOVERNANCE.md`.
+
+### Fixed
+
+- **Every image in The Wicked Garden was invisible, and always had been.** Core
+  ships `.paint__img { opacity: 0 }` and raises it on `.is-loaded`; the Garden's
+  stage plate and Sophia's portrait both rendered bare `className="paint__img"`,
+  so the art fetched, decoded, occupied its frame and never appeared. Nothing
+  failed — the request was 200, `complete` was true, `naturalWidth` was 640 — so
+  it read as "this story ships no art" rather than as a defect. Found by looking
+  at the running game, which is the only thing that could have found it.
+  `ui/tests/plugin-contract.test.js` now fails on any `<img class="paint__img">`
+  with no way to raise it, across core and every plugin.
+
+### Known gaps
+
+- The companion column does **not** show a posture when the companion is the
+  agent that gave way. `assistant_presence` ships no agent id, so the client
+  cannot tell whether the yielding agent is the one in its column, and guessing
+  was the wrong answer. Recorded as its own NOT WIRED row with what wiring it
+  would take.
+
 ## [0.5.1] — 2026-09-20
 
 ### Fixed
@@ -182,7 +227,9 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.5.1...v0.6.0
+[0.5.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.3.0...v0.3.1

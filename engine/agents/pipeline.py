@@ -383,6 +383,33 @@ def narration_block(result: PipelineResult) -> str:
         if moved:
             lines.append("Already applied, narrate as done: " + ", ".join(moved))
 
+    # WHAT THE OTHER SIDE GAVE UP. `Resolution` was recorded and never read by
+    # anything the narrator could see: it carries the rule that decided the
+    # turn, who won, who yielded, and the DETAIL THE AUTHOR WROTE for that rule
+    # ("her scene completes; the world's event becomes its aftermath"). Its own
+    # docstring says that without it "the only evidence is prose that reads
+    # slightly differently" -- which the prose could not do, having never been
+    # told. This is the line that makes a negotiated turn legible as fiction
+    # rather than as a turn that merely came out a particular way.
+    #
+    # Only resolutions with a LOSER. The confidence fallback records a winner
+    # and nobody yielding, and dressing that as a concession would have the
+    # narrator dramatise a sacrifice that did not happen.
+    #
+    # `rule.detail` is authored in the story's negotiation table, not derived
+    # from any agent's `private` -- checked before this was written, because a
+    # block that leaks a motive makes the knowledge partition decorative.
+    yielded = [r for r in result.turn.resolutions if r.loser]
+    if yielded:
+        lines.append(
+            "WHAT GAVE WAY, and it must be SHOWN, not said -- a gesture, a "
+            "half-started sentence, a look held too long. Do not report it, and "
+            "never name the rule:"
+        )
+        for res in yielded:
+            detail = str(res.detail or "").strip()
+            lines.append(f"- {res.loser} yielded to {res.winner}" + (f": {detail}" if detail else ""))
+
     if result.turn.blocked:
         lines.append(
             "The direction the player asked for is refused. Decline IN FICTION -- "

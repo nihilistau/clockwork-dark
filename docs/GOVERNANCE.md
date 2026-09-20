@@ -266,6 +266,8 @@ Formerly in this table, now wired: `Oracle.record_turn` and `/api/metrics`
 (rows above); the notice board — server half at `GET /api/notices`, client
 half at `ui/src/stories/clockwork-dark/screens/Notices.jsx` (overlay `n`);
 the challenge/scene framing chip (`ui/src/core/parts/BeatFrame.jsx`);
+the negotiation panel (`ui/src/core/parts/NegotiationPanel.jsx`, rendered by
+`Play.jsx` and silent unless a pipeline ran);
 and the rolled-d20 stills — all 20 plates and all
 20 interface faces exist and are mapped in `games/clockwork-dark/data/art/manifest.yaml`
 (`dice_plates` / `dice_faces`), held by `tests/test_dice_art.py`.
@@ -275,7 +277,8 @@ and the rolled-d20 stills — all 20 plates and all
 | System | File | Needs |
 |---|---|---|
 | Challenge / scene panel | producers: `to_client_dict` ships `challenge` and `scene`. Consumer: `ui/src/core/parts/BeatFrame.jsx` draws the "Step 2 of 4" / "Card 3 of 7" line | A full panel (options, progress, card art) is still unbuilt. The framing chip is enough that a gauntlet no longer reads as four unrelated turns; options remain ordinary choice chips. |
-| Negotiation / governance panels | producers: `engine/scenes/default_state.py` ships `negotiation` and `governance` on the turn payload. Consumers: nothing | An analyst-mode panel. `negotiation` carries lead, beats, resolutions and refusals for the three stories that run a pipeline, and the player currently has no way to know a second agent won, lost or gave something up. `governance` carries R001–R005 breaches. Both are debug-shaped rather than player-shaped, which is why they are last. |
+| Governance panel | producer: `engine/scenes/default_state.py` ships `governance` on the turn payload. Consumer: nothing | An analyst-mode panel over the R001–R005 breaches. Debug-shaped rather than player-shaped, which is why it is last. Its sibling `negotiation` row left this table in v0.6.0 — and splitting them is the lesson: the row read "the player has no way to know a second agent won, lost or gave something up", and the answer to *that* was never a table. The player learns it from the prose, because `narration_block` now hands the narrator what was yielded and why; the panel is only the author's tuning surface. |
+| Companion posture on a concession | producer: `negotiation.resolutions` names the agent that yielded, by roster id. Consumer: nothing, and it cannot be built as things stand | `assistant_presence` (`engine/scenes/default_state.py`) ships no agent id, so the client cannot tell whether the agent that gave way IS the companion in its column. Deliberately not guessed at in v0.6.0. Wiring it means threading the roster id onto the presence payload; the log's margin mark carries the "this turn was contested" signal until then. |
 
 Re-audited in full on 2026-08-15 against the tree, not against this file. The
 2026-08-14 pass claimed one surviving row and was **wrong**: challenges were

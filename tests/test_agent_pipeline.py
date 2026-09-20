@@ -265,6 +265,83 @@ def test_the_narrator_is_told_what_was_agreed(garden: GameState) -> None:
     assert "the gate closes" in block
 
 
+def test_the_narrator_is_told_what_the_other_side_gave_up(garden: GameState) -> None:
+    """
+    A concession the prose can carry, because the prose is finally handed it.
+
+    ``Resolution`` exists to record "the companion wanted to interrupt and the
+    world won", and its own docstring says that without it "the only evidence
+    is prose that reads slightly differently". The narrator was never given
+    one -- lead, beats, the speaker's line, receipts and the blocked flag, and
+    nothing about who yielded -- so the prose could not read differently. It
+    had no way to know.
+
+    Driven through the shipped rule table, so what reaches the narrator is the
+    reason the AUTHOR wrote for this rule, not one invented here.
+    """
+    result = pipeline_module.run_pipeline(
+        garden,
+        "ask her what the toll is",
+        roster=_roster(),
+        llm_fn=_speaks(
+            {
+                "STORYTELLER": {
+                    "intent": "interrupt",
+                    "beat": "the court arrives",
+                    "confidence": 0.9,
+                },
+                "SOPHIA": {
+                    "intent": "speak",
+                    "beat": "she answers",
+                    "line": "Ten days. Yours.",
+                    "confidence": 0.4,
+                },
+            }
+        ),
+    )
+    block = pipeline_module.narration_block(result)
+
+    assert "GAVE WAY" in block, block
+    assert "gm" in block, "the side that yielded is not named"
+    assert "her scene completes" in block, "the rule's authored detail is missing"
+
+    # SHOWN, not reported. A narrator handed "gm gave way" and no instruction
+    # writes "the world gave way", which is the mechanism narrating itself --
+    # the same failure the GM pressure line guards with "never as numbers".
+    assert "do not report" in block.lower(), block
+
+
+def test_a_lead_nobody_contested_is_not_a_concession(garden: GameState) -> None:
+    """
+    The confidence fallback records a Resolution with a winner and NO loser.
+
+    "No rule matched, so the most committed agent leads" is bookkeeping, not
+    something anyone gave up, and dressing it as a concession would have the
+    narrator dramatise a sacrifice that never happened.
+    """
+    result = pipeline_module.run_pipeline(
+        garden,
+        "step through",
+        roster=_roster(),
+        llm_fn=_speaks(
+            {
+                "STORYTELLER": {
+                    "intent": "narrate",
+                    "beat": "the gate closes",
+                    "confidence": 0.8,
+                },
+                "SOPHIA": {
+                    "intent": "speak",
+                    "beat": "she welcomes them",
+                    "line": "There you are.",
+                },
+            }
+        ),
+    )
+    assert not [r for r in result.turn.resolutions if r.loser], "fixture assumes none"
+    assert "GAVE WAY" not in pipeline_module.narration_block(result)
+
+
 def test_a_private_motive_never_leaves_the_agent(garden: GameState) -> None:
     """
     The knowledge partition is decorative if `private` reaches the payload.

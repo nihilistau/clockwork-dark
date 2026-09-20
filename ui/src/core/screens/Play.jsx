@@ -38,6 +38,7 @@ import BeatFrame from "../parts/BeatFrame.jsx";
 import ChoiceRow from "../parts/ChoiceRow.jsx";
 import MicButton from "../parts/MicButton.jsx";
 import NarrativeLog from "../parts/NarrativeLog.jsx";
+import NegotiationPanel from "../parts/NegotiationPanel.jsx";
 import ReasoningPanel, { Thinking } from "../parts/ReasoningPanel.jsx";
 import { MeterSheet } from "../parts/Meters.jsx";
 import { Footer, Header } from "../parts/Chrome.jsx";
@@ -155,6 +156,10 @@ export default function Play({
           ) : (
             state.busy && <Thinking />
           )}
+
+          {/* Renders nothing unless a pipeline ran this turn, so the flagship
+              and any single-participant story never see it. */}
+          <NegotiationPanel negotiation={state.negotiation} />
 
           {!hidden && (
             <ChoiceRow

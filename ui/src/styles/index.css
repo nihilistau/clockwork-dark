@@ -746,6 +746,34 @@ input[type="radio"] {
 }
 
 
+/* A turn two agents argued over, and one of them gave ground.
+   A margin mark rather than anything inline: it must be findable by a reader
+   looking for it and invisible to one who is not, because the concession
+   itself belongs in the prose -- the narrator is handed it now. Tokens only,
+   so it renders on core's fallback palette with no story plugin loaded. */
+.entry--narration.is-negotiated {
+  position: relative;
+}
+
+.entry__negotiated::before {
+  content: "";
+  position: absolute;
+  left: -0.75rem;
+  top: 0.65em;
+  width: 3px;
+  height: 1.1em;
+  border-radius: 2px;
+  background: var(--accent-candle);
+  opacity: 0.45;
+}
+
+@media (max-width: 900px) {
+  /* No gutter to hang it in on a phone. */
+  .entry__negotiated::before {
+    left: -0.4rem;
+  }
+}
+
 .entry--narration.is-streaming::after {
   content: "▌";
   margin-left: 2px;
@@ -3670,4 +3698,86 @@ input[type="radio"] {
 
 .clues__empty {
   white-space: normal;
+}
+
+
+/* ---------------------------------------------------------------------------
+   Negotiation panel
+   ---------------------------------------------------------------------------
+   The author's view of what the two agents settled. Deliberately quiet and
+   deliberately shaped like the reasoning panel above it -- both are surfaces
+   for watching the machine think, and giving them two visual languages would
+   suggest they are two different kinds of thing. Tokens only: this is core,
+   and core renders with no story plugin loaded.
+*/
+.negotiation {
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-scene);
+  overflow: hidden;
+}
+
+
+.negotiation__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  background: transparent;
+  border: 0;
+  text-align: left;
+}
+
+
+.negotiation__label {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+
+.negotiation__chevron {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+
+.negotiation__body {
+  padding: 0 var(--space-3) var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+
+.negotiation__rule {
+  margin-bottom: var(--space-1);
+}
+
+
+.negotiation__rule dt {
+  color: var(--text-body);
+}
+
+
+.negotiation__rule dd {
+  margin: 0;
+}
+
+
+.negotiation__beats {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+}
+
+
+.negotiation__blocked,
+.negotiation__refused {
+  margin: var(--space-1) 0 0;
+  color: var(--accent-candle);
 }

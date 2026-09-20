@@ -58,8 +58,11 @@ function Face({ portrait }) {
       className="companion__face"
     >
       {portrait && (
+        // See the note in ../index.jsx: without `is-loaded` core's
+        // `.paint__img { opacity: 0 }` is never raised and her face never
+        // appears at all.
         <img
-          className="paint__img"
+          className="paint__img is-loaded"
           src={portrait}
           // Decorative: her name and her mood are already on screen as text,
           // and a screen-reader user hearing a filename-derived description of

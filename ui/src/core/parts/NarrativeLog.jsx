@@ -221,8 +221,26 @@ const Entry = React.memo(function Entry({ entry }) {
       </p>
     );
   }
+  // `negotiated` marks a turn two agents argued over and one of them yielded.
+  // STATE, NOT WORDS: a glyph the prose is free to explain, never a sentence
+  // this component wrote. The engine hands the narrator what was given up (see
+  // pipeline.narration_block), so the paragraph beside this mark should already
+  // carry it -- the mark only tells the player the turn had two authors.
   return (
-    <p className={`entry entry--narration ${entry.streaming ? "is-streaming" : ""}`}>
+    <p
+      className={[
+        "entry entry--narration",
+        entry.streaming ? "is-streaming" : "",
+        entry.negotiated ? "is-negotiated" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {entry.negotiated && (
+        <span className="entry__negotiated" title="Two voices settled this turn">
+          <span className="visually-hidden">Two voices settled this turn. </span>
+        </span>
+      )}
       {entry.text}
     </p>
   );

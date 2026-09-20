@@ -46,6 +46,15 @@ export const initialState = {
   // Presence, not speech: survives a silent turn so the companion column is
   // never blank. assistant.text is the transient line; this is who is there.
   presence: null,
+  // What the multi-agent pipeline settled THIS turn, or null. Shape is
+  // engine/agents/pipeline.py's `PipelineResult.to_dict()`: lead, beats,
+  // resolutions (rule/winner/loser/detail), refused, veto, blocked.
+  //
+  // Deliberately NOT sticky, unlike `ending` above: it describes one turn's
+  // argument, and carrying it forward would have the panel and the log mark
+  // reporting a disagreement two turns stale. The three stories that run a
+  // pipeline send it; the flagship has one participant and never does.
+  negotiation: null,
   dice: null, // transient toast
   sceneImage: "",
   cutscene: null,
@@ -315,8 +324,28 @@ function handleSocket(state, event, payload) {
         }
       }
 
+      // A TURN TWO AGENTS ARGUED OVER SHOULD NOT LOOK LIKE ANY OTHER TURN.
+      // Only when somebody actually YIELDED: the negotiator records a
+      // resolution for the confidence fallback too ("no rule matched, highest
+      // confidence leads"), which is bookkeeping rather than a concession, and
+      // marking it would tell the player a turn was fought over when it was
+      // not. The mark is state, not words -- no engine-authored sentence goes
+      // into the log beside the narrator's prose.
+      const negotiation = payload.negotiation || null;
+      const yielded = (negotiation?.resolutions || []).some((r) => r && r.loser);
+      if (yielded) {
+        const last = [...next.log].reverse().find((e) => e.kind === "narration");
+        if (last) {
+          next = {
+            ...next,
+            log: next.log.map((e) => (e.id === last.id ? { ...e, negotiated: true } : e)),
+          };
+        }
+      }
+
       return {
         ...next,
+        negotiation,
         choices: payload.choices || [],
         world: payload.state || next.world,
         meters: metersOf(payload, next.meters),

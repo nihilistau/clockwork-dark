@@ -306,3 +306,50 @@ describe.each(NAMES)("plugin: %s", (name) => {
     ).not.toThrow();
   });
 });
+
+describe("every shipped image is actually visible", () => {
+  /**
+   * Core ships `.paint__img { opacity: 0 }` and raises it on `.is-loaded`, so
+   * the class is load-bearing rather than decorative: a plate rendered without
+   * it fetches, decodes, occupies its frame and never appears.
+   *
+   * THE BUG THIS CLOSES. Every image in The Wicked Garden was invisible from
+   * the day the plugin was written -- the stage plate and Sophia's portrait
+   * both rendered bare `className="paint__img"`. Nothing failed. The art was
+   * 200 OK, `complete` was true, `naturalWidth` was 640, and the computed
+   * opacity was 0, so it read as "this story ships no art" rather than as a
+   * defect. It was found by looking at the screen, which is the only thing
+   * that could have found it.
+   *
+   * Source text rather than a render, because the class may be static or
+   * state-driven (`SceneVisual` sets it from onLoad) and both are correct.
+   * What is never correct is the class being absent altogether.
+   */
+  const imgTags = (text) => [...text.matchAll(/<img\b[^>]*>/gs)];
+
+  const files = [];
+  const collect = (dir) => {
+    for (const name of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, name.name);
+      if (name.isDirectory()) collect(path);
+      else if (/\.jsx$/.test(name.name)) files.push(path);
+    }
+  };
+  collect(resolve(process.cwd(), "src/stories"));
+  collect(CORE);
+
+  it("never renders a paint__img that nothing can raise from opacity 0", () => {
+    const offenders = [];
+    for (const path of files) {
+      const text = readFileSync(path, "utf8");
+      for (const [tag] of imgTags(text)) {
+        if (!/paint__img/.test(tag)) continue;
+        // Either spelling counts: a literal `is-loaded`, or a template that
+        // interpolates it from state.
+        if (/is-loaded/.test(tag)) continue;
+        offenders.push(`${path.replace(process.cwd(), "").split(String.fromCharCode(92)).join("/")}: ${tag.slice(0, 80)}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});

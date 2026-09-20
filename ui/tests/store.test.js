@@ -360,3 +360,71 @@ describe("quest events reach the player", () => {
     expect(state.log.some((e) => e.kind === "quest")).toBe(false);
   });
 });
+
+describe("a negotiated turn", () => {
+  /**
+   * `negotiation` has ridden the payload since the pipeline shipped and no
+   * consumer ever read the key -- `grep -rn negotiation ui/src/` returned
+   * nothing. Three of the five stories run plan -> negotiate -> commit, and a
+   * player had no way to know a second agent had won, lost or given something
+   * up.
+   */
+  const negotiated = (negotiation) =>
+    reducer(
+      started(),
+      socket("turn_update", {
+        narration: "She lets the sentence go unfinished.",
+        choices: [],
+        state: { location_id: "the_grid" },
+        negotiation,
+      })
+    );
+
+  it("keeps the negotiation for the turn it describes", () => {
+    const state = negotiated({ ran: true, lead: "sophia", resolutions: [] });
+    expect(state.negotiation.lead).toBe("sophia");
+  });
+
+  it("marks the entry when a side actually yielded", () => {
+    const state = negotiated({
+      ran: true,
+      lead: "sophia",
+      resolutions: [{ rule: "private_scene_finishes", winner: "sophia", loser: "gm" }],
+    });
+    expect(state.log.at(-1).negotiated).toBe(true);
+  });
+
+  it("does not mark a lead nobody contested", () => {
+    // The confidence fallback records a winner and NO loser. Marking it would
+    // tell the player a turn was fought over when it was only bookkeeping.
+    const state = negotiated({
+      ran: true,
+      lead: "gm",
+      resolutions: [{ rule: "confidence", winner: "gm", detail: "highest confidence leads" }],
+    });
+    expect(state.log.at(-1).negotiated).toBeFalsy();
+  });
+
+  it("does not mark a turn from a story that runs no pipeline", () => {
+    // The flagship has one participant, so `ran` is false and no key ships.
+    const state = negotiated(undefined);
+    expect(state.negotiation).toBeNull();
+    expect(state.log.at(-1).negotiated).toBeFalsy();
+  });
+
+  it("clears the previous turn's negotiation", () => {
+    // It describes THIS turn. Sticky would leave the mark and the panel
+    // reporting an argument two turns stale -- the `ending` field is sticky on
+    // purpose and says so; this is the opposite case.
+    const first = negotiated({
+      ran: true,
+      lead: "sophia",
+      resolutions: [{ rule: "r", winner: "sophia", loser: "gm" }],
+    });
+    const second = reducer(
+      first,
+      socket("turn_update", { narration: "Quiet.", choices: [], state: {} })
+    );
+    expect(second.negotiation).toBeNull();
+  });
+});

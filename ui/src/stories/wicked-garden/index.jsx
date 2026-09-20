@@ -249,8 +249,15 @@ function Stage({ state }) {
       className="stage"
     >
       {src && (
+        // `is-loaded` is not decoration. Core ships `.paint__img { opacity: 0 }`
+        // and raises it on `.is-loaded`, so a plate rendered without the class
+        // loads, occupies its frame and never becomes visible -- which is what
+        // every image in this story did until 2026-09-20. Hardcoded rather than
+        // driven from onLoad (the flagship's SceneVisual does that) because
+        // seven of the nine call sites in the client already hardcode it, and a
+        // handler that never fires for a CACHED image fails the exact same way.
         <img
-          className="paint__img"
+          className="paint__img is-loaded"
           src={src}
           // Decorative: the narration already says where you are, and a
           // screen-reader user hearing the caption twice is worse than not
