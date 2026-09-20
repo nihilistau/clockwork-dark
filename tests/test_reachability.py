@@ -406,9 +406,12 @@ _LAUNCHER = ENGINE.parent / "launcher.py"
 #: must name the file that would do the wiring.
 ALLOWED_UNREAD: dict[str, str] = {
     "schemas.ASSISTANT_TURN_SCHEMA": (
-        "NOT WIRED -- engine/agents/assistant.py passes no response_format, so "
-        "the companion runs unconstrained and the 240-char cap that IS its "
-        "'1-3 sentences' rule is carried by prose alone"
+        "DELIBERATELY unwired, and not debt. A response_format forces the "
+        "OpenAI-compatible transport (backend.use_native returns False the "
+        "moment one is set) and the companion is on the native route because "
+        "156 of its 200 tokens once went to reasoning. The cap it exists for "
+        "is enforced in code instead -- assistant.enforce_voice_rule -- which "
+        "also stops at a sentence rather than mid-word"
     ),
     "locations.CANONICAL_LOCATION_IDS": (
         "set-membership alias of CANON_IDS, which production reads; this form "

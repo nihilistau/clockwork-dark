@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
 from engine.agents.prompts import assistant_system_prompt
-from engine.agents.stream_processor import StreamProcessor
+from engine.agents.stream_processor import StreamProcessor, trim_to_sentence
 from engine.agents.tool_dispatcher import execute_tool_calls
 from engine.skills.registry import AGENT_ASSISTANT
 from engine.config import get_config
@@ -29,6 +29,40 @@ logger = logging.getLogger(__name__)
 
 _JSON_BLOCK = re.compile(r"```json\s*(\{.*?\})\s*```", re.DOTALL)
 _JSON_LOOSE = re.compile(r"(\{[^{}]*\"text\"[^{}]*\})", re.DOTALL)
+
+#: The companion's "1-3 sentences" rule, as a number.
+#:
+#: Taken from `ASSISTANT_TURN_SCHEMA`'s `maxLength`, whose own comment says the
+#: cap "enforces the '1-3 sentences' voice rule that prose alone never reliably
+#: holds". Nothing ever passed that schema to a model -- the v0.5.0 audit found
+#: it as an unreferenced constant -- and the rule was carried by the persona
+#: text alone, which is exactly what the comment says does not work.
+VOICE_MAX_CHARS = 240
+
+
+def enforce_voice_rule(text: str, *, limit: int = VOICE_MAX_CHARS) -> str:
+    """
+    Hold the companion to its declared length, at a sentence boundary.
+
+    WHY NOT THE SCHEMA. Passing `ASSISTANT_TURN_SCHEMA` as a `response_format`
+    would enforce the cap on the wire -- and force the OpenAI-compatible
+    transport, because `backend.use_native` returns False the moment a response
+    format is set. The companion is on the native route deliberately: "156 of
+    this call's 200 tokens went to REASONING and the reply was cut off
+    mid-sentence" is measured, in a comment, at its call site. Wiring the schema
+    buys the cap and pays for it with a starvation somebody already fixed.
+
+    Enforced here instead, where it costs nothing and does the job BETTER than
+    a `maxLength` could: a JSON string truncated at 240 stops mid-word, and this
+    stops at the last full stop that fits. Only when there is no sentence end to
+    fall back on does it cut hard, because a cap that can be talked out of
+    itself is advisory.
+    """
+    if len(text) <= limit:
+        return text
+    kept = trim_to_sentence(text[:limit])
+    return kept.strip() if kept.strip() else text[:limit].rstrip()
+
 
 FORM_VOICE_STYLES: dict[str, str] = {
     "cat": "chime",
@@ -416,7 +450,11 @@ class AssistantAgent:
             or tags.voice_style
             or FORM_VOICE_STYLES.get(form, "whisper")
         )
-        clean_text = tags.clean_text or text
+        # The declared voice rule, enforced. See `enforce_voice_rule`: the
+        # schema written to do this on the wire cannot be used without moving
+        # the companion off the transport that stops it reasoning its budget
+        # away, so the cap lands here instead.
+        clean_text = enforce_voice_rule(tags.clean_text or text)
 
         # The item lands only now, alongside the line that explains it.
         if clean_text:

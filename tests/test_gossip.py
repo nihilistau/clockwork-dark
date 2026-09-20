@@ -115,3 +115,135 @@ def test_gossip_has_its_own_rng_stream() -> None:
         if key.isupper() and isinstance(value, str)
     ]
     assert len(names) == len(set(names)), "two systems share an RNG stream name"
+
+
+# ---------------------------------------------------------------------------
+# A rumour gets further from its source
+# ---------------------------------------------------------------------------
+#
+# WHAT WAS MISSING. A fact travelled once and stopped. `spread` refuses when
+# `fact.id in record.known_facts`, so a listener who has heard something can
+# never retell it -- gossip was a star around the player, never a chain, and
+# what landed was the fact VERBATIM with a name on it, no matter how far it had
+# come.
+#
+# The decay is what makes onward telling safe to allow. Without it, letting a
+# fact hop again turns the thing the module docstring insists must "feel like
+# weather" into the broadcast network it says it must not be.
+#
+# THE CONTENT NEVER CHANGES. What decays is who vouches for it and how firmly,
+# so a narrator can write somebody cagey about a source or overconfident about
+# something they got third-hand -- and the engine never records a falsehood it
+# might later state as fact.
+
+
+def _notes(ledger) -> list[str]:
+    return [n for rec in ledger.relations.values() for n in rec.notes]
+
+
+def test_a_second_hand_telling_names_the_chain_not_just_the_speaker(peopled) -> None:
+    """Hop 2 says who told them AND who told that person."""
+    from engine.world.gossip import retell
+
+    assert retell("you asked about the tinker", "Corwin", hops=2, source="Maris") == (
+        "heard from Corwin, who had it from Maris: they say you asked about the tinker"
+    )
+
+
+def test_a_first_hand_telling_is_unchanged(peopled) -> None:
+    """
+    Hop 1 keeps today's wording exactly.
+
+    `test_what_lands_says_where_it_came_from` asserts on that prefix, and the
+    whole attribution feature is built on it.
+    """
+    from engine.world.gossip import retell
+
+    assert retell("you asked about the tinker", "Maris", hops=1) == (
+        "heard from Maris: you asked about the tinker"
+    )
+
+
+def test_a_far_travelled_rumour_loses_its_source(peopled) -> None:
+    """Third-hand and beyond, nobody remembers who said it first."""
+    from engine.world.gossip import retell
+
+    far = retell("you asked about the tinker", "Corwin", hops=3, source="Maris")
+    assert far == "heard it going round: someone was asking about the tinker"
+    assert "Corwin" not in far and "Maris" not in far
+
+
+def test_a_rumour_dies_rather_than_circulating_forever(peopled) -> None:
+    """
+    The cap is what keeps this weather rather than a broadcast network.
+
+    Without it, allowing onward telling means every fact eventually reaches
+    everybody, which is precisely the flattening the module was written to
+    avoid: the interesting state is the UNEVEN one.
+    """
+    from engine.world.gossip import MAX_HOPS, retell
+
+    assert retell("x", "Corwin", hops=MAX_HOPS + 1) == ""
+
+
+def test_a_fact_can_now_travel_onward(peopled) -> None:
+    """
+    A listener may retell what they were told, which they could not before.
+
+    Driven through the real `spread` over many ticks rather than asserted on a
+    helper, because the refusal that blocked it lives in `spread`.
+    """
+    from engine.world.gossip import spread as spread_fn
+
+    state, ledger = peopled.engine.state, peopled.ledger
+    rng = random.Random(11)
+    for _ in range(60):
+        spread_fn(state, ledger, rng=rng)
+
+    onward = [n for n in _notes(ledger) if "who had it from" in n or "going round" in n]
+    assert onward, "no fact ever made a second hop in 60 ticks"
+
+
+def test_the_chain_replays_from_a_seed(peopled) -> None:
+    """Determinism survives the change -- rule 4, and the first thing this
+    file says it protects."""
+    from engine.world.gossip import spread as spread_fn
+
+    def run() -> list[str]:
+        registry.activate("clockwork-dark")
+        session = SessionStore().create(seed=42, llm_fn=lambda messages, **kw: "{}")
+        led = session.ledger
+        led.remember_name("npc_odran", "Odran")
+        for who in ("npc_odran", "npc_villager_1", "npc_villager_2", "npc_villager_3"):
+            led.add_fact(f"you spoke to {who} about the wood", subject_id=who, turn=1, day=1)
+        rng = random.Random(5)
+        for _ in range(40):
+            spread_fn(session.engine.state, led, rng=rng)
+        return sorted(_notes(led))
+
+    assert run() == run()
+
+
+def test_nobody_is_told_their_own_news(peopled) -> None:
+    """
+    A rumour that travels more than one hop can circle back to its source.
+
+    Measured once the chain was allowed: "heard from Maris, who had it from
+    Odran" landed in ODRAN's own memory, which invites a narrator to write him
+    learning something he was standing there for.
+    """
+    from engine.world.gossip import _key, spread as spread_fn
+
+    state, ledger = peopled.engine.state, peopled.ledger
+    rng = random.Random(11)
+    for _ in range(80):
+        spread_fn(state, ledger, rng=rng)
+
+    for who, rec in ledger.relations.items():
+        own = {_key(f.text) for f in ledger.recall(who, limit=8) if f.text}
+        for note in rec.notes:
+            if not note.startswith("heard "):
+                continue
+            body = note.split(":", 1)[1].strip() if ":" in note else ""
+            body = body[len("they say ") :] if body.startswith("they say ") else body
+            assert _key(body) not in own, f"{who} was told their own news: {note}"

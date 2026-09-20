@@ -271,3 +271,55 @@ def test_a_choice_that_echoes_its_own_intent_id_is_relabelled() -> None:
         assert authored["text"] == "Follow the smoke"
     finally:
         deactivate()
+
+
+# ---------------------------------------------------------------------------
+# The companion's voice rule
+# ---------------------------------------------------------------------------
+
+
+def test_the_companion_line_is_held_to_its_declared_cap() -> None:
+    """
+    The "1-3 sentences" rule was carried by prose alone, and did not hold.
+
+    `ASSISTANT_TURN_SCHEMA` was written to enforce it -- its `maxLength: 240`
+    comment says the cap "enforces the '1-3 sentences' voice rule that prose
+    alone never reliably holds" -- and nothing ever passed it to a model. It
+    turned up in the v0.5.0 audit as an unreferenced constant.
+
+    IT CANNOT BE WIRED AS WRITTEN, which is the finding. A `response_format`
+    forces the OpenAI-compatible transport (`backend.use_native` returns False
+    the moment one is set), and the companion is deliberately on the native
+    route: "156 of this call's 200 tokens went to REASONING and the reply was
+    cut off mid-sentence" is measured, in a comment, at that call site. Wiring
+    the schema would buy the cap and pay for it with the starvation somebody
+    already fixed.
+
+    So the RULE is enforced where it costs nothing -- after the line comes
+    back, at a sentence boundary, which is what a maxLength could never do: a
+    JSON string truncated at 240 stops mid-word.
+    """
+    from engine.agents.assistant import enforce_voice_rule
+
+    short = "She watches the door. She says nothing."
+    assert enforce_voice_rule(short) == short
+
+    long = ("The lantern gutters and she counts the steps again. " * 12).strip()
+    held = enforce_voice_rule(long)
+    assert len(held) <= 240
+    # A whole sentence, not a severed one.
+    assert held.endswith(".")
+    assert "counts the steps again." in held
+
+
+def test_a_capless_line_with_no_sentence_end_is_still_cut() -> None:
+    """
+    A run-on with no full stop still has to stop somewhere.
+
+    Falling through and returning the whole thing would make the cap advisory,
+    which is the state this fixes.
+    """
+    from engine.agents.assistant import enforce_voice_rule
+
+    held = enforce_voice_rule("and on and on " * 40)
+    assert len(held) <= 240

@@ -49,6 +49,109 @@ SPREAD_CHANCE = 0.35
 #: filling it.
 MAX_HEARD_PER_SUBJECT = 3
 
+#: How far a rumour travels before it stops being worth repeating.
+#:
+#: THE CAP IS WHAT MAKES ONWARD TELLING SAFE. A fact used to travel exactly
+#: once -- a listener who had heard something could never retell it -- so this
+#: was a star around the player and never a chain. Allowing the second hop
+#: without a cap turns the thing this module insists must "feel like weather"
+#: into the broadcast network it says it must not be: everything reaches
+#: everybody, and the interesting state is the UNEVEN one.
+MAX_HOPS = 3
+
+#: Marks a note as second-hand, and carries the hop count in a form a listener
+#: can read back. Kept as plain prose rather than a structured flag: the note
+#: is a string every consumer already renders, and a flag is something a
+#: consumer can forget to check and leak as truth.
+_HEARD_PREFIX = "heard "
+
+
+def hops_of(note: str) -> int:
+    """How many tellings a heard-note has been through. 0 if it is not one."""
+    if not note.startswith(_HEARD_PREFIX):
+        return 0
+    if "going round" in note:
+        return 3
+    return 2 if "who had it from" in note else 1
+
+
+def _key(text: str) -> str:
+    """One dedupe key per fact, derived from its words."""
+    return "said:" + " ".join(text.lower().split())
+
+
+def _body_of(note: str) -> str:
+    """
+    The fact inside a heard-note, ready to be told again. "" if there is none.
+
+    Only the first two hops are recoverable, and deliberately: a third-hand
+    note has already had the player taken out of it by `_impersonal`, and
+    retelling it would be hop 4, which `retell` refuses anyway.
+    """
+    if not note.startswith("heard from "):
+        return ""
+    body = note.split(":", 1)[1].strip() if ":" in note else ""
+    return body[len("they say ") :].strip() if body.startswith("they say ") else body
+
+
+def _source_of(note: str) -> str:
+    """Who the teller says they got it from, for the next link in the chain."""
+    marker = "heard from "
+    if not note.startswith(marker):
+        return ""
+    who = note[len(marker) :].split(":", 1)[0]
+    return who.split(",", 1)[0].strip()
+
+
+def retell(text: str, speaker: str, *, hops: int = 1, source: str = "") -> str:
+    """
+    One telling of a fact, worded for how far it has come.
+
+    THE CONTENT NEVER CHANGES. What decays is who vouches for it and how
+    firmly, so a narrator can write somebody cagey about a source or
+    overconfident about something they got third-hand -- and the engine never
+    records a falsehood that a later turn might state as fact. A rumour that
+    could go WRONG would mean the ledger holding claims the player can check
+    against real state and catch out.
+
+        hop 1  heard from Maris: you asked about the tinker
+        hop 2  heard from Corwin, who had it from Maris: they say you asked
+               about the tinker
+        hop 3  heard it going round: someone was asking about the tinker
+
+    Returns "" past ``MAX_HOPS``, which is the rumour dying rather than
+    circulating forever.
+    """
+    if hops > MAX_HOPS:
+        return ""
+    if hops <= 1:
+        return f"heard from {speaker}: {text}"
+    if hops == 2:
+        chain = f"{speaker}, who had it from {source}" if source else speaker
+        return f"heard from {chain}: they say {text}"
+    # Third-hand: nobody remembers who said it first, and the subject blurs.
+    return f"heard it going round: {_impersonal(text)}"
+
+
+def _impersonal(text: str) -> str:
+    """
+    Take the player out of the sentence, the way a third-hand story does.
+
+    "you asked about the tinker" -> "someone was asking about the tinker".
+    Deliberately crude and deliberately narrow: it rewrites a leading "you
+    <verb>ed" and leaves everything else alone, because a cleverer rewriter
+    would be a sentence generator and this is a prefix.
+    """
+    if not text.startswith("you "):
+        return text
+    rest = text[4:]
+    verb, _, tail = rest.partition(" ")
+    if verb.endswith("ed") and len(verb) > 3:
+        stem = verb[:-2]
+        if stem.endswith(("k", "p", "t", "l", "s", "n", "r", "m", "g", "w", "h")):
+            return f"someone was {stem}ing {tail}".rstrip()
+    return f"someone {rest}"
+
 
 def spread(
     state: Any,
@@ -108,22 +211,55 @@ def spread(
         return []
     listener = listeners[draw.randrange(len(listeners))]
 
-    # Only what the speaker actually knows, and only facts -- a speaker cannot
-    # pass on somebody else's disposition or a note about themselves.
-    tellable = [f for f in ledger.recall(speaker, limit=4) if f.text]
+    # What the speaker can pass on: what they SAW, and what they were TOLD.
+    #
+    # The second half is the chain. `recall` returns facts filed against the
+    # speaker, and a fact somebody merely heard is a NOTE -- so a listener
+    # could never become a teller, and gossip was a star around the player
+    # rather than anything that travels. Each carries how far it has already
+    # come, which is what `retell` words the telling from and what `MAX_HOPS`
+    # eventually stops.
+    tellable: list[tuple[str, str, int, str]] = [
+        (_key(f.text), f.text, 1, "")
+        for f in ledger.recall(speaker, limit=4)
+        if f.text
+    ]
+    speaker_record = ledger.subject(speaker, kind="npc")
+    for note in speaker_record.notes:
+        body = _body_of(note)
+        if body:
+            tellable.append((_key(body), body, hops_of(note) + 1, _source_of(note)))
     if not tellable:
         return []
-    fact = tellable[draw.randrange(len(tellable))]
+    fact_key, fact_text, hops, source = tellable[draw.randrange(len(tellable))]
 
     record = ledger.subject(listener, kind="npc")
-    if fact.id in record.known_facts:
+    # Keyed on the TEXT, not on a fact id, because half of what can be told is
+    # now a note and a note has no id. One key space, so hearing a thing twice
+    # by two routes is still hearing it once.
+    if fact_key in record.known_facts:
+        return []
+    # Nobody is told their own news. Once a fact can travel more than one hop
+    # it can come back round to the person it started with -- measured, and it
+    # read as "heard from Maris, who had it from Odran" sitting in ODRAN's own
+    # memory, which invites a narrator to write him learning something he was
+    # there for.
+    if any(_key(f.text) == fact_key for f in ledger.recall(listener, limit=8) if f.text):
         return []
 
-    speaker_name = (getattr(ledger, "names", {}) or {}).get(speaker) or speaker
-    record.known_facts.append(fact.id)
-    heard = sum(1 for note in record.notes if note.startswith("heard from "))
+    names = getattr(ledger, "names", {}) or {}
+    speaker_name = names.get(speaker) or speaker
+
+    line = retell(fact_text, speaker_name, hops=hops, source=source)
+    record.known_facts.append(fact_key)
+    if not line:
+        # Past the cap. Marked known anyway, so it stops being offered to this
+        # listener: the rumour dies rather than circulating forever.
+        return []
+
+    heard = sum(1 for note in record.notes if note.startswith(_HEARD_PREFIX))
     if heard < MAX_HEARD_PER_SUBJECT:
-        ledger.note(listener, f"heard from {speaker_name}: {fact.text}", kind="npc")
+        ledger.note(listener, line, kind="npc")
 
     logger.debug(
         "[gossip] Fact travelled (operation=spread, from=%s, to=%s, at=%s)",
@@ -131,4 +267,4 @@ def spread(
         listener,
         place_id,
     )
-    return [f"{speaker_name} told {listener} about: {fact.text}"]
+    return [f"{speaker_name} told {listener} about: {fact_text}"]

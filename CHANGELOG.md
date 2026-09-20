@@ -14,6 +14,60 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-20
+
+### Added
+
+- **Gossip travels, and gets further from its source as it goes.** A fact used
+  to make exactly one hop — `spread` refuses when the listener already knows it,
+  so a listener could never become a teller, and gossip was a star around the
+  player rather than anything that moved. It can now pass onward, and each
+  telling is worded for how far it has come:
+
+      hop 1  heard from Maris: you asked about the tinker
+      hop 2  heard from Corwin, who had it from Maris: they say you asked
+             about the tinker
+      hop 3  heard it going round: someone was asking about the tinker
+
+  **The content never changes.** What decays is who vouches for it and how
+  firmly, so a narrator can write somebody cagey about a source or
+  overconfident about something they got third-hand — and the engine never
+  records a falsehood a later turn might state as fact. A rumour allowed to go
+  *wrong* would put claims in the ledger that the player can check against real
+  state and catch out.
+- `MAX_HOPS` is what makes onward telling safe to allow. Without a cap, letting
+  a fact hop again turns the thing the module's own docstring insists must
+  "feel like weather" into the broadcast network it says it must not be:
+  everything reaches everybody, and the interesting state is the uneven one.
+  `SPREAD_CHANCE` is untouched, so only one thing changed at a time.
+- Nobody is told their own news. Once a rumour can travel more than one hop it
+  can circle back — measured, and it read as "heard from Maris, who had it from
+  Odran" sitting in *Odran's* own memory.
+
+### Changed
+
+- **The companion is held to its declared length.** `ASSISTANT_TURN_SCHEMA`
+  exists to enforce the "1–3 sentences" rule — its own comment says prose alone
+  "never reliably holds" it — and nothing ever passed it to a model; the v0.5.0
+  audit found it as an unreferenced constant. It **cannot** be wired as written:
+  a `response_format` forces the OpenAI-compatible transport, and the companion
+  is on the native route because "156 of this call's 200 tokens went to
+  REASONING and the reply was cut off mid-sentence" is measured at its call
+  site. Wiring it would buy the cap and pay for it with a starvation somebody
+  already fixed. The rule is enforced in code instead, at a sentence boundary —
+  which a `maxLength` could never do, since a JSON string truncated at 240 stops
+  mid-word. Its allowlist row now records a decision rather than debt.
+
+### Notes
+
+- **Measured, and not done:** flipping the flagship's companion to
+  `pipeline: true`. The pipeline does engage with two participants — but the
+  flagship declares **zero** negotiation rules, so every turn would fall through
+  to the confidence fallback, which is a coin flip dressed as a rule. Its
+  companion's persona is also written to react to *finished* prose, so its plans
+  would be poorly grounded. The roster's own comment — "it leads no turns" — was
+  right, and the audit suggestion that prompted this was not.
+
 ## [0.6.2] — 2026-09-20
 
 ### Fixed
@@ -324,7 +378,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.5.1...v0.6.0
