@@ -339,7 +339,7 @@ class LMStudioBackend:
 
         if retry_on_starvation and result.starved_by_reasoning:
             recovered = self._retry_without_reasoning(
-                messages, mp, cap=cap, temperature=temp, label=label
+                messages, mp, cap=cap, temperature=temp, label=label, starved=result
             )
             if recovered is not None:
                 return recovered
@@ -353,6 +353,7 @@ class LMStudioBackend:
         cap: int,
         temperature: float,
         label: str,
+        starved: Optional[LMSResponse] = None,
     ) -> Optional[LMSResponse]:
         """
         Second attempt with reasoning switched off.
@@ -369,6 +370,26 @@ class LMStudioBackend:
                 mp.model,
             )
             return None
+
+        # The model has to be ABLE to stop thinking. 30 of the 42 LLMs measured
+        # on the author's machine publish no reasoning block, and this retry
+        # used to send them `reasoning="off"` regardless -- a 400 that the
+        # planner turned into a silent agent, so a two-agent story ran on one.
+        #
+        # Standing down rather than retrying anyway is the same argument the
+        # branch above makes about the OpenAI-compatible endpoint. Worse here:
+        # `wire_cap` returns the content budget UNCHANGED when reasoning is off,
+        # so a second attempt would carry 320 tokens where the starved first
+        # attempt carried 3,520, and a model that thinks whatever you ask it
+        # cannot do better with less.
+        from engine.lmstudio.registry import get_registry
+
+        info = get_registry().cached(mp.model)
+        if info is not None and not info.accepts_reasoning("off"):
+            return self._retry_with_room(
+                messages, mp, cap=cap, temperature=temperature, label=label,
+                starved=starved,
+            )
 
         logger.warning(
             "[backend] Retrying with reasoning='off' after starvation "
@@ -388,6 +409,76 @@ class LMStudioBackend:
                 reasoning="off",
                 # Deliberately not granted: the point of the retry is to spend
                 # the whole ceiling on the answer.
+                reasoning_budget=0,
+                context_length=mp.context_tokens,
+            )
+
+    def _retry_with_room(
+        self,
+        messages: list[dict[str, Any]],
+        mp: ModelProfile,
+        *,
+        cap: int,
+        temperature: float,
+        label: str,
+        starved: Optional[LMSResponse],
+    ) -> Optional[LMSResponse]:
+        """
+        Second attempt for a model that CANNOT be told to stop thinking.
+
+        30 of the 42 LLMs measured on the author's machine publish no reasoning
+        block, and lfm2.5 is the awkward kind: it thinks hard and offers no
+        knob. Asking it for ``reasoning="off"`` was a 400 the planner turned
+        into a silent agent -- a two-agent story running on one, with nothing
+        failing anywhere.
+
+        Simply standing down is not enough either, and neither is repeating the
+        call: ``wire_cap`` returns the content budget UNCHANGED when reasoning
+        is off, so the old retry would have carried 320 tokens where the attempt
+        that starved carried 3,520.
+
+        THE ROOM IS MEASURED, NOT GUESSED. The starved response reports exactly
+        what the model spent thinking, so the retry asks for that much again
+        plus the full content budget. No magic multiplier: the number comes from
+        what this model just did with this prompt. With no measurement there is
+        nothing to size the retry from, and it stands down rather than spend a
+        player's turn on a coin flip.
+        """
+        spent = int(getattr(starved, "reasoning_tokens", 0) or 0)
+        if spent <= 0:
+            logger.error(
+                "[backend] Cannot recover from reasoning starvation: this model "
+                "exposes no reasoning configuration and the starved response "
+                "reported no reasoning tokens, so there is nothing to size a "
+                "retry from (operation=_retry_with_room, model=%s). Raise "
+                "lmstudio.profiles.*.max_tokens, or load a model that exposes "
+                "the knob.",
+                mp.model,
+            )
+            return None
+
+        room = spent + max(1, cap)
+        logger.warning(
+            "[backend] Retrying with measured room after starvation: this model "
+            "cannot be told to stop thinking, so the answer is given space "
+            "BESIDE the thinking rather than instead of it "
+            "(operation=_retry_with_room, model=%s, reasoning_spent=%s, "
+            "content_budget=%s, new_cap=%s)",
+            mp.model,
+            spent,
+            cap,
+            room,
+        )
+        with inference_slot(label=f"{label or mp.name}:room", lane=mp.lane):
+            return self.native_client().chat(
+                messages,
+                model=mp.model,
+                temperature=temperature,
+                # The whole ceiling, with the reasoning it will spend anyway
+                # already inside it. The `reasoning` key itself is omitted on
+                # the wire for this model -- see native.reasoning_for.
+                max_tokens=room,
+                reasoning=mp.reasoning,
                 reasoning_budget=0,
                 context_length=mp.context_tokens,
             )

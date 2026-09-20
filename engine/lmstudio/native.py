@@ -97,6 +97,55 @@ REASONING_LEVELS: frozenset[str] = frozenset({"off", "low", "medium", "high", "o
 _ROLE_LABELS = {"assistant": "ASSISTANT", "tool": "TOOL RESULT", "user": ""}
 
 
+def reasoning_for(model: str, value: str) -> Optional[str]:
+    """
+    The ``reasoning`` value this request may legally carry, or None to omit it.
+
+    THE 400 THIS CLOSES. Not every model exposes a reasoning knob, and asking
+    one that does not is an error rather than a no-op:
+
+        Model 'lfm2.5-vl-3b-uncensored.gguf@q8_0' does not expose reasoning
+        configuration.   (type=invalid_request, param=reasoning)
+
+    30 of the 42 LLMs measured on the author's machine publish no reasoning
+    block. Sending them ``reasoning="off"`` -- which is exactly what the
+    starvation net in ``backend.py`` does -- failed every time, so a Wicked
+    Garden turn starved, retried, took the 400, and the planner logged "No plan,
+    treating as silent". A two-agent story ran on one agent and nothing failed.
+
+    ``allowed_options`` is checked too, from the opposite direction: gemma
+    publishes ``["off", "on"]``, so ``"low"`` is a legal native level and an
+    illegal value for that model.
+
+    UNKNOWN MEANS UNCHANGED. A cache-only lookup returning None means discovery
+    never ran -- the server was unreachable -- and the request is not going to
+    succeed on any grounds. Quietly dropping the parameter there would make a
+    network outage look like a capability decision.
+    """
+    if value not in REASONING_LEVELS:
+        return None
+    try:
+        from engine.lmstudio.registry import get_registry
+
+        info = get_registry().cached(model)
+    except Exception as exc:  # noqa: BLE001 -- never block a request on this
+        logger.debug("[native] Reasoning capability unknown for %s: %s", model, exc)
+        return value
+    if info is None:
+        return value
+    if info.accepts_reasoning(value):
+        return value
+    logger.debug(
+        "[native] Omitting reasoning=%s (operation=_payload, model=%s, "
+        "configurable=%s, allowed=%s)",
+        value,
+        model,
+        info.reasoning_configurable,
+        info.reasoning_options or "unspecified",
+    )
+    return None
+
+
 def messages_to_native(
     messages: list[dict[str, Any]],
 ) -> tuple[str, list[dict[str, str]]]:
@@ -234,8 +283,9 @@ class NativeClient:
         }
         if system_prompt:
             payload["system_prompt"] = system_prompt
-        if reasoning in REASONING_LEVELS:
-            payload["reasoning"] = reasoning
+        legal = reasoning_for(model, reasoning)
+        if legal is not None:
+            payload["reasoning"] = legal
         if context_length > 0:
             payload["context_length"] = context_length
         if integrations:

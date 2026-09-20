@@ -536,3 +536,251 @@ def test_the_backend_hands_both_budgets_to_the_transport():
 
     assert seen["reasoning_budget"] == resolve_profile("big").reasoning_budget
     assert seen["max_tokens"] == resolve_profile("big").max_tokens
+
+
+# -- reasoning the model does not expose ----------------------------------
+#
+# MEASURED, NOT GUESSED. `GET /api/v1/models` on the author's machine reports
+# 42 LLMs, and 30 of them carry NO `reasoning` key under `capabilities`:
+#
+#   lfm2.5-vl-3b-uncensored  {"vision": true, "trained_for_tool_use": true}
+#   gemma-4-e4b-it           {..., "reasoning": {"allowed_options": ["off","on"],
+#                                                "default": "on"}}
+#
+# Sending `reasoning` to one of the 30 is a 400:
+#
+#   Model 'lfm2.5-vl-3b-uncensored.gguf@q8_0' does not expose reasoning
+#   configuration.   (type=invalid_request, param=reasoning)
+#
+# which made the starvation net -- whose ENTIRE mechanism is to switch to this
+# transport and send `reasoning="off"` -- guaranteed to fail on 30 of 42 local
+# models. A live Wicked Garden turn starved, retried, took the 400, and the
+# planner logged "No plan, treating as silent": a two-agent story quietly
+# running on one agent, with nothing failing anywhere.
+#
+# `_capabilities` flattened the whole block to its `default` string, so both
+# "exposes no reasoning at all" and "exposes it, defaulting to off" arrived
+# downstream as "". The information needed to avoid the 400 was in the payload
+# the engine already fetched, and was parsed away.
+
+
+def _installed(capabilities: dict) -> None:
+    """Make the process-wide registry hold one model with these capabilities."""
+    from engine.lmstudio import registry as registry_module
+    from engine.lmstudio.registry import ModelRegistry, parse_models_payload
+
+    registry = ModelRegistry(base_url="http://test.local/v1")
+    registry._models = parse_models_payload(
+        {
+            "models": [
+                {
+                    "key": "probe-model",
+                    "type": "llm",
+                    "architecture": "test_arch",
+                    "max_context_length": 4096,
+                    "loaded_instances": [],
+                    "capabilities": capabilities,
+                }
+            ]
+        }
+    )
+    registry_module._registry = registry
+
+
+def _reasoning_sent(value: str, capabilities: dict, *, model: str = "probe-model"):
+    """The `reasoning` key this payload would carry, or None when omitted."""
+    from engine.lmstudio.registry import reset_registry
+
+    _installed(capabilities)
+    try:
+        client = NativeClient(base_url="http://test.local/v1")
+        payload = client._payload(
+            [{"role": "user", "content": "hello"}],
+            model=model,
+            temperature=0.5,
+            max_tokens=100,
+            reasoning=value,
+            context_length=4096,
+            stream=False,
+        )
+        client.close()
+        return payload.get("reasoning")
+    finally:
+        reset_registry()
+
+
+def test_a_model_that_exposes_no_reasoning_config_is_sent_no_reasoning_key():
+    """OMITTED, not set to "off". "off" is precisely what produced the 400."""
+    sent = _reasoning_sent("off", {"vision": True, "trained_for_tool_use": True})
+    assert sent is None, (
+        "sent a reasoning key to a model that publishes no reasoning "
+        "configuration; this is the 400 that silenced an agent"
+    )
+
+
+def test_a_model_that_exposes_reasoning_still_gets_the_key():
+    """
+    The positive control.
+
+    A fix that simply stopped sending `reasoning` would pass the test above and
+    destroy the only thing this transport exists for -- this module's own
+    docstring calls the native endpoint "the ONLY way to stop a reasoning model
+    from spending the whole budget thinking".
+    """
+    sent = _reasoning_sent(
+        "off", {"reasoning": {"allowed_options": ["off", "on"], "default": "on"}}
+    )
+    assert sent == "off"
+
+
+def test_a_value_the_model_does_not_allow_is_not_sent():
+    """
+    `allowed_options` is the server's own list, and it was parsed away.
+
+    gemma publishes ["off", "on"]. "low" is a legal native level and an illegal
+    value FOR THIS MODEL -- a 400 of exactly the same family, from the opposite
+    direction.
+    """
+    sent = _reasoning_sent(
+        "low", {"reasoning": {"allowed_options": ["off", "on"], "default": "on"}}
+    )
+    assert sent is None
+
+
+def test_a_block_with_no_allowed_options_is_trusted_with_any_level():
+    """
+    Absent `allowed_options` means "unspecified", not "none permitted".
+
+    The distinction that matters is whether the BLOCK exists; a server that
+    stops publishing the option list must not silently disable reasoning
+    control for every model at once.
+    """
+    sent = _reasoning_sent("off", {"reasoning": {"default": "on"}})
+    assert sent == "off"
+
+
+def test_an_unknown_model_is_unchanged():
+    """
+    Offline, or a model the registry has never seen, keeps today's behaviour.
+
+    An empty registry means the server was unreachable, in which case the
+    request is not going to succeed on any grounds -- and quietly changing what
+    we send would make a network outage look like a capability decision.
+    """
+    from engine.lmstudio.registry import reset_registry
+
+    reset_registry()
+    client = NativeClient(base_url="http://test.local/v1")
+    payload = client._payload(
+        [{"role": "user", "content": "hello"}],
+        model="never-heard-of-it",
+        temperature=0.5,
+        max_tokens=100,
+        reasoning="off",
+        context_length=4096,
+        stream=False,
+    )
+    assert payload["reasoning"] == "off"
+    client.close()
+
+
+class _RecordingNative:
+    """Captures the retry's arguments instead of issuing it."""
+
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    def chat(self, messages, **kwargs):
+        self.calls.append(kwargs)
+        return "recovered"
+
+
+def _retry(capabilities: dict, *, starved, cap: int = 320):
+    from engine.lmstudio.backend import LMStudioBackend
+    from engine.lmstudio.profiles import ModelProfile
+    from engine.lmstudio.registry import reset_registry
+
+    _installed(capabilities)
+    try:
+        native = _RecordingNative()
+        backend = LMStudioBackend()
+        backend.native_available = lambda: True  # type: ignore[method-assign]
+        backend.native_client = lambda: native  # type: ignore[method-assign]
+        result = backend._retry_without_reasoning(
+            [{"role": "user", "content": "hello"}],
+            ModelProfile(
+                name="big",
+                model="probe-model",
+                max_tokens=cap,
+                reasoning_budget=3200,
+                reasoning="on",
+            ),
+            cap=cap,
+            temperature=0.7,
+            label="test",
+            starved=starved,
+        )
+        return result, native.calls
+    finally:
+        reset_registry()
+
+
+class _Starved:
+    def __init__(self, reasoning_tokens: int) -> None:
+        self.reasoning_tokens = reasoning_tokens
+
+
+def test_a_model_that_cannot_stop_thinking_is_retried_with_measured_room():
+    """
+    The retry has to buy the answer space BESIDE the thinking, not instead.
+
+    Measured live: content_budget=320, reasoning_budget=3200, wire_cap=3520 --
+    the model spent 3320 tokens thinking and returned empty content. The old
+    retry asked for `reasoning="off"`, which is a 400 for this model AND, had
+    it been accepted, would have dropped the ceiling to 320, since `wire_cap`
+    returns the content budget unchanged when reasoning is off. The second
+    attempt would have had LESS room than the one that just starved.
+
+    The new ceiling is what the model actually spent plus the full content
+    budget. No magic multiplier: the number comes from what this model just did
+    with this prompt.
+    """
+    result, calls = _retry(
+        {"vision": True, "trained_for_tool_use": True}, starved=_Starved(3320)
+    )
+    assert result == "recovered"
+    assert len(calls) == 1
+    assert calls[0]["max_tokens"] == 3320 + 320
+    # Not "off": that is the 400. The key is dropped on the wire by
+    # native.reasoning_for, which has its own tests above.
+    assert calls[0]["reasoning"] != "off"
+    assert calls[0]["reasoning_budget"] == 0
+
+
+def test_a_model_that_can_stop_thinking_still_gets_reasoning_off():
+    """
+    The positive control: the original net is intact for models that have a
+    knob, and it still spends the whole ceiling on the answer.
+    """
+    result, calls = _retry(
+        {"reasoning": {"allowed_options": ["off", "on"], "default": "on"}},
+        starved=_Starved(3320),
+    )
+    assert result == "recovered"
+    assert calls[0]["reasoning"] == "off"
+    assert calls[0]["max_tokens"] == 320
+
+
+def test_with_no_measurement_the_retry_stands_down():
+    """
+    Nothing to size the retry from, so it does not spend a player's turn.
+
+    Same argument the method already makes about the OpenAI-compatible
+    endpoint: a retry certain to starve again costs a full generation and
+    cannot do better.
+    """
+    result, calls = _retry(
+        {"vision": True, "trained_for_tool_use": True}, starved=_Starved(0)
+    )
+    assert result is None
+    assert calls == []

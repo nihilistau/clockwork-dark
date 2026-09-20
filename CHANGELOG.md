@@ -14,6 +14,48 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-09-20
+
+### Fixed
+
+- **A model with no reasoning knob silenced an agent, and a two-agent story ran
+  on one.** The starvation net switches to the native transport and sends
+  `reasoning="off"` — and not every model accepts the parameter at all:
+
+      Model 'lfm2.5-vl-3b-uncensored.gguf@q8_0' does not expose reasoning
+      configuration.   (type=invalid_request, param=reasoning)
+
+  Measured against the live server: **30 of 42 local LLMs publish no `reasoning`
+  block**, so the net was guaranteed to fail for most of them. The 400 became an
+  exception, the planner logged "No plan, treating as silent", and The Wicked
+  Garden negotiated with one agent instead of two. Nothing failed anywhere.
+- **Root cause was in the parser, two layers up.** `registry._capabilities`
+  flattened the whole `capabilities.reasoning` block to its `default` string, so
+  "exposes no reasoning at all" and "exposes it, defaulting to off" both arrived
+  downstream as `""`. The fact needed to avoid the 400 was in a payload the
+  engine already fetched, and was parsed away. `ModelInfo` now carries
+  `reasoning_configurable` and the server's own `allowed_options`.
+- `native.reasoning_for` omits the key for a model that cannot take it, and
+  refuses a value outside `allowed_options` — gemma publishes `["off","on"]`, so
+  `"low"` is a legal native level and an illegal value for that model. An
+  unknown model is unchanged: an empty registry means the server was
+  unreachable, and quietly dropping the parameter there would make a network
+  outage look like a capability decision.
+- **The retry now buys room instead of asking for less.** `wire_cap` returns the
+  content budget *unchanged* when reasoning is off, so even without the 400 the
+  second attempt would have carried 320 tokens where the attempt that starved
+  carried 3,520. For a model that thinks whatever you ask it, the retry now
+  sizes its ceiling from what the model *measurably just spent* thinking plus
+  the full content budget — no magic multiplier. With no measurement it stands
+  down rather than spend a player's turn on a coin flip.
+- `ModelRegistry.cached` looks a model up without touching the network, because
+  a lookup while building a request body must not put discovery inside the
+  request it is about to send.
+
+Verified live, not only against fixtures: the same Garden turn that previously
+logged the 400 now logs `Planned (agent=gm)`, `Planned (agent=sophia)` and
+`Turn negotiated (lead=gm, agents=2, resolutions=1)`.
+
 ## [0.6.0] — 2026-09-20
 
 ### Added
@@ -227,7 +269,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.4.0...v0.5.0

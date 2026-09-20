@@ -97,6 +97,31 @@ class ModelInfo:
     capabilities: tuple[str, ...] = field(default_factory=tuple)
     #: ``capabilities.reasoning.default`` as v1 reports it: "on", "off" or "".
     reasoning_default: str = ""
+    #: Whether ``capabilities`` carried a ``reasoning`` BLOCK at all.
+    #:
+    #: Not the same question as ``is_reasoning``, and conflating them cost an
+    #: agent its turn. 30 of the 42 LLMs measured on the author's machine
+    #: publish no reasoning block, and sending those a ``reasoning`` key --
+    #: including ``"off"`` -- is a 400: "does not expose reasoning
+    #: configuration". This flag was not recoverable downstream, because
+    #: ``_capabilities`` flattened the block to its ``default`` string and an
+    #: absent block and a block defaulting to off both arrived as "".
+    reasoning_configurable: bool = False
+    #: ``capabilities.reasoning.allowed_options``, the server's own list of
+    #: what this model will accept. Empty means unspecified, NOT "none".
+    reasoning_options: tuple[str, ...] = field(default_factory=tuple)
+
+    def accepts_reasoning(self, value: str) -> bool:
+        """
+        Whether this model will take ``reasoning=<value>`` without a 400.
+
+        Two independent refusals, both of them measured:
+          * no reasoning block -> the parameter itself is rejected
+          * a block with ``allowed_options`` -> anything outside it is rejected
+        """
+        if not self.reasoning_configurable:
+            return False
+        return not self.reasoning_options or value in self.reasoning_options
 
     @property
     def is_loaded(self) -> bool:
@@ -211,7 +236,7 @@ def _loaded_context(instances: Any) -> int:
     return best
 
 
-def _capabilities(raw: Any) -> tuple[tuple[str, ...], str]:
+def _capabilities(raw: Any) -> tuple[tuple[str, ...], str, bool, tuple[str, ...]]:
     """
     Flatten v1's capability OBJECT into the flat names the engine asks about.
 
@@ -220,7 +245,7 @@ def _capabilities(raw: Any) -> tuple[tuple[str, ...], str]:
     Returns (names, reasoning_default).
     """
     if not isinstance(raw, dict):
-        return (), ""
+        return (), "", False, ()
     names: list[str] = []
     if raw.get("trained_for_tool_use"):
         names.append("tool_use")
@@ -228,14 +253,24 @@ def _capabilities(raw: Any) -> tuple[tuple[str, ...], str]:
         names.append("vision")
     reasoning = raw.get("reasoning")
     default = ""
-    if isinstance(reasoning, dict):
+    options: tuple[str, ...] = ()
+    # The PRESENCE of the block is its own fact, and the one this parser used
+    # to throw away: it is what says whether the `reasoning` parameter may be
+    # sent at all. See ModelInfo.reasoning_configurable.
+    configurable = isinstance(reasoning, dict)
+    if configurable:
         default = str(reasoning.get("default") or "")
-    return tuple(names), default
+        raw_options = reasoning.get("allowed_options")
+        if isinstance(raw_options, (list, tuple)):
+            options = tuple(str(o) for o in raw_options if o)
+    return tuple(names), default, configurable, options
 
 
 def _parse(raw: dict[str, Any]) -> ModelInfo:
     """One entry of ``GET /api/v1/models``."""
-    caps, reasoning_default = _capabilities(raw.get("capabilities"))
+    caps, reasoning_default, configurable, options = _capabilities(
+        raw.get("capabilities")
+    )
     instances = raw.get("loaded_instances") or []
     return ModelInfo(
         # `key`, not `id`. The value is the same string the chat routes want.
@@ -250,6 +285,8 @@ def _parse(raw: dict[str, Any]) -> ModelInfo:
         loaded_context_length=_loaded_context(instances),
         capabilities=caps,
         reasoning_default=reasoning_default,
+        reasoning_configurable=configurable,
+        reasoning_options=options,
     )
 
 
@@ -427,6 +464,22 @@ class ModelRegistry:
     def chat_models(self) -> list[ModelInfo]:
         """Every model that could serve a chat request, loaded or not."""
         return [m for m in self.models() if m.is_chat_model and m.id not in DENYLIST]
+
+    def cached(self, model_id: str) -> Optional[ModelInfo]:
+        """
+        Look a model up WITHOUT touching the network. None when not discovered.
+
+        ``get`` below refreshes on a cold cache, which is right for callers
+        choosing a model and wrong for callers building a request body: by then
+        a model has already been bound, so a lookup that can make an HTTP call
+        would put discovery inside the request it is about to send -- and inside
+        a player's turn. None is a real answer here, meaning "nothing measured",
+        and the caller decides what to do with it.
+        """
+        for model in self._models or ():
+            if model.id == model_id:
+                return model
+        return None
 
     def get(self, model_id: str) -> Optional[ModelInfo]:
         for model in self.models():

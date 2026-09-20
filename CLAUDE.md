@@ -64,8 +64,8 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.
 Overhaul III (reachability) complete.**
-**1880 passing, 3 skipped in 4m10s**, no expected failures (measured
-2026-09-20), plus **127 client tests** under `ui/tests/` (`npm test --prefix ui`,
+**1890 passing, 3 skipped in 4m24s**, no expected failures (measured
+2026-09-20), plus **138 client tests** under `ui/tests/` (`npm test --prefix ui`,
 which needs `npm install --prefix ui` once — `vitest` is a devDependency). Run
 both for the real numbers rather than trusting this line; it has been stale
 before — and was again: it read "2020 passing, 18 skipped" for a month after
@@ -187,9 +187,9 @@ being up") and was the only file that did.
 **`npm test` needs its devDependencies installed**, which a `ui/node_modules`
 carrying only the runtime does not have — `vitest` is a devDependency and the
 script fails with "'vitest' is not recognized" until `npm install --prefix ui`
-has run once. The 127 above is measured, not inherited: 5 files, 127 passing
-(store, veiled, narrative-log, choice-row, plugin-contract), re-measured
-2026-09-20.
+has run once. The 138 above is measured, not inherited: 6 files, 138 passing
+(store, veiled, narrative-log, choice-row, negotiation-panel, plugin-contract),
+re-measured 2026-09-20.
 
 Two fixes landed from playing against a live LM Studio. **The evaluator checks
 the cast** (`engine/agents/cast.py`): the persona's "never introduce a named
