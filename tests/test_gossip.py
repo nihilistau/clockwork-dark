@@ -247,3 +247,76 @@ def test_nobody_is_told_their_own_news(peopled) -> None:
             body = note.split(":", 1)[1].strip() if ":" in note else ""
             body = body[len("they say ") :] if body.startswith("they say ") else body
             assert _key(body) not in own, f"{who} was told their own news: {note}"
+
+
+def test_a_rumour_can_reach_a_third_hand_telling_in_a_small_village(peopled) -> None:
+    """
+    The cast was the cap, not the dice.
+
+    Keyed on the fact alone, a listener who had heard something could never
+    hear it again -- and the flagship schedules FIVE NPCs, which a fact
+    saturates in about four tellings, so the third-hand version had nowhere
+    left to go. Measured across 40 runs of 80 tellings: a second hop in 37, a
+    third in only 12. Raising `SPREAD_CHANCE` from 0.35 to 0.8 did not move
+    that at all -- it made the same small number of tellings happen sooner.
+
+    Hop-aware dedupe took the third hop from 12/40 to 33/40 at the SAME dial,
+    for about two extra notes across eighty tellings. This asserts the shape
+    rather than the percentage: over a long enough run in a room full of
+    people, a story gets all the way to "going round".
+    """
+    from engine.world.gossip import spread as spread_fn
+
+    state, ledger = peopled.engine.state, peopled.ledger
+    rng = random.Random(3)
+    for _ in range(200):
+        spread_fn(state, ledger, rng=rng)
+
+    assert any("going round" in n for n in _notes(ledger)), _notes(ledger)
+
+
+def test_the_same_story_never_arrives_twice_the_same_way(peopled) -> None:
+    """
+    Hearing it again is allowed; hearing it again IDENTICALLY is not.
+
+    The rule is that a retelling must be strictly further from its source than
+    the version the listener already holds. Without that, allowing a repeat at
+    all would let one sentence arrive forever.
+    """
+    from engine.world.gossip import spread as spread_fn
+
+    state, ledger = peopled.engine.state, peopled.ledger
+    rng = random.Random(3)
+    for _ in range(200):
+        spread_fn(state, ledger, rng=rng)
+
+    for who, rec in ledger.relations.items():
+        heard = [n for n in rec.notes if n.startswith("heard ")]
+        assert len(heard) == len(set(heard)), f"{who} was told the same thing twice: {heard}"
+
+
+def test_no_note_ever_carries_a_raw_npc_id(peopled) -> None:
+    """
+    These notes reach the NARRATOR, through `_dossier` in prompts.py.
+
+    A prompt containing `npc_villager_3` is a prompt that can put
+    `npc_villager_3` on the player's screen -- the same class of leak as a
+    choice rendering its own intent id (v0.6.2). The ledger's remembered name
+    is used when there is one, the story's schedule name when it declares one,
+    and "somebody" otherwise, which is both safe and true: if nobody has named
+    this person yet, nobody has named them.
+    """
+    from engine.world.gossip import spread as spread_fn
+
+    state, ledger = peopled.engine.state, peopled.ledger
+    rng = random.Random(3)
+    for _ in range(120):
+        spread_fn(state, ledger, rng=rng)
+
+    # Only the ATTRIBUTION, which is the part gossip writes. The fact text
+    # after the colon is carried verbatim and is the ledger's -- this fixture
+    # happens to put ids in it, and rewriting an authored fact would be a
+    # different and much worse bug.
+    attributions = [n.split(":", 1)[0] for n in _notes(ledger)]
+    leaked = [a for a in attributions if "npc_" in a]
+    assert not leaked, f"raw ids reached a narrator-visible attribution: {leaked}"

@@ -80,6 +80,43 @@ def _key(text: str) -> str:
     return "said:" + " ".join(text.lower().split())
 
 
+def _unnamed_speaker(npc_id: str) -> str:
+    """
+    What to call a teller the ledger has no name for.
+
+    NEVER THE RAW ID. These notes reach the narrator through `_dossier` in
+    engine/agents/prompts.py, and a prompt containing `npc_villager_3` is a
+    prompt that can put `npc_villager_3` on the player's screen -- the same
+    class of leak as a choice rendering its own intent id. The story's
+    schedule is asked first because some stories give their cast display names
+    there; a story that does not gets "somebody", which is both safe and true:
+    if the ledger has no name, nobody has introduced this person yet.
+    """
+    try:
+        from engine.world.npc_sim import load_npc_schedules
+
+        row = ((load_npc_schedules() or {}).get("npcs") or {}).get(npc_id) or {}
+        declared = str(row.get("name") or "").strip()
+        if declared:
+            return declared
+    except Exception as exc:  # noqa: BLE001 -- a name must not cost a turn
+        logger.debug("[gossip] No schedule name for %s: %s", npc_id, exc)
+    return "somebody"
+
+
+def _heard_hops(record: Any, fact_key: str) -> list[int]:
+    """At what removes this listener has already been told this fact."""
+    found: list[int] = []
+    for known in record.known_facts:
+        if not isinstance(known, str) or not known.startswith(f"{fact_key}#h"):
+            continue
+        try:
+            found.append(int(known.rsplit("#h", 1)[1]))
+        except ValueError:  # a key from before hops were recorded
+            found.append(1)
+    return found
+
+
 def _body_of(note: str) -> str:
     """
     The fact inside a heard-note, ready to be told again. "" if there is none.
@@ -235,9 +272,26 @@ def spread(
 
     record = ledger.subject(listener, kind="npc")
     # Keyed on the TEXT, not on a fact id, because half of what can be told is
-    # now a note and a note has no id. One key space, so hearing a thing twice
-    # by two routes is still hearing it once.
-    if fact_key in record.known_facts:
+    # now a note and a note has no id.
+    #
+    # AND ON THE HOP, which is what lets a rumour finish travelling. Keyed on
+    # the fact alone, a listener who had heard something could never hear it
+    # again -- and in a five-NPC village that is everybody within about four
+    # tellings, so the third-hand version had nowhere left to go. Measured
+    # across 40 runs of 80 tellings: a second hop in 37, a third in 12, and
+    # raising SPREAD_CHANCE from 0.35 to 0.8 did not move that at all. It made
+    # the same small number of tellings happen sooner. The cast was the cap,
+    # not the dice.
+    #
+    # So you may hear a story again if the version reaching you is FURTHER
+    # from its source than the one you hold. That is not a repeat: "someone
+    # was asking about the tinker" arriving after you were told who and when
+    # is new information about how far the thing has travelled, and it is the
+    # shape a rumour actually has. Bounded three ways -- strictly more
+    # degraded each time, MAX_HOPS overall, and MAX_HEARD_PER_SUBJECT on the
+    # record -- so it cannot become the same sentence arriving forever.
+    heard_at = _heard_hops(record, fact_key)
+    if heard_at and hops <= min(heard_at):
         return []
     # Nobody is told their own news. Once a fact can travel more than one hop
     # it can come back round to the person it started with -- measured, and it
@@ -248,10 +302,10 @@ def spread(
         return []
 
     names = getattr(ledger, "names", {}) or {}
-    speaker_name = names.get(speaker) or speaker
+    speaker_name = names.get(speaker) or _unnamed_speaker(speaker)
 
     line = retell(fact_text, speaker_name, hops=hops, source=source)
-    record.known_facts.append(fact_key)
+    record.known_facts.append(f"{fact_key}#h{hops}")
     if not line:
         # Past the cap. Marked known anyway, so it stops being offered to this
         # listener: the rumour dies rather than circulating forever.

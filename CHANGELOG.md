@@ -14,6 +14,45 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.7.2] — 2026-09-23
+
+### Changed
+
+- **A rumour now finishes travelling inside a session.** v0.7.0 shipped the
+  three-hop decay and the third form — "heard it going round" — almost never
+  arrived. Measured over 40 runs of 80 tellings: a second hop in 37, a third in
+  **12**. And raising `SPREAD_CHANCE` from 0.35 to 0.8 did not move it at all
+  (9–13 of 40 across the whole sweep); it only made the same small number of
+  tellings happen sooner. **The cast was the cap, not the dice.** Dedupe was
+  keyed on the fact alone, so a listener who had heard something could never
+  hear it again — and the flagship schedules five NPCs, which a fact saturates
+  in about four tellings, leaving the third-hand version nowhere to go.
+
+  Dedupe is keyed on the fact **and the hop** now: you may hear a story again
+  if the version reaching you is further from its source than the one you hold.
+  That is not a repeat — "someone was asking about the tinker", arriving after
+  you were told who and when, is new information about how far the thing has
+  travelled. Bounded three ways: strictly more degraded each time, `MAX_HOPS`
+  overall, and `MAX_HEARD_PER_SUBJECT` on the record.
+
+      third hop   12/40 -> 33/40 runs, median turn 38
+      notes/80    7.6   -> 9.6 mean
+
+  `SPREAD_CHANCE` is **unchanged at 0.35**. The sweep showed the dial was never
+  the problem, and one thing changed at a time.
+
+### Fixed
+
+- **A raw NPC id could reach the narrator.** Gossip attributed a telling to
+  `names.get(speaker) or speaker`, so an NPC the ledger had not named yet was
+  written into the note as `npc_villager_3` — and these notes reach the prompt
+  through `_dossier`, which means a prompt that can put that string on the
+  player's screen. Same class as a choice rendering its own intent id (v0.6.2).
+  The story's schedule name is used when it declares one, and "somebody"
+  otherwise, which is safe and true: if nobody has named this person, nobody
+  has named them. The fact TEXT is still carried verbatim — rewriting an
+  authored fact would be a different and much worse bug.
+
 ## [0.7.1] — 2026-09-23
 
 ### Changed
@@ -429,7 +468,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/nihilistau/clockwork-dark/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.1...v0.6.2
