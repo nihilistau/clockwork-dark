@@ -198,6 +198,11 @@ class WorldSim:
                 e for e in state.world_events if e.get("event_id") != event.event_id
             ]
             state.world_events.append(event.to_dict())
+            text = str(event.payload.get("text") or "")
+            if text:
+                from engine.game import moved
+
+                moved.note(state, "event", text, location_id=event.location_id)
             rumor = event.payload.get("rumor")
             if rumor and rumor not in state.rumors:
                 state.rumors.append(str(rumor))

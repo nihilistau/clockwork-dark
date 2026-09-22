@@ -30,7 +30,7 @@ def _rich_state() -> GameState:
         story_pressure=61.0,
         inventory=[InventoryItem(id="loaf", name="Loaf", qty=2, tags=["food"])],
         reputations={"edgewood": 12, "militia": -30},
-        storyteller_mind=AgentMind(patience=3.0, cruelty_bias=0.9),
+        storyteller_mind=AgentMind(patience=3.0, trust_level=91.0),
         assistant_mind=AgentMind(trust_level=95.0, current_form="reflection"),
         procgen=ProcgenResult(seed=1234, shrine_mural="a wheel with no rim"),
         flags={"met_maris": True},

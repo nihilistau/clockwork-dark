@@ -361,16 +361,16 @@ def work(
     from engine.game.clock import advance_time
 
     if not configured():
-        return {"success": False, "message": "There is no paid work in this story."}
+        return {"success": False, "worked": False, "message": "There is no paid work in this story."}
 
     job = get_job(job_id)
     if job is None:
-        return {"success": False, "job_id": job_id, "message": f"No such work: {job_id}."}
+        return {"success": False, "worked": False, "job_id": job_id, "message": f"No such work: {job_id}."}
 
     where = str(job.get("location_id") or "")
     if where and where != state.location_id:
         return {
-            "success": False,
+            "success": False, "worked": False,
             "job_id": job_id,
             "message": f"That work happens at {where}, not here.",
         }
@@ -378,7 +378,7 @@ def work(
     demand = demand_multiplier(state, job)
     if demand <= 0:
         return {
-            "success": False,
+            "success": False, "worked": False,
             "job_id": job_id,
             "message": "Nobody is hiring for that. Not now.",
             "phase": state.evil_phase.value,
@@ -386,21 +386,21 @@ def work(
 
     ok, reason = _requirements_met(state, job)
     if not ok:
-        return {"success": False, "job_id": job_id, "message": reason}
+        return {"success": False, "worked": False, "job_id": job_id, "message": reason}
 
     cfg = _cfg()
     day_cap = int(cfg.get("shifts_per_day", 2) or 0)
     repeat_cap = int(cfg.get("repeats_per_day", 1) or 0)
     if day_cap and shifts_worked(state) >= day_cap:
         return {
-            "success": False,
+            "success": False, "worked": False,
             "job_id": job_id,
             "message": "You have already given this day everything it is going to get.",
             "shifts_worked": shifts_worked(state),
         }
     if repeat_cap and shifts_worked(state, job_id) >= repeat_cap:
         return {
-            "success": False,
+            "success": False, "worked": False,
             "job_id": job_id,
             "message": "That shift is done for today.",
         }
@@ -459,7 +459,11 @@ def work(
         if not faction or not delta:
             continue
         delta = _plateau(state, faction, delta)
-        after = reputation_module.adjust(state, faction, delta, reason=f"work:{job_id}")
+        effects_module.apply_effect(
+            state,
+            {"type": "reputation", "faction": faction, "delta": delta, "why": f"work:{job_id}"},
+        )
+        after = reputation_module.get(state, faction)
         standing_moved.append(
             {
                 "faction": faction,
@@ -486,7 +490,13 @@ def work(
     )
 
     return {
+        # TWO QUESTIONS, TWO KEYS. `success` is how the shift WENT; `worked` is
+        # whether it HAPPENED. They used to be one key, and `success` is what
+        # the intent layer reads to decide a refusal -- so every shift worked
+        # badly was narrated as never having happened at all, while its hours
+        # and stamina were really spent.
         "success": degree != "failure",
+        "worked": True,
         "job_id": job_id,
         "name": str(job.get("name") or job_id),
         "check": result.to_dict(),

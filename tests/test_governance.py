@@ -106,16 +106,6 @@ def test_legacy_pre_chain_delegates_to_governance():
     assert legacy == direct == prompt
 
 
-def test_legacy_media_chain_delegates_to_governance():
-    from engine.media.interceptors import run_media_interceptors
-
-    state = GameState()
-    data = run_media_interceptors(state, narration="A quiet street.")
-    # Shape is MediaPipelineResult.to_dict(); the contract is that it is still
-    # a dict and still produced, not what the media pipeline chose to do.
-    assert isinstance(data, dict)
-
-
 # -- directive phase --------------------------------------------------------
 
 
@@ -143,9 +133,9 @@ def test_evil_phase_tone_shifts_with_the_phase():
 
 
 def test_storyteller_mind_is_silent_when_the_knobs_are_neutral():
+    # No hand-set knobs any more. This test used to have to set cruelty_bias
+    # to 0.35 to get silence, which was the bug: the default was not neutral.
     state = GameState()
-    state.storyteller_mind.cruelty_bias = 0.35
-    state.storyteller_mind.reward_generosity = 0.5
     state.storyteller_mind.patience = 80.0
     assert StorytellerMind().run_pre(state, "base") == "base"
 

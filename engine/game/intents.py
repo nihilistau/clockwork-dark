@@ -237,7 +237,7 @@ def _buy(state: GameState) -> Optional[IntentVerb]:
         return None
 
     options: list[tuple[str, str]] = []
-    for npc_id in trade.vendors_at(state.location_id):
+    for npc_id in trade.vendors_at(state.location_id, state=state):
         listing = trade.browse(state, npc_id)
         if not listing.get("ok"):
             continue
@@ -249,7 +249,7 @@ def _buy(state: GameState) -> Optional[IntentVerb]:
                 (
                     f"{npc_id}/{row['item_id']}",
                     f"{row.get('name') or row['item_id']} from {vendor_name}, "
-                    f"{row.get('price')}g",
+                    + trade.currency_label(int(row.get("price") or 0)),
                 )
             )
     return IntentVerb("buy", tuple(options[:_MAX_OPTIONS])) if options else None
@@ -432,7 +432,7 @@ def _sell(state: GameState) -> Optional[IntentVerb]:
     try:
         from engine.game import trade
 
-        vendors = trade.vendors_at(state.location_id)
+        vendors = trade.vendors_at(state.location_id, state=state)
     except Exception as exc:  # noqa: BLE001 -- a story with no vendors
         _absent("vendors", exc)
         return None
@@ -764,11 +764,11 @@ REFUSAL_KEY_FOR_ACTION: dict[str, Optional[str]] = {
     "card": "ok",
     # `trade_sell` reports a refused sale the way `trade` does.
     "sell": "ok",
-    # `work` and `forage` both report a shift or a search that did not happen
-    # under `success`. Note this is NOT the same as a shift that went badly:
-    # a failed check still worked the hours, and those come back success=True
-    # with a poor outcome, exactly like `resolve_skill_check`.
-    "work": "success",
+    # `work` answers "did it happen" under its own key, `worked`, because its
+    # `success` is how the shift WENT -- reading that here marked every shift
+    # worked badly as refused. `forage` reports a search that happened under
+    # `success` whatever it found, so it is unaffected.
+    "work": "worked",
     "forage": "success",
     "set_piece": "ok",
     "challenge": "ok",

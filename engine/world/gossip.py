@@ -86,22 +86,13 @@ def _unnamed_speaker(npc_id: str) -> str:
 
     NEVER THE RAW ID. These notes reach the narrator through `_dossier` in
     engine/agents/prompts.py, and a prompt containing `npc_villager_3` is a
-    prompt that can put `npc_villager_3` on the player's screen -- the same
-    class of leak as a choice rendering its own intent id. The story's
-    schedule is asked first because some stories give their cast display names
-    there; a story that does not gets "somebody", which is both safe and true:
-    if the ledger has no name, nobody has introduced this person yet.
+    prompt that can put `npc_villager_3` on the player's screen. Delegates to
+    `npc_sim.display_name`, the one place every narrator-facing name now comes
+    from, which answers "somebody" when no table names this person.
     """
-    try:
-        from engine.world.npc_sim import load_npc_schedules
+    from engine.world.npc_sim import display_name
 
-        row = ((load_npc_schedules() or {}).get("npcs") or {}).get(npc_id) or {}
-        declared = str(row.get("name") or "").strip()
-        if declared:
-            return declared
-    except Exception as exc:  # noqa: BLE001 -- a name must not cost a turn
-        logger.debug("[gossip] No schedule name for %s: %s", npc_id, exc)
-    return "somebody"
+    return display_name(npc_id)
 
 
 def _heard_hops(record: Any, fact_key: str) -> list[int]:
@@ -314,6 +305,20 @@ def spread(
     heard = sum(1 for note in record.notes if note.startswith(_HEARD_PREFIX))
     if heard < MAX_HEARD_PER_SUBJECT:
         ledger.note(listener, line, kind="npc")
+
+    # Journalled AT THE ROOM it happened in, so it only reaches the prose when
+    # the player is standing there -- which is the scene worth having: you walk
+    # in on somebody telling somebody else about you. Anywhere else it stays
+    # off-screen, the way gossip should.
+    from engine.game import moved
+    from engine.world.npc_sim import display_name
+
+    moved.note(
+        state,
+        "gossip",
+        f"{speaker_name} is telling {display_name(listener, state)} about you: {fact_text}",
+        location_id=place_id,
+    )
 
     logger.debug(
         "[gossip] Fact travelled (operation=spread, from=%s, to=%s, at=%s)",

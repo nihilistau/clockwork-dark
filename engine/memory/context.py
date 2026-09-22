@@ -57,11 +57,16 @@ def default_budget() -> Budget:
 
 
 def present_npc_ids(state: GameState) -> tuple[str, ...]:
-    """NPC ids at the player's location, used to bias memory retrieval."""
+    """
+    NPC ids at the player's location, used to bias memory retrieval.
+
+    Asks the schedules, not procgen. This returned ``()`` whenever
+    ``state.procgen.npcs`` was empty -- which it is for every story except the
+    flagship, whose villagers are the only procgen cast -- so in four of five
+    stories nobody was ever present, met, or given a dossier.
+    """
     from engine.world.world_sim import merge_npcs_at_location
 
-    if not state.procgen.npcs:
-        return ()
     return tuple(
         str(n.get("id"))
         for n in merge_npcs_at_location(state, state.location_id)
@@ -155,10 +160,17 @@ def build_storyteller_messages(
         present_npc_ids=npc_ids,
         location_id=str(getattr(state, "location_id", "") or ""),
         topic_ids=_declared_topics(state),
+        state=state,
     )
 
     blocks = BlockSet()
     blocks.add("persona", "system", storyteller_persona(), evictable=False)
+    # The world block below renders the moved journal. Marked, not drained: an
+    # evaluator retry rebuilds this prompt and must see the same lines. The
+    # turn clears what was shown once the narrator has written.
+    from engine.game import moved
+
+    moved.mark_shown(state)
     blocks.add(
         "world",
         "system",

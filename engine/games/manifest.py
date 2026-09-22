@@ -133,11 +133,16 @@ SETTING_ALLOWLIST: dict[str, str] = {
     "governance.directives": "GM prompt directive chain, by class name",
     "governance.commit": "pre-commit governor chain (veto authority), by class name",
     "governance.post": "post-turn governor chain, by class name",
-    "governance.media": "media governor chain, by class name",
     # -- set-piece pacing -------------------------------------------------
     # Budget and skip window only ever REDUCE what fires; neither can turn
     # generation on. The cost decision (media.live_generation, image_provider,
     # grok_timeout_seconds) stays with whoever owns the GPU.
+    # -- the narrator's disposition -----------------------------------------
+    # Tone knobs, not mechanics: they choose which GM directive line (if any)
+    # joins the prompt. Absent means no line at all -- which is the default,
+    # because a disposition every story shares is nobody's disposition.
+    "storyteller.cruelty_bias": "0..1; >= 0.5 leans harsher, <= 0.2 leans merciful",
+    "storyteller.reward_generosity": "0..1; >= 0.6 rewards clever play generously",
     "media.cutscene_budget": "which beats are allowed to spend a cutscene",
     "media.cutscene_skip_after_seconds": "how long a cutscene holds before it can be skipped",
 }

@@ -51,6 +51,35 @@ MODEL_ENDPOINTS = _model_endpoints()
 
 
 @pytest.fixture(autouse=True)
+def _no_story_outlives_its_test() -> Iterator[None]:
+    """
+    A story a test activates is deactivated when that test ends.
+
+    WHY THIS EXISTS. Nineteen test files call ``registry.activate`` and most
+    never undo it, so the story active at the start of any test was whatever
+    the PREVIOUS file left behind. The suite passed only because alphabetical
+    order happened to run flagship-activating files ahead of the ones that
+    assume the flagship -- measured in v0.8 when a new file ending on
+    neon-city sat in front of ``test_livelihood.py`` and failed 22 of its 41
+    tests, every one of which passes alone. The same class as the
+    ``_DOOM_DECLARED`` memo below: state that outlives the test that set it.
+
+    ONLY WHEN IT CHANGED. ``deactivate`` resets the whole config overlay, and a
+    per-test reset of everything was measured once before at 3m40s -> 6m35s.
+    Comparing the active manifest before and after means a test that never
+    touches activation pays nothing.
+    """
+    from engine.games import registry
+
+    before = registry.peek()
+    try:
+        yield
+    finally:
+        if registry.peek() is not before:
+            registry.deactivate()
+
+
+@pytest.fixture(autouse=True)
 def _content_caches_are_per_test() -> Iterator[None]:
     """
     Drop every memoized content answer after each test.

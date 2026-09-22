@@ -55,6 +55,7 @@ from typing import Any, Optional
 import yaml
 
 from engine.game import effects as effects_module
+from engine.game import moved as moved_module
 from engine.game.state import GameState
 
 logger = logging.getLogger(__name__)
@@ -146,6 +147,7 @@ def _apply_rumors(state: GameState, spec: dict[str, Any]) -> list[dict[str, str]
         if not text or text in state.rumors:
             continue
         state.rumors.append(text)
+        moved_module.note(state, "rumor", text)
         applied.append({"type": "rumor", "value": text})
     return applied
 
@@ -177,6 +179,12 @@ def _apply_world_events(
             }
         )
         known.add(event_id)
+        # The words, not the id. `_events_block` printed "- briar_pulse at None"
+        # and the authored sentence beside it reached no narrator.
+        if raw.get("text"):
+            moved_module.note(
+                state, "event", str(raw["text"]), location_id=str(raw.get("location_id") or "")
+            )
         applied.append({"type": "world_event", "value": event_id})
     return applied
 
@@ -282,7 +290,11 @@ def _apply_forced_scene(
             "beat": beat_id,
             "source": source,
             "forces_scene": scene_id,
-            "text": str(spec.get("text") or f"The story owes you: {scene_id}"),
+            # No fallback sentence. It used to be "The story owes you:
+            # <scene id>", which put a card id in front of the narrator the
+            # moment anything rendered this row's text. The director answers a
+            # forced scene; the prose does not need to be told it is owed.
+            "text": str(spec.get("text") or ""),
             "day": state.world_day,
             "expires_day": PERMANENT_HORIZON_DAY,
         }
@@ -663,6 +675,11 @@ def fire_beat(
     applied = apply_mutations(state, beat_id, spec, source=SOURCE_CLOCK, ledger=ledger)
     if not applied and has_fired(state, beat_id):
         return applied
+
+    # A beat's own sentence. Read before only when the beat forced a scene, so
+    # every other authored `text:` in a clock table reached nobody.
+    if spec.get("text"):
+        moved_module.note(state, "beat", str(spec["text"]))
 
     if "reset_to" in spec:
         try:

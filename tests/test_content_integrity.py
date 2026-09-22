@@ -344,9 +344,12 @@ def test_the_few_shots_are_set_somewhere_the_game_is_not():
 
 def test_the_few_shots_still_voice_real_npcs():
     """
-    Foreign scenery, real cast: `npc_id` is an enum built from whoever is in the
-    room, so an example naming an invented id would teach a shape the grammar
-    can never accept.
+    Foreign scenery, real cast: a ledger subject the examples teach must be an
+    NPC that exists, or the example teaches a fact the ledger will drop.
+
+    (It checked `npc_voices` too, until v0.8.0 removed that field: sampled
+    every turn, read by nothing, and in this very file a copy of dialogue
+    already in the narration.)
     """
     import json
 
@@ -357,11 +360,9 @@ def test_the_few_shots_still_voice_real_npcs():
         if row.get("role") != "assistant":
             continue
         payload = json.loads(row["content"])
-        for voice in payload.get("npc_voices") or []:
-            voiced.add(voice["npc_id"])
         for subject in (payload.get("ledger_delta") or {}).get("npc_disposition") or {}:
             voiced.add(subject)
-    assert voiced, "the examples no longer demonstrate npc_voices at all"
+    assert voiced, "the examples no longer file anything against a real NPC"
 
     schedules = _DATA / "world" / "npc_schedules.yaml"
     known = set((yaml.safe_load(schedules.read_text(encoding="utf-8")) or {}).get("npcs") or {})

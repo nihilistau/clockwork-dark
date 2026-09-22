@@ -233,7 +233,10 @@ def test_receipts_reach_the_narrator(
 
     block = receipts_block(receipts)
     assert "MECHANICAL RESULTS -- AUTHORITATIVE" in block
-    assert "query_evil_state" in block
+    # Rendered as words ("query evil state: phase stirring"), not as an id and
+    # a dict: the receipt reaching the narrator is the point, and the answer
+    # it carries is what the narration must report.
+    assert "query evil state" in block
     assert "stirring" in block
 
 

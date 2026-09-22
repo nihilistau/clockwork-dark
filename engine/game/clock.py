@@ -211,6 +211,28 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
 
     to_day, to_hour = state.world_day, state.world_hour
     if to_day != from_day:
+        # Story-declared world events, on the calendar rather than the wall
+        # clock -- see schedules.declared_events_due. Expiry runs here too: it
+        # used to run only on the background tick, so an event's window
+        # depended on how often real time happened to tick.
+        try:
+            from engine.game import effects as effects_module
+            from engine.world import schedules as schedules_module
+            from engine.world.world_sim import WorldSim
+
+            WorldSim.expire_events(state)
+            due = schedules_module.declared_events_due(state, from_day, to_day)
+            if due:
+                WorldSim.apply_events(state, due)
+                for event in due:
+                    flag = event.payload.get("fired_flag")
+                    if flag:
+                        effects_module.apply_effect(
+                            state, {"type": "flag", "flag": flag, "value": True}
+                        )
+        except ImportError:
+            pass
+
         # Contracts whose day has passed break on the rollover. Silence is an
         # answer too: a bargain the player quietly let lapse should cost them
         # the same as one they refused out loud.

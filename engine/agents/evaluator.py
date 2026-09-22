@@ -12,7 +12,7 @@ who is not present. Both are the same kind of error — the model asserting
 something the engine did not give it — and both are worth a retry even when the
 prose around them is good.
 
-Version: v0.2.0 [2026-08-14]
+Version: v0.3.0 [2026-09-23]
 """
 
 from __future__ import annotations
@@ -35,6 +35,59 @@ _MECHANICS_CLAIM = re.compile(
     r"against\s+dc\s*\d+"
     r")\b"
 )
+
+#: Registered skills that roll dice INSIDE themselves. A receipt from any of
+#: these IS the roll. Counting only `roll_dice` and `resolve_skill_check`
+#: scored a real work shift, honestly narrated as a success, at 0.2 and forced a
+#: retry -- which pushed the narrator AWAY from reporting real outcomes, the
+#: opposite of what this gate exists to do.
+ROLLING_SKILLS = frozenset(
+    {
+        "roll_dice",
+        "resolve_skill_check",
+        "work",
+        "forage",
+        "encounter_approach",
+        "resolve_scene_card",
+        "resolve_challenge",
+    }
+)
+
+# Anchored to a sentence start or a plain "and", so "Whether you succeed
+# tomorrow is another matter" and "You don't succeed" are not claims.
+_CLAIMS_SUCCESS = re.compile(
+    r"(?i)(?:^|[.!?]\s+|\band\s+)you\s+(?:succeed|manage\s+it|pull\s+it\s+off)\b"
+)
+_CLAIMS_ARRIVAL = re.compile(
+    r"(?i)(?:^|[.!?]\s+|\band\s+)you\s+(?:arrive|reach|come\s+out\s+at|step\s+into)\b"
+)
+
+
+def contradicts(narration: str, receipts: Sequence[Mapping[str, Any]]) -> str:
+    """
+    A note when the prose states the OPPOSITE of what the engine decided.
+
+    Deliberately narrow: two unambiguous opposites and nothing else -- success
+    narrated over a failed check, and arrival narrated over a refused move.
+    Anything subtler is a judgement a regex cannot make, and a gate that fires
+    on honest prose is a gate somebody deletes.
+
+    Returns:
+        A short note naming the contradiction, or "" when there is none.
+    """
+    for receipt in receipts:
+        result = receipt.get("result")
+        result = result if isinstance(result, Mapping) else {}
+        skill = receipt.get("skill")
+        if skill == "resolve_skill_check" and result.get("success") is False:
+            if _CLAIMS_SUCCESS.search(narration):
+                return "narrated success over a failed check"
+        if skill in ("move_to", "travel") and (
+            receipt.get("refused") or receipt.get("success") is False
+        ):
+            if _CLAIMS_ARRIVAL.search(narration):
+                return "narrated arrival over a refused move"
+    return ""
 
 
 @dataclass
@@ -70,6 +123,7 @@ class EvaluationResult:
             "valid_json": self.valid_json,
             "choices": self.choices,
             "cast": self.cast,
+            "continuity": self.continuity,
             "passed": self.passed,
             "notes": self.notes,
             "flag": self.flag,
@@ -229,8 +283,9 @@ class StorytellerEvaluator:
         penalty = 0.0
         if any(w in lower for w in ("fireball", "lol", "npc", "hit points", "mana bar")):
             penalty += 0.4
-        if any(w in lower for w in ("mist", "oven", "forest", "road", "village", "tinker")):
-            penalty -= 0.1
+        # No bonus for any story's nouns. This rewarded "mist", "oven" and
+        # "tinker" -- the flagship's village -- so every other story's
+        # narration scored lower for being set somewhere else.
         return max(0.0, min(1.0, 0.75 - penalty))
 
     @staticmethod
@@ -253,9 +308,17 @@ class StorytellerEvaluator:
         tool_receipts: list[dict[str, Any]],
         notes: list[str],
     ) -> float:
-        """Penalize dice/outcome claims without matching tool calls."""
+        """
+        Penalize dice/outcome claims without matching receipts, and prose that
+        contradicts the receipts it has.
+        """
+        contradiction = contradicts(narration, tool_receipts)
+        if contradiction:
+            notes.append(contradiction)
+            return 0.0
+
         skill_names = {r.get("skill") for r in tool_receipts}
-        has_roll = "roll_dice" in skill_names or "resolve_skill_check" in skill_names
+        has_roll = bool(skill_names & ROLLING_SKILLS)
 
         claims_mechanics = bool(_MECHANICS_CLAIM.search(narration))
         skill_check = parsed.get("skill_check")

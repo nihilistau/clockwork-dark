@@ -123,7 +123,11 @@ vendors:
   npc_odran:
     name: "Odran Cartwright"
     faction: merchants
-    location: tinker_caravan
+    # The square, where his schedule has him hawking off the cart tail from
+    # eight till seven. This said tinker_caravan, which no hour of his routine
+    # ever reaches -- a counter nobody could trade at once vendors were made to
+    # answer to their schedules.
+    location: edgewood_square
     deals_in: [trade, material, apparel, tool, food, light]
     # Wide, because his risk is. He is the one making the trip.
     spread: { buy: 1.35, sell: 0.4 }

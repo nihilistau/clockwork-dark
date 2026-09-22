@@ -114,6 +114,27 @@ def _cfg() -> dict[str, Any]:
     return load_rules().get("trade", {}) or {}
 
 
+#: How an amount of money is written when a story says nothing. Plain "g" is
+#: the flagship's, and the only default that reads as money in a fantasy
+#: register without naming a coin.
+DEFAULT_CURRENCY_FORMAT = "{n}g"
+
+
+def currency_label(amount: int) -> str:
+    """
+    An amount of this story's money, as the player and the narrator see it.
+
+    Story-declared as ``trade.currency_format`` in ``paths.tables``'
+    trade.yaml. The buy label hardcoded "g", so NEON CITY -- a credits economy
+    with a gold-mono ₵ in its own UI -- showed "330g" in the narrator's prompt.
+    """
+    fmt = str(_cfg().get("currency_format") or DEFAULT_CURRENCY_FORMAT)
+    try:
+        return fmt.format(n=int(amount))
+    except (KeyError, IndexError, ValueError):
+        return DEFAULT_CURRENCY_FORMAT.format(n=int(amount))
+
+
 @lru_cache(maxsize=8)
 def _read_economy(path_str: str, _mtime: float) -> dict[str, Any]:
     try:
@@ -177,9 +198,38 @@ def vendor_location(npc_id: str) -> str:
     return str(vendor(npc_id).get("location") or "")
 
 
-def vendors_at(location_id: str) -> list[str]:
-    """Every vendor whose counter is at a place."""
-    return sorted(k for k, v in vendors().items() if str(v.get("location") or "") == location_id)
+def vendors_at(location_id: str, *, state: Optional[GameState] = None) -> list[str]:
+    """
+    Every vendor trading at a place -- or, with no state, whose counter is there.
+
+    WITH STATE, the question is "who will sell to me here, now", and the answer
+    asks the schedules. This read only the static counter, so the buy and sell
+    intents offered a vendor whose own schedule had them in the forest: "sell to
+    npc_brindle" in the square at 11:00. A scheduled vendor trades at their
+    counter, while their schedule has them there, and while they are awake. A
+    vendor with no schedule row is always at their counter, as before.
+
+    WITHOUT STATE, it answers the map's question -- where is the stall -- which
+    is where a player would walk back to, whatever the hour.
+    """
+    counters = sorted(
+        k for k, v in vendors().items() if str(v.get("location") or "") == location_id
+    )
+    if state is None:
+        return counters
+
+    from engine.world import npc_sim
+
+    scheduled = (npc_sim.load_npc_schedules().get("npcs") or {}).keys()
+    trading: list[str] = []
+    for npc_id in counters:
+        if npc_id not in scheduled:
+            trading.append(npc_id)
+            continue
+        presence = npc_sim.resolve_npc(state, npc_id)
+        if presence is not None and presence.location_id == location_id and presence.available:
+            trading.append(npc_id)
+    return trading
 
 
 # ---------------------------------------------------------------------------
@@ -760,13 +810,16 @@ def sell(state: GameState, npc_id: str, item_id: str, qty: int = 1) -> dict[str,
         "gold": int(state.stats.gold),
         "quote": priced,
         "effects": applied,
-        "text": f"They count out {total}c for {qty}x {priced['item_name'].lower()}.",
+        "text": (
+            f"They count out {currency_label(total)} for {qty}x "
+            f"{priced['item_name'].lower()}."
+        ),
     }
 
 
 def snapshot(state: GameState) -> dict[str, Any]:
     """Who the player could trade with from where they stand."""
-    here = vendors_at(state.location_id)
+    here = vendors_at(state.location_id, state=state)
     return {
         "location_id": state.location_id,
         "vendors_here": [

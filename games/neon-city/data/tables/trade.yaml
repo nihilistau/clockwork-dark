@@ -17,6 +17,8 @@
 version: 1
 
 trade:
+  # Credits, written the way the plugin's gold mono draws them.
+  currency_format: "₵{n}"
   spread:
     buy: 1.20
     sell: 0.45

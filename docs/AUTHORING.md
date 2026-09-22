@@ -138,12 +138,14 @@ What is on the list, by family:
   `awareness.reflection_form_min`, `awareness.spoiler_gate_threshold`,
   `assistant.reflection_awareness_min`.
 - **The governance chains**: `comms.interceptors`, `governance.directives`,
-  `governance.commit`, `governance.post`, `governance.media` — by class name,
-  choosing among shipped behaviours; an unknown name is skipped with a
-  warning, so a story cannot introduce code. Every template shortens
-  `governance.directives` to `[SafetyDirective, StorytellerMind]`, the two
-  genuinely story-neutral shapers — the engine's fuller default chain narrates
-  a doom ledger your story probably does not keep.
+  `governance.commit`, `governance.post` — by class name, choosing among
+  shipped behaviours; an unknown name is skipped with a warning, so a story
+  cannot introduce code. Every template shortens `governance.directives` to
+  `[StorytellerMind]`, the genuinely story-neutral shaper — the engine's fuller
+  default chain narrates a doom ledger your story probably does not keep.
+- **The narrator's disposition**: `storyteller.cruelty_bias`,
+  `storyteller.reward_generosity` — optional; a story that sets neither gets
+  no disposition line at all.
 - **Set-piece pacing**: `media.cutscene_budget`,
   `media.cutscene_skip_after_seconds` — these only ever REDUCE what fires.
 

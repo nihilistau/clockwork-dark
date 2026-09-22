@@ -349,6 +349,28 @@ def known_npc_ids(state: GameState) -> list[str]:
     return ordered
 
 
+def display_name(npc_id: str, state: Optional[GameState] = None) -> str:
+    """
+    What the prose may call this person. NEVER the raw id.
+
+    Every consumer that renders a person for the narrator goes through here,
+    because each one that improvised its own lookup got it wrong in the same
+    way: ``ledger.names`` is keyed by PROPER NOUN (``remember_name(name,
+    gloss)``), so looking an npc id up in it always missed and the fallback
+    printed ``npc_maris`` into a prompt -- which is a prompt that can put
+    ``npc_maris`` on the player's screen.
+
+    The schedule is asked first because every story's cast lives there; the
+    flagship's procgen villagers second; and "somebody" last, which is true: if
+    no table names this person, nobody has introduced them.
+    """
+    row = (load_npc_schedules().get("npcs", {}) or {}).get(npc_id) or {}
+    name = str(row.get("name") or "").strip() if isinstance(row, dict) else ""
+    if not name and state is not None:
+        name = str((state.procgen.npc_by_id(npc_id) or {}).get("name") or "").strip()
+    return name or "somebody"
+
+
 def npcs_at(state: GameState, location_id: str) -> list[NPCPresence]:
     """
     Everyone currently at a location, asleep or awake.

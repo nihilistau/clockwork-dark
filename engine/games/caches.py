@@ -85,6 +85,8 @@ NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
     ("engine.game.quests", "_ARC_CACHE"),
     ("engine.game.quests", "_QUEST_CACHE"),
     ("engine.game.reputation", "_FACTION_CACHE"),
+    # Warn-once memory for forced scenes nothing can answer; per story.
+    ("engine.content.director", "_WARNED_FORCED"),
     ("engine.persistence.saves", "_store"),
 )
 

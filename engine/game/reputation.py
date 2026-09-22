@@ -169,8 +169,10 @@ def adjust(state: GameState, faction: str, delta: int, *, reason: str = "") -> i
         return get(state, faction)
 
     before = get(state, faction)
+    before_band = standing(state, faction)
     after = max(low, min(high, before + step))
     state.reputations[faction] = after
+    note_standing_change(state, faction, before_band)
 
     logger.info(
         "[reputation] Standing changed (operation=adjust, faction=%s, "
@@ -182,6 +184,25 @@ def adjust(state: GameState, faction: str, delta: int, *, reason: str = "") -> i
         reason or "unspecified",
     )
     return after
+
+
+def note_standing_change(state: GameState, faction: str, before_band: str) -> None:
+    """
+    Journal a faction band change for the narrator, in the band's own words.
+
+    A price that moved with no reason given is what reputation felt like in
+    play: the number changed, the vendor's greeting did not. The band label is
+    authored ("wary", "trusted"), so it is safe to hand the prose; the score is
+    not handed over at all.
+    """
+    after_band = standing(state, faction)
+    if after_band == before_band or after_band == _UNKNOWN_STANDING:
+        return
+    from engine.game import moved
+
+    row = (load_factions().get("factions", {}) or {}).get(faction) or {}
+    who = str(row.get("name") or faction.replace("_", " "))
+    moved.note(state, "standing", f"{who} now regard you as {after_band}")
 
 
 def standing(state: GameState, faction: str) -> str:

@@ -14,6 +14,133 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-23
+
+The audit release. No new mechanics: every item is a place where the engine
+knew something and the prose did not, or said one thing and did another. It is
+also the groundwork for HUE & CRY (`docs/superpowers/specs/2026-09-23-hue-and-cry-design.md`),
+whose whole game is who saw you -- which cannot be built on a narrator that does
+not know who is in the room.
+
+### Fixed
+
+- **In four of five stories, nobody was ever present.** `present_npc_ids` and
+  the PEOPLE HERE block returned early whenever `state.procgen.npcs` was empty,
+  and only the flagship runs procgen. So in the Garden, NEON CITY, THE LONG CON
+  and dev-story the narrator read *"PEOPLE HERE: (world not yet generated)"*
+  while the buy intent offered a present vendor's stock; the cast gate then
+  failed any prose naming her and the retry told the model to remove her; no
+  dossier was built and nobody was ever met; and every fact the model filed
+  against a person lost its subject, because `known_npc_ids` came from the same
+  empty list -- so gossip had nothing to spread. Presence now comes from the
+  schedules. One call, `npc_sim.display_name`, is where every narrator-facing
+  name comes from, and it never returns an id: the dossier printed
+  `npc_maris (npc_maris)` because `ledger.names` is keyed by proper noun and
+  was being looked up by id.
+- **The Wicked Garden's cast had no names.** Its eight schedule rows carried
+  neither `name` nor `role`, so presence rendered `ashen_vale: ashen_vale
+  (visitor)` -- and its own `role_defaults` for `bloomkin` and `court` could
+  never match a row. A guard now fails any shipped story with a nameless
+  scheduled person.
+- **The evaluator could not tell success from failure.** Only `roll_dice` and
+  `resolve_skill_check` counted as rolls, so a real `work` shift honestly
+  narrated as a success scored mechanics 0.2 and forced a retry -- pushing the
+  narrator AWAY from reporting outcomes. And nothing compared prose to receipt:
+  "You succeed" over a failed check passed. Every rolling skill counts now, and
+  a deliberately narrow check fails success-over-failure and
+  arrival-over-a-refused-move, with a counter-control suite of honest failure
+  prose it must not flag. `continuity` reaches the payload, which `to_dict` had
+  dropped.
+- **A shift worked badly was narrated as never having happened.** `work`
+  reported how the shift WENT under `success`, which is the key the intent
+  layer reads to decide whether it HAPPENED -- so the narrator was told "did
+  NOT happen" while the hours and stamina were really spent. It says `worked`
+  for the second question now.
+- **Veiled numbers reached the narrator.** `narration_block` printed `name
+  after` for every committed value, ignoring the receipt's `visibility` field;
+  veiled values render as band words now and hidden ones not at all.
+  `receipts_block` dumped any unrecognised result as a Python dict -- a forage
+  receipt measured ~1,600 characters, DC and "stamina 94" included. Every
+  receipt is one sentence now, and an unknown skill leaks nothing. The
+  `scene_begin` receipt no longer lists the hand.
+- **"Be merciful with consequences" went to every story on every turn.**
+  `cruelty_bias` defaulted to 0.2, nothing ever wrote it, and 0.2 trips the
+  merciful branch. The governance test proved it without meaning to: it had to
+  set the knob to 0.35 by hand to get silence. Both knobs are optional story
+  settings now (`storyteller.cruelty_bias`, `storyteller.reward_generosity`);
+  a story that sets neither gets no disposition line. Patience, which only ever
+  fell, recovers on a turn where the pressure comes down.
+- **Vendors traded from wherever their counter was, whoever was standing
+  there.** `vendors_at` read the static trade table, so the flagship offered
+  "sell to Brindle" in the square at 11:00 while her schedule had her in the
+  forest. A scheduled vendor trades at their counter, while there, awake.
+  Measuring every vendor against its schedule found a shop that could never
+  have opened honestly: Odran's counter was `tinker_caravan`, which no hour of
+  his routine reaches -- he hawks off the cart tail in the square. A guard
+  holds every shipped story to it.
+- **An agent's choice was lost whenever the narrator wrote four.** The
+  narrator's choices went first with a limit of four; a slot is reserved now.
+- **Reputation had two writers and two clamps.** `economy.work` called
+  `reputation.adjust` around `apply_effect` (rule 3), and the effect kind
+  clamped to a global -100..100 while `adjust` used the faction's own bounds.
+  One implementation now, reached only through `apply_effect`.
+- **The director looped on promises it could not keep.** A deck that dealt
+  nothing came due every turn, and a forced scene naming nothing logged a
+  WARNING every turn forever.
+- **One bad agent effect killed the whole turn.** `run_pipeline` re-raises a
+  commit failure after rolling it back and nothing caught it. The negotiation
+  is lost for that turn; the turn is not.
+- **The objectives block named a tool the model cannot call**
+  (`set_narrative_flag`) and listed flags already raised; its bare `except`
+  hid quest bugs without a log line.
+- **Money was always "g".** Currency is `trade.currency_format` per story --
+  NEON CITY `₵`, THE LONG CON `$`. The sale receipt said "c".
+- **The tone scorer rewarded the flagship's nouns**, and the negotiated-line
+  instruction said "her words" of every agent.
+- **A test that activated a story leaked it into the next file.** Nineteen
+  files call `registry.activate`; most never undo it, and the suite passed only
+  because alphabetical order ran flagship files first -- measured when a new
+  file ending on NEON CITY failed 22 of `test_livelihood.py`'s 41 tests, each of
+  which passes alone. An autouse fixture deactivates whatever a test changed,
+  and only then (a blanket reset was measured once at 3m40s -> 6m35s).
+
+### Added
+
+- **The world moved** (`engine/game/moved.py`). A per-turn journal each system
+  writes in its own words, rendered once as SINCE YOU LAST LOOKED: clock-beat
+  and world-event `text:` (about fifteen authored lines that reached no
+  narrator), clock rumours, promises broken, a veiled meter crossing a band,
+  a faction band change, and gossip overheard in the player's own room. Marked
+  when a prompt renders it and cleared once the narrator has written, so an
+  evaluator retry sees the same lines. HAPPENING NOW prints the story's words,
+  not `- briar_pulse at None (since day 1)`, and a forced scene no longer
+  carries the fallback text *"The story owes you: D8_06_briar_threshold"*.
+- **Story-declared world events.** An `events:` block in `world_schedules`:
+  `on_day`, `every_days`/`first_day`, or a `when:` predicate. Fired from the
+  day roll with no randomness, so they replay from the seed. Expiry runs on the
+  day roll too. The flagship's procgen festival -- generated per seed, read by
+  nothing -- now happens. Probabilistic events are NOT WIRED
+  (`docs/GOVERNANCE.md`).
+
+### Removed
+
+- **The MEDIA governance phase**, `MediaGovernor`, `governance.media`, and the
+  whole of `engine/media/interceptors.py`. The phase was built to replace a
+  bypass and was then bypassed itself: the turn has always called
+  `MediaPipeline.process_storyteller_turn` directly. Reached by tests alone,
+  which the reachability gate does not see -- it sweeps skills and constants,
+  not plain functions.
+- **`npc_voices`, `mood` and `image_tag` from the turn schema.** Sampled every
+  turn, read by nothing. The flagship's one `npc_voices` example was a copy of
+  dialogue already in its narration.
+- `engine/agents/turn_loop.py.bak`, `stack.wait_timeout_seconds`, an unused
+  import, and an orphan comment from the removed layer -- deleted, not
+  completed (rule 12). **`docs/AUTHORING.md` still told authors every template
+  sets `governance.directives: [SafetyDirective, StorytellerMind]`**; the
+  templates had been fixed and the sentence had not.
+
+2016 passing, 3 skipped.
+
 ## [0.7.2] — 2026-09-23
 
 ### Changed

@@ -58,7 +58,6 @@ NARRATION_MIN_CHARS = 220
 NARRATION_MAX_CHARS = 1800
 
 CHOICE_HINTS = ["safe", "risky", "costly", "unknown"]
-MOODS = ["calm", "uneasy", "tense", "dread", "warm", "wry"]
 
 
 def intent_schema(intents: Iterable[Any]) -> dict[str, Any] | None:
@@ -115,7 +114,6 @@ def intent_schema(intents: Iterable[Any]) -> dict[str, Any] | None:
 
 def storyteller_turn_schema(
     *,
-    npc_ids: Iterable[str] = (),
     intents: Iterable[Any] = (),
     min_narration: int = NARRATION_MIN_CHARS,
     max_narration: int = NARRATION_MAX_CHARS,
@@ -123,22 +121,19 @@ def storyteller_turn_schema(
     """
     Build the per-turn narration schema.
 
+    THREE FIELDS ARE GONE, as of v0.8.0: ``npc_voices``, ``mood`` and
+    ``image_tag``. All three were sampled on every turn -- output tokens on a
+    local model -- and read by nothing: the parser only ``setdefault``-ed
+    them, no client code rendered them, and media takes its tags inline. The
+    flagship's own few-shot showed why ``npc_voices`` was redundant rather than
+    lost: its one line was a copy of dialogue already in the narration.
+
     Args:
-        npc_ids: NPCs present. Constrains npc_voices so the model cannot voice
-            someone who is not in the scene. Omitted entirely when empty --
-            an empty enum is unsatisfiable and would make the whole object
-            impossible to sample.
         intents: What the engine will accept from a choice this turn, from
             ``engine.game.intents.legal_intents``. Empty adds no property at
             all, which is how a story the engine can honour nothing for keeps
             the exact schema it had.
     """
-    npc_voice_props: dict[str, Any] = {
-        "line": {"type": "string", "maxLength": 220},
-    }
-    ids = [i for i in npc_ids if i]
-    npc_voice_props["npc_id"] = {"enum": ids} if ids else {"type": "string"}
-
     choice_props: dict[str, Any] = {
         "id": {"enum": ["a", "b", "c", "d"]},
         "text": {"type": "string", "maxLength": 100},
@@ -171,16 +166,6 @@ def storyteller_turn_schema(
                         "additionalProperties": False,
                         "required": ["id", "text"],
                         "properties": choice_props,
-                    },
-                },
-                "npc_voices": {
-                    "type": "array",
-                    "maxItems": 3,
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "required": ["npc_id", "line"],
-                        "properties": npc_voice_props,
                     },
                 },
                 "ledger_delta": {
@@ -219,8 +204,6 @@ def storyteller_turn_schema(
                         },
                     },
                 },
-                "mood": {"enum": MOODS},
-                "image_tag": {"type": "string", "maxLength": 64},
             },
         },
     }

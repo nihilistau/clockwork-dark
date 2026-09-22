@@ -16,13 +16,10 @@ Meanwhile the dispatch logic that would have called it was duplicated:
 
   * ``engine/lore/interceptors.py::run_pre_interceptors`` -- builds a registry
     from ``comms.interceptors``, sorts by priority, threads a prompt through.
-  * ``engine/media/interceptors.py::run_media_interceptors`` -- declares three
-    interceptor classes with priorities and then ignores all three, calling
-    ``MediaPipeline.process_tags`` directly.
 
 Two copies of "ordered chain of hooks", neither of which could host a rule
 check. This module is the single implementation both delegate to. Phases are
-named, so PRE (prompt shaping), POST (audit) and MEDIA (tag fan-out) share
+named, so PRE (prompt shaping), POST (audit) and the rest share
 registration, ordering and failure semantics without sharing a signature.
 
 FAILURE SEMANTICS. An interceptor that raises is logged and skipped. A hook
@@ -58,7 +55,6 @@ PHASE_DIRECTIVE = "directive"
 #: phase did not.
 PHASE_COMMIT = "commit"
 PHASE_POST = "post"
-PHASE_MEDIA = "media"
 
 # phase -> interceptor name -> class. Populated by @interceptor at import.
 _REGISTRY: dict[str, dict[str, type]] = {
@@ -66,7 +62,6 @@ _REGISTRY: dict[str, dict[str, type]] = {
     PHASE_DIRECTIVE: {},
     PHASE_COMMIT: {},
     PHASE_POST: {},
-    PHASE_MEDIA: {},
 }
 
 _GOVERNANCE: Optional["GovernancePipeline"] = None
@@ -86,7 +81,6 @@ _DEFAULT_CHAINS: dict[str, tuple[str, ...]] = {
     # a story gets one only by asking for it.
     PHASE_COMMIT: (),
     PHASE_POST: ("RulesGovernor",),
-    PHASE_MEDIA: ("MediaGovernor",),
 }
 
 
@@ -209,7 +203,7 @@ class GovernancePipeline:
 
         PRE reads ``comms.interceptors`` -- the key that already exists and is
         already populated -- rather than inventing a second name for the same
-        list. POST and MEDIA read ``governance.post`` / ``governance.media``.
+        list. POST reads ``governance.post``.
         """
         cfg = get_config()
         wanted: dict[str, list[str]] = {
@@ -217,7 +211,6 @@ class GovernancePipeline:
             PHASE_DIRECTIVE: list(cfg.get("governance.directives", []) or []),
             PHASE_COMMIT: list(cfg.get("governance.commit", []) or []),
             PHASE_POST: list(cfg.get("governance.post", []) or []),
-            PHASE_MEDIA: list(cfg.get("governance.media", []) or []),
         }
 
         chains: dict[str, list[Any]] = {}
@@ -239,12 +232,11 @@ class GovernancePipeline:
 
         logger.info(
             "[governance] Pipeline built (operation=from_config, pre=%d, "
-            "directive=%d, commit=%d, post=%d, media=%d)",
+            "directive=%d, commit=%d, post=%d)",
             len(chains.get(PHASE_PRE, [])),
             len(chains.get(PHASE_DIRECTIVE, [])),
             len(chains.get(PHASE_COMMIT, [])),
             len(chains.get(PHASE_POST, [])),
-            len(chains.get(PHASE_MEDIA, [])),
         )
         return cls(chains)
 
@@ -359,9 +351,6 @@ class GovernancePipeline:
         """Run the audit chain over a resolved turn."""
         return self._run_ctx_chain(PHASE_POST, ctx)
 
-    def run_media(self, ctx: TurnContext) -> TurnContext:
-        """Run the media fan-out chain, populating ``ctx.media``."""
-        return self._run_ctx_chain(PHASE_MEDIA, ctx)
 
     def _run_ctx_chain(self, phase: str, ctx: TurnContext) -> TurnContext:
         for hook in self.chains.get(phase, []):
@@ -488,6 +477,18 @@ class DoomSignsInterceptor:
         return f"{system_prompt}\n\n{block}"
 
 
+def _setting_float(key: str) -> Optional[float]:
+    """A numeric story setting, or None when the story does not declare it."""
+    raw = get_config().get(key)
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        logger.warning("[governance] Non-numeric setting ignored (key=%s, value=%r)", key, raw)
+        return None
+
+
 @interceptor(PHASE_DIRECTIVE, priority=30)
 class StorytellerMind:
     """PRE: translate the Storyteller's agency knobs into GM directives."""
@@ -502,11 +503,16 @@ class StorytellerMind:
     ) -> str:
         mind = state.storyteller_mind
         bits: list[str] = []
-        if mind.cruelty_bias >= 0.5:
+        # Story-declared, and ABSENT unless declared. Both used to be state
+        # fields nothing wrote, whose default tripped the merciful branch for
+        # every story; a disposition nobody chose is not a disposition.
+        cruelty = _setting_float("storyteller.cruelty_bias")
+        generosity = _setting_float("storyteller.reward_generosity")
+        if cruelty is not None and cruelty >= 0.5:
             bits.append("lean harsher with consequences")
-        elif mind.cruelty_bias <= 0.2:
+        elif cruelty is not None and cruelty <= 0.2:
             bits.append("be merciful with consequences")
-        if mind.reward_generosity >= 0.6:
+        if generosity is not None and generosity >= 0.6:
             bits.append("reward clever play generously")
         if mind.patience <= 20:
             bits.append("the world grows impatient; raise the stakes")
@@ -640,32 +646,6 @@ class RulesGovernor:
             oracle.record_unearned_claim(str(stat), delta)
 
 
-@interceptor(PHASE_MEDIA, priority=80)
-class MediaGovernor:
-    """
-    MEDIA: fan a resolved turn's tags out to the media pipeline.
-
-    Replaces the bypass in ``engine/media/interceptors.py``, which declared
-    three interceptor classes with priorities and then called
-    ``MediaPipeline.process_tags`` directly, so the priorities described an
-    ordering that never ran.
-    """
-
-    def run_post(self, ctx: TurnContext) -> TurnContext:
-        from engine.media.pipeline import MediaPipeline
-
-        tags = ctx.processed_tags or {}
-        result = MediaPipeline().process_tags(
-            ctx.state,
-            image_tags=tags.get("image"),
-            cutscene_tags=tags.get("cutscene"),
-            narration=ctx.narration,
-            voice_style=ctx.voice_style,
-        )
-        ctx.media = result.to_dict()
-        return ctx
-
-
 def _register_legacy_interceptors() -> None:
     """
     Make the pre-existing lore hooks resolvable by config name.
@@ -691,13 +671,11 @@ _register_legacy_interceptors()
 __all__ = [
     "PHASE_COMMIT",
     "PHASE_DIRECTIVE",
-    "PHASE_MEDIA",
     "PHASE_POST",
     "PHASE_PRE",
     "DoomSignsInterceptor",
     "EvilPhaseTone",
     "GovernancePipeline",
-    "MediaGovernor",
     "RulesGovernor",
     "StorytellerMind",
     "TurnContext",

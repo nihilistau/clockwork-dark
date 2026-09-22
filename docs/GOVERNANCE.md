@@ -23,10 +23,15 @@ Meanwhile the dispatch logic that should have called it existed twice:
 | Chain | Location | What it did |
 |---|---|---|
 | PRE | `engine/lore/interceptors.py::run_pre_interceptors` | built a chain from `comms.interceptors`, sorted by priority, threaded a prompt through |
-| MEDIA | `engine/media/interceptors.py::run_media_interceptors` | declared three interceptor classes with priorities, then **ignored all three** and called `MediaPipeline.process_tags` directly |
 
-Both now delegate here. There is one implementation, one ordering rule, and one
+It delegates here. There is one implementation, one ordering rule, and one
 failure policy.
+
+A MEDIA phase existed too, and was deleted in v0.8.0 rather than wired. It
+replaced a bypass in `engine/media/interceptors.py` -- three interceptor classes
+declared with priorities, then ignored -- and was then bypassed in turn: the
+turn has always called `MediaPipeline.process_storyteller_turn` directly. Two
+layers of hooks, neither called, and no story declared `governance.media`.
 
 ### Phases
 
@@ -36,7 +41,6 @@ failure policy.
 | `directive` | `governance.directives` | same | GM prompt shaping, built as **one** block |
 | `commit` | `governance.commit` | `run_commit(ctx) -> ctx` | review the negotiated turn **before** the transaction commits; the only chain with veto authority |
 | `post` | `governance.post` | `run_post(ctx) -> ctx` | audit a resolved turn |
-| `media` | `governance.media` | `run_post(ctx) -> ctx` | media tag fan-out |
 
 `commit` is called from `engine/agents/pipeline.py::_govern_commit`, ahead of
 the `StateTransaction` that applies the accepted effects. `governance.commit`
@@ -68,7 +72,6 @@ block. The caller inserts it into the budget like any other block.
   exist** — `SceneRulesEngine` had a passing test suite and no caller for five
   PRs; this governor, run from `StorytellerAgent.run_turn` after `tx.commit()`,
   is what made it production code.
-- **`MediaGovernor`** (media) — replaces the bypass described above.
 
 ### R003 and the telemetry that motivated it
 
@@ -278,6 +281,7 @@ and the rolled-d20 stills — all 20 plates and all
 |---|---|---|
 | Challenge / scene panel | producers: `to_client_dict` ships `challenge` and `scene`. Consumer: `ui/src/core/parts/BeatFrame.jsx` draws the "Step 2 of 4" / "Card 3 of 7" line | A full panel (options, progress, card art) is still unbuilt. The framing chip is enough that a gauntlet no longer reads as four unrelated turns; options remain ordinary choice chips. |
 | Governance panel | producer: `engine/scenes/default_state.py` ships `governance` on the turn payload. Consumer: nothing | An analyst-mode panel over the R001–R005 breaches. Debug-shaped rather than player-shaped, which is why it is last. Its sibling `negotiation` row left this table in v0.6.0 — and splitting them is the lesson: the row read "the player has no way to know a second agent won, lost or gave something up", and the answer to *that* was never a table. The player learns it from the prose, because `narration_block` now hands the narrator what was yielded and why; the panel is only the author's tuning surface. |
+| Probabilistic declared world events | `engine/world/schedules.py::declared_events_due` | A story's `events:` block fires on `on_day`, `every_days` or a `when:` predicate -- all deterministic, from `advance_time`'s day roll (v0.8.0). A `probability:` key is not read. Wiring it needs a named `world_rng` stream per event and a decision about whether the roll happens on the day roll (replayable) or the background tick (the flagship's three hardcoded events, which are wall-clock). |
 | Companion posture on a concession | producer: `negotiation.resolutions` names the agent that yielded, by roster id. Consumer: nothing, and it cannot be built as things stand | `assistant_presence` (`engine/scenes/default_state.py`) ships no agent id, so the client cannot tell whether the agent that gave way IS the companion in its column. Deliberately not guessed at in v0.6.0. Wiring it means threading the roster id onto the presence payload; the log's margin mark carries the "this turn was contested" signal until then. |
 
 Re-audited in full on 2026-08-15 against the tree, not against this file. The

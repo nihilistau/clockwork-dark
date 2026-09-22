@@ -25,6 +25,7 @@
 version: 1
 
 trade:
+  currency_format: "${n}"
   # What a thing worth `value` actually costs / fetches, before overrides.
   spread:
     buy: 1.25

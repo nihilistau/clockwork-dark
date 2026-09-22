@@ -9,7 +9,6 @@ from engine.game.procgen import new_game_state
 from engine.game.state import EvilPhase
 from engine.media.comfyui import ComfyUIClient, build_image_prompt, load_comfyui_templates
 from engine.media.cutscene import CutsceneBudget, CutsceneRunner
-from engine.media.interceptors import run_media_interceptors
 from engine.media.pipeline import MediaPipeline
 from engine.media.queue import make_cache_key, parse_image_tag, reset_media_queue
 from engine.media.tts import TTSClient
@@ -139,15 +138,20 @@ def test_narration_tts_queues_when_enabled(monkeypatch):
     assert submitted == ["Smoke rises from Edgewood."]
 
 
-def test_run_media_interceptors():
+def test_a_turns_image_tag_reaches_the_media_pipeline():
+    """
+    Through the path a turn actually takes. This used to be asserted through
+    `run_media_interceptors`, a governance chain the turn never called --
+    `StorytellerAgent.run_turn` goes straight to `process_storyteller_turn`.
+    """
     reset_media_queue()
     engine = _engine()
-    data = run_media_interceptors(
+    result = MediaPipeline().process_storyteller_turn(
         engine.state,
         narration="A cold morning.",
         processed_tags={"image": ["forest_clearing_dawn"]},
     )
-    assert len(data["images"]) == 1
+    assert len(result.to_dict()["images"]) == 1
 
 
 def test_comfyui_submit_when_enabled():

@@ -18,10 +18,9 @@ Ilya is a real NPC -- the tinker -- and he was nowhere near that clearing. He
 came out of the few-shot examples, along with salt-sheds the story does not
 have. The turn passed the evaluator and reached the player.
 
-The engine already knows who is present: ``storyteller_turn_schema(npc_ids=...)``
-is built from it, which is why ``npc_voices`` cannot name an absent character.
-This module hands the same fact to the prose check -- the SAME
-``present_npc_ids`` call, not a second notion of presence.
+The engine already knows who is present, and this module hands that fact to
+the prose check -- the SAME ``present_npc_ids`` call the intent enums use, not
+a second notion of presence.
 
 PRECISION OVER RECALL
 ---------------------

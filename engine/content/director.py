@@ -57,6 +57,11 @@ MAX_SCENE_CARDS = 32
 #: re-deal every turn their ``when`` is true.
 PLAYED_FLAG_PREFIX = "deck_played_"
 
+#: Forced scenes already warned about. A clock names a scene once and it stays
+#: pending for the rest of the run, so an unanswerable one logged a WARNING on
+#: every single turn. Nulled per activation (engine/games/caches.py).
+_WARNED_FORCED: Optional[set[str]] = None
+
 
 def _played_flag(deck_id: str) -> str:
     return f"{PLAYED_FLAG_PREFIX}{deck_id}"
@@ -194,6 +199,12 @@ def due(state: GameState, *, ledger: Any = None) -> tuple[str, str, str]:
         deck_id, card_id = _deck_holding_card(scene_id)
         if deck_id:
             return deck_id, card_id, "forced"
+        global _WARNED_FORCED
+        if _WARNED_FORCED is None:
+            _WARNED_FORCED = set()
+        if scene_id in _WARNED_FORCED:
+            continue
+        _WARNED_FORCED.add(scene_id)
         logger.warning(
             "[director] Forced scene names neither a deck nor a card "
             "(operation=due, scene=%s). The clock's promise cannot be kept.",
@@ -263,6 +274,14 @@ def begin(
             "[director] Nothing dealt (operation=begin, deck=%s, rejected=%s)",
             deck_id,
             hand.rejected,
+        )
+        # SPENT, not pending. A deck whose gate is open and whose cards are all
+        # ineligible used to come due again every turn, and the narrator read
+        # "scene_begin failed: no cards were eligible" on every one of them.
+        from engine.game import effects as effects_module
+
+        effects_module.apply_effect(
+            state, {"type": "flag", "flag": _played_flag(deck_id), "value": True}
         )
         return {
             "ok": False,

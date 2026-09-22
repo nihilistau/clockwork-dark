@@ -241,6 +241,91 @@ def _event_active(state: GameState, event_id: str) -> bool:
     return any(e.get("event_id") == event_id for e in state.world_events)
 
 
+#: Flag recording that a ``when:``-gated declared event has fired. Fixed-day
+#: and cadence events need none: each day is crossed exactly once.
+EVENT_FIRED_PREFIX = "event_fired_"
+
+
+def _declared_fire_day(spec: dict[str, Any], day: int) -> bool:
+    """Whether a fixed-day or cadence event starts on this day."""
+    if "on_day" in spec:
+        return int(spec.get("on_day") or 0) == day
+    if "every_days" in spec:
+        every = max(1, int(spec.get("every_days") or 1))
+        first = int(spec.get("first_day") or every)
+        return day >= first and (day - first) % every == 0
+    return False
+
+
+def declared_events_due(state: GameState, from_day: int, to_day: int) -> list[SimEvent]:
+    """
+    Story-declared world events that start on a day in ``(from_day, to_day]``.
+
+    THE GAP. This module fired exactly three events, each a hardcoded flagship
+    id with its own roll: caravan, tinker, militia. Any other story's
+    ``world_schedules`` could declare rumours and nothing that HAPPENS -- no
+    market day, no festival, no curfew. An ``events:`` block declares them now.
+
+    NO RANDOMNESS, deliberately. Called from ``advance_time``'s day roll, so an
+    event starts from the seed and the choices, never from how long the menu
+    sat open. A probabilistic declared event is NOT WIRED (docs/GOVERNANCE.md).
+
+    Also fires the flagship's procgen festival on its ``day_offset``: every seed
+    generated one and nothing read it.
+    """
+    declared = (load_schedules().get("events") or {}) if isinstance(load_schedules(), dict) else {}
+    out: list[SimEvent] = []
+    for day in range(int(from_day) + 1, int(to_day) + 1):
+        for event_id, spec in sorted(declared.items()):
+            if not isinstance(spec, dict) or _event_active(state, str(event_id)):
+                continue
+            if "when" in spec:
+                if state.flags.get(f"{EVENT_FIRED_PREFIX}{event_id}"):
+                    continue
+                from engine.game.quests import evaluate_condition
+
+                if not evaluate_condition(state, spec.get("when")):
+                    continue
+            elif not _declared_fire_day(spec, day):
+                continue
+            out.append(_declared_event(str(event_id), spec, day))
+
+        festival = getattr(state.procgen, "festival", None) or {}
+        if (
+            festival.get("name")
+            and int(festival.get("day_offset") or 0) == day
+            and not _event_active(state, "festival")
+        ):
+            out.append(
+                _declared_event(
+                    "festival",
+                    {
+                        "duration_days": 1,
+                        "text": f"It is {festival['name']}, and the whole village knows it.",
+                    },
+                    day,
+                )
+            )
+    return out
+
+
+def _declared_event(event_id: str, spec: dict[str, Any], day: int) -> SimEvent:
+    duration = max(1, int(spec.get("duration_days") or 1))
+    payload: dict[str, Any] = {"text": str(spec.get("text") or ""), "declared": True}
+    if spec.get("rumor"):
+        payload["rumor"] = str(spec["rumor"])
+    if "when" in spec:
+        payload["fired_flag"] = f"{EVENT_FIRED_PREFIX}{event_id}"
+    return SimEvent(
+        event_id=event_id,
+        day=day,
+        npc_ids=[str(n) for n in (spec.get("npc_ids") or [])],
+        location_id=str(spec.get("location_id") or ""),
+        expires_day=day + duration,
+        payload=payload,
+    )
+
+
 class ScheduleRoll:
     """Roll trader/tinker/militia schedules against game state."""
 

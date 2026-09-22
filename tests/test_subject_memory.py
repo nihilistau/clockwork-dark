@@ -178,7 +178,10 @@ def test_a_character_arrives_with_a_dossier(ledger: StoryLedger) -> None:
     _, block = memory_blocks(ledger, present_npc_ids=("maris",), location_id="")
 
     assert "WHO IS HERE, AND WHAT THEY REMEMBER" in block
-    assert "the baker (maris)" in block
+    # The name, and not the id: the PEOPLE HERE block maps id to name, and an
+    # id in prose is an id the narrator can put on screen.
+    assert "the baker has met you" in block
+    assert "(maris)" not in block
     assert "your name was Corin" in block
     assert "a loaf, unpaid" in block
     assert "sharp about money" in block

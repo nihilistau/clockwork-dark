@@ -81,7 +81,6 @@ EffectHandler = Callable[[GameState, dict[str, Any], "EffectContext"], dict[str,
 # reputation are read as percentages and signed bands respectively by code that
 # would otherwise need to defend itself at every call site.
 AWARENESS_MIN, AWARENESS_MAX = 0.0, 100.0
-REPUTATION_MIN, REPUTATION_MAX = -100, 100
 HUNGER_MIN, HUNGER_MAX = 0.0, 100.0
 DOOM_RESISTANCE_MIN, DOOM_RESISTANCE_MAX = 0.0, 100.0
 
@@ -473,9 +472,17 @@ def _e_reputation(
     if not faction:
         return _unknown("reputation", effect)
     delta = _int(effect.get("delta"))
+    # ONE implementation. This kind used to clamp to a global -100..100 while
+    # `reputation.adjust` clamped to the FACTION's own bounds, and
+    # `economy.work` called `adjust` directly around this dispatcher -- two
+    # writers, two clamps. Now `adjust` is the implementation and this is the
+    # only door to it (CLAUDE.md rule 3).
+    from engine.game import reputation as reputation_module
+
     before = _int(state.reputations.get(faction, 0))
-    after = int(_clamp(before + delta, REPUTATION_MIN, REPUTATION_MAX))
-    state.reputations[faction] = after
+    after = reputation_module.adjust(
+        state, faction, delta, reason=str(effect.get("why") or effect.get("reason") or "")
+    )
     return {
         "type": "reputation",
         "faction": faction,
@@ -891,6 +898,23 @@ def _e_value(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> di
     spec = store.schema.get(name)
     label = spec.display_label if spec is not None else name
     refused = after == before and wanted != before
+
+    # A veiled value crossing a band is a story beat the engine already had
+    # and threw away. Journalled in band WORDS -- the number is exactly what
+    # veiling exists to keep from the prose.
+    if (
+        spec is not None
+        and spec.visibility == "veiled"
+        and not refused
+        and spec.band(before) != spec.band(after)
+    ):
+        from engine.game import moved
+
+        moved.note(
+            state,
+            "band",
+            f"{label.lower()}: {spec.band(before)} -> {spec.band(after)}",
+        )
     return {
         "type": "value",
         "name": name,

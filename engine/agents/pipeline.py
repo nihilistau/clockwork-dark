@@ -346,6 +346,35 @@ def run_pipeline(
     )
 
 
+def _committed(receipt: dict[str, Any]) -> str:
+    """
+    One committed value, as the narrator may see it.
+
+    Honours the receipt's ``visibility``, which exists for exactly this and was
+    ignored: every committed value printed ``name after``, so a VEILED meter
+    reached the narrator as an integer. Veiled renders its band word; hidden
+    renders nothing at all.
+    """
+    if not receipt.get("ok", True) or not receipt.get("name"):
+        return ""
+    name = str(receipt["name"])
+    visibility = str(receipt.get("visibility") or "public")
+    if visibility == "hidden":
+        return ""
+    if visibility == "veiled":
+        try:
+            from engine.state.active import active_schema
+
+            spec = active_schema().get(name)
+            label = spec.display_label.lower() if spec is not None else name
+            band = spec.band(float(receipt.get("after") or 0)) if spec is not None else ""
+        except Exception as exc:  # noqa: BLE001 -- a band is not worth a turn
+            logger.debug("[pipeline] No band for %s: %s", name, exc)
+            return ""
+        return f"{label} now {band}" if band else ""
+    return f"{name} {receipt.get('after', '?')}"
+
+
 def narration_block(result: PipelineResult) -> str:
     """
     What the negotiation decided, as a prompt block for the narrator.
@@ -370,16 +399,12 @@ def narration_block(result: PipelineResult) -> str:
     speaker = result.speaker()
     if speaker is not None and speaker.line:
         lines.append(
-            f"{speaker.agent} speaks, and these are her words -- use them as they "
-            f"are, do not paraphrase them:\n\"{speaker.line}\""
+            f"{speaker.agent} speaks. Use these words exactly as they are; do "
+            f"not paraphrase them:\n\"{speaker.line}\""
         )
 
     if result.receipts:
-        moved = [
-            f"{r.get('name', '?')} {r.get('after', '?')}"
-            for r in result.receipts
-            if r.get("ok", True) and r.get("name")
-        ]
+        moved = [line for line in (_committed(r) for r in result.receipts) if line]
         if moved:
             lines.append("Already applied, narrate as done: " + ", ".join(moved))
 
@@ -440,8 +465,17 @@ def merge_choices(
     would leave a shortcut pointing at nothing.
     """
     rows = [dict(row) for row in narrated or []]
-    if result.ran:
-        rows.extend(choice.to_dict() for choice in result.turn.choices)
+    agent_rows = (
+        [choice.to_dict() for choice in result.turn.choices] if result.ran else []
+    )
+    # A SLOT IS RESERVED. The schema lets the narrator write four and the limit
+    # is four, so appending the agents' choices after the narrator's meant a
+    # full narrated list dropped every one of them -- the companion who just
+    # warned you about a door could never put "not that door" on the table.
+    # The narrator keeps first place and all but the last slot.
+    if agent_rows and len(rows) >= limit:
+        rows = rows[: max(1, limit - len(agent_rows[:1]))]
+    rows.extend(agent_rows)
 
     seen: set[str] = set()
     merged: list[dict[str, Any]] = []

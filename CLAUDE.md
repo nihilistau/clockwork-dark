@@ -64,7 +64,7 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.
 Overhaul III (reachability) complete.**
-**1916 passing, 3 skipped in 4m52s**, no expected failures (measured
+**2016 passing, 3 skipped in 4m49s**, no expected failures (measured
 2026-09-23), plus **138 client tests** under `ui/tests/` (`npm test --prefix ui`,
 which needs `npm install --prefix ui` once — `vitest` is a devDependency). Run
 both for the real numbers rather than trusting this line; it has been stale
@@ -145,6 +145,24 @@ engine module had ever loaded one. Held by `tests/test_prompt_pressure.py`.
 When auditing, "is it called?" is the first question and not the last. The
 second is **"does the narration know?"** A mechanic the prose cannot refer to is
 a mechanic the player experiences as an unexplained event.
+
+**The widest instance of it was presence itself** (v0.8.0). `present_npc_ids`
+and the PEOPLE HERE block returned early on an empty `state.procgen.npcs`, and
+only the flagship runs procgen -- so in four of five stories nobody was ever in
+the room: no dossier, no meeting, a cast gate that rejected a vendor standing
+at her own stall, and every model-filed fact about a person dropped for want of
+a known subject. Presence comes from the schedules now, and every
+narrator-facing name from `npc_sim.display_name`, which never returns an id.
+The same release made the engine's discarded return values speak:
+`engine/game/moved.py` is a per-turn journal each system writes in its own
+words (clock beats, world events, broken promises, band crossings, overheard
+gossip), marked when rendered and cleared once narrated.
+
+A third audit question fell out of that pass: **"does the prose agree with the
+receipt?"** The evaluator only asked whether a roll existed. It now fails
+success narrated over a failed check and arrival over a refused move -- and the
+same pass found `work` reporting how a shift WENT under the key that means
+whether it HAPPENED, so a bad shift was narrated as never having occurred.
 
 **Every shipped game can now be played to an ending** — `tests/test_finales.py`,
 over all five, driving `ending_lock → ending_module → epilogue`. Two of the five

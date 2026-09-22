@@ -141,8 +141,12 @@ class AgentMind:
     """Agency knobs for Storyteller or Assistant."""
 
     intervention_willingness: float = 0.3
-    cruelty_bias: float = 0.2
-    reward_generosity: float = 0.5
+    # `cruelty_bias` and `reward_generosity` lived here, defaulted, and were
+    # written by nothing -- so the default 0.2 sent "be merciful with
+    # consequences" to every story on every turn. They are story settings now
+    # (`settings.storyteller.*`), read by governance.StorytellerMind, and a
+    # story that declares neither gets no disposition line. An old save's keys
+    # are ignored on load by `_coerce`.
     patience: float = 80.0
     trust_level: float = 20.0
     help_probability: float = 0.4
@@ -231,6 +235,10 @@ class GameState:
     flags: dict[str, bool] = field(default_factory=dict)
     world_events: list[dict[str, Any]] = field(default_factory=list)
     rumors: list[str] = field(default_factory=list)
+    #: What changed since the narrator last looked -- engine/game/moved.py.
+    #: Presentation, not rules; saved so a reload does not lose what the
+    #: player has not yet been told.
+    moved: list[dict[str, Any]] = field(default_factory=list)
     last_sim_tick_at: float = 0.0
     media_cache: dict[str, str] = field(default_factory=dict)
     media_cutscenes_shown: list[str] = field(default_factory=list)

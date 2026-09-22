@@ -46,6 +46,7 @@ from engine.persistence import get_save_store
 from engine.session import GameSession
 from engine.session import SessionStore as EngineSessionStore
 from engine.session import default_archetype
+from engine.world import npc_sim
 from engine.world.world_sim import WorldSim
 
 logger = logging.getLogger(__name__)
@@ -734,9 +735,11 @@ def _record_memory(
             delta,
             turn=state.turn_number,
             day=state.world_day,
-            known_npc_ids={
-                str(n.get("id")) for n in state.procgen.npcs if n.get("id")
-            },
+            # The schedules' cast, not procgen's. Built from `procgen.npcs`,
+            # this was empty for every story but the flagship, so every fact
+            # the model filed against a person in four stories lost its
+            # subject -- and with it every dossier and every piece of gossip.
+            known_npc_ids=set(npc_sim.known_npc_ids(state)),
         )
         logger.debug(
             "[default_state] Ledger delta applied (operation=_record_memory, "
@@ -760,7 +763,16 @@ def _record_memory(
         ledger.meet(npc_id, day=state.world_day, location_id=state.location_id)
 
     ledger.decay(days=nominal_tick_hours() / 24.0)
-    ledger.expire_promises(state.world_day)
+    # A promise let lapse is an answer, and it used to be one nobody heard:
+    # the broken list came back from here to no one.
+    from engine.game import moved
+
+    for promise in ledger.expire_promises(state.world_day):
+        owed_to = npc_sim.display_name(promise.to_id, state) if promise.to_id else ""
+        if owed_to and promise.from_id == "player":
+            moved.note(state, "promise", f"you promised {owed_to} {promise.text}, and did not deliver")
+        elif owed_to:
+            moved.note(state, "promise", f"a promise to {owed_to} lapsed: {promise.text}")
 
     if evicted is not None:
         # Runs after the turn and behind the inference gate; summarizing during
@@ -806,6 +818,29 @@ def _autosave(session: GameSession, player_action: str, narration: str) -> None:
         )
 
 
+def _negotiate(state: GameState, player_action: str, **kwargs: Any) -> Any:
+    """
+    Run the multi-agent pipeline; a failure costs the negotiation, not the turn.
+
+    Everything else in a turn degrades -- a model outage narrates a fallback, a
+    bad receipt is refused -- but `run_pipeline` re-raises a commit failure
+    (after rolling it back) and nothing here caught it, so one bad effect from
+    one agent's plan killed the whole turn. The commit is already rolled back
+    by then; what is lost is only the agents' contribution to this one turn.
+    """
+    from engine.agents.pipeline import PipelineResult
+
+    try:
+        return run_pipeline(state, player_action, **kwargs)
+    except Exception as exc:  # noqa: BLE001 -- see docstring
+        logger.warning(
+            "[default_state] Pipeline failed, turn continues without it "
+            "(operation=_negotiate, error=%s)",
+            exc,
+        )
+        return PipelineResult(ran=False)
+
+
 def run_turn(
     session: GameSession,
     player_action: str,
@@ -832,10 +867,6 @@ def run_turn(
     state = session.engine.state
     started_at = time.perf_counter()
 
-    # Player input, inspected before anything plans against it. This seam did
-    # not exist -- `player_action` went straight from the socket handler into
-    # the Storyteller with nothing looking at it.
-    #
     with active_engine(session.engine):
         # Ask the world how much time it has actually earned rather than
         # granting a flat block. This was the R-03 bug: a fixed 6 hours per
@@ -965,7 +996,7 @@ def run_turn(
         # flagship, which declares no roster: `agreed` is empty, the block is
         # empty, and the turn below is byte-for-byte the turn it had. The
         # Wicked Garden declares two agents and takes the pipeline path.
-        agreed = run_pipeline(
+        agreed = _negotiate(
             state,
             player_action,
             ledger=session.ledger,
@@ -999,6 +1030,11 @@ def run_turn(
                 intent_receipts=intent_receipts,
             )
         finally:
+            # What the prompt rendered from the moved journal has now been
+            # narrated (or the turn failed trying; either way it was offered).
+            from engine.game import moved
+
+            moved.clear_shown(state)
             # The agent outlives the turn. Leaving the sink attached would have
             # a later non-socket turn (the HTTP route, a test) emit into a
             # callback closed over a dead request context.

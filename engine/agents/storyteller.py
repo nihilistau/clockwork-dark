@@ -2,7 +2,14 @@
 Storyteller Agent
 =================
 
-GM agent — narrates world, dispatches required skills, passes Evaluator gate.
+GM agent — narrates what the engine already resolved, and passes the Evaluator.
+
+It does not dispatch skills. A choice's ``intent`` is executed by
+``tool_dispatcher.execute_intent`` BEFORE this agent writes, and Phase A
+(``engine/agents/mechanics.py``) runs the model's own lookups before the
+transaction opens; both arrive here as receipts. The turn grammar forbids a
+``tool_calls`` key, which is what makes a narration turn unable to change the
+world by a second route.
 
 This is the ONLY production narration path, and until now it never sent a
 ``response_format``: ``engine/lmstudio/schemas.py`` built a full turn schema
@@ -36,7 +43,7 @@ only one of them was detected:
 unterminated envelope, and everything the player is shown is trimmed to a
 sentence boundary on the way out.
 
-Version: v0.3.0 [2026-08-08]
+Version: v0.4.0 [2026-09-23]
 """
 
 from __future__ import annotations
@@ -51,7 +58,7 @@ from engine.agents.cast import absent_cast
 from engine.agents.continuity import known_cast
 from engine.agents.evaluator import EvaluationResult, StorytellerEvaluator
 from engine.agents.json_stream import NarrationStreamer, extract_json
-from engine.agents.prompts import evaluator_retry_prompt, storyteller_system_prompt
+from engine.agents.prompts import evaluator_retry_prompt
 from engine.agents.tag_buffer import TagBuffer
 from engine.game.transaction import StateTransaction
 from engine.memory.context import build_storyteller_messages
@@ -66,6 +73,7 @@ from engine.agents.stream_processor import (
 from engine.agents.tool_dispatcher import execute_tool_calls
 from engine.game.engine import GameEngine
 from engine.game.plot import PlotFormula
+from engine.game.state import GameState
 from engine.lmstudio.schemas import NARRATION_MAX_CHARS
 from engine.lore.interceptors import AwarenessGateInterceptor
 from engine.lore.manager import get_lore_manager
@@ -342,7 +350,6 @@ def parse_storyteller_response(raw: str) -> dict[str, Any]:
         data.setdefault("narration", "")
         data.setdefault("choices", [])
         data.setdefault("tool_calls", [])
-        data.setdefault("npc_voices", [])
         data.setdefault("ledger_delta", {})
         data.setdefault("stat_changes", {})
         data.setdefault("items_gained", [])
@@ -376,7 +383,6 @@ def parse_storyteller_response(raw: str) -> dict[str, Any]:
                 {"id": "b", "text": "Continue"},
             ],
             "tool_calls": [],
-            "npc_voices": [],
             "ledger_delta": {},
             "stat_changes": {},
             "items_gained": [],
@@ -404,7 +410,6 @@ def parse_storyteller_response(raw: str) -> dict[str, Any]:
             {"id": "b", "text": "Continue"},
         ],
         "tool_calls": [],
-        "npc_voices": [],
         "ledger_delta": {},
         "stat_changes": {},
         "items_gained": [],
@@ -413,6 +418,29 @@ def parse_storyteller_response(raw: str) -> dict[str, Any]:
         "tags_inline": "",
         "parse_failed": True,
     }
+
+
+#: What a turn that brought the stakes DOWN gives back. More than the one point
+#: a flat turn costs, so a story that paid off its pressure stops being told
+#: to raise it.
+PATIENCE_RECOVERY = 5.0
+
+
+def update_patience(state: GameState) -> None:
+    """
+    Wear the narrator's patience down a point, or give some back.
+
+    It only ever went down, so after sixty turns "the world grows impatient;
+    raise the stakes" was permanent in every story, whatever the stakes had
+    done. A turn on which ``story_pressure`` FELL -- a crisis resolved, a clock
+    paid off -- now restores some, because the story just did what that line
+    exists to ask for.
+    """
+    mind = state.storyteller_mind
+    if state.story_pressure < state.story_pressure_prev:
+        mind.patience = min(100.0, mind.patience + PATIENCE_RECOVERY)
+    else:
+        mind.patience = max(0.0, mind.patience - 1.0)
 
 
 class StorytellerAgent:
@@ -513,10 +541,7 @@ class StorytellerAgent:
         # `intents` is what lets a choice carry a mechanic. Built from the LIVE
         # state on every attempt, so a retry after the world moved cannot offer
         # a road that has since closed.
-        schema = storyteller_turn_schema(
-            npc_ids=present_npc_ids(self.engine.state),
-            intents=legal_intents(self.engine.state),
-        )
+        schema = storyteller_turn_schema(intents=legal_intents(self.engine.state))
         response_format = backend.structured_output(schema)
 
         self.last_reasoning = ""
@@ -1031,10 +1056,7 @@ class StorytellerAgent:
         tx.commit()
 
         self.engine.state.turn_number += 1
-        self.engine.state.storyteller_mind.patience = max(
-            0.0,
-            self.engine.state.storyteller_mind.patience - 1.0,
-        )
+        update_patience(self.engine.state)
 
         media_result = self._media.process_storyteller_turn(
             self.engine.state,

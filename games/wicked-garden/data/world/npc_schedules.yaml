@@ -5,14 +5,6 @@
 # the narrator's prompt, so each one is written as something a person standing
 # in the room could actually see.
 #
-# !! REQUIRES A MANIFEST LINE THAT DOES NOT EXIST YET !!
-# games/wicked-garden/game.yaml does not declare `paths.npc_schedules`. Until
-# it does, the engine loads the FLAGSHIP's file -- Maris Hearth in the Edgewood
-# bakery -- and places eight Edgewood villagers at locations that are not in
-# this graph. That is worse than an empty file. Adding
-# `npc_schedules: "games/wicked-garden/data/world/npc_schedules.yaml"` to the
-# manifest is the whole of the wiring.
-#
 # ------------------------------------------------------------
 # SOPHIA IS NOT IN THIS FILE, AND MUST NOT BE
 # ------------------------------------------------------------
@@ -81,6 +73,8 @@ npcs:
   # The rival. Velvet contempt on a schedule.
   # ==========================================================
   ashen_vale:
+    name: "Ashen Vale"
+    role: "high fae of winter"
     home: winter_spindle
     routine:
       - hours: [9, 10, 11, 12]
@@ -107,6 +101,8 @@ npcs:
   # The law. He is at the border because that is the whole of him.
   # ==========================================================
   thornwake:
+    name: "Thornwake"
+    role: "knight of the thorn"
     home: gate_of_briars
     routine:
       - hours: [5, 6, 7, 8, 9]
@@ -133,6 +129,8 @@ npcs:
   # The oracle. Always available, never free.
   # ==========================================================
   lior:
+    name: "Lior"
+    role: "fae of the silver water"
     home: mirror_pools
     routine:
       - hours: [5, 6, 7, 8, 9, 10]
@@ -155,6 +153,8 @@ npcs:
   # The old Garden. She does not have a routine. She has a depth.
   # ==========================================================
   mother_briar:
+    name: "Mother Briar"
+    role: "the Garden's own face"
     home: briar_deep
     routine:
       # Deliberately only two slots. A being whose form is optional and whose
@@ -173,6 +173,8 @@ npcs:
   # The Honeyed Dead. He cannot go anywhere. He is always in.
   # ==========================================================
   elias:
+    name: "Elias"
+    role: "a mortal kept in amber"
     home: root_crypts
     routine:
       - hours: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
@@ -186,6 +188,8 @@ npcs:
   # The mortal echo. The only NPC who is sometimes not here at all.
   # ==========================================================
   mara_quill:
+    name: "Mara Quill"
+    role: "mortal"
     home: aviary_unsent
     routine:
       - hours: [9, 10, 11, 12, 13]
@@ -215,6 +219,8 @@ npcs:
   # crowds rather than placeholders.
   # ==========================================================
   bloomkin_generic:
+    name: "a bloomkin"
+    role: "bloomkin"
     home: guest_house
     routine:
       - hours: [5, 6, 7, 8, 9, 10]
@@ -231,6 +237,8 @@ npcs:
         activity: "one of them dozing on the sill in your room, which it insists is where it has always slept"
 
   court_generic:
+    name: "the court"
+    role: "court"
     home: heart_grove
     routine:
       - hours: [5, 6, 7, 8, 9, 10, 11]

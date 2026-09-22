@@ -377,7 +377,6 @@ stt:
 # editing this file.
 # ---------------------------------------------------------------------------
 stack:
-  wait_timeout_seconds: 900
   services:
     lmstudio:
       enabled: true
@@ -705,5 +704,3 @@ governance:
   commit: []
   post:
     - RulesGovernor
-  media:
-    - MediaGovernor

@@ -29,7 +29,7 @@ flagship's narrator. They live in ``games/clockwork-dark/prompts/`` now. See
 the block comment above ``_prompts_dir`` for where a story's words are found
 and why an undescribed story still gets a fallback rather than an exception.
 
-Version: v0.2.1 [2026-08-09]
+Version: v0.3.0 [2026-09-23]
 """
 
 from __future__ import annotations
@@ -300,18 +300,28 @@ def assistant_persona() -> str:
 
 
 def _npcs_present_block(state: GameState) -> str:
-    """List NPCs present, with what they are doing."""
+    """
+    List NPCs present, with what they are doing.
+
+    The cast comes from the schedules. This used to bail out with "(world not
+    yet generated)" whenever procgen had made no villagers -- true of every
+    story but the flagship -- so a vendor standing at her own stall was offered
+    by the buy intent and invisible to the narrator, and the cast gate then
+    failed any prose that named her.
+    """
+    from engine.world import npc_sim
     from engine.world.world_sim import merge_npcs_at_location
 
-    if not state.procgen.npcs:
-        return "PEOPLE HERE: (world not yet generated)"
     present = merge_npcs_at_location(state, state.location_id)
     if not present:
         return "PEOPLE HERE: nobody."
 
     lines = []
     for npc in present:
-        bits = [f"- {npc.get('id')}: {npc.get('name')} ({npc.get('role')})"]
+        npc_id = str(npc.get("id") or "")
+        name = npc.get("name") or npc_sim.display_name(npc_id, state)
+        role = f" ({npc.get('role')})" if npc.get("role") else ""
+        bits = [f"- {npc_id}: {name}{role}"]
         activity = npc.get("activity")
         if activity:
             bits.append(f" -- {activity}")
@@ -321,14 +331,57 @@ def _npcs_present_block(state: GameState) -> str:
     return "PEOPLE HERE:\n" + "\n".join(lines)
 
 
+#: The most HAPPENING NOW carries. The world block is non-evictable, and
+#: permanent clock marks accumulate for the whole run.
+MAX_EVENT_LINES = 3
+
+
 def _events_block(state: GameState) -> str:
-    if not state.world_events:
+    """
+    What is going on around the player, in the story's own words.
+
+    WHAT IT USED TO PRINT: "- forecast_traffic_spike at None (since day 14)" --
+    an id, a location that was often None, and nothing an author wrote. The
+    authored sentence sat on the same row, unread. It is filtered to events the
+    player could see from here, capped, and it never renders a row that has no
+    words: a forced scene is the director's business, and an id is not prose.
+    """
+    here = str(state.location_id or "")
+    lines: list[str] = []
+    for event in reversed(state.world_events):
+        if event.get("forces_scene"):
+            continue
+        where = str(event.get("location_id") or "")
+        if where and where != here:
+            continue
+        payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+        text = str(event.get("text") or payload.get("text") or "").strip()
+        if not text:
+            continue
+        lines.append(f"- {text}")
+        if len(lines) >= MAX_EVENT_LINES:
+            break
+    if not lines:
         return ""
-    lines = [
-        f"- {e.get('event_id')} at {e.get('location_id')} (since day {e.get('day')})"
-        for e in state.world_events
-    ]
-    return "HAPPENING NOW:\n" + "\n".join(lines)
+    return "HAPPENING NOW:\n" + "\n".join(reversed(lines))
+
+
+def moved_block(state: GameState, ledger: Any = None) -> str:
+    """
+    What changed since the narrator last looked. Each line once, never again.
+
+    Fed by engine/game/moved.py, which the system that caused each change
+    writes to in its own words. The instruction is to USE what fits rather than
+    recite it: a narrator handed a list will read the list out.
+    """
+    from engine.game import moved
+
+    rows = moved.visible(state)
+    if not rows:
+        return ""
+    return "SINCE YOU LAST LOOKED (work in what fits; never list it):\n" + "\n".join(
+        f"- {row['text']}" for row in rows
+    )
 
 
 def _rumors_block(state: GameState) -> str:
@@ -352,8 +405,13 @@ def _objectives_block(state: GameState) -> str:
 
         objectives = QuestEngine.active_objectives(state)
         allowed = QuestEngine.allowed_narrative_flags(state)
-    except Exception:  # noqa: BLE001 — the prompt must build without quests
+    except Exception as exc:  # noqa: BLE001 — the prompt must build without quests
+        # Logged, not swallowed: a quest bug here silently removed the
+        # player's objectives from the prompt with no trace anywhere.
+        logger.warning("[prompts] Objectives unavailable (operation=_objectives_block): %s", exc)
         return ""
+    # A flag already raised is not a beat still to reach.
+    allowed = [flag for flag in allowed if not state.flags.get(flag)]
 
     if not objectives:
         return ""
@@ -361,9 +419,12 @@ def _objectives_block(state: GameState) -> str:
     lines = ["OBJECTIVES (the player's current threads):"]
     lines += [f"- {text}" for text in objectives[:6]]
     if allowed:
+        # The lever is the `flag` INTENT on a choice. `set_narrative_flag` is
+        # the skill behind it, which the turn grammar gives the model no way to
+        # call -- this line named a tool the narrator could not reach.
         lines.append(
-            "Call set_narrative_flag ONLY when the fiction has genuinely reached "
-            "one of these beats: " + ", ".join(sorted(allowed)[:12])
+            "Give a choice the `flag` intent ONLY when taking it would genuinely "
+            "reach one of these beats: " + ", ".join(sorted(allowed)[:12])
         )
     return "\n".join(lines)
 
@@ -581,8 +642,18 @@ def _condition_block(state: GameState) -> str:
         bits.append("exhausted")
     if state.stats.hp <= state.stats.max_hp * 0.4:
         bits.append("hurt")
-    if state.hunger >= 60:
-        bits.append("hungry")
+    # The story's own thresholds, and its word for the stage. This was a bare
+    # `hunger >= 60`, which ignored a story's survival.yaml and could never say
+    # "starving" -- the stage that actually costs hit points.
+    try:
+        from engine.game.survival import hunger_stage
+
+        stage = hunger_stage(state)
+    except Exception as exc:  # noqa: BLE001 -- a condition line is not worth a turn
+        logger.debug("[prompts] No hunger stage: %s", exc)
+        stage = ""
+    if stage in ("hungry", "starving"):
+        bits.append(stage)
     for wound in state.wounds:
         bits.append(wound.text)
     return "CONDITION: " + ", ".join(bits) if bits else ""
@@ -665,6 +736,7 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
         _intents_block(state),
         _objectives_block(state),
         _events_block(state),
+        moved_block(state),
         _rumors_block(state),
     ):
         if block:
@@ -723,7 +795,9 @@ def _mood(disposition: int) -> str:
     return "neutral toward you"
 
 
-def _dossier(ledger: "StoryLedger", npc_id: str) -> list[str]:
+def _dossier(
+    ledger: "StoryLedger", npc_id: str, *, state: Optional[GameState] = None
+) -> list[str]:
     """
     One character, as much as the narrator needs and no more.
 
@@ -745,10 +819,19 @@ def _dossier(ledger: "StoryLedger", npc_id: str) -> list[str]:
     if record is None or not record.met:
         return []
 
-    name = ledger.names.get(npc_id) or npc_id
-    head = f"- {name} ({npc_id}) has met you and is {_mood(record.disposition)}."
+    # A NAME, never the id. `ledger.names` is keyed by proper noun, so looking
+    # an npc id up in it always missed and this printed "npc_maris
+    # (npc_maris)"; the PEOPLE HERE block already maps id to name for the
+    # model, so the prose half needs only the name.
+    from engine.world import npc_sim
+
+    name = npc_sim.display_name(npc_id, state)
+    if name == "somebody":
+        name = ledger.names.get(npc_id) or name
+    head = f"- {name} has met you and is {_mood(record.disposition)}."
     if record.last_seen_location:
-        head += f" Last seen at {record.last_seen_location}, day {record.last_seen_day}."
+        place = (LOCATIONS.get(record.last_seen_location) or {}).get("name")
+        head += f" Last seen at {place or record.last_seen_location}, day {record.last_seen_day}."
     out = [head]
 
     for fact in ledger.recall(npc_id, limit=3):
@@ -768,6 +851,7 @@ def memory_blocks(
     present_npc_ids: tuple[str, ...] = (),
     location_id: str = "",
     topic_ids: tuple[str, ...] = (),
+    state: Optional[GameState] = None,
 ) -> tuple[str, str]:
     """
     Blocks 2 and 3 -- the running summary and everything remembered.
@@ -816,7 +900,7 @@ def memory_blocks(
 
     dossiers: list[str] = []
     for npc_id in present_npc_ids:
-        dossiers.extend(_dossier(ledger, npc_id))
+        dossiers.extend(_dossier(ledger, npc_id, state=state))
     if dossiers:
         lines.append("WHO IS HERE, AND WHAT THEY REMEMBER")
         lines.extend(dossiers)
@@ -924,23 +1008,187 @@ def receipts_block(receipts: list[dict[str, Any]]) -> str:
             lines.append(f"- {receipt.get('skill')} failed: {result.get('error', 'unknown')}")
             continue
 
-        skill = receipt.get("skill")
-        if receipt.get("type") == "dice":
-            summary = result.get("summary")
-            if summary:
-                lines.append(f"- {summary}")
-            else:
-                lines.append(f"- {skill} -> {result}")
-        elif skill == "move_to":
-            lines.append(
-                f"- travelled to {result.get('to_id')} "
-                f"({result.get('hours', 0)}h, {result.get('stamina_cost', 0)} stamina)"
-            )
-        elif skill == "trade":
-            lines.append(f"- trade: {result}")
-        else:
-            lines.append(f"- {skill} -> {result}")
+        line = summarise_receipt(receipt)
+        if line:
+            lines.append(f"- {line}")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# One sentence per receipt
+# ---------------------------------------------------------------------------
+#
+# WHAT THIS REPLACES. Every skill without a special case fell through to
+# `f"- {skill} -> {result}"`: a Python dict, printed at the model. A forage
+# receipt measured ~1,600 characters including the DC, every roll and "stamina
+# 94" -- numbers the block's own header tells the narrator not to restate, and
+# in a veiled story numbers it must never see. Each summariser below says what
+# HAPPENED in words, and the fallback for a skill nobody wrote one for says
+# only that it happened: an unknown skill leaks nothing rather than everything.
+
+_DEGREE_WORDS = {
+    "crit_success": "brilliantly",
+    "success": "well",
+    "partial": "only partly",
+    "failure": "badly",
+    "crit_failure": "disastrously",
+}
+
+
+def _degree(result: dict[str, Any]) -> str:
+    degree = str(result.get("degree") or (result.get("check") or {}).get("degree") or "")
+    return _DEGREE_WORDS.get(degree, "")
+
+
+def _money(amount: Any) -> str:
+    from engine.game.trade import currency_label
+
+    try:
+        value = int(amount)
+    except (TypeError, ValueError):
+        return ""
+    return currency_label(value)
+
+
+def _place(location_id: Any) -> str:
+    return str((LOCATIONS.get(str(location_id or "")) or {}).get("name") or location_id or "")
+
+
+def _names(rows: Any) -> str:
+    out = []
+    for row in rows or []:
+        if isinstance(row, dict):
+            name = row.get("name") or str(row.get("item_id") or "").replace("_", " ")
+            qty = int(row.get("qty", 1) or 1)
+            out.append(f"{name} x{qty}" if qty > 1 else str(name))
+    return ", ".join(o for o in out if o)
+
+
+def _authored(result: dict[str, Any]) -> str:
+    """The skill's own prose line, when it wrote one."""
+    return str(result.get("text") or "").strip()
+
+
+def _sum_rest(result: dict[str, Any]) -> str:
+    hours = result.get("hours")
+    head = f"rested for {hours:g} hours" if isinstance(hours, (int, float)) else "rested"
+    return " ".join(x for x in (head + ".", _authored(result)) if x)
+
+
+def _sum_eat(result: dict[str, Any]) -> str:
+    return " ".join(x for x in (f"ate the {result.get('name') or 'food'}.", _authored(result)) if x)
+
+
+def _sum_forage(result: dict[str, Any]) -> str:
+    found = _names(result.get("found") or result.get("items"))
+    how = _degree(result)
+    head = f"searched {_place(result.get('location_id'))}".strip()
+    if how:
+        head += f" and did {how}"
+    tail = f"; found {found}" if found else "; found nothing worth carrying"
+    return head + tail + "."
+
+
+def _sum_work(result: dict[str, Any]) -> str:
+    head = f"worked: {result.get('name') or 'a shift'}"
+    how = _degree(result)
+    if how:
+        head += f", and did {how}"
+    pay = _money(result.get("wage")) if result.get("wage") else ""
+    kind = _names(result.get("in_kind"))
+    paid = " and ".join(x for x in (pay, kind) if x)
+    parts = [head + (f"; paid {paid}" if paid else "; paid nothing") + "."]
+    if _authored(result):
+        parts.append(_authored(result))
+    return " ".join(parts)
+
+
+def _sum_buy(result: dict[str, Any]) -> str:
+    return (
+        f"bought {result.get('name') or 'it'} from {result.get('vendor') or 'the vendor'}"
+        f" for {_money(result.get('gold_spent'))}."
+    )
+
+
+def _sum_sell(result: dict[str, Any]) -> str:
+    return (
+        f"sold {result.get('name') or 'it'} to {result.get('vendor') or 'the buyer'}"
+        f" for {_money(result.get('gold_gained'))}."
+    )
+
+
+def _sum_move(result: dict[str, Any]) -> str:
+    hours = result.get("hours")
+    where = _place(result.get("to_id"))
+    return f"travelled to {where}" + (f", {hours:g} hours on the road." if hours else ".")
+
+
+def _sum_thread(verb: str):
+    def summarise(result: dict[str, Any]) -> str:
+        thread = result.get("thread") if isinstance(result.get("thread"), dict) else {}
+        terms = str(thread.get("terms") or result.get("terms") or "").strip()
+        return f"{verb}: {terms}" if terms else f"{verb}."
+
+    return summarise
+
+
+def _sum_scene_begin(result: dict[str, Any]) -> str:
+    # Never the hand. The card ids are the scene's future; the narrator is
+    # handed each card as it is played.
+    return "a new scene begins."
+
+
+_SUMMARISERS: dict[str, Any] = {
+    "rest": _sum_rest,
+    "eat": _sum_eat,
+    "forage": _sum_forage,
+    "work": _sum_work,
+    "trade": _sum_buy,
+    "trade_sell": _sum_sell,
+    "move_to": _sum_move,
+    "strike_bargain": _sum_thread("agreed"),
+    "discharge_thread": _sum_thread("settled"),
+    "scene_begin": _sum_scene_begin,
+}
+
+#: Keys whose value is a sentence written for a reader, in order of preference.
+#: The fallback reads ONLY these; everything else on a result is bookkeeping.
+_PROSE_KEYS = ("summary", "text", "outcome_text", "message")
+
+
+def summarise_receipt(receipt: dict[str, Any]) -> str:
+    """
+    One plain sentence for one successful receipt. "" when there is nothing to say.
+
+    A dice receipt keeps its CheckResult ``summary`` -- the line
+    engine/game/checks.py writes for exactly this block.
+    """
+    skill = str(receipt.get("skill") or "")
+    result = receipt.get("result") if isinstance(receipt.get("result"), dict) else {}
+    if skill == "set_narrative_flag":
+        return ""
+    fn = _SUMMARISERS.get(skill)
+    if fn is not None:
+        return fn(result)
+    for key in _PROSE_KEYS:
+        text = str(result.get(key) or "").strip()
+        if text:
+            return text
+    # No sentence written for it. Keep the short WORD facts -- a Phase A lookup
+    # such as query_evil_state exists so the narrator reports "stirring"
+    # instead of guessing -- and drop every number and every nested structure,
+    # which is where the DCs, rolls and meter readings live.
+    facts = [
+        f"{key.replace('_', ' ')} {value}"
+        for key, value in result.items()
+        if isinstance(value, str)
+        and value.strip()
+        and len(value) <= 60
+        and key not in ("error", "raw")
+        and not key.endswith("_id")
+    ]
+    label = skill.replace("_", " ")
+    return f"{label}: {', '.join(facts)}." if facts else f"{label}: done."
 
 
 def assistant_system_prompt(state: GameState, *, hint_tier: int) -> str:
