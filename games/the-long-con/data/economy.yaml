@@ -9,24 +9,41 @@
 # spread in data/tables/trade.yaml. A row here is a vendor naming their own
 # number for something they particularly stock or particularly want.
 #
+# NO `name:` KEYS. The version of this file that shipped carried them --
+# "Cold pie, wrapped", "Cigarettes, loose", "A watch with the name filed
+# off" -- as a noir veneer over the graph template's forest items. They were
+# read by NOTHING: engine/game/trade.py takes every display name from
+# `inventory.name_of(item_id)`, so a player browsing this shop was offered
+# "Bread Roll" and "Hedge Berries" in a 1940s crime story. The fix is items
+# that are actually what they say they are, in data/items/goods.yaml.
+#
 # THE SPREAD IS THE LIVING. A vendor sells above value and buys below it;
 # nobody is cheating anybody. Watch that no pair of vendors prices an item
 # into a profitable round trip -- arbitrage is not supposed to be a career.
 #
 # Every id on both sides must exist in data/items/*.yaml.
 #
-# Version: v0.1.0
+# Version: v0.2.0
 
 # ------------------------------------------------------------
-# The miller -- sells bread, buys what the wood provides.
-# The id must match the vendor profile in data/tables/trade.yaml.
+# Georgie Pell -- harbour_road, under the third lamp, 18:00 to 03:00, with a
+# coat full of things that came off a boat. The only vendor in the city, and
+# the id must match the profile in data/tables/trade.yaml.
 # ------------------------------------------------------------
 npc_pell:
   sells:
-    bread_roll: { price: 3, name: "Cold pie, wrapped" }
+    # The repeatable one. Cheap on purpose: cooling heat has to be something
+    # a broke gumshoe can still do, or the frame fills with no counterplay
+    # and the economy is a countdown rather than a choice.
+    carton_of_cigarettes: { price: 9 }
+    bonded_rye: { price: 21 }
+    # He has one, and when it is gone he has another one.
+    press_pass: { price: 18 }
   buys:
-    field_mushroom: { price: 2, name: "Something off a boat" }
-    hedge_berries: { price: 1, name: "Cigarettes, loose" }
-    # The miller pays real money for curios, which makes the wood's uncommon
-    # table worth the walk -- the one deliberate price signal in the stub.
-    old_coin: { price: 6, name: "A watch with the name filed off" }
+    # He pays properly for this because it is his actual trade, and because
+    # it is the one thing in the registry with no use but its price -- the
+    # player's way of turning a lucky night into cigarettes.
+    filed_watch: { price: 14 }
+    # He will take these back off you at a loss, which is what a fence is.
+    carton_of_cigarettes: { price: 3 }
+    bonded_rye: { price: 6 }

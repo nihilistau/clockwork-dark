@@ -11,14 +11,25 @@
 #   base_wage                   copper at a clean success
 #   pay                         multiplier per degree of success
 #   in_kind                     items handed over on listed degrees -- often
-#                               the real pay; the mill feeds its help
+#                               the real pay
 #   demand                      wage multiplier per evil phase; 0.0 means
 #                               NOT HIRING, the job leaves the board
 #
-# `faction:` and `reputation:` are omitted ON PURPOSE -- this template
-# declares no `paths.factions`. Add the faction file first, then the keys.
+# WHAT THIS FILE SHIPPED WITH: one job, `mill_sacks`, hauling grain at a mill
+# that does not exist in this city -- `location_id: harbour_road` pointed at
+# the docks and the blurb described a miller watching the scale. It paid in
+# bread, in a story with no eating. It came from the graph template whole.
 #
-# Version: v0.1.0
+# A JOB CANNOT MOVE A METER. `economy.py` reads no `effects:` key on a job --
+# only coin and `in_kind` items. That is why the work below pays partly in
+# cigarettes: the ITEM carries the heat effect (see data/items/goods.yaml),
+# so a night on the weighbridge buys you a way to be less interesting
+# tomorrow. Wage into item into meter, with nothing invented in between.
+#
+# `faction:` and `reputation:` are omitted ON PURPOSE -- this story declares
+# no `paths.factions`. Add the faction file first, then the keys.
+#
+# Version: v0.2.0
 
 version: 1
 
@@ -30,20 +41,42 @@ labour:
 
 jobs:
 
-  - id: mill_sacks
-    name: "Haul sacks at the mill"
+  - id: weighbridge_nights
+    name: "Nights on the weighbridge"
     blurb: >-
-      Grain in, flour out, stairs both ways. The miller pays by the shift
-      and watches the scale, not you.
+      Numbers off the boats onto a docket, and nobody minds which pencil you
+      use as long as the column adds. Pell can get you put on.
     location_id: harbour_road
     skill: craft
     difficulty: easy
-    hours: 4
-    stamina_cost: 15
-    base_wage: 4
+    hours: 5
+    stamina_cost: 12
+    base_wage: 6
     pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
     in_kind:
-      - { item_id: bread_roll, qty: 1, degrees: [crit_success, success] }
-    demand: { dormant: 1.0, stirring: 1.0, spreading: 0.8, consuming: 0.0 }
-    success_text: "The stack is square by mid-afternoon and the coins are real."
-    failure_text: "A sack goes over on the stairs and the afternoon goes with it."
+      - { item_id: carton_of_cigarettes, qty: 1, degrees: [crit_success, success] }
+    # Pinned flat: this story sets `evil_base_rate_per_day: 0.0`, so the phase
+    # never leaves `dormant` and a demand curve across four phases would be
+    # three numbers nobody can reach. Declared anyway, because the key is not
+    # optional and a reader should see the decision rather than its absence.
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
+    success_text: "The column adds, the docket goes in the box, and nobody looks up."
+    failure_text: "A tonnage will not reconcile and you are still there at four, holding the pencil."
+
+  - id: cadenza_door
+    name: "The door at the Cadenza"
+    blurb: >-
+      Sonia needs somebody on the door who can tell the difference between a
+      man who is drunk and a man who is working. It pays, and you hear things.
+    location_id: cadenza_bar
+    skill: nerve
+    difficulty: standard
+    hours: 4
+    stamina_cost: 10
+    base_wage: 9
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    in_kind:
+      - { item_id: bonded_rye, qty: 1, degrees: [crit_success] }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
+    success_text: "Two go home early and neither of them makes it a story. Sonia pays without counting twice."
+    failure_text: "It goes loud, and the loud part happens in the doorway where everyone can see it."

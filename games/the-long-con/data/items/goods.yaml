@@ -3,59 +3,114 @@
 # Read by engine/game/inventory.py; every *.yaml under `paths.items` merges
 # into one id -> row registry, first file to claim an id wins.
 #
-# EVERY id the other tables name must exist here. A forage row, a wage
-# in-kind or a vendor stock line pointing at a missing id resolves to
-# nothing, raises nothing, and produces a pick the player can never receive
-# -- the classic silent content bug of this shape of story.
+# EVERY id the other tables name must exist here. A wage in-kind or a vendor
+# stock line pointing at a missing id resolves to nothing, raises nothing, and
+# produces a pick the player can never receive -- the classic silent content
+# bug of this shape of story.
 #
-# `value` is the copper baseline the trade spread prices from (an item with
-# value 0 cannot be sold). The `food` tag is load-bearing: eating is an
-# ENGINE mechanic (engine/game/survival.py::eat) keyed on it, so food items
-# need no `use:` block -- and a story with no repeatable source of food-tagged
-# items rebuilds the starvation soft-lock the flagship shipped with.
+# WHAT MONEY IS FOR HERE. This story has no hunger and no rest -- it ships no
+# `survival.yaml`, so `survival.rest_kinds()` is empty and nothing eats. The
+# registry it inherited from the graph template was four FOOD items, which in
+# a story with no eating is an economy with nothing to buy.
 #
-# Version: v0.1.0
+# So coin buys the only two things this city sells: quiet, and the benefit of
+# the doubt. Every row below either moves `heat` or `standing` through a
+# `use:` block, or is worth real money to the one man who trades. That matters
+# because the case only ever pushes those meters one way -- read
+# data/quests/the_case/: every stage adds heat and spends standing. Without
+# something to spend money ON, the frame fills and the player watches.
+#
+# `value` is the copper baseline the trade spread prices from. An item with
+# value 0 CANNOT be sold, which is how evidence stays evidence.
+#
+# Version: v0.2.0
 
 version: 1
 
 items:
 
-  - id: bread_roll
-    name: "Bread Roll"
+  - id: carton_of_cigarettes
+    name: "Carton of Cigarettes"
     description: >-
-      Yesterday's flour, this morning's oven. Solves the next few hours,
-      which is what bread is for.
-    tags: [food, provisions]
-    weight: 0.2
-    value: 2
+      The city's small change. Nobody refuses one, nobody remembers being
+      given one, and a shared match is four minutes in which you are not a
+      stranger.
+    tags: [goods, favour]
+    weight: 0.3
+    value: 8
     stack: true
+    use:
+      verb: "hand around"
+      hours: 0.5
+      consumes: 1
+      effects:
+        - type: value
+          name: heat
+          delta: -4
+          why: "a shared smoke is a conversation nobody writes down"
 
-  - id: field_mushroom
-    name: "Field Mushroom"
+  - id: bonded_rye
+    name: "Bonded Rye"
     description: >-
-      Broad, brown, honest. The wood gives them up after rain to anyone who
-      looks at ankle height.
-    tags: [food, forage]
-    weight: 0.1
-    value: 1
+      Tax stamp intact, which is rarer than the whisky. A bottle like this is
+      not a drink. It is a sentence you do not have to finish.
+    tags: [goods, gift]
+    weight: 1.2
+    value: 16
     stack: true
+    use:
+      verb: "leave it on the desk"
+      hours: 0.5
+      consumes: 1
+      effects:
+        - type: value
+          name: standing
+          delta: 6
+          why: "you left the good bottle and did not mention it again"
 
-  - id: hedge_berries
-    name: "Hedge Berries"
+  - id: press_pass
+    name: "Somebody Else's Press Pass"
     description: >-
-      A handful of dark ones from the margin, staining your palm as proof
-      you did something with the afternoon.
-    tags: [food, forage]
-    weight: 0.1
-    value: 1
-    stack: true
-
-  - id: old_coin
-    name: "Old Coin"
-    description: >-
-      Not currency anymore, if it ever was. Somebody's face on one side,
-      worn to a suggestion. The uncommon find -- worth more than it spends.
-    tags: [curio, forage]
+      A name that is not yours over a photograph that nearly is. It opens the
+      Ledger's side door and it is exactly the kind of thing that gets
+      remembered afterwards.
+    tags: [goods, paper]
     weight: 0.05
-    value: 6
+    value: 12
+    stack: false
+    use:
+      verb: "show the pass"
+      hours: 1.0
+      once_per_day: true
+      effects:
+        - type: value
+          name: standing
+          delta: 5
+          why: "doors open for the press, briefly"
+        - type: value
+          name: heat
+          delta: 7
+          why: "you used a name that is not yours, in a building that files things"
+
+  - id: filed_watch
+    name: "Watch With The Name Filed Off"
+    description: >-
+      Gold, good movement, and a flat bright patch on the case where somebody
+      spent an evening with a file. Worth carrying only as far as the next
+      man who will take it.
+    tags: [goods, hot]
+    weight: 0.1
+    value: 24
+    stack: true
+
+  - id: weighbridge_carbon
+    name: "Weighbridge Carbon"
+    description: >-
+      The blue second sheet of a docket nobody meant you to read, with a
+      tonnage on it that does not match the boat it came off.
+    # `value: 0` is load-bearing: evidence that can be sold is evidence that
+    # leaves the story through the nearest shop.
+    tags: [evidence, paper]
+    weight: 0.02
+    value: 0
     stack: true

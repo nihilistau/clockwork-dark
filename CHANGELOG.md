@@ -14,6 +14,57 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-09-23
+
+### Changed
+
+- **THE LONG CON stopped selling mushrooms as cigarettes.** Its items and tables
+  were the graph template's, and a veneer hid it: `economy.yaml` carried noir
+  display names — `"Cigarettes, loose"`, `"A watch with the name filed off"` —
+  over `hedge_berries` and `old_coin`. That `name:` key is **read by nothing**;
+  `trade.py` takes every display name from `inventory.name_of(item_id)`, so the
+  player browsing a 1940s fence was offered "Hedge Berries".
+- **The goods are now levers, not groceries.** The story ships no
+  `survival.yaml` — `rest_kinds()` is empty and nothing eats — so a registry of
+  four food items was an economy with nothing to buy. Coin now buys the only two
+  things this city sells: cigarettes hand around for `heat -4`, bonded rye left
+  on a desk for `standing +6`, and somebody else's press pass for `standing +5`
+  and `heat +7`, once a day. That is the counterplay the case lacked: every
+  quest stage in `the_case/` adds heat and spends standing, and nothing spent
+  the other way.
+- **Work is work the city has.** The single job hauled sacks at a mill that does
+  not exist here. It is nights on the weighbridge and the door at the Cadenza
+  now, at locations with NPCs and hours. A job cannot move a meter —
+  `economy.py` reads no `effects:` key — so the weighbridge pays partly in
+  cigarettes and the *item* carries the effect. Wage into item into meter, with
+  nothing invented in between.
+
+### Fixed
+
+- **The only vendor profile in the city described a man who is not in it.**
+  `trade.yaml` declared `npc_miller`, "The Miller", who appears in no schedule,
+  no quest and no stock table; `browse` answered *"Nobody trades here as
+  npc_miller."* Meanwhile Georgie Pell, who has stock in `economy.yaml` and
+  stands on the harbour road from 18:00, had no profile and traded on the global
+  spread. `economy.yaml` and `trade.yaml` are both keyed on NPC ids and nothing
+  made them agree.
+- Two new tests hold that seam: a vendor profile must name an NPC the story
+  **schedules**, and a vendor with stock must **have** a profile. Both were
+  proved by putting `npc_miller` back and watching them fire.
+- **`tests/test_livelihood_per_game.py` never ran against this story.** Its
+  `GAMES` tuple held one entry, so a game declaring `paths.economy`,
+  `paths.tables` and jobs was never driven through the file written to check
+  exactly those. It holds two now, with foraging split out — THE LONG CON is a
+  city with no ground to forage on.
+
+### Removed
+
+- `data/tables/forage.yaml` — 86 lines of leaf litter, hedge berries and
+  seasonal yields in a story where no location carries a `forage` or `wild` tag,
+  so the table could never fire, feeding a hunger mechanic the story does not
+  have. Deleted rather than re-themed: scavenging could be written, but
+  re-theming it would have produced content that still cannot run.
+
 ## [0.7.0] — 2026-09-20
 
 ### Added
@@ -378,7 +429,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.0...v0.6.1

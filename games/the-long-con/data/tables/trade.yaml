@@ -9,11 +9,18 @@
 #             `deals_in` filters by item tag -- a vendor with no row for an
 #             item will still quote it, at their spread, if its tags match.
 #
-# `faction:` is omitted from the profile ON PURPOSE: this template declares
-# no `paths.factions`, and a vendor billing to an undeclared faction is a
-# reference into nothing. Add the faction file first, then the key.
+# THE BUG THIS FILE SHIPPED WITH. It declared a profile for `npc_miller`,
+# "The Miller", who exists nowhere else in this story -- not in
+# npc_schedules.yaml, not in economy.yaml, not in a quest. `browse` answered
+# "Nobody trades here as npc_miller." Meanwhile Georgie Pell, who DOES have
+# stock in economy.yaml and DOES stand on harbour_road every night, had no
+# profile at all and traded on the global spread. The one vendor profile in
+# the story described a man who was not in it.
 #
-# Version: v0.1.0
+# `faction:` is omitted ON PURPOSE: this story declares no `paths.factions`,
+# and a vendor billing to an undeclared faction is a reference into nothing.
+#
+# Version: v0.2.0
 
 version: 1
 
@@ -24,10 +31,13 @@ trade:
     sell: 0.45
 
 vendors:
-  npc_miller:
-    name: "The Miller"
+  npc_pell:
+    name: "Georgie Pell"
     location: harbour_road
-    deals_in: [food, provisions, curio]
-    # A miller's margin on bread is thin and everyone knows it; the personal
-    # spread overrides the global one for this vendor only.
-    spread: { buy: 1.1, sell: 0.5 }
+    # `hot` is here because fencing is the trade. `evidence` is NOT: the one
+    # evidence item carries value 0 and cannot be sold anyway, and listing the
+    # tag would put a quote on the case's own paperwork.
+    deals_in: [goods, favour, gift, hot, paper]
+    # A fence's spread is wider than a shopkeeper's, and that IS the fiction:
+    # he is not selling you convenience, he is selling you no questions.
+    spread: { buy: 1.4, sell: 0.4 }

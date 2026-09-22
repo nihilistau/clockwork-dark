@@ -51,7 +51,9 @@ encounters:
           It goes better than it had any right to. The car turns off at the
           weighbridge and you have the number, and the number is a start.
         effects:
-          - { type: item, item_id: hedge_berries, name: "Hedge Berries", qty: 2 }
+          # "You have the number, and the number is a start" -- so the reward
+          # is the number, on paper. It was two handfuls of hedge berries.
+          - { type: item, item_id: weighbridge_carbon, name: "Weighbridge Carbon", qty: 1 }
       success:
         text: "It resolves the way you meant it to, and the path is a path again."
         effects: []

@@ -64,8 +64,8 @@ Local-first AI RPG: deterministic hard engine + two autonomous agents (Storytell
 
 **PR1–PR12 complete. Overhaul phases P1–P11 complete. Overhaul II complete.
 Overhaul III (reachability) complete.**
-**1904 passing, 3 skipped in 4m16s**, no expected failures (measured
-2026-09-20), plus **138 client tests** under `ui/tests/` (`npm test --prefix ui`,
+**1913 passing, 3 skipped in 4m14s**, no expected failures (measured
+2026-09-23), plus **138 client tests** under `ui/tests/` (`npm test --prefix ui`,
 which needs `npm install --prefix ui` once — `vitest` is a devDependency). Run
 both for the real numbers rather than trusting this line; it has been stale
 before — and was again: it read "2020 passing, 18 skipped" for a month after
@@ -366,12 +366,37 @@ that nobody writes a row for is invisible in a repo that records debt in prose
 and has zero TODO/FIXME markers by convention — there is nothing to grep.
 `tests/test_reachability.py` answers that mechanically now.
 
-Still open and deliberately deferred, recorded here rather than fixed: THE LONG
-CON's tables and items are still the graph template's (it sells mushrooms as
-cigarettes); neon-city ships **zero** art plates against 75 subjects, its entry
-location included; the Garden has 11 of 23 endings unreachable and 4 orphan
-cards. The studio review queue can now keep one draft
-(`POST /api/studio/draft/accept`); it still does not draft from the browser.
+Still open and deliberately deferred, recorded here rather than fixed:
+neon-city ships **zero** art plates against 75 subjects, its entry location
+included; the Garden has 11 of 23 endings unreachable and 4 orphan cards; and
+`mortal_threshold`, the Garden's ENTRY location and where its ten-card prologue
+plays out, is one of six the art manifest lists as having no plate on purpose —
+so a new player sees no scene art until the prologue ends. The studio review
+queue can now keep one draft (`POST /api/studio/draft/accept`); it still does
+not draft from the browser.
+
+**THE LONG CON's tables were the graph template's, and the veneer hid it.**
+Closed in v0.7.1. It sold mushrooms as cigarettes literally: `economy.yaml`
+carried noir display names (`"Cigarettes, loose"`, `"A watch with the name filed
+off"`) over the template's `hedge_berries` and `old_coin` — and `trade.py` takes
+every display name from `inventory.name_of(item_id)`, so that key was read by
+NOTHING and the player was offered "Hedge Berries" in a 1940s crime story. Three
+more things were wrong underneath it: the only vendor profile named
+`npc_miller`, who exists nowhere in the story (`browse` answered "Nobody trades
+here as npc_miller") while the fence who does stand there had no profile; the
+one job hauled sacks at a mill the city does not contain; and `forage.yaml` was
+86 lines matching no location tag, in a story whose `rest_kinds()` is empty and
+where nothing eats. The goods now move `heat` and `standing` through `use:`
+blocks, which is the counterplay the case lacked — every quest stage adds heat
+and spends standing, and nothing spent the other way.
+
+`tests/test_livelihood_per_game.py` is what makes it stay fixed, and the reason
+it did not catch this is worth keeping: its `GAMES` tuple held one entry, so a
+story that declares `paths.economy`, `paths.tables` and jobs was never once
+driven through it. Two new tests hold the seam the old ones missed — a vendor
+profile must name an NPC the story SCHEDULES, and a vendor with stock must have
+a profile, because `economy.yaml` and `trade.yaml` are both keyed on NPC ids and
+nothing made them agree.
 
 **One order-dependent test was found and fixed rather than recorded.**
 `test_world_advances_over_a_session` passed alone, passed in the full suite,

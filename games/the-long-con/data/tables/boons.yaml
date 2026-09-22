@@ -19,8 +19,11 @@ boons:
     effects:
       - { type: stamina, delta: 5 }
 
-  - id: forager_luck
-    applies_to: [survival]
-    text: "Your eye finds what everyone else walked past."
+  # Was `forager_luck`, granting field mushrooms on a natural 20 in survival --
+  # the graph template's wood, in a city with nowhere to forage and nothing
+  # that eats. Same shape, same skill, something this story has.
+  - id: pressed_on_you
+    applies_to: [persuasion]
+    text: "It goes so well that they insist, and insisting is how this city says thank you."
     effects:
-      - { type: item, item_id: field_mushroom, name: "Field Mushroom", qty: 2, tags: [food, forage] }
+      - { type: item, item_id: carton_of_cigarettes, name: "Carton of Cigarettes", qty: 1, tags: [goods, favour] }

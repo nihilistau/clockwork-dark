@@ -41,7 +41,21 @@ from engine.games import registry
 #: forage rules or vendors, so it belongs with the Garden below. STATIC on
 #: purpose -- whether a story runs these systems is an authoring decision read
 #: from its content, and a derived list would assert whatever it found.
-GAMES = ("clockwork-dark",)
+GAMES = ("clockwork-dark", "the-long-con")
+
+#: ...and of those, the ones with ground to forage on.
+#:
+#: THE LONG CON is a city. It ships no `survival.yaml`, so `rest_kinds()` is
+#: empty and nothing eats; no location carries a `forage` or `wild` tag; and
+#: until v0.7.1 it shipped the graph template's `forage.yaml` whole -- 86 lines
+#: of mushrooms and hedge berries that could never fire, because the table
+#: matched no tag in the story. Foraging is not a system it runs, so asserting
+#: it has forageable ground would assert a bug into existence.
+FORAGING_GAMES = ("clockwork-dark",)
+
+#: One boon id each story must be able to draw. Proof it resolved ITS table
+#: and not a neighbour's, which is what this file exists for.
+EXPECTED_BOON = {"clockwork-dark": "forager_luck", "the-long-con": "pressed_on_you"}
 
 #: Every installed story, for the one claim that holds regardless. Derived,
 #: because "cleanly absent, never noisy" is owed to any story that exists.
@@ -67,7 +81,12 @@ def test_each_game_draws_its_own_boons_and_complications(activated: str):
     }
     assert boons, f"{activated} resolved no boon table at all"
     assert complications, f"{activated} resolved no complication table at all"
-    assert "forager_luck" in boons
+    # Per game, because the point of this test is that each story draws its
+    # OWN table -- a hardcoded flagship id was a proxy for that, and became
+    # wrong the moment a second game joined the list.
+    assert EXPECTED_BOON[activated] in boons, (
+        f"{activated} drew {sorted(boons)}, not its own table"
+    )
 
 
 @pytest.mark.parametrize("activated", GAMES, indirect=True)
@@ -125,6 +144,51 @@ def test_every_vendor_names_a_place_and_a_faction_that_exist(activated: str):
 
 
 @pytest.mark.parametrize("activated", GAMES, indirect=True)
+def test_every_vendor_is_somebody_the_story_actually_has(activated: str):
+    """
+    A vendor profile must name an NPC the story schedules.
+
+    THE BUG THIS CAUGHT, in THE LONG CON, shipped: `trade.yaml` declared a
+    profile for `npc_miller` -- "The Miller" -- who appeared nowhere else in
+    the story. Not in `npc_schedules.yaml`, not in `economy.yaml`, not in a
+    quest. `browse` answered "Nobody trades here as npc_miller", so the only
+    vendor profile in the city described a man who was not in it, while the
+    fence who DOES stand on the harbour road every night had no profile and
+    traded on the global spread.
+
+    The test above this one passed throughout: it checks the vendor's PLACE
+    exists, and `harbour_road` does. Nothing checked the vendor.
+    """
+    from engine.world import npc_sim
+
+    scheduled = set((npc_sim.load_npc_schedules() or {}).get("npcs") or {})
+    assert scheduled, f"{activated} schedules no NPCs at all"
+
+    for npc_id in trade.vendors():
+        assert npc_id in scheduled, (
+            f"{activated}: vendor {npc_id} has a trade profile and no schedule, "
+            "so nobody is standing there -- browse answers 'Nobody trades here'"
+        )
+
+
+@pytest.mark.parametrize("activated", GAMES, indirect=True)
+def test_every_vendor_with_stock_can_be_traded_with(activated: str):
+    """
+    The other half, and the half that was actually broken for the player.
+
+    `economy.yaml` is keyed on NPC ids and `trade.yaml` is keyed on NPC ids,
+    and nothing made them agree. THE LONG CON stocked `npc_pell` and profiled
+    `npc_miller`, so the shop had goods and the shopkeeper had a spread and
+    they were two different people.
+    """
+    for npc_id in trade.load_economy():
+        assert npc_id in trade.vendors(), (
+            f"{activated}: {npc_id} has stock in economy.yaml and no profile in "
+            "trade.yaml, so they trade on the global spread by accident"
+        )
+
+
+@pytest.mark.parametrize("activated", FORAGING_GAMES, indirect=True)
 def test_a_broke_player_can_forage_food_where_there_is_ground_to_forage(activated: str):
     """The soft-lock this whole package closes, checked on every map that has one."""
     entry = registry.active().entry.get("location_id", "")
