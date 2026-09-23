@@ -171,7 +171,7 @@ def _rest(state: GameState) -> Optional[IntentVerb]:
     """
     Every configured way of stopping.
 
-    Never conditioned on where the player is standing (CLAUDE.md rule 6):
+    Never conditioned on where the player is standing (AGENTS.md rule 6):
     ``survival.rest`` downgrades a bed it cannot reach to sleeping rough rather
     than refusing, and a location gate here would rebuild the stamina soft-lock
     one layer higher up.
@@ -747,7 +747,7 @@ SKILL_FOR_ACTION: dict[str, str] = {
 #: (4h, 20 stamina)" for a leg that was never walked. That is the exact
 #: sentence a player must never read.
 #:
-#: ``rest`` is deliberately ``None``: it never refuses (CLAUDE.md rule 6), and
+#: ``rest`` is deliberately ``None``: it never refuses (AGENTS.md rule 6), and
 #: a refusal path here would be a stamina soft-lock rebuilt one layer up.
 REFUSAL_KEY_FOR_ACTION: dict[str, Optional[str]] = {
     "travel": "success",

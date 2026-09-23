@@ -23,7 +23,7 @@ That is the property that makes negotiation possible at all, because a proposal
 that has already taken effect cannot be argued with.
 
 WHY EFFECTS ARE PROPOSED, NOT APPLIED. ``effects.apply_effect`` remains the only
-writer of game state (CLAUDE.md rule 3). A plan carries effect REQUESTS; the
+writer of game state (AGENTS.md rule 3). A plan carries effect REQUESTS; the
 commit phase runs them through the real writer, with the proposing agent
 recorded, so the state store's per-agent ACL and write journal see who asked.
 An agent cannot reach around this by constructing a plan.

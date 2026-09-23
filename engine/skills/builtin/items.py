@@ -4,7 +4,7 @@ Item Skills
 
 The verbs. Using a thing, wearing a thing, and knowing what a thing is for.
 
-WHY THESE ARE TOOLS AND NOT PROSE: CLAUDE.md's first rule is that the engine
+WHY THESE ARE TOOLS AND NOT PROSE: AGENTS.md's first rule is that the engine
 resolves mechanics and the model narrates them. A narrator free to say "you
 bind the wound and feel better" is a narrator deciding how much better, which
 wound, and whether the bandage was spent. Every entry point below is a thin

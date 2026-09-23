@@ -12,7 +12,7 @@ ONLY as the fallback for a story that declares no roster at all.
 What this suite holds:
 
   * the flagship still answers to its canon ids -- via its own declaration,
-    not via engine code (CLAUDE.md pins the ids; this file pins where they
+    not via engine code (AGENTS.md pins the ids; this file pins where they
     come FROM)
   * a story with its own roster gets its own names, and a role it declines to
     declare falls back to the historical pair rather than to silence
@@ -67,7 +67,7 @@ def test_the_flagship_answers_to_its_canon_ids_by_declaration(
     story: Any, agents: tuple[StorytellerAgent, AssistantAgent]
 ) -> None:
     """
-    The value is the one CLAUDE.md pins; the SOURCE is the story's roster.
+    The value is the one AGENTS.md pins; the SOURCE is the story's roster.
 
     Asserting the roster is non-empty is what distinguishes this from the
     legacy shim returning the same strings -- if the flagship's agents.yaml

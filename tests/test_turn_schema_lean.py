@@ -4,7 +4,7 @@ What v0.8.0 deleted stays deleted.
 Each of these was live code or live config that nothing in production reached.
 They are asserted absent rather than trusted to stay gone, because the pattern
 this repo keeps finding is dead code read as unfinished work by the next
-session -- which then finishes it (CLAUDE.md rule 12, "how it survived").
+session -- which then finishes it (AGENTS.md rule 12, "how it survived").
 
 Version: v0.1.0 [2026-09-23]
 """

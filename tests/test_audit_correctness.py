@@ -158,7 +158,7 @@ def test_with_no_agent_choices_the_narrator_keeps_all_four() -> None:
 # ---------------------------------------------------------------------------
 #
 # `economy.work` called `reputation.adjust` directly, around `apply_effect`
-# (CLAUDE.md rule 3), and the two writers clamped differently: `adjust` by the
+# (AGENTS.md rule 3), and the two writers clamped differently: `adjust` by the
 # faction's own bounds, the effect kind by a global -100..100.
 
 

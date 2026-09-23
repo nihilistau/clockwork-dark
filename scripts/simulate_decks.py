@@ -45,7 +45,7 @@ WHAT IT APPROXIMATES, honestly:
   * **Menu choices are uniform**, not in-character. The walker measures
     reachability, not taste.
 
-RNG DISCIPLINE (CLAUDE.md rule 4). Engine-side draws (deck deals, hidden beat
+RNG DISCIPLINE (AGENTS.md rule 4). Engine-side draws (deck deals, hidden beat
 checks, arbitrary cuts) run on the state's own named ``world_rng`` streams,
 seeded by the run seed, exactly as they would in play. The walker's OWN choices
 draw from ``stable_rng(run_seed, "sim.deck_policy")`` -- a named, documented

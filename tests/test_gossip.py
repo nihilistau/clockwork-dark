@@ -10,7 +10,7 @@ WHAT THESE TESTS PROTECT, in order of how badly it would hurt to lose it:
 1. **Determinism.** It draws on its own `world_rng` stream, and it fires on the
    background tick, which runs a variable number of times depending on how long
    the player sat on the menu. Borrowing another stream would let real-world
-   idle time shift an encounter roll (CLAUDE.md rule 4).
+   idle time shift an encounter roll (AGENTS.md rule 4).
 2. **Restraint.** One transfer per tick, only between people in the same place,
    only facts the speaker knows. A pass that moved everything everywhere would
    flatten the point, which is that the state is UNEVEN.

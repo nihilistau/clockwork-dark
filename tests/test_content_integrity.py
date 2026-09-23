@@ -53,7 +53,7 @@ def _flagship():
 
 
 def test_canon_ids_survive_the_move_to_yaml():
-    """CLAUDE.md pins these five. Renaming one invalidates every save file."""
+    """AGENTS.md pins these five. Renaming one invalidates every save file."""
     for canon in CANON_IDS:
         assert canon in LOCATIONS, canon
     assert CANONICAL_LOCATION_IDS == frozenset(CANON_IDS)

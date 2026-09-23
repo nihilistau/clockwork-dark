@@ -36,7 +36,7 @@ was closed at the moment the flagship was written. A second story's ``favor``,
 ``corruption`` or ``briar_hunger`` could not be reached by any effect at all,
 which meant they could not be reached by a quest reward, a challenge outcome, a
 deck card, a thread's terms, or an ending gate -- every one of those funnels
-through here by design (CLAUDE.md rule 3). The one-writer rule was quietly also
+through here by design (AGENTS.md rule 3). The one-writer rule was quietly also
 a one-STORY rule.
 
 Two changes fix that without loosening the rule:
@@ -476,7 +476,7 @@ def _e_reputation(
     # `reputation.adjust` clamped to the FACTION's own bounds, and
     # `economy.work` called `adjust` directly around this dispatcher -- two
     # writers, two clamps. Now `adjust` is the implementation and this is the
-    # only door to it (CLAUDE.md rule 3).
+    # only door to it (AGENTS.md rule 3).
     from engine.game import reputation as reputation_module
 
     before = _int(state.reputations.get(faction, 0))

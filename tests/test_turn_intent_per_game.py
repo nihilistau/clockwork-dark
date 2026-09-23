@@ -431,7 +431,7 @@ def test_every_authored_opening_intent_resolves(activated: str) -> None:
 @pytest.mark.parametrize("activated", GAMES, indirect=True)
 def test_no_story_can_walk_itself_into_a_stamina_soft_lock(activated: str) -> None:
     """
-    CLAUDE.md rule 6, held one layer down from where it is usually stated.
+    AGENTS.md rule 6, held one layer down from where it is usually stated.
 
     The rule is "never gate rest", because rest is the only thing that restores
     stamina and a gate rebuilds the soft-lock the game shipped with. A story

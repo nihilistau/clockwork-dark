@@ -136,7 +136,7 @@ def test_the_flagships_shipped_roster_does_not_trip_the_pipeline() -> None:
     ) as handle:
         roster = parse_roster(yaml.safe_load(handle), slug="clockwork-dark")
 
-    # The canon pair, by their canon ids (CLAUDE.md: do not rename).
+    # The canon pair, by their canon ids (AGENTS.md: do not rename).
     assert set(roster.agents) == {"clockwork_storyteller", "clockwork_assistant"}
     assert [a.id for a in roster.pipeline_agents()] == ["clockwork_storyteller"]
 

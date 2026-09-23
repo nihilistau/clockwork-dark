@@ -748,7 +748,7 @@ ids and buy from Edgewood's vendors. A non-flagship graph story is refused
 with its reason; there is no headless harness for your graph story yet, which
 means your balance claims are unmeasured — say so in your README rather than
 asserting them. What the harness is *for* — observing every number downstream
-of a clock that actually ticks — is its module docstring, and CLAUDE.md rule
+of a clock that actually ticks — is its module docstring, and AGENTS.md rule
 10 (simulate before changing a balance constant) applies to your story's
 numbers the moment such a harness exists.
 

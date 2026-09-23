@@ -266,7 +266,7 @@ def generate_world(seed: int) -> ProcgenResult:
         ProcgenResult with NPCs, buildings, forest, and festival data.
     """
     templates = load_templates()
-    # The named-stream discipline (CLAUDE.md rule 4), in its pre-state form.
+    # The named-stream discipline (AGENTS.md rule 4), in its pre-state form.
     # World generation runs BEFORE a GameState exists, so there is no
     # ``world_rng(state, ...)`` to draw on; ``stable_rng`` is the sanctioned
     # seed-only construction, and naming the PROCGEN stream means a draw added

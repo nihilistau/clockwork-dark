@@ -40,7 +40,7 @@ spoilers:
     instead: "the village's unease"
 
   # The four evil phases are NOT listed here any more. They are engine canon
-  # (dormant / stirring / spreading / consuming, see CLAUDE.md), and
+  # (dormant / stirring / spreading / consuming, see AGENTS.md), and
   # `ENGINE_TERMS` masks all four case-sensitively with wording that names no
   # story -- "the worst of it" for CONSUMING is the phrase this file used to
   # carry, so nothing about this story's output moved. Restate one here only to

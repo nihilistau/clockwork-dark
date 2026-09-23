@@ -837,7 +837,7 @@ def test_the_ending_tracks_are_written_through_the_dispatcher(
     garden: GameState,
 ) -> None:
     """
-    CLAUDE.md rule 3, for enum-valued state.
+    AGENTS.md rule 3, for enum-valued state.
 
     ``StateStore`` is numeric by construction and ``flags`` is boolean, so
     without a ``track`` effect kind these would be written by reaching into

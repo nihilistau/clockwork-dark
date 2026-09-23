@@ -4,7 +4,7 @@ A local-first AI roleplaying game where a deterministic engine holds truth and t
 
 You can become a baker in Edgewood and never learn the clock is ticking. Or you can march inward toward the Heartlands until the **Clockwork Dark** can no longer be ignored. The evil advances either way; that is the point.
 
-**Status:** playable. PR1–PR12 and overhaul phases P1–P11 complete. **2020 Python tests and 126 client tests passing, no expected failures** — R-01 is fixed (see [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md)).
+**Status:** playable, five stories, every one of them to an ending. What changed and when is in [CHANGELOG.md](CHANGELOG.md), which is the authority from 0.4.0 on; the current test counts are in [CLAUDE.md](CLAUDE.md) and are re-measured each release rather than copied here, which is how this line went stale before.
 
 ---
 
@@ -12,7 +12,7 @@ You can become a baker in Edgewood and never learn the clock is ticking. Or you 
 
 | | |
 |---|---|
-| **Python** | 3.13 |
+| **Python** | 3.11 or newer (developed and tested on 3.11.9) |
 | **LM Studio** | running at `http://localhost:1234/v1` with a chat model loaded. Without it the game runs but the Storyteller falls back to a canned line |
 | **Node** | only if you want to rebuild the client. The built UI is committed |
 | **GPU services** | all optional and all **off by default** — see below |
@@ -164,8 +164,8 @@ you did appears.
 
 ## Balance harness
 
-Headless, no LLM, three scripted policies. Run it before changing any balance
-constant.
+Headless, no LLM, five scripted policies (baker, cautious, hero, pauper,
+reckless). Run it before changing any balance constant.
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\simulate.py --turns 200 --seed 42 --policy all
@@ -180,11 +180,16 @@ outcomes.
 
 | Document | Audience | Purpose |
 |----------|----------|---------|
+| [CHANGELOG.md](CHANGELOG.md) | Everyone | What changed in each release, and why. Authoritative from 0.4.0 |
 | [docs/DESIGN.md](docs/DESIGN.md) | Architects, you | System design, story bible, mechanics, measured balance |
 | [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) | Anyone picking this up | What the overhaul found, what it fixed, what is still open |
 | [docs/CLAUDE_CODE_BRIEF.md](docs/CLAUDE_CODE_BRIEF.md) | Coding agents | Build spec and golden rules; historical sections marked **CURRENT:** |
 | [docs/CLAUDE_DESIGN_BRIEF.md](docs/CLAUDE_DESIGN_BRIEF.md) | Design agents | Art direction, UI, generation prompts, audio |
-| [CLAUDE.md](CLAUDE.md) | Coding agents | Onboarding pointer and the rules that are easiest to break by accident |
+| [docs/AUTHORING.md](docs/AUTHORING.md) | Story authors | Writing a story under `games/<slug>/` without reading engine source |
+| [docs/AGENTS.md](docs/AGENTS.md) | Architects | The IN-GAME agents: roster, plan, negotiate, commit |
+| [docs/GOVERNANCE.md](docs/GOVERNANCE.md), [docs/STATE.md](docs/STATE.md) | Architects | What is wired, and the NOT WIRED tables (CLAUDE.md rule 9) |
+| [AGENTS.md](AGENTS.md) | Any coding agent | The operating rules for changing this repo — tool-neutral |
+| [CLAUDE.md](CLAUDE.md) | Claude Code | Imports AGENTS.md, then the current status and what the last passes found |
 
 Where they disagree, the code wins, then DESIGN.md.
 

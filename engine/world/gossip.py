@@ -24,7 +24,7 @@ makes the memory legible when a player asks how anyone knew.
 Draws on ``world_rng(state, GOSSIP)`` -- its own stream, because this fires on
 the background tick, which runs a variable number of times depending on how
 long the player sat on the menu. Borrowing another stream would let real-world
-idle time shift an encounter roll (CLAUDE.md rule 4).
+idle time shift an encounter roll (AGENTS.md rule 4).
 
 Version: v0.1.0 [2026-08-15]
 """

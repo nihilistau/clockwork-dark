@@ -216,7 +216,7 @@ class AssistantAgent:
         rng: Injectable random for agency tests.
     """
 
-    #: The historical canon id (CLAUDE.md: do not rename), kept as the LEGACY
+    #: The historical canon id (AGENTS.md: do not rename), kept as the LEGACY
     #: SHIM: it is the answer only for a story that ships no agents.yaml, or
     #: one whose roster declares no companion (The Wicked Garden -- Sophia is
     #: a `character`, not a companion). The flagship's roster declares this

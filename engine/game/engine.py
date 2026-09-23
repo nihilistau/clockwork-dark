@@ -110,9 +110,9 @@ class GameEngine:
         # Carry weight bites here and only here. An over-limit pack scales what
         # a leg costs (engine/game/inventory.py::travel_stamina_multiplier);
         # the walk is never refused, no check is docked, and rest never reads
-        # it -- gating rest is CLAUDE.md rule 6's soft-lock.
+        # it -- gating rest is AGENTS.md rule 6's soft-lock.
         overloaded = inventory.overloaded(self.state)
-        # CLAUDE.md RULE 6, ONE LAYER DOWN. Stamina is only a resource in a
+        # AGENTS.md RULE 6, ONE LAYER DOWN. Stamina is only a resource in a
         # story that ships a way to get it back. `rest_kinds()` reads
         # `survival.yaml` inside `paths.rules`, and a story that ships none has
         # no rest verb at all (engine/game/intents.py::_rest returns None) --
@@ -157,7 +157,7 @@ class GameEngine:
                 message=f"Unknown location: {location_id}.",
             )
 
-        # Both costs go through the one writer (CLAUDE.md rule 3): the stamina
+        # Both costs go through the one writer (AGENTS.md rule 3): the stamina
         # spend and the awareness drift used to be inline arithmetic here, the
         # only travel mutations with no receipt and no clamp of their own.
         effects_module.apply_effect(

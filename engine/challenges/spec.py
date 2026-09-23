@@ -70,7 +70,7 @@ KINDS: tuple[str, ...] = ("skill_gauntlet", "decision_tree", "puzzle", "dice_tab
 
 #: The seven canon skills of The Clockwork Dark -- the FALLBACK, used only when
 #: the running story ships no skill table. A challenge naming anything else is
-#: retargeted rather than refused; see CLAUDE.md "Canon IDs".
+#: retargeted rather than refused; see AGENTS.md "Canon IDs".
 SKILLS: tuple[str, ...] = (
     "persuasion",
     "stealth",

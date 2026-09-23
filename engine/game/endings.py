@@ -613,7 +613,7 @@ def to_client(
 
 
 def _write_track(state: GameState, name: str, value: Any, allowed: Any = None) -> dict[str, Any]:
-    """Every write here goes through the dispatcher. CLAUDE.md rule 3."""
+    """Every write here goes through the dispatcher. AGENTS.md rule 3."""
     effect: dict[str, Any] = {"type": "track", "name": name, "value": value}
     if allowed is not None:
         effect["allowed"] = allowed

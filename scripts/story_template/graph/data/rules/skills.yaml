@@ -6,7 +6,7 @@
 # derives the DC and every modifier -- an LLM that could pick raw numbers
 # would pick flattering ones.
 #
-# THE SEVEN SKILL IDS ARE ENGINE CANON (CLAUDE.md): persuasion, stealth,
+# THE SEVEN SKILL IDS ARE ENGINE CANON (AGENTS.md): persuasion, stealth,
 # sympathy, lore, craft, survival, nerve. Keep the ids; rewrite every
 # description to mean something in YOUR world -- the descriptions are what
 # the model reads when choosing which skill a moment calls for.

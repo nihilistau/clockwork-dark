@@ -5,7 +5,7 @@ Livelihood Skills
 The tools for staying alive and getting paid: foraging, labour and trade.
 
 WHY THESE ARE TOOLS AND NOT PROSE: everything here moves gold, food or
-standing, and CLAUDE.md's first rule is that the engine resolves mechanics
+standing, and AGENTS.md's first rule is that the engine resolves mechanics
 while the model narrates them. A narrator that could say "you find enough
 mushrooms for the night" is a narrator that decides whether the player starves.
 So every entry point below is a thin wrapper: it binds the active engine,

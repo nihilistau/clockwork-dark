@@ -27,7 +27,7 @@
 # `awareness` are all live effect kinds in the engine and all of them are DEAD
 # HERE, because nothing in this story ever rolls a check or reads a pool. An
 # item that granted "+1 nerve for a day" would be a promise with no machine
-# behind it, which is exactly the failure CLAUDE.md rule 9 is about.
+# behind it, which is exactly the failure AGENTS.md rule 9 is about.
 #
 # So the verbs move the twelve declared values, set flags from the dictionary,
 # and write to the ledger. Every value name below appears in state.yaml; every

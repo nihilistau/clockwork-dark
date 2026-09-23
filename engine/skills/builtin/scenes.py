@@ -7,7 +7,7 @@ through.
 
 WHY THIS IS A SKILL AND NOT PROSE. A card's beats move meters, set flags, lock
 endings and run the ending module; The Wicked Garden's whole finale is beats on
-a card. CLAUDE.md's first rule is that the engine resolves mechanics and the
+a card. AGENTS.md's first rule is that the engine resolves mechanics and the
 model narrates them, so the card is resolved BEFORE a word is written and the
 receipt is handed to the narrator to render.
 

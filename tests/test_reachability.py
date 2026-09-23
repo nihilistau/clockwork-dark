@@ -235,7 +235,7 @@ def test_a_shipped_subsystem_is_reachable_from_the_engine(
         f"{subsystem}: {dead} have no caller anywhere in engine/. "
         "Content authored against them cannot be reached by playing. Wire them "
         "into the turn, or record them in a NOT WIRED table and say so in the "
-        "docs that claim otherwise (CLAUDE.md rule 9)."
+        "docs that claim otherwise (AGENTS.md rule 9)."
     )
 
 
@@ -384,7 +384,7 @@ def test_the_four_intent_tables_agree() -> None:
 #
 # Neither failed anything. Both read, to the next session, exactly like a
 # feature somebody had not finished wiring -- which is the inheritance pattern
-# CLAUDE.md rule 12 exists to break.
+# AGENTS.md rule 12 exists to break.
 #
 # CONSTANTS, NOT FUNCTIONS. Restricting the sweep to UPPER_CASE names keeps it
 # at seven results instead of seventy-four: public functions have legitimate
@@ -402,7 +402,7 @@ _LAUNCHER = ENGINE.parent / "launcher.py"
 #: ``qualified name -> why nothing in production reads it``.
 #:
 #: Same contract as ALLOWED_UNREACHABLE above: each row is a claim, reviewable
-#: on its own terms. A row that says NOT WIRED is a CLAUDE.md rule 9 marker and
+#: on its own terms. A row that says NOT WIRED is a AGENTS.md rule 9 marker and
 #: must name the file that would do the wiring.
 ALLOWED_UNREAD: dict[str, str] = {
     "schemas.ASSISTANT_TURN_SCHEMA": (
@@ -496,7 +496,7 @@ def test_every_module_constant_is_read_or_declared_unread(
         f"reads them: {sorted(orphans)}. Delete each one, or add it to "
         "ALLOWED_UNREAD above WITH ITS REASON -- and if the reason is that it "
         "was built and never connected, say NOT WIRED and name the file that "
-        "would connect it (CLAUDE.md rule 9)."
+        "would connect it (AGENTS.md rule 9)."
     )
 
 

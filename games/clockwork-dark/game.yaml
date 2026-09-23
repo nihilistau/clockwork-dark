@@ -113,7 +113,7 @@ paths:
   epilogues: "games/clockwork-dark/data/epilogues"
 
 entry:
-  # CLAUDE.md pins this id as canon. Do not rename it.
+  # AGENTS.md pins this id as canon. Do not rename it.
   location_id: forest_clearing
   archetypes: [wayfarer, hearthkeeper, tinker_apprentice]
 

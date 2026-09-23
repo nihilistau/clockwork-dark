@@ -122,7 +122,7 @@ def test_the_client_builds_the_same_paths_the_manifest_declares(manifest):
 
 def test_every_face_has_a_saved_prompt_for_both_pipelines():
     """
-    Rule 9 of CLAUDE.md, applied to art: the pack is reproducible or it is a
+    Rule 9 of AGENTS.md, applied to art: the pack is reproducible or it is a
     pile of files somebody once made. One spec, two dialects.
     """
     from engine.media.art import render_prose, render_tags, reset_subjects_cache

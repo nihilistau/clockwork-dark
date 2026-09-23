@@ -1,6 +1,6 @@
 # The Clockwork Dark -- the cast that narrates it.
 #
-# Two agents, and both ids are CANON (CLAUDE.md: do not rename). They were
+# Two agents, and both ids are CANON (AGENTS.md: do not rename). They were
 # born as Python literals in engine/agents/storyteller.py and assistant.py,
 # which meant the engine's default cast was one story's cast -- the same bug,
 # in agent form, that paths.* had in content form. The engine now resolves an

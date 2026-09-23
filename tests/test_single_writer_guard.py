@@ -1,7 +1,7 @@
 """
 The single-writer rule, held by a scanner.
 
-CLAUDE.md rule 3: ``effects.apply_effect`` is the only writer of game state.
+AGENTS.md rule 3: ``effects.apply_effect`` is the only writer of game state.
 The rule was true of the big writers and quietly false at the edges -- travel
 decremented stamina inline, survival clamped hunger and stamina by assignment,
 four modules appended daily markers straight onto ``active_effects``, and five

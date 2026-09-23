@@ -7,7 +7,7 @@ This is the rule, and its whole surface area is deliberate:
 
   * an over-limit pack scales TRAVEL stamina by 1.5, and travel only
   * a pack AT the limit pays nothing -- full is not penalised
-  * rest never reads it (CLAUDE.md rule 6: never gate rest)
+  * rest never reads it (AGENTS.md rule 6: never gate rest)
   * the state payload and the move receipt both say when it is biting
 
 Balance: `scripts/simulate.py --policy all --turns 200 --seed 42` before and
@@ -67,7 +67,7 @@ def test_a_pack_at_the_limit_pays_nothing_extra():
 
 def test_rest_is_never_gated_or_taxed_by_the_pack():
     """
-    CLAUDE.md rule 6. Rest is the only thing that restores stamina; a carry
+    AGENTS.md rule 6. Rest is the only thing that restores stamina; a carry
     penalty that reached it would rebuild the shipped soft-lock.
     """
     light = new_game_state(seed=42)

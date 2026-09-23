@@ -1,9 +1,9 @@
 [project]
 name = "clockwork-dark"
-version = "0.8.0"
+version = "0.8.1"
 description = "Local-first AI RPG — The Clockwork Dark"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "pyyaml>=6.0",
     "pytest>=8.0",

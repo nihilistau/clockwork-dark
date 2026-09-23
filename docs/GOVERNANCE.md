@@ -2,7 +2,7 @@
 
 Four systems ported and reworked from the older sibling repo
 (`nihilistau/the-clockwork-dark`, v0.9). This describes what they do, what is
-wired, and — per CLAUDE.md rule 9 — what is **NOT WIRED**.
+wired, and — per AGENTS.md rule 9 — what is **NOT WIRED**.
 
 Authority reminder: the code wins. If this file disagrees with the modules, the
 modules are right and this file is stale.

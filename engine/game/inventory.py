@@ -86,7 +86,7 @@ BASE_CARRY_KG = 25.0
 #: player can walk off by selling or dropping something, and small enough that
 #: `scripts/simulate.py --policy all --turns 200 --seed 42` shows no change in
 #: death rates (no simulated policy ever packs past 25 kg). Applied to TRAVEL
-#: and to nothing else -- never to rest, which is CLAUDE.md rule 6.
+#: and to nothing else -- never to rest, which is AGENTS.md rule 6.
 OVERLOADED_TRAVEL_MULTIPLIER = 1.5
 
 
@@ -738,7 +738,7 @@ def carry_limit(state: GameState) -> float:
     the sheet can show it. What it deliberately does NOT do: nothing refuses a
     pickup, no check is docked (``engine/game/checks.py`` has no encumbrance
     situational), and rest never reads it -- rest is the only thing that
-    restores stamina, and gating it rebuilds the soft-lock CLAUDE.md rule 6
+    restores stamina, and gating it rebuilds the soft-lock AGENTS.md rule 6
     exists to prevent.
     """
     bonus = 0.0
@@ -782,7 +782,7 @@ def travel_stamina_multiplier(state: GameState) -> float:
 
     Read by ``GameEngine.move_to`` and nowhere else on purpose. In particular
     it must never reach ``engine/game/survival.py::rest`` -- rest is the only
-    thing that restores stamina, and CLAUDE.md rule 6 says a gate on it is a
+    thing that restores stamina, and AGENTS.md rule 6 says a gate on it is a
     soft-lock the game already shipped once.
     """
     return OVERLOADED_TRAVEL_MULTIPLIER if overloaded(state) else 1.0

@@ -455,7 +455,7 @@ class StorytellerAgent:
             UI can show "the world is deciding..." during a slow local turn.
     """
 
-    #: The historical canon id (CLAUDE.md: do not rename), kept as the LEGACY
+    #: The historical canon id (AGENTS.md: do not rename), kept as the LEGACY
     #: SHIM: it is the answer only for a story that ships no agents.yaml at
     #: all. A story with a roster names its own narrator -- the flagship's
     #: declares this same id, which is how the canon name survives without

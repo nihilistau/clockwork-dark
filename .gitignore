@@ -77,6 +77,16 @@ data/media/
 # Verified by renaming this directory and running the suite: 1314 passed, 1
 # skipped. The citations in the content files (`05-BACKSTORY.md:113`) are
 # provenance, not a dependency.
+#
+# ONE PART OF IT IS TRACKED, deliberately, and this rule does not untrack it:
+# the flagship's visual design system (tokens/, components/, ui_kits/,
+# guidelines/, templates/, screenshots/, assets/, README.md, SKILL.md),
+# committed 2026-08-08 before this rule existed. It is the provenance the
+# flagship's UI plugin cites (`ui/src/stories/clockwork-dark/`) and contains
+# none of the story material described above. Anything NEW placed under
+# Design_files/ is ignored by default; `git add -f` is a decision, not an
+# accident. The seven duplicate export zips it once carried were removed in
+# v0.8.1.
 Design_files/
 
 # ---------------------------------------------------------------------------

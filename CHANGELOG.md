@@ -14,6 +14,62 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-09-23
+
+Housekeeping: the files that describe the repo now agree with it, and a test
+keeps them agreeing.
+
+### Added
+
+- **`AGENTS.md`**, the tool-neutral operating rules for any coding agent: the
+  start-here reading list, all twelve critical rules, the working conventions
+  (releases, the changelog, tests, time and randomness in new systems, the three
+  audit questions, where debt is written down), verification and canon ids.
+  Other agents read it directly; `CLAUDE.md` imports it with `@AGENTS.md`, so
+  the rules exist once and cannot drift. Not to be confused with
+  `docs/AGENTS.md`, which documents the in-game agents. The rule text was moved
+  programmatically and diffed byte-identical, rule 12 included.
+- **`tests/test_release_hygiene.py`.** Fails the suite when the CHANGELOG has no
+  `[Unreleased]` section, when its newest release disagrees with
+  `pyproject.toml` or `ui/package.json`, when releases are out of order, when
+  `CLAUDE.md` does not state the current version, when `CLAUDE.md` stops
+  importing `AGENTS.md`, when `AGENTS.md` loses any of the twelve rules, or when
+  the declared Python floor is one the suite is not running on. Every one of
+  those has been wrong before while the suite was green.
+
+### Changed
+
+- **`CLAUDE.md` is an instruction file again.** Its Status section had grown to
+  ~370 lines of history. That history moved verbatim to
+  `docs/DESIGN_REVIEW.md` ("Findings after the overhaul"); `CLAUDE.md` keeps the
+  current release, the measured counts, what is in flight, what is deliberately
+  deferred, a one-line index of the findings, and this machine's notes.
+- **Rule citations point at `AGENTS.md`** across engine, tests, scripts and
+  story YAML (34 in 24 files, plus the canon-id pins), because that is where
+  the rules live now. History -- CHANGELOG, the moved findings, the spec and
+  plan -- is left as written, and `ui/src` comments are left alone so the
+  committed build is not made stale by a comment.
+- **README.md** stopped hardcoding test counts (it claimed 2020 and 126), lists
+  all five simulator policies instead of three, and its documentation table
+  names every document including CHANGELOG, AUTHORING, GOVERNANCE, STATE and
+  both AGENTS files.
+
+### Fixed
+
+- **The declared Python floor was false.** `pyproject.toml` said
+  `requires-python = ">=3.13"` and the README said 3.13; the venv the entire
+  suite runs on is 3.11.9. It says `>=3.11` now, which is the floor that is
+  actually tested.
+
+### Removed
+
+- **Seven duplicate design-system export zips** from `Design_files/`, redundant
+  with the extracted design system beside them. The design system itself stays
+  tracked -- the flagship's UI plugin cites it -- and its top-level readme is
+  `README.md` rather than `readme (3).md`. The `.gitignore` comment no longer
+  claims nothing in that folder is committed.
+- A stale local branch left by an earlier session's agent, already fully merged.
+
 ## [0.8.0] — 2026-09-23
 
 The audit release. No new mechanics: every item is a place where the engine

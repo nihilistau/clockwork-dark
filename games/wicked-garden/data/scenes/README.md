@@ -158,7 +158,7 @@ different way for authored content to be invisible.
 
 ## What is still not wired
 
-Stated plainly, per CLAUDE.md rule 9.
+Stated plainly, per AGENTS.md rule 9.
 
 1. **Six of the fourteen locations have no art plate**, including the entry
    `mortal_threshold`, so the opening screen draws a procedural placeholder.

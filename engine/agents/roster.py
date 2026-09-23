@@ -268,7 +268,7 @@ def agent_id_for_role(role: str, fallback: str) -> str:
 
     This is how the engine's built-in agents get their names now. The fallbacks
     callers pass are the HISTORICAL CANON IDS (``clockwork_storyteller``,
-    ``clockwork_assistant`` -- CLAUDE.md, do not rename): they were engine
+    ``clockwork_assistant`` -- AGENTS.md, do not rename): they were engine
     literals for the project's whole life and external records (transcripts,
     telemetry, tooling) may carry them, so a story that ships no ``agents.yaml``
     keeps them exactly as before. A story WITH a roster names its own cast, and
