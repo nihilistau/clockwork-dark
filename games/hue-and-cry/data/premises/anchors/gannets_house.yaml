@@ -1,0 +1,41 @@
+# HUE & CRY -- anchor: Mother Gannet's House, the Snuffs.
+#
+# Schema in anchors/vessaline_manor.yaml.
+#
+# NOT WHERE SHE SLEEPS. Mother Gannet (npc_gannet) sleeps upstairs in the
+# Porters' Hall behind four locks, and her schedule says so. This is the other
+# house -- the narrow one at the end of Snuffers' Alley that she owns and does
+# not live in, where the Honest Company keeps its strike fund. Two Company
+# keepers stand it in shifts; the one hour between them, at the change of the
+# watch in the morning, is the only hour it is empty, and everyone in the
+# Snuffs knows that too. Nobody has ever robbed it. That is the security.
+#
+# Version: v0.1.0 [2026-09-23]
+
+id: gannets_house
+label: "guild house"
+district: the_snuffs
+name: "Mother Gannet's House"
+tier: 3
+
+household:
+  - role: company_keeper
+    routine:
+      - { hours: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], location: "@home", activity: "on a stool inside the door with a cudgel across the knees, knitting a scarf in the Company's brown" }
+      - { hours: [19, 20, 21, 22, 23, 0], location: the_snuffs, activity: "off shift at the Porters' Hall, making one pint last all evening and watching the door of Mother Gannet's House across the alley" }
+      - { hours: [1, 2, 3, 4, 5, 6], location: the_snuffs, activity: "asleep in a Porters' Hall bunk, cudgel under the blanket", available: false }
+
+  - role: company_keeper
+    routine:
+      - { hours: [19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5], location: "@home", activity: "sitting up in the dark with a shuttered lantern, awake the way only somebody who used to be a burglar is awake" }
+      - { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], location: the_snuffs, activity: "asleep in a Porters' Hall bunk with boots on, off the night shift", available: false }
+
+security:
+  - { id: four_locks, text: "four locks on the door, all of Mother Gannet's own design, and one of them is a joke that bites" }
+  - { id: company_keeper, text: "a Company keeper inside the door at every hour but one, armed with a cudgel and a scarf in progress" }
+  - { id: the_whole_snuffs, text: "every porter, child and washerwoman in the Snuffs watching the door for nothing, out of love and fear in about equal parts" }
+
+loot: [strike_fund_box, silver_spoons, pewter_candlesticks]
+
+secrets:
+  - { id: fund_of_ious, text: "the strike fund is two-thirds IOUs, and the IOUs are in the handwriting of the Company's own treasurer" }

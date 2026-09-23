@@ -420,6 +420,55 @@ def _forage(state: GameState) -> Optional[IntentVerb]:
     return IntentVerb("forage", targets[:_MAX_OPTIONS]) if targets else None
 
 
+def _case(state: GameState) -> Optional[IntentVerb]:
+    """
+    Houses in this district that watching can still tell the player about.
+
+    A house whose every line is already known is dropped rather than offered:
+    a watch there can only refuse, and a verb guaranteed to refuse spends an
+    option slot and a turn (the `forage` lesson above). Undeclared premises
+    return before any lookup, so a story without them never pays for the check.
+    """
+    try:
+        from engine.world import premises
+
+        if not premises.declared():
+            return None
+        here = premises.at(state, state.location_id)
+        targets = tuple(
+            (str(p["id"]), f"watch {p.get('name') or 'the house'}")
+            for p in here
+            if premises.unknown_ids(state, str(p["id"]))
+        )
+    except Exception as exc:  # noqa: BLE001 -- a broken premises tree must not kill the turn
+        _absent("premises", exc)
+        return None
+    return IntentVerb("case", targets[:_MAX_OPTIONS]) if targets else None
+
+
+def _lift(state: GameState) -> Optional[IntentVerb]:
+    """
+    People here, awake, whose purse the player could try for.
+
+    ``thievery.marks`` already drops sleepers, the absent and anybody inside a
+    house, so every offered target is one the skill will roll against rather
+    than refuse. Undeclared thievery returns before any presence lookup.
+    """
+    try:
+        from engine.world import npc_sim, thievery
+
+        if not thievery.declared():
+            return None
+        targets = tuple(
+            (p.npc_id, f"lift {npc_sim.display_name(p.npc_id, state)}'s purse")
+            for p in thievery.marks(state)
+        )
+    except Exception as exc:  # noqa: BLE001 -- a broken thievery file must not kill the turn
+        _absent("thievery", exc)
+        return None
+    return IntentVerb("lift", targets[:_MAX_OPTIONS]) if targets else None
+
+
 def _sell(state: GameState) -> Optional[IntentVerb]:
     """
     What the player is carrying that someone here will actually buy.
@@ -443,11 +492,22 @@ def _sell(state: GameState) -> Optional[IntentVerb]:
             try:
                 if not trade.deals_in(npc_id, item.id):
                     continue
+                # This composite target always sells exactly one unit (see
+                # `to_tool_call`), so the unit `quote` says would move FIRST
+                # is the one this specific target means -- `unit_kind` names
+                # it whether the quote succeeds or is refused, which is what
+                # lets a mixed stack show "(hot)" on the vendor who would
+                # refuse it and not on one who would not.
                 quote = trade.quote(state, npc_id, item.id, side="sell")
+                hot = isinstance(quote, dict) and quote.get("unit_kind") == "hot"
             except Exception:  # noqa: BLE001 -- one bad row must not kill the verb
                 continue
             price = quote.get("unit_price") if isinstance(quote, dict) else None
-            label = f"{item.name or item.id}" + (f" for {price}" if price else "")
+            label = f"{item.name or item.id}" + (
+                f" for {trade.currency_label(int(price))}" if price else ""
+            )
+            if hot:
+                label += " (hot)"
             targets.append((f"{npc_id}/{item.id}", label))
             if len(targets) >= _MAX_OPTIONS:
                 break
@@ -614,6 +674,10 @@ def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
             _sell,
             _work,
             _forage,
+            # Watching a house. Offered only where a story declares premises.
+            _case,
+            # Picking a pocket. Offered only where a story declares thievery.
+            _lift,
             _set_piece,
             _bargain,
             _discharge,
@@ -728,6 +792,8 @@ SKILL_FOR_ACTION: dict[str, str] = {
     "challenge": "resolve_challenge",
     "bargain": "strike_bargain",
     "discharge": "discharge_thread",
+    "case": "case_premise",
+    "lift": "lift_purse",
 }
 
 #: Which key in a skill's result means IT DID NOT HAPPEN, per verb. ``None``
@@ -754,7 +820,12 @@ REFUSAL_KEY_FOR_ACTION: dict[str, Optional[str]] = {
     "rest": None,
     "eat": "success",
     "check": None,
-    "buy": "ok",
+    # `trade.buy` reports a refusal under `success` (can't afford it, not
+    # stocked) and has never had an `ok` key -- the same class of bug as the
+    # v0.8 `work` mistake, found here alongside the identical one on `sell`
+    # (fixed the same way, below). A refused purchase reached the narrator as
+    # a successful one until this read the key the skill actually returns.
+    "buy": "success",
     "flag": "success",
     "encounter": "ok",
     # A beat the card does not carry, or a resolve against a scene that has
@@ -762,8 +833,13 @@ REFUSAL_KEY_FOR_ACTION: dict[str, Optional[str]] = {
     # otherwise the card silently applies nothing and the prose describes a
     # consequence the engine never produced.
     "card": "ok",
-    # `trade_sell` reports a refused sale the way `trade` does.
-    "sell": "ok",
+    # `trade.sell` reports a refusal under `success`, same as `trade.buy` --
+    # neither ever had an `ok` key, so the entry that said `"ok"` here never
+    # matched what the skill actually returned and no refused sale was ever
+    # caught (a vendor saying "you are not carrying that" reached the
+    # narrator as a successful receipt). Task 6 is what noticed, wiring the
+    # fence refusal through this same path.
+    "sell": "success",
     # `work` answers "did it happen" under its own key, `worked`, because its
     # `success` is how the shift WENT -- reading that here marked every shift
     # worked badly as refused. `forage` reports a search that happened under
@@ -774,6 +850,14 @@ REFUSAL_KEY_FOR_ACTION: dict[str, Optional[str]] = {
     "challenge": "ok",
     "bargain": "ok",
     "discharge": "ok",
+    # A watch that happened always learned something; `ok: False` is only the
+    # engine declining (wrong district, nothing left to learn).
+    "case": "ok",
+    # `ok` means the hand went in. A caught hand HAPPENED and must be narrated
+    # as one; reporting it under the refusal key is the v0.8 `work` mistake.
+    # How it went is `success`/`noticed`; `ok: False` is only the engine
+    # declining (nobody here by that name, asleep, inside a house).
+    "lift": "ok",
 }
 
 
@@ -912,6 +996,10 @@ def to_tool_call(
         return name, {"template_id": target}
     if action == "discharge":
         return name, {"thread_id": target}
+    if action == "case":
+        return name, {"premise_id": target}
+    if action == "lift":
+        return name, {"npc_id": target}
     raise KeyError(action)
 
 

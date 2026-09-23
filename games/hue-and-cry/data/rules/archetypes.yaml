@@ -1,0 +1,66 @@
+# HUE & CRY -- what you were before Tallowmere decided you were the Magpie.
+#
+# Found by fixed filename inside `paths.rules`. This file is what EXISTS;
+# game.yaml's `entry.archetypes` is what is OFFERED -- add a key in both.
+#
+# `stats` ARE ABSOLUTE, NOT DELTAS. procgen.py::apply_archetype sets each one
+# outright, and checks.py reads `(value - 10) // 2`, so the full spread is
+# declared around the engine's baseline of 10. (The graph template's own
+# example, `grit: 1`, makes a character with ONE grit -- a -5 on every nerve
+# roll -- which is why nothing here copies it.)
+#
+# `skill_bonus` is on every roll for the whole run; one point each, so the
+# archetype tilts the run rather than deciding it.
+#
+# Version: v0.1.0 [2026-09-23]
+
+default: cutpurse
+
+archetypes:
+  cutpurse:
+    name: "Cutpurse"
+    blurb: >-
+      Quick hands, quicker feet, and a past you left three ports down the
+      coast. You have never stolen anything that shines. You would like that
+      on the record.
+    summary: "Light fingers, retired. Mostly."
+    stats:
+      grit: 9
+      agility: 13
+      wits: 11
+      presence: 10
+      craft: 10
+    skill_bonus:
+      stealth: 1
+
+  silver_tongue:
+    name: "Silver-tongue"
+    blurb: >-
+      You have talked your way onto barges, into kitchens and out of two
+      marriages. Nobody has ever caught you lying, largely because you have
+      never stopped talking long enough.
+    summary: "Every door opens eventually. You just keep knocking."
+    stats:
+      grit: 9
+      agility: 10
+      wits: 11
+      presence: 13
+      craft: 10
+    skill_bonus:
+      persuasion: 1
+
+  bruiser:
+    name: "Bruiser"
+    blurb: >-
+      Broad in the shoulder and mild in the manner, which surprises people in
+      both directions. You came to Tallowmere to carry things for honest
+      money. The porters' union took one look at you and got interested.
+    summary: "Big, patient, and very hard to move."
+    stats:
+      grit: 13
+      agility: 9
+      wits: 10
+      presence: 10
+      craft: 11
+    skill_bonus:
+      nerve: 1

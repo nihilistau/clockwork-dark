@@ -1,0 +1,247 @@
+# HUE & CRY -- Tallowmere, eleven districts.
+#
+# Read by engine/game/locations.py, forgiving by design: a bad entry is LOGGED
+# AND SKIPPED. Required per entry: `name`, `ring` (0-4). `evil_multiplier` is
+# left at 1.0 everywhere -- this story runs no doom clock (game.yaml).
+#
+# THE IDS ARE PINNED. Later releases key on them: premises are laid out per
+# district, fences stand in Wickmarket and the Snuffs, the Law patrols the
+# Lanterns' routes. Rename one and you rename it in four features.
+#
+# EDGES. The city is small enough to cross in an afternoon, so almost every
+# street costs one hour. `danger_dc` is 0 on every edge: this skeleton ships no
+# encounter table, and a nonzero dc with nothing behind it is a roll that cannot
+# pay off. Night streets arrive with their encounters.
+#
+# THE THREE SECRETS. `secret: true` withholds a place -- and every road to it --
+# from the map payload until the player has stood there, because an edge to
+# nowhere is the loudest hint there is (docs/AUTHORING.md §3.7). Each hangs off
+# at least two districts, so finding the way in is not the same as finding the
+# only way in:
+#
+#   the_undercroft   tallow_docks, the_snuffs, lantern_house, margraves_hill
+#   rooftop_road     wickmarket, the_snuffs, silk_row, old_bell_tower
+#   old_bell_tower   chandlers_rise, gallows_green, rooftop_road
+#
+# Write BOTH directions of every edge; a one-way edge is treated as a typo and
+# mirrored with a warning.
+#
+# Version: v0.1.0 [2026-09-23]
+
+version: 1
+
+rings:
+  0: "The Waterfront"
+  1: "The Low Town"
+  2: "The High Town"
+  3: "Under and Over"
+  4: "The Hill"
+
+locations:
+
+  tallow_docks:
+    name: "Tallow Docks"
+    ring: 0
+    evil_multiplier: 1.0
+    # ID PINNED: game.yaml's `entry.location_id`, and the barge the one
+    # reachable ending leaves on.
+    summary: >-
+      Where Tallowmere meets the water and argues about the price. Wet boards,
+      tallow in barrels, candles in crates marked for every port on the coast,
+      and the customs house squatting over all of it with its ledgers open.
+      Porters in brown smocks carry everything that moves; nobody asks what is
+      in the ones that move at night. The evening barge leaves from the far end
+      of the quay, and every day somebody runs for it.
+    tags: [outdoors, waterfront, trade, crowded, watched]
+    connections:
+      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      the_snuffs: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      lantern_house: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      the_undercroft: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+
+  wickmarket:
+    name: "Wickmarket"
+    ring: 1
+    evil_multiplier: 1.0
+    summary: >-
+      Tallowmere's market square and the crooked lanes around it: chandlers'
+      stalls, a tinker who mends lanterns, a pie shop that has been "under new
+      management" for thirty years. Two of the stalls sell things that were
+      someone else's yesterday, and everyone knows which two. The Watch walks
+      through it twice an hour and buys its lunch here.
+    tags: [outdoors, market, trade, crowded, social]
+    connections:
+      tallow_docks: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      the_snuffs: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      silk_row: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      chandlers_rise: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      lantern_house: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      gallows_green: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      rooftop_road: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+
+  the_snuffs:
+    name: "The Snuffs"
+    ring: 1
+    evil_multiplier: 1.0
+    # The Honest Company of Night Porters keeps its hall here, behind the
+    # front of a porters' union that genuinely does carry things.
+    summary: >-
+      Named for the candle ends the poor buy by the sack and burn to the last
+      smear. Leaning tenements, washing strung between them, a flophouse that
+      rents hammocks by the half-night, and the Porters' Hall with its union
+      charter framed in the window -- the Honest Company of Night Porters,
+      whose members are always carrying something. Lanterns come down here in
+      pairs or not at all.
+    tags: [outdoors, slum, poor, guild, crowded]
+    connections:
+      tallow_docks: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      gallows_green: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      the_undercroft: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+      rooftop_road: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+
+  silk_row:
+    name: "Silk Row"
+    ring: 2
+    evil_multiplier: 1.0
+    summary: >-
+      Townhouses with painted shutters and counting-houses with barred ones.
+      Money lives here and wants you to know it: glass lamps on brackets at
+      every door, footmen who look through you, a silversmith's window that
+      stops people in the street. Everything on Silk Row shines, which is why
+      the Magpie keeps coming back to it.
+    tags: [outdoors, wealthy, quiet, watched, shiny]
+    connections:
+      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      chandlers_rise: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      margraves_hill: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      rooftop_road: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+
+  chandlers_rise:
+    name: "Chandlers' Rise"
+    ring: 2
+    evil_multiplier: 1.0
+    summary: >-
+      The guild halls of the candle trade climb the hill in order of
+      importance, each with its arms carved over the door. At the top of the
+      street the Temple of the Everflame keeps a lit taper for every soul in
+      the city, which makes it the brightest room in Tallowmere and the
+      warmest in winter. The whole Rise smells of hot wax and sermons.
+    tags: [outdoors, trade, temple, respectable]
+    connections:
+      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      silk_row: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      margraves_hill: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      old_bell_tower: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+
+  lantern_house:
+    name: "The Lantern House"
+    ring: 1
+    evil_multiplier: 1.0
+    # Watch headquarters and the gaol. The opening's "come quietly" ends here.
+    summary: >-
+      Watch headquarters: a squat stone house with a great lamp over the door
+      that is never allowed to go out, and a sergeant's desk inside it that is
+      never allowed to be tidy. Behind the desk, a board of wanted notices;
+      below the floor, the cells, where the damp comes up through the flags
+      and the Watch keeps what it has caught until the Green wants it.
+    tags: [interior, watch, gaol, law]
+    connections:
+      tallow_docks: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      gallows_green: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      the_undercroft: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+
+  margraves_hill:
+    name: "Margrave's Hill"
+    ring: 4
+    evil_multiplier: 1.0
+    summary: >-
+      The Margrave's palace sprawls over the top of the city in three wings and
+      a treasury, and at its heart the Everflame burns in a crystal lantern the
+      size of a coach. Gardens, gravel, guards in polished breastplates, and a
+      steward who knows where every spoon is. From the terrace you can see the
+      whole of Tallowmere, and the whole of Tallowmere can see the flame.
+    tags: [outdoors, palace, wealthy, guarded, shiny]
+    connections:
+      silk_row: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      chandlers_rise: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      the_undercroft: { hours: 2, danger_dc: 0, awareness_delta: 3 }
+
+  gallows_green:
+    name: "Gallows Green"
+    ring: 2
+    evil_multiplier: 1.0
+    summary: >-
+      An honest patch of grass with a dishonest thing in the middle of it. The
+      gallows stands on its platform, oiled and patient, and the rest of the
+      week the Green is a perfectly pleasant place to walk a dog. Ballad-sellers
+      sell songs about whoever hanged last. Once a year the Hanging Fair fills
+      it with stalls, and the city comes out in its best to watch.
+    tags: [outdoors, public, gallows, open]
+    connections:
+      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      the_snuffs: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      lantern_house: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      old_bell_tower: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+
+  the_undercroft:
+    name: "The Undercroft"
+    ring: 3
+    evil_multiplier: 1.0
+    # SECRET. The sewers, and the older tunnels the sewers were built into.
+    # Reaches the docks, the Snuffs, the gaol drains and -- a long, wet way --
+    # the Hill. The player must not know it exists until they are standing in it.
+    secret: true
+    summary: >-
+      Under the city, the city that was here before: brick vaults, old wharf
+      steps leading down to water that no longer goes anywhere, and the sewers
+      threaded through all of it. Smugglers' chalk on the walls. Tallow runs
+      down the gutters and sets in the dark into pale, stinking stalactites.
+      Every drain in Tallowmere ends up here, and so does everyone who needs
+      to not be seen getting somewhere.
+    tags: [interior, underground, secret, dark, wet]
+    connections:
+      tallow_docks: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+      the_snuffs: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+      lantern_house: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+      margraves_hill: { hours: 2, danger_dc: 0, awareness_delta: 3 }
+
+  rooftop_road:
+    name: "The Rooftop Road"
+    ring: 3
+    evil_multiplier: 1.0
+    # SECRET. The thieves' highway: planks, gutters and leaps between the
+    # roofs of the low town and Silk Row.
+    secret: true
+    summary: >-
+      Tallowmere from above: slate and chimney pots, planks laid gutter to
+      gutter by people who did not ask permission, washing lines you can walk
+      if you do not look down. Chalk marks tell you which roofs hold and which
+      hold grudges. Pigeons, cats, the occasional burglar, and every lit window
+      in the city laid out below like a shop.
+    tags: [outdoors, rooftops, secret, high, shiny]
+    connections:
+      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+      the_snuffs: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+      silk_row: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+      old_bell_tower: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+
+  old_bell_tower:
+    name: "Old Bell Tower"
+    ring: 3
+    evil_multiplier: 1.0
+    # SECRET. The disused tower between the Rise and the Green.
+    secret: true
+    summary: >-
+      The tower of a church that burned before anyone living was born, left
+      standing because nobody could agree whose job it was to pull it down.
+      The stairs are mostly there. The great bell is cracked and never rung;
+      the little ones swing when the wind is from the sea. Somebody has been
+      sleeping up here, and somebody has been keeping things up here that
+      catch the light.
+    tags: [interior, ruin, secret, high, lookout]
+    connections:
+      chandlers_rise: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+      gallows_green: { hours: 1, danger_dc: 0, awareness_delta: 2 }
+      rooftop_road: { hours: 1, danger_dc: 0, awareness_delta: 2 }

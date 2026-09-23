@@ -4,7 +4,7 @@ The operating rules for any coding agent changing this repository. Tool-neutral:
 
 Not to be confused with [docs/AGENTS.md](docs/AGENTS.md), which documents the IN-GAME agents (roster, plan, negotiate, commit).
 
-Local-first AI RPG: a deterministic engine holds truth and LLM agents narrate it. Five stories ship under `games/<slug>/`; the engine is story-agnostic.
+Local-first AI RPG: a deterministic engine holds truth and LLM agents narrate it. Six stories ship under `games/<slug>/`; the engine is story-agnostic.
 
 ## Start here
 

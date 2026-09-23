@@ -3781,3 +3781,90 @@ input[type="radio"] {
   margin: var(--space-1) 0 0;
   color: var(--accent-candle);
 }
+
+
+/* ---------------------------------------------------------------------------
+   Casing board
+   ---------------------------------------------------------------------------
+   What watching each house in this district has told you so far. Quiet and
+   legible, same tokens as the negotiation panel beside it -- core renders
+   this with no story plugin loaded, so it carries no colour a bare checkout
+   does not already define.
+*/
+.casing {
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-scene);
+  padding: var(--space-2) var(--space-3);
+}
+
+
+.casing__title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+
+.casing__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+
+.casing__house + .casing__house {
+  padding-top: var(--space-2);
+  border-top: var(--border-hair) solid var(--line-soft);
+}
+
+
+.casing__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+}
+
+
+.casing__name {
+  font-weight: 600;
+  color: var(--text-body);
+}
+
+
+.casing__type {
+  color: var(--text-muted);
+  text-transform: lowercase;
+}
+
+
+.casing__badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--accent-brass);
+}
+
+
+.casing__progress {
+  margin-top: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+
+.casing__known {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

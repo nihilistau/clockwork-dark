@@ -55,6 +55,16 @@ export const initialState = {
   // reporting a disagreement two turns stale. The three stories that run a
   // pipeline send it; the flagship has one participant and never does.
   negotiation: null,
+  // The casing board: houses in the player's current district and what
+  // watching has told about each -- {id, name, type_label, known, of,
+  // empty_now}[]. Lives on `world.premises` (GameState.to_client_dict's
+  // `_premises_block`); mirrored here exactly as `meters` mirrors
+  // `world.meters`, so CasingBoard reads one flat field instead of an
+  // optional-chained path through a payload that may be null between turns.
+  // `[]` for a story that declares no premises -- the flagship among them --
+  // and for a district that currently holds none: both are real empty states,
+  // and CasingBoard renders nothing for either.
+  premises: [],
   dice: null, // transient toast
   sceneImage: "",
   cutscene: null,
@@ -204,6 +214,13 @@ function metersOf(payload, fallback) {
   return fallback;
 }
 
+/** The casing board's rows, or the previous list when a payload omits them. */
+function premisesOf(payload, fallback) {
+  const world = payload && payload.state;
+  if (world && world.premises) return world.premises;
+  return fallback;
+}
+
 function handleSocket(state, event, payload) {
   switch (event) {
     case "game_started":
@@ -216,6 +233,7 @@ function handleSocket(state, event, payload) {
         saveId: payload.save_id || state.saveId,
         world: payload.state || state.world,
         meters: metersOf(payload, state.meters),
+        premises: premisesOf(payload, state.premises),
         busy: false,
         error: "",
       };
@@ -349,6 +367,7 @@ function handleSocket(state, event, payload) {
         choices: payload.choices || [],
         world: payload.state || next.world,
         meters: metersOf(payload, next.meters),
+        premises: premisesOf(payload, next.premises),
         saveId: payload.save_id || next.saveId,
         presence: payload.assistant || next.presence,
         // Sticky once set. The turn that locks an ending is the only one

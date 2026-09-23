@@ -416,7 +416,23 @@ def test_default_rng_is_the_deterministic_dice_stream():
     assert len(faces) > 1
 
 
-def test_every_declared_degree_is_reachable_by_some_shipped_build():
+def _stories_with_a_skills_table() -> list[str]:
+    """Every discovered story whose rules directory ships a skills.yaml."""
+    from pathlib import Path
+
+    from engine.config import project_root
+    from engine.games import registry
+
+    out = []
+    for slug, manifest in sorted(registry.discover().items()):
+        rules_dir = str((manifest.paths or {}).get("rules") or "")
+        if rules_dir and (Path(project_root()) / rules_dir / "skills.yaml").is_file():
+            out.append(slug)
+    return out
+
+
+@pytest.mark.parametrize("slug", _stories_with_a_skills_table())
+def test_every_declared_degree_is_reachable_by_some_shipped_build(slug: str):
     """
     A band nobody can roll into is dead content, and one had been for the whole
     life of the game.
@@ -431,35 +447,38 @@ def test_every_declared_degree_is_reachable_by_some_shipped_build():
 
     THE NUMBER IS NOT THE GUARD -- this is. Tuning `min_margin` back up until
     the band goes dead again fails here rather than in a player's run.
-    """
-    import yaml
 
+    EVERY STORY, NOT JUST THE FLAGSHIP. This asked the question of
+    clockwork-dark alone, so the graph template's `min_margin: 10` survived
+    into three more stories unchallenged -- the same dead band, copied. It now
+    runs for every discovered story that ships a skills table, and it asks the
+    ENGINE for the arithmetic (`apply_archetype` then `gather_modifiers` on a
+    fresh character) rather than re-deriving it here, so a stat the archetype
+    does not set counts at its real default and a skill is read through its
+    real backing stat.
+    """
+    from engine.game.procgen import apply_archetype
     from engine.games import registry
 
-    registry.activate("clockwork-dark")
+    registry.activate(slug)
     try:
-        rules = yaml.safe_load(
-            open("games/clockwork-dark/data/rules/skills.yaml", encoding="utf-8")
-        )
-        archetypes = yaml.safe_load(
-            open("games/clockwork-dark/data/rules/archetypes.yaml", encoding="utf-8")
-        )
+        rules = checks.load_skill_rules()
+        archetypes = list((checks.load_archetypes().get("archetypes") or {}).keys())
+        _band, dc = checks.difficulty_dc(str(rules.get("default_difficulty", "standard")), rules)
+        degrees = rules.get("degrees") or []
 
-        dc = int(rules["difficulty"][rules.get("default_difficulty", "standard")])
-        degrees = rules["degrees"]
-
-        # The best total any shipped build can roll on a natural 20, before
-        # situational modifiers -- every one of which in this table is a
-        # PENALTY except two, so this is a genuine ceiling.
+        # The best total any shipped build can roll on a natural 20, on a fresh
+        # character. Situational rows are evaluated against that fresh state,
+        # so conditional BONUSES are left out -- a ceiling that holds without
+        # them is a genuine ceiling.
         best = -99
-        for arch in (archetypes.get("archetypes") or archetypes).values():
-            if not isinstance(arch, dict):
-                continue
-            stats = arch.get("stats") or {}
-            bonuses = arch.get("skill_bonus") or {}
-            for skill, value in stats.items():
-                stat_mod = (int(value) - 10) // 2
-                best = max(best, 20 + stat_mod + int(bonuses.get(skill, 0)))
+        for archetype in archetypes or [""]:
+            state = GameState()
+            state.archetype = archetype
+            apply_archetype(state, archetype)
+            for skill in rules.get("skills") or {}:
+                total = sum(delta for _label, delta in checks.gather_modifiers(state, skill, rules=rules))
+                best = max(best, 20 + total)
 
         top_margin = best - dc
         unreachable = [
@@ -468,7 +487,7 @@ def test_every_declared_degree_is_reachable_by_some_shipped_build():
             if int(d.get("min_margin", 0)) > top_margin
         ]
         assert not unreachable, (
-            f"these degrees cannot be rolled by any shipped archetype at "
+            f"{slug}: these degrees cannot be rolled by any shipped archetype at "
             f"difficulty '{rules.get('default_difficulty')}' (DC {dc}, best "
             f"possible total {best}, so best margin {top_margin}): "
             f"{unreachable}. Any content gated on them is dead."

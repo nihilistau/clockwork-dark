@@ -1,0 +1,25 @@
+# HUE & CRY -- the arcs.
+#
+# Read by engine/game/quests.py::load_arcs from `<paths.quests>/arcs.yaml`.
+# Quest files live in `<paths.quests>/<arc>/*.yaml`; a quest whose arc is not
+# unlocked loads, sits in the table, and never offers itself.
+#
+# ONE ARC IN THE SKELETON. The spine's three acts -- Hue and Cry, Honest Work,
+# The Hanging Fair -- arrive with the content that fills them. What ships now
+# is the one door out of the story that is open from the first morning.
+#
+# Version: v0.1.0 [2026-09-23]
+
+version: 1
+
+arcs:
+  the_way_out:
+    name: "The Way Out"
+    default: true
+    # Low: leaving town is not a plot, and the pacing model should not read it
+    # as one.
+    involvement: 1
+    order: 0
+    blurb: >-
+      The evening barge leaves Tallow Docks every day at dusk. Anyone can be
+      on it. Being on it with your name still your own is the hard part.

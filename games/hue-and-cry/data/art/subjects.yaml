@@ -1,0 +1,326 @@
+# ============================================================
+# Art subjects -- HUE & CRY.
+#
+# ONE source, TWO prompt dialects: engine/media/art.py renders prose for Grok
+# Imagine and tags plus a negative for ComfyUI from the same entry.
+#
+# PROMPTS ONLY. No plate ships until the v1.0 art pack (~55 plates: eleven
+# districts by day and night, the portraits, the premises, key items), so every
+# subject below falls through to the procedural silhouette. The prompts are
+# written now so that
+#
+#     .\.venv\Scripts\python.exe scripts\art_missing.py --game hue-and-cry
+#
+# produces the whole brief for that render in one pass.
+#
+# Version: v0.1.0 [2026-09-23]
+# ============================================================
+
+# House style. Appended to every prompt this story renders. Warm wax and
+# parchment, candlelight as the light source of the whole city, storybook
+# rather than grim -- the register is affectionate, so the pictures are too.
+style:
+  prose: >-
+    Painterly storybook illustration of an old candle-making port city,
+    warm and lived-in. Candlelight, lamplight and firelight as the main light
+    sources, amber and honey against cool blue shadow, soft haze of smoke and
+    wax. Timber, slate, wet cobbles, tallow barrels, hanging lanterns
+    everywhere. Characterful faces, expressive but grounded. Every figure is an
+    adult. No text or lettering anywhere in the frame.
+  tags: >-
+    painterly storybook illustration, old port city, candlelight, lamplight,
+    warm amber and cool blue, smoke haze, timber and slate, wet cobbles,
+    hanging lanterns, characterful, lived-in, no text, no watermark
+  negative: >-
+    child, childlike proportions, modern, electric light, neon, cars, plastic,
+    sci-fi, photographic, anime, chibi, grimdark, gore, text, lettering,
+    watermark, logo, signature, blurry, low quality, oversaturated
+
+formats:
+  location: {aspect: "16:9", width: 1344, height: 768}
+  portrait: {aspect: "3:4", width: 768, height: 1024}
+  item: {aspect: "1:1", width: 256, height: 256}
+  cutscene: {aspect: "16:9", width: 512, height: 288}
+
+# ------------------------------------------------------------
+# Locations -- all eleven, ids from data/world/locations.yaml.
+# ------------------------------------------------------------
+locations:
+
+  tallow_docks:
+    subject: "A busy candle-port quay with barges moored along wet timber boards"
+    details: "crates and barrels of candles and tallow, a squat customs house with its door open, porters in brown smocks, bollards, gulls, a long quay running out into fog"
+    times:
+      dawn: {setting: "the first barge nosing in through fog, porters yawning", light: "grey fog lit gold by a few quay lamps"}
+      day: {setting: "the quay packed, crates swinging on ropes", light: "pale hazy daylight off the water"}
+      dusk: {setting: "the evening barge loading at the far end of the quay", light: "lamps being lit along the quay against an orange sky"}
+      night: {setting: "empty boards, one shaded lantern moving between the crates", light: "a few lamps reflected long in black water"}
+
+  wickmarket:
+    subject: "A crooked old market square crowded with candle stalls"
+    details: "striped awnings, tapers hung in bunches like onions, a pie shop, a lantern-mender's doorway, a shop sign reading nothing, lanes leaning in on all sides"
+    times:
+      dawn: {setting: "stallholders unshuttering, a lamplighter snuffing the lamps", light: "cool dawn with the last lamps still warm"}
+      day: {setting: "full market bustle, a Watchman buying a pie", light: "warm daylight through smoke"}
+      dusk: {setting: "stalls packing up, lamps coming on one by one", light: "amber lamplight against a violet sky"}
+      night: {setting: "shuttered stalls, one shop window glowing in the back", light: "a single lit window and a few street lamps"}
+
+  the_snuffs:
+    subject: "A poor tenement quarter of leaning houses and narrow alleys"
+    details: "washing strung between windows, candle-ends burning in cracked saucers on sills, a flophouse sign, a union hall with a framed charter in its window"
+    times:
+      dawn: {setting: "porters in smocks trudging home", light: "thin grey light, guttering candle-ends"}
+      day: {setting: "children's washing and old men on steps", light: "dim daylight that barely reaches the alley floor"}
+      dusk: {setting: "every window lit by a stub of candle", light: "hundreds of small flickering flames"}
+      night: {setting: "the union hall's back window the only thing awake", light: "one warm window, the rest near dark"}
+
+  silk_row:
+    subject: "A handsome street of townhouses and counting-houses"
+    details: "painted shutters, glass lamps on brass brackets at every door, a silversmith's lit window, footmen on steps, clean swept cobbles"
+    times:
+      dawn: {setting: "a lamplighter polishing the glass lamps", light: "cool dawn, lamps pale"}
+      day: {setting: "carriages and a lady at the silversmith's window", light: "bright clean daylight on gilt"}
+      dusk: {setting: "every glass lamp newly lit", light: "a row of warm lamps gleaming on brass and silver"}
+      night: {setting: "a Watchman trying a door", light: "glass lamps and moonlight on wet cobbles"}
+
+  chandlers_rise:
+    subject: "A steep street of guild halls climbing to a candlelit temple"
+    details: "carved guild arms over doorways, a candle workshop with dipping vats, the temple at the top with its doors open onto a thousand lit tapers"
+    times:
+      dawn: {setting: "workshop doors opening, steam from the vats", light: "cold light and the temple glowing at the top"}
+      day: {setting: "apprentices carrying frames of candles", light: "warm daylight, wax-smoke haze"}
+      dusk: {setting: "the temple doors thrown open", light: "a wall of candlelight spilling down the street"}
+      night: {setting: "the street empty, the temple still lit", light: "the temple glow the only light on the hill"}
+
+  lantern_house:
+    subject: "A squat stone watch-house with a great lamp over its door"
+    details: "iron-banded door, a wanted board crowded with notices and sketches, a sergeant's cluttered desk, stairs down to damp cells"
+    times:
+      dawn: {setting: "the night watch coming in, lamps on poles", light: "the great lamp against grey dawn"}
+      day: {setting: "a queue at the sergeant's desk", light: "daylight through a barred window, dust in the air"}
+      dusk: {setting: "Watchmen trimming their lamps before the rounds", light: "many lamps being lit at once"}
+      night: {setting: "the cells below, a lantern on a hook", light: "one lamp, deep shadow, damp stone"}
+
+  margraves_hill:
+    subject: "A palace on a hill with a vast crystal lantern holding a holy fire"
+    details: "three palace wings, gravel paths, a terrace over the city, guards in polished breastplates, the Everflame burning in a coach-sized crystal lantern"
+    times:
+      dawn: {setting: "gardeners raking gravel, the flame bright in the dim", light: "rose dawn and the Everflame's gold"}
+      day: {setting: "courtiers on the terrace", light: "bright daylight, the flame pale inside its crystal"}
+      dusk: {setting: "the city lamps coming on below the terrace", light: "the Everflame blazing against a darkening sky"}
+      night: {setting: "guards pacing the treasury wing", light: "the Everflame lighting the whole hilltop gold"}
+
+  gallows_green:
+    subject: "A town green with a gallows on a platform in the middle"
+    details: "short grass, a ballad-seller with a tray of broadsheets, a dog walker, benches, the gallows oiled and empty, a single lamp post"
+    times:
+      dawn: {setting: "mist on the grass, crows on the crossbeam", light: "grey dawn, the gallows a dark shape"}
+      day: {setting: "people walking dogs past it as though it were not there", light: "plain daylight on green grass"}
+      dusk: {setting: "a lamplighter at the one lamp post", light: "one warm lamp and a long gallows shadow"}
+      night: {setting: "the Green empty, a Watchman standing very straight", light: "a single lamp, everything else dark"}
+
+  the_undercroft:
+    subject: "Old brick vaults and sewer tunnels beneath a city"
+    details: "arched brickwork, wharf steps down to still black water, smugglers' chalk marks, pale tallow stalactites dripping from gutters above, a shaded lantern"
+    times:
+      dawn: {setting: "a thread of daylight through a grating", light: "one grey shaft through the dark"}
+      day: {setting: "the same dark as always", light: "a single shaded lantern"}
+      dusk: {setting: "drip and echo, a boat tied at the steps", light: "lantern light on wet brick"}
+      night: {setting: "a figure waiting at the water with a lantern held low", light: "one small flame reflected in black water"}
+
+  rooftop_road:
+    subject: "A path across city rooftops of slate and chimney pots"
+    details: "planks laid gutter to gutter, washing lines, chalk marks on chimneys, pigeons, the lit windows of the city below"
+    times:
+      dawn: {setting: "pigeons and frost on the slates", light: "pale gold dawn over the roofs"}
+      day: {setting: "a cat asleep on warm slate", light: "open sky, bright and windy"}
+      dusk: {setting: "the city's lamps coming on below", light: "orange sky and warm windows beneath"}
+      night: {setting: "a dark figure crossing a plank between gutters", light: "moonlight and a thousand small lit windows below"}
+
+  old_bell_tower:
+    subject: "The inside of a ruined church bell tower"
+    details: "broken stairs spiralling up, a great cracked bell, small bells swaying, a nest of blankets, a hoard of small shiny things catching the light"
+    times:
+      dawn: {setting: "wind moving the little bells", light: "cold light through the louvres"}
+      day: {setting: "dust hanging in the air", light: "bright slats of daylight"}
+      dusk: {setting: "the hoard glittering", light: "orange light through the louvres onto brass and silver"}
+      night: {setting: "one candle stub by the blankets", light: "a single small flame in a tall dark space"}
+
+  # ----------------------------------------------------------
+  # Premises -- one subject per premise TYPE (data/premises/types/), keyed
+  # `premise_<type>`. They live under `locations:` because a premise plate IS
+  # a location plate: same 16:9 format, same day/night `times`, rendered by
+  # the same `_location_fields` path, listed by art_missing.py in the same
+  # brief. What does NOT exist yet is a reader that asks for one -- the casing
+  # board shows no plate this release, so these are the v1.0 art brief only,
+  # and the spec's "8 premise types x day/night" is the dawn/day and dusk/night
+  # pairs below. Exteriors, seen from across the street: a watcher's view.
+  # ----------------------------------------------------------
+
+  premise_townhouse:
+    subject: "A narrow, tall merchant's townhouse in an old candle-port"
+    details: "painted shutters, a brass knocker, a glass lamp on a bracket by the door, a coal-hole grate in the pavement, candles lit in an upstairs window"
+    times:
+      dawn: {setting: "a maid scrubbing the front step", light: "grey dawn, the door lamp still burning"}
+      day: {setting: "the street door shut and the shutters half open", light: "soft daylight on painted wood"}
+      dusk: {setting: "the family's candles being lit room by room", light: "warm windows against a violet sky"}
+      night: {setting: "one lamp left burning in the hall behind the fanlight", light: "a single warm fanlight in a dark facade"}
+
+  premise_chandlery:
+    subject: "A candle-maker's shop with the family's rooms above it"
+    details: "a bow window hung with tapers like onions, a wooden candle sign, a back yard with a steaming dipping vat, wax drips on the step"
+    times:
+      dawn: {setting: "smoke rising from the vat-room chimney", light: "cool dawn, the vat-room glowing orange through a back window"}
+      day: {setting: "the shop open, tapers swaying in the window", light: "warm daylight through hanging candles"}
+      dusk: {setting: "the shutters going up on the bow window", light: "honey-coloured lamplight"}
+      night: {setting: "the shop dark, the banked vats glowing faintly in the back room", light: "a dull orange glow from behind the shop"}
+
+  premise_counting_house:
+    subject: "A sober stone counting-house with barred ground-floor windows"
+    details: "an iron-bound door with two locks, a brass plate by the door, tall windows with ledgers stacked on the sills, an iron grille over the cellar light"
+    times:
+      dawn: {setting: "the street empty, the brass plate dull with dew", light: "cold blue dawn"}
+      day: {setting: "clerks visible on tall stools through the windows", light: "flat daylight on pale stone"}
+      dusk: {setting: "the factor locking up and walking away down the street", light: "last orange light on the bars"}
+      night: {setting: "every window dark, a hired watchman's lantern in the doorway", light: "one small lantern against black stone"}
+
+  premise_tavern:
+    subject: "A crooked old waterfront tavern with a painted swinging sign"
+    details: "leaded bow windows, a cellar trapdoor in the pavement, barrels by the door, a man asleep on the step, a sign showing a tradesman in comic distress"
+    times:
+      dawn: {setting: "the landlord rolling empty casks out of the door", light: "grey light, last night's lamps guttering"}
+      day: {setting: "the door propped open, a potboy sweeping", light: "hazy daylight"}
+      dusk: {setting: "the taproom filling, noise spilling into the street", light: "golden light pouring from every window"}
+      night: {setting: "last drinkers leaning in the doorway", light: "warm windows and a lantern swinging on the sign"}
+
+  premise_warehouse:
+    subject: "A timber tallow warehouse on the edge of a quay"
+    details: "tall double doors chained and padlocked, a hoist beam and pulley at the loft, crates stencilled TALLOW, greasy boards, a ladder to a loft door"
+    times:
+      dawn: {setting: "porters queuing at the doors", light: "fog lit by a quay lamp"}
+      day: {setting: "crates swinging up on the hoist", light: "pale light off the water"}
+      dusk: {setting: "the doors being chained", light: "orange sky behind the hoist beam"}
+      night: {setting: "the quay deserted, a shaded lantern moving between the sheds", light: "moonlight on wet boards, one lantern"}
+
+  premise_temple_house:
+    subject: "A small clergy house of a fire-worshipping temple"
+    details: "a narrow house of pale stone with a flame carved over the door, a vigil candle burning in every window, a poor-box chained by the step, a bell-cord"
+    times:
+      dawn: {setting: "a novice trimming the window candles", light: "a candle in every window against grey dawn"}
+      day: {setting: "the door open on a plain hall", light: "clean daylight, candles pale in the sun"}
+      dusk: {setting: "a priest in flame-coloured robes coming home up the steps", light: "every window lit and warm"}
+      night: {setting: "the whole house outlined by its window candles", light: "a dozen small steady flames in darkness"}
+
+  premise_manor:
+    subject: "A grand manor house behind a garden wall on a wealthy street"
+    details: "tall gates with a porter's lodge, a wall topped with glass, a gravel sweep, forty candles lit in a chandeliered dining room, a pair of wolfhounds on the lawn"
+    times:
+      dawn: {setting: "a footman opening the shutters", light: "pale dawn on a broad facade"}
+      day: {setting: "a carriage waiting at the door", light: "bright daylight on stone and gravel"}
+      dusk: {setting: "the dining room lighting up for a dinner for twelve", light: "blazing chandelier light through tall windows"}
+      night: {setting: "a footman's candle passing window to window on the ground floor", light: "one moving candle, the hounds' eyes in the garden"}
+
+  premise_palace_wing:
+    subject: "One wing of a hilltop palace lit by a holy fire"
+    details: "a long gilded gallery behind tall windows, guards in polished breastplates at the door, raked gravel walks, a great crystal lantern glowing beyond the roofline"
+    times:
+      dawn: {setting: "gardeners raking the gravel", light: "pale dawn and the holy flame's glow on the roof"}
+      day: {setting: "guards at the door, a chamberlain with a white staff crossing the terrace", light: "bright daylight on gilt and glass"}
+      dusk: {setting: "a chambermaid lighting three hundred candles along the gallery", light: "rows of candles glowing through tall windows"}
+      night: {setting: "the gallery dark but for the holy fire's light through the high windows", light: "cold white-gold firelight falling across the corridors"}
+
+# ------------------------------------------------------------
+# Portraits -- the fourteen scheduled people, ids from
+# data/world/npc_schedules.yaml, and Pip.
+# ------------------------------------------------------------
+portraits:
+
+  npc_ardane:
+    subject: "A watch captain in her forties, straight-backed, with a lantern badge on her coat"
+    details: "close-cropped grey-shot hair, a long dark coat with brass buttons, a pen held like a weapon, a wanted board behind her"
+    setting: "the Lantern House, lamplight"
+    mood: "sharp, fair, and absolutely certain"
+
+  npc_brask:
+    subject: "A heavy, easygoing watch sergeant with a pastry in one hand"
+    details: "a helmet pushed back, a moustache with crumbs in it, a belt of keys, a lantern on a pole leaning against his shoulder"
+    setting: "a bollard on a busy quay"
+    mood: "amiable, idle, and quietly for sale"
+
+  npc_lantern_1:
+    subject: "A very young watchman in a too-big uniform holding up a polished lantern"
+    details: "freckles, a badge polished bright, an earnest frown, pointing with his whole arm"
+    setting: "a crowded quay in fog"
+    mood: "eager, alarmed, sure he has just seen someone famous"
+
+  npc_lantern_2:
+    subject: "A grizzled old watchman leaning in a doorway with his lantern"
+    details: "a lined face, a dented helmet, a pipe, boots that have walked every street twice"
+    setting: "a lamplit street at night"
+    mood: "unhurried and unimpressed"
+
+  npc_gannet:
+    subject: "An elderly woman knitting at the head of a long table"
+    details: "grey hair in a bun, round spectacles, a shawl, needles clicking, two ledgers open beside her, a framed union charter on the wall"
+    setting: "the back room of a porters' union hall, candlelit"
+    mood: "grandmotherly, patient, and entirely without mercy"
+
+  npc_silas:
+    subject: "A dapper young man in a plum waistcoat leaning on a cane"
+    details: "a curled smile, a silk cravat, rings on two fingers, a hat tipped at an angle, porters laughing behind him"
+    setting: "an outdoor table at a market pie shop"
+    mood: "charming, ambitious, and laughing a little too loudly"
+
+  npc_pell_hollis:
+    subject: "A sharp-eyed shopkeeper weighing a brooch in her palm"
+    details: "a jeweller's glass on a ribbon, ink-stained cuffs, shelves of odds and ends behind her, a small brass scale"
+    setting: "a cluttered curiosity shop counter"
+    mood: "friendly, precise, pricing you as well as the brooch"
+
+  npc_marrow:
+    subject: "A gaunt rag-and-bone dealer in a yard full of scrap"
+    details: "a leather apron, soot on the hands, a barrow of junk with a glint of silver in it, a crucible glowing behind"
+    setting: "a rag-and-bone yard at night"
+    mood: "silent, unblinking, uninterested in your story"
+
+  npc_steward_quill:
+    subject: "A thin, fastidious palace steward with a ring of household keys"
+    details: "a black coat, a quill behind the ear, an inventory book held open, white gloves"
+    setting: "a palace terrace with a great crystal lantern beyond"
+    mood: "polite, precise, counting the spoons as you speak"
+
+  npc_wren:
+    subject: "A lean young lamplighter at the top of a ladder with a brass pole"
+    details: "a cap pulled low, a patched coat, soot on one cheek, a quick grin, a lamp just lit beside her"
+    setting: "a street at dusk with lamps coming on behind"
+    mood: "quick, cheerful, and hard to pin down"
+
+  npc_imelda:
+    subject: "An elegant noblewoman at a silversmith's window"
+    details: "a gown of deep blue, a single pearl at the throat, gloves, a fan held still, a faint amused expression"
+    setting: "a lamplit street of fine townhouses"
+    mood: "bored, gracious, and missing nothing"
+
+  npc_tobiah:
+    subject: "A round, talkative chandler lowering a frame of wicks into a wax vat"
+    details: "sleeves rolled up, a wax-spattered apron, a red face from the heat, rows of drying candles"
+    setting: "a steamy candle-dipping workshop"
+    mood: "cheerful, indignant about prices, mid-sentence"
+
+  npc_sister_ember:
+    subject: "A calm temple sister trimming a taper among hundreds of lit candles"
+    details: "a plain russet habit, a taper-snuffer on a chain, a gentle weathered face lit from below"
+    setting: "a temple full of candles"
+    mood: "kind, watchful, remembering your face"
+
+  npc_dock_mag:
+    subject: "A broad, weathered porter-boss standing on an upturned crate"
+    details: "a brown porter's smock, rolled sleeves, a wage tin under one arm, a voice you can see"
+    setting: "a crowded quay with barges behind"
+    mood: "loud, tough, fair, and busy"
+
+  pip:
+    subject: "A scruffy one-eyed jackdaw perched on a shoulder, eyeing a brass button"
+    details: "grey nape, black feathers, one bright pale eye and one milky one, a stolen button in his beak"
+    setting: "a lamplit quay"
+    mood: "haughty, offended, utterly convinced he is a magpie"

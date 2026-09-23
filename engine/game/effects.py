@@ -512,12 +512,63 @@ def _e_item(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dic
             break
     else:
         state.inventory.append(InventoryItem(id=item_id, name=name, qty=qty, tags=tags))
+    stolen = effect.get("stolen_from")
+    if isinstance(stolen, dict):
+        # One record per unit, so selling one ring of two consumes one record
+        # and the other stays exactly as hot as it was. Stamped with the day
+        # HERE rather than by the caller: the effect is the only writer, and a
+        # caller-supplied day is a day a bug can backdate.
+        record = {
+            "whom": str(stolen.get("whom") or ""),
+            "where": str(stolen.get("where") or ""),
+            "day": state.world_day,
+        }
+        state.provenance.setdefault(item_id, []).extend(dict(record) for _ in range(qty))
     return {
         "type": "item",
         "item_id": item_id,
         "qty": qty,
         "ok": True,
         "text": f"gained {qty}x {name}",
+    }
+
+
+@effect_kind("provenance")
+def _e_provenance(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    Consume ``qty`` theft records for an item, oldest first -- the goods left.
+
+    A sale is what calls this (the fence's rules land with it). Oldest first
+    because the record that goes is the one whose heat has most nearly worn
+    off; which physical ring was handed over is not something the ledger can
+    tell apart, and taking the newest would let a player cool a fresh theft by
+    selling an old one. A miss is not an error, for the ``remove_item`` reason:
+    selling honest goods simply has nothing to forget.
+    """
+    item_id = str(effect.get("item_id") or effect.get("id") or "").strip()
+    if not item_id:
+        return _unknown("provenance", effect)
+    want = max(1, _int(effect.get("qty"), 1))
+    records = state.provenance.get(item_id) or []
+    removed = min(want, len(records))
+    del records[:removed]
+    if not records:
+        state.provenance.pop(item_id, None)
+    # `inventory.name_of`, not a raw id massaged with `.replace` -- a raw id
+    # must never reach the narrator, and an item's registry name is not
+    # reliably its id with underscores swapped for spaces.
+    from engine.game import inventory as inventory_module
+
+    return {
+        "type": "provenance",
+        "item_id": item_id,
+        "removed": removed,
+        "ok": True,
+        "text": f"forgot {removed} theft record(s) of {inventory_module.name_of(item_id)}"
+        if removed
+        else "",
     }
 
 
@@ -529,6 +580,12 @@ def _e_remove_item(
     if not item_id:
         return _unknown("remove_item", effect)
     want = max(1, _int(effect.get("qty"), 1))
+    # Deliberately does NOT touch `state.provenance`. A sale is a laundering --
+    # the fence's cut is what buys the goods' history away, through the
+    # `provenance` kind below -- but a complication that spoils rations or a
+    # theft that takes them back is just loss. Those items' records stay
+    # exactly as hot as they were, on the goods that are left, so a later gift
+    # of the same id does not inherit a clean history it never earned.
     entry = next((i for i in state.inventory if i.id == item_id), None)
     if entry is None:
         # Not an error. A complication that spoils rations you do not carry
@@ -824,6 +881,39 @@ def _e_timed_effect(
         # today" is for the engine's arithmetic, never for the player's prose.
         "hidden": True,
         "text": f"{timed.text or timed.id} (until day {timed.expires_day})",
+    }
+
+
+@effect_kind("intel")
+def _e_intel(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    Record one thing learned about a premise by watching it.
+
+    The id must be one the house actually holds -- ``premises.intel_for`` is
+    asked, not trusted to the caller -- because an id nothing can render would
+    count toward "everything is known" while telling the player nothing: the
+    verb would vanish over a house the player never learned about.
+    """
+    from engine.world import premises
+
+    premise_id = str(effect.get("premise") or "").strip()
+    intel_id = str(effect.get("intel") or "").strip()
+    rows = {row["id"]: row["text"] for row in premises.intel_for(state, premise_id)}
+    if intel_id not in rows:
+        return {
+            "type": "intel",
+            "ok": False,
+            "text": "nothing of that kind to learn about that house",
+        }
+    learned = state.premise_intel.setdefault(premise_id, [])
+    if intel_id not in learned:
+        learned.append(intel_id)
+    return {
+        "type": "intel",
+        "premise": premise_id,
+        "intel": intel_id,
+        "ok": True,
+        "text": rows[intel_id],
     }
 
 

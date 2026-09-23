@@ -32,7 +32,11 @@ def _rich_state() -> GameState:
         reputations={"edgewood": 12, "militia": -30},
         storyteller_mind=AgentMind(patience=3.0, trust_level=91.0),
         assistant_mind=AgentMind(trust_level=95.0, current_form="reflection"),
-        procgen=ProcgenResult(seed=1234, shrine_mural="a wheel with no rim"),
+        procgen=ProcgenResult(
+            seed=1234,
+            shrine_mural="a wheel with no rim",
+            premises=[{"id": "prem_square_1", "district": "edgewood_square", "tier": 2}],
+        ),
         flags={"met_maris": True},
         world_events=[{"event_id": "caravan_arrival", "expires_day": 9}],
         rumors=["The rain came down wrong over Millhaven."],
@@ -45,6 +49,7 @@ def _rich_state() -> GameState:
         hunger=41.5,
         wounds=[Wound(id="w1", text="knife-line", severity=2, heals_on_day=9)],
         active_effects=[TimedEffect(id="e1", kind="check_penalty", expires_day=9)],
+        provenance={"golden_ring": [{"whom": "npc_x", "where": "edgewood_square", "day": 4}]},
     )
     set_clock(state, day=11, hour=19)
     return state

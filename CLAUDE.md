@@ -10,33 +10,40 @@ release to release.
 
 ## Status
 
-**v0.8.1** is the current release (CHANGELOG.md has every release since 0.4.0).
+**v0.9.0** is the current release (CHANGELOG.md has every release since 0.4.0).
 
-**2023 passing, 3 skipped in 4m58s**, no expected failures (measured
-2026-09-23), plus **138 client tests** under `ui/tests/` (`npm test --prefix ui`;
-`vitest` is a devDependency, so `npm install --prefix ui` once first). Re-measure
-and restate these at every release rather than trusting this line -- it has been
-stale before, in the very sentence that warned about it.
+**2174 passing, 3 skipped in 5m40s**, no expected failures (measured
+2026-09-24, final fix pass), plus **144 client tests** under `ui/tests/`
+(`npm test --prefix ui`; `vitest` is a devDependency, so
+`npm install --prefix ui` once first). Re-measure and restate these at every
+release rather than trusting this line -- it has been stale before, in the
+very sentence that warned about it.
 
-Five stories ship, and every one can be played to an ending
+Six stories ship, and every one can be played to an ending
 (`tests/test_finales.py`): `clockwork-dark` (the flagship), `wicked-garden`
 (the deck exemplar), `neon-city` (NEON CITY: THE CROSSING), `the-long-con` (THE
-LONG CON, the first graph/deck hybrid) and `dev-story` (the annotated bench).
+LONG CON, the first graph/deck hybrid), `dev-story` (the annotated bench) and
+`hue-and-cry` (HUE & CRY, playable to its one shipped ending,
+`honest_after_all`; the rest of its content lands across v0.10.0–v1.0.0).
 Pick one with `launcher.py --game <slug>`.
 
 ## In flight
 
-**HUE & CRY**, approved 2026-09-23 as three releases:
+**HUE & CRY**, approved 2026-09-23, re-cut per feature after v0.9.0 shipped so
+nothing sits unpushed for weeks:
 
 | Release | What | State |
 |---|---|---|
 | v0.8 | The audit release: presence in every story, outcome-aware evaluator, the "world moved" journal, leaks, dead code | **shipped** |
-| v0.9 | Four generic engine features, each proven against the new story as it grows: the Law, Premises, Jobs & flashbacks, Agendas | next |
-| v1.0 | `hue-and-cry` itself: a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, bespoke UI plugin, Grok art pack | after v0.9 |
+| v0.9.0 | Premises, plus the HUE & CRY skeleton | **shipped** |
+| v0.10.0 | The Law | next |
+| v0.11.0 | Jobs & flashbacks | queued |
+| v0.12.0 | Agendas | queued |
+| v1.0.0 | `hue-and-cry` finished: a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, bespoke UI plugin, Grok art pack | after v0.12.0 |
 
 Spec: [docs/superpowers/specs/2026-09-23-hue-and-cry-design.md](docs/superpowers/specs/2026-09-23-hue-and-cry-design.md).
-Plans live in `docs/superpowers/plans/`; v0.9 is executed subagent-driven, one
-fresh subagent per task with review between.
+Plans live in `docs/superpowers/plans/`; each release is executed
+subagent-driven, one fresh subagent per task with review between.
 
 ## Deliberately deferred
 

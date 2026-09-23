@@ -1,0 +1,27 @@
+# HUE & CRY -- vendor stock. Prices in crowns.
+#
+# Read through `paths.economy`. Every TOP-LEVEL key is an NPC id with a
+# profile in data/tables/trade.yaml -- nothing else may live at the top level.
+#
+# A row here is a vendor naming their own number; everything else they will
+# buy is priced off its registry `value` through their spread (and, for a
+# stolen unit, their fence cut). What a fence SELLS is the front of the shop:
+# the things you can buy across the counter while you decide whether to ask
+# about the back room.
+#
+# Every id must exist in data/items/.
+#
+# Version: v0.1.0 [2026-09-23]
+
+# Hollis's Sundries and Curiosities, Wickmarket, 08:00 to 22:00.
+npc_pell_hollis:
+  sells:
+    pewter_candlesticks: { price: 11 }
+    silver_thimble: { price: 7 }
+    brass_snuffer: { price: 6 }
+
+# Marrow's rag-and-bone yard, the Snuffs, 17:00 to midnight.
+npc_marrow:
+  sells:
+    pewter_tankards: { price: 7 }
+    brass_snuffer: { price: 5 }

@@ -1,0 +1,74 @@
+# HUE & CRY -- premise type: temple house.
+#
+# A clergy house of the Everflame: a priest, a novice and a sexton, a vigil
+# light in every window and the parish plate in a sealed cupboard. Schema in
+# types/townhouse.yaml.
+#
+# THE EMPTY WINDOW is two hours in the afternoon, when the priest is at the
+# Temple, the novice is carrying alms round the Snuffs and the sexton is out
+# on the Green tending the paupers' plot. Short, and robbing the Temple's own
+# is the kind of thing a city remembers at the gallows -- the reliquary lamp
+# is worth it and everybody will know exactly whose it was.
+#
+# Version: v0.1.0 [2026-09-23]
+
+id: temple_house
+label: "temple house"
+
+name_patterns:
+  - "Saint {given}'s Rectory"
+  - "the House of the Taper-Keepers on {street}"
+  - "the {surname} Chantry House"
+  - "the Vigil House at Number {n}, {street}"
+
+tiers: {1: 3, 2: 3, 3: 1}
+
+household:
+  - role: priest
+    routine:
+      - { hours: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21], location: chandlers_rise, activity: "in flame-coloured vestments at the Temple of the Everflame, lighting tapers for the dead and blowing them out for the ungrateful" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4], location: "@home", activity: "asleep with a vigil candle burning at the bedside, as the rule requires", available: false }
+
+  - role: novice
+    routine:
+      - { hours: [5, 6, 7, 8, 9, 10, 11], location: "@home", activity: "scraping old wax off candlesticks and learning the Litany of the Wick by heart, badly" }
+      - { hours: [12, 13, 14, 15, 16], location: the_snuffs, activity: "carrying the Temple's alms basket through the Snuffs, handing out candle-ends and being pickpocketed with great affection" }
+      - { hours: [17, 18, 19, 20, 21], location: chandlers_rise, activity: "at evening vigil in the Temple, nodding off between the responses" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4], location: "@home", activity: "asleep in a cell no bigger than a cupboard", available: false }
+
+  - role: sexton
+    routine:
+      - { hours: [6, 7, 8, 9, 10, 11, 12, 13], location: "@home", activity: "sweeping the clergy house and polishing the parish plate with more love than it deserves" }
+      - { hours: [14, 15], location: gallows_green, activity: "tending the paupers' plot behind the gallows with a spade and a pipe, on first-name terms with everyone in it" }
+      - { hours: [16, 17, 18, 19, 20, 21], location: "@home", activity: "trimming the vigil lights in every window, one after another, round and round the house" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4, 5], location: "@home", activity: "asleep in the porter's cubby with the keys under the pillow", available: false }
+
+security:
+  - { id: vigil_lights, text: "a vigil light burning in every window, so no room in the house is ever properly dark", tier_min: 1 }
+  - { id: sextons_keys, text: "every door locked with the sexton's keys, which the sexton keeps on their person at all times, including in the bath", tier_min: 1 }
+  - { id: singing_boards, text: "a hall floor of loose old boards that sing out like a choir when anyone steps on them", tier_min: 1 }
+  - { id: chained_poor_box, text: "the poor-box chained to the wall and bolted through into the next room", tier_min: 2 }
+  - { id: prayer_bells, text: "a prayer-bell on a cord by every bed, and the whole street trained to come running when they ring", tier_min: 2 }
+  - { id: sealed_cupboard, text: "the plate cupboard sealed with wax and the Temple's seal, checked by the priest at every dawn", tier_min: 3 }
+
+loot:
+  1:
+    - { item_id: beeswax_tapers, weight: 3 }
+    - { item_id: vigil_oil, weight: 3 }
+    - { item_id: brass_snuffer, weight: 2 }
+  2:
+    - { item_id: silver_offering_plate, weight: 3 }
+    - { item_id: spermaceti_candles, weight: 3 }
+    - { item_id: vigil_oil, weight: 1 }
+  3:
+    - { item_id: reliquary_lamp, weight: 3 }
+    - { item_id: silver_offering_plate, weight: 2 }
+    - { item_id: gilt_candelabrum, weight: 1 }
+
+secrets:
+  - { id: false_bottom, text: "the poor-box has two bottoms, and only one of them goes to the poor" }
+  - { id: miracle_taper, text: "the parish's miraculous taper that never gutters is a spermaceti candle, swapped every night by the sexton" }
+  - { id: written_confession, text: "a confession written down in the priest's own hand, which should never have been written down, naming a name on Silk Row" }
+  - { id: vigil_oil_trade, text: "the sexton sells the vigil oil out of the back door to lamplighters at half price" }
+  - { id: lapsed_priest, text: "a letter from the Temple's high altar withdrawing the priest's ordination, three years ago, which the priest has simply ignored" }
+  - { id: card_room_retreats, text: "the novice's diary, a candid account of the priest's monthly 'retreats for contemplation', which are three nights in a Wickmarket card-room and have lately gone badly" }

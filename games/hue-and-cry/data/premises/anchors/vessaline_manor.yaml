@@ -1,0 +1,52 @@
+# HUE & CRY -- anchor: Vessaline House, Silk Row.
+#
+# Hand-written, same keys as a type but fixed contents: one `tier`, one
+# `name`, the `security` list as written (no tier draw), `loot` as a list of
+# item ids, and at most ONE secret. The household's names and workplaces are
+# the only things the seed draws. Anchors are IN ADDITION to Silk Row's count.
+#
+# Lady Imelda Vessaline is a scheduled person (npc_imelda), not a household
+# member: her routine already takes her to the Temple, the silversmith's window
+# and the Margrave's table. The house she leaves behind is never empty -- the
+# butler does not go out, on principle -- and her maid follows her about, so
+# the hours she is gone are the hours to watch for, not to walk in.
+#
+# She is also one of the three people the seed may make the real Magpie.
+# Nothing in this file says which way that falls, and nothing may: the
+# girandoles are here because they are the most famous shine on Silk Row,
+# whoever turns out to want them, and the house's secret is the BUTLER's and
+# points at the rest of the Row -- static content must not hand her a motive
+# (debt, grudge, need) in every seed when the seed is what picks the thief.
+#
+# Version: v0.1.0 [2026-09-23]
+
+id: vessaline_manor
+label: "manor"
+district: silk_row
+name: "Vessaline House"
+tier: 4
+
+household:
+  - role: butler
+    routine:
+      - { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22], location: "@home", activity: "in the hall of Vessaline House in a black coat, receiving callers with all the warmth of a closed door" }
+      - { hours: [23, 0, 1, 2, 3, 4, 5], location: "@home", activity: "asleep on a truckle bed across the plate-room door, fully dressed", available: false }
+
+  - role: maid
+    routine:
+      - { hours: [7, 8, 9, 10, 11, 12], location: "@home", activity: "laying out three gowns for Lady Imelda to reject" }
+      - { hours: [13, 14, 15], location: chandlers_rise, activity: "two steps behind Lady Imelda at the Temple, carrying her taper box and her opinions" }
+      - { hours: [16, 17, 18], location: "@home", activity: "pressing lace in the sewing room with an iron and a grudge" }
+      - { hours: [19, 20, 21, 22], location: margraves_hill, activity: "waiting in the palace kitchens for her lady, eating the Margrave's leftovers and hearing everything" }
+      - { hours: [23, 0, 1, 2, 3, 4, 5, 6], location: "@home", activity: "asleep in the dressing room, within call of the bell", available: false }
+
+security:
+  - { id: butler_across_the_door, text: "a butler who sleeps across the plate-room door in full dress and has never, to anyone's knowledge, undressed" }
+  - { id: french_lock, text: "a French lock on the jewel case, the kind that has to be listened to rather than picked" }
+  - { id: barred_from_within, text: "every shutter on the street side barred from within at dusk, by the butler, personally" }
+  - { id: yapping_pug, text: "a pug called Admiral who yaps at everything, including the moon, the butler and his own tail" }
+
+loot: [vessaline_girandoles, silver_hand_mirror, pearl_earrings, gilt_candelabrum]
+
+secrets:
+  - { id: butlers_memoir, text: "the butler's memoir of forty years in service on Silk Row, in a locked writing-case, in which every family on the Row appears under a transparent false name -- except the Vessalines, who do not appear at all" }

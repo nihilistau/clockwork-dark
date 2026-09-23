@@ -507,6 +507,79 @@ which carries a new story fine. When the prompts are written,
 every gap, with a ready-to-paste prompt in both dialects at the right pixel
 size. `games/dev-story/README.md` § Art shows the intended workflow.
 
+### 3.10 Premises, thievery and fences
+
+`paths.premises` → a directory (`districts.yaml`, `names.yaml`, `types/`,
+`anchors/`); `paths.thievery` → one YAML file. Both are optional and both pay
+nothing when undeclared — the worked example for the whole shape is
+`games/hue-and-cry/data/premises/` and `games/hue-and-cry/data/rules/thievery.yaml`.
+
+**`paths.premises` layout:**
+
+- `districts.yaml` — one entry per district location: `count` premises to
+  generate plus `types: {<type>: <weight>, ...}`, and an optional `anchors:
+  [<anchor id>, ...]` list (anchors are hand-written premises **in addition
+  to** `count`, not counted against it). A district that should hold nothing
+  (a `secret: true` location, say) is simply left out.
+- `names.yaml` — the pattern fields (`{surname}`, `{street}`, `{craft}`, …)
+  `name_patterns` draw from.
+- `types/*.yaml` — one file per premise type: `id`, **`label`** (required —
+  what the casing board and the narrator call it; falling back to the raw id
+  was a review-round-1 bug, so it is now a hard load error, same as a missing
+  `district`/`name`/`tier` on an anchor), `name_patterns`, `tiers: {N:
+  weight}` (a tier-N premise draws N `security` features **sampled without
+  replacement** — so every tier needs at least N eligible `security` rows —
+  and `tier` `loot` rows **drawn with replacement** by weight, so one eligible
+  `loot` row per tier is enough; only `security` scales its requirement with
+  the tier), `household` (roles with routines — see below), `security`
+  (`{id, text, tier_min}`; `text` is what a watch learns word for word),
+  `loot` (`tier -> [{item_id, weight}]`, ids from `data/items/`), and
+  `secrets` (`[{id, text}]`, one drawn per premise — casing only reveals that
+  a secret *exists*; the `text` is what going inside finds).
+- `anchors/*.yaml` — the same schema, hand-written: a fixed `district`,
+  `name`, `tier` and contents rather than generated ones.
+
+**Household routines.** A `household` role's `routine` is an ordinary
+schedule-row list (`{hours, location, activity, available}`), with two
+special location tokens: `@home` (this premise) and `@work` (one of the
+type's `work_at` districts, drawn once per person at generation). Every
+household member becomes a real procgen NPC merged through the same path
+flagship villagers already use — present, gossip-able and liftable, and one
+of the people the Law release will read as a witness (there is no witness
+system yet — **NOT WIRED**, see `docs/GOVERNANCE.md`) — with no new code.
+**Anchors are additive to the district's
+`count`**, never counted against it, so a district's premise total is
+`count + len(anchors)`.
+
+**`paths.thievery` (one file):**
+
+- `alertness` — role → difficulty band (from `skills.yaml`) a `lift` rolls
+  against. `default` is optional here (unlike `purses`' below); an unnamed
+  role simply falls back to `"standard"` rather than failing to load, so a
+  new household role a later premise type adds needs no entry.
+- `purses` — role → weighted rows, either `{gold: [lo, hi], weight}` or
+  `{item_id, weight}`; a partial lift draws gold rows only, halved (min 1).
+  `default` **is** required — this is the one row `load_spec` enforces.
+- `hot_days` — how long a lifted or looted item stays `hot` before it cools;
+  an item tagged `named` in `data/items/` stays hot regardless. There is no
+  laundering mechanism: any fence sale — hot or cool — consumes the
+  provenance record it sells, same as an honest one selling a cool unit;
+  nothing about *which* vendor buys it changes that.
+
+**Security this release is text only.** A `security` row's `text` is what a
+watch learns through `case`; nothing yet turns a feature into a stage, a
+skill band, or a bypass (a picked lock, a fed dog, a distracted dog-walker).
+That is Jobs' `entry` stage (v0.11.0) — see the NOT WIRED row in
+`docs/GOVERNANCE.md`.
+
+**Fences.** A trade profile with `fence: true` (optional `fence_cut: {hot,
+cool}`, default `0.5`/`0.8`) buys hot and cool goods at its own cut, clean
+goods at the ordinary price, never discounting a clean unit even at a fence.
+An honest vendor (no `fence: true`) sells a mixed stack's clean and cool
+units normally and refuses only the hot ones, in its own voice. Both read
+`thievery.heat_split` per unit, never per item, so a mixed stack of clean and
+stolen goods is never priced or refused as a whole.
+
 ---
 
 ## 3.9 The studio — the same job, in a browser

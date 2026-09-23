@@ -299,6 +299,14 @@ def assistant_persona() -> str:
 # ---------------------------------------------------------------------------
 
 
+#: How many generated household people (procgen NPCs carrying a ``premise``
+#: key) PEOPLE HERE names one by one before the rest collapse into a single
+#: line. HUE & CRY's thirty-one houses put ~80 such people into its districts,
+#: and a market at three in the afternoon held fifteen of them at once -- a
+#: prompt block the size of a parish register, every line of it a stranger.
+MAX_GENERATED_PRESENT = 4
+
+
 def _npcs_present_block(state: GameState) -> str:
     """
     List NPCs present, with what they are doing.
@@ -308,6 +316,14 @@ def _npcs_present_block(state: GameState) -> str:
     story but the flagship -- so a vendor standing at her own stall was offered
     by the buy intent and invisible to the narrator, and the cast gate then
     failed any prose that named her.
+
+    THE CAP. Every scheduled cast member is listed individually, always --
+    they are the story. Generated household people (a ``premise`` key on
+    their procgen row, engine/world/premises.py) are listed individually up
+    to ``MAX_GENERATED_PRESENT``, in the order presence returns them, and the
+    remainder become one "and N more townsfolk" line. Procgen people without
+    a ``premise`` key -- the flagship's villagers -- are untouched, so a story
+    that declares no premises builds the byte-identical block.
     """
     from engine.world import npc_sim
     from engine.world.world_sim import merge_npcs_at_location
@@ -317,7 +333,13 @@ def _npcs_present_block(state: GameState) -> str:
         return "PEOPLE HERE: nobody."
 
     lines = []
+    generated_listed = generated_more = 0
     for npc in present:
+        if npc.get("premise") and not npc_sim.is_scheduled(str(npc.get("id") or "")):
+            if generated_listed >= MAX_GENERATED_PRESENT:
+                generated_more += 1
+                continue
+            generated_listed += 1
         npc_id = str(npc.get("id") or "")
         name = npc.get("name") or npc_sim.display_name(npc_id, state)
         role = f" ({npc.get('role')})" if npc.get("role") else ""
@@ -328,7 +350,45 @@ def _npcs_present_block(state: GameState) -> str:
         if npc.get("visiting"):
             bits.append(" [visiting]")
         lines.append("".join(bits))
+    if generated_more:
+        noun = "townsfolk" if generated_more > 1 else "townsperson"
+        lines.append(f"- and {generated_more} more {noun} about their business")
     return "PEOPLE HERE:\n" + "\n".join(lines)
+
+
+def district_block(state: GameState) -> str:
+    """
+    The houses in this district and what the player has learned of each.
+
+    KNOWN INTEL ONLY. A narrator handed a house's full contents writes the
+    dog into the yard before anybody has watched it -- the spoiler the
+    casing verb exists to earn. So each line carries only what
+    ``state.premise_intel`` records, an unknown line is not mentioned at all,
+    and ids and tiers never appear: the house's name is how the prose refers
+    to it. Empty for a story that declares no premises, which keeps its prompt
+    byte-identical.
+    """
+    from engine.world import premises
+
+    if not premises.declared():
+        return ""
+    here = premises.at(state, state.location_id)
+    if not here:
+        return ""
+    lines = ["PREMISES HERE (what you know):"]
+    for prem in here:
+        premise_id = str(prem.get("id") or "")
+        spec = premises.spec(str(prem.get("type") or ""))
+        label = str(spec.get("label") or prem.get("type") or "house").replace("_", " ")
+        learned = set(premises.known(state, premise_id))
+        texts = [
+            row["text"]
+            for row in premises.intel_for(state, premise_id)
+            if row["id"] in learned
+        ] if learned else []
+        known_text = "; ".join(texts) if texts else "nothing known yet"
+        lines.append(f"- {prem.get('name') or label} ({label}): {known_text}")
+    return "\n".join(lines)
 
 
 #: The most HAPPENING NOW carries. The world block is non-evictable, and
@@ -731,6 +791,7 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
         parts.append(condition)
     for block in (
         _npcs_present_block(state),
+        district_block(state),
         _encounter_block(state),
         _scene_block(state),
         _intents_block(state),
@@ -1138,6 +1199,42 @@ def _sum_scene_begin(result: dict[str, Any]) -> str:
     return "a new scene begins."
 
 
+_HOURS_WORDS = {1: "an hour", 2: "two hours", 3: "three hours"}
+
+
+def _sum_case(result: dict[str, Any]) -> str:
+    # Words, not "2 of 5": the receipt's counts are for the casing board, and a
+    # narrator handed them writes "the third of five things you noticed".
+    where = result.get("premise") or "the house"
+    hours = _HOURS_WORDS.get(result.get("hours"), "a while")
+    learned = str(result.get("learned") or "").strip()
+    head = f"watched {where} for {hours}"
+    tail = f"; learned: {learned}." if learned else "."
+    more = (
+        " There is nothing more to learn by watching it."
+        if result.get("known") is not None and result.get("known") == result.get("of")
+        else ""
+    )
+    return head + tail + more
+
+
+def _sum_lift(result: dict[str, Any]) -> str:
+    # The mark by name, never the id; coin as the story's currency, never the
+    # roll. A caught hand says "noticed" -- the one fact the narrator must not
+    # soften into a clean getaway.
+    from engine.world import npc_sim
+
+    mark = str(result.get("mark") or "") or npc_sim.display_name(str(result.get("npc_id") or ""))
+    if result.get("noticed"):
+        return f"tried to lift {mark}'s purse and was noticed; took nothing."
+    coin = _money(result.get("gold")) if result.get("gold") else ""
+    took = [x for x in (coin, str(result.get("item") or "")) if x]
+    if not took:
+        return f"tried to lift {mark}'s purse; came away with nothing, unnoticed."
+    how = "fumbled a little loose coin" if result.get("degree") == "partial" else "lifted"
+    return f"{how} from {mark}'s purse unnoticed: {' and '.join(took)}."
+
+
 _SUMMARISERS: dict[str, Any] = {
     "rest": _sum_rest,
     "eat": _sum_eat,
@@ -1149,6 +1246,8 @@ _SUMMARISERS: dict[str, Any] = {
     "strike_bargain": _sum_thread("agreed"),
     "discharge_thread": _sum_thread("settled"),
     "scene_begin": _sum_scene_begin,
+    "case_premise": _sum_case,
+    "lift_purse": _sum_lift,
 }
 
 #: Keys whose value is a sentence written for a reader, in order of preference.

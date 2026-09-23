@@ -56,6 +56,23 @@ OVERRIDE_FLAG_PREFIX = "npc_at_"
 
 _ACTIVITY_STREAM = "npc_activity"
 
+# A premise's interior is a location id namespaced under its district, so a
+# person "home" inside one is findable there without a district gaining a
+# location of its own for every household. ``npcs_at`` needs no special case
+# for this: interior ids simply never string-equal their district's id, so a
+# person at "silk_row/prem_1" already does not show up under "silk_row".
+INTERIOR_SEPARATOR = "/"
+
+
+def interior_id(district_id: str, premise_id: str) -> str:
+    """Build the location id for one premise's interior."""
+    return f"{district_id}{INTERIOR_SEPARATOR}{premise_id}"
+
+
+def is_interior(location_id: str) -> bool:
+    """True when ``location_id`` names a premise interior, not a district."""
+    return INTERIOR_SEPARATOR in str(location_id)
+
 
 @dataclass
 class NPCPresence:
@@ -139,6 +156,18 @@ def reset_schedule_cache() -> None:
     """Drop the cached routine document. Tests and hot reload only."""
     global _SCHEDULE_CACHE
     _SCHEDULE_CACHE = None
+
+
+def is_scheduled(npc_id: str) -> bool:
+    """
+    True when ``npc_id`` has a row in the story's schedule table.
+
+    This is the one place "named cast vs. generated crowd" is decided, so
+    every consumer that needs the split -- ``prompts._npcs_present_block``'s
+    cap and ``thievery.marks``'s ordering -- reads the same answer instead of
+    each re-deriving `load_npc_schedules().get("npcs")` and risking drift.
+    """
+    return str(npc_id) in (load_npc_schedules().get("npcs") or {})
 
 
 # ---------------------------------------------------------------------------
@@ -265,6 +294,17 @@ def resolve_npc(state: GameState, npc_id: str) -> Optional[NPCPresence]:
     data = load_npc_schedules()
     cfg = (data.get("npcs", {}) or {}).get(npc_id) or {}
     procgen_npc = state.procgen.npc_by_id(npc_id) or {}
+    if not cfg and procgen_npc.get("routine") is not None:
+        # A generated household member can carry its own routine/home, same
+        # shape as a schedule row. A schedule row still wins outright -- this
+        # only fires when none exists -- and a procgen NPC with no ``routine``
+        # key (the flagship's villagers) never takes this path, so they are
+        # unchanged: home-only, resolved by the branch below.
+        cfg = {
+            key: procgen_npc[key]
+            for key in ("name", "role", "home", "routine")
+            if key in procgen_npc
+        }
     if not cfg and not procgen_npc and not _active_event(state, npc_id):
         return None
 

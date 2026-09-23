@@ -165,6 +165,9 @@ class ProcgenResult:
     festival: dict[str, Any] = field(default_factory=dict)
     shrine_mural: str = ""
     bakery_job_day: int = 3
+    # engine/world/premises.py: the houses inside each district. Empty for a
+    # story that declares no ``paths.premises``.
+    premises: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -175,6 +178,7 @@ class ProcgenResult:
             "festival": self.festival,
             "shrine_mural": self.shrine_mural,
             "bakery_job_day": self.bakery_job_day,
+            "premises": self.premises,
         }
 
     def npc_by_id(self, npc_id: str) -> Optional[dict[str, Any]]:
@@ -300,6 +304,19 @@ class GameState:
     # or transformed. Plain dicts for the same reason as `encounter`: the shape
     # is story-declared and must not force a save migration per field.
     threads: list[dict[str, Any]] = field(default_factory=list)
+    # What casing has learned about each house: premise id -> intel ids, in the
+    # order they were learned. Written only by the ``intel`` effect kind
+    # (engine/world/premises.py::case). Ids rather than texts, so a premise's
+    # occupancy line is re-read from the routines each time rather than frozen
+    # at the hour it was first seen. Empty for a story with no premises.
+    premise_intel: dict[str, list[str]] = field(default_factory=dict)
+    # Where stolen goods came from: item id -> one ``{"whom", "where", "day"}``
+    # per unit taken, oldest first. Appended only by the ``item`` effect when it
+    # carries ``stolen_from``, consumed only by the ``provenance`` kind (a sale).
+    # ``thievery.heat`` reads it: the record, not the object, is what makes a
+    # ring hot. Empty for a story with no thievery, and absent from an old save,
+    # which loads as "nothing was ever stolen".
+    provenance: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """
@@ -436,6 +453,7 @@ class GameState:
         return {
             **self._declared_client_values(),
             **self._structural_block(),
+            **self._premises_block(),
             "session_id": self.session_id,
             "player_name": self.player_name,
             "archetype": self.archetype,
@@ -574,6 +592,57 @@ class GameState:
             pass
 
         return out
+
+    def _premises_block(self) -> dict[str, Any]:
+        """
+        The casing board: houses in the player's district and what watching
+        has learned about each.
+
+        DECLARATION IS THE SWITCH, same convention as ``_structural_block``:
+        a story that declares no ``paths.premises`` gets no ``premises`` key
+        at all, so the flagship's payload stays byte-identical. A story that
+        declares premises but whose current district holds none still gets
+        ``"premises": []`` -- a real empty state, not an absent system.
+
+        ``known`` carries the LEARNED TEXTS, in the order they were learned --
+        never an id, and never a line nobody has watched for yet. The id
+        travels on each row only as a React key; the narrator and the player
+        never see one (AGENTS.md rule 12's neighbour: no engine-authored
+        pseudo-id ever reaches prose or screen as if it were content).
+
+        Never raises: a broken premises tree must cost the casing board a
+        panel, not the turn the player is mid-way through, same as every other
+        optional block here.
+        """
+        try:
+            from engine.world import premises as premises_module
+
+            if not premises_module.declared():
+                return {}
+            board = []
+            for prem in premises_module.at(self, self.location_id):
+                prem_id = str(prem.get("id"))
+                rows = premises_module.intel_for(self, prem_id)
+                learned = set(premises_module.known(self, prem_id))
+                type_spec = premises_module.spec(str(prem.get("type") or ""))
+                board.append(
+                    {
+                        "id": prem_id,
+                        "name": str(prem.get("name") or ""),
+                        # `label` is REQUIRED at load time for both a type and
+                        # an anchor (premises.py's `_load_type`/`_load_anchor`)
+                        # precisely so this never falls back to the raw type
+                        # id -- an id is not prose, and this reaches the
+                        # player's screen.
+                        "type_label": str(type_spec.get("label") or ""),
+                        "known": [row["text"] for row in rows if row["id"] in learned],
+                        "of": len(rows),
+                        "empty_now": premises_module.empty_now(self, prem_id),
+                    }
+                )
+            return {"premises": board}
+        except Exception:  # noqa: BLE001 -- see docstring
+            return {}
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> GameState:

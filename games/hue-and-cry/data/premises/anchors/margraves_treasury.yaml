@@ -1,0 +1,51 @@
+# HUE & CRY -- anchor: the Margrave's Treasury, Margrave's Hill.
+#
+# The richest room in Tallowmere, and the only premise at tier five. Schema in
+# anchors/vessaline_manor.yaml.
+#
+# NEVER EMPTY. Two guards stand the door in shifts that overlap by an hour, and
+# the mint-master lives over the scales. Steward Quill (npc_steward_quill)
+# sleeps in the steward's rooms by the treasury door, by his own insistence --
+# he is scheduled, not household, so he is not counted here, and a thief who
+# forgets him will be reminded.
+#
+# The Everflame's heart is NOT in here. It is the Hanging Fair's piece, and
+# it belongs to the spine, not to a loot list.
+#
+# Version: v0.1.0 [2026-09-23]
+
+id: margraves_treasury
+label: "treasury"
+district: margraves_hill
+name: "the Margrave's Treasury"
+tier: 5
+
+household:
+  - role: treasury_guard
+    routine:
+      - { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], location: "@home", activity: "at the treasury door in a breastplate with the Margrave's flame on it, not leaning on anything" }
+      - { hours: [19, 20, 21, 22], location: margraves_hill, activity: "off duty on the palace terrace, still in the breastplate, still not leaning on anything" }
+      - { hours: [23, 0, 1, 2, 3, 4, 5], location: "@home", activity: "asleep in the guardroom with one boot on", available: false }
+
+  - role: treasury_guard
+    routine:
+      - { hours: [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6], location: "@home", activity: "on the night door of the Treasury with a lantern and a halberd, listening to the Everflame hum" }
+      - { hours: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], location: "@home", activity: "asleep in the guardroom behind the treasury door", available: false }
+
+  - role: mint_master
+    routine:
+      - { hours: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17], location: "@home", activity: "at the assay scales with a loupe in one eye, weighing crowns one at a time and trusting none of them" }
+      - { hours: [18, 19, 20, 21], location: "@home", activity: "at supper in the rooms over the mint, which smell of hot metal and old paper, reading assay reports for pleasure" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4, 5, 6, 7], location: "@home", activity: "asleep over the mint with the window shut against thieves and the night air alike", available: false }
+
+security:
+  - { id: treasury_guards, text: "guards on the door day and night, whose shifts overlap by an hour so the door is never once alone" }
+  - { id: three_key_door, text: "a door that takes three keys at once, and the three keys live on three different people" }
+  - { id: stewards_rooms, text: "the steward's own rooms beside the treasury door, and a steward who sleeps lightly on purpose" }
+  - { id: bell_floor, text: "a vault floor laid on springs over a bell, so the weight of one careless foot rings in the guardroom" }
+  - { id: everflame_glare, text: "the Everflame's light through a crystal skylight, falling across every inch of the vault all night long" }
+
+loot: [gold_ingot, minting_die, crested_gold_plate, everflame_prism]
+
+secrets:
+  - { id: light_crowns, text: "the mint-master's own ledger, showing the Margrave's new crowns struck a tenth light for three years, and where the difference went" }

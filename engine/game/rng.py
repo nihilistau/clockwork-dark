@@ -60,6 +60,15 @@ THREAD = "thread"
 # on how long the player sat on the menu -- borrowing any other stream would let
 # real-world idle time shift an encounter roll.
 GOSSIP = "gossip"
+# Premises are laid out at world generation, before any GameState exists, so
+# they draw ``stable_rng(seed, PREMISES)``. Not PROCGEN: sharing that stream
+# would make a story adding its first townhouse reshuffle the village every
+# recorded seed has already generated.
+PREMISES = "premises"
+# Which row of a mark's purse a lift comes away with. Its own stream so that a
+# story adding a purse row cannot shift a forage find, and so that the dice of
+# the stealth check itself (DICE) replay identically whatever the purse holds.
+THIEVERY = "thievery"
 
 
 def _mix(seed: int, stream: str, counter: int) -> int:

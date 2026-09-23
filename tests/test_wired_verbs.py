@@ -147,6 +147,26 @@ def test_a_sell_target_names_both_the_vendor_and_the_goods(flagship) -> None:
         assert sep and npc_id and item_id, f"malformed sell target {target!r}"
 
 
+def test_the_sell_label_reads_the_storys_currency_like_buy_does(flagship) -> None:
+    """
+    ``_buy``'s label reads its price through ``trade.currency_label`` ("6 cr");
+    ``_sell`` printed a bare number ("for 1") instead, so a story with its own
+    ``currency_format`` (a credits economy, say) showed the flagship's
+    implicit "g" nowhere and a naked digit where ``buy`` would show units.
+    """
+    from engine.game import trade
+    from engine.game.intents import legal_intents
+    from engine.game.state import InventoryItem
+
+    state = _state("edgewood_bakery")
+    state.inventory.append(InventoryItem(id="hedge_berries", name="Berries", qty=1))
+    options = next(v.options for v in legal_intents(state) if v.action == "sell")
+    target, label = next(t for t in options if t[0].endswith("/hedge_berries"))
+    npc_id, _, item_id = target.partition("/")
+    price = trade.quote(state, npc_id, item_id, side="sell")["unit_price"]
+    assert label.endswith(f"for {trade.currency_label(price)}")
+
+
 # -- executing them actually moves the world -----------------------------
 
 

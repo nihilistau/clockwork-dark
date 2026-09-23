@@ -1,0 +1,34 @@
+# HUE & CRY -- the prose behind each ending.
+#
+# Read through data/epilogues/epilogue_index.yaml's `prose_source`. One entry
+# per `id:` in that file's `endings:` list.
+#
+#   card_m  what happens to you
+#   card_g  what Tallowmere does about it
+#
+# Version: v0.1.0 [2026-09-23]
+
+version: 1
+
+cards:
+
+  honest_after_all:
+    title: "Honest After All"
+    card_m: |-
+      You get off at Saltby, three towns down the coast, where nobody has
+      heard of the Magpie and the Watch carries sticks instead of lamps. You
+      find work carrying things, which is what you meant to do in the first
+      place, and you are paid for it in coin that belonged to nobody else.
+
+      Some nights you tell the story in the tavern -- the Lantern with his
+      whole arm out, the sergeant and his pastry -- and it gets a better laugh
+      every time, and every time it gets a little further from being true.
+      The jackdaw stayed. He has one eye, no sense of property, and he still
+      insists, to anyone who will listen, that he is a magpie.
+    card_g: |-
+      In Tallowmere the Magpie goes on stealing things that shine, and the
+      broadsheets go on putting a face to it, and for one season the face
+      looks a little like yours. Then the drawing changes. Captain Ardane
+      takes your description off the wanted board herself, folds it in four,
+      and keeps it in her desk -- not because she thinks she was wrong, but
+      because she cannot yet prove who was right.

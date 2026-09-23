@@ -1,0 +1,30 @@
+# HUE & CRY -- what the narration may not name yet.
+#
+# Found by fixed filename inside `paths.rules`; read by
+# engine/lore/interceptors.py. Below `awareness.spoiler_gate_threshold` each
+# `term` is rewritten to `instead`, out of narration and out of prompt blocks
+# wrapped in `mark_spoiler`. Above it, nothing is touched.
+#
+# The real Magpie's name is NOT here yet. It is chosen by the seed from three
+# people, which makes it a runtime value rather than a table row; the release
+# that picks the Magpie is the one that masks it.
+#
+# Version: v0.1.0 [2026-09-23]
+
+spoilers:
+  # Matching is case-insensitive and swallows a leading "the", so each term is
+  # written bare and each replacement carries its own article.
+
+  # The Honest Company of Night Porters is a porters' union on paper, and the
+  # paper is what a newcomer sees. The city has to earn you the other word.
+  - term: "thieves' guild"
+    instead: "the porters' union"
+
+  # The three secret districts (locations.yaml, `secret: true`). The map
+  # withholds them; so does the prose, until the player knows enough to look.
+  - term: "Undercroft"
+    instead: "the old drains"
+  - term: "Rooftop Road"
+    instead: "the rooftops"
+  - term: "Old Bell Tower"
+    instead: "the burnt church's tower"

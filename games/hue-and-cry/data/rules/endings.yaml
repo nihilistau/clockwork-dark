@@ -1,0 +1,52 @@
+# HUE & CRY -- how it ends.
+#
+# Read by engine/game/endings.py through `paths.endings`.
+#
+# ONE ENDING IN THE SKELETON, and it is also the fail-forward, because a story
+# with one ending has nothing else to fall forward to. The design has eight
+# (Cleared, Partners, The Legend, Guildmaster, The Dapper's City, Honest After
+# All, A Lantern, The Rope); when they arrive, `fail_forward` moves to
+# `the_rope` -- the QfG death screen, played for the laugh it deserves -- and
+# `honest_after_all` gains the requirement its name promises.
+#
+# NO `variants:`. When a class declares none, `endings.declared()` returns the
+# class body keyed by the class id, so `honest_after_all` is what `lock()` and
+# data/epilogues/epilogue_index.yaml have to agree on.
+#
+# Locked by data/quests/the_way_out/the_evening_barge.yaml, whose
+# `ending_lock` carries no id: the highest-scoring eligible class wins, which
+# with one class is this one.
+#
+# Version: v0.1.0 [2026-09-23]
+
+version: 1
+
+fail_forward: honest_after_all
+
+classes:
+
+  # You came for honest work, and in the end you took the only honest way out.
+  honest_after_all:
+    label: "Honest After All"
+    # No `requires` while it is the fail-forward: it must always be eligible.
+    # No `score:` either -- closeness is for foreshadowing one ending over
+    # another, and with one ending there is nothing to foreshadow against.
+    beats:
+      - id: honest_after_all_speak
+        text: >-
+          SPEAK. The bargemaster asks your name for the list, and you give it
+          -- your own, the real one -- and he writes it down without looking
+          up, and it is the first time since the morning that anybody in
+          Tallowmere has taken your word for who you are.
+      - id: honest_after_all_act
+        text: >-
+          ACT. You find a place on the cargo between two crates of beeswax
+          tapers bound for the coast, and sit, and do nothing with your hands
+          at all. The jackdaw on your shoulder is still arguing that the
+          brass button on the bargemaster's hat would have been his by
+          rights.
+      - id: honest_after_all_seal
+        text: >-
+          SEAL. The last lamp on the quay goes by. Up on the hill the
+          Everflame burns on without you, and the Magpie -- whoever they
+          are -- goes on without you too.

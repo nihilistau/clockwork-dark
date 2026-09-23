@@ -1,0 +1,74 @@
+# HUE & CRY -- premise type: tavern.
+#
+# A taproom downstairs and the landlord's family up. Schema in
+# types/townhouse.yaml.
+#
+# THE EMPTY WINDOW IS SHORT ON PURPOSE. A tavern is open from eleven until the
+# last porter falls out at two, and asleep until nine -- so the only time
+# nobody is in it is the two hours of the morning when the landlord is up at
+# the Coopers' Hall, the potboy is collecting slates and the cook is at market. Two
+# hours is enough for a quick hand and not for a careful one, and a tavern's
+# takings are worth a careful one. That tension is the design.
+#
+# Version: v0.1.0 [2026-09-23]
+
+id: tavern
+label: "tavern"
+
+name_patterns:
+  - "The Jolly {trade}"
+  - "The Drowned {trade}"
+  - "The {trade}'s Arms"
+  - "The Last {trade}"
+  - "The Sleeping {trade}"
+  - "{surname}'s Taproom"
+
+tiers: {1: 4, 2: 3}
+
+household:
+  - role: landlord
+    routine:
+      - { hours: [9, 10], location: chandlers_rise, activity: "at the Coopers' Hall on the Rise, rapping casks with a knuckle and swearing the last lot leaked, which it did, into the landlord" }
+      - { hours: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2], location: "@home", activity: "behind the bar with a cloth over one shoulder, pulling pints and knowing everybody's business before they do" }
+      - { hours: [3, 4, 5, 6, 7, 8], location: "@home", activity: "asleep upstairs on the takings", available: false }
+
+  - role: potboy
+    routine:
+      - { hours: [9, 10], location: gallows_green, activity: "going round the lodging-houses by the Green collecting last night's slates, and being told a remarkable number of sad stories" }
+      - { hours: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2], location: "@home", activity: "collecting tankards three to a hand and dodging elbows" }
+      - { hours: [3, 4, 5, 6, 7, 8], location: "@home", activity: "asleep under the bar on a pile of sacks", available: false }
+
+  - role: cook
+    routine:
+      - { hours: [6, 7, 8], location: "@home", activity: "lighting the kitchen fire and swearing at it" }
+      - { hours: [9, 10], location: wickmarket, activity: "at the market pinching loaves and interrogating fishwives about when that cod was caught" }
+      - { hours: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21], location: "@home", activity: "in the tavern kitchen, stirring a stew that has not been allowed to go out in eleven years" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4, 5], location: "@home", activity: "asleep in the chair by the kitchen range", available: false }
+
+security:
+  - { id: drunk_on_step, text: "a regular asleep on the front step who will wake for anything except his round", tier_min: 1 }
+  - { id: creaking_stairs, text: "stairs that creak on every tread, and the landlord knows the tune by heart", tier_min: 1 }
+  - { id: padlocked_bar, text: "the bar shuttered and padlocked after closing, bottles and all", tier_min: 1 }
+  - { id: cellar_bolt, text: "a cellar trapdoor with a bolt as thick as a porter's forearm", tier_min: 1 }
+  - { id: tavern_cat, text: "a tavern cat who knocks things off shelves at the first sign of company, for the fun of it", tier_min: 2 }
+  - { id: takings_under_bed, text: "the takings kept under the landlord's bed, with the landlord on top of the bed", tier_min: 2 }
+
+loot:
+  1:
+    - { item_id: harbour_rum, weight: 4 }
+    - { item_id: pewter_tankards, weight: 3 }
+    - { item_id: loaded_dice, weight: 2 }
+    - { item_id: bag_of_takings, weight: 1 }
+  2:
+    - { item_id: bag_of_takings, weight: 4 }
+    - { item_id: keg_of_brandy, weight: 2 }
+    - { item_id: harbour_rum, weight: 2 }
+    - { item_id: pewter_candlesticks, weight: 1 }
+
+secrets:
+  - { id: undercroft_cellar, text: "the back wall of the cellar is a door, and the door opens on old wharf steps going down into the dark under the city" }
+  - { id: watered_watch, text: "the landlord waters the rum for everybody and the Watch's rum most of all, and keeps a tally of how much the Watch has drunk on credit" }
+  - { id: nameless_lodger, text: "a room upstairs kept for a lodger who pays in silver, comes and goes by the window, and has never once given a name" }
+  - { id: loaded_back_room, text: "the dice in the back room are loaded, the cards are marked, and the landlord takes a third" }
+  - { id: informer, text: "the landlord sells everything overheard at the bar to the Lantern House for a crown a week, and the receipts are in the cash box" }
+  - { id: stolen_sign, text: "the tavern's painted sign was stolen from a rival house forty years ago and repainted, and the rival's grandson has just worked it out" }

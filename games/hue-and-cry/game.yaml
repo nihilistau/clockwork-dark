@@ -1,0 +1,149 @@
+# HUE & CRY -- the manifest.
+#
+# Tallowmere, a candle-making port lit by the Everflame. You come off the
+# morning barge and a Lantern of the Watch takes one look at you and shouts
+# "the Magpie!" -- the city's famous thief, who only ever steals things that
+# shine. You are not the Magpie. Nobody is interested in that.
+#
+# THIS IS THE SKELETON. v0.9 builds four engine features on top of it -- the
+# Law, premises, heists, NPC agendas -- and each is proven against this story as
+# it grows. What ships now is the ground they stand on: eleven districts, the
+# fourteen people who keep hours in them, a two-agent turn (the city and Pip),
+# and one ending you can actually reach. The design is
+# docs/superpowers/specs/2026-09-23-hue-and-cry-design.md §6.
+#
+# Scaffolded from the `graph` template, then cut back. THE ONE RULE THAT SHAPES
+# THIS FILE: an UNDECLARED `paths.*` key resolves to NOTHING. Declare what you
+# ship; omit what you do not.
+#
+# Version: v0.1.0 [2026-09-23]
+
+id: hue-and-cry
+title: "Hue & Cry"
+version: "0.1.0"
+engine_requires: ">=0.2.0"
+
+blurb: >-
+  Tallowmere burns candles for the whole coast and keeps a holy fire on the
+  hill. You came for honest work. The Watch has decided you are the Magpie,
+  the thieves' guild has decided the same, and a one-eyed jackdaw has decided
+  you are his.
+
+# The engine's own skin. HUE & CRY's bespoke plugin (wax and parchment, a
+# wanted poster as chrome) is v1.0 work; until then `_engine` is the honest
+# answer -- borrowing the flagship's would lend Edgewood's voice along with its
+# spacing (docs/AUTHORING.md §2.5).
+ui:
+  plugin: _engine
+
+scene:
+  name: clockwork
+  module: engine.scenes.default_scene
+  blueprint: "engine.scenes.default_api:story_blueprint"
+
+settings:
+  world:
+    # A city runs whether or not you are watching it. Same gentle rate as the
+    # graph template until a harness exists that can measure this story.
+    tick_hours: 1.0
+    tick_max_hours: 4.0
+    # No doom clock. Its phases are the flagship's canon; in Tallowmere the job
+    # of "the world is getting worse without you" belongs to Captain Ardane,
+    # and that arrives as an agenda in a later release.
+    evil_base_rate_per_day: 0.0
+
+  governance:
+    directives:
+      - StorytellerMind
+
+# DECLARED: the map, the people, the voices, the rules, one quest, one ending,
+# and -- since v0.9 -- the houses (premises), the pockets (thievery), the
+# goods both hold (items), and the two fences who buy them (tables, economy).
+#
+# DELIBERATELY NOT DECLARED YET, each one a later release's job rather than an
+# omission: recipes, encounters (night streets), decks (initiation, the
+# interrogation, the Hanging Fair), clocks and threads (the captain's clock,
+# contracts, bribes), factions, world_rumors, lore. The graph template's stubs
+# for items, economy, tables and encounters were removed rather than left in
+# place: they were a mill and a hedge-berry forage table, and a thief story
+# selling hedge berries is exactly the veneer THE LONG CON shipped under. The
+# tables directory now holds trade.yaml alone -- no forage, labour, boons or
+# complications -- so each of those systems is still cleanly absent.
+#
+paths:
+  locations: "games/hue-and-cry/data/world/locations.yaml"
+  npc_schedules: "games/hue-and-cry/data/world/npc_schedules.yaml"
+  prompts: "games/hue-and-cry/prompts"
+  # skills.yaml, archetypes.yaml and spoilers.yaml are found INSIDE this
+  # directory by fixed filename.
+  rules: "games/hue-and-cry/data/rules"
+  quests: "games/hue-and-cry/data/quests"
+  endings: "games/hue-and-cry/data/rules/endings.yaml"
+  epilogues: "games/hue-and-cry/data/epilogues"
+  # The houses inside each district: districts.yaml, names.yaml, types/,
+  # anchors/ (engine/world/premises.py).
+  premises: "games/hue-and-cry/data/premises"
+  # Whose pockets and what is in them; how long stolen goods stay hot.
+  thievery: "games/hue-and-cry/data/rules/thievery.yaml"
+  # Loot and purse goods. Every id a premise or a purse names lives here.
+  items: "games/hue-and-cry/data/items"
+  # The two fences' profiles (trade.yaml) and their counter stock.
+  tables: "games/hue-and-cry/data/tables"
+  economy: "games/hue-and-cry/data/economy.yaml"
+  # The pack is empty until v1.0; subjects.yaml is the full brief for it, and
+  # art_root is declared so the manifest resolves against this story's own
+  # tree rather than another's.
+  art_subjects: "games/hue-and-cry/data/art/subjects.yaml"
+  art_manifest: "games/hue-and-cry/data/art/manifest.yaml"
+  art_root: "games/hue-and-cry/data/art/plates"
+  saves: "data/saves"
+
+entry:
+  location_id: tallow_docks
+
+  # Three ways to be mistaken for a thief. Ids in data/rules/archetypes.yaml.
+  archetypes: [cutpurse, silver_tongue, bruiser]
+
+  fallback_narration: >-
+    Somewhere up the quay a bell counts the hour, loses its place, and starts
+    again. Tallowmere waits, with its usual patience, for you to do something.
+
+  opening:
+    # A new run starts at 08:00 on day one. Brask, Dock Mag and Lantern Tully
+    # (npc_lantern_1) are all scheduled on the docks at that hour -- an opening
+    # that names somebody the schedule puts elsewhere is the bug NEON CITY
+    # shipped and fixed after a live playthrough.
+    narration: >-
+      The morning barge noses into Tallow Docks through a fog that smells of
+      mutton fat and bayberry, and the whole quay is candles: crates of them,
+      carts of them, a chandler's boy asleep on a pallet of beeswax tapers
+      with his mouth open. High on the hill the Everflame burns in the
+      Margrave's palace, pale in the daylight, which is the only time anyone
+      here says it looks small. You step onto the boards with everything you
+      own in one bag. A jackdaw you did not bring lands on your shoulder, looks
+      at the brass button on your coat with its one good eye, and settles in
+      like a lodger. Across the quay, a young Lantern of the Watch lowers his
+      lamp, goes the colour of tallow, and fills his lungs. "THE MAGPIE!" he
+      bellows, pointing at you with his whole arm. "Stop -- it's the MAGPIE!"
+      Every head on the docks turns. The sergeant behind him puts down his
+      pastry.
+    # ALL THREE RISK OR MOVE, SO ALL THREE DECLARE IT (engine/game/intents.py).
+    #
+    # (a) RISKS: running from the Watch is `stealth` -- slipping a crowd, being
+    # somewhere else when the lamp swings round. `standard`, because the quay
+    # is full of people to hide behind and so is the Watch.
+    # (b) RISKS: talking a shouting boy down in front of his sergeant is
+    # `persuasion`, and `hard`, because he has already said it out loud.
+    # (c) MOVES: coming quietly is a walk to The Lantern House with an escort.
+    # It costs the hour the edge declares and nothing else, which is the whole
+    # appeal and the whole trap.
+    choices:
+      - id: a
+        text: "Duck the lamp and lose yourself in the crowd"
+        intent: { action: check, target: stealth, difficulty: standard }
+      - id: b
+        text: "Raise your empty hands and explain, calmly, that he is wrong"
+        intent: { action: check, target: persuasion, difficulty: hard }
+      - id: c
+        text: "Hold out your wrists and go quietly"
+        intent: { action: travel, target: lantern_house }

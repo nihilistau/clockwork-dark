@@ -1,0 +1,72 @@
+# HUE & CRY -- premise type: counting-house.
+#
+# Where the candle trade's money sleeps: a factor's office with the factor's
+# rooms over it and a clerk's cot behind the ledgers. Schema in
+# types/townhouse.yaml.
+#
+# THE EMPTY WINDOW is the longest of any house, and that is the trade-off:
+# every evening the factor dines at the Exchange club on Silk Row and the
+# clerk drinks away the day in a dockside taproom, so the office stands dark
+# for five hours -- and it is never less than tier two, because anyone who
+# keeps money in a building that empties every night knows it, and has bought
+# a strongroom about it.
+#
+# Version: v0.1.0 [2026-09-23]
+
+id: counting_house
+label: "counting-house"
+
+name_patterns:
+  - "the {surname} Counting-House"
+  - "{surname} & Co., Factors"
+  - "{surname} Brothers, Bankers"
+  - "the Tallow Exchange office at Number {n}, {street}"
+
+tiers: {2: 4, 3: 3, 4: 1}
+
+household:
+  - role: factor
+    routine:
+      - { hours: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], location: "@home", activity: "at the high desk behind a brass rail, turning pages of a ledger with one wetted finger and saying no to people" }
+      - { hours: [18, 19, 20, 21, 22], location: silk_row, activity: "at the Exchange club on Silk Row in a good coat, dining on somebody else's account and listening for rumours of ships" }
+      - { hours: [23, 0, 1, 2, 3, 4, 5, 6], location: "@home", activity: "asleep in the rooms over the office, the strongroom key on a chain round their neck", available: false }
+
+  - role: clerk
+    routine:
+      - { hours: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], location: "@home", activity: "on a tall stool copying figures in a copperplate hand, ink to the wrist, sleeve-guards on" }
+      - { hours: [18, 19, 20, 21, 22], location: tallow_docks, activity: "in a dockside taproom with ink still on their cuffs, spending a clerk's wage and talking too loudly about the firm's business" }
+      - { hours: [23, 0, 1, 2, 3, 4, 5, 6], location: "@home", activity: "asleep on a cot between the ledger shelves", available: false }
+
+security:
+  - { id: iron_door, text: "an iron-bound street door with two locks, and the second is a good one", tier_min: 1 }
+  - { id: barred_windows, text: "bars on every ground-floor window, set in lead, and not a single one loose", tier_min: 1 }
+  - { id: sanded_floor, text: "the office floor sanded smooth every evening, so the morning can read who walked on it", tier_min: 2 }
+  - { id: strongroom, text: "a strongroom in the cellar behind a door as thick as a family Bible", tier_min: 2 }
+  - { id: bell_wire, text: "a bell-wire on the strongbox that runs up through the ceiling to somebody's bedroom", tier_min: 3 }
+  - { id: hired_watchman, text: "a hired watchman in the doorway with a lantern and a cudgel, paid by the hour to stay awake and mostly doing it", tier_min: 3 }
+  - { id: warded_chest, text: "a warded chest from the southern locksmiths, with a false keyhole that swallows picks", tier_min: 4 }
+  - { id: night_mastiffs, text: "two mastiffs loosed in the counting-room after dark, who have been taught to hate the smell of candle-smoke", tier_min: 4 }
+
+loot:
+  2:
+    - { item_id: letter_of_credit, weight: 3 }
+    - { item_id: silver_snuffbox, weight: 3 }
+    - { item_id: bag_of_takings, weight: 2 }
+  3:
+    - { item_id: letter_of_credit, weight: 3 }
+    - { item_id: merchants_signet, weight: 2 }
+    - { item_id: gold_pocket_watch, weight: 2 }
+    - { item_id: silver_snuffbox, weight: 1 }
+  4:
+    - { item_id: merchants_signet, weight: 3 }
+    - { item_id: sapphire_brooch, weight: 2 }
+    - { item_id: letter_of_credit, weight: 2 }
+    - { item_id: gold_pocket_watch, weight: 1 }
+
+secrets:
+  - { id: double_tax, text: "a second ledger showing the Margrave's tallow tax collected twice and paid once" }
+  - { id: sunk_bank, text: "letters of credit drawn on a southern bank whose only ship sank in the spring, still being honoured with other people's money" }
+  - { id: watch_pension, text: "a loan to the Lantern Watch pension fund that nobody at the Lantern House remembers asking for, at a rate nobody would agree to" }
+  - { id: protection_book, text: "a little black book of payments to 'the Porters', monthly, for carrying nothing whatsoever" }
+  - { id: cornered_bayberry, text: "contracts buying up every bayberry harvest on the coast for three years, signed under four different names" }
+  - { id: forged_hand, text: "a practice sheet of a dead partner's signature, forty times, getting better toward the bottom" }

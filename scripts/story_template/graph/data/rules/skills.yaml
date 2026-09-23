@@ -61,8 +61,17 @@ default_difficulty: standard
 
 # Degrees of success by margin (total - dc), evaluated top down.
 degrees:
+  # 6, NOT 10. A `standard` check is DC 13, and 10 would need a total of 23 --
+  # past a natural 20 for any build with less than +3, which is every build a
+  # small skill_bonus produces. Three stories scaffolded from this file shipped
+  # that dead band. 6 needs 19: roughly a fifth of rolls on a specialist's own
+  # skill and a tenth off it.
+  #
+  # The NUMBER is not the guard: tests/test_checks.py::
+  # test_every_declared_degree_is_reachable_by_some_shipped_build runs for
+  # every story with a skills table and fails if any band goes dead again.
   - id: crit_success
-    min_margin: 10
+    min_margin: 6
   - id: success
     min_margin: 0
   - id: partial

@@ -1,0 +1,100 @@
+# HUE & CRY -- the cast that gets a model call.
+#
+# TWO PIPELINE AGENTS, SO EVERY TURN NEGOTIATES. `engine/agents/pipeline.py`
+# sets `MIN_AGENTS = 2`; the count of pipeline participants is the switch that
+# turns on plan -> negotiate -> commit. Here the two are the city and Pip, and
+# the argument between them is most of the comedy: Tallowmere wants to get on
+# with its day, and Pip wants whatever on it is shiny.
+#
+# WHY PIP IS `role: character` AND NOT `role: companion`. In the fiction he is
+# the companion. In the engine, `companion` is the role the assistant director
+# resolves its speaker from (engine/agents/assistant.py::AGENT_ID) -- it speaks
+# AFTER narration, which is why the flagship marks its companion
+# `pipeline: false`. Pip is meant to plan and argue INSIDE the turn, the way
+# The Wicked Garden's Sophia and NEON CITY's ghost do, and `character` is the
+# role that path has always been proven on.
+#
+# An agent is not an NPC. Pip has no row in npc_schedules.yaml: he goes where
+# the player goes, and a schedule would give him somewhere else to be.
+#
+# WHAT THIS FILE DOES NOT DO: grant writes. The skeleton declares no state
+# values (no state.yaml), so there is nothing for either agent to move. Grants
+# arrive with the values they grant.
+#
+# Version: v0.1.0 [2026-09-23]
+
+agents:
+  # ---------------------------------------------------------------------
+  # Tallowmere: narration and every scheduled person in it.
+  # ---------------------------------------------------------------------
+  city:
+    role: world
+    profile: big
+    prompt: prompts/storyteller.md
+    voices:
+      - narration
+      - ardane
+      - brask
+      - lantern_tully
+      - lantern_hobb
+      - gannet
+      - silas
+      - pell_hollis
+      - marrow
+      - steward_quill
+      - wren
+      - imelda
+      - tobiah
+      - sister_ember
+      - dock_mag
+      - epilogue_card_m
+      - epilogue_card_g
+
+  # ---------------------------------------------------------------------
+  # Pip. A one-eyed jackdaw who insists he is a magpie. The second agent,
+  # and therefore the reason the pipeline runs.
+  # ---------------------------------------------------------------------
+  pip:
+    role: character
+    # `small`: reasoning off, short answers. He is a bird; a line or three.
+    profile: small
+    prompt: prompts/pip.md
+    voices:
+      - pip
+
+# ---------------------------------------------------------------------------
+# How their proposals are reconciled. First match wins, in declared order.
+# Every intent named must be one plan.py accepts -- narrate, speak, interrupt,
+# offer, withhold, silent -- or the rule silently never matches.
+# ---------------------------------------------------------------------------
+negotiation:
+  # The city is stating a fact -- the Watch at the door, the bell, the rope.
+  # Pip does not get to talk over it; his line becomes what comes after.
+  - name: the_city_keeps_its_hours
+    when:
+      city: narrate
+      pip: interrupt
+    winner: city
+    keep_loser_beat: true
+    detail: the world's beat stands; Pip's remark lands as the aftermath
+
+  # Pip has something to say and the city wants to cut in. He finishes --
+  # nobody has ever successfully interrupted a jackdaw -- and the city's beat
+  # follows.
+  - name: nobody_interrupts_a_jackdaw
+    when:
+      pip: speak
+      city: interrupt
+    winner: pip
+    keep_loser_beat: true
+    detail: his line completes; the world's interruption becomes what happens next
+
+  # Someone in the city is offering the player something. Pip may disapprove
+  # loudly; he may not close the door on them.
+  - name: an_offer_stands
+    when:
+      city: offer
+      pip: withhold
+    winner: city
+    keep_loser_beat: true
+    detail: an offer from the city stands; Pip's objection is a reaction, not a veto

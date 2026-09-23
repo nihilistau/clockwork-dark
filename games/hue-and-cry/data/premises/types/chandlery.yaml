@@ -1,0 +1,66 @@
+# HUE & CRY -- premise type: chandlery.
+#
+# A candle shop with the family living over it: vats in the back, tapers
+# hanging from every beam, the shop and the house one building. Schema in
+# types/townhouse.yaml.
+#
+# THE EMPTY WINDOW. All day the chandler is at the vats, and the vats are at
+# home -- so a chandlery is occupied from dawn to supper, and the window is
+# the evening: the chandler goes to argue about wick-lengths in a Wickmarket
+# taproom, the apprentice goes courting on the Green, and the wax cools in the
+# dark for three hours. Poorer houses than a townhouse, so fewer tiers.
+#
+# Version: v0.1.0 [2026-09-23]
+
+id: chandlery
+label: "chandlery"
+
+name_patterns:
+  - "{surname} & Daughters, Chandlers"
+  - "{surname}'s Candle Shop"
+  - "{given} {surname}, {craft}"
+  - "the {surname} Dipping-House"
+  - "{surname} & Sons, Wax and Wick"
+
+tiers: {1: 5, 2: 3}
+
+household:
+  - role: chandler
+    routine:
+      - { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], location: "@home", activity: "at the dipping vats in a leather apron, lowering a frame of wicks into the wax and lifting it out again, forty times, counting under their breath" }
+      - { hours: [19, 20, 21], location: wickmarket, activity: "in a Wickmarket taproom with a jug, arguing wick-lengths with a rival chandler as though lives depended on it" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4, 5], location: "@home", activity: "asleep over the shop, the banked vats ticking as they cool", available: false }
+
+  - role: apprentice
+    routine:
+      - { hours: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], location: "@home", activity: "cutting wicks, stirring tallow and minding the shop counter, with wax under every fingernail" }
+      - { hours: [19, 20, 21], location: gallows_green, activity: "walking out on the Green in a clean collar, trying to look as though they do not smell of mutton fat" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4], location: "@home", activity: "asleep on a cot in the wax room, one arm over their eyes", available: false }
+
+security:
+  - { id: barred_shutters, text: "shop shutters barred on the inside, and the bar is the vat paddle", tier_min: 1 }
+  - { id: warm_vats, text: "the vats banked all night, so the wax room glows and is never quite dark", tier_min: 1 }
+  - { id: hanging_tapers, text: "tapers hung in rows from every beam, which swing and clack together if anybody brushes them", tier_min: 1 }
+  - { id: greasy_step, text: "a back step slick with years of spilled tallow, which has put more than one burglar on his back", tier_min: 1 }
+  - { id: guild_lock, text: "a Chandlers' Guild lock on the stockroom, which the guild can open and nobody else can", tier_min: 2 }
+  - { id: old_mastiff, text: "a fat old mastiff asleep by the vats, who wakes for the smell of a stranger and not much else", tier_min: 2 }
+
+loot:
+  1:
+    - { item_id: beeswax_tapers, weight: 4 }
+    - { item_id: bayberry_wax, weight: 3 }
+    - { item_id: brass_snuffer, weight: 2 }
+    - { item_id: pewter_candlesticks, weight: 1 }
+  2:
+    - { item_id: spermaceti_candles, weight: 4 }
+    - { item_id: bayberry_wax, weight: 3 }
+    - { item_id: chandlers_guild_seal, weight: 1 }
+    - { item_id: silver_snuffbox, weight: 1 }
+
+secrets:
+  - { id: tallow_beeswax, text: "the 'pure beeswax' tapers are three parts tallow and one part optimism, and the guild inspector is paid in candles to agree" }
+  - { id: unblessed_tapers, text: "a cellar full of tapers stamped as blessed by the Temple that no priest has ever been near" }
+  - { id: inside_porter, text: "the apprentice is on the Honest Company's books, and leaves the back bolt off whenever the Company asks" }
+  - { id: rivals_recipe, text: "a rival house's secret bayberry recipe, copied out in a hand that is not the chandler's" }
+  - { id: expulsion_letter, text: "a letter from the Worshipful Company of Chandlers expelling the house from the guild, dated a fortnight ago and not yet made public" }
+  - { id: magpie_candles, text: "an order book showing a standing order for black candles, delivered by night, paid in silver, no name given" }

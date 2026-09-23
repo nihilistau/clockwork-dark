@@ -1,0 +1,479 @@
+# HUE & CRY -- the item registry.
+#
+# Read by engine/game/inventory.py through `paths.items`; every *.yaml here
+# merges into one id -> row registry, first file to claim an id wins.
+#
+# WHAT IS HERE. Everything a premise can hold (data/premises/: loot by tier,
+# and the anchors' hand-written hauls) and everything a pocket can hold
+# (data/rules/thievery.yaml: purses by role). Both loaders REFUSE an id this
+# file does not declare, so a typo is a load error naming its file, not a
+# house with nothing in it.
+#
+# `value` IS IN CROWNS, and it is not decoration: the fences price off it
+# (data/tables/trade.yaml), and the casing board's loot hint names whichever
+# piece in a house is worth the most. A labourer's purse holds one to four
+# crowns; a tier-one house is worth a week's wages; the Treasury is worth a
+# hanging.
+#
+# THE TAGS THAT DO SOMETHING:
+#   named   the piece is recognisable wherever it surfaces -- a crest, an
+#           engraving, a mint mark, somebody's handwriting. engine/world/
+#           thievery.py keeps a stolen `named` piece HOT for good; no amount of
+#           waiting cools it. Signets, seals, plate and letters carry it.
+#   shiny   what the Magpie takes. Nothing reads it yet; it is the vocabulary
+#           the Hoard and the robbery pattern will be written in, and marking it
+#           now is cheaper than auditing forty rows later. Note which pieces do
+#           NOT carry it: the minting die and the strike fund are worth more
+#           than most silver, and the Magpie would walk straight past both.
+#
+# Version: v0.1.0 [2026-09-23]
+
+version: 1
+
+items:
+
+  # ------------------------------------------------------------------
+  # Pockets: what a lift turns up
+  # ------------------------------------------------------------------
+
+  - id: brass_button
+    name: "Brass Button"
+    description: >-
+      Off somebody's good coat. Worth nearly nothing, which has never once
+      stopped a jackdaw.
+    tags: [goods, shiny, metal]
+    weight: 0.05
+    value: 1
+    stack: true
+
+  - id: pawn_ticket
+    name: "Pawn Ticket"
+    description: >-
+      A stub from Hollis's Sundries: one item, pledged, redeemable by the
+      bearer. What the item is, the ticket declines to say.
+    tags: [paper]
+    weight: 0.05
+    value: 1
+    stack: true
+
+  - id: love_letter
+    name: "Scented Love Letter"
+    description: >-
+      Three pages, violet ink, a pressed bayberry leaf, and a signature that
+      somebody on Silk Row would pay good money never to see again.
+    tags: [paper, named]
+    weight: 0.05
+    value: 2
+    stack: false
+
+  - id: silver_thimble
+    name: "Silver Thimble"
+    description: >-
+      A seamstress's one good thing, worn smooth on the inside. Pricks the
+      conscience more than the finger.
+    tags: [goods, shiny, metal]
+    weight: 0.05
+    value: 5
+    stack: true
+
+  - id: lantern_badge
+    name: "Lantern's Badge"
+    description: >-
+      A brass lamp on a pin, number stamped on the back. Somewhere a watchman
+      is patting his coat and going pale.
+    tags: [goods, shiny, metal, named]
+    weight: 0.1
+    value: 8
+    stack: false
+
+  - id: silver_snuffbox
+    name: "Silver Snuffbox"
+    description: >-
+      Engine-turned lid, a pinch of rappee still in the corner. Every merchant
+      on Silk Row carries one so as to be seen offering it.
+    tags: [goods, shiny, metal]
+    weight: 0.1
+    value: 30
+    stack: false
+
+  - id: silver_pencil
+    name: "Silver Propelling Pencil"
+    description: >-
+      Engraved with the Margrave's flame, the lead worn to a stub. The steward
+      writes everything down; this is what he writes it down with.
+    tags: [goods, shiny, metal, named]
+    weight: 0.05
+    value: 12
+    stack: false
+
+  - id: gold_pocket_watch
+    name: "Gold Pocket Watch"
+    description: >-
+      Keeps good time and better company. The inside of the case is engraved
+      "for thirty years' faithful service", with a name.
+    tags: [goods, shiny, metal, named]
+    weight: 0.2
+    value: 70
+    stack: false
+
+  - id: merchants_signet
+    name: "Merchant's Signet Ring"
+    description: >-
+      Heavy gold, a house mark cut deep enough to seal a contract. Every clerk
+      on the waterfront knows whose it is, which is the entire point of it.
+    tags: [goods, shiny, metal, named]
+    weight: 0.05
+    value: 85
+    stack: false
+
+  # ------------------------------------------------------------------
+  # The trade: candles, wax and what the waterfront moves
+  # ------------------------------------------------------------------
+
+  - id: beeswax_tapers
+    name: "Bundle of Beeswax Tapers"
+    description: >-
+      A dozen honey-coloured tapers tied with a wick. Real beeswax, or so the
+      label insists; they smell faintly of mutton.
+    tags: [goods, candle]
+    weight: 0.5
+    value: 3
+    stack: true
+
+  - id: bayberry_wax
+    name: "Cake of Bayberry Wax"
+    description: >-
+      Green, fragrant, and boiled down from a whole hillside of berries. The
+      chandlers of the Rise would sell their mothers for a steady supply.
+    tags: [goods, candle]
+    weight: 1.0
+    value: 12
+    stack: true
+
+  - id: spermaceti_candles
+    name: "Box of Spermaceti Candles"
+    description: >-
+      Six white candles that burn without smoke or smell, packed in straw.
+      The Temple uses them for miracles and the Margrave for dinner.
+    tags: [goods, candle]
+    weight: 1.0
+    value: 16
+    stack: true
+
+  - id: crate_of_tapers
+    name: "Crate of Export Tapers"
+    description: >-
+      Three gross of tapers stencilled for a port you have never heard of.
+      Heavy, awkward, and impossible to explain at two in the morning.
+    tags: [goods, candle]
+    weight: 12.0
+    value: 14
+    stack: true
+
+  - id: keg_of_brandy
+    name: "Keg of Untaxed Brandy"
+    description: >-
+      The customs house has never met this keg, and the keg would prefer to
+      keep it that way. The stencil says TALLOW.
+    tags: [goods, drink]
+    weight: 10.0
+    value: 20
+    stack: true
+
+  - id: bolt_of_silk
+    name: "Bolt of Silk"
+    description: >-
+      Sea-green, off a ship from the south, the colour every lady on Silk Row
+      wore last season and will pretend not to want this one.
+    tags: [goods]
+    weight: 3.0
+    value: 24
+    stack: true
+
+  # ------------------------------------------------------------------
+  # Tavern and household
+  # ------------------------------------------------------------------
+
+  - id: harbour_rum
+    name: "Bottle of Harbour Rum"
+    description: >-
+      Dark, sweet and cut with something. Behind every bar in the low town,
+      and under most of the bars in the high one.
+    tags: [goods, drink]
+    weight: 1.0
+    value: 5
+    stack: true
+
+  - id: pewter_tankards
+    name: "Pewter Tankards"
+    description: >-
+      A pair, dented by a hundred arguments, with a tavern's mark scratched
+      under each handle.
+    tags: [goods, metal]
+    weight: 1.5
+    value: 6
+    stack: true
+
+  - id: loaded_dice
+    name: "Loaded Dice"
+    description: >-
+      Bone, yellowed, and inclined to come up sixes when the house is rolling.
+      Worth three crowns to a stranger and a fortune to a sharper.
+    tags: [goods]
+    weight: 0.05
+    value: 3
+    stack: true
+
+  - id: bag_of_takings
+    name: "Bag of Takings"
+    description: >-
+      A canvas bag of coppers and the odd silver crown, heavy enough to knock
+      a man down, which is how the landlord usually carries it upstairs.
+    tags: [goods]
+    weight: 2.0
+    value: 18
+    stack: true
+
+  - id: pewter_candlesticks
+    name: "Pewter Candlesticks"
+    description: >-
+      A matched pair, polished to look like silver from across a room. Every
+      honest house has them on the mantel.
+    tags: [goods, metal]
+    weight: 1.5
+    value: 8
+    stack: true
+
+  - id: brass_snuffer
+    name: "Brass Candle-Snuffer"
+    description: >-
+      A little bell on a long handle. In Tallowmere, where every room burns
+      twenty candles, a household's most-used tool.
+    tags: [goods, shiny, metal]
+    weight: 0.3
+    value: 4
+    stack: true
+
+  - id: silver_spoons
+    name: "Set of Silver Spoons"
+    description: >-
+      Twelve apostle spoons in a baize roll, one short, as every set in the
+      city has been one short since the Magpie started.
+    tags: [goods, shiny, metal]
+    weight: 0.8
+    value: 22
+    stack: true
+
+  - id: gilt_candelabrum
+    name: "Gilt Candelabrum"
+    description: >-
+      Seven branches of gilded brass, dripping wax and ambition. Lit, it makes
+      a dining room look richer than the family is.
+    tags: [goods, shiny, metal]
+    weight: 4.0
+    value: 55
+    stack: false
+
+  - id: silver_hand_mirror
+    name: "Silver Hand Mirror"
+    description: >-
+      Chased with lilies on the back. Whoever looks into it looks, briefly,
+      like somebody who could afford it.
+    tags: [goods, shiny, metal]
+    weight: 0.6
+    value: 50
+    stack: false
+
+  - id: pearl_earrings
+    name: "Pearl Earrings"
+    description: >-
+      A pair of drops, perfectly matched, on gold wires. Small enough to lose
+      in a pocket and valuable enough to lose a hand over.
+    tags: [goods, shiny]
+    weight: 0.02
+    value: 70
+    stack: false
+
+  - id: portrait_miniature
+    name: "Portrait Miniature"
+    description: >-
+      A painted face the size of a thumbnail in a gold frame. Somebody's dead
+      husband, or somebody's living lover; either way, somebody's.
+    tags: [goods, shiny, named]
+    weight: 0.1
+    value: 45
+    stack: false
+
+  - id: sapphire_brooch
+    name: "Sapphire Brooch"
+    description: >-
+      A stone like a drop of evening sea, set in silver and worn at the throat
+      of anybody who wants the Rise to know about their shipping interests.
+    tags: [goods, shiny]
+    weight: 0.05
+    value: 150
+    stack: false
+
+  - id: emerald_necklace
+    name: "Emerald Necklace"
+    description: >-
+      Nine stones on a rope of gold, painted into three generations of family
+      portraits. Unsellable in Tallowmere and famous in every port that isn't.
+    tags: [goods, shiny, named]
+    weight: 0.2
+    value: 220
+    stack: false
+
+  # ------------------------------------------------------------------
+  # Paper, office and guild
+  # ------------------------------------------------------------------
+
+  - id: letter_of_credit
+    name: "Letter of Credit"
+    description: >-
+      Drawn on a southern bank, payable to a named party, sealed twice. Worth
+      exactly what it says -- to the person whose name is on it.
+    tags: [paper, named]
+    weight: 0.05
+    value: 60
+    stack: false
+
+  - id: chandlers_guild_seal
+    name: "Master Chandler's Seal"
+    description: >-
+      The Worshipful Company's arms in silver-gilt -- a taper crossed with a
+      dipping frame -- and one master's own mark beneath. Every master chandler
+      holds one. With it, anyone could certify anything as beeswax.
+    tags: [goods, shiny, metal, named]
+    weight: 0.4
+    value: 120
+    stack: false
+
+  # ------------------------------------------------------------------
+  # The Temple of the Everflame
+  # ------------------------------------------------------------------
+
+  - id: vigil_oil
+    name: "Flask of Vigil Oil"
+    description: >-
+      Scented lamp oil blessed for the night vigil. The blessing does nothing
+      to the price a lamplighter will pay for it.
+    tags: [goods]
+    weight: 0.5
+    value: 6
+    stack: true
+
+  - id: silver_offering_plate
+    name: "Silver Offering Plate"
+    description: >-
+      Chased with flames around the rim and "GIVE AS THE FIRE GIVES" around
+      the boss. The Temple's inventory numbers it; the Temple counts.
+    tags: [goods, shiny, metal, named]
+    weight: 1.0
+    value: 40
+    stack: false
+
+  - id: reliquary_lamp
+    name: "Reliquary Lamp"
+    description: >-
+      A little gold lantern holding a coal said to have been lit from the
+      Everflame itself. Every parish of the Temple keeps one for its own
+      procession, engraved with the parish's saint. Missed instantly.
+    tags: [goods, shiny, metal, named]
+    weight: 1.2
+    value: 110
+    stack: false
+
+  # ------------------------------------------------------------------
+  # The Hill
+  # ------------------------------------------------------------------
+
+  - id: crested_gold_plate
+    name: "Crested Gold Plate"
+    description: >-
+      A dinner plate of solid gold with the Margrave's flame engraved in the
+      rim. The Margrave has two hundred. The steward knows where all of them
+      are.
+    tags: [goods, shiny, metal, named]
+    weight: 1.5
+    value: 140
+    stack: false
+
+  - id: everflame_prism
+    name: "Everflame Prism"
+    description: >-
+      A crystal from the great lantern's second rank, cut to throw the holy
+      fire across the hill. There is exactly one of these loose in the world:
+      it was recorded as shattered in a storm eleven years ago, and it is in
+      the Treasury.
+    tags: [goods, shiny, named]
+    weight: 0.8
+    value: 180
+    stack: false
+
+  - id: gold_ingot
+    name: "Mint Ingot"
+    description: >-
+      A brick of Tallowmere gold stamped with the mint mark and the year.
+      Heavier than it looks, hotter than it feels.
+    tags: [goods, shiny, metal, named]
+    weight: 2.0
+    value: 260
+    stack: false
+
+  - id: minting_die
+    name: "The Margrave's Minting Die"
+    description: >-
+      Hardened steel, cut in reverse with the Margrave's face and the flame.
+      It strikes crowns. In the wrong hands it strikes a great many of them.
+    tags: [goods, metal, named]
+    weight: 3.0
+    value: 200
+    stack: false
+
+  # ------------------------------------------------------------------
+  # Anchors: the hand-written houses
+  # ------------------------------------------------------------------
+
+  - id: vessaline_girandoles
+    name: "The Vessaline Girandoles"
+    description: >-
+      Chandelier earrings of old-cut diamonds, three drops apiece, every one
+      of them a small fire. Lady Imelda wears them to the Margrave's table and
+      nowhere else.
+    tags: [goods, shiny, named]
+    weight: 0.05
+    value: 280
+    stack: false
+
+  - id: strike_fund_box
+    name: "The Porters' Strike Fund"
+    description: >-
+      A japanned tin box with the Honest Company's charter pasted in the lid,
+      full of dues saved against a hard winter. Robbing it is not a crime in
+      the Snuffs. It is a much more serious thing than that.
+    tags: [goods, named]
+    weight: 3.0
+    value: 90
+    stack: false
+
+  - id: captains_spyglass
+    name: "Captain's Spyglass"
+    description: >-
+      Brass, three draws, engraved "Capt. Ardane, for the Lamplit Bridge". She
+      takes it up to the Lantern House roof at first light, before the desk,
+      and looks at the whole city through it for exactly five minutes.
+    tags: [goods, shiny, metal, named]
+    weight: 0.8
+    value: 45
+    stack: false
+
+  - id: confiscated_shinies
+    name: "Box of Confiscated Shinies"
+    description: >-
+      A Watch evidence box of rings, buckles and teaspoons taken off every
+      suspected Magpie in two years. None of them was the Magpie.
+    tags: [goods, shiny, metal]
+    weight: 2.0
+    value: 40
+    stack: false

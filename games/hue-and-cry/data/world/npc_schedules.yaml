@@ -1,0 +1,194 @@
+# HUE & CRY -- who is where in Tallowmere, hour by hour.
+#
+# Read by engine/world/npc_sim.py via `paths.npc_schedules`. Fourteen people,
+# every one covering all 24 hours. `available: false` marks hours a body is
+# present but not open for business -- asleep, mostly.
+#
+# THE IDS ARE PINNED; later releases read them by name:
+#   npc_ardane, npc_brask, npc_lantern_1, npc_lantern_2
+#                 the Watch. `role` is read by the Law release, so the watch
+#                 roles are exactly `captain`, `sergeant` and `watch`.
+#   npc_pell_hollis, npc_marrow
+#                 the two fences (Wickmarket and the Snuffs).
+#   npc_wren, npc_silas, npc_imelda
+#                 the three people the seed may make the real Magpie. Each
+#                 routine has hours nobody can quite account for, ON PURPOSE
+#                 and in all three: a schedule that gave one of them an alibi
+#                 would name the thief before the story does.
+#
+# THE STORY OPENS AT 08:00 ON THE DOCKS, and the opening names a young Lantern
+# and a sergeant with a pastry. npc_lantern_1 and npc_brask are on the docks at
+# hour 8, and so is Dock Mag -- the opening must not put anybody in the room
+# that this file puts elsewhere.
+#
+# `activity` lands VERBATIM in the narrator's prompt: write what a person in the
+# doorway could see.
+#
+# Version: v0.1.0 [2026-09-23]
+
+version: 1
+
+npcs:
+
+  # -------------------------------------------------------------------------
+  # The Lantern Watch
+  # -------------------------------------------------------------------------
+
+  npc_ardane:
+    name: "Captain Ardane"
+    role: captain
+    home: lantern_house
+    routine:
+      - { hours: [6, 7, 8, 9, 10, 11, 12], location: lantern_house, activity: "at the tall desk under the wanted board, reading last night's reports with a pen in her teeth and moving pins on the city map" }
+      - { hours: [13, 14], location: margraves_hill, activity: "reporting to the Margrave's steward on the terrace, standing at attention and answering exactly the question asked" }
+      - { hours: [15, 16, 17], location: wickmarket, activity: "walking the market in plain sight, hands behind her back, letting every stallholder see the captain has time for them" }
+      - { hours: [18, 19, 20, 21, 22], location: lantern_house, activity: "in her office with the door open and the lamp trimmed, going through the Magpie file for the hundredth time" }
+      - { hours: [23, 0, 1, 2, 3, 4, 5], location: lantern_house, activity: "asleep in the room over the office, boots by the bed, laced", available: false }
+
+  npc_brask:
+    name: "Sergeant Brask"
+    role: sergeant
+    home: lantern_house
+    routine:
+      - { hours: [7, 8, 9, 10], location: tallow_docks, activity: "leaning on a bollard by the customs house with a pastry, watching the barges come in and the porters carry things he has decided not to ask about" }
+      - { hours: [11, 12, 13, 14, 15], location: wickmarket, activity: "on the market beat at the pace of a man being paid by the hour, stopping at the pie shop, stopping at the tinker's, stopping" }
+      - { hours: [16, 17, 18, 19], location: lantern_house, activity: "behind the front desk signing chits, with a drawer that sticks and a biscuit tin nobody else is allowed to open" }
+      - { hours: [20, 21], location: wickmarket, activity: "in the corner of the Snuffed Wick tavern with a pint somebody else paid for" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4, 5, 6], location: lantern_house, activity: "snoring in the barracks bunk nearest the stove", available: false }
+
+  npc_lantern_1:
+    name: "Lantern Tully"
+    role: watch
+    home: lantern_house
+    routine:
+      - { hours: [6, 7, 8, 9, 10, 11], location: tallow_docks, activity: "on his first month of the dock beat, lamp polished, badge polished, peering at every face off every barge in case one of them is famous" }
+      - { hours: [12, 13, 14, 15, 16, 17], location: wickmarket, activity: "walking the market two steps behind where he should be, apologising to the people he bumps into" }
+      - { hours: [18, 19, 20, 21], location: gallows_green, activity: "standing his post under the lamp on the Green, very straight, because the gallows makes him nervous" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4, 5], location: lantern_house, activity: "asleep in the barracks, his lamp on the shelf above him, still lit", available: false }
+
+  npc_lantern_2:
+    name: "Lantern Hobb"
+    role: watch
+    home: lantern_house
+    routine:
+      - { hours: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13], location: lantern_house, activity: "asleep after the night shift with his helmet over his face", available: false }
+      - { hours: [14, 15, 16, 17], location: wickmarket, activity: "leaning in the doorway of the lantern-mender's, twenty years on the Watch and not in a hurry about any of it" }
+      - { hours: [18, 19, 20, 21, 22, 23], location: silk_row, activity: "walking Silk Row with his lamp up, trying the doors of houses whose owners tip at midwinter" }
+      - { hours: [0, 1, 2, 3], location: chandlers_rise, activity: "sheltering in the temple porch out of the wind, lamp between his boots, keeping one eye on the street" }
+
+  # -------------------------------------------------------------------------
+  # The Honest Company of Night Porters, and its rival
+  # -------------------------------------------------------------------------
+
+  npc_gannet:
+    name: "Mother Gannet"
+    role: guild_head
+    home: the_snuffs
+    routine:
+      - { hours: [12, 13, 14, 15, 16, 17], location: the_snuffs, activity: "in the Porters' Hall under the framed union charter, doing the accounts in two ledgers, one of which is honest" }
+      - { hours: [18, 19, 20, 21, 22, 23, 0, 1, 2, 3], location: the_snuffs, activity: "holding court at the long table in the Hall's back room, knitting, listening to reports, missing nothing" }
+      - { hours: [4, 5, 6, 7, 8, 9, 10, 11], location: the_snuffs, activity: "asleep upstairs in the Hall behind a door with four locks, all of them her own design", available: false }
+
+  npc_silas:
+    name: "Silas Crook"
+    role: upstart
+    home: the_snuffs
+    routine:
+      - { hours: [5, 6, 7, 8, 9], location: the_snuffs, activity: "asleep in rooms far too nicely furnished for the Snuffs", available: false }
+      - { hours: [10, 11, 12, 13, 14, 15], location: wickmarket, activity: "at the best table outside the pie shop in a plum waistcoat, buying rounds for young porters who used to answer to Mother Gannet" }
+      - { hours: [16, 17, 18, 19], location: silk_row, activity: "strolling Silk Row with a cane he does not need, raising his hat to people who do not raise theirs" }
+      - { hours: [20, 21, 22, 23, 0, 1], location: the_snuffs, activity: "in the flophouse taproom with his own people around him, laughing a little louder than the room" }
+      - { hours: [2, 3, 4], location: the_snuffs, activity: "coming home up the back stair of the flophouse at an hour he will later deny, his good coat damp at the shoulders" }
+
+  # -------------------------------------------------------------------------
+  # The fences
+  # -------------------------------------------------------------------------
+
+  npc_pell_hollis:
+    name: "Pell Hollis"
+    role: fence
+    home: wickmarket
+    routine:
+      - { hours: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19], location: wickmarket, activity: "behind the counter of Hollis's Sundries and Curiosities, weighing a stranger's brooch in her palm and her eyes on the stranger" }
+      - { hours: [20, 21, 22], location: wickmarket, activity: "in the back room of the shop with the shutters closed, a jeweller's glass screwed in, doing business that does not happen" }
+      - { hours: [23, 0, 1, 2, 3, 4, 5, 6, 7], location: wickmarket, activity: "asleep above the shop, with a bell on a string from the back door to her bedpost", available: false }
+
+  npc_marrow:
+    name: "Marrow"
+    role: fence
+    home: the_snuffs
+    routine:
+      - { hours: [9, 10, 11, 12, 13, 14, 15, 16], location: the_snuffs, activity: "asleep in the rag-and-bone yard in a chair made of other chairs", available: false }
+      - { hours: [17, 18, 19, 20, 21, 22, 23, 0], location: the_snuffs, activity: "in the rag-and-bone yard sorting a barrow of 'scrap', some of which is silver, without looking at any of it" }
+      - { hours: [1, 2, 3], location: the_undercroft, activity: "at the old wharf steps below the Snuffs with a shaded lantern, waiting for a boat that is not on any manifest" }
+      - { hours: [4, 5, 6, 7, 8], location: the_snuffs, activity: "melting something down in the back of the yard, and not in the mood for company" }
+
+  # -------------------------------------------------------------------------
+  # The Hill, the Row and the Rise
+  # -------------------------------------------------------------------------
+
+  npc_steward_quill:
+    name: "Steward Quill"
+    role: steward
+    home: margraves_hill
+    routine:
+      - { hours: [5, 6, 7, 8, 9, 10, 11, 12], location: margraves_hill, activity: "walking the palace wings with the household keys, checking the silver against an inventory he wrote himself" }
+      - { hours: [13, 14, 15, 16, 17, 18, 19, 20, 21], location: margraves_hill, activity: "at the steward's table on the terrace, receiving the Watch, the guilds and the complaints, and writing all of it down" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4], location: margraves_hill, activity: "asleep in the steward's rooms by the treasury door, which is where he insisted they be", available: false }
+
+  npc_imelda:
+    name: "Lady Imelda Vessaline"
+    role: noble
+    home: silk_row
+    routine:
+      - { hours: [9, 10, 11, 12], location: silk_row, activity: "receiving callers in the front parlour of Vessaline House, bored in a way that makes people try harder" }
+      - { hours: [13, 14, 15], location: chandlers_rise, activity: "at the Temple of the Everflame as its most generous patroness, lighting a taper and watching who else comes in" }
+      - { hours: [16, 17, 18], location: silk_row, activity: "at the silversmith's window on Silk Row, taking a long time to decide she does not want anything" }
+      - { hours: [19, 20, 21, 22], location: margraves_hill, activity: "at the Margrave's supper table, seated near enough to the Everflame to feel it, telling a story that makes the steward laugh" }
+      - { hours: [23, 0, 1, 2, 3, 4, 5, 6, 7], location: silk_row, activity: "retired for the night, or so her maid says to anyone who knocks", available: false }
+      - { hours: [8], location: silk_row, activity: "still abed and sleeping in, her maid keeping callers off until she is dressed", available: false }
+
+  npc_tobiah:
+    name: "Tobiah Marsh"
+    role: chandler
+    home: chandlers_rise
+    routine:
+      - { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], location: chandlers_rise, activity: "at the dipping vats in the Marsh & Daughters workshop, sleeves rolled, lowering a frame of wicks into the wax and talking the whole time" }
+      - { hours: [19, 20, 21], location: wickmarket, activity: "at the Snuffed Wick tavern, telling anyone who will listen that the price of tallow is a scandal" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4, 5], location: chandlers_rise, activity: "asleep over the workshop, the banked vats still warm under the floor", available: false }
+
+  npc_sister_ember:
+    name: "Sister Ember"
+    role: priest
+    home: chandlers_rise
+    routine:
+      - { hours: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21], location: chandlers_rise, activity: "in the Temple of the Everflame among the thousand tapers, trimming wicks, feeding the poor box, and remembering every face that has ever lit one" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4], location: chandlers_rise, activity: "keeping the night vigil alone in the temple, relighting the tapers that gutter, humming to stay awake" }
+
+  # -------------------------------------------------------------------------
+  # The waterfront, and the city's lamps
+  # -------------------------------------------------------------------------
+
+  npc_dock_mag:
+    name: "Dock Mag"
+    role: porter_boss
+    home: tallow_docks
+    routine:
+      - { hours: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], location: tallow_docks, activity: "on an upturned crate at the head of the quay, shouting porters on and off the barges in a voice that carries to the far bank" }
+      - { hours: [19, 20, 21, 22], location: the_snuffs, activity: "at the Porters' Hall paying the day's wages out of a tin, and paying some of them twice" }
+      - { hours: [23, 0, 1, 2, 3, 4], location: tallow_docks, activity: "asleep in the porters' shed with one hand on the wage tin", available: false }
+
+  npc_wren:
+    name: "Wren"
+    role: lamplighter
+    home: the_snuffs
+    routine:
+      - { hours: [5], location: wickmarket, activity: "snuffing the market lamps at first light with a long brass pole, whistling" }
+      - { hours: [6], location: silk_row, activity: "snuffing the glass lamps along Silk Row one by one, polishing each as she goes" }
+      - { hours: [7, 8, 9, 10, 11, 12, 13, 14], location: the_snuffs, activity: "asleep in a garret under the roof slates, the window propped open with a boot", available: false }
+      - { hours: [15, 16], location: chandlers_rise, activity: "collecting the city's lamp-wicks from the chandlers, bargaining for the cheap ends" }
+      - { hours: [17], location: silk_row, activity: "lighting Silk Row's glass lamps at dusk, up her ladder and down again quicker than anyone should manage" }
+      - { hours: [18], location: wickmarket, activity: "lighting the market lamps at dusk, trading insults with the stallholders as she goes" }
+      - { hours: [19], location: tallow_docks, activity: "lighting the quay lamps at dusk, one foot on the ladder and one on a bollard" }
+      - { hours: [20], location: gallows_green, activity: "lighting the lamp on Gallows Green at dusk and not looking at the gallows" }
+      - { hours: [21, 22, 23, 0, 1, 2, 3, 4], location: the_snuffs, activity: "home from her round with the garret lamp out; the stair says she came in, the landlady says she never heard her" }

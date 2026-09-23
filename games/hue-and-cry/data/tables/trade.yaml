@@ -1,0 +1,53 @@
+# HUE & CRY -- trade rules: the currency, the spread, and the two fences.
+#
+# Read by engine/game/trade.py through `paths.tables`. A vendor SELLS at
+# value x buy and BUYS at value x sell; the gap is their living.
+#
+# THERE ARE NO HONEST SHOPS IN THIS FILE YET. The two vendors below are the
+# two fences the spec puts in Wickmarket and the Snuffs, and both are scheduled
+# people (npc_schedules.yaml) whose counters their routines actually visit: a
+# fence is only open while she is at the counter and awake, which for Pell
+# Hollis is the shop's hours and for Marrow is the evening, when the yard wakes
+# up. Honest vendors -- who refuse hot goods -- arrive with the market.
+#
+# `fence: true` makes a vendor buy STOLEN units (engine/world/thievery.py's
+# heat) at a cut of face value: `fence_cut.hot` for a fresh or `named` piece,
+# `.cool` for one that has aged past `hot_days`. The two fences differ on
+# purpose:
+#
+#   Pell Hollis   pays properly for jewellery and the honest-looking; a wide
+#                 ordinary spread and a mean hot cut, because a stranger's
+#                 brooch is a risk she prices.
+#   Marrow        pays scrap -- a low spread -- but barely cares how hot a
+#                 thing is, because by morning it will be a lump of silver
+#                 with no crest on it. The place to sell a signet ring.
+#
+# Both need a stock row in data/economy.yaml: trade.vendor() treats a profile
+# with no faction and no stock as nobody.
+#
+# Version: v0.1.0 [2026-09-23]
+
+version: 1
+
+trade:
+  # Crowns. "12 cr" in the narrator's prompt and on the vendor panel.
+  currency_format: "{n} cr"
+  spread:
+    buy: 1.3
+    sell: 0.5
+  min_sale_price: 1
+
+vendors:
+  npc_pell_hollis:
+    name: "Pell Hollis"
+    location: wickmarket
+    fence: true
+    fence_cut: { hot: 0.45, cool: 0.8 }
+    spread: { buy: 1.4, sell: 0.55 }
+
+  npc_marrow:
+    name: "Marrow"
+    location: the_snuffs
+    fence: true
+    fence_cut: { hot: 0.7, cool: 0.85 }
+    spread: { buy: 1.2, sell: 0.4 }

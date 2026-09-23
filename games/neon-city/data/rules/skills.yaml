@@ -56,8 +56,22 @@ difficulty:
 default_difficulty: standard
 
 degrees:
+  # WAS 10, THE GRAPH TEMPLATE'S NUMBER, AND UNREACHABLE HERE. A `standard`
+  # check is DC 13, so margin 10 needs a total of 23. The best build in this
+  # story is +2 (a 12 or 13 in the archetype's stat plus its `skill_bonus`),
+  # so a natural 20 makes 22: margin 9, for every archetype. The flagship
+  # shipped the same dead band and fixed it the same way
+  # (games/clockwork-dark/data/rules/skills.yaml).
+  #
+  # 6 needs a total of 19: a natural 17+ (a fifth of rolls) for a specialist
+  # on their own skill, 19+ (a tenth) off-specialty at +0 -- the flagship's
+  # number and the shape a degree ladder wants.
+  #
+  # The NUMBER is not the guard: tests/test_checks.py::
+  # test_every_declared_degree_is_reachable_by_some_shipped_build runs for
+  # every story with a skills table and fails if any band goes dead again.
   - id: crit_success
-    min_margin: 10
+    min_margin: 6
   - id: success
     min_margin: 0
   - id: partial

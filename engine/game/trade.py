@@ -332,6 +332,106 @@ def scarcity_multiplier(state: GameState, item_id: str) -> float:
     return max(hits, key=lambda m: abs(m - 1.0))
 
 
+#: A fence's whole business is buying goods an honest shop would not touch,
+#: and paying under face value for either: half for something still hot,
+#: a fifth off for something that has cooled. A vendor's own `fence_cut`
+#: overrides either number; these are the floor when it names neither.
+DEFAULT_FENCE_CUT = {"hot": 0.5, "cool": 0.8}
+
+
+def _fence_cut(npc_id: str, heat: str) -> float:
+    cut = vendor(npc_id).get("fence_cut") or {}
+    try:
+        return float(cut.get(heat, DEFAULT_FENCE_CUT[heat]))
+    except (TypeError, ValueError):
+        return DEFAULT_FENCE_CUT[heat]
+
+
+#: Which unit moves first when a stack is mixed. A fence's business is
+#: stolen goods, so a fence sells the hottest units first, cool next, clean
+#: last; an honest vendor sells clean units first, cool next, and would only
+#: ever reach a hot one by refusing -- which is exactly what the trailing
+#: "hot" in its own tuple is for: a signal of what blocked the sale, never an
+#: allocation.
+_FENCE_ORDER: tuple[str, ...] = ("hot", "cool", "clean")
+_HONEST_ORDER: tuple[str, ...] = ("clean", "cool", "hot")
+
+
+def _plan_sale(
+    state: GameState, npc_id: str, item_id: str, qty: int, profile: dict[str, Any]
+) -> tuple[Optional[dict[str, Any]], dict[str, Any]]:
+    """
+    Decide, once, how a sale of ``qty`` divides across a mixed stack.
+
+    ONE HELPER so ``quote`` and ``sell`` cannot disagree: a stack of two --
+    one clean unit, one stolen -- used to have the WHOLE sale refused by an
+    honest vendor and the WHOLE sale discounted by a fence, because both read
+    ``thievery.heat``'s single, worst-case answer for the item. This reads
+    ``thievery.heat_split``'s per-unit one instead and returns the same
+    allocation to both callers.
+
+    Returns:
+        ``(refusal, info)``. ``refusal`` is a ready-to-return quote dict, or
+        ``None`` when the sale is possible. ``info`` always carries
+        ``heat_split`` and ``unit_kind`` (the category of the unit that would
+        move, or -- when refused -- the category that blocked it), and on a
+        possible sale also ``allocation`` (units taken per category) and
+        ``stolen_sold`` (how many of those came from ``hot`` + ``cool``, which
+        is what ``sell`` consumes through the ``provenance`` effect).
+    """
+    from engine.world import thievery as thievery_module
+
+    split = thievery_module.heat_split(state, item_id)
+    is_fence = bool(profile.get("fence"))
+    order = _FENCE_ORDER if is_fence else _HONEST_ORDER
+
+    # `quote` has always been answerable for more than the player actually
+    # carries -- `browse`'s "what would this fetch" and a bare price check
+    # neither hold the item first, and `sell` is what clamps `qty` to the
+    # real count before it ever reaches here. Asking about more units than
+    # `heat_split` knows about is that same speculative question, not an
+    # attempt to sell stolen goods the ledger has no record of, so it is
+    # priced as entirely clean rather than refused or discounted -- exactly
+    # what an item with no history at all has always priced as.
+    held_total = sum(split.values())
+    if qty > held_total:
+        info = {
+            "heat_split": split,
+            "unit_kind": "clean",
+            "fence": is_fence,
+            "allocation": {"clean": qty},
+            "stolen_sold": 0,
+        }
+        return None, info
+
+    # The category that WOULD move first, whether or not the sale ends up
+    # possible -- an all-hot stack at an honest vendor still needs an answer,
+    # and "hot" (the one category never allocated to a non-fence) is it.
+    unit_kind = next((k for k in order if split.get(k, 0) > 0), "clean")
+    info = {"heat_split": split, "unit_kind": unit_kind, "fence": is_fence}
+
+    eligible = order if is_fence else ("clean", "cool")
+    if qty > sum(split.get(k, 0) for k in eligible):
+        name = profile.get("name", npc_id)
+        reason = (
+            f"{name} will take the clean ones, not the rest"
+            if split.get("clean", 0) > 0
+            else f"{name} won't touch it -- not this week"
+        )
+        return {"ok": False, "npc_id": npc_id, "item_id": item_id, "reason": reason, **info}, info
+
+    allocation: dict[str, int] = {}
+    remaining = qty
+    for kind in eligible:
+        take = min(split.get(kind, 0), remaining)
+        if take:
+            allocation[kind] = take
+        remaining -= take
+    info["allocation"] = allocation
+    info["stolen_sold"] = allocation.get("hot", 0) + allocation.get("cool", 0)
+    return None, info
+
+
 def deals_in(npc_id: str, item_id: str) -> bool:
     """
     Whether a vendor will touch this kind of thing at all.
@@ -392,6 +492,18 @@ def quote(
             "reason": f"{profile.get('name', npc_id)} does not deal in that.",
         }
 
+    # Read once, for both the refusal and the price, and shared with `sell`
+    # through `_plan_sale` so the two cannot disagree about a mixed stack. A
+    # story with no `paths.thievery` gets an all-clean split for everything,
+    # so this whole block is a no-op and every turn stays byte-identical (the
+    # v0.9 rule for an optional system).
+    if side == SELL:
+        refusal, plan = _plan_sale(state, npc_id, item_id, qty, profile)
+        if refusal is not None:
+            return refusal
+    else:
+        plan = {"heat_split": {}, "unit_kind": "clean", "fence": False, "allocation": {}, "stolen_sold": 0}
+
     listed = (profile.get("sells") if side == BUY else profile.get("buys")) or {}
     listed_price = listed.get(item_id, {}).get("price") if isinstance(listed.get(item_id), dict) else None
 
@@ -423,19 +535,35 @@ def quote(
     points = haggle_points(state, npc_id)
     haggle_mult = 1.0 - (points / 100.0) if side == BUY else 1.0 + (points / 100.0)
 
-    unit = base * standing_mult * scarcity * haggle_mult
+    def _price_at(mult: float) -> int:
+        raw = int(base * standing_mult * scarcity * haggle_mult * mult)
+        if base_value > 0 or listed_price:
+            return max(floor, raw)
+        # A worthless thing is worthless. Quest items land here and this is
+        # where they should: nobody buys somebody else's business.
+        return 0
+
+    floor = int(_cfg().get("min_sale_price", 1) or 0)
 
     if side == BUY:
+        unit = base * standing_mult * scarcity * haggle_mult
         unit_price = max(1, int(unit + 0.5)) if base_value or listed_price else 1
+        total = unit_price * qty
+        prices_by_kind: dict[str, int] = {}
     else:
-        floor = int(_cfg().get("min_sale_price", 1) or 0)
-        unit_price = int(unit)
-        if base_value > 0 or listed_price:
-            unit_price = max(floor, unit_price)
-        else:
-            # A worthless thing is worthless. Quest items land here and this is
-            # where they should: nobody buys somebody else's business.
-            unit_price = 0
+        # A fence pays under face value for a stolen unit -- that cut is the
+        # whole of their business -- but never for a clean one, and an
+        # honest vendor never discounts anything it agrees to buy at all.
+        # `_plan_sale` already decided how many units of `qty` are which; this
+        # only has to price each category once and add them up, so a mixed
+        # sale is the sum of what it actually contains rather than one
+        # blanket unit price applied to the whole stack (Task 6's F1).
+        prices_by_kind = {
+            kind: _price_at(_fence_cut(npc_id, kind) if plan["fence"] and kind != "clean" else 1.0)
+            for kind in plan["allocation"]
+        }
+        total = sum(count * prices_by_kind[kind] for kind, count in plan["allocation"].items())
+        unit_price = int(round(total / qty)) if qty else 0
 
     return {
         "ok": True,
@@ -446,7 +574,15 @@ def quote(
         "side": side,
         "qty": qty,
         "unit_price": unit_price,
-        "total": unit_price * qty,
+        "total": total,
+        # Top-level, not just in `breakdown` -- and the SAME keys `_plan_sale`
+        # puts on a refusal (see `info`, above), so a caller (the `_sell`
+        # intent label, in particular) can read `unit_kind` without caring
+        # whether this particular vendor said yes.
+        "heat_split": plan["heat_split"],
+        "unit_kind": plan["unit_kind"],
+        "fence": plan["fence"],
+        "stolen_sold": plan.get("stolen_sold", 0),
         "breakdown": {
             "base": round(base, 2),
             "base_source": source,
@@ -459,11 +595,12 @@ def quote(
             "evil_phase": state.evil_phase.value,
             "haggle_points": points,
             "haggle_multiplier": round(haggle_mult, 3),
+            "prices_by_kind": prices_by_kind,
         },
         "summary": (
             f"{profile.get('name', npc_id)}: {qty}x {inventory_module.name_of(item_id)} "
-            f"{'costs' if side == BUY else 'fetches'} {unit_price * qty}c "
-            f"({unit_price}c each)"
+            f"{'costs' if side == BUY else 'fetches'} {currency_label(total)} "
+            f"({currency_label(unit_price)} each)"
         ),
     }
 
@@ -790,6 +927,18 @@ def sell(state: GameState, npc_id: str, item_id: str, qty: int = 1) -> dict[str,
         inventory_module.take(state, item_id, qty),
         effects_module.apply_effect(state, {"type": "gold", "delta": total}),
     ]
+    # A sale is what launders: one theft record per unit of the STOLEN units
+    # actually sold -- `_plan_sale` already worked out how many of `qty` those
+    # are, so a mixed stack only forgets what it sold, through the ONE writer
+    # of provenance. Goods that merely fall out of the pack (`remove_item`,
+    # above) keep the history a sale is what pays to forget.
+    stolen_sold = int(priced.get("stolen_sold", 0))
+    if stolen_sold:
+        applied.append(
+            effects_module.apply_effect(
+                state, {"type": "provenance", "item_id": item_id, "qty": stolen_sold}
+            )
+        )
 
     logger.info(
         "[trade] Sold (operation=sell, npc=%s, item=%s, qty=%s, price=%s)",

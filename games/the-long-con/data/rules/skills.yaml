@@ -61,8 +61,21 @@ default_difficulty: standard
 
 # Degrees of success by margin (total - dc), evaluated top down.
 degrees:
+  # WAS 10, THE GRAPH TEMPLATE'S NUMBER, AND UNREACHABLE HERE. A `standard`
+  # check is DC 13, so margin 10 needs a total of 23. The best build in this
+  # story is +1 -- the fixer's persuasion, on an untouched presence 10 plus
+  # `skill_bonus: 1` -- so a natural 20 makes 21: margin 8. The flagship
+  # shipped the same dead band and fixed it the same way
+  # (games/clockwork-dark/data/rules/skills.yaml).
+  #
+  # 6 needs a total of 19: a natural 18+ for the fixer talking (15% of
+  # rolls), 19+ for anyone at +0 (10%) -- the flagship's number.
+  #
+  # The NUMBER is not the guard: tests/test_checks.py::
+  # test_every_declared_degree_is_reachable_by_some_shipped_build runs for
+  # every story with a skills table and fails if any band goes dead again.
   - id: crit_success
-    min_margin: 10
+    min_margin: 6
   - id: success
     min_margin: 0
   - id: partial

@@ -50,6 +50,9 @@ ROLLING_SKILLS = frozenset(
         "encounter_approach",
         "resolve_scene_card",
         "resolve_challenge",
+        # A lift rolls stealth inside the skill; without it here, honest
+        # narration of a caught hand scores as invented mechanics.
+        "lift_purse",
     }
 )
 

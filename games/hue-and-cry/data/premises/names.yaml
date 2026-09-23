@@ -1,0 +1,136 @@
+# HUE & CRY -- the name pools every premise and household draws from.
+#
+# Read by engine/world/premises.py. A type's `name_patterns` may say
+# {surname}, {given}, {street}, {trade} or {n} (a house number, drawn, not a
+# pool). Households need `given` and `surname`.
+#
+# THE CAST IS NOT IN HERE. No Ardane, Brask, Tully, Hobb, Gannet, Crook,
+# Hollis, Marrow, Quill, Vessaline, Marsh, Ember, Mag or Wren -- a generated
+# clerk who shares a surname with the captain is a relation the story never
+# wrote, and a narrator will write it for you.
+#
+# `trade` is any calling the waterfront drinks with, title-cased, because the
+# taverns are named for them ("The Drowned Lampwright", "The Jolly Bargeman").
+# `craft` is the narrow pool of the candle city's own workshop trades, for the
+# signs that must read as one: a chandler signs "Wick-Twister", never
+# "Bargeman", and the palace names a window for a craft that made its glass
+# and wax. Every `craft` noun pluralises with a plain -s ("the Chandlers'
+# Window"), which the palace pattern relies on; keep it that way.
+#
+# Adding a pool reshuffles every name a recorded seed generates
+# (premises._name draws every pool); adding a NAME to a pool does too. Both
+# are fine before v1.0 ships; after it, append rather than insert.
+#
+# Version: v0.1.0 [2026-09-23]
+
+pools:
+  surname:
+    - Pennywax
+    - Guttridge
+    - Candlish
+    - Dipwell
+    - Sconce
+    - Tapperly
+    - Bayberry
+    - Wickham
+    - Tallis
+    - Glimmer
+    - Mould
+    - Lumley
+    - Fairlight
+    - Smallwick
+    - Cresset
+    - Greaves
+    - Hartshorn
+    - Oddlamp
+    - Stubbins
+    - Fettle
+    - Prothero
+    - Blunkett
+    - Ashdown
+    - Brightwater
+    - Coldharbour
+    - Drippings
+    - Farthingale
+    - Honeysett
+    - Lanthorn
+    - Mothersole
+    - Nightingale
+    - Parch
+    - Rendell
+    - Snuffold
+    - Trimble
+    - Waxley
+  given:
+    - Ada
+    - Aldous
+    - Barnaby
+    - Bramwell
+    - Cass
+    - Clemency
+    - Constance
+    - Dorcas
+    - Ebenezer
+    - Enoch
+    - Fennick
+    - Grissel
+    - Hester
+    - Humility
+    - Ivo
+    - Jessamy
+    - Josiah
+    - Kit
+    - Lettice
+    - Mercy
+    - Mungo
+    - Nell
+    - Obadiah
+    - Perpetua
+    - Prue
+    - Rook
+    - Tamsin
+    - Temperance
+    - Thaddeus
+    - Ulric
+    - Verity
+    - Wat
+    - Winifred
+    - Zillah
+  street:
+    - Wick Lane
+    - Taper Street
+    - Dipping Row
+    - Guttering Lane
+    - Bayberry Walk
+    - Snuffers' Alley
+    - Mould Street
+    - Lampwrights' Row
+    - Sconce Court
+    - Beeswax Yard
+    - Fatboilers' Lane
+    - Cresset Hill
+    - Rushlight Close
+    - Spermaceti Steps
+  trade:
+    - Lampwright
+    - Chandler
+    - Wick-Twister
+    - Fat-Boiler
+    - Wax-Bleacher
+    - Tallow-Renderer
+    - Snuffer
+    - Lamplighter
+    - Bargeman
+    - Porter
+    - Sconce-Maker
+    - Rushlight-Dipper
+  craft:
+    - Chandler
+    - Wick-Twister
+    - Wax-Bleacher
+    - Tallow-Chandler
+    - Taper-Maker
+    - Rushlight-Dipper
+    - Lampwright
+    - Sconce-Maker
+    - Glazier

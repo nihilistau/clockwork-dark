@@ -1,0 +1,59 @@
+# HUE & CRY -- which houses stand in which district.
+#
+# Read by engine/world/premises.py. `count` generated premises per district,
+# the type drawn by weight for each; `anchors` are hand-written premises in
+# ADDITION to the count (an anchor's `district` must name the district that
+# lists it). Generated once per run from the seed, on the PREMISES stream.
+#
+# THE THREE SECRET PLACES HOLD NOTHING. The Undercroft, the Rooftop Road and
+# the Old Bell Tower are ways in, not addresses -- a house listed there would
+# put a door on the board of a place the map is still hiding.
+#
+# THE SHAPE OF THE CITY. Money climbs the hill: warehouses and taverns on the
+# water, shops in the market, lodgings and a guild's strongroom in the Snuffs,
+# townhouses and counting-houses on Silk Row, the trade halls and the clergy on
+# the Rise, the palace on top. The Lantern House and Gallows Green get a few
+# houses each because somebody has to live next door to the Watch and the
+# gallows, and they have opinions about it.
+#
+# Thirty-one premises a run: 27 generated and four anchors. Every person in a
+# household keeps real hours in real districts (see types/), so the count is
+# also a crowd -- measured in the CHANGELOG before anyone raises it.
+#
+# Version: v0.1.0 [2026-09-23]
+
+tallow_docks:
+  count: 4
+  types: {warehouse: 3, tavern: 1, counting_house: 1}
+
+wickmarket:
+  count: 4
+  types: {chandlery: 3, tavern: 2, townhouse: 1}
+
+the_snuffs:
+  count: 3
+  types: {tavern: 2, warehouse: 1, chandlery: 1}
+  anchors: [gannets_house]
+
+silk_row:
+  count: 5
+  types: {townhouse: 3, counting_house: 2, manor: 1}
+  anchors: [vessaline_manor]
+
+chandlers_rise:
+  count: 4
+  types: {chandlery: 2, temple_house: 2, counting_house: 1}
+
+lantern_house:
+  count: 2
+  types: {tavern: 1, townhouse: 1}
+  anchors: [captains_office]
+
+margraves_hill:
+  count: 2
+  types: {palace_wing: 3, manor: 1}
+  anchors: [margraves_treasury]
+
+gallows_green:
+  count: 3
+  types: {tavern: 1, townhouse: 1, temple_house: 1}

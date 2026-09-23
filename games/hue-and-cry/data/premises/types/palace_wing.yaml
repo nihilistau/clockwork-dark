@@ -1,0 +1,86 @@
+# HUE & CRY -- premise type: palace wing.
+#
+# One wing of the Margrave's palace, with its own chamberlain, its own guard
+# and its own two hundred spoons. Schema in types/townhouse.yaml.
+#
+# NEVER EMPTY, BY DESIGN. The guards at the wing door do not leave it; the
+# chambermaid's afternoon off and the chamberlain's evening at the steward's
+# table change nothing about that (tests/test_hue_and_cry.py holds it). Tier
+# four at the least: a palace wing is where the richest loot in the city lies
+# under the Everflame's own light, and it should feel like it.
+#
+# The Treasury is NOT one of these -- it is the anchor
+# anchors/margraves_treasury.yaml, written by hand.
+#
+# Version: v0.1.0 [2026-09-23]
+
+id: palace_wing
+label: "palace wing"
+
+name_patterns:
+  # ONE late Margravine in canon, so her apartments are a fixed name: two wings
+  # drawing it in one run collide, and premises.py redraws the second.
+  - "the late Margravine's Apartments"
+  - "the {surname} Gallery"
+  - "the Hall of {given} the Bright"
+  - "the Wing of the {craft}s' Window"
+
+tiers: {4: 3, 5: 1}
+
+household:
+  - role: chamberlain
+    routine:
+      - { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], location: "@home", activity: "processing through the wing with a white staff and an inventory, counting spoons under their breath" }
+      - { hours: [18, 19, 20], location: margraves_hill, activity: "at the steward's table on the terrace, reporting the day's count, one spoon short as always" }
+      - { hours: [21, 22], location: "@home", activity: "locking the galleries one by one with keys from a ring the size of a cartwheel" }
+      - { hours: [23, 0, 1, 2, 3, 4, 5], location: "@home", activity: "asleep in a chamberlain's bed with the keys under the bolster", available: false }
+
+  # Two guards, day and night, whose shifts overlap by an hour at each end, so
+  # the wing door is never once alone and nobody stands it for twenty-four
+  # hours straight.
+  - role: palace_guard
+    routine:
+      - { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], location: "@home", activity: "at the wing door in a polished breastplate, halberd grounded, awake and bored and hoping for something to happen" }
+      - { hours: [19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5], location: "@home", activity: "asleep in the wing's guardroom, breastplate on the stand, boots by the bed", available: false }
+
+  - role: palace_guard
+    routine:
+      - { hours: [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6], location: "@home", activity: "on the night door of the wing with a shaded lantern, counting the Everflame's flickers to stay awake" }
+      - { hours: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], location: "@home", activity: "asleep in the guardroom behind the wing door, helmet over the face", available: false }
+
+  - role: chambermaid
+    routine:
+      - { hours: [5, 6, 7, 8, 9, 10, 11, 12, 13], location: "@home", activity: "turning down beds nobody slept in and dusting gilt nobody looks at" }
+      - { hours: [14, 15, 16], location: gallows_green, activity: "on an afternoon off on the Green in a borrowed bonnet, telling a ballad-seller what the Margrave had for breakfast" }
+      - { hours: [17, 18, 19, 20, 21], location: "@home", activity: "lighting the wing's candles, three hundred of them, with a taper on a pole" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4], location: "@home", activity: "asleep in the maids' corridor under the eaves", available: false }
+
+security:
+  - { id: breastplate_guards, text: "guards in polished breastplates at every door, awake, bored, and looking for something to do", tier_min: 1 }
+  - { id: raked_gravel, text: "gravel walks raked smooth every evening, and gardeners who read footprints like scripture", tier_min: 1 }
+  - { id: locked_galleries, text: "galleries locked at dusk, each with its own key on the chamberlain's ring", tier_min: 2 }
+  - { id: chiming_doors, text: "doors hung with little glass chimes, so the whole wing tinkles when anybody passes", tier_min: 2 }
+  - { id: everflame_light, text: "the Everflame's light falling through the high windows, so no corridor is ever dark enough to hide in", tier_min: 3 }
+  - { id: spoon_count, text: "a nightly count of every plate and spoon by a chamberlain who counts in their sleep", tier_min: 4 }
+  - { id: wired_cabinets, text: "display cabinets wired to the guardroom bell, installed after the Magpie took the Margrave's snuffbox off his own desk", tier_min: 5 }
+
+loot:
+  4:
+    - { item_id: crested_gold_plate, weight: 3 }
+    - { item_id: sapphire_brooch, weight: 2 }
+    - { item_id: gilt_candelabrum, weight: 2 }
+    - { item_id: emerald_necklace, weight: 1 }
+  5:
+    # Not the Everflame Prism: there is one, and it is in the Treasury
+    # (anchors/margraves_treasury.yaml).
+    - { item_id: crested_gold_plate, weight: 3 }
+    - { item_id: emerald_necklace, weight: 2 }
+    - { item_id: sapphire_brooch, weight: 2 }
+
+secrets:
+  - { id: lantern_room_key, text: "a key to the Everflame's lantern room, cut without the steward's knowledge and hidden in a hollow book" }
+  - { id: margraves_debts, text: "the Margrave's gambling debts, in his own hand, owed to a Silk Row counting-house that now more or less owns the Hill" }
+  - { id: shattered_prism, text: "the chamberlain's copy of the storm report that recorded the Everflame's second-rank crystal as shattered eleven years ago -- and a receipt, in the same hand, for carrying it up to the Treasury the week after" }
+  - { id: spoon_list, text: "the chamberlain's private list of which noble guests steal the spoons, with quantities, going back twenty years" }
+  - { id: secret_stair, text: "a servants' stair behind a tapestry that comes out, after a great many steps, somewhere under the Treasury" }
+  - { id: margravine_letters, text: "letters from the late Margravine to somebody who was not the Margrave, which the chamberlain has been paid for years not to find" }

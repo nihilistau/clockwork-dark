@@ -45,6 +45,7 @@ import yaml
 from engine.config import get_config
 from engine.game.rng import PROCGEN, stable_rng
 from engine.game.state import GameState, InventoryItem, ProcgenResult
+from engine.world import premises as premises_module
 
 logger = logging.getLogger(__name__)
 
@@ -302,6 +303,12 @@ def generate_world(seed: int) -> ProcgenResult:
     shrine_mural = rng.choice(murals) if murals else ""
     bakery_job_day = int(templates.get("bakery_job_day", 3))
 
+    # AFTER every PROCGEN draw and on its own stream, so a story that declares
+    # premises still generates the village it did without them, and one that
+    # does not (the flagship) draws nothing extra at all.
+    premises, household = premises_module.generate(seed)
+    npcs = npcs + household
+
     result = ProcgenResult(
         seed=seed,
         npcs=npcs,
@@ -310,6 +317,7 @@ def generate_world(seed: int) -> ProcgenResult:
         festival=_build_festival(rng, templates),
         shrine_mural=shrine_mural,
         bakery_job_day=bakery_job_day,
+        premises=premises,
     )
 
     logger.info(

@@ -1,0 +1,81 @@
+# HUE & CRY -- premise type: manor.
+#
+# A great house on Silk Row or the Hill, with a household that runs like a
+# clock and a cook who has not left the kitchen since the old Margrave died.
+# Schema in types/townhouse.yaml.
+#
+# NEVER EMPTY, BY DESIGN. The master goes up to court in the afternoon with a
+# footman, the housekeeper goes down to order the candles in the morning --
+# but the cook never leaves, so a manor has no empty window at all
+# (tests/test_hue_and_cry.py holds that). Robbing one is not a matter of
+# timing; it is a matter of the cook, and whatever you do about the cook.
+# That is what a tier-three house is FOR.
+#
+# Version: v0.1.0 [2026-09-23]
+
+id: manor
+label: "manor"
+
+name_patterns:
+  - "{surname} Hall"
+  - "the {surname} Mansion"
+  - "{surname} Court"
+  - "the great house on {street}"
+
+tiers: {3: 5, 4: 3}
+
+household:
+  - role: master
+    routine:
+      - { hours: [9, 10, 11, 12], location: "@home", activity: "in the library in a silk banyan, being read the morning's correspondence and sighing at it" }
+      - { hours: [13, 14, 15, 16, 17], location: margraves_hill, activity: "on the palace terrace paying court, laughing slightly too long at whatever the steward says" }
+      - { hours: [18, 19, 20, 21, 22, 23], location: "@home", activity: "at a dinner for twelve beneath forty candles, holding forth about the price of tallow as though they had ever bought any" }
+      - { hours: [0, 1, 2, 3, 4, 5, 6, 7, 8], location: "@home", activity: "asleep in a bed with curtains and a canopy and a small staircase", available: false }
+
+  - role: housekeeper
+    routine:
+      - { hours: [6, 7, 8, 9], location: "@home", activity: "walking the house with a ring of keys nearly as heavy as the housekeeper, counting candles" }
+      - { hours: [10, 11], location: wickmarket, activity: "at the market ordering the week's candles by the gross, in a voice that makes chandlers stand up straight" }
+      - { hours: [12, 13, 14, 15, 16, 17, 18, 19, 20, 21], location: "@home", activity: "in the housekeeper's room with the door open, missing nothing that happens on the back stairs" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4, 5], location: "@home", activity: "asleep, the keys on a hook within arm's reach", available: false }
+
+  - role: cook
+    routine:
+      - { hours: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21], location: "@home", activity: "ruling the manor kitchen with a ladle, the copper pans in ranks behind like a regiment" }
+      - { hours: [22, 23, 0, 1, 2, 3, 4], location: "@home", activity: "asleep in the room off the kitchen, a light sleeper with a heavy rolling-pin", available: false }
+
+  - role: footman
+    routine:
+      - { hours: [6, 7, 8, 9, 10, 11, 12], location: "@home", activity: "in livery polishing the silver, and their own reflection in it" }
+      - { hours: [13, 14, 15, 16, 17], location: margraves_hill, activity: "standing behind the master on the palace terrace in powdered livery, holding a hat and an expression" }
+      - { hours: [18, 19, 20, 21, 22, 23], location: "@home", activity: "waiting at table, then walking the ground floor with a candle on the hour" }
+      - { hours: [0, 1, 2, 3, 4, 5], location: "@home", activity: "asleep in the footmen's garret", available: false }
+
+security:
+  - { id: porters_lodge, text: "a porter's lodge at the gate, and a porter in it, awake", tier_min: 1 }
+  - { id: glass_wall, text: "a garden wall topped with broken bottle-glass set in mortar", tier_min: 1 }
+  - { id: footman_rounds, text: "a footman who walks the ground floor with a candle every hour on the hour", tier_min: 2 }
+  - { id: wolfhounds, text: "a pair of wolfhounds loose in the garden after dark, the size of ponies and twice as curious", tier_min: 2 }
+  - { id: pantry_strongroom, text: "a strongroom behind the butler's pantry with a door from the Margrave's own locksmith", tier_min: 3 }
+  - { id: bell_pulls, text: "bell-pulls in every room that ring below stairs, where somebody always answers", tier_min: 3 }
+  - { id: warded_jewel_case, text: "the jewels in a warded case with a false bottom and a very real alarm", tier_min: 4 }
+
+loot:
+  3:
+    - { item_id: gilt_candelabrum, weight: 3 }
+    - { item_id: pearl_earrings, weight: 3 }
+    - { item_id: silver_hand_mirror, weight: 2 }
+    - { item_id: portrait_miniature, weight: 2 }
+  4:
+    - { item_id: sapphire_brooch, weight: 3 }
+    - { item_id: emerald_necklace, weight: 2 }
+    - { item_id: gilt_candelabrum, weight: 2 }
+    - { item_id: pearl_earrings, weight: 1 }
+
+secrets:
+  - { id: not_the_heir, text: "a letter proving the heir is not the master's son, and saying whose he is" }
+  - { id: paste_jewels, text: "the jewels in the strongroom are paste; the originals were sold to pay a debt in the south and the copies were made in Wickmarket" }
+  - { id: bought_ear, text: "a receipt for a hundred crowns paid for 'an hour of the Margrave's ear', in a palace clerk's handwriting" }
+  - { id: gaming_debts, text: "IOUs from half of Silk Row, won at cards, kept in a drawer against the day they are needed" }
+  - { id: magpie_portrait, text: "a portrait of the master's grandmother, signed by a painter the Watch once arrested as the Magpie -- and let go when a robbery happened while he sat in the cells" }
+  - { id: cook_is_owner, text: "the deeds to the house, which were lost at cards to the cook thirty years ago and are in the cook's name" }

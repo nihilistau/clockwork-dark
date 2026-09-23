@@ -1,0 +1,63 @@
+# HUE & CRY -- the evening barge.
+#
+# THE ONE ENDING THE SKELETON CAN REACH, end to end: stand on Tallow Docks in
+# the evening, get aboard, and the story locks `honest_after_all`
+# (data/rules/endings.yaml), plays its three beats and hands over its epilogue.
+#
+# WHY IT IS OPEN FROM THE FIRST MORNING. Quest-for-Glory rule: the player can
+# always just leave. Most runs will not want to -- that is what the other seven
+# endings are for, once they exist -- but a story that cannot be walked out of
+# is a story with a locked door painted to look like a wall.
+#
+# EVERY `complete_when` IS ENGINE-EVALUABLE: a place, an hour window, and one
+# narrative flag the stage hands the narrator to raise when the player is
+# actually aboard. `hour_between` is inclusive-start, exclusive-end, so
+# [17, 22] is five to ten in the evening.
+#
+# "WITH A CLEAN NAME" IS NOT YET TESTED HERE. There is no wanted level for it
+# to read until the Law lands; that release adds the clause, and until then a
+# player can board this barge as notorious as they like.
+#
+# Version: v0.1.0 [2026-09-23]
+
+id: the_evening_barge
+arc: the_way_out
+name: "The Evening Barge"
+
+summary: >-
+  A flat-bottomed barge leaves the far end of Tallow Docks every evening for
+  the coast towns. The fare is small, the bargemaster asks no questions, and
+  the Watch stands at the gangplank to ask them for him.
+
+start_text: >-
+  Dock Mag jerks a thumb at the far end of the quay without looking up. "Evening
+  barge goes at dusk, if you're thinking what everybody thinks their first
+  morning. Most of 'em are still here at supper."
+
+stages:
+  - id: aboard
+    objective: "Be on Tallow Docks in the evening, and get aboard the barge."
+    narrative_flags:
+      - nf_boarded_the_evening_barge
+    complete_when:
+      all:
+        - at_location: tallow_docks
+        - hour_between: [17, 22]
+        - flag: nf_boarded_the_evening_barge
+    complete_text: >-
+      The gangplank comes up behind you with a bang like a door. The quay
+      lamps slide away one by one, and Tallowmere folds itself up into a
+      glow on the water, and then into the Everflame alone, and then into
+      nothing at all.
+
+on_complete:
+  effects:
+    - type: ledger_fact
+      text: "You left Tallowmere on the evening barge."
+      kind: event
+    - { type: ending_lock }
+    - { type: ending_module }
+
+complete_text: >-
+  Somewhere behind you, a Lantern is still telling his sergeant he saw the
+  Magpie on the morning barge.

@@ -14,6 +14,283 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-09-23
+
+The first of the four v0.9 engine features, proven against HUE & CRY as it
+grows: **Premises**, plus the skeleton the rest of v0.9 builds on. A thief
+story now has a city to run in — houses to case, purses to lift, and fences
+to sell to — and the casing board reaches the client. The Law, Jobs &
+flashbacks and Agendas ship as their own releases (v0.10.0–v0.12.0); each
+feature ships as its own release now rather than sitting unpushed for weeks
+while the rest of v0.9 finishes (see the spec's release table).
+
+### Added
+
+- **HUE & CRY's premises, pockets and fences** (content; `games/hue-and-cry/`).
+  The first story to declare `paths.premises`, `paths.thievery`, `paths.items`,
+  `paths.tables` and `paths.economy` together, so every v0.9 thief mechanic
+  now has a city to run in. Eight premise types (`data/premises/types/`:
+  townhouse, chandlery, counting-house, tavern, warehouse, temple house,
+  manor, palace wing), each with name patterns, tiers, a household whose
+  routines keep real hours in real districts, security by tier, loot by tier
+  and a pool of five or six secrets; four hand-written anchors -- Vessaline House
+  (Silk Row), the Margrave's Treasury (Margrave's Hill), Mother Gannet's House
+  (the Snuffs) and the Captain's Office (the Lantern House); eight districts
+  holding houses, the three secret places holding none. The empty windows are
+  DESIGNED per type, not emergent: a townhouse empties for three hours in the
+  afternoon, a chandlery for three in the evening, a warehouse for four, a
+  counting-house for five (and is never below tier two for it); a tavern and a
+  temple house for two; manors, palace wings, Vessaline House and the Treasury
+  never. `data/rules/thievery.yaml` gives alertness and a purse to every role
+  the schedules and households use, `data/items/goods.yaml` forty-one goods valued
+  in crowns (crests, seals, plate, letters and the mint's pieces carry `named`
+  and stay hot), and `data/tables/trade.yaml` + `data/economy.yaml` make the
+  two scheduled fences real: Pell Hollis (Wickmarket; good spread, mean hot
+  cut) and Marrow (the Snuffs; scrap spread, but a crest is a lump of silver
+  by morning, so he pays more for a hot signet). `trade.currency_format` is
+  `"{n} cr"`. One art subject per premise type (`premise_<type>` under
+  `locations:` in `data/art/subjects.yaml`, day and night); prompts only, and
+  no reader asks for them yet -- they are the v1.0 art brief.
+
+  **Measured across seeds 0-39** (40 runs, `premises.generate` through
+  `new_game_state`, occupancy read through `premises._occupancy_text`):
+  31 premises per run (27 generated + 4 anchors, every run); 81.2 household
+  people per run (74-88); 1240 premise names generated, 663 distinct across
+  all runs, and none repeated within a run; tiers T1 35.2% / T2 33.1% /
+  T3 18.1% / T4 9.2% / T5 4.4%; mean empty window 2.46 h over every premise
+  (2.92 h over the premises that ever empty); **637 of 1240 premises (51.4%)
+  have an empty window of at least three hours**, the worst single seed
+  32.3%; 192 (15.5%) are never empty. The crowd those households make, since
+  every member is a real presence in a district: the busiest district-hour
+  across the 40 seeds holds 16 household people (Chandlers' Rise), 21 people
+  in all counting the scheduled cast -- which is why PEOPLE HERE is now
+  capped (below). (Re-measured after review round 1: the new `craft` pool
+  reshuffles every name a seed draws.) `tests/test_hue_and_cry.py`
+  asserts the floors -- 50% in aggregate (the measured number rounded down)
+  and 30% on every seed (the brief's line) -- and that every district that
+  should hold houses holds at least three, every anchor stands where the spec
+  puts it, the great houses are never empty, every loot and purse item exists
+  with a real value, a signet is `named`, both fences buy a hot signet (Marrow
+  for more), money reads "12 cr", and every type has a day-and-night art
+  subject.
+
+  **Review round 1.** Names that misread: a `craft` name-pattern field
+  (`engine/world/premises.py::_PATTERN_FIELDS`) holds the candle city's
+  workshop trades, so a chandlery signs "Wick-Twister" and never "Bargeman",
+  and the palace's "{craft}s' Window" always pluralises; the one late
+  Margravine's apartments are a fixed name, at most one per run. Canon: the
+  Everflame Prism exists once, in the Treasury (dropped from palace loot; the
+  palace secret now records it being carried there); the reliquary lamp and the
+  master chandler's seal read as one-per-parish / one-per-master objects; the
+  temple secret that had the Everflame go out is replaced with a house-local
+  one; Vessaline House's secret is the butler's and gives Lady Imelda no
+  motive, because the seed, not static content, picks the Magpie. Minors:
+  palace guards stand two overlapping shifts and sleep, the mint-master
+  sleeps, the spyglass is used at first light when Ardane is at the Lantern
+  House, the steward carries a silver pencil rather than a merchant's signet,
+  no purse rolls zero gold. `tests/test_hue_and_cry.py` gains a test for each;
+  the fence test now quotes at an hour each fence's schedule has her at the
+  counter.
+- **PEOPLE HERE is capped for generated households**
+  (`engine/agents/prompts.py::_npcs_present_block`). Every scheduled cast
+  member is still listed individually; generated household people (a
+  `premise` key on the procgen row) are listed up to
+  `MAX_GENERATED_PRESENT` (4) and the rest become one "- and N more townsfolk
+  about their business" line. The flagship's villagers carry no `premise` key,
+  so a story without premises renders the byte-identical block
+  (`tests/test_people_here_cap.py`).
+- **The casing board** (client). `GameState.to_client_dict` gains a
+  `premises` key -- `[{id, name, type_label, known, of, empty_now}]` for the
+  houses in the player's current district -- but only when the running story
+  declares `paths.premises`; the key is absent entirely otherwise, so the
+  flagship's payload is unchanged. `known` carries the TEXTS a watch has
+  already learned, in learning order, never an id and never a line nobody
+  has watched for yet (`engine/game/state.py::GameState._premises_block`).
+  `empty_now` reads the household against the live world clock this instant
+  (new `engine/world/premises.py::empty_now`), a different question from the
+  occupancy INTEL line's longest-empty-run-of-the-day. `ui/src/core/store.js`
+  mirrors `world.premises` onto `state.premises` exactly as `metersOf`
+  mirrors `world.meters`; the new `ui/src/core/parts/CasingBoard.jsx` renders
+  it beside `NegotiationPanel` in `ui/src/core/screens/Play.jsx`, and renders
+  nothing for a story or a district with none. `tests/test_casing_board_payload.py`
+  and `ui/tests/casing-board.test.jsx` are new.
+
+  **Review round 1** found `type_label` falling back to the raw type/anchor
+  id when a premise type or anchor declared no `label` -- an id reaching the
+  player's screen. Fixed at the source rather than papered over at read time:
+  `label` is now REQUIRED on both a premise type and an anchor
+  (`engine/world/premises.py::_load_type`/`_load_anchor`), raising the same
+  `_fail(...)` ValueError naming the file as every other required key
+  (`district`/`name`/`tier` on an anchor). **Data contract change**: an
+  existing premises tree missing `label` on any type or anchor now fails to
+  load; none ships yet, so nothing is broken by this. `_premises_block` reads
+  `spec["label"]` with no fallback at all. `tests/test_premises.py` gains two
+  fault tests (a type and an anchor missing `label`, each asserting the
+  ValueError names its file).
+- **The HUE & CRY skeleton** (`games/hue-and-cry/`), the story v0.9's four
+  engine features will be built against. Tallowmere's eleven districts (three
+  `secret: true`), fourteen scheduled people covering all 24 hours with the
+  watch roles `captain`/`sergeant`/`watch`, two pipeline agents (the city and
+  Pip the jackdaw) so every turn negotiates, three archetypes, an opening whose
+  three choices each declare an intent (stealth check, persuasion check, travel
+  to The Lantern House), and one ending reachable end to end —
+  `honest_after_all`, locked by the evening-barge quest, with its epilogue. Art
+  prompts for every district and person; no plates. The graph template's mill
+  economy, forage, labour and encounter stubs were removed rather than
+  reskinned. `tests/test_finales.py` and `tests/test_presence_every_story.py`
+  carry hard-coded story lists and gain a `hue-and-cry` row; the new
+  `tests/test_hue_and_cry.py` holds the skeleton's shape.
+- **Routines and interiors for generated people** (`engine/world/npc_sim.py`).
+  A procgen NPC dict may now carry `routine`/`home` in the same shape as a
+  schedule row, so a generated household member follows an hour-by-hour
+  routine instead of standing at their `location_id` forever; a schedule row
+  still wins outright. New `npc_sim.interior_id(district_id, premise_id)` and
+  `npc_sim.is_interior(location_id)` name a premise's interior as
+  `"{district}/{premise_id}"` — a person home inside one resolves there and
+  no longer appears in the district's public presence, with no special case
+  needed in `npcs_at` (an interior id never string-equals its district's).
+  Flagship procgen villagers carry no `routine` key and are unaffected.
+  `tests/test_premise_households.py` is new.
+- **The premises generator** (`engine/world/premises.py`). A story declaring
+  `paths.premises` (a directory: `districts.yaml`, `names.yaml`, `types/`,
+  `anchors/`) gets its districts filled at world generation with seeded
+  premises — name, wealth tier, security features (tier N draws N), loot rows
+  from the item registry, one secret — plus hand-written anchors, stored as
+  `ProcgenResult.premises` and kept by a save round trip. Every household
+  member becomes a procgen NPC whose `@home`/`@work` routine is resolved to
+  real ids, so `npc_sim` places them with no new code. Draws come from a new
+  `PREMISES` stream after every `PROCGEN` draw, so the flagship (which declares
+  none) generates a byte-identical village. Unknown items, districts, types,
+  anchors or routine locations, and a tier with too few security features,
+  raise a `ValueError` naming the file. Lookups `premises.at/get/spec`.
+  `tests/test_premises.py` is new.
+- **`case` — watching a house** (`engine/world/premises.py::case`, skill
+  `case_premise` in the new `engine/skills/builtin/thievery.py`). Offered in a
+  district holding premises with something still unknown, labelled "watch
+  <name>". Each watch spends `CASE_HOURS = 2` through `advance_time` and
+  reveals the next intel line in an order seeded per run and premise:
+  occupancy first ("empty from 10:00 to 16:00", the longest run of hours no
+  household member resolves home; "never empty" if none), then each security
+  feature, the most valuable loot by name, and that a secret exists. Refuses,
+  spending no time, outside the house's district or once all is known. Learned
+  ids live in the new `GameState.premise_intel`, written only by the new
+  `intel` effect kind. The narrator gets a `PREMISES HERE (what you know):`
+  block (`prompts.district_block`) listing known intel only, never ids, tiers
+  or unlearned loot, and a one-sentence `case_premise` receipt. A story
+  without `paths.premises` sees neither verb nor block. `tests/test_casing.py`
+  is new.
+- **`lift` and provenance** (`engine/world/thievery.py`, skill `lift_purse`).
+  A story declaring `paths.thievery` (one YAML file: `alertness` bands by
+  role, `purses` by role with a required `default`, `hot_days`) offers "lift
+  <name>'s purse" for every present, awake person outside a premise interior.
+  A lift rolls stealth at the mark's role's band and spends no time; success
+  draws one purse row on the new `THIEVERY` stream (coin through `gold`, an
+  item through `item`), a partial takes coin only, halved (min 1), and a
+  failure takes nothing and reports `noticed: true` — narrated only; the Law
+  release reads it. The receipt says the attempt happened under `ok` and how
+  it went under `success`, so a caught hand is narrated rather than read as a
+  refusal (the v0.8 `work` lesson); `lift_purse` joins the evaluator's
+  `ROLLING_SKILLS` and gets a one-sentence receipt with the mark's name and no
+  ids or rolls. The `item` effect accepts optional `stolen_from: {whom,
+  where}` and appends one `{whom, where, day}` per unit to the new
+  `GameState.provenance`; the new `provenance` effect kind consumes records
+  oldest first, which is what a sale below consumes. `thievery.heat` is `hot`
+  within `hot_days` or while the item is tagged `named`, `cool` after, `""`
+  if never stolen. Unknown items or bands, or no `default` purse, raise a
+  `ValueError` naming the file. A story without `paths.thievery` sees no verb
+  and an unchanged prompt. `tests/test_thievery.py` is new.
+- **Fences and honest vendors** (`engine/game/trade.py`, new
+  `thievery.heat_split`). `trade.quote`/`trade.sell` now read, per unit
+  rather than per item, how much of a carried stack is `clean` (never
+  stolen), `cool` (stolen, aged past `hot_days`) or `hot` (stolen and still
+  fresh, or `named`), through one shared helper (`trade._plan_sale`) so the
+  two can never disagree about a mixed stack. An honest vendor (no
+  `fence: true`) sells clean and cool units at the ordinary price and refuses
+  the whole sale, in its own voice, only when it would have to reach into the
+  hot ones (`"<vendor> won't touch it -- not this week"` when nothing clean
+  is left, `"<vendor> will take the clean ones, not the rest"` when some
+  is). A fence (`fence: true`, optional `fence_cut: {hot, cool}`, default
+  0.5/0.8) sells hot units first, then cool, then clean, pricing each
+  category at its own cut — a clean unit is never discounted, even at a
+  fence. `sell` consumes one `provenance` record per STOLEN unit actually
+  sold (never for a clean one), through the `provenance` effect kind, which
+  is what a sale pays to launder — `remove_item` (a complication, not a
+  sale) still never touches it. The `_sell` intent labels a target `(hot)`
+  exactly when the single unit that target would move is a hot one, reading
+  the same `unit_kind` `quote` computes. A story without `paths.thievery`
+  sees an all-clean split for everything, so its sell path is unchanged, and
+  a `quote` for more units than the ledger has any record of — the
+  possession-free "what would this fetch" question `browse` and a bare price
+  check have always been able to ask — prices the whole request as clean
+  rather than refusing or discounting it. Fixed alongside: the `provenance`
+  effect's receipt read `item_id.replace('_', ' ')` instead of the registry
+  name, and `REFUSAL_KEY_FOR_ACTION["sell"]` named a key (`"ok"`)
+  `trade.sell` has never returned, so a refused sale never reached the
+  narrator as one — it now reads `"success"`, which is what the skill
+  actually reports. `tests/test_fences.py` is new.
+
+  **Review round 1** found the first cut of this read `thievery.heat` — the
+  item's single, worst-case answer — and applied a refusal or a fence cut to
+  an ENTIRE requested quantity: selling one clean ring and one stolen ring
+  together had an honest vendor refuse both, and a fence discount both. The
+  per-unit split above is the fix.
+
+### Fixed
+
+- **`REFUSAL_KEY_FOR_ACTION["buy"]` had the same latent bug `"sell"` did
+  before this task** (v0.9.0 review, round 1): it named `"ok"`, a key
+  `trade.buy` has never returned (it reports a refusal — can't afford it,
+  not stocked — under `success`, same as `trade.sell`), so a refused
+  purchase reached the narrator as a successful one, the same class of
+  defect as v0.8's `work` mistake. Now reads `"success"`.
+  `tests/test_fences.py` carries both a canary (the old key genuinely misses
+  a real refusal) and an `execute_intent` end-to-end proof.
+
+- **`crit_success` was unreachable in three stories.** The graph template's
+  `min_margin: 10` over a `standard` DC 13 needs a total of 23; the best builds
+  in HUE & CRY and NEON CITY roll 22 on a natural 20 and THE LONG CON's 21, so
+  the band could not be rolled — the flagship's own old bug, copied by
+  scaffolding. All three and the template now use the flagship's 6.
+  `tests/test_checks.py::test_every_declared_degree_is_reachable_by_some_shipped_build`
+  hardcoded the flagship, which is why nothing failed; it now parametrises over
+  every discovered story with a skills table and reads the arithmetic from the
+  engine (`apply_archetype`, `gather_modifiers`).
+
+**Final-review fixes** (whole-branch review before release):
+
+- **`trade.quote`'s `summary` writes money through `currency_label`** instead
+  of a hardcoded `"c"` (`engine/game/trade.py`). Changes the flagship's quote
+  summary text from "...c" to "...g", matching its `currency_format`; a
+  content-only story tweak, not a behaviour change.
+- **Lift offered the wrong people in a crowd** (`engine/game/intents.py::_lift`,
+  `engine/world/thievery.py::marks`). Over `_MAX_OPTIONS` (8) marks, the verb
+  kept the first eight in `known_npc_ids` order, which lists every procgen
+  NPC ahead of the schedule — so a crowd could push named cast (Silas Crook,
+  Pell Hollis, a Lantern) out of the `lift` options while PEOPLE HERE still
+  named them standing right there. `marks()` now sorts scheduled NPCs first
+  (`npc_sim.is_scheduled`, shared with `prompts._npcs_present_block`'s own
+  scheduled/generated split so the two can never disagree) before truncating.
+  `tests/test_thievery.py::test_the_named_cast_survives_a_crowd_over_the_option_cap`
+  is new.
+- **Lifting was free and unlimited — a real money exploit** (10 lifts on the
+  same marks took a fresh character's gold 5 to 21 in one in-game hour,
+  repeated indefinitely). Controller ruling: a mark the player has already
+  attempted (success, partial or noticed) is not offered again the same
+  in-game day. Recorded through `apply_effect`'s `flag` kind
+  (`lifted_<npc_id>_d<day>`), read by `marks()` and refused by `lift()` in its
+  own voice ("`<name>` is watching their purse now"); clears on the next
+  day's `advance_time` and survives a save round trip, since `state.flags` is
+  ordinary saved state. `tests/test_thievery.py` gains the same-day refusal,
+  next-day availability and save-round-trip tests; `test_a_seed_replays` now
+  exercises the same mark across a day boundary instead of twice in one day.
+- **The `_sell` intent's label printed a bare price** (`"for 1"`) while
+  `_buy`'s used `trade.currency_label` (`"6 cr"`) (`engine/game/intents.py`).
+  `_sell` now reads the same helper.
+  `tests/test_wired_verbs.py::test_the_sell_label_reads_the_storys_currency_like_buy_does`
+  is new.
+
+2174 passing, 3 skipped (measured 2026-09-24, after the final-review fixes above).
+
 ## [0.8.1] — 2026-09-23
 
 Housekeeping: the files that describe the repo now agree with it, and a test

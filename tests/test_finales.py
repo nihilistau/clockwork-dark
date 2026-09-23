@@ -77,7 +77,7 @@ def _assert_finale(state, slug: str) -> None:
 
 @pytest.mark.parametrize(
     "slug",
-    ["clockwork-dark", "neon-city", "wicked-garden", "the-long-con", "dev-story"],
+    ["clockwork-dark", "neon-city", "wicked-garden", "the-long-con", "dev-story", "hue-and-cry"],
 )
 def test_every_shipped_game_can_reach_an_epilogue(slug: str) -> None:
     """
@@ -99,7 +99,7 @@ def test_every_shipped_game_can_reach_an_epilogue(slug: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "slug", ["clockwork-dark", "neon-city", "wicked-garden", "the-long-con", "dev-story"]
+    "slug", ["clockwork-dark", "neon-city", "wicked-garden", "the-long-con", "dev-story", "hue-and-cry"]
 )
 def test_every_shipped_game_declares_a_fail_forward(slug: str) -> None:
     """
@@ -120,7 +120,7 @@ def test_every_shipped_game_declares_a_fail_forward(slug: str) -> None:
 # -- the graph shape, through a real turn --------------------------------
 
 
-@pytest.mark.parametrize("slug", ["clockwork-dark", "neon-city"])
+@pytest.mark.parametrize("slug", ["clockwork-dark", "neon-city", "hue-and-cry"])
 def test_a_graph_story_reports_its_ending_on_the_turn_it_happens(slug: str) -> None:
     """
     Through ``run_turn``, not through the effect dispatcher.

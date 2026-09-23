@@ -1,0 +1,14 @@
+# HUE & CRY -- the art manifest.
+#
+# EMPTY UNTIL v1.0. Every subject in subjects.yaml falls through to the
+# procedural silhouette until the pack is rendered; paths here resolve against
+# `paths.art_root` (data/art/plates), served at /story-art/.
+#
+# Version: v0.1.0 [2026-09-23]
+
+version: 1
+root: "/story-art"
+
+locations: {}
+portraits: {}
+items: {}

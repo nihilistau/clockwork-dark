@@ -6,13 +6,19 @@ code wins (CLAUDE.md authority order) and this file gets corrected.
 
 ## Goal
 
-Three releases, in order:
+Six releases, in order. Originally planned as three (v0.8, one v0.9 covering
+all four engine features, v1.0); re-cut per-feature after v0.9.0 shipped, so
+each feature ships as its own release rather than sitting unpushed for weeks
+while the rest of the batch finishes:
 
 | Release | What | Why this order |
 |---|---|---|
 | **v0.8** | The audit fixes (§1) | Presence and the evaluator are prerequisites: a thief story in which the narrator does not know who is in the room cannot be built |
-| **v0.9** | Four engine features — the Law (§2), Premises (§3), Jobs & flashbacks (§4), Agendas (§5) — each built as a vertical slice and proven against the new story as it grows | Features shaped by a real consumer. Designing them against synthetic fixtures is how this repo got 1,177-line subsystems nobody could reach |
-| **v1.0** | HUE & CRY finished (§6): full content, eight endings, bespoke UI plugin, ~55-plate Grok art pack, live-played | |
+| **v0.9.0** | Premises (§3), plus the HUE & CRY skeleton | Shipped -- proven first because a thief needs a city before it needs a law, a job or an agenda |
+| **v0.10.0** | The Law (§2) | Next -- reads the `noticed`/witness groundwork Premises and thievery already lay down |
+| **v0.11.0** | Jobs & flashbacks (§4) | Depends on Premises (a job opens on a premise) and the Law (an alarm summons the watch) |
+| **v0.12.0** | Agendas (§5) | Last of the four -- deterministic world motion, proven once the other three systems exist to move around |
+| **v1.0.0** | HUE & CRY finished (§6): full content, eight endings, bespoke UI plugin, ~55-plate Grok art pack, live-played | |
 
 Every feature is **generic**: a story that does not declare its `paths.*` key
 pays nothing and its turns stay byte-identical, asserted by test the way
@@ -32,7 +38,9 @@ pays nothing and its turns stay byte-identical, asserted by test the way
    never on the background world tick.** Whether a guard hears about a crime
    must replay from the seed and the choices, not from how long the menu was
    open. Each system draws its own `world_rng` stream: `LAW`, `AGENDA`, `JOB`;
-   premises use the existing `PROCGEN`.
+   premises draw on their own `PREMISES` stream, seeded after every `PROCGEN`
+   draw so the flagship (which declares no premises) still generates a
+   byte-identical village.
 2. **Every state write goes through `effects.apply_effect`** (rule 3). New
    effect kinds are added there, not beside it.
 3. **Every mechanic reaches the narrator** as a prompt block with band words for
@@ -185,7 +193,8 @@ band per guise here, law NPCs present. **Player:** wanted chrome (§6).
 ## §3 — Premises
 
 `paths.premises` → `data/premises/{types,anchors}/*.yaml`. Generated once at new
-game on `PROCGEN`, stored on `GameState`.
+game on the `PREMISES` stream (drawn after `PROCGEN`, never on it), stored on
+`GameState`.
 
 A district location declares what it holds:
 

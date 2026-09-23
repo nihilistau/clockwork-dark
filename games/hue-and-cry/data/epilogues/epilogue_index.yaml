@@ -1,0 +1,27 @@
+# HUE & CRY -- what the coast says about it afterwards.
+#
+# Read by engine/game/epilogue.py through `paths.epilogues`. Every `class:`
+# below must be a class id in data/rules/endings.yaml, and every `id:` must
+# have a card in the file named by `prose_source`.
+#
+# Version: v0.1.0 [2026-09-23]
+
+version: 1
+prose_source: epilogue_cards.yaml
+
+# `{garden_days}` is the engine's name for the in-game day count, whatever the
+# story calls its calendar.
+time_line_template: >-
+  Off the morning barge and back on the evening one: {garden_days}
+  {garden_days_word} in Tallowmere, start to finish.
+
+render_order: [title, card_m, card_g, echoes, time_line, gallery_unlock]
+
+endings:
+
+  - id: honest_after_all
+    class: honest_after_all
+    title: "Honest After All"
+    gallery_key: evening_barge
+    echo_speaker: [npc_dock_mag]
+    ng_plus_seed: null

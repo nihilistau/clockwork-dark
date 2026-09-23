@@ -80,6 +80,12 @@ NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
     ("engine.world.schedules", "_SCHEDULE_CACHE"),
     ("engine.world.schedules", "_RUMOR_CACHE"),
     ("engine.world.npc_sim", "_SCHEDULE_CACHE"),
+    # Parsed premises directory: types, anchors, pools. Kept warm across a swap
+    # it would lay one city's houses into another's districts.
+    ("engine.world.premises", "_SPEC_CACHE"),
+    # Parsed thievery file: alertness bands, purses, hot_days. A swap that kept
+    # it warm would rob one city's stewards with another's purses.
+    ("engine.world.thievery", "_SPEC_CACHE"),
     ("engine.media.comfyui", "_TEMPLATE_CACHE"),
     ("engine.mcp.scene_rules_engine", "_rules_instance"),
     ("engine.game.quests", "_ARC_CACHE"),

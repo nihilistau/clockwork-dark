@@ -21,7 +21,7 @@ from engine.memory.context import present_npc_ids
 from engine.scenes.default_state import SessionStore
 from engine.world import npc_sim
 
-STORIES = ["wicked-garden", "neon-city", "the-long-con", "dev-story"]
+STORIES = ["wicked-garden", "neon-city", "the-long-con", "dev-story", "hue-and-cry"]
 
 
 def _session(slug: str):

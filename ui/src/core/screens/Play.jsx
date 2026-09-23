@@ -35,6 +35,7 @@
 import React, { useState } from "react";
 
 import BeatFrame from "../parts/BeatFrame.jsx";
+import CasingBoard from "../parts/CasingBoard.jsx";
 import ChoiceRow from "../parts/ChoiceRow.jsx";
 import MicButton from "../parts/MicButton.jsx";
 import NarrativeLog from "../parts/NarrativeLog.jsx";
@@ -160,6 +161,10 @@ export default function Play({
           {/* Renders nothing unless a pipeline ran this turn, so the flagship
               and any single-participant story never see it. */}
           <NegotiationPanel negotiation={state.negotiation} />
+
+          {/* Renders nothing for a story that declares no premises, or for a
+              district that currently holds none. */}
+          <CasingBoard premises={state.premises} />
 
           {!hidden && (
             <ChoiceRow

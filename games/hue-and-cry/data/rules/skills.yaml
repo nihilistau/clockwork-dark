@@ -1,0 +1,97 @@
+# HUE & CRY -- skill taxonomy and check rules.
+#
+# Found by fixed filename inside `paths.rules`; consumed by
+# engine/game/checks.py. Every number a check resolves with lives HERE, not
+# in Python: the model only ever names a difficulty BAND, and the engine
+# derives the DC and every modifier -- an LLM that could pick raw numbers
+# would pick flattering ones.
+#
+# THE SEVEN SKILL IDS ARE ENGINE CANON (AGENTS.md): persuasion, stealth,
+# sympathy, lore, craft, survival, nerve. Keep the ids; rewrite every
+# description to mean something in YOUR world -- the descriptions are what
+# the model reads when choosing which skill a moment calls for.
+#
+# Version: v0.1.0 [2026-09-23]
+
+version: 1
+
+# stat_mod(v) = (v - base) // divisor
+stat_mod:
+  base: 10
+  divisor: 2
+
+# skill -> backing stat on GameState.stats.
+skills:
+  persuasion:
+    stat: presence
+    description: "Talking a Lantern down, haggling with a fence, holding a lie together while a captain watches your hands."
+  stealth:
+    stat: agility
+    description: "Slipping a crowd, light fingers, a lamp that swings round and finds nobody there."
+  sympathy:
+    stat: focus
+    description: "Reading what someone wants and will not say -- a guildmother's patience, a sergeant's price."
+  lore:
+    stat: wits
+    description: "Tallowmere's streets and secrets: guild marks, chalk signs, which roof holds and whose house that is."
+  craft:
+    stat: craft
+    description: "Hands at work: a lock, a disguise, a forged pass, a candle dipped properly."
+  survival:
+    stat: wits
+    description: "Getting by on nothing: a dry corner in the Snuffs, a meal scrounged, a night on the tiles survived."
+  nerve:
+    stat: grit
+    description: "Keeping your face straight under the lamp, your feet on a gutter, your head under the rope."
+
+# A skill the model names that is not in the taxonomy resolves against this
+# stat rather than being refused -- a refused check leaves the narrator free
+# to invent an unrolled outcome, the exact failure the engine exists to stop.
+unknown_skill_stat: wits
+
+# Difficulty BANDS (canon ids). The model never sees a raw DC.
+difficulty:
+  trivial: 8
+  easy: 10
+  standard: 13
+  hard: 16
+  severe: 19
+  legendary: 22
+default_difficulty: standard
+
+# Degrees of success by margin (total - dc), evaluated top down.
+degrees:
+  # WAS 10, THE GRAPH TEMPLATE'S NUMBER, AND UNREACHABLE HERE. A `standard`
+  # check is DC 13, so margin 10 needs a total of 23. The best build in this
+  # story is +2 -- each archetype's 13 in its own stat is +1, and its
+  # `skill_bonus` another -- so a natural 20 makes 22: margin 9, for every
+  # archetype, at every difficulty from `standard` up. The flagship shipped the
+  # same dead band and fixed it the same way (games/clockwork-dark/data/rules/
+  # skills.yaml).
+  #
+  # 6 needs a total of 19: a natural 17+ (a fifth of rolls) for a specialist
+  # on their own skill, 19+ (a tenth) off-specialty at +0 -- the shape a
+  # degree ladder wants, and the flagship's number.
+  #
+  # The NUMBER is not the guard: tests/test_checks.py::
+  # test_every_declared_degree_is_reachable_by_some_shipped_build runs for
+  # every story with a skills table and fails if any band goes dead again.
+  - id: crit_success
+    min_margin: 6
+  - id: success
+    min_margin: 0
+  - id: partial
+    min_margin: -4
+  - id: failure
+    min_margin: -999
+
+# Situational modifiers: (label, delta, optional skill filter, condition).
+# One shipped, as the worked example -- the grammar checks.py understands is
+# documented on the flagship's copy of this file.
+situational:
+  - id: exhausted
+    label: exhausted
+    delta: -3
+    when:
+      stat: stamina
+      lte: 20
