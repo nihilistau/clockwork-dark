@@ -12,7 +12,7 @@
 # The Everflame's heart is NOT in here. It is the Hanging Fair's piece, and
 # it belongs to the spine, not to a loot list.
 #
-# Version: v0.1.0 [2026-09-23]
+# Version: v0.1.1 [2026-09-24]
 
 id: margraves_treasury
 label: "treasury"
@@ -21,16 +21,21 @@ name: "the Margrave's Treasury"
 tier: 5
 
 household:
+  # The NIGHT door is listed first on purpose: a job's inside stage meets the
+  # household in this order, and a `remove_obstacle` flashback (data/rules/
+  # jobs.yaml `bribed_servant`) takes the first of them -- so the one man a
+  # thief can have bought is the one standing the door at two in the morning,
+  # not the one asleep in the guardroom (scripts/simulate_jobs.py).
+  - role: treasury_guard
+    routine:
+      - { hours: [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6], location: "@home", activity: "on the night door of the Treasury with a lantern and a halberd, listening to the Everflame hum" }
+      - { hours: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], location: "@home", activity: "asleep in the guardroom behind the treasury door", available: false }
+
   - role: treasury_guard
     routine:
       - { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], location: "@home", activity: "at the treasury door in a breastplate with the Margrave's flame on it, not leaning on anything" }
       - { hours: [19, 20, 21, 22], location: margraves_hill, activity: "off duty on the palace terrace, still in the breastplate, still not leaning on anything" }
       - { hours: [23, 0, 1, 2, 3, 4, 5], location: "@home", activity: "asleep in the guardroom with one boot on", available: false }
-
-  - role: treasury_guard
-    routine:
-      - { hours: [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6], location: "@home", activity: "on the night door of the Treasury with a lantern and a halberd, listening to the Everflame hum" }
-      - { hours: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], location: "@home", activity: "asleep in the guardroom behind the treasury door", available: false }
 
   - role: mint_master
     routine:

@@ -73,6 +73,10 @@ THIEVERY = "thievery"
 # that a story adding a witness to a street cannot shift the dice of the lift
 # itself (DICE) or what came out of the purse (THIEVERY) on a replayed seed.
 LAW = "law"
+# A burglary's stage rolls and its loot draw. Its own stream so that a story
+# adding a loot row or a security feature cannot shift the Law's witness rolls
+# (LAW) or an ordinary check's dice (DICE) on a replayed seed.
+JOB = "job"
 
 
 def _mix(seed: int, stream: str, counter: int) -> int:

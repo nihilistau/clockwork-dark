@@ -11,7 +11,7 @@
 #
 # Every id must exist in data/items/.
 #
-# Version: v0.1.0 [2026-09-23]
+# Version: v0.1.1 [2026-09-24]
 
 # Hollis's Sundries and Curiosities, Wickmarket, 08:00 to 22:00.
 npc_pell_hollis:
@@ -28,6 +28,14 @@ npc_marrow:
     # "A fair-day copy," says Marrow, not looking up. The Watch reads it
     # otherwise (data/rules/law.yaml: the `magpie` guise).
     magpie_mask: { price: 12 }
+    # The burglar's kit (data/items/tools.yaml; data/rules/jobs.yaml `tools`).
+    # Priced against the measured take (scripts/simulate_jobs.py, CHANGELOG.md):
+    # a careful tier-1/2 job carries out about 15 crowns of registry value,
+    # 7 to 10 at a fence once it is hot, so the picks are two good nights --
+    # and without them the careful thief walks away from a job one time in
+    # four instead of one in six. A pellet is the price of a pie and a pint.
+    lockpicks: { price: 15 }
+    smoke_pellet: { price: 4 }
 
 # Dock Mag, on her crate at the head of the quay, 05:00 to 18:00. The one
 # honest counter in the city so far: she sells the Honest Company's smocks to

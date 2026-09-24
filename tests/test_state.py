@@ -58,6 +58,13 @@ def _rich_state() -> GameState:
             # Per file: the offset sits under the guise the report was filed as.
             "cool": {"dockside": {"self": 0.5}},
         },
+        jobs={
+            "prep": 2,
+            "robbed": ["prem_square_1"],
+            "seq": 2,
+            "active": {"id": "j2", "premise": "prem_square_1", "stages": ["approach"], "at": 0},
+            "last": {"id": "j1", "premise": "prem_square_1", "outcome": "clean", "turn": 30},
+        },
     )
     set_clock(state, day=11, hour=19)
     return state

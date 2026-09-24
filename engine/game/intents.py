@@ -457,6 +457,87 @@ def _case(state: GameState) -> Optional[IntentVerb]:
     return IntentVerb("case", targets[:_MAX_OPTIONS]) if targets else None
 
 
+def _burgle(state: GameState) -> Optional[IntentVerb]:
+    """
+    Houses in this district a job could still be opened on.
+
+    A robbed house is dropped: ``jobs.begin`` refuses it, and a verb
+    guaranteed to refuse spends an option slot and a turn (the `forage`
+    lesson). Undeclared jobs return before any lookup, so a story without them
+    never pays for the check. None while the watch holds the player, for the
+    ``_case`` reason.
+    """
+    try:
+        from engine.world import jobs, law, premises
+
+        if not jobs.declared() or law.in_custody(state):
+            return None
+        taken = set(jobs.robbed(state))
+        targets = tuple(
+            (str(p["id"]), f"burgle {p.get('name') or 'the house'}")
+            for p in premises.at(state, state.location_id)
+            if str(p["id"]) not in taken
+        )
+    except Exception as exc:  # noqa: BLE001 -- a broken jobs file must not kill the turn
+        _absent("jobs", exc)
+        return None
+    return IntentVerb("burgle", targets[:_MAX_OPTIONS]) if targets else None
+
+
+def _job_open(state: GameState) -> bool:
+    """Whether an open burglary owns this turn. Cheap: no jobs reads ``{}``."""
+    from engine.world import jobs
+
+    return jobs.active(state) is not None
+
+
+def _flashback(state: GameState) -> Optional[IntentVerb]:
+    """
+    Flashbacks the open job's current stage allows right now.
+
+    Options are ``jobs.legal_flashbacks`` -- unused this job, affordable, and
+    whose ``requires`` this playthrough's own history meets -- each labelled
+    as authored, never by its kind id. None when nothing is legal to call on,
+    so a player is never offered a flashback guaranteed to refuse.
+    """
+    try:
+        from engine.world import jobs
+
+        kinds = jobs.legal_flashbacks(state)
+        labels = jobs.spec()["flashbacks"] if kinds else {}
+        options = tuple((k, labels[k]["label"]) for k in kinds)
+    except Exception as exc:  # noqa: BLE001 -- a broken jobs file must not kill the turn
+        _absent("jobs", exc)
+        options = ()
+    return IntentVerb("flashback", options[:_MAX_OPTIONS]) if options else None
+
+
+def _job_verbs(state: GameState) -> tuple[IntentVerb, ...]:
+    """
+    What a player in the middle of a job may do: the job's own verbs only.
+
+    ``job`` offers the current stage's approaches -- at the entry, the
+    story's ways in; at every other stage its single approach, labelled with
+    what it is (the obstacle in the way, inside). ``flashback`` offers what
+    :func:`_flashback` allows right now, when anything does. ``abort`` is
+    always there: a job the player could not walk away from would be a
+    soft-lock. Nothing OUTSIDE the job is offered.
+    """
+    try:
+        from engine.world import jobs
+
+        options = tuple(jobs.approaches(state))
+    except Exception as exc:  # noqa: BLE001 -- a broken jobs file must not kill the turn
+        _absent("jobs", exc)
+        options = ()
+    verbs = [IntentVerb("job", options[:_MAX_OPTIONS])] if options else []
+    flashback = _flashback(state)
+    if flashback is not None:
+        verbs.append(flashback)
+    verbs.append(IntentVerb("abort"))
+    return tuple(verbs)
+
+
 def _lift(state: GameState) -> Optional[IntentVerb]:
     """
     People here, awake, whose purse the player could try for.
@@ -685,12 +766,14 @@ def _encounter(state: GameState) -> Optional[IntentVerb]:
 
 def scene_owns_turn(state: GameState) -> bool:
     """
-    Whether a running set-piece, a dealt card or an open encounter owns the
-    turn -- the three gates ``legal_intents`` checks before offering any
-    ordinary verb, in one place so nothing that must respect them (the Law's
-    patrol) keeps a copy that can drift from them.
+    Whether a running set-piece, a dealt card, an open encounter or an open
+    job owns the turn -- the four gates ``legal_intents`` checks before
+    offering any ordinary verb, in one place so nothing that must respect them
+    (the Law's patrol) keeps a copy that can drift from them.
     """
-    return bool(_challenge_open(state) or _card_open(state) or _scene_open(state))
+    return bool(
+        _challenge_open(state) or _card_open(state) or _scene_open(state) or _job_open(state)
+    )
 
 
 def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
@@ -706,6 +789,19 @@ def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
         engine can honour nothing for, which is what keeps the ``intent``
         property out of that story's grammar entirely.
     """
+    if _job_open(state):
+        # A burglary under way owns the turn the way a scene does: its stages
+        # are the only legal moves. Offering travel would walk the player out
+        # of a house the job believes they are still inside, and the Law's
+        # patrol (which asks `scene_owns_turn`) must not stop them mid-job.
+        #
+        # FIRST, ahead of the card and encounter branches: nothing may take
+        # the turn from a job while it is open. The director deals no card
+        # over one (`director.ensure_scene`), and the watch's scene opens
+        # only as the job CLOSES (`jobs.tick`), so this order never strands
+        # an open scene -- it only stops one pre-empting the job's verbs.
+        return _job_verbs(state)
+
     if _challenge_open(state):
         # A running set-piece owns the turn for the same reason an encounter
         # does: its steps are the only legal moves, and offering travel would
@@ -755,6 +851,8 @@ def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
             _forage,
             # Watching a house. Offered only where a story declares premises.
             _case,
+            # Opening a job. Offered only where a story declares jobs.
+            _burgle,
             # Picking a pocket. Offered only where a story declares thievery.
             _lift,
             # Changing face. Offered only where a story declares a Law.
@@ -882,6 +980,10 @@ SKILL_FOR_ACTION: dict[str, str] = {
     "guise": "change_guise",
     "pay_fine": "pay_fine",
     "serve": "serve_sentence",
+    "burgle": "begin_job",
+    "job": "job_stage",
+    "flashback": "call_flashback",
+    "abort": "abort_job",
 }
 
 #: Which key in a skill's result means IT DID NOT HAPPEN, per verb. ``None``
@@ -956,6 +1058,21 @@ REFUSAL_KEY_FOR_ACTION: dict[str, Optional[str]] = {
     "pay_fine": "ok",
     # A sentence served always happened; `ok: False` is only "not held".
     "serve": "ok",
+    # `ok` means the job opened. `ok: False` is the engine declining: robbed,
+    # wrong district, a job already open, held, or a scene owning the turn.
+    "burgle": "ok",
+    # `ok` means the stage was attempted (hours spent, a roll made, or the
+    # watch arriving first); how it went is `outcome` -- a noisy failure
+    # HAPPENED and must be narrated as one (the v0.8 `work` lesson). `ok:
+    # False` is only the engine declining: no job open, or not an approach
+    # of the stage the job is at.
+    "job": "ok",
+    # `ok` means the flashback was called on. `ok: False` is the engine
+    # declining: no job open, an unknown kind, or one no longer legal (wrong
+    # stage, already used, unaffordable, or its `requires` unmet).
+    "flashback": "ok",
+    # `ok: False` only when no job is open to walk away from.
+    "abort": "ok",
 }
 
 
@@ -1100,6 +1217,14 @@ def to_tool_call(
         return name, {"npc_id": target}
     if action == "guise":
         return name, {"guise_id": target}
+    if action == "burgle":
+        return name, {"premise_id": target}
+    if action == "job":
+        return name, {"approach": target}
+    if action == "flashback":
+        return name, {"kind": target}
+    if action == "abort":
+        return name, {}
     if action in ("pay_fine", "serve"):
         # No target: the custody record already says what is owed.
         return name, {}

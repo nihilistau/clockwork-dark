@@ -16,7 +16,7 @@
 # THIS FILE: an UNDECLARED `paths.*` key resolves to NOTHING. Declare what you
 # ship; omit what you do not.
 #
-# Version: v0.2.0 [2026-09-24]
+# Version: v0.3.0 [2026-09-24]
 
 id: hue-and-cry
 title: "Hue & Cry"
@@ -61,12 +61,14 @@ settings:
 # goods both hold (items), and the two fences who buy them (tables, economy).
 #
 # And since v0.10 the Lantern Watch: the law file, the one encounter it opens
-# (a Lantern's stop) and one thread (Brask's bribe).
+# (a Lantern's stop) and one thread (Brask's bribe). Since v0.11, jobs: a
+# burglary walked stage by stage, and Mother Gannet's first contract.
 #
 # DELIBERATELY NOT DECLARED YET, each one a later release's job rather than an
 # omission: recipes, night-street encounters, decks (initiation, the
 # interrogation, the Hanging Fair), clocks and the other threads (the
-# captain's clock, contracts), factions, world_rumors, lore. The graph
+# captain's clock, the rest of the Company's contracts), world_rumors, lore.
+# (Factions: one, the Honest Company, since v0.11 -- see below.) The graph
 # template's stubs for items, economy, tables and encounters were removed
 # rather than left in place: they were a mill and a hedge-berry forage table,
 # and a thief story selling hedge berries is exactly the veneer THE LONG CON
@@ -103,8 +105,17 @@ paths:
   # One scene, the Lantern's stop, which only the Law's patrol opens: every
   # edge is danger_dc 0, so no road ever draws it.
   encounters: "games/hue-and-cry/data/encounters"
-  # One contract: Sergeant Brask's price for losing your file.
+  # Two contracts: Sergeant Brask's price for losing your file, and Mother
+  # Gannet's first job for the Honest Company.
   threads: "games/hue-and-cry/data/rules/threads.yaml"
+  # Jobs (v0.11): a burglary walked stage by stage, what every house's
+  # security does to it, the burglar's tools, flashbacks, and the Treasury's
+  # vault floor (engine/world/jobs.py). Its numbers were set by measurement --
+  # scripts/simulate_jobs.py, table in CHANGELOG.md and in the file's header.
+  jobs: "games/hue-and-cry/data/rules/jobs.yaml"
+  # One faction, the Honest Company, so a contract left undone has a
+  # standing of the story's own to cost (engine/game/reputation.py).
+  factions: "games/hue-and-cry/data/world/factions.yaml"
   art_subjects: "games/hue-and-cry/data/art/subjects.yaml"
   art_manifest: "games/hue-and-cry/data/art/manifest.yaml"
   art_root: "games/hue-and-cry/data/art/plates"

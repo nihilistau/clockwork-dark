@@ -343,6 +343,24 @@ def degree_for(margin: int, rules: Optional[dict[str, Any]] = None) -> str:
     return "failure"
 
 
+def shift_band(band: str, steps: int) -> str:
+    """
+    Walk a difficulty band ``steps`` rungs along ``intents.DIFFICULTY_BANDS``.
+
+    Positive is harder. Clamped at both ends: a job stacked with every
+    advantage is ``trivial``, never off the bottom of the ladder, and one
+    stacked against the thief is ``legendary``, never past it. An unknown band
+    starts from ``standard``, the ``difficulty_dc`` default.
+    """
+    from engine.game.intents import DIFFICULTY_BANDS  # late: intents imports checks' callers
+
+    start = DIFFICULTY_BANDS.index(band) if band in DIFFICULTY_BANDS else (
+        DIFFICULTY_BANDS.index("standard")
+    )
+    index = max(0, min(len(DIFFICULTY_BANDS) - 1, start + int(steps)))
+    return DIFFICULTY_BANDS[index]
+
+
 def _draw(
     state: GameState,
     rows: list[dict[str, Any]],

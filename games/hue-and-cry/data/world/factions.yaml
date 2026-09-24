@@ -1,0 +1,53 @@
+# HUE & CRY -- the groups whose opinion of you is kept on file.
+#
+# Read by engine/game/reputation.py through `paths.factions`. Reputation is a
+# GROUP's standing; how one person feels about you is a different system
+# (engine/memory/ledger.py).
+#
+# ONE FACTION SO FAR: the Honest Company of Night Porters, because the one
+# thing that moves a standing today is Mother Gannet's contract
+# (data/rules/threads.yaml `gannet_silk_row`): left undone, it costs the
+# Company's good opinion. Declared so that cost lands on a faction the story
+# owns -- before this file, the break logged "Unknown faction" and wrote a
+# standing nobody had declared. The Lantern Watch, the guilds of the Rise and
+# the Margrave's household are v1.0's (the agendas), not stubs left here.
+#
+# What reads it today: the `reputation` condition predicate (a later contract
+# can gate on the Company's opinion) and the save. No vendor in Tallowmere
+# declares a `faction`, so no price moves by it, and the narrator is not yet
+# told a standing -- the same as in every other story.
+#
+# THE `defaults` BLOCK IS THE FLAGSHIP'S, UNCHANGED, for the reason
+# games/dev-story/data/world/factions.yaml gives: bands, clamps and the price
+# curve are mechanics, not story.
+#
+# Version: v0.1.0 [2026-09-24]
+
+version: 1
+
+defaults:
+  bands:
+    - { id: hostile, upto: -40, label: "hostile" }
+    - { id: wary, upto: -15, label: "wary" }
+    - { id: neutral, upto: 24, label: "neutral" }
+    - { id: friendly, upto: 59, label: "friendly" }
+    - { id: trusted, label: "trusted" }
+
+  min_score: -100
+  max_score: 100
+
+  price:
+    base: 1.15
+    divisor: 400
+    floor: 0.85
+    ceiling: 1.25
+
+factions:
+
+  honest_company:
+    name: "the Honest Company of Night Porters"
+    description: >-
+      A porters' union on paper and a thieves' guild after dark, run from the
+      Porters' Hall in the Snuffs by Mother Gannet, who knits through every
+      meeting and forgets nothing. The Company keeps a quarter of every job it
+      hands out, and a list of everyone who ever let it down.

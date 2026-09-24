@@ -736,3 +736,345 @@ def test_a_deed_inside_a_house_is_filed_with_its_streets_watch(hue) -> None:
                            informants=("npc_lantern_1",))
     assert seen == {"witnesses": ["npc_lantern_1"], "reported": True}
     assert [r["jurisdiction"] for r in state.law["reports"]] == ["wick"]
+
+
+# ---------------------------------------------------------------------------
+# v0.11.0: jobs (data/rules/jobs.yaml, scripts/simulate_jobs.py)
+# ---------------------------------------------------------------------------
+
+
+class _JobRoll:
+    """What ``jobs._check`` hands back: the three fields a stage reads."""
+
+    def __init__(self, degree: str) -> None:
+        self.degree = degree
+        self.margin = {"crit_success": 7, "success": 1, "partial": -2, "failure": -8}[degree]
+
+    @property
+    def success(self) -> bool:
+        return self.degree in ("success", "crit_success")
+
+
+def _script_rolls(monkeypatch, degree: str) -> None:
+    from engine.world import jobs
+
+    monkeypatch.setattr(jobs, "_check", lambda state, skill, band: _JobRoll(degree))
+
+
+def _walk_job(state, *, turns: int = 20) -> dict:
+    """Play the open job's first offered approach at every stage until it closes."""
+    from engine.world import jobs
+
+    out: dict = {}
+    for _ in range(turns):
+        if jobs.active(state) is None:
+            return out
+        options = jobs.approaches(state)
+        out = jobs.resolve_stage(state, options[0][0])
+        assert out["ok"] is True, out
+    return out
+
+
+def _scripts_on_path() -> None:
+    import sys
+    from pathlib import Path
+
+    root = str(Path(__file__).resolve().parents[1])
+    if root not in sys.path:
+        sys.path.insert(0, root)
+
+
+def test_hue_and_cry_declares_jobs_against_its_law(hue) -> None:
+    from engine.world import jobs, law
+
+    assert jobs.declared()
+    spec = jobs.spec()
+    assert spec["alarm"]["deed"] == "burglary"
+    assert "burglary" in law.load_spec()["deeds"]
+    assert set(spec["tools"]) == {"lockpicks", "smoke_pellet"}
+    # The Treasury's own stage, and nothing spliced into Vessaline House.
+    assert [s["id"] for s in spec["anchors"]["margraves_treasury"]["stages"]] == ["vault_floor"]
+    assert "vessaline_manor" not in spec["anchors"]
+    assert spec["features"]["bell_floor"]["stage"] == "vault_floor"
+
+
+def test_every_security_row_in_the_city_does_something_to_a_job(hue) -> None:
+    """A security row with no `features` line is text a watch learns and a job
+    never feels -- so a new premise type cannot ship inert."""
+    from engine.world import jobs, premises
+
+    features = jobs.spec()["features"]
+    catalogue = premises.definitions()
+    declared: dict[str, str] = {}
+    for kind in ("types", "anchors"):
+        for owner, spec in catalogue[kind].items():
+            for row in spec.get("security") or []:
+                declared[str(row["id"])] = owner
+    missing = sorted(f"{owner}:{fid}" for fid, owner in declared.items() if fid not in features)
+    assert not missing, missing
+    inert = sorted(fid for fid, row in features.items()
+                   if not (row["shift"] or row["known_shift"] or row["obstacle"]))
+    assert not inert, inert
+    assert len(declared) == len(features)  # and no line for a row nobody has
+
+
+def test_the_burglars_kit_is_sold_in_the_snuffs(hue) -> None:
+    from engine.game import inventory, trade
+
+    for item in ("lockpicks", "smoke_pellet"):
+        assert inventory.value_of(item) > 0, item
+        quote = trade.quote(_city(11), "npc_marrow", item, side=trade.BUY)
+        assert quote["ok"], (item, quote)
+    assert trade.vendor_location("npc_marrow") == "the_snuffs"
+
+
+def test_a_raised_alarm_brings_the_watch_and_the_stop(hue, monkeypatch) -> None:
+    """Every roll failing raises the house; the watch arrives
+    `watch_delay_hours` later, the job closes `caught` and the Lantern's stop
+    (the Law's arrest scene) opens."""
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+    from engine.world import jobs, premises
+
+    state = _city(3)
+    set_clock(state, day=1, hour=23)
+    state.location_id = "wickmarket"
+    prem = next(p for p in premises.at(state, "wickmarket") if p["tier"] == 1)
+    assert jobs.begin(state, prem["id"])["ok"]
+    _script_rolls(monkeypatch, "failure")
+    raised = False
+    out: dict = {}
+    for _ in range(10):
+        out = jobs.resolve_stage(state, jobs.approaches(state)[0][0])
+        job = jobs.active(state)
+        raised = raised or bool(job and job.get("raised_at") is not None)
+        if out.get("closed"):
+            break
+    assert raised
+    assert out["closed"] is True and out["outcome"] == "caught", out
+    assert state.jobs["last"]["outcome"] == "caught"
+    assert encounter.active(state) and state.encounter.get("id") == "watch_stop"
+    assert jobs.spec()["alarm"]["watch_delay_hours"] == 2
+    assert any(r["deed"] == "burglary" for r in state.law.get("reports") or [])
+
+
+#: MEASURED, v0.11.0, scripts/simulate_jobs.py (CHANGELOG.md [Unreleased]):
+#: over 40 seeds careful carried the take out of 93% of tier-1 and 75% of
+#: tier-2 jobs and was never caught; blind was caught on 22% / 58%; the
+#: prepped Treasury was carried out 20% of the time and the bare one never.
+#: Asserted over the FIRST 12 SEEDS (fifteen seconds for every policy), loosely.
+JOB_SEEDS = 12
+
+
+@pytest.fixture(scope="module")
+def measured_jobs():
+    _scripts_on_path()
+    from scripts import simulate_jobs
+
+    # Module-scoped: undone here, for the reason `measured_law` gives.
+    before = registry.peek()
+    registry.activate("hue-and-cry")
+    try:
+        return {p: simulate_jobs.measure(p, JOB_SEEDS) for p in simulate_jobs.POLICIES}
+    finally:
+        if registry.peek() is not before:
+            registry.deactivate()
+
+
+def test_a_careful_thief_gets_the_take_out_and_is_not_caught(measured_jobs) -> None:
+    """The brief asked for careful CLEAN >= 60% on tier 1-2; the engine's
+    degree table caps clean near 30% (a partial is always noise, and a job is
+    four rolls) -- measured in data/rules/jobs.yaml's header. What careful
+    reliably does is carry the take out and never meet the watch."""
+    report = measured_jobs["careful"]["tier_1_2"]
+    assert report["carried_out"] >= 0.60, report
+    assert report["caught"] <= 0.10, report
+    assert report["clean"] > measured_jobs["blind"]["tier_1_2"]["clean"], measured_jobs
+
+
+def test_a_blind_thief_is_caught_often_enough_to_feel_it(measured_jobs) -> None:
+    report = measured_jobs["blind"]["tier_1_2"]
+    assert report["caught"] >= 0.20, report
+
+
+def test_the_treasury_wants_prep_and_tools(measured_jobs) -> None:
+    bare = measured_jobs["greedy_bare"]["treasury"]
+    prepped = measured_jobs["greedy"]["treasury"]
+    assert bare["jobs"] and prepped["jobs"]
+    assert bare["carried_out"] == 0.0, bare
+    assert 0.0 < prepped["carried_out"] < 0.5, prepped
+
+
+def test_no_job_takes_the_thief_to_zero_hp(measured_jobs) -> None:
+    """HUE & CRY has no death rules until v1.0: a fall costs one hp and that is
+    all, so the measurement watches for a run that would have died."""
+    for policy, report in measured_jobs.items():
+        assert report["min_hp"] is None or report["min_hp"] > 0, (policy, report)
+
+
+def test_a_careful_job_on_a_fixed_seed_resolves_clean(hue) -> None:
+    """Seed 1, the careful policy's second job: cased, lockpicks, the empty
+    hour, a flashback -- and every roll a full success. It replays."""
+    _scripts_on_path()
+    from scripts import simulate_jobs
+
+    first = simulate_jobs.play(1, "careful").jobs[1]
+    assert first.outcome == "clean", first
+    assert first.alarm == 0 and first.loot_value > 0 and first.prep_at_start > 0, first
+    assert simulate_jobs.play(1, "careful").jobs[1] == first
+
+
+def _silk_row_house(state) -> str:
+    """A generated Silk Row house, not a townhouse where the seed has one."""
+    from engine.world import premises
+
+    houses = [p for p in premises.at(state, "silk_row") if not p.get("anchor")]
+    others = [p for p in houses if p["type"] != "townhouse"]
+    return str((others or houses)[0]["id"])
+
+
+def test_mother_gannets_job_is_struck_in_the_snuffs_and_pays_after_the_house(
+    hue, monkeypatch
+) -> None:
+    """Any house on Silk Row pays -- a counting house as well as a townhouse."""
+    from engine.game import threads
+    from engine.game.clock import set_clock
+    from engine.world import jobs, premises
+
+    state = _city(11)
+    set_clock(state, day=1, hour=20)
+    state.location_id = "wickmarket"
+    assert threads.can_strike(state, "gannet_silk_row") is False
+    state.location_id = "the_snuffs"
+    assert "gannet_silk_row" in [r["id"] for r in threads.offerable(state)]
+    sealed = threads.seal(state, threads.offer(state, "gannet_silk_row"))
+    assert sealed["ok"], sealed
+    thread_id = sealed["thread"]["id"]
+    gold = state.stats.gold
+
+    # Not until a Silk Row house has been carried out of -- and not by a house
+    # anywhere else.
+    assert threads.discharge(state, thread_id)["ok"] is False
+    state.location_id = "wickmarket"
+    elsewhere = str(premises.at(state, "wickmarket")[0]["id"])
+    assert jobs.begin(state, elsewhere)["ok"]
+    _script_rolls(monkeypatch, "success")
+    assert _walk_job(state)["outcome"] == "clean"
+    assert threads.discharge(state, thread_id)["ok"] is False
+    assert state.stats.gold == gold
+
+    state.location_id = "silk_row"
+    target = _silk_row_house(state)
+    assert jobs.begin(state, target)["ok"]
+    closed = _walk_job(state)
+    assert closed["outcome"] == "clean", closed
+    assert target in jobs.robbed(state)
+
+    paid = threads.discharge(state, thread_id)
+    assert paid["ok"], paid
+    assert state.stats.gold == gold + 15  # twenty, less the Company's quarter
+    assert threads.get(state, thread_id)["status"] == threads.STATUS_DISCHARGED
+
+
+def test_mother_gannets_job_can_be_done_on_every_seed(hue) -> None:
+    """Controller fix: a townhouse-only contract could only break on 7 of the
+    first 300 seeds (Silk Row drew none). What the contract reads must exist on
+    every one: generated houses on Silk Row, not counting the anchor."""
+    from engine.game import threads
+    from engine.world import premises
+
+    wants = threads.templates()["gannet_silk_row"]["discharge_requires"]["premise_robbed"]
+    for seed in range(300):
+        generated, _ = premises.generate(seed)
+        matching = [p for p in generated
+                    if all(str(p.get(k)) == str(v) for k, v in
+                           {"district": wants.get("district"), "type": wants.get("type")}.items()
+                           if v is not None)]
+        assert matching, seed
+
+
+def test_mother_gannets_job_left_undone_sours_the_company_quietly(hue, caplog) -> None:
+    """Controller fix: the break used to log "Unknown faction" -- the Company
+    is now a faction HUE & CRY declares, and breaking logs no warning at all."""
+    import logging
+
+    from engine.game import reputation, threads
+    from engine.game.clock import set_clock
+
+    assert "honest_company" in reputation.faction_ids()
+    state = _city(11)
+    set_clock(state, day=1, hour=20)
+    state.location_id = "the_snuffs"
+    thread_id = threads.seal(state, threads.offer(state, "gannet_silk_row"))["thread"]["id"]
+    due = threads.get(state, thread_id)["due_day"]
+    set_clock(state, day=due + 1, hour=9)
+    with caplog.at_level(logging.WARNING):
+        threads.expire_due(state)
+    warned = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    assert not warned, warned
+    assert threads.get(state, thread_id)["status"] == threads.STATUS_BROKEN
+    assert int(state.reputations.get("honest_company", 0)) == -10
+    assert reputation.standing(state, "honest_company") == "neutral"
+
+
+def test_a_bribed_servant_needs_the_house_watched_not_just_the_street(
+    hue, monkeypatch
+) -> None:
+    """
+    Final review M3. ``bribed_servant`` asked only ``visited: {district}``:
+    walking down the street once bought a servant inside any house on it. It
+    asks ``premise_cased`` now -- you watched this house and know its people.
+    """
+    from engine.game import quests
+    from engine.game.clock import set_clock
+    from engine.game.effects import apply_effect
+    from engine.world import jobs, premises
+
+    def at_the_inside(cased: bool):
+        state = _city(11)
+        state.location_id = "wickmarket"
+        set_clock(state, day=1, hour=12)
+        quests.QuestEngine.observe(state)  # the district is visited either way
+        pid = next(str(p["id"]) for p in premises.at(state, "wickmarket")
+                   if not p.get("anchor"))
+        if cased:
+            assert premises.case(state, pid)["ok"] is True
+        set_clock(state, day=1, hour=23)
+        apply_effect(state, {"type": "job_prep", "delta": 3})
+        state.stats.gold = 50
+        assert jobs.begin(state, pid)["ok"] is True
+        _script_rolls(monkeypatch, "success")
+        for _ in range(6):
+            if jobs.current_stage(state) == "inside":
+                break
+            jobs.resolve_stage(state, jobs.approaches(state)[0][0])
+        assert jobs.current_stage(state) == "inside"
+        return jobs.legal_flashbacks(state)
+
+    assert "bribed_servant" not in at_the_inside(cased=False)
+    assert "bribed_servant" in at_the_inside(cased=True)
+
+
+def test_mother_gannets_job_is_not_paid_by_a_robbery_that_came_first(
+    hue, monkeypatch
+) -> None:
+    """
+    Final review M4. ``discharge_requires`` reads "a Silk Row house has been
+    robbed", ever -- so a thief who robbed Silk Row first and struck the
+    contract after was paid on the spot. The contract is only struck while
+    Silk Row is unrobbed.
+    """
+    from engine.game import threads
+    from engine.game.clock import set_clock
+    from engine.world import jobs
+
+    state = _city(11)
+    set_clock(state, day=1, hour=20)
+    state.location_id = "silk_row"
+    assert jobs.begin(state, _silk_row_house(state))["ok"]
+    _script_rolls(monkeypatch, "success")
+    assert _walk_job(state)["outcome"] == "clean"
+
+    state.location_id = "the_snuffs"
+    assert threads.can_strike(state, "gannet_silk_row") is False
+    assert "gannet_silk_row" not in [r["id"] for r in threads.offerable(state)]

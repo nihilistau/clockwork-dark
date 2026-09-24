@@ -548,6 +548,21 @@ def spec(type_or_anchor_id: str) -> dict[str, Any]:
     return copy.deepcopy(found) if found else {}
 
 
+def definitions() -> dict[str, dict[str, Any]]:
+    """
+    Every authored type and anchor, as ``{"types": {...}, "anchors": {...}}``.
+
+    A copy, for the ``spec`` reason. Read by ``jobs`` at load, which checks
+    its security features, anchors and tier bands against what the city can
+    actually hold. Empty maps for a story that declares no premises.
+    """
+    loaded = _load()
+    return {
+        "types": copy.deepcopy(loaded["types"]),
+        "anchors": copy.deepcopy(loaded["anchors"]),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Casing: what watching a house tells you
 # ---------------------------------------------------------------------------
@@ -755,6 +770,17 @@ def case(state: GameState, premise_id: str) -> dict[str, Any]:
     receipt = apply_effect(
         state, {"type": "intel", "premise": premise_id, "intel": remaining[0]}
     )
+    if receipt.get("ok"):
+        # "Restored between jobs" means casing again, not a free reset: prep
+        # refills only through a watch that actually revealed something, and
+        # only where a story has jobs to spend it on. `job_prep` clamps to
+        # `prep.max` on its own.
+        from engine.world import jobs
+
+        if jobs.declared():
+            apply_effect(
+                state, {"type": "job_prep", "delta": int(jobs.spec()["prep"]["per_case"])}
+            )
     seen: Optional[dict[str, Any]] = None
     if law.declared():
         # Two hours watching one door is loitering. Committed as the watch

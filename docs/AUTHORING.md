@@ -574,11 +574,13 @@ every awake person present, household members included — with no new code.
   provenance record it sells, same as an honest one selling a cool unit;
   nothing about *which* vendor buys it changes that.
 
-**Security this release is text only.** A `security` row's `text` is what a
-watch learns through `case`; nothing yet turns a feature into a stage, a
-skill band, or a bypass (a picked lock, a fed dog, a distracted dog-walker).
-That is Jobs' `entry` stage (v0.11.0) — see the NOT WIRED row in
-`docs/GOVERNANCE.md`.
+**Security is text a watch learns, and — with `paths.jobs` — a job's odds.**
+A `security` row's `text` is what a watch learns through `case`, word for
+word. In a story that also declares `paths.jobs` (§3.12), the jobs file's
+`features` block says what each row does to which stage of a burglary, cased
+and uncased; HUE & CRY gives every one of its rows a line there, and its test
+suite fails when a new row has none. Without `paths.jobs`, security stays
+text.
 
 **Fences.** A trade profile with `fence: true` (optional `fence_cut: {hot,
 cool}`, default `0.5`/`0.8`) buys hot and cool goods at its own cut, clean
@@ -706,6 +708,286 @@ jurisdiction (`law.quashed`), and that watch-house refuses to re-file them
 when a witness's gossip reaches one of its watchmen. All are
 `engine/game/effects.py` kinds; none is written anywhere else (AGENTS.md
 rule 3).
+
+### 3.12 `paths.jobs` — authored jobs and guild contracts
+
+`paths.jobs` names ONE YAML file: a burglary held in state from `burgle` to a
+close, walked stage by stage, plus the anchored premises whose strongroom is
+more than a `score` roll. Optional, and pays nothing when undeclared — no
+`job`/`abort`/`flashback` verb is ever offered, the payload carries no `job`
+key, and `advance_time` never calls `jobs.tick`. It opens on a premise
+(`paths.premises`, §3.10) — a story with jobs and no premises is a load fault
+naming the file, because a job with nothing to rob is a whole system that can
+never be entered. The shipped worked example is HUE & CRY's
+`games/hue-and-cry/data/rules/jobs.yaml` — every security row of its eight
+house types and four anchors given a line, the Treasury's `vault_floor`, and
+the measured numbers with the story behind them in its header
+(`scripts/simulate_jobs.py`, CHANGELOG.md); its contract recipe is
+`gannet_silk_row` in `data/rules/threads.yaml`. The examples below are
+illustrative unless they name that file, and the synthetic
+`tests/test_jobs.py`'s `JOBS_SPEC` exercises every key.
+
+**The five stages, always in this order:** `approach` (get to the house
+unseen), `entry` (get in), `inside` (past whoever and whatever is in the
+way), `score` (the strongroom or its equivalent) and `getaway` (get clear
+with the take). `stages: {<name>: {hours}}` must give all five and no others
+— an anchor's own extra stages live under `anchors`, not here.
+
+- `tier_band: {<tier>: <band>}` — the band a job on a premise of that tier
+  starts from, before any stage shift. Must cover every tier a premise type
+  or anchor can actually have (from `paths.premises`), or the loader refuses
+  naming the file: a tier nothing bands is a job that cannot be planned.
+- `entries: {<id>: {skill, shift, label, hurts}}` — the entry stage's ways
+  in, each its own skill and shift off the base band, and a `label` (never
+  the id) for the `job` verb's options. `hurts` (optional, default false) is
+  the one thing that turns an entry failure into a physical fall (one hp,
+  then the story's ordinary death rules) instead of only noise — a `roof`
+  or a cellar drop would carry it; a `door` or `window` would not.
+- `approach: {skill, shift}` — one roll, the same for every premise.
+- `inside: {awake: {skill, shift}, asleep: {skill, shift}}` — which row
+  answers for a given obstacle depends on whether whoever (or whatever) is in
+  the way is awake right now; a security **feature** obstacle (a dog) always
+  rolls as `awake`, since a feature has no schedule to be asleep on.
+- `score: {skill, shift, draws: {<tier>: <n>}}` — `draws[tier]` loot rows are
+  sampled from the premise's own `loot` (§3.10) without replacement; an
+  anchor's score takes **all** of its loot, ignoring `draws`. A cased secret
+  (§3.10's `secrets`) is named in the receipt the moment the score succeeds,
+  never before.
+- `getaway: {skill, shift}` — the last roll; success or a costly `partial`
+  carries the loot out HOT (`stolen_from`) and marks the premise robbed
+  (`jobs.robbed`, read by `burgle` so a robbed house is never offered again,
+  and by the `premise_robbed` predicate below).
+
+**`features` and `tools`** — what a premise's own security, or what the
+thief carries, does to a roll:
+
+- `features: {<security id>: {stage, entries, shift, known_shift, obstacle}}`.
+  The key must be a security id **some premise type or anchor actually
+  declares** (§3.10) — a feature nothing can carry would load, validate and
+  change nothing, the drafting failure this repo has shipped before, so it is
+  a load-time fault naming the file instead. `stage` is a single stage id:
+  one of the five, **or an anchor's own stage id** (`anchors.<id>.stages[].id`,
+  below) — a security row on the vault floor is as real a feature as one on
+  the front door. `shift` applies while the feature is not yet cased,
+  `known_shift` once it is (`security:<id>` in `premises.known`). Both
+  default to **0**, and `known_shift` defaults to 0, **not** to `shift`: a
+  feature authored with only `shift` stops mattering the moment it is cased.
+  Give both the same number for a feature that reads the same whether or not
+  it was cased (say, a forge's glow that is there either way). A feature is
+  named among the reasons at its stage only when it moves the odds: an
+  uncased one when its `shift` is not 0 ("…, not yet cased"), a cased one
+  when its `known_shift` is not 0 or differs from its `shift` ("…, cased
+  already" -- so casing that took a lock's shift to 0 still says so). A
+  feature authored with both at 0 is never named.
+  When `stage` is an anchor's own stage id, that anchor's own `security`
+  (§3.10) must declare the feature — only that anchor's premise ever reaches
+  its stage, and a roll there reads only the robbed premise's own security,
+  so a townhouse's lock named against the vault floor is a load fault naming
+  the file.
+  `entries` (optional) restricts a feature to named entries; it binds only at
+  the `entry` stage, so `entries` on a feature whose `stage` is anything but
+  `entry` is a load fault naming the file. `obstacle: true` (default false)
+  makes the feature a real obstacle in the `inside` list (a dog, not a lock)
+  and its shift then applies **only to its own roll**, never to the roll
+  against whoever else is in the house. It is allowed **only with `stage:
+  inside`** — obstacles exist only there, so the loader refuses it on any
+  other stage, naming the file.
+- `tools: {<item id>: {stage, entries, shift, consumed}}`. The key must be a
+  real item (`data/items/`). `stage` is a name or a list of stage ids, same
+  widened set as `features` (the five, or any anchor's own). `entries` binds
+  only at `entry`, same as a feature's, so `entries` on a tool whose `stage`
+  list does not include `entry` is a load fault naming the file. `shift`
+  defaults to 0. `consumed: true` (default false)
+  removes the item the moment it helps a roll that used it — a smoke pellet
+  spent at the getaway, lockpicks that are not.
+
+Every step above (base band, then features, then tools, then a banked
+flashback shift — see below) is summed and clamped **once**, so a tool that
+eases a legendary climb is never swallowed by a clamp applied partway. The
+narrator is handed the human reasons ("a good lock on the street door, not
+yet cased", a tool's own name, "what you set up beforehand") and never a
+number, an id or a band name.
+
+**Degrees, Blades-style.** A roll's degree decides the stage, not a
+pass/fail line:
+
+- `success` / `crit_success` — advance the stage cleanly. `outcome: clean`,
+  except at the `getaway`, where the job closes `clean` only if the alarm is
+  still at 0 and `noisy` otherwise, however well the last roll went.
+- `partial` — advance anyway, at a cost: the alarm rises by `alarm.on_fail`
+  and the outcome is `noisy`. The thief gets through, but not quietly.
+- anything else (`failure`) — the stage does **not** advance: the alarm
+  rises by `alarm.on_crit_fail`, and depending on where it happened, one of —
+  `inside`, against a household member in the way: they SEE the thief, a
+  real Law witness, `outcome: seen`; at an entry marked `hurts`: a fall, one
+  hp and the death rules, `outcome: hurt`; anywhere else: `outcome: noisy`
+  with nothing gained.
+
+**`alarm: {max, bands, on_fail, on_crit_fail, watch_delay_hours, deed}`** —
+`on_fail` defaults to 1, `on_crit_fail` to 2 and `watch_delay_hours` to 0 (the
+watch arrives the moment the alarm is raised). A bounded meter, `bands` naming every level *below* `max` (`max` words, reaching
+it is always said as "raised" — never authored). `deed` is the Law deed kind
+a raised alarm (or a seen household member) files; it must be a real deed
+when `paths.law` is declared, and is never read otherwise (a job commits no
+deeds without a Law). `watch_delay_hours` is how long after the alarm is
+raised the watch actually arrives — `jobs.tick`, called from
+`advance_time` (rule 2: jobs advance on in-game hours, never the wall-clock
+tick -- `run_turn`'s background tick does not run at all while a job is open,
+and is re-stamped so the paused real time never arrives as a burst of hours
+once it closes), closes the job `caught` and opens `arrest.encounter` once that many
+hours have passed with the alarm still raised, or `aborted` with no Law (or
+no loaded arrest scene) to catch anyone.
+
+**`prep: {max, per_case, bands}`** — `per_case` defaults to 0 (casing then
+earns no prep at all). A second bounded meter, `bands` naming
+every level from 0 to `max` inclusive (`max + 1` words). Prep is earned
+**only** by casing (`premises.case`, §3.10): a successful case pays
+`per_case`, capped at `max`; a refused case (nothing left to learn) pays
+nothing. It never moves any other way, and it is spent by flashbacks below.
+Always a band word to the narrator, never a number.
+
+**`flashbacks: {<kind>: {label, stage, requires, cost, effect, exposure}}`**
+— what the `flashback` verb offers mid-job: the thief arranged something
+beforehand, and it pays off now without moving the clock (rule: a flashback
+never calls `advance_time`, never rewrites a stage already resolved). A kind
+is offered when its `stage` (a name or list — the five or an anchor's own,
+same widened set as `features`) includes the job's current stage, it has not
+been used already this job, and both hold:
+
+- `cost: {prep, gold}` — read plainly and never spent to find out whether the
+  kind is affordable; only an offered, affordable kind may be called.
+- `requires` — a condition through the shared grammar (`quests.evaluate_
+  condition`, §3.7), with `{district}` and `{premise}` filled in from the
+  open job before it is evaluated — so one authored `requires: {visited:
+  "{district}"}` reads correctly against whichever house the player is
+  actually robbing. Every predicate name in it must be one the grammar
+  actually has (including the three this module registers, below) or the
+  file fails to load naming itself — an unknown predicate is unmet forever,
+  silently, otherwise.
+
+`effect` is exactly one of:
+
+- `{shift: <int>}` — banked into the current stage's odds
+  (`active.shifts[stage]`) as "what you set up beforehand"; it counts in the
+  one clamp above like any other step.
+- `{remove_obstacle: <n ≥ 1>}` — removes the first `n` obstacles from the
+  `inside` list, initialising it first (the same deterministic household
+  read a roll there would do, on no stream) if nothing has touched `inside`
+  yet. **`remove_obstacle` may only be authored on a flashback whose `stage`
+  is `inside` and nothing else** — the loader refuses any other `stage` list
+  naming the file, because a flashback offered off `inside` would otherwise
+  write an obstacle list at the wrong stage and leave `inside` silently
+  skipped by the time the job reached it.
+  "First" means the order the premise file lists its `household` (then its
+  obstacle features), among whoever is home when `inside` is first read — so
+  an author decides whom a bribe buys by that order. HUE & CRY's Treasury
+  lists its night guard first for exactly this. The list is read ONCE, then
+  at every roll inside anyone no longer at home is dropped from it first
+  (never rolled against, never a witness) and whether each one left is awake
+  is re-read; someone who comes home after it was read is not added.
+
+`exposure: household` (optional, the only value) draws one member of the
+premise's **whole household** (not only whoever happens to be home tonight —
+the servant you bribed need not have been on shift) on the `JOB` stream and,
+only with a Law declared, makes them a real, named witness under the alarm's
+own deed; with no Law, nothing is drawn and nothing is filed.
+
+**`anchors: {<anchored premise id>: {after, stages: [{id, label, skill, band,
+hours}]}}`** — an authored job's own extra stages, spliced into the five
+right after `after` (one of the five). Each stage needs a unique `id` (in
+the same namespace as the five — a `features`/`tools`/`flashbacks` `stage`
+list may name it once declared), a `label` (the only thing the narrator or a
+`job` option ever says — never the id), a real `skill` and `band`
+(`DIFFICULTY_BANDS`), and its own `hours`. It resolves exactly like any of
+the five — one roll, the same degree table, the same alarm consequences —
+except its band and skill are authored outright rather than derived from
+`tier_band`. A `features` or `tools` row may target an anchor's stage id the
+same as any of the five (for instance, an anchor whose own `security`
+declares an `iron_bar` could name it, and a lockpicks tool row, against its
+`vault_floor` stage), and both are read there exactly the same way: the security feature's
+`known_shift` once cased, a carried tool's shift, banked flashback shifts —
+summed and clamped once, same as anywhere else.
+
+**The three predicates this module registers**, for `flashbacks.*.requires`,
+guild contracts (below) and anything else in the shared grammar:
+
+- `premise_cased: {min, premise?}` — at least `min` intel rows are known
+  about `premise` (default: the open job's own).
+- `premise_robbed: {premise?, type?, district?}` — a **finished** job (one
+  that reached `clean` or `noisy`) carried the score from a premise matching
+  every filter given; with none given, any robbed premise does. This is the
+  hook a guild contract's `discharge_requires` reads.
+- `job: {open}` — whether a job is under way right now (default `true`).
+
+**Guild contracts are threads, not a new mechanism.** A contract is an
+ordinary `paths.threads` template (§3.4); nothing in `engine/game/threads.py`
+changed for jobs, because `offer` / `seal` / `discharge` / `break_thread` /
+`expire_due` already do everything a contract needs once `discharge_requires`
+can read `premise_robbed`:
+
+- `requires` gates **where it can be struck** — the same `threads.offerable`/
+  `can_strike` gate any other bargain uses, so the `bargain` verb only ever
+  offers the contract at the Guild's own desk. `premise_robbed` reads "ever
+  robbed", not "robbed since the contract", so a contract whose discharge
+  reads it should also only be struck while no matching premise is robbed
+  yet — `requires: {all: [{at_location: …}], none: [{premise_robbed: …}]}`,
+  as HUE & CRY's `gannet_silk_row` does — or a robbery done before the
+  contract pays it on the spot.
+- `discharge_requires: {premise_robbed: {type: <premise type>, district:
+  <location>}}` (and/or `has_item`, for "bring back the ledger itself" rather
+  than merely robbing the place) gates `discharge`: refused, paying nothing,
+  until a job has actually robbed a matching premise. Filters combine — a
+  contract for a townhouse in one district is not discharged by robbing the
+  right *type* in the wrong *district*, or vice versa.
+- `on_discharge` pays the fee **net of the Guild's cut** as one plain `gold`
+  effect — the arithmetic is the author's, at YAML-authoring time; the
+  engine does not compute a cut, it applies the number it is given.
+- `on_break` (via `expire_due`, once `due_in_days` passes unpaid) sours the
+  Guild: a plain `reputation` effect against the Guild's own faction id.
+  Both `gold` and `reputation` are on every thread's ordinary allowlist
+  already (`engine/challenges/spec.py`'s `ALLOWED_EFFECT_TYPES`) — nothing
+  Law-shaped is needed here, unlike the Law's own `quash_reports` (§3.11),
+  so no new engine surface was added for this recipe.
+
+Worked example (a synthetic one, the fixture `tests/test_jobs_authored.py`
+runs; not any shipped story's contract):
+
+```yaml
+# threads.yaml
+templates:
+  guild_job_treasury:
+    source: guild
+    terms: "Empty a townhouse strongroom in the Square. Robbery only — no bloodshed."
+    requires: { at_location: edgewood_square }   # struck only at the Guild's desk there
+    due_in_days: 5
+    discharge_requires:
+      premise_robbed: { type: townhouse, district: edgewood_square }
+    on_discharge:
+      - { type: gold, delta: 18 }                # the fee, already net of the Guild's cut
+    on_break:
+      - { type: reputation, faction: guild, delta: -8 }
+```
+
+Struck (`threads.offer` → `threads.seal`), it sits active and undischargeable
+until a `burgle` on a matching townhouse closes `clean` or `noisy`; then
+`discharge` pays the 18 gold and closes it `discharged`. Left unpaid past its
+fifth day, the next `expire_due` sweep (every day tick, same as any other
+thread) closes it `broken` and costs the Guild's good opinion instead.
+
+**The client and the narrator.** Once `paths.jobs` is declared, the payload
+carries a stable `job: {active: null | {premise_name, stage_label, stages,
+at, alarm}, prep: <band>}` (`prep` lives only at this top level — casing
+raises it whether or not a job happens to be open). `active` is `null`
+between jobs; every stage name in it is a word, never an id or a band. The
+narrator's own block (`prompts.job_block`) says the house, the current
+stage, the obstacle in the way, the reasons moving the odds, which flashback
+paid off this turn, the alarm's band, and — the turn a job closes — how it
+ended; all in the same words, nothing the client payload doesn't also say.
+
+**NOT WIRED** (`docs/GOVERNANCE.md`): **hired hands** (spec §4, an optional
+extra the design allows for and this release does not build), and the
+**job panel UI** — the payload above exists; no shipped story's plugin
+renders it yet.
 
 ---
 

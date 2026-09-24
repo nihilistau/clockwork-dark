@@ -325,6 +325,12 @@ class GameState:
     # no Law, and absent from an old save, which loads as "the watch knows
     # nothing".
     law: dict[str, Any] = field(default_factory=dict)
+    # Burglaries: the veiled prep meter, the premises already robbed, the job
+    # id counter, the open job (``active``, present only while one runs) and
+    # the last job's close. A plain dict for the ``law`` reason. Written only
+    # by the job effect kinds (engine/world/jobs.py). Empty for a story with
+    # no jobs, and absent from an old save, which loads as "no job ever run".
+    jobs: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """
@@ -463,6 +469,7 @@ class GameState:
             **self._structural_block(),
             **self._premises_block(),
             **self._law_block(),
+            **self._job_block(),
             "session_id": self.session_id,
             "player_name": self.player_name,
             "archetype": self.archetype,
@@ -703,6 +710,51 @@ class GameState:
                     "custody": custody,
                 }
             }
+        except Exception:  # noqa: BLE001 -- see docstring
+            return {}
+
+    def _job_block(self) -> dict[str, Any]:
+        """
+        The open job for the player's own sheet: house, stage, alarm and prep.
+
+        DECLARATION IS THE SWITCH, same convention as ``_premises_block`` and
+        ``_law_block``: a story that declares no ``paths.jobs`` gets no
+        ``job`` key at all, so the flagship's payload stays byte-identical.
+        ``prep`` sits at a STABLE place -- top-level, and ONLY there -- because
+        casing between jobs still earns it, and a client watching for "did
+        prep just go up" should not have to also watch whether a job happens
+        to be open, nor read two copies of the one meter that could drift
+        apart. ``active`` is ``None`` between jobs; its ``stages`` and
+        ``stage_label`` are words (``jobs.stage_words``), never a stage id,
+        and ``alarm`` is a band word, never a number. The job panel UI is NOT
+        WIRED (docs/GOVERNANCE.md) -- this is only the data it will read,
+        exactly as the Law's own wanted-poster payload was before it.
+
+        Never raises: a broken jobs file must cost the sheet a panel, not the
+        turn the player is mid-way through, same as every other optional
+        block here.
+        """
+        try:
+            from engine.world import jobs as jobs_module
+            from engine.world import premises as premises_module
+
+            if not jobs_module.declared():
+                return {}
+            active_job = jobs_module.active(self)
+            active: Optional[dict[str, Any]] = None
+            if active_job is not None:
+                stage = jobs_module.current_stage(self) or ""
+                prem = premises_module.get(
+                    self, str(active_job.get("premise") or "")
+                ) or {}
+                active = {
+                    "premise_name": str(prem.get("name") or ""),
+                    "stage_label": jobs_module.stage_words(self, stage),
+                    "stages": jobs_module.stage_labels(self),
+                    "at": int(active_job.get("at") or 0),
+                    "alarm": jobs_module.alarm_band(self),
+                }
+            return {"job": {"active": active, "prep": jobs_module.prep_band(self)}}
         except Exception:  # noqa: BLE001 -- see docstring
             return {}
 

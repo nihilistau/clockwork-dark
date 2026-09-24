@@ -53,6 +53,8 @@ ROLLING_SKILLS = frozenset(
         # A lift rolls stealth inside the skill; without it here, honest
         # narration of a caught hand scores as invented mechanics.
         "lift_purse",
+        # Every burglary stage rolls inside the skill, for the same reason.
+        "job_stage",
     }
 )
 
@@ -85,18 +87,63 @@ _CLAIMS_UNSEEN = re.compile(
     r")"
 )
 
+# Jobs (v0.11.0): the same opposite as `_CLAIMS_UNSEEN`, aimed at getting IN
+# rather than getting away. Anchored the same way -- sentence start, or after
+# a plain "and", with the verb glued straight onto "you" -- so "you do not
+# slip in" (a negation) and "whoever is inside stirs" (someone else, not the
+# player) never match. Restricted to "inside" rather than a bare "in": "you
+# get in trouble" is ordinary prose that has nothing to do with a burglary.
+# "quietly" is deliberately NOT in the trigger group -- a reviewer's own
+# counter-control, "You slip inside, quietly as you can, but the hinge
+# shrieks," is the honest narration of a NOISY entry using that very word.
+_CLAIMS_CLEAN_ENTRY = re.compile(
+    r"(?i)(?:^|[.!?]\s+|\band\s+)you\s+(?:slip|slink|steal|get|make\s+it)s?\s+"
+    r"in(?:side)?,?\s*(?:without\s+a\s+sound|unseen|unnoticed|silently|clean)\b"
+)
+# A contrastive conjunction later in the SAME SENTENCE undoes the claim just
+# made -- "you slip inside unseen, but a board creaks" is the prose owning up
+# to the noise a moment later, not a contradiction of it.
+_CONTRASTS_CLAIM = re.compile(r"(?i)\b(?:but|until|though|yet)\b")
+
+
+def _claims_clean_entry(narration: str) -> bool:
+    match = _CLAIMS_CLEAN_ENTRY.search(narration)
+    if not match:
+        return False
+    end = re.search(r"[.!?]", narration[match.end():])
+    tail = narration[match.end():match.end() + end.start()] if end else narration[match.end():]
+    return not _CONTRASTS_CLAIM.search(tail)
+
+
+_CLAIMS_GOT_IN = re.compile(
+    r"(?i)(?:^|[.!?]\s+|\band\s+)(?:"
+    r"you\s+(?:get|slip|make\s+it)s?\s+inside\b|"
+    r"you(?:'re|\s+are)\s+inside\b"
+    r")"
+)
+
 
 def contradicts(narration: str, receipts: Sequence[Mapping[str, Any]]) -> str:
     """
     A note when the prose states the OPPOSITE of what the engine decided.
 
     Deliberately narrow: unambiguous opposites and nothing else -- success
-    narrated over a failed check, arrival narrated over a refused move, and (the
+    narrated over a failed check, arrival narrated over a refused move, (the
     Law, v0.10.0) a clean getaway narrated over a receipt whose result carries
     ``noticed: true`` -- ``lift_purse``'s own word for "the mark caught your
-    hand", which a narrator softening the scene must not contradict. Anything
-    subtler is a judgement a regex cannot make, and a gate that fires on honest
-    prose is a gate somebody deletes.
+    hand" -- and (Jobs, v0.11.0) a clean, silent entry claimed over a job
+    ENTRY stage receipt whose ``outcome`` is ``noisy``/``seen``, or getting
+    inside claimed over an ENTRY stage receipt whose ``advanced`` is ``False`` --
+    ``job_stage``'s own words for "that did not go quietly" and "that did not
+    get you past the door". Both claims are entry-only: at every later stage
+    (``inside``, ``score``, ``getaway``) the thief is ALREADY inside, so
+    ``advanced: False`` means a roll failed in there -- "You're inside, but
+    the dog has your scent" is the honest narration of exactly that -- and a
+    ``noisy``/``seen`` outcome is about the maid or the strongroom, not the
+    way in, so a line recalling how quietly they slipped in is no
+    contradiction of it. A narrator softening the scene must not contradict any
+    of these. Anything subtler is a judgement a regex cannot make, and a gate
+    that fires on honest prose is a gate somebody deletes.
 
     Returns:
         A short note naming the contradiction, or "" when there is none.
@@ -115,6 +162,20 @@ def contradicts(narration: str, receipts: Sequence[Mapping[str, Any]]) -> str:
                 return "narrated arrival over a refused move"
         if result.get("noticed") is True and _CLAIMS_UNSEEN.search(narration):
             return "narrated a clean getaway over a receipt marked noticed"
+        if skill == "job_stage":
+            outcome = str(result.get("outcome") or "")
+            if (
+                str(result.get("stage") or "") == "entry"
+                and outcome in ("noisy", "seen")
+                and _claims_clean_entry(narration)
+            ):
+                return "narrated a clean, silent entry over an entry stage marked noisy or seen"
+            if (
+                str(result.get("stage") or "") == "entry"
+                and result.get("advanced") is False
+                and _CLAIMS_GOT_IN.search(narration)
+            ):
+                return "narrated getting inside over an entry stage that did not advance"
     return ""
 
 

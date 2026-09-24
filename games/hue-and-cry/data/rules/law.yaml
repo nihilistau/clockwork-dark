@@ -54,7 +54,12 @@
 # runs -- the same as one who always runs -- so the coin is a choice, not a
 # pass.
 #
-# Version: v0.2.0 [2026-09-24]
+# BURGLARY (v0.11) joined at severity 3, measured with scripts/simulate_jobs.py
+# rather than this harness (no thief here burgles): at 2 almost no burglar
+# ever reached `sought`; at 4 a careful one ended a quarter of its runs
+# `wanted`. The table is in data/rules/jobs.yaml and CHANGELOG.md.
+#
+# Version: v0.3.0 [2026-09-24]
 
 # Schedule roles that ARE the law (data/world/npc_schedules.yaml): Captain
 # Ardane, Sergeant Brask, Lanterns Tully and Hobb. A Lantern who sees a deed
@@ -97,6 +102,7 @@ deeds:
   loitering: {severity: 0}      # remembered (casing a house), never reported
   fencing: {severity: 2}        # hot goods offered at an honest counter
   assault_watch: {severity: 5}  # the watch_stop's `fight`
+  burglary: {severity: 3}       # a job seen, shouted about, or carried out onto the street
 
 notice:
   base: 0.6

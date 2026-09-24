@@ -105,8 +105,20 @@ BUY = {
                "quote": {"breakdown": {"standing_multiplier": 1.1}}},
 }
 
+CALL_FLASHBACK = {
+    "skill": "call_flashback",
+    "success": True,
+    "result": {"ok": True, "kind": "bribed_servant",
+               "label": "you bribed a servant last week",
+               "cost": {"prep": 1, "gold": 5}, "band_before": "hard",
+               "band_after": "standard", "exposure_witness": "Ada Pike"},
+}
 
-@pytest.mark.parametrize("receipt", [FORAGE, WORK, BUY], ids=["forage", "work", "buy"])
+
+@pytest.mark.parametrize(
+    "receipt", [FORAGE, WORK, BUY, CALL_FLASHBACK],
+    ids=["forage", "work", "buy", "call_flashback"],
+)
 def test_no_receipt_is_dumped_as_a_dict(receipt) -> None:
     block = prompts.receipts_block([receipt])
     body = block.split("\n", 2)[-1]
@@ -118,6 +130,16 @@ def test_forage_says_what_was_found_and_not_the_arithmetic() -> None:
     body = prompts.receipts_block([FORAGE]).split("\n", 2)[-1]
     assert "Wild sage" in body
     assert "94" not in body and not re.search(r"\bdc\b", body, re.IGNORECASE), body
+
+
+def test_a_flashback_does_not_leak_its_numeric_cost_or_kind_id() -> None:
+    """The raw receipt's ``cost`` is a numeric dict ({"prep": 1, "gold": 5});
+    the prompt must carry only what it bought, in words, and the witness by
+    name -- never the kind id, the cost numbers, or the band words as a dict."""
+    body = prompts.receipts_block([CALL_FLASHBACK]).split("\n", 2)[-1]
+    assert "bribed_servant" not in body
+    assert not re.search(r"\d", body), body
+    assert "Ada Pike" in body
 
 
 def test_a_purchase_names_the_goods_and_the_price() -> None:

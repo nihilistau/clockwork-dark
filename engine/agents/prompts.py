@@ -554,6 +554,103 @@ def law_block(state: GameState) -> str:
     return "THE LAW:\n" + "\n".join(lines)
 
 
+#: How the job's close reads, by outcome. Never a number, an id or a band.
+_JOB_CLOSE_LINES = {
+    "clean": "You got clear of {name} with the take, and nobody the wiser.",
+    "noisy": "You got clear of {name} with the take, though not quietly.",
+    "aborted": "You walked away from {name} with nothing.",
+    "caught": "The watch reached {name} before you got clear.",
+    "hurt": "You were hurt breaking into {name}, and the job ended there.",
+}
+
+#: An ``aborted`` close the player did not choose: ``jobs.tick`` found the
+#: house roused with no Law (or no arrest scene) to send anyone.
+_JOB_ROUSED_LINE = "{name} woke and raised the alarm, and you got out with nothing."
+
+
+def _job_close_line(state: GameState) -> str:
+    """
+    How the job just closed, THIS TURN only.
+
+    Same freshness discipline as ``_law_last_deed_witnesses``: ``jobs.last``
+    keeps the last close for as long as the save lives, whichever turn it
+    happened on, so only a ``turn`` stamp equal to ``state.turn_number`` says
+    it happened just now rather than several turns back.
+    """
+    from engine.world import premises
+
+    last = state.jobs.get("last") or {}
+    if not last or last.get("turn") != state.turn_number:
+        return ""
+    prem = premises.get(state, str(last.get("premise") or "")) or {}
+    name = str(prem.get("name") or "the house")
+    outcome = str(last.get("outcome") or "")
+    template = _JOB_CLOSE_LINES.get(outcome, "The job at {name} is over.")
+    if outcome == "aborted" and last.get("by") != "player":
+        template = _JOB_ROUSED_LINE
+    return template.format(name=name)
+
+
+def job_block(state: GameState) -> str:
+    """
+    What is happening on the open job, right now.
+
+    "" for a story that declares no ``paths.jobs`` -- the flagship's prompt
+    stays byte-identical (Global Constraints) -- and equally "" for one that
+    does but has no job open and closed none this turn, so a jobs-declaring
+    story between burglaries is untouched too. Otherwise, only the lines
+    that apply:
+
+      - the house, by name, and the stage in words (``jobs.stage_words`` --
+        never its id, never a difficulty band);
+      - the obstacle in the way, if any: a household member by display name,
+        a security feature by its own authored text (``jobs.
+        current_obstacle_label``);
+      - the reasons moving this stage's odds, in the human words
+        ``band_for`` already gives (a tool that helps, a feature not yet
+        known about, what was set up beforehand);
+      - which flashback paid off, by its own label, ON THE TURN it was
+        called only (``jobs.flashback_label_this_turn``);
+      - the alarm, as a word;
+      - how the job just ended, if it closed THIS turn.
+
+    NEVER A NUMBER OR AN ID FROM A JOB (Global Constraints): no band name, no
+    premise id, no stage id.
+    """
+    from engine.world import jobs, premises
+
+    if not jobs.declared():
+        return ""
+
+    lines: list[str] = []
+    job = jobs.active(state)
+    if job is not None:
+        stage = jobs.current_stage(state) or ""
+        prem = premises.get(state, str(job.get("premise") or "")) or {}
+        name = str(prem.get("name") or "the house")
+        lines.append(f"On the job at {name}: {jobs.stage_words(state, stage)}.")
+        obstacle = jobs.current_obstacle_label(state)
+        if obstacle:
+            lines.append(f"In the way: {obstacle}.")
+        _, reasons = jobs.band_for(state, stage)
+        if reasons:
+            lines.append("Working the odds: " + "; ".join(reasons) + ".")
+        paid_off = jobs.flashback_label_this_turn(state)
+        if paid_off:
+            lines.append(f"What paid off this turn: {paid_off}.")
+        alarm = jobs.alarm_band(state)
+        if alarm:
+            lines.append(f"The house's alarm: {alarm}.")
+
+    closed = _job_close_line(state)
+    if closed:
+        lines.append(closed)
+
+    if not lines:
+        return ""
+    return "THE JOB:\n" + "\n".join(lines)
+
+
 def _objectives_block(state: GameState) -> str:
     """
     What the player is currently trying to do, and the flags that record it.
@@ -896,6 +993,7 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
         _npcs_present_block(state),
         district_block(state),
         law_block(state),
+        job_block(state),
         _encounter_block(state),
         _scene_block(state),
         _intents_block(state),
@@ -1397,6 +1495,79 @@ def _sum_serve(result: dict[str, Any]) -> str:
     return f"served {_days(result.get('days'))} in {where} and was let out, the charge closed."
 
 
+def _sum_begin_job(result: dict[str, Any]) -> str:
+    # The house's name, never its id or the job's: `premise` and `job_id` are
+    # for the engine, and the stage list is the next receipts' business.
+    return f"set out to break into {result.get('name') or 'the house'}."
+
+
+#: How each derived stage reads in a receipt line. An anchor stage reads by
+#: its authored label; nothing here is ever a stage id.
+_JOB_STAGE_WORDS = {
+    "approach": "crept up on",
+    "entry": "tried to get into",
+    "inside": "tried to get through",
+    "score": "went for the strongroom of",
+    "getaway": "tried to get clear of",
+}
+#: A stage the thief got past (``advanced``): cleanly, or at a cost.
+_JOB_THROUGH_WORDS = {
+    "clean": "and got through cleanly",
+    "noisy": "and got through, but not quietly",
+}
+#: A stage that held (not ``advanced``). Never worded as progress: the prose
+#: must not walk the thief on past a roll the engine says failed.
+_JOB_HELD_WORDS = {
+    "noisy": "and did not get through; the attempt made noise",
+    "seen": "and did not get through; someone in the house saw you",
+    "hurt": "and did not get through; you fell and got hurt",
+}
+
+
+def _sum_job_stage(result: dict[str, Any]) -> str:
+    # Minimal on purpose: the full JOB block (stage, obstacle, what prep did,
+    # the alarm's word) is the prompt's job. Never an id, a band or a number:
+    # the house by name, the stage and the outcome in words.
+    house = str(result.get("name") or "the house")
+    outcome = str(result.get("outcome") or "")
+    stage = str(result.get("stage") or "")
+    if result.get("closed"):
+        if outcome == "caught":
+            return f"the watch reached {house} before you got clear."
+        if outcome == "aborted":
+            return f"the household at {house} was roused, and the job fell apart."
+        if outcome == "hurt":
+            return f"fell badly breaking into {house}, and the job ended there."
+        if outcome in ("clean", "noisy"):
+            quiet = "" if outcome == "clean" else ", though not quietly"
+            return f"got clear of {house} with the take{quiet}."
+    if stage in _JOB_STAGE_WORDS:
+        head = f"{_JOB_STAGE_WORDS[stage]} {house}"
+    else:
+        head = f"faced {result.get('label') or 'the next obstacle'} in {house}"
+    if result.get("advanced"):
+        tail = _JOB_THROUGH_WORDS.get(outcome, "and got through")
+    else:
+        tail = _JOB_HELD_WORDS.get(outcome, "and did not get through")
+    return f"{head}, {tail}."
+
+
+def _sum_abort_job(result: dict[str, Any]) -> str:
+    return f"gave up on {result.get('name') or 'the house'} and slipped away with nothing."
+
+
+def _sum_call_flashback(result: dict[str, Any]) -> str:
+    # Words only, never a number: what it cost (prep, coin, both) and whether
+    # someone now knows -- by name, never an id, never the raw cost dict.
+    label = str(result.get("label") or "something set up beforehand")
+    cost = result.get("cost") or {}
+    spent = [word for word, key in (("prep", "prep"), ("coin", "gold")) if cost.get(key)]
+    paid = " and ".join(spent) if spent else "nothing more"
+    witness = str(result.get("exposure_witness") or "")
+    tail = f" Now {witness} knows." if witness else ""
+    return f"called on it: {label}, spending {paid}.{tail}"
+
+
 _SUMMARISERS: dict[str, Any] = {
     "rest": _sum_rest,
     "eat": _sum_eat,
@@ -1414,6 +1585,10 @@ _SUMMARISERS: dict[str, Any] = {
     "law_recognition": _sum_recognition,
     "pay_fine": _sum_pay_fine,
     "serve_sentence": _sum_serve,
+    "begin_job": _sum_begin_job,
+    "job_stage": _sum_job_stage,
+    "call_flashback": _sum_call_flashback,
+    "abort_job": _sum_abort_job,
 }
 
 #: Keys whose value is a sentence written for a reader, in order of preference.

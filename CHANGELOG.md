@@ -14,6 +14,260 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-09-24
+
+**Jobs & flashbacks**, the third of the four v0.9 engine features, proven
+against HUE & CRY: Tallowmere's houses can now be burgled. `burgle` opens a
+job on any unrobbed premise and walks it stage by stage — approach, entry,
+past whoever's inside, the strongroom, the getaway — its odds moved by what
+was really cased and what is really carried, its failures raising a per-job
+alarm that can wake the house and send for the Lantern Watch. A Blades-style
+`flashback` mid-job may only claim a preparation the player's own history
+makes plausible — a bribed servant, a planted tool, a rota learned in
+advance — spending a veiled `prep` meter earned only by casing. Mother
+Gannet's guild strikes its first contract on the back of it. The narrator
+and the player's own screen see the same house, stage, obstacle and alarm
+the engine does, in words, never a number.
+
+### Added
+
+- **Jobs: the data and opening a job** (engine; `paths.jobs`,
+  `engine/world/jobs.py`, effect kinds `job_open` and `job_close`, verb
+  `burgle` → skill `begin_job`). A story that declares `paths.jobs` names one
+  file: five derived stages with their hours, the band each premise tier
+  starts from, the entry approaches, what each security feature and carried
+  tool does to a stage, the alarm and prep meters, flashbacks, and an anchored
+  premise's own extra stages (spliced in after its `after` stage). The loader
+  fails naming the file for an unknown band or skill, a feature no premise
+  declares, a tool the registry lacks, an `anchors` key that is not an
+  anchored premise, a flashback `requires` naming an unknown predicate, band
+  lists that do not fit their meter, a tier some premise can have with no
+  band, a jobs file in a story without premises, and — where a Law is
+  declared — an `alarm.deed` the Law does not know. `burgle` offers the
+  unrobbed premises of the player's district and opens a job held in the
+  new saved `jobs` field; while a job is open it owns the turn
+  (`intents.scene_owns_turn`), so ordinary verbs are withdrawn and the Law's
+  patrol does not stop a player mid-burglary. Every refusal (no jobs, held,
+  a job already open, a scene running, unknown house, wrong district,
+  already robbed) spends no time. A closed job whose score was carried out
+  (`clean`/`noisy`) marks the premise robbed. Three condition predicates join
+  the shared grammar for flashbacks and contracts: `premise_cased`,
+  `premise_robbed`, `job`. Stages, the alarm and flashbacks themselves land
+  in the following changes. A story without `paths.jobs` is unchanged apart
+  from an empty `jobs` field in its save.
+- **Jobs: stages, the alarm, the score and the getaway** (engine;
+  `jobs.resolve_stage`/`abort`/`tick`/`band_for`, `checks.shift_band`, effect
+  kinds `job_stage` and `job_alarm`, RNG stream `job`, verbs `job` → skill
+  `job_stage` and `abort` → skill `abort_job`). An open job now walks its
+  stages one turn at a time: `job` offers the current stage's approaches (the
+  story's ways in at the entry, else the stage's one approach) and `abort`
+  walks away with nothing, spending no time. Each stage spends its in-game
+  hours before it rolls, so the household inside is whoever is home by then.
+  The band is the premise tier's, walked by the stage, every security feature
+  that applies (a cased one at its known shift), every carried tool that
+  applies and any banked flashback shift, and each step that moved it comes
+  back as a reason in words. A success advances cleanly; a partial advances
+  at a cost (the alarm rises a little); a failure does not advance, raises
+  the alarm further, gets the thief SEEN by the household member in the way
+  (a real Law witness) or, at an entry the story marks `hurts: true` (a new
+  optional per-entry key), is a fall that costs hp under the story's death
+  rules; a death while a job is open (a fall, or the stage's hours taking
+  the last hp) closes it `hurt` beside the custody release in
+  `encounter.check_death`, so the thief never wakes still offered the house.
+  Inside, whoever is no longer at home by the roll is dropped from the queue
+  first, so only someone present is rolled against or can see the thief. One
+  stage turn files at most one Law deed, however many saw it. A
+  full alarm wakes the house, which shouts for the watch; after the story's
+  delay in further in-game hours -- the job's own stage hours, since the
+  wall-clock world tick (`run_turn`'s background tick) does not run while a
+  job is open and is re-stamped so no burst of hours arrives when it closes
+  -- the job closes `caught` and the Law's arrest scene opens -- with no
+  Law, it closes `aborted` and nothing is filed, and the narrator hears
+  that the house woke, not that the player walked away (`job_close` stamps
+  `by: player` only for `abort`). The score draws loot on the
+  new stream and names the house's secret if casing found one; a good getaway
+  carries the loot out hot (theft provenance written), marks the house robbed
+  and commits the alarm's deed on the street. Anchored premises' extra stages
+  roll their authored skill and band. No authored scene is dealt while a job
+  is open, and none can take the turn from one.
+- **Jobs: prep and flashbacks** (engine; `jobs.legal_flashbacks`/`flashback`/
+  `prep_band`, effect kind `job_prep`, verb `flashback` → skill
+  `call_flashback`, predicates `premise_cased`/`premise_robbed`/`job` proven
+  in the shared grammar). The veiled `prep` meter is earned only by casing --
+  `premises.case` pays `prep.per_case` into it, capped at `prep.max`, and only
+  on a watch that actually learned something, never a refused one. Mid-job,
+  `flashback <kind>` calls on something arranged beforehand: it spends prep
+  (and coin, where named) through effects, banks its `effect` into the
+  current stage -- a shift into the band, or the first obstacles gone from
+  `inside`, initialised the same deterministic way a roll there would be --
+  and marks the kind used for the rest of the job. `legal_flashbacks` is what
+  the verb offers: a kind whose stage matches, not used yet, affordable, and
+  whose `requires` (`{district}`/`{premise}` filled from the open job) the
+  shared condition grammar accepts. `exposure: household` draws one member of
+  the premise on the `JOB` stream and, only where a Law is declared, commits
+  the alarm's deed with them `certain` -- a real, named witness; with no Law,
+  nothing is drawn or filed. A flashback never calls `advance_time`: the
+  present stage's odds and its costs change, but no hour passes. A story
+  without `paths.jobs` pays nothing for any of this, casing included.
+- **Jobs: the narrator and the player see the job** (engine;
+  `prompts.job_block`, `jobs.stage_words`/`stage_labels`/
+  `current_obstacle_label`/`flashback_label_this_turn`, `state.py`'s `job`
+  payload, `evaluator.contradicts`). The world-state block gains a JOB
+  section whenever one is open or closed this turn: the house by name, the
+  stage in words (never its id or a difficulty band), the obstacle in the
+  way (a household member by display name, a security feature by its own
+  authored `text` -- never the bare id), the reasons moving this stage's
+  odds (`band_for`'s own words), which flashback paid off -- by its label,
+  on the turn it was called only -- and the alarm, as a word; a job that
+  just closed says how. A security feature's reason ("cased already"/"not
+  yet cased") now names it by the same authored `text` the obstacle line
+  uses, rather than its id with underscores swapped, so the two lines never
+  disagree. `to_client_dict` ships the same facts as `job`:
+  `{"active": null | {premise_name, stage_label, stages, at, alarm},
+  "prep": "<band>"}`, `prep` living ONLY at the top level (not duplicated
+  inside `active`) since it is earned by casing whether or not a job is
+  open. A story that declares no `paths.jobs` sees no `job` key at all, and
+  the flagship's payload stays byte-identical. `contradicts` gains a fourth
+  anchored opposite: a clean, silent entry claimed over an ENTRY `job_stage`
+  receipt whose `outcome` is `noisy`/`seen` (undone by a contrastive
+  "but"/"until"/"though"/"yet" later in the same sentence, so honest prose
+  that owns up to the noise a clause later is not caught), and getting
+  inside claimed over an ENTRY stage receipt whose `advanced` is `False` --
+  both entry-only, since at every later stage the thief is already in: a
+  failed roll there is honestly narrated as such, and noise at the maid or
+  the strongroom says nothing about how quietly they got in.
+  Anchored the same way as the Law's own `_CLAIMS_UNSEEN`. A flashback now
+  stamps `active.last_flashback` (`{label, turn}`) through `job_stage`,
+  mirroring the Law's `last_deed.turn`.
+- **Jobs: authored jobs and guild contracts** (engine; `engine/world/jobs.py`'s
+  `_load_features`/`_load_tools`, docs). A `features` or `tools` row may now
+  name an anchor's own stage id (`anchors.<id>.stages[].id`), not only the
+  five derived stages — a security feature or a carried tool on the vault
+  floor is read exactly the same way as one on the front door: the feature's
+  known shift once cased, the tool's shift, banked flashback shifts, summed
+  and clamped once with the anchor's own authored band. Naming a stage that
+  is neither of the five nor any anchor's own is still a load fault naming
+  the file. Three rows that used to load and then do nothing (or worse) are
+  now load faults naming the file too: a feature on an anchor's stage whose
+  own anchor's `security` does not declare it (no premise that reaches that
+  stage could carry it), `obstacle: true` on any stage but `inside` (it
+  blocked `inside` while its shift applied nowhere), and `entries` on a
+  feature or tool whose stage does not include `entry` (the filter binds only
+  there). A guild contract needed **no new engine surface**: it is a plain
+  `paths.threads` template whose `requires` gates where it can be struck,
+  whose `discharge_requires` reads the existing `premise_robbed` predicate
+  (filtering by premise, type and district together) so it cannot be settled
+  until a job has actually robbed a matching house, whose `on_discharge` pays
+  the fee net of the Guild's cut as one `gold` effect, and whose `on_break`
+  sours the Guild as one `reputation` effect once `due_in_days` passes
+  unpaid — `threads.expire_due`, already run on every day tick, breaks it
+  exactly as it breaks any other bargain. `docs/AUTHORING.md` gains a
+  `paths.jobs` section (§3.12) written against the loader as it actually is,
+  with the contracts-as-threads recipe and a worked example.
+- **HUE & CRY's jobs, measured** (content and a harness; `games/hue-and-cry`
+  declares `paths.jobs` → `data/rules/jobs.yaml`, new
+  `scripts/simulate_jobs.py`). Tallowmere's houses can be burgled: `burgle`
+  opens a job on any unrobbed house in the district, and it is walked stage by
+  stage — the approach, a way in (the door, a window, over the roof with a
+  fall to pay for failing, or through the cellar), whoever is inside, the
+  strongroom, the getaway. Every security row of all eight house types and
+  four anchors now does something to a named stage, cased and uncased (the
+  greasy step, the hanging tapers, the fat old mastiff, the Margrave's bell
+  floor), and `tests/test_hue_and_cry.py` fails the suite if a new row ships
+  without a line. The Treasury gains its own stage, `vault_floor` ("the vault
+  floor on its springs"), carrying its `bell_floor` row; Vessaline House gets
+  none (its French lock is a harder strongroom, which is what it is). The
+  Treasury's household now lists its night guard first, so the one man a
+  `bribed_servant` flashback can have bought is the one on the door. New
+  items `lockpicks` (door, cellar and strongroom; kept) and `smoke_pellet`
+  (one getaway; spent), sold by Marrow in the Snuffs at 15 and 4 crowns. The
+  Law gains the `burglary` deed at severity 3. Mother Gannet's first contract
+  (`gannet_silk_row`): struck at the Porters' Hall, any house on Silk Row
+  inside three days, fifteen crowns once one has been robbed (twenty less the
+  Company's quarter), and left undone it sours `honest_company`. It is struck
+  only while no Silk Row house has been robbed (`requires`' `none:` group),
+  since the discharge cannot tell a robbery done for the contract from one
+  done before it. `bribed_servant` asks `premise_cased` (you watched this
+  house), not `visited` its street. Any house,
+  not only a townhouse: Silk Row's houses are drawn per seed and on 7 of the
+  first 300 seeds it drew no townhouse, which made a townhouse contract one
+  that could only break; every seed has Silk Row houses to rob (asserted over
+  300 seeds). HUE & CRY now declares `paths.factions`
+  (`data/world/factions.yaml`) with that one faction, so the break costs a
+  standing the story owns instead of logging "Unknown faction" (asserted:
+  breaking the contract logs no warning). No Tallowmere vendor declares a
+  faction, so no price moves. The
+  storyteller prompt gains a paragraph on how a job feels in Tallowmere.
+
+  **Measured** (AGENTS.md rule 10) with `scripts/simulate_jobs.py`, 40 seeds,
+  every action through `tool_dispatcher.execute_intent`: `blind` (tier-1/2,
+  uncased, empty-handed, whenever, by the door, never walks away), `careful`
+  (lockpicks, cases to two lines, waits for the empty hour, best way in,
+  flashbacks, walks away from a roused house), `greedy` (the careful method
+  plus a smoke pellet, fully cased, a tier-3+ house then the Treasury at
+  23:00, never walks away) and `greedy_bare` (the Treasury the blind way).
+  Share of jobs; "caught" is the watch at the door, "arrested" is losing the
+  Lantern's stop after it; haul is the registry value carried out.
+
+  First tuning (the plan's starting numbers):
+
+  | policy / rows | clean | noisy | caught | aborted | mean alarm | flashbacks | prep at start | deeds filed | arrested | haul |
+  |---|---|---|---|---|---|---|---|---|---|---|
+  | blind tier 1 | 10% | 49% | 41% | 0% | 2.61 | 0 | 0 | 0.39 | 15% | 5.7 |
+  | blind tier 2 | 2% | 20% | 79% | 0% | 3.66 | 0 | 0 | 0.79 | 10% | 25.1 |
+  | careful tier 1 | 27% | 58% | 0% | 14% | 1.75 | 0.87 | 2.25 | 0.56 | 0% | 6.0 |
+  | careful tier 2 | 11% | 44% | 0% | 45% | 2.84 | 2.17 | 2.3 | 0.77 | 0% | 22.8 |
+  | greedy tier 3 | 0% | 29% | 71% | 0% | 3.54 | 2.92 | 3 | 1.25 | 8% | 97.1 |
+  | greedy tier 4 | 0% | 0% | 100% | 0% | 4.0 | 2.6 | 3 | 0.93 | 20% | - |
+  | greedy Treasury | 0% | 0% | 100% | 0% | 4.0 | 2.45 | 3 | 1.0 | 12% | - |
+  | bare Treasury | 0% | 0% | 100% | 0% | 4.0 | 0 | 0 | 0.88 | 12% | - |
+
+  Last tuning (what ships):
+
+  | policy / rows | clean | noisy | caught | aborted | mean alarm | flashbacks | prep at start | deeds filed | arrested | haul |
+  |---|---|---|---|---|---|---|---|---|---|---|
+  | blind tier 1 | 16% | 62% | 22% | 0% | 2.71 | 0 | 0 | 0.41 | 7% | 5.8 |
+  | blind tier 2 | 3% | 47% | 50% | 0% | 4.10 | 0 | 0 | 0.74 | 8% | 24.1 |
+  | careful tier 1 | 23% | 70% | 0% | 7% | 1.82 | 0.84 | 2.23 | 0.46 | 0% | 5.8 |
+  | careful tier 2 | 14% | 61% | 0% | 25% | 2.88 | 2.19 | 2.3 | 0.58 | 0% | 24.4 |
+  | greedy tier 3 | 8% | 75% | 17% | 0% | 2.62 | 2.17 | 3 | 0.46 | 0% | 95.7 |
+  | greedy tier 4 | 0% | 60% | 40% | 0% | 3.8 | 2.93 | 3 | 1.07 | 0% | 234.4 |
+  | greedy Treasury | 0% | 20% | 80% | 0% | 4.78 | 2.92 | 3 | 0.8 | 18% | 780 |
+  | bare Treasury | 0% | 0% | 100% | 0% | 5.0 | 0 | 0 | 0.88 | 12% | - |
+
+  Runs ending `sought` or worse anywhere: blind 30%, careful 32%, greedy
+  38%, bare 0%; `wanted` or worse 8% / 10% / 2% / 0%. (Re-measured after
+  absent household members stopped being rolled against: only `blind`, which
+  goes in whenever it arrives, moved -- tier 2 from 58% caught to 50%.) No run took the thief
+  below full hp. What moved and why is in `jobs.yaml`'s header: `tier_band`
+  3/4/5 from hard/severe/legendary to standard/hard/severe, `alarm.max` 4 → 5
+  (a fifth word, "restless"), `score.shift` 0 → -1, `treasury_guards`
+  `known_shift` 1 → 0, `vault_floor` severe → hard. `burglary` stayed at
+  severity 3 (at 2, only 2–10% of runs reached `sought`; at 4 a careful burglar
+  ended a quarter of its runs `wanted`), and `watch_delay_hours` stayed at 2.
+  The Law's v0.10.0 table is untouched (no harness there burgles).
+
+  **Not reached, and reported rather than bent:** the plan asked for a
+  careful thief who finishes tier-1/2 jobs CLEAN most of the time. The engine
+  closes a job clean only when every roll was a full success — a `partial`
+  gets through but raises the alarm, and any alarm at the getaway is `noisy`
+  — and an empty house is still four rolls. With every roll forced to
+  `trivial` and the thief's best skill, careful measured 28–32% clean. What
+  ships is a careful thief who carries the take out 83% of the time and is
+  never caught — a roused house is walked away from (`aborted`, 7–25%) rather
+  than pressed, and the quirk below is why that abort always beats the watch
+  there — and a clean night that stays rare. `tests/test_hue_and_cry.py`
+  asserts that shape (carried out ≥ 60%, caught ≤ 10%, blind caught ≥ 20%,
+  the bare Treasury never, the prepped one sometimes) over the first 12 seeds.
+
+  Engine quirks the measurement ran into, recorded (jobs.yaml header,
+  AUTHORING §3.12) and not changed: the watch's delay counts whole in-game hours (`jobs.now_hour`
+  floors), so a stage of fractional hours can bring it up to an hour late;
+  and `abort` on a roused house ends the job before the watch arrives — the
+  deed and its witnesses stand, but nobody comes to the door, which is
+  exactly the door the careful thief's own "never caught" line above walks
+  out of.
+
 ## [0.10.0] — 2026-09-24
 
 **The Law**, the second of the four v0.9 engine features, proven against HUE
@@ -1232,7 +1486,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.8.0...v0.8.1

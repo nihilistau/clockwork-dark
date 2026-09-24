@@ -208,6 +208,22 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
     except ImportError:
         pass
 
+    # A burglary's alarm, on in-game hours: once the house has shouted for
+    # the watch, the watch arrives after the story's delay of FURTHER hours
+    # -- the job's own stage hours (or a death's respawn hours), never
+    # wall-clock ones: ``run_turn``'s background tick does not run while a
+    # job is open (``default_state._job_holds_the_clock``).
+    # After the Law's pass, so the hours the watch spends coming are hours
+    # its reports have already travelled. Rolls nothing. A story that
+    # declares no jobs never enters it.
+    try:
+        from engine.world import jobs
+
+        if jobs.declared():
+            jobs.tick(state, hours)
+    except ImportError:
+        pass
+
     # Death handling advances the clock itself (unconsciousness costs hours),
     # which re-enters this function. Unguarded, each nested call ran the death
     # check again and the calendar ran away -- measured jumping day 2 to day 123

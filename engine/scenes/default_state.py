@@ -841,6 +841,45 @@ def _negotiate(state: GameState, player_action: str, **kwargs: Any) -> Any:
         return PipelineResult(ran=False)
 
 
+def _job_holds_the_clock(state: Any) -> bool:
+    """
+    Whether an open burglary pauses the wall-clock world tick this turn.
+
+    A job's clock is its stages: each spends its own in-game hours through
+    ``advance_time``, and the watch (``jobs.tick``) comes after that many of
+    THEM. The background tick is wall-clock by design (issue R-03), so left
+    running it brought the watch to a thief who was only reading the prose
+    slowly, and moved the household the "empty hour" was chosen against. While
+    a job is open the tick does not run, and ``last_sim_tick_at`` is re-stamped
+    every such turn so the paused minutes never arrive as a burst of hours the
+    turn after the job closes. A story that declares no jobs never enters it.
+    """
+    try:
+        from engine.world import jobs
+    except ImportError:
+        return False
+    if not jobs.declared() or jobs.active(state) is None:
+        return False
+    state.last_sim_tick_at = time.time()
+    return True
+
+
+def _background_tick(state: Any) -> float:
+    """
+    Run the wall-clock world tick this turn has earned; return its hours.
+
+    Paused (0.0, nothing run) while a job holds the clock
+    (``_job_holds_the_clock``). Split out of ``run_turn`` so the jobs replay
+    test drives this same gate rather than a copy of it.
+    """
+    tick_hours = WorldSim.realtime_tick_hours(state.last_sim_tick_at)
+    if tick_hours > 0 and _job_holds_the_clock(state):
+        tick_hours = 0.0
+    if tick_hours > 0:
+        WorldSim.on_tick(state, hours=tick_hours)
+    return tick_hours
+
+
 def run_turn(
     session: GameSession,
     player_action: str,
@@ -873,9 +912,8 @@ def run_turn(
         # turn, which was 60% of every hour the clock ever advanced and, at 2.0
         # hunger per hour, put 12 hunger on the player before they had done
         # anything. It is proportional to real elapsed time now, and capped.
-        tick_hours = WorldSim.realtime_tick_hours(state.last_sim_tick_at)
+        tick_hours = _background_tick(state)
         if tick_hours > 0:
-            WorldSim.on_tick(state, hours=tick_hours)
             # What people said to each other while the clock moved. Here rather
             # than inside `on_tick` because gossip writes to the LEDGER, and
             # `WorldSim` is handed state alone -- passing it a ledger would put

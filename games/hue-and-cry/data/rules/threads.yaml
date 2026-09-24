@@ -4,7 +4,9 @@
 # (the `bargain` verb), then settled (`discharge`) or left to come due, when
 # it breaks.
 #
-# ONE CONTRACT SO FAR: Sergeant Brask's price. Everything about Brask has a
+# TWO CONTRACTS: Sergeant Brask's price, and Mother Gannet's first job.
+#
+# SERGEANT BRASK'S PRICE. Everything about Brask has a
 # price, including looking the other way (prompts/storyteller.md), and the
 # Lantern House's paperwork lives in his desk drawer -- the one that sticks.
 #
@@ -26,12 +28,42 @@
 # One bribe a run: a struck template is not offered again, and Brask can only
 # lose a file once before the captain notices the drawer is always empty.
 #
-# Version: v0.2.0 [2026-09-24]
+# MOTHER GANNET'S JOB (v0.11). The Honest Company of Night Porters is a
+# porters' union on paper and a thieves' guild after dark, and a contract is
+# how it hands out work: a house, a fee, a day to have it done by. It is an
+# ordinary thread (docs/AUTHORING.md §3.12, "Guild contracts are threads"):
+#   strike     At the long table in the Porters' Hall (`requires`: the
+#              Snuffs, where Gannet keeps court), she names Silk Row: the
+#              client wants a Silk Row name in the morning's gossip, and
+#              does not mind which house it is. Only while Silk Row is still
+#              unrobbed (`none: [premise_robbed ...]`): the discharge cannot
+#              tell a robbery done before the contract from one done for it,
+#              so a robbery that came first must not be on offer to pay it.
+#   discharge  Once a job has carried the take out of ANY house on Silk Row
+#              (`premise_robbed: {district: silk_row}`, read by
+#              `discharge_requires`), she pays. Any house, not only a
+#              townhouse, on purpose: Silk Row's houses are drawn per seed
+#              (data/premises/districts.yaml) and on 7 of the first 300 seeds
+#              it drew no townhouse at all, which made a townhouse contract
+#              one that could only break. Every seed has five generated
+#              houses there plus Vessaline House (an anchor), asserted over
+#              300 seeds in tests/test_hue_and_cry.py. The
+#              client paid the Company twenty crowns; the Company keeps five,
+#              as it keeps a quarter of everything, and you get fifteen -- one
+#              `gold` effect, the arithmetic done here, where the Company
+#              does it. What you carried out of the house is yours to fence.
+#   comes due  Three days, and unpaid it breaks: the Company does not forget
+#              a job it promised a client and did not deliver
+#              (`reputation` against `honest_company`, the one faction
+#              data/world/factions.yaml declares).
+#
+# Version: v0.3.2 [2026-09-24]
 
 version: 1
 
 tags:
   - Bribe
+  - Contract
 
 templates:
 
@@ -53,3 +85,29 @@ templates:
       - { type: quash_reports, jurisdiction: wick, guise: self, linked: true }
     # No on_break: a bribe left unpaid buys nothing and costs nothing. The file
     # simply stays where it was, in the drawer that sticks.
+
+  gannet_silk_row:
+    title: "Mother Gannet's job"
+    source: npc_gannet
+    tags: [Contract]
+    terms: >-
+      A house on Silk Row -- any house, so long as it is on Silk Row and the
+      whole Row hears of it -- emptied of whatever is worth the carrying,
+      inside three days. Twenty crowns from the client; the Company's quarter
+      comes off the top, as it always does. Robbery, mind. Nobody hurt.
+    due_in_days: 3
+    # Struck at her table in the Porters' Hall, in the Snuffs, nowhere else --
+    # and only while no Silk Row house has been robbed yet. The discharge
+    # below reads "a Silk Row house robbed, ever", so a contract struck after
+    # the robbery would be paid by a job done before it was offered.
+    requires:
+      all: [{ at_location: the_snuffs }]
+      none: [{ premise_robbed: { district: silk_row } }]
+    # Paid only once a job has carried the take out of a house on Silk Row --
+    # any type, so every seed has one to rob (see the header).
+    discharge_requires:
+      premise_robbed: { district: silk_row }
+    on_discharge:
+      - { type: gold, delta: 15 }                # twenty, less the Company's five
+    on_break:
+      - { type: reputation, faction: honest_company, delta: -10 }

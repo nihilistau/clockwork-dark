@@ -271,9 +271,13 @@ half at `ui/src/stories/clockwork-dark/screens/Notices.jsx` (overlay `n`);
 the challenge/scene framing chip (`ui/src/core/parts/BeatFrame.jsx`);
 the negotiation panel (`ui/src/core/parts/NegotiationPanel.jsx`, rendered by
 `Play.jsx` and silent unless a pipeline ran);
-and the rolled-d20 stills — all 20 plates and all
+the rolled-d20 stills — all 20 plates and all
 20 interface faces exist and are mapped in `games/clockwork-dark/data/art/manifest.yaml`
-(`dice_plates` / `dice_faces`), held by `tests/test_dice_art.py`.
+(`dice_plates` / `dice_faces`), held by `tests/test_dice_art.py`;
+and premise security (stage/band/bypass) — `engine/world/jobs.py`'s `entry`
+and `inside` stages read a feature's `known_shift` once casing found it, its
+`shift` otherwise, and an `obstacle: true` feature blocks the `inside` stage
+in its own right, exactly the wiring this row once asked for (v0.11.0).
 
 ### NOT WIRED
 
@@ -283,10 +287,11 @@ and the rolled-d20 stills — all 20 plates and all
 | Governance panel | producer: `engine/scenes/default_state.py` ships `governance` on the turn payload. Consumer: nothing | An analyst-mode panel over the R001–R005 breaches. Debug-shaped rather than player-shaped, which is why it is last. Its sibling `negotiation` row left this table in v0.6.0 — and splitting them is the lesson: the row read "the player has no way to know a second agent won, lost or gave something up", and the answer to *that* was never a table. The player learns it from the prose, because `narration_block` now hands the narrator what was yielded and why; the panel is only the author's tuning surface. |
 | Probabilistic declared world events | `engine/world/schedules.py::declared_events_due` | A story's `events:` block fires on `on_day`, `every_days` or a `when:` predicate -- all deterministic, from `advance_time`'s day roll (v0.8.0). A `probability:` key is not read. Wiring it needs a named `world_rng` stream per event and a decision about whether the roll happens on the day roll (replayable) or the background tick (the flagship's three hardcoded events, which are wall-clock). |
 | Companion posture on a concession | producer: `negotiation.resolutions` names the agent that yielded, by roster id. Consumer: nothing, and it cannot be built as things stand | `assistant_presence` (`engine/scenes/default_state.py`) ships no agent id, so the client cannot tell whether the agent that gave way IS the companion in its column. Deliberately not guessed at in v0.6.0. Wiring it means threading the roster id onto the presence payload; the log's margin mark carries the "this turn was contested" signal until then. |
-| Premise security (stage/band/bypass) | `games/hue-and-cry/data/premises/types/*.yaml::security` | Each feature declares `{id, text, tier_min}` -- a watch learns the text, but nothing turns a feature into a stage, a skill band, or a bypass (a picked lock, a fed dog). Reader: Jobs (v0.11.0), whose `entry` stage is exactly this. |
 | Wanted-poster UI chrome | producer: `engine/game/state.py::to_client_dict` ships `law` (`guise_label`, `wanted` by jurisdiction label, `custody`) when a story declares `paths.law`. Consumer: nothing | The payload exists and is real -- the narrator's `law_block` (`engine/agents/prompts.py`) already speaks the same facts in prose. Nothing in `ui/src` renders a wanted band, a guise chip or a custody panel from it. Reader: `hue-and-cry` (v1.0), whose bespoke UI plugin is where this was always meant to land. |
 | An `npc_present` condition predicate | `engine/game/quests.py::_PREDICATES` (the shared condition grammar `threads.yaml`'s `requires` and `discharge_requires` also read, v0.10.0) | A thread's `requires` can gate on `at_location` but not on who else is standing there. `brask_bribe` (`games/hue-and-cry/data/rules/threads.yaml`) gates its `requires` on `at_location: lantern_house` alone, so it can be struck at his desk whether or not Brask himself is in -- and its `discharge_requires` checks only `min_gold`, so it can be struck and settled with a clean record, quashing nothing. Wiring it needs a predicate that reads the same presence roster the turn's own NPC block builds from. |
 | `arrest.approaches` in a law file | `engine/world/law.py::load_spec` keeps `arrest["approaches"]`; nothing reads it | docs/AUTHORING.md §3.11 once described it as "the story's own default set of exits" merged into the arrest scene. No merge exists: the arrest encounter's exits come from its own encounter file only, and HUE & CRY's `watch_stop` declares all of them there. Wiring it means merging the block under the scene's own `approaches` in `encounter` when the scene opened is `arrest.encounter`, with the scene's own keys winning. |
+| Job panel UI | producer: `engine/game/state.py::to_client_dict` ships `job` (`active`: `premise_name`, `stage_label`, `stages`, `at`, `alarm`, or `None` between jobs; plus a stable top-level `prep`, earned by casing whether or not a job is open) when a story declares `paths.jobs`. Consumer: nothing | The payload exists and is real -- the narrator's `job_block` (`engine/agents/prompts.py`) already speaks the same facts in prose: the house, the stage, the obstacle, what is moving the odds, which flashback paid off, the alarm. Nothing in `ui/src` renders stages, alarm or prep from it. Reader: `hue-and-cry` (v1.0), whose bespoke UI plugin is where this was always meant to land, same as the Law's wanted-poster chrome above. |
+| Hired hands | spec §4 (docs/superpowers/specs/2026-09-23-hue-and-cry-design.md) | Explicitly optional there; not built. A job is walked solo, start to getaway. |
 
 ### Deliberately deferred -- the Law (v0.10.0)
 

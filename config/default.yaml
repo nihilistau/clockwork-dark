@@ -621,6 +621,11 @@ paths:
   # ONE FILE: jurisdictions, deeds, wanted bands, guises and arrest -- who the
   # watch thinks you are and how badly it wants you. See engine/world/law.py.
   law: ""
+  # ONE FILE: the five stages, tier bands, entries, what security features
+  # and tools do, the alarm and prep meters, flashbacks and anchored premises'
+  # extra stages -- a burglary walked stage by stage. Needs `premises`. See
+  # engine/world/jobs.py.
+  jobs: ""
 
   # -- things, work and trade ----------------------------------------------
   items: ""

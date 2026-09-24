@@ -91,6 +91,11 @@ NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
     ("engine.world.law", "_SPEC_CACHE"),
     # Warn-once memory for an arrest scene the story's encounters lack; per story.
     ("engine.world.law", "_WARNED_ENCOUNTERS"),
+    # Parsed jobs file: stages, bands, features, tools, flashbacks, anchors. A
+    # swap that kept it warm would burgle one city's houses by another's rules.
+    ("engine.world.jobs", "_SPEC_CACHE"),
+    # Warn-once memory for an arrest scene a raised alarm cannot open; per story.
+    ("engine.world.jobs", "_WARNED_ARREST"),
     # Warn-once memory for a story's missing death rules; per story.
     ("engine.game.encounter", "_WARNED_DEATH"),
     ("engine.media.comfyui", "_TEMPLATE_CACHE"),

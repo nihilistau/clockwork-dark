@@ -33,11 +33,14 @@ NPC agendas -- and v1.0 finishes it. What is here is the ground they stand on:
 | The Lantern's stop -- run, talk, bribe, surrender or fight -- opened only by a patrol that knows your face | `data/encounters/watch_stop.yaml` |
 | Dock Mag, the first honest vendor, selling porters' smocks; Marrow's Magpie mask | `data/economy.yaml`, `data/items/guises.yaml` |
 | Sergeant Brask's price: a bribe that loses your file | `data/rules/threads.yaml` |
+| Jobs (v0.11): `burgle` a house and walk it stage by stage -- get there unseen, get in (door, window, roof or cellar), get past whoever is inside, open the strongroom, get clear -- with every house's security moving the odds, casing earning prep, three flashbacks to spend it on, and an alarm that brings the Watch; the Treasury has its own vault floor | `data/rules/jobs.yaml` |
+| The burglar's kit, sold by Marrow: lockpicks and smoke pellets | `data/items/tools.yaml`, `data/economy.yaml` |
+| Mother Gannet's job: any house on Silk Row for the Honest Company, fifteen crowns net of its cut, three days to do it; left undone it costs the Company's good opinion (its one faction) | `data/rules/threads.yaml`, `data/world/factions.yaml` |
 
 ## What it deliberately does not ship yet
 
 No forage, labour, boon or complication tables, no night-street encounters,
-decks, clocks, factions, and only one thread and one honest counter. No
+decks, clocks, one faction, and only two threads and one honest counter. No
 `death.yaml` either: it waits for v1.0 and The Rope ending, so until then a
 lost fight with the Watch can leave hp at zero with no respawn. Each is
 a later release's job, and `game.yaml` lists them.
@@ -53,5 +56,15 @@ The Law is measured: `scripts/simulate_law.py` plays a careful thief, a
 reckless one, and a briber -- the reckless thief answering every Lantern's
 stop with the bribe whenever its purse covers the price -- over 40 seeds x 10
 in-game days, and every number in `data/rules/law.yaml` was set against it (the table is in CHANGELOG.md;
-`tests/test_hue_and_cry.py` asserts the floors). Everything else is
-unmeasured: `scripts/simulate.py`'s policies are flagship-owned.
+`tests/test_hue_and_cry.py` asserts the floors).
+
+Jobs are measured too: `scripts/simulate_jobs.py` plays four burglars over 40
+seeds -- `blind` (tier-1/2 houses, uncased, empty-handed, whenever, never
+walking away), `careful` (lockpicks, cases a house to two lines, goes in the
+hour nobody is home, spends its flashbacks, walks away from a roused house),
+`greedy` (the careful method with a smoke pellet, on a tier-3+ house and then
+the Treasury) and `greedy_bare` (the Treasury the blind way). Every number in
+`data/rules/jobs.yaml` was set against it; the table is in its header and in
+CHANGELOG.md, and `tests/test_hue_and_cry.py` asserts the bounds.
+Everything else is unmeasured: `scripts/simulate.py`'s policies are
+flagship-owned.

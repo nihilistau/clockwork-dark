@@ -953,6 +953,13 @@ def _check_death_inner(
 
     if law.in_custody(state):
         effects_module.apply_effect(state, {"type": "release"})
+    # Nor a burglary. A thief carried off to wake somewhere else is not still
+    # standing in the house at the stage they fell at; left open, the job's
+    # `job`/`abort` verbs would be offered from wherever they woke.
+    from engine.world import jobs
+
+    if jobs.declared() and jobs.active(state) is not None:
+        effects_module.apply_effect(state, {"type": "job_close", "outcome": "hurt"})
 
     text = str(respawn.get("text") or "You wake somewhere else, and later.")
     if ledger is not None:

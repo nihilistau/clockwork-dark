@@ -342,6 +342,16 @@ def ensure_scene(state: GameState, *, ledger: Any = None) -> list[dict[str, Any]
     """
     if active(state):
         return []
+    # A burglary under way owns the turn the way a scene does. A card dealt
+    # over it would take the turn from the job's own verbs, and the player
+    # would answer a hand while the house they are standing in waited. The
+    # scene is not lost: whatever made it due is still true when the job
+    # ends. `jobs.active` reads `state.jobs`, which is `{}` for a story
+    # without jobs, so a deck story that burgles nothing is unchanged.
+    from engine.world import jobs
+
+    if jobs.active(state) is not None:
+        return []
 
     deck_id, forced_card, source = due(state, ledger=ledger)
     if not deck_id:

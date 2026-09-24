@@ -1489,6 +1489,221 @@ def _e_law_last_deed(
     return {"type": "law_last_deed", "ok": True, "hidden": True, "text": ""}
 
 
+def _job_refusal(kind: str, why: str) -> dict[str, Any]:
+    """A job effect that wrote nothing, and why. Same shape as ``_law_refusal``."""
+    return {"type": kind, "ok": False, "text": "", "message": why}
+
+
+@effect_kind("job_open")
+def _e_job_open(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    Start a job on a premise. The only writer of ``state.jobs["active"]`` and
+    ``state.jobs["seq"]``.
+
+    ``stages`` is the caller's (``jobs.stages_for``), so an anchored premise's
+    spliced stages are decided once, where the anchor is read. Refuses an
+    unknown premise, an empty stage list, and a second job while one is open
+    -- two open jobs would each believe they own the turn. The id comes from
+    the saved counter, allocated only after every check passed, so a refusal
+    never burns one.
+
+    The job starts at its first stage with no alarm. ``entry`` and
+    ``obstacles`` are absent until the stages that decide them are reached.
+    """
+    from engine.world import jobs, premises
+
+    if not jobs.declared():
+        return _job_refusal("job_open", "this story has no jobs")
+    if jobs.active(state) is not None:
+        return _job_refusal("job_open", "a job is already open")
+    premise_id = str(effect.get("premise") or "").strip()
+    prem = premises.get(state, premise_id)
+    if prem is None:
+        return _job_refusal("job_open", f"unknown premise `{premise_id}`")
+    stages = effect.get("stages")
+    if not isinstance(stages, list) or not stages or not all(
+        isinstance(s, str) and s for s in stages
+    ):
+        return _job_refusal("job_open", "a job needs a non-empty list of stage ids")
+    seq = _int(state.jobs.get("seq"), 0) + 1
+    state.jobs["seq"] = seq
+    job_id = f"j{seq}"
+    state.jobs["active"] = {
+        "id": job_id,
+        "premise": premise_id,
+        "district": str(prem.get("district") or ""),
+        "stages": list(stages),
+        "at": 0,
+        "alarm": 0,
+        "raised_at": None,
+        "shifts": {},
+        "used_flashbacks": [],
+        "loot": [],
+        "log": [],
+    }
+    return {"type": "job_open", "ok": True, "hidden": True, "job_id": job_id, "text": ""}
+
+
+@effect_kind("job_close")
+def _e_job_close(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    End the open job. The only writer of ``state.jobs["robbed"]`` and
+    ``state.jobs["last"]``, and the only thing that clears ``active``.
+
+    A score carried out (``jobs.CARRIED_OUT``: ``clean`` or ``noisy``) marks
+    the premise robbed, so ``burgle`` never offers it again; an aborted or
+    caught job took nothing and leaves the house to try again. ``last`` keeps
+    the close for the narrator, stamped with ``state.turn_number``, and with
+    ``by: "player"`` when the effect says the thief chose it (``jobs.abort``)
+    -- an ``aborted`` close written by ``jobs.tick`` (the house roused, nobody
+    to come) is not the player walking away, and must not be narrated as one.
+    """
+    from engine.world import jobs
+
+    if not jobs.declared():
+        return _job_refusal("job_close", "this story has no jobs")
+    job = jobs.active(state)
+    if job is None:
+        return _job_refusal("job_close", "no job is open")
+    outcome = str(effect.get("outcome") or "").strip()
+    if outcome not in jobs.OUTCOMES:
+        return _job_refusal("job_close", f"unknown job outcome `{outcome}`")
+    premise_id = str(job.get("premise") or "")
+    if outcome in jobs.CARRIED_OUT:
+        robbed = state.jobs.setdefault("robbed", [])
+        if premise_id not in robbed:
+            robbed.append(premise_id)
+    state.jobs["last"] = {
+        "id": str(job.get("id") or ""),
+        "premise": premise_id,
+        "outcome": outcome,
+        "turn": state.turn_number,
+    }
+    if effect.get("by") == "player":
+        state.jobs["last"]["by"] = "player"
+    state.jobs.pop("active", None)
+    return {"type": "job_close", "ok": True, "hidden": True, "outcome": outcome, "text": ""}
+
+
+@effect_kind("job_stage")
+def _e_job_stage(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    Record what one stage turn did to the open job. The only writer of its
+    ``at``, ``entry``, ``obstacles``, ``loot`` and ``log``.
+
+    ``stage`` must be the job's CURRENT stage: a write for any other would
+    record a turn at a stage the player is not at. ``entry``, ``obstacles``,
+    ``loot``, ``shifts``, ``used_flashbacks`` and ``last_flashback`` replace
+    their fields when given; a ``degree`` key (even "") appends one ``log``
+    row; ``advance`` moves to the next stage. Advancing past the last stage
+    is refused -- the getaway closes the job through ``job_close``, never by
+    walking off the end of the list.
+
+    ``shifts``, ``used_flashbacks`` and ``last_flashback`` are how a
+    flashback banks its effect, marks itself spent, and stamps which one
+    paid off THIS turn (``jobs.flashback``); nothing else writes them.
+    """
+    from engine.world import jobs
+
+    if not jobs.declared():
+        return _job_refusal("job_stage", "this story has no jobs")
+    job = jobs.active(state)
+    if job is None:
+        return _job_refusal("job_stage", "no job is open")
+    stages = list(job.get("stages") or [])
+    at = _int(job.get("at"), 0)
+    stage = str(effect.get("stage") or "")
+    if not 0 <= at < len(stages) or stages[at] != stage:
+        return _job_refusal("job_stage", f"`{stage}` is not the stage the job is at")
+    advance = bool(effect.get("advance"))
+    if advance and at + 1 >= len(stages):
+        return _job_refusal("job_stage", "the last stage closes the job; it does not advance")
+    if "obstacles" in effect and stage != "inside":
+        # An obstacle only exists at `inside`; a write for any other stage
+        # would leave a later `inside` seeing the key already present and
+        # crossing it with no roll at all -- the whole stage silently skipped.
+        return _job_refusal("job_stage", "obstacles only apply at the `inside` stage")
+    if "entry" in effect:
+        job["entry"] = str(effect["entry"])
+    if "obstacles" in effect:
+        job["obstacles"] = [str(o) for o in effect.get("obstacles") or []]
+    if "loot" in effect:
+        job["loot"] = [str(i) for i in effect.get("loot") or []]
+    if "shifts" in effect:
+        job["shifts"] = {str(k): int(v) for k, v in (effect.get("shifts") or {}).items()}
+    if "used_flashbacks" in effect:
+        job["used_flashbacks"] = [str(k) for k in effect.get("used_flashbacks") or []]
+    if "last_flashback" in effect:
+        # Which flashback paid off, and on what turn -- `jobs.flashback`'s own
+        # stamp, read back by `jobs.flashback_label_this_turn` the same way
+        # `law_last_deed` is read back through `last_deed.turn`.
+        payload = effect.get("last_flashback")
+        job["last_flashback"] = dict(payload) if payload else None
+    if "degree" in effect:
+        job.setdefault("log", []).append({
+            "stage": stage,
+            "approach": str(effect.get("approach") or ""),
+            "degree": str(effect.get("degree") or ""),
+        })
+    if advance:
+        job["at"] = at + 1
+    return {"type": "job_stage", "ok": True, "hidden": True, "at": job["at"], "text": ""}
+
+
+@effect_kind("job_alarm")
+def _e_job_alarm(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    Move the open job's alarm by ``delta``, clamped to 0..``alarm.max``. The
+    only writer of its ``alarm`` and ``raised_at``.
+
+    The first time the alarm reaches max, ``raised_at`` is stamped HERE with
+    the absolute in-game hour (``jobs.now_hour``) -- the effect is the only
+    writer, and a caller-supplied hour is an hour a bug can backdate. It is
+    never re-stamped: the watch was sent for once, and more noise does not
+    make it set out again later.
+
+    Returns ``raised: True`` only on the write that raised it.
+    """
+    from engine.world import jobs
+
+    if not jobs.declared():
+        return _job_refusal("job_alarm", "this story has no jobs")
+    job = jobs.active(state)
+    if job is None:
+        return _job_refusal("job_alarm", "no job is open")
+    maximum = int(jobs.spec()["alarm"]["max"])
+    before = _int(job.get("alarm"), 0)
+    after = int(_clamp(before + _int(effect.get("delta")), 0, maximum))
+    job["alarm"] = after
+    raised = after >= maximum and job.get("raised_at") is None
+    if raised:
+        job["raised_at"] = jobs.now_hour(state)
+    return {"type": "job_alarm", "ok": True, "hidden": True, "alarm": after,
+            "raised": raised, "text": ""}
+
+
+@effect_kind("job_prep")
+def _e_job_prep(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    Move the veiled ``prep`` meter by ``delta``, clamped to 0..``prep.max``.
+    The only writer of ``state.jobs["prep"]``.
+
+    Lives on ``state.jobs`` itself, not the open job: prep is restored by
+    casing between jobs, not by opening one, so it survives ``job_open`` and
+    ``job_close`` untouched. No job needs to be open to spend or earn it --
+    ``premises.case`` pays into it whether or not a burglary is under way.
+    """
+    from engine.world import jobs
+
+    if not jobs.declared():
+        return _job_refusal("job_prep", "this story has no jobs")
+    maximum = int(jobs.spec()["prep"]["max"])
+    before = _int(state.jobs.get("prep"), 0)
+    after = int(_clamp(before + _int(effect.get("delta")), 0, maximum))
+    state.jobs["prep"] = after
+    return {"type": "job_prep", "ok": True, "hidden": True, "prep": after, "text": ""}
+
+
 @effect_kind("ledger_fact")
 def _e_ledger_fact(
     state: GameState, effect: dict[str, Any], ctx: EffectContext

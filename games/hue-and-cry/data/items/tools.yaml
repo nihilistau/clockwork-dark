@@ -1,0 +1,42 @@
+# HUE & CRY -- the tools of a burglar's trade.
+#
+# Read by engine/game/inventory.py through `paths.items` (every *.yaml in this
+# directory merges into one registry). Each id here is a `tools` row in
+# data/rules/jobs.yaml: carried, it moves a job's odds at the stages that row
+# names (engine/world/jobs.py::_plan).
+#
+# WHERE THEY COME FROM. Marrow sells both across the counter in the Snuffs
+# (data/tables/trade.yaml), because a fence who melts crests also knows who
+# files picks and who rolls pellets, and does not ask what either is for.
+# Crafting them yourself is v1.0 work (paths.recipes is not declared yet).
+#
+# Version: v0.1.0 [2026-09-24]
+
+version: 1
+
+items:
+
+  - id: lockpicks
+    name: "Lockpicks"
+    description: >-
+      A roll of oiled leather holding eleven picks, two tension bars and a
+      bent hairpin somebody has kept for luck. Filed by a locksmith in the
+      Snuffs who swears he only ever made them for people locked out of their
+      own houses. They help at a door, a cellar hatch and a strongroom lock,
+      and they are not used up by any of them.
+    tags: [tool]
+    weight: 0.2
+    value: 10
+    stack: false
+
+  - id: smoke_pellet
+    name: "Smoke Pellet"
+    description: >-
+      A twist of waxed paper around saltpetre, tallow and something that
+      smells of the vats, with a wick as long as a fingernail. Pinch, drop,
+      walk away: for thirty heartbeats a Tallowmere street is a fog bank with
+      a coughing Lantern in it. One use, which is one more than most plans get.
+    tags: [tool, consumable]
+    weight: 0.05
+    value: 2
+    stack: true

@@ -737,6 +737,7 @@ _GRAMMAR_MODULES = (
     "engine.game.clocks",  # value, clock, track, forced_scene
     "engine.game.threads",  # thread, no_thread
     "engine.game.endings",  # ending
+    "engine.world.jobs",  # premise_cased, premise_robbed, job
 )
 
 _grammar_loaded = False

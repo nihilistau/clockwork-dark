@@ -1,0 +1,277 @@
+# HUE & CRY -- a job, from the street to the getaway.
+#
+# Read by engine/world/jobs.py through `paths.jobs`; the contract is
+# docs/AUTHORING.md §3.12. A job is five stages -- get to the house unseen,
+# get in, get past whoever is inside, open the strongroom, get clear with the
+# take -- each one hour and one roll, and the Margrave's Treasury has a sixth:
+# its vault floor, on springs, over a bell.
+#
+# EVERY NUMBER HERE WAS MEASURED (AGENTS.md rule 10), with
+# scripts/simulate_jobs.py: 40 seeds, four policies. BLIND burgles tier-1/2
+# houses uncased with nothing in its pockets whenever it arrives, by the door,
+# and never walks away; CAREFUL buys lockpicks, cases a tier-1/2 house to two
+# lines, waits for the hour nobody is home, takes the best way in, calls on
+# flashbacks and walks away once the house is roused; GREEDY does the same with
+# a smoke pellet too, against a tier-3+ house and then the Treasury, at eleven
+# at night, never walking away; GREEDY_BARE tries the Treasury the blind way.
+# What the final numbers gave (share of jobs):
+#
+#                       clean  noisy  caught  aborted  arrested  haul (cr)
+#   blind   tier 1        16%    62%     22%       0%        7%        6
+#   blind   tier 2         3%    47%     50%       0%        8%       24
+#   careful tier 1        23%    70%      0%       7%        0%        6
+#   careful tier 2        14%    61%      0%      25%        0%       24
+#   greedy  tier 3         8%    75%     17%       0%        0%       96
+#   greedy  tier 4         0%    60%     40%       0%        0%      234
+#   greedy  Treasury       0%    20%     80%       0%       18%      780
+#   bare    Treasury       0%     0%    100%       0%       12%        -
+#
+# "caught" is the watch at the door; "arrested" is losing the Lantern's stop
+# that follows (its `run` is easy, data/encounters/watch_stop.yaml). The full
+# table, with alarm, flashbacks, prep and deeds, first tuning and last, is in
+# CHANGELOG.md.
+#
+# WHAT THE MEASUREMENT COULD NOT REACH. The plan asked for a careful thief who
+# finishes tier-1/2 jobs CLEAN most of the time. The engine closes a job clean
+# only if every roll was a full success (a `partial` gets through but raises
+# the alarm, and any alarm at the getaway is `noisy`), and a job is four rolls
+# once the house is empty. With every roll at `trivial` (DC 8, skills.yaml) and
+# the thief's best skill, the ceiling measured 28-32% clean. So the careful
+# thief CARRIES THE TAKE OUT 83% of the time and is caught never, and clean
+# stays a rare, lucky night -- reported, not bent (docs: the task report).
+#
+# What moved from the plan's starting numbers, and why:
+#
+#   tier_band    3 hard -> standard, 4 severe -> hard, 5 legendary -> severe.
+#                A great house is already three or four security rows and a
+#                household that never leaves; at the plan's bands the prepped
+#                greedy thief carried a tier-4 house out 0% of the time and
+#                the Treasury never. Legendary on top of every feature was not
+#                "near-impossible", it was impossible.
+#   alarm.max    4 -> 5 (a fifth word, "restless"). At 4, two fumbled rolls
+#                raised the house: careful walked away from 45% of tier-2 jobs
+#                and blind was caught on 79% of them.
+#   score.shift  0 -> -1. A tier-1/2 strongroom is a cupboard and a drawer;
+#                the craft roll at the plan's band was the stage careful
+#                thieves died at.
+#   treasury_guards known_shift 1 -> 0. Casing the Treasury tells you when the
+#                shifts overlap; before, watching the door for two days bought
+#                nothing at the approach.
+#   vault_floor  severe -> hard. Past the guards and the steward, the floor
+#                was a second wall at severe; at hard a prepped thief who has
+#                cased the bell walks it 20% of the time end to end.
+#   The Treasury's household lists the NIGHT guard first (its anchor file), so
+#   `bribed_servant` buys the man on the door, not the one asleep.
+#
+# Unchanged, because measurement did not ask them to move: every stage's
+# hours, the entries, the approach/inside/getaway shifts, every feature row
+# except the one above, the tools (lockpicks without their shift: careful
+# walks away 23% instead of 17%), prep, the flashbacks, `watch_delay_hours`
+# (3 made blind's tier-2 caught 47% and softened nothing careful), and the
+# Law's `burglary` severity of 3 (at 2 almost no burglar ever reached `sought`;
+# at 4 a careful burglar ended a quarter of its runs `wanted`).
+#
+# KNOWN ENGINE QUIRKS the measurement ran into (engine/world/jobs.py; recorded,
+# not fixed here):
+#   * (fixed since, and the blind rows above re-measured: a household member
+#     who has gone out by an inside roll is dropped from the queue, never
+#     rolled against as a sleeper nor counted a witness; one who comes home
+#     after the list was read -- a guard whose shift starts at six -- is still
+#     not added to it);
+#   * the watch's delay counts whole in-game hours (`now_hour` floors), so a
+#     stage of fractional hours can bring the watch up to an hour late;
+#   * walking away from a roused house (`abort`) ends the job before the watch
+#     arrives: the deed is filed and the witnesses stand, but nobody comes.
+#
+# Version: v0.1.0 [2026-09-24]
+
+# One in-game hour a stage: a job begun at eleven is over, one way or another,
+# by four -- unless a fumbled stage has to be tried again.
+stages:
+  approach: {hours: 1}
+  entry:    {hours: 1}
+  inside:   {hours: 1}
+  score:    {hours: 1}
+  getaway:  {hours: 1}
+
+tier_band: {1: easy, 2: standard, 3: standard, 4: hard, 5: severe}
+
+# Four ways in. The roof is survival and a fall (`hurts`: a failure there is
+# one hp); the cellar is nerve, because it is dark and something lives in it.
+entries:
+  door:   {skill: stealth, shift: 0, label: "the door"}
+  window: {skill: stealth, shift: 0, label: "a window"}
+  roof:   {skill: survival, shift: 1, label: "over the roof", hurts: true}
+  cellar: {skill: nerve, shift: 0, label: "through the cellar"}
+
+approach: {skill: stealth, shift: -1}
+inside:
+  awake:  {skill: stealth, shift: 0}
+  asleep: {skill: stealth, shift: -2}
+score:
+  skill: craft
+  shift: -1
+  draws: {1: 1, 2: 1, 3: 2, 4: 2, 5: 3}
+getaway: {skill: stealth, shift: -1}
+
+# EVERY security row of every house type and anchor (data/premises/) has a
+# line here, and tests/test_hue_and_cry.py fails the suite when one does not --
+# a row with no line would be text a watch learns and a job never feels.
+#   shift        what it does to its stage while you have not cased it;
+#   known_shift  once you have. 0 means "knowing it, you walk round it" (the
+#                greasy step, the singing boards); the same number both ways
+#                means it is there whether you know or not (bars, a glow, a
+#                chain a porter would struggle with);
+#   entries      a door feature does nothing to a thief who takes the window;
+#   obstacle     a dog or a watchman is somebody else in the way inside, with
+#                a roll of its own; casing it (the bone, the hour) makes it
+#                easier than a waking householder.
+features:
+  # chandlery
+  barred_shutters:   {stage: entry, entries: [window], shift: 1, known_shift: 1}
+  warm_vats:         {stage: inside, shift: 1, known_shift: 1}
+  hanging_tapers:    {stage: inside, shift: 1, known_shift: 0}
+  greasy_step:       {stage: entry, entries: [door], shift: 1, known_shift: 0}
+  guild_lock:        {stage: score, shift: 1, known_shift: 0}
+  old_mastiff:       {stage: inside, obstacle: true, shift: 1, known_shift: -1}
+  # counting_house
+  iron_door:         {stage: entry, entries: [door], shift: 1, known_shift: 1}
+  barred_windows:    {stage: entry, entries: [window], shift: 2, known_shift: 2}
+  sanded_floor:      {stage: getaway, shift: 1, known_shift: 0}
+  strongroom:        {stage: score, shift: 1, known_shift: 1}
+  bell_wire:         {stage: score, shift: 1, known_shift: 0}
+  hired_watchman:    {stage: inside, obstacle: true, shift: 0, known_shift: -1}
+  warded_chest:      {stage: score, shift: 2, known_shift: 1}
+  night_mastiffs:    {stage: inside, obstacle: true, shift: 1, known_shift: 0}
+  # manor
+  porters_lodge:     {stage: approach, shift: 1, known_shift: 0}
+  glass_wall:        {stage: entry, entries: [window, roof], shift: 1, known_shift: 1}
+  footman_rounds:    {stage: inside, shift: 1, known_shift: 0}
+  wolfhounds:        {stage: inside, obstacle: true, shift: 1, known_shift: 0}
+  pantry_strongroom: {stage: score, shift: 1, known_shift: 1}
+  bell_pulls:        {stage: getaway, shift: 1, known_shift: 0}
+  warded_jewel_case: {stage: score, shift: 2, known_shift: 1}
+  # palace_wing
+  breastplate_guards: {stage: inside, shift: 1, known_shift: 1}
+  raked_gravel:      {stage: approach, shift: 1, known_shift: 0}
+  locked_galleries:  {stage: score, shift: 1, known_shift: 0}
+  chiming_doors:     {stage: entry, entries: [door, window], shift: 1, known_shift: 0}
+  everflame_light:   {stage: getaway, shift: 1, known_shift: 1}
+  spoon_count:       {stage: getaway, shift: 1, known_shift: 0}
+  wired_cabinets:    {stage: score, shift: 2, known_shift: 1}
+  # tavern
+  drunk_on_step:     {stage: entry, entries: [door], shift: 1, known_shift: 0}
+  creaking_stairs:   {stage: inside, shift: 1, known_shift: 0}
+  padlocked_bar:     {stage: score, shift: 1, known_shift: 0}
+  cellar_bolt:       {stage: entry, entries: [cellar], shift: 2, known_shift: 2}
+  tavern_cat:        {stage: inside, shift: 1, known_shift: 0}
+  takings_under_bed: {stage: score, shift: 1, known_shift: 1}
+  # temple_house
+  vigil_lights:      {stage: approach, shift: 1, known_shift: 1}
+  sextons_keys:      {stage: entry, entries: [door, cellar], shift: 1, known_shift: 0}
+  singing_boards:    {stage: inside, shift: 1, known_shift: 0}
+  chained_poor_box:  {stage: score, shift: 1, known_shift: 1}
+  prayer_bells:      {stage: getaway, shift: 1, known_shift: 1}
+  sealed_cupboard:   {stage: score, shift: 1, known_shift: 0}
+  # townhouse
+  good_lock:         {stage: entry, entries: [door], shift: 1, known_shift: 0}
+  barred_coal_hole:  {stage: entry, entries: [cellar], shift: 2, known_shift: 2}
+  rattling_shutters: {stage: entry, entries: [window], shift: 1, known_shift: 0}
+  door_bell:         {stage: entry, entries: [door], shift: 1, known_shift: 0}
+  hall_lamp:         {stage: inside, shift: 1, known_shift: 1}
+  yard_dog:          {stage: inside, obstacle: true, shift: 1, known_shift: 0}
+  bolted_upstairs:   {stage: score, shift: 1, known_shift: 1}
+  plate_cupboard:    {stage: score, shift: 1, known_shift: 0}
+  # warehouse
+  chained_doors:     {stage: entry, entries: [door], shift: 2, known_shift: 2}
+  customs_seals:     {stage: getaway, shift: 1, known_shift: 0}
+  greasy_floor:      {stage: inside, shift: 1, known_shift: 0}
+  pulled_ladder:     {stage: inside, shift: 1, known_shift: 0}
+  rat_terrier:       {stage: inside, obstacle: true, shift: 0, known_shift: -1}
+  rigged_stack:      {stage: score, shift: 1, known_shift: 0}
+  porters_watch:     {stage: approach, shift: 1, known_shift: 0}
+  # captains_office (anchor)
+  lantern_house_itself: {stage: approach, shift: 2, known_shift: 2}
+  never_out_lamp:    {stage: entry, entries: [window], shift: 1, known_shift: 1}
+  duty_clerk:        {stage: inside, shift: 1, known_shift: 0}
+  # gannets_house (anchor)
+  four_locks:        {stage: entry, entries: [door], shift: 2, known_shift: 1}
+  company_keeper:    {stage: inside, shift: 1, known_shift: 1}
+  the_whole_snuffs:  {stage: approach, shift: 2, known_shift: 1}
+  # margraves_treasury (anchor)
+  treasury_guards:   {stage: approach, shift: 1, known_shift: 0}
+  three_key_door:    {stage: entry, entries: [door], shift: 2, known_shift: 2}
+  stewards_rooms:    {stage: inside, shift: 1, known_shift: 0}
+  bell_floor:        {stage: vault_floor, shift: 1, known_shift: 0}
+  everflame_glare:   {stage: score, shift: 1, known_shift: 1}
+  # vessaline_manor (anchor)
+  butler_across_the_door: {stage: inside, shift: 1, known_shift: 1}
+  french_lock:       {stage: score, shift: 2, known_shift: 1}
+  barred_from_within: {stage: entry, entries: [window], shift: 2, known_shift: 2}
+  yapping_pug:       {stage: inside, obstacle: true, shift: 1, known_shift: 0}
+
+# Sold by Marrow in the Snuffs (data/economy.yaml). Lockpicks help at a lock
+# -- a door, a cellar hatch, the strongroom -- and are kept; a smoke pellet is
+# one getaway, and gone.
+tools:
+  lockpicks:    {stage: [entry, score], entries: [door, cellar], shift: -1}
+  smoke_pellet: {stage: [getaway], shift: -1, consumed: true}
+
+# A fumble raises the house one word (`on_fail`, a partial) or two
+# (`on_crit_fail`, a failure); at the fifth it is raised, and two hours later
+# the Lantern Watch is at the door and the stop begins (data/rules/law.yaml
+# `arrest`). Seen, shouted about or carried onto the street, a job files the
+# Law's `burglary`.
+alarm:
+  max: 5
+  bands: [quiet, uneasy, stirring, restless, roused]
+  on_fail: 1
+  on_crit_fail: 2
+  watch_delay_hours: 2
+  deed: burglary
+
+# Earned only by casing: each watch that learns something about ANY house is
+# one more thing you arranged beforehand, up to three.
+prep:
+  max: 3
+  per_case: 1
+  bands: [none, a little, some, plenty]
+
+# Spent mid-job, never moving the clock: the thing you arranged, paying off.
+flashbacks:
+  bribed_servant:
+    label: "you bribed a servant last week"
+    stage: [inside]
+    # You watched THIS house and know its servants -- not merely walked down
+    # its street once.
+    requires: {premise_cased: {min: 1}}
+    cost: {prep: 1, gold: 5}
+    effect: {remove_obstacle: 1}
+    exposure: household
+  planted_tool:
+    label: "you left a bar hidden by the back wall"
+    stage: [entry, score]
+    requires: {premise_cased: {min: 2}}
+    cost: {prep: 1}
+    effect: {shift: -2}
+  knew_the_rota:
+    label: "you knew the rota"
+    stage: [approach, inside]
+    requires: {premise_cased: {min: 1}}
+    cost: {prep: 1}
+    effect: {shift: -1}
+
+# The Treasury's own stage, between getting past the guards and the strongroom
+# itself. Its `bell_floor` security row is the feature on it. Vessaline House
+# has no stage of its own: its French lock is a harder strongroom (`score`),
+# which is exactly what it is, and a stage that only restated that would be a
+# roll with nothing new in it.
+anchors:
+  margraves_treasury:
+    after: inside
+    stages:
+      - id: vault_floor
+        label: "the vault floor on its springs"
+        skill: nerve
+        band: hard
+        hours: 1
