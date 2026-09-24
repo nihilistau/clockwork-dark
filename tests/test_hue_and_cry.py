@@ -659,7 +659,13 @@ def measured_law():
     before = registry.peek()
     registry.activate("hue-and-cry")
     try:
-        return {p: simulate_law.measure(p, LAW_SEEDS, LAW_DAYS) for p in simulate_law.POLICIES}
+        # Agendas OFF: these bounds are what the thief's own conduct earns
+        # from the Watch. With the Magpie on, its robberies land on the
+        # thief's name too and a careful thief is `sought` like anyone else
+        # -- restated, measured, in `measured_agendas` below (v0.12).
+        with simulate_law.agendas_off():
+            return {p: simulate_law.measure(p, LAW_SEEDS, LAW_DAYS)
+                    for p in simulate_law.POLICIES}
     finally:
         if registry.peek() is not before:
             registry.deactivate()
@@ -875,7 +881,14 @@ def measured_jobs():
     before = registry.peek()
     registry.activate("hue-and-cry")
     try:
-        return {p: simulate_jobs.measure(p, JOB_SEEDS) for p in simulate_jobs.POLICIES}
+        # Agendas OFF, for `measured_law`'s reason: `deeds_filed` would count
+        # the Magpie's burglaries as the job's. Outcomes barely differ
+        # either way (measured, 40 seeds: a point or two of drift, and less
+        # haul where the Magpie emptied the house first -- CHANGELOG 0.12.0).
+        from scripts.simulate_law import agendas_off
+
+        with agendas_off():
+            return {p: simulate_jobs.measure(p, JOB_SEEDS) for p in simulate_jobs.POLICIES}
     finally:
         if registry.peek() is not before:
             registry.deactivate()
@@ -1078,3 +1091,404 @@ def test_mother_gannets_job_is_not_paid_by_a_robbery_that_came_first(
     state.location_id = "the_snuffs"
     assert threads.can_strike(state, "gannet_silk_row") is False
     assert "gannet_silk_row" not in [r["id"] for r in threads.offerable(state)]
+
+
+# ---------------------------------------------------------------------------
+# v0.12.0: agendas (data/rules/agendas.yaml, scripts/simulate_agendas.py) --
+# the Magpie, Captain Ardane's net, Silas Crook's rise
+# ---------------------------------------------------------------------------
+
+CANDIDATES = ("npc_wren", "npc_silas", "npc_imelda")
+
+
+def _seed_for(candidate: str) -> int:
+    """The first seed that makes ``candidate`` the Magpie."""
+    from engine.game.state import GameState
+    from engine.world import agendas
+
+    return next(s for s in range(200)
+                if agendas.role(GameState(rng_seed=s), "magpie") == candidate)
+
+
+def _candidate_names() -> set[str]:
+    """Every name and declared alias of all three candidates."""
+    from engine.world import agendas
+
+    mask = agendas.spec()["roles"]["magpie"]["mask"]
+    names = {npc_sim.display_name(n) for n in CANDIDATES}
+    for aliases in mask["aliases"].values():
+        names.update(aliases)
+    return names
+
+
+def test_hue_and_cry_declares_three_agendas_on_hidden_clocks(hue) -> None:
+    from engine.game import clocks
+    from engine.state.active import active_schema
+    from engine.world import agendas, premises
+
+    table = agendas.spec()
+    assert sorted(table["agendas"]) == ["ardane_hunt", "silas_ambition", "the_magpie"]
+    assert table["roles"]["magpie"]["from"] == list(CANDIDATES)
+    assert table["agendas"]["the_magpie"]["owner"] == {"role": "magpie"}
+    for name in ("magpie_spree", "ardane_net", "silas_rise"):
+        assert active_schema().get(name).visibility == "hidden"
+        assert clocks.load_clocks()[name]["label"]
+    state = _city(11)
+    owners = {premises.owner(state, f"prem_{a}") for a in
+              ("gannets_house", "vessaline_manor", "captains_office", "margraves_treasury")}
+    assert owners == {"npc_gannet", "npc_imelda", "npc_ardane", "npc_steward_quill"}
+
+
+def test_every_candidate_can_be_the_magpie_and_roughly_as_often(hue) -> None:
+    _scripts_on_path()
+    from scripts import simulate_agendas
+
+    roles = simulate_agendas.role_evenness(90)
+    assert set(roles) == set(CANDIDATES), roles
+    # Measured over 90 seeds: 31 / 35 / 24. Each at least 20 of 90.
+    assert min(roles.values()) >= 20, roles
+
+
+def test_the_magpies_name_is_masked_until_the_flag(hue) -> None:
+    from engine.game.effects import apply_effect
+    from engine.world import agendas
+
+    for candidate in CANDIDATES:
+        state = _city(_seed_for(candidate))
+        assert agendas.role(state, "magpie") == candidate
+        name = npc_sim.display_name(candidate, state)
+        assert agendas.mask_text(state, f"{name} was seen on a roof.") == \
+            "The Magpie was seen on a roof."
+        for other in CANDIDATES:
+            if other != candidate:
+                shown = npc_sim.display_name(other, state)
+                assert agendas.mask_text(state, f"{shown} was seen.") == f"{shown} was seen."
+        assert agendas.revealed(state) == []
+        apply_effect(state, {"type": "flag", "flag": "magpie_unmasked"})
+        assert agendas.mask_text(state, f"{name} was seen.") == f"{name} was seen."
+        assert [row[1] for row in agendas.revealed(state)] == [name]
+
+
+def test_no_house_name_changes_under_any_candidates_mask(hue) -> None:
+    """Four taverns are "The ... Lamplighter": a title-case alias would mask
+    "The Lamplighter's Arms" in exactly the seeds Wren is the thief."""
+    from engine.game.procgen import generate_world
+    from engine.world import agendas
+
+    masks = {}
+    for candidate in CANDIDATES:
+        masks[candidate] = agendas.masked_terms(_city(_seed_for(candidate)))
+    state = _city(0)
+    for seed in range(40):
+        for prem in generate_world(seed).premises:
+            name = str(prem.get("name") or "")
+            for candidate, terms in masks.items():
+                assert agendas.mask_text(state, name, terms) == name, (seed, candidate, name)
+
+
+def test_no_agenda_ever_writes_a_candidates_name(hue) -> None:
+    """The secret is the link: the signs are impersonal in every seed, so the
+    mask is a guard, not the thing keeping the secret."""
+    from engine.game.clock import advance_time
+
+    names = _candidate_names()
+    for candidate in CANDIDATES:
+        state = _city(_seed_for(candidate))
+        for _ in range(10):
+            advance_time(state, 24.0)
+        texts = [str(t["text"]) for t in state.agendas.get("traces") or []]
+        assert texts, candidate
+        for text in texts:
+            assert not any(n in text for n in names), (candidate, text)
+
+
+def test_the_law_and_jobs_harnesses_really_switch_agendas_off(hue) -> None:
+    """The v0.10/v0.11 bounds are measured with agendas off; if the switch
+    stopped working they would silently start measuring the Magpie."""
+    _scripts_on_path()
+    from engine.game.clock import advance_time
+    from scripts import simulate_law
+
+    with simulate_law.agendas_off():
+        quiet = _city(3)
+        for _ in range(3):
+            advance_time(quiet, 24.0)
+    assert quiet.agendas == {} and not quiet.law.get("reports")
+    loud = _city(3)
+    for _ in range(3):
+        advance_time(loud, 24.0)
+    assert loud.agendas.get("hits") and loud.law.get("reports")
+
+
+def test_the_storyteller_knows_the_city_moves_and_names_no_magpie(hue) -> None:
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parents[1] / "games/hue-and-cry/prompts/storyteller.md"
+            ).read_text(encoding="utf-8")
+    assert "## THE CITY MOVES WITHOUT YOU" in text
+    section = text.split("## THE CITY MOVES WITHOUT YOU", 1)[1].split("\n## ", 1)[0]
+    assert "Magpie" in section
+    for name in ("Wren", "Silas", "Imelda", "lamplighter", "Dapper"):
+        assert name not in section, name
+
+
+#: MEASURED, v0.12.0, scripts/simulate_agendas.py over 40 seeds x 10 in-game
+#: days (CHANGELOG.md [Unreleased]): a player who never steals is `sought` by
+#: day 6 on 80% of seeds (median day 5); the Magpie robs 9.8 houses a run;
+#: player jobs land on a house the Magpie already robbed 9% (careful) and 7%
+#: (reckless) of the time; the captain's net reaches its top band for 60% of
+#: reckless runs (median day 9) and for no careful one; Silas moves about 3
+#: times; 13-18 traces a run. Asserted over the FIRST 12 SEEDS, loosely.
+AGENDA_SEEDS = 12
+
+
+@pytest.fixture(scope="module")
+def measured_agendas():
+    _scripts_on_path()
+    from scripts import simulate_agendas
+
+    # Module-scoped: undone here, for the reason `measured_law` gives.
+    before = registry.peek()
+    registry.activate("hue-and-cry")
+    try:
+        return {p: simulate_agendas.measure(p, AGENDA_SEEDS, 10)
+                for p in simulate_agendas.POLICIES}
+    finally:
+        if registry.peek() is not before:
+            registry.deactivate()
+
+
+def test_a_player_who_never_steals_is_sought_for_the_magpies_work(measured_agendas) -> None:
+    report = measured_agendas["idle"]
+    assert report["sought_by_day_6"] >= 0.60, report
+    assert report["first_noticed_median_day"] <= 3, report
+
+
+def test_the_magpie_robs_most_nights_and_rarely_where_you_do(measured_agendas) -> None:
+    for policy, report in measured_agendas.items():
+        assert 7 <= report["magpie_hits_per_run"] <= 11, (policy, report)
+    for policy in ("careful", "reckless"):
+        report = measured_agendas[policy]
+        assert report["player_jobs"] > 0, report
+        assert report["magpie_collision_rate"] < 0.15, (policy, report)
+
+
+def test_the_captains_net_closes_on_the_reckless_first(measured_agendas) -> None:
+    reckless, careful = measured_agendas["reckless"], measured_agendas["careful"]
+    assert reckless["ardane"]["utmost"]["reached"] >= 0.30, reckless["ardane"]
+    assert reckless["ardane"]["strong"]["median_day"] <= 8, reckless["ardane"]
+    assert careful["ardane"]["utmost"]["reached"] <= 0.10, careful["ardane"]
+    assert careful["per_day"][-1]["ardane_mean"] < reckless["per_day"][-1]["ardane_mean"]
+
+
+def test_silas_works_the_company_and_the_signs_stay_few(measured_agendas) -> None:
+    for policy, report in measured_agendas.items():
+        assert 1 <= report["silas_moves_per_run"] <= 5, (policy, report)
+        assert report["company_standing_mean"] < 0, (policy, report)
+        # Traces are never pruned; ten days leave well under two dozen.
+        assert report["traces_max"] <= 25, (policy, report)
+
+
+def test_with_the_magpie_on_a_careful_thief_is_sought_like_anyone(measured_agendas) -> None:
+    """RESTATED from v0.10's `test_a_careful_thief_stays_below_sought_most_days`
+    (100% of seed-days below `sought`, measured with agendas off and still
+    asserted that way above). With the Magpie on, its robberies land on the
+    thief's name, and careful measures 39% of seed-days below `sought` over
+    this module's 12 seeds (AGENDA_SEEDS) -- the same as a player who never
+    steals at all (40%, 12 seeds). The CHANGELOG's 40% vs 42% is the 40-seed
+    harness run. Either way the careful thief's own lifts add nothing the
+    Watch notices. A reckless one stands out from both."""
+    idle, careful = measured_agendas["idle"], measured_agendas["careful"]
+    reckless = measured_agendas["reckless"]
+    assert abs(careful["below_sought_seed_days"] - idle["below_sought_seed_days"]) <= 0.10
+    assert reckless["below_sought_seed_days"] < careful["below_sought_seed_days"]
+
+
+# ---------------------------------------------------------------------------
+# v0.12.0 final fix: where a player's job meets an agenda's robbery
+# ---------------------------------------------------------------------------
+
+
+def _job_draws(state) -> int:
+    from engine.game.rng import JOB
+
+    return int(state.rng_counters.get(JOB, 0))
+
+
+def _walk_to_the_score(state) -> dict:
+    """Play the open job up to and including its score; the score's receipt."""
+    from engine.world import jobs
+
+    for _ in range(20):
+        stage = jobs.current_stage(state)
+        out = jobs.resolve_stage(state, jobs.approaches(state)[0][0])
+        assert out["ok"] is True, out
+        if stage == "score" and out["advanced"]:
+            return out
+    raise AssertionError("never reached the score")
+
+
+def test_a_house_the_magpie_emptied_yields_nothing_at_the_score(hue, monkeypatch) -> None:
+    """
+    Final fix A. The Magpie robbed the house first (``agenda_hit``); the player
+    may still burgle it (the thief need not know), but the strongroom is bare:
+    the score's receipt says ``emptied``, draws nothing and spends no JOB draw
+    on loot -- and the job still counts as done (``jobs.robbed``), so a clean
+    close is a robbery like any other. The narrator is told, in words.
+    """
+    from engine.agents import prompts
+    from engine.game.clock import set_clock
+    from engine.game.effects import apply_effect
+    from engine.world import jobs
+
+    _script_rolls(monkeypatch, "success")
+    state = _city(11)
+    set_clock(state, day=1, hour=20)
+    state.location_id = "silk_row"
+    target = _silk_row_house(state)
+    hit = apply_effect(state, {"type": "agenda_hit", "agenda": "the_magpie",
+                               "premise": target, "hour": 2})
+    assert hit["ok"], hit
+
+    assert jobs.begin(state, target)["ok"], "burgle stays allowed on an emptied house"
+    before = _job_draws(state)
+    score = _walk_to_the_score(state)
+    assert score["emptied"] is True, score
+    assert score["loot"] == [], score
+    assert _job_draws(state) == before, "no JOB draw for loot that is not there"
+    worded = prompts.summarise_receipt({"skill": "job_stage", "result": score})
+    assert "already" in worded and "bare" in worded, worded
+    assert "already bare" in prompts.job_block(state), prompts.job_block(state)
+
+    pack = len(state.inventory)
+    closed = _walk_job(state)
+    assert closed["outcome"] == "clean", closed
+    assert closed["emptied"] is True and closed["loot"] == [], closed
+    assert len(state.inventory) == pack
+    assert target in jobs.robbed(state)
+    assert "already bare" in prompts.job_block(state)
+
+
+def test_an_unrobbed_house_still_draws_its_take(hue, monkeypatch) -> None:
+    """The control: the same walk on a house nobody emptied draws on JOB."""
+    from engine.game.clock import set_clock
+    from engine.world import jobs
+
+    _script_rolls(monkeypatch, "success")
+    state = _city(11)
+    set_clock(state, day=1, hour=20)
+    state.location_id = "silk_row"
+    assert jobs.begin(state, _silk_row_house(state))["ok"]
+    before = _job_draws(state)
+    score = _walk_to_the_score(state)
+    assert not score.get("emptied"), score
+    assert score["loot"] and _job_draws(state) == before + 1, score
+
+
+def test_gannets_contract_completes_on_a_house_the_magpie_emptied(hue, monkeypatch) -> None:
+    """The job was done -- the house was entered and the take went out, empty-
+    handed or not -- so Mother Gannet's Silk Row contract pays."""
+    from engine.game import threads
+    from engine.game.clock import set_clock
+    from engine.game.effects import apply_effect
+    from engine.world import jobs
+
+    _script_rolls(monkeypatch, "success")
+    state = _city(11)
+    set_clock(state, day=1, hour=20)
+    state.location_id = "the_snuffs"
+    thread_id = threads.seal(state, threads.offer(state, "gannet_silk_row"))["thread"]["id"]
+    state.location_id = "silk_row"
+    target = _silk_row_house(state)
+    apply_effect(state, {"type": "agenda_hit", "agenda": "the_magpie",
+                         "premise": target, "hour": 2})
+    gold = state.stats.gold
+    assert jobs.begin(state, target)["ok"]
+    assert _walk_job(state)["outcome"] == "clean"
+    paid = threads.discharge(state, thread_id)
+    assert paid["ok"], paid
+    assert state.stats.gold == gold + 15
+
+
+def _nights_hits(state, premise_id: str) -> list:
+    return [h for h in state.agendas.get("hits") or [] if h["premise"] == premise_id]
+
+
+def _only_candidate_left(seed: int):
+    """A city at 23:30 on day 1 where every Magpie candidate but one is robbed."""
+    from engine.game.clock import set_clock
+    from engine.game.effects import apply_effect
+    from engine.world import agendas
+
+    selector = agendas.spec()["agendas"]["the_magpie"]["moves"][0]["select"]
+    state = _city(seed)
+    set_clock(state, day=1, hour=23)
+    pool = agendas.candidates(state, selector)
+    target, others = pool[0], pool[1:]
+    for premise_id in others:
+        apply_effect(state, {"type": "agenda_hit", "agenda": "the_magpie",
+                             "premise": premise_id, "hour": 1})
+    assert agendas.candidates(state, selector) == [target]
+    return state, target, selector
+
+
+def test_the_magpie_never_robs_the_house_of_the_players_open_job(hue) -> None:
+    """
+    Final fix B (review I1). With the job's house the only candidate left and
+    the job open across 01:00-03:00, the Magpie takes nothing -- and the same
+    in one call as in hourly ones (the job opens at a call boundary, so the
+    pass reads the same `taken` whichever way the night is cut). Once the job
+    closes without the score, the house is fair game again.
+    """
+    from engine.game.clock import advance_time
+    from engine.game.effects import apply_effect
+    from engine.world import agendas, jobs
+
+    runs = []
+    for cut in (1, 6):
+        state, target, selector = _only_candidate_left(3)
+        opened = apply_effect(state, {"type": "job_open", "premise": target,
+                                      "stages": jobs.stages_for(state, target)})
+        assert opened["ok"], opened
+        assert agendas.candidates(state, selector) == []
+        for _ in range(6 // cut):
+            advance_time(state, cut)
+        assert jobs.active(state) is not None
+        assert _nights_hits(state, target) == [], cut
+        runs.append((state.agendas.get("hits"), dict(state.rng_counters)))
+    assert runs[0] == runs[1]
+
+    apply_effect(state, {"type": "job_close", "outcome": "aborted", "by": "player"})
+    assert agendas.candidates(state, selector) == [target]
+    advance_time(state, 24)
+    assert len(_nights_hits(state, target)) == 1
+
+
+def test_the_magpies_beats_name_no_candidates_district(hue) -> None:
+    """Final fix E. A beat line on the Magpie's clock is the same in every
+    seed; naming Silk Row (Lady Imelda's home) or the Snuffs (Wren's and
+    Silas's) points at a candidate the way a name would."""
+    from engine.game import clocks
+    from engine.game.locations import LOCATIONS
+    from engine.world.npc_sim import load_npc_schedules
+
+    table = load_npc_schedules()["npcs"]
+    places = set()
+    for npc in CANDIDATES:
+        name = str(LOCATIONS[table[npc]["home"]]["name"])
+        places.add(name[4:] if name.lower().startswith("the ") else name)
+    for beat in clocks.load_clocks()["magpie_spree"]["beats"]:
+        for place in places:
+            assert place.lower() not in beat["text"].lower(), (beat["id"], place)
+
+
+def test_a_statement_trace_reads_as_where_it_is_left(hue) -> None:
+    """Final fix E. ``takes_a_statement`` leaves its sign where the witness saw
+    the deed (``where: target``), so it may not describe a watch-house board
+    the player is nowhere near."""
+    from engine.world import agendas
+
+    move = next(m for m in agendas.spec()["agendas"]["ardane_hunt"]["moves"]
+                if m["id"] == "takes_a_statement")
+    assert move["trace"]["where"] == "target"
+    assert "watch-house" not in move["trace"]["text"], move["trace"]["text"]

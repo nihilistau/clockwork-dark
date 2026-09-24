@@ -29,7 +29,7 @@ flagship's narrator. They live in ``games/clockwork-dark/prompts/`` now. See
 the block comment above ``_prompts_dir`` for where a story's words are found
 and why an undescribed story still gets a fallback rather than an exception.
 
-Version: v0.4.0 [2026-09-24]
+Version: v0.4.1 [2026-09-25]
 """
 
 from __future__ import annotations
@@ -439,9 +439,67 @@ def moved_block(state: GameState, ledger: Any = None) -> str:
     rows = moved.visible(state)
     if not rows:
         return ""
+    texts = [str(row["text"]) for row in rows]
+    if any(row.get("kind") == "agenda" for row in rows):
+        # A public trace an agenda left is agenda-authored text: until its
+        # role's mask lifts, it may not name the role's NPC (agenda_block).
+        from engine.world import agendas
+
+        terms = agendas.masked_terms(state)
+        texts = [agendas.mask_text(state, text, terms) if row.get("kind") == "agenda"
+                 else text for row, text in zip(rows, texts)]
     return "SINCE YOU LAST LOOKED (work in what fits; never list it):\n" + "\n".join(
-        f"- {row['text']}" for row in rows
+        f"- {text}" for text in texts
     )
+
+
+def agenda_block(state: GameState) -> str:
+    """
+    The signs the NPCs' agendas left HERE that the player has not yet come upon.
+
+    "" for a story that declares no ``paths.agendas`` -- the flagship's prompt
+    stays byte-identical -- and "" wherever there is nothing to find. A
+    PUBLIC trace is not here: it went to the moved journal as common talk the
+    hour it was left. What the agenda is FOR, its clock and its ids never
+    appear; progress reaches the narrator only as ``_clocks_block``'s label
+    and band, GM-only.
+
+    NOT spoiler-wrapped, because it cannot name the secret: until a role's
+    ``unmask_when`` holds, the role's NPC is ``mask.instead`` in every line
+    (``agendas.mask_text``). Shown once: ``engine/memory/context.py`` marks
+    what this rendered and the turn records it seen after narrating.
+    """
+    from engine.world import agendas
+
+    if not agendas.declared():
+        return ""
+    rows = agendas.signs_here(state)
+    if not rows:
+        return ""
+    terms = agendas.masked_terms(state)
+    return (
+        "SIGNS HERE (the world moved without you; work in what fits, never explain it):\n"
+        + "\n".join(f"- {agendas.mask_text(state, str(row['text']), terms)}" for row in rows)
+    )
+
+
+def _agenda_reveal_block(state: GameState) -> str:
+    """
+    GM-only: who a masked role IS, once the player has earned it -- one line
+    per role whose ``unmask_when`` holds. "" before that, and always for a
+    story without agendas. Until then nothing in the prompt connects the role
+    to its NPC, so the narrator cannot give away what it was never told.
+    """
+    from engine.world import agendas
+
+    if not agendas.declared():
+        return ""
+    lines = []
+    for instead, name, occupation in agendas.revealed(state):
+        who = f"{name}, the {occupation}" if occupation else name
+        lines.append(f"WHO {instead.upper()} IS (the player has earned this; "
+                     f"name them freely): {who}.")
+    return "\n".join(lines)
 
 
 def _rumors_block(state: GameState) -> str:
@@ -563,6 +621,13 @@ _JOB_CLOSE_LINES = {
     "hurt": "You were hurt breaking into {name}, and the job ended there.",
 }
 
+#: A carried-out close from a house an agenda had already emptied: the job
+#: was done, and there was nothing to take.
+_JOB_EMPTIED_CLOSE_LINE = ("You got clear of {name}{quiet}, with nothing: the strongroom "
+                           "was already bare -- someone had been there first.")
+#: The same fact while the job is still open, after the score.
+_JOB_EMPTIED_LINE = "The strongroom at {name} was already bare: someone had been there first."
+
 #: An ``aborted`` close the player did not choose: ``jobs.tick`` found the
 #: house roused with no Law (or no arrest scene) to send anyone.
 _JOB_ROUSED_LINE = "{name} woke and raised the alarm, and you got out with nothing."
@@ -588,6 +653,9 @@ def _job_close_line(state: GameState) -> str:
     template = _JOB_CLOSE_LINES.get(outcome, "The job at {name} is over.")
     if outcome == "aborted" and last.get("by") != "player":
         template = _JOB_ROUSED_LINE
+    if outcome in ("clean", "noisy") and last.get("emptied"):
+        quiet = "" if outcome == "clean" else ", though not quietly"
+        return _JOB_EMPTIED_CLOSE_LINE.format(name=name, quiet=quiet)
     return template.format(name=name)
 
 
@@ -609,6 +677,8 @@ def job_block(state: GameState) -> str:
       - the reasons moving this stage's odds, in the human words
         ``band_for`` already gives (a tool that helps, a feature not yet
         known about, what was set up beforehand);
+      - that the strongroom was already bare, once the score found a house
+        an agenda had robbed first (the job's ``emptied``);
       - which flashback paid off, by its own label, ON THE TURN it was
         called only (``jobs.flashback_label_this_turn``);
       - the alarm, as a word;
@@ -635,6 +705,8 @@ def job_block(state: GameState) -> str:
         _, reasons = jobs.band_for(state, stage)
         if reasons:
             lines.append("Working the odds: " + "; ".join(reasons) + ".")
+        if job.get("emptied"):
+            lines.append(_JOB_EMPTIED_LINE.format(name=name))
         paid_off = jobs.flashback_label_this_turn(state)
         if paid_off:
             lines.append(f"What paid off this turn: {paid_off}.")
@@ -1000,6 +1072,7 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
         _objectives_block(state),
         _events_block(state),
         moved_block(state),
+        agenda_block(state),
         _rumors_block(state),
     ):
         if block:
@@ -1042,6 +1115,9 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
     clocks = _clocks_block(state)
     if clocks:
         gm_line = f"{gm_line}\n{clocks}"
+    reveal = _agenda_reveal_block(state)
+    if reveal:
+        gm_line = f"{gm_line}\n{reveal}"
     parts.append(mark_spoiler(gm_line))
     return "\n".join(parts)
 
@@ -1540,7 +1616,15 @@ def _sum_job_stage(result: dict[str, Any]) -> str:
             return f"fell badly breaking into {house}, and the job ended there."
         if outcome in ("clean", "noisy"):
             quiet = "" if outcome == "clean" else ", though not quietly"
+            if result.get("emptied"):
+                return (f"got clear of {house}{quiet}, with nothing: the strongroom "
+                        "was already bare.")
             return f"got clear of {house} with the take{quiet}."
+    if stage == "score" and result.get("emptied") and result.get("advanced"):
+        # Said outright: a score with no loot would otherwise read as a take
+        # the narrator is free to invent.
+        return (f"reached the strongroom at {house}, and found it already bare: "
+                "someone had been there first.")
     if stage in _JOB_STAGE_WORDS:
         head = f"{_JOB_STAGE_WORDS[stage]} {house}"
     else:

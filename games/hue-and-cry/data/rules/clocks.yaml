@@ -1,0 +1,63 @@
+# HUE & CRY -- what the three agenda clocks DO.
+#
+# Read by engine/game/clocks.py through `paths.clocks`. What each clock IS --
+# its bounds and `visibility: hidden` -- is in ../../state.yaml; the moves and
+# reactions that wind them are in agendas.yaml. The agendas loader refuses an
+# agenda whose clock has no row here: the narrator feels a clock only through
+# this `label` (engine/agents/prompts.py::_clocks_block, GM-only, a band word
+# and never a number), and a clock missing here would fill in silence.
+#
+# THE LABELS ARE GM-FACING and say what the clock MEANS. They never name who
+# the Magpie is: the label is the same sentence in every seed.
+#
+# NO FORCED SCENES THIS RELEASE. `forces_scene` names a deck card, and HUE &
+# CRY ships no decks until v1.0 (the interrogation, the Hanging Fair). A beat
+# here sets a flag, writes a line to the "world moved" journal (`text`) and,
+# for the captain, files a warrant through an ordinary Law effect. The flags
+# are what v1.0's scenes will read.
+#
+# Version: v0.1.1 [2026-09-25]
+
+version: 1
+
+clocks:
+
+  magpie_spree:
+    label: "How bold the Magpie has grown"
+    beats:
+      - id: magpie_spree_half
+        at: 5
+        set_flags: [magpie_emboldened]
+        text: "Half the city has started bolting its shutters at dusk, and the silversmiths have taken their window displays in."
+      - id: magpie_spree_full
+        at: max
+        set_flags: [magpie_spree_full]
+        text: "There is hardly a shining thing left in Tallowmere below the palace, and every eye in the city has turned up the hill, toward the Everflame."
+
+  ardane_net:
+    label: "How close Captain Ardane is to closing her hand"
+    beats:
+      - id: ardane_net_half
+        at: 6
+        set_flags: [ardane_doubles_the_watch]
+        text: "The Lantern House has put every Lantern on double shifts, and a fresh drawing of the Magpie is pasted on every post from the quay to the Rise."
+      # THE STAKES. The captain swears out a warrant in both the Wick wards and
+      # up the Rise: a clear, sworn burglary on the Magpie's file, which the
+      # watch takes for your face (law.yaml `links`). An ordinary Law effect,
+      # so a bribe, a broken link or quiet days answer it the way they answer
+      # any other file.
+      - id: ardane_net_full
+        at: max
+        set_flags: [ardane_warrant_sworn]
+        text: "Captain Ardane has sworn out a warrant for the Magpie in her own hand, and read it aloud on the steps of the Lantern House."
+        effects:
+          - { type: report, deed: burglary, guise: magpie, jurisdiction: wick, precision: 1.0 }
+          - { type: report, deed: burglary, guise: magpie, jurisdiction: rise, precision: 1.0 }
+
+  silas_rise:
+    label: "How far Silas Crook has pulled the Company's porters his way"
+    beats:
+      - id: silas_rise_full
+        at: max
+        set_flags: [silas_splits_the_company]
+        text: "Half the young porters in the Snuffs are wearing plum ribbons in their buttonholes, and Mother Gannet has stopped knitting at meetings."

@@ -193,6 +193,29 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
     except ImportError:
         pass
 
+    # What the NPCs do while the player is not looking, on in-game hours. For
+    # each whole hour crossed, every agenda's due moves fire through
+    # ``apply_effect``: a report reaches the Law, a house is robbed, a sign is
+    # left. The pass is OPENED here and walked hour by hour INSIDE the Law's
+    # pass below (its per-hour hook), so a report a move files at 01:00 cools
+    # and travels through the hours after it in this call exactly as it would
+    # across twelve shorter calls. ``finish`` (after the watch) walks what the
+    # Law did not and stamps the pass. A clock beat a move crosses fires at the
+    # end of that move's HOUR inside the pass -- ``clocks.resolve`` ran above,
+    # so without that the beat would land a call late. Rolls only the AGENDA
+    # stream. The wall-clock tick reaches it only
+    # as the hours it passes, and not at all while a job holds the clock. A
+    # story that declares no agendas never enters it, and the Law's pass is
+    # called exactly as before.
+    walk = None
+    try:
+        from engine.world import agendas
+
+        if agendas.declared():
+            walk = agendas.begin(state, hours)
+    except ImportError:
+        pass
+
     # The Law, on in-game hours: for each whole hour the clock crossed, what
     # witnesses saw travels person to person and then quiet wears the watch's
     # memory down -- cooling hour by hour inside the same pass, never in one
@@ -204,7 +227,10 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
         from engine.world import law
 
         if law.declared():
-            law.propagate(state, hours)
+            if walk is not None:
+                law.propagate(state, hours, each_hour=walk.hour)
+            else:
+                law.propagate(state, hours)
     except ImportError:
         pass
 
@@ -223,6 +249,11 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
             jobs.tick(state, hours)
     except ImportError:
         pass
+
+    # The rest of the agendas pass: the hours the Law did not walk (all of
+    # them, in a story with no Law) and the ``last_hour`` stamp.
+    if walk is not None:
+        walk.finish()
 
     # Death handling advances the clock itself (unconsciousness costs hours),
     # which re-enters this function. Unguarded, each nested call ran the death

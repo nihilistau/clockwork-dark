@@ -626,6 +626,10 @@ paths:
   # extra stages -- a burglary walked stage by stage. Needs `premises`. See
   # engine/world/jobs.py.
   jobs: ""
+  # ONE FILE: seed-chosen hidden roles and the agendas NPCs pursue -- an owner,
+  # a hidden clock, moves on a cadence and reactions to engine events. See
+  # engine/world/agendas.py.
+  agendas: ""
 
   # -- things, work and trade ----------------------------------------------
   items: ""

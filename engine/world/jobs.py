@@ -48,7 +48,7 @@ Every content fault is a ValueError naming the file, for the reason
 a flashback gated on a predicate nobody registered would load, validate and do
 nothing -- the inert shape this repo has shipped before.
 
-Version: v0.4.1 [2026-09-24]
+Version: v0.4.2 [2026-09-25]
 """
 
 from __future__ import annotations
@@ -591,6 +591,18 @@ def robbed(state: GameState) -> list[str]:
     return [str(p) for p in (state.jobs.get("robbed") or [])]
 
 
+def emptied(state: GameState, premise_id: str) -> bool:
+    """
+    Whether an agenda already robbed ``premise_id`` (``state.agendas["hits"]``).
+
+    Such a house can still be burgled -- the thief need not know -- but its
+    score finds the strongroom bare (``resolve_stage``). Read from state, so a
+    story with no agendas answers False for every house.
+    """
+    hits = state.agendas.get("hits") if isinstance(state.agendas, dict) else None
+    return any(str(hit.get("premise")) == premise_id for hit in hits or [])
+
+
 def stages_for(state: GameState, premise_id: str) -> list[str]:
     """
     The stage ids a job on this premise walks, in order.
@@ -1098,7 +1110,9 @@ def resolve_stage(state: GameState, approach: str) -> dict[str, Any]:
     dropped from the queue before the roll, ``_drop_the_absent``, so only
     someone present is rolled against or sees the thief); the score draws
     the loot into the job (not yet the pack) and names the secret if it was
-    cased; the getaway carries
+    cased -- or, on a house an agenda already robbed (``emptied``), draws
+    nothing and says so (``emptied: True``, on the job and the receipt); the
+    getaway carries
     the loot out HOT and closes the job ``clean`` (no alarm) or ``noisy``.
     An anchor stage just advances. A partial pays for it: the alarm rises by
     ``alarm.on_fail`` and the outcome is ``noisy``.
@@ -1116,7 +1130,7 @@ def resolve_stage(state: GameState, approach: str) -> dict[str, Any]:
     Returns:
         ``{ok, stage, approach, label, name, band, reasons, degree, outcome,
         alarm_band, witnesses, loot, closed, advanced}`` (+ ``secret`` when
-        named). ``advanced`` says whether the thief got past this stage (or
+        named, + ``emptied`` at the score and getaway of an emptied house). ``advanced`` says whether the thief got past this stage (or
         this obstacle) -- a ``noisy`` partial did, a ``noisy`` failure did not.
         ``ok`` is "the attempt happened"; ``ok: False`` with a ``message`` is
         the engine declining, and spends nothing.
@@ -1206,7 +1220,16 @@ def resolve_stage(state: GameState, approach: str) -> dict[str, Any]:
             step["obstacles"] = obstacles[1:]
             step["advance"] = not obstacles[1:]
         elif stage == "score":
-            taken = _draw_loot(state, prem)
+            if emptied(state, str(job.get("premise") or "")):
+                # An agenda got here first: nothing to take, and nothing drawn
+                # on JOB for it. The score is still DONE -- the take (none)
+                # goes out at the getaway and the close records the house
+                # robbed, so a contract on it can still be paid.
+                taken = []
+                step["emptied"] = True
+                receipt["emptied"] = True
+            else:
+                taken = _draw_loot(state, prem)
             step["loot"] = taken
             receipt["loot"] = [name_of(i) for i in taken]
             secret = _secret_text(state, prem)
@@ -1246,6 +1269,8 @@ def resolve_stage(state: GameState, approach: str) -> dict[str, Any]:
                                 "where": str(prem.get("district") or "")},
             })
         receipt["loot"] = [name_of(i) for i in carried]
+        if job.get("emptied"):
+            receipt["emptied"] = True
         now = active(state) or {}
         receipt["outcome"] = "clean" if int(now.get("alarm") or 0) == 0 else "noisy"
 
@@ -1561,10 +1586,12 @@ def _p_premise_cased(state: GameState, value: Any, ctx: Any) -> bool:
 
 
 def _p_premise_robbed(state: GameState, value: Any, ctx: Any) -> bool:
-    """``{premise_robbed: {premise?, type?, district?}}`` -- a finished job matches.
+    """``{premise_robbed: {premise?, type?, district?, owner?}}`` -- a finished job matches.
 
     Every given filter must hold of the same robbed premise; with none given,
-    any robbed premise does. A bare string is a premise id.
+    any robbed premise does. A bare string is a premise id. ``owner`` is
+    ``premises.owner`` -- what an agenda's "the player robbed a house the
+    guildmaster owns" reaction is written in.
     """
     from engine.world import premises
 
@@ -1576,6 +1603,8 @@ def _p_premise_robbed(state: GameState, value: Any, ctx: Any) -> bool:
         if body.get("type") and str(prem.get("type")) != str(body["type"]):
             continue
         if body.get("district") and str(prem.get("district")) != str(body["district"]):
+            continue
+        if body.get("owner") and premises.owner(state, premise_id) != str(body["owner"]):
             continue
         return True
     return False

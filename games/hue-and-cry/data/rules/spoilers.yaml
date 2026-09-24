@@ -5,11 +5,16 @@
 # `term` is rewritten to `instead`, out of narration and out of prompt blocks
 # wrapped in `mark_spoiler`. Above it, nothing is touched.
 #
-# The real Magpie's name is NOT here yet. It is chosen by the seed from three
-# people, which makes it a runtime value rather than a table row; the release
-# that picks the Magpie is the one that masks it.
+# The real Magpie's name is NOT here, and must never be. It is chosen by the
+# seed from three people, which makes it a runtime value rather than a table
+# row: since v0.12 the `magpie` ROLE in agendas.yaml carries the mask
+# (`mask.instead: "the Magpie"`, lifted by the flag `magpie_unmasked`, which
+# only v1.0's reveal sets). The secret it keeps is the LINK between the role
+# and its person, so it masks only text the agendas write -- a row here naming
+# one of the three would hide that one person everywhere, which is the same
+# as pointing at them (docs/AUTHORING.md §3.8).
 #
-# Version: v0.1.0 [2026-09-23]
+# Version: v0.1.1 [2026-09-25]
 
 spoilers:
   # Matching is case-insensitive and swallows a leading "the", so each term is

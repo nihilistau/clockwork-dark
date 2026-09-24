@@ -1098,8 +1098,12 @@ def run_turn(
             # What the prompt rendered from the moved journal has now been
             # narrated (or the turn failed trying; either way it was offered).
             from engine.game import moved
+            from engine.world import agendas
 
             moved.clear_shown(state)
+            # The signs that prompt showed, recorded seen through
+            # `agenda_trace_seen` (a no-op without paths.agendas).
+            agendas.clear_shown(state)
             # The agent outlives the turn. Leaving the sink attached would have
             # a later non-socket turn (the HTTP route, a test) emit into a
             # callback closed over a dead request context.

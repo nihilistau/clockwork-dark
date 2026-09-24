@@ -51,12 +51,18 @@ clock through ``clock.advance_time``. What is NOT the game, and says so:
     the narrator is handed as reasons, a feature the house has not been cased
     for included ("a good lock on the street door, not yet cased").
 
+AGENDAS ARE OFF HERE BY DEFAULT (v0.12), for simulate_law.py's reason: the
+Magpie's robberies land on the thief's own name and would be counted as
+what the jobs earned. ``--agendas`` turns them on; scripts/simulate_agendas.py
+measures jobs and agendas together (collisions included).
+
 Usage:
     python scripts/simulate_jobs.py                     # 40 seeds, every policy
     python scripts/simulate_jobs.py --seeds 10 --policy careful
     python scripts/simulate_jobs.py --set tier_band.1=trivial --json
+    python scripts/simulate_jobs.py --agendas
 
-Version: v0.1.0 [2026-09-24]
+Version: v0.2.0 [2026-09-25]
 """
 
 from __future__ import annotations
@@ -602,6 +608,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--seeds", type=int, default=40)
     parser.add_argument("--policy", choices=(*POLICIES, "all"), default="all")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--agendas", action="store_true",
+                        help="measure with the story's agendas on (off by default; see above)")
     parser.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
                         help="try a number without editing the file (repeatable)")
     args = parser.parse_args(argv)
@@ -612,10 +620,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     from engine.games import registry
 
     registry.activate("hue-and-cry")
-    for assignment in args.set:
-        _override(assignment)
-    policies = POLICIES if args.policy == "all" else (args.policy,)
-    reports = {p: measure(p, args.seeds) for p in policies}
+    from scripts.simulate_law import _nothing, agendas_off
+
+    with (_nothing() if args.agendas else agendas_off()):
+        for assignment in args.set:
+            _override(assignment)
+        policies = POLICIES if args.policy == "all" else (args.policy,)
+        reports = {p: measure(p, args.seeds) for p in policies}
     if args.json:
         print(json.dumps(reports, indent=2))
     else:

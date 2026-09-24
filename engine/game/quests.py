@@ -738,6 +738,7 @@ _GRAMMAR_MODULES = (
     "engine.game.threads",  # thread, no_thread
     "engine.game.endings",  # ending
     "engine.world.jobs",  # premise_cased, premise_robbed, job
+    "engine.world.agendas",  # wanted, reported_to, agenda_hit
 )
 
 _grammar_loaded = False

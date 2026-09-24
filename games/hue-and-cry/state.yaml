@@ -1,0 +1,53 @@
+# HUE & CRY -- state declaration.
+#
+# THE HALF-AND-HALF RULE (docs/AUTHORING.md §3.1): this file says what a value
+# IS -- bounds, default, visibility, backing. data/rules/clocks.yaml says what
+# the clock DOES. Delete either half and the clock stops working; delete THIS
+# half and it stops SILENTLY, because value_of reads 0.0 and `at: max` never
+# resolves.
+#
+# Everything else HUE & CRY keeps -- hp, stamina, crowns, wanted -- runs on the
+# engine spine and the Law; nothing here re-declares it.
+#
+# THREE CLOCKS, one per agenda (data/rules/agendas.yaml, v0.12). Every one is
+# `visibility: hidden`, and the agendas loader refuses anything else: a veiled
+# clock's band crossing is journalled to the prose unwrapped, and a public one
+# is a number on the sheet. The narrator feels them only through the GM-only
+# clock block (label + band word, never a number); the player feels them only
+# through what the city does. Their ranges were set with the cadences, by
+# measurement -- scripts/simulate_agendas.py, table in CHANGELOG.md.
+#
+# Version: v0.1.0 [2026-09-25]
+
+version: 1
+slug: hue-and-cry
+
+clocks:
+
+  # The Magpie's spree: one point a shining house. Ten is most of the shine in
+  # the city below the Treasury.
+  magpie_spree:
+    backing: bag
+    min: 0
+    max: 10
+    default: 0
+    visibility: hidden
+    label: "The Magpie's spree"
+
+  # Captain Ardane's net. Full is the beat that raises the stakes.
+  ardane_net:
+    backing: bag
+    min: 0
+    max: 12
+    default: 0
+    visibility: hidden
+    label: "The captain's net"
+
+  # Silas Crook's rise inside the Honest Company.
+  silas_rise:
+    backing: bag
+    min: 0
+    max: 5
+    default: 0
+    visibility: hidden
+    label: "The upstart's rise"

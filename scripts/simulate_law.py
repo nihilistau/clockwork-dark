@@ -41,12 +41,22 @@ harness feeds the thief and restores its stamina each morning through the
 ``hunger`` and ``stamina`` effects, because HUE & CRY ships no food loop yet
 and this harness measures the Law, not starvation. No narration runs.
 
+AGENDAS ARE OFF HERE BY DEFAULT (v0.12). Since v0.12 the Magpie robs a
+shining house most nights and each robbery lands on the thief's own name
+(law.yaml `links`) -- so with agendas on, a thief who lifts nothing is
+`sought` within five days, and "does a careful thief stay below sought" stops
+measuring the thief. This harness measures what the thief's OWN conduct earns
+from the Watch, so it runs with `paths.agendas` declared off
+(``agendas_off``); ``--agendas`` runs it with the city's agendas on, and
+scripts/simulate_agendas.py measures the two together.
+
 Usage:
     python scripts/simulate_law.py                    # 40 seeds x 10 days, both
     python scripts/simulate_law.py --seeds 10 --days 5 --policy reckless
+    python scripts/simulate_law.py --agendas          # with the Magpie and co. on
     python scripts/simulate_law.py --json
 
-Version: v0.2.0 [2026-09-24]
+Version: v0.3.0 [2026-09-25]
 """
 
 from __future__ import annotations
@@ -56,9 +66,10 @@ import json
 import statistics
 import sys
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Iterator, Optional
 
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
@@ -106,6 +117,28 @@ class Run:
     bribes: int = 0          # stops answered with coin
     bribe_gold: int = 0
     days_served: list[int] = field(default_factory=list)
+
+
+@contextmanager
+def agendas_off() -> Iterator[None]:
+    """
+    The active story with its agendas switched off, for the duration: no
+    Magpie, no captain's net, no Silas -- the city as it played before v0.12.
+
+    A harness switch, not a content one. ``agendas.declared`` answers False
+    inside the block, and every agenda entry point asks it first (``begin``,
+    the prompt blocks, the masks), so the pass never runs. It cannot be done
+    by blanking ``paths.agendas`` in the config overlay: an empty ``paths.*``
+    key is answered from the story's manifest (``engine/config.py``).
+    """
+    from engine.world import agendas
+
+    declared = agendas.declared
+    agendas.declared = lambda: False  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        agendas.declared = declared  # type: ignore[assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -504,12 +537,19 @@ def _override(assignment: str) -> None:
         node[last] = value
 
 
+@contextmanager
+def _nothing() -> Iterator[None]:
+    yield
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--seeds", type=int, default=40)
     parser.add_argument("--days", type=int, default=10)
     parser.add_argument("--policy", choices=(*POLICIES, "all"), default="all")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--agendas", action="store_true",
+                        help="measure with the story's agendas on (off by default; see above)")
     parser.add_argument(
         "--set", action="append", default=[], metavar="KEY=VALUE",
         help="try a number without editing the file: wanted.cool_per_day=0.75, "
@@ -523,10 +563,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     from engine.games import registry
 
     registry.activate("hue-and-cry")
-    for assignment in args.set:
-        _override(assignment)
-    policies = POLICIES if args.policy == "all" else (args.policy,)
-    reports = {p: measure(p, args.seeds, args.days) for p in policies}
+    with (_nothing() if args.agendas else agendas_off()):
+        for assignment in args.set:
+            _override(assignment)
+        policies = POLICIES if args.policy == "all" else (args.policy,)
+        reports = {p: measure(p, args.seeds, args.days) for p in policies}
     if args.json:
         print(json.dumps(reports, indent=2))
     else:

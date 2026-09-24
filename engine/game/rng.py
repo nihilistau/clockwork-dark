@@ -77,6 +77,10 @@ LAW = "law"
 # adding a loot row or a security feature cannot shift the Law's witness rolls
 # (LAW) or an ordinary check's dice (DICE) on a replayed seed.
 JOB = "job"
+# Which target an NPC agenda's move picks when several qualify. Its own stream
+# so that a story adding an agenda cannot shift a burglary's stage rolls (JOB)
+# or a witness's telling (LAW) on a replayed seed.
+AGENDA = "agenda"
 
 
 def _mix(seed: int, stream: str, counter: int) -> int:

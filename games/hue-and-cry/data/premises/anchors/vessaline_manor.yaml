@@ -18,13 +18,16 @@
 # points at the rest of the Row -- static content must not hand her a motive
 # (debt, grudge, need) in every seed when the seed is what picks the thief.
 #
-# Version: v0.1.0 [2026-09-23]
+# Version: v0.1.1 [2026-09-25]
 
 id: vessaline_manor
 label: "manor"
 district: silk_row
 name: "Vessaline House"
 tier: 4
+# Who it belongs to (v0.12): what an agenda's `premise {owner}` and
+# `premise_robbed {owner}` read. Lady Imelda's house.
+owner: npc_imelda
 
 household:
   - role: butler

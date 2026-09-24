@@ -61,7 +61,7 @@ import copy
 import logging
 import math
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import yaml
 
@@ -967,7 +967,12 @@ def _propagate_hour(
     return result
 
 
-def propagate(state: GameState, hours: float) -> dict[str, int]:
+def propagate(
+    state: GameState,
+    hours: float,
+    *,
+    each_hour: Optional[Callable[[int], None]] = None,
+) -> dict[str, int]:
     """
     Let ``hours`` pass for the watch: talk carries what witnesses saw, person
     to person, and quiet wears the files down.
@@ -989,6 +994,13 @@ def propagate(state: GameState, hours: float) -> dict[str, int]:
     recalled facts between people and never reads or writes ``state.law`` --
     witness rows are not ledger facts -- so nothing a witness saw travels
     twice. This pass owns them; it borrows gossip's hop cap, not its tick.
+
+    ``each_hour``, when given, is called with each boundary AFTER that hour's
+    talk and cooling: the agendas pass (``agendas.Walk.hour``) fires its
+    moves there, so a report or sighting a move files at 01:00 cools and
+    travels through the hours after it in this same call, as it would had
+    the call ended at 01:00. A sighting it adds makes a teller, so talk
+    resumes. Without it (every story with no agendas) nothing changes.
 
     Returns:
         ``{"told": n, "reported": n}`` for the log; the rows are the record.
@@ -1017,6 +1029,11 @@ def propagate(state: GameState, hours: float) -> dict[str, int]:
         # `law_cool` would have written, which is nothing.
         if state.law.get("reports"):
             cool(state, 1.0 / HOURS_PER_DAY)
+        if each_hour is not None:
+            heard = len(state.law.get("witnessed") or [])
+            each_hour(boundary)
+            if len(state.law.get("witnessed") or []) != heard:
+                talking = True
     return result
 
 

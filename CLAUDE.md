@@ -10,10 +10,10 @@ release to release.
 
 ## Status
 
-**v0.11.0** is the current release (CHANGELOG.md has every release since 0.4.0).
+**v0.12.0** is the current release (CHANGELOG.md has every release since 0.4.0).
 
-**2598 passing, 3 skipped in 8m38s**, no expected failures (measured
-2026-09-24, final fix pass), plus **144 client tests** under `ui/tests/`
+**2812 passing, 3 skipped in 10m30s**, no expected failures (measured
+2026-09-25, v0.12.0 final fix pass), plus **144 client tests** under `ui/tests/`
 (`npm test --prefix ui`; `vitest` is a devDependency, so
 `npm install --prefix ui` once first). Re-measure and restate these at every
 release rather than trusting this line -- it has been stale before, in the
@@ -24,10 +24,12 @@ Six stories ship, and every one can be played to an ending
 (the deck exemplar), `neon-city` (NEON CITY: THE CROSSING), `the-long-con` (THE
 LONG CON, the first graph/deck hybrid), `dev-story` (the annotated bench) and
 `hue-and-cry` (HUE & CRY, now with jobs — `burgle` a house, stage by stage,
-with flashbacks and a guild contract, on top of the Lantern Watch; still
-playable to its one shipped ending, `honest_after_all`, with the rest of its
-content landing across v0.12.0–v1.0.0). Pick one with `launcher.py --game
-<slug>`.
+with flashbacks and a guild contract, on top of the Lantern Watch — and
+agendas: a seed-chosen thief robs the city by night under the Magpie's name,
+Captain Ardane hunts, Silas Crook works the guild, all of it authored and
+deterministic, never a model plan; still playable to its one shipped ending,
+`honest_after_all`, with the rest of its content landing in v1.0.0). Pick one
+with `launcher.py --game <slug>`.
 
 ## In flight
 
@@ -40,8 +42,8 @@ nothing sits unpushed for weeks:
 | v0.9.0 | Premises, plus the HUE & CRY skeleton | **shipped** |
 | v0.10.0 | The Law | **shipped** |
 | v0.11.0 | Jobs & flashbacks | **shipped** |
-| v0.12.0 | Agendas | next |
-| v1.0.0 | `hue-and-cry` finished: a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, bespoke UI plugin, Grok art pack | after v0.12.0 |
+| v0.12.0 | Agendas | **shipped** |
+| v1.0.0 | `hue-and-cry` finished: a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, bespoke UI plugin, Grok art pack | next |
 
 Spec: [docs/superpowers/specs/2026-09-23-hue-and-cry-design.md](docs/superpowers/specs/2026-09-23-hue-and-cry-design.md).
 Plans live in `docs/superpowers/plans/`; each release is executed
@@ -84,6 +86,23 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   (`jobs.yaml`'s header, AUTHORING §3.12): the watch's delay counts whole
   in-game hours (`jobs.now_hour` floors), so a stage of fractional hours can
   bring it up to an hour late.
+- The Magpie's reveal: `magpie_unmasked` (agendas.yaml's role mask) is set
+  by nothing in v0.12 -- the unmasking is v1.0 content (the interrogation
+  deck, or the thief caught in the act). Until then the GM line never says
+  who the Magpie is. The agenda clocks' beats set flags (`ardane_warrant_sworn`,
+  `silas_splits_the_company`, `magpie_spree_full`, ...) that only v1.0's
+  scenes will read.
+- Ardane's `takes_a_statement` move can only file her OWN report at a fixed
+  deed (`pickpocket`): a move has no way to name the deed a witness actually
+  saw, so it cannot upgrade that row directly -- it adds a second, lesser
+  one instead.
+- Agenda moves are never posted to the notice board, and no `fence {most:
+  hot_goods}` selector exists (fences hold no stock to count) -- both rows in
+  docs/GOVERNANCE.md's NOT WIRED table.
+- The Magpie keeps robbing while the player serves a sentence: its
+  robberies land on the player's name from inside a cell. v1.0 content
+  answers it with an alibi beat (a night in the cells as proof), not the
+  engine.
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 

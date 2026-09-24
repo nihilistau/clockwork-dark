@@ -1,0 +1,248 @@
+# HUE & CRY -- what Tallowmere does while you are not looking.
+#
+# Read by engine/world/agendas.py through `paths.agendas`. The contract is the
+# module's docstring and docs/AUTHORING.md; this file is Tallowmere's answer.
+# Deterministic and authored: no model call anywhere, every roll on the
+# AGENDA stream, every write an effect, every move on in-game hours inside
+# advance_time.
+#
+# THREE AGENDAS:
+#
+#   the_magpie      The real thief -- one of three people, chosen by the seed
+#                   and never stored -- robs a shining house most nights. Each
+#                   robbery files a burglary on the Magpie's file, and the
+#                   watch takes the Magpie for YOU (law.yaml `links`), so the
+#                   real thief's work lands on your name whether or not you
+#                   ever steal a spoon. That is the hook.
+#   ardane_hunt     Captain Ardane tightens the net: she hears (a live sighting
+#                   in her own hands), she reads the files as they climb, she
+#                   interviews the people who saw the Magpie's face, and when
+#                   her clock fills she swears out a warrant (clocks.yaml).
+#   silas_ambition  Silas Crook works the Honest Company from inside: he robs
+#                   the Company's own ward and lets the Snuffs wonder whether
+#                   the new Magpie did it, and he pounces if you rob Mother
+#                   Gannet's house yourself.
+#
+# THE SECRET IS THE LINK (AUTHORING §3.8). No trace or effect in this file
+# names any of the three candidates, in any seed; the Magpie's signs are
+# impersonal -- and for traces the loader now enforces it: a trace naming any
+# candidate's display name or alias (Silas's own included) is a load error. The
+# mask below is the engine's guard for the one place a name could still slip
+# in -- a premise's own name in {target_name} -- and its aliases are the short
+# forms and epithets the city uses. `the lamplighter` is declared lower-case
+# ON PURPOSE: four tavern names in names.yaml are "The ... Lamplighter", and a
+# title-case alias would mask "The Lamplighter's Arms" in exactly the seeds
+# Wren is the thief. tests/test_hue_and_cry.py holds every premise name, in
+# every seed, unchanged under every candidate's mask.
+#
+# THE REVEAL IS v1.0 CONTENT. `magpie_unmasked` is the unmask flag, and NOTHING
+# SETS IT THIS RELEASE: the story's unmasking (the interrogation deck, or
+# catching the thief in the act) is v1.0's, and it sets this flag. Until then
+# the GM line never says who the Magpie is -- recorded in CHANGELOG.md and
+# CLAUDE.md "Deliberately deferred".
+#
+# `"on":` IS QUOTED ON PURPOSE. YAML reads a bare `on:` key as the boolean
+# true, and the loader then finds a reaction with no trigger.
+#
+# EVERY NUMBER BELOW WAS MEASURED (AGENTS.md rule 10) with
+# scripts/simulate_agendas.py: 40 seeds x 10 in-game days, three policies
+# (idle, careful, reckless). The table is at the foot of this file and in
+# CHANGELOG.md.
+#
+# Version: v0.1.1 [2026-09-25]
+
+roles:
+  magpie:
+    # The three people with hours nobody can account for (npc_schedules.yaml).
+    from: [npc_wren, npc_silas, npc_imelda]
+    mask:
+      instead: "the Magpie"
+      unmask_when: {flag: magpie_unmasked}
+      aliases:
+        npc_wren: ["the lamplighter"]
+        npc_silas: ["Silas", "Mr Crook", "the Dapper"]
+        npc_imelda: ["Lady Imelda", "Imelda", "Lady Vessaline"]
+
+agendas:
+
+  # -------------------------------------------------------------------------
+  # The Magpie
+  # -------------------------------------------------------------------------
+  the_magpie:
+    owner: {role: magpie}
+    goal: "steal every shining thing in Tallowmere below the palace"
+    clock: magpie_spree
+    moves:
+      - id: lift_a_shiny
+        # Most nights, in the small hours, when the lamps are out and the
+        # lamplighter's round is done.
+        every_hours: 24
+        at_hours: [1, 2, 3]
+        # Shining loot, a house worth the climb, and never the Treasury: the
+        # Everflame is v1.0's.
+        select: {premise: {tier_min: 2, tier_max: 4, not_robbed: true, loot_tag: shiny}}
+        effects:
+          # Filed where the house stands, half-seen: nobody sees the Magpie's
+          # face, only a shape on a roof and a feather on a sill.
+          - {type: report, deed: burglary, guise: magpie, jurisdiction: "{target_jurisdiction}", precision: 0.6}
+        advance: 1
+        robs: true
+        # PUBLIC: common talk by breakfast, journalled unlocated at once. The
+        # hook has to reach a player who never goes near the house.
+        trace:
+          text: "Word is all over town that the Magpie had {target_name} in the night, and left a single black feather on the sill to say so."
+          where: target
+          public: true
+
+  # -------------------------------------------------------------------------
+  # Captain Ardane
+  # -------------------------------------------------------------------------
+  ardane_hunt:
+    owner: npc_ardane
+    goal: "catch the Magpie, whoever the Magpie is -- and the watch is sure it knows"
+    clock: ardane_net
+    moves:
+      # She reads the files every other morning, and when the Magpie's file is heavy
+      # anywhere she can reach, the net draws in a little.
+      - id: reads_the_files
+        every_hours: 48
+        at_hours: [9]
+        when:
+          any:
+            - {wanted: {guise: magpie, jurisdiction: wick, min: wanted}}
+            - {wanted: {guise: magpie, jurisdiction: rise, min: wanted}}
+            - {wanted: {guise: magpie, jurisdiction: quay, min: wanted}}
+        advance: 1
+      # She takes statements from people who have seen the Magpie's face --
+      # which, since the barge, means yours. A statement is her own report,
+      # clear enough to count, at the lightest crime on the books (a move
+      # cannot name the deed the witness saw, so it cannot upgrade that row;
+      # it files the captain's own).
+      - id: takes_a_statement
+        every_hours: 96
+        at_hours: [11]
+        select: {witness: {knows: magpie}}
+        effects:
+          - {type: report, deed: pickpocket, guise: magpie, jurisdiction: "{target_jurisdiction}", precision: 0.6}
+        advance: 1
+        # Impersonal, so a witness who is one of the three reads naturally.
+        # Left where the witness saw the deed (`target`: a witness's place is
+        # where they saw it), so it reads as a mark on these streets, not a
+        # board in a watch-house the player may be nowhere near.
+        trace:
+          text: "fresh chalk on a wall here, in a watchman's hand: somebody who saw the Magpie on these streets has given the captain a statement"
+          where: target
+          public: false
+    reactions:
+      # A sighting reaches her own hands.
+      - id: the_captain_hears
+        "on": {reported_to: {npc: npc_ardane, guise: magpie}}
+        once: true
+        advance: 1
+      # The Magpie's file tips into `sought` in a ward, and later `hunted`:
+      # ONCE each. Measured, a level that re-fired every time cooling dipped
+      # a band and a new report lifted it again wound a reckless thief's
+      # clock full by day 4 -- it counted the churn, not the case.
+      - id: sought_in_the_wick
+        "on": {wanted: {guise: magpie, jurisdiction: wick, min: sought}}
+        once: true
+        advance: 1
+      - id: sought_up_the_rise
+        "on": {wanted: {guise: magpie, jurisdiction: rise, min: sought}}
+        once: true
+        advance: 1
+      - id: hunted_in_the_wick
+        "on": {wanted: {guise: magpie, jurisdiction: wick, min: hunted}}
+        once: true
+        advance: 1
+      - id: hunted_up_the_rise
+        "on": {wanted: {guise: magpie, jurisdiction: rise, min: hunted}}
+        once: true
+        advance: 1
+      # The Margrave's own hill robbed under her lamps.
+      - id: the_hill_is_touched
+        "on": {agenda_hit: {agenda: the_magpie, district: margraves_hill}}
+        once: true
+        advance: 1
+
+  # -------------------------------------------------------------------------
+  # Silas Crook, "the Dapper"
+  # -------------------------------------------------------------------------
+  silas_ambition:
+    owner: npc_silas
+    goal: "take the Honest Company off Mother Gannet, one young porter at a time"
+    clock: silas_rise
+    moves:
+      # Every other night his people clean out a house in the Company's own
+      # ward, and the Snuffs wonder aloud whether the new Magpie did it. The
+      # Company's regard for you pays for the rumour.
+      - id: skims_the_company
+        every_hours: 48
+        start_hour: 48
+        at_hours: [2, 3, 4]
+        select: {premise: {district: the_snuffs, tier_max: 2, not_robbed: true}}
+        effects:
+          - {type: reputation, faction: honest_company, delta: -2, why: "a Company house robbed, and the Snuffs wonder about the Magpie"}
+        advance: 1
+        robs: true
+        trace:
+          text: "Word in the Snuffs: {target_name} was cleaned out in the night, and the Company's porters are asking each other where the Magpie was."
+          where: target
+          public: true
+      # Once enough of the young porters answer to him, the strike fund in
+      # Mother Gannet's own house.
+      - id: takes_the_strike_fund
+        every_hours: 24
+        at_hours: [3]
+        when: {clock: {name: silas_rise, min: 3}}
+        select: {premise: {owner: npc_gannet, not_robbed: true}}
+        effects:
+          - {type: reputation, faction: honest_company, delta: -3, why: "the strike fund gone, and the Snuffs wonder about the Magpie"}
+        advance: 2
+        robs: true
+        trace:
+          text: "The Company's strike fund is gone from {target_name}, and the Snuffs have gone very quiet about whose fault that is."
+          where: target
+          public: true
+    reactions:
+      # You robbed Mother Gannet's own house. He makes sure the Snuffs know,
+      # and he makes sure they know he would never.
+      - id: the_upstart_smells_blood
+        "on": {premise_robbed: {owner: npc_gannet}}
+        once: true
+        effects:
+          - {type: reputation, faction: honest_company, delta: -5, why: "the Snuffs hear who robbed Mother Gannet"}
+        advance: 2
+
+# ---------------------------------------------------------------------------
+# MEASURED, scripts/simulate_agendas.py, 40 seeds x 10 in-game days:
+#
+#                                      idle        careful       reckless
+#   Magpie robberies / run             9.8         9.7           9.9
+#   first noticed / sought (median)    day 2 / 5   day 2 / 5     day 1 / 2
+#   sought by day 6                    80%         95%           100%
+#   jobs landing on a Magpie house     --          9% of 127     7% of 140
+#     ...on any agenda's house         --          16%           11%
+#   Ardane top band (>= 10 of 12)      0%          0%            60%, median day 9
+#   Ardane full (the warrant)          0%          0%            22%
+#   Silas moves / run                  3.3         3.1           3.0
+#   traces / run (max)                 13.0 (15)   12.8 (15)     15.6 (17)
+#   the_hill_is_touched fired          36 of 40, median day 4.5 (idle)
+#
+# Roles over 90 seeds: Wren 31, Silas 35, Imelda 24.
+#
+# RE-MEASURED after the final fixes (the Magpie never robs the house of an
+# open job; a house it emptied yields nothing at the score, so no JOB draw is
+# spent on loot there and a seed's later rolls shift): idle unchanged; the
+# figures above are the new ones. Before: careful 9.8 robberies, 10% of 126
+# (18%); reckless top band median day 8, warrant 25%, Silas 3.1.
+#
+# FIRST TUNING, and why it moved: every Ardane reaction re-fired on each
+# rising edge, `reads_the_files` ran daily and `takes_a_statement` every two
+# days, `hunted` gave +2 and the net's max was 10. A reckless thief's net was
+# full by day 4 -- it counted bands dipping with cooling and climbing back,
+# not the case. Now each reaction fires once, `hunted` gives +1, the files are
+# read every 48h, statements taken every 96h, and the max is 12 (state.yaml).
+# The Magpie's cadence and precision did not move: at one lift a night and
+# 0.6, a player who never steals is sought in about five days -- the brief's
+# four to six.

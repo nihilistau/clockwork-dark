@@ -504,6 +504,38 @@ story-neutral rows for identifiers the machinery leaks out of any story
 and a story that wants its own phrasing for a mechanical id simply declares
 it and wins by ordering.
 
+**A role chosen by the seed is not a table row.** A `paths.agendas` role can
+carry a `mask`:
+
+```yaml
+mask:
+  instead: "the Magpie"
+  unmask_when: {flag: magpie_unmasked}
+  aliases: {npc_wren: ["the lamplighter"]}
+```
+
+- `unmask_when` is required.
+- `aliases` is optional and keyed by candidate.
+- **The mask matches only what you declare.**
+  - The display name is matched in full and case-sensitively, so a trace that
+    says "Silas" when the display name is "Silas Crook" is NOT masked unless
+    `aliases` lists `"Silas"`.
+  - List every short form, nickname and epithet your trace texts can produce.
+  - An alias written with its article (`"the lamplighter"`) matches "the" or
+    "The" and needs it, so "a lamplighter" is left alone.
+  - At the start of a sentence the replacement is capitalised ("The Magpie
+    was seen").
+
+Until `unmask_when` holds, text the agendas themselves write (signs, and
+public traces in the moved journal) calls the chosen NPC `instead`. Once it
+holds, the GM line says who the role is. That is the only place the engine
+could link the role to its NPC, so the only place it masks. The cast, your
+storyteller prompt and the narration keep every name. The same rule applies
+to what you author: **treat every candidate the same everywhere else**. Do
+not name the role's secret in `storyteller.md`, `spoilers.yaml` or any
+dialogue, and give each candidate the same weight of description, because a
+narrator that was never told the link cannot give it away.
+
 
 ### 3.9 Art
 
@@ -545,7 +577,13 @@ nothing when undeclared — the worked example for the whole shape is
   `secrets` (`[{id, text}]`, one drawn per premise — casing only reveals that
   a secret *exists*; the `text` is what going inside finds).
 - `anchors/*.yaml` — the same schema, hand-written: a fixed `district`,
-  `name`, `tier` and contents rather than generated ones.
+  `name`, `tier` and contents rather than generated ones. An anchor may also
+  declare `owner: <scheduled npc id>`, validated at load; `premises.owner(state,
+  premise_id)` answers it, or a generated premise's first household member
+  when the premise names none. This is how an agenda's `premise` selector
+  filters on `owner`, and how `premise_robbed`'s own `owner` filter (§3.13)
+  reads "the player robbed a house so-and-so keeps" without a hand-rolled flag
+  per house.
 
 **Household routines.** A `household` role's `routine` is an ordinary
 schedule-row list (`{hours, location, activity, available}`), with two
@@ -913,10 +951,13 @@ guild contracts (below) and anything else in the shared grammar:
 
 - `premise_cased: {min, premise?}` — at least `min` intel rows are known
   about `premise` (default: the open job's own).
-- `premise_robbed: {premise?, type?, district?}` — a **finished** job (one
-  that reached `clean` or `noisy`) carried the score from a premise matching
-  every filter given; with none given, any robbed premise does. This is the
-  hook a guild contract's `discharge_requires` reads.
+- `premise_robbed: {premise?, type?, district?, owner?}` — a **finished**
+  job (one that reached `clean` or `noisy`) carried the score from a premise
+  matching every filter given; with none given, any robbed premise does.
+  `owner` is `premises.owner` (an anchor's declared owner, else the first
+  household member; §3.13). This is the hook a guild contract's
+  `discharge_requires` reads. A house an agenda robbed first (§3.13) still
+  counts once the player's job carries its (empty) score out.
 - `job: {open}` — whether a job is under way right now (default `true`).
 
 **Guild contracts are threads, not a new mechanism.** A contract is an
@@ -988,6 +1029,151 @@ ended; all in the same words, nothing the client payload doesn't also say.
 extra the design allows for and this release does not build), and the
 **job panel UI** — the payload above exists; no shipped story's plugin
 renders it yet.
+
+### 3.13 `paths.agendas` — what the world does while you are not looking
+
+`paths.agendas` → one YAML file, loaded and validated by
+`engine/world/agendas.py`. It is what lets a story's NPCs run their own
+authored plans on the clock — no model call anywhere, every move and
+reaction is data the engine evaluates, on in-game hours, inside
+`clock.advance_time`. The shipped example is
+`games/hue-and-cry/data/rules/agendas.yaml` (three agendas: a thief chosen by
+the seed, the watch captain hunting them, a rival working the guild) — read
+it alongside this section; its header comments carry the gotchas below in
+the story's own words.
+
+**Shape:**
+
+```yaml
+roles:                          # optional: hidden identities the SEED chooses
+  magpie:
+    from: [npc_wren, npc_silas, npc_imelda]   # scheduled NPC ids
+    mask:                       # optional; see §3.8 for the masking rules
+      instead: "the Magpie"
+      unmask_when: {flag: magpie_unmasked}
+      aliases: {npc_wren: ["the lamplighter"]}
+
+agendas:
+  the_magpie:
+    owner: {role: magpie}       # or a scheduled npc id directly
+    goal: "steal every shining thing"          # GM-facing only; never narrated
+    clock: magpie_spree         # a story clock, declared `visibility: hidden`
+    moves:
+      - id: lift_a_shiny
+        every_hours: 24         # cadence, at least 1 hour
+        start_hour: 0           # optional: first eligible absolute hour
+        at_hours: [1, 2, 3]     # optional: fires only on these hours of day
+        when: {none: [{flag: magpie_caught}]}    # the shared condition grammar
+        select: {premise: {tier_min: 2, not_robbed: true, loot_tag: shiny}}
+        effects: [{type: report, deed: burglary, guise: magpie, ...}]
+        advance: 1              # clock delta, applied through the `value` effect
+        robs: true              # optional: the selected premise counts as robbed
+        trace: {text: "...", where: target, public: false}
+    reactions:
+      - id: the_captain_hears
+        "on": {reported_to: {npc: npc_ardane, guise: magpie}}   # edge-triggered
+        once: true
+        effects: []
+        advance: 1
+```
+
+**`"on":` must be quoted.** YAML 1.1 (what PyYAML's `safe_load` implements)
+reads a bare `on:` key as the boolean `true`, not the string `"on"` — so an
+unquoted reaction trigger loads as `{True: {...}}`, the loader's
+`body.get("on")` finds nothing, and you get "a reaction needs an `on`
+trigger" pointing at a file that looks like it has one. Always write
+`"on": {...}`. The loader catches the slip: a reaction keyed `true` with no
+`on` is a load error naming the file and telling you to quote it.
+
+**Moves** fire on a cadence (`every_hours`, first eligible at `start_hour`),
+optionally restricted to hours of day (`at_hours`), gated by `when`, and only
+when their `select` finds a target (a move with no candidate does not fire
+and does not stamp its cadence — it tries again next time it is due).
+Selectors: `premise {district?, type?, tier_min?, tier_max?, not_robbed?,
+loot_tag?, owner?}` (a district's declared premises, generated and anchored
+alike — `not_robbed` excludes both the player's own scores and every other
+agenda's `hits`); `fence {district?}` (a vendor with `fence: true`);
+`witness {knows: <guise>, jurisdiction?}` (an NPC holding a live sighting of
+that guise). A firing move substitutes `{target}`, `{target_name}`,
+`{target_district}`, `{target_jurisdiction}`, `{owner}` into its effects,
+advances its clock by `advance`, and — with `robs: true` — records the
+premise as taken through the agenda's own `hits` (never the player's
+`jobs.robbed`). **Trace text may use only `{target_name}`**: the others are
+ids (or a masked role's npc id) that would print into the narrator's
+material, and any of them in a trace is a load error. A `premise` selector
+never picks the house of the player's OPEN job. A house an agenda robbed can
+still be burgled — the thief need not know — but its score finds the
+strongroom bare: the receipt says `emptied`, nothing is drawn, and the close
+still records the house robbed, so a contract on it can be paid.
+
+**No trace may name a role candidate.** Every candidate's display name and
+every declared alias, of every role, is refused in trace text (private or
+public), naming the file — matched as the mask matches (word-bounded, the
+proper noun case-sensitive). The mask covers only the seed's chosen NPC, so
+a trace naming another candidate would reach the narrator unmasked; one
+naming the chosen one is the link itself. This holds for a trace in an
+agenda the candidate owns outright, too (a Silas-owned move's sign may not
+say "Silas").
+
+**Reactions are edge-triggered**, not level-triggered. `truth` is the value
+of `on` as evaluated the LAST time this reaction was checked — evaluated
+before the reaction's own effects apply, and written after them (so an
+effect a reaction fires cannot change the edge it fired on). A reaction fires when `on` is
+true now and `truth` says it was false (or unrecorded) last time; `once:
+true` then fires at most once ever, otherwise it fires again after `on`
+falls and rises. **On an old save, or on a state's very first agendas walk,
+a condition that already holds counts as an edge** — there is no "before" to
+compare against, so the first evaluation IS the rising edge, and the
+reaction fires at the first hour boundary the pass walks. Author reactions
+knowing a save loaded mid-story can trip them immediately if their condition
+already holds.
+
+**Predicates** the shared condition grammar gains, for `when`/`on`/
+`unmask_when` alike (all refused at load, naming the file, if the story
+declares no Law where a Law is needed): `wanted {guise?: self, jurisdiction?:
+<here>, min: <band>}` — that face's wanted band in that jurisdiction is
+`min` or above, in the Law's own band order; `reported_to {npc, guise?:
+self}` — that person holds a LIVE (not discharged, not lost to a bribe)
+witness row for a face the watch links to `guise`; `agenda_hit {agenda?,
+premise?, district?}` — some agenda's `hits` record a match. `premise_robbed`
+(declared with `paths.jobs`, engine/world/jobs.py) gains an `owner` filter
+here too: `{premise_robbed: {owner: npc_gannet}}` is true once a FINISHED job
+(the player's own) has robbed a premise that npc owns — this is how an
+agenda reacts to the player robbing a house that matters to someone, without
+a bespoke flag per house.
+
+A gate cannot read a StoryLedger or a quest's progress (the pass runs inside
+`advance_time`, which holds neither): `disposition`, `days_in_stage` and
+`days_since_started` are load errors naming the file, not silently-false
+gates.
+
+**Masking (see §3.8 for the full rule).** A role's `mask` protects the
+role↔NPC link only in text the agendas themselves author — a trace's text,
+and a public trace once it reaches the moved journal. It does **not** touch
+the cast block, the storyteller prompt, or the narrator's own prose: masking
+one candidate's name everywhere would itself point at them by making that
+one person's name behave differently from the other two. **List every short
+form your traces can produce** in `aliases`, keyed by candidate — a nickname,
+a title, an epithet, every case form the prose actually uses (the display
+name itself is matched case-sensitively and in full; "Silas" is not masked
+unless `aliases` lists it, even though the display name is "Silas Crook").
+Once `unmask_when` holds, the GM-only line in the clocks block gains a
+reveal — "WHO THE MAGPIE IS (the player has earned this; name them freely):
+Wren, the lamplighter." — and agenda text starts naming the chosen NPC
+normally.
+
+**What the narrator sees, and no more.** Progress reaches the prose only as
+the agenda's clock label and band in the GM-only `_clocks_block` — never the
+goal, an id, or a number. A private trace surfaces only at its own location,
+as "SIGNS HERE" in the prompt, until narrated; a public trace goes straight
+to the moved journal, unlocated, as common talk. A story that declares no
+`paths.agendas` pays nothing: prompt, legal intents and payload are
+byte-identical to one that never heard of this system.
+
+**NOT WIRED** (`docs/GOVERNANCE.md`): agenda moves posted to the notice
+board; a `fence {most: hot_goods}` selector (fences hold no stock to count);
+`disposition`/quest-progress predicates in agenda conditions (no ledger, no
+quest, in scope).
 
 ---
 
@@ -1312,4 +1498,4 @@ are distilled from dev-story** — when a subsystem changes shape, fix dev-story
 first (the suite runs its rows, so it cannot silently rot), then re-distil the
 templates. A template that drifts from the bench teaches the old engine.
 
-Version: v0.1.2 [2026-08-15]
+Version: v0.1.3 [2026-09-25]

@@ -35,7 +35,9 @@ from typing import Any
 
 #: Every kind of entry, named for the system that writes it. A closed set, so
 #: a typo is a ValueError at the writer rather than an entry nobody renders.
-KINDS = ("beat", "event", "rumor", "promise", "band", "standing", "gossip")
+#: ``agenda`` is a public trace an NPC agenda left (``agendas.advance``):
+#: common talk, so it is journalled unlocated at once.
+KINDS = ("beat", "event", "rumor", "promise", "band", "standing", "gossip", "agenda")
 
 #: The most a single turn carries. A long rest can cross a lot; the narrator
 #: needs the latest few, not an inventory.

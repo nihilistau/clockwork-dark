@@ -13,13 +13,16 @@
 # The clerk's role is `clerk`, never `watch`: the Law release counts the Watch
 # by role, and a generated clerk must not be mistaken for a Lantern.
 #
-# Version: v0.1.0 [2026-09-23]
+# Version: v0.1.1 [2026-09-25]
 
 id: captains_office
 label: "watch office"
 district: lantern_house
 name: "the Captain's Office"
 tier: 3
+# Who it belongs to (v0.12): what an agenda's `premise {owner}` and
+# `premise_robbed {owner}` read. The captain's own office, and her confiscations.
+owner: npc_ardane
 
 household:
   - role: clerk

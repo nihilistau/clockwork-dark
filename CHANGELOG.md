@@ -14,6 +14,299 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-09-25
+
+**Agendas.** Tallowmere moves whether or not you do. A thief chosen by the
+seed — one of three people, never revealed, never stored — robs the city's
+shining houses by night, and the watch takes the Magpie for you: a player
+who never steals a spoon is `noticed` in two days and `sought` in about
+five. Captain Ardane hears the reports, reads the files, tightens her net
+and, pushed far enough, swears out a warrant. Silas Crook works the guild
+from inside, cleaning out the Honest Company's own ward and pouncing if you
+rob Mother Gannet yourself. None of it is a model plan: every move and
+reaction is authored data, evaluated deterministically on in-game hours,
+replaying identically from the same seed and the same choices. The narrator
+learns of it only the way the player could — a private sign where it was
+left, a rumour once it is common talk — and never the number behind it.
+
+### Added
+
+- **Agendas: the data, the state and seed-chosen roles** (engine;
+  `paths.agendas`, `engine/world/agendas.py`, effect kind `agenda_mark`,
+  `GameState.agendas`). A story that declares `paths.agendas` names one file:
+  `roles` -- hidden identities the seed chooses from a list of scheduled NPCs
+  (`stable_rng(seed, "agenda:<role>")`, derived on every read and never
+  stored, so a save neither changes nor reveals who the Magpie is), each with
+  an optional `mask` (what agenda text calls the chosen NPC until
+  `unmask_when` holds) -- and `agendas`, each an owner (an NPC or a role), a GM-facing goal,
+  a clock the story declares `visibility: hidden` with a row in
+  `paths.clocks`, moves on a cadence (`every_hours`, `start_hour`,
+  `at_hours`, a `when` gate, a `premise`/`fence`/`witness` selector, effects,
+  a clock `advance`, an optional `robs` and a `trace`) and edge-triggered
+  reactions. Every content fault is a ValueError naming the file: an unknown
+  owner or role member, an undeclared, untabled or non-hidden clock, an
+  unknown predicate anywhere in a gate, a `disposition` gate (the agendas pass
+  has no ledger), an unknown selector key, a `premise` selector without
+  premises, a `witness` selector or Law predicate without a Law, a cadence
+  below one hour, a bad `trace.where`. `agenda_mark` is the only writer of the
+  pass's bookkeeping. A story without `paths.agendas` carries only an empty
+  `agendas` in its save.
+- **Agendas: moves on the clock** (engine; `agendas.Walk`/`begin`/`advance`,
+  `candidates`/`select`, effect kinds `agenda_hit` and `agenda_trace`, rng
+  stream `AGENDA`, moved-journal kind `agenda`). `advance_time` now opens the
+  agendas pass. For each whole hour crossed, each due move fires when all of
+  these hold:
+  - its cadence has elapsed, or it has never fired and `start_hour` has passed;
+  - `at_hours`, if given, includes the hour of day;
+  - `when` holds;
+  - its selector finds a target.
+
+  Selectors pick from sorted candidates. One candidate draws nothing; several
+  draw once on `AGENDA`. The `premise` selector filters on district, type,
+  tier, loot tag and owner; with `not_robbed` it skips houses robbed by the
+  player *or* by an agenda, and the house of the player's OPEN job (the
+  Magpie could otherwise empty a strongroom under the thief's hands, mid-job).
+  `fence` finds a vendor with `fence: true`.
+  `witness` finds an NPC holding a live sighting of a face linked to `knows`.
+
+  When a move fires:
+  - its effects apply, with `{target}`, `{target_name}`, `{target_district}`,
+    `{target_jurisdiction}` and `{owner}` filled in;
+  - its hidden clock moves through `value`. A beat it crosses fires at the
+    end of that hour, so a `reset_to` or a beat's flags are in place before
+    the next hour's moves;
+  - `robs: true` records the robbery through `agenda_hit`. It goes in the
+    agenda's own `hits`, never in the player's `jobs.robbed`;
+  - its trace is written through `agenda_trace` (ids `t<n>` from
+    `state.agendas["trace_seq"]`). A `public: true` trace is also journalled
+    as common talk.
+
+  The pass is walked INSIDE the Law's pass, hour by hour (`law.propagate`
+  gains an optional `each_hour` hook). A report a move files therefore cools
+  and travels exactly as if it had come from a shorter call: twelve one-hour
+  calls and one twelve-hour call leave `state.agendas` and the clocks
+  identical, and `state.law` identical within a day (a Law row's `day` is the
+  day the call ends, so a call that crosses midnight stamps a later `day`
+  than hourly calls would; no agenda predicate reads it). The walk takes at
+  most 48 hours per call, the Law's cap.
+  The first call on a new state or an old save walks only the hours that call
+  crosses, never the past.
+- **Agendas: reactions** (engine; `agendas._try_reaction`, in `Walk`). At
+  every hour the pass walks, after that hour's moves, each agenda (sorted)
+  evaluates its reactions (declared order). A reaction fires when its `on`
+  turns from false to true; the first evaluation of a condition already true
+  counts, and `once: true` fires at most once ever, otherwise it fires again
+  after falling and rising. Firing applies its effects (`{owner}` filled in)
+  and its clock `advance`; a beat that crosses fires at the end of the hour
+  with the moves' beats. `truth` is written through `agenda_mark` only when
+  it changes, so a reaction that never held leaves nothing in the save.
+  Because reactions follow the moves, one answers a move of the same hour --
+  a lift's report raising `wanted`, the robbery as an `agenda_hit` -- and
+  `reported_to npc_ardane` fires in the very hour the Law's talk carries the
+  word to him. Twelve one-hour calls and one twelve-hour call still agree,
+  with reactions that set a flag a later move reads and that wind a clock
+  across a `reset_to` beat. No predicate an agenda may use reads a Law row's
+  `day` stamp.
+- **A house an agenda robbed is bare when you get there** (engine;
+  `jobs.emptied`, `resolve_stage`, `job_stage`'s `emptied`). Before, a player
+  job on a house the Magpie had already robbed drew its full take, and the
+  prose contradicted the town talk. Now `burgle` still opens it (the thief
+  need not know), but the score finds nothing: its receipt carries
+  `emptied: true`, no loot is drawn and no `JOB` draw is spent on loot. The
+  narrator is told in words -- the stage summary ("found it already bare:
+  someone had been there first"), the JOB block while the job is open, and
+  the close line. The job still counts as done: a clean or noisy getaway
+  records the house in `jobs.robbed`, so Mother Gannet's Silk Row contract
+  pays on a house the Magpie emptied.
+- **A bribe that lost the only file silences the witness.** `reported_to` and
+  the `witness` selector treated a deed as dead only if it was quashed in the
+  jurisdiction where it was DONE. The Law files a report where the watchman
+  HEARD it, so a lift up in town told to the captain in the village is filed
+  in the village, and quashing the village's file left the captain acting on
+  it. A sighting is now dead when its deed is discharged, or quashed
+  somewhere with no report of it standing anywhere; filed in two houses and
+  lost in one, it is still live.
+- **The agendas loader rejects more inert shapes:**
+  - `days_in_stage` and `days_since_started` gates (the pass evaluates no
+    quest);
+  - an `agenda_hit` naming an undeclared agenda, or a premise id no seed can
+    lay out (`premises.possible_ids`);
+  - a Law-writing effect (`report`, `witness`, `quash_reports`, ...) in a
+    story with no Law;
+  - any `agenda_*` bookkeeping effect written into a move;
+  - a placeholder nothing can fill: a target placeholder without a `select`,
+    an unknown name, or an id-valued placeholder in a trace's prose (a
+    trace may use only `{target_name}`);
+  - a trace (private or public) containing any role candidate's display name
+    or any declared alias, of any candidate -- matched as the mask matches.
+    The mask guards only the seed's chosen NPC; this makes "no sign names a
+    candidate" a schema invariant, including a sign in an agenda a candidate
+    owns outright;
+  - a reaction YAML read with a bare `on:` key (the boolean true): the error
+    says to quote it, `"on":`, instead of "a reaction needs an `on` trigger".
+- **Condition predicates `wanted`, `reported_to`, `agenda_hit`**, and an
+  `owner` filter on `premise_robbed`. `wanted {guise?, jurisdiction?, min}` is
+  the Law's wanted band here at or above `min`; `reported_to {npc, guise?}` is
+  a live (not discharged, not quashed) witness row held by that person for a
+  face the watch links to `guise`; `agenda_hit {agenda?, premise?, district?}`
+  reads the premises an agenda has robbed.
+- **Premise owners.** An anchor premise may declare `owner: <scheduled npc>`
+  (validated at load); `premises.owner(state, id)` answers the anchor's owner,
+  else the first household member.
+- **Agendas: the narrator sees only what the player could know** (engine;
+  `prompts.agenda_block`, effect kind `agenda_trace_seen`,
+  `agendas.signs_here`/`mask_text`/`masked_terms`/`revealed`).
+  - **Signs where they were left.** A private trace waits at its location.
+    Standing there, the narrator gets "SIGNS HERE (the world moved without
+    you; work in what fits, never explain it):" with the unseen ones (at most
+    five). They get the same two steps as the moved journal: prompt
+    assembly records what it rendered, so an evaluator retry sees the same
+    signs, and the turn records them seen through `agenda_trace_seen` once
+    the narrator has written. A public trace is never a sign; it went to the
+    moved journal, unlocated, as common talk.
+  - **Progress** reaches the narrator only as the agenda clock's `label` and
+    band in the GM-only `_clocks_block`. It never gets the goal, an id or a
+    number.
+  - **The secret is the link, not the name.** Until a role's `unmask_when`
+    holds, no agenda-authored text (a sign, or a public trace in the moved
+    journal) names the role's chosen NPC. Their display name, and any
+    `mask.aliases` declared for THAT candidate, reads as `mask.instead`.
+    Matching is word-bounded, and it is read from state every prompt. The
+    name is case-sensitive, so "a wren on the sill" stays a bird. A leading
+    "the"/"The" is not case-sensitive and is swallowed, so "The Wren" reads
+    "The Magpie". An alias written with its article ("the lamplighter")
+    requires that article. At a sentence start the replacement is
+    capitalised. The other candidates are never touched. The cast block, the
+    storyteller prompt, the client roster and the narration are not touched
+    either, because masking one person's name everywhere would point at
+    them.
+  - **Once earned**, the GM-only line gains "WHO THE MAGPIE IS (the player has
+    earned this; name them freely): Wren, the lamplighter.", and agenda text
+    names them normally.
+  - **The loader** now requires `unmask_when` on a `mask` (a mask that can
+    never lift is a load error naming the file). It also accepts an optional
+    `aliases: {<candidate>: [names]}`, keyed by candidate so that one
+    person's nickname is never masked when the seed chose another.
+  - **Unchanged without agendas.** A story with no `paths.agendas` builds the
+    same prompt.
+  - **NOT WIRED rows** in docs/GOVERNANCE.md:
+    - agenda moves on the notice board;
+    - `fence {most: hot_goods}`;
+    - `disposition` and quest-progress predicates in agenda conditions;
+    - the static spoiler table's narration half:
+      `AwarenessGateInterceptor.run_post` has no production caller.
+- **HUE & CRY: the city moves without you** (content; `games/hue-and-cry/`
+  `data/rules/agendas.yaml`, `data/rules/clocks.yaml`, new `state.yaml`,
+  anchor `owner`s, `prompts/storyteller.md`). Three agendas, each on a hidden
+  clock:
+  - **The Magpie** is one of Wren, Silas Crook and Lady Imelda Vessaline,
+    chosen by the seed. Most nights between 01:00 and 03:00 it robs a
+    tier-2 to tier-4 house with shining loot (never the Treasury: the
+    Everflame is v1.0's). Each robbery files a half-seen burglary against the
+    Magpie's face where the house stands, and the watch takes the Magpie for
+    you (`law.yaml` `links`). So a player who never steals a spoon is
+    `noticed` in two days and `sought` in about five. The robbery is town
+    talk by breakfast: a public trace, "the Magpie had <house> in the night,
+    and left a single black feather on the sill".
+  - **Captain Ardane** winds `ardane_net` when:
+    - a live sighting reaches her;
+    - the Magpie's file first reaches `sought`, and later `hunted`, in the
+      Wick wards or up the Rise;
+    - the Magpie touches Margrave's Hill (fired in 36 of 40 idle runs within
+    ten days, median day 4.5);
+    - she reads the files every other morning, while the file stands at
+      `wanted` anywhere;
+    - she takes a statement every fourth day from someone who has seen the
+      Magpie's face. The statement is her own half-seen report, and it leaves
+      a watchman's chalk mark on a wall where the deed was seen.
+
+    At 6 the Watch doubles its shifts. At 12 she swears out a warrant: a
+    clear, sworn burglary on the Magpie's file in the Wick and the Rise.
+  - **Silas Crook** has his people clean out a tier-1/2 house in the Snuffs
+    every other night. Each one costs your standing with the Honest Company
+    (-2), and the Snuffs ask where the Magpie was. Once his rise reaches 3,
+    he goes for the strike fund in Mother Gannet's House. He pounces once,
+    for -5 and two points of his clock, if you rob a house Gannet owns.
+  - **No trace or effect names any of the three candidates, in any seed.**
+    The mask (`instead: "the Magpie"`, with per-candidate aliases) guards
+    the one place a name could slip in: a house's own name. The Wren alias
+    is lower-case "the lamplighter" on purpose, because four taverns are
+    "The ... Lamplighter". The unmask flag is `magpie_unmasked`, and
+    **nothing sets it this release**: the reveal is v1.0's.
+  - No forced scenes; there are no decks yet. The beats set flags and write
+    to the moved journal.
+  - Anchor owners: `gannets_house` npc_gannet, `vessaline_manor` npc_imelda,
+    `captains_office` npc_ardane, `margraves_treasury` npc_steward_quill.
+  - `storyteller.md` gains "THE CITY MOVES WITHOUT YOU". It covers warmth,
+    real stakes and never explaining the machinery, and it points at no
+    candidate.
+- **`scripts/simulate_agendas.py`** (rule 10). A 40-seed x 10-day harness on
+  the production channel: `simulate_jobs.Burglar`, which is
+  `simulate_law.Thief`. Three policies:
+  - `idle` never steals and measures the hook;
+  - `careful` is the Law's careful thief, plus a cased burglary on days 3, 5,
+    7 and 9;
+  - `reckless` is the Law's reckless thief, plus a blind burglary at 23:00
+    on even days.
+
+  `--set <agenda>.<move>.<key>=N` patches a number for one process. Measured,
+  final numbers:
+
+  | | idle | careful | reckless |
+  |---|---|---|---|
+  | Magpie robberies / run | 9.8 (8..11) | 9.7 | 9.9 |
+  | first noticed / sought (median day) | 2 / 5 | 2 / 5 | 1 / 2 |
+  | `sought` by day 6 | 80% | 95% | 100% |
+  | seed-days below `sought` | 42% | 40% | 16% |
+  | player jobs; collision with the Magpie (any agenda) | -- | 127; 9% (16%) | 140; 7% (11%) |
+  | Ardane top band (utmost, >= 10 of 12) reached by day 10 | 0% | 0% | 60% (median day 9) |
+  | Ardane strong (>= 8) | 0% | 0% | 92% (median day 6) |
+  | Ardane full (warrant) | 0% | 0% | 22% |
+  | Silas moves / run; Company standing | 3.3; -6.9 | 3.1; -6.6 | 3.0; -6.3 |
+  | traces / run (max), all unseen | 13.0 (15) | 12.8 (15) | 15.6 (17) |
+  | runs with an arrest | 2% | 0% | 88% |
+
+  Over 90 seeds the Magpie is Wren 31 times, Silas 35 and Imelda 24.
+  Captain Ardane's `the_hill_is_touched` fires in 36 of 40 idle runs within
+  ten days (median day 4.5).
+
+  **Re-measured after the final fixes** (no mid-job theft; an emptied house
+  draws nothing, so a seed's later `JOB` rolls shift). `idle` is unchanged.
+  What moved, before -> after: careful robberies 9.8 -> 9.7, jobs 126 -> 127,
+  collisions 10% (18%) -> 9% (16%), runs with an arrest 2% -> 0%; reckless
+  Ardane top band median day 8 -> 9, warrant 25% -> 22%, Silas 3.1 -> 3.0
+  moves and -6.6 -> -6.3 standing. Every bound in `tests/test_hue_and_cry.py`
+  still holds; no constant changed.
+
+  **First tuning.** Every Ardane reaction was level-edged, `reads_the_files`
+  ran daily, `takes_a_statement` every two days, hunted gave +2 and the clock
+  max was 10. A reckless thief filled the net by day 4 (top band day 4), and
+  the clock counted the churn of bands dipping and recovering rather than
+  the case. Now each reaction fires once, `hunted` gives +1, files are read
+  every 48h, statements are taken every 96h and the max is 12. Traces are
+  never pruned, and ten days leave at most 17.
+- **The Law and jobs harnesses measure with agendas OFF** (`simulate_law.py`
+  v0.3.0 `agendas_off()` / `--agendas`; `simulate_jobs.py` v0.2.0
+  `--agendas`). With the Magpie on, a careful pickpocket is below `sought` on
+  42% of seed-days, not 100%: the Magpie's robberies land on its name as they
+  land on anyone's. That v0.10 bound measured the thief's OWN conduct, so it
+  is still asserted with agendas off. It is RESTATED with them on
+  (`test_with_the_magpie_on_a_careful_thief_is_sought_like_anyone`): careful
+  is within ten points of a player who never steals (40% vs 42% over the
+  harness's 40 seeds; the test's 12 seeds measure 39% vs 40%), and
+  reckless stands out (16%). The other Law bounds hold either way (on:
+  reckless wanted by day 4 70%, arrested 78%, briber 75%). Job outcomes
+  barely move with agendas on, but they are not identical: `greedy` makes
+  79 jobs rather than 80 (true before the final fixes too), and since a score
+  on a house the Magpie emptied draws nothing (and spends no `JOB` draw),
+  blind's haul falls 13.2 -> 12.4 and careful's 14.7 -> 13.2, with a point or
+  two of drift in their outcome shares (40 seeds, `simulate_jobs.py
+  --agendas`). `deeds_filed` would also count the Magpie's burglaries as the
+  job's. The switch patches
+  `agendas.declared`, because an empty `paths.*` overlay key is answered from
+  the manifest (`engine/config.py`). A test guards that it really switches
+  the pass off.
+
 ## [0.11.0] — 2026-09-24
 
 **Jobs & flashbacks**, the third of the four v0.9 engine features, proven
@@ -1486,7 +1779,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.8.1...v0.9.0

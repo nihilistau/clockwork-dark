@@ -12,7 +12,8 @@ a story growing a hundred of them.
     districts.yaml    district_id: {count, types: {type_id: weight}, anchors: [id]}
     names.yaml        pools: {surname, street, trade, craft, given}
     types/<type>.yaml   a generated kind -- pools drawn per premise
-    anchors/<id>.yaml   a hand-written premise -- same keys, fixed contents
+    anchors/<id>.yaml   a hand-written premise -- same keys, fixed contents,
+                        and an optional ``owner: <scheduled npc id>``
 
 Generation runs once, inside ``procgen.generate_world``, before any GameState
 exists -- hence ``stable_rng(seed, PREMISES)`` rather than ``world_rng``. The
@@ -260,6 +261,16 @@ def _load_anchor(path: Path, items: Any, locations: Any) -> dict[str, Any]:
         # A premise holds ONE secret; keeping the first of several would drop
         # authored content without a word.
         raise _fail(path, f"an anchor holds one secret, {len(secrets)} are written")
+    if spec.get("owner") is not None:
+        # Optional: who the house belongs to, when that is someone the story
+        # names (agendas react to robbing it). A misspelt id would make the
+        # house nobody's and every `owner:` gate on it silently unmet.
+        from engine.world.npc_sim import is_scheduled
+
+        owner = str(spec.get("owner") or "").strip()
+        if not owner or not is_scheduled(owner):
+            raise _fail(path, f"`owner` {owner!r} is not a scheduled NPC")
+        spec["owner"] = owner
     return spec
 
 
@@ -536,6 +547,26 @@ def get(state: GameState, premise_id: str) -> Optional[dict[str, Any]]:
     return None
 
 
+def owner(state: GameState, premise_id: str) -> str:
+    """
+    Who a premise belongs to: an anchor's declared ``owner``, else the first
+    member of its household, else "" (an empty house, or no such premise).
+
+    Read from the authored anchor, not the saved premise row, so an owner
+    added to a story's anchor reaches saves made before it was written.
+    """
+    prem = get(state, premise_id)
+    if prem is None:
+        return ""
+    if prem.get("anchor"):
+        declared_owner = str(_load()["anchors"].get(str(prem.get("type") or ""), {})
+                             .get("owner") or "")
+        if declared_owner:
+            return declared_owner
+    household = prem.get("household") or []
+    return str(household[0]) if household else ""
+
+
 def spec(type_or_anchor_id: str) -> dict[str, Any]:
     """
     The authored definition of a type or anchor, for text lookups.
@@ -546,6 +577,25 @@ def spec(type_or_anchor_id: str) -> dict[str, Any]:
     loaded = _load()
     found = loaded["types"].get(type_or_anchor_id) or loaded["anchors"].get(type_or_anchor_id)
     return copy.deepcopy(found) if found else {}
+
+
+def possible_ids() -> set[str]:
+    """
+    Every premise id ``generate`` can lay out, for ANY seed.
+
+    The ids are seed-independent even though the houses are not: an anchor is
+    ``prem_<anchor>`` and a generated premise ``prem_<district>_<n>`` for n in
+    1..count. So content naming a premise (``agenda_hit {premise}``) can be
+    checked at load without a world. Empty for a story with no premises.
+    """
+    if not declared():
+        return set()
+    loaded = _load()
+    ids: set[str] = set()
+    for district_id, cfg in loaded["districts"].items():
+        ids.update(f"prem_{anchor_id}" for anchor_id in cfg["anchors"])
+        ids.update(f"prem_{district_id}_{n}" for n in range(1, int(cfg["count"]) + 1))
+    return ids
 
 
 def definitions() -> dict[str, dict[str, Any]]:

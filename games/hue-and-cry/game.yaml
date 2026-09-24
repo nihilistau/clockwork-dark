@@ -16,7 +16,7 @@
 # THIS FILE: an UNDECLARED `paths.*` key resolves to NOTHING. Declare what you
 # ship; omit what you do not.
 #
-# Version: v0.3.0 [2026-09-24]
+# Version: v0.4.0 [2026-09-25]
 
 id: hue-and-cry
 title: "Hue & Cry"
@@ -48,8 +48,8 @@ settings:
     tick_hours: 1.0
     tick_max_hours: 4.0
     # No doom clock. Its phases are the flagship's canon; in Tallowmere the job
-    # of "the world is getting worse without you" belongs to Captain Ardane,
-    # and that arrives as an agenda in a later release.
+    # of "the world is getting worse without you" belongs to the agendas
+    # (v0.12): the Magpie, Captain Ardane's net and Silas Crook's rise.
     evil_base_rate_per_day: 0.0
 
   governance:
@@ -62,12 +62,14 @@ settings:
 #
 # And since v0.10 the Lantern Watch: the law file, the one encounter it opens
 # (a Lantern's stop) and one thread (Brask's bribe). Since v0.11, jobs: a
-# burglary walked stage by stage, and Mother Gannet's first contract.
+# burglary walked stage by stage, and Mother Gannet's first contract. Since
+# v0.12, agendas: the Magpie, the captain and Silas, each on a hidden clock
+# (state.yaml, clocks.yaml).
 #
 # DELIBERATELY NOT DECLARED YET, each one a later release's job rather than an
 # omission: recipes, night-street encounters, decks (initiation, the
-# interrogation, the Hanging Fair), clocks and the other threads (the
-# captain's clock, the rest of the Company's contracts), world_rumors, lore.
+# interrogation, the Hanging Fair), the other threads (the rest of the
+# Company's contracts), world_rumors, lore.
 # (Factions: one, the Honest Company, since v0.11 -- see below.) The graph
 # template's stubs for items, economy, tables and encounters were removed
 # rather than left in place: they were a mill and a hedge-berry forage table,
@@ -116,6 +118,13 @@ paths:
   # One faction, the Honest Company, so a contract left undone has a
   # standing of the story's own to cost (engine/game/reputation.py).
   factions: "games/hue-and-cry/data/world/factions.yaml"
+  # Agendas (v0.12): the Magpie (one of three people, chosen by the seed),
+  # Captain Ardane's net and Silas Crook's rise -- what the city does while
+  # you are not looking (engine/world/agendas.py). Each winds a hidden clock
+  # declared in state.yaml, with its label and beats in clocks.yaml. Numbers
+  # set by measurement -- scripts/simulate_agendas.py, table in CHANGELOG.md.
+  agendas: "games/hue-and-cry/data/rules/agendas.yaml"
+  clocks: "games/hue-and-cry/data/rules/clocks.yaml"
   art_subjects: "games/hue-and-cry/data/art/subjects.yaml"
   art_manifest: "games/hue-and-cry/data/art/manifest.yaml"
   art_root: "games/hue-and-cry/data/art/plates"

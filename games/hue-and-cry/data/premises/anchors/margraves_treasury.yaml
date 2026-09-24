@@ -12,13 +12,16 @@
 # The Everflame's heart is NOT in here. It is the Hanging Fair's piece, and
 # it belongs to the spine, not to a loot list.
 #
-# Version: v0.1.1 [2026-09-24]
+# Version: v0.1.2 [2026-09-25]
 
 id: margraves_treasury
 label: "treasury"
 district: margraves_hill
 name: "the Margrave's Treasury"
 tier: 5
+# Who it belongs to (v0.12): what an agenda's `premise {owner}` and
+# `premise_robbed {owner}` read. The Margrave's, kept by his steward, who answers for every coin.
+owner: npc_steward_quill
 
 household:
   # The NIGHT door is listed first on purpose: a job's inside stage meets the

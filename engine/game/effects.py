@@ -1581,6 +1581,8 @@ def _e_job_close(state: GameState, effect: dict[str, Any], ctx: EffectContext) -
     }
     if effect.get("by") == "player":
         state.jobs["last"]["by"] = "player"
+    if job.get("emptied"):
+        state.jobs["last"]["emptied"] = True
     state.jobs.pop("active", None)
     return {"type": "job_close", "ok": True, "hidden": True, "outcome": outcome, "text": ""}
 
@@ -1592,8 +1594,9 @@ def _e_job_stage(state: GameState, effect: dict[str, Any], ctx: EffectContext) -
     ``at``, ``entry``, ``obstacles``, ``loot`` and ``log``.
 
     ``stage`` must be the job's CURRENT stage: a write for any other would
-    record a turn at a stage the player is not at. ``entry``, ``obstacles``,
-    ``loot``, ``shifts``, ``used_flashbacks`` and ``last_flashback`` replace
+    record a turn at a stage the player is not at. ``emptied: true`` marks
+    a score that found the house already robbed by an agenda. ``entry``,
+    ``obstacles``, ``loot``, ``shifts``, ``used_flashbacks`` and ``last_flashback`` replace
     their fields when given; a ``degree`` key (even "") appends one ``log``
     row; ``advance`` moves to the next stage. Advancing past the last stage
     is refused -- the getaway closes the job through ``job_close``, never by
@@ -1629,6 +1632,9 @@ def _e_job_stage(state: GameState, effect: dict[str, Any], ctx: EffectContext) -
         job["obstacles"] = [str(o) for o in effect.get("obstacles") or []]
     if "loot" in effect:
         job["loot"] = [str(i) for i in effect.get("loot") or []]
+    if effect.get("emptied"):
+        # The score found the house already bare (an agenda robbed it first).
+        job["emptied"] = True
     if "shifts" in effect:
         job["shifts"] = {str(k): int(v) for k, v in (effect.get("shifts") or {}).items()}
     if "used_flashbacks" in effect:
@@ -1702,6 +1708,206 @@ def _e_job_prep(state: GameState, effect: dict[str, Any], ctx: EffectContext) ->
     after = int(_clamp(before + _int(effect.get("delta")), 0, maximum))
     state.jobs["prep"] = after
     return {"type": "job_prep", "ok": True, "hidden": True, "prep": after, "text": ""}
+
+
+def _agenda_refusal(kind: str, why: str) -> dict[str, Any]:
+    """An agenda effect that wrote nothing, and why. Same shape as ``_law_refusal``."""
+    return {"type": kind, "ok": False, "text": "", "message": why}
+
+
+def _strict_int(value: Any) -> Optional[int]:
+    """An int, or None for anything else -- a bool and "soon" included."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
+
+@effect_kind("agenda_mark")
+def _e_agenda_mark(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    The agendas pass's bookkeeping. The only writer of ``state.agendas``'s
+    ``last_hour``, ``moves``, ``fired`` and ``truth``.
+
+    Shape (any combination, at least one)::
+
+        {type: agenda_mark, last_hour: 57}                  # the pass walked to 57
+        {type: agenda_mark, move: "the_magpie:lift", hour: 49}   # a move fired at 49
+        {type: agenda_mark, fired: "the_magpie:hears"}      # a once-reaction spent
+        {type: agenda_mark, truth: {"the_magpie:hears": true}}   # edge-trigger memory
+
+    Every key is checked against the loaded agendas file before anything is
+    written, so a refusal writes nothing: a move or reaction the file does not
+    declare, ``fired`` on a reaction that is not ``once``, a truth that is not
+    a bool, an hour that is not an integer. ``last_hour`` never moves
+    backwards -- the pass walking to an hour it already walked would replay
+    every move in between.
+    """
+    from engine.world import agendas
+
+    if not agendas.declared():
+        return _agenda_refusal("agenda_mark", "this story has no agendas")
+    moves = agendas.move_keys()
+    reactions = agendas.reaction_keys()
+    once = agendas.reaction_keys(once_only=True)
+    writes: dict[str, Any] = {}
+    if "last_hour" in effect:
+        last = _strict_int(effect.get("last_hour"))
+        if last is None:
+            return _agenda_refusal("agenda_mark", "`last_hour` must be an integer hour")
+        if last < _int(state.agendas.get("last_hour"), last):
+            return _agenda_refusal("agenda_mark", "the agendas pass never walks backwards")
+        writes["last_hour"] = last
+    if "move" in effect:
+        move = str(effect.get("move") or "")
+        hour = _strict_int(effect.get("hour"))
+        if move not in moves:
+            return _agenda_refusal("agenda_mark", f"unknown move `{move}`")
+        if hour is None:
+            return _agenda_refusal("agenda_mark", "a fired move needs an integer `hour`")
+        writes["move"] = (move, hour)
+    if "fired" in effect:
+        fired = str(effect.get("fired") or "")
+        if fired not in once:
+            return _agenda_refusal("agenda_mark", f"`{fired}` is not a once-reaction")
+        writes["fired"] = fired
+    if "truth" in effect:
+        truth = effect.get("truth")
+        if not isinstance(truth, dict) or not truth:
+            return _agenda_refusal("agenda_mark", "`truth` must map reactions to true/false")
+        for key, value in truth.items():
+            if str(key) not in reactions:
+                return _agenda_refusal("agenda_mark", f"unknown reaction `{key}`")
+            if not isinstance(value, bool):
+                return _agenda_refusal("agenda_mark", f"truth of `{key}` must be true or false")
+        writes["truth"] = {str(k): v for k, v in truth.items()}
+    if not writes:
+        return _agenda_refusal("agenda_mark", "nothing to record")
+
+    if "last_hour" in writes:
+        state.agendas["last_hour"] = writes["last_hour"]
+    if "move" in writes:
+        move, hour = writes["move"]
+        state.agendas.setdefault("moves", {})[move] = hour
+    if "fired" in writes:
+        fired_list = state.agendas.setdefault("fired", [])
+        if writes["fired"] not in fired_list:
+            fired_list.append(writes["fired"])
+    if "truth" in writes:
+        state.agendas.setdefault("truth", {}).update(writes["truth"])
+    return {"type": "agenda_mark", "ok": True, "hidden": True, "text": ""}
+
+
+@effect_kind("agenda_hit")
+def _e_agenda_hit(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    Record that an agenda robbed a premise. The only writer of ``state.agendas["hits"]``.
+
+    Shape: ``{type: agenda_hit, agenda: the_magpie, premise: prem_x, hour: 49}``.
+
+    Deliberately NOT ``jobs.robbed``: that list is the player's -- the scores
+    a job of theirs carried out -- and ``premise_robbed`` reads it as such. An
+    agenda's robbery is its own record; ``not_robbed`` selectors and the
+    ``agenda_hit`` predicate read it here.
+    """
+    from engine.world import agendas, premises
+
+    if not agendas.declared():
+        return _agenda_refusal("agenda_hit", "this story has no agendas")
+    agenda = str(effect.get("agenda") or "")
+    premise = str(effect.get("premise") or "")
+    hour = _strict_int(effect.get("hour"))
+    if agenda not in (agendas.spec().get("agendas") or {}):
+        return _agenda_refusal("agenda_hit", f"unknown agenda `{agenda}`")
+    if premises.get(state, premise) is None:
+        return _agenda_refusal("agenda_hit", f"unknown premise `{premise}`")
+    if hour is None:
+        return _agenda_refusal("agenda_hit", "a hit needs an integer `hour`")
+    state.agendas.setdefault("hits", []).append(
+        {"agenda": agenda, "premise": premise, "hour": hour}
+    )
+    return {"type": "agenda_hit", "ok": True, "hidden": True, "text": ""}
+
+
+@effect_kind("agenda_trace")
+def _e_agenda_trace(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    Leave a sign of an agenda's move. The only writer of ``state.agendas``'s
+    ``traces`` and ``trace_seq``.
+
+    Shape: ``{type: agenda_trace, agenda, text, where, hour, public?}``.
+
+    Ids are ``t<n>`` from the saved counter ``trace_seq`` -- allocated here,
+    after validation, so a refusal never burns one (``_deed_id``'s rule). A
+    PUBLIC trace is common talk: it also goes to the moved journal, unlocated,
+    at once. A private one waits in state for the player to come upon it.
+    The receipt is hidden: the text reaches the prose only through those two
+    routes, never as a line of this turn's mechanics.
+    """
+    from engine.game import moved
+    from engine.world import agendas
+
+    if not agendas.declared():
+        return _agenda_refusal("agenda_trace", "this story has no agendas")
+    agenda = str(effect.get("agenda") or "")
+    text = " ".join(str(effect.get("text") or "").split())
+    where = effect.get("where", "")
+    hour = _strict_int(effect.get("hour"))
+    public = effect.get("public", False)
+    if agenda not in (agendas.spec().get("agendas") or {}):
+        return _agenda_refusal("agenda_trace", f"unknown agenda `{agenda}`")
+    if not text:
+        return _agenda_refusal("agenda_trace", "a trace needs text")
+    if not isinstance(where, str):
+        return _agenda_refusal("agenda_trace", "`where` must be a location id")
+    if hour is None:
+        return _agenda_refusal("agenda_trace", "a trace needs an integer `hour`")
+    if not isinstance(public, bool):
+        return _agenda_refusal("agenda_trace", "`public` must be true or false")
+    seq = _int(state.agendas.get("trace_seq"), 0) + 1
+    state.agendas["trace_seq"] = seq
+    trace_id = f"t{seq}"
+    state.agendas.setdefault("traces", []).append({
+        "id": trace_id, "agenda": agenda, "text": text, "where": where,
+        "hour": hour, "public": public, "seen": False,
+    })
+    if public:
+        moved.note(state, "agenda", text)
+    return {"type": "agenda_trace", "ok": True, "hidden": True, "id": trace_id, "text": ""}
+
+
+@effect_kind("agenda_trace_seen")
+def _e_agenda_trace_seen(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    Record that the narrator has been shown these signs. The only writer of a
+    trace's ``seen``.
+
+    Shape: ``{type: agenda_trace_seen, ids: [t3, t4]}``. Applied by
+    ``agendas.clear_shown`` after the turn that rendered them (the moved
+    journal's lifecycle), never authored. Every id is checked before any is
+    written, so a bad list records nothing.
+    """
+    from engine.world import agendas
+
+    if not agendas.declared():
+        return _agenda_refusal("agenda_trace_seen", "this story has no agendas")
+    ids = effect.get("ids")
+    if not isinstance(ids, list) or not ids or not all(isinstance(i, str) for i in ids):
+        return _agenda_refusal("agenda_trace_seen", "`ids` must be a list of trace ids")
+    rows = {str(t.get("id")): t for t in state.agendas.get("traces") or []}
+    unknown = [i for i in ids if i not in rows]
+    if unknown:
+        return _agenda_refusal("agenda_trace_seen", f"unknown trace `{unknown[0]}`")
+    for trace_id in ids:
+        rows[trace_id]["seen"] = True
+    return {"type": "agenda_trace_seen", "ok": True, "hidden": True, "text": ""}
 
 
 @effect_kind("ledger_fact")

@@ -176,6 +176,23 @@ Reports the evil curve, day reached, stamina and hunger distributions, per-skill
 success rates, gold drift, encounter frequency per dangerous leg, and quest
 outcomes.
 
+HUE & CRY has three more, one per system, each 40 seeds x 10 in-game days on
+the production channel (`--set KEY=VALUE` tries a number without editing the
+file, `--json` for the raw table):
+
+```powershell
+.\.venv\Scripts\python.exe scripts\simulate_law.py       # careful | reckless | briber
+.\.venv\Scripts\python.exe scripts\simulate_jobs.py      # blind | careful | greedy | greedy_bare
+.\.venv\Scripts\python.exe scripts\simulate_agendas.py   # idle | careful | reckless
+```
+
+`simulate_agendas.py` measures the Magpie, Captain Ardane's net and Silas
+Crook's rise: `idle` never steals (the Magpie's work landing on your name),
+`careful` and `reckless` are the Law harness's thieves with burglaries added
+(collisions with the Magpie). The Law and jobs harnesses run with the agendas
+switched off, so they measure the thief's own conduct; pass `--agendas` to
+turn them on.
+
 ## Documentation
 
 | Document | Audience | Purpose |

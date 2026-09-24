@@ -331,6 +331,14 @@ class GameState:
     # by the job effect kinds (engine/world/jobs.py). Empty for a story with
     # no jobs, and absent from an old save, which loads as "no job ever run".
     jobs: dict[str, Any] = field(default_factory=dict)
+    # What the NPCs' agendas have done: the hour the agendas pass last walked
+    # to, when each move last fired, once-reactions spent, last truths for edge
+    # triggers, premises robbed and traces left. A plain dict for the ``law``
+    # reason. Written only by the agenda effect kinds (engine/world/agendas.py);
+    # a seed-chosen role is DERIVED on read and never stored here. Empty for a
+    # story with no agendas, and absent from an old save, which loads as
+    # "nothing has moved". No payload key: the journal is the player's surface.
+    agendas: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """

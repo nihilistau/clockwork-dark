@@ -169,8 +169,12 @@ def build_storyteller_messages(
     # evaluator retry rebuilds this prompt and must see the same lines. The
     # turn clears what was shown once the narrator has written.
     from engine.game import moved
+    from engine.world import agendas
 
     moved.mark_shown(state)
+    # The agendas' signs here, the same way: recorded as rendered now, seen
+    # only once the turn has narrated them (a no-op without paths.agendas).
+    agendas.mark_shown(state)
     blocks.add(
         "world",
         "system",
