@@ -126,6 +126,10 @@ class Offer:
     on_seal: list[dict[str, Any]] = field(default_factory=list)
     on_discharge: list[dict[str, Any]] = field(default_factory=list)
     on_break: list[dict[str, Any]] = field(default_factory=list)
+    #: A condition (the shared grammar) that must hold for the thread to be
+    #: DISCHARGED -- a bribe whose ``on_discharge`` pays the sergeant is not
+    #: settled by a player with an empty purse. None: always dischargeable.
+    discharge_requires: Any = None
     #: ``none`` when this variant is "no contract" -- see OUTCOME_NONE.
     outcome: str = "thread"
     #: Renegotiation variants still available from here, by id.
@@ -270,8 +274,15 @@ def _bound_effects(raw: Any, adjustments: list[str]) -> list[dict[str, Any]]:
     derived from the running story's own declared bounds
     (``engine/challenges/spec.py``). A thread that could pay more than a
     challenge would just be a challenge with a longer fuse.
+
+    ``authored=True``: every hook bounded here comes out of the story's own
+    ``threads.yaml`` -- ``offer`` reads a template, ``renegotiate`` one of its
+    variants; nothing composes a thread mid-turn. That widens the TYPES to the
+    structural ones (a bribe's ``quash_reports``, which the strict allowlist
+    silently dropped, so the bribe paid and quashed nothing) and changes no
+    magnitude clamp.
     """
-    return spec_module.clamp_outcome({"effects": raw or []}, adjustments)["effects"]
+    return spec_module.clamp_outcome({"effects": raw or []}, adjustments, authored=True)["effects"]
 
 
 # ---------------------------------------------------------------------------
@@ -309,6 +320,7 @@ def _offer_from_spec(
         on_seal=_bound_effects(raw.get("on_seal"), adjustments),
         on_discharge=_bound_effects(raw.get("on_discharge"), adjustments),
         on_break=_bound_effects(raw.get("on_break"), adjustments),
+        discharge_requires=raw.get("discharge_requires"),
         outcome=str(raw.get("outcome") or "thread").strip().lower(),
         variants=dict(raw.get("renegotiations") or {}),
         negotiated=list(negotiated),
@@ -447,6 +459,7 @@ def renegotiate(
         "on_seal": proposal.on_seal,
         "on_discharge": proposal.on_discharge,
         "on_break": proposal.on_break,
+        "discharge_requires": proposal.discharge_requires,
         **{k: v for k, v in raw.items() if k not in ("requires",)},
     }
     return _offer_from_spec(
@@ -547,6 +560,10 @@ def seal(
         "on_break": list(proposal.on_break),
         "history": [],
     }
+    if proposal.discharge_requires is not None:
+        # Only when declared, so every thread a story without the key seals
+        # stays exactly the shape it always was.
+        thread["discharge_requires"] = proposal.discharge_requires
 
     if ledger is not None and proposal.to_id:
         promise = ledger.add_promise(
@@ -738,12 +755,17 @@ def offerable(state: GameState) -> list[dict[str, Any]]:
         logger.debug("[threads] No templates: %s", exc)
         return []
 
-    held = {str(t.get("template_id") or "") for t in state.threads}
+    # A sealed thread records its template under `template` (see `seal`);
+    # this read `template_id`, which no thread carries, so a struck contract
+    # was offered again forever.
+    held = {str(t.get("template") or t.get("template_id") or "") for t in state.threads}
     rows: list[dict[str, Any]] = []
     for template_id, raw in declared.items():
         if not isinstance(raw, dict):
             continue
         if str(template_id) in held:
+            continue
+        if not can_strike(state, str(template_id)):
             continue
         rows.append(
             {
@@ -752,6 +774,26 @@ def offerable(state: GameState) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def can_strike(state: GameState, template_id: str, *, ledger: Optional[Any] = None) -> bool:
+    """
+    Whether a template's own ``requires:`` holds now. True when it declares none.
+
+    A condition from the shared grammar, e.g. ``{at_location: lantern_house}``:
+    a sergeant's price is named at his desk, not shouted across the city.
+    Read by ``offerable`` (so the ``bargain`` verb never offers what the engine
+    would refuse) and by the ``strike_bargain`` skill.
+    """
+    raw = templates().get(template_id)
+    if not isinstance(raw, dict):
+        return False
+    condition = raw.get("requires")
+    if condition is None:
+        return True
+    from engine.game.quests import evaluate_condition
+
+    return bool(evaluate_condition(state, condition, ledger=ledger))
 
 
 def by_tag(state: GameState, tag: str, *, status: str = STATUS_ACTIVE) -> list[dict[str, Any]]:
@@ -860,6 +902,23 @@ def _close(
     }
 
 
+def can_discharge(state: GameState, thread: dict[str, Any], *, ledger: Optional[Any] = None) -> bool:
+    """
+    Whether a live thread's ``discharge_requires`` holds now. True when it
+    declares none.
+
+    Read by the ``discharge`` verb, so a contract the player cannot settle is
+    never offered as settleable, and by ``discharge`` itself for every other
+    caller.
+    """
+    condition = thread.get("discharge_requires")
+    if condition is None:
+        return True
+    from engine.game.quests import evaluate_condition
+
+    return bool(evaluate_condition(state, condition, ledger=ledger))
+
+
 def discharge(
     state: GameState,
     thread_id: str,
@@ -868,7 +927,23 @@ def discharge(
     ledger: Optional[Any] = None,
     by: str = "engine",
 ) -> dict[str, Any]:
-    """Pay a contract off. The clean exit."""
+    """
+    Pay a contract off. The clean exit.
+
+    Refused, writing nothing, while the thread's ``discharge_requires`` does
+    not hold (see ``can_discharge``): the on_discharge effects of a bribe are
+    the payment, and a purse clamped at zero must not buy the file anyway.
+    """
+    thread = get(state, thread_id)
+    if thread is not None and thread.get("status") == STATUS_ACTIVE and not can_discharge(
+        state, thread, ledger=ledger
+    ):
+        return {
+            "ok": False,
+            "thread": thread,
+            "effects": [],
+            "text": "the terms of that bargain cannot be met yet",
+        }
     return _close(state, thread_id, STATUS_DISCHARGED, "on_discharge", why=why, ledger=ledger, by=by)
 
 
@@ -1199,6 +1274,8 @@ __all__ = [
     "break_thread",
     "by_tag",
     "can_cut",
+    "can_discharge",
+    "can_strike",
     "cut",
     "cut_arbitrary",
     "cut_item",

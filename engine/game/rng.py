@@ -69,6 +69,10 @@ PREMISES = "premises"
 # story adding a purse row cannot shift a forage find, and so that the dice of
 # the stealth check itself (DICE) replay identically whatever the purse holds.
 THIEVERY = "thievery"
+# Who saw a deed, and whether a reporter went to the watch. Its own stream so
+# that a story adding a witness to a street cannot shift the dice of the lift
+# itself (DICE) or what came out of the purse (THIEVERY) on a replayed seed.
+LAW = "law"
 
 
 def _mix(seed: int, stream: str, counter: int) -> int:

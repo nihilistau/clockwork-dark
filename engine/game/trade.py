@@ -882,6 +882,36 @@ def buy(state: GameState, npc_id: str, item_id: str, qty: int = 1) -> dict[str, 
     }
 
 
+#: The Law's deed kind for offering stolen goods to someone who will not take them.
+FENCING_DEED = "fencing"
+
+
+def _hot_goods_offered(state: GameState, npc_id: str) -> dict[str, Any]:
+    """
+    An honest vendor was just offered hot goods and said no: that is a deed.
+
+    Only ``_plan_sale``'s refusal reaches here -- it is the one refusal that
+    carries ``heat_split`` -- so "does not deal in that" is not a crime. The
+    vendor is an INFORMANT (``law.commit_deed``): a certain witness who
+    reports without a roll, because a shopkeeper who has just turned away a
+    ring still warm from somebody's finger needs no luck to know it; routing
+    them through ``reporters`` instead would make whether the refusal meant
+    anything a coin flip on the vendor's role. Anyone else in the shop rolls
+    as a bystander.
+
+    Only on ``sell`` -- never ``quote`` -- because ``browse`` and the offer
+    list quote hot goods every time a prompt is built, and a deed there would
+    roll during a prompt. Empty (no keys) for a story with no Law, so its
+    receipt stays byte-identical.
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return {}
+    seen = law.commit_deed(state, FENCING_DEED, informants=(npc_id,))
+    return {"seen_by": seen["witnesses"], "reported": seen["reported"]}
+
+
 def sell(state: GameState, npc_id: str, item_id: str, qty: int = 1) -> dict[str, Any]:
     """
     Sell at the standing quote.
@@ -912,7 +942,10 @@ def sell(state: GameState, npc_id: str, item_id: str, qty: int = 1) -> dict[str,
 
     priced = quote(state, npc_id, item_id, SELL, qty)
     if not priced.get("ok"):
-        return {"success": False, **priced, "message": priced.get("reason", "No deal.")}
+        refused = {"success": False, **priced, "message": priced.get("reason", "No deal.")}
+        if "heat_split" in priced and not priced.get("fence"):
+            refused.update(_hot_goods_offered(state, npc_id))
+        return refused
     if priced["unit_price"] <= 0:
         return {
             "success": False,

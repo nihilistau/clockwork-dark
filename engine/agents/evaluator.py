@@ -12,7 +12,7 @@ who is not present. Both are the same kind of error — the model asserting
 something the engine did not give it — and both are worth a retry even when the
 prose around them is good.
 
-Version: v0.3.0 [2026-09-23]
+Version: v0.4.0 [2026-09-24]
 """
 
 from __future__ import annotations
@@ -64,16 +64,39 @@ _CLAIMS_SUCCESS = re.compile(
 _CLAIMS_ARRIVAL = re.compile(
     r"(?i)(?:^|[.!?]\s+|\band\s+)you\s+(?:arrive|reach|come\s+out\s+at|step\s+into)\b"
 )
+# The Law's own opposite: a clean getaway claimed over a witness the engine
+# already recorded. ANCHORED, same discipline as `_CLAIMS_SUCCESS` /
+# `_CLAIMS_ARRIVAL`: a bare "unseen"/"unnoticed" matched ANY use of either
+# word, so "The guard stands unseen in the shadows" and "An owl passes
+# unnoticed overhead" both flagged a scene that had nothing to do with the
+# player being caught. Fixed by requiring the SUBJECT to be the player (a
+# second-person clean-getaway verb, sentence-start or after a plain "and",
+# same as the other two claims) or an explicit "nobody saw" construction --
+# "you are caught, unnoticed no longer" does not parse as either, because
+# "are" and "unnoticed" are not adjacent.
+_CLAIMS_UNSEEN = re.compile(
+    r"(?i)(?:"
+    r"(?:^|[.!?]\s+|\band\s+)you\s+(?:slip|slink|melt|get|steal|vanish)s?\s+"
+    r"away,?\s*(?:unseen|unnoticed|clean)\b|"
+    r"(?:^|[.!?]\s+|\band\s+)you\s+(?:go|remain|stay|are|vanish),?\s*"
+    r"(?:entirely\s+|completely\s+|still\s+)?(?:unseen|unnoticed)\b|"
+    r"\bno\s*one\s+(?:sees|saw|notices|noticed)\s+(?:you\b|a\s+thing\b)|"
+    r"\bnobody\s+(?:sees|saw|notices|noticed)\b"
+    r")"
+)
 
 
 def contradicts(narration: str, receipts: Sequence[Mapping[str, Any]]) -> str:
     """
     A note when the prose states the OPPOSITE of what the engine decided.
 
-    Deliberately narrow: two unambiguous opposites and nothing else -- success
-    narrated over a failed check, and arrival narrated over a refused move.
-    Anything subtler is a judgement a regex cannot make, and a gate that fires
-    on honest prose is a gate somebody deletes.
+    Deliberately narrow: unambiguous opposites and nothing else -- success
+    narrated over a failed check, arrival narrated over a refused move, and (the
+    Law, v0.10.0) a clean getaway narrated over a receipt whose result carries
+    ``noticed: true`` -- ``lift_purse``'s own word for "the mark caught your
+    hand", which a narrator softening the scene must not contradict. Anything
+    subtler is a judgement a regex cannot make, and a gate that fires on honest
+    prose is a gate somebody deletes.
 
     Returns:
         A short note naming the contradiction, or "" when there is none.
@@ -90,6 +113,8 @@ def contradicts(narration: str, receipts: Sequence[Mapping[str, Any]]) -> str:
         ):
             if _CLAIMS_ARRIVAL.search(narration):
                 return "narrated arrival over a refused move"
+        if result.get("noticed") is True and _CLAIMS_UNSEEN.search(narration):
+            return "narrated a clean getaway over a receipt marked noticed"
     return ""
 
 

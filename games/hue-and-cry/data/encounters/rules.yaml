@@ -1,0 +1,32 @@
+# HUE & CRY -- how an encounter scene runs.
+#
+# Read by engine/game/encounter.py alongside every other *.yaml in this
+# directory. Tallowmere draws no encounters on its roads (every edge carries
+# `danger_dc: 0`, so there is deliberately no `trigger:` block here); the one
+# scene it ships, `watch_stop`, is opened by the Law's patrol.
+#
+# NO `default_approaches`. The engine merges those into EVERY scene, and a
+# "back away and keep walking" merged into a Lantern's stop would be a free,
+# unrecorded escape beside `run`, which is the same thing with a roll. The
+# stop's own `surrender` needs no roll and no coin, so the scene always has a
+# legal way out.
+#
+# Version: v0.1.0 [2026-09-24]
+
+version: 1
+
+scene:
+  max_rounds: 3
+  default_resolve: 3
+  degree_resolve:
+    crit_success: 5
+    success: 3
+    partial: 1
+    failure: 0
+  ends_on: [crit_success, failure]
+
+degree_fallback:
+  crit_success: [success]
+  success: [crit_success]
+  partial: [failure, success]
+  failure: [partial]

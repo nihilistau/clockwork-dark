@@ -31,7 +31,7 @@ the registry does not have, or a routine sending someone to a place the map
 does not have, would otherwise load, validate and do nothing -- the inert-shape
 failure this repo has shipped before.
 
-Version: v0.1.0 [2026-09-23]
+Version: v0.2.0 [2026-09-24]
 """
 
 from __future__ import annotations
@@ -556,6 +556,8 @@ def spec(type_or_anchor_id: str) -> dict[str, Any]:
 #: every other hour in the game, so a watch ticks hunger, the doom clock and
 #: every routine exactly as waiting would.
 CASE_HOURS = 2
+#: The Law's deed kind a watch commits, where the story declares a Law.
+LOITERING_DEED = "loitering"
 
 OCCUPANCY = "occupancy"
 LOOT_HINT = "loot"
@@ -727,10 +729,12 @@ def case(state: GameState, premise_id: str) -> dict[str, Any]:
     already know everything about is not a watch.
 
     Returns:
-        ``{"ok", "premise", "learned", "known", "of", "hours"}`` on a watch.
+        ``{"ok", "premise", "learned", "known", "of", "hours"}`` on a watch,
+        plus ``seen_by`` and ``reported`` where the story declares a Law.
     """
     from engine.game.clock import advance_time
     from engine.game.effects import apply_effect
+    from engine.world import law
 
     prem = get(state, premise_id)
     if prem is None:
@@ -751,6 +755,13 @@ def case(state: GameState, premise_id: str) -> dict[str, Any]:
     receipt = apply_effect(
         state, {"type": "intel", "premise": premise_id, "intel": remaining[0]}
     )
+    seen: Optional[dict[str, Any]] = None
+    if law.declared():
+        # Two hours watching one door is loitering. Committed as the watch
+        # ENDS, so the witnesses are whoever is on the street by then and the
+        # row is stamped with the day it ended on. Severity 0 in the contract:
+        # remembered, never reported on its own.
+        seen = law.commit_deed(state, LOITERING_DEED)
     logger.info(
         "[premises] Cased (operation=case, premise=%s, intel=%s, known=%s/%s)",
         premise_id,
@@ -765,4 +776,6 @@ def case(state: GameState, premise_id: str) -> dict[str, Any]:
         "known": len(known(state, premise_id)),
         "of": len(order),
         "hours": CASE_HOURS,
+        # Only with a Law, so a story without one keeps a byte-identical receipt.
+        **({"seen_by": seen["witnesses"], "reported": seen["reported"]} if seen else {}),
     }

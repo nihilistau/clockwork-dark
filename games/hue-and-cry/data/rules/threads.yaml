@@ -1,0 +1,55 @@
+# HUE & CRY -- the bargains Tallowmere remembers.
+#
+# Read by engine/game/threads.py through `paths.threads`. A thread is struck
+# (the `bargain` verb), then settled (`discharge`) or left to come due, when
+# it breaks.
+#
+# ONE CONTRACT SO FAR: Sergeant Brask's price. Everything about Brask has a
+# price, including looking the other way (prompts/storyteller.md), and the
+# Lantern House's paperwork lives in his desk drawer -- the one that sticks.
+#
+# HOW IT WORKS.
+#   strike     At his desk in the Lantern House (`requires`), Brask names his
+#              number and a day. Nothing changes hands yet.
+#   discharge  You put the crowns in the biscuit tin, and the reports the
+#              Wick's watch-house holds against YOU go missing -- only the
+#              Wick's: the Quay and the Rise keep their own drawers. And
+#              `linked: true`, so the Magpie's file goes too while the Watch
+#              still believes the Magpie is you (data/rules/law.yaml
+#              `links`). A porter's file nobody has tied to you is not
+#              yours, and stays.
+#              Only offered with the crowns in hand (`discharge_requires`): a
+#              purse cannot go below empty, and an empty one must not buy the
+#              file anyway.
+#   comes due  Unpaid, it breaks, and nothing goes missing.
+#
+# One bribe a run: a struck template is not offered again, and Brask can only
+# lose a file once before the captain notices the drawer is always empty.
+#
+# Version: v0.2.0 [2026-09-24]
+
+version: 1
+
+tags:
+  - Bribe
+
+templates:
+
+  brask_bribe:
+    title: "Sergeant Brask's price"
+    source: npc_brask
+    tags: [Bribe]
+    terms: >-
+      Twelve crowns in the biscuit tin on the front desk, by the day after
+      tomorrow, and certain papers about you go the way of all paper.
+    due_in_days: 2
+    # Struck at his desk in the Lantern House, nowhere else: a sergeant's
+    # price is not shouted across the city.
+    requires: { at_location: lantern_house }
+    discharge_requires: { min_gold: 12 }
+    on_discharge:
+      - { type: gold, delta: -12 }
+      # The Wick's files only: Brask is the Wick's sergeant, not the city's.
+      - { type: quash_reports, jurisdiction: wick, guise: self, linked: true }
+    # No on_break: a bribe left unpaid buys nothing and costs nothing. The file
+    # simply stays where it was, in the drawer that sticks.

@@ -174,6 +174,12 @@ def strike_bargain(template_id: str = "", sealed_by: str = "word") -> str:
         return json.dumps(
             {"ok": False, "error": f"no thread template named {template_id!r}"}
         )
+    if not threads.can_strike(engine.state, template_id):
+        # The template's own `requires:` (a place, a price, a standing) does
+        # not hold: refused, nothing sealed.
+        return json.dumps(
+            {"ok": False, "error": "that bargain cannot be struck here and now"}
+        )
     receipt = threads.seal(engine.state, proposal, sealed_by=sealed_by)
     receipt.setdefault("ok", True)
     return json.dumps(receipt)

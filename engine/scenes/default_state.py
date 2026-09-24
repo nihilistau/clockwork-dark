@@ -906,11 +906,38 @@ def run_turn(
         # Legality is re-checked inside `execute_intent` against the live state,
         # so an intent that has gone illegal since it was written comes back as
         # an engine-authored refusal -- which is narration input, never silence.
+        from engine.world import law
+
+        # Whether a scene owned the turn BEFORE the choice ran. Read only for
+        # a story with a Law; see the patrol below.
+        scene_at_start = False
+        if law.declared():
+            from engine.game.intents import scene_owns_turn
+
+            scene_at_start = scene_owns_turn(state)
+
         intent_receipts: list[dict[str, Any]] = []
         if intent:
             from engine.agents.tool_dispatcher import execute_intent
 
             intent_receipts = execute_intent(intent, session.engine)
+
+        # THE WATCH'S TURN. Once a turn, after the choice has landed -- so a
+        # walk into a watchman's street is seen in that street -- and before
+        # anything narrates, so the stop is an input to the prose. On a hit
+        # it opens the story's arrest scene and hands the narrator who knew
+        # which face. `law.declared()` first: a story with no Law rolls
+        # nothing and keeps its turn exactly as it was.
+        #
+        # NOT on a turn that began inside a scene. The choice may have just
+        # ANSWERED it -- won the run from the watch_stop, closed a card -- and
+        # the patrol would otherwise find the scene gone and have the same
+        # watchman stop the player again in the same breath. The next turn
+        # may.
+        if law.declared() and not scene_at_start:
+            stop = law.patrol(state)
+            if stop is not None:
+                intent_receipts = intent_receipts + [stop]
 
         # THE AUTHORED SCENE, DEALT BY THE ENGINE.
         #

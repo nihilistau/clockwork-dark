@@ -3,12 +3,13 @@
 # Read by engine/game/trade.py through `paths.tables`. A vendor SELLS at
 # value x buy and BUYS at value x sell; the gap is their living.
 #
-# THERE ARE NO HONEST SHOPS IN THIS FILE YET. The two vendors below are the
-# two fences the spec puts in Wickmarket and the Snuffs, and both are scheduled
-# people (npc_schedules.yaml) whose counters their routines actually visit: a
-# fence is only open while she is at the counter and awake, which for Pell
-# Hollis is the shop's hours and for Marrow is the evening, when the yard wakes
-# up. Honest vendors -- who refuse hot goods -- arrive with the market.
+# ONE HONEST COUNTER SO FAR. The first two vendors below are the two fences
+# the spec puts in Wickmarket and the Snuffs, and both are scheduled people
+# (npc_schedules.yaml) whose counters their routines actually visit: a fence
+# is only open while she is at the counter and awake, which for Pell Hollis is
+# the shop's hours and for Marrow is the evening, when the yard wakes up. The
+# third, Dock Mag, is honest: she sells porters' smocks (v0.10, the `porter`
+# guise) and refuses hot goods. The rest of the honest market arrives later.
 #
 # `fence: true` makes a vendor buy STOLEN units (engine/world/thievery.py's
 # heat) at a cut of face value: `fence_cut.hot` for a fresh or `named` piece,
@@ -51,3 +52,10 @@ vendors:
     fence: true
     fence_cut: { hot: 0.7, cool: 0.85 }
     spread: { buy: 1.2, sell: 0.4 }
+
+  # The first honest vendor: no `fence`, so a hot unit offered across her
+  # crate is refused in her voice -- and, with the Law declared, is a
+  # `fencing` deed she reports (engine/game/trade.py). She sells smocks.
+  npc_dock_mag:
+    name: "Dock Mag"
+    location: tallow_docks

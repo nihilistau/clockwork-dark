@@ -85,6 +85,22 @@ class GameEngine:
                 message="Already here.",
             )
 
+        # Held by the watch (engine/world/law.py): the intent catalogue offers
+        # no travel from a cell, and this refuses the same walk for any other
+        # caller -- a Phase A tool call must not stroll out of the gaol either.
+        # A story with no Law never holds anyone, so this reads an empty dict.
+        from engine.world import law
+
+        if law.in_custody(self.state):
+            return MoveResult(
+                success=False,
+                from_id=current,
+                to_id=location_id,
+                hours=0,
+                stamina_cost=0,
+                message="You are held in the cells; pay the fine or serve the sentence.",
+            )
+
         edge = get_edge(current, location_id)
         # A discovered hidden path (engine/game/foraging.py) is a way through
         # the wood the map does not draw. It can OPEN a leg the graph lacks and

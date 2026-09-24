@@ -29,7 +29,7 @@ flagship's narrator. They live in ``games/clockwork-dark/prompts/`` now. See
 the block comment above ``_prompts_dir`` for where a story's words are found
 and why an undescribed story still gets a fallback rather than an exception.
 
-Version: v0.3.0 [2026-09-23]
+Version: v0.4.0 [2026-09-24]
 """
 
 from __future__ import annotations
@@ -451,6 +451,109 @@ def _rumors_block(state: GameState) -> str:
     return "RUMORS IN THE AIR:\n" + "\n".join(lines)
 
 
+def _law_clarity(precision: float) -> str:
+    """Two words, never a number: a hop-1 sighting is either full or partial."""
+    return "clearly" if precision >= 1.0 else "only a glimpse"
+
+
+def _law_last_deed_witnesses(state: GameState) -> list[dict[str, Any]]:
+    """
+    The hop-1 witness rows of a deed committed THIS TURN, or ``[]``.
+
+    FRESHNESS IS THE TURN. ``commit_deed`` records every deed, seen or not,
+    in ``state.law["last_deed"]`` (the ``law_last_deed`` effect): a seen one
+    stamped with ``state.turn_number`` -- which the storyteller advances only
+    after the turn's narration is committed, so a stamp equal to the current
+    counter is a deed this turn's intent committed -- and an unseen one by
+    removing the stamp, so it names nobody. A turn that committed no deed
+    leaves an older stamp, and names nobody either. Reading "the newest
+    witnessed deed of today" instead named an earlier lift's witnesses all day
+    after an unseen one, people who were not even in the room. HOP 1 ONLY: a
+    propagated copy is someone ELSE'S account reaching a third party, not the
+    player being seen.
+    """
+    last = state.law.get("last_deed") or {}
+    deed_id = str(last.get("id") or "")
+    if not deed_id or last.get("turn") != state.turn_number:
+        return []
+    return [
+        r for r in (state.law.get("witnessed") or [])
+        if int(r.get("hop") or 1) == 1 and str(r.get("deed_id") or "") == deed_id
+    ]
+
+
+def law_block(state: GameState) -> str:
+    """
+    What the Law knows and does about the player, right now.
+
+    "" for a story that declares no ``paths.law`` -- the flagship's prompt
+    stays byte-identical (Global Constraints, the v0.10.0 plan). Otherwise,
+    only the lines that apply:
+
+      - who saw the deed committed this turn, if any
+        (``_law_last_deed_witnesses``), by display name, never an id;
+      - the wanted band for the guise currently worn, in words, in THIS
+        jurisdiction -- and only when it is above the story's own floor band
+        (typically "unknown"), since "nobody is looking for you" is not a
+        line worth the narrator's attention every turn;
+      - the law-role people standing here, by display name;
+      - custody, if held: the fine in the story's own money and the days in
+        words.
+
+    NEVER A NUMBER FROM THE LAW (Global Constraints): no score, no precision,
+    no id. The fine is money, which the narrator already sees in plain
+    figures everywhere else in this prompt (a quest reward, a sale) -- it is
+    the Law's own arithmetic that stays hidden, not the story's currency.
+    """
+    from engine.game.trade import currency_label
+    from engine.world import law, npc_sim
+
+    if not law.declared():
+        return ""
+
+    lines: list[str] = []
+
+    seen = _law_last_deed_witnesses(state)
+    if seen:
+        bits = [
+            f"{npc_sim.display_name(str(row.get('npc') or ''), state)} saw you "
+            f"{_law_clarity(float(row.get('precision') or 0.0))}"
+            for row in seen
+        ]
+        lines.append("You were seen: " + "; ".join(bits) + ".")
+
+    jurisdiction = law.jurisdiction_at(state.location_id)
+    spec = law.load_spec()
+    bands = (spec.get("wanted") or {}).get("bands") or []
+    if jurisdiction and bands:
+        guise = law.current_guise(state)
+        band = law.wanted_band(state, guise, jurisdiction)
+        if band and band != bands[0]:
+            where = law.jurisdiction_label(jurisdiction)
+            lines.append(
+                f"The watch in {where} is looking for {law.guise_label(guise)}: {band}."
+            )
+
+    roles = set(spec.get("roles") or [])
+    watch_here = [
+        npc_sim.display_name(person.npc_id, state)
+        for person in npc_sim.npcs_at(state, state.location_id)
+        if person.available and person.role in roles
+    ]
+    if watch_here:
+        lines.append("Standing here, watching: " + ", ".join(watch_here) + ".")
+
+    held = law.custody(state)
+    if held:
+        fine = currency_label(int(held.get("fine") or 0))
+        days = _days(held.get("days"))
+        lines.append(f"You are held: {fine} pays your way out, or {days} served.")
+
+    if not lines:
+        return ""
+    return "THE LAW:\n" + "\n".join(lines)
+
+
 def _objectives_block(state: GameState) -> str:
     """
     What the player is currently trying to do, and the flags that record it.
@@ -792,6 +895,7 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
     for block in (
         _npcs_present_block(state),
         district_block(state),
+        law_block(state),
         _encounter_block(state),
         _scene_block(state),
         _intents_block(state),
@@ -1229,10 +1333,68 @@ def _sum_lift(result: dict[str, Any]) -> str:
         return f"tried to lift {mark}'s purse and was noticed; took nothing."
     coin = _money(result.get("gold")) if result.get("gold") else ""
     took = [x for x in (coin, str(result.get("item") or "")) if x]
+    # The mark not feeling it is not the same as nobody seeing it: with a
+    # witness on the receipt (``seen_by``), "unnoticed" would be the one word
+    # the evaluator exists to catch, handed to the narrator by the engine.
+    witnessed = bool(result.get("seen_by"))
     if not took:
+        if witnessed:
+            return f"tried to lift {mark}'s purse; came away with nothing, and was seen trying."
         return f"tried to lift {mark}'s purse; came away with nothing, unnoticed."
     how = "fumbled a little loose coin" if result.get("degree") == "partial" else "lifted"
+    if witnessed:
+        return f"{how} from {mark}'s purse -- the mark never felt it, but it was seen: {' and '.join(took)}."
     return f"{how} from {mark}'s purse unnoticed: {' and '.join(took)}."
+
+
+def _sum_change_guise(result: dict[str, Any]) -> str:
+    # Never the id: only the authored label reaches the narrator, and the
+    # sentence never distinguishes `self` from any other guise -- the label
+    # alone (e.g. "your own face") already reads that way.
+    label = str(result.get("label") or "").strip()
+    base = f"You change into {label}" if label else "You change how you look"
+    return base + (", and someone saw you do it." if result.get("seen") else ".")
+
+
+def _sum_recognition(result: dict[str, Any]) -> str:
+    # The officer by name and the face by its label -- never an id, never the
+    # band or the chance, and never "the watch": a story's law may be a
+    # constabulary, a temple guard or a corporate security detail, and only
+    # its own names say which. The scene it opened is on the table; the
+    # narrator writes the stop, not its outcome.
+    who = str(result.get("name") or "").strip() or "someone"
+    face = str(result.get("label") or "").strip() or "you"
+    return f"{who} knows {face} and moves to stop you."
+
+
+_DAY_WORDS = {
+    1: "one day", 2: "two days", 3: "three days", 4: "four days", 5: "five days",
+    6: "six days", 7: "seven days", 8: "eight days", 9: "nine days", 10: "ten days",
+}
+
+
+def _days(n: Any) -> str:
+    # Words, for the `case` reason: a narrator handed "15" writes a tally.
+    try:
+        value = int(n)
+    except (TypeError, ValueError):
+        return "some days"
+    return _DAY_WORDS.get(value, "many days" if value > 10 else "no time at all")
+
+
+def _sum_pay_fine(result: dict[str, Any]) -> str:
+    where = str(result.get("gaol") or "the cells")
+    paid = _money(result.get("paid")) if result.get("paid") else ""
+    head = f"paid the fine of {paid}" if paid else "was let go without a fine"
+    return f"{head} and walked out of {where}, the charge closed."
+
+
+def _sum_serve(result: dict[str, Any]) -> str:
+    where = str(result.get("gaol") or "the cells")
+    if result.get("served_out") is False:
+        # Carried out mid-sentence (a death's respawn ends custody).
+        return f"was carried out of {where} before the sentence ran out."
+    return f"served {_days(result.get('days'))} in {where} and was let out, the charge closed."
 
 
 _SUMMARISERS: dict[str, Any] = {
@@ -1248,6 +1410,10 @@ _SUMMARISERS: dict[str, Any] = {
     "scene_begin": _sum_scene_begin,
     "case_premise": _sum_case,
     "lift_purse": _sum_lift,
+    "change_guise": _sum_change_guise,
+    "law_recognition": _sum_recognition,
+    "pay_fine": _sum_pay_fine,
+    "serve_sentence": _sum_serve,
 }
 
 #: Keys whose value is a sentence written for a reader, in order of preference.

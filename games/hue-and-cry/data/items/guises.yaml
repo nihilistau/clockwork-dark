@@ -1,0 +1,43 @@
+# HUE & CRY -- the faces you can wear.
+#
+# Read by engine/game/inventory.py through `paths.items` (every *.yaml in this
+# directory merges into one registry). Each id here is a guise's `item` in
+# data/rules/law.yaml: carrying it is what lets you put that face on, and
+# losing it -- confiscated at the Lantern House, sold, dropped -- takes the
+# face off with it (engine/world/law.py::current_guise).
+#
+# WHERE THEY COME FROM. The smock is sold by Dock Mag at the head of the quay,
+# because every porter in Tallowmere wears one and nobody looks twice at a
+# brown smock carrying a crate. The mask is sold by Marrow, who swears it is a
+# fair-day copy; the Watch has not asked to see the receipt.
+#
+# Version: v0.1.0 [2026-09-24]
+
+version: 1
+
+items:
+
+  - id: porters_smock
+    name: "Porter's Smock"
+    description: >-
+      Brown sacking, patched at both shoulders where the crates ride, with the
+      Honest Company's knot stitched over the heart. Put it on and you are one
+      of forty people carrying something on the quay, and nobody has ever
+      once asked a porter what is in the crate.
+    tags: [clothing, disguise]
+    weight: 1.0
+    value: 3
+    stack: false
+
+  - id: magpie_mask
+    name: "Magpie Mask"
+    description: >-
+      A black silk half-mask with a white bar across the brow and a short
+      lacquered beak, the kind sold to children at the Hanging Fair. This one
+      is better made than a fair-day copy has any business being. Wearing it
+      in Tallowmere is either a joke or a confession, and the Watch has never
+      had much of a sense of humour.
+    tags: [clothing, disguise, shiny]
+    weight: 0.1
+    value: 8
+    stack: false

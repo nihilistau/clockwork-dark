@@ -6,8 +6,7 @@ empty_now}]``. ``known`` holds the TEXTS a watch has already learned, in
 learning order -- never an id, and never a line nobody has watched for yet.
 The id on each row is for the client's React key only; it must never appear
 inside a ``known`` string, because the narrator and the player are never shown
-one (AGENTS.md rule 12's neighbour -- no engine-authored pseudo-id rides along
-as if it were content).
+one (no engine-authored pseudo-id rides along as if it were content).
 
 DECLARATION IS THE SWITCH, same convention as threads and endings
 (``GameState._structural_block``): a story that declares no

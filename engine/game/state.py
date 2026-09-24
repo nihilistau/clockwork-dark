@@ -317,6 +317,14 @@ class GameState:
     # ring hot. Empty for a story with no thievery, and absent from an old save,
     # which loads as "nothing was ever stolen".
     provenance: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    # What the watch knows: reports filed, cooling per jurisdiction, and (once
+    # the player changes them) the current guise and the links the watch
+    # believes. A plain dict for the ``encounter`` reason -- its shape grows
+    # through v0.10.0 and must not force a save migration per key. Written only
+    # by the Law's effect kinds (engine/world/law.py). Empty for a story with
+    # no Law, and absent from an old save, which loads as "the watch knows
+    # nothing".
+    law: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """
@@ -454,6 +462,7 @@ class GameState:
             **self._declared_client_values(),
             **self._structural_block(),
             **self._premises_block(),
+            **self._law_block(),
             "session_id": self.session_id,
             "player_name": self.player_name,
             "archetype": self.archetype,
@@ -607,8 +616,8 @@ class GameState:
         ``known`` carries the LEARNED TEXTS, in the order they were learned --
         never an id, and never a line nobody has watched for yet. The id
         travels on each row only as a React key; the narrator and the player
-        never see one (AGENTS.md rule 12's neighbour: no engine-authored
-        pseudo-id ever reaches prose or screen as if it were content).
+        never see one (no engine-authored pseudo-id ever reaches prose or
+        screen as if it were content).
 
         Never raises: a broken premises tree must cost the casing board a
         panel, not the turn the player is mid-way through, same as every other
@@ -641,6 +650,59 @@ class GameState:
                     }
                 )
             return {"premises": board}
+        except Exception:  # noqa: BLE001 -- see docstring
+            return {}
+
+    def _law_block(self) -> dict[str, Any]:
+        """
+        The Law, for the player's own sheet: the face currently worn, how
+        wanted it is in each jurisdiction, and whether the watch is holding
+        the player.
+
+        DECLARATION IS THE SWITCH, same convention as ``_premises_block``: a
+        story that declares no ``paths.law`` gets no ``law`` key at all, so
+        the flagship's payload -- and every other Law-less story's -- stays
+        byte-identical. Keyed by JURISDICTION LABEL, never the raw id (an id
+        is not prose, and this reaches the player's screen): a wanted-poster
+        reads the docks, not `dockside`. Nothing here renders yet -- the wanted-poster UI chrome is
+        the v1.0 hue-and-cry plugin's job; this is only the data it will read.
+
+        Never raises: a broken Law file must cost the sheet a panel, not the
+        turn the player is mid-way through, same as every other optional
+        block here.
+        """
+        try:
+            from engine.game.trade import currency_label
+            from engine.world import law as law_module
+
+            if not law_module.declared():
+                return {}
+            guise = law_module.current_guise(self)
+            wanted = {
+                law_module.jurisdiction_label(name): law_module.wanted_band(self, guise, name)
+                for name in (law_module.load_spec().get("jurisdictions") or {})
+            }
+            held = law_module.custody(self)
+            custody: Optional[dict[str, Any]] = None
+            if held:
+                fine = int(held.get("fine") or 0)
+                custody = {
+                    # Both: `fine` meets the plan's own documented contract
+                    # (`{fine, days}`), and `fine_text` -- the story's own
+                    # money, via `currency_label` -- saves a client from
+                    # having to know what a story calls its currency just to
+                    # show the number back.
+                    "fine": fine,
+                    "fine_text": currency_label(fine),
+                    "days": int(held.get("days") or 0),
+                }
+            return {
+                "law": {
+                    "guise_label": law_module.guise_label(guise),
+                    "wanted": wanted,
+                    "custody": custody,
+                }
+            }
         except Exception:  # noqa: BLE001 -- see docstring
             return {}
 

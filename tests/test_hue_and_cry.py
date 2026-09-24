@@ -354,3 +354,385 @@ def test_no_purse_rolls_an_empty_hand(hue) -> None:
         for row in rows:
             if "gold" in row:
                 assert row["gold"][0] >= 1, role
+
+
+# ---------------------------------------------------------------------------
+# The Lantern Watch (v0.10, the Law): the stop, the bribe, the smock, and the
+# numbers scripts/simulate_law.py measured
+# ---------------------------------------------------------------------------
+
+
+class _Forced:
+    """A check result of one chosen degree -- the stop's approaches, one at a time."""
+
+    def __init__(self, degree: str) -> None:
+        self.degree = degree
+        self.summary = f"forced {degree}"
+        self.margin = 0
+
+    def to_dict(self) -> dict:
+        return {"degree": self.degree}
+
+
+@pytest.fixture()
+def lantern_lunch():
+    """Wickmarket at 14:00: Brask, Tully and Hobb all in the square."""
+    from engine.game.clock import set_clock
+
+    registry.activate("hue-and-cry")
+    session = SessionStore().create(seed=11, llm_fn=lambda m, **k: "{}")
+    state = session.engine.state
+    set_clock(state, day=1, hour=14)
+    state.location_id = "wickmarket"
+    return session
+
+
+def _stopped(session, monkeypatch, degree: str = "success"):
+    from engine.game import encounter
+
+    monkeypatch.setattr("engine.game.checks.resolve", lambda *a, **k: _Forced(degree))
+    state = session.engine.state
+    encounter.begin(state, "watch_stop")
+    assert encounter.active(state)
+    return state
+
+
+def test_the_law_loads_against_the_story(hue) -> None:
+    from engine.world import law
+
+    spec = law.load_spec()
+    assert spec["arrest"]["encounter"] == "watch_stop"
+    assert spec["arrest"]["gaol"] == "lantern_house"
+    assert {g["item"] for g in spec["guises"].values() if "item" in g} == {
+        "magpie_mask", "porters_smock"}
+    # Every public district answers to a watch-house; the three secret places
+    # answer to none, on purpose (data/rules/law.yaml).
+    for district in PREMISE_DISTRICTS:
+        assert law.jurisdiction_of(district), district
+    for district in SECRET_DISTRICTS:
+        assert law.jurisdiction_of(district) == "", district
+    for name in spec["jurisdictions"]:
+        assert law.jurisdiction_label(name) != name.replace("_", " ").title(), name
+
+
+def test_the_stop_offers_all_five_ways_out(lantern_lunch, monkeypatch) -> None:
+    from engine.game import encounter
+    from engine.game.effects import apply_effect
+
+    state = _stopped(lantern_lunch, monkeypatch)
+    apply_effect(state, {"type": "gold", "delta": 10})
+    offered = {a["id"] for a in encounter.available_approaches(state)}
+    assert offered == {"run", "talk", "bribe", "surrender", "fight"}
+
+
+def test_a_clean_run_is_a_getaway(lantern_lunch, monkeypatch) -> None:
+    from engine.game import encounter
+    from engine.world import law
+
+    state = _stopped(lantern_lunch, monkeypatch, "success")
+    receipt = encounter.resolve_approach(state, "run")
+    assert receipt["ok"] and receipt["outcome"] == "escaped"
+    assert not encounter.active(state) and not law.in_custody(state)
+    assert state.location_id == "wickmarket"
+
+
+def test_a_failed_run_is_the_cells(lantern_lunch, monkeypatch) -> None:
+    from engine.game import encounter
+    from engine.world import law
+
+    state = _stopped(lantern_lunch, monkeypatch, "failure")
+    receipt = encounter.resolve_approach(state, "run")
+    assert receipt["outcome"] == "arrested"
+    assert law.in_custody(state) and state.location_id == "lantern_house"
+
+
+def test_talk_can_win_waver_or_land_you_in_the_cells(lantern_lunch, monkeypatch) -> None:
+    from engine.game import encounter
+    from engine.world import law
+
+    state = _stopped(lantern_lunch, monkeypatch, "partial")
+    encounter.resolve_approach(state, "talk")
+    assert encounter.active(state), "a partial buys one more sentence"
+    monkeypatch.setattr("engine.game.checks.resolve", lambda *a, **k: _Forced("success"))
+    assert encounter.resolve_approach(state, "talk")["outcome"] == "talked_down"
+    assert not law.in_custody(state)
+
+    state = _stopped(lantern_lunch, monkeypatch, "failure")
+    encounter.resolve_approach(state, "talk")
+    assert law.in_custody(state)
+
+
+def test_a_bribe_costs_more_the_more_he_has_on_you(lantern_lunch, monkeypatch) -> None:
+    """`cost_per_severity`: three crowns a severity of the charge he would lay."""
+    from engine.game import encounter
+    from engine.world import law
+
+    state = _stopped(lantern_lunch, monkeypatch)
+    _file(state, "self", 2)
+    assert law.charged_severity(state, "self", "wick") == 2
+    state.stats.gold = 5
+    assert "bribe" not in {a["id"] for a in encounter.available_approaches(state)}
+    state.stats.gold = 7
+    offered = {a["id"]: a for a in encounter.available_approaches(state)}
+    assert offered["bribe"]["cost_gold"] == 6
+    receipt = encounter.resolve_approach(state, "bribe")
+    assert receipt["outcome"] == "bribed"
+    assert state.stats.gold == 1 and not law.in_custody(state)
+    # Five more lifts on file and the same Lantern wants twenty-one.
+    state = _stopped(lantern_lunch, monkeypatch)
+    _file(state, "self", 5)
+    state.stats.gold = 100
+    assert {a["id"]: a for a in encounter.available_approaches(state)}["bribe"]["cost_gold"] == 21
+
+
+def test_surrender_is_the_cells_without_a_roll(lantern_lunch, monkeypatch) -> None:
+    from engine.game import encounter
+    from engine.world import law
+
+    state = _stopped(lantern_lunch, monkeypatch)
+    monkeypatch.setattr("engine.game.checks.resolve", lambda *a, **k: pytest.fail("rolled"))
+    encounter.resolve_approach(state, "surrender")
+    assert law.in_custody(state) and state.location_id == "lantern_house"
+
+
+def test_hitting_a_lantern_is_assault_whether_you_win_or_lose(lantern_lunch, monkeypatch) -> None:
+    from engine.game import encounter
+    from engine.world import law
+
+    state = _stopped(lantern_lunch, monkeypatch, "success")
+    encounter.resolve_approach(state, "fight")
+    assert not law.in_custody(state)
+    assert any(r["deed"] == "assault_watch" and r["jurisdiction"] == "wick"
+               and r["precision"] == 1.0 for r in state.law["reports"])
+    assert law.wanted_band(state, "self", "wick") == "sought"  # 5 x 1.0 on a clean face
+
+    state = _stopped(lantern_lunch, monkeypatch, "failure")
+    encounter.resolve_approach(state, "fight")
+    held = law.custody(state)
+    # Both assaults (same session) are on the charge sheet: severity 10 is
+    # 30 crowns and 10 days uncapped, and the caps hold it to 30 and 3.
+    assert held and held["days"] == 3 and held["fine"] == 30, held
+
+
+def test_the_smock_is_sold_on_the_quay_and_can_be_worn(session) -> None:
+    from engine.agents.tool_dispatcher import execute_intent
+    from engine.game import intents
+
+    state = session.engine.state
+    assert state.location_id == "tallow_docks" and state.world_hour == 8
+    receipt = execute_intent({"action": "buy", "target": "npc_dock_mag/porters_smock"},
+                             session.engine)
+    assert receipt and receipt[0]["result"]["success"], receipt
+    verb = intents.find_verb(intents.legal_intents(state), "guise")
+    assert verb and "porter" in {t for t, _ in verb.options}
+
+
+def test_the_mask_is_for_sale_at_marrows(hue) -> None:
+    from engine.game import trade
+
+    assert "magpie_mask" in trade.vendor("npc_marrow")["sells"]
+
+
+def _file(state, guise: str, times: int = 1) -> None:
+    from engine.game.effects import apply_effect
+
+    for _ in range(times):
+        assert apply_effect(state, {"type": "report", "deed": "pickpocket", "guise": guise,
+                                    "jurisdiction": "wick", "precision": 1.0})["ok"]
+
+
+def _file_in(state, guise: str, jurisdiction: str) -> None:
+    from engine.game.effects import apply_effect
+
+    assert apply_effect(state, {"type": "report", "deed": "pickpocket", "guise": guise,
+                                "jurisdiction": jurisdiction, "precision": 1.0})["ok"]
+
+
+def test_brasks_bribe_loses_your_file_and_the_magpies(hue) -> None:
+    """The discharge quashes LINKED reports, in the Wick only -- and the thread bounder keeps it."""
+    from engine.game import threads
+    from engine.world import law
+
+    state = _city(11)
+    state.location_id = "lantern_house"
+    _file(state, "self", 3)
+    _file(state, "magpie", 2)   # the Watch believes the Magpie is you
+    _file(state, "porter", 1)   # a face nobody has tied to you
+    _file_in(state, "self", "quay")   # the Quay's drawer is not Brask's
+    assert law.wanted_band(state, "self", "wick") == "sought"  # 3 + 2 linked
+    sealed = threads.seal(state, threads.offer(state, "brask_bribe"))
+    assert sealed["ok"], sealed
+    state.stats.gold = 20
+    out = threads.discharge(state, sealed["thread"]["id"])
+    assert out["ok"], out
+    assert state.stats.gold == 8
+    assert law.wanted_band(state, "self", "wick") == "unknown"
+    assert sorted((r["jurisdiction"], r["guise"]) for r in state.law["reports"]) == [
+        ("quay", "self"), ("wick", "porter")]
+
+
+def test_brask_will_not_lose_a_file_for_an_empty_purse(hue) -> None:
+    from engine.game import intents, threads
+    from engine.world import law
+
+    state = _city(11)
+    state.location_id = "lantern_house"
+    _file(state, "self", 4)
+    sealed = threads.seal(state, threads.offer(state, "brask_bribe"))
+    state.stats.gold = 5
+    assert intents.find_verb(intents.legal_intents(state), "discharge") is None
+    out = threads.discharge(state, sealed["thread"]["id"])
+    assert out["ok"] is False
+    assert state.stats.gold == 5 and len(state.law["reports"]) == 4
+    assert threads.get(state, sealed["thread"]["id"])["status"] == "active"
+    state.stats.gold = 12
+    verb = intents.find_verb(intents.legal_intents(state), "discharge")
+    assert verb and sealed["thread"]["id"] in {t for t, _ in verb.options}
+    assert law.wanted_band(state, "self", "wick") == "sought"
+
+
+def test_brasks_price_is_named_at_his_desk_and_only_once(session) -> None:
+    """Template `requires:` gates the `bargain` verb and the skill; a struck one is not re-offered."""
+    import json
+
+    from engine.game import intents, threads
+    from engine.game.engine import active_engine
+    from engine.skills.builtin.scenes import strike_bargain
+
+    state = session.engine.state
+    assert state.location_id == "tallow_docks"
+
+    def offered() -> set:
+        verb = intents.find_verb(intents.legal_intents(state), "bargain")
+        return {t for t, _ in verb.options} if verb else set()
+
+    assert "brask_bribe" not in offered()
+    with active_engine(session.engine):
+        refused = json.loads(strike_bargain("brask_bribe"))
+        assert refused["ok"] is False and not state.threads
+        state.location_id = "lantern_house"
+        assert "brask_bribe" in offered()
+        struck = json.loads(strike_bargain("brask_bribe"))
+        assert struck["ok"] is True
+    assert "brask_bribe" not in offered()
+    assert threads.offerable(state) == []
+
+
+def test_the_missing_death_rules_are_warned_about_once(hue, caplog) -> None:
+    import logging
+
+    from engine.game import encounter
+
+    with caplog.at_level(logging.WARNING, logger="engine.game.encounter"):
+        for _ in range(4):
+            assert encounter.load_death_rules() == {}
+    assert sum("Death rules missing" in r.getMessage() for r in caplog.records) == 1
+
+
+#: MEASURED, v0.10.0, scripts/simulate_law.py over 40 seeds x 10 in-game
+#: days (the table is in CHANGELOG.md [Unreleased]): careful below `sought` on
+#: 100% of seed-days; reckless `wanted` by day 4 on 78% of seeds; reckless
+#: arrested at least once on 80%, and a reckless thief who bribes whenever
+#: it can on 80% too (bribes cost it 19% of what it lifted); no sentence
+#: longer than `arrest.max_days`. The floors and ceilings are asserted here
+#: over the FIRST 12 SEEDS -- 83% wanted by day 4, 75% arrested for both --
+#: because 40 seeds x 3 policies is a minute of suite time and 12 still
+#: separates a tuned Watch from the plan's starting numbers (which gave 0%
+#: wanted by day 4 and 100% arrested).
+LAW_SEEDS = 12
+LAW_DAYS = 10
+
+
+@pytest.fixture(scope="module")
+def measured_law():
+    import sys
+    from pathlib import Path
+
+    root = str(Path(__file__).resolve().parents[1])
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from scripts import simulate_law
+
+    # Module-scoped, so it is set up BEFORE conftest's per-test story guard
+    # records what was active -- which would then never see this activation
+    # and leave Tallowmere's map loaded for the next file. Undone here.
+    before = registry.peek()
+    registry.activate("hue-and-cry")
+    try:
+        return {p: simulate_law.measure(p, LAW_SEEDS, LAW_DAYS) for p in simulate_law.POLICIES}
+    finally:
+        if registry.peek() is not before:
+            registry.deactivate()
+
+
+def test_a_careful_thief_stays_below_sought_most_days(measured_law) -> None:
+    assert measured_law["careful"]["below_sought_seed_days"] >= 0.60, measured_law["careful"]
+
+
+def test_a_reckless_thief_is_wanted_by_day_four(measured_law) -> None:
+    assert measured_law["reckless"]["wanted_by_day_4"] >= 0.60, measured_law["reckless"]
+
+
+def test_a_reckless_thief_is_likely_but_not_certain_to_be_arrested(measured_law) -> None:
+    rate = measured_law["reckless"]["runs_with_an_arrest"]
+    assert 0.50 <= rate < 0.95, measured_law["reckless"]
+
+
+def test_bribing_is_not_a_free_pass(measured_law) -> None:
+    """The band holds for a thief who pays every Lantern it can afford."""
+    report = measured_law["briber"]
+    assert report["bribes_per_run"] > 0, report  # the policy really bribed
+    assert 0.50 <= report["runs_with_an_arrest"] < 0.95, report
+
+
+def test_no_sentence_outlasts_the_cap(measured_law, hue) -> None:
+    from engine.world import law
+
+    cap = law.load_spec()["arrest"]["max_days"]
+    assert cap == 3
+    for policy, report in measured_law.items():
+        if report["max_days_served"] is not None:
+            assert report["max_days_served"] <= cap, (policy, report)
+
+
+def test_a_sentence_never_kills_and_a_day_is_cheap(measured_law) -> None:
+    for policy, report in measured_law.items():
+        if report["min_hp_after_sentence"] is not None:
+            assert report["min_hp_after_sentence"] > 0, (policy, report)
+        # About a hundred people, presence resolved per hour for the rumour
+        # pass: measured at under 0.4s for the slowest day. A second is the flag.
+        assert report["max_seconds_per_day"] < 1.0, (policy, report)
+
+
+def test_no_house_is_cased_from_a_cell(hue) -> None:
+    """v0.10.0 final fix: `case` was offered to a prisoner at the gaol -- the
+    Lantern House's district holds houses, and the verb never asked."""
+    from engine.game import intents
+    from engine.game.clock import set_clock
+    from engine.game.effects import apply_effect
+    from engine.world import law
+
+    state = _city(3)
+    set_clock(state, day=1, hour=10)
+    state.location_id = "tallow_docks"
+    _file_in(state, "self", "quay")
+    assert apply_effect(state, {"type": "arrest"})["ok"]
+    assert law.in_custody(state)
+    assert intents.find_verb(intents.legal_intents(state), "case") is None
+    apply_effect(state, {"type": "release"})
+    assert intents.find_verb(intents.legal_intents(state), "case") is not None
+
+
+def test_a_deed_inside_a_house_is_filed_with_its_streets_watch(hue) -> None:
+    """v0.10.0 final fix: `commit_deed` read `jurisdiction_of`, which knows no
+    interior id, so a Lantern who caught you inside a Wick house filed
+    nothing. A house answers to its street (`law.jurisdiction_at`)."""
+    from engine.game.clock import set_clock
+    from engine.world import law
+
+    state = _city(3)
+    set_clock(state, day=1, hour=14)
+    seen = law.commit_deed(state, "pickpocket", location="wickmarket/some_house",
+                           informants=("npc_lantern_1",))
+    assert seen == {"witnesses": ["npc_lantern_1"], "reported": True}
+    assert [r["jurisdiction"] for r in state.law["reports"]] == ["wick"]

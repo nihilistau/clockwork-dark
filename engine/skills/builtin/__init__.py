@@ -3,6 +3,7 @@
 from engine.skills.builtin import (  # noqa: F401
     assistant,
     items,
+    law,
     livelihood,
     mechanics,
     memory,

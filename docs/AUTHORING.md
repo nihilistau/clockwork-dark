@@ -394,7 +394,15 @@ predicates, threshold beats, and `forces_scene`. Wound from
 week. `paths.threads` → `engine/game/threads.py`: contracts with a lifecycle —
 offer → terms → renegotiate → seal → discharge/break/expire. No card effect
 seals a thread; an **agent** does, mid-scene (which has consequences for how
-the walker measures them — §5.2).
+the walker measures them — §5.2). A template may declare
+`discharge_requires:` — a condition from the shared grammar, e.g.
+`{min_gold: 12}` — and until it holds the `discharge` verb does not offer the
+thread and settling it is refused: a bribe whose `on_discharge` pays the
+sergeant must not be settled from an empty purse, because the `gold` effect
+clamps at zero. A template's own `requires:` (same grammar) gates STRIKING
+it: until it holds the `bargain` verb does not offer it and `strike_bargain`
+refuses. HUE & CRY's `brask_bribe` is the worked example of both, and its
+`quash_reports` shows that thread hooks are bounded as authored content.
 
 The couplings that make a deck story a machine rather than a pile of files —
 deck sets flag, clock watches flag, clock forces deck, thread obstructs
@@ -544,9 +552,9 @@ schedule-row list (`{hours, location, activity, available}`), with two
 special location tokens: `@home` (this premise) and `@work` (one of the
 type's `work_at` districts, drawn once per person at generation). Every
 household member becomes a real procgen NPC merged through the same path
-flagship villagers already use — present, gossip-able and liftable, and one
-of the people the Law release will read as a witness (there is no witness
-system yet — **NOT WIRED**, see `docs/GOVERNANCE.md`) — with no new code.
+flagship villagers already use — present, gossip-able and liftable, and,
+in a story that declares `paths.law`, a witness: `law.commit_deed` rolls
+every awake person present, household members included — with no new code.
 **Anchors are additive to the district's
 `count`**, never counted against it, so a district's premise total is
 `count + len(anchors)`.
@@ -579,6 +587,125 @@ An honest vendor (no `fence: true`) sells a mixed stack's clean and cool
 units normally and refuses only the hot ones, in its own voice. Both read
 `thievery.heat_split` per unit, never per item, so a mixed stack of clean and
 stolen goods is never priced or refused as a whole.
+
+### 3.11 `paths.law` — the watch
+
+`paths.law` names ONE YAML file: a story's whole contract for who the watch
+is, what it counts as a crime and how badly it wants you. Optional, and pays
+nothing when undeclared — no deed is ever committed, the recognition check
+never rolls, and a story's payload carries no `law` key. The worked example
+is `games/hue-and-cry/data/rules/law.yaml`, with the tuning story behind every
+number in its header comment and in CHANGELOG.md's `[0.10.0]` entry.
+
+**Required** (the loader refuses the file without them):
+
+- `guises` — `{<id>: {label: <text>, item: <optional item id>}}`. Must
+  declare `self`, the player's own face, and every guise needs a `label`. A
+  guise is offered through the `guise` verb only while its `item` is carried
+  (never the one already worn), so a guise with no `item` can be put on only
+  by an authored `law_guise` effect. A guise's `label` is the only thing the
+  narrator or the payload ever say about it — no id reaches either.
+- `wanted.bands` / `wanted.thresholds` — parallel lists, thresholds strictly
+  ascending and starting at 0 (the floor of the score is the floor of the
+  first band). `wanted.cool_per_day` (default 0) wears the score down, hour by
+  hour, through `clock.advance_time`.
+
+**Optional, but the Law does nothing useful without them** (each loads as
+empty, and an empty one switches its part off):
+
+- `deeds` — `{<kind>: {severity: <int >= 0}}`. A deed not listed here cannot
+  be committed (`{type: deed}` refuses it; a scene author only ever names a
+  kind this file declares). No `deeds`, no crime.
+- `jurisdictions` — `{<name>: [<location id>, ...]}`. Each location falls in
+  at most one; a location in none is watched by nobody — a deed there is
+  witnessed and never filed. A house (an interior id) answers to its street's
+  jurisdiction. Give jurisdictions a `labels: {<name>: <text>}` map or the id
+  itself, humanised, reaches the narrator.
+- `recognise` — `{<band>: <chance>}`. Only bands named here ever roll; a story
+  can leave `unknown`/`noticed` unrollable and gate recognition on `sought`
+  and up, as HUE & CRY does. Rolled once a turn per law-role person present
+  and awake, before narration and never during a scene. No `recognise`, no
+  stop.
+- `arrest` — `{encounter, gaol, fine_per_severity, days_per_severity}`. When
+  the block is present, `gaol` must be a real location, and `encounter` must
+  name a real scene once `paths.encounters` is declared (a typo is a
+  load-time fault naming the file, not a silent no-op). Optional `max_days` /
+  `max_fine` cap the sentence a charge sheet would otherwise sum without
+  bound — HUE & CRY sets 3 days and 30 crowns after measuring sentences up to
+  27 days uncapped (CHANGELOG.md).
+
+**Optional, with defaults:**
+
+- `notice: {base, night, per_margin}` — the chance an onlooker sees a deed at
+  all: `base` (default 0.6), `night` added after dusk (may be negative),
+  `per_margin` added per point of the roll's own stealth margin.
+- `precision: {<hop>: <chance>}` — how clearly a report at each remove reads,
+  hop 1 (the witness) at 1.0 by convention. Spoken to the narrator as
+  "clearly" at precision 1.0 and "only a glimpse" otherwise, never as a
+  number.
+- `spread_per_hour` (default 0.3) — the chance one held deed passes to
+  another person awake in the same room, per in-game hour, capped at hop 3.
+- `reporters: {<role>: <chance>}` — a non-watch witness (a vendor, a servant)
+  who may report straight to the watch without the deed passing through
+  anyone else first.
+- `labels: {<jurisdiction>: <text>}` — else a humanised id.
+- `links: [[<guise>, <guise>], ...]` — what the watch believes on the first
+  morning, before the player changes anything (HUE & CRY starts with
+  `self`/`magpie` linked: the Watch was told at the docks). Linked guises
+  share one wanted score and are read together by `same_person`.
+- `arrest.approaches` — **NOT WIRED** (`engine/world/law.py`, `load_spec`):
+  the block is loaded and kept, and nothing reads it. Give the arrest scene
+  its exits in the encounter file itself (§3.7). Recorded in
+  `docs/GOVERNANCE.md`.
+
+**The arrest encounter.** `arrest.encounter` opens when `law.patrol` gets a
+recognition hit; it is an ordinary encounter (§3.7) whose approaches end in
+either outcome:
+
+- `{type: arrest}` — moves the player to `arrest.gaol`, seizes every HOT unit
+  carried (a mixed stack keeps its cool ones), and sets custody: fine and
+  days from `sentence_for`, capped by `max_fine`/`max_days`, charging exactly
+  the deeds on file for the face worn (and any linked face) in this
+  jurisdiction. `pay_fine` (offered only with the coin) and `serve_sentence`
+  (days × 24 hours, fed before each meal) discharge exactly those deeds —
+  their reports and witness rows are dropped for good — and a bare `release`
+  (a story's own break-out) discharges nothing.
+- `{type: deed, deed: <kind>, seen_by_watch: true}` — commits a deed from
+  inside authored content (a scene's own outcome can be a crime); the story's
+  `deeds` must list `<kind>`. `seen_by_watch: true` makes every law-role
+  person present a certain witness, whatever the notice roll would have said
+  — the watch_stop's `fight` approach uses this for `assault_watch`.
+
+An approach may also declare `cost_per_severity` (`encounter.approach_cost`):
+added, per point, to the charge an arrest would lay against the face worn
+here right now, on top of any flat `cost_gold` — a bribe that gets more
+expensive the more the watch already has on you. HUE & CRY's `bribe`
+approach is 3 crowns a severity, uncapped by the arrest's own caps (a bribe
+is a choice, not the sentence).
+
+**Thread conditions.** A `threads.yaml` template may gate on the Law through
+the shared condition grammar (§3.7): `requires` gates the `bargain` verb (the
+template is not even offered while it fails) and `discharge_requires` gates
+`discharge` (refused, writing nothing, while it fails). Both take any
+predicate the grammar knows, including `at_location` and `min_gold` — HUE &
+CRY's `brask_bribe` requires `at_location: lantern_house` (Brask names his
+price at his desk, nowhere else) and `discharge_requires: {min_gold: 12}`,
+paying it and quashing the Wick's files together in `on_discharge`. There is
+no predicate for who else is standing there — see the NOT WIRED row in
+`docs/GOVERNANCE.md`.
+
+**Law effects, and who may use them.** An encounter outcome may use any of
+`report`, `quash_reports`, `law_guise`, `law_link`, `law_cool`, `arrest`,
+`release`, `law_discharge` and `deed`. A thread's authored
+`on_seal`/`on_discharge`/`on_break` effects may use **`quash_reports` only**:
+the thread bounder (`engine/game/threads.py`, `_bound_effects`) drops every
+other Law kind with a logged adjustment, so a thread that tries to `arrest`
+or `report` does nothing. A model-composed challenge has no Law kinds on its
+allowlist at all. A quash lasts: the lost deeds are remembered per
+jurisdiction (`law.quashed`), and that watch-house refuses to re-file them
+when a witness's gossip reaches one of its watchmen. All are
+`engine/game/effects.py` kinds; none is written anywhere else (AGENTS.md
+rule 3).
 
 ---
 

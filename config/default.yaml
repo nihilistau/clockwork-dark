@@ -618,6 +618,9 @@ paths:
   # ONE FILE: alertness bands by role, purses by role, hot_days -- lifting a
   # purse and how long stolen goods stay hot. See engine/world/thievery.py.
   thievery: ""
+  # ONE FILE: jurisdictions, deeds, wanted bands, guises and arrest -- who the
+  # watch thinks you are and how badly it wants you. See engine/world/law.py.
+  law: ""
 
   # -- things, work and trade ----------------------------------------------
   items: ""

@@ -130,8 +130,16 @@ def _travel(state: GameState) -> Optional[IntentVerb]:
     any hidden path foraging has discovered -- so the enum and the executor
     cannot disagree about what a road is. A story that declares no graph has no
     neighbours and gets no verb.
+
+    None while the watch holds the player: the cell door is the one road the
+    graph does not know is locked. ``GameEngine.move_to`` refuses the same
+    walk for any other caller. Rest is NOT withdrawn with it (``_rest``).
     """
     from engine.game.locations import LOCATIONS, get_edge, neighbours
+    from engine.world import law
+
+    if law.in_custody(state):
+        return None
 
     reachable = list(neighbours(state.location_id))
 
@@ -428,11 +436,14 @@ def _case(state: GameState) -> Optional[IntentVerb]:
     a watch there can only refuse, and a verb guaranteed to refuse spends an
     option slot and a turn (the `forage` lesson above). Undeclared premises
     return before any lookup, so a story without them never pays for the check.
+
+    None while the watch holds the player: a cell looks out on no house, and
+    the gaol's own district is not a street the prisoner is walking.
     """
     try:
-        from engine.world import premises
+        from engine.world import law, premises
 
-        if not premises.declared():
+        if not premises.declared() or law.in_custody(state):
             return None
         here = premises.at(state, state.location_id)
         targets = tuple(
@@ -467,6 +478,62 @@ def _lift(state: GameState) -> Optional[IntentVerb]:
         _absent("thievery", exc)
         return None
     return IntentVerb("lift", targets[:_MAX_OPTIONS]) if targets else None
+
+
+def _guise(state: GameState) -> Optional[IntentVerb]:
+    """
+    Every face the player could put on right now: their own, plus any guise
+    whose costume is actually in the pack -- never the one already worn.
+
+    A guise whose item is not carried is left off for the same reason
+    ``_forage`` gives above: offering a change the skill can only refuse
+    spends an option slot and a turn on a guaranteed no. Undeclared law
+    returns before any of this is even loaded.
+    """
+    try:
+        from engine.game import inventory
+        from engine.world import law
+
+        if not law.declared():
+            return None
+        spec = law.load_spec()
+        current = law.current_guise(state)
+        targets: list[tuple[str, str]] = []
+        for gid, body in spec["guises"].items():
+            if gid == current:
+                continue
+            item = str(body.get("item") or "")
+            if gid != law.SELF_GUISE and (not item or not inventory.holds(state, item)):
+                continue
+            label = (
+                "go as yourself" if gid == law.SELF_GUISE else f"change into {body['label']}"
+            )
+            targets.append((gid, label))
+    except Exception as exc:  # noqa: BLE001 -- a broken law file must not kill the turn
+        _absent("law", exc)
+        return None
+    return IntentVerb("guise", tuple(targets[:_MAX_OPTIONS])) if targets else None
+
+
+def _pay_fine(state: GameState) -> Optional[IntentVerb]:
+    """
+    Buying the way out of a cell. Offered only while held AND with the coin
+    in hand: a fine the player cannot pay is a guaranteed refusal, and the
+    option slot is better spent on ``serve``, which always works.
+    """
+    from engine.world import law
+
+    held = law.custody(state)
+    if not held or state.stats.gold < int(held.get("fine") or 0):
+        return None
+    return IntentVerb("pay_fine")
+
+
+def _serve(state: GameState) -> Optional[IntentVerb]:
+    """Waiting out the sentence. Offered whenever held: a sentence always ends."""
+    from engine.world import law
+
+    return IntentVerb("serve") if law.in_custody(state) else None
 
 
 def _sell(state: GameState) -> Optional[IntentVerb]:
@@ -550,7 +617,9 @@ def _discharge(state: GameState) -> Optional[IntentVerb]:
     targets = tuple(
         (str(t.get("id")), str(t.get("title") or t.get("id")))
         for t in (rows or [])
-        if isinstance(t, dict) and t.get("id")
+        # A contract whose terms cannot be met now (a bribe with an empty
+        # purse) is not offered as settleable: the refusal would be certain.
+        if isinstance(t, dict) and t.get("id") and threads.can_discharge(state, t)
     )
     return IntentVerb("discharge", targets[:_MAX_OPTIONS]) if targets else None
 
@@ -612,6 +681,16 @@ def _encounter(state: GameState) -> Optional[IntentVerb]:
         if row.get("id")
     ]
     return IntentVerb("encounter", tuple(options)) if options else None
+
+
+def scene_owns_turn(state: GameState) -> bool:
+    """
+    Whether a running set-piece, a dealt card or an open encounter owns the
+    turn -- the three gates ``legal_intents`` checks before offering any
+    ordinary verb, in one place so nothing that must respect them (the Law's
+    patrol) keeps a copy that can drift from them.
+    """
+    return bool(_challenge_open(state) or _card_open(state) or _scene_open(state))
 
 
 def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
@@ -678,6 +757,12 @@ def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
             _case,
             # Picking a pocket. Offered only where a story declares thievery.
             _lift,
+            # Changing face. Offered only where a story declares a Law.
+            _guise,
+            # The two ways out of a cell. Offered only while the watch holds
+            # the player -- which only a story with a Law can arrange.
+            _pay_fine,
+            _serve,
             _set_piece,
             _bargain,
             _discharge,
@@ -794,6 +879,9 @@ SKILL_FOR_ACTION: dict[str, str] = {
     "discharge": "discharge_thread",
     "case": "case_premise",
     "lift": "lift_purse",
+    "guise": "change_guise",
+    "pay_fine": "pay_fine",
+    "serve": "serve_sentence",
 }
 
 #: Which key in a skill's result means IT DID NOT HAPPEN, per verb. ``None``
@@ -858,6 +946,16 @@ REFUSAL_KEY_FOR_ACTION: dict[str, Optional[str]] = {
     # How it went is `success`/`noticed`; `ok: False` is only the engine
     # declining (nobody here by that name, asleep, inside a house).
     "lift": "ok",
+    # `ok` means the guise changed. `seen` is how it went (whether the change
+    # was noticed), not whether it happened -- the `work`/`lift` distinction
+    # again: `ok: False` is only the engine declining (unknown guise, or its
+    # item not carried).
+    "guise": "ok",
+    # `ok: False` is the engine declining: not held, or short of the fine.
+    # Both are refusals -- nothing was paid and nobody was let out.
+    "pay_fine": "ok",
+    # A sentence served always happened; `ok: False` is only "not held".
+    "serve": "ok",
 }
 
 
@@ -1000,6 +1098,11 @@ def to_tool_call(
         return name, {"premise_id": target}
     if action == "lift":
         return name, {"npc_id": target}
+    if action == "guise":
+        return name, {"guise_id": target}
+    if action in ("pay_fine", "serve"):
+        # No target: the custody record already says what is owed.
+        return name, {}
     raise KeyError(action)
 
 
@@ -1013,5 +1116,6 @@ __all__ = [
     "legal_intents",
     "normalise",
     "refusal",
+    "scene_owns_turn",
     "to_tool_call",
 ]

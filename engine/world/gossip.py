@@ -26,6 +26,10 @@ the background tick, which runs a variable number of times depending on how
 long the player sat on the menu. Borrowing another stream would let real-world
 idle time shift an encounter roll (AGENTS.md rule 4).
 
+NOT THE LAW'S WITNESSES. This pass reads and writes the ledger only; it never
+touches ``state.law`` witness rows, which ``law.propagate`` carries on
+in-game hours -- so nothing a witness saw travels twice.
+
 Version: v0.1.0 [2026-08-15]
 """
 

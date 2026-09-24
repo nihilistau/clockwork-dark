@@ -29,12 +29,18 @@ NPC agendas -- and v1.0 finishes it. What is here is the ground they stand on:
 | Pockets: alertness and purse by role, six days of heat | `data/rules/thievery.yaml` |
 | Loot and purse goods, valued in crowns; crests and seals are `named` and stay hot | `data/items/goods.yaml` |
 | The two fences, Pell Hollis (Wickmarket) and Marrow (the Snuffs); money reads "12 cr" | `data/tables/trade.yaml`, `data/economy.yaml` |
+| The Lantern Watch (v0.10): three watch-houses, wanted bands, guises (your face, the Magpie's mask, a porter's smock), arrest to the Lantern House | `data/rules/law.yaml` |
+| The Lantern's stop -- run, talk, bribe, surrender or fight -- opened only by a patrol that knows your face | `data/encounters/watch_stop.yaml` |
+| Dock Mag, the first honest vendor, selling porters' smocks; Marrow's Magpie mask | `data/economy.yaml`, `data/items/guises.yaml` |
+| Sergeant Brask's price: a bribe that loses your file | `data/rules/threads.yaml` |
 
 ## What it deliberately does not ship yet
 
-No honest shops, forage, labour, boon or complication tables, no encounters,
-decks, clocks, threads or factions. Each is a later release's job, and
-`game.yaml` lists them. The only trade is the two fences.
+No forage, labour, boon or complication tables, no night-street encounters,
+decks, clocks, factions, and only one thread and one honest counter. No
+`death.yaml` either: it waits for v1.0 and The Rope ending, so until then a
+lost fight with the Watch can leave hp at zero with no respawn. Each is
+a later release's job, and `game.yaml` lists them.
 The graph template's stubs for these were removed rather than left in place --
 they described a mill and a hedge-berry wood.
 
@@ -43,5 +49,9 @@ The ids above are pinned: later features read the districts, the fence ids
 
 ## Balance
 
-Unmeasured. `scripts/simulate.py`'s policies are flagship-owned and there is no
-headless harness for this story yet; the design adds a thief policy in v0.9.
+The Law is measured: `scripts/simulate_law.py` plays a careful thief, a
+reckless one, and a briber -- the reckless thief answering every Lantern's
+stop with the bribe whenever its purse covers the price -- over 40 seeds x 10
+in-game days, and every number in `data/rules/law.yaml` was set against it (the table is in CHANGELOG.md;
+`tests/test_hue_and_cry.py` asserts the floors). Everything else is
+unmeasured: `scripts/simulate.py`'s policies are flagship-owned.

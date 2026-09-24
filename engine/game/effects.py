@@ -546,6 +546,11 @@ def _e_provenance(
     tell apart, and taking the newest would let a player cool a fresh theft by
     selling an old one. A miss is not an error, for the ``remove_item`` reason:
     selling honest goods simply has nothing to forget.
+
+    ``newest: true`` consumes from the other end, for a CONFISCATION: the watch
+    takes the hot units, and the hot records are the freshest ones. Taken
+    oldest-first, a seized fresh ring would leave its record on the old ring
+    still in the pack, and the ring the watch let you keep would turn hot.
     """
     item_id = str(effect.get("item_id") or effect.get("id") or "").strip()
     if not item_id:
@@ -553,7 +558,10 @@ def _e_provenance(
     want = max(1, _int(effect.get("qty"), 1))
     records = state.provenance.get(item_id) or []
     removed = min(want, len(records))
-    del records[:removed]
+    if effect.get("newest"):
+        del records[len(records) - removed:]
+    else:
+        del records[:removed]
     if not records:
         state.provenance.pop(item_id, None)
     # `inventory.name_of`, not a raw id massaged with `.replace` -- a raw id
@@ -915,6 +923,570 @@ def _e_intel(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> di
         "ok": True,
         "text": rows[intel_id],
     }
+
+
+def _deed_id(state: GameState, effect: dict[str, Any]) -> str:
+    """
+    The deed a witness row or report belongs to: the caller's, or a new one.
+
+    New ids come from the saved counter ``state.law["deed_seq"]`` and are
+    allocated HERE, by whichever Law effect first needs one, so the counter
+    has the same single writer as every other Law field. Called only after an
+    effect has validated, so a refusal never burns an id.
+    """
+    given = str(effect.get("deed_id") or "").strip()
+    if given:
+        return given
+    seq = _int(state.law.get("deed_seq"), 0) + 1
+    state.law["deed_seq"] = seq
+    return f"d{seq}"
+
+
+@effect_kind("witness")
+def _e_witness(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    Record that one person saw one deed: who, what, the guise worn, where, when.
+
+    First-hand by default -- ``hop`` 1, ``precision`` 1.0 -- because a deed's
+    own witnesses saw it themselves. ``law.propagate`` passes both for a TOLD
+    copy, which must retell a row someone holds one hop nearer. Severity is
+    read from the law file (a told copy keeps its teller's) and the day stamped
+    here, the ``report`` kind's reason.
+
+    The id comes from a counter in ``state.law`` rather than the row count, so
+    ids stay unique within a save even once rows are copied or pruned -- a
+    retold sighting must be traceable to the one it retells. ``deed_id`` ties
+    every witness and report of one deed together (see ``_deed_id``).
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return _law_refusal("witness", "this story keeps no watch to witness for")
+    spec = law.load_spec()
+    deed = str(effect.get("deed") or "").strip()
+    guise = str(effect.get("guise") or "").strip()
+    npc = str(effect.get("npc") or "").strip()
+    where = str(effect.get("where") or "").strip()
+    hop = _int(effect.get("hop"), 1)
+    precision = _float(effect.get("precision"), 1.0)
+    if deed not in spec["deeds"]:
+        return _law_refusal("witness", f"unknown deed `{deed}`")
+    if guise not in spec["guises"]:
+        return _law_refusal("witness", f"unknown guise `{guise}`")
+    if not npc or not where:
+        return _law_refusal("witness", "a witness needs a person and a place")
+    if hop < 1 or not 0.0 <= precision <= 1.0:
+        return _law_refusal("witness", "hop must be 1 or more and precision between 0 and 1")
+    if str(effect.get("deed_id") or "").strip() in law.discharged(state):
+        return _law_refusal("witness", "that deed has been discharged")
+    severity = spec["deeds"][deed]
+    if hop > 1:
+        # A TOLD copy. It must name the deed it retells, and someone must hold
+        # that deed one remove nearer with the same kind, guise and place --
+        # otherwise a copy could say something the sighting did not, and the
+        # counted-once score keyed on the deed id could be fooled by it.
+        # Severity is the teller's row's, so a copy is never re-priced.
+        from engine.world.gossip import MAX_HOPS
+
+        given = str(effect.get("deed_id") or "").strip()
+        teller = next((
+            row for row in state.law.get("witnessed") or []
+            if row.get("deed_id") == given and _int(row.get("hop"), 1) == hop - 1
+            and row.get("deed") == deed and row.get("guise") == guise
+            and row.get("where") == where
+        ), None) if given else None
+        if hop > MAX_HOPS or teller is None:
+            return _law_refusal("witness", "a told sighting needs a teller one remove nearer")
+        # And exactly as clear as that remove allows: a hop-2 copy filed at 1.0
+        # would be a second-hand sighting counted as first-hand.
+        if precision != (spec.get("precision") or {}).get(hop):
+            return _law_refusal("witness", f"a hop-{hop} sighting is filed at that hop's precision")
+        severity = teller.get("severity", severity)
+    deed_id = _deed_id(state, effect)
+    seq = _int(state.law.get("witness_seq"), 0) + 1
+    state.law["witness_seq"] = seq
+    state.law.setdefault("witnessed", []).append({
+        "id": f"w{seq}",
+        "deed_id": deed_id,
+        "deed": deed,
+        "severity": severity,
+        "guise": guise,
+        "npc": npc,
+        "where": where,
+        "day": state.world_day,
+        "hop": hop,
+        "precision": precision,
+    })
+    return {
+        "type": "witness",
+        "ok": True,
+        # So the caller can stamp the rest of this deed's rows with it.
+        "deed_id": deed_id,
+        # The calling skill's receipt carries who saw (``seen_by``), rendered
+        # by name; this row is bookkeeping and its fields are all ids.
+        "hidden": True,
+        "text": "",
+    }
+
+
+@effect_kind("report")
+def _e_report(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    File one report with the watch: a deed, the guise it was pinned on, where.
+
+    Severity is read from the story's law file, never taken from the caller,
+    and the day is stamped here -- the ``item`` kind's reason: the effect is the
+    only writer, so it is the only place a bug could inflate or backdate a
+    crime. Every reference is checked before anything is written, because a
+    report against a guise or jurisdiction the Law does not know would count
+    toward nobody's wanted level while looking like heat.
+
+    ``deed_id`` names the deed this report is OF; a report without one is a
+    deed of its own. The wanted score counts each deed once (``law.filed_score``).
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return _law_refusal("report", "this story keeps no watch to report to")
+    spec = law.load_spec()
+    deed = str(effect.get("deed") or "").strip()
+    guise = str(effect.get("guise") or "").strip()
+    jurisdiction = str(effect.get("jurisdiction") or "").strip()
+    precision = _float(effect.get("precision"), 1.0)
+    if deed not in spec["deeds"]:
+        return _law_refusal("report", f"unknown deed `{deed}`")
+    if guise not in spec["guises"]:
+        return _law_refusal("report", f"unknown guise `{guise}`")
+    if jurisdiction not in spec["jurisdictions"]:
+        return _law_refusal("report", f"unknown jurisdiction `{jurisdiction}`")
+    if not 0.0 <= precision <= 1.0:
+        return _law_refusal("report", "precision must be between 0 and 1")
+    deed_id = _deed_id(state, effect)
+    given = str(effect.get("deed_id") or "").strip()
+    if given in law.discharged(state):
+        # Paid for or served (`law_discharge`): the watch-house has closed it.
+        return _law_refusal("report", "that deed has been discharged")
+    if given and given in law.quashed(state, jurisdiction):
+        # Bought off (`quash_reports`): this watch-house has lost that file and
+        # will not re-open it when a witness's gossip reaches a watchman here.
+        return _law_refusal("report", "that deed's file was lost here")
+    rows = state.law.setdefault("reports", [])
+    rows.append({
+        "deed_id": deed_id,
+        "deed": deed,
+        "severity": spec["deeds"][deed],
+        "guise": guise,
+        "jurisdiction": jurisdiction,
+        "precision": precision,
+        "day": state.world_day,
+    })
+    # Prose only: the guise's authored label and a clarity word. The deed kind
+    # and jurisdiction are ids, and the precision is a number -- all three are
+    # exactly what the narrator must not echo.
+    return {
+        "type": "report",
+        "ok": True,
+        "text": f"word of {law.guise_label(guise)} reached the watch, {law.clarity(precision)}",
+    }
+
+
+def _law_refusal(kind: str, why: str) -> dict[str, Any]:
+    """A Law effect that wrote nothing, and why -- for the log and the receipt.
+
+    ``text`` stays empty: the reason names ids, and ids never reach the prose.
+    ``message`` is the diagnosable half, so a thread whose bribe discharges into
+    a misspelt guise says so instead of reporting success over nothing.
+    """
+    return {"type": kind, "ok": False, "text": "", "message": why}
+
+
+@effect_kind("quash_reports")
+def _e_quash_reports(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    Make reports go missing: every one matching ``jurisdiction``, ``guise`` and
+    ``max_severity``, each filter optional. A bribed sergeant's thread
+    discharges through this -- corruption is a contract, and this is its term.
+
+    Exact guise match by default: a sergeant paid to lose the porter's file
+    has not been paid to lose yours. ``linked: true`` widens it to every guise
+    the watch takes for the same person -- without it, a bribe to lose you
+    would leave the Magpie's file standing while the watch believes you are
+    her, and appear to do nothing. A named guise or jurisdiction the Law does
+    not know is refused, not matched against nothing.
+
+    Cooling is re-capped afterwards, or the offset that was wearing down the
+    quashed reports would be left over to pre-forgive the next one.
+
+    A quash LASTS. Each removed report's deed id is remembered under its
+    jurisdiction (``state.law["quashed"]``, written only here), and ``report``
+    refuses that deed there from then on -- otherwise the witnesses who saw it
+    would carry it to the next watchman within the day and ``law.propagate``
+    would re-file what the bribe had lost. The witness rows stay: the deed was
+    still seen, and another district's watch can still hear of it.
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return _law_refusal("quash_reports", "this story keeps no watch to bribe")
+    spec = law.load_spec()
+    jurisdiction = str(effect.get("jurisdiction") or "").strip()
+    guise = str(effect.get("guise") or "").strip()
+    ceiling = effect.get("max_severity")
+    if jurisdiction and jurisdiction not in spec["jurisdictions"]:
+        return _law_refusal("quash_reports", f"unknown jurisdiction `{jurisdiction}`")
+    if guise and guise not in spec["guises"]:
+        return _law_refusal("quash_reports", f"unknown guise `{guise}`")
+    guises = (law.same_person(state, guise) if effect.get("linked") else {guise}) if guise else set()
+
+    def _matches(row: dict[str, Any]) -> bool:
+        if jurisdiction and row.get("jurisdiction") != jurisdiction:
+            return False
+        if guises and row.get("guise") not in guises:
+            return False
+        if ceiling is not None and _int(row.get("severity")) > _int(ceiling):
+            return False
+        return True
+
+    rows = state.law.get("reports") or []
+    kept = [row for row in rows if not _matches(row)]
+    removed = len(rows) - len(kept)
+    # Nothing matched writes nothing: a clean state must not grow `reports: []`.
+    if removed:
+        state.law["reports"] = kept
+        lost = state.law.setdefault("quashed", {})
+        for row in rows:
+            deed_id = str(row.get("deed_id") or "")
+            if deed_id and _matches(row):
+                place = lost.setdefault(str(row.get("jurisdiction")), [])
+                if deed_id not in place:
+                    place.append(deed_id)
+        if state.law.get("cool"):
+            state.law["cool"] = law.cap_cooling(state, state.law["cool"])
+    return {
+        "type": "quash_reports",
+        "ok": True,
+        "text": "some reports against you went missing from the watch-house" if removed else "",
+    }
+
+
+@effect_kind("deed")
+def _e_deed(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    The player committed a crime here and now: ``law.commit_deed`` from an
+    authored outcome. How a scene's fight with the watch becomes
+    ``assault_watch`` -- the skills that commit deeds call ``commit_deed``
+    themselves; content has no other way to.
+
+    ``seen_by_watch: true`` makes every awake law-role person present a
+    CERTAIN witness: a Lantern you knocked down saw who did it, whatever the
+    notice roll would have said. Everyone else rolls as for any deed.
+
+    Every write inside is itself an effect (``witness``, ``report``). A kind
+    the law file does not list is refused rather than committed as nothing,
+    so a misspelt deed in an outcome says so.
+    """
+    from engine.world import law, npc_sim
+
+    if not law.declared():
+        return _law_refusal("deed", "this story keeps no watch to offend")
+    kind = str(effect.get("deed") or "").strip()
+    if kind not in law.load_spec()["deeds"]:
+        return _law_refusal("deed", f"unknown deed `{kind}`")
+    certain: tuple[str, ...] = ()
+    if effect.get("seen_by_watch"):
+        roles = set(law.load_spec().get("roles") or [])
+        certain = tuple(
+            p.npc_id for p in npc_sim.npcs_at(state, state.location_id)
+            if p.available and p.role in roles
+        )
+    seen = law.commit_deed(state, kind, certain=certain)
+    return {
+        "type": "deed",
+        "ok": True,
+        "reported": bool(seen.get("reported")),
+        # The outcome's own prose tells it; witness ids never reach the narrator.
+        "hidden": True,
+        "text": "",
+    }
+
+
+@effect_kind("law_cool")
+def _e_law_cool(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    Let ``days`` of quiet wear every file down by ``cool_per_day`` a day. The
+    only writer of the cooling offsets.
+
+    One offset per FILE -- per jurisdiction, per guise the report was filed
+    under -- rather than a rewrite of each report, so the rows stay what was
+    filed and a later quash still sees them. Per file because one offset per
+    jurisdiction let the Magpie's quiet week forgive a porter's fresh assault.
+    Each is capped by ``law.cap_cooling`` at its own file's score, so quiet
+    days cannot be banked against a crime not yet committed.
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return _law_refusal("law_cool", "this story keeps no watch to forget")
+    days = max(0.0, _float(effect.get("days"), 0.0))
+    step = law.load_spec()["wanted"]["cool_per_day"] * days
+    proposed: dict[str, dict[str, float]] = {}
+    for row in state.law.get("reports") or []:
+        where, guise = str(row.get("jurisdiction")), str(row.get("guise"))
+        proposed.setdefault(where, {})[guise] = law.cooling_of(state, guise, where) + step
+    after = law.cap_cooling(state, proposed)
+    changed = any(
+        value > law.cooling_of(state, guise, where)
+        for where, files in after.items()
+        for guise, value in files.items()
+    )
+    # Nothing to cool writes nothing: a story with a Law and a clean record
+    # keeps `state.law` empty rather than growing a column of zeros.
+    if changed:
+        state.law["cool"] = after
+    return {
+        "type": "law_cool",
+        "ok": True,
+        # Bookkeeping; the narrator hears about heat as a band, not a decay.
+        "hidden": True,
+        "text": "the watch's memory of you wears thinner" if changed else "",
+    }
+
+
+@effect_kind("law_guise")
+def _e_law_guise(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    Set which face the player is wearing. The only writer of ``state.law["guise"]``.
+
+    Refuses a guise the Law does not know, and refuses any guise but ``self``
+    whose item is not currently carried -- a mask left behind cannot still be
+    on the player's face. ``self`` needs no item and is always available: it
+    is what a player who owns nothing else to wear still has.
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return _law_refusal("law_guise", "this story keeps no watch to notice a change of face")
+    spec = law.load_spec()
+    guise = str(effect.get("guise") or "").strip()
+    if guise not in spec["guises"]:
+        return _law_refusal("law_guise", f"unknown guise `{guise}`")
+    if guise != law.SELF_GUISE:
+        item = str(spec["guises"][guise].get("item") or "")
+        if item:
+            from engine.game import inventory  # late: inventory imports this module
+
+            if not inventory.holds(state, item):
+                return _law_refusal(
+                    "law_guise", f"guise `{guise}` needs `{item}`, which is not carried"
+                )
+    state.law["guise"] = guise
+    return {"type": "law_guise", "ok": True, "guise": guise, "text": ""}
+
+
+@effect_kind("law_link")
+def _e_law_link(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    Tell the watch two guises are one person. The only writer of ``state.law["links"]``.
+
+    ``law.links`` reads the file's OWN starting belief until state holds any
+    of its own, so this is the first write's seed too: adding one pair reads
+    through the spec's list, appends to that (rather than to an empty one),
+    and stores the result -- the spec's initial belief survives instead of
+    being silently replaced by a set of one.
+
+    Symmetric and deduplicated: ``[a, b]`` and ``[b, a]`` are the same belief,
+    and asking twice writes once.
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return _law_refusal("law_link", "this story keeps no watch to link anything for")
+    spec = law.load_spec()
+    a = str(effect.get("a") or "").strip()
+    b = str(effect.get("b") or "").strip()
+    if a not in spec["guises"] or b not in spec["guises"]:
+        return _law_refusal("law_link", "a link needs two known guises")
+    if a == b:
+        return _law_refusal("law_link", "a guise cannot be linked to itself")
+    pairs = law.links(state)
+    if not any({pair[0], pair[1]} == {a, b} for pair in pairs):
+        pairs.append([a, b])
+        state.law["links"] = pairs
+    return {"type": "law_link", "ok": True, "text": ""}
+
+
+@effect_kind("arrest")
+def _e_arrest(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    The watch takes the player: to the gaol, relieved of hot goods, held.
+
+    THE ONLY EFFECT THAT MOVES THE PLAYER. Location otherwise changes only by
+    graph travel (``GameEngine.move_to``, which validates the edge and charges
+    the leg) and by a death's respawn (``encounter._check_death_inner``, which
+    is the engine carrying a body, not a choice). Everything else that wants
+    the player elsewhere -- a card, a thread, a scene's outcome -- has to walk
+    them or arrest them. Written directly to ``state.location_id`` for the
+    respawn's reason: an arrest is not a walk, so it spends no stamina and no
+    hours (the hours are the SENTENCE, served through ``advance_time``).
+
+    In order, reading everything BEFORE anything is written:
+
+      1. The charge -- ``law.sentence_for`` over the jurisdiction the player
+         was standing in and the face they were wearing (read before the
+         confiscation, which may take the mask itself).
+      2. The confiscation -- every carried unit ``thievery.heat_split`` calls
+         HOT, through ``remove_item`` and ``provenance`` (newest records
+         first, so a mixed stack keeps its cool units cool). Cool and clean
+         goods stay: the watch takes what a victim could name this week.
+      3. The move to ``arrest.gaol``, and ``custody`` set to ``{fine, days,
+         since_day, jurisdiction, guise, charged}`` -- ``charged`` the deed ids
+         on the sheet, so ``pay_fine`` and ``serve_sentence`` discharge exactly
+         what was charged and nothing committed from the cell.
+
+    An open scene (the arrest encounter this outcome came from) is marked
+    resolved: an unresolved scene cannot survive the player being carried out
+    of it, and ``resolve_approach`` clears a resolved one at the end of its
+    round. Refused while already held, and in a story with no Law or no
+    ``arrest`` block.
+    """
+    from engine.game import inventory as inventory_module
+    from engine.game.locations import LOCATIONS
+    from engine.world import law, thievery
+
+    if not law.declared():
+        return _law_refusal("arrest", "this story keeps no watch to arrest anyone")
+    gaol = str((law.load_spec().get("arrest") or {}).get("gaol") or "")
+    if not gaol:
+        return _law_refusal("arrest", "the law file declares no gaol")
+    if law.in_custody(state):
+        return _law_refusal("arrest", "already held")
+
+    jurisdiction = law.jurisdiction_at(state.location_id)
+    guise = law.current_guise(state)
+    sentence = law.sentence_for(state, guise, jurisdiction) if jurisdiction else {"fine": 0, "days": 0}
+    charged = sorted(law.charged_deeds(state, guise, jurisdiction)) if jurisdiction else []
+
+    seized: list[str] = []
+    for entry in list(state.inventory):
+        hot = thievery.heat_split(state, entry.id)["hot"]
+        if hot <= 0:
+            continue
+        apply_effect(state, {"type": "remove_item", "item_id": entry.id, "qty": hot})
+        apply_effect(state, {"type": "provenance", "item_id": entry.id, "qty": hot, "newest": True})
+        # The name only: a count in the receipt is a number in the prose.
+        seized.append(inventory_module.name_of(entry.id))
+
+    state.location_id = gaol
+    if state.encounter and not state.encounter.get("resolved"):
+        state.encounter["resolved"] = True
+        state.encounter["outcome"] = "arrested"
+    state.law["custody"] = {
+        "fine": sentence["fine"],
+        "days": sentence["days"],
+        "since_day": state.world_day,
+        "jurisdiction": jurisdiction,
+        "guise": guise,
+        # Exactly what this arrest charged, so paying or serving discharges
+        # these deeds and nothing filed afterwards (`law._discharge`).
+        "charged": [d for d in charged if not d.startswith("#row")],
+    }
+    where = str((LOCATIONS.get(gaol) or {}).get("name") or "the cells")
+    taken = f"; the watch kept {', '.join(seized)}" if seized else ""
+    return {"type": "arrest", "ok": True, "seized": seized, "text": f"taken to {where}{taken}"}
+
+
+@effect_kind("release")
+def _e_release(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    Let the player go. The only writer that clears ``state.law["custody"]``.
+
+    Clears custody and NOTHING else: the file stays filed. ``law.pay_fine``
+    and ``law.serve_sentence`` discharge the charge before they call this; a
+    story's break-out scene calls it bare, and walks out still wanted.
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return _law_refusal("release", "this story keeps no watch to hold anyone")
+    if not law.in_custody(state):
+        return _law_refusal("release", "not held")
+    state.law.pop("custody", None)
+    return {"type": "release", "ok": True, "text": "released"}
+
+
+@effect_kind("law_discharge")
+def _e_law_discharge(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    Close deeds for good: a paid fine or a served sentence. The only writer of
+    ``state.law["discharged_deeds"]``.
+
+    For each deed id: every report of it goes (in every jurisdiction -- a
+    deed paid for is paid for), every witness row of it goes (so propagation
+    has nobody left to carry it to a new watchman), and the id is remembered,
+    so ``report`` and ``witness`` refuse it from then on. Rows are dropped
+    rather than flagged because a flagged row would still be a teller in
+    ``law.propagate`` and a sighting in every later reader. Cooling is
+    re-capped, as ``quash_reports`` does, so an offset never outlives the
+    file it wore down.
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return _law_refusal("law_discharge", "this story keeps no watch to settle with")
+    ids = [str(d).strip() for d in effect.get("deed_ids") or [] if str(d).strip()]
+    if not ids:
+        return _law_refusal("law_discharge", "no deeds named to discharge")
+    closing = set(ids)
+    for key in ("reports", "witnessed"):
+        rows = state.law.get(key) or []
+        kept = [row for row in rows if str(row.get("deed_id") or "") not in closing]
+        if len(kept) != len(rows):
+            state.law[key] = kept
+    done = [str(d) for d in state.law.get("discharged_deeds") or []]
+    state.law["discharged_deeds"] = done + [d for d in ids if d not in done]
+    if state.law.get("cool"):
+        state.law["cool"] = law.cap_cooling(state, state.law["cool"])
+    return {"type": "law_discharge", "ok": True, "hidden": True, "text": ""}
+
+
+@effect_kind("law_last_deed")
+def _e_law_last_deed(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    Record the deed the player just committed, SEEN OR NOT. The only writer
+    of ``state.law["last_deed"]``.
+
+    A SEEN deed is stamped ``{id, turn, where}`` -- the id its first witness
+    row allocated, ``state.turn_number``, the place. An UNSEEN deed (no id:
+    nobody saw it, so none was allocated) removes any earlier stamp instead,
+    which reads identically -- no seen deed this turn -- and keeps a clean
+    save clean: a deed nobody saw in a Law that holds nothing still writes
+    nothing at all.
+
+    ``commit_deed`` applies it for every deed, so the narrator's "you were
+    seen" line (``prompts.law_block``) asks about THIS turn's deed and not
+    the newest deed anybody happened to see: an unseen lift after a seen one
+    must not name the earlier witnesses, who are not even in the room.
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return _law_refusal("law_last_deed", "this story keeps no watch")
+    deed_id = str(effect.get("deed_id") or "").strip()
+    if deed_id:
+        state.law["last_deed"] = {
+            "id": deed_id,
+            "turn": state.turn_number,
+            "where": str(effect.get("where") or "").strip(),
+        }
+    else:
+        state.law.pop("last_deed", None)
+    return {"type": "law_last_deed", "ok": True, "hidden": True, "text": ""}
 
 
 @effect_kind("ledger_fact")

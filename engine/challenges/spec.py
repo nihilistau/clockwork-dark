@@ -192,8 +192,14 @@ ALLOWED_EFFECT_TYPES: frozenset[str] = frozenset(
 #: correct about SIZE and wrong about CAPABILITY. Day 9's own point-of-no-return
 #: beat could not end the game, so the finale was a document describing a
 #: mechanism it had no way to invoke.
+#:
+#: ``quash_reports`` is the same kind of thing for the Law: a bribed
+#: sergeant's thread discharges through it (HUE & CRY's ``brask_bribe``), and
+#: it has no magnitude to clamp -- it makes a file go missing. A model-composed
+#: challenge that could erase the watch's reports would be a dice table
+#: pardoning the player.
 STRUCTURAL_EFFECT_TYPES: frozenset[str] = frozenset(
-    {"ending_intent", "ending_lock", "ending_module"}
+    {"ending_intent", "ending_lock", "ending_module", "quash_reports"}
 )
 
 #: How much of a bounded value's RANGE one scene may be worth.

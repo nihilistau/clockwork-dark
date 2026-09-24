@@ -55,6 +55,16 @@ def test_the_newest_release_is_the_version_everything_else_claims() -> None:
     )
 
 
+def test_the_lockfile_claims_the_same_version_as_the_package() -> None:
+    """`npm ci` reads the lockfile, not package.json: a lock left at the old
+    number is a release that installs as the previous one (v0.10.0 shipped
+    its first cut with the lock still at 0.9.0)."""
+    package = json.loads((ROOT / "ui" / "package.json").read_text(encoding="utf-8"))
+    lock = json.loads((ROOT / "ui" / "package-lock.json").read_text(encoding="utf-8"))
+    assert lock["version"] == package["version"], lock["version"]
+    assert lock["packages"][""]["version"] == package["version"], lock["packages"][""]["version"]
+
+
 def test_releases_are_newest_first() -> None:
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     versions = [tuple(int(p) for p in v.split(".")) for v, _ in _RELEASE.findall(text)]

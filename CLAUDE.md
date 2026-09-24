@@ -10,9 +10,9 @@ release to release.
 
 ## Status
 
-**v0.9.0** is the current release (CHANGELOG.md has every release since 0.4.0).
+**v0.10.0** is the current release (CHANGELOG.md has every release since 0.4.0).
 
-**2174 passing, 3 skipped in 5m40s**, no expected failures (measured
+**2406 passing, 3 skipped in 7m13s**, no expected failures (measured
 2026-09-24, final fix pass), plus **144 client tests** under `ui/tests/`
 (`npm test --prefix ui`; `vitest` is a devDependency, so
 `npm install --prefix ui` once first). Re-measure and restate these at every
@@ -23,9 +23,9 @@ Six stories ship, and every one can be played to an ending
 (`tests/test_finales.py`): `clockwork-dark` (the flagship), `wicked-garden`
 (the deck exemplar), `neon-city` (NEON CITY: THE CROSSING), `the-long-con` (THE
 LONG CON, the first graph/deck hybrid), `dev-story` (the annotated bench) and
-`hue-and-cry` (HUE & CRY, playable to its one shipped ending,
-`honest_after_all`; the rest of its content lands across v0.10.0–v1.0.0).
-Pick one with `launcher.py --game <slug>`.
+`hue-and-cry` (HUE & CRY, now with the Lantern Watch; still playable to its
+one shipped ending, `honest_after_all`, with the rest of its content landing
+across v0.11.0–v1.0.0). Pick one with `launcher.py --game <slug>`.
 
 ## In flight
 
@@ -36,8 +36,8 @@ nothing sits unpushed for weeks:
 |---|---|---|
 | v0.8 | The audit release: presence in every story, outcome-aware evaluator, the "world moved" journal, leaks, dead code | **shipped** |
 | v0.9.0 | Premises, plus the HUE & CRY skeleton | **shipped** |
-| v0.10.0 | The Law | next |
-| v0.11.0 | Jobs & flashbacks | queued |
+| v0.10.0 | The Law | **shipped** |
+| v0.11.0 | Jobs & flashbacks | next |
 | v0.12.0 | Agendas | queued |
 | v1.0.0 | `hue-and-cry` finished: a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, bespoke UI plugin, Grok art pack | after v0.12.0 |
 
@@ -57,6 +57,15 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   prologue ends.
 - The studio review queue can keep one draft but does not draft from the
   browser.
+- `hue-and-cry` ships no `death.yaml` until v1.0 (The Rope ending): the
+  watch_stop's fight can push hp to 0 with no respawn until then.
+- The wanted-poster UI: the payload exists (`to_client_dict`'s `law` key) and
+  the narrator already speaks it in prose; no plugin renders it until v1.0's
+  bespoke UI.
+- Sergeant Brask's bribe (`brask_bribe`) can be struck with a clean record —
+  the thread's `requires` gates on standing at his desk, not on having
+  anything to bribe him about — and quashes nothing when there is nothing
+  filed to quash.
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 

@@ -193,6 +193,21 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
     except ImportError:
         pass
 
+    # The Law, on in-game hours: for each whole hour the clock crossed, what
+    # witnesses saw travels person to person and then quiet wears the watch's
+    # memory down -- cooling hour by hour inside the same pass, never in one
+    # lump per call, so a report filed late in a long sleep is not forgiven by
+    # the hours before it and the band never depends on how the wall clock
+    # cut the background ticks. After the refresh, so presence reads today's
+    # pins. A story that declares no Law never enters it.
+    try:
+        from engine.world import law
+
+        if law.declared():
+            law.propagate(state, hours)
+    except ImportError:
+        pass
+
     # Death handling advances the clock itself (unconsciousness costs hours),
     # which re-enters this function. Unguarded, each nested call ran the death
     # check again and the calendar ran away -- measured jumping day 2 to day 123

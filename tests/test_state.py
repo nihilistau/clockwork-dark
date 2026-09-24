@@ -50,6 +50,14 @@ def _rich_state() -> GameState:
         wounds=[Wound(id="w1", text="knife-line", severity=2, heals_on_day=9)],
         active_effects=[TimedEffect(id="e1", kind="check_penalty", expires_day=9)],
         provenance={"golden_ring": [{"whom": "npc_x", "where": "edgewood_square", "day": 4}]},
+        law={
+            "guise": "magpie",
+            "links": [["self", "magpie"]],
+            "reports": [{"deed": "pickpocket", "severity": 1, "guise": "self",
+                         "jurisdiction": "dockside", "precision": 0.6, "day": 3}],
+            # Per file: the offset sits under the guise the report was filed as.
+            "cool": {"dockside": {"self": 0.5}},
+        },
     )
     set_clock(state, day=11, hour=19)
     return state

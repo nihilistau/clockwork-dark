@@ -16,7 +16,7 @@
 # THIS FILE: an UNDECLARED `paths.*` key resolves to NOTHING. Declare what you
 # ship; omit what you do not.
 #
-# Version: v0.1.0 [2026-09-23]
+# Version: v0.2.0 [2026-09-24]
 
 id: hue-and-cry
 title: "Hue & Cry"
@@ -60,14 +60,17 @@ settings:
 # and -- since v0.9 -- the houses (premises), the pockets (thievery), the
 # goods both hold (items), and the two fences who buy them (tables, economy).
 #
+# And since v0.10 the Lantern Watch: the law file, the one encounter it opens
+# (a Lantern's stop) and one thread (Brask's bribe).
+#
 # DELIBERATELY NOT DECLARED YET, each one a later release's job rather than an
-# omission: recipes, encounters (night streets), decks (initiation, the
-# interrogation, the Hanging Fair), clocks and threads (the captain's clock,
-# contracts, bribes), factions, world_rumors, lore. The graph template's stubs
-# for items, economy, tables and encounters were removed rather than left in
-# place: they were a mill and a hedge-berry forage table, and a thief story
-# selling hedge berries is exactly the veneer THE LONG CON shipped under. The
-# tables directory now holds trade.yaml alone -- no forage, labour, boons or
+# omission: recipes, night-street encounters, decks (initiation, the
+# interrogation, the Hanging Fair), clocks and the other threads (the
+# captain's clock, contracts), factions, world_rumors, lore. The graph
+# template's stubs for items, economy, tables and encounters were removed
+# rather than left in place: they were a mill and a hedge-berry forage table,
+# and a thief story selling hedge berries is exactly the veneer THE LONG CON
+# shipped under. The tables directory now holds trade.yaml alone -- no forage, labour, boons or
 # complications -- so each of those systems is still cleanly absent.
 #
 paths:
@@ -93,6 +96,15 @@ paths:
   # The pack is empty until v1.0; subjects.yaml is the full brief for it, and
   # art_root is declared so the manifest resolves against this story's own
   # tree rather than another's.
+  # The Lantern Watch (v0.10): jurisdictions, deeds, wanted bands, guises and
+  # the arrest (engine/world/law.py). Its numbers were set by measurement --
+  # scripts/simulate_law.py, table in CHANGELOG.md.
+  law: "games/hue-and-cry/data/rules/law.yaml"
+  # One scene, the Lantern's stop, which only the Law's patrol opens: every
+  # edge is danger_dc 0, so no road ever draws it.
+  encounters: "games/hue-and-cry/data/encounters"
+  # One contract: Sergeant Brask's price for losing your file.
+  threads: "games/hue-and-cry/data/rules/threads.yaml"
   art_subjects: "games/hue-and-cry/data/art/subjects.yaml"
   art_manifest: "games/hue-and-cry/data/art/manifest.yaml"
   art_root: "games/hue-and-cry/data/art/plates"

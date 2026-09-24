@@ -1,0 +1,201 @@
+# HUE & CRY -- a Lantern knows your face.
+#
+# Read by engine/game/encounter.py through `paths.encounters`. This scene is
+# never drawn on a road: it has no `triggers`, and every edge in Tallowmere
+# carries `danger_dc: 0`, so `roll_for_encounter` can never pick it. It opens
+# one way only -- data/rules/law.yaml names it as `arrest.encounter`, and
+# engine/world/law.py::patrol begins it when a watchman standing in the street
+# recognises the face the player is wearing.
+#
+# FIVE WAYS OUT, one check each (`ends: true` on every approach but talk,
+# whose partial keeps the scene open until the scene's three rounds run out):
+#
+#   run        stealth. A clean getaway, or -- on a failure -- the cells.
+#   talk       persuasion, hard: he has already said it out loud. A partial
+#              buys one more sentence; a failure is the cells.
+#   bribe      coin, no roll: Lanterns are paid badly and know it. The price
+#              is `cost_per_severity` x the charge he would lay on you here
+#              (engine/game/encounter.py::approach_cost), so a stranger with
+#              one lift on file pays three crowns and a thief with ten pays
+#              thirty. Measured: at 3 a thief who bribes whenever it can is
+#              still arrested on 80% of runs, and pays a fifth of what it
+#              lifts; at the spec's 5 it could afford about one stop in two
+#              hundred.
+#   surrender  no roll: the cells, fined or sentenced by what the Watch has on
+#              file (engine/world/law.py::sentence_for).
+#   fight      nerve. Whatever happens, you struck a Lantern in front of
+#              Lanterns: `assault_watch`, seen for certain by every watchman
+#              present (the `deed` effect, `seen_by_watch`). Win and you run
+#              with the worst crime in the book on your file; lose and you are
+#              carried to the cells with it on your charge sheet.
+#
+# `{type: arrest}` moves the player to the Lantern House, takes every HOT
+# thing they carry, and holds them until they pay the fine or serve the days.
+#
+# Version: v0.2.0 [2026-09-24]
+
+encounters:
+
+  - id: watch_stop
+    tier: 1
+    intro: >-
+      A lamp on a pole swings round and stops on your face, and the Lantern
+      behind it goes very still in the particular way of a man comparing a
+      face to a drawing he has looked at a great many times. "You," he says.
+      "Hold there. Hands where I can see them." Around you the street
+      discovers something urgent to do somewhere else.
+    threat: { name: "A Lantern of the Watch", resolve: 3 }
+    max_rounds: 3
+    approaches:
+
+      run:
+        skill: stealth
+        difficulty: easy
+        text: "Bolt into the crowd before the whistle"
+        ends: true
+        outcomes:
+          crit_success:
+            text: >-
+              Two turnings, a laundry line, a cart of tallow going the other
+              way -- and when the whistle finally blows it blows three streets
+              behind you, at nobody. Somewhere a Lantern is explaining to his
+              sergeant that you vanished. He is not wrong.
+            outcome: escaped
+          success:
+            text: >-
+              You are gone before he finishes the word "stop". The whistle
+              shrills behind you, footsteps pound the wrong alley, and you
+              walk the last street at the pace of an honest person with
+              somewhere to be.
+            outcome: escaped
+          partial:
+            text: >-
+              You get clear, but only just, over a wall that takes skin off
+              both palms and into a yard with a dog that has opinions. The
+              whistle fades. Your lungs do not.
+            outcome: escaped
+            effects:
+              - { type: stamina, delta: -12 }
+          failure:
+            text: >-
+              You make it eleven steps. The twelfth is into the back of a
+              porter with a crate of candles, and the Lantern's hand lands on
+              your collar while the candles are still rolling. "The Lantern
+              House," he says, breathing hard, "and I'll hear no more about
+              it."
+            outcome: arrested
+            effects:
+              - { type: arrest }
+
+      talk:
+        skill: persuasion
+        difficulty: hard
+        text: "Explain, reasonably, that he has the wrong face"
+        outcomes:
+          crit_success:
+            text: >-
+              You talk, and something in it lands -- the barge you came off,
+              the name of the inn, the plain unlikeliness of a master thief
+              standing still to argue. He lowers the lamp. "Go on, then," he
+              says, and looks almost sorry, which is worse.
+            outcome: talked_down
+            ends: true
+          success:
+            text: >-
+              He listens, which is a start, and then he looks at the drawing
+              again, and then at you, and then he sighs. "Not tonight," he
+              says. "But I know your face now." The lamp swings away.
+            outcome: talked_down
+            ends: true
+          partial:
+            text: >-
+              He wavers. The lamp dips an inch. "Keep talking," he says, "and
+              make it good," and his other hand has not left the whistle.
+          failure:
+            text: >-
+              You have a very good explanation. He has heard it before, from
+              the last four people he took in, word for word. "Tell it to the
+              sergeant," he says, and takes your arm, not unkindly, and not
+              letting go either.
+            outcome: arrested
+            ends: true
+            effects:
+              - { type: arrest }
+
+      bribe:
+        auto: true
+        degree: success
+        cost_per_severity: 3
+        text: "Press a few crowns into his free hand"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              The coins go into his glove and the glove goes into his pocket,
+              all in one movement, like a man who has done it before and hopes
+              to do it again. "Must have been someone else," he says, loudly,
+              to the street. "Easy mistake. Dark out."
+            outcome: bribed
+
+      surrender:
+        auto: true
+        degree: success
+        text: "Hold out your wrists and go quietly"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You hold out your wrists. He blinks -- nobody ever does that --
+              and then the irons are on, cold and heavier than they look, and
+              you walk to the Lantern House with half the street pretending
+              not to follow.
+            outcome: arrested
+            effects:
+              - { type: arrest }
+
+      fight:
+        skill: nerve
+        difficulty: hard
+        text: "Knock the lamp aside and hit him"
+        ends: true
+        outcomes:
+          crit_success:
+            text: >-
+              The lamp goes one way and the Lantern goes the other, into a
+              stack of empty barrels that tell the whole street about it. By
+              the time he is up you are gone -- and every Lantern in the city
+              will have heard by supper who put one of theirs in the barrels.
+            outcome: escaped
+            effects:
+              - { type: deed, deed: assault_watch, seen_by_watch: true }
+          success:
+            text: >-
+              One shove, one swing, and he sits down hard in the gutter with
+              his helmet over his eyes. You run. Behind you he is already
+              shouting your description, and he describes you very well.
+            outcome: escaped
+            effects:
+              - { type: deed, deed: assault_watch, seen_by_watch: true }
+              - { type: stamina, delta: -8 }
+          partial:
+            text: >-
+              You land one and take one, and you get away with a split lip and
+              the sound of the whistle following you three streets. He saw
+              exactly who hit him. So did everyone else.
+            outcome: escaped
+            effects:
+              - { type: deed, deed: assault_watch, seen_by_watch: true }
+              - { type: hp, delta: -3 }
+              - { type: stamina, delta: -12 }
+          failure:
+            text: >-
+              He has been hit by better people than you, and he tells you so
+              from on top of you, with his knee in your back and the whistle
+              in his teeth. They carry you to the Lantern House. Striking a
+              Lantern is a hanging word on Gallows Green, and every man in the
+              cells has heard what you did.
+            outcome: arrested
+            effects:
+              - { type: deed, deed: assault_watch, seen_by_watch: true }
+              - { type: hp, delta: -5 }
+              - { type: arrest }

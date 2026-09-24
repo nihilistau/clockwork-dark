@@ -87,11 +87,14 @@ def _world(seed: int = 42) -> GameState:
 class _Rigged:
     """A check result with a chosen degree -- the purse, not the dice, is under test."""
 
-    def __init__(self, degree: str) -> None:
+    def __init__(self, degree: str, margin: int = 0) -> None:
         self.degree = degree
+        # The Law reads the margin of a real CheckResult; a double without one
+        # would pass here and break the first story that declares both.
+        self.margin = margin
 
     def to_dict(self) -> dict[str, Any]:
-        return {"degree": self.degree}
+        return {"degree": self.degree, "margin": self.margin}
 
 
 def _rig(monkeypatch: pytest.MonkeyPatch, degree: str) -> list[tuple[str, str]]:

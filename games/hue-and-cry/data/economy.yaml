@@ -25,3 +25,14 @@ npc_marrow:
   sells:
     pewter_tankards: { price: 7 }
     brass_snuffer: { price: 5 }
+    # "A fair-day copy," says Marrow, not looking up. The Watch reads it
+    # otherwise (data/rules/law.yaml: the `magpie` guise).
+    magpie_mask: { price: 12 }
+
+# Dock Mag, on her crate at the head of the quay, 05:00 to 18:00. The one
+# honest counter in the city so far: she sells the Honest Company's smocks to
+# anyone who can carry a crate, and she will not buy a stolen thing -- she
+# knows exactly whose it was. The smock is the `porter` guise.
+npc_dock_mag:
+  sells:
+    porters_smock: { price: 4 }

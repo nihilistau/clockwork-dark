@@ -19,16 +19,17 @@ A lift is a stealth check against the mark's alertness (their ROLE's band, or
 Everything taken is written through ``effects.apply_effect``: gold through the
 ``gold`` kind, an item through the ``item`` kind carrying ``stolen_from``,
 which is what appends to ``state.provenance``. That record -- who, where, and
-the day -- is what makes a ring HOT. Nothing here reads witnesses or raises a
-hue and cry: a failed lift reports ``noticed: True`` and the Law release is the
-reader of that key. Here it is only narrated.
+the day -- is what makes a ring HOT. Where the story also declares a Law, every
+attempted lift is a ``pickpocket`` deed through ``law.commit_deed``: the receipt
+gains ``seen_by`` (witness ids, for the engine) and ``reported``. Without one,
+``noticed: True`` is only narrated.
 
 Every content fault is a ValueError naming the file, for the reason
 ``premises.py`` gives: a purse row naming an item the registry lacks would
 load, validate and lift nothing -- the inert shape this repo has shipped
 before.
 
-Version: v0.1.0 [2026-09-23]
+Version: v0.2.0 [2026-09-24]
 """
 
 from __future__ import annotations
@@ -56,6 +57,9 @@ LIFT_SKILL = "stealth"
 #: coin, which is why it is here: reporting it as failed is the v0.8 `work`
 #: mistake of calling a shift that happened one that did not.
 _TOOK_SOMETHING = frozenset({"crit_success", "success", "partial"})
+#: The Law's deed kind a lift commits. Named in the story's law file with its
+#: severity; a story whose file omits it has decided a lifted purse is no crime.
+PICKPOCKET_DEED = "pickpocket"
 
 
 # ---------------------------------------------------------------------------
@@ -249,12 +253,13 @@ def lift(state: GameState, npc_id: str) -> dict[str, Any]:
 
     Returns:
         ``{"ok", "npc_id", "mark", "degree", "success", "noticed", "gold",
-        "item_id", "item", "check"}`` on an attempt, or ``{"ok": False,
+        "item_id", "item", "check"}`` on an attempt -- plus ``seen_by`` and
+        ``reported`` where the story declares a Law, or ``{"ok": False,
         "message"}``.
     """
     from engine.game import checks, inventory
     from engine.game.effects import apply_effect
-    from engine.world import npc_sim
+    from engine.world import law, npc_sim
 
     if not declared():
         return {"ok": False, "message": "there is nobody here to rob"}
@@ -287,6 +292,22 @@ def lift(state: GameState, npc_id: str) -> dict[str, Any]:
         "item": "",
         "check": check.to_dict(),
     }
+    if law.declared():
+        # A lift is the deed whether or not the hand came away full. A caught
+        # hand is seen by its mark for certain; a clean one is not seen by its
+        # mark at all -- the check already answered for them, and a receipt
+        # saying "unnoticed" must not list the mark among the witnesses.
+        # Everyone else rolls, the stealth margin shading their chance. Gated
+        # so a story with thievery and no Law keeps a byte-identical receipt.
+        seen = law.commit_deed(
+            state,
+            PICKPOCKET_DEED,
+            margin=check.margin,
+            certain=(npc_id,) if receipt["noticed"] else (),
+            exclude=() if receipt["noticed"] else (npc_id,),
+        )
+        receipt["seen_by"] = seen["witnesses"]
+        receipt["reported"] = seen["reported"]
     if receipt["noticed"]:
         logger.info("[thievery] Lift noticed (operation=lift, npc=%s, band=%s)", npc_id, band)
         return receipt

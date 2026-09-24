@@ -14,6 +14,310 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-09-24
+
+**The Law**, the second of the four v0.9 engine features, proven against HUE
+& CRY: Tallowmere gets a watch that sees, remembers, spreads word and can put
+you in the cells. A lift, a casing or an unwelcome offer to a fence is now a
+witnessed deed; word of it travels person to person; the watch adds it to a
+wanted level per guise per district that cools with quiet days; a mask fools
+the watch until it does not; and a Lantern who knows your face opens a stop
+with five ways out, one of which is the cells and a charge sheet you can pay
+off or serve out. The narrator and the player's own screen both see the same
+facts the watch does, in the story's words, never a number.
+
+### Added
+
+- **Deeds and witnesses** (engine; `law.commit_deed`, effect kind `witness`,
+  RNG stream `law`). In a story with a Law, a lift is a `pickpocket` deed,
+  casing a house is `loitering` and offering hot goods to an honest vendor is
+  `fencing`. Everyone awake where it happens may see it — less often at dusk
+  and night, less often the better the stealth roll; a caught hand is always
+  seen by its mark and a clean one never is. A witness who is the watch
+  reports at once, a `reporters` role at its chance, and the refusing vendor
+  always. Every witness and report of one deed shares a deed id, and the
+  wanted score counts each deed once, at its clearest report, however many
+  saw it. A deed inside a house is filed with its street's watch. Loitering
+  is remembered and never reported on its own. The lift,
+  case and sell receipts gain `seen_by` and `reported`; the narrator's receipt
+  lines carry no ids (rendering who saw is a later task). Stories without a
+  Law are unchanged.
+- **Reports travel** (engine; `law.propagate`, called from
+  `clock.advance_time`). In a story with a Law, what a witness saw moves person
+  to person, one remove per in-game hour, between people awake in the same
+  room through that hour: each deed a person holds may be told with
+  `spread_per_hour` (default 0.3), at the next hop's precision, never past hop
+  3 and never to anyone who already holds it. Reaching the watch files a
+  report where that watchman stands, so a baker's sighting can raise the
+  town's wanted level by nightfall. The watch's memory now cools on the clock
+  too, hour by hour, so a report filed late in a long sleep is not forgiven by
+  the hours before it. Both run on the hours that actually passed — twelve
+  one-hour turns and one twelve-hour sleep leave the Law identical, and a long
+  sleep carries talk two days at most. The `witness` effect accepts a told
+  copy only if someone holds that deed one hop nearer and at that hop's
+  precision, and the copy keeps the sighting's deed, severity, guise and
+  place. Stories without a Law never enter the pass.
+- **Wanted per guise per district** (engine; `paths.law`,
+  `engine/world/law.py`). A story may declare one law file — jurisdictions,
+  deeds and their severities, wanted bands and thresholds, guises, the watch's
+  starting links, arrest — validated at load, every fault naming the file. The
+  wanted level per guise per jurisdiction is Σ severity × precision over the
+  reports filed there (each file cooling on its own), shared by guises the
+  watch believes are one person, and spoken as a band word, never a number.
+  New effect kinds `report`, `quash_reports` and `law_cool`; new saved field
+  `GameState.law` (empty for a story with no Law, and for old saves). A quash
+  lasts: the deeds it lost are remembered per jurisdiction (`law.quashed`)
+  and that watch-house refuses to re-file them when a witness's gossip
+  reaches one of its watchmen — another district's watch still can.
+- **Guises** (engine; verb `guise`, skill `change_guise`, effect kinds
+  `law_guise` and `law_link`, `law.change_guise`). In a story with a Law, the
+  player may put on any guise whose item is carried, or their own face,
+  costing no time. The verb offers exactly those, never the one already
+  worn. If anyone present and available notices the change, the watch's
+  belief updates — the old face and the new one are joined in `links`, from
+  then on read together by `wanted_score` and `same_person` — the same roll
+  `commit_deed` uses, on the same `law` stream. A committed deed always files
+  whichever guise is worn at the time. `law_link` seeds `state.law["links"]`
+  from the file's own starting belief the first time it writes, rather than
+  replacing it with a set of one; both new effects are symmetric,
+  deduplicated and independently validated. Stories without a Law never offer
+  the verb.
+- **Patrols, arrest and custody** (engine; `law.recognition`, `law.patrol`,
+  effect kinds `arrest` and `release`, verbs `pay_fine` and `serve`, skills
+  `pay_fine` and `serve_sentence`). Once a turn, after the chosen intent and
+  before narration, each watchman present and awake rolls on the `law` stream
+  to know the face the player wears: `recognise[band]` × the clearest report
+  the watch holds on that face (or a linked one) in this jurisdiction. Bands
+  the file does not list never roll, and nothing rolls while held or while a
+  scene is open. A hit opens the story's `arrest.encounter` and tells the
+  narrator who knew which face; a law file naming a missing encounter fails at
+  load, naming the file, wherever the story declares `paths.encounters` (a
+  scene that vanishes after load warns once). An `arrest` outcome moves the player to the gaol,
+  confiscates every HOT unit carried (a mixed stack keeps its cool ones; the
+  `provenance` effect gains `newest: true` for this) and sets custody: fine =
+  `fine_per_severity` × S and days = `days_per_severity` × S (at least one
+  when S > 0), where S is the severity charged here against that face and its
+  linked faces, each deed once. While held, travel is neither offered nor
+  accepted by `move_to`, and no house is offered to `case`; rest is still
+  offered. `pay_fine` (offered only with
+  the coin) and `serve` (days × 24 hours through `advance_time`, a meal at a
+  time with the prisoner fed before each, so a sentence never starves anyone)
+  close exactly the deeds the arrest charged — recorded in custody — through
+  the new `law_discharge` effect, which drops their reports and witness rows
+  and remembers them so neither `report` nor `witness` accepts them again.
+  Deeds committed from the cell stay filed; a bare `release` (a story's
+  break-out) closes nothing; a death's respawn ends custody. No roll happens
+  while an encounter, a dealt card or a set-piece owns the turn
+  (`intents.scene_owns_turn`, shared with the verb catalogue), nor on a turn
+  that began inside one, so escaping a stop is not followed by the same stop.
+  Stories without a Law never reach the patrol.
+- **A deed from authored content** (engine; effect kind `deed`). `{type:
+  deed, deed: <kind>}` commits a deed through `law.commit_deed`, so a
+  scene's outcome can be a crime; `seen_by_watch: true` makes every awake
+  law-role person present a certain witness. Refused for a kind the law file
+  does not list. The watch_stop's fight uses it.
+- **The narrator and the player see the Law** (engine; `prompts.law_block`,
+  `evaluator.contradicts`, `to_client_dict`'s `law` key). In a story with a
+  Law, the world-state block gains a `THE LAW:` section — never a score, a
+  precision or an id — with only the lines that apply: who saw the deed
+  committed THIS turn, by display name ("clearly" at precision 1.0, "only a
+  glimpse" otherwise) — every deed, seen or not, updates `law.last_deed`
+  (stamped with the turn when seen, cleared when not), so an unseen lift
+  names nobody and a deed from an earlier turn
+  says nothing; the wanted
+  band for the guise currently worn, in this jurisdiction, once it is above
+  the story's own floor band; the law-role people standing here; and
+  custody, if held, as the story's own money and the days in words. The
+  evaluator now catches a clean-getaway claim ("unseen", "no one noticed",
+  "you slip away unnoticed"…) narrated over a receipt whose result carries
+  `noticed: true` — `lift_purse`'s own word for a caught hand — alongside
+  its existing checks, without flagging honest caught-prose. The player's
+  own payload gains a `law` key (`guise_label`, `wanted` by jurisdiction
+  label — an optional `labels:` map in the law file, else a humanised id —
+  and `custody`), omitted entirely for a story with no Law so the flagship's
+  payload stays byte-identical. Nothing renders it yet; see
+  docs/GOVERNANCE.md's NOT WIRED table.
+- **HUE & CRY's Law, measured** (story; `paths.law`, `paths.encounters`,
+  `paths.threads` in `games/hue-and-cry/game.yaml`). Tallowmere gets its
+  Lantern Watch: three watch-houses (the Quay, the Wick wards, up the Rise;
+  the three secret places answer to none), the respectable city as reporters
+  and the Low Town not, guises `self` / `magpie` / `porter` with the Watch
+  believing from the first morning that you are the Magpie. A Lantern who
+  knows your face opens `watch_stop`, the Lantern's stop, with five ways out
+  in the story's register: run (stealth, easy), talk (persuasion, hard; a
+  partial buys another sentence), bribe (three crowns a severity of the
+  charge he would lay, no roll), surrender, and fight (nerve, hard) — which
+  is `assault_watch` whether you win or lose.
+  A failed run, a failed talk, surrender and a lost fight are the cells.
+  Dock Mag, the first honest vendor, sells the porter's smock on the quay;
+  Marrow sells a Magpie mask he swears is a fair-day copy. Sergeant Brask's
+  price (`brask_bribe`): strike it at his desk in the Lantern House, then
+  settle it with twelve crowns in the biscuit tin and every report the Wick
+  holds against you — and against the Magpie while the Watch believes you
+  are one — goes missing. An arrest costs three crowns a severity, at most
+  30, or at most three days in the cells. The narrator's prompt gains
+  a paragraph on how the Lanterns and being wanted feel in this city.
+- **The Law's numbers, measured** (`scripts/simulate_law.py`, new; AGENTS.md
+  rule 10). A headless harness that plays HUE & CRY through
+  `execute_intent` and the real patrol: 40 seeds x 10 in-game days, a
+  CAREFUL thief (one lift a night in the Snuffs in a porter's smock put on
+  unseen) and a RECKLESS one (three lifts every afternoon in Wickmarket in
+  its own face, lingering among the Lanterns), both running from every
+  stop, and a BRIBER — the reckless thief paying every Lantern it can.
+  `--set key=value` tries a number without editing the file. What moved
+  from the plan's starting numbers: `wanted.cool_per_day` 1.5 -> 0.5,
+  `wanted.thresholds` [0,2,5,9,14] -> [0,2,4,7,11], `recognise`
+  0.25/0.5/0.8 -> 0.03/0.06/0.12 (it rolls per Lantern per turn, and
+  Wickmarket at lunch holds four), `reporters` from two roles to the
+  respectable city, the stop's `run` from `standard` to `easy`, and (fix
+  round 1) the arrest from six crowns and one day a severity uncapped to
+  three crowns a severity capped at 30 and three days, with the street bribe
+  scaled at three a severity.
+  `tests/test_hue_and_cry.py` asserts the floors over the first 12 seeds.
+
+  First tuning — the plan's starting numbers:
+
+  ```
+  careful (40 seeds)
+  | day | median band (wick) | witnessed | reported | s/day |
+  |---|---|---|---|---|
+  | 1 | unknown | 0.00 | 0.00 | 0.016 |
+  | 2 | unknown | 0.85 | 0.00 | 0.022 |
+  | 3 | unknown | 0.78 | 0.00 | 0.031 |
+  | 4 | unknown | 0.78 | 0.00 | 0.034 |
+  | 5 | unknown | 0.78 | 0.00 | 0.038 |
+  | 6 | unknown | 0.88 | 0.00 | 0.040 |
+  | 7 | unknown | 0.68 | 0.00 | 0.042 |
+  | 8 | unknown | 0.85 | 0.00 | 0.043 |
+  | 9 | unknown | 0.82 | 0.00 | 0.045 |
+  | 10 | unknown | 0.85 | 0.00 | 0.046 |
+  below sought on 100% of seed-days; wanted by day 4 on 0% of seeds; first sought median day None (40 never); arrests/run 0, runs with an arrest 0%; stops/run 0; min hp after a sentence None (0 served); slowest day 0.059s
+
+  reckless (40 seeds)
+  | day | median band (wick) | witnessed | reported | s/day |
+  |---|---|---|---|---|
+  | 1 | unknown | 0.95 | 0.78 | 0.052 |
+  | 2 | noticed | 0.91 | 0.73 | 0.064 |
+  | 3 | noticed | 0.97 | 0.82 | 0.070 |
+  | 4 | unknown | 0.94 | 0.78 | 0.085 |
+  | 5 | unknown | 0.81 | 0.71 | 0.069 |
+  | 6 | unknown | 0.89 | 0.84 | 0.087 |
+  | 7 | unknown | 1.00 | 0.62 | 0.080 |
+  | 8 | unknown | 0.67 | 0.67 | 0.111 |
+  | 9 | unknown | 0.50 | 0.50 | 0.376 |
+  | 10 | unknown | 0.00 | 0.00 | 0.000 |
+  below sought on 98% of seed-days; wanted by day 4 on 0% of seeds; first sought median day 4 (34 never); arrests/run 1, runs with an arrest 100%; stops/run 2.73; min hp after a sentence 20 (40 served); slowest day 0.376s
+  ```
+
+  Final tuning — as shipped (after review fix round 1: sentence caps, a
+  scaled bribe, and a third policy, BRIBER, the reckless thief paying every
+  Lantern it can afford and running otherwise):
+
+  ```
+  careful (40 seeds)
+  | day | median band (wick) | witnessed | reported | s/day |
+  |---|---|---|---|---|
+  | 1 | unknown | 0.00 | 0.00 | 0.019 |
+  | 2 | unknown | 0.85 | 0.00 | 0.024 |
+  | 3 | unknown | 0.78 | 0.00 | 0.033 |
+  | 4 | unknown | 0.78 | 0.00 | 0.036 |
+  | 5 | unknown | 0.78 | 0.00 | 0.040 |
+  | 6 | unknown | 0.88 | 0.00 | 0.041 |
+  | 7 | unknown | 0.68 | 0.00 | 0.042 |
+  | 8 | unknown | 0.85 | 0.00 | 0.045 |
+  | 9 | unknown | 0.82 | 0.00 | 0.049 |
+  | 10 | unknown | 0.85 | 0.00 | 0.048 |
+  below sought on 100% of seed-days; wanted by day 4 on 0% of seeds; first sought median day None (40 never); arrests/run 0, runs with an arrest 0%; stops/run 0; min hp after a sentence None (0 served, longest None days; 0 fines paid); bribes/run 0, 0% of lifted income; slowest day 0.079s
+
+  reckless (40 seeds)
+  | day | median band (wick) | witnessed | reported | s/day |
+  |---|---|---|---|---|
+  | 1 | noticed | 0.95 | 0.83 | 0.057 |
+  | 2 | sought | 0.90 | 0.77 | 0.071 |
+  | 3 | sought | 0.93 | 0.85 | 0.085 |
+  | 4 | wanted | 0.95 | 0.80 | 0.095 |
+  | 5 | wanted | 0.90 | 0.76 | 0.094 |
+  | 6 | noticed | 0.93 | 0.81 | 0.103 |
+  | 7 | noticed | 0.90 | 0.85 | 0.101 |
+  | 8 | noticed | 0.96 | 0.81 | 0.101 |
+  | 9 | sought | 0.89 | 0.85 | 0.092 |
+  | 10 | sought | 0.96 | 0.78 | 0.092 |
+  below sought on 44% of seed-days; wanted by day 4 on 78% of seeds; first sought median day 2 (0 never); arrests/run 0.85, runs with an arrest 80%; stops/run 6.5; min hp after a sentence 20 (25 served, longest 3 days; 9 fines paid); bribes/run 0, 0% of lifted income; slowest day 0.18s
+
+  briber (40 seeds)
+  | day | median band (wick) | witnessed | reported | s/day |
+  |---|---|---|---|---|
+  | 1 | noticed | 0.95 | 0.83 | 0.055 |
+  | 2 | sought | 0.90 | 0.77 | 0.070 |
+  | 3 | sought | 0.93 | 0.85 | 0.084 |
+  | 4 | wanted | 0.95 | 0.80 | 0.092 |
+  | 5 | wanted | 0.91 | 0.75 | 0.097 |
+  | 6 | wanted | 0.93 | 0.81 | 0.110 |
+  | 7 | unknown | 0.91 | 0.85 | 0.098 |
+  | 8 | unknown | 0.96 | 0.81 | 0.096 |
+  | 9 | noticed | 0.91 | 0.85 | 0.092 |
+  | 10 | sought | 0.95 | 0.79 | 0.093 |
+  below sought on 45% of seed-days; wanted by day 4 on 78% of seeds; first sought median day 2 (0 never); arrests/run 0.82, runs with an arrest 80%; stops/run 6.45; min hp after a sentence 20 (27 served, longest 3 days; 6 fines paid); bribes/run 0.25, 19% of lifted income; slowest day 0.199s
+  ```
+
+  Careful stays below `sought` on 100% of seed-days (target >= 60%);
+  reckless is `wanted` by day 4 on 78% of seeds (>= 60%) and arrested at
+  least once in 10 days on 80% (50%..95%) — and so is the briber, whose
+  bribes cost it 19% of what it lifted: coin is a choice, not a pass. No
+  sentence is longer than three days (`arrest.max_days`); a quarter of the
+  reckless arrests end in a paid fine (three crowns a severity, capped at
+  30). A sentence never dropped hp (min 20 of 20); the slowest in-game day,
+  with 98 people and rumour resolved hourly, took 0.2 s. Before the fix the
+  same harness measured sentences up to 27 days and no fine ever paid.
+- **A thread can require something to be settled** (engine;
+  `discharge_requires` on a thread template, `threads.can_discharge`). A
+  condition from the shared grammar; while it does not hold the `discharge`
+  verb does not offer the thread and `threads.discharge` refuses, writing
+  nothing — a bribe whose settlement pays the sergeant is not settled by an
+  empty purse (the `gold` effect clamps at zero). Templates without the key
+  seal threads of exactly the old shape.
+- **A thread can require something to be struck** (engine; `requires` on a
+  thread template, `threads.can_strike`). A condition from the shared
+  grammar; while it does not hold the `bargain` verb does not offer the
+  template and `strike_bargain` refuses, sealing nothing. HUE & CRY's
+  `brask_bribe` requires `at_location: lantern_house` — Brask names his price
+  at his desk — and quashes only the Wick's files.
+- **Sentence caps** (engine; optional `arrest.max_days` and `arrest.max_fine`
+  in a law file, integers of at least 1, applied last in
+  `law.sentence_for`). HUE & CRY sets 3 days and 30 crowns.
+- **An approach can cost more the more the Watch has on you** (engine;
+  `cost_per_severity` on an encounter approach, `encounter.approach_cost`).
+  Adds that many crowns per severity of `law.charged_severity` for the face
+  worn in this jurisdiction — the charge an arrest would lay — to any flat
+  `cost_gold`; checked for availability, reported as the approach's
+  `cost_gold`, and paid on taking it. Nothing changes for an approach
+  without the key. HUE & CRY's street bribe is 3 a severity.
+
+### Fixed
+
+Bugs in code that shipped in 0.9.0 or earlier. Faults found and fixed inside
+this release's own new code are folded into the entries above rather than
+listed as fixes to something no player ever had.
+
+- **A thread's authored structural effects were silently dropped.** Thread
+  hooks were bounded with the model-composed challenge allowlist, so an
+  `ending_intent`, `ending_lock` or `ending_module` in a template's
+  `on_seal`/`on_discharge`/`on_break` never ran. Thread hooks come only from
+  the story's own `threads.yaml`, so they are now bounded as authored content
+  (`_bound_effects`, `authored=True`); `quash_reports` joins the authored-only
+  structural types, which is how Brask's bribe quashes anything at all. A
+  model-composed challenge still cannot use any of them, and magnitude clamps
+  are unchanged. Every other Law kind in a thread hook is still dropped, with
+  a logged adjustment (docs/AUTHORING.md §3.11).
+- **A struck thread was offered again forever.** `threads.offerable` looked
+  for a `template_id` no sealed thread carries (it is `template`), so the
+  "a template already sealed is not offered again" rule never held.
+- **"Death rules missing" is logged once per path**, not after every
+  encounter round in a story that ships no `death.yaml` (HUE & CRY's waits
+  for v1.0; until then a lost fight can leave hp at zero with no respawn).
+
+2406 passing, 3 skipped, plus 144 client tests (measured 2026-09-24).
+
 ## [0.9.0] — 2026-09-23
 
 The first of the four v0.9 engine features, proven against HUE & CRY as it
@@ -928,7 +1232,11 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.9.0...v0.10.0
+[0.9.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.8.1...v0.9.0
+[0.8.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.8.0...v0.8.1
+[0.8.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/nihilistau/clockwork-dark/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.6.2...v0.7.0

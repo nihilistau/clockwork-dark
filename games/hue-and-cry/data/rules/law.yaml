@@ -1,0 +1,134 @@
+# HUE & CRY -- the Lantern Watch, and what it thinks it knows.
+#
+# Read by engine/world/law.py through `paths.law`. The contract is the
+# module's docstring; this file is Tallowmere's answer to it.
+#
+# EVERY NUMBER HERE WAS MEASURED (AGENTS.md rule 10), with
+# scripts/simulate_law.py: 40 seeds x 10 in-game days, a CAREFUL thief (one
+# lift a night in the Snuffs in a porter's smock put on unseen) and a RECKLESS
+# one (three lifts every afternoon in Wickmarket, in its own face, lingering
+# among the Lanterns at lunch). The targets, and what the final numbers gave:
+#
+#   careful below `sought` on >= 60% of seed-days          100%
+#   reckless reaches `wanted` by day 4 on >= 60% of seeds    78%
+#   reckless arrested at least once in 10 days, 50%..95%     80%
+#   ...and so is one who bribes whenever it can              80%
+#   no sentence longer than max_days                          3
+#
+# The full table, first tuning and last, is in CHANGELOG.md. What moved from
+# the plan's starting numbers and why:
+#
+#   wanted.cool_per_day  1.5 -> 0.5. At 1.5 a thief lifting three purses a
+#                        day under the Watch's nose cooled faster than it
+#                        heated: the reckless median band was `unknown` on
+#                        day 4 and nobody reached `wanted` in four days.
+#   wanted.thresholds    [0,2,5,9,14] -> [0,2,4,7,11]. With cooling at 0.5 a
+#                        day, 9 for `wanted` still took most seeds past day 4.
+#   recognise            0.25/0.5/0.8 -> 0.03/0.06/0.12. Recognition rolls
+#                        once a TURN per Lantern present, and Wickmarket at
+#                        lunch holds up to four: at the plan's numbers a stop
+#                        was certain within a day of `sought`, and every
+#                        reckless run was arrested by day 7. These are per
+#                        Lantern per turn; lingering among four of them for
+#                        six turns is still a stop most days once wanted.
+#   reporters            two roles -> the respectable city. The Low Town
+#                        (porters, warehousemen, the Company, landlords) is
+#                        left out on purpose: nobody in the Snuffs runs to a
+#                        Lantern, which is exactly why a careful thief works
+#                        there -- its lifts reach the Watch only by rumour,
+#                        second- and third-hand, and blurred.
+#
+# Unchanged from the plan, because measurement did not ask them to move:
+# `notice` (0.6 by day, 0.35 after dusk), `precision`, `spread_per_hour`
+# and the severities. The watch_stop's `run` is `easy`
+# (data/encounters/watch_stop.yaml), set in the same measurement: at
+# `standard` a stop was an arrest a third of the time, and arrest was certain.
+#
+# THE ARREST (fix round 1). Uncapped, one day and six crowns a severity made
+# sentences of 9 to 27 days -- longer than the story -- and fines of 54 to 162
+# crowns against the 11 to 31 a working thief holds, so nobody ever paid. Now
+# three crowns a severity, capped at 30, and at most three days: measured, a
+# quarter of the reckless arrests end in a paid fine and none in more than three
+# days in the cells. The bribe on the street scales the same way (watch_stop).
+# A thief who bribes every Lantern it can afford is still arrested on 80% of
+# runs -- the same as one who always runs -- so the coin is a choice, not a
+# pass.
+#
+# Version: v0.2.0 [2026-09-24]
+
+# Schedule roles that ARE the law (data/world/npc_schedules.yaml): Captain
+# Ardane, Sergeant Brask, Lanterns Tully and Hobb. A Lantern who sees a deed
+# reports it on the spot.
+roles: [watch, sergeant, captain]
+
+# The chance a witness of each role goes straight to the Watch. The Hill, the
+# Row and the Rise report; the Low Town does not (see above).
+reporters:
+  steward: 0.6
+  factor: 0.5
+  noble: 0.5
+  butler: 0.5
+  merchant: 0.4
+  householder: 0.3
+  footman: 0.3
+  housekeeper: 0.3
+  clerk: 0.3
+  priest: 0.3
+  chandler: 0.2
+  maid: 0.2
+  cook: 0.1
+
+# Three watch-houses' worth of streets. The three secret places -- the
+# Undercroft, the Rooftop Road and the Old Bell Tower -- are in none: no
+# Lantern goes there, so a deed done there is witnessed and never filed.
+jurisdictions:
+  quay: [tallow_docks]
+  wick: [wickmarket, the_snuffs, lantern_house, gallows_green]
+  rise: [silk_row, chandlers_rise, margraves_hill]
+
+# How the city names them. The narrator and the player see these, never ids.
+labels:
+  quay: "the Quay"
+  wick: "the Wick wards"
+  rise: "up the Rise"
+
+deeds:
+  pickpocket: {severity: 1}
+  loitering: {severity: 0}      # remembered (casing a house), never reported
+  fencing: {severity: 2}        # hot goods offered at an honest counter
+  assault_watch: {severity: 5}  # the watch_stop's `fight`
+
+notice:
+  base: 0.6
+  night: -0.25                  # dusk and night: lamp-lighting to dawn
+  per_margin: -0.05             # per point of a lift's stealth margin
+
+wanted:
+  bands: [unknown, noticed, sought, wanted, hunted]
+  thresholds: [0, 2, 4, 7, 11]
+  cool_per_day: 0.5
+
+precision: {1: 1.0, 2: 0.6, 3: 0.3}
+
+# Per Lantern present, per turn, times the best precision the Watch holds on
+# the face you wear. `unknown` and `noticed` are never recognised.
+recognise: {sought: 0.03, wanted: 0.06, hunted: 0.12}
+
+spread_per_hour: 0.3
+
+guises:
+  self: {label: "your own face"}
+  magpie: {label: "the Magpie's mask", item: magpie_mask}   # Marrow sells one
+  porter: {label: "a porter's smock", item: porters_smock}  # Dock Mag sells them
+
+# What the Watch believes on the morning barge: Lantern Tully shouted it in
+# front of the whole quay, and the Watch has not changed its mind.
+links: [[self, magpie]]
+
+arrest:
+  encounter: watch_stop         # data/encounters/watch_stop.yaml
+  gaol: lantern_house
+  fine_per_severity: 3
+  days_per_severity: 1
+  max_fine: 30
+  max_days: 3

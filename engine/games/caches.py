@@ -86,6 +86,13 @@ NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
     # Parsed thievery file: alertness bands, purses, hot_days. A swap that kept
     # it warm would rob one city's stewards with another's purses.
     ("engine.world.thievery", "_SPEC_CACHE"),
+    # Parsed law file: jurisdictions, deeds, bands, guises. A swap that kept it
+    # warm would police one city with another's watch.
+    ("engine.world.law", "_SPEC_CACHE"),
+    # Warn-once memory for an arrest scene the story's encounters lack; per story.
+    ("engine.world.law", "_WARNED_ENCOUNTERS"),
+    # Warn-once memory for a story's missing death rules; per story.
+    ("engine.game.encounter", "_WARNED_DEATH"),
     ("engine.media.comfyui", "_TEMPLATE_CACHE"),
     ("engine.mcp.scene_rules_engine", "_rules_instance"),
     ("engine.game.quests", "_ARC_CACHE"),

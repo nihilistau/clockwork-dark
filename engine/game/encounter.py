@@ -187,6 +187,11 @@ def _read_death(path_str: str, _mtime: float) -> dict[str, Any]:
         return {}
 
 
+# Death-rules paths already warned about as missing. Nulled per activation
+# (engine/games/caches.py), the `law._WARNED_ENCOUNTERS` pattern.
+_WARNED_DEATH: Optional[set[str]] = None
+
+
 def load_death_rules() -> dict[str, Any]:
     """Load data/rules/death.yaml."""
     path = _death_rules_path()
@@ -196,9 +201,16 @@ def load_death_rules() -> dict[str, Any]:
     try:
         mtime = path.stat().st_mtime
     except OSError:
-        logger.warning(
-            "[encounter] Death rules missing (operation=load_death_rules, path=%s)", path
-        )
+        # Once per path: this runs after every encounter round, and a story
+        # that ships no death.yaml would otherwise log it on every one.
+        global _WARNED_DEATH
+        if _WARNED_DEATH is None:
+            _WARNED_DEATH = set()
+        if str(path) not in _WARNED_DEATH:
+            _WARNED_DEATH.add(str(path))
+            logger.warning(
+                "[encounter] Death rules missing (operation=load_death_rules, path=%s)", path
+            )
         return {}
     return _read_death(str(path), mtime)
 
@@ -500,13 +512,36 @@ def _approach_specs(row: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return merged
 
 
+def approach_cost(state: GameState, spec: dict[str, Any]) -> int:
+    """
+    What taking an approach costs in coin, now.
+
+    ``cost_gold`` is flat. ``cost_per_severity`` scales with the charge the
+    watch would lay against the player here -- ``law.charged_severity`` for
+    the face worn, in this jurisdiction, the same function the arrest's charge
+    reads -- so a bribe to a Lantern costs more the more he has on you. It
+    adds nothing in a story with no Law or outside any jurisdiction, and an
+    approach declaring neither costs nothing, exactly as before.
+    """
+    cost = int(spec.get("cost_gold", 0) or 0)
+    per = int(spec.get("cost_per_severity", 0) or 0)
+    if per:
+        from engine.world import law  # late: law imports encounter lazily too
+
+        if law.declared():
+            jurisdiction = law.jurisdiction_at(state.location_id)
+            if jurisdiction:
+                cost += per * law.charged_severity(state, law.current_guise(state), jurisdiction)
+    return cost
+
+
 def _approach_available(state: GameState, spec: dict[str, Any]) -> bool:
     """Whether the player can actually take this approach right now."""
     times = _as_list(spec.get("requires_time"))
     if times and state.time_of_day not in times:
         return False
 
-    cost = int(spec.get("cost_gold", 0) or 0)
+    cost = approach_cost(state, spec)
     if cost and state.stats.gold < cost:
         return False
 
@@ -558,7 +593,7 @@ def available_approaches(state: GameState) -> list[dict[str, Any]]:
                 "text": str(spec.get("text") or key.replace("_", " ").capitalize()),
                 "skill": str(spec.get("skill") or ""),
                 "difficulty": str(spec.get("difficulty") or ""),
-                "cost_gold": int(spec.get("cost_gold", 0) or 0),
+                "cost_gold": approach_cost(state, spec),
                 "auto": bool(spec.get("auto", False)),
             }
         )
@@ -655,7 +690,7 @@ def resolve_approach(
 
     # A declared cost is paid for taking the approach at all, win or lose. The
     # toll-takers keep the coin whether or not they also keep their manners.
-    cost = int(spec.get("cost_gold", 0) or 0)
+    cost = approach_cost(state, spec)
     if cost:
         applied.append(effects_module.apply_effect(state, {"type": "gold", "delta": -cost}))
 
@@ -911,6 +946,13 @@ def _check_death_inner(
     state.location_id = location
     # An unresolved scene cannot survive the player being carried out of it.
     end(state)
+    # Nor can a cell. A prisoner who dies is carried out with everyone else;
+    # left in custody they would wake "held" somewhere with no road offered.
+    # The story moves on: released, the file still filed (engine/world/law.py).
+    from engine.world import law
+
+    if law.in_custody(state):
+        effects_module.apply_effect(state, {"type": "release"})
 
     text = str(respawn.get("text") or "You wake somewhere else, and later.")
     if ledger is not None:
