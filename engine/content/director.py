@@ -231,6 +231,79 @@ def due(state: GameState, *, ledger: Any = None) -> tuple[str, str, str]:
 
 
 # ---------------------------------------------------------------------------
+# Re-arming a repeatable deck
+# ---------------------------------------------------------------------------
+
+
+def _trigger_holds(state: GameState, deck: deck_module.Deck, *, ledger: Any = None) -> bool:
+    """
+    Whether anything is asking for this deck right now, played or not.
+
+    Two triggers, the two ways ``due`` deals: an active world-ledger row that
+    forces the deck or one of its cards (read WITHOUT the played flags -- the
+    question is whether the promise is still standing, not whether it is still
+    owed), or the deck's own ``when:``.
+    """
+    ids = {deck.id} | {c.id for c in deck.cards}
+    for event in state.world_events:
+        if clocks_module.event_forced_scene(event) in ids:
+            return True
+    if deck.when is None:
+        return False
+    from engine.game.quests import evaluate_condition
+
+    return bool(evaluate_condition(state, deck.when, ledger=ledger))
+
+
+def rearm(state: GameState, *, ledger: Any = None) -> list[str]:
+    """
+    Re-arm every spent ``repeatable`` deck whose trigger has fallen.
+
+    ONE DEAL PER RISING EDGE. A repeatable deck is spent by its deal exactly
+    as a one-shot deck is -- ``deck_played_<id>``, and for a forced deal
+    ``scene_played_<id>`` -- so it does not re-deal on every turn its trigger
+    stays true. It comes back only once that trigger has been seen FALSE: a
+    deck gated ``{in_custody: true}`` deals on the first arrest, not again
+    while the player is still held, and again on the second arrest. A forced
+    repeatable deck re-arms when no active world event forces it any more; a
+    clock beat's row is permanent, so a clock-forced deck never does.
+
+    THE FALL IS STATE. Clearing the played flags IS the "has fallen" bit, and
+    it is written through ``apply_effect`` like every other flag -- so it
+    rides the save, and a reload between the fall and the rise re-deals. It is
+    read here, at the turn, which is the only place a deal can happen, so how
+    ``advance_time`` was cut between two turns cannot change it. A fall and a
+    rise inside one turn are one fact to the director and deal nothing new.
+
+    Returns:
+        The deck ids re-armed. ``[]`` for a story with no decks, and for any
+        deck that does not declare ``repeatable: true`` -- the one-shot decks
+        every story shipped with are never read past that line.
+    """
+    rearmed: list[str] = []
+    for deck_id in deck_module.deck_ids():
+        deck = deck_module.load_deck(deck_id)
+        if deck is None or not deck.repeatable:
+            continue
+        spent = [_played_flag(deck_id)] + [
+            f"{clocks_module.SCENE_PLAYED_FLAG_PREFIX}{scene_id}"
+            for scene_id in [deck_id] + [c.id for c in deck.cards]
+        ]
+        spent = [flag for flag in spent if state.flags.get(flag)]
+        if not spent or _trigger_holds(state, deck, ledger=ledger):
+            continue
+        from engine.game import effects as effects_module
+
+        for flag in spent:
+            effects_module.apply_effect(state, {"type": "flag", "flag": flag, "value": False})
+        rearmed.append(deck_id)
+        logger.info(
+            "[director] Repeatable deck re-armed (operation=rearm, deck=%s)", deck_id
+        )
+    return rearmed
+
+
+# ---------------------------------------------------------------------------
 # Dealing
 # ---------------------------------------------------------------------------
 
@@ -340,6 +413,9 @@ def ensure_scene(state: GameState, *, ledger: Any = None) -> list[dict[str, Any]
     At most one scene is opened per turn: a hand is a scene, and dealing two in
     one turn would mean the player answered neither.
     """
+    # First, and before either early return: a repeatable deck's trigger that
+    # fell while a hand or a job held the turn still fell.
+    rearm(state, ledger=ledger)
     if active(state):
         return []
     # A burglary under way owns the turn the way a scene does. A card dealt

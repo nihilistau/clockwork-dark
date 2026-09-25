@@ -551,8 +551,9 @@ def law_block(state: GameState) -> str:
       - who saw the deed committed this turn, if any
         (``_law_last_deed_witnesses``), by display name, never an id;
       - the wanted band for the guise currently worn, in words, in THIS
-        jurisdiction -- and only when it is above the story's own floor band
-        (typically "unknown"), since "nobody is looking for you" is not a
+        jurisdiction, with how well the watch knows that face
+        (``law.clarity_word``, the payload's own word) -- and only when it
+        is above the story's own floor band (typically "unknown"), since "nobody is looking for you" is not a
         line worth the narrator's attention every turn;
       - the law-role people standing here, by display name;
       - custody, if held: the fine in the story's own money and the days in
@@ -588,8 +589,12 @@ def law_block(state: GameState) -> str:
         band = law.wanted_band(state, guise, jurisdiction)
         if band and band != bands[0]:
             where = law.jurisdiction_label(jurisdiction)
+            # The same word the payload's poster draws (`law.clarity_word`),
+            # so the prose and the sketch cannot disagree.
+            sketch = law.clarity_word(state, guise, jurisdiction)
             lines.append(
-                f"The watch in {where} is looking for {law.guise_label(guise)}: {band}."
+                f"The watch in {where} is looking for {law.guise_label(guise)}: {band}; "
+                f"it has {sketch} of you."
             )
 
     roles = set(spec.get("roles") or [])

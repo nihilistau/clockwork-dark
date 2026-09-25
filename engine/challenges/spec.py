@@ -202,6 +202,20 @@ STRUCTURAL_EFFECT_TYPES: frozenset[str] = frozenset(
     {"ending_intent", "ending_lock", "ending_module", "quash_reports"}
 )
 
+#: Effect types an AUTHORED CHALLENGE -- a set-piece from the story's own
+#: files -- may use on top of the structural ones, and nothing else may.
+#:
+#: ``release`` frees the player from the watch's custody. A story's break-out
+#: scene (a set-piece gated ``requires: {in_custody: true}``) is the one
+#: authored place that should be able to do that; the two engine ways out,
+#: ``law.pay_fine`` and ``law.serve_sentence``, call it directly. It is NOT in
+#: ``STRUCTURAL_EFFECT_TYPES`` because threads and deck gates bound through
+#: that set: a sealed bargain or a dealt card that opened the cell door would
+#: be a pardon with no scene behind it. A model-composed spec gets neither
+#: set -- a dice table springing the player is the hijack the note on
+#: ``track`` above describes.
+AUTHORED_CHALLENGE_EFFECT_TYPES: frozenset[str] = frozenset({"release"})
+
 #: How much of a bounded value's RANGE one scene may be worth.
 #:
 #: A sixth. The number is set by what the authored content actually asks for:
@@ -351,6 +365,7 @@ def _clamp_effect(
     adjustments: list[str],
     *,
     authored: bool = False,
+    extra_types: frozenset[str] = frozenset(),
 ) -> Optional[dict[str, Any]]:
     """
     Bound one effect, or drop it.
@@ -364,6 +379,8 @@ def _clamp_effect(
             ``STRUCTURAL_EFFECT_TYPES`` and changes nothing else -- every
             magnitude clamp still applies, because a beat's size is bounded by
             what a scene IS and not by who wrote it.
+        extra_types: Further types this caller admits. Only an authored
+            challenge passes any (``AUTHORED_CHALLENGE_EFFECT_TYPES``).
     """
     if not isinstance(effect, dict):
         return None
@@ -384,6 +401,7 @@ def _clamp_effect(
     allowed = allowed_effect_types()
     if authored:
         allowed = allowed | STRUCTURAL_EFFECT_TYPES
+    allowed = allowed | extra_types
     if bounded_name not in allowed:
         adjustments.append(f"dropped disallowed effect type {bounded_name!r}")
         return None
@@ -439,7 +457,11 @@ def _clamp_effect(
 
 
 def clamp_outcome(
-    raw: Any, adjustments: list[str], *, authored: bool = False
+    raw: Any,
+    adjustments: list[str],
+    *,
+    authored: bool = False,
+    extra_types: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
     """
     Bound one outcome block (``reward`` or ``fail``).
@@ -450,6 +472,8 @@ def clamp_outcome(
         authored: True when the block came from a story's own file rather than
             from a model. Defaults to False so the strict path stays the one a
             caller gets by not thinking about it.
+        extra_types: Passed to ``_clamp_effect``; see
+            ``AUTHORED_CHALLENGE_EFFECT_TYPES``.
     """
     if not isinstance(raw, dict):
         return {"text": "", "effects": []}
@@ -464,7 +488,9 @@ def clamp_outcome(
 
     bounded: list[dict[str, Any]] = []
     for entry in effects_in:
-        clamped = _clamp_effect(entry, adjustments, authored=authored)
+        clamped = _clamp_effect(
+            entry, adjustments, authored=authored, extra_types=extra_types
+        )
         if clamped is not None:
             bounded.append(clamped)
 
@@ -494,7 +520,20 @@ def _clamp_options(raw: Any, adjustments: list[str], *, node: str) -> list[dict[
     return options
 
 
-def _validate_gauntlet(spec: dict[str, Any], out: dict[str, Any], adj: list[str]) -> Optional[str]:
+def _challenge_outcome(raw: Any, adjustments: list[str], authored: bool) -> dict[str, Any]:
+    """
+    Bound one outcome of a CHALLENGE: ``clamp_outcome``, plus
+    ``AUTHORED_CHALLENGE_EFFECT_TYPES`` when the challenge is a set-piece from
+    the story's own files. Threads and deck gates call ``clamp_outcome``
+    directly and never get those.
+    """
+    extra = AUTHORED_CHALLENGE_EFFECT_TYPES if authored else frozenset()
+    return clamp_outcome(raw, adjustments, authored=authored, extra_types=extra)
+
+
+def _validate_gauntlet(
+    spec: dict[str, Any], out: dict[str, Any], adj: list[str], authored: bool = False
+) -> Optional[str]:
     raw_steps = spec.get("steps")
     if not isinstance(raw_steps, list) or not raw_steps:
         return "skill_gauntlet needs a non-empty 'steps' list"
@@ -532,12 +571,14 @@ def _validate_gauntlet(spec: dict[str, Any], out: dict[str, Any], adj: list[str]
 
     out["steps"] = steps
     out["step"] = 0
-    out["reward"] = clamp_outcome(spec.get("reward"), adj)
-    out["fail"] = clamp_outcome(spec.get("fail"), adj)
+    out["reward"] = _challenge_outcome(spec.get("reward"), adj, authored)
+    out["fail"] = _challenge_outcome(spec.get("fail"), adj, authored)
     return None
 
 
-def _validate_tree(spec: dict[str, Any], out: dict[str, Any], adj: list[str]) -> Optional[str]:
+def _validate_tree(
+    spec: dict[str, Any], out: dict[str, Any], adj: list[str], authored: bool = False
+) -> Optional[str]:
     raw_nodes = spec.get("nodes")
     start = _ident(spec.get("start"), "start")
     if not isinstance(raw_nodes, dict) or start not in raw_nodes:
@@ -559,8 +600,8 @@ def _validate_tree(spec: dict[str, Any], out: dict[str, Any], adj: list[str]) ->
         if terminal:
             outcome = str(raw.get("outcome", "success")).strip().lower()
             node["outcome"] = outcome if outcome in ("success", "failure") else "success"
-            node["reward"] = clamp_outcome(raw.get("reward"), adj)
-            node["fail"] = clamp_outcome(raw.get("fail"), adj)
+            node["reward"] = _challenge_outcome(raw.get("reward"), adj, authored)
+            node["fail"] = _challenge_outcome(raw.get("fail"), adj, authored)
         else:
             node["options"] = _clamp_options(raw.get("options"), adj, node=key)
         nodes[key] = node
@@ -587,7 +628,9 @@ def _validate_tree(spec: dict[str, Any], out: dict[str, Any], adj: list[str]) ->
     return None
 
 
-def _validate_puzzle(spec: dict[str, Any], out: dict[str, Any], adj: list[str]) -> Optional[str]:
+def _validate_puzzle(
+    spec: dict[str, Any], out: dict[str, Any], adj: list[str], authored: bool = False
+) -> Optional[str]:
     if "answer" not in spec or not str(spec.get("answer", "")).strip():
         return "puzzle needs a non-empty 'answer'"
     attempts = _int(spec.get("attempts"), 3)
@@ -598,12 +641,14 @@ def _validate_puzzle(spec: dict[str, Any], out: dict[str, Any], adj: list[str]) 
     out["answer"] = normalise_answer(spec["answer"])
     out["attempts_left"] = attempts
     out["prompt"] = _text(spec.get("prompt"))
-    out["reward"] = clamp_outcome(spec.get("reward"), adj)
-    out["fail"] = clamp_outcome(spec.get("fail"), adj)
+    out["reward"] = _challenge_outcome(spec.get("reward"), adj, authored)
+    out["fail"] = _challenge_outcome(spec.get("fail"), adj, authored)
     return None
 
 
-def _validate_dice_table(spec: dict[str, Any], out: dict[str, Any], adj: list[str]) -> Optional[str]:
+def _validate_dice_table(
+    spec: dict[str, Any], out: dict[str, Any], adj: list[str], authored: bool = False
+) -> Optional[str]:
     raw_outcomes = spec.get("outcomes")
     if not isinstance(raw_outcomes, list) or not raw_outcomes:
         return "dice_table needs a non-empty 'outcomes' list"
@@ -628,7 +673,7 @@ def _validate_dice_table(spec: dict[str, Any], out: dict[str, Any], adj: list[st
                 "min": low,
                 "max": high,
                 "text": _text(raw.get("text")),
-                "effects": clamp_outcome(raw, adj)["effects"],
+                "effects": _challenge_outcome(raw, adj, authored)["effects"],
             }
         )
 
@@ -643,13 +688,17 @@ def normalise_answer(value: Any) -> str:
     return "".join(ch.lower() for ch in str(value) if ch.isalnum())
 
 
-def validate(spec: Any) -> SpecResult:
+def validate(spec: Any, *, authored: bool = False) -> SpecResult:
     """
     Validate and bound a proposed challenge spec.
 
     Args:
         spec: Raw spec, typically straight from a model tool call or a YAML
             set-piece file.
+        authored: True for a set-piece read from the story's own files
+            (``set_pieces.start``). Widens the reward types by
+            ``STRUCTURAL_EFFECT_TYPES`` and ``AUTHORED_CHALLENGE_EFFECT_TYPES``
+            and changes no magnitude clamp. Defaults to the strict path.
 
     Returns:
         SpecResult. On success ``spec`` is the normalised, bounded form ready to
@@ -679,7 +728,7 @@ def validate(spec: Any) -> SpecResult:
         "puzzle": _validate_puzzle,
         "dice_table": _validate_dice_table,
     }
-    error = validators[kind](spec, out, adjustments)
+    error = validators[kind](spec, out, adjustments, authored)
     if error:
         logger.warning(
             "[challenges] Rejected spec (operation=validate, kind=%s, reason=%s)",
@@ -701,6 +750,7 @@ def validate(spec: Any) -> SpecResult:
 __all__ = [
     "ALLOWED_DICE",
     "ALLOWED_EFFECT_TYPES",
+    "AUTHORED_CHALLENGE_EFFECT_TYPES",
     "DEFAULT_UNBOUNDED_CEILING",
     "DIFFICULTIES",
     "EFFECT_CEILINGS",

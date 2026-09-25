@@ -316,6 +316,13 @@ def _declared_event(event_id: str, spec: dict[str, Any], day: int) -> SimEvent:
         payload["rumor"] = str(spec["rumor"])
     if "when" in spec:
         payload["fired_flag"] = f"{EVENT_FIRED_PREFIX}{event_id}"
+    # The event owes the player a scene while it is active. Carried on the
+    # payload and read back by `clocks.forced_scenes`, the same query a clock
+    # beat's promise is answered through -- one path, not two. Validated
+    # against the story's decks and cards (engine/games/validation.py).
+    scene_id = str(spec.get("forces_scene") or "").strip()
+    if scene_id:
+        payload["forces_scene"] = scene_id
     return SimEvent(
         event_id=event_id,
         day=day,

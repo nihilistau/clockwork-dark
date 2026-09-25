@@ -16,9 +16,24 @@ persists through a save and needs no new machinery.
 Authored specs run through exactly the same validator as model-composed ones.
 That is deliberate: a hand-written YAML file is not more trustworthy than a
 model, it is just wrong less often, and having one bounding path means the
-ceilings cannot drift apart.
+ceilings cannot drift apart. The one difference is CAPABILITY, not size:
+``start`` validates with ``authored=True``, which admits the structural kinds
+(``spec.STRUCTURAL_EFFECT_TYPES``) and ``release``
+(``spec.AUTHORED_CHALLENGE_EFFECT_TYPES``) -- so a break-out scene can free a
+prisoner -- and changes no magnitude clamp.
 
-Version: v0.1.0 [2026-08-08]
+GATES. ``location_id``, ``requires_flags`` and ``forbids_flags`` as before,
+plus an optional ``requires:`` -- any condition in the shared grammar
+(``quests.evaluate_condition``), e.g. ``{in_custody: true}`` for a break-out
+offered only in the cell. The custody record sets no flag, so a flag gate
+could not ask that. Its predicate names are checked at load
+(``quests.condition_problem``); a piece naming one the grammar lacks, or one
+this gate cannot answer (``disposition``, ``days_in_stage``,
+``days_since_started`` -- no ledger, no quest here), is logged and skipped,
+since an unknown predicate is
+unmet forever, silently.
+
+Version: v0.2.0 [2026-09-25]
 """
 
 from __future__ import annotations
@@ -108,6 +123,16 @@ def load_set_pieces() -> dict[str, dict[str, Any]]:
                     path,
                 )
                 continue
+            problem = _requires_problem(raw.get("requires"))
+            if problem:
+                logger.error(
+                    "[set_pieces] Bad `requires`, skipping (operation=load_set_pieces, "
+                    "id=%s, path=%s): %s",
+                    piece_id,
+                    path,
+                    problem,
+                )
+                continue
             catalogue[piece_id] = raw
 
     logger.info(
@@ -116,6 +141,24 @@ def load_set_pieces() -> dict[str, dict[str, Any]]:
     )
     _CACHE = catalogue
     return _CACHE
+
+
+def _requires_problem(node: Any) -> Optional[str]:
+    """
+    What is wrong with a set-piece's ``requires:`` condition, or None.
+
+    The shared check (``quests.condition_problem``): an unknown predicate is
+    unmet forever; a mapping holding a group combinator is evaluated as ONLY
+    its combinators, so a sibling predicate beside ``all`` would gate nothing;
+    and ``is_available`` evaluates with no ledger and no quest record, so
+    ``disposition``, ``days_in_stage`` and ``days_since_started`` would never
+    hold. All load, validate and do nothing unless refused here.
+    """
+    from engine.game import quests
+
+    return quests.condition_problem(
+        node, where="`requires`", forbid=quests.CONTEXT_FREE_FORBIDS
+    )
 
 
 def reset_set_piece_cache() -> None:
@@ -129,7 +172,9 @@ def is_available(state: GameState, piece: dict[str, Any]) -> bool:
     True if every gate on this set-piece is satisfied right now.
 
     Gates are AND-ed. ``forbids_flags`` is what makes a set-piece one-shot:
-    its own terminal flag is listed there.
+    its own terminal flag is listed there. ``requires:``, when present, is a
+    condition in the shared grammar -- evaluated last, and only for a piece
+    that declares one, so a piece without it costs exactly what it did.
     """
     location = str(piece.get("location_id", "")).strip()
     if location and state.location_id != location:
@@ -145,6 +190,11 @@ def is_available(state: GameState, piece: dict[str, Any]) -> bool:
     # author forgot to list it under forbids_flags.
     if grants and state.flags.get(grants):
         return False
+    requires = piece.get("requires")
+    if requires is not None:
+        from engine.game.quests import evaluate_condition
+
+        return evaluate_condition(state, requires)
     return True
 
 
@@ -181,7 +231,11 @@ def start(
     if not is_available(state, piece):
         return runner._error(f"set-piece {piece_id!r} is not available here")
 
-    result = runner.start(state, piece.get("challenge") or {}, replace=replace)
+    # `authored=True`: the spec came out of the story's own file, so its
+    # rewards may use the structural kinds and `release` (a break-out).
+    result = runner.start(
+        state, piece.get("challenge") or {}, replace=replace, authored=True
+    )
     if state.challenge:
         # Stashed on the stored challenge, not held in a module global: the
         # player can save mid-set-piece and reload tomorrow, and the terminal

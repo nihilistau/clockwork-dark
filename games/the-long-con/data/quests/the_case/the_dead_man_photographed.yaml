@@ -82,6 +82,12 @@ stages:
         - { type: value, name: standing, delta: -10, why: "the harbour talks, and it talks about you" }
   - id: the_cold_room
     objective: "Go down to the drying room, and take a light."
+    # The drying room is `secret: true`: nothing offers or draws it until the
+    # case puts you at its door, which is this stage opening. Its reveal is
+    # the room's own `known_when:` (data/world/locations.yaml), derived rather
+    # than a flag this stage sets -- a flag set on entering never reaches a
+    # save that was already on this stage before the reveal existed
+    # (docs/AUTHORING.md §3.7).
     narrative_flags:
       - nf_opened_the_cold_room
     complete_when:

@@ -28,9 +28,9 @@ editing a subject, re-run the generator rather than editing the prompts here:
 
 | Kind | Size | Directory |
 | --- | --- | --- |
-| location | 1280x720 | `plates/scenes/` |
-| portrait | 768x1024 | `plates/portraits/` |
-| item | 768x1024 | `plates/items/` |
+| location | 1280x720 | `scenes/` under `paths.art_root` |
+| portrait | 768x1024 | `portraits/` under `paths.art_root` |
+| item | 768x1024 | `items/` under `paths.art_root` |
 
 Read from `subjects.yaml`'s `formats:` block, which is also what the live Grok
 and ComfyUI providers size their requests from — so generating by hand and
@@ -39,9 +39,13 @@ holds that block to the plates actually on disk. JPEG, same as the rest.
 
 ## After the files land
 
-Add each to `manifest.yaml` under its kind. Locations take
-`{base: ..., alts: [...]}`; portraits and items take a bare path. Paths are
-relative to `paths.art_root`. The ready-to-paste block is at the bottom.
+`scripts/generate_art.py --game wicked-garden --promote` writes each plate the
+generator made into `manifest.yaml` itself. For a plate made by hand, add it
+under its kind: a location's plates go under `times: {<daypart>: ...}` (or
+`base:` for a location whose subject declares no `times:` -- note that a
+`base:` then answers every daypart); portraits and items take a bare path.
+Paths are relative to `paths.art_root`. The ready-to-paste block is at the
+bottom.
 
 ---
 
@@ -49,12 +53,13 @@ relative to `paths.art_root`. The ready-to-paste block is at the bottom.
 
 ### `mortal_threshold`
 
-- **File:** `scenes/mortal-threshold.jpg`
 - **Size:** 1280x720
 
 Renders under the **`mortal`** style variant, not the house style — a drab modern flat has to read as the opposite of the Garden, and that contrast is the opening screen's job. So the prompt below carries no vines, petals or botanical art nouveau, and pushes against them in the negative, because the LoRA stack it still loads is called `Botanical_Fantasy`. The one flower that belongs here is in the **night** alt, through the floorboards, and nowhere else.
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/mortal-threshold-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -72,7 +77,9 @@ An ordinary empty room in the waking world, seen from the doorway, a coat still 
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, vines, petals, pollen, flowers, foliage, moss, art nouveau ornament, bioluminescence, gold dust, fantasy architecture, magical glow
 ```
 
-<details><summary>Alt — day (`scenes/mortal-threshold-day.jpg`)</summary>
+<details><summary>day (`scenes/mortal-threshold-day.jpg`)</summary>
+
+- **File:** `scenes/mortal-threshold-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -92,7 +99,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/mortal-threshold-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/mortal-threshold-dusk.jpg`)</summary>
+
+- **File:** `scenes/mortal-threshold-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -112,7 +121,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/mortal-threshold-night.jpg`)</summary>
+<details><summary>night (`scenes/mortal-threshold-night.jpg`)</summary>
+
+- **File:** `scenes/mortal-threshold-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -136,10 +147,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `path_first_petals`
 
-- **File:** `scenes/path-first-petals.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/path-first-petals-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -157,7 +169,9 @@ A narrow path of white petals through leaning trees, petals laid ahead and absen
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
-<details><summary>Alt — day (`scenes/path-first-petals-day.jpg`)</summary>
+<details><summary>day (`scenes/path-first-petals-day.jpg`)</summary>
+
+- **File:** `scenes/path-first-petals-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -177,7 +191,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/path-first-petals-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/path-first-petals-dusk.jpg`)</summary>
+
+- **File:** `scenes/path-first-petals-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -197,7 +213,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/path-first-petals-night.jpg`)</summary>
+<details><summary>night (`scenes/path-first-petals-night.jpg`)</summary>
+
+- **File:** `scenes/path-first-petals-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -221,10 +239,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `aviary_unsent`
 
-- **File:** `scenes/aviary-unsent.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/aviary-unsent-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -242,7 +261,9 @@ The interior of a great domed aviary of wire and briar, full of paper birds, fol
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
-<details><summary>Alt — day (`scenes/aviary-unsent-day.jpg`)</summary>
+<details><summary>day (`scenes/aviary-unsent-day.jpg`)</summary>
+
+- **File:** `scenes/aviary-unsent-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -262,7 +283,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/aviary-unsent-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/aviary-unsent-dusk.jpg`)</summary>
+
+- **File:** `scenes/aviary-unsent-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -282,7 +305,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/aviary-unsent-night.jpg`)</summary>
+<details><summary>night (`scenes/aviary-unsent-night.jpg`)</summary>
+
+- **File:** `scenes/aviary-unsent-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -306,10 +331,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `night_market`
 
-- **File:** `scenes/night-market.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/night-market-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -327,7 +353,9 @@ A market of small strange stalls between two hedges at night, vendors the size o
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
-<details><summary>Alt — day (`scenes/night-market-day.jpg`)</summary>
+<details><summary>day (`scenes/night-market-day.jpg`)</summary>
+
+- **File:** `scenes/night-market-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -347,7 +375,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/night-market-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/night-market-dusk.jpg`)</summary>
+
+- **File:** `scenes/night-market-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -367,7 +397,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/night-market-night.jpg`)</summary>
+<details><summary>night (`scenes/night-market-night.jpg`)</summary>
+
+- **File:** `scenes/night-market-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -391,10 +423,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `briar_deep`
 
-- **File:** `scenes/briar-deep.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/briar-deep-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -412,7 +445,9 @@ An under-root cathedral with no far wall, roots the size of towers, root columns
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
-<details><summary>Alt — day (`scenes/briar-deep-day.jpg`)</summary>
+<details><summary>day (`scenes/briar-deep-day.jpg`)</summary>
+
+- **File:** `scenes/briar-deep-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -432,7 +467,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/briar-deep-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/briar-deep-dusk.jpg`)</summary>
+
+- **File:** `scenes/briar-deep-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -452,7 +489,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/briar-deep-night.jpg`)</summary>
+<details><summary>night (`scenes/briar-deep-night.jpg`)</summary>
+
+- **File:** `scenes/briar-deep-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -476,12 +515,13 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `unknown`
 
-- **File:** `scenes/unknown.jpg`
 - **Size:** 1280x720
 
 The fallback plate for any location with no art of its own, which is why it reads as a void. Generating this one first is the cheapest way to stop the procedural silhouette appearing anywhere — it covers the other five until they exist. Also on the **`mortal`** variant: this place is defined by having no botany in it yet.
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/unknown-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -499,7 +539,9 @@ A figure standing in a place with no architecture and no horizon, light with no 
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, vines, petals, pollen, flowers, foliage, moss, art nouveau ornament, bioluminescence, gold dust, fantasy architecture, magical glow
 ```
 
-<details><summary>Alt — day (`scenes/unknown-day.jpg`)</summary>
+<details><summary>day (`scenes/unknown-day.jpg`)</summary>
+
+- **File:** `scenes/unknown-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -519,7 +561,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/unknown-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/unknown-dusk.jpg`)</summary>
+
+- **File:** `scenes/unknown-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -539,7 +583,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/unknown-night.jpg`)</summary>
+<details><summary>night (`scenes/unknown-night.jpg`)</summary>
+
+- **File:** `scenes/unknown-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -631,23 +677,41 @@ From `subjects.yaml` `style.loras`. ComfyUI only; Grok ignores them.
 ```yaml
 locations:
   mortal_threshold:
-    base: scenes/mortal-threshold.jpg
-    alts: []   # optional: scenes/mortal-threshold-day.jpg, scenes/mortal-threshold-dusk.jpg, scenes/mortal-threshold-night.jpg
+    times:
+      dawn: scenes/mortal-threshold-dawn.jpg
+      day: scenes/mortal-threshold-day.jpg
+      dusk: scenes/mortal-threshold-dusk.jpg
+      night: scenes/mortal-threshold-night.jpg
   path_first_petals:
-    base: scenes/path-first-petals.jpg
-    alts: []   # optional: scenes/path-first-petals-day.jpg, scenes/path-first-petals-dusk.jpg, scenes/path-first-petals-night.jpg
+    times:
+      dawn: scenes/path-first-petals-dawn.jpg
+      day: scenes/path-first-petals-day.jpg
+      dusk: scenes/path-first-petals-dusk.jpg
+      night: scenes/path-first-petals-night.jpg
   aviary_unsent:
-    base: scenes/aviary-unsent.jpg
-    alts: []   # optional: scenes/aviary-unsent-day.jpg, scenes/aviary-unsent-dusk.jpg, scenes/aviary-unsent-night.jpg
+    times:
+      dawn: scenes/aviary-unsent-dawn.jpg
+      day: scenes/aviary-unsent-day.jpg
+      dusk: scenes/aviary-unsent-dusk.jpg
+      night: scenes/aviary-unsent-night.jpg
   night_market:
-    base: scenes/night-market.jpg
-    alts: []   # optional: scenes/night-market-day.jpg, scenes/night-market-dusk.jpg, scenes/night-market-night.jpg
+    times:
+      dawn: scenes/night-market-dawn.jpg
+      day: scenes/night-market-day.jpg
+      dusk: scenes/night-market-dusk.jpg
+      night: scenes/night-market-night.jpg
   briar_deep:
-    base: scenes/briar-deep.jpg
-    alts: []   # optional: scenes/briar-deep-day.jpg, scenes/briar-deep-dusk.jpg, scenes/briar-deep-night.jpg
+    times:
+      dawn: scenes/briar-deep-dawn.jpg
+      day: scenes/briar-deep-day.jpg
+      dusk: scenes/briar-deep-dusk.jpg
+      night: scenes/briar-deep-night.jpg
   unknown:
-    base: scenes/unknown.jpg
-    alts: []   # optional: scenes/unknown-day.jpg, scenes/unknown-dusk.jpg, scenes/unknown-night.jpg
+    times:
+      dawn: scenes/unknown-dawn.jpg
+      day: scenes/unknown-day.jpg
+      dusk: scenes/unknown-dusk.jpg
+      night: scenes/unknown-night.jpg
 portraits:
   court_generic: portraits/court-generic.jpg
 items:

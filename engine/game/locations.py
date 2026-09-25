@@ -229,7 +229,44 @@ def _clean_location(loc_id: str, raw: Any) -> Optional[dict[str, Any]]:
     cleaned["evil_multiplier"] = multiplier
     cleaned["tags"] = [str(t) for t in (raw.get("tags") or [])]
     cleaned["connections"] = {}
+    if "known_when" in raw:
+        problem = known_when_problem(raw)
+        if problem:
+            # Dropped, not raised (this loader never takes a session down):
+            # the place stays secret until another reveal. The validator
+            # reports the same problem as an error naming the file.
+            logger.error(
+                "[locations] Bad known_when, ignoring it "
+                "(operation=_clean_location, id=%s): %s",
+                loc_id,
+                problem,
+            )
+            cleaned.pop("known_when", None)
     return cleaned
+
+
+def known_when_problem(raw: Any) -> Optional[str]:
+    """
+    What is wrong with a location's ``known_when:``, or None.
+
+    Shared by the loader (logged, and the key dropped) and the validator (an
+    error naming the file), so the two cannot disagree. ``is_known`` evaluates
+    it with no ledger and no quest record, so the predicates needing either
+    are refused along with the grammar's own faults
+    (``quests.condition_problem``).
+    """
+    if not isinstance(raw, dict) or "known_when" not in raw:
+        return None
+    if not raw.get("secret"):
+        return "`known_when` on a place that is not `secret: true` reveals nothing"
+    node = raw.get("known_when")
+    if node is None or node == {} or node == []:
+        return "`known_when` is empty -- it would reveal the place from the start"
+    from engine.game import quests
+
+    return quests.condition_problem(
+        node, where="`known_when`", forbid=quests.CONTEXT_FREE_FORBIDS
+    )
 
 
 def _mirror_missing_returns(graph: dict[str, dict[str, Any]]) -> None:
@@ -473,3 +510,84 @@ def neighbours(location_id: str) -> list[str]:
     if loc is None:
         return []
     return sorted(loc.get("connections", {}))
+
+
+# ---------------------------------------------------------------------------
+# Secret places: the one rule for "does the player know this place exists"
+# ---------------------------------------------------------------------------
+
+#: The flag that reveals a ``secret: true`` place without walking there:
+#: ``location_known:<id>``, written by the ordinary ``flag`` effect kind from
+#: any content that runs effects (a quest hook, a card, a set piece). A flag
+#: rather than a new effect kind: it round-trips a save with no schema change,
+#: a stage can hand it to the narrator through ``narrative_flags``, and the
+#: validator reads its suffix as a location reference
+#: (``engine/games/validation.py::location_refs``), so a typo'd id is caught
+#: at load exactly as a bad ``at_location`` is. Same shape as foraging's
+#: ``hidden_path_found:<id>``.
+KNOWN_FLAG_PREFIX = "location_known:"
+
+
+def is_known(state: Any, location_id: str) -> bool:
+    """
+    Whether the player may know that a place EXISTS.
+
+    THE ONE PREDICATE. ``secret: true`` used to be a promise only the map
+    kept: ``codex_places`` withheld the place and its roads while
+    ``intents._travel`` offered it by name from the raw graph. Every consumer
+    that names a place to the player or the model -- the travel enum, the map
+    payload, the resume choices -- asks this, so they cannot disagree again.
+
+    Known is any of: the place is not secret (or not in the graph -- an id the
+    graph does not hold is nobody's secret); the player is standing in it; the
+    quest engine's visited ledger has it; ``location_known:<id>`` is set; its
+    ``known_when:`` condition holds; or a discovered hidden path ends there.
+    Known is NOT "discovered": a revealed place the player has not walked to
+    is drawn greyed, like any other.
+
+    ``known_when`` is DERIVED, never stored: asked afresh each time, so a save
+    made before the content that reveals the place (a v0.12 save already on
+    THE LONG CON's cold-room stage, which never ran a v0.13 ``on_enter``)
+    knows it the moment the condition holds.
+
+    ``state`` None (a codex opened with no session) knows everything, as the
+    map payload always has: there is no player to keep the secret from.
+
+    Args:
+        state: Game state, or None.
+        location_id: Location id.
+
+    Returns:
+        True when the place may be offered, drawn or named.
+    """
+    row = LOCATIONS.get(str(location_id))
+    if not row or not row.get("secret"):
+        return True
+    if state is None:
+        return True
+    loc = str(location_id)
+    if str(getattr(state, "location_id", "") or "") == loc:
+        return True
+    flags = getattr(state, "flags", None) or {}
+    if flags.get(f"{KNOWN_FLAG_PREFIX}{loc}"):
+        return True
+    # Read, never create: quests.py::_meta would write the block, and asking
+    # what the player knows must not move state.
+    meta = (getattr(state, "quests", None) or {}).get("_meta") or {}
+    if loc in {str(v) for v in (meta.get("visited") or [])}:
+        return True
+    known_when = row.get("known_when")
+    if known_when is not None:
+        from engine.game.quests import evaluate_condition
+
+        if evaluate_condition(state, known_when):
+            return True
+    try:
+        from engine.game import foraging
+
+        for path in foraging.discovered_paths(state):
+            if loc in (str(path.get("from_id") or ""), str(path.get("leads_to") or "")):
+                return True
+    except Exception as exc:  # noqa: BLE001 -- no paths is not an error
+        logger.debug("[locations] No hidden paths for is_known: %s", exc)
+    return False

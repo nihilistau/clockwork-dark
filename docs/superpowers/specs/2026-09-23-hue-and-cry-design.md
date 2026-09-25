@@ -9,7 +9,11 @@ code wins (CLAUDE.md authority order) and this file gets corrected.
 Six releases, in order. Originally planned as three (v0.8, one v0.9 covering
 all four engine features, v1.0); re-cut per-feature after v0.9.0 shipped, so
 each feature ships as its own release rather than sitting unpushed for weeks
-while the rest of the batch finishes:
+while the rest of the batch finishes. Re-cut again (owner, 2026-09-25) once
+the four engine features shipped: what was a single v1.0.0 at the end now
+ships as its own run of point releases, for the same reason as the first
+re-cut -- content, UI and art are as large a batch as the four engine
+features were, and `v1.0.0` is tagged only once the last of them lands:
 
 | Release | What | Why this order |
 |---|---|---|
@@ -18,7 +22,14 @@ while the rest of the batch finishes:
 | **v0.10.0** | The Law (§2) | Next -- reads the `noticed`/witness groundwork Premises and thievery already lay down |
 | **v0.11.0** | Jobs & flashbacks (§4) | Depends on Premises (a job opens on a premise) and the Law (an alarm summons the watch) |
 | **v0.12.0** | Agendas (§5) | Last of the four -- deterministic world motion, proven once the other three systems exist to move around |
-| **v1.0.0** | HUE & CRY finished (§6): full content, eight endings, bespoke UI plugin, ~55-plate Grok art pack, live-played | |
+| **v0.13.0** | Engine seams for HUE & CRY's finish (§6): secret places, custody + jailbreak, forced/repeatable decks, a terminal death, the clarity word, `generate_art --game` | Shipped -- closes the small seams the four engine features left before §6's content can be built on them |
+| **v0.14.0** | Living city: survival, forage + Rooftop Road's hidden paths, labour, boons, night encounters, factions, city lore | Next |
+| **v0.15.0** | Guild economy: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | |
+| **v0.16.0** | Acts I--II: arcs, initiation deck, interrogation deck, the Magpie reveal, the alibi beat | |
+| **v0.17.0** | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | |
+| **v0.18.0** | `simulate.py`'s thief policy | |
+| **v0.19.0** | The HUE & CRY UI plugin: wanted poster, casing board, job panel, portraits | |
+| **v1.0.0** | HUE & CRY finished (§6): the art pack (~55 Grok plates) and live play | Tagged only once this lands |
 
 Every feature is **generic**: a story that does not declare its `paths.*` key
 pays nothing and its turns stay byte-identical, asserted by test the way

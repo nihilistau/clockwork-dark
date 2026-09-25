@@ -23,9 +23,9 @@ each one only shows up if the player goes there.
 
 | Kind | Size | Directory |
 | --- | --- | --- |
-| location | 1280x720 | `plates/scenes/` |
-| portrait | 768x1024 | `plates/portraits/` |
-| item | 768x1024 | `plates/items/` |
+| location | 1280x720 | `scenes/` under `paths.art_root` |
+| portrait | 768x1024 | `portraits/` under `paths.art_root` |
+| item | 768x1024 | `items/` under `paths.art_root` |
 
 Read from `subjects.yaml`'s `formats:` block, which is also what the live Grok
 and ComfyUI providers size their requests from — so generating by hand and
@@ -34,9 +34,13 @@ holds that block to the plates actually on disk. JPEG, same as the rest.
 
 ## After the files land
 
-Add each to `manifest.yaml` under its kind. Locations take
-`{base: ..., alts: [...]}`; portraits and items take a bare path. Paths are
-relative to `paths.art_root`. The ready-to-paste block is at the bottom.
+`scripts/generate_art.py --game dev-story --promote` writes each plate the
+generator made into `manifest.yaml` itself. For a plate made by hand, add it
+under its kind: a location's plates go under `times: {<daypart>: ...}` (or
+`base:` for a location whose subject declares no `times:` -- note that a
+`base:` then answers every daypart); portraits and items take a bare path.
+Paths are relative to `paths.art_root`. The ready-to-paste block is at the
+bottom.
 
 ---
 
@@ -44,10 +48,11 @@ relative to `paths.art_root`. The ready-to-paste block is at the bottom.
 
 ### `hallway`
 
-- **File:** `scenes/hallway.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/hallway-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -65,7 +70,9 @@ The hallway of an ordinary house, coats on hooks, shoes not quite paired, a radi
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
-<details><summary>Alt — day (`scenes/hallway-day.jpg`)</summary>
+<details><summary>day (`scenes/hallway-day.jpg`)</summary>
+
+- **File:** `scenes/hallway-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -85,7 +92,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/hallway-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/hallway-dusk.jpg`)</summary>
+
+- **File:** `scenes/hallway-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -105,7 +114,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/hallway-night.jpg`)</summary>
+<details><summary>night (`scenes/hallway-night.jpg`)</summary>
+
+- **File:** `scenes/hallway-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -129,10 +140,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `bathroom`
 
-- **File:** `scenes/bathroom.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/bathroom-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -150,7 +162,9 @@ A small domestic bathroom, a mirror with a damp patch cleared in it, tiles, a to
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
-<details><summary>Alt — day (`scenes/bathroom-day.jpg`)</summary>
+<details><summary>day (`scenes/bathroom-day.jpg`)</summary>
+
+- **File:** `scenes/bathroom-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -170,7 +184,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/bathroom-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/bathroom-dusk.jpg`)</summary>
+
+- **File:** `scenes/bathroom-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -190,7 +206,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/bathroom-night.jpg`)</summary>
+<details><summary>night (`scenes/bathroom-night.jpg`)</summary>
+
+- **File:** `scenes/bathroom-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -214,10 +232,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `kitchen`
 
-- **File:** `scenes/kitchen.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/kitchen-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -235,7 +254,9 @@ A domestic kitchen with the everyday mess left in it, mugs by the sink, a kettle
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
-<details><summary>Alt — day (`scenes/kitchen-day.jpg`)</summary>
+<details><summary>day (`scenes/kitchen-day.jpg`)</summary>
+
+- **File:** `scenes/kitchen-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -255,7 +276,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/kitchen-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/kitchen-dusk.jpg`)</summary>
+
+- **File:** `scenes/kitchen-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -275,7 +298,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/kitchen-night.jpg`)</summary>
+<details><summary>night (`scenes/kitchen-night.jpg`)</summary>
+
+- **File:** `scenes/kitchen-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -299,10 +324,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `living_room`
 
-- **File:** `scenes/living-room.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/living-room-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -320,7 +346,9 @@ An ordinary living room, a sofa with a throw pulled crooked, a low table with ri
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
-<details><summary>Alt — day (`scenes/living-room-day.jpg`)</summary>
+<details><summary>day (`scenes/living-room-day.jpg`)</summary>
+
+- **File:** `scenes/living-room-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -340,7 +368,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/living-room-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/living-room-dusk.jpg`)</summary>
+
+- **File:** `scenes/living-room-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -360,7 +390,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/living-room-night.jpg`)</summary>
+<details><summary>night (`scenes/living-room-night.jpg`)</summary>
+
+- **File:** `scenes/living-room-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -384,10 +416,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `front_porch`
 
-- **File:** `scenes/front-porch.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/front-porch-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -405,7 +438,9 @@ The front step of an ordinary house, looking out, a door that sticks, a mat, a b
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
-<details><summary>Alt — day (`scenes/front-porch-day.jpg`)</summary>
+<details><summary>day (`scenes/front-porch-day.jpg`)</summary>
+
+- **File:** `scenes/front-porch-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -425,7 +460,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/front-porch-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/front-porch-dusk.jpg`)</summary>
+
+- **File:** `scenes/front-porch-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -445,7 +482,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/front-porch-night.jpg`)</summary>
+<details><summary>night (`scenes/front-porch-night.jpg`)</summary>
+
+- **File:** `scenes/front-porch-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -469,10 +508,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `quad`
 
-- **File:** `scenes/quad.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/quad-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -490,7 +530,9 @@ A university quad between buildings, wet paving, a strip of grass nobody walks o
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
-<details><summary>Alt — day (`scenes/quad-day.jpg`)</summary>
+<details><summary>day (`scenes/quad-day.jpg`)</summary>
+
+- **File:** `scenes/quad-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -510,7 +552,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/quad-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/quad-dusk.jpg`)</summary>
+
+- **File:** `scenes/quad-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -530,7 +574,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/quad-night.jpg`)</summary>
+<details><summary>night (`scenes/quad-night.jpg`)</summary>
+
+- **File:** `scenes/quad-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -554,10 +600,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `admin_block`
 
-- **File:** `scenes/admin-block.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/admin-block-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -575,7 +622,9 @@ A university administration corridor and counter, a counter with a bell nobody r
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
-<details><summary>Alt — day (`scenes/admin-block-day.jpg`)</summary>
+<details><summary>day (`scenes/admin-block-day.jpg`)</summary>
+
+- **File:** `scenes/admin-block-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -595,7 +644,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/admin-block-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/admin-block-dusk.jpg`)</summary>
+
+- **File:** `scenes/admin-block-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -615,7 +666,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/admin-block-night.jpg`)</summary>
+<details><summary>night (`scenes/admin-block-night.jpg`)</summary>
+
+- **File:** `scenes/admin-block-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -639,10 +692,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `cafeteria`
 
-- **File:** `scenes/cafeteria.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/cafeteria-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -660,7 +714,9 @@ A university cafeteria at the serving line, steel counters, trays stacked, a hot
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
-<details><summary>Alt — day (`scenes/cafeteria-day.jpg`)</summary>
+<details><summary>day (`scenes/cafeteria-day.jpg`)</summary>
+
+- **File:** `scenes/cafeteria-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -680,7 +736,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/cafeteria-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/cafeteria-dusk.jpg`)</summary>
+
+- **File:** `scenes/cafeteria-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -700,7 +758,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/cafeteria-night.jpg`)</summary>
+<details><summary>night (`scenes/cafeteria-night.jpg`)</summary>
+
+- **File:** `scenes/cafeteria-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -724,10 +784,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `dorm_room`
 
-- **File:** `scenes/dorm-room.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/dorm-room-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -745,7 +806,9 @@ A student dorm room, a narrow bed, a desk with a laptop and a mug on it, things 
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
-<details><summary>Alt — day (`scenes/dorm-room-day.jpg`)</summary>
+<details><summary>day (`scenes/dorm-room-day.jpg`)</summary>
+
+- **File:** `scenes/dorm-room-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -765,7 +828,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/dorm-room-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/dorm-room-dusk.jpg`)</summary>
+
+- **File:** `scenes/dorm-room-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -785,7 +850,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/dorm-room-night.jpg`)</summary>
+<details><summary>night (`scenes/dorm-room-night.jpg`)</summary>
+
+- **File:** `scenes/dorm-room-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -809,10 +876,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `classroom`
 
-- **File:** `scenes/classroom.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/classroom-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -830,7 +898,9 @@ A university classroom between sessions, rows of tables, a whiteboard half wiped
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
-<details><summary>Alt — day (`scenes/classroom-day.jpg`)</summary>
+<details><summary>day (`scenes/classroom-day.jpg`)</summary>
+
+- **File:** `scenes/classroom-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -850,7 +920,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/classroom-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/classroom-dusk.jpg`)</summary>
+
+- **File:** `scenes/classroom-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -870,7 +942,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/classroom-night.jpg`)</summary>
+<details><summary>night (`scenes/classroom-night.jpg`)</summary>
+
+- **File:** `scenes/classroom-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -894,10 +968,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `gym`
 
-- **File:** `scenes/gym.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/gym-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -915,7 +990,9 @@ A university gym, rubber matting, a rack of weights, mirrors along one wall, a w
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
-<details><summary>Alt — day (`scenes/gym-day.jpg`)</summary>
+<details><summary>day (`scenes/gym-day.jpg`)</summary>
+
+- **File:** `scenes/gym-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -935,7 +1012,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/gym-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/gym-dusk.jpg`)</summary>
+
+- **File:** `scenes/gym-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -955,7 +1034,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/gym-night.jpg`)</summary>
+<details><summary>night (`scenes/gym-night.jpg`)</summary>
+
+- **File:** `scenes/gym-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -979,10 +1060,11 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 ### `library`
 
-- **File:** `scenes/library.jpg`
 - **Size:** 1280x720
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/library-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1000,7 +1082,9 @@ A university library reading room, long tables with individual lamps, stacks rec
 NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
-<details><summary>Alt — day (`scenes/library-day.jpg`)</summary>
+<details><summary>day (`scenes/library-day.jpg`)</summary>
+
+- **File:** `scenes/library-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1020,7 +1104,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/library-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/library-dusk.jpg`)</summary>
+
+- **File:** `scenes/library-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1040,7 +1126,9 @@ NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, 
 
 </details>
 
-<details><summary>Alt — night (`scenes/library-night.jpg`)</summary>
+<details><summary>night (`scenes/library-night.jpg`)</summary>
+
+- **File:** `scenes/library-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1076,39 +1164,75 @@ From `subjects.yaml` `style.loras`. ComfyUI only; Grok ignores them.
 ```yaml
 locations:
   hallway:
-    base: scenes/hallway.jpg
-    alts: []   # optional: scenes/hallway-day.jpg, scenes/hallway-dusk.jpg, scenes/hallway-night.jpg
+    times:
+      dawn: scenes/hallway-dawn.jpg
+      day: scenes/hallway-day.jpg
+      dusk: scenes/hallway-dusk.jpg
+      night: scenes/hallway-night.jpg
   bathroom:
-    base: scenes/bathroom.jpg
-    alts: []   # optional: scenes/bathroom-day.jpg, scenes/bathroom-dusk.jpg, scenes/bathroom-night.jpg
+    times:
+      dawn: scenes/bathroom-dawn.jpg
+      day: scenes/bathroom-day.jpg
+      dusk: scenes/bathroom-dusk.jpg
+      night: scenes/bathroom-night.jpg
   kitchen:
-    base: scenes/kitchen.jpg
-    alts: []   # optional: scenes/kitchen-day.jpg, scenes/kitchen-dusk.jpg, scenes/kitchen-night.jpg
+    times:
+      dawn: scenes/kitchen-dawn.jpg
+      day: scenes/kitchen-day.jpg
+      dusk: scenes/kitchen-dusk.jpg
+      night: scenes/kitchen-night.jpg
   living_room:
-    base: scenes/living-room.jpg
-    alts: []   # optional: scenes/living-room-day.jpg, scenes/living-room-dusk.jpg, scenes/living-room-night.jpg
+    times:
+      dawn: scenes/living-room-dawn.jpg
+      day: scenes/living-room-day.jpg
+      dusk: scenes/living-room-dusk.jpg
+      night: scenes/living-room-night.jpg
   front_porch:
-    base: scenes/front-porch.jpg
-    alts: []   # optional: scenes/front-porch-day.jpg, scenes/front-porch-dusk.jpg, scenes/front-porch-night.jpg
+    times:
+      dawn: scenes/front-porch-dawn.jpg
+      day: scenes/front-porch-day.jpg
+      dusk: scenes/front-porch-dusk.jpg
+      night: scenes/front-porch-night.jpg
   quad:
-    base: scenes/quad.jpg
-    alts: []   # optional: scenes/quad-day.jpg, scenes/quad-dusk.jpg, scenes/quad-night.jpg
+    times:
+      dawn: scenes/quad-dawn.jpg
+      day: scenes/quad-day.jpg
+      dusk: scenes/quad-dusk.jpg
+      night: scenes/quad-night.jpg
   admin_block:
-    base: scenes/admin-block.jpg
-    alts: []   # optional: scenes/admin-block-day.jpg, scenes/admin-block-dusk.jpg, scenes/admin-block-night.jpg
+    times:
+      dawn: scenes/admin-block-dawn.jpg
+      day: scenes/admin-block-day.jpg
+      dusk: scenes/admin-block-dusk.jpg
+      night: scenes/admin-block-night.jpg
   cafeteria:
-    base: scenes/cafeteria.jpg
-    alts: []   # optional: scenes/cafeteria-day.jpg, scenes/cafeteria-dusk.jpg, scenes/cafeteria-night.jpg
+    times:
+      dawn: scenes/cafeteria-dawn.jpg
+      day: scenes/cafeteria-day.jpg
+      dusk: scenes/cafeteria-dusk.jpg
+      night: scenes/cafeteria-night.jpg
   dorm_room:
-    base: scenes/dorm-room.jpg
-    alts: []   # optional: scenes/dorm-room-day.jpg, scenes/dorm-room-dusk.jpg, scenes/dorm-room-night.jpg
+    times:
+      dawn: scenes/dorm-room-dawn.jpg
+      day: scenes/dorm-room-day.jpg
+      dusk: scenes/dorm-room-dusk.jpg
+      night: scenes/dorm-room-night.jpg
   classroom:
-    base: scenes/classroom.jpg
-    alts: []   # optional: scenes/classroom-day.jpg, scenes/classroom-dusk.jpg, scenes/classroom-night.jpg
+    times:
+      dawn: scenes/classroom-dawn.jpg
+      day: scenes/classroom-day.jpg
+      dusk: scenes/classroom-dusk.jpg
+      night: scenes/classroom-night.jpg
   gym:
-    base: scenes/gym.jpg
-    alts: []   # optional: scenes/gym-day.jpg, scenes/gym-dusk.jpg, scenes/gym-night.jpg
+    times:
+      dawn: scenes/gym-dawn.jpg
+      day: scenes/gym-day.jpg
+      dusk: scenes/gym-dusk.jpg
+      night: scenes/gym-night.jpg
   library:
-    base: scenes/library.jpg
-    alts: []   # optional: scenes/library-day.jpg, scenes/library-dusk.jpg, scenes/library-night.jpg
+    times:
+      dawn: scenes/library-dawn.jpg
+      day: scenes/library-day.jpg
+      dusk: scenes/library-dusk.jpg
+      night: scenes/library-night.jpg
 ```

@@ -24,6 +24,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional, Protocol
 
+from engine.games import registry
+
 logger = logging.getLogger(__name__)
 
 MEDIA_DIR = Path("data/media")
@@ -42,9 +44,30 @@ class ImageRequest:
     # keep a character recognisable across images is to edit one base rather
     # than re-rolling from the prompt.
     base_image: str = ""
+    # The story this picture belongs to. Filled from the running story when
+    # the request is MADE, not when it is generated: generation runs on a
+    # worker thread minutes later, possibly after a game swap.
+    story: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.story:
+            self.story = registry.active_slug()
 
     def cache_key(self) -> str:
+        """
+        The disk-cache name for this picture.
+
+        PER STORY, except the flagship. The key used to be story-blind, so two
+        stories declaring the same subject id -- The Wicked Garden and Dev Story
+        both have a `sophia` portrait -- shared one cached image: served to both
+        at runtime, and copied into the wrong pack by
+        ``scripts/generate_art.py --promote``. The flagship keeps the original
+        formula exactly, because every image already cached on a machine is
+        named by it and a new key would orphan all of them.
+        """
         raw = f"{self.kind}|{self.subject_id}|{self.time_of_day}|{self.evil_phase}"
+        if self.story and self.story != registry.DEFAULT_SLUG:
+            raw = f"{self.story}|{raw}"
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 

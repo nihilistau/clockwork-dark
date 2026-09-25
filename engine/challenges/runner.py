@@ -128,6 +128,7 @@ def start(
     proposed: dict[str, Any],
     *,
     replace: bool = False,
+    authored: bool = False,
 ) -> ChallengeResult:
     """
     Validate a proposed challenge and present its first step.
@@ -139,6 +140,8 @@ def start(
             a model that composes a second challenge mid-gauntlet is far more
             likely to be confused than deliberate, and silently discarding the
             player's progress is not a recoverable mistake.
+        authored: True for a set-piece from the story's own files; passed to
+            ``spec.validate``. Default False, the strict path.
 
     Returns:
         ChallengeResult describing the first step, or an error result.
@@ -148,7 +151,7 @@ def start(
             f"a challenge is already running ({state.challenge.get('id', '?')})",
         )
 
-    validated = spec_module.validate(proposed)
+    validated = spec_module.validate(proposed, authored=authored)
     if not validated.ok:
         return _error(validated.error, str(proposed.get("kind", "")) if isinstance(proposed, dict) else "")
 

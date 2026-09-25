@@ -133,8 +133,12 @@ locations:
     # SECRET. Not "you have not been there" -- the player must not know it
     # EXISTS until the case puts them at its door. `codex_places` withholds a
     # secret place from the payload entirely, and withholds the road to it
-    # too, because an edge to nowhere is the loudest possible hint.
+    # too, because an edge to nowhere is the loudest possible hint; travel
+    # does not offer it either. The case's `the_cold_room` stage reveals it:
+    # known once the case stands at (or past) that stage, asked afresh every
+    # time, so a save already on the stage knows it with nothing stored.
     secret: true
+    known_when: { quest_state: { quest: the_dead_man_photographed, stage_at_least: 3 } }
     summary: >-
       A cold room under a bonded warehouse where things are hung up to stop
       being wet. It was built for fish. It has not been used for fish in some

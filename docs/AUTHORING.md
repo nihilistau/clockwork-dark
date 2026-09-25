@@ -382,9 +382,42 @@ What cuts across:
   beats — an ending intent set by a dice table is not a scene, it is a hijack.
   Enums are spelled as one flag per value (`entry_mode_guest`), the convention
   the Garden's scenes README documents.
-- A clock's `forces_scene` names a deck by its filename id. A forced scene
-  naming nothing is a promise with no scene behind it, and the validator says
-  so.
+- A clock's `forces_scene` names a deck by its filename id (or a single card
+  by its card id, which is placed first in the hand). A forced scene naming
+  nothing is a promise with no scene behind it, and the validator says so. A
+  declared world event may force one too — `forces_scene:` on an entry of the
+  `world_schedules` `events:` block (§3.7) — and it is kept by the same
+  director through the same query (`clocks.forced_scenes`). The difference is
+  lifetime: a clock beat's promise stands for the rest of the run, an event's
+  only while the event is active, so a player who takes no turn during its
+  window never sees it.
+- **A deck is dealt once, unless it says `repeatable: true`.** Every deck is
+  spent by its deal (`deck_played_<id>`, and for a forced deal
+  `scene_played_<id>`), so a scheduled deck does not re-deal on every turn its
+  `when:` stays true. A top-level `repeatable: true` re-arms it — but only
+  once its trigger has been seen FALSE since the deal: its `when:` fell, or no
+  active world event forces it any more. One deal per rising edge. A deck
+  gated `when: {in_custody: true}` deals on the first arrest, not again while
+  the player is still held, and again on the second arrest. A deck forced by
+  a recurring event (a market day) re-deals on the next occurrence only if the
+  event LAPSES in between and the player takes a turn during the lapse: an
+  event that runs back to back, or a lapse slept straight through, leaves no
+  false edge to see, and the deck stays spent. Edges are read at the turn
+  (`director.rearm`, the start of `ensure_scene`) — the only moment a deal can
+  happen — so a fall and a rise inside one turn deal nothing new. A deck
+  forced by a CLOCK never re-arms: a clock beat's promise is permanent.
+  `once` cards stay spent across re-deals; give a repeatable deck cards that
+  can be dealt again. `repeatable` must be a bool — the validator reports
+  `repeatable: "yes"`, which would otherwise load as one-shot.
+
+  ```yaml
+  # data/scenes/the_cells.yaml
+  id: the_cells
+  draw: 1
+  when: { in_custody: true }
+  repeatable: true
+  cards: [...]
+  ```
 
 ### 3.4 Clocks and threads
 
@@ -438,6 +471,50 @@ blank last screen. The lock itself is authored content: a finale card declares
 the three ending-flow effect kinds are authored-content-only — a model
 composing a challenge mid-turn cannot reach them.
 
+**A death that ends the story in an ending.** `death.yaml` (inside
+`paths.rules`, §2.2) may declare
+
+```yaml
+terminal:
+  when: { in_custody: true }   # a condition in the shared grammar
+  ending: the_rope             # a declared ending id
+  text: "They do not let you wake."
+```
+
+`when` is read at the moment of death, BEFORE any respawn hours. When it
+holds, the run ends (`state.ended`), `ending` is locked and its Speak · Act ·
+Seal module plays, so `epilogue.for_state` shows its card on that turn.
+Otherwise the ordinary `respawn:` runs. The lock **skips the ending's own
+`requires:`/`completable:`** — the death is its eligibility, so "this death
+ends in The Rope" always works; give such an ending a `requires:` only if you
+also want the finale's ordinary lock to reach it. A run already locked to
+another ending keeps that one (a lock is never walked back) and its module
+plays instead. Nobody wakes from a terminal death: no hours, no respawn, no
+move. Custody stays (a prisoner who dies is not released); the dying
+encounter is closed; a fall that killed mid-job closes the job `hurt`. A
+finished run stops dying: once `state.ended` is set, later hours at hp 0 run
+no death rules at all. The skip is the `ending_lock` effect's `terminal:
+true`, honoured ONLY while a terminal death applies its own lock — written in
+a quest or card, or by anything a respawn's hours run, it is refused, so it
+is not a way round a gate.
+
+**A terminal death inside time passing gets no death receipt in that turn's
+prose.** Starvation takes hp an hour at a time inside `advance_time`, which
+checks death itself; a death found there locks the ending and ends the run,
+but the turn's receipt comes from whatever spent the hours (a rest, a served
+sentence), not from a death. So `when: {in_custody: true}` also fires on a
+prisoner starving through a sentence in the cell, and that turn's narration
+does not hear why. HUE & CRY's The Rope (v0.17.0) should gate on more than
+custody — a flag its own scene sets, say — if starving in the cell is not
+meant to be a hanging.
+
+Validated at load and by the validator, naming `death.yaml`: `when` and
+`ending` come together, `ending` must be declared, `when` must use known
+predicates (and no combinator beside a sibling predicate), and the block may
+not also carry the flagship's older `phases:`/`flag:` shape — that one
+(a second death while the world is `consuming`) still sets `state.ended`
+with no ending, unchanged.
+
 ### 3.6 The canon dictionary and the two-direction flag rule
 
 A story may ship `data/canon/state-dictionary.json` (or
@@ -473,10 +550,30 @@ encounters must agree. Every vendor id in `economy.yaml` must be an NPC
 scheduled in `npc_schedules.yaml`, or the shop has no keeper — the validator
 says so.
 
+**World events on the calendar.** The `events:` block of `paths.world_schedules`
+declares things that HAPPEN — a market day, a raid, a curfew. Each entry fires
+on a fixed day (`on_day`), on a cadence (`every_days`, from `first_day`), or on
+the first rolled day a `when:` predicate holds; it lasts `duration_days`
+(default 1), may name a `location_id` and `npc_ids`, and its `text` reaches the
+narrator on the turn it starts (`engine/world/schedules.py::declared_events_due`,
+fired from `advance_time`'s day roll, no randomness). An event may also carry
+`forces_scene: <deck or card id>`: while it is active, the scene director deals
+that deck (§3.3) exactly as it deals a clock's forced scene. The id must name a
+deck or card the story ships — and a story with no decks declaring one is an
+error naming the schedules file.
+
+```yaml
+events:
+  the_raid:
+    on_day: 3
+    text: "The watch kicks in doors along the quay."
+    forces_scene: raid          # data/scenes/raid.yaml
+```
+
 **The map draws itself.** Any story with a travel graph gets core's map screen
 (`ui/src/core/screens/Map.jsx`, keyboard `m`) — nodes laid out by `ring`, roads
-from `connections`, and the place you are standing in. You author nothing for
-it. A plugin that declares its own overlay with `id: "map"` replaces it.
+from `connections` (plus any hidden path the player has found), and the place
+you are standing in. You author nothing for it. A plugin that declares its own overlay with `id: "map"` replaces it.
 
 Two things you *can* author:
 
@@ -486,7 +583,55 @@ Two things you *can* author:
   marked `secret: true` is one the player must not know EXISTS: it is withheld
   from the payload entirely, along with any road pointing at it, because
   drawing the edge and hiding the destination advertises the secret in the act
-  of keeping it. Walking there reveals it permanently.
+  of keeping it. It is withheld from the travel options too: a road to a
+  secret place is never offered, by name or otherwise, until the player knows
+  the place (`engine/game/locations.py::is_known`, the one rule the map, the
+  travel enum and the resume screen all ask). The player knows it once any of
+  these holds: they are standing in it; they have been there (the visited
+  ledger — walking there reveals it permanently); a discovered hidden path
+  ends there; its own `known_when:` condition holds; or content has
+  **revealed** it with a flag.
+
+  **Prefer `known_when:` when the reveal follows from state.** It is a
+  condition in the shared grammar on the secret place itself, asked afresh
+  every time and never stored — so a save made before the reveal existed
+  knows the place the moment the condition holds. THE LONG CON's drying room
+  is revealed this way, by its case standing at (or past) the stage that
+  sends you there:
+
+  ```yaml
+  the_drying_room:
+    secret: true
+    known_when: { quest_state: { quest: the_dead_man_photographed, stage_at_least: 3 } }
+  ```
+
+  It shipped first as a flag set by that stage's `on_enter` — and a v0.12
+  save already on the stage never ran it, so the stage's door stayed a secret
+  road nothing would offer and the case could never finish. `known_when` is
+  checked at load (the loader logs and ignores a bad one; the validator
+  reports it as an error naming the graph file): known predicates, no
+  combinator beside a sibling predicate, not empty, only on a `secret: true`
+  place, and none of `disposition`, `days_in_stage`, `days_since_started` —
+  `is_known` has no ledger and no quest record, so those would never hold.
+
+  **A flag reveal** is for a moment rather than a state: set
+  `location_known:<location id>` with the ordinary flag effect from anything
+  that runs effects — a card, a set piece, a stage's `on_complete` — or list
+  it in a stage's `narrative_flags` so the narrator may raise it:
+
+  ```yaml
+  on_complete:
+    effects:
+      - { type: flag, flag: "location_known:the_old_well" }
+  ```
+
+  A flag is stored, so it reaches only saves that run the effect after it
+  ships. A revealed place the player has not walked to is drawn greyed, like
+  any unvisited place. The validator reads the id after `location_known:` as
+  a location reference — in a flag effect and in `narrative_flags` alike — so
+  a typo is an error at load; a reveal nothing gates on is not reported as
+  write-only. A secret place nothing reveals can only be reached by content
+  that puts the player there — if it has no such door, it is unreachable.
 - **Nothing else.** Points of interest are DERIVED — an active quest stage that
   names a location becomes an objective pin, a vendor who trades there becomes
   a vendor pin. There is deliberately no map-pins file: a second place to
@@ -546,6 +691,47 @@ which carries a new story fine. When the prompts are written,
 `scripts/art_missing.py --game <slug>` writes `data/art/MISSING-PLATES.md` —
 every gap, with a ready-to-paste prompt in both dialects at the right pixel
 size. `games/dev-story/README.md` § Art shows the intended workflow.
+
+**Generating the pack.** `scripts/generate_art.py --game <slug>` plans from
+the same subjects and the same idea of "missing" as the brief (both call
+`generate_art.plan_plates`):
+
+- **The plan** is every location at each daypart its `times:` block declares
+  (one plate if it declares none), every portrait and every item — nothing
+  the story does not declare, and no evil-phase variants (a `corrupted:` pool
+  stays hand-filled).
+- **`--dry-run`** lists kind, subject, daypart and target path and writes
+  nothing. **`--only locations:<id>`**, **`--only portraits`** (repeatable,
+  comma-separated) and **`--dayparts day,night`** narrow it — the entry
+  location first is `--only locations:<entry id>`. A subject the story does
+  not declare is an error.
+- **`--missing`** (default on; `--no-missing` to redo) skips a plate the
+  manifest already resolves, by the serving chain's own test
+  (`shipped.lookup`). So a location entry with a `base:` resolves every
+  daypart; one with only `times:` resolves only the dayparts it names.
+- **A run without `--promote`** generates into the disposable cache
+  (`data/media/images`) with `media.image_provider` (or `--provider`). It is
+  slow by design — minutes per image on Grok.
+- **`--promote`** then copies each cached plate under `paths.art_root`
+  (`scenes/<id>-<daypart>.jpg`, `portraits/<id>.jpg`, `items/<id>.jpg`; JPEG
+  fitted to the `formats:` size) and writes it into `paths.art_manifest` as
+  `locations.<id>.times.<daypart>`, `portraits.<id>` or `items.<id>`. Only
+  the lines of the entries it changes are rewritten, so comments outside
+  those entries survive (a comment inside an entry it rewrites goes with it).
+  A manifest it cannot read, an entry it cannot edit safely (a quoted key it
+  would otherwise duplicate), or a plate whose path would land outside
+  `paths.art_root` stops the promote with an error before any file is
+  written. `--promote --dry-run` lists what would move and writes nothing.
+
+The generation cache is per story: a request's key includes the slug of the
+story it was made under (`ImageRequest.story`), so two stories that share a
+subject id (The Wicked Garden and Dev Story both have a `sophia` portrait)
+never share a cached image, at runtime or through `--promote`. The flagship's
+keys are the original story-blind ones, so nothing already cached for it is
+orphaned.
+
+The flagship (the default with no `--game`) keeps its original plan and flags
+(`--locations`, `--portraits`, `--items`, `--all`, `--list`, `--prompts`).
 
 ### 3.10 Premises, thievery and fences
 
@@ -683,6 +869,17 @@ empty, and an empty one switches its part off):
   hop 1 (the witness) at 1.0 by convention. Spoken to the narrator as
   "clearly" at precision 1.0 and "only a glimpse" otherwise, never as a
   number.
+- `clarity_words: [<word>, ...]` — how well the watch knows the face the
+  player wears, ascending (at least two non-empty strings; a number is a
+  load-time fault). Default `[nothing, a rumour, a description, a likeness]`.
+  The first means no live report here on that face or any face linked to
+  it; the rest split the best live precision (0, 1] evenly, so with four
+  words below 1/3 is the second, below 2/3 the third, from 2/3 the fourth
+  (the default hops 0.3 / 0.6 / 1.0 land one on each). A paid-off or
+  bribed-away deed draws nothing. The word ships as the payload's
+  `law.clarity` (the v1.0 wanted poster's sketch) and ends the narrator's
+  wanted line ("it has a description of you"), so write words that read
+  after "it has".
 - `spread_per_hour` (default 0.3) — the chance one held deed passes to
   another person awake in the same room, per in-game hour, capped at hop 3.
 - `reporters: {<role>: <chance>}` — a non-watch witness (a vendor, a servant)
@@ -740,12 +937,55 @@ no predicate for who else is standing there — see the NOT WIRED row in
 `on_seal`/`on_discharge`/`on_break` effects may use **`quash_reports` only**:
 the thread bounder (`engine/game/threads.py`, `_bound_effects`) drops every
 other Law kind with a logged adjustment, so a thread that tries to `arrest`
-or `report` does nothing. A model-composed challenge has no Law kinds on its
-allowlist at all. A quash lasts: the lost deeds are remembered per
+or `report` does nothing. A set-piece's challenge (`paths.challenges`) may
+use **`release` and `quash_reports`** and no other Law kind, and only because
+it is read from the story's own file (`quash_reports` through
+`engine/challenges/spec.py::STRUCTURAL_EFFECT_TYPES`, `release` through
+`AUTHORED_CHALLENGE_EFFECT_TYPES`); a
+model-composed challenge has no Law kinds on its allowlist at all, and a
+thread or deck gate never gets `release`. A quash lasts: the lost deeds are remembered per
 jurisdiction (`law.quashed`), and that watch-house refuses to re-file them
 when a witness's gossip reaches one of its watchmen. All are
 `engine/game/effects.py` kinds; none is written anywhere else (AGENTS.md
 rule 3).
+
+**Custody in the grammar, and a break-out.** `{in_custody: true}` is a
+predicate in the shared condition grammar (§3.7), true exactly while the
+watch holds the player — from `arrest` until `pay_fine`, `serve_sentence`, a
+`release` or a death in the cells — and always false in a story with no Law
+(so `{in_custody: false}` is always true there; an agenda may not use it
+without a Law). `arrest` sets no flag, so this is the only way content can ask
+"is the player in the cells?". A set-piece may carry an optional `requires:`
+— any condition from the same grammar, checked alongside its
+`location_id`/`requires_flags`/`forbids_flags` gates (an unknown predicate, a
+sibling beside `all`/`any`/`none`, or a predicate the gate cannot answer --
+`disposition` needs a ledger, `days_in_stage`/`days_since_started` a quest,
+and `is_available` has neither -- is logged and the piece skipped at load).
+Together they make a third way out of a cell:
+
+```yaml
+# data/challenges/cells.yaml
+set_pieces:
+  - id: lantern_house_break
+    location_id: lantern_house
+    requires: { in_custody: true }     # offered in the cell, never outside it
+    grants_flag: broke_out_of_the_lantern_house
+    challenge:
+      id: lantern_house_break
+      kind: puzzle
+      title: The Loose Bar
+      prompt: One bar in the window turns in its socket. What opens it?
+      answer: patience
+      attempts: 2
+      reward: { text: "The bar comes free.", effects: [{ type: release }] }
+      fail:   { text: "The bar holds.", effects: [] }
+```
+
+Held, the travel verb is withheld but set-pieces are not, so the break-out is
+offered; once started it owns the turn like any set-piece. Success runs
+`release` and nothing else: custody clears, the player stays where they are
+(the gaol) and walks out still wanted — unlike paying or serving, a break-out
+discharges no deed. Failure leaves the player held.
 
 ### 3.12 `paths.jobs` — authored jobs and guild contracts
 
@@ -780,7 +1020,10 @@ with the take). `stages: {<name>: {hours}}` must give all five and no others
   the id) for the `job` verb's options. `hurts` (optional, default false) is
   the one thing that turns an entry failure into a physical fall (one hp,
   then the story's ordinary death rules) instead of only noise — a `roof`
-  or a cellar drop would carry it; a `door` or `window` would not.
+  or a cellar drop would carry it; a `door` or `window` would not. A
+  respawn's hours count as the watch's hours: with the alarm raised, the
+  watch can arrive while the thief is down, and its arrest scene is open
+  when they wake.
 - `approach: {skill, shift}` — one roll, the same for every premise.
 - `inside: {awake: {skill, shift}, asleep: {skill, shift}}` — which row
   answers for a given obstacle depends on whether whoever (or whatever) is in

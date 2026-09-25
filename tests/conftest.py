@@ -269,6 +269,65 @@ def _no_live_model_calls(request: Any, monkeypatch: pytest.MonkeyPatch) -> Itera
     )
 
 
+@pytest.fixture(autouse=True)
+def _no_real_grok_cli(request: Any, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """
+    Fail any test that would launch the real Grok Build CLI.
+
+    WHY THIS EXISTS. ``_no_live_model_calls`` above guards SOCKETS to the model
+    server. The Grok image provider (``engine/media/providers/grokbuild.py``)
+    reaches no socket of ours: it shells out to the CLI with
+    ``subprocess.run``, and the CLI does its own networking and auth. So a test
+    that forgot to stub it would launch a two-to-three-minute generation
+    against the owner's account -- and, where no ``grok`` is installed, would
+    pass quietly on the provider's "failed" result instead. v0.13.0 made
+    ``scripts/generate_art.py`` drive that provider for any story, which is
+    when the gap started to matter.
+
+    The module's ``subprocess`` is swapped for a shim whose ``run`` refuses.
+    Everything in that module that calls ``subprocess`` is the CLI, so nothing
+    else is caught. A test that stubs the CLI patches ``run`` on the shim, and
+    its patch wins, being applied later.
+
+    Recorded AND raised, for the reason the socket guard gives: the media
+    worker runs generation on a thread pool that forgives a raise. The record
+    lives on ``request.node.grok_cli_calls`` so the canary
+    (``tests/test_generate_art_cli.py::test_the_conftest_guard_catches_a_real_cli_call``)
+    can check it and clear it. ``@pytest.mark.live`` opts out.
+    """
+    if request.node.get_closest_marker("live"):
+        yield
+        return
+
+    import subprocess
+    import types
+
+    from engine.media.providers import grokbuild
+
+    calls: list[str] = []
+    request.node.grok_cli_calls = calls
+
+    def refuse(argv: Any, *args: Any, **kwargs: Any) -> Any:
+        command = str(argv[0]) if isinstance(argv, (list, tuple)) and argv else str(argv)
+        calls.append(command)
+        raise AssertionError(
+            f"{request.node.nodeid} tried to launch the real Grok CLI ({command}). "
+            "Stub `grokbuild.subprocess.run`, or mark the test @pytest.mark.live."
+        )
+
+    shim = types.SimpleNamespace(
+        run=refuse,
+        TimeoutExpired=subprocess.TimeoutExpired,
+        CompletedProcess=subprocess.CompletedProcess,
+    )
+    monkeypatch.setattr(grokbuild, "subprocess", shim)
+    yield
+    assert not calls, (
+        f"{request.node.nodeid} tried to launch the real Grok CLI "
+        f"({', '.join(sorted(set(calls)))}). Tests must stub the provider."
+    )
+
+
 @pytest.fixture
 def game_state() -> GameState:
     """Fresh game state."""

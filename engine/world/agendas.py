@@ -118,7 +118,7 @@ SELECTOR_KEYS: dict[str, frozenset[str]] = {
 #: Where a trace may be left, besides a location id.
 TRACE_WHERES = ("target", "owner")
 #: Predicates that read the Law, and so need one declared.
-LAW_PREDICATES = frozenset({"wanted", "reported_to"})
+LAW_PREDICATES = frozenset({"wanted", "reported_to", "in_custody"})
 #: Predicates that need a StoryLedger in scope. The agendas pass runs inside
 #: ``advance_time``, which holds none, so each would be False forever there.
 LEDGER_PREDICATES = frozenset({"disposition"})
@@ -207,30 +207,13 @@ def _scheduled() -> set[str]:
 
 
 def _clauses(path: Path, where: str, node: Any) -> list[tuple[str, Any]]:
-    """Every ``(predicate, value)`` a condition tree holds, walked as the grammar walks it."""
+    """Every ``(predicate, value)`` a condition tree holds (``quests.condition_clauses``)."""
     from engine.game import quests
 
-    if node is None:
-        return []
-    if isinstance(node, list):
-        return [pair for entry in node for pair in _clauses(path, where, entry)]
-    if not isinstance(node, dict):
-        raise _fail(path, f"{where} must be a condition mapping or list")
-    groups = [key for key in node if key in quests._GROUP_KEYS]
-    siblings = [key for key in node
-                if key not in quests._GROUP_KEYS and key not in quests._ANNOTATION_KEYS]
-    if groups and siblings:
-        # The grammar evaluates a mapping holding a combinator as ONLY its
-        # combinators; a sibling predicate beside `all` is silently ignored.
-        raise _fail(path, f"{where} mixes {groups} with sibling predicate(s) {siblings}; "
-                          "put them inside the group")
-    found: list[tuple[str, Any]] = []
-    for key, value in node.items():
-        if key in quests._GROUP_KEYS:
-            found.extend(_clauses(path, where, value))
-        elif key not in quests._ANNOTATION_KEYS:
-            found.append((str(key), value))
-    return found
+    try:
+        return quests.condition_clauses(node, where)
+    except ValueError as exc:
+        raise _fail(path, str(exc)) from None
 
 
 def _check_condition(path: Path, where: str, node: Any, ctx: dict[str, Any]) -> Any:

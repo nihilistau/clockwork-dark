@@ -14,6 +14,255 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-09-25
+
+**Engine seams for HUE & CRY's finish**, the first of the v1.0 stages: v1.0.0
+no longer ships as one release at the end of the roadmap. From here it ships
+as point releases — this release's engine seams, then living city, guild
+economy, Acts I–II, Act III and its eight endings, the thief policy for
+`simulate.py`, the bespoke UI plugin, and finally the art pack and live play —
+tagged `v1.0.0` only once the last of those lands (owner, 2026-09-25; see the
+spec's Goal section). This release closes the small seams the shipped systems
+were still missing before content can be built on them: a secret place now
+stays secret until something in play actually finds it; a custody predicate
+and a jailbreak set-piece can free a held player; a declared world event can
+force a scene and a deck can be dealt more than once; a death can end the run
+in an ending with its epilogue shown, instead of a blank last screen; the
+watch a death's hours bring no longer closes the arrest scene it just opened;
+the wanted poster gets a word for how clearly the watch knows a face; and the
+art generator now works for any story, not only the flagship.
+
+### Fixed
+
+- **A save already on THE LONG CON's cold-room stage can finish the case**
+  (engine + content; `engine/game/locations.py::is_known`, `known_when:`,
+  docs/AUTHORING.md §3.7). The drying room was revealed by a flag the
+  `the_cold_room` stage set in its `on_enter` -- which a v0.12 save already
+  on that stage had run under v0.12, with no reveal in it. Such a save could
+  never be offered the room, and the stage's `complete_when` stands in it:
+  the case could not finish. A secret place may now declare `known_when:`, a
+  condition in the shared grammar that `is_known` asks afresh every time
+  (derived, never stored), and the drying room declares the case at or past
+  that stage; the one-shot flag is gone. `known_when` is checked at load --
+  the loader logs and ignores a bad one, the validator reports it naming the
+  graph file: known predicates, no combinator beside a sibling, not empty,
+  only on a `secret: true` place, and none that needs a ledger or a quest
+  (`disposition`, `days_in_stage`, `days_since_started`).
+- **A terminal death's gate-skipping lock is its own, not the whole death's**
+  (engine; `encounter.terminal_lock_in_progress`, `effects._e_ending`). The
+  `ending_lock` effect honoured `terminal: true` for as long as any death was
+  being handled -- including a respawn's hours, where an event, a card or a
+  job tick could have written one and locked an ending nobody earned. It is
+  now honoured only around the one lock `_terminal_ending_death` applies. A
+  terminal death also closes the dying encounter now (a dead player is in no
+  scene); custody stays, and a fall that killed mid-job closes the job
+  `hurt`, as the docstring and AUTHORING §3.5 now say instead of "everything
+  stays as it fell".
+- **A finished run stops dying** (engine; `encounter._check_death_inner`). A
+  terminal death leaves hp at the threshold, and every later hour re-ran it:
+  another "You do not get up." and another refused lock, per hour. A run
+  with `state.ended` set runs no death rules.
+- **`clarity_words` refuses a digit or a repeated word** (engine;
+  `law._load_clarity_words`). "Never a number" was only true of YAML
+  numbers: `"2 witnesses"` loaded. Two thresholds sharing a word (case and
+  edge spaces ignored) are a rise the player cannot hear. Both are load
+  errors naming `law.yaml`.
+- **Set-piece `requires:` refuses what it can never answer** (engine;
+  `set_pieces._requires_problem`, `quests.condition_problem`).
+  `is_available` evaluates with no ledger and no quest record, so
+  `disposition`, `days_in_stage` and `days_since_started` there were unmet
+  forever -- a piece that loads and is never offered. They are refused at
+  load, as agendas already refused them. Set pieces, jobs' flashbacks,
+  agendas, death.yaml's terminal and a location's `known_when` now share one
+  public walker and check (`quests.condition_clauses`,
+  `quests.condition_problem`) instead of four private copies reading the
+  grammar's private keyword lists.
+- **`generate_art.py`'s manifest editor refuses what it would get wrong**
+  (tooling; `scripts/generate_art.py::merge_manifest_text`, `promote_plates`).
+  A quoted key the entry finder missed (`"npc_brask":`) got a second, bare
+  entry appended, and the re-parse -- where the last duplicate wins -- passed
+  it; the re-parse now refuses duplicate keys. A manifest YAML cannot read
+  raised a traceback past the CLI; it is a reported error now. A plate whose
+  path would resolve outside `paths.art_root` is refused before any file is
+  written. The flagship's `--promote --dry-run` said "promoted N"; it says it
+  would, and promoted nothing.
+- **The validator reads a reveal in `narrative_flags`** (engine;
+  `validation.location_refs`). AUTHORING said a `location_known:<id>` listed
+  in a stage's `narrative_flags` was checked as a location reference; only
+  flag effects were. Both are now.
+- **Generated art is cached per story** (engine;
+  `engine/media/providers/base.py::ImageRequest.story`, `cache_key`). The
+  disk-cache key was story-blind, so The Wicked Garden and Dev Story -- both
+  with a `sophia` portrait -- shared one cached image, served to both at
+  runtime and, through `generate_art.py --promote`, copyable into the wrong
+  pack. A request now records the story running when it is made, and every
+  story's key includes its slug except the flagship's, which keeps the
+  original formula exactly so no image already cached for it is orphaned
+  (asserted against known keys).
+- **`art_missing.py` and the generator agree on what is missing** (tooling;
+  `scripts/art_missing.py`). The brief counted a subject present the moment its
+  id appeared in the manifest, whether or not the file existed, named the dawn
+  plate `scenes/<id>.jpg` where the generator writes `scenes/<id>-dawn.jpg`,
+  and printed a sizes table of 1280x720 for every story under a sentence saying
+  it was read from `formats:` (NEON CITY's is 1344x768). It now briefs from
+  `generate_art.plan_plates`, so both tools list the same plates at the same
+  paths, and its paste block uses `times:`. The three committed briefs were
+  regenerated; each lists the same subjects as before. `--out` writes the brief
+  elsewhere.
+- **The watch a death's hours bring stays at the door** (engine;
+  `encounter._check_death_inner`, `encounter.resolve_approach`). A respawn's
+  hours run `jobs.tick`, which can close an open job `caught` and open the
+  arrest scene; the dying scene was ended AFTER those hours, so the same
+  death closed the arrest scene it had just let open. The dying scene now
+  ends before the hours, and `resolve_approach` clears only the scene its
+  round played. Recorded as deferred in CLAUDE.md since v0.11.0.
+- **A hidden path found by foraging is offered as travel** (engine;
+  `foraging.shortcut_targets`). `intents._travel` read `to_id` from rows that
+  carry `leads_to`, so a found path never offered the leg it opened to a
+  place with no road -- `move_to` would walk it, nothing named it. The enum
+  now offers it, labelled with what `move_to` charges (the shorter of road and
+  path), and the map draws the same legs from the same function, so map and
+  travel agree after foraging too. The flagship's options change only once a
+  path is found; a fresh run's travel and map payload are unchanged.
+
+### Added
+
+- **Secret places stay secret until found** (engine;
+  `engine/game/locations.py::is_known`, `KNOWN_FLAG_PREFIX`, docs/AUTHORING.md
+  §3.7). `secret: true` was a promise only the map kept: `codex_places`
+  withheld the place and its roads, while `intents._travel` built its enum
+  from the raw graph -- so on turn one of HUE & CRY the model was offered
+  "The Undercroft, 1h" by name, and THE LONG CON offered the drying room from
+  the first visit to Harbour Road, three stages before the case sends anyone
+  there. One predicate now decides whether a place is known -- not secret,
+  stood in, visited, revealed, or the end of a discovered hidden path -- and
+  the travel enum, the map payload and the resume choices all ask it. A story
+  with no secret place is byte-identical (the flagship's travel options and
+  map payload hash the same across all 20 locations before and after).
+  `location_known:<id>` reveals a secret place, written by the ordinary
+  `flag` effect from any hook, card or set piece, or raised by the narrator
+  through a stage's `narrative_flags` -- a flag rather than a new effect
+  kind, so it round-trips saves with the same prefix shape as foraging's
+  `hidden_path_found:`; the validator reads its suffix as a location
+  reference (a typo is a load error) and does not report a reveal as
+  write-only (`ENGINE_READ_FLAG_PREFIXES`). A secret place may instead
+  declare `known_when:` (see Fixed): THE LONG CON reveals the drying room
+  that way, once the case reaches the `the_cold_room` stage. HUE & CRY's
+  three secrets have no reveal yet (see CLAUDE.md, Deliberately deferred).
+- **`move_to` refuses a secret place nobody has found** (engine;
+  `GameEngine.move_to`). Any caller naming an unknown secret place gets an
+  engine refusal ("You know of no way there." -- it does not name the place),
+  which reaches the narrator as every refused move does, instead of a silent
+  walk the travel enum would never have offered.
+- **An art generator for any story: `generate_art.py --game <slug>`**
+  (tooling; `scripts/generate_art.py::plan_plates`, `promote_plates`,
+  `merge_manifest_text`, docs/AUTHORING.md §3.9). The script was
+  flagship-shaped: no `--game`, five hardcoded Edgewood NPC ids, every
+  location doubled across two evil phases, and `--promote` writing only item
+  plates into the flagship's `things/`. Now any other story is planned from
+  its own `paths.art_subjects` -- each location at every daypart its
+  `times:` declares (one `base` plate if it declares none), every portrait,
+  every item, nothing else -- and HUE & CRY plans 91 plates (19 locations x 4
+  dayparts, 15 portraits). `--dry-run` lists kind, subject, daypart and target
+  path and writes nothing; `--only locations:tallow_docks` / `--only
+  portraits` and `--dayparts day,night` narrow it (an undeclared subject is an
+  error, not an empty plan); `--missing` (default on) skips what
+  `shipped.lookup` already resolves. `--promote` copies each generated plate
+  from the cache under the story's `paths.art_root` as JPEG fitted to its
+  `formats:` size, and writes it into `paths.art_manifest` as
+  `locations.<id>.times.<daypart>`, `portraits.<id>` or `items.<id>` --
+  editing only the lines of the entries it changes, so comments outside
+  those entries survive, and re-parsing the result before writing anything. The
+  flagship (the default, and `--game clockwork-dark`) keeps its plan: `--all
+  --list` and `--all --prompts` print byte-identical output before and after,
+  and nothing on its path activates a story.
+- **Tests cannot launch the real Grok CLI** (tests;
+  `tests/conftest.py::_no_real_grok_cli`). The model-server guard watches
+  sockets; the Grok image provider shells out to a CLI that does its own
+  networking, so an unstubbed test would have started a real generation (or,
+  with no `grok` installed, passed quietly on a failed result). The
+  provider's `subprocess` is now a refusing shim in every test not marked
+  `live`, recorded and re-asserted at teardown like the socket guard; its
+  canary is `test_the_conftest_guard_catches_a_real_cli_call`.
+- **How clearly the watch knows your face, in words** (engine + authoring;
+  `engine/world/law.py::clarity_word`, `best_precision`, docs/AUTHORING.md
+  §3.11). The `law` payload gains `clarity` beside `wanted`: one word for the
+  face worn, in the jurisdiction the player stands in, from the best
+  precision among the live reports the watch there holds on it or on a face
+  it links to it (a discharged or quashed deed draws nothing). It is what
+  v1.0's wanted poster will sharpen its sketch by -- a word, never the
+  number. `law.yaml` may author `clarity_words` (ascending, at least two
+  strings); the default is "nothing", "a rumour", "a description", "a
+  likeness" (no digit, no word twice), with the first meaning no live report and the rest splitting
+  precision (0, 1] evenly, so the shipped hops 0.3 / 0.6 / 1.0 land one on
+  each. The narrator's wanted line speaks the same word ("...: sought; it
+  has a description of you."), so prose and poster cannot disagree.
+  `recognition` now reads its precision through the same `best_precision`
+  rather than its own loop. A story with no Law is unchanged: no `law` key,
+  no line.
+- **A death can end the story in an ending** (engine + authoring;
+  `engine/game/encounter.py::_terminal_ending_death`, `endings.lock(...,
+  terminal=True)`, docs/AUTHORING.md §3.5). `death.yaml` may declare
+  `terminal: {when: <condition>, ending: <id>}`: a death that satisfies
+  `when` (read before any respawn) ends the run, locks that ending and plays
+  its module, so its epilogue shows -- the flagship's `phases`/`flag`
+  terminal set `state.ended` and nothing else, a blank last screen. The lock
+  skips the ending's own `requires`/`completable` (the death is its
+  eligibility) through the `ending_lock` effect's `terminal: true`, which is
+  refused anywhere but the death's own lock (see Fixed). A misspelt ending, an unknown
+  predicate or a malformed `when` is a load error naming `death.yaml`, and
+  the content validator reports the same (`check_death_rules`). The
+  flagship's terminal and respawn and neon-city's respawn are byte-identical
+  (sha256 of the death record and the full save, measured before and after).
+- **A declared world event can force a scene** (engine + authoring;
+  `engine/world/schedules.py::_declared_event`,
+  `engine/game/clocks.py::event_forced_scene`, docs/AUTHORING.md §3.3 and
+  §3.7). `forces_scene: <deck or card id>` on an entry of the
+  `world_schedules` `events:` block rides the event's payload and is read by
+  the same `clocks.forced_scenes` a clock beat's promise is answered through
+  -- one path, not two. The promise stands only while the event is active.
+  The validator (`check_declared_event_scenes`) requires the id to name a
+  deck or card, and reports one declared in a story with no decks against
+  the schedules file.
+- **Decks can deal again: `repeatable: true`** (engine + authoring;
+  `engine/content/director.py::rearm`, `Deck.repeatable`, docs/AUTHORING.md
+  §3.3). A repeatable deck is still spent by its deal, and re-arms only once
+  its trigger -- its `when:`, or an active world event forcing it -- has been
+  seen false since: one deal per rising edge. A deck gated
+  `{in_custody: true}` deals on each arrest and never twice in one stay. The
+  fall is recorded by clearing the played flags through `apply_effect`, so it
+  rides the save; it is read at the turn, so how the clock was cut between
+  turns cannot change it. A clock-forced deck never re-arms (its promise is
+  permanent). The validator reports a non-bool `repeatable`. No shipped deck
+  or event opts in, and the-long-con, wicked-garden and dev-story deal
+  byte-identically: a fixed 40-turn director walk of each, recorded before
+  this change, replays to the same hands and played flags
+  (`tests/test_forced_and_repeatable_decks.py`).
+- **`in_custody` is a condition predicate** (engine + authoring;
+  `engine/world/law.py::_p_in_custody`, docs/AUTHORING.md §3.11).
+  `{in_custody: true}` holds exactly while the watch holds the player; the
+  `arrest` effect writes the custody record and sets no flag, so nothing
+  authored could ask it before. False in a story with no Law, whatever
+  `state.law` carries. `engine.world.law` joins `quests._GRAMMAR_MODULES`, and
+  the agendas validator counts it as a Law predicate.
+- **Set-pieces take a `requires:` condition** (authoring;
+  `engine/challenges/set_pieces.py`). Any shared-grammar condition, ANDed with
+  the existing location and flag gates and evaluated only for a piece that
+  declares one; its predicate names are checked at load (an unknown one, a
+  sibling beside a group combinator, or one needing a ledger or a quest logs
+  and skips the piece).
+- **An authored set-piece may pay `release`** (engine;
+  `engine/challenges/spec.py`, `AUTHORED_CHALLENGE_EFFECT_TYPES`). A
+  break-out gated `requires: {in_custody: true}` is offered in the cell and
+  its success frees the player -- custody cleared, nothing discharged, nothing
+  else charged. `set_pieces.start` now validates with `authored=True`, which
+  also admits the structural kinds (`ending_*`, `quash_reports`) as threads
+  and deck gates already had; every magnitude clamp is unchanged. `release`
+  is NOT structural: a model-composed challenge, a thread and a deck gate
+  still drop it. The flagship's set-pieces bound identically on both paths
+  (asserted), and no shipped set-piece declares `requires:`, so every story's
+  turns are unchanged.
+
 ## [0.12.0] — 2026-09-25
 
 **Agendas.** Tallowmere moves whether or not you do. A thief chosen by the
@@ -1779,7 +2028,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.9.0...v0.10.0

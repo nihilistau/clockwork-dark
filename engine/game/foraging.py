@@ -383,6 +383,27 @@ def discovered_paths(state: GameState) -> list[dict[str, Any]]:
     return out
 
 
+def shortcut_targets(state: GameState, from_id: str) -> list[str]:
+    """
+    Every place a discovered hidden path takes the player from ``from_id``.
+
+    Both directions, as ``shortcut_hours`` walks them. The ONE reading of
+    "where do my found paths go from here": the travel enum and the map both
+    call it, so a path the enum offers is a road the map draws. (The enum used
+    to read ``to_id`` from rows that carry ``leads_to``, so a found path never
+    offered the leg it opened -- ``move_to`` would walk it, nothing named it.)
+    """
+    out: list[str] = []
+    for row in discovered_paths(state):
+        ends = (str(row.get("from_id") or ""), str(row.get("leads_to") or ""))
+        if not all(ends) or from_id not in ends:
+            continue
+        other = ends[1] if ends[0] == from_id else ends[0]
+        if other != from_id and other not in out:
+            out.append(other)
+    return sorted(out)
+
+
 def shortcut_hours(state: GameState, from_id: str, to_id: str) -> Optional[int]:
     """
     Hours for this leg by a discovered hidden path, or None.

@@ -374,17 +374,36 @@ def apply_mutations(
 # ---------------------------------------------------------------------------
 
 
+def event_forced_scene(event: dict[str, Any]) -> str:
+    """
+    The scene a world-ledger row owes, or ``""``.
+
+    Two writers, one reader. A clock beat writes ``forces_scene`` on the row
+    itself (``_apply_forced_scene``); a story-declared world event carries it
+    on its payload (``schedules._declared_event``), because declared events
+    are ``SimEvent`` rows and their keys live there.
+    """
+    scene_id = event.get("forces_scene")
+    if not scene_id:
+        payload = event.get("payload")
+        if isinstance(payload, dict):
+            scene_id = payload.get("forces_scene")
+    return str(scene_id or "").strip()
+
+
 def forced_scenes(state: GameState) -> list[str]:
     """
-    Setpieces a filled clock owes the player, oldest first, unplayed only.
+    Setpieces the world owes the player, oldest first, unplayed only.
 
     A clock at its maximum that nothing acts on is a clock that was only
     counted -- the exact failure ``world_effects`` was written to fix for the
-    doom track. This is the query a scene director answers.
+    doom track. This is the query a scene director answers. A declared world
+    event with ``forces_scene:`` owes its scene only while it is active: its
+    row expires with the event, where a clock beat's row is permanent.
     """
     pending: list[str] = []
     for event in state.world_events:
-        scene_id = str(event.get("forces_scene") or "")
+        scene_id = event_forced_scene(event)
         if not scene_id:
             continue
         if state.flags.get(f"{SCENE_PLAYED_FLAG_PREFIX}{scene_id}"):
@@ -847,6 +866,7 @@ __all__ = [
     "apply_mutations",
     "beat_flag",
     "clock_names",
+    "event_forced_scene",
     "fire_beat",
     "forced_scenes",
     "has_fired",

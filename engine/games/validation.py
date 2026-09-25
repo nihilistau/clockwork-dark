@@ -52,6 +52,7 @@ from typing import Any, Iterable, Iterator, Optional, Union
 
 import yaml
 
+from engine.game.locations import KNOWN_FLAG_PREFIX
 from engine.games.manifest import GameManifest
 
 logger = logging.getLogger(__name__)
@@ -81,6 +82,11 @@ ENGINE_EVIL_PHASES = frozenset({"dormant", "stirring", "spreading", "consuming"}
 #: Flags the ENGINE writes, by prefix. Content never spells these out; a scan
 #: that meets one must not report it as unresolvable.
 ENGINE_FLAG_PREFIXES: tuple[str, ...] = ("deck_drawn_", "ending_closed_")
+
+#: Flags the ENGINE reads, by prefix: content writes them and nothing in
+#: content need gate on them, so a write-only one is not dead weight.
+#: ``location_known:<id>`` reveals a secret place (``locations.is_known``).
+ENGINE_READ_FLAG_PREFIXES: tuple[str, ...] = (KNOWN_FLAG_PREFIX,)
 
 _IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 
@@ -228,6 +234,19 @@ def location_refs(doc: Any) -> set[str]:
         for key in ("location", "location_id"):
             if isinstance(node.get(key), str):
                 out.add(str(node[key]))
+        # A reveal names a place too (engine/game/locations.py::KNOWN_FLAG_PREFIX),
+        # so a typo'd id is caught at load like a bad `at_location` -- written
+        # by a flag effect, or handed to the narrator in `narrative_flags`.
+        if node.get("type") == "flag":
+            name = str(node.get("flag") or node.get("name") or "")
+            if name.startswith(KNOWN_FLAG_PREFIX):
+                out.add(name[len(KNOWN_FLAG_PREFIX):])
+        narrative = node.get("narrative_flags")
+        if isinstance(narrative, list):
+            for raw_flag in narrative:
+                name = str(raw_flag)
+                if name.startswith(KNOWN_FLAG_PREFIX):
+                    out.add(name[len(KNOWN_FLAG_PREFIX):])
         triggers = node.get("triggers")
         if isinstance(triggers, dict):
             for key in ("to", "from"):
@@ -587,7 +606,9 @@ class StoryValidator:
         self.check_assistant_hints()
         self.check_lore()
         self.check_decks_and_structures()
+        self.check_declared_event_scenes()
         self.check_endings_and_epilogues()
+        self.check_death_rules()
         self.check_agents()
         self.check_spoilers()
 
@@ -664,10 +685,15 @@ class StoryValidator:
             if canon not in self.locations:
                 self._add(source, canon, "canon location id is missing from the graph")
 
+        from engine.game.locations import known_when_problem
+
         for loc_id, spec in self.locations.items():
             spec = spec if isinstance(spec, dict) else {}
             if not str(spec.get("name") or "").strip():
                 self._add(source, str(loc_id), "location has no name; the loader will drop it")
+            problem = known_when_problem(spec)
+            if problem:
+                self._add(source, str(loc_id), f"{problem}; the loader will ignore it")
             if "ring" not in spec:
                 self._add(source, str(loc_id), "no ring assigned; the loader will drop it")
             connections = spec.get("connections") or {}
@@ -1171,6 +1197,14 @@ class StoryValidator:
                 self._add(source, "-", "deck file is not a YAML mapping")
                 continue
             known_decks.add(str(data.get("id") or path.stem))
+            if "repeatable" in data and not isinstance(data["repeatable"], bool):
+                # The loader reads only `is True`, so `repeatable: "yes"` would
+                # load as a one-shot deck its author believed re-deals.
+                self._add(
+                    source,
+                    str(data.get("id") or path.stem),
+                    f"repeatable must be true or false, got {data['repeatable']!r}",
+                )
             seen_cards: set[str] = set()
             for card in data.get("cards") or []:
                 card_id = str((card or {}).get("id") or "")
@@ -1237,7 +1271,12 @@ class StoryValidator:
                     "flag is read but never written and not canon; this gate can never open",
                 )
             for flag in sorted(flags_written(doc)):
-                if flag in canon or flag in read or engine_owned_flag(flag):
+                if (
+                    flag in canon
+                    or flag in read
+                    or engine_owned_flag(flag)
+                    or flag.startswith(ENGINE_READ_FLAG_PREFIXES)
+                ):
                     continue
                 # Without a canon dictionary there is no declared vocabulary to
                 # hold a write-only flag against, so it is advisory dead weight
@@ -1420,25 +1459,77 @@ class StoryValidator:
                     yield from _walk(value)
 
         for scene_id in _walk(doc):
-            if not scene_id:
-                self._add(source, "-", "forces_scene is empty")
+            self._check_scene_ref(source, scene_id, known_decks, known_cards, "clock's")
+
+    def _check_scene_ref(
+        self,
+        source: str,
+        scene_id: str,
+        known_decks: set[str],
+        known_cards: set[str],
+        whose: str,
+    ) -> None:
+        """One ``forces_scene`` value: empty, a deck, a card, or an error."""
+        if not scene_id:
+            self._add(source, "-", "forces_scene is empty")
+            return
+        if scene_id in known_decks or scene_id in known_cards:
+            return
+        if not known_decks:
+            self._add(
+                source,
+                scene_id,
+                "forces_scene is declared but this story ships no decks, "
+                f"so the {whose} promise can never be kept",
+            )
+        else:
+            self._add(
+                source,
+                scene_id,
+                "forces_scene names neither a deck nor a card that exists "
+                "(engine/content/director.py resolves it against both)",
+            )
+
+    def check_declared_event_scenes(self) -> None:
+        """
+        Every ``forces_scene:`` on a declared world event names a deck or card.
+
+        Its own check rather than a branch of ``check_decks_and_structures``,
+        which returns early for a story with no decks, clocks, threads or
+        endings -- and "an event forces a scene in a story with no decks" is
+        exactly the case that must be reported. The event's promise is kept by
+        the same director that keeps a clock's (``clocks.forced_scenes``).
+        """
+        path = self._file("world_schedules")
+        if path is None or not path.is_file():
+            return
+        doc = _read_yaml(path)
+        events = doc.get("events") if isinstance(doc, dict) else None
+        if not isinstance(events, dict):
+            return
+        declared = [
+            (str(event_id), str(spec.get("forces_scene") or "").strip())
+            for event_id, spec in events.items()
+            if isinstance(spec, dict) and "forces_scene" in spec
+        ]
+        if not declared:
+            return
+
+        known_decks: set[str] = set()
+        known_cards: set[str] = set()
+        for deck_path in _yaml_files(self._dir("decks")):
+            data = _read_yaml(deck_path)
+            if not isinstance(data, dict):
                 continue
-            if scene_id in known_decks or scene_id in known_cards:
-                continue
-            if not known_decks:
-                self._add(
-                    source,
-                    scene_id,
-                    "forces_scene is declared but this story ships no decks, "
-                    "so the clock's promise can never be kept",
-                )
-            else:
-                self._add(
-                    source,
-                    scene_id,
-                    "forces_scene names neither a deck nor a card that exists "
-                    "(engine/content/director.py resolves it against both)",
-                )
+            known_decks.add(str(data.get("id") or deck_path.stem))
+            for card in data.get("cards") or []:
+                card_id = str((card or {}).get("id") or "") if isinstance(card, dict) else ""
+                if card_id:
+                    known_cards.add(card_id)
+
+        source = self._rel(path)
+        for _event_id, scene_id in declared:
+            self._check_scene_ref(source, scene_id, known_decks, known_cards, "event's")
 
     def _check_beat_shapes(self, source: str, card_id: str, card: Any) -> None:
         """
@@ -1564,6 +1655,40 @@ class StoryValidator:
             for side in ("card_m", "card_g"):
                 if not str(card.get(side) or "").strip():
                     self._add(cards_source, str(ending_id), f"epilogue card has no {side} prose")
+
+    # -- death rules -------------------------------------------------------
+
+    def check_death_rules(self) -> None:
+        """
+        death.yaml's ``terminal: {when, ending}``: a declared ending, a real
+        condition. The same check the loader raises on
+        (``encounter.death_terminal_problem``), so doctor finds it before a
+        player dies into it.
+        """
+        from engine.game.encounter import death_terminal_problem
+
+        rules_dir = self._dir("rules")
+        if rules_dir is None or not (rules_dir / "death.yaml").is_file():
+            return
+        path = rules_dir / "death.yaml"
+        source = self._rel(path)
+        doc = _read_yaml(path)
+        if not isinstance(doc, dict):
+            self._add(source, "-", "death rules are not a YAML mapping")
+            return
+        terminal = doc.get("terminal")
+        if not isinstance(terminal, dict):
+            return
+        # Mirror engine/game/endings.py::declared(), as check_endings does.
+        ending_ids: set[str] = set()
+        endings_path = self._file("endings")
+        endings_doc = _read_yaml(endings_path) if endings_path is not None else None
+        for class_id, body in ((endings_doc or {}).get("classes") or {}).items():
+            block = (body or {}).get("variants") or {}
+            ending_ids.update(str(e) for e in (block or {str(class_id): body}))
+        problem = death_terminal_problem(terminal, ending_ids)
+        if problem:
+            self._add(source, str(terminal.get("ending") or "terminal"), problem)
 
     # -- agents ------------------------------------------------------------
 
@@ -1840,6 +1965,7 @@ __all__ = [
     "ENGINE_BANDS",
     "ENGINE_EVIL_PHASES",
     "ENGINE_FLAG_PREFIXES",
+    "ENGINE_READ_FLAG_PREFIXES",
     "ENGINE_ITEM_TAGS",
     "ENGINE_SKILLS",
     "Issue",

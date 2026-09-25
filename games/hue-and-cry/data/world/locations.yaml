@@ -14,8 +14,9 @@
 # pay off. Night streets arrive with their encounters.
 #
 # THE THREE SECRETS. `secret: true` withholds a place -- and every road to it --
-# from the map payload until the player has stood there, because an edge to
-# nowhere is the loudest hint there is (docs/AUTHORING.md §3.7). Each hangs off
+# from the map payload AND the travel options until the player knows it (stood
+# there, or content set `location_known:<id>`), because an edge to nowhere is
+# the loudest hint there is (docs/AUTHORING.md §3.7). Each hangs off
 # at least two districts, so finding the way in is not the same as finding the
 # only way in:
 #

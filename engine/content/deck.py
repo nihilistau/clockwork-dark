@@ -123,6 +123,9 @@ class Deck:
     cards: list[Card] = field(default_factory=list)
     #: Optional condition every card is additionally gated on.
     when: Any = None
+    #: Deal again after the trigger falls and rises (``director.rearm``).
+    #: False is the one-shot every deck had before v0.13.0.
+    repeatable: bool = False
 
     @property
     def required(self) -> list[Card]:
@@ -369,7 +372,15 @@ def _parse_deck(deck_id: str, data: dict[str, Any]) -> Deck:
             )
         )
 
-    return Deck(id=deck_id, draw=draw, cards=cards, when=data.get("when"))
+    return Deck(
+        id=deck_id,
+        draw=draw,
+        cards=cards,
+        when=data.get("when"),
+        # Strictly True: `repeatable: "no"` is truthy and would re-arm a deck
+        # its author meant to spend. The validator reports a non-bool.
+        repeatable=data.get("repeatable") is True,
+    )
 
 
 def load_deck(deck_id: str) -> Optional[Deck]:

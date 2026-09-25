@@ -701,6 +701,7 @@ def lock(
     ending_id: str,
     *,
     ledger: Optional[Any] = None,
+    terminal: bool = False,
 ) -> dict[str, Any]:
     """
     Commit. Hard phase, the point of no return.
@@ -708,6 +709,12 @@ def lock(
     Refused on a non-eligible id and refused a second time on an already-locked
     save. Re-locking would let a finale be walked back, and "irreversible" is
     the tone the whole day is written in.
+
+    ``terminal=True`` is a death's lock (death.yaml ``terminal: {when,
+    ending}``): the death is the ending's eligibility, so its ``requires`` and
+    ``completable`` are not asked. It still refuses an undeclared id and an
+    already-locked save. The ``ending_lock`` effect passes it only while a terminal death applies its
+    own lock (``encounter.terminal_lock_in_progress()``).
     """
     already = locked(state)
     if already != NONE_ID:
@@ -720,7 +727,14 @@ def lock(
         }
 
     report = eligible(state, ledger=ledger)
-    if ending_id not in report.eligible:
+    if terminal and ending_id not in declared():
+        return {
+            "type": "track",
+            "name": TRACK_LOCKED,
+            "ok": False,
+            "text": f"{ending_id} is not a declared ending; it will not be locked",
+        }
+    if not terminal and ending_id not in report.eligible:
         return {
             "type": "track",
             "name": TRACK_LOCKED,
@@ -733,10 +747,12 @@ def lock(
     receipt = _write_track(state, TRACK_LOCKED, ending_id, allowed=sorted(declared()) + [NONE_ID])
     receipt["eligible"] = report.eligible
     receipt["forced"] = report.forced
+    receipt["terminal"] = terminal
     logger.info(
-        "[endings] Ending locked (operation=lock, ending=%s, forced=%s)",
+        "[endings] Ending locked (operation=lock, ending=%s, forced=%s, terminal=%s)",
         ending_id,
         report.forced,
+        terminal,
     )
     return receipt
 

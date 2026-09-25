@@ -26,9 +26,9 @@ editing a subject, re-run the generator rather than editing the prompts here:
 
 | Kind | Size | Directory |
 | --- | --- | --- |
-| location | 1280x720 | `plates/scenes/` |
-| portrait | 768x1024 | `plates/portraits/` |
-| item | 768x1024 | `plates/items/` |
+| location | 1344x768 | `scenes/` under `paths.art_root` |
+| portrait | 768x1024 | `portraits/` under `paths.art_root` |
+| item | 256x256 | `items/` under `paths.art_root` |
 
 Read from `subjects.yaml`'s `formats:` block, which is also what the live Grok
 and ComfyUI providers size their requests from — so generating by hand and
@@ -37,9 +37,13 @@ holds that block to the plates actually on disk. JPEG, same as the rest.
 
 ## After the files land
 
-Add each to `manifest.yaml` under its kind. Locations take
-`{base: ..., alts: [...]}`; portraits and items take a bare path. Paths are
-relative to `paths.art_root`. The ready-to-paste block is at the bottom.
+`scripts/generate_art.py --game neon-city --promote` writes each plate the
+generator made into `manifest.yaml` itself. For a plate made by hand, add it
+under its kind: a location's plates go under `times: {<daypart>: ...}` (or
+`base:` for a location whose subject declares no `times:` -- note that a
+`base:` then answers every daypart); portraits and items take a bare path.
+Paths are relative to `paths.art_root`. The ready-to-paste block is at the
+bottom.
 
 ---
 
@@ -47,10 +51,11 @@ relative to `paths.art_root`. The ready-to-paste block is at the bottom.
 
 ### `the_grid`
 
-- **File:** `scenes/the-grid.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/the-grid-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -68,7 +73,9 @@ An underground night market in a converted service vault, counter rows under str
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/the-grid-day.jpg`)</summary>
+<details><summary>day (`scenes/the-grid-day.jpg`)</summary>
+
+- **File:** `scenes/the-grid-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -88,7 +95,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/the-grid-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/the-grid-dusk.jpg`)</summary>
+
+- **File:** `scenes/the-grid-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -108,7 +117,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/the-grid-night.jpg`)</summary>
+<details><summary>night (`scenes/the-grid-night.jpg`)</summary>
+
+- **File:** `scenes/the-grid-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -132,10 +143,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `neon_strip`
 
-- **File:** `scenes/neon-strip.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/neon-strip-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -153,7 +165,9 @@ A canyon of light and appetite through Midtown at street level, stacked signage,
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/neon-strip-day.jpg`)</summary>
+<details><summary>day (`scenes/neon-strip-day.jpg`)</summary>
+
+- **File:** `scenes/neon-strip-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -173,7 +187,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/neon-strip-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/neon-strip-dusk.jpg`)</summary>
+
+- **File:** `scenes/neon-strip-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -193,7 +209,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/neon-strip-night.jpg`)</summary>
+<details><summary>night (`scenes/neon-strip-night.jpg`)</summary>
+
+- **File:** `scenes/neon-strip-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -217,10 +235,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `club_noir`
 
-- **File:** `scenes/club-noir.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/club-noir-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -238,7 +257,9 @@ A casino interior dressed as a cathedral nave, black marble, gold table lamps, c
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/club-noir-day.jpg`)</summary>
+<details><summary>day (`scenes/club-noir-day.jpg`)</summary>
+
+- **File:** `scenes/club-noir-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -258,7 +279,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/club-noir-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/club-noir-dusk.jpg`)</summary>
+
+- **File:** `scenes/club-noir-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -278,7 +301,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/club-noir-night.jpg`)</summary>
+<details><summary>night (`scenes/club-noir-night.jpg`)</summary>
+
+- **File:** `scenes/club-noir-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -302,10 +327,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `velvet_pit`
 
-- **File:** `scenes/velvet-pit.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/velvet-pit-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -323,7 +349,9 @@ A low-ceilinged speakeasy below street level, a long zinc bar, booth shadows, a 
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/velvet-pit-day.jpg`)</summary>
+<details><summary>day (`scenes/velvet-pit-day.jpg`)</summary>
+
+- **File:** `scenes/velvet-pit-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -343,7 +371,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/velvet-pit-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/velvet-pit-dusk.jpg`)</summary>
+
+- **File:** `scenes/velvet-pit-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -363,7 +393,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/velvet-pit-night.jpg`)</summary>
+<details><summary>night (`scenes/velvet-pit-night.jpg`)</summary>
+
+- **File:** `scenes/velvet-pit-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -387,10 +419,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `junkyard_sprawl`
 
-- **File:** `scenes/junkyard-sprawl.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/junkyard-sprawl-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -408,7 +441,9 @@ Mountains of dead technology under a crane line, stacked drone hulls and server 
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/junkyard-sprawl-day.jpg`)</summary>
+<details><summary>day (`scenes/junkyard-sprawl-day.jpg`)</summary>
+
+- **File:** `scenes/junkyard-sprawl-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -428,7 +463,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/junkyard-sprawl-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/junkyard-sprawl-dusk.jpg`)</summary>
+
+- **File:** `scenes/junkyard-sprawl-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -448,7 +485,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/junkyard-sprawl-night.jpg`)</summary>
+<details><summary>night (`scenes/junkyard-sprawl-night.jpg`)</summary>
+
+- **File:** `scenes/junkyard-sprawl-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -472,10 +511,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `ripper_street`
 
-- **File:** `scenes/ripper-street.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/ripper-street-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -493,7 +533,9 @@ A street of chop shops and back-room clinics, shopfronts of chrome limbs and par
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/ripper-street-day.jpg`)</summary>
+<details><summary>day (`scenes/ripper-street-day.jpg`)</summary>
+
+- **File:** `scenes/ripper-street-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -513,7 +555,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/ripper-street-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/ripper-street-dusk.jpg`)</summary>
+
+- **File:** `scenes/ripper-street-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -533,7 +577,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/ripper-street-night.jpg`)</summary>
+<details><summary>night (`scenes/ripper-street-night.jpg`)</summary>
+
+- **File:** `scenes/ripper-street-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -557,10 +603,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `ghost_alley`
 
-- **File:** `scenes/ghost-alley.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/ghost-alley-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -578,7 +625,9 @@ A dead-end lane where netrunners meet in the flesh, taped junction boxes, a nood
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/ghost-alley-day.jpg`)</summary>
+<details><summary>day (`scenes/ghost-alley-day.jpg`)</summary>
+
+- **File:** `scenes/ghost-alley-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -598,7 +647,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/ghost-alley-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/ghost-alley-dusk.jpg`)</summary>
+
+- **File:** `scenes/ghost-alley-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -618,7 +669,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/ghost-alley-night.jpg`)</summary>
+<details><summary>night (`scenes/ghost-alley-night.jpg`)</summary>
+
+- **File:** `scenes/ghost-alley-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -642,10 +695,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `rusty_anchor`
 
-- **File:** `scenes/rusty-anchor.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/rusty-anchor-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -663,7 +717,9 @@ A dockside-style tavern interior that remembers everyone, a long scarred bar, ke
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/rusty-anchor-day.jpg`)</summary>
+<details><summary>day (`scenes/rusty-anchor-day.jpg`)</summary>
+
+- **File:** `scenes/rusty-anchor-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -683,7 +739,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/rusty-anchor-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/rusty-anchor-dusk.jpg`)</summary>
+
+- **File:** `scenes/rusty-anchor-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -703,7 +761,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/rusty-anchor-night.jpg`)</summary>
+<details><summary>night (`scenes/rusty-anchor-night.jpg`)</summary>
+
+- **File:** `scenes/rusty-anchor-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -727,10 +787,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `omnicorp_plaza`
 
-- **File:** `scenes/omnicorp-plaza.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/omnicorp-plaza-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -748,7 +809,9 @@ A vast corporate plaza between glass towers at street level, polished stone, spa
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/omnicorp-plaza-day.jpg`)</summary>
+<details><summary>day (`scenes/omnicorp-plaza-day.jpg`)</summary>
+
+- **File:** `scenes/omnicorp-plaza-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -768,7 +831,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/omnicorp-plaza-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/omnicorp-plaza-dusk.jpg`)</summary>
+
+- **File:** `scenes/omnicorp-plaza-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -788,7 +853,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/omnicorp-plaza-night.jpg`)</summary>
+<details><summary>night (`scenes/omnicorp-plaza-night.jpg`)</summary>
+
+- **File:** `scenes/omnicorp-plaza-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -812,10 +879,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `synthsec_gridpoint`
 
-- **File:** `scenes/synthsec-gridpoint.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/synthsec-gridpoint-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -833,7 +901,9 @@ A militarized checkpoint between the city and the dark, wire fencing, a sensor m
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/synthsec-gridpoint-day.jpg`)</summary>
+<details><summary>day (`scenes/synthsec-gridpoint-day.jpg`)</summary>
+
+- **File:** `scenes/synthsec-gridpoint-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -853,7 +923,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/synthsec-gridpoint-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/synthsec-gridpoint-dusk.jpg`)</summary>
+
+- **File:** `scenes/synthsec-gridpoint-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -873,7 +945,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/synthsec-gridpoint-night.jpg`)</summary>
+<details><summary>night (`scenes/synthsec-gridpoint-night.jpg`)</summary>
+
+- **File:** `scenes/synthsec-gridpoint-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -897,10 +971,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `deepstate_bunker`
 
-- **File:** `scenes/deepstate-bunker.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/deepstate-bunker-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -918,7 +993,9 @@ An archive hall below ground, shelving receding past the light, numbered drive r
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/deepstate-bunker-day.jpg`)</summary>
+<details><summary>day (`scenes/deepstate-bunker-day.jpg`)</summary>
+
+- **File:** `scenes/deepstate-bunker-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -938,7 +1015,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/deepstate-bunker-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/deepstate-bunker-dusk.jpg`)</summary>
+
+- **File:** `scenes/deepstate-bunker-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -958,7 +1037,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/deepstate-bunker-night.jpg`)</summary>
+<details><summary>night (`scenes/deepstate-bunker-night.jpg`)</summary>
+
+- **File:** `scenes/deepstate-bunker-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -982,10 +1063,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `shadow_crossing`
 
-- **File:** `scenes/shadow-crossing.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/shadow-crossing-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1003,7 +1085,9 @@ Open dead ground between a distant wire and a far structure, no lights anywhere,
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/shadow-crossing-day.jpg`)</summary>
+<details><summary>day (`scenes/shadow-crossing-day.jpg`)</summary>
+
+- **File:** `scenes/shadow-crossing-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1023,7 +1107,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/shadow-crossing-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/shadow-crossing-dusk.jpg`)</summary>
+
+- **File:** `scenes/shadow-crossing-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1043,7 +1129,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/shadow-crossing-night.jpg`)</summary>
+<details><summary>night (`scenes/shadow-crossing-night.jpg`)</summary>
+
+- **File:** `scenes/shadow-crossing-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1067,10 +1155,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `the_lift`
 
-- **File:** `scenes/the-lift.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/the-lift-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1088,7 +1177,9 @@ A freight lift head inside a poured-slab shed older than the city, massive slab 
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/the-lift-day.jpg`)</summary>
+<details><summary>day (`scenes/the-lift-day.jpg`)</summary>
+
+- **File:** `scenes/the-lift-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1108,7 +1199,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/the-lift-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/the-lift-dusk.jpg`)</summary>
+
+- **File:** `scenes/the-lift-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1128,7 +1221,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/the-lift-night.jpg`)</summary>
+<details><summary>night (`scenes/the-lift-night.jpg`)</summary>
+
+- **File:** `scenes/the-lift-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1152,10 +1247,11 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 ### `core_hall`
 
-- **File:** `scenes/core-hall.jpg`
 - **Size:** 1344x768
 
-#### Base — dawn
+#### dawn
+
+- **File:** `scenes/core-hall-dawn.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1173,7 +1269,9 @@ An immense server hall of pre-corporate scale, cold and humming, rack rows reced
 NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
-<details><summary>Alt — day (`scenes/core-hall-day.jpg`)</summary>
+<details><summary>day (`scenes/core-hall-day.jpg`)</summary>
+
+- **File:** `scenes/core-hall-day.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1193,7 +1291,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — dusk (`scenes/core-hall-dusk.jpg`)</summary>
+<details><summary>dusk (`scenes/core-hall-dusk.jpg`)</summary>
+
+- **File:** `scenes/core-hall-dusk.jpg`
 
 **Grok Imagine** (prose)
 
@@ -1213,7 +1313,9 @@ NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
 
 </details>
 
-<details><summary>Alt — night (`scenes/core-hall-night.jpg`)</summary>
+<details><summary>night (`scenes/core-hall-night.jpg`)</summary>
+
+- **File:** `scenes/core-hall-night.jpg`
 
 **Grok Imagine** (prose)
 
@@ -2658,47 +2760,89 @@ From `subjects.yaml` `style.loras`. ComfyUI only; Grok ignores them.
 ```yaml
 locations:
   the_grid:
-    base: scenes/the-grid.jpg
-    alts: []   # optional: scenes/the-grid-day.jpg, scenes/the-grid-dusk.jpg, scenes/the-grid-night.jpg
+    times:
+      dawn: scenes/the-grid-dawn.jpg
+      day: scenes/the-grid-day.jpg
+      dusk: scenes/the-grid-dusk.jpg
+      night: scenes/the-grid-night.jpg
   neon_strip:
-    base: scenes/neon-strip.jpg
-    alts: []   # optional: scenes/neon-strip-day.jpg, scenes/neon-strip-dusk.jpg, scenes/neon-strip-night.jpg
+    times:
+      dawn: scenes/neon-strip-dawn.jpg
+      day: scenes/neon-strip-day.jpg
+      dusk: scenes/neon-strip-dusk.jpg
+      night: scenes/neon-strip-night.jpg
   club_noir:
-    base: scenes/club-noir.jpg
-    alts: []   # optional: scenes/club-noir-day.jpg, scenes/club-noir-dusk.jpg, scenes/club-noir-night.jpg
+    times:
+      dawn: scenes/club-noir-dawn.jpg
+      day: scenes/club-noir-day.jpg
+      dusk: scenes/club-noir-dusk.jpg
+      night: scenes/club-noir-night.jpg
   velvet_pit:
-    base: scenes/velvet-pit.jpg
-    alts: []   # optional: scenes/velvet-pit-day.jpg, scenes/velvet-pit-dusk.jpg, scenes/velvet-pit-night.jpg
+    times:
+      dawn: scenes/velvet-pit-dawn.jpg
+      day: scenes/velvet-pit-day.jpg
+      dusk: scenes/velvet-pit-dusk.jpg
+      night: scenes/velvet-pit-night.jpg
   junkyard_sprawl:
-    base: scenes/junkyard-sprawl.jpg
-    alts: []   # optional: scenes/junkyard-sprawl-day.jpg, scenes/junkyard-sprawl-dusk.jpg, scenes/junkyard-sprawl-night.jpg
+    times:
+      dawn: scenes/junkyard-sprawl-dawn.jpg
+      day: scenes/junkyard-sprawl-day.jpg
+      dusk: scenes/junkyard-sprawl-dusk.jpg
+      night: scenes/junkyard-sprawl-night.jpg
   ripper_street:
-    base: scenes/ripper-street.jpg
-    alts: []   # optional: scenes/ripper-street-day.jpg, scenes/ripper-street-dusk.jpg, scenes/ripper-street-night.jpg
+    times:
+      dawn: scenes/ripper-street-dawn.jpg
+      day: scenes/ripper-street-day.jpg
+      dusk: scenes/ripper-street-dusk.jpg
+      night: scenes/ripper-street-night.jpg
   ghost_alley:
-    base: scenes/ghost-alley.jpg
-    alts: []   # optional: scenes/ghost-alley-day.jpg, scenes/ghost-alley-dusk.jpg, scenes/ghost-alley-night.jpg
+    times:
+      dawn: scenes/ghost-alley-dawn.jpg
+      day: scenes/ghost-alley-day.jpg
+      dusk: scenes/ghost-alley-dusk.jpg
+      night: scenes/ghost-alley-night.jpg
   rusty_anchor:
-    base: scenes/rusty-anchor.jpg
-    alts: []   # optional: scenes/rusty-anchor-day.jpg, scenes/rusty-anchor-dusk.jpg, scenes/rusty-anchor-night.jpg
+    times:
+      dawn: scenes/rusty-anchor-dawn.jpg
+      day: scenes/rusty-anchor-day.jpg
+      dusk: scenes/rusty-anchor-dusk.jpg
+      night: scenes/rusty-anchor-night.jpg
   omnicorp_plaza:
-    base: scenes/omnicorp-plaza.jpg
-    alts: []   # optional: scenes/omnicorp-plaza-day.jpg, scenes/omnicorp-plaza-dusk.jpg, scenes/omnicorp-plaza-night.jpg
+    times:
+      dawn: scenes/omnicorp-plaza-dawn.jpg
+      day: scenes/omnicorp-plaza-day.jpg
+      dusk: scenes/omnicorp-plaza-dusk.jpg
+      night: scenes/omnicorp-plaza-night.jpg
   synthsec_gridpoint:
-    base: scenes/synthsec-gridpoint.jpg
-    alts: []   # optional: scenes/synthsec-gridpoint-day.jpg, scenes/synthsec-gridpoint-dusk.jpg, scenes/synthsec-gridpoint-night.jpg
+    times:
+      dawn: scenes/synthsec-gridpoint-dawn.jpg
+      day: scenes/synthsec-gridpoint-day.jpg
+      dusk: scenes/synthsec-gridpoint-dusk.jpg
+      night: scenes/synthsec-gridpoint-night.jpg
   deepstate_bunker:
-    base: scenes/deepstate-bunker.jpg
-    alts: []   # optional: scenes/deepstate-bunker-day.jpg, scenes/deepstate-bunker-dusk.jpg, scenes/deepstate-bunker-night.jpg
+    times:
+      dawn: scenes/deepstate-bunker-dawn.jpg
+      day: scenes/deepstate-bunker-day.jpg
+      dusk: scenes/deepstate-bunker-dusk.jpg
+      night: scenes/deepstate-bunker-night.jpg
   shadow_crossing:
-    base: scenes/shadow-crossing.jpg
-    alts: []   # optional: scenes/shadow-crossing-day.jpg, scenes/shadow-crossing-dusk.jpg, scenes/shadow-crossing-night.jpg
+    times:
+      dawn: scenes/shadow-crossing-dawn.jpg
+      day: scenes/shadow-crossing-day.jpg
+      dusk: scenes/shadow-crossing-dusk.jpg
+      night: scenes/shadow-crossing-night.jpg
   the_lift:
-    base: scenes/the-lift.jpg
-    alts: []   # optional: scenes/the-lift-day.jpg, scenes/the-lift-dusk.jpg, scenes/the-lift-night.jpg
+    times:
+      dawn: scenes/the-lift-dawn.jpg
+      day: scenes/the-lift-day.jpg
+      dusk: scenes/the-lift-dusk.jpg
+      night: scenes/the-lift-night.jpg
   core_hall:
-    base: scenes/core-hall.jpg
-    alts: []   # optional: scenes/core-hall-day.jpg, scenes/core-hall-dusk.jpg, scenes/core-hall-night.jpg
+    times:
+      dawn: scenes/core-hall-dawn.jpg
+      day: scenes/core-hall-day.jpg
+      dusk: scenes/core-hall-dusk.jpg
+      night: scenes/core-hall-night.jpg
 portraits:
   mira_vex: portraits/mira-vex.jpg
   lyra_vance: portraits/lyra-vance.jpg

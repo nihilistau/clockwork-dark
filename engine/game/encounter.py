@@ -212,7 +212,77 @@ def load_death_rules() -> dict[str, Any]:
                 "[encounter] Death rules missing (operation=load_death_rules, path=%s)", path
             )
         return {}
-    return _read_death(str(path), mtime)
+    rules = _read_death(str(path), mtime)
+    problem = _terminal_ending_problem(rules.get("terminal"))
+    if problem:
+        # Loud, naming the file: a `terminal:` whose ending is misspelt would
+        # otherwise load, never match, and quietly respawn the player the one
+        # time the story meant to end.
+        raise ValueError(f"death: {path}: {problem}")
+    return rules
+
+
+def _terminal_ending_problem(terminal: Any) -> Optional[str]:
+    """``death_terminal_problem`` against the running story's endings."""
+    if not isinstance(terminal, dict) or not ({"when", "ending"} & set(terminal)):
+        return None
+    from engine.game import endings
+
+    return death_terminal_problem(terminal, endings.declared())
+
+
+def _condition_problem(node: Any, where: str) -> Optional[str]:
+    """What is wrong with a condition tree in the shared grammar, or None.
+
+    ``check_death`` passes its ledger, so only an empty ``when`` and the
+    grammar's own faults (``quests.condition_problem``) are refused here.
+    """
+    from engine.game import quests
+
+    if node is None:
+        return f"{where} is empty"
+    return quests.condition_problem(
+        node, where=where, forbid={
+            name: reason for name, reason in quests.CONTEXT_FREE_FORBIDS.items()
+            if name in quests.PROGRESS_PREDICATES
+        },
+    )
+
+
+def death_terminal_problem(terminal: Any, ending_ids: Any) -> Optional[str]:
+    """
+    What is wrong with a ``terminal: {when, ending}`` block, or None.
+
+    Shared by the loader (a ValueError naming the file) and the content
+    validator (an Issue), so the two cannot disagree. A block that uses
+    neither key -- the flagship's ``phases``/``flag`` terminal -- is not this
+    shape and is not checked here.
+
+    Args:
+        terminal: The ``terminal:`` mapping from death.yaml.
+        ending_ids: Every ending id the story declares.
+    """
+    if not isinstance(terminal, dict) or not ({"when", "ending"} & set(terminal)):
+        return None
+    # Every module that registers a predicate, so the grammar is whole however
+    # this was reached (the validator runs with no story activated).
+    from engine.game import clocks, endings, threads  # noqa: F401
+    from engine.world import agendas, jobs, law  # noqa: F401
+
+    if "when" not in terminal:
+        return "`terminal.ending` needs a `terminal.when` saying which death it is"
+    ending = str(terminal.get("ending") or "").strip()
+    if not ending:
+        return "`terminal.when` needs a `terminal.ending` to lock"
+    mixed = sorted({"phases", "flag"} & set(terminal))
+    if mixed:
+        return (
+            f"`terminal` mixes `when`/`ending` with {mixed}; a story's terminal "
+            "death is one shape or the other"
+        )
+    if ending not in {str(e) for e in ending_ids}:
+        return f"`terminal.ending` `{ending}` is not a declared ending"
+    return _condition_problem(terminal.get("when"), "`terminal.when`")
 
 
 # ---------------------------------------------------------------------------
@@ -780,8 +850,11 @@ def resolve_approach(
 
     if scene.get("resolved"):
         # Clear the scene so the UI is not left showing a finished encounter.
-        # The receipt above already carries the closing snapshot.
-        end(state)
+        # The receipt above already carries the closing snapshot. Only THIS
+        # scene: a death carried the player out of it, and its respawn hours
+        # may have opened another (the watch at the door, `jobs.tick`).
+        if state.encounter is scene:
+            end(state)
     else:
         scene["approaches"] = available_approaches(state)
         receipt["approaches"] = scene["approaches"]
@@ -834,9 +907,92 @@ def _to_target(current: int, ceiling: int, spec: dict[str, Any], key: str) -> in
 
 _death_guard = threading.local()
 
+#: Set ONLY around the one ``ending_lock`` a terminal death applies
+#: (``_terminal_ending_death``). Deliberately not ``_death_guard``: a death
+#: runs a respawn's hours, and anything those hours run (an event, a card, a
+#: job tick) writing ``terminal: true`` must be refused like anywhere else.
+_terminal_lock_guard = threading.local()
 
-def _death_in_progress() -> bool:
+
+def death_in_progress() -> bool:
+    """Whether ``check_death`` is handling a death on this thread right now."""
     return getattr(_death_guard, "active", False)
+
+
+def terminal_lock_in_progress() -> bool:
+    """
+    Whether a terminal death is applying its own ending lock right now.
+
+    The one reader is the ``ending_lock`` effect, which honours ``terminal:
+    true`` -- the lock that skips an ending's own gate -- only here, so no
+    quest, card or respawn-hour content can reach for it.
+    """
+    return getattr(_terminal_lock_guard, "active", False)
+
+
+def _terminal_ending_death(
+    state: GameState,
+    terminal_cfg: dict[str, Any],
+    ending_id: str,
+    ledger: Optional[Any],
+) -> dict[str, Any]:
+    """
+    A death that ends the story in a declared ending: ``terminal: {when, ending}``.
+
+    The run ends, the ending is locked and its module plays, so
+    ``epilogue.for_state`` has cards to show -- the flagship's ``phases``
+    terminal sets ``state.ended`` and nothing else, which is a blank page.
+
+    THE LOCK SKIPS THE ENDING'S OWN GATE. An author writing "this death ends
+    in The Rope" means always: an ending whose ``requires`` a terminal death
+    had to satisfy as well would lock nothing, and the run would stop with no
+    epilogue. The death is its eligibility, so the lock is ``terminal: true``
+    -- honoured only while THIS lock is applied (``terminal_lock_in_progress``),
+    not for the whole death. A run already locked to another ending keeps it
+    -- a lock is never walked back -- and that ending's module plays instead,
+    if it has not.
+
+    Nothing is respawned, moved or restored: nobody wakes from this one, and
+    no hours pass. Custody stays (a prisoner who dies is not released). The
+    dying encounter is closed -- a dead player is in no scene. A job is not
+    touched here; a fall that killed closes it ``hurt`` in
+    ``jobs.resolve_stage``, because this returned a death record.
+    """
+    state.ended = True
+    end(state)
+    _terminal_lock_guard.active = True
+    try:
+        locked = effects_module.apply_effect(
+            state,
+            {"type": "ending_lock", "ending": ending_id, "terminal": True},
+            ledger=ledger,
+        )
+    finally:
+        _terminal_lock_guard.active = False
+    receipts = [
+        locked,
+        effects_module.apply_effect(state, {"type": "ending_module"}, ledger=ledger),
+    ]
+    text = str(terminal_cfg.get("text") or "You do not get up.")
+    if ledger is not None:
+        effects_module.apply_effect(
+            state, {"type": "ledger_fact", "text": text, "kind": "death"}, ledger=ledger
+        )
+    logger.info(
+        "[encounter] Terminal death, ending locked (operation=check_death, ending=%s, "
+        "locked=%s, day=%s)",
+        ending_id,
+        receipts[0].get("ok"),
+        state.world_day,
+    )
+    return {
+        "died": True,
+        "terminal": True,
+        "ended": True,
+        "ending": ending_id,
+        "effects": receipts,
+        "text": text,
+    }
 
 
 def check_death(
@@ -848,9 +1004,11 @@ def check_death(
     Death is a setback, not a game over: you wake in Edgewood Square hours
     later, lighter of purse, stiff with a wound that will take days to close,
     and the evil has kept its own hours the whole time. ``state.ended`` is set
-    only for the terminal case defined in data/rules/death.yaml -- dying a
+    only for a terminal case defined in death.yaml: the flagship's -- dying a
     second time while the world is already ``consuming``, when there is no
-    longer anyone left to carry you back.
+    longer anyone left to carry you back -- or a story's ``terminal: {when,
+    ending}``, which also locks that ending so its epilogue shows
+    (``_terminal_ending_death``).
 
     Args:
         state: Mutable game state.
@@ -860,7 +1018,7 @@ def check_death(
         Death record dict, or None if the player is still standing.
     """
     # See _death_guard above: one death must not be counted twice.
-    if _death_in_progress():
+    if death_in_progress():
         return None
     _death_guard.active = True
     try:
@@ -874,6 +1032,12 @@ def _check_death_inner(
 ) -> Optional[dict[str, Any]]:
     """Actual death handling. Always call check_death, never this."""
 
+    # A finished run stops dying. A terminal death leaves hp at the threshold,
+    # and every later hour (`advance_time` checks death) re-ran it: another
+    # "You do not get up." and another refused lock, per hour.
+    if state.ended:
+        return None
+
     rules = load_death_rules()
     if not rules:
         return None
@@ -883,6 +1047,15 @@ def _check_death_inner(
         return None
 
     terminal_cfg = rules.get("terminal") or {}
+    # `terminal: {when, ending}`: read at the moment of death, before any
+    # respawn hours, so "died while held" means held when they fell.
+    terminal_ending = str(terminal_cfg.get("ending") or "").strip()
+    if terminal_ending:
+        from engine.game.quests import evaluate_condition
+
+        if evaluate_condition(state, terminal_cfg.get("when"), ledger=ledger):
+            return _terminal_ending_death(state, terminal_cfg, terminal_ending, ledger)
+
     phases = _as_list(terminal_cfg.get("phases"))
     mark = str(terminal_cfg.get("flag") or "")
     terminal = False
@@ -907,6 +1080,12 @@ def _check_death_inner(
         return {"died": True, "terminal": True, "ended": True, "text": text}
 
     respawn = rules.get("respawn") or {}
+    # An unresolved scene cannot survive the player being carried out of it --
+    # ended BEFORE the respawn's hours, not after. Those hours run
+    # `jobs.tick`, which can bring the watch and open the arrest scene; ending
+    # the dying scene afterwards closed that scene in the same breath it
+    # opened (the job/death seam, v0.13.0).
+    end(state)
     hours = float(respawn.get("hours", 0) or 0)
     if hours > 0:
         # Time passes while you are down, and the evil ticker keeps its
@@ -944,8 +1123,6 @@ def _check_death_inner(
 
     location = str(respawn.get("location_id") or state.location_id)
     state.location_id = location
-    # An unresolved scene cannot survive the player being carried out of it.
-    end(state)
     # Nor can a cell. A prisoner who dies is carried out with everyone else;
     # left in custody they would wake "held" somewhere with no road offered.
     # The story moves on: released, the file still filed (engine/world/law.py).

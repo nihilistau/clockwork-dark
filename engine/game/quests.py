@@ -737,6 +737,7 @@ _GRAMMAR_MODULES = (
     "engine.game.clocks",  # value, clock, track, forced_scene
     "engine.game.threads",  # thread, no_thread
     "engine.game.endings",  # ending
+    "engine.world.law",  # in_custody
     "engine.world.jobs",  # premise_cased, premise_robbed, job
     "engine.world.agendas",  # wanted, reported_to, agenda_hit
 )
@@ -788,6 +789,95 @@ def predicate_names() -> list[str]:
     """Every predicate the grammar understands, sorted. For doctor and docs."""
     _ensure_grammar()
     return sorted(_PREDICATES)
+
+
+#: Predicates that answer only with a story ledger passed in (``disposition``).
+#: A pass that evaluates with no ledger -- agendas, set pieces, a secret
+#: place's ``known_when`` -- would see them unmet forever.
+LEDGER_PREDICATES = frozenset({"disposition"})
+
+#: Predicates that read the progress record of the quest being evaluated. Any
+#: condition that is not a quest stage's has no such record: unmet forever.
+PROGRESS_PREDICATES = frozenset({"days_in_stage", "days_since_started"})
+
+#: The refusal a context-free condition (no ledger, no quest) gives for each,
+#: for ``condition_problem(forbid=...)``.
+CONTEXT_FREE_FORBIDS: dict[str, str] = {
+    **{name: "needs a story ledger, and this condition is evaluated with none -- "
+             "it would never hold" for name in LEDGER_PREDICATES},
+    **{name: "reads a quest's progress, and this condition belongs to no quest "
+             "-- it would never hold" for name in PROGRESS_PREDICATES},
+}
+
+
+def condition_clauses(node: Any, where: str = "condition") -> list[tuple[str, Any]]:
+    """
+    Every ``(predicate, value)`` a condition tree holds, walked as ``_eval`` walks it.
+
+    THE ONE WALKER. Set pieces, jobs, agendas, death.yaml and secret places
+    each validated their conditions with a private copy of this walk, reading
+    this module's private keyword lists; a combinator added here reached none
+    of them. Annotation keys (``id``) are skipped, as evaluation skips them.
+
+    Raises:
+        ValueError: On a shape the grammar would silently misread: a node that
+            is neither a mapping nor a list, or a mapping holding a group
+            combinator beside a sibling predicate (evaluated as ONLY its
+            combinators, so the sibling gates nothing). The message starts
+            with ``where``.
+    """
+    if node is None:
+        return []
+    if isinstance(node, list):
+        return [pair for entry in node for pair in condition_clauses(entry, where)]
+    if not isinstance(node, dict):
+        raise ValueError(f"{where} must be a condition mapping or list")
+    groups = [key for key in node if key in _GROUP_KEYS]
+    siblings = [key for key in node if key not in _GROUP_KEYS and key not in _ANNOTATION_KEYS]
+    if groups and siblings:
+        raise ValueError(
+            f"{where} mixes {groups} with sibling predicate(s) {siblings}; "
+            "put them inside the group"
+        )
+    found: list[tuple[str, Any]] = []
+    for key, value in node.items():
+        if key in _GROUP_KEYS:
+            found.extend(condition_clauses(value, where))
+        elif key not in _ANNOTATION_KEYS:
+            found.append((str(key), value))
+    return found
+
+
+def condition_problem(
+    node: Any,
+    *,
+    where: str = "condition",
+    forbid: Optional[dict[str, str]] = None,
+) -> Optional[str]:
+    """
+    What is wrong with a condition tree, or None. For load-time checks.
+
+    Args:
+        node: The condition as written.
+        where: How the message names it (``"`requires`"``, ``"move `x` when"``).
+        forbid: Predicates this context cannot answer, each with the reason
+            (``CONTEXT_FREE_FORBIDS`` for a pass with no ledger and no quest).
+
+    Returns:
+        The first problem -- a misread shape, an unknown predicate (unmet
+        forever, silently), or a forbidden one -- or None.
+    """
+    try:
+        clauses = condition_clauses(node, where)
+    except ValueError as exc:
+        return str(exc)
+    grammar = set(predicate_names())
+    for name, _value in clauses:
+        if name not in grammar:
+            return f"{where}: unknown predicate `{name}`"
+        if forbid and name in forbid:
+            return f"{where}: `{name}` {forbid[name]}"
+    return None
 
 
 def evaluate_condition(

@@ -134,8 +134,13 @@ def _travel(state: GameState) -> Optional[IntentVerb]:
     None while the watch holds the player: the cell door is the one road the
     graph does not know is locked. ``GameEngine.move_to`` refuses the same
     walk for any other caller. Rest is NOT withdrawn with it (``_rest``).
+
+    A ``secret: true`` place is left out until ``locations.is_known`` says the
+    player has found it -- the SAME predicate the map payload draws from. It
+    used to be withheld from the map and offered here by name, so the model
+    was handed "The Undercroft, 1h" on turn one.
     """
-    from engine.game.locations import LOCATIONS, get_edge, neighbours
+    from engine.game.locations import LOCATIONS, get_edge, is_known, neighbours
     from engine.world import law
 
     if law.in_custody(state):
@@ -143,36 +148,46 @@ def _travel(state: GameState) -> Optional[IntentVerb]:
 
     reachable = list(neighbours(state.location_id))
 
-    # A discovered hidden path is a way through the wood the map does not draw.
-    # It can open a leg the graph lacks, so it belongs in the enum -- otherwise
-    # the player could find a shortcut and never be offered it.
+    # A discovered hidden path is a way through the wood the graph does not
+    # hold. It can open a leg the graph lacks, so it belongs in the enum --
+    # otherwise the player could find a shortcut and never be offered it. The
+    # map draws the same legs (`foraging.shortcut_targets`, one reading).
     try:
         from engine.game import foraging
 
-        for row in foraging.discovered_paths(state):
-            for candidate in (row.get("from_id"), row.get("to_id")):
-                target = str(candidate or "")
-                if (
-                    target
-                    and target != state.location_id
-                    and target in LOCATIONS
-                    and target not in reachable
-                    and foraging.shortcut_hours(state, state.location_id, target)
-                    is not None
-                ):
-                    reachable.append(target)
+        for target in foraging.shortcut_targets(state, state.location_id):
+            if target in LOCATIONS and target not in reachable:
+                reachable.append(target)
     except Exception as exc:  # noqa: BLE001 -- a missing shortcut is not an error
         logger.debug("[intents] No hidden paths: %s", exc)
 
     options: list[tuple[str, str]] = []
     for target in sorted(reachable):
+        if not is_known(state, target):
+            continue
         name = str((LOCATIONS.get(target) or {}).get("name") or target)
         edge = get_edge(state.location_id, target) or {}
         hours = edge.get("hours")
+        # The label states what `move_to` will charge: the shorter of the road
+        # and a found path, exactly as the executor takes it.
+        shortcut = _shortcut_hours(state, target)
+        if shortcut is not None:
+            hours = shortcut if hours is None else min(int(hours), shortcut)
         options.append(
             (target, f"{name}, {hours}h" if hours is not None else name)
         )
     return IntentVerb("travel", tuple(options)) if options else None
+
+
+def _shortcut_hours(state: GameState, target: str) -> Optional[int]:
+    """A found path's cost from here to ``target``, or None."""
+    try:
+        from engine.game import foraging
+
+        return foraging.shortcut_hours(state, state.location_id, target)
+    except Exception as exc:  # noqa: BLE001 -- a missing shortcut is not an error
+        logger.debug("[intents] No shortcut: %s", exc)
+        return None
 
 
 def _rest(state: GameState) -> Optional[IntentVerb]:

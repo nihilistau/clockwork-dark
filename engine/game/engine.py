@@ -101,6 +101,23 @@ class GameEngine:
                 message="You are held in the cells; pay the fine or serve the sentence.",
             )
 
+        # A secret place nobody has found (engine/game/locations.py::is_known)
+        # is not in the travel enum, and this refuses the same walk for any
+        # other caller -- an engine refusal the narrator receives, never a
+        # silent stroll into a place the player cannot know exists. The words
+        # do not name it: a refusal that spells out the secret keeps nothing.
+        from engine.game.locations import is_known
+
+        if not is_known(self.state, location_id):
+            return MoveResult(
+                success=False,
+                from_id=current,
+                to_id=location_id,
+                hours=0,
+                stamina_cost=0,
+                message="You know of no way there.",
+            )
+
         edge = get_edge(current, location_id)
         # A discovered hidden path (engine/game/foraging.py) is a way through
         # the wood the map does not draw. It can OPEN a leg the graph lacks and

@@ -326,41 +326,10 @@ def _load_meter(path: Path, doc: dict[str, Any], key: str, extra_band: int) -> d
     return {"max": maximum, "bands": [str(b) for b in bands], "body": body}
 
 
-def _predicate_names(path: Path, where: str, node: Any) -> list[str]:
-    """Every predicate name a condition tree uses, walked the way the grammar walks it."""
-    from engine.game import quests
-
-    if node is None:
-        return []
-    if isinstance(node, list):
-        return [name for entry in node for name in _predicate_names(path, where, entry)]
-    if not isinstance(node, dict):
-        raise _fail(path, f"{where} must be a condition mapping or list")
-    groups = [key for key in node if key in quests._GROUP_KEYS]
-    siblings = [key for key in node
-                if key not in quests._GROUP_KEYS and key not in quests._ANNOTATION_KEYS]
-    if groups and siblings:
-        # The grammar evaluates a mapping holding a combinator as ONLY its
-        # combinators: a sibling predicate beside `all` is silently ignored at
-        # runtime, which is a gate that loads, validates and gates nothing.
-        raise _fail(path, f"{where} mixes {groups} with sibling predicate(s) {siblings}; "
-                          "put them inside the group")
-    found: list[str] = []
-    for key, value in node.items():
-        # The grammar's own keyword lists, read rather than copied, so a
-        # combinator added there is understood here the same day.
-        if key in quests._GROUP_KEYS:
-            found.extend(_predicate_names(path, where, value))
-        elif key not in quests._ANNOTATION_KEYS:
-            found.append(str(key))
-    return found
-
-
 def _load_flashbacks(path: Path, doc: dict[str, Any],
                      stage_ids: set[str]) -> dict[str, dict[str, Any]]:
-    from engine.game.quests import predicate_names
+    from engine.game import quests
 
-    grammar = set(predicate_names())
     out: dict[str, dict[str, Any]] = {}
     for kind, raw in _mapping(path, doc.get("flashbacks"), "flashbacks").items():
         kind = str(kind)
@@ -380,9 +349,9 @@ def _load_flashbacks(path: Path, doc: dict[str, Any],
         # Placeholders ({district}, {premise}) sit in VALUES and are substituted
         # when the flashback is offered; only the predicate names are checked
         # here, because an unknown one is unmet forever, silently.
-        for name in _predicate_names(path, f"flashback `{kind}` requires", requires):
-            if name not in grammar:
-                raise _fail(path, f"flashback `{kind}`: unknown predicate `{name}` in `requires`")
+        problem = quests.condition_problem(requires, where=f"flashback `{kind}` requires")
+        if problem:
+            raise _fail(path, problem)
         cost_raw = _mapping(path, body.get("cost"), f"flashbacks.{kind}.cost")
         for key in cost_raw:
             if key not in _FLASHBACK_COSTS:

@@ -2149,7 +2149,25 @@ def _e_ending(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> d
             return _unknown(kind, effect)
 
     if kind == "ending_lock":
-        receipt = endings_module.lock(state, ending_id, ledger=ctx.ledger)
+        terminal = effect.get("terminal") is True
+        if terminal:
+            from engine.game import encounter as encounter_module
+
+            if not encounter_module.terminal_lock_in_progress():
+                # The death's key, not a way round an ending's gate: a quest,
+                # a card, or anything a respawn's hours run writing it would
+                # lock an ending nobody earned.
+                logger.warning(
+                    "[effects] Terminal ending lock outside a death, refused "
+                    "(operation=apply_effect, ending=%s)",
+                    ending_id,
+                )
+                return {
+                    "type": kind,
+                    "ok": False,
+                    "text": "a terminal lock belongs to a death; nothing is dying",
+                }
+        receipt = endings_module.lock(state, ending_id, ledger=ctx.ledger, terminal=terminal)
     else:
         receipt = endings_module.set_intent(state, ending_id, ledger=ctx.ledger)
     # The receipt is already a track receipt from `_write_track`; relabelling it

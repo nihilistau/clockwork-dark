@@ -24,6 +24,7 @@ Who the watch thinks you are, where, and how badly it wants you.
              fine_per_severity: 6, days_per_severity: 1,
              max_days: 3, max_fine: 30}             # the two caps are optional
     labels: {dockside: "the docks"}                    # optional; else a humanised id
+    clarity_words: [nothing, a rumour, a description, a likeness]   # optional; ascending
 
 THIS MODULE, SO FAR, is the data and the arithmetic every later piece reads:
 the loader, and the WANTED score per guise per jurisdiction -- the sum of
@@ -36,7 +37,9 @@ PATROL: ``recognition``, which asks whether a watchman standing here knows
 the face the player wears, and ``patrol``, which ``run_turn`` calls once a
 turn to open the story's arrest scene on a hit -- and CUSTODY:
 ``sentence_for``, what an arrest charges, and ``pay_fine`` /
-``serve_sentence``, the two ways out of it.
+``serve_sentence``, the two engine ways out of it (a story may author a
+third: a set-piece gated on the ``in_custody`` predicate, registered here,
+whose success pays ``release``).
 
 EVERY WRITE is an effect (AGENTS.md rule 3): ``witness`` records one sighting,
 ``report`` files one,
@@ -46,13 +49,15 @@ player, and ``deed`` lets authored content (a scene's fight with the watch)
 commit one through ``commit_deed``. Nothing here assigns to ``state.law``.
 
 The narrator never sees a number from here: the band is a word, and a
-report's precision is spoken as ``clarity``.
+report's precision is spoken as ``clarity``. How well the watch knows the face
+the player wears -- the wanted poster's sketch -- is ``clarity_word``, one of
+the story's ``clarity_words``.
 
 Every content fault is a ValueError naming the file, for the reason
 ``premises.py`` gives: a guise naming an item the registry lacks, or a gaol
 that is not on the map, would load, validate and do nothing.
 
-Version: v0.5.0 [2026-09-24]
+Version: v0.6.0 [2026-09-25]
 """
 
 from __future__ import annotations
@@ -82,6 +87,10 @@ SELF_GUISE = "self"
 #: How far rumour spreads per in-game hour when the file does not say. Read by
 #: the propagation pass; defaulted here so it has one home.
 DEFAULT_SPREAD_PER_HOUR = 0.3
+#: How well the watch knows a face, ascending, when the file declares no
+#: ``clarity_words``: the first is "no live report at all", the rest split
+#: precision (0, 1] evenly -- see ``clarity_word``.
+DEFAULT_CLARITY_WORDS = ("nothing", "a rumour", "a description", "a likeness")
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +206,35 @@ def _load_guises(path: Path, doc: dict[str, Any]) -> dict[str, dict[str, str]]:
             row["item"] = item
         guises[str(gid)] = row
     return guises
+
+
+def _load_clarity_words(path: Path, doc: dict[str, Any]) -> list[str]:
+    """``clarity_words``: at least two non-empty strings, ascending, or the defaults.
+
+    Two because the first word means "no live report" and a sketch needs at
+    least one word for having been seen. Strings only, and no digit inside
+    one: a number here would reach the poster and the prose, and the narrator
+    never sees one. No word twice (case and edge spaces ignored): two
+    thresholds sharing a word are a rise the player cannot hear.
+    """
+    raw = doc.get("clarity_words")
+    if raw is None:
+        return list(DEFAULT_CLARITY_WORDS)
+    if not isinstance(raw, list) or len(raw) < 2:
+        raise _fail(path, "`clarity_words` must be a list of at least two words")
+    words: list[str] = []
+    seen: set[str] = set()
+    for word in raw:
+        if not isinstance(word, str) or not word.strip():
+            raise _fail(path, f"`clarity_words`: `{word}` is not a word")
+        if any(ch.isdigit() for ch in word):
+            raise _fail(path, f"`clarity_words`: `{word}` holds a digit -- never a number")
+        key = word.strip().casefold()
+        if key in seen:
+            raise _fail(path, f"`clarity_words`: `{word.strip()}` is listed twice")
+        seen.add(key)
+        words.append(word.strip())
+    return words
 
 
 def _check_arrest_encounter(path: Path, encounter_id: str) -> None:
@@ -377,6 +415,7 @@ def load_spec() -> dict[str, Any]:
         "links": links,
         "arrest": arrest,
         "labels": labels,
+        "clarity_words": _load_clarity_words(path, doc),
     }
     return _SPEC_CACHE
 
@@ -518,6 +557,61 @@ def clarity(precision: float) -> str:
     if precision >= 0.5:
         return "half-seen"
     return "barely glimpsed"
+
+
+def best_precision(state: GameState, guise: str, jurisdiction: str) -> float:
+    """
+    The best precision any LIVE report this watch-house holds on ``guise``,
+    or on a face the watch links to it, reached. 0.0 when there is none.
+
+    Live means not closed by a paid fine or served sentence (``discharged``)
+    and not lost to a bribe here (``quashed``). Both effects already drop
+    their rows, so in play this only guards a hand-edited save -- but a
+    reader that trusted the rows alone would draw a likeness from a deed the
+    player has paid for. An engine number: ``recognition`` rolls on it and
+    ``clarity_word`` speaks it; neither lets it reach the prose.
+    """
+    faces = same_person(state, guise)
+    closed = discharged(state) | quashed(state, jurisdiction)
+    best = 0.0
+    for r in state.law.get("reports") or []:
+        if r.get("jurisdiction") != jurisdiction or r.get("guise") not in faces:
+            continue
+        if str(r.get("deed_id") or "") in closed:
+            continue
+        try:
+            best = max(best, float(r.get("precision", 0)))
+        except (TypeError, ValueError):
+            continue  # a malformed row is no sighting; see `_files`
+    return best
+
+
+def clarity_word(state: GameState, guise: str, jurisdiction: str) -> str:
+    """
+    How well the watch in ``jurisdiction`` knows the face ``guise``, in the
+    story's words -- the wanted poster's sketch. "" for a story with no Law.
+
+    THE THRESHOLDS. With N ``clarity_words`` (ascending, N >= 2) and P =
+    ``best_precision``: P = 0 (no live report, or no watch here at all) is
+    the first word; otherwise P's share of (0, 1] picks among the other
+    N - 1 evenly -- word ``1 + min(N - 2, floor(P x (N - 1)))``. With the four
+    defaults that is below 1/3 "a rumour", below 2/3 "a description", and
+    from 2/3 up "a likeness", so the shipped hops (0.3, 0.6, 1.0) land one on
+    each: a witness's own account is a likeness, a third-hand one a rumour.
+
+    Best, not newest or summed: one clear sighting is a likeness however many
+    rumours follow it, and a hundred rumours are still a rumour. Links are
+    followed (``same_person``): the Magpie's likeness is yours while the
+    watch takes her for you.
+    """
+    if not declared():
+        return ""
+    words = load_spec().get("clarity_words") or list(DEFAULT_CLARITY_WORDS)
+    precision = best_precision(state, guise, jurisdiction) if jurisdiction else 0.0
+    if precision <= 0:
+        return words[0]
+    step = min(len(words) - 2, int(math.floor(min(precision, 1.0) * (len(words) - 1))))
+    return words[1 + step]
 
 
 def guise_label(guise: str) -> str:
@@ -1130,6 +1224,20 @@ def in_custody(state: GameState) -> bool:
     return bool(custody(state))
 
 
+def _p_in_custody(state: GameState, value: Any, ctx: Any) -> bool:
+    """``{in_custody: true}`` -- whether the watch holds the player right now.
+
+    The condition-grammar face of ``in_custody``: the ``arrest`` effect writes
+    the custody record and sets no flag, so without this nothing authored --
+    a set-piece's ``requires:``, a card, an ending gate -- could ask "is the
+    player in the cells?". False in a story that declares no Law, whatever
+    ``state.law`` happens to carry, so ``{in_custody: false}`` is simply true
+    there.
+    """
+    held = declared() and in_custody(state)
+    return held is bool(value)
+
+
 def charged_deeds(state: GameState, guise: str, jurisdiction: str) -> dict[str, int]:
     """
     The charge sheet: ``{deed id: severity}`` for every deed filed in
@@ -1256,14 +1364,7 @@ def recognition(state: GameState) -> dict[str, Any]:
     chance = float((spec.get("recognise") or {}).get(band, 0.0))
     if chance <= 0:
         return miss
-    faces = same_person(state, guise)
-    precision = 0.0
-    for r in state.law.get("reports") or []:
-        if r.get("jurisdiction") == jurisdiction and r.get("guise") in faces:
-            try:
-                precision = max(precision, float(r.get("precision", 0)))
-            except (TypeError, ValueError):
-                continue  # a malformed row is no sighting; see `_files`
+    precision = best_precision(state, guise, jurisdiction)
     if precision <= 0:
         return miss
     roles = set(spec.get("roles") or [])
@@ -1466,15 +1567,28 @@ def serve_sentence(state: GameState) -> dict[str, Any]:
     return {"ok": True, "days": days, "gaol": gaol, "served_out": True}
 
 
+def _register() -> None:
+    """Extend the shared condition grammar (listed in ``quests._GRAMMAR_MODULES``)."""
+    from engine.game.quests import register_predicate
+
+    register_predicate("in_custody", _p_in_custody)
+
+
+_register()
+
+
 __all__ = [
     "DEFAULT_SPREAD_PER_HOUR",
     "MAX_PROPAGATION_HOURS",
     "SELF_GUISE",
+    "DEFAULT_CLARITY_WORDS",
     "band_for",
+    "best_precision",
     "cap_cooling",
     "charged_deeds",
     "charged_severity",
     "clarity",
+    "clarity_word",
     "cooling_of",
     "DARK_HOURS",
     "change_guise",

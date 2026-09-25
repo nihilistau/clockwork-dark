@@ -332,3 +332,141 @@ def test_a_seen_lift_is_never_summarised_as_unnoticed() -> None:
     assert "unnoticed" not in empty
     clean = prompts._sum_lift({"mark": "Prue", "gold": 3, "noticed": False, "seen_by": []})
     assert "unnoticed" in clean
+
+
+# ---------------------------------------------------------------------------
+# v0.13.0 T5: how clearly the watch knows your face (the poster's sketch)
+# ---------------------------------------------------------------------------
+
+
+def _file(state: GameState, *, guise: str = "self", precision: float, deed_id: str,
+          jurisdiction: str = "village", deed: str = "pickpocket") -> dict[str, Any]:
+    return apply_effect(state, {
+        "type": "report", "deed": deed, "guise": guise, "jurisdiction": jurisdiction,
+        "precision": precision, "deed_id": deed_id,
+    })
+
+
+def test_the_default_clarity_words_rise_with_precision(lawful: Path) -> None:
+    """No `clarity_words` in the file: the engine's four, ascending, and the
+    shipped hops (0.3 / 0.6 / 1.0) land one on each above the floor."""
+    state = _world()
+    assert law.load_spec()["clarity_words"] == list(law.DEFAULT_CLARITY_WORDS)
+    seen = [law.clarity_word(state, "self", "village")]
+    for n, p in enumerate((0.3, 0.6, 1.0)):
+        _file(state, precision=p, deed_id=f"d{n}")
+        seen.append(law.clarity_word(state, "self", "village"))
+    assert seen == ["nothing", "a rumour", "a description", "a likeness"]
+
+
+def test_the_best_live_report_decides_not_the_newest(lawful: Path) -> None:
+    state = _world()
+    _file(state, precision=1.0, deed_id="d1")
+    _file(state, precision=0.3, deed_id="d2")
+    assert law.clarity_word(state, "self", "village") == "a likeness"
+
+
+def test_linked_guises_share_one_sketch(lawful: Path) -> None:
+    """The watch takes the Magpie for you: her likeness is yours. The porter
+    nobody has tied to you is not."""
+    state = _world()
+    _file(state, guise="magpie", precision=1.0, deed_id="d1")
+    _file(state, guise="porter", precision=0.6, deed_id="d2")
+    assert law.clarity_word(state, "self", "village") == "a likeness"
+    assert law.clarity_word(state, "magpie", "village") == "a likeness"
+    assert law.clarity_word(state, "porter", "village") == "a description"
+
+
+def test_another_jurisdictions_file_is_not_this_watchs(lawful: Path) -> None:
+    state = _world()
+    _file(state, precision=1.0, deed_id="d1", jurisdiction="town")
+    assert law.clarity_word(state, "self", "village") == "nothing"
+    assert law.clarity_word(state, "self", "town") == "a likeness"
+
+
+def test_discharged_and_quashed_reports_draw_nothing(lawful: Path) -> None:
+    """Read through `law.discharged` / `law.quashed`, not only through the
+    rows the effects drop: a row a hand-edited save left behind for a deed
+    the player has paid for, or a watch-house was bribed to lose, is no
+    likeness."""
+    state = _world()
+    _file(state, precision=1.0, deed_id="paid")
+    _file(state, precision=0.6, deed_id="lost")
+    state.law["discharged_deeds"] = ["paid"]
+    state.law["quashed"] = {"village": ["lost"]}
+    assert law.clarity_word(state, "self", "village") == "nothing"
+    # And through the effects themselves, end to end.
+    fresh = _world()
+    _file(fresh, precision=1.0, deed_id="x1")
+    apply_effect(fresh, {"type": "quash_reports", "jurisdiction": "village", "guise": "self"})
+    assert law.clarity_word(fresh, "self", "village") == "nothing"
+    _file(fresh, precision=0.6, deed_id="x2")
+    apply_effect(fresh, {"type": "law_discharge", "deed_ids": ["x2"]})
+    assert law.clarity_word(fresh, "self", "village") == "nothing"
+
+
+def test_authored_clarity_words_replace_the_defaults(tmp_path: Path) -> None:
+    import yaml
+
+    path = tmp_path / "law.yaml"
+    path.write_text(yaml.safe_dump({**LAW_SPEC, "clarity_words": ["a stranger", "a face"]}),
+                    encoding="utf-8")
+    set_overlay({"paths": {"law": str(path)}})
+    try:
+        state = _world()
+        assert law.clarity_word(state, "self", "village") == "a stranger"
+        _file(state, precision=0.3, deed_id="d1")
+        assert law.clarity_word(state, "self", "village") == "a face"
+    finally:
+        set_overlay(None)
+
+
+@pytest.mark.parametrize("bad", [
+    ["only one"], "a likeness", [1, 2], ["a rumour", "  "], {},
+    # Never a number: a digit inside a word reaches the poster and the prose.
+    ["nothing", "2 witnesses"], ["nothing", "a likeness v2"],
+    # Two thresholds sharing a word are one word the player cannot tell apart.
+    ["nothing", "a rumour", "a rumour"], ["nothing", "A Rumour", "a rumour "],
+])
+def test_clarity_words_are_validated(tmp_path: Path, bad: Any) -> None:
+    import yaml
+
+    path = tmp_path / "law.yaml"
+    path.write_text(yaml.safe_dump({**LAW_SPEC, "clarity_words": bad}), encoding="utf-8")
+    set_overlay({"paths": {"law": str(path)}})
+    try:
+        with pytest.raises(ValueError, match="clarity_words") as caught:
+            law.load_spec()
+        assert str(path) in str(caught.value), caught.value
+    finally:
+        set_overlay(None)
+
+
+def test_undeclared_story_has_no_clarity_word() -> None:
+    assert law.clarity_word(_world(), "self", "village") == ""
+
+
+def test_payload_ships_the_clarity_word_for_the_face_worn_here(lawful: Path) -> None:
+    state = _world()
+    assert state.to_client_dict()["law"]["clarity"] == "nothing"
+    _file(state, guise="magpie", precision=0.6, deed_id="d1")
+    payload = state.to_client_dict()["law"]
+    assert payload["clarity"] == "a description"
+    assert not _DIGIT.search(payload["clarity"])
+
+
+def test_the_narrator_hears_the_same_word_as_the_poster(lawful: Path) -> None:
+    """One source of wording: the wanted line carries the payload's word."""
+    state = _world()
+    _report(state, deed="fencing", precision=0.6, deed_id="d1")
+    _report(state, deed="assault_watch", precision=0.3, deed_id="d2")
+    block = prompts.law_block(state)
+    word = state.to_client_dict()["law"]["clarity"]
+    assert word == "a description"
+    assert f"it has {word} of you" in block
+    assert not _DIGIT.search(block)
+
+
+def test_the_payload_law_key_is_absent_undeclared_with_clarity_too() -> None:
+    """The flagship: no `law` key at all, so no `clarity` either."""
+    assert "law" not in _world().to_client_dict()

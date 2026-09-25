@@ -28,7 +28,18 @@ Sizes come from ``subjects.yaml``'s ``formats:`` block, the same one the
 providers size live requests from, so a hand generation and a pipeline
 generation land the same shape.
 
-Version: v0.2.0 [2026-08-09]
+WHAT COUNTS AS MISSING, AND WHERE A PLATE GOES, is
+``scripts/generate_art.py::plan_plates`` -- the function the generator plans
+from -- so this brief and ``generate_art.py --game <slug> --dry-run`` list the
+same plates at the same paths. It used to count a subject as present the moment
+its id appeared in the manifest, whether or not the file existed, and to name
+the dawn plate ``scenes/<id>.jpg`` where the generator writes
+``scenes/<id>-dawn.jpg``: two views of one pack that drifted the first time a
+plate was promoted.
+
+    --out PATH    write the brief somewhere other than the story's art dir
+
+Version: v0.3.0 [2026-09-25]
 """
 
 from __future__ import annotations
@@ -41,7 +52,8 @@ import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from engine.games.registry import activate, discover, resolve_slug  # noqa: E402
+from engine.games.registry import discover, resolve_slug  # noqa: E402
+from scripts.generate_art import activate_story, plan_plates  # noqa: E402
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument(
@@ -49,12 +61,17 @@ parser.add_argument(
     default="",
     help="Story slug. Defaults to the active game (config `game.default`).",
 )
+parser.add_argument(
+    "--out",
+    default="",
+    help="Where to write the brief (default: <story>/data/art/MISSING-PLATES.md).",
+)
 args = parser.parse_args()
 
 SLUG = args.game or resolve_slug()
 if SLUG not in discover():
     parser.error(f"no such game '{SLUG}'. Installed: {', '.join(sorted(discover()))}")
-manifest_obj = activate(SLUG)
+manifest_obj = activate_story(SLUG)
 
 from engine.config import get_config  # noqa: E402
 from engine.media.art import format_for, lora_hints, render_prose, render_tags  # noqa: E402
@@ -67,12 +84,9 @@ ROOT = pathlib.Path(".")
 ART = pathlib.Path(str(get_config().get("paths.art_subjects", ""))).parent
 if not ART.is_dir():
     parser.error(f"'{SLUG}' declares no readable paths.art_subjects (looked in {ART})")
-OUT = ART / "MISSING-PLATES.md"
+OUT = pathlib.Path(args.out) if args.out else ART / "MISSING-PLATES.md"
 
 subjects = yaml.safe_load((ART / "subjects.yaml").read_text(encoding="utf-8"))
-manifest = yaml.safe_load(
-    pathlib.Path(str(get_config().get("paths.art_manifest", ""))).read_text(encoding="utf-8")
-)
 
 #: Read from `subjects.yaml`'s `formats:`, which is what the live providers size
 #: their requests from -- so the brief and a live generation cannot disagree.
@@ -83,9 +97,10 @@ DIMS = {
     for kind in ("location", "portrait", "item")
 }
 DIRS = {"location": "scenes", "portrait": "portraits", "item": "items"}
-TIMES = ["dawn", "day", "dusk", "night"]
-
 KINDS = [("locations", "location"), ("portraits", "portrait"), ("items", "item")]
+
+#: The generator's own plan, narrowed to what the serving chain cannot answer.
+GAPS = [plate for plate in plan_plates() if not plate.resolved]
 
 #: Per-subject warnings, KEYED BY STORY.
 #:
@@ -197,12 +212,7 @@ def block(subject_id: str, kind: str, time_of_day: str) -> list[str]:
 # Which subjects have no plate, computed BEFORE the prose so the prose can be
 # about this story rather than about the one this script was written for. The
 # header used to hardcode "Eight subjects" and name the Garden's entry location.
-_MISSING: set[str] = set()
-for _section, _kind in KINDS:
-    _have = set(manifest.get(_section) or {})
-    _MISSING |= {
-        k for k in (subjects.get(_section) or {}) if k != "defaults" and k not in _have
-    }
+_MISSING: set[str] = {plate.subject_id for plate in GAPS}
 
 _ORDER_SECTION = _order_section(_MISSING)
 _entry = manifest_obj.entry_location
@@ -240,9 +250,10 @@ lines: list[str] = [
     "",
     "| Kind | Size | Directory |",
     "| --- | --- | --- |",
-    "| location | 1280x720 | `plates/scenes/` |",
-    "| portrait | 768x1024 | `plates/portraits/` |",
-    "| item | 768x1024 | `plates/items/` |",
+    # From DIMS, not typed: this table used to say 1280x720 for every story,
+    # under a sentence claiming it was read from `formats:`.
+    *(f"| {kind} | {DIMS[kind]} | `{DIRS[kind]}/` under `paths.art_root` |"
+      for kind in ("location", "portrait", "item")),
     "",
     "Read from `subjects.yaml`'s `formats:` block, which is also what the live Grok",
     "and ComfyUI providers size their requests from — so generating by hand and",
@@ -251,9 +262,13 @@ lines: list[str] = [
     "",
     "## After the files land",
     "",
-    "Add each to `manifest.yaml` under its kind. Locations take",
-    "`{base: ..., alts: [...]}`; portraits and items take a bare path. Paths are",
-    "relative to `paths.art_root`. The ready-to-paste block is at the bottom.",
+    "`scripts/generate_art.py --game " + SLUG + " --promote` writes each plate the",
+    "generator made into `manifest.yaml` itself. For a plate made by hand, add it",
+    "under its kind: a location's plates go under `times: {<daypart>: ...}` (or",
+    "`base:` for a location whose subject declares no `times:` -- note that a",
+    "`base:` then answers every daypart); portraits and items take a bare path.",
+    "Paths are relative to `paths.art_root`. The ready-to-paste block is at the",
+    "bottom.",
     "",
     "---",
     "",
@@ -262,48 +277,51 @@ lines: list[str] = [
 pastable: dict[str, list[str]] = {"locations": [], "portraits": [], "items": []}
 
 for section, kind in KINDS:
-    have = set(manifest.get(section) or {})
-    want = [k for k in (subjects.get(section) or {}) if k != "defaults"]
-    missing = [k for k in want if k not in have]
-    if not missing:
+    gaps = [plate for plate in GAPS if plate.kind == kind]
+    if not gaps:
         continue
+    by_subject: dict[str, list] = {}
+    for plate in gaps:
+        by_subject.setdefault(plate.subject_id, []).append(plate)
 
-    lines += [f"## {section.capitalize()} ({len(missing)})", ""]
-    for subject_id in missing:
-        name = slug(subject_id)
-        target = f"{DIRS[kind]}/{name}.jpg"
-        lines += [
-            f"### `{subject_id}`",
-            "",
-            f"- **File:** `{target}`",
-            f"- **Size:** {DIMS[kind]}",
-            "",
-        ]
+    lines += [f"## {section.capitalize()} ({len(by_subject)})", ""]
+    for subject_id, plates in by_subject.items():
+        lines += [f"### `{subject_id}`", ""]
+        if kind != "location":
+            lines += [f"- **File:** `{plates[0].target}`", f"- **Size:** {DIMS[kind]}", ""]
+        else:
+            lines += [f"- **Size:** {DIMS[kind]}", ""]
         if subject_id in NOTES:
             lines += [NOTES[subject_id], ""]
 
-        if kind == "location":
-            # The renderer defaults to dawn, so dawn is the base plate. The
-            # other three are real authored variants -- mortal_threshold's night
-            # has a rose coming up through the floorboards -- and worth having,
-            # but the game is complete without them.
-            lines += ["#### Base — dawn", ""]
+        if kind != "location":
             lines += block(subject_id, kind, "dawn")
-            alts = []
-            for time_of_day in TIMES[1:]:
-                lines += [f"<details><summary>Alt — {time_of_day}"
-                          f" (`{DIRS[kind]}/{name}-{time_of_day}.jpg`)</summary>", ""]
-                lines += block(subject_id, kind, time_of_day)
+            pastable[section].append(f"  {subject_id}: {plates[0].target}")
+            lines += ["---", ""]
+            continue
+
+        # One plate per declared daypart the manifest cannot answer. The first
+        # is open; the rest fold, because a brief of 76 open prompts is a wall.
+        entry: list[str] = [f"  {subject_id}:"]
+        times = [p for p in plates if p.time_of_day]
+        for index, plate in enumerate(plates):
+            label = plate.time_of_day or "base"
+            request = plate.request()
+            if index:
+                lines += [f"<details><summary>{label} (`{plate.target}`)</summary>", ""]
+            else:
+                lines += [f"#### {label}", ""]
+            lines += [f"- **File:** `{plate.target}`", ""]
+            lines += block(subject_id, kind, request.time_of_day)
+            if index:
                 lines += ["</details>", ""]
-                alts.append(f"{DIRS[kind]}/{name}-{time_of_day}.jpg")
-            pastable["locations"].append(
-                f"  {subject_id}:\n"
-                f"    base: {target}\n"
-                f"    alts: []   # optional: {', '.join(alts)}"
-            )
-        else:
-            lines += block(subject_id, kind, "dawn")
-            pastable[section].append(f"  {subject_id}: {target}")
+        if times:
+            entry.append("    times:")
+            entry += [f"      {p.time_of_day}: {p.target}" for p in times]
+        for plate in plates:
+            if not plate.time_of_day:
+                entry.append(f"    base: {plate.target}")
+        pastable["locations"] += entry
 
         lines += ["---", ""]
 
@@ -328,4 +346,4 @@ lines += ["```", ""]
 
 OUT.write_text("\n".join(lines), encoding="utf-8")
 print(f"wrote {OUT} ({len(lines)} lines)")
-print("subjects covered:", sum(len(v) for v in pastable.values()))
+print(f"subjects covered: {len(_MISSING)} ({len(GAPS)} plates)")

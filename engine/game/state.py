@@ -671,8 +671,9 @@ class GameState:
     def _law_block(self) -> dict[str, Any]:
         """
         The Law, for the player's own sheet: the face currently worn, how
-        wanted it is in each jurisdiction, and whether the watch is holding
-        the player.
+        wanted it is in each jurisdiction, how clearly the watch here knows
+        it (``clarity``, a word from ``law.clarity_word``), and whether the
+        watch is holding the player.
 
         DECLARATION IS THE SWITCH, same convention as ``_premises_block``: a
         story that declares no ``paths.law`` gets no ``law`` key at all, so
@@ -697,6 +698,11 @@ class GameState:
                 law_module.jurisdiction_label(name): law_module.wanted_band(self, guise, name)
                 for name in (law_module.load_spec().get("jurisdictions") or {})
             }
+            # The poster's sketch: how well the watch HERE knows the face worn,
+            # in the story's words (never the precision behind it).
+            clarity = law_module.clarity_word(
+                self, guise, law_module.jurisdiction_at(self.location_id)
+            )
             held = law_module.custody(self)
             custody: Optional[dict[str, Any]] = None
             if held:
@@ -715,6 +721,7 @@ class GameState:
                 "law": {
                     "guise_label": law_module.guise_label(guise),
                     "wanted": wanted,
+                    "clarity": clarity,
                     "custody": custody,
                 }
             }

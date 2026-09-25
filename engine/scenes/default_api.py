@@ -144,9 +144,14 @@ def codex_places(state: Any, ledger: Any = None) -> list[dict[str, Any]]:
     and that is a spoiler rather than a fog-of-war question -- so it is withheld
     from the payload entirely rather than drawn as a grey rectangle with a
     tantalising road count. Walking there reveals it permanently, which is what
-    makes it a discovery instead of a lie.
+    makes it a discovery instead of a lie; so does a ``location_known:<id>``
+    reveal, which draws it greyed like any unvisited place.
+
+    Whether a secret place (and a road to it) is drawn is
+    ``locations.is_known`` -- the one predicate ``intents._travel`` also asks,
+    so the map can never withhold a place the travel enum offers by name.
     """
-    from engine.game.locations import LOCATIONS
+    from engine.game.locations import LOCATIONS, is_known
 
     visited: set[str] = set()
     time_of_day = "day"
@@ -165,7 +170,7 @@ def codex_places(state: Any, ledger: Any = None) -> list[dict[str, Any]]:
     places: list[dict[str, Any]] = []
     for place_id, row in LOCATIONS.items():
         discovered = not state or place_id in visited
-        if row.get("secret") and not discovered:
+        if not is_known(state, place_id):
             continue
         places.append(
             {
@@ -186,28 +191,52 @@ def codex_places(state: Any, ledger: Any = None) -> list[dict[str, Any]]:
                 "image": shipped_art_url(place_id, "location", time_of_day, evil_phase)
                 if discovered
                 else "",
-                "roads": [
-                    {
-                        "to": str(other),
-                        "name": str(
-                            (LOCATIONS.get(str(other)) or {}).get("name") or other
-                        ),
-                        "hours": int(edge.get("hours", 0)),
-                        "danger_dc": int(edge.get("danger_dc", 0)),
-                    }
-                    for other, edge in (row.get("connections") or {}).items()
-                    # A road TO a secret place is itself a secret. Drawing the
-                    # edge and omitting its destination would advertise exactly
-                    # what withholding the place was for.
-                    if not (
-                        (LOCATIONS.get(str(other)) or {}).get("secret")
-                        and str(other) not in visited
-                    )
-                ],
+                "roads": _roads(state, place_id, row),
                 "points": points.get(place_id, []),
             }
         )
     return places
+
+
+def _roads(state: Any, place_id: str, row: dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    The roads out of one place, as the map draws them: the graph's edges plus
+    any leg a discovered hidden path opens -- the SAME legs ``intents._travel``
+    offers (``foraging.shortcut_targets``), costed as ``move_to`` charges them.
+
+    A road TO a secret place is itself a secret. Drawing the edge and omitting
+    its destination would advertise exactly what withholding the place was
+    for, so every road asks ``locations.is_known``.
+    """
+    from engine.game.locations import LOCATIONS, is_known
+
+    legs: dict[str, dict[str, Any]] = {
+        str(other): dict(edge or {})
+        for other, edge in (row.get("connections") or {}).items()
+    }
+    if state is not None:
+        try:
+            from engine.game import foraging
+
+            for other in foraging.shortcut_targets(state, place_id):
+                if other not in LOCATIONS:
+                    continue
+                hours = foraging.shortcut_hours(state, place_id, other)
+                edge = legs.setdefault(other, {"hours": hours, "danger_dc": 0})
+                edge["hours"] = min(int(edge.get("hours", hours)), int(hours))
+        except Exception as exc:  # noqa: BLE001 -- no paths is not an error
+            logger.debug("[api] No hidden paths for the map: %s", exc)
+
+    return [
+        {
+            "to": other,
+            "name": str((LOCATIONS.get(other) or {}).get("name") or other),
+            "hours": int(edge.get("hours", 0)),
+            "danger_dc": int(edge.get("danger_dc", 0)),
+        }
+        for other, edge in legs.items()
+        if is_known(state, other)
+    ]
 
 
 def clue_board(state: Any, ledger: Any = None) -> list[dict[str, Any]]:

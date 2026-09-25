@@ -466,7 +466,8 @@ later at 35% hp, half your purse gone, carrying a −2 wound that takes five day
 to close — and the evil kept its own hours the whole time you were down.
 `state.ended` is set in exactly one case: a *second* death while the world is
 already `consuming`, when there is no longer anyone left to come out and fetch
-you.
+you. (That terminal locks no ending, so it shows no epilogue. A story wanting
+one declares `terminal: {when, ending}` instead — docs/AUTHORING.md §3.5.)
 
 ### Crafting & Professions
 
@@ -703,7 +704,8 @@ Images resolve through a **four-tier provider chain**
 
 1. **Shipped art pack** — `games/clockwork-dark/data/art/manifest.yaml`. Instant, and what a shipped
    example game should do.
-2. **Disk cache** — keyed by `(subject_id, kind, time_of_day, evil_phase)`.
+2. **Disk cache** — keyed by `(subject_id, kind, time_of_day, evil_phase)`, plus
+   the story's slug for every story but the flagship.
 3. **Live generation** — `media.live_generation`, **off by default**. Grok
    Imagine or ComfyUI. Off because a Grok still takes 2–3 minutes, which cannot
    sit inside a real-time turn; ComfyUI is seconds and is the backend worth

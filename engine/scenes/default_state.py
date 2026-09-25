@@ -453,10 +453,13 @@ def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
         {"id": "resume_look", "text": "Take stock of where you are"},
     ]
     try:
-        from engine.game.locations import LOCATIONS
+        from engine.game.locations import LOCATIONS, is_known
 
         row = LOCATIONS.get(state.location_id) or {}
-        for other in list((row.get("connections") or {}))[:2]:
+        # Only roads the player knows lead somewhere: a secret place is not
+        # offered here any more than in the travel enum (`locations.is_known`).
+        roads = [o for o in (row.get("connections") or {}) if is_known(state, str(o))]
+        for other in roads[:2]:
             name = str((LOCATIONS.get(str(other)) or {}).get("name") or other)
             choices.append(
                 {

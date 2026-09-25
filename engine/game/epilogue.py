@@ -293,7 +293,9 @@ def for_state(state: GameState) -> Optional[Epilogue]:
     A story with no declared endings never locks one, so this is None for The
     Clockwork Dark on every turn of every run -- and its terminal death, which
     sets ``state.ended``, stays what it was. Death is not an epilogue here; a
-    story wanting one declares an ending and locks it.
+    story wanting one declares ``terminal: {when, ending}`` in death.yaml, and
+    the death locks that ending and plays its module
+    (``encounter._terminal_ending_death``).
     """
     from engine.game import endings as endings_module
 
