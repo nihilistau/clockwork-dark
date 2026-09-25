@@ -1,0 +1,764 @@
+# HUE & CRY -- the streets at night (v0.14).
+#
+# Read by engine/game/encounter.py through `paths.encounters`. Drawn on
+# ARRIVAL at the end of a walk: the street's `danger_dc` and the hour set the
+# chance (rules.yaml `trigger:`), and these rows' `triggers` say which scene
+# may meet you where, and when. The draw rides the ENCOUNTER stream, so a seed
+# and a route replay the same nights.
+#
+# FIVE SCENES, in the order the city deals them:
+#
+#   cutpurses             any street, any hour -- the one scene daylight can
+#                         deal, on the roughest streets, rarely. Three
+#                         children who think you are a mark.
+#   press_gang            arriving on the Docks, 22:00-04:00. A merchantman
+#                         short of hands and not fussy about whose.
+#   drunk_lantern         the watched streets, 21:00-02:00. A Lantern off
+#                         shift, four drinks past his sergeant's tolerance.
+#                         Hitting him is `assault_watch` (the `deed` effect,
+#                         `seen_by_watch`; he is no scheduled Lantern, so
+#                         `report_precision: 0.6` has him tell the watch-house
+#                         himself -- blurred, he was drunk -- when nobody on
+#                         duty saw it), and losing to him is the cells.
+#   lamplighters_warning  any street, 17:00-22:00. The warm one: old Wix
+#                         with his ladder and his hook and a word about where
+#                         not to walk tonight.
+#   silas_toughs          the Snuffs, the Docks and Wickmarket, 20:00-03:00.
+#                         Silas Crook's new friends collecting a toll the
+#                         Snuffs never used to pay.
+#
+# REAL STAKES, NOT A DEATH. HUE & CRY ships no death.yaml until v0.17 (hp can
+# reach 0 with no respawn), so a street takes coin, stamina, a night's
+# dignity, your liberty -- and at worst three hp in a fight lost
+# (tests/test_hue_and_cry.py holds that line). A robbery takes two crowns --
+# a day's bread and a bed. MEASURED at three (simulate_labour, 40 seeds x 10
+# days): an honest porter walking home from the lamps through the Snuffs at
+# nine kept 92% of days and saved nothing, and one run starved to 0 hp; at
+# two it keeps 94%, saves +0.05 cr a day and never drops below 12 hp -- the
+# walk home costs the honest life a little, not the life. Every arrest also sets
+# `location_known:the_undercroft`, as the Lantern's stop does: the drain in the
+# cell floor is the same drain whoever put you there.
+#
+# NO SOFT-LOCK. Every scene has an approach that needs no roll, no coin, no
+# item and no hour, and ends the scene: hand the purse over, go along, stand
+# and be lectured, walk on, turn out your pockets.
+#
+# Version: v0.1.0 [2026-09-25]
+
+encounters:
+
+  # -------------------------------------------------------------------------
+  - id: cutpurses
+    tier: 1
+    weight: 6
+    triggers: {}
+    intro: >-
+      Three of them, none older than twelve: one to walk into you and
+      apologise, one to take the purse while you are being apologised to, and
+      a girl with a little knife to stand in the doorway and make sure you
+      take the apology in the spirit intended. They have picked you because
+      you look new. You are, in a way. Not in the way they think.
+    threat: { name: "Three cutpurses who think you are easy", resolve: 3 }
+    max_rounds: 3
+    approaches:
+
+      turn_it_round:
+        skill: stealth
+        difficulty: standard
+        text: "Let the little one try, and have his purse before he has yours"
+        ends: true
+        outcomes:
+          crit_success:
+            text: >-
+              His hand goes into your coat and comes out empty, and when he
+              pats his own coat for comfort his own purse is gone too. You
+              hand it back with a nod. The girl in the doorway looks at you
+              the way apprentices look at masters, and the three of them are
+              gone before you have finished nodding -- leaving a crown on the
+              cobbles, for the lesson.
+            outcome: professional_courtesy
+            effects:
+              - { type: gold, delta: 1 }
+          success:
+            text: >-
+              You catch his wrist in your pocket, turn it gently, and put his
+              own knife back in his hand, handle first. "Not tonight," you
+              say. He thinks about it, and then all three of them
+              remember urgent business two streets away.
+            outcome: professional_courtesy
+          partial:
+            text: >-
+              You catch the hand -- and the girl's knife catches your sleeve,
+              and the three of them scatter into the dark while you are still
+              deciding whether that was blood. It was not. Nearly.
+            outcome: scuffle
+            effects:
+              - { type: stamina, delta: -6 }
+          failure:
+            text: >-
+              You are very good. They are three, and they do this every night,
+              and when the apology is over your coat is lighter by exactly the
+              purse you were watching the wrong child for.
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -2 }
+
+      talk:
+        skill: persuasion
+        difficulty: easy
+        text: "Tell them, one professional to another, to find a real mark"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You name the trick before they finish it -- the bump, the lift,
+              the girl in the doorway -- and the eldest grins with half his
+              teeth. "Didn't know you was in the trade," he says, and they melt
+              away looking for somebody honest.
+            outcome: professional_courtesy
+          partial:
+            text: >-
+              They listen. They also lift two coppers' worth of your change
+              while you are being eloquent, because you did say one
+              professional to another.
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -1 }
+          failure:
+            text: >-
+              "In the trade," says the girl, and laughs, and the purse is gone
+              while she is laughing. They have heard that one from every mark
+              who ever wanted to sound hard.
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -2 }
+
+      run:
+        skill: stealth
+        difficulty: standard
+        text: "Step round them and keep walking, quick"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You are through the gap before the apology starts, and when the
+              little one turns round there is nobody to walk into but a
+              lamp-post.
+            outcome: escaped
+          partial:
+            text: >-
+              You get past them, hand on your purse, and they follow you two
+              streets at a trot before they give it up. Your heart takes three
+              more to believe it.
+            outcome: escaped
+            effects:
+              - { type: stamina, delta: -5 }
+          failure:
+            text: >-
+              You step round the first, and the second, and the third was
+              waiting exactly where anybody stepping round the first two would
+              step. The purse goes. They are very sorry about it.
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -2 }
+
+      fight:
+        skill: nerve
+        difficulty: standard
+        text: "Grab the nearest by the collar and make an example"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You have one by the collar and a hand up in the girl's face
+              before the knife is anywhere useful, and the third is already
+              running. You let the one you are holding go after him. They are
+              children. It was still very satisfying.
+            outcome: escaped
+          partial:
+            text: >-
+              You get your collar and they get a piece of you: a thin line
+              across the knuckles from the little knife, which stings all the
+              way home and for two days after.
+            outcome: scuffle
+            effects:
+              - type: wound
+                text: "a knife-nick across the knuckles"
+                severity: 1
+                check_penalty: -1
+                skills: [craft]
+                heals_on_day: "+2"
+          failure:
+            text: >-
+              You grab. They are not where you grabbed. Somebody kicks the
+              back of your knee, somebody else takes the purse, and the girl
+              says "sorry, mister" as she steps over you, and means it about
+              as much as they ever do.
+            outcome: robbed
+            effects:
+              - { type: hp, delta: -2 }
+              - { type: gold, delta: -2 }
+
+      hand_over:
+        auto: true
+        degree: success
+        text: "Let them have the purse -- it is only coin"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You hold the purse out before anybody has to be apologised to.
+              The little one takes it, puzzled, and weighs it, and gives you a
+              copper back out of it, which is either pity or manners. Then they
+              are gone.
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -1 }
+
+  # -------------------------------------------------------------------------
+  - id: press_gang
+    tier: 2
+    weight: 8
+    triggers:
+      to: [tallow_docks]
+      hours: [22, 23, 0, 1, 2, 3, 4]
+    intro: >-
+      Five men with cudgels and a bosun with a list, coming up the quay from
+      a merchantman that sails on the morning tide two hands short and does
+      not intend to be. The bosun looks at you the way a butcher looks at a
+      side of beef. "You," he says. "Ever been to sea? You're going."
+    threat: { name: "A press-gang off the Fair Candace", resolve: 4 }
+    max_rounds: 3
+    approaches:
+
+      run:
+        skill: stealth
+        difficulty: standard
+        text: "Break for the stacked barrels and lose them in the tallow yards"
+        ends: true
+        outcomes:
+          crit_success:
+            text: >-
+              Over one barrel, under a cart, through a door that should have
+              been locked, and out onto the quay behind them, where you watch
+              five men and a bosun search a tallow yard for somebody who is
+              leaning on a bollard admiring the tide.
+            outcome: escaped
+          success:
+            text: >-
+              You go through the tallow yards like a rat through a granary,
+              and the cudgels go the long way round. By the time they get
+              there you are the smell of wax and nothing else.
+            outcome: escaped
+          partial:
+            text: >-
+              You get clear -- over a barrel that rolls, into a puddle of
+              half-set tallow, out the far side with the whole gang's opinions
+              ringing behind you -- and you do not stop running for four
+              streets.
+            outcome: escaped
+            effects:
+              - { type: stamina, delta: -10 }
+          failure:
+            text: >-
+              A cudgel finds the back of your legs and the rest of the gang
+              finds the rest of you. You are carried up a gangplank like a
+              roll of carpet, and it is three hours in the hold and a long
+              argument about knots before the mate decides you are more
+              trouble than two hands are worth and puts you back on the quay,
+              lighter by your purse -- "passage money," says the bosun.
+            outcome: pressed
+            effects:
+              - { type: stamina, delta: -25 }
+              - { type: gold, delta: -2 }
+
+      talk:
+        skill: persuasion
+        difficulty: hard
+        text: "Show him your hands -- soft as a clerk's -- and talk your way out"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You hold up your hands, and talk about seasickness, and a weak
+              chest, and a sister who is a magistrate's cook, and the bosun
+              crosses you off a list you were never on. "Useless," he says,
+              and it is the nicest thing anybody has said to you all day.
+            outcome: talked_down
+          partial:
+            text: >-
+              He believes about half of it, and the half he believes costs you
+              a crown for his trouble. "For the walk up the quay," he says.
+            outcome: talked_down
+            effects:
+              - { type: gold, delta: -1 }
+          failure:
+            text: >-
+              "Magistrate's cook," says the bosun. "Heard that one in four
+              ports." Three hours in the hold, a long argument about knots, and
+              the mate puts you back on the quay by the second bell, lighter by
+              your purse.
+            outcome: pressed
+            effects:
+              - { type: stamina, delta: -25 }
+              - { type: gold, delta: -2 }
+
+      pay:
+        auto: true
+        degree: success
+        cost_gold: 3
+        text: "Pay the bosun's price for a short memory"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              Three crowns, counted into a palm like a paving slab. The bosun
+              looks at them, and at you, and crosses something out. "Never saw
+              you," he says. "Pity. You've the look of a topman."
+            outcome: bought_off
+
+      fight:
+        skill: nerve
+        difficulty: hard
+        text: "Put the first man into the harbour and dare the rest"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              The first man goes into the harbour with a noise like a dropped
+              wardrobe, and the other four suddenly remember that the Fair
+              Candace pays by the head and not by the bruise. You walk away.
+              You do not run. It matters.
+            outcome: escaped
+            effects:
+              - { type: stamina, delta: -8 }
+          partial:
+            text: >-
+              You get one into the water and one cudgel across the shoulders,
+              and in the confusion of fishing him out you are gone -- with a
+              shoulder that will not lift a crate for a day or two.
+            outcome: escaped
+            effects:
+              - type: wound
+                text: "a cudgel-bruise across the shoulders"
+                severity: 1
+                check_penalty: -1
+                skills: [nerve]
+                heals_on_day: "+2"
+          failure:
+            text: >-
+              Five cudgels is a great many cudgels. You wake in a hold that
+              smells of bilge and onions, and it is a long argument about
+              knots before the mate puts you back on the quay, lighter by
+              your purse and heavier by several bruises.
+            outcome: pressed
+            effects:
+              - { type: hp, delta: -3 }
+              - { type: stamina, delta: -20 }
+              - { type: gold, delta: -2 }
+
+      go_along:
+        auto: true
+        degree: success
+        text: "Go quietly, and wait for the gangplank to be pulled in"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You go up the gangplank like a lamb, and down the anchor cable
+              like something rather less wholesome while the bosun is shouting
+              at somebody else. The harbour is cold, the quay is slimy, and
+              you are dripping and free by the second bell.
+            outcome: slipped_away
+            effects:
+              - { type: stamina, delta: -20 }
+
+  # -------------------------------------------------------------------------
+  - id: drunk_lantern
+    tier: 1
+    weight: 6
+    triggers:
+      to: [wickmarket, gallows_green, silk_row, chandlers_rise, lantern_house]
+      hours: [21, 22, 23, 0, 1, 2]
+    intro: >-
+      A Lantern of the Watch, off shift and four drinks past his sergeant's
+      tolerance, is conducting the lamp-post in a hymn it does not know. He
+      stops when he sees you. He squints. His hand goes, slowly and with
+      enormous dignity, to the whistle on his chest. "Here," he says. "You.
+      You've got a face. I know a face."
+    threat: { name: "A Lantern who has had four too many", resolve: 3 }
+    max_rounds: 3
+    approaches:
+
+      humour:
+        skill: persuasion
+        difficulty: easy
+        text: "Agree with him about everything, especially his sergeant"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You agree that the sergeant is a disgrace, that the pay is a
+              scandal, and that the Magpie, when caught, should be made to
+              polish every lamp in Tallowmere. He weeps a little. He tells you
+              you are a good sort. He forgets your face on the spot, which is
+              the whole of the art.
+            outcome: talked_down
+          partial:
+            text: >-
+              He agrees with you about the sergeant, and then wants to agree
+              with you about it for half an hour, leaning on your shoulder,
+              and you walk him most of the way to the Lantern House before he
+              lets go.
+            outcome: talked_down
+            effects:
+              - { type: stamina, delta: -6 }
+          failure:
+            text: >-
+              You say one thing too many about the sergeant, and he remembers
+              he is a Lantern. "Insulting the Watch," he announces, and blows
+              the whistle, and two sober ones arrive with a lamp and a pair of
+              irons and no sense of humour at all.
+            outcome: arrested
+            effects:
+              - { type: arrest }
+              - { type: flag, flag: "location_known:the_undercroft", value: true }
+
+      run:
+        skill: stealth
+        difficulty: easy
+        text: "Wait for him to blink, and be somewhere else"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              He blinks. You are somewhere else. He spends some time looking
+              for you behind the lamp-post, and then conducts it through the
+              second verse.
+            outcome: escaped
+          partial:
+            text: >-
+              You get clear, but the whistle goes, shrill and wobbly, and you
+              spend a street and a half walking fast in the shadows while
+              every shutter on it opens to see who the Watch is after.
+            outcome: escaped
+            effects:
+              - { type: stamina, delta: -6 }
+          failure:
+            text: >-
+              He is drunk, but he is a Lantern, and his hand closes on your
+              collar with twenty years' practice in it. The whistle goes. The
+              two who come running are not drunk at all.
+            outcome: arrested
+            effects:
+              - { type: arrest }
+              - { type: flag, flag: "location_known:the_undercroft", value: true }
+
+      stand_a_drink:
+        auto: true
+        degree: success
+        cost_gold: 1
+        text: "Stand him one more at the Snuffed Wick"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              One more at the Snuffed Wick, and he puts his arm round you and
+              tells the whole taproom you are the finest fellow in Tallowmere.
+              By the bottom of the glass he has forgotten your face entirely,
+              and is asking you your name for the fourth time.
+            outcome: bought_off
+
+      fight:
+        skill: nerve
+        difficulty: standard
+        text: "Shove him into the gutter and go"
+        ends: true
+        outcomes:
+          crit_success:
+            text: >-
+              One shove and he sits down in the gutter with his helmet over his
+              eyes, singing. He may not remember. The street will. Striking a
+              Lantern is striking a Lantern, drunk or sober.
+            outcome: escaped
+            effects:
+              - { type: deed, deed: assault_watch, seen_by_watch: true, report_precision: 0.6 }
+              - { type: reputation, faction: lantern_watch, delta: -10, why: "struck a Lantern" }
+          success:
+            text: >-
+              He goes down easy, the way drunk men do, and you are two streets
+              off before his whistle finds his mouth. Whoever was watching from
+              the doorways saw a Lantern put in the gutter, and saw who did it.
+            outcome: escaped
+            effects:
+              - { type: deed, deed: assault_watch, seen_by_watch: true, report_precision: 0.6 }
+              - { type: reputation, faction: lantern_watch, delta: -10, why: "struck a Lantern" }
+          partial:
+            text: >-
+              He swings like a windmill and one sail lands. You leave him in
+              the gutter with a split lip of your own and the whistle shrieking
+              behind you.
+            outcome: escaped
+            effects:
+              - { type: deed, deed: assault_watch, seen_by_watch: true, report_precision: 0.6 }
+              - { type: reputation, faction: lantern_watch, delta: -10, why: "struck a Lantern" }
+              - { type: hp, delta: -1 }
+              - { type: stamina, delta: -6 }
+          failure:
+            text: >-
+              Drunk or not, he has been in more street fights than you have had
+              suppers, and he sits on you until the whistle brings two sober
+              ones. They carry you to the Lantern House with "struck a
+              Lantern" on the charge, and the whole cell block hears why.
+            outcome: arrested
+            effects:
+              - { type: deed, deed: assault_watch, seen_by_watch: true, report_precision: 0.6 }
+              - { type: reputation, faction: lantern_watch, delta: -10, why: "struck a Lantern" }
+              - { type: hp, delta: -2 }
+              - { type: arrest }
+              - { type: flag, flag: "location_known:the_undercroft", value: true }
+
+      endure:
+        auto: true
+        degree: success
+        text: "Stand still and be lectured on the Magpie"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You stand, and he lectures: on the Magpie, on the rising price of
+              lamp oil, on what his father would have done to the Magpie, on
+              his feet. It goes on until the church bells lose count. At the
+              end of it he pats your cheek, calls you a good lad, and walks
+              into the lamp-post.
+            outcome: lectured
+            effects:
+              - { type: stamina, delta: -8 }
+
+  # -------------------------------------------------------------------------
+  - id: lamplighters_warning
+    tier: 1
+    weight: 6
+    triggers:
+      hours: [17, 18, 19, 20, 21, 22]
+    intro: >-
+      Old Wix the lamplighter is up his ladder with his hook and his taper,
+      lighting the street one glass at a time the way he has every evening
+      for forty years. He looks down at you over the lamp. "Evening," he
+      says. "Walking far? I'd not walk far, tonight. Come here a moment."
+    threat: { name: "Old Wix the lamplighter", resolve: 2 }
+    max_rounds: 2
+    approaches:
+
+      listen:
+        auto: true
+        degree: success
+        text: "Stop and hear what he has to say"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              He comes down the ladder with a paper of hot chestnuts and gives
+              you half without asking. "Press-gang's out on the quay," he says,
+              "and Silas Crook's lads are taking a toll in the Snuffs, and
+              there's a Lantern down the Wick who's had a skinful and thinks
+              everyone's the Magpie. Keep to the lit side." He goes back up
+              the ladder. The chestnuts are very good.
+            outcome: warned
+            effects:
+              - { type: hunger, delta: -10 }
+
+      help:
+        skill: craft
+        difficulty: easy
+        text: "Hold the ladder, and trim the next wick for him"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You steady the ladder and trim the wick clean the first time,
+              which he says nobody under fifty can do any more. He shares his
+              supper on the kerb -- bread, a heel of cheese, cold tea from a
+              can -- and tells you which streets are bad tonight and which are
+              only rude.
+            outcome: warned
+            effects:
+              - { type: hunger, delta: -15 }
+              - { type: stamina, delta: 8 }
+          failure:
+            text: >-
+              You drop the hook, and then the taper, and he laughs so hard he
+              has to hold on to the lamp. "Keep to the lit side," he says,
+              wiping his eyes. "And keep away from ladders."
+            outcome: warned
+
+      walk_on:
+        auto: true
+        degree: success
+        text: "Wish him good evening and walk on"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              "Suit yourself," he says, not unkindly, and lights the next lamp
+              behind you, so that your shadow goes on ahead of you all the way
+              down the street.
+            outcome: walked_on
+
+  # -------------------------------------------------------------------------
+  - id: silas_toughs
+    tier: 2
+    weight: 8
+    triggers:
+      to: [the_snuffs, tallow_docks, wickmarket]
+      hours: [20, 21, 22, 23, 0, 1, 2, 3]
+    intro: >-
+      Two large young men in new waistcoats step out of a doorway, one on
+      either side of you, very friendly. "Evening," says the left one. "Mr
+      Crook's compliments. Streets aren't safe after dark, he says, so he's
+      taken it on himself to keep them safe. Small consideration for the
+      service. Everybody pays now." The right one cracks his knuckles as a
+      form of punctuation.
+    threat: { name: "Silas Crook's new friends", resolve: 4 }
+    max_rounds: 3
+    approaches:
+
+      pay:
+        auto: true
+        degree: success
+        cost_gold: 2
+        text: "Pay Mr Crook's consideration"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              Two crowns. The left one bites one, which is theatre, and tips
+              his hat, which is worse. "Mr Crook will be glad to hear it," he
+              says, and by morning the Porters' Hall will have heard it too:
+              another one paying Silas, not Mother Gannet.
+            outcome: paid_the_toll
+            effects:
+              - { type: reputation, faction: honest_company, delta: -1, why: "seen paying Silas Crook's toll" }
+
+      talk:
+        skill: persuasion
+        difficulty: hard
+        text: "Mention, pleasantly, that Mother Gannet might like to know about this"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              At Mother Gannet's name the right one stops cracking his
+              knuckles and looks at the left one, and the left one decides,
+              visibly, that he has not been paid enough to find out. "No
+              offence," he says. "Our mistake." They are back in their
+              doorway before you have finished smiling.
+            outcome: talked_down
+          partial:
+            text: >-
+              They back off -- but the left one takes a crown off you first,
+              "for the trouble of remembering your face," and they are both
+              grinning as you go.
+            outcome: talked_down
+            effects:
+              - { type: gold, delta: -1 }
+          failure:
+            text: >-
+              "Mother Gannet," says the left one, "is yesterday's news," and
+              the right one pins your arms while he empties your pockets with
+              great care. They leave you your boots. It is a kindness, of a
+              sort.
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -2 }
+              - { type: stamina, delta: -6 }
+
+      run:
+        skill: stealth
+        difficulty: standard
+        text: "Duck under the left one's arm and into the washing lines"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              Under the arm, through a curtain of wet sheets, over a yard
+              wall, and out into the next street, leaving two new waistcoats
+              wrestling a bedspread.
+            outcome: escaped
+          partial:
+            text: >-
+              You get away, but the right one gets a fistful of your coat
+              first and keeps a good piece of it, and you run three streets
+              with the draught reminding you.
+            outcome: escaped
+            effects:
+              - { type: stamina, delta: -8 }
+          failure:
+            text: >-
+              You duck. The left one was expecting you to duck. They hold you
+              against the wall, very politely, and take the consideration and
+              a little over for the inconvenience of chasing it.
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -2 }
+              - { type: stamina, delta: -6 }
+
+      fight:
+        skill: nerve
+        difficulty: hard
+        text: "Hit the one with the knuckles first"
+        ends: true
+        outcomes:
+          crit_success:
+            text: >-
+              One goes into the washing, the other goes into the gutter, and
+              by morning the whole of the Snuffs knows that somebody hit two of
+              Silas Crook's boys and walked home whistling. At the Porters'
+              Hall, they drink to you.
+            outcome: escaped
+            effects:
+              - { type: reputation, faction: honest_company, delta: 2, why: "put two of Silas Crook's toll-men in the gutter" }
+          success:
+            text: >-
+              You hit the knuckle-cracker before he has finished cracking, and
+              while he is surprised about it you are gone, with the other one's
+              shout following you into the dark.
+            outcome: escaped
+            effects:
+              - { type: stamina, delta: -8 }
+          partial:
+            text: >-
+              You land one and take one, and get clear with a cut over the eye
+              that will be a fine story in a week and is only a nuisance now.
+            outcome: escaped
+            effects:
+              - type: wound
+                text: "a cut over the eye from a new waistcoat's ring"
+                severity: 1
+                check_penalty: -1
+                skills: [persuasion]
+                heals_on_day: "+2"
+          failure:
+            text: >-
+              They are large, and there are two of them, and they have done
+              this before. You wake in the gutter with a headache and a purse
+              that has been considered, thoroughly, on Mr Crook's behalf.
+            outcome: robbed
+            effects:
+              - { type: hp, delta: -3 }
+              - { type: gold, delta: -2 }
+
+      turn_out_pockets:
+        auto: true
+        degree: success
+        text: "Turn out your pockets and let them take what they like"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You turn out your pockets. They take what they like, which is
+              most of it, and leave you a copper for the flophouse "so nobody
+              can say Mr Crook isn't a gentleman."
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -2 }

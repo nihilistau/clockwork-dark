@@ -405,3 +405,141 @@ def test_snapshot_reports_what_the_ui_needs():
     assert snap["stage"] == "hungry"
     assert snap["stamina_cap"] == 80
     assert set(snap) >= {"hunger", "stage", "stamina", "stamina_cap", "hp", "wounds"}
+
+
+# -- a bed with a price or a door policy (generic, v0.14) ------------------
+#
+# `cost:` and `requires:` on a rest entry. Neither ever REFUSES a rest (rule
+# 6): an unmet one downgrades to the entry's `fallback`, exactly as a bed out
+# of reach does. Stories that declare neither are untouched -- no `paid` key,
+# no charge, the same receipt byte for byte.
+
+_PRICED_RULES = {
+    "rest": {
+        "sleep_inn": {
+            "hours": 8, "stamina": "full", "cost": 3,
+            "locations": ["edgewood_square"], "fallback": "sleep_rough",
+            "text": "A room at the inn.",
+        },
+        "sleep_club": {
+            "hours": 8, "stamina": "full",
+            "requires": {"flag": "member"}, "fallback": "sleep_rough",
+            "text": "A members' cot.",
+        },
+        "sleep_rough": {"hours": 8, "stamina": 40, "text": "A doorway."},
+    }
+}
+
+
+@pytest.fixture()
+def priced(monkeypatch):
+    monkeypatch.setattr(survival, "load_rules", lambda: _PRICED_RULES)
+
+
+def test_a_priced_bed_takes_the_price_and_says_so(priced):
+    state = fed_state(location_id="edgewood_square")
+    state.stats.stamina = 10
+    state.stats.gold = 5
+
+    out = survival.rest(state, "sleep_inn")
+
+    assert out["kind"] == "sleep_inn"
+    assert out["paid"] == 3
+    assert state.stats.gold == 2
+    assert state.stats.stamina == survival.stamina_cap(state)
+
+
+def test_a_bed_you_cannot_pay_for_downgrades_rather_than_refuses(priced):
+    state = fed_state(location_id="edgewood_square")
+    state.stats.stamina = 10
+    state.stats.gold = 2
+
+    out = survival.rest(state, "sleep_inn")
+
+    assert out["success"] is True
+    assert out["kind"] == "sleep_rough"
+    assert "paid" not in out
+    assert state.stats.gold == 2
+    assert state.stats.stamina == 50
+
+
+def test_a_misspelt_rest_still_asks_the_substitutes_gates(monkeypatch):
+    """v0.14 final: an unknown kind fell back to the first entry WITHOUT its
+    gates -- a story whose first rest is a priced bed handed it out free."""
+    rules = {"rest": {
+        "sleep_inn": {"hours": 8, "stamina": "full", "cost": 3, "fallback": "sleep_rough",
+                      "text": "A room."},
+        "sleep_rough": {"hours": 8, "stamina": 40, "text": "A doorway."},
+    }}
+    monkeypatch.setattr(survival, "load_rules", lambda: rules)
+    state = fed_state()
+    state.stats.gold = 0
+    out = survival.rest(state, "sleep_inm")
+    assert out["success"] is True
+    assert out["kind"] == "sleep_rough", out
+    assert state.stats.gold == 0
+
+
+def test_a_rest_gate_that_raises_downgrades_rather_than_refuses(priced, monkeypatch):
+    def boom(*_a, **_k):
+        raise RuntimeError("a broken predicate")
+
+    monkeypatch.setattr("engine.game.quests.evaluate_condition", boom)
+    state = fed_state()
+    state.flags["member"] = True
+    out = survival.rest(state, "sleep_club")
+    assert out["success"] is True and out["kind"] == "sleep_rough", out
+
+
+def test_a_priced_bed_out_of_reach_charges_nothing(priced):
+    state = fed_state(location_id="forest_clearing")
+    state.stats.gold = 5
+    out = survival.rest(state, "sleep_inn")
+    assert out["kind"] == "sleep_rough"
+    assert state.stats.gold == 5
+
+
+def test_a_bed_behind_a_condition_downgrades_when_it_is_unmet(priced):
+    state = fed_state(location_id="forest_clearing")
+    state.stats.stamina = 10
+
+    assert survival.rest(state, "sleep_club")["kind"] == "sleep_rough"
+    state.flags["member"] = True
+    assert survival.rest(state, "sleep_club")["kind"] == "sleep_club"
+
+
+def test_the_receipt_line_names_what_a_bed_cost(priced):
+    from engine.agents.prompts import summarise_receipt
+
+    state = fed_state(location_id="edgewood_square")
+    state.stats.gold = 5
+    out = survival.rest(state, "sleep_inn")
+    line = summarise_receipt({"skill": "rest", "result": out})
+    assert "paid" in line and "3" in line, line
+
+
+def test_an_ungated_bed_receipt_is_unchanged():
+    """No `cost`/`requires` in the flagship: no `paid` key, no gold moved."""
+    state = fed_state(location_id="edgewood_bakery")
+    state.stats.gold = 7
+    out = survival.rest(state, "sleep_bed")
+    assert "paid" not in out
+    assert state.stats.gold == 7
+
+
+def test_a_bed_out_of_reach_is_named_by_its_place_not_its_id():
+    """Ids never reach the narrator. The downgrade note used to read
+    "(no bed at forest_clearing)" in the flagship's receipt and summary line;
+    it names the place instead (a leak fix, so the flagship's string changes)."""
+    from engine.agents.prompts import summarise_receipt
+    from engine.game.locations import LOCATIONS
+
+    state = fed_state(location_id="forest_clearing")
+    out = survival.rest(state, "sleep_bed")
+    line = summarise_receipt({"skill": "rest", "result": out})
+
+    assert out["kind"] == "sleep_rough"
+    name = str(LOCATIONS["forest_clearing"]["name"])
+    assert f"(no bed at {name})" in out["text"], out["text"]
+    for text in (out["text"], line):
+        assert "forest_clearing" not in text, text

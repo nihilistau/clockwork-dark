@@ -1416,6 +1416,9 @@ def _authored(result: dict[str, Any]) -> str:
 def _sum_rest(result: dict[str, Any]) -> str:
     hours = result.get("hours")
     head = f"rested for {hours:g} hours" if isinstance(hours, (int, float)) else "rested"
+    if result.get("paid"):
+        # A priced bed (survival.yaml `cost:`); absent for every free rest.
+        head += f" and paid {_money(result.get('paid'))} for the bed"
     return " ".join(x for x in (head + ".", _authored(result)) if x)
 
 

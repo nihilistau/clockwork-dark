@@ -550,6 +550,23 @@ encounters must agree. Every vendor id in `economy.yaml` must be an NPC
 scheduled in `npc_schedules.yaml`, or the shop has no keeper — the validator
 says so.
 
+**Work has hours.** A `labour.yaml` job may declare `when:`, a condition in
+the shared grammar (`quests.evaluate_condition`; most often
+`hour_between: [start, end]`, start inclusive, end exclusive, wrapping
+midnight), and `closed_text:`.
+Unmet, the job is shut like any other gate — off the notice board
+(`/api/notices`) and out of the `work` enum — and `work` refuses it in the
+`closed_text` words at no cost (`engine/game/economy.py::_requirements_met`).
+Without it a posting is open around the clock, which is right for a village
+chore and wrong for a porter boss asleep in her shed at 3 a.m. HUE & CRY
+gates each posting on the hours its employer is scheduled at the counter, and
+its test asserts the two agree (`tests/test_hue_and_cry.py`). Wages are whole
+units floored, and a `faction:` prices the wage at a neutral face's 0.85 — on
+a 2-crown shift that is 1 crown, so a story counting small coin may keep the
+faction on `reputation:` rows and off the wage (HUE & CRY's labour.yaml
+header). `scripts/simulate_labour.py` measures what a working day keeps
+against the cost of living.
+
 **World events on the calendar.** The `events:` block of `paths.world_schedules`
 declares things that HAPPEN — a market day, a raid, a curfew. Each entry fires
 on a fixed day (`on_day`), on a cadence (`every_days`, from `first_day`), or on
@@ -569,6 +586,30 @@ events:
     text: "The watch kicks in doors along the quay."
     forces_scene: raid          # data/scenes/raid.yaml
 ```
+
+**Road danger, by the hour.** A walk rolls for an encounter on ARRIVAL
+(`engine/game/engine.py::_roll_travel_encounter`, the ENCOUNTER stream). The
+chance is the edge's `danger_dc` times `trigger.per_danger_dc` (plus
+`trigger.base`), times `trigger.time_of_day[<daypart>]` for the arrival hour
+(`dawn` 5–8, `day` 8–17, `dusk` 17–20, `night` 20–5), less
+`trigger.stealth_reduction_per_point` × the walker's stealth modifier, clamped
+to `[min_chance, max_chance]` (`encounter.trigger_chance`; the `trigger:`
+block lives in any file of `paths.encounters`). An edge at `danger_dc: 0` never
+rolls. So night-only danger needs no special key: give the streets a
+`danger_dc`, put `day` near zero in `time_of_day`, and gate the scenes
+themselves with `triggers.hours` (and `to`/`from`/`edges`). A row with no
+`triggers` matches every leg. Keep the two in agreement: an hour where the
+chance is above zero and no row is eligible is a roll that cannot pay off
+(it logs and draws nothing). HUE & CRY's night streets are the worked example
+(`games/hue-and-cry/data/encounters/streets.yaml`, measured by
+`scripts/simulate_streets.py`).
+
+**`on_roads: false`** on an encounter row keeps it off every road whatever its
+`triggers` say, while `encounter.begin` still opens it on demand. It is for a
+scene some other system opens — HUE & CRY's `watch_stop`, begun by the Law's
+patrol, has no `triggers` and would otherwise be drawn as a free stop on any
+street with danger. A row that does not write the key matches exactly as it
+always did.
 
 **The map draws itself.** Any story with a travel graph gets core's map screen
 (`ui/src/core/screens/Map.jsx`, keyboard `m`) — nodes laid out by `ring`, roads
@@ -632,6 +673,29 @@ Two things you *can* author:
   a typo is an error at load; a reveal nothing gates on is not reported as
   write-only. A secret place nothing reveals can only be reached by content
   that puts the player there — if it has no such door, it is unreachable.
+
+  **A hidden path is the third reveal**: found by foraging, it makes both of
+  its ends known. The pool comes from the story's `paths.procgen_templates`
+  (`counts.hidden_paths`, drawn from `hidden_path_labels` and
+  `hidden_path_targets`) and is dealt round-robin across the forageable
+  places — wherever the alphabet falls. To start a path in a particular place,
+  pin it: row N of `hidden_path_placements` pins path N, each key optional
+  (`from` must be a forageable place, or the pin is ignored and the path is
+  dealt as usual — a path is only ever found by foraging at its home):
+
+  ```yaml
+  counts: { hidden_paths: 1 }
+  hidden_path_placements:
+    - from: wickmarket
+      leads_to: rooftop_road
+      labels: [drainpipe with good brackets up the back of the pie shop]
+  ```
+
+  HUE & CRY reveals all three of its secrets through these three mechanisms —
+  pinned hidden paths from the streets it scrounges, a `location_known` flag
+  on every arrest (the drain in the cell floor), and the Old Bell Tower's
+  `known_when` (seen from the Rooftop Road). A story that declares no
+  placements generates exactly the paths it always did.
 - **Nothing else.** Points of interest are DERIVED — an active quest stage that
   names a location becomes an objective pin, a vendor who trades there becomes
   a vendor pin. There is deliberately no map-pins file: a second place to
@@ -912,6 +976,11 @@ either outcome:
   `deeds` must list `<kind>`. `seen_by_watch: true` makes every law-role
   person present a certain witness, whatever the notice roll would have said
   — the watch_stop's `fight` approach uses this for `assault_watch`.
+  `report_precision: <0..1>` is the victim telling the watch-house himself,
+  for a scene's own watchman who is no scheduled person (so `seen_by_watch`
+  cannot find him): when nobody present filed the deed, one report of it is
+  filed for the guise worn, where it happened, at that clarity; when someone
+  did, it adds nothing. HUE & CRY's drunk Lantern uses `0.6`.
 
 An approach may also declare `cost_per_severity` (`encounter.approach_cost`):
 added, per point, to the charge an arrest would lay against the face worn
@@ -1417,6 +1486,43 @@ byte-identical to one that never heard of this system.
 board; a `fence {most: hot_goods}` selector (fences hold no stock to count);
 `disposition`/quest-progress predicates in agenda conditions (no ledger, no
 quest, in scope).
+
+### 3.14 `survival.yaml` — hunger, rest and a meal
+
+Found by fixed name inside `paths.rules` (§2.2) and read by
+`engine/game/survival.py`. Shipping it is a decision with two halves: it gives
+the story a `rest` verb (one enum target per `rest:` entry, offered in every
+place and in custody), and it makes walking cost stamina — 5 per hour of road
+— because the engine only charges stamina a story can give back (AGENTS.md
+rule 6). Leave it out and the story has neither. Models:
+`games/clockwork-dark/data/rules/survival.yaml` (the flagship),
+`games/neon-city/data/rules/survival.yaml`,
+`games/hue-and-cry/data/rules/survival.yaml` (priced and gated beds).
+
+- `hunger` — `per_hour`, `max`, `thresholds` (`peckish`/`hungry`/`starving`),
+  `hungry_stamina_cap_penalty`, `starving_hp_per_hour`. The Law's gaol rations
+  are timed against `per_hour` and `starving`.
+- `rest.<kind>` — `hours`, `stamina` (a number or `full`), `hp`, `text`, an
+  optional `check: {skill, difficulty}` with `on_failure: {stamina, hp, text}`.
+  Three optional gates, each downgrading to the entry's `fallback` when unmet
+  — **never a refusal**, and followed as a chain, so a gated fallback is asked
+  too:
+  - `locations: [...]` — where somebody keeps such a bed.
+  - `requires:` — a condition in the shared grammar (§3.7): a guild's bunk
+    `{reputation: {faction: x, min: 0}}`, the cells `{in_custody: true}`.
+  - `cost: N` — the price in the story's coin, paid at the door through the
+    `gold` effect; the receipt carries `paid` and the narrator's receipt line
+    says "paid 3 cr for the bed". A purse short of it downgrades.
+
+  **Give every gated entry a `fallback` that is not gated** — the story's
+  rough night. An entry whose gate fails with no fallback is slept in anyway
+  (unpaid), because refusing rest is the soft-lock rule 6 forbids. A story
+  whose entries declare none of the three keys gets exactly the receipt it
+  always had: no `paid` key, no gold moved.
+- `eat` — `hours`, `items.<id>: {hunger, stamina, text}`, a `default` row, and
+  `edible_tags` (anything carrying one is edible through `default`). A meal
+  needs an item in `paths.items` and, to be bought, a vendor row in
+  `paths.economy`.
 
 ---
 

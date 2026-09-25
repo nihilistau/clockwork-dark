@@ -400,8 +400,9 @@ def _work(state: GameState) -> Optional[IntentVerb]:
     """
     Shifts that can be worked here, now.
 
-    ``economy.available`` already filters on requirements, the hour and today's
-    cap, so an offered job is a job that will run.
+    ``economy.available`` already filters on requirements, the job's hours
+    (its ``when:`` condition) and today's cap, so an offered job is a job that
+    will run.
     """
     try:
         from engine.game import economy

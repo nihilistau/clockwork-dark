@@ -1,19 +1,65 @@
-# HUE & CRY -- how an encounter scene runs.
+# HUE & CRY -- how an encounter scene runs, and how often a street bites.
 #
 # Read by engine/game/encounter.py alongside every other *.yaml in this
-# directory. Tallowmere draws no encounters on its roads (every edge carries
-# `danger_dc: 0`, so there is deliberately no `trigger:` block here); the one
-# scene it ships, `watch_stop`, is opened by the Law's patrol.
+# directory. Two kinds of scene ship: the Lantern's stop (`watch_stop`, opened
+# only by the Law's patrol and marked `on_roads: false`) and, since v0.14, the
+# night streets (streets.yaml), drawn on arrival at the end of a walk.
 #
 # NO `default_approaches`. The engine merges those into EVERY scene, and a
 # "back away and keep walking" merged into a Lantern's stop would be a free,
-# unrecorded escape beside `run`, which is the same thing with a roll. The
-# stop's own `surrender` needs no roll and no coin, so the scene always has a
-# legal way out.
+# unrecorded escape beside `run`, which is the same thing with a roll. Every
+# scene carries its own way out that needs no roll and no coin instead
+# (`surrender` at the stop; hand over the purse, go along, stand and be
+# lectured, walk on in the streets).
 #
-# Version: v0.1.0 [2026-09-24]
+# Version: v0.2.0 [2026-09-25]
 
 version: 1
+
+# ------------------------------------------------------------
+# How often a street bites (v0.14).
+# ------------------------------------------------------------
+#
+# chance = per_danger_dc * danger_dc * time_of_day[now]
+#          - stealth_reduction_per_point * <the walker's stealth modifier>
+#
+# `now` is the hour you ARRIVE (the draw follows the walk). Each street's
+# danger_dc is its rougher end's (locations.yaml header): 6 for any street
+# touching the Docks or the Snuffs, 4 for the rest of the low town, 2 on the
+# Rise, Silk Row and the Hill. The three secret ways are 0: the Undercroft,
+# the roofs and the tower are how a thief stays OFF the streets.
+#
+# MEASURED, scripts/simulate_streets.py (40 seeds x 3 days, a fresh thief in
+# its own face walking one public street an hour, answering with `run`):
+#
+#   daypart   legs   a scene      night, arriving at   rate
+#   dawn       237     4.2%       the Docks            28.4%
+#   day       1031     0.3%       the Snuffs           28.6%
+#   dusk       357     9.0%       Wickmarket           22.2%
+#   night      912    19.7%       Silk Row             16.0%
+#                                 Chandlers' Rise       8.8%
+#                                 Margrave's Hill       7.2%
+#
+# A robbery in 23% of scenes, 0.09 cr lost per night leg, 0.44 arrests per
+# 100 night legs, no hp lost. By the formula, a fresh thief's chance at 23:00
+# is 26% on any street touching the Docks or the Snuffs, 6% on the Hill, and
+# at most 0.5% at noon -- daylight is not quite nothing: a cutpurse works a
+# crowd at any hour, on the roughest streets. The first cut had the cutpurses
+# at weight 10 with an easy `run`: robbery in 11% of scenes, 0.06 cr lost per
+# night leg (10 seeds) -- a night you could ignore, so `run` is standard and
+# the weight 6.
+trigger:
+  base: 0.0
+  per_danger_dc: 0.05
+  time_of_day:
+    dawn: 0.3
+    day: 0.15
+    dusk: 0.5
+    night: 1.0
+  evil_progress_bonus: 0.0
+  stealth_reduction_per_point: 0.02
+  min_chance: 0.0
+  max_chance: 0.40
 
 scene:
   max_rounds: 3

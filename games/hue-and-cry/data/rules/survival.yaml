@@ -1,0 +1,183 @@
+# HUE & CRY -- hunger, rest and a meal: somewhere to sleep in Tallowmere.
+#
+# Found by fixed filename inside `paths.rules`; consumed by
+# engine/game/survival.py. Before v0.14 this story shipped no survival rules,
+# so `survival.rest_kinds()` was empty and there was NO REST VERB AT ALL --
+# and walking was free, because the engine will not charge stamina a story
+# cannot give back (engine/game/engine.py). Shipping this file turns both on:
+# every one-hour street costs 5 stamina, and stopping is how it comes back.
+#
+# REST IS NEVER GATED (engine rule 6). `sleep_rough` has no location, no
+# price and no condition: a doorway, a coil of rope on the quay, a bench in
+# the cells. Every other bed names a `fallback: sleep_rough`, so a bed you
+# cannot have -- wrong street, empty purse, the Company's bad books -- is a
+# rough night instead, never a refusal. The rest verb is offered in every
+# district and in custody (engine/game/intents.py::_rest).
+#
+# THE BEDS, and where the spec put them (§6: "light survival -- flophouse,
+# guild bunks, taverns"):
+#
+#   sleep_flophouse   Old Nance's in the Snuffs: a straw pallet in a row of
+#                     them, 1 crown at the door.
+#   sleep_guild_bunk  the bunk room over the Porters' Hall, the Snuffs: free
+#                     to anyone the Honest Company has no quarrel with
+#                     (standing 0 or better -- where a new face starts, and
+#                     where a contract left undone, -10, takes it away).
+#   sleep_tavern      a room with a door at the Snuffed Wick (Wickmarket) or
+#                     over the Tallow Barge on the quay: 3 crowns.
+#   sleep_cell        the plank bench at the Lantern House, while the Watch
+#                     holds you. Free, and exactly as good as it sounds.
+#   sleep_rough       anywhere, always.
+#
+# `cost` and `requires` are the engine's generic bed gates (docs/AUTHORING.md
+# §3.14): unmet, they downgrade to `fallback`; met, the price goes through the
+# `gold` effect and the receipt names it ("paid 1 cr for the bed").
+#
+# THE NUMBERS, BY MEASUREMENT (AGENTS.md rule 10). What a thief earns, from
+# scripts/simulate_law.py's policies (40 seeds x 10 days, agendas off, coin
+# lifted plus what the goods fetch at the better fence at the end):
+#
+#   careful pickpocket   1.33 cr a day   (1.01 coin + 0.32 goods)
+#   reckless pickpocket  3.50 cr a day   (3.01 coin + 0.49 goods)
+#   one careful job      7 to 10 cr at a fence (simulate_jobs.py, CHANGELOG)
+#   Mother Gannet's job  15 cr net of the Company's cut
+#
+# What a day costs: hunger runs at 2 an hour, 48 a day, so a day's bread is
+# about 2 crowns (heel of bread 1 cr for 25; an eel pie 2 cr for 45). The
+# floor, a free bed and bread, is ~2 cr a day; a flophouse day ~3; a tavern
+# day ~5.
+#
+# THE SCRIPTED DAY that checked it (simulate_law's careful and reckless days,
+# 40 seeds x 10 days, agendas off, but NOT fed by the harness: the thief buys
+# two heels of bread on the quay each morning while it has the coin, eats
+# them, and sleeps in the bed named below -- falling to rough when it cannot
+# pay). Coin only; nobody sells the goods:
+#
+#   policy    bed        coin in/run  end gold  unfed days  min hp  arrests
+#   careful   bunk          10.1         2        5.8/9       1      0
+#   careful   flophouse     10.6         0        7.3/9       0      0
+#   careful   rough          9.6         1        5.9/9       0      0
+#   reckless  bunk          28.8        13.5      0.03        20     0.80
+#   reckless  flophouse     28.6         6        0.40        14     0.82
+#   reckless  rough         28.1        13        0.00        20     0.95
+#
+# So a careful pickpocket does NOT live on purses alone: at about a crown a
+# day against two for bread it goes hungry most days and starves down to
+# 0-1 hp by day ten -- it needs a job, Gannet's contract, the fence, or honest
+# work. A reckless one eats every day and pays for the flophouse, and is
+# wanted by day four. That is the intended pressure (spec §6: real stakes);
+# honest pay is Task 3's to set against this floor (labour.yaml), and the
+# harnesses' own feeding is Task 6's to retire. Stamina never binds: the
+# lowest morning-to-night reading was 46, with walking now priced.
+#
+# Hunger itself keeps the engine's defaults (2 an hour, starving at 85), which
+# is also what the Law's gaol rations are timed against (law.py
+# `_ration_hours`). Starvation's bite is the flagship's measured 0.4 hp an
+# hour, not the engine default of 1.0: hue-and-cry ships no death.yaml until
+# v1.0 (CLAUDE.md), so hp 0 has no respawn yet, and 20 hp at 1.0 an hour was
+# less than a day from the `starving` line to the end.
+#
+# Version: v0.1.0 [2026-09-25]
+
+version: 1
+
+hunger:
+  per_hour: 2.0
+  max: 100.0
+  thresholds:
+    peckish: 40.0
+    hungry: 60.0
+    starving: 85.0
+  hungry_stamina_cap_penalty: 20
+  starving_hp_per_hour: 0.4
+
+stamina:
+  # Not a typo: stamina comes back when you stop, and stopping costs hours.
+  awake_regen_per_hour: 0.0
+
+rest:
+  rest_short:
+    label: "an hour on a bollard"
+    text: "You sit on a bollard with your back to a wall and let the city go past for a while."
+    hours: 2
+    stamina: 15
+    hp: 0
+
+  sleep_flophouse:
+    label: "a pallet at Old Nance's"
+    text: "A crown at the door, a straw pallet between two snorers, and Old Nance's cat asleep on your feet. You wake almost rested."
+    hours: 8
+    stamina: full
+    hp: 1
+    cost: 1
+    locations: [the_snuffs]
+    fallback: sleep_rough
+
+  sleep_guild_bunk:
+    label: "a bunk over the Porters' Hall"
+    text: "The night porters' bunk room: a blanket that smells of tar, a dozen honest thieves breathing in the dark, and nobody going through your pockets. You sleep like the dead."
+    hours: 8
+    stamina: full
+    hp: 2
+    locations: [the_snuffs]
+    # The Company's good opinion, and nothing else: a standing below zero
+    # (a contract left undone, a Company house robbed) and the door is shut.
+    requires: {reputation: {faction: honest_company, min: 0}}
+    fallback: sleep_rough
+
+  sleep_tavern:
+    label: "a room with a door that locks"
+    text: "A real bed, a jug of water, a door with a bolt, and the tavern going quiet underneath you. You wake yourself again."
+    hours: 8
+    stamina: full
+    hp: 3
+    cost: 3
+    locations: [wickmarket, tallow_docks]
+    fallback: sleep_rough
+
+  sleep_cell:
+    label: "the plank bench in the cells"
+    text: "A plank bench, a thin blanket, a Lantern snoring on the other side of the bars, and a drain in the corner breathing cold air up from somewhere a long way under the city. It is a night's sleep. Barely."
+    hours: 8
+    stamina: 60
+    hp: 0
+    locations: [lantern_house]
+    requires: {in_custody: true}
+    fallback: sleep_rough
+
+  sleep_rough:
+    label: "a night wherever this is"
+    text: "A doorway out of the wind, your bag for a pillow, and Tallowmere's bells counting the hours you are not asleep."
+    hours: 8
+    check:
+      skill: survival
+      difficulty: standard
+    stamina: 55
+    hp: 0
+    on_failure:
+      # No hp lost: a bad night is a tired morning, not a wound -- there is
+      # no death.yaml to catch the thief yet, and rough sleep must never be
+      # a way to die slowly for want of a crown.
+      stamina: 25
+      text: "Every doorway on the street has a Lantern's lamp swinging past it or somebody's boot in it. You get an hour, maybe two."
+
+eat:
+  hours: 0.25
+  items:
+    heel_of_bread:
+      hunger: -25
+      stamina: 0
+      text: "Yesterday's bread, and a scrape of dripping. It stops the noise."
+    eel_pie:
+      hunger: -45
+      stamina: 5
+      text: "Hot, greasy, a whole eel in pastry. The porters' breakfast, and now yours."
+    ship_biscuit:
+      hunger: -20
+      stamina: 0
+      text: "A biscuit that could stop a crossbow bolt. You soften it in your mouth and it is enough."
+  default:
+    hunger: -15
+    stamina: 0
+    text: "You eat what you have, standing up, watching the street."
+  edible_tags: [food]

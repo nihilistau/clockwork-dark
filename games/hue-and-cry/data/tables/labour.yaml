@@ -1,0 +1,181 @@
+# HUE & CRY -- honest work, and what it pays.
+#
+# Read by engine/game/economy.py through `paths.tables`: the `work` verb, the
+# notice board (/api/notices) and the Assistant's `query_work` all read these
+# rows. You came to Tallowmere for honest work, and here it is -- four
+# postings, each where the spec's people keep their hours
+# (data/world/npc_schedules.yaml):
+#
+#   dock_portering   Dock Mag's gangs on Tallow Docks, off her crate from
+#                    first light (she is there 05:00-18:00).
+#   candle_dipping   the vats at Marsh & Daughters on Chandlers' Rise, while
+#                    Tobiah Marsh is at them (06:00-18:00).
+#   market_errands   running for Wickmarket's stallholders in market hours.
+#   lamplighting     Wren's dusk round, the market lamps first: she lights
+#                    Wickmarket at 18:00 (Silk Row at 17:00, the quay at
+#                    19:00, the Green at 20:00), so a second pair of hands is
+#                    taken on in the market in that hour and nowhere else.
+#
+# HOURS are the job's `when:` (a condition in the shared grammar, here
+# `hour_between`, the start hour inclusive and the end exclusive): outside
+# them the posting is off the board and the `work` enum, and a caller who
+# asks anyway is told why in `closed_text` (engine/game/economy.py).
+#
+# The day cap is the engine's: two shifts a day, a posting once. A full honest
+# day is a morning shift and a dusk one -- the quay then the lamps is the one
+# scripts/simulate_labour.py walks.
+#
+# Nothing here names a faction on the WAGE: the Honest Company's standing
+# prices work at 0.85 for a neutral face (reputation.price_multiplier) and a
+# crown floors, so a 2-crown shift would pay 1 until you were trusted
+# (measured below). Dock Mag's gangs are the Company's day face, so portering
+# well is a point of standing -- which is what keeps the Porters' Hall bunk
+# open to you.
+#
+# THE NUMBERS, BY MEASUREMENT (AGENTS.md rule 10). The target (controller
+# ruling, v0.14): an honest worker covers bread and a flophouse bed most days
+# with little left over, and thieving pays more, with risk -- so "Honest
+# After All" is a life you can choose, not a punishment and not the easy road.
+# The cost of living (survival.yaml's header): a day's hunger is 48, so about
+# two heels of bread (1 cr each), plus Old Nance's pallet at 1 cr.
+#
+# scripts/simulate_labour.py, 40 seeds x 10 days, agendas off, every policy
+# buying its own bread (two carried, eaten at hunger 50) and sleeping at the
+# flophouse when it can pay, rough when it cannot. `kept` is a day that ended
+# fed AND under a roof:
+#
+#   policy     earned/day  food/day  bed/day  fed   roofed  kept  saved/day  min hp
+#   porter        2.38       1.21     0.97    99%    97%    97%    +0.20     12
+#   dipper        3.09       1.98     0.89    95%    89%    89%    +0.22      0
+#   careful       1.36       0.99     0.65    22%    67%     8%    -0.28      0
+#   scrounger     1.14       0.18     0.97    98%    97%    95%    +0.04     14
+#
+# The porter works both shifts every day (quay 07:00-13:00, lamps
+# 18:00-21:00), averages 1.19 cr a shift plus Mag's heel of bread, and ends
+# ten days two crowns up: a living, just. The dipper (the vats 09:00-15:00,
+# the stalls' errands 16:00-19:00) earns more coin but no bread, and keeps
+# fewer days -- at least one seed in forty ran out of both and starved to
+# 0 hp (no death.yaml until v1.0).
+# `candle_dipping` was measured first at 3 crowns: 2.39 a day, 79% kept,
+# 0.31 a day lost, so it went to 4. A porter who sleeps in the free guild
+# bunk instead (`--bed bunk`) saves ~1.1 cr a day. A reckless pickpocket lifts
+# ~3.5 cr a day and a careful job fetches 7-10 at a fence, so thieving pays
+# more; a careful pickpocket, on purses alone, keeps one day in twelve and
+# starves to 0 hp. The scrounger is a finding, not a target: at the
+# flophouse's 1 cr its ~1.1 cr of sales covers a bed nearly every night (the
+# v0.14 scrounging entry said it never would -- that was not measured with a
+# bed; this is). Scrounging keeps you; it never gets you ahead.
+#
+# Measured and rejected: `faction: honest_company` on the porter's wage. At a
+# neutral face 0.85 floors a 2-crown shift to 1, and the same porter earned
+# 1.66 a day, kept 84% of days, lost 0.32 a day and reached 0 hp -- honest
+# work as a slow starvation. (The lamps at 17:00 were rejected unmeasured:
+# Wren is on Silk Row at that hour, and the posting would open without her.)
+#
+# Version: v0.1.0 [2026-09-25]
+
+version: 1
+
+labour:
+  shifts_per_day: 2
+  repeats_per_day: 1
+
+jobs:
+
+  - id: dock_portering
+    name: "Carry for Dock Mag's gang"
+    blurb: >-
+      Crates of tallow off the barges, crates of candles on, and Dock Mag on
+      her upturned crate shouting the tally in a voice that carries to the
+      far bank. She pays by the shift, feeds her gang off the basket, and
+      does not ask who you are, only whether you can lift.
+    location_id: tallow_docks
+    skill: nerve
+    difficulty: easy
+    hours: 6
+    stamina_cost: 25
+    base_wage: 2
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    in_kind:
+      - { item_id: heel_of_bread, qty: 1, degrees: [crit_success, success, partial] }
+    reputation:
+      - { faction: honest_company, delta: 1, degrees: [crit_success, success] }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
+    when: { hour_between: [5, 13] }
+    closed_text: >-
+      Dock Mag makes up her gangs from first light until noon. After that the
+      barges are half empty and she is not taking anybody on.
+    success_text: "Mag counts it into your palm off the tin, and throws in the end of the loaf."
+    failure_text: "A crate goes into the river off your shoulder. Mag docks the shift for it, loudly, so the whole quay hears."
+
+  - id: candle_dipping
+    name: "Dip candles at Marsh & Daughters"
+    blurb: >-
+      A frame of wicks into the vat, out, cool, in again, forty times, while
+      Tobiah Marsh tells you what tallow cost when he was a boy. Straight
+      candles pay; lumpy ones go in the pot for the Snuffs.
+    location_id: chandlers_rise
+    skill: craft
+    difficulty: standard
+    hours: 6
+    stamina_cost: 15
+    base_wage: 4
+    pay: { crit_success: 1.5, success: 1.0, partial: 0.5, failure: 0.0 }
+    in_kind:
+      - { item_id: candle_ends, qty: 1, degrees: [crit_success] }
+    reputation:
+      - { faction: chandlers_guild, delta: 1, degrees: [crit_success, success] }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
+    when: { hour_between: [6, 13] }
+    closed_text: >-
+      The vats at Marsh & Daughters are banked for the night. Tobiah takes on
+      dippers in the morning, when the wax is hot.
+    success_text: "Forty candles, straight as a Lantern's back. Tobiah pays and complains about it."
+    failure_text: "The wax was too hot or you were too slow. Every candle in the frame has a waist, and none of them is paid for."
+
+  - id: market_errands
+    name: "Run errands for the Wickmarket stalls"
+    blurb: >-
+      A parcel to Silk Row, a message to the Rise, a pie fetched for a
+      stallholder who cannot leave her pitch. Coppers a run, crowns by the
+      afternoon if you are quick and nobody sends you to the wrong door.
+    location_id: wickmarket
+    skill: persuasion
+    difficulty: easy
+    hours: 3
+    stamina_cost: 10
+    base_wage: 1
+    pay: { crit_success: 2.0, success: 1.0, partial: 1.0, failure: 0.0 }
+    reputation:
+      - { faction: market_stalls, delta: 1, degrees: [crit_success, success] }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
+    when: { hour_between: [8, 17] }
+    closed_text: >-
+      The stalls are shuttered and the stallholders have gone home; nobody
+      in Wickmarket wants anything fetched until morning.
+    success_text: "Three errands, three doors, and a crown from the stall at the end of it."
+    failure_text: "The parcel went to the wrong door on Silk Row, and the stall will not pay for that."
+
+  - id: lamplighting
+    name: "Go round the lamps with Wren"
+    blurb: >-
+      Wren lights the city at dusk -- the market, the quay, the Green -- with a
+      long brass pole and a ladder over her shoulder.
+      She takes a second pair of hands for the round when she can get one,
+      and pays in crowns and insults.
+    location_id: wickmarket
+    skill: lore
+    difficulty: easy
+    hours: 3
+    stamina_cost: 10
+    base_wage: 1
+    pay: { crit_success: 2.0, success: 1.0, partial: 1.0, failure: 0.0 }
+    reputation:
+      - { faction: lantern_watch, delta: 1, degrees: [crit_success, success] }
+    demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
+    when: { hour_between: [18, 19] }
+    closed_text: >-
+      Wren goes round the lamps at dusk, starting in the market. Catch her
+      then; at any other hour the lamps are lit, or snuffed, or she is asleep.
+    success_text: "Every lamp on the round lit, the right way round, and Wren pays you with a crown and a grudging nod."
+    failure_text: "You lose the round somewhere between the quay and the Green, and Wren finishes it without you. No crown for half a round."

@@ -1,0 +1,36 @@
+# HUE & CRY -- a natural 1: Tallowmere's other kind of luck.
+#
+# Same contract as boons.yaml: on a kept natural 1 the engine draws a row on
+# its own COMPLICATION stream, applies its effects through
+# effects.apply_effect, and the narrator tells it. A complication makes the
+# next hour worse; it never ends a run on a die face, and none of these
+# touches the Law -- a botched lift already has the Watch's own consequences
+# (engine/world/thievery.py), and a die face doubling them would be the
+# engine piling on.
+#
+# Every effect is small, for boons.yaml's reason (every check in the city
+# draws here); CHANGELOG.md has the harness table they were measured in.
+#
+# Version: v0.1.0 [2026-09-25]
+
+complications:
+  - id: tallow_on_the_step
+    text: "Somebody has been careless with a candle on the step, and your feet go out from under you on the tallow."
+    effects:
+      - { type: check_penalty, delta: -1, days: 1, text: "bruised from a fall on a tallow-slick step" }
+
+  - id: a_crown_lighter
+    text: "Later, counting, you come up a crown short. This is Tallowmere; yours were not the only light fingers on the street."
+    effects:
+      - { type: gold, delta: -1 }
+
+  - id: the_long_way_round
+    text: "It goes the long way round, and costs you more wind than it had any right to."
+    effects:
+      - { type: stamina, delta: -5 }
+
+  # Pip, as flavour and nothing else (boons.yaml says why): the die face was
+  # the cost, and the jackdaw is only who gets the blame for it.
+  - id: a_jackdaws_opinion
+    text: "A one-eyed jackdaw picks that exact moment to land on your head and deliver a long, loud opinion about buttons. It does not help."
+    effects: []

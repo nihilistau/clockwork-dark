@@ -56,7 +56,7 @@ Usage:
     python scripts/simulate_law.py --agendas          # with the Magpie and co. on
     python scripts/simulate_law.py --json
 
-Version: v0.3.0 [2026-09-25]
+Version: v0.4.0 [2026-09-25]
 """
 
 from __future__ import annotations
@@ -181,20 +181,32 @@ class Thief:
             self.answer_stop()
 
     def answer_stop(self) -> None:
-        """Run -- or, for the briber, pay whenever the purse covers it. A failed run is the cells."""
+        """Run -- or, for the briber, pay whenever the purse covers it. A failed run is the cells.
+
+        Answers any open scene, not only the Lantern's stop: since v0.14 a
+        night street can hand the walker one (data/encounters/streets.yaml).
+        Every threat there offers `run` too, so the policy is the same; a
+        scene with no `run` (the lamplighter) takes its first way out that
+        needs no roll.
+        """
         from engine.game import encounter
         from engine.world import law
 
         guard = 0
         while encounter.active(self.state) and guard < 6:
             guard += 1
-            if self.run.policy == "briber" and "bribe" in self.legal_targets("encounter"):
+            offered = self.legal_targets("encounter")
+            if self.run.policy == "briber" and "bribe" in offered:
                 before = self.state.stats.gold
                 self.act("encounter", "bribe")
                 self.run.bribes += 1
                 self.run.bribe_gold += before - self.state.stats.gold
                 continue
-            self.act("encounter", "run")
+            if "run" in offered or not offered:
+                self.act("encounter", "run")
+                continue
+            auto = [a["id"] for a in encounter.available_approaches(self.state) if a["auto"]]
+            self.act("encounter", (auto or offered)[0])
         if law.in_custody(self.state):
             self.run.arrests += 1
             if self.today is not None:
@@ -244,10 +256,15 @@ class Thief:
 
         if self.state.location_id == destination:
             return
+        from engine.game import encounter
+
         path = _route(self.state.location_id, destination)
         for step in path:
             if self.state.location_id != step and get_edge(self.state.location_id, step):
                 self.act("travel", step)
+                if encounter.active(self.state):
+                    # A night street met the walker on arrival (v0.14).
+                    self.answer_stop()
             if self.state.location_id != step:
                 return  # held, or refused: the day's plan is over
 

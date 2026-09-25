@@ -321,6 +321,14 @@ def matches(state: GameState, row: dict[str, Any], from_id: str, to_id: str) -> 
     Returns:
         True if the encounter may be drawn for this leg.
     """
+    # A scene another system opens -- HUE & CRY's Lantern stop, begun by the
+    # Law's patrol -- has no `triggers`, and no triggers means "any leg". The
+    # moment a road there carries danger it would be drawn as a free stop out
+    # of nowhere. `on_roads: false` keeps it off every road; `begin` still
+    # opens it on demand. Absent (every other story), nothing changes.
+    if row.get("on_roads") is False:
+        return False
+
     triggers = row.get("triggers") or {}
     if not isinstance(triggers, dict):
         return False

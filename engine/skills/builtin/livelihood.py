@@ -98,8 +98,10 @@ def forage(node_id: str = "") -> str:
     description=(
         "What paid work is on offer here right now, what each shift pays, and "
         "how many shifts the player has left today. Read-only. A job that is "
-        "not hiring in this evil phase, or whose standing gate is unmet, is "
-        "absent -- never offer work that is not in this list."
+        "not hiring in this evil phase, whose standing gate is unmet, or that "
+        "is outside the hours it keeps, is absent -- never offer work that is "
+        "not in this list. Work elsewhere in town that keeps hours says "
+        "whether it is open now."
     ),
     category="GAME",
     trigger="optional",

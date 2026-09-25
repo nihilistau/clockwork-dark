@@ -14,6 +14,370 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-09-26
+
+**HUE & CRY: the living city**, the second of the v1.0 stages. Tallowmere
+becomes somewhere you can live, not just rob: a bed (and, for the first time
+in this story, a rest verb -- rough sleep is never refused), bread to buy, the
+gutters to scrounge, honest work that pays thin but true, luck that turns,
+streets that are dangerous after dark, seven factions with an opinion of you,
+and the city's lore for the narrator. The three secret places can finally be
+found. Every number was set by measurement and re-checked together at the
+end; no earlier bound moved.
+
+### Fixed
+
+- **A rest note named a place by its id.** When a bed was out of reach the
+  rest receipt said "(no bed at forest_clearing)"; it now uses the place's
+  display name, in every story -- the flagship's and NEON CITY's note text
+  changes by exactly that (ids never reach the narrator).
+- **Rest could be refused or handed out by a slip.** A misspelt rest kind
+  fell back to the first entry without asking its gates (a story whose first
+  rest is a priced bed gave it away free), and a `requires:` that raised
+  would have propagated out of `rest()`. Both now downgrade along the
+  fallback chain; rest is never refused (rule 6).
+- **A found way was spelt as an id.** The forage discovery line read "a
+  quicker way through to the undercroft"; it now uses the place's name.
+- **The narrator's town-wide work list ignored hours.** Work elsewhere that
+  keeps hours (`when:`) now says whether it is `open_now`, so the narrator
+  no longer hears that Wren is taking on hands at eight in the morning. Jobs
+  that keep no hours read exactly as before.
+- **A typo in `hidden_path_placements` would strand a secret place.** The
+  validator (doctor) now checks each pinned `from` and `leads_to` is a place
+  in the story's graph.
+
+### Added — HUE & CRY: somewhere to sleep (v0.14 task 1)
+
+- **A rest verb in Tallowmere.** HUE & CRY shipped no `survival.yaml`, so it
+  had no rest verb at all (and, because of that, walking was free). It now
+  ships `games/hue-and-cry/data/rules/survival.yaml`: a pallet at Old Nance's
+  flophouse in the Snuffs (1 cr), a free bunk over the Porters' Hall for anyone
+  the Honest Company has no quarrel with (standing 0 or better), a room at the
+  Snuffed Wick or over the Tallow Barge (3 cr), the plank bench in the cells
+  while held, `rest_short`, and `sleep_rough` anywhere, always, ungated (rule
+  6). Every one-hour street now costs 5 stamina, which is the engine's rule for
+  a story that can restore it. Starvation bites at the flagship's 0.4 hp an
+  hour rather than the engine default of 1.0 (no `death.yaml` yet).
+- **Meals.** `data/items/food.yaml`: heel of bread (1 cr) and eel pie (2 cr)
+  from Dock Mag's basket, ship's biscuit (1 cr) at Pell Hollis's into the
+  evening, each with an `eat:` row.
+- **Engine: priced and gated beds** (`engine/game/survival.py`). A rest entry
+  may declare `cost: N` (paid at the door through the `gold` effect; the
+  receipt gains `paid` and the narrator's receipt line says "paid 1 cr for the
+  bed") and `requires:` (a condition in the shared grammar). Unmet, either
+  downgrades to `fallback` — never a refusal — and the fallback chain is itself
+  checked. Stories that declare neither are unchanged key for key.
+  docs/AUTHORING.md §3.14 documents `survival.yaml` for the first time.
+
+Measured (a scripted day: simulate_law's careful and reckless days, 40 seeds x
+10 days, agendas off, the thief buying two heels of bread each morning with its
+own coin instead of being fed by the harness):
+
+| policy | bed | coin in/run | end gold | unfed days (of 9) | min hp | arrests/run |
+|---|---|---|---|---|---|---|
+| careful | bunk | 10.1 | 2 | 5.8 | 1 | 0 |
+| careful | flophouse | 10.6 | 0 | 7.3 | 0 | 0 |
+| careful | rough | 9.6 | 1 | 5.9 | 0 | 0 |
+| reckless | bunk | 28.8 | 13.5 | 0.03 | 20 | 0.80 |
+| reckless | flophouse | 28.6 | 6 | 0.40 | 14 | 0.82 |
+| reckless | rough | 28.1 | 13 | 0.00 | 20 | 0.95 |
+
+A careful pickpocket (about 1.3 cr a day, coin plus goods at a fence) cannot
+feed itself on purses alone against a ~2 cr bread floor; a reckless one (3.5)
+can, and pays for the flophouse. Honest pay (task 3) is set against this floor.
+The v0.10–v0.12 bounds in `tests/test_hue_and_cry.py` are unmoved: the
+harnesses still feed and rest their thief each morning, and no route they walk
+comes near the stamina floor.
+
+### Added — HUE & CRY: scrounging and the secret ways (v0.14 task 2)
+
+- **Every secret place can be found.** Since v0.13 the Undercroft, the
+  Rooftop Road and the Old Bell Tower stayed off the map and out of the travel
+  options until known, and nothing in the story ever made them known, so no
+  player could reach them. (A HUE & CRY save from before v0.14 keeps the world
+  it was generated with, so it never gains the new rooftop and grating paths;
+  the arrest reveal of the Undercroft reaches it, and a new game has all of
+  them.) Each now has at least one legitimate way in, all
+  through mechanisms the engine already had:
+  - **the Undercroft** — scrounging the Snuffs can turn up a yard grating (a
+    hidden path), and every way the Lantern's stop ends in the cells sets
+    `location_known:the_undercroft`: the drain in the cell floor
+    (`data/encounters/watch_stop.yaml`; the cell's rest line now mentions
+    it). The road is there to take once the Watch lets you go.
+  - **the Rooftop Road** — scrounging Wickmarket (a drainpipe up the back of
+    the pie shop) or Chandlers' Rise (a loading crane) finds a hidden path.
+  - **the Old Bell Tower** — `known_when` on the tower: standing on, or having
+    stood on, the Rooftop Road reveals it; scrounging Gallows Green can find
+    the gap in the burnt churchyard's wall.
+  Turn one still offers none of them, from any district, on any seed.
+- **Scrounging.** `data/tables/forage.yaml`: two hours and six stamina in the
+  gutters of the five streets tagged `scrounge` (the docks, Wickmarket, the
+  Snuffs, Gallows Green, Chandlers' Rise — never Silk Row, the Hill, the
+  Lantern House or a secret place) for a heel of bread, a bruised apple, a
+  ship's biscuit, candle ends and rags a counter takes for a crown, and now
+  and then a brass button, a pawn ticket, beeswax tapers or a silver thimble.
+  New items in `data/items/scrounge.yaml`. The forage ground and the hidden
+  paths come from the story's first `paths.procgen_templates`
+  (`data/procgen_templates/tallowmere.yaml`, the margin only — no villagers,
+  buildings or festival).
+- **Engine: pinned hidden paths** (`engine/game/procgen.py`,
+  `engine/game/foraging.py`). Row N of a template's `hidden_path_placements`
+  (`{from, leads_to, labels}`, each optional) pins hidden path N; a pinned
+  path starts at its `from` — when that place can be foraged — instead of
+  wherever the round-robin deal puts it. A pin changes which pool a draw is
+  taken from, never how many draws there are, and a template without
+  placements generates exactly what it did: the flagship's world is pinned
+  byte for byte for three seeds (`tests/test_secret_locations.py`).
+  docs/AUTHORING.md §3.7 documents hidden paths as the third reveal.
+- **`scripts/simulate_scrounge.py`**: `scrounger` (four streets a day, lives
+  on it) and `mornings` (two streets, the pickpocket's sideline), on the
+  production channel, not fed by the harness.
+
+Measured (simulate_scrounge, 40 seeds x 10 days, agendas off):
+
+| policy | attempts/day | sold cr/day | food/day | value/hr | hungry days (of 10) | min hp |
+|---|---|---|---|---|---|---|
+| scrounger | 4.0 | 0.97 | 38.1 | 0.37 | 0.38 | 15 |
+| mornings | 2.0 | 0.64 | 22.4 | 0.46 | 0.72 | 0 |
+
+Food is hunger taken off by what was found (a day's hunger is 48). Twelve
+hours in the gutters every day feeds a thief most of the way and earns under
+a crown — less than a careful pickpocket's ~1.3 cr, and nothing like a
+flophouse, a tool or a job; a half-day of it still goes hungry (one seed
+starved to 0 hp: no `death.yaml` until v1.0). The first cut measured 2.75 cr
+and 70 food a day, a better living than stealing, and was cut to this;
+`tests/test_hue_and_cry.py` bounds both sides. A scrounger finds the Rooftop
+Road on 100% of seeds (mean day 2.5), the Undercroft's grating on 97% (2.5),
+the churchyard wall on 68% (3.4).
+
+HUE & CRY's premises do not move: they draw on their own stream after every
+PROCGEN draw, and the world minus its new margin is pinned for three seeds as
+measured before the templates existed. The Law, jobs and agendas harnesses
+report the same tables as before this change (their thieves never scrounge).
+
+### Added — HUE & CRY: honest work, luck and trade (v0.14 task 3)
+
+- **Honest work in Tallowmere.** `games/hue-and-cry/data/tables/labour.yaml`
+  gives the story its first labour table: carrying for Dock Mag's gang on
+  Tallow Docks (6 h, nerve, 2 cr and the end of the loaf, +1 Honest Company
+  standing when it goes well), dipping candles at Marsh & Daughters on
+  Chandlers' Rise (6 h, craft, 4 cr), running errands for the Wickmarket
+  stalls (3 h, persuasion, 1 cr) and going round the lamps with Wren at dusk
+  (3 h, lore, 1 cr). Two shifts a day, each posting once. They are on the
+  notice board (`/api/notices`) and in the `work` enum only in the hours the
+  employer is scheduled at the counter: Mag from first light until noon, the
+  vats from 06:00 until 13:00, the stalls 08:00–17:00, and Wren in the market
+  at 18:00. A test holds each posting to its employer's schedule.
+- **Engine: a job can keep hours** (`engine/game/economy.py`). A labour job
+  may declare `when:` (a condition in the shared grammar, most often
+  `hour_between`) and `closed_text:`. Unmet, the job is shut like any other
+  gate: off the board and out of the enum, and `work` refuses it in the
+  `closed_text` words at no cost. No other story declares one, so their jobs
+  are offered exactly as before. `intents._work`'s docstring had claimed
+  since v0.8 that the board filters "on the hour"; nothing did until now.
+  docs/AUTHORING.md §3.7 documents it; the graph template and the flagship's
+  labour header list the keys.
+- **Tallowmere's luck.** `boons.yaml` (a natural 20): breath to spare, a
+  dropped crown, a Lantern's blind eye (half a day of the Watch's cooling, on
+  stealth or persuasion), an eel pie across the counter, the wax taking first
+  time, a porter's nod (+2 standing, on nerve). `complications.yaml` (a
+  natural 1): tallow on the step (−1 to checks for a day), a crown lighter,
+  the long way round (−5 stamina), and a one-eyed jackdaw with opinions about
+  buttons. The jackdaw is Pip, and flavour only: Pip is a pipeline agent with
+  his own voice, so no die face makes him do anything. No complication
+  touches the Law (a botched lift already has the Watch's consequences); the
+  one boon that does only cools.
+- **`scripts/simulate_labour.py`**, the cost-of-living harness v0.14's
+  survival task left as scratch scripts. Four policies on the production
+  channel — `porter` (the quay, then the lamps), `dipper` (the vats, then the
+  errands), `careful` (simulate_law's pickpocket, goods sold to Marrow) and
+  `scrounger` — each buying its own bread and bed, never fed by the harness;
+  `--bed flophouse|bunk|rough`, `--agendas`.
+- No trade or price change was needed: bread (1 cr) and pie (2 cr) already
+  priced the day, and the porter's in-kind pay is Mag's own heel of bread.
+
+Measured (simulate_labour, 40 seeds x 10 days, agendas off, flophouse beds;
+"kept" is a day that ended fed and under a roof):
+
+| policy | earned cr/day | food cr/day | bed cr/day | fed | roofed | kept | saved cr/day | min hp |
+|---|---|---|---|---|---|---|---|---|
+| porter | 2.38 | 1.21 | 0.97 | 99% | 97% | 97% | +0.20 | 12 |
+| dipper | 3.09 | 1.98 | 0.89 | 95% | 89% | 89% | +0.22 | 0 |
+| careful | 1.36 | 0.99 | 0.65 | 22% | 67% | 8% | −0.28 | 0 |
+| scrounger | 1.14 | 0.18 | 0.97 | 98% | 97% | 95% | +0.04 | 14 |
+
+An honest day covers bread and Old Nance's pallet on nearly every day with a
+fifth of a crown over; a porter in the free guild bunk saves about 1.1 cr a
+day. A reckless pickpocket lifts ~3.5 cr a day and a careful job fetches 7–10
+at a fence, so thieving pays more, with its risk; a careful pickpocket on
+purses alone keeps one day in twelve. Rejected by measurement: the porter's
+wage priced by Honest Company standing (a neutral 0.85 floors 2 cr to 1: 1.66
+cr a day, 84% kept, −0.32 a day, 0 hp) and candle-dipping at 3 cr (79% kept,
+−0.31 a day). `tests/test_hue_and_cry.py` bounds the porter and the dipper
+(8 seeds x 8 days).
+
+**Restated:** the scrounging entry above says twelve hours in the gutters is
+"nothing like a flophouse". That was measured sleeping rough. With a bed to
+pay for, the same scrounger covers the 1-crown pallet on 97% of nights and
+keeps 95% of days, saving nothing. It is a subsistence with a roof, and still
+never a tool, a job or a crown put by (`forage.yaml`'s header says so too).
+
+Boons and complications fire on every check in the city, so the v0.10–v0.12
+harnesses were re-run with them at 40 seeds. Every bound holds, with drift
+of a point or two:
+
+| harness | measure | before | after |
+|---|---|---|---|
+| simulate_law | careful below `sought` (seed-days) | 100% | 100% |
+| | reckless `wanted` by day 4 | 77.5% | 75% |
+| | reckless / briber runs with an arrest | 80% / 80% | 82.5% / 82.5% |
+| simulate_jobs | careful tier 1–2 carried out / caught | 83.3% / 0% | 80.8% / 0% |
+| | blind tier 1–2 caught | 36.7% | 36.7% |
+| | prepped Treasury carried out | 20% | 20% |
+| simulate_agendas | idle `sought` by day 6 | 80% | 80% |
+| | reckless net at its top band | 60% | 62.5% |
+| simulate_scrounge | scrounger food/day, sold cr/day | 38.1, 0.97 | 38.4, 0.97 |
+
+### Added — HUE & CRY: the streets at night (v0.14 task 4)
+
+- **Night streets.** Every public street in Tallowmere now carries a
+  `danger_dc` (its rougher end's: 6 for any street touching the Docks or the
+  Snuffs, 4 for the rest of the low town, 2 on the Rise, Silk Row and the
+  Hill); the three secret ways stay at 0, so the Undercroft and the roofs are
+  how a thief keeps off the streets. `data/encounters/rules.yaml` gains the
+  `trigger:` block (0.05 a point of danger, x0.15 by day, x0.3 at dawn, x0.5
+  at dusk, x1.0 at night, less 0.02 a point of stealth), and
+  `data/encounters/streets.yaml` ships five scenes: **cutpurses** who think
+  you are easy (any street, any hour), a **press-gang** off the Fair Candace
+  (arriving on the Docks, 22:00-04:00), a **drunk Lantern** (the watched
+  streets, 21:00-02:00; hitting him commits `assault_watch` through the
+  `deed` effect -- and, since he is no scheduled Lantern, the effect's new
+  `report_precision: 0.6` has him tell the watch-house himself, blurred,
+  when no Lantern on duty saw it, so the blow is never unfiled -- and losing
+  to him is the cells), **old Wix the
+  lamplighter's warning** (17:00-22:00; chestnuts, supper on the kerb, and a
+  word about where not to walk) and **Silas Crook's toll-men** (the Snuffs,
+  the Docks and Wickmarket, 20:00-03:00; paying the toll costs Honest
+  Company standing, beating them earns it). Approaches through the existing
+  skills and costs; outcomes through effects. Every scene has a way out that
+  needs no roll, coin, item or hour (no soft-lock), no outcome takes more
+  than 3 hp (no `death.yaml` until v0.17), and every arrest reveals the
+  Undercroft, as the Lantern's stop does.
+- **Engine: `on_roads: false`** (`engine/game/encounter.py::matches`). A row
+  with no `triggers` matches every leg, and HUE & CRY's `watch_stop` has none
+  because the Law's patrol opens it -- so the moment a street had danger it
+  would have been drawn as a free Lantern stop out of nowhere. The key keeps a
+  row off every road; `begin` still opens it. No other story writes it, and
+  a test holds every flagship row matching exactly as before. docs/AUTHORING.md
+  §3.7 documents road danger by the hour (the `trigger:` formula already had a
+  `time_of_day` table, so no night-only edge key was needed) and the key.
+- **`scripts/simulate_streets.py`**: a fresh thief walks one public street an
+  hour, day and night, on the production channel, answering every scene with
+  `run`; it reports the scene rate by daypart and by district, the scenes
+  dealt, robberies, arrests and hp. The Law harness's thief
+  (`simulate_law.Thief`, which the jobs, agendas, scrounge and labour
+  harnesses share) now answers a street scene met on a walk the way it
+  answers the Lantern (`run`, or the first way out needing no roll) instead
+  of standing in it forever.
+
+Measured (simulate_streets, 40 seeds x 3 days, 2537 legs):
+
+| daypart | legs | a scene | | night, arriving at | a scene |
+|---|---|---|---|---|---|
+| dawn | 237 | 4.2% | | the Docks | 28.4% |
+| day | 1031 | 0.3% | | the Snuffs | 28.6% |
+| dusk | 357 | 9.0% | | Wickmarket | 22.2% |
+| night | 912 | 19.7% | | Silk Row | 16.0% |
+| | | | | Chandlers' Rise | 8.8% |
+| | | | | Margrave's Hill | 7.2% |
+
+A robbery in 23% of scenes, 0.09 cr lost per night leg, 0.44 arrests per 100
+night legs, no hp lost to a scene. The first cut (cutpurses at weight 10 with
+an easy `run`) robbed in 11% of scenes, 0.06 cr a night leg -- a night you
+could ignore. A robbery takes two crowns: at three, the honest porter walking
+home from the lamps through the Snuffs kept 92% of days, saved nothing, and
+one run starved to 0 hp.
+
+**Restated** (every v0.10-v0.14 harness at 40 seeds, before this task and
+after; the harnesses walk at night):
+
+| harness | measure | before | after |
+|---|---|---|---|
+| simulate_law | careful below `sought` (seed-days) | 100% | 100% |
+| | reckless `wanted` by day 4 | 75% | 75% |
+| | reckless / briber runs with an arrest | 82.5% / 82.5% | 82.5% / 82.5% |
+| simulate_jobs | careful tier 1-2 carried out / caught | 80.8% / 0% | 80.6% / 0% |
+| | blind tier 1-2 caught | 36.7% | 36.5% |
+| | prepped Treasury carried out | 20% | 20% |
+| simulate_agendas | idle `sought` by day 6 | 80% | 80% |
+| | reckless net at its top band | 62.5% | 65% |
+| simulate_scrounge | scrounger food/day, sold cr/day | 38.4, 0.97 | 37.3, 1.01 |
+| simulate_labour | porter kept / saved cr a day / min hp | 97% / +0.20 / 12 | 94% / +0.05 / 12 |
+| | dipper kept / saved cr a day | 89% / +0.22 | 87% / +0.10 |
+| | scrounger kept | 95% | 93% |
+
+Every asserted bound holds. The honest life moved most, and on purpose: the
+porter's walk home at nine crosses the Snuffs, and one night in a few meets
+someone. It still keeps 94% of days.
+
+### Added — HUE & CRY: factions and the city's memory (v0.14 task 5)
+
+- **Seven factions.** `data/world/factions.yaml` now declares the rest of
+  the city beside the Honest Company: the Lantern Watch, the Worshipful
+  Company of Chandlers, the Wickmarket stallholders, the Temple of the
+  Everflame, the Margrave's household and the Silk Row houses. Each is wired
+  only where something already in the story touches it -- a good shift at
+  Marsh & Daughters is +1 with the Chandlers, Wickmarket's errands +1 with
+  the stallholders, going round the lamps with Wren +1 with the Watch (the
+  lamp ordinance is theirs), and striking a drunk Lantern -10 with the Watch.
+  The Temple, the household and Silk Row are declared for Acts I-III and
+  moved by nothing yet (recorded in CLAUDE.md, so they are not mistaken for
+  finished). No wage or price is set by any standing; the labour harness
+  numbers are unchanged.
+- **Tallowmere's lore.** `paths.lore` / `paths.lore_db` and eight files in
+  `data/lore/` (42 chunks): the city, the Everflame, the Magpie's legend,
+  the Lantern Watch, the Honest Company, the Hanging Fair, the guilds and
+  trade, and the hidden city. The secret places, the flame's heart and the
+  Company's split are `gm_secrets` -- the narrator's, never Pip's -- and no
+  sentence in the corpus puts a Magpie candidate beside the Magpie (asserted
+  by test). `lore.db` is gitignored like every story's; build it with
+  `CLOCKWORK_GAME=hue-and-cry python scripts/seed_lore.py`.
+
+### Measured — HUE & CRY: the living city, all at once (v0.14 task 6)
+
+Every harness re-run at 40 seeds on the finished v0.14 city (sleep, scrounging,
+honest work and luck, night streets, factions, lore), on the production
+channel. Every figure below reproduced the tables the earlier v0.14 tasks
+recorded; no bound moved and none was restated.
+
+**What a life in Tallowmere costs** (10 days, a flophouse bed; "kept" = fed
+and under a roof that night; `scripts/simulate_labour.py`,
+`scripts/simulate_scrounge.py`):
+
+| way of getting by | earned / day | kept | saved / day | lowest hp |
+|---|---|---|---|---|
+| a porter for Dock Mag (two shifts) | 2.34 cr | 94% | +0.05 cr | 12 |
+| a dipper at Marsh & Daughters | 3.10 cr | 87% | +0.10 cr | 0 on some seeds |
+| a scrounger (full days) | 1.10 cr | 93% | -0.05 cr | 12 |
+| a careful pickpocket (purses only) | 1.36 cr | 7% | -0.28 cr | 0 on some seeds |
+
+An honest life is possible and thin; purses alone are not a living -- the
+careful pickpocket needs jobs (`simulate_jobs`: tier 1-2 hauls 5.9 and 24.4 cr,
+never caught) or honest work beside them. The reckless pickpocket earns about
+3.5 cr a day and is wanted by day 4 on 75% of seeds (`simulate_law`). Where hp
+reaches 0 there is still no respawn: `death.yaml` lands with v0.17.
+
+**What the night costs** (`scripts/simulate_streets.py`, 2537 legs): a scene
+on 19.7% of night legs (28% arriving at the Docks or the Snuffs, 7% on the
+Hill), 9.0% at dusk, 4.2% at dawn, 0.3% by day; a robbery in 23% of scenes,
+0.09 cr lost per night leg, 0.44 arrests per 100 night legs, no hp lost.
+
+**The Law, jobs and agendas under the living city** (40 seeds): careful
+thief below `sought` on 100% of seed-days; reckless `wanted` by day 4 on 75%,
+arrested in 82% of runs; careful burglar caught on 0% of jobs; an idle player
+`sought` by day 6 on 80% for the Magpie's work; Magpie robberies 9.8 a run;
+the Magpie's roles over 90 seeds Wren 31, Silas 35, Imelda 24.
+
 ## [0.13.0] — 2026-09-25
 
 **Engine seams for HUE & CRY's finish**, the first of the v1.0 stages: v1.0.0
@@ -2028,7 +2392,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.10.0...v0.11.0

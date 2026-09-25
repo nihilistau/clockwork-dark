@@ -846,3 +846,49 @@ def test_death_rules_load():
     rules = encounter.load_death_rules()
     assert rules.get("respawn", {}).get("location_id") in LOCATIONS
     assert rules.get("terminal", {}).get("flag")
+
+
+# ---------------------------------------------------------------------------
+# `on_roads: false` -- a scene some other system opens (v0.14)
+# ---------------------------------------------------------------------------
+
+
+def test_a_scene_kept_off_the_roads_is_never_drawn_but_still_opens(monkeypatch):
+    """HUE & CRY's `watch_stop` has no `triggers` -- which means "any leg" --
+    because the Law's patrol opens it. `on_roads: false` keeps it off every
+    road the moment a road has danger, and `begin` still opens it on demand."""
+    import copy
+
+    table = copy.deepcopy(SYNTHETIC)
+    table["encounters"].append({
+        "id": "test_stop", "band": "test", "weight": 10_000, "on_roads": False,
+        "triggers": {}, "intro": "A stop.", "threat": {"name": "A stop", "resolve": 3},
+        "approaches": {"wait": {"auto": True, "text": "Wait", "ends": True}},
+        "outcomes": {"success": {"text": "DONE"}, "failure": {"text": "DONE"}},
+    })
+    monkeypatch.setattr(encounter, "load_encounters", lambda: table)
+    for hour in (1, 7, 12, 18, 23):
+        state = state_at(hour=hour)
+        ids = {r["id"] for r in encounter.eligible(state, "forest_clearing", "edgewood_square")}
+        assert "test_stop" not in ids and "test_lethal" in ids, (hour, ids)
+    state = state_at(hour=23)
+    for _ in range(200):
+        drawn = encounter.roll_for_encounter(state, "edgewood_square", "millhaven_gate")
+        assert drawn is None or drawn["id"] != "test_stop"
+    assert encounter.begin(state, "test_stop")["id"] == "test_stop"
+
+
+def test_rows_that_do_not_say_on_roads_match_exactly_as_before():
+    """Byte-identity for every story that never writes the key: over the
+    flagship's real table, every leg and a spread of hours, a row matches
+    exactly as it does with `on_roads: true` -- the key's absence is the old
+    behaviour, and no shipped row outside HUE & CRY carries it."""
+    rows = encounter.all_encounters()
+    assert rows and not any("on_roads" in r for r in rows)
+    for hour in (0, 6, 12, 18, 21):
+        state = state_at(day=6, hour=hour, evil_progress=0.5)
+        for src, spec in LOCATIONS.items():
+            for dst in spec.get("connections") or {}:
+                for row in rows:
+                    assert encounter.matches(state, row, src, dst) == encounter.matches(
+                        state, {**row, "on_roads": True}, src, dst), (row["id"], src, dst)

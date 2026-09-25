@@ -1,0 +1,69 @@
+# HUE & CRY -- procgen templates: the scrounging ground and the secret ways.
+#
+# Read by engine/game/procgen.py through `paths.procgen_templates`. Tallowmere
+# declares only the margin here -- forage ground and hidden paths. No name
+# pools, no villagers, no buildings, no festival: the city's people are its
+# schedule (npc_schedules.yaml) and its houses are premises (data/premises/),
+# so every key procgen would read for those is left out and generates nothing.
+#
+# PREMISES DO NOT MOVE. Premises draw on their own stream (rng PREMISES),
+# after every PROCGEN draw, so declaring this file added draws to the PROCGEN
+# stream and none to theirs. tests/test_hue_and_cry.py pins the world minus
+# its margin for three seeds, measured before this file existed.
+#
+# Version: v0.1.0 [2026-09-25]
+
+counts:
+  # Two nodes for each of the five scroungeable streets (forage.yaml's
+  # `location_tags`; the nodes are dealt round-robin across them), so a thief
+  # who works one street twice in a day finds it picked over and walks on.
+  forage_nodes: 10
+  # One per row of `hidden_path_placements` below.
+  hidden_paths: 4
+
+forage_resources:
+  - the gutters
+  - the back steps
+  - the midden heaps
+  - the tide-line under the boards
+  - the loading yards
+  - the sweepings
+
+# THE SECRET WAYS. Each row pins where a hidden path starts (`from`, a
+# scroungeable street -- a path is only ever found by scrounging at its home)
+# and where it leads; `labels` is the pool its name is drawn from. The DC is
+# still procgen's own seeded 10..16. Found by a good scrounging roll
+# (engine/game/foraging.py::_discover_path), and once found the far end is a
+# place the player knows (engine/game/locations.py::is_known) and a one-hour
+# way through.
+#
+# These are three of the secrets' reveals; the other two are the arrest (every
+# way the Lantern's stop ends in the cells sets `location_known:the_undercroft`
+# -- the drain in the cell floor, data/encounters/watch_stop.yaml) and the Old
+# Bell Tower's `known_when` (seen from the Rooftop Road, data/world/
+# locations.yaml).
+hidden_path_placements:
+  # The Rooftop Road, from the market: up the back of the pie shop.
+  - from: wickmarket
+    leads_to: rooftop_road
+    labels:
+      - drainpipe with good brackets up the back of the pie shop
+      - stack of empty crates under a low eave, chalk-marked on top
+  # The Rooftop Road, from the Rise: the guild halls hoist their wax by crane.
+  - from: chandlers_rise
+    leads_to: rooftop_road
+    labels:
+      - chandlers' loading crane, its arm swung out over the roofs
+      - ladder chained to a guild hall's gable, its padlock long since picked
+  # The Undercroft, from the Snuffs: where the tenements drain.
+  - from: the_snuffs
+    leads_to: the_undercroft
+    labels:
+      - grating in a tenement yard with its bolts rusted through
+      - coal-hole whose cellar goes down further than any cellar should
+  # The Old Bell Tower, from the Green: the burnt church's yard backs onto it.
+  - from: gallows_green
+    leads_to: old_bell_tower
+    labels:
+      - gap in the burnt churchyard's wall, a path trodden through the nettles
+      - loose board in the ballad-sellers' fence, onto the old church steps

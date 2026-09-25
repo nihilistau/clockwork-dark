@@ -493,3 +493,64 @@ def test_a_shift_crossing_midnight_is_billed_to_the_day_it_started():
     assert shifts_worked(state) == 0, (
         "an evening shift pre-spent one of the following day's slots"
     )
+
+
+def test_a_job_with_hours_is_off_the_board_outside_them(monkeypatch):
+    """
+    A job's optional ``when:`` is a condition in the shared grammar
+    (engine/game/quests.py::evaluate_condition), and unmet it gates the job
+    exactly as an unmet standing does: absent from ``available`` -- so off the
+    notice board and out of the `work` enum -- and refused by ``work`` in the
+    job's own words, at no cost. HUE & CRY needs it for hours: the lamps are
+    lit at dusk, and Dock Mag hires off her crate, not at 3 a.m.
+
+    ``intents._work`` has claimed ``economy.available`` filters "on the hour"
+    since v0.8 and nothing did; a job table could not say it.
+    """
+    from engine.game.clock import advance_time
+
+    table = {
+        "labour": {"shifts_per_day": 2, "repeats_per_day": 1},
+        "jobs": [{
+            "id": "dusk_round",
+            "name": "Light the lamps",
+            "location_id": "edgewood_square",
+            "skill": "craft",
+            "difficulty": "trivial",
+            "hours": 2,
+            "stamina_cost": 5,
+            "base_wage": 4,
+            "pay": {"crit_success": 1.0, "success": 1.0, "partial": 1.0, "failure": 1.0},
+            "when": {"hour_between": [17, 20]},
+            "closed_text": "The lamps are lit at dusk, and it is not dusk.",
+        }],
+    }
+    monkeypatch.setattr(economy, "load_rules", lambda: table)
+
+    state = GameState(location_id="edgewood_square")
+    assert state.world_hour < 17
+    assert not economy.available(state)
+    before = (state.world_clock_hours, state.stats.stamina, state.stats.gold)
+    refusal = economy.work(state, "dusk_round")
+    assert refusal["worked"] is False and "check" not in refusal, refusal
+    assert refusal["message"] == "The lamps are lit at dusk, and it is not dusk."
+    assert (state.world_clock_hours, state.stats.stamina, state.stats.gold) == before
+
+    advance_time(state, 17 - state.world_hour)
+    state.hunger = 0.0
+    assert [row["id"] for row in economy.available(state)] == ["dusk_round"]
+    outcome = economy.work(state, "dusk_round")
+    assert outcome["worked"] is True and outcome["wage"] == 4, outcome
+
+
+def test_a_job_with_no_words_for_its_hours_still_refuses_in_prose(monkeypatch):
+    table = {
+        "labour": {"shifts_per_day": 2},
+        "jobs": [{"id": "night_only", "location_id": "edgewood_square",
+                  "base_wage": 1, "when": {"hour_between": [22, 4]}}],
+    }
+    monkeypatch.setattr(economy, "load_rules", lambda: table)
+    state = GameState(location_id="edgewood_square")
+    refusal = economy.work(state, "night_only")
+    assert refusal["worked"] is False
+    assert refusal["message"] and "night_only" not in refusal["message"], refusal

@@ -14,6 +14,10 @@
 #                               the real pay; the mill feeds its help
 #   demand                      wage multiplier per evil phase; 0.0 means
 #                               NOT HIRING, the job leaves the board
+#   when / closed_text          optional: a condition in the shared grammar
+#                               (most often `hour_between: [start, end]`,
+#                               the hours it is on offer); unmet, the job is
+#                               off the board and `closed_text` says why
 #
 # `faction:` and `reputation:` are omitted ON PURPOSE -- this template
 # declares no `paths.factions`. Add the faction file first, then the keys.

@@ -116,16 +116,21 @@ def test_a_visited_place_stays_known_without_the_flag(hue: GameState) -> None:
 def test_the_place_you_stand_in_is_known(hue: GameState) -> None:
     """
     Arriving by some other door (a card, a relocation) is finding it. From the
-    Rooftop Road the Old Bell Tower is still a secret; the road you are on is not.
+    Old Bell Tower the Rooftop Road is still a secret; the tower you are in is not.
+
+    (Until v0.14 this stood on the Rooftop Road and asserted the tower stayed
+    secret from it. It no longer does, on purpose: the tower's `known_when`
+    reveals it to anyone standing on the roofs -- test_the_bell_tower_is_plain_
+    from_the_roofs, below.)
     """
-    hue.location_id = "rooftop_road"
+    hue.location_id = "old_bell_tower"
 
     offered = _travel_targets(hue)
-    assert {"wickmarket", "the_snuffs", "silk_row"} <= offered
-    assert "old_bell_tower" not in offered
+    assert {"chandlers_rise", "gallows_green"} <= offered
+    assert "rooftop_road" not in offered
     places = _map(hue)
-    assert places["rooftop_road"]["here"] is True
-    assert "old_bell_tower" not in places
+    assert places["old_bell_tower"]["here"] is True
+    assert "rooftop_road" not in places
     _assert_map_agrees_with_travel(hue)
 
 
@@ -499,3 +504,203 @@ def test_move_to_refuses_a_secret_place_the_player_does_not_know(hue: GameState)
     _reveal(hue, "the_undercroft")
     assert engine.move_to("the_undercroft").success is True
     assert hue.location_id == "the_undercroft"
+
+
+# -- v0.14: every HUE & CRY secret has a way to be found ---------------------------
+#
+# v0.13 made the three secrets stay secret, and nothing in the story revealed
+# them: a player could never reach the Undercroft, the Rooftop Road or the Old
+# Bell Tower. Each now has at least one legitimate way in, every one through a
+# mechanism the engine already had: a hidden path found by scrounging, a flag
+# the arrest writes, a derived `known_when`.
+
+#: Where scrounging finds each secret way, pinned by the story's procgen
+#: template (`hidden_path_placements`), not dealt round-robin.
+HUE_SECRET_WAYS = (
+    ("wickmarket", "rooftop_road"),
+    ("chandlers_rise", "rooftop_road"),
+    ("the_snuffs", "the_undercroft"),
+    ("gallows_green", "old_bell_tower"),
+)
+
+
+def _hue_city(seed: int) -> GameState:
+    registry.activate("hue-and-cry")
+    from engine.game.procgen import new_game_state
+
+    return new_game_state(seed=seed)
+
+
+def test_turn_one_offers_no_secret_even_with_the_secret_ways_minted() -> None:
+    """The ways in exist in every new city; none is found until it is found."""
+    from engine.game.locations import LOCATIONS, is_known
+
+    for seed in (1, 11, 42):
+        state = _hue_city(seed)
+        for loc in sorted(LOCATIONS):
+            if loc in HUE_SECRETS:
+                continue
+            state.location_id = loc
+            assert not _travel_targets(state) & set(HUE_SECRETS), (seed, loc)
+            assert not set(_map(state)) & set(HUE_SECRETS), (seed, loc)
+            assert not any(is_known(state, s) for s in HUE_SECRETS), (seed, loc)
+            _assert_map_agrees_with_travel(state)
+
+
+@pytest.mark.parametrize("home, secret", HUE_SECRET_WAYS)
+def test_scrounging_finds_the_secret_ways(
+    monkeypatch: pytest.MonkeyPatch, home: str, secret: str
+) -> None:
+    """A good afternoon's scrounging in the right street finds the way in."""
+    from engine.game import foraging
+    from engine.game.locations import is_known
+
+    _force_forage_success(monkeypatch)
+    for seed in (1, 11, 42):
+        state = _hue_city(seed)
+        state.location_id = home
+        assert secret not in _travel_targets(state)
+        found = foraging.forage(state)["discovery"]
+        assert found is not None, (seed, home)
+        assert (found["from_id"], found["leads_to"]) == (home, secret), found
+        assert is_known(state, secret)
+        assert secret in _travel_targets(state), (seed, home)
+        _assert_map_agrees_with_travel(state)
+
+
+def test_a_night_in_the_cells_shows_you_the_drain() -> None:
+    """
+    The gaol drain: every way the Lantern's stop ends in the cells reveals the
+    Undercroft, which the prisoner can take once the Watch lets them go. Not
+    before -- a held player is offered no road at all.
+    """
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+    from engine.game.locations import is_known
+    from engine.scenes.default_state import SessionStore
+    from engine.world import law
+
+    registry.activate("hue-and-cry")
+    session = SessionStore().create(seed=11, llm_fn=lambda m, **k: "{}")
+    state = session.engine.state
+    set_clock(state, day=1, hour=14)
+    state.location_id = "wickmarket"
+    assert not is_known(state, "the_undercroft")
+
+    encounter.begin(state, "watch_stop")
+    encounter.resolve_approach(state, "surrender")
+    assert law.in_custody(state) and state.location_id == "lantern_house"
+    assert is_known(state, "the_undercroft")
+    assert not _travel_targets(state), "a held player walked out of the cells"
+
+    assert law.pay_fine(state)["ok"], "nothing on file, so the fine is nothing"
+    assert not law.in_custody(state)
+    assert "the_undercroft" in _travel_targets(state)
+    _assert_map_agrees_with_travel(state)
+
+
+def test_the_bell_tower_is_plain_from_the_roofs(hue: GameState) -> None:
+    """Stand on the Rooftop Road and the burnt church's tower is right there."""
+    from engine.game.locations import is_known
+    from engine.game.quests import QuestEngine
+
+    assert not is_known(hue, "old_bell_tower")
+    hue.location_id = "rooftop_road"
+    assert is_known(hue, "old_bell_tower"), "standing on the roofs, before a turn ends"
+    assert "old_bell_tower" in _travel_targets(hue)
+    QuestEngine.observe(hue)
+    hue.location_id = "wickmarket"
+    assert is_known(hue, "old_bell_tower"), "once seen from the roofs, remembered"
+
+
+# -- the seam: a template may pin where a hidden path starts ---------------------
+
+
+def test_a_pinned_hidden_path_starts_where_it_was_pinned(hue: GameState) -> None:
+    from engine.game import foraging
+
+    hue.procgen.forest = {
+        "hidden_paths": [
+            {"id": "hidden_path_1", "label": "a drainpipe", "leads_to": "rooftop_road",
+             "dc": 12, "from_id": "wickmarket"},
+            {"id": "hidden_path_2", "label": "a gap", "leads_to": "rooftop_road", "dc": 12},
+        ]
+    }
+    assert foraging.path_home(hue, "hidden_path_1") == "wickmarket"
+    # An unpinned path is still dealt round-robin, as it always was.
+    places = sorted(foraging._all_forageable_places())
+    assert foraging.path_home(hue, "hidden_path_2") == places[1 % len(places)]
+
+
+def test_a_pin_to_a_place_that_cannot_be_scrounged_falls_back_to_the_deal(
+    hue: GameState,
+) -> None:
+    """A pin nobody could ever forage at would mint a path nobody can find."""
+    from engine.game import foraging
+
+    hue.procgen.forest = {
+        "hidden_paths": [
+            {"id": "hidden_path_1", "label": "a drainpipe", "leads_to": "rooftop_road",
+             "dc": 12, "from_id": "silk_row"},
+        ]
+    }
+    assert not foraging.forageable("silk_row")
+    assert foraging.path_home(hue, "hidden_path_1") == sorted(
+        foraging._all_forageable_places())[0]
+
+
+#: sha256 (first 16 hex) of `generate_world(seed).to_dict()` for the flagship,
+#: measured at 4003587 before hidden-path placements existed. The flagship
+#: declares none, so its village and margin must not move by a byte.
+FLAGSHIP_WORLD_DIGESTS = {1: "2b820185c3b469d6", 7: "748f9f408485726d", 42: "5778f1f43d06dc23"}
+
+
+def test_the_flagship_world_is_unchanged_by_path_placements() -> None:
+    import hashlib
+    import json
+
+    from engine.game.procgen import generate_world
+
+    registry.activate("clockwork-dark")
+    for seed, expected in FLAGSHIP_WORLD_DIGESTS.items():
+        blob = json.dumps(generate_world(seed).to_dict(), sort_keys=True)
+        assert hashlib.sha256(blob.encode()).hexdigest()[:16] == expected, seed
+
+
+# -- v0.14 final: a pinned secret way names real places --------------------------
+
+
+def test_the_validator_catches_a_typo_in_a_path_placement(tmp_path) -> None:
+    import yaml
+
+    from engine.games import registry, validation
+
+    manifest = registry.get("hue-and-cry")
+    src = manifest.resolve(manifest.paths["procgen_templates"])
+    doc = yaml.safe_load(src.read_text(encoding="utf-8"))
+    doc["hidden_path_placements"][0]["leads_to"] = "rooftop_raod"
+    patched_file = tmp_path / "tallowmere.yaml"
+    patched_file.write_text(yaml.safe_dump(doc), encoding="utf-8")
+    patched = type(manifest)(**{**manifest.__dict__,
+                                "paths": {**manifest.paths, "procgen_templates": str(patched_file)}})
+    errors = [f"{i.ref_id}|{i.message}" for i in validation.errors_only(validation.validate_story(patched))]
+    assert any("rooftop_raod" in e and "placement" in e for e in errors), errors
+
+
+def test_hue_and_cry_placements_validate_clean() -> None:
+    from engine.games import registry, validation
+
+    errors = validation.errors_only(validation.validate_story(registry.get("hue-and-cry")))
+    assert not [i for i in errors if "placement" in i.message], errors
+
+
+def test_a_found_way_is_named_not_spelt_as_an_id() -> None:
+    """The discovery line reaches the narrator: a display name, never `the_undercroft`."""
+    from engine.game import foraging
+    from engine.game.locations import LOCATIONS
+    from engine.games import registry
+
+    registry.activate("hue-and-cry")
+    name = foraging._place_name("the_undercroft")
+    assert name == LOCATIONS["the_undercroft"]["name"]
+    assert "_" not in name

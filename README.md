@@ -176,15 +176,27 @@ Reports the evil curve, day reached, stamina and hunger distributions, per-skill
 success rates, gold drift, encounter frequency per dangerous leg, and quest
 outcomes.
 
-HUE & CRY has three more, one per system, each 40 seeds x 10 in-game days on
-the production channel (`--set KEY=VALUE` tries a number without editing the
+HUE & CRY has six more, one per system, each 40 seeds x 10 in-game days on
+the production channel (the streets, 40 x 3) (`--set KEY=VALUE` tries a number without editing the
 file, `--json` for the raw table):
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\simulate_law.py       # careful | reckless | briber
 .\.venv\Scripts\python.exe scripts\simulate_jobs.py      # blind | careful | greedy | greedy_bare
 .\.venv\Scripts\python.exe scripts\simulate_agendas.py   # idle | careful | reckless
+.\.venv\Scripts\python.exe scripts\simulate_scrounge.py  # scrounger | mornings
+.\.venv\Scripts\python.exe scripts\simulate_labour.py    # porter | dipper | careful | scrounger (--bed)
+.\.venv\Scripts\python.exe scripts\simulate_streets.py   # wanderer: a street an hour, day and night
 ```
+
+`simulate_streets.py` measures the night streets: how often a walk ends in a
+scene (cutpurses, a press-gang, a drunk Lantern, the lamplighter, Silas
+Crook's toll-men) by time of day and district, and what the scenes cost.
+
+`simulate_labour.py` is the cost of living: an honest porter, a
+candle-dipper, the careful pickpocket and the scrounger each buy their own
+bread and bed, and it reports
+how many days each keeps (fed, and under a roof).
 
 `simulate_agendas.py` measures the Magpie, Captain Ardane's net and Silas
 Crook's rise: `idle` never steals (the Magpie's work landing on your name),

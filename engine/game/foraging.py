@@ -340,12 +340,21 @@ def path_home(state: GameState, path_id: str) -> str:
     Dealt round-robin across the forageable places in id order -- the identical
     rule ``nodes_at`` uses, for the identical reason: procgen stamped no usable
     location on them, and the deal is deterministic for a seed with no RNG.
+
+    A path the template PINNED (``hidden_path_placements`` in the story's
+    procgen templates; procgen writes it as ``from_id``) starts where it was
+    pinned instead -- provided that place can be foraged, because a path is
+    only ever found by working the ground at its home. A pin to anywhere else
+    would mint a way nobody could find, so it falls back to the deal.
     """
     places = sorted(_all_forageable_places())
     if not places:
         return ""
     for index, path in enumerate(hidden_paths(state)):
         if str(path.get("id")) == str(path_id):
+            pinned = str(path.get("from_id") or "")
+            if pinned and pinned in places:
+                return pinned
             return places[index % len(places)]
     return ""
 
@@ -471,10 +480,18 @@ def _discover_path(
             "effect": receipt,
             "text": (
                 f"Working the ground, you find a {label} -- "
-                f"a quicker way through to {leads_to.replace('_', ' ')}."
+                f"a quicker way through to {_place_name(leads_to)}."
             ),
         }
     return None
+
+
+def _place_name(location_id: str) -> str:
+    """A place's display name for the prose (ids never reach the narrator)."""
+    from engine.game.locations import LOCATIONS
+
+    return str((LOCATIONS.get(location_id) or {}).get("name")
+               or location_id.replace("_", " "))
 
 
 # ---------------------------------------------------------------------------

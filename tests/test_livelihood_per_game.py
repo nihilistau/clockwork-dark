@@ -41,7 +41,9 @@ from engine.games import registry
 #: forage rules or vendors, so it belongs with the Garden below. STATIC on
 #: purpose -- whether a story runs these systems is an authoring decision read
 #: from its content, and a derived list would assert whatever it found.
-GAMES = ("clockwork-dark", "the-long-con")
+#: HUE & CRY joined in v0.14, when it gained work (labour.yaml), luck
+#: (boons.yaml, complications.yaml) and an honest counter selling bread.
+GAMES = ("clockwork-dark", "the-long-con", "hue-and-cry")
 
 #: ...and of those, the ones with ground to forage on.
 #:
@@ -51,11 +53,19 @@ GAMES = ("clockwork-dark", "the-long-con")
 #: of mushrooms and hedge berries that could never fire, because the table
 #: matched no tag in the story. Foraging is not a system it runs, so asserting
 #: it has forageable ground would assert a bug into existence.
-FORAGING_GAMES = ("clockwork-dark",)
+#:
+#: HUE & CRY is a city too, and it DOES forage (v0.14): its streets carry a
+#: `scrounge` tag and its forage.yaml is a table of dropped bread, candle ends
+#: and the odd lost button -- a city's ground, not a wood's.
+FORAGING_GAMES = ("clockwork-dark", "hue-and-cry")
 
 #: One boon id each story must be able to draw. Proof it resolved ITS table
 #: and not a neighbour's, which is what this file exists for.
-EXPECTED_BOON = {"clockwork-dark": "forager_luck", "the-long-con": "pressed_on_you"}
+EXPECTED_BOON = {
+    "clockwork-dark": "forager_luck",
+    "the-long-con": "pressed_on_you",
+    "hue-and-cry": "a_lanterns_blind_eye",
+}
 
 #: Every installed story, for the one claim that holds regardless. Derived,
 #: because "cleanly absent, never noisy" is owed to any story that exists.
@@ -262,6 +272,15 @@ def test_no_livelihood_system_logs_an_error_in_any_game(
     # declaring no `paths.procgen_templates` has empty name pools and procgen
     # says so once per new run. Letting that land here would make this test
     # fail for a fact about character generation.
+    #
+    # Same for death rules: foraging spends hours, hours run `check_death`,
+    # and HUE & CRY ships no death.yaml until v1.0 -- which it warns about,
+    # once per activation, on purpose (test_hue_and_cry's
+    # `test_the_missing_death_rules_are_warned_about_once`). Spend that one
+    # warning here, in setup, where it is not on trial.
+    from engine.game import encounter
+
+    encounter.load_death_rules()
     caplog.clear()
 
     with caplog.at_level(logging.WARNING):

@@ -757,6 +757,45 @@ def test_a_deed_effect_without_the_watch_flag_rolls_like_any_deed(lawful: Path) 
     assert 0 < seen < 40, seen  # notice 0.6 by day: sometimes, not always
 
 
+def test_a_struck_watchman_nobody_scheduled_still_reports_it(lawful: Path) -> None:
+    """
+    v0.14: the drunk Lantern in a street scene is not a scheduled person, so
+    `seen_by_watch` finds no law-role witness and the blow could go unfiled.
+    `report_precision` is the victim telling the watch-house himself: one report
+    of the deed, for the guise worn, where it happened, at that clarity.
+    """
+    for seed in range(10):
+        state = _world([], seed=seed)  # nobody present to see it
+        out = apply_effect(state, {"type": "deed", "deed": "assault_watch",
+                                   "seen_by_watch": True, "report_precision": 0.6})
+        assert out["ok"] is True and out["reported"] is True, seed
+        reports = state.law.get("reports") or []
+        assert len(reports) == 1, reports
+        assert reports[0]["deed"] == "assault_watch"
+        assert reports[0]["guise"] == "self"
+        assert reports[0]["jurisdiction"] == "village"
+        assert reports[0]["precision"] == 0.6
+        assert law.wanted_band(state, "self", "village") == "noticed"  # 5 x 0.6 = 3
+
+
+def test_a_struck_watchman_who_was_seen_is_not_reported_twice(lawful: Path) -> None:
+    """A Lantern on duty already filed it: the victim's own report adds no second deed."""
+    state = _world(copy.deepcopy(WATCH))
+    apply_effect(state, {"type": "deed", "deed": "assault_watch",
+                         "seen_by_watch": True, "report_precision": 0.6})
+    ids = {r.get("deed_id") for r in state.law.get("reports") or []}
+    assert len(ids) == 1, state.law.get("reports")
+    assert law.wanted_band(state, "self", "village") == "sought"  # the clear report stands
+
+
+@pytest.mark.parametrize("bad", [-0.1, 1.5, "clear"])
+def test_a_bad_report_precision_is_refused(lawful: Path, bad: Any) -> None:
+    state = _world([])
+    out = apply_effect(state, {"type": "deed", "deed": "assault_watch", "report_precision": bad})
+    assert out["ok"] is False and "report_precision" in out["message"]
+    assert not state.law.get("reports")
+
+
 def test_a_deed_effect_naming_an_unknown_deed_is_refused(lawful: Path) -> None:
     state = _world(copy.deepcopy(WATCH))
     out = apply_effect(state, {"type": "deed", "deed": "treason"})

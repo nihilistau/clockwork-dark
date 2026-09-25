@@ -4,13 +4,27 @@
 # GROUP's standing; how one person feels about you is a different system
 # (engine/memory/ledger.py).
 #
-# ONE FACTION SO FAR: the Honest Company of Night Porters, because the one
-# thing that moves a standing today is Mother Gannet's contract
-# (data/rules/threads.yaml `gannet_silk_row`): left undone, it costs the
-# Company's good opinion. Declared so that cost lands on a faction the story
-# owns -- before this file, the break logged "Unknown faction" and wrote a
-# standing nobody had declared. The Lantern Watch, the guilds of the Rise and
-# the Margrave's household are v1.0's (the agendas), not stubs left here.
+# SEVEN FACTIONS (v0.14, spec §6). The Honest Company came first (v0.11),
+# because Mother Gannet's contract (data/rules/threads.yaml `gannet_silk_row`)
+# needed a standing to cost. v0.14 declares the rest of the city, and wires
+# each only where something already in the story plainly touches it -- a
+# faction nothing moves is the "loads, validates and does nothing" shape:
+#
+#   honest_company     Gannet's contract; a shift for Dock Mag (+1); a
+#                      porter's nod (boon, +2); Silas's toll (streets.yaml).
+#   lantern_watch      going round the lamps with Wren (+1; the lamp
+#                      ordinance is the Watch's); striking a drunk Lantern
+#                      (streets.yaml, -10).
+#   chandlers_guild    a good shift at Marsh & Daughters' vats (+1).
+#   market_stalls      running Wickmarket's errands well (+1).
+#   temple_everflame   declared for Acts I-III (the Hanging Fair, the flame);
+#   margraves_household  nothing moves these two yet -- listed so v0.16/v0.17
+#   silk_row           content lands on factions the story owns, the same
+#                      reason the Company was declared before it had a use.
+#
+# The last three are the one deliberate exception to the rule above, recorded
+# in CLAUDE.md "Deliberately deferred" so they are not mistaken for finished.
+# No wage is priced by any standing (labour.yaml's header measured why).
 #
 # What reads it today: the `reputation` condition predicate (a later contract
 # can gate on the Company's opinion) and the save. No vendor in Tallowmere
@@ -21,7 +35,7 @@
 # games/dev-story/data/world/factions.yaml gives: bands, clamps and the price
 # curve are mechanics, not story.
 #
-# Version: v0.1.0 [2026-09-24]
+# Version: v0.2.0 [2026-09-26]
 
 version: 1
 
@@ -51,3 +65,50 @@ factions:
       Porters' Hall in the Snuffs by Mother Gannet, who knits through every
       meeting and forgets nothing. The Company keeps a quarter of every job it
       hands out, and a list of everyone who ever let it down.
+
+  lantern_watch:
+    name: "the Lantern Watch"
+    description: >-
+      Four sworn officers, a sergeant who can be bought, and every lamp in the
+      city, all answering to Captain Ardane from the Lantern House. The Watch
+      keeps the lamp ordinance as well as the peace: a city that is always lit
+      is a city that is always watched, and the Lanterns like it that way.
+
+  chandlers_guild:
+    name: "the Worshipful Company of Chandlers"
+    description: >-
+      The guild of the Rise, which fixes the price of tallow, stamps the pure
+      beeswax, and has opinions about wick-length that have ended friendships.
+      It remembers who worked its vats honestly and who was caught with a
+      mould under their coat.
+
+  market_stalls:
+    name: "the Wickmarket stallholders"
+    description: >-
+      Pie-men, fishwives, a knife-grinder, two shops that buy what they
+      should not, and the unwritten understanding that a stall is watched by
+      the stall next to it. They pay for errands, and they talk.
+
+  temple_everflame:
+    name: "the Temple of the Everflame"
+    description: >-
+      Sister Ember's thousand tapers on the Rise, the priests who keep the
+      holy fire's calendar, and the Hanging Fair's blessing. The Temple
+      believes the Everflame has never gone out, and would take it very badly
+      if anybody proved otherwise.
+
+  margraves_household:
+    name: "the Margrave's household"
+    description: >-
+      Steward Quill and everyone who carries a tray, polishes a spoon or
+      stands a door on Margrave's Hill. The household knows where every piece
+      of silver in the palace is at every hour, which is exactly the problem
+      when some of it is not.
+
+  silk_row:
+    name: "the Silk Row houses"
+    description: >-
+      Glass lamps, old money and new money pretending to be old: the families
+      of Silk Row, who give generously to the Temple, sit near the Everflame
+      at supper, and have been robbed by the Magpie more often than anyone,
+      which they take as a kind of distinction.

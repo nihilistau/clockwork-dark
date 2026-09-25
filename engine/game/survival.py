@@ -267,14 +267,65 @@ def _resolve_rest_kind(
             kind,
             fallback,
         )
-        return fallback, rest_cfg.get(fallback, {}), f"unknown rest '{kind}'"
+        # The substitute is asked its gates like any other entry: a story
+        # whose first rest is a priced bed must still downgrade, not hand it
+        # out free because the request was misspelt.
+        note = f"unknown rest '{str(kind).replace('_', ' ')}'"
+        kind, spec = fallback, rest_cfg.get(fallback, {})
 
+    # Followed as a chain, so a fallback that is itself gated is asked too;
+    # `seen` stops a loop an author wrote by accident. Every hop is a
+    # downgrade, never a refusal.
+    seen = {kind}
+    while True:
+        why = _rest_gate(state, spec)
+        if not why:
+            return kind, spec, note
+        alt = str(spec.get("fallback") or "")
+        if not alt or alt not in rest_cfg or alt in seen:
+            return kind, spec, note
+        seen.add(alt)
+        kind, spec, note = alt, rest_cfg[alt], why
+
+
+def _rest_gate(state: GameState, spec: dict[str, Any]) -> str:
+    """
+    Why this rest entry is not open to the player right now, or "".
+
+    Three optional keys, each an honest reason a bed is not yours: ``locations``
+    (nobody keeps one here), ``requires`` (a condition in the shared grammar,
+    ``quests.evaluate_condition`` -- a guild's bunk for its members, the cells
+    for a prisoner) and ``cost`` (the price, in the story's coin). None of them
+    refuses: the caller downgrades to ``fallback`` (AGENTS.md rule 6).
+    """
     allowed = spec.get("locations")
     if allowed and state.location_id not in list(allowed):
-        alt = str(spec.get("fallback") or "")
-        if alt and alt in rest_cfg:
-            return alt, rest_cfg[alt], f"no bed at {state.location_id}"
-    return kind, spec, note
+        # The place's display name: this note lands in the narrator's receipt
+        # line, and ids never reach the prose.
+        from engine.game.locations import LOCATIONS
+
+        place = (LOCATIONS.get(state.location_id) or {}).get("name") or "this place"
+        return f"no bed at {place}"
+    if spec.get("requires") is not None:
+        from engine.game.quests import evaluate_condition
+
+        try:
+            allowed_here = evaluate_condition(state, spec.get("requires"))
+        except Exception:  # noqa: BLE001 -- a broken gate downgrades; it never refuses rest
+            logger.warning(
+                "[survival] Rest requires raised (operation=rest, requires=%r)",
+                spec.get("requires"),
+                exc_info=True,
+            )
+            allowed_here = False
+        if not allowed_here:
+            return "that bed is not yours tonight"
+    cost = int(spec.get("cost") or 0)
+    if cost > 0 and state.stats.gold < cost:
+        from engine.game.trade import currency_label
+
+        return f"a bed costs {currency_label(cost)} and you do not have it"
+    return ""
 
 
 def rest(state: GameState, kind: str = "rest_short") -> dict[str, Any]:
@@ -306,6 +357,15 @@ def rest(state: GameState, kind: str = "rest_short") -> dict[str, Any]:
     used, spec, note = _resolve_rest_kind(state, kind, rest_cfg)
     hours = float(spec.get("hours", 1))
     before = state.stats.stamina
+
+    # A priced bed is paid for at the door, through the one writer. Only when
+    # the purse covers it: an entry whose price is short and which names no
+    # fallback is slept in unpaid rather than refused (rule 6).
+    cost = int(spec.get("cost") or 0)
+    paid = 0
+    if cost > 0 and state.stats.gold >= cost:
+        effects_module.apply_effect(state, {"type": "gold", "delta": -cost})
+        paid = cost
 
     advance = advance_time(state, hours)
 
@@ -354,7 +414,7 @@ def rest(state: GameState, kind: str = "rest_short") -> dict[str, Any]:
         state.stats.stamina,
     )
 
-    return {
+    outcome = {
         "success": True,
         "kind": used,
         "requested_kind": kind,
@@ -372,6 +432,11 @@ def rest(state: GameState, kind: str = "rest_short") -> dict[str, Any]:
         "time_advance": advance.to_dict(),
         "text": text,
     }
+    # Present only when coin changed hands, so a story with no priced bed
+    # keeps the receipt it always had, key for key.
+    if paid:
+        outcome["paid"] = paid
+    return outcome
 
 
 def food_value(item_id: str, tags: list[str], rules: dict[str, Any]) -> Optional[dict[str, Any]]:

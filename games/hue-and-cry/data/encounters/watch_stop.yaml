@@ -1,9 +1,11 @@
 # HUE & CRY -- a Lantern knows your face.
 #
 # Read by engine/game/encounter.py through `paths.encounters`. This scene is
-# never drawn on a road: it has no `triggers`, and every edge in Tallowmere
-# carries `danger_dc: 0`, so `roll_for_encounter` can never pick it. It opens
-# one way only -- data/rules/law.yaml names it as `arrest.encounter`, and
+# never drawn on a road: `on_roads: false` (v0.14). It has no `triggers`, which
+# on its own means "any leg" -- harmless while every street carried
+# `danger_dc: 0`, and a free Lantern stop out of nowhere the moment the night
+# streets gave them danger (data/encounters/streets.yaml). It opens one way
+# only -- data/rules/law.yaml names it as `arrest.encounter`, and
 # engine/world/law.py::patrol begins it when a watchman standing in the street
 # recognises the face the player is wearing.
 #
@@ -31,13 +33,19 @@
 #
 # `{type: arrest}` moves the player to the Lantern House, takes every HOT
 # thing they carry, and holds them until they pay the fine or serve the days.
+# Every arrest also sets `location_known:the_undercroft`: the cells' drain
+# breathes up from the old tunnels under the city, and a prisoner learns where
+# it goes (v0.14 -- the gaol drain, one of the Undercroft's two reveals). The
+# road is there to take once the Watch lets you go; a held player is offered
+# no road at all.
 #
-# Version: v0.2.0 [2026-09-24]
+# Version: v0.4.0 [2026-09-25]
 
 encounters:
 
   - id: watch_stop
     tier: 1
+    on_roads: false
     intro: >-
       A lamp on a pole swings round and stops on your face, and the Lantern
       behind it goes very still in the particular way of a man comparing a
@@ -86,6 +94,7 @@ encounters:
             outcome: arrested
             effects:
               - { type: arrest }
+              - { type: flag, flag: "location_known:the_undercroft", value: true }
 
       talk:
         skill: persuasion
@@ -121,6 +130,7 @@ encounters:
             ends: true
             effects:
               - { type: arrest }
+              - { type: flag, flag: "location_known:the_undercroft", value: true }
 
       bribe:
         auto: true
@@ -152,6 +162,7 @@ encounters:
             outcome: arrested
             effects:
               - { type: arrest }
+              - { type: flag, flag: "location_known:the_undercroft", value: true }
 
       fight:
         skill: nerve
@@ -199,3 +210,4 @@ encounters:
               - { type: deed, deed: assault_watch, seen_by_watch: true }
               - { type: hp, delta: -5 }
               - { type: arrest }
+              - { type: flag, flag: "location_known:the_undercroft", value: true }

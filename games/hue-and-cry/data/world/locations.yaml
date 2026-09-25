@@ -9,9 +9,18 @@
 # Lanterns' routes. Rename one and you rename it in four features.
 #
 # EDGES. The city is small enough to cross in an afternoon, so almost every
-# street costs one hour. `danger_dc` is 0 on every edge: this skeleton ships no
-# encounter table, and a nonzero dc with nothing behind it is a roll that cannot
-# pay off. Night streets arrive with their encounters.
+# street costs one hour.
+#
+# DANGER (v0.14, the streets at night). A street's `danger_dc` is its ROUGHER
+# end's: the Docks and the Snuffs 6, Wickmarket and Gallows Green 4, the Rise
+# and Silk Row 2, the Lantern House and the Hill 1 -- so every street touching
+# the waterfront or the Snuffs is a 6. The three secret ways stay at 0: the
+# Undercroft, the roofs and the tower are how a thief keeps OFF the streets.
+# The hour does the rest (data/encounters/rules.yaml `trigger:`), and the
+# scenes are data/encounters/streets.yaml. MEASURED, scripts/simulate_streets.py,
+# 40 seeds x 3 days, a fresh thief walking a street an hour: a scene on 19.7%
+# of night legs (the Docks and the Snuffs 28%, the Hill 7%), 9.0% at dusk,
+# 4.2% at dawn, 0.3% by day.
 #
 # THE THREE SECRETS. `secret: true` withholds a place -- and every road to it --
 # from the map payload AND the travel options until the player knows it (stood
@@ -24,10 +33,27 @@
 #   rooftop_road     wickmarket, the_snuffs, silk_row, old_bell_tower
 #   old_bell_tower   chandlers_rise, gallows_green, rooftop_road
 #
+# HOW EACH IS FOUND (v0.14), every one through a mechanism the engine already
+# had -- and none waiting on content still to come:
+#
+#   the_undercroft   scrounging the Snuffs (a hidden path: a yard grating),
+#                    or a night in the cells (every arrest sets
+#                    `location_known:the_undercroft` -- the drain in the cell
+#                    floor, data/encounters/watch_stop.yaml)
+#   rooftop_road     scrounging Wickmarket or Chandlers' Rise (hidden paths:
+#                    a drainpipe, a loading crane)
+#   old_bell_tower   seen from the Rooftop Road (`known_when` below), or
+#                    scrounging Gallows Green (a hidden path: the churchyard
+#                    wall)
+#
+# The hidden paths are pinned to their streets by
+# data/procgen_templates/tallowmere.yaml. SCROUNGE: the five streets carrying
+# the `scrounge` tag are the ground data/tables/forage.yaml works.
+#
 # Write BOTH directions of every edge; a one-way edge is treated as a typo and
 # mirrored with a warning.
 #
-# Version: v0.1.0 [2026-09-23]
+# Version: v0.3.0 [2026-09-25]
 
 version: 1
 
@@ -53,11 +79,11 @@ locations:
       Porters in brown smocks carry everything that moves; nobody asks what is
       in the ones that move at night. The evening barge leaves from the far end
       of the quay, and every day somebody runs for it.
-    tags: [outdoors, waterfront, trade, crowded, watched]
+    tags: [outdoors, waterfront, trade, crowded, watched, scrounge]
     connections:
-      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      the_snuffs: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      lantern_house: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      wickmarket: { hours: 1, danger_dc: 6, awareness_delta: 0 }
+      the_snuffs: { hours: 1, danger_dc: 6, awareness_delta: 0 }
+      lantern_house: { hours: 1, danger_dc: 6, awareness_delta: 0 }
       the_undercroft: { hours: 1, danger_dc: 0, awareness_delta: 2 }
 
   wickmarket:
@@ -70,14 +96,14 @@ locations:
       management" for thirty years. Two of the stalls sell things that were
       someone else's yesterday, and everyone knows which two. The Watch walks
       through it twice an hour and buys its lunch here.
-    tags: [outdoors, market, trade, crowded, social]
+    tags: [outdoors, market, trade, crowded, social, scrounge]
     connections:
-      tallow_docks: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      the_snuffs: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      silk_row: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      chandlers_rise: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      lantern_house: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      gallows_green: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      tallow_docks: { hours: 1, danger_dc: 6, awareness_delta: 0 }
+      the_snuffs: { hours: 1, danger_dc: 6, awareness_delta: 0 }
+      silk_row: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+      chandlers_rise: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+      lantern_house: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+      gallows_green: { hours: 1, danger_dc: 4, awareness_delta: 0 }
       rooftop_road: { hours: 1, danger_dc: 0, awareness_delta: 2 }
 
   the_snuffs:
@@ -93,11 +119,11 @@ locations:
       charter framed in the window -- the Honest Company of Night Porters,
       whose members are always carrying something. Lanterns come down here in
       pairs or not at all.
-    tags: [outdoors, slum, poor, guild, crowded]
+    tags: [outdoors, slum, poor, guild, crowded, scrounge]
     connections:
-      tallow_docks: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      gallows_green: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      tallow_docks: { hours: 1, danger_dc: 6, awareness_delta: 0 }
+      wickmarket: { hours: 1, danger_dc: 6, awareness_delta: 0 }
+      gallows_green: { hours: 1, danger_dc: 6, awareness_delta: 0 }
       the_undercroft: { hours: 1, danger_dc: 0, awareness_delta: 2 }
       rooftop_road: { hours: 1, danger_dc: 0, awareness_delta: 2 }
 
@@ -113,9 +139,9 @@ locations:
       the Magpie keeps coming back to it.
     tags: [outdoors, wealthy, quiet, watched, shiny]
     connections:
-      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      chandlers_rise: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      margraves_hill: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      wickmarket: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+      chandlers_rise: { hours: 1, danger_dc: 2, awareness_delta: 0 }
+      margraves_hill: { hours: 1, danger_dc: 2, awareness_delta: 0 }
       rooftop_road: { hours: 1, danger_dc: 0, awareness_delta: 2 }
 
   chandlers_rise:
@@ -128,11 +154,11 @@ locations:
       street the Temple of the Everflame keeps a lit taper for every soul in
       the city, which makes it the brightest room in Tallowmere and the
       warmest in winter. The whole Rise smells of hot wax and sermons.
-    tags: [outdoors, trade, temple, respectable]
+    tags: [outdoors, trade, temple, respectable, scrounge]
     connections:
-      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      silk_row: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      margraves_hill: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      wickmarket: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+      silk_row: { hours: 1, danger_dc: 2, awareness_delta: 0 }
+      margraves_hill: { hours: 1, danger_dc: 2, awareness_delta: 0 }
       old_bell_tower: { hours: 1, danger_dc: 0, awareness_delta: 2 }
 
   lantern_house:
@@ -148,9 +174,9 @@ locations:
       and the Watch keeps what it has caught until the Green wants it.
     tags: [interior, watch, gaol, law]
     connections:
-      tallow_docks: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      gallows_green: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      tallow_docks: { hours: 1, danger_dc: 6, awareness_delta: 0 }
+      wickmarket: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+      gallows_green: { hours: 1, danger_dc: 4, awareness_delta: 0 }
       the_undercroft: { hours: 1, danger_dc: 0, awareness_delta: 2 }
 
   margraves_hill:
@@ -165,8 +191,8 @@ locations:
       whole of Tallowmere, and the whole of Tallowmere can see the flame.
     tags: [outdoors, palace, wealthy, guarded, shiny]
     connections:
-      silk_row: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      chandlers_rise: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      silk_row: { hours: 1, danger_dc: 2, awareness_delta: 0 }
+      chandlers_rise: { hours: 1, danger_dc: 2, awareness_delta: 0 }
       the_undercroft: { hours: 2, danger_dc: 0, awareness_delta: 3 }
 
   gallows_green:
@@ -179,11 +205,11 @@ locations:
       week the Green is a perfectly pleasant place to walk a dog. Ballad-sellers
       sell songs about whoever hanged last. Once a year the Hanging Fair fills
       it with stalls, and the city comes out in its best to watch.
-    tags: [outdoors, public, gallows, open]
+    tags: [outdoors, public, gallows, open, scrounge]
     connections:
-      wickmarket: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      the_snuffs: { hours: 1, danger_dc: 0, awareness_delta: 0 }
-      lantern_house: { hours: 1, danger_dc: 0, awareness_delta: 0 }
+      wickmarket: { hours: 1, danger_dc: 4, awareness_delta: 0 }
+      the_snuffs: { hours: 1, danger_dc: 6, awareness_delta: 0 }
+      lantern_house: { hours: 1, danger_dc: 4, awareness_delta: 0 }
       old_bell_tower: { hours: 1, danger_dc: 0, awareness_delta: 2 }
 
   the_undercroft:
@@ -234,6 +260,14 @@ locations:
     evil_multiplier: 1.0
     # SECRET. The disused tower between the Rise and the Green.
     secret: true
+    # Plain as a chimney from the roofs: once you have stood on the Rooftop
+    # Road you know the tower is there. (Also found from the Green, by a
+    # scrounger who notices the gap in the burnt churchyard's wall -- a
+    # hidden path, data/procgen_templates/tallowmere.yaml.)
+    known_when:
+      any:
+        - { at_location: rooftop_road }
+        - { visited: rooftop_road }
     summary: >-
       The tower of a church that burned before anyone living was born, left
       standing because nobody could agree whose job it was to pull it down.

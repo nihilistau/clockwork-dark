@@ -1,0 +1,56 @@
+# HUE & CRY -- a natural 20: Tallowmere's luck.
+#
+# Read by engine/game/checks.py through `paths.tables`. On a kept natural 20
+# the engine draws one row whose `applies_to` admits the skill (every row, if
+# it has none) on its own BOON stream, applies its effects through
+# effects.apply_effect, and hands the narrator the text. The model narrates;
+# it never invents the windfall.
+#
+# EVERY CHECK DRAWS HERE -- a lift, a job's stage, a Lantern's stop, a shift,
+# a scrounge, a rough night -- so each effect is small on purpose, and the one
+# that touches the Law (`a_lanterns_blind_eye`, half a day's cooling) was
+# measured against simulate_law, simulate_jobs and simulate_agendas before it
+# shipped: CHANGELOG.md has the table.
+#
+# PIP IS NOT A BOON. The one-eyed jackdaw is a pipeline agent with his own
+# voice every turn; a die face that made him fetch a crown would have the
+# engine speak for him. He appears in complications.yaml as flavour only.
+#
+# Version: v0.1.0 [2026-09-25]
+
+boons:
+  - id: breath_to_spare
+    text: "It goes exactly the way you meant it to, and you come out the other side with breath to spare."
+    effects:
+      - { type: stamina, delta: 5 }
+
+  - id: a_dropped_crown
+    text: "In the crush somebody has dropped a crown and not missed it yet. It is under your boot before anyone looks down."
+    effects:
+      - { type: gold, delta: 1 }
+
+  - id: a_lanterns_blind_eye
+    applies_to: [stealth, persuasion]
+    text: "A Lantern looks straight at you, yawns, and decides his lamp needs trimming more than you need a second look."
+    effects:
+      # Half a day of the watch's forgetting (law.yaml cool_per_day 0.5, so
+      # 0.25 off every file you have). Nothing to forget, nothing written.
+      - { type: law_cool, days: 0.5 }
+
+  - id: pie_across_the_counter
+    applies_to: [persuasion, sympathy]
+    text: "Somebody behind a counter likes your face and pushes an eel pie across it, still hot, before you can say you did not ask."
+    effects:
+      - { type: item, item_id: eel_pie, name: "Eel Pie", qty: 1, tags: [food] }
+
+  - id: the_wax_takes_first_time
+    applies_to: [craft]
+    text: "The wax takes first time, even and pale, and the ends left over are yours for the asking."
+    effects:
+      - { type: item, item_id: candle_ends, name: "Candle Ends", qty: 1, tags: [goods, candle] }
+
+  - id: a_porters_nod
+    applies_to: [nerve]
+    text: "A night porter in a smock like a sail sees you hold your ground and nods. By evening the Porters' Hall has heard."
+    effects:
+      - { type: reputation, faction: honest_company, delta: 2 }

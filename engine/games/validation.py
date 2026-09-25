@@ -609,6 +609,7 @@ class StoryValidator:
         self.check_declared_event_scenes()
         self.check_endings_and_epilogues()
         self.check_death_rules()
+        self.check_procgen_templates()
         self.check_agents()
         self.check_spoilers()
 
@@ -1689,6 +1690,30 @@ class StoryValidator:
         problem = death_terminal_problem(terminal, ending_ids)
         if problem:
             self._add(source, str(terminal.get("ending") or "terminal"), problem)
+
+    def check_procgen_templates(self) -> None:
+        """
+        ``hidden_path_placements`` (v0.14): every pinned ``from`` and
+        ``leads_to`` is a place in the story's graph. procgen accepts any
+        string there, and a typo would move -- or silently strand -- a secret
+        place's only way in, the "loads, validates and does nothing" shape.
+        """
+        path = self._file("procgen_templates")
+        if path is None or not self.locations:
+            return
+        doc = _read_yaml(path)
+        if not isinstance(doc, dict):
+            return
+        source = self._rel(path)
+        for index, row in enumerate(doc.get("hidden_path_placements") or []):
+            if not isinstance(row, dict):
+                self._add(source, f"placement[{index}]", "a placement must be a mapping")
+                continue
+            for key in ("from", "leads_to"):
+                value = row.get(key)
+                if value and str(value) not in self.locations:
+                    self._add(source, str(value),
+                              f"placement[{index}] `{key}` is not a place in the story's graph")
 
     # -- agents ------------------------------------------------------------
 

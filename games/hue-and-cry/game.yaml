@@ -16,7 +16,7 @@
 # THIS FILE: an UNDECLARED `paths.*` key resolves to NOTHING. Declare what you
 # ship; omit what you do not.
 #
-# Version: v0.4.0 [2026-09-25]
+# Version: v0.6.0 [2026-09-25]
 
 id: hue-and-cry
 title: "Hue & Cry"
@@ -74,15 +74,23 @@ settings:
 # template's stubs for items, economy, tables and encounters were removed
 # rather than left in place: they were a mill and a hedge-berry forage table,
 # and a thief story selling hedge berries is exactly the veneer THE LONG CON
-# shipped under. The tables directory now holds trade.yaml alone -- no forage, labour, boons or
-# complications -- so each of those systems is still cleanly absent.
+# shipped under. The tables directory held trade.yaml alone until v0.14, when
+# forage.yaml joined it -- scrounging a city's gutters, not a wood (candle
+# ends, dropped bread, the odd lost button), on streets tagged `scrounge`. No
+# labour, boons or complications until v0.14 either; now labour.yaml (honest
+# work: Dock Mag's gangs, the chandlers' vats, the market's errands, Wren's
+# lamps) and boons.yaml / complications.yaml (the city's luck on a natural 20
+# or 1) sit beside them.
 #
 paths:
   locations: "games/hue-and-cry/data/world/locations.yaml"
   npc_schedules: "games/hue-and-cry/data/world/npc_schedules.yaml"
   prompts: "games/hue-and-cry/prompts"
-  # skills.yaml, archetypes.yaml and spoilers.yaml are found INSIDE this
-  # directory by fixed filename.
+  # skills.yaml, archetypes.yaml, spoilers.yaml and (since v0.14) survival.yaml
+  # are found INSIDE this directory by fixed filename. survival.yaml is the
+  # rest verb -- the flophouse, the guild bunk, the taverns, the cells and a
+  # rough night anywhere -- and the meals; shipping it also makes a walk cost
+  # stamina, which it did not while nothing could give stamina back.
   rules: "games/hue-and-cry/data/rules"
   quests: "games/hue-and-cry/data/quests"
   endings: "games/hue-and-cry/data/rules/endings.yaml"
@@ -94,8 +102,17 @@ paths:
   thievery: "games/hue-and-cry/data/rules/thievery.yaml"
   # Loot and purse goods. Every id a premise or a purse names lives here.
   items: "games/hue-and-cry/data/items"
-  # The two fences' profiles (trade.yaml) and their counter stock.
+  # The two fences' profiles (trade.yaml) and their counter stock; since v0.14
+  # also forage.yaml, scrounging the five streets tagged `scrounge`, and
+  # labour.yaml, boons.yaml and complications.yaml -- honest work at the hours
+  # its employers keep, and the city's luck. Their numbers were set by
+  # measurement: scripts/simulate_labour.py, table in labour.yaml's header.
   tables: "games/hue-and-cry/data/tables"
+  # The margin only (v0.14): forage ground for those streets, and the hidden
+  # paths that are three of the secret places' ways in -- each pinned to the
+  # street it starts from (`hidden_path_placements`). No villagers, buildings
+  # or festival: the city's people are its schedule, its houses premises.
+  procgen_templates: "games/hue-and-cry/data/procgen_templates/tallowmere.yaml"
   economy: "games/hue-and-cry/data/economy.yaml"
   # The pack is empty until v1.0; subjects.yaml is the full brief for it, and
   # art_root is declared so the manifest resolves against this story's own
@@ -115,9 +132,17 @@ paths:
   # vault floor (engine/world/jobs.py). Its numbers were set by measurement --
   # scripts/simulate_jobs.py, table in CHANGELOG.md and in the file's header.
   jobs: "games/hue-and-cry/data/rules/jobs.yaml"
-  # One faction, the Honest Company, so a contract left undone has a
-  # standing of the story's own to cost (engine/game/reputation.py).
+  # Seven factions since v0.14 (engine/game/reputation.py); the file's
+  # header says what moves each and which wait for Acts I-III.
   factions: "games/hue-and-cry/data/world/factions.yaml"
+  # Since v0.14: the city's memory for the narrator (engine/lore/manager.py,
+  # SQLite FTS5). The markdown is the source; lore.db is gitignored, like
+  # every story's, and built by `CLOCKWORK_GAME=hue-and-cry python
+  # scripts/seed_lore.py`. `gm_secrets` sections (the hidden city, the flame's heart,
+  # the Company's split) reach the narrator, never Pip. Nothing in it names
+  # the real Magpie.
+  lore: "games/hue-and-cry/data/lore"
+  lore_db: "games/hue-and-cry/data/lore/lore.db"
   # Agendas (v0.12): the Magpie (one of three people, chosen by the seed),
   # Captain Ardane's net and Silas Crook's rise -- what the city does while
   # you are not looking (engine/world/agendas.py). Each winds a hidden clock

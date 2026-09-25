@@ -1,0 +1,52 @@
+# HUE & CRY -- what the streets drop.
+#
+# Read by engine/game/inventory.py through `paths.items` (every *.yaml in this
+# directory merges into one registry). Everything here is found, not bought:
+# data/tables/forage.yaml draws it when a thief scrounges a street. The rest
+# of what scrounging turns up is already in the registry -- a heel of bread
+# (food.yaml), a brass button, a pawn ticket, a silver thimble, a bundle of
+# beeswax tapers (goods.yaml).
+#
+# None of it is stolen, so none of it is hot: Dock Mag will buy a sack of
+# candle ends as readily as a fence will, at the one-crown floor every counter
+# pays (data/tables/trade.yaml, `min_sale_price`). That floor is why each of
+# these is worth exactly one crown and no more -- the forage table's weights,
+# not these values, decide how much a day of it earns (measured there).
+#
+# Version: v0.1.0 [2026-09-25]
+
+version: 1
+
+items:
+
+  - id: candle_ends
+    name: "Candle Ends"
+    description: >-
+      A twist of rag full of stubs and drips, swept off tenement stairs and
+      temple steps. The Snuffs are named for people who buy these; a
+      chandler will melt them down and never ask where.
+    tags: [goods, candle]
+    weight: 0.2
+    value: 1
+    stack: true
+
+  - id: rag_bundle
+    name: "Bundle of Rags"
+    description: >-
+      Somebody's old shirt, somebody else's sail, a stocking with no partner.
+      The rag-and-bone trade pays for them by the bundle, and a porter will
+      always take one for his shoulder.
+    tags: [goods]
+    weight: 0.4
+    value: 1
+    stack: true
+
+  - id: bruised_apple
+    name: "Bruised Apple"
+    description: >-
+      Rolled off a barrow in Wickmarket and under a stall, where the
+      stallholder decided it was not worth bending down for. It is, just.
+    tags: [food]
+    weight: 0.2
+    value: 1
+    stack: true

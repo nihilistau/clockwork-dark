@@ -11,7 +11,7 @@
 #
 # Every id must exist in data/items/.
 #
-# Version: v0.1.1 [2026-09-24]
+# Version: v0.1.2 [2026-09-25]
 
 # Hollis's Sundries and Curiosities, Wickmarket, 08:00 to 22:00.
 npc_pell_hollis:
@@ -19,6 +19,10 @@ npc_pell_hollis:
     pewter_candlesticks: { price: 11 }
     silver_thimble: { price: 7 }
     brass_snuffer: { price: 6 }
+    # The one thing on her shelves you can eat, and her shop keeps the latest
+    # hours in the market -- the evening meal after Dock Mag has gone
+    # (data/items/food.yaml; data/rules/survival.yaml prices it).
+    ship_biscuit: { price: 1 }
 
 # Marrow's rag-and-bone yard, the Snuffs, 17:00 to midnight.
 npc_marrow:
@@ -44,3 +48,7 @@ npc_marrow:
 npc_dock_mag:
   sells:
     porters_smock: { price: 4 }
+    # Breakfast and dinner off the basket by her crate: a day's bread is
+    # about two crowns (data/rules/survival.yaml has the measurement).
+    heel_of_bread: { price: 1 }
+    eel_pie: { price: 2 }

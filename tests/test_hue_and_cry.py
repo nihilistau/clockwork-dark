@@ -1492,3 +1492,944 @@ def test_a_statement_trace_reads_as_where_it_is_left(hue) -> None:
                 if m["id"] == "takes_a_statement")
     assert move["trace"]["where"] == "target"
     assert "watch-house" not in move["trace"]["text"], move["trace"]["text"]
+
+
+# ---------------------------------------------------------------------------
+# Somewhere to sleep (v0.14, spec §6: flophouse, guild bunks, taverns)
+# ---------------------------------------------------------------------------
+
+#: The districts anybody can walk into on turn one (not `secret: true`).
+PUBLIC_DISTRICTS = [d for d in DISTRICTS
+                    if d not in ("the_undercroft", "rooftop_road", "old_bell_tower")]
+
+REST_KINDS = {"rest_short", "sleep_flophouse", "sleep_guild_bunk", "sleep_tavern",
+              "sleep_cell", "sleep_rough"}
+
+
+def _rest_targets(state) -> list:
+    from engine.game import intents
+
+    verb = intents.find_verb(intents.legal_intents(state), "rest")
+    return [t for t, _label in (verb.options if verb else ())]
+
+
+def _held(state) -> None:
+    from engine.game.effects import apply_effect
+    from engine.world import law
+
+    _file_in(state, "self", "quay")
+    assert apply_effect(state, {"type": "arrest"})["ok"]
+    assert law.in_custody(state)
+
+
+def test_tallowmere_has_every_kind_of_bed(hue) -> None:
+    from engine.game import survival
+
+    assert REST_KINDS <= set(survival.rest_kinds())
+
+
+def test_a_rest_verb_is_offered_in_every_district_and_in_the_cells(hue) -> None:
+    from engine.game.clock import set_clock
+
+    state = _city(3)
+    set_clock(state, day=1, hour=22)
+    for district in PUBLIC_DISTRICTS:
+        state.location_id = district
+        assert "sleep_rough" in _rest_targets(state), district
+    state.location_id = "tallow_docks"
+    _held(state)
+    assert state.location_id == "lantern_house"
+    assert {"sleep_cell", "sleep_rough"} <= set(_rest_targets(state))
+
+
+def test_resting_restores_stamina_in_every_district(hue) -> None:
+    from engine.game import survival
+    from engine.game.clock import set_clock
+
+    for district in PUBLIC_DISTRICTS:
+        state = _city(5)
+        set_clock(state, day=1, hour=22)
+        state.location_id = district
+        state.stats.stamina = 10
+        out = survival.rest(state, "sleep_rough")
+        assert out["success"] and state.stats.stamina > 10, (district, out)
+
+
+def test_nothing_gates_sleeping_rough(hue) -> None:
+    """Rule 6: not the wanted band, not the cells, not an empty purse, not the
+    Company's bad books -- a rough night is always there and always gives
+    stamina back."""
+    from engine.game import survival
+    from engine.game.clock import set_clock
+
+    def rough(state) -> None:
+        state.stats.stamina = 5
+        assert "sleep_rough" in _rest_targets(state)
+        out = survival.rest(state, "sleep_rough")
+        assert out["success"] and out["kind"] == "sleep_rough", out
+        assert state.stats.stamina > 5
+
+    for reports in (0, 3, 15):  # unknown ... wanted, in the Wickmarket ward
+        state = _city(7)
+        set_clock(state, day=1, hour=22)
+        state.location_id = "wickmarket"
+        for _ in range(reports):
+            _file_in(state, "self", "wick")
+        rough(state)
+
+    for gold, standing in ((0, 0), (0, -100), (40, -100)):
+        for district in PUBLIC_DISTRICTS:
+            state = _city(7)
+            set_clock(state, day=1, hour=22)
+            state.location_id = district
+            state.stats.gold = gold
+            state.reputations["honest_company"] = standing
+            rough(state)
+
+    state = _city(7)
+    set_clock(state, day=1, hour=10)
+    state.location_id = "tallow_docks"
+    state.stats.gold = 0
+    state.reputations["honest_company"] = -100
+    _held(state)
+    rough(state)
+
+
+def test_the_flophouse_costs_coin(hue) -> None:
+    from engine.game import survival
+    from engine.game.clock import set_clock
+
+    state = _city(9)
+    set_clock(state, day=1, hour=22)
+    state.location_id = "the_snuffs"
+    state.stats.gold = 5
+    state.stats.stamina = 10
+    out = survival.rest(state, "sleep_flophouse")
+    assert out["kind"] == "sleep_flophouse"
+    assert out["paid"] >= 1 and state.stats.gold == 5 - out["paid"]
+    assert state.stats.stamina == survival.stamina_cap(state)
+
+    # No coin: a doorway instead, never a refusal, and nothing taken.
+    state.stats.gold = 0
+    out = survival.rest(state, "sleep_flophouse")
+    assert out["success"] and out["kind"] == "sleep_rough"
+    assert state.stats.gold == 0
+
+
+def test_the_tavern_rooms_are_on_the_docks_and_in_wickmarket(hue) -> None:
+    from engine.game import survival
+    from engine.game.clock import set_clock
+
+    for district in ("tallow_docks", "wickmarket"):
+        state = _city(9)
+        set_clock(state, day=1, hour=22)
+        state.location_id = district
+        state.stats.gold = 10
+        out = survival.rest(state, "sleep_tavern")
+        assert out["kind"] == "sleep_tavern" and out["paid"] > 0, district
+    state = _city(9)
+    state.location_id = "silk_row"
+    state.stats.gold = 10
+    assert survival.rest(state, "sleep_tavern")["kind"] == "sleep_rough"
+    assert state.stats.gold == 10
+
+
+def test_the_guild_bunk_needs_the_companys_good_opinion(hue) -> None:
+    from engine.game import survival
+    from engine.game.clock import set_clock
+
+    state = _city(9)
+    set_clock(state, day=1, hour=22)
+    state.location_id = "the_snuffs"
+    state.stats.gold = 5
+    out = survival.rest(state, "sleep_guild_bunk")
+    assert out["kind"] == "sleep_guild_bunk" and state.stats.gold == 5
+    assert "paid" not in out
+
+    state.reputations["honest_company"] = -10  # a contract left undone
+    out = survival.rest(state, "sleep_guild_bunk")
+    assert out["success"] and out["kind"] == "sleep_rough"
+    assert state.stats.gold == 5  # soured, it does not quietly buy a flophouse bed
+
+
+def test_a_prisoner_sleeps_in_the_cells(hue) -> None:
+    from engine.game import survival
+    from engine.game.clock import set_clock
+    from engine.game.effects import apply_effect
+
+    state = _city(4)
+    set_clock(state, day=1, hour=10)
+    state.location_id = "tallow_docks"
+    _held(state)
+    state.stats.stamina = 5
+    out = survival.rest(state, "sleep_cell")
+    assert out["kind"] == "sleep_cell" and state.stats.stamina > 5
+
+    apply_effect(state, {"type": "release"})
+    state.location_id = "lantern_house"
+    assert survival.rest(state, "sleep_cell")["kind"] == "sleep_rough"
+
+
+def test_there_is_a_meal_to_buy_morning_and_evening(hue) -> None:
+    """Hunger is the engine's (2 an hour); a meal is bought across a counter
+    and eaten through `eat`. Dock Mag feeds the quay by day, Pell Hollis's
+    shelf of biscuit carries it into the evening."""
+    from engine.game import survival, trade
+
+    from engine.game.clock import set_clock
+
+    meals = set((survival.load_rules().get("eat") or {}).get("items") or {})
+    for vendor, counter, hour in (("npc_dock_mag", "tallow_docks", 8),
+                                  ("npc_pell_hollis", "wickmarket", 20)):
+        sold = meals & set(trade.vendor(vendor)["sells"])
+        assert sold, f"{vendor} sells nothing the survival rules count as a meal"
+        for item in sold:
+            state = _city(2)
+            set_clock(state, day=1, hour=hour)
+            state.location_id = counter
+            state.stats.gold = 5
+            bought = trade.buy(state, vendor, item)
+            assert bought.get("success") or bought.get("ok"), (vendor, item, bought)
+            assert state.stats.gold < 5
+            state.hunger = 60.0
+            assert survival.eat(state, item)["success"], item
+            assert state.hunger < 60.0, item
+
+
+def test_a_rest_note_names_the_place_not_its_id(hue) -> None:
+    """A tavern asked for on Silk Row downgrades with a note in prose."""
+    from engine.agents.prompts import summarise_receipt
+    from engine.game import survival
+
+    state = _city(9)
+    state.location_id = "silk_row"
+    out = survival.rest(state, "sleep_tavern")
+    line = summarise_receipt({"skill": "rest", "result": out})
+    for text in (out["text"], line):
+        for place in LOCATIONS:
+            assert place not in text, (place, text)
+    assert str(LOCATIONS["silk_row"]["name"]) in out["text"]
+
+
+# ---------------------------------------------------------------------------
+# Scrounging and the secret ways (v0.14, spec §6)
+# ---------------------------------------------------------------------------
+
+#: The streets a thief can scrounge. Not Silk Row, the Hill or the Watch's own
+#: house (nobody drops anything there that is not watched), and never a secret
+#: place: the forage snapshot names every scroungeable place, and naming one
+#: of the three would give it away.
+SCROUNGE_DISTRICTS = {"tallow_docks", "wickmarket", "the_snuffs", "gallows_green",
+                      "chandlers_rise"}
+
+#: sha256 (first 16 hex) of `generate_world(seed).to_dict()` WITHOUT its
+#: `forest` -- the npcs, the households, the buildings and the premises --
+#: measured at 4003587, before this story declared procgen templates. The
+#: templates add a margin (forage ground and hidden paths) and must not move a
+#: single house: premises draw on their own stream, after every PROCGEN draw.
+PRE_TEMPLATE_WORLD_DIGESTS = {1: "39b2ee800b66da00", 7: "80177bc06b63a440",
+                              42: "c4ec9301b3453a38"}
+PRE_TEMPLATE_PREMISES_DIGESTS = {1: "65070778e0010d28", 7: "d0a8e14393f2a60d",
+                                 42: "3751ff8b2131f850"}
+
+
+def _digest(value) -> str:
+    import hashlib
+    import json
+
+    return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()[:16]
+
+
+def test_the_secret_ways_never_move_a_house(hue, monkeypatch) -> None:
+    from engine.game import procgen
+
+    assert procgen.load_templates().get("hidden_path_placements"), "no templates declared"
+    for seed in PRE_TEMPLATE_WORLD_DIGESTS:
+        world = procgen.generate_world(seed).to_dict()
+        assert world["forest"]["hidden_paths"], seed
+        assert _digest(world["premises"]) == PRE_TEMPLATE_PREMISES_DIGESTS[seed], seed
+        world.pop("forest")
+        assert _digest(world) == PRE_TEMPLATE_WORLD_DIGESTS[seed], seed
+
+    # And the same claim without a pinned number: the city generated with no
+    # templates at all is the city generated with them, bar its margin.
+    with_templates = [procgen.generate_world(s).to_dict() for s in (3, 99)]
+    monkeypatch.setattr(procgen, "load_templates", lambda: {})
+    for seed, world in zip((3, 99), with_templates):
+        bare = procgen.generate_world(seed).to_dict()
+        assert bare["forest"] == {"forage_nodes": [], "hidden_paths": [], "barrow_dungeon": {}}
+        world.pop("forest")
+        bare.pop("forest")
+        assert world == bare, seed
+
+
+def test_tallowmere_scrounges_its_streets_and_not_its_secrets(hue) -> None:
+    import json
+
+    from engine.game import foraging
+    from engine.game.locations import LOCATIONS
+
+    assert foraging.configured()
+    assert set(foraging._all_forageable_places()) == SCROUNGE_DISTRICTS
+    for seed in (1, 11, 42):
+        state = _city(seed)
+        for district in SCROUNGE_DISTRICTS:
+            assert foraging.nodes_at(state, district), (seed, district)
+        # The snapshot is a skill's answer and reaches the model: it lists
+        # every scroungeable place, so no secret may be one.
+        blob = json.dumps(foraging.snapshot(state))
+        for secret in SECRET_DISTRICTS:
+            assert secret not in blob, (seed, secret)
+            assert str(LOCATIONS[secret]["name"]) not in blob, (seed, secret)
+
+
+def test_every_scrounged_thing_is_in_the_registry_and_sells(hue) -> None:
+    from engine.game import foraging, inventory
+
+    known = inventory.load_items()
+    for table in foraging.load_rules()["tables"]:
+        for pool in ("common", "uncommon"):
+            for row in table.get(pool) or []:
+                item = known.get(str(row["item_id"]))
+                assert item is not None, (table["id"], row)
+                assert int(item.get("value") or 0) > 0, row["item_id"]
+
+
+def test_every_arrest_shows_the_drain(hue) -> None:
+    """Every outcome that ends in the cells reveals the Undercroft -- the
+    Lantern's stop and, since v0.14, the night streets' drunk Lantern too."""
+    from engine.game import encounter
+
+    arrests: dict[str, int] = {}
+    for row in encounter.all_encounters():
+        for approach in (row.get("approaches") or {}).values():
+            for degree, outcome in (approach.get("outcomes") or {}).items():
+                effects = outcome.get("effects") or []
+                if any(e.get("type") == "arrest" for e in effects):
+                    arrests[row["id"]] = arrests.get(row["id"], 0) + 1
+                    assert {"type": "flag", "flag": "location_known:the_undercroft",
+                            "value": True} in effects, (row["id"], degree)
+    assert arrests.get("watch_stop", 0) >= 4, arrests
+    assert arrests.get("drunk_lantern", 0) >= 2, arrests
+
+
+def test_every_secret_has_a_way_in(hue) -> None:
+    """At least one reveal each, and none that waits on content still to come."""
+    from engine.game import procgen
+    from engine.game.locations import LOCATIONS
+
+    pinned = {str(p.get("leads_to")) for p in procgen.load_templates()["hidden_path_placements"]}
+    assert pinned == {"rooftop_road", "the_undercroft", "old_bell_tower"}
+    assert LOCATIONS["old_bell_tower"].get("known_when")
+
+
+#: Small on purpose: the whole table is scripts/simulate_scrounge.py at 40
+#: seeds x 10 days (forage.yaml's header). These seeds bound the same claims.
+SCROUNGE_SEEDS = 6
+SCROUNGE_DAYS = 6
+#: What a careful pickpocket earns a day, coin plus goods at a fence
+#: (survival.yaml's header, simulate_law). Scrounging must earn less.
+CAREFUL_PICKPOCKET_CR_PER_DAY = 1.33
+#: A day's hunger at 2 an hour.
+HUNGER_PER_DAY = 48.0
+
+
+@pytest.fixture(scope="module")
+def measured_scrounge():
+    _scripts_on_path()
+    from scripts import simulate_law, simulate_scrounge
+
+    before = registry.peek()
+    registry.activate("hue-and-cry")
+    try:
+        with simulate_law.agendas_off():
+            return simulate_scrounge.measure("scrounger", SCROUNGE_SEEDS, SCROUNGE_DAYS)
+    finally:
+        if registry.peek() is not before:
+            registry.deactivate()
+
+
+def test_scrounging_all_day_earns_less_than_picking_pockets(measured_scrounge) -> None:
+    """A living, barely: coin enough for nothing, and less than a careful lift."""
+    report = measured_scrounge
+    assert 0.3 <= report["cr_per_day"] < CAREFUL_PICKPOCKET_CR_PER_DAY, report
+    assert report["value_per_hour"] < 0.6, report
+
+
+def test_scrounging_all_day_does_not_quite_feed_you(measured_scrounge) -> None:
+    """Most of a day's food from twelve hours in the gutters -- never all of it."""
+    report = measured_scrounge
+    assert 20.0 <= report["food_per_day"] < HUNGER_PER_DAY, report
+    assert report["min_hp"] > 0, report
+
+
+def test_a_scrounger_finds_the_ways_in(measured_scrounge) -> None:
+    for secret, row in measured_scrounge["ways_found"].items():
+        assert row["share"] >= 0.5, (secret, row)
+
+
+# ---------------------------------------------------------------------------
+# v0.14: honest work, luck and trade (data/tables/labour.yaml, boons.yaml,
+# complications.yaml; scripts/simulate_labour.py)
+# ---------------------------------------------------------------------------
+
+#: Who hires for each posting, and where they must be standing when a shift
+#: starts (data/world/npc_schedules.yaml). Errands have no one employer.
+EMPLOYERS = {
+    "dock_portering": "npc_dock_mag",
+    "candle_dipping": "npc_tobiah",
+    "lamplighting": "npc_wren",
+}
+
+
+def _slot(npc_id: str, hour: int) -> dict:
+    routine = npc_sim.load_npc_schedules()["npcs"][npc_id]["routine"]
+    return next(row for row in routine if hour % 24 in row["hours"])
+
+
+def _offered_at(job_id: str, hour: int) -> bool:
+    from engine.game import economy
+    from engine.game.clock import set_clock
+
+    job = economy.get_job(job_id)
+    state = _city(3)
+    set_clock(state, day=1, hour=hour)
+    state.location_id = job["location_id"]
+    return any(row["id"] == job_id for row in economy.available(state))
+
+
+def test_tallowmere_posts_honest_work_on_the_board(hue) -> None:
+    from engine.game.clock import set_clock
+    from engine.scenes.default_api import notice_board
+
+    state = _city(3)
+    set_clock(state, day=1, hour=8)
+    state.location_id = "tallow_docks"
+    board = notice_board(state)
+    assert board["configured"] is True
+    assert [n["id"] for n in board["notices"]] == ["dock_portering"]
+    assert {e["id"] for e in board["elsewhere"]} == {
+        "candle_dipping", "market_errands", "lamplighting"}
+
+
+def test_every_posting_is_open_only_while_its_employer_is_there(hue) -> None:
+    from engine.game import economy
+
+    for job_id, npc_id in EMPLOYERS.items():
+        job = economy.get_job(job_id)
+        open_hours = [h for h in range(24) if _offered_at(job_id, h)]
+        assert open_hours, job_id
+        for hour in open_hours:
+            slot = _slot(npc_id, hour)
+            assert slot["location"] == job["location_id"], (job_id, hour, slot)
+            assert slot.get("available", True), (job_id, hour, slot)
+    # The two stationary trades end before their masters go home.
+    for job_id in ("dock_portering", "candle_dipping"):
+        job = economy.get_job(job_id)
+        last_start = max(h for h in range(24) if _offered_at(job_id, h))
+        end = last_start + int(job["hours"])
+        slot = _slot(EMPLOYERS[job_id], end - 1)
+        assert slot["location"] == job["location_id"], (job_id, end, slot)
+
+
+def test_a_posting_out_of_hours_is_refused_in_the_citys_words(hue) -> None:
+    from engine.game import economy
+    from engine.game.clock import set_clock
+
+    state = _city(3)
+    set_clock(state, day=1, hour=3)
+    state.location_id = "tallow_docks"
+    before = (state.world_clock_hours, state.stats.stamina, state.stats.gold)
+    out = economy.work(state, "dock_portering")
+    assert out["worked"] is False and "Dock Mag" in out["message"], out
+    assert (state.world_clock_hours, state.stats.stamina, state.stats.gold) == before
+
+
+def test_a_shift_is_worked_through_the_production_channel(session) -> None:
+    from engine.agents.tool_dispatcher import execute_intent
+    from engine.game import intents
+
+    state = session.engine.state
+    assert state.location_id == "tallow_docks" and state.world_hour == 8
+    verb = intents.find_verb(intents.legal_intents(state), "work")
+    assert verb and [t for t, _ in verb.options] == ["dock_portering"]
+    gold = state.stats.gold
+    receipt = execute_intent({"action": "work", "target": "dock_portering"},
+                             session.engine)[0]["result"]
+    assert receipt["worked"] is True and receipt["hours"] == 6, receipt
+    assert state.stats.gold == gold + receipt["wage"]
+
+
+def test_luck_is_tallowmeres_and_pip_is_never_a_boon(hue) -> None:
+    from engine.game import checks
+
+    boons = checks._load_table("boons.yaml", "boons")
+    complications = checks._load_table("complications.yaml", "complications")
+    assert boons and complications
+    for row in boons:
+        assert "jackdaw" not in row["text"].lower() and "pip" not in row["text"].lower(), row
+    for row in complications:
+        if "jackdaw" in row["text"].lower():
+            assert row["effects"] == [], row  # flavour only: Pip speaks for himself
+
+
+def test_no_complication_piles_on_the_law_and_luck_only_cools_it(hue) -> None:
+    from engine.game import checks
+
+    law_kinds = {"deed", "report", "witness", "arrest", "law_link", "law_guise",
+                 "law_last_deed", "track", "job_alarm"}
+    for row in checks._load_table("complications.yaml", "complications"):
+        assert not {e["type"] for e in row["effects"]} & (law_kinds | {"law_cool"}), row
+    for row in checks._load_table("boons.yaml", "boons"):
+        assert not {e["type"] for e in row["effects"]} & law_kinds, row
+
+
+def test_every_boon_and_complication_applies_cleanly(hue) -> None:
+    from engine.game import checks
+    from engine.game.effects import apply_effects
+
+    for table, key in (("boons.yaml", "boons"), ("complications.yaml", "complications")):
+        for row in checks._load_table(table, key):
+            state = _city(3)
+            state.stats.gold = 3
+            receipts = apply_effects(state, row["effects"])
+            for receipt in receipts:
+                assert receipt.get("ok", True) is not False, (row["id"], receipt)
+
+
+#: MEASURED, v0.14, scripts/simulate_labour.py over 40 seeds x 10 days
+#: (labour.yaml's header, CHANGELOG.md [Unreleased]): an honest porter keeps
+#: 97% of days fed and under a roof and saves about 0.2 cr a day, a candle-
+#: dipper 89% and the same 0.2; the careful pickpocket keeps 8%. Asserted
+#: over 8 seeds x 8 days, loosely.
+LABOUR_SEEDS = 8
+LABOUR_DAYS = 8
+#: What a reckless pickpocket lifts a day, coin plus goods at a fence
+#: (survival.yaml's header, simulate_law). Thieving must pay more.
+RECKLESS_PICKPOCKET_CR_PER_DAY = 3.50
+
+
+@pytest.fixture(scope="module")
+def measured_living():
+    _scripts_on_path()
+    from scripts import simulate_labour, simulate_law
+
+    before = registry.peek()
+    registry.activate("hue-and-cry")
+    try:
+        with simulate_law.agendas_off():
+            return {p: simulate_labour.measure(p, LABOUR_SEEDS, LABOUR_DAYS)
+                    for p in ("porter", "dipper", "careful")}
+    finally:
+        if registry.peek() is not before:
+            registry.deactivate()
+
+
+def test_an_honest_day_pays_for_bread_and_a_bed_most_days(measured_living) -> None:
+    """Honest After All has to be a life you can actually live -- either way."""
+    report = measured_living["porter"]
+    assert report["shifts_per_day"] >= 1.8, report  # it really worked
+    assert report["kept_days"] >= 0.75, report
+    assert report["min_hp"] > 0, report
+    dipper = measured_living["dipper"]
+    assert dipper["shifts_per_day"] >= 1.6, dipper  # day one misses the stalls
+    assert dipper["kept_days"] >= 0.6, dipper
+
+
+def test_an_honest_day_leaves_little_over(measured_living) -> None:
+    """Thin: a crown a day saved would make honesty the easy road."""
+    for policy in ("porter", "dipper"):
+        report = measured_living[policy]
+        assert -0.5 < report["saved_per_day"] < 1.0, (policy, report)
+
+
+def test_thieving_pays_more_than_honest_work(measured_living) -> None:
+    for policy in ("porter", "dipper"):
+        report = measured_living[policy]
+        assert report["earned_per_day"] < RECKLESS_PICKPOCKET_CR_PER_DAY, (policy, report)
+
+
+def test_honest_work_keeps_you_better_than_careful_purses(measured_living) -> None:
+    porter, careful = measured_living["porter"], measured_living["careful"]
+    assert porter["kept_days"] > careful["kept_days"] + 0.3, (porter, careful)
+
+
+# ---------------------------------------------------------------------------
+# v0.14 task 4: the streets at night (data/encounters/streets.yaml)
+# ---------------------------------------------------------------------------
+
+#: The scenes a road may hand the player. `watch_stop` is not one: the Law's
+#: patrol opens it, and it carries `on_roads: false` so no road ever draws it.
+STREET_SCENES = {"cutpurses", "press_gang", "drunk_lantern", "lamplighters_warning",
+                 "silas_toughs"}
+#: MEASURED, v0.14 (rules.yaml's header): the per-leg chance for a fresh
+#: thief (stealth +2) over every public street is 17.5% on average at 23:00
+#: (6% on the Hill, 26% on any street touching the Docks or the Snuffs) and
+#: at most 0.5% at noon. Bounds sit just outside the measured numbers.
+NIGHT_MEAN_FLOOR = 0.15
+NIGHT_MAX_CEILING = 0.30
+DAY_MAX_CEILING = 0.02
+#: scripts/simulate_streets.py, a street an hour around the clock. 40 seeds x
+#: 3 days: a scene on 19.7% of night legs and 0.3% of day legs, min hp 20.
+#: Asserted over 6 seeds x 2 days, loosely.
+STREET_SEEDS = 6
+STREET_DAYS = 2
+
+
+def _public_legs():
+    from engine.game.locations import LOCATIONS
+
+    for src, spec in LOCATIONS.items():
+        if spec.get("secret"):
+            continue
+        for dst in spec.get("connections") or {}:
+            if not (LOCATIONS.get(dst) or {}).get("secret"):
+                yield src, dst
+
+
+def _chance_at(session, hour: int, src: str, dst: str) -> float:
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    set_clock(state, day=2, hour=hour)
+    return encounter.trigger_chance(state, src, dst)
+
+
+def test_the_streets_ship_their_night_scenes(session) -> None:
+    from engine.game import encounter
+
+    rows = {r["id"]: r for r in encounter.all_encounters()}
+    assert STREET_SCENES <= set(rows), sorted(rows)
+    assert rows["watch_stop"].get("on_roads") is False
+    for scene in STREET_SCENES:
+        assert rows[scene].get("on_roads", True) is not False, scene
+
+
+def test_the_lanterns_stop_is_never_drawn_on_a_road(session) -> None:
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    for hour in range(24):
+        set_clock(state, day=2, hour=hour)
+        for src, dst in _public_legs():
+            ids = {r["id"] for r in encounter.eligible(state, src, dst)}
+            assert "watch_stop" not in ids, (src, dst, hour)
+            assert ids <= STREET_SCENES, (src, dst, hour, ids)
+
+
+def test_every_leg_that_can_draw_has_something_to_draw(session) -> None:
+    """A nonzero chance with nothing eligible is a roll that cannot pay off."""
+    from engine.game import encounter
+
+    for hour in range(24):
+        for src, dst in _public_legs():
+            if _chance_at(session, hour, src, dst) > 0.0:
+                assert encounter.eligible(session.engine.state, src, dst), (src, dst, hour)
+
+
+def test_the_secret_ways_are_quiet(session) -> None:
+    """The Undercroft, the roofs and the tower are how a thief AVOIDS the streets."""
+    from engine.game.locations import LOCATIONS
+
+    for src, spec in LOCATIONS.items():
+        for dst, edge in (spec.get("connections") or {}).items():
+            if spec.get("secret") or (LOCATIONS.get(dst) or {}).get("secret"):
+                assert int(edge.get("danger_dc") or 0) == 0, (src, dst)
+
+
+def test_night_streets_are_a_real_risk_and_days_mostly_safe(session) -> None:
+    """The per-leg chance for a fresh thief (stealth +2), straight from the
+    engine's own formula -- the table is in rules.yaml's header."""
+    legs = list(_public_legs())
+    night = [_chance_at(session, 23, s, d) for s, d in legs]
+    noon = [_chance_at(session, 12, s, d) for s, d in legs]
+    assert sum(night) / len(night) >= NIGHT_MEAN_FLOOR, night
+    assert max(night) <= NIGHT_MAX_CEILING, night
+    assert max(noon) <= DAY_MAX_CEILING, noon
+    # The waterfront and the Snuffs are worse than the Hill after dark.
+    assert (_chance_at(session, 23, "tallow_docks", "the_snuffs")
+            > _chance_at(session, 23, "silk_row", "margraves_hill"))
+
+
+def test_no_street_scene_can_soft_lock(session) -> None:
+    """Every road scene has a way out that needs no roll, no coin, no item,
+    no hour and no flag -- and taking it ends the scene."""
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    rows = {r["id"]: r for r in encounter.all_encounters()}
+    gated = ("cost_gold", "cost_per_severity", "requires_item", "requires_flag",
+             "requires_time", "requires_phase")
+    for scene in sorted(STREET_SCENES):
+        free = [key for key, spec in rows[scene]["approaches"].items()
+                if spec.get("auto") and not any(spec.get(g) for g in gated)]
+        assert free, scene
+        set_clock(state, day=2, hour=23)
+        state.stats.gold = 0
+        encounter.begin(state, scene)
+        receipt = encounter.resolve_approach(state, free[0])
+        assert receipt["ok"] and receipt["resolved"], (scene, receipt)
+        assert not encounter.active(state), scene
+
+
+def test_no_street_scene_hurts_more_than_three_hp(session) -> None:
+    """No `death.yaml` until v0.17: the streets rob, chase and arrest, and a
+    fight costs a little blood -- never enough to kill a thief who meets one."""
+    from engine.game import encounter
+
+    for row in encounter.all_encounters():
+        if row["id"] not in STREET_SCENES:
+            continue
+        for key, spec in row["approaches"].items():
+            for degree, block in (spec.get("outcomes") or {}).items():
+                hp = sum(int(e.get("delta") or 0) for e in block.get("effects") or []
+                         if e.get("type") == "hp")
+                assert hp >= -3, (row["id"], key, degree)
+
+
+def test_hitting_a_drunk_lantern_is_still_assault(session, monkeypatch) -> None:
+    """Silk Row at ten at night: Lantern Hobb is walking it and sees who did it."""
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+    from engine.world import law
+
+    state = session.engine.state
+    set_clock(state, day=2, hour=22)
+    state.location_id = "silk_row"
+    monkeypatch.setattr("engine.game.checks.resolve", lambda *a, **k: _Forced("success"))
+    encounter.begin(state, "drunk_lantern")
+    encounter.resolve_approach(state, "fight")
+    assert not law.in_custody(state)
+    assert any(r["deed"] == "assault_watch" for r in state.law.get("reports") or [])
+
+    monkeypatch.setattr("engine.game.checks.resolve", lambda *a, **k: _Forced("failure"))
+    encounter.begin(state, "drunk_lantern")
+    encounter.resolve_approach(state, "fight")
+    assert law.in_custody(state) and state.location_id == "lantern_house"
+    assert state.flags.get("location_known:the_undercroft")
+
+
+def test_a_drunk_lantern_struck_with_no_watch_on_duty_still_files_it(session, monkeypatch) -> None:
+    """
+    v0.14 final: the drunk Lantern is no scheduled person, so on a street no
+    duty Lantern walks the blow went unfiled. `report_precision` has him tell
+    the watch-house himself -- one blurred report, never none.
+    """
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+    from engine.world import law, npc_sim
+
+    state = session.engine.state
+    set_clock(state, day=2, hour=1)
+    state.location_id = "wickmarket"
+    real = npc_sim.npcs_at
+    roles = set(law.load_spec()["roles"])
+    # Nobody of the watch on this street tonight: the struck man is the scene's.
+    monkeypatch.setattr(npc_sim, "npcs_at",
+                        lambda st, loc: [p for p in real(st, loc) if p.role not in roles])
+    monkeypatch.setattr("engine.game.checks.resolve", lambda *a, **k: _Forced("success"))
+    encounter.begin(state, "drunk_lantern")
+    encounter.resolve_approach(state, "fight")
+    reports = [r for r in state.law.get("reports") or [] if r["deed"] == "assault_watch"]
+    assert len(reports) == 1, reports
+    assert reports[0]["precision"] == 0.6
+
+
+def test_every_struck_lantern_outcome_reports_itself() -> None:
+    """Every `assault_watch` in the street scenes carries the victim's own report."""
+    import yaml
+    from pathlib import Path
+
+    doc = yaml.safe_load(Path("games/hue-and-cry/data/encounters/streets.yaml").read_text(encoding="utf-8"))
+    found = 0
+    for scene in doc["encounters"]:
+        for approach in (scene.get("approaches") or {}).values():
+            for outcome in ((approach or {}).get("outcomes") or {}).values():
+                for eff in (outcome or {}).get("effects") or []:
+                    if eff.get("type") == "deed" and eff.get("deed") == "assault_watch":
+                        found += 1
+                        assert eff.get("report_precision") == 0.6, (scene["id"], eff)
+    assert found >= 4, found
+
+
+def test_a_night_street_hands_the_walker_a_scene_through_travel(session) -> None:
+    """The production channel: `travel` at night draws a street scene; the
+    same number of walks at noon draws next to nothing."""
+    from engine.agents.tool_dispatcher import execute_intent
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+
+    def walks(hour: int) -> list[str]:
+        drawn: list[str] = []
+        for n in range(40):
+            state.encounter = {}
+            state.stats.stamina = state.stats.max_stamina
+            set_clock(state, day=2 + n, hour=hour)
+            there = "the_snuffs" if state.location_id == "tallow_docks" else "tallow_docks"
+            execute_intent({"action": "travel", "target": there}, session.engine)
+            assert state.location_id == there
+            if encounter.active(state):
+                drawn.append(str(state.encounter["id"]))
+        return drawn
+
+    state.location_id = "tallow_docks"
+    night = walks(23)
+    assert len(night) >= 4, night
+    assert set(night) <= STREET_SCENES, night
+    assert len(walks(12)) <= 2
+
+
+def test_the_wanderer_meets_the_night_and_not_the_day(hue) -> None:
+    """The harness, production channel: a street an hour, day and night."""
+    _scripts_on_path()
+    from scripts import simulate_streets
+
+    report = simulate_streets.measure(STREET_SEEDS, STREET_DAYS)
+    parts = report["by_daypart"]
+    assert parts["night"]["rate"] >= 0.12, report
+    assert parts["day"]["rate"] <= 0.03, report
+    assert parts["night"]["rate"] > parts["dusk"]["rate"], report
+    assert report["min_hp"] > 0, report
+
+
+# -- v0.14 Task 5: factions and the city's memory ----------------------------------
+
+SEVEN_FACTIONS = {"honest_company", "lantern_watch", "chandlers_guild", "market_stalls",
+                  "temple_everflame", "margraves_household", "silk_row"}
+#: Declared for Acts I-III and moved by nothing yet (CLAUDE.md deferred).
+AWAITING_ACTS = {"temple_everflame", "margraves_household", "silk_row"}
+
+
+def _story_yaml(rel: str):
+    import yaml
+    from pathlib import Path
+
+    return yaml.safe_load(Path("games/hue-and-cry", rel).read_text(encoding="utf-8"))
+
+
+def _faction_movers() -> set[str]:
+    """Every faction some shipped hue-and-cry content moves (labour, boons, effects)."""
+    import re
+    from pathlib import Path
+
+    moved: set[str] = set()
+    for path in Path("games/hue-and-cry/data").rglob("*.yaml"):
+        moved.update(re.findall(r"faction:\s*([a-z_]+)", path.read_text(encoding="utf-8")))
+    return moved
+
+
+def test_tallowmere_declares_seven_factions(session) -> None:
+    from engine.game import reputation
+
+    assert set(_story_yaml("data/world/factions.yaml")["factions"]) == SEVEN_FACTIONS
+    assert set(reputation.faction_ids()) == SEVEN_FACTIONS
+    for fid in SEVEN_FACTIONS:
+        assert reputation.standing(session.engine.state, fid) == "neutral", fid
+        assert reputation.faction_name(fid) != fid, fid  # a name, never the id
+
+
+def test_striking_a_lantern_costs_the_watchs_good_opinion(session, monkeypatch) -> None:
+    from engine.game import encounter, reputation
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    set_clock(state, day=2, hour=22)
+    state.location_id = "silk_row"
+    before = reputation.get(state, "lantern_watch")
+    monkeypatch.setattr("engine.game.checks.resolve", lambda *a, **k: _Forced("success"))
+    encounter.begin(state, "drunk_lantern")
+    encounter.resolve_approach(state, "fight")
+    assert reputation.get(state, "lantern_watch") == before - 10
+
+
+def test_every_faction_but_the_acts_ones_is_moved_by_something() -> None:
+    """A faction nothing moves is the inert shape -- except the three the acts will use."""
+    moved = _faction_movers()
+    assert SEVEN_FACTIONS - AWAITING_ACTS <= moved, SEVEN_FACTIONS - AWAITING_ACTS - moved
+    assert not (moved - SEVEN_FACTIONS), moved - SEVEN_FACTIONS  # no undeclared faction
+
+
+def test_honest_work_earns_the_employers_good_opinion(session, monkeypatch) -> None:
+    from engine.agents.tool_dispatcher import execute_intent
+    from engine.game import reputation
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    monkeypatch.setattr("engine.game.checks.resolve", lambda *a, **k: _Forced("success"))
+    for day, place, hour, job, faction in (
+        (2, "chandlers_rise", 7, "candle_dipping", "chandlers_guild"),
+        (3, "wickmarket", 9, "market_errands", "market_stalls"),
+        (4, "wickmarket", 18, "lamplighting", "lantern_watch"),
+    ):
+        before = reputation.get(state, faction)
+        state.location_id = place
+        set_clock(state, day=day, hour=hour)
+        state.stats.stamina = state.stats.max_stamina
+        receipt = execute_intent({"action": "work", "target": job}, session.engine)[0]["result"]
+        assert receipt.get("worked") is True, (job, receipt)
+        assert reputation.get(state, faction) == before + 1, (job, before, reputation.get(state, faction))
+
+
+def test_the_lore_corpus_is_retrievable(tmp_path) -> None:
+    from pathlib import Path
+
+    from engine.lore.manager import reset_lore_manager
+
+    manager = reset_lore_manager(db_path=tmp_path / "hue_lore.db")
+    count = manager.ingest_directory(Path("games/hue-and-cry/data/lore"))
+    assert count >= 20, count
+    hits = manager.search("Everflame crystal lantern palace", limit=3)
+    assert hits and any("Everflame" in h.text for h in hits)
+    hits = manager.search("Mother Gannet knitting porters", limit=3)
+    assert hits and any("Gannet" in h.text for h in hits)
+
+
+def test_the_hidden_city_is_the_narrators_not_pips(tmp_path) -> None:
+    """The secret places live only in gm_secrets chunks: a public-only reader never gets them."""
+    from pathlib import Path
+
+    from engine.agents.knowledge import SCOPE_GM, SCOPE_PUBLIC
+    from engine.lore.manager import reset_lore_manager
+
+    manager = reset_lore_manager(db_path=tmp_path / "hue_lore.db")
+    manager.ingest_directory(Path("games/hue-and-cry/data/lore"))
+    for query in ("Undercroft drains grating", "Rooftop Road gutters", "bell tower Green"):
+        public = manager.search(query, limit=5, scopes=(SCOPE_PUBLIC,))
+        assert not any(name in h.text for h in public
+                       for name in ("Undercroft", "Rooftop Road", "Old Bell Tower")), query
+        gm = manager.search(query, limit=5, scopes=(SCOPE_PUBLIC, SCOPE_GM))
+        assert gm, query
+
+
+def test_the_lore_never_links_a_candidate_to_the_magpie() -> None:
+    """No sentence in the corpus puts a Magpie candidate and the Magpie together."""
+    import re
+    from pathlib import Path
+
+    names = {"Wren", "Silas", "Imelda", "Vessaline", "Crook", "lamplighter", "Dapper"}
+    for path in Path("games/hue-and-cry/data/lore").glob("*.md"):
+        for sentence in re.split(r"(?<=[.!?])\s+", path.read_text(encoding="utf-8")):
+            if "Magpie" in sentence:
+                hit = {n for n in names if n in sentence}
+                assert not hit, (path.name, hit, sentence)
+
+
+def test_work_elsewhere_says_whether_it_is_open_now(session) -> None:
+    """v0.14 final: the narrator saw lamplighting as hiring at 08:00, when Wren sleeps."""
+    from engine.game import economy
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    state.location_id = "tallow_docks"
+    set_clock(state, day=2, hour=8)
+    rows = {r["id"]: r for r in economy.snapshot(state)["elsewhere"]}
+    assert rows["lamplighting"]["open_now"] is False
+    assert rows["candle_dipping"]["open_now"] is True
+    set_clock(state, day=2, hour=18)
+    rows = {r["id"]: r for r in economy.snapshot(state)["elsewhere"]}
+    assert rows["lamplighting"]["open_now"] is True

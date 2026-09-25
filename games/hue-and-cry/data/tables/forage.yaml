@@ -1,0 +1,172 @@
+# HUE & CRY -- scrounging: what two hours of looking down gets you in a city.
+#
+# Consumed by engine/game/foraging.py through `paths.tables` (the engine calls
+# it foraging; in Tallowmere it is going through the gutters). The ground is
+# five streets -- the ones carrying the `scrounge` tag in data/world/
+# locations.yaml: the docks, Wickmarket, the Snuffs, Gallows Green and
+# Chandlers' Rise. Never Silk Row or the Hill (nothing is dropped there that
+# is not watched), never the Lantern House, and never a secret place: the
+# forage snapshot names every scroungeable place, and naming a secret would
+# give it away.
+#
+# WHAT IT GIVES. A little food (a heel of bread off a back step, a bruised
+# apple, a ship's biscuit spilled from a split cask), junk a counter will take
+# for a crown (candle ends, rags), and now and then something that shines. And
+# the secret ways: a good roll can notice one of the hidden paths the story's
+# procgen template pins to a street (data/procgen_templates/tallowmere.yaml).
+#
+# THE NUMBERS, BY MEASUREMENT (AGENTS.md rule 10): scripts/simulate_scrounge.py,
+# 40 seeds x 10 days, agendas off, NOT fed by the harness. `scrounger` works
+# four streets a day (the Snuffs, the docks, Wickmarket, then the Rise or the
+# Green), sells every non-food thing, eats what it finds, buys bread only when
+# hungry with nothing to eat, and sleeps rough; `mornings` works two streets
+# and stops -- the sideline a pickpocket would make of it.
+#
+#   policy     attempts/day  sold cr/day  food/day  value/hr  hungry days  min hp
+#   scrounger      4.0          0.97        38.1      0.37      0.38/10      15
+#   mornings       2.0          0.64        22.4      0.46      0.72/10       0
+#
+# (food is hunger taken off by what it found; a day's hunger is 48.) Against
+# Task 1's cost of living (a bread floor of ~2 cr a day, survival.yaml) and a
+# careful pickpocket's ~1.3 cr a day: twelve hours in the gutters, every day,
+# feeds a thief most of the way and earns under a crown -- a subsistence, never
+# a flophouse, a tool or a job. Picking pockets stays the only way to MONEY
+# (the pickpocket earns its day in an hour or two); scrounging is what keeps a
+# broke thief alive while it learns. A half-day of it does not: the mornings
+# thief still goes hungry, and one seed starved to 0 hp (there is no death.yaml
+# until v1.0 -- CLAUDE.md). The first cut (picks 3/2/1, the flagship's easier
+# bands, food and junk weights half again) measured 2.75 cr and 70 food a day,
+# a better living than stealing; tests/test_hue_and_cry.py bounds both sides.
+#
+# RESTATED, v0.14 task 3: "never a flophouse" was not measured with a bed. The
+# cost-of-living harness (scripts/simulate_labour.py, labour.yaml's header)
+# has the same scrounger pay for Old Nance's pallet when it can: its ~1.1 cr
+# of sales covers the 1-crown bed on 97% of nights and it ends 95% of days fed
+# and under a roof, saving nothing (+0.04 cr a day). A subsistence with a roof
+# -- still never a tool, a job or a crown put by.
+#
+# The secret ways, same run: a scrounger finds the Rooftop Road on 100% of
+# seeds (mean day 2.5), the Undercroft's grating on 97% (2.5), the churchyard
+# wall to the Old Bell Tower on 68% (3.4, the Green is every other day).
+#
+# Version: v0.1.0 [2026-09-25]
+
+version: 1
+
+forage:
+  skill: survival
+  # Two hours and six stamina a go, the flagship's measured price for working
+  # ground. A street costs five stamina to walk, so a day of it is paid for.
+  hours: 2.0
+  stamina_cost: 6
+
+  location_tags: [scrounge]
+
+  # procgen mints node DCs in 6..14. One band harder than the flagship's
+  # woods (measured above): a city's gutters are picked over by everyone.
+  bands:
+    - { upto: 8,  band: easy }
+    - { upto: 11, band: standard }
+    - { band: hard }
+
+  picks:
+    crit_success: 2
+    success: 1
+    partial: 1
+    failure: 0
+
+  # The odd shiny: rolled once, on a good attempt.
+  uncommon:
+    degrees: [crit_success, success]
+    chance: { crit_success: 0.4, success: 0.1 }
+
+  # Worked streets are picked over, and forget you by morning -- the
+  # flagship's measured depletion (its forage.yaml has the reasoning).
+  depletion:
+    yield_step: 0.68
+    yield_floor: 0.34
+    dc_step: 1
+    dc_cap: 5
+    recovery_days: 1
+
+  # A city barely has seasons in its gutters. Winter is harder on the hands
+  # and thinner on the ground, and that is all.
+  season:
+    days_each: 30
+    order: [spring, summer, autumn, winter]
+    modifiers:
+      spring: { check: 0,  yield: 1.0, label: "spring" }
+      summer: { check: 0,  yield: 1.0, label: "summer" }
+      autumn: { check: 0,  yield: 1.0, label: "autumn" }
+      winter: { check: -1, yield: 0.8, label: "winter" }
+
+  # Desperation sharpens the eye, and offsets the global hunger penalties
+  # for this one activity -- the flagship's rule, for the flagship's reason: a
+  # penalty on the only unpaid food there is, is a spiral.
+  hunger:
+    fed: 0
+    peckish: 0
+    hungry: 1
+    starving: 3
+
+  # First to the back doors at dawn gets the bread; the dark hides what is
+  # in the gutter along with who is in it.
+  time_of_day:
+    dawn: 1
+    day: 0
+    dusk: 0
+    night: -2
+
+# Yield tables. A table applies where a location's tags intersect its `tags`;
+# every applicable table pools. `street` is everywhere that scrounges; the
+# others add what one district drops that the rest do not.
+tables:
+
+  - id: street
+    label: "the gutters and the back steps"
+    tags: [scrounge]
+    common:
+      - { item_id: heel_of_bread, weight: 14, qty: [1, 1] }
+      - { item_id: bruised_apple, weight: 16, qty: [1, 1] }
+      - { item_id: candle_ends,   weight: 5,  qty: [1, 1] }
+      - { item_id: rag_bundle,    weight: 4,  qty: [1, 1] }
+    uncommon:
+      - { item_id: brass_button,  weight: 30, qty: [1, 1] }
+      - { item_id: pawn_ticket,   weight: 20, qty: [1, 1] }
+      - { item_id: silver_thimble, weight: 5, qty: [1, 1] }
+
+  - id: quay
+    label: "the tide-line under the boards"
+    tags: [waterfront]
+    common:
+      - { item_id: ship_biscuit, weight: 10, qty: [1, 1] }
+      - { item_id: rag_bundle,   weight: 2,  qty: [1, 1] }
+
+  - id: market
+    label: "under the stalls"
+    tags: [market]
+    common:
+      - { item_id: bruised_apple, weight: 10, qty: [1, 1] }
+
+  - id: tenements
+    label: "the stairwells and the middens"
+    tags: [slum]
+    common:
+      - { item_id: candle_ends, weight: 4,  qty: [1, 1] }
+      - { item_id: rag_bundle,  weight: 3,  qty: [1, 1] }
+
+  - id: temple_steps
+    label: "the temple steps and the guild yards"
+    tags: [temple]
+    common:
+      - { item_id: candle_ends, weight: 6,  qty: [1, 1] }
+    uncommon:
+      - { item_id: beeswax_tapers, weight: 12, qty: [1, 1] }
+
+  - id: the_green
+    label: "the grass round the gallows"
+    tags: [gallows]
+    common:
+      - { item_id: heel_of_bread, weight: 10, qty: [1, 1] }
+    uncommon:
+      - { item_id: brass_button, weight: 10, qty: [1, 1] }

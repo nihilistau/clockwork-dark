@@ -35,6 +35,10 @@
 #   requires       optional gates: item held, minimum standing
 #   demand         wage multiplier per evil phase. Zero means NOT HIRING --
 #                  the job disappears from the board rather than paying zero.
+#   when           optional condition in the shared grammar (quests.py),
+#                  e.g. `hour_between: [17, 20]`; unmet, the job is off the
+#                  board like an unmet gate. No job here declares one.
+#   closed_text    what `work` says when `when` is unmet
 #
 # Version: v0.1.0 [2026-08-08]
 

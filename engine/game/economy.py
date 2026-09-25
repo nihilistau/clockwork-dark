@@ -253,6 +253,18 @@ def _requirements_met(state: GameState, job: dict[str, Any]) -> tuple[bool, str]
                     f"{reputation_module.faction_name(faction)} will not put "
                     "work your way yet."
                 )
+    # `when:` -- a condition in the shared grammar, most often the hours the
+    # work is on offer (`hour_between`). Unmet, the job is shut like any other
+    # gate: off the board and out of the enum, and refused in the job's own
+    # words (`closed_text`) if a caller asks anyway.
+    when = job.get("when")
+    if when is not None:
+        from engine.game.quests import evaluate_condition
+
+        if not evaluate_condition(state, when):
+            return False, str(
+                job.get("closed_text") or "Nobody is taking on hands for that just now."
+            ).strip()
     return True, ""
 
 
@@ -548,13 +560,30 @@ def snapshot(state: GameState) -> dict[str, Any]:
         "phase": state.evil_phase.value,
         "here": available(state),
         "elsewhere": [
-            {
-                "id": job_id,
-                "name": str(job.get("name") or job_id),
-                "location_id": str(job.get("location_id") or ""),
-                "hiring": demand_multiplier(state, job) > 0,
-            }
+            _elsewhere_row(state, job_id, job)
             for job_id, job in sorted(jobs().items())
             if str(job.get("location_id") or "") != state.location_id
         ],
     }
+
+
+def _elsewhere_row(state: GameState, job_id: str, job: dict[str, Any]) -> dict[str, Any]:
+    """
+    One job somewhere else in town, for the narrator's sense of the city.
+
+    ``hiring`` is demand only. A job that keeps hours (``when:``) also says
+    whether it is ``open_now`` -- without it the narrator saw lamplighting as
+    hiring at eight in the morning, when Wren is asleep. The key is added only
+    for such a job, so a story whose jobs keep no hours reads exactly as before.
+    """
+    row: dict[str, Any] = {
+        "id": job_id,
+        "name": str(job.get("name") or job_id),
+        "location_id": str(job.get("location_id") or ""),
+        "hiring": demand_multiplier(state, job) > 0,
+    }
+    if job.get("when") is not None:
+        from engine.game.quests import evaluate_condition
+
+        row["open_now"] = bool(evaluate_condition(state, job.get("when")))
+    return row

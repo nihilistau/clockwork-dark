@@ -214,17 +214,32 @@ def _build_forest(rng: random.Random, templates: dict[str, Any]) -> dict[str, An
                 }
             )
 
+    # PLACEMENTS: path N may be pinned by the Nth row of
+    # `hidden_path_placements` -- `{from, leads_to, labels}`, each optional --
+    # instead of drawn from the pools. A city's secret way in starts in a
+    # particular street (a drainpipe in Wickmarket, a grating in the Snuffs),
+    # where the round-robin deal in engine/game/foraging.py::path_home would
+    # put it wherever the alphabet fell. A pinned row replaces WHICH pool a
+    # draw is taken from, never how many draws there are, and `from_id` is
+    # written only when pinned, so a template that declares no placements
+    # (the flagship's) generates exactly the paths it always did.
+    placements = templates.get("hidden_path_placements") or []
     hidden_paths = []
-    if path_labels and path_targets:
-        for idx in range(int(counts.get("hidden_paths", 0))):
-            hidden_paths.append(
-                {
-                    "id": f"hidden_path_{idx + 1}",
-                    "label": rng.choice(path_labels),
-                    "leads_to": rng.choice(path_targets),
-                    "dc": rng.randint(10, 16),
-                }
-            )
+    for idx in range(int(counts.get("hidden_paths", 0))):
+        pin = placements[idx] if idx < len(placements) and isinstance(placements[idx], dict) else {}
+        labels = [str(x) for x in (pin.get("labels") or [])] or path_labels
+        targets = [str(pin["leads_to"])] if pin.get("leads_to") else path_targets
+        if not labels or not targets:
+            continue
+        path = {
+            "id": f"hidden_path_{idx + 1}",
+            "label": rng.choice(labels),
+            "leads_to": rng.choice(targets),
+            "dc": rng.randint(10, 16),
+        }
+        if pin.get("from"):
+            path["from_id"] = str(pin["from"])
+        hidden_paths.append(path)
 
     barrow: dict[str, Any] = {}
     if barrow_id and barrow_names:

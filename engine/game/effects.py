@@ -1183,6 +1183,12 @@ def _e_deed(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dic
     CERTAIN witness: a Lantern you knocked down saw who did it, whatever the
     notice roll would have said. Everyone else rolls as for any deed.
 
+    ``report_precision: <0..1>`` is the victim telling the watch-house
+    himself -- a scene's own Lantern, who is no scheduled person and so is not
+    among the witnesses ``seen_by_watch`` can find. When nobody present filed
+    the deed, one report of it is filed for the guise worn, where it happened,
+    at that clarity. When someone did, it adds nothing: one deed, one report.
+
     Every write inside is itself an effect (``witness``, ``report``). A kind
     the law file does not list is refused rather than committed as nothing,
     so a misspelt deed in an outcome says so.
@@ -1194,6 +1200,12 @@ def _e_deed(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dic
     kind = str(effect.get("deed") or "").strip()
     if kind not in law.load_spec()["deeds"]:
         return _law_refusal("deed", f"unknown deed `{kind}`")
+    told: float | None = None
+    if "report_precision" in effect:
+        raw = effect.get("report_precision")
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)) or not 0.0 <= raw <= 1.0:
+            return _law_refusal("deed", "report_precision must be a number between 0 and 1")
+        told = float(raw)
     certain: tuple[str, ...] = ()
     if effect.get("seen_by_watch"):
         roles = set(law.load_spec().get("roles") or [])
@@ -1202,10 +1214,22 @@ def _e_deed(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dic
             if p.available and p.role in roles
         )
     seen = law.commit_deed(state, kind, certain=certain)
+    reported = bool(seen.get("reported"))
+    jurisdiction = law.jurisdiction_at(state.location_id)
+    if told is not None and not reported and jurisdiction:
+        filed = apply_effect(state, {
+            "type": "report", "deed": kind, "guise": law.current_guise(state),
+            "jurisdiction": jurisdiction, "precision": told,
+            # Seen by a bystander who did not tell: join that deed (the
+            # stamp `commit_deed` just wrote), so it is still one deed.
+            "deed_id": str((state.law.get("last_deed") or {}).get("id") or "")
+            if seen.get("witnesses") else "",
+        })
+        reported = bool(filed.get("ok"))
     return {
         "type": "deed",
         "ok": True,
-        "reported": bool(seen.get("reported")),
+        "reported": reported,
         # The outcome's own prose tells it; witness ids never reach the narrator.
         "hidden": True,
         "text": "",

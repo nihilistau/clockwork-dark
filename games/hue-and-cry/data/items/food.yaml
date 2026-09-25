@@ -1,0 +1,49 @@
+# HUE & CRY -- something to eat.
+#
+# Read by engine/game/inventory.py through `paths.items` (every *.yaml in this
+# directory merges into one registry). Each id here has a row under `eat:` in
+# data/rules/survival.yaml, which is what makes it a meal: how much hunger it
+# takes off and the line the narrator is handed when it is eaten.
+#
+# WHERE IT COMES FROM (data/economy.yaml). Dock Mag sells bread and eel pie
+# from a basket by her crate, because a porter who has not eaten drops crates;
+# Pell Hollis keeps a shelf of ship's biscuit among the curiosities, and her
+# shop is open into the evening, after Mag has gone to pay the wages. Prices
+# are set against what a thief earns in a day (survival.yaml's header).
+#
+# Version: v0.1.0 [2026-09-25]
+
+version: 1
+
+items:
+
+  - id: heel_of_bread
+    name: "Heel of Bread"
+    description: >-
+      The end of yesterday's loaf, with a scrape of dripping if Mag likes the
+      look of you. A crown buys it and it is worth about that.
+    tags: [food]
+    weight: 0.2
+    value: 1
+    stack: true
+
+  - id: eel_pie
+    name: "Eel Pie"
+    description: >-
+      A whole river eel coiled in hot-water pastry, wrapped in yesterday's
+      broadsheet. The porters' breakfast on Tallow Docks since before the
+      Everflame was lit.
+    tags: [food]
+    weight: 0.3
+    value: 2
+    stack: true
+
+  - id: ship_biscuit
+    name: "Ship's Biscuit"
+    description: >-
+      Hard tack off a barge's stores, stamped with a chandler's mark and
+      nearly as durable as a candle. Keeps forever. Tastes like it.
+    tags: [food]
+    weight: 0.1
+    value: 1
+    stack: true
