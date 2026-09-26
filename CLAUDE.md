@@ -10,10 +10,10 @@ release to release.
 
 ## Status
 
-**v0.14.1** is the current release (CHANGELOG.md has every release since 0.4.0); it is v0.14.0 plus the rewritten README.
+**v0.15.0** is the current release (CHANGELOG.md has every release since 0.4.0).
 
-**3030 passing, 4 skipped in 13m15s**, no expected failures (measured
-2026-09-26, v0.14.0 release; the fourth skip is the stamina soft-lock test,
+**3191 passing, 4 skipped in 17m32s**, no expected failures (measured
+2026-09-26, v0.15.0 release; the fourth skip is the stamina soft-lock test,
 which covers only stories with no rest verb and now skips HUE & CRY too), plus **144 client tests** under `ui/tests/`
 (`npm test --prefix ui`; `vitest` is a devDependency, so
 `npm install --prefix ui` once first). Re-measure and restate these at every
@@ -30,9 +30,11 @@ agendas: a seed-chosen thief robs the city by night under the Magpie's name,
 Captain Ardane hunts, Silas Crook works the guild, all of it authored and
 deterministic, never a model plan — and, since v0.14, a living city: beds and
 bread, scrounging, honest work, night streets, seven factions and the city's
-lore, with its three secret places findable; still playable to its one
+lore, with its three secret places findable — and, since v0.15, a guild
+economy: the `craft` verb at the Porters' Hall bench, the Magpie's Hoard,
+four blackmail squeezes and the fences' credit; still playable to its one
 shipped ending, `honest_after_all`, with the rest of its content landing
-across v0.15.0–v1.0.0). Pick one with `launcher.py --game <slug>`.
+across v0.16.0–v1.0.0). Pick one with `launcher.py --game <slug>`.
 
 ## In flight
 
@@ -51,12 +53,24 @@ only once the last of them lands:
 | v0.12.0 | Agendas | **shipped** |
 | v0.13.0 | Engine seams for HUE & CRY's finish: secret places, custody + jailbreak, forced/repeatable decks, a terminal death, the clarity word, `generate_art --game` | **shipped** |
 | v0.14.0 | Living city: survival, forage + Rooftop Road's hidden paths, labour, boons, night encounters, factions, city lore | **shipped** |
-| v0.15.0 | Guild economy: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | next |
-| v0.16.0 | Acts I–II: arcs, initiation deck, interrogation deck, the Magpie reveal, the alibi beat | queued |
+| v0.15.0 | Guild economy: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | **shipped** |
+| v0.16.0 | Acts I–II: arcs, initiation deck, interrogation deck, the Magpie reveal, the alibi beat | next |
 | v0.17.0 | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | queued |
-| v0.18.0 | `simulate.py`'s thief policy | queued |
-| v0.19.0 | The HUE & CRY UI plugin: wanted poster, casing board, job panel, portraits | queued |
-| v1.0.0 | `hue-and-cry` finished: a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, bespoke UI plugin, ~55-plate Grok art pack, live-played -- tagged only once this lands | queued |
+| v0.18.0 | `simulate.py`'s thief policy -- and re-measure welshing's cost for a burglar shut out of both fences (owner decision in v0.15) | queued |
+| v0.19.0 | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | queued |
+| v0.20.0 | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker | queued |
+| v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | queued |
+| v1.0.0 | `hue-and-cry` finished: a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, ~55-plate Grok art pack, live-played -- tagged only once this lands | queued |
+
+Re-cut once more by the owner on 2026-09-26: the platform releases (v0.19.0
+backends, v0.20.0 Linux and hosting) land before v1.0.0, and the UI/UX
+overhaul merges with what was HUE & CRY's own UI-plugin release into
+v0.21.0, so the shared surfaces are built once, as engine panels.
+
+**The README is kept current at every release through v1.0.0** (owner
+instruction, 2026-09-26): status, features and roadmap each release; new
+screenshots after v0.21.0's UI overhaul; the backends (v0.19.0) and hosting
+(v0.20.0) documented when they land.
 
 Spec: [docs/superpowers/specs/2026-09-23-hue-and-cry-design.md](docs/superpowers/specs/2026-09-23-hue-and-cry-design.md).
 Plans live in `docs/superpowers/plans/`; each release is executed
@@ -77,11 +91,21 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   browser.
 - `hue-and-cry` ships no `death.yaml` until v0.17.0 (The Rope ending): the
   watch_stop's fight can push hp to 0 with no respawn until then, and so can
-  hunger -- the measured candle-dipper and careful pickpocket reach 0 hp on
-  some seeds (CHANGELOG [0.14.0] cost-of-living table).
-- Three of HUE & CRY's seven factions -- the Temple of the Everflame, the
-  Margrave's household and the Silk Row houses -- are declared for Acts I–III
-  and moved by nothing yet (`data/world/factions.yaml`'s header).
+  hunger -- the measured candle-dipper reaches 0 hp on 5% of seeds, and the
+  careful pickpocket on 95%, in ten days (CHANGELOG [0.14.0]
+  cost-of-living table; [0.15.0] "Where hp goes to 0"). A welsher on a
+  fence's credit reaches it on 45% (Pell's advance) to 82.5% (Marrow's
+  slate) of seeds in ten days, starving; the fences' collectors cost it
+  under an hp a run, so they are a rare way there, not the usual one.
+- One of HUE & CRY's seven factions -- the Temple of the Everflame -- is
+  declared for Acts I–III and moved by nothing yet
+  (`data/world/factions.yaml`'s header). The Margrave's household and the
+  Silk Row houses are moved since v0.15 by a squeeze left uncollected.
+- A generated premise's secret, carried out of a job, is HELD (the
+  `secret_held:<premise>:<secret>` flag and a `secret` ledger fact) and opens
+  no thread: only the four anchors' secrets name a blackmail (`thread:`).
+  Nothing reads a generated secret until v0.16.0's interrogation deck and the
+  Acts content.
 - `survival.sleep_until` looks only for a rest entry named `sleep_bed`, so in
   HUE & CRY (whose beds have their own names) it always sleeps rough.
 - A HUE & CRY save from before v0.14 keeps the world it was generated with,
@@ -97,14 +121,10 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   measured policy takes the roof (the one entry that hurts).
 - The wanted-poster UI: the payload exists (`to_client_dict`'s `law` key,
   `clarity` included) and the narrator already speaks it in prose; no plugin
-  renders it until v0.19.0's bespoke UI.
-- Sergeant Brask's bribe (`brask_bribe`) can be struck with a clean record —
-  the thread's `requires` gates on standing at his desk, not on having
-  anything to bribe him about — and quashes nothing when there is nothing
-  filed to quash.
+  renders it until v0.21.0's UI overhaul.
 - The job panel UI: the payload exists (`to_client_dict`'s `job` key — house,
   stage, alarm, prep) and `prompts.job_block` already speaks the same facts
-  in prose; no plugin renders it until v0.19.0's bespoke UI, same as the
+  in prose; no plugin renders it until v0.21.0's UI overhaul, same as the
   wanted-poster above.
 - Hired hands (spec §4): explicitly optional there and not built. A job is
   walked solo, start to getaway.
@@ -125,6 +145,36 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 - Agenda moves are never posted to the notice board, and no `fence {most:
   hot_goods}` selector exists (fences hold no stock to count) -- both rows in
   docs/GOVERNANCE.md's NOT WIRED table.
+- The Magpie's Hoard (v0.15, `data/tables/collections.yaml`) sets
+  `magpies_hoard_complete` when all six pieces are carried, and nothing reads
+  that flag until v0.17.0's The Legend ending; until then completing it pays
+  the Honest Company's +8 and the narrator's reward line, and nothing else.
+- The fences' credit (v0.15, `pell_advance`, `marrow_slate`) is repaid in
+  coin, not in goods: nothing in the condition grammar can say "carrying hot
+  goods worth V" and no effect can hand over unnamed goods, so the debt is
+  counted in crowns (threads.yaml's header). Selling the fence the goods is
+  how a thief raises it.
+- A craft roll's `crit_failure` pays the recipe's full output
+  (`engine/skills/builtin/mechanics.py::_craft_yield` reads only `failure`
+  as a failed batch; pre-existing, found in v0.15's review). Latent: no
+  shipped story's `skills.yaml` degree table has a `crit_failure` row, so
+  a story that adds one would pay a fumbled batch in full.
+- A recipe that goes illegal between the menu and its execution (the station
+  left, an input spent) gets the dispatcher's generic "not a legal craft
+  target" refusal (`engine/agents/tool_dispatcher.py`), which lists raw
+  recipe ids, rather than `_craft_refusal`'s own reason. Still a refusal
+  that reaches the prose (rule 1), only a less specific one.
+- A `spoilers.yaml` row's `location:` naming a place that is not secret (no
+  hidden path, known from the start) lifts the row on turn one, so it masks
+  nothing; `check_spoilers` (`engine/games/validation.py`) refuses an
+  unknown place but gives no warning for a known, non-secret one.
+- Every intent verb shows at most eight options (`intents._MAX_OPTIONS`).
+  `buy` cuts stock in id order and `sell` in inventory order, so a counter
+  with more than eight rows, or a pack with more than eight saleable
+  things, hides the rest. HUE & CRY's counters are held to eight by
+  `test_every_counter_offers_all_of_its_stock`; nothing guards other
+  stories, the validator gives no advisory, and a thief carrying bench
+  makings can crowd loot out of Marrow's `sell` list.
 - The Magpie keeps robbing while the player serves a sentence: its
   robberies land on the player's name from inside a cell. v1.0 content
   answers it with an alibi beat (a night in the cells as proof), not the

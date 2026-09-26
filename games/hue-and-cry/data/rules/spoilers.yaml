@@ -14,7 +14,7 @@
 # one of the three would hide that one person everywhere, which is the same
 # as pointing at them (docs/AUTHORING.md §3.8).
 #
-# Version: v0.1.1 [2026-09-25]
+# Version: v0.1.2 [2026-09-26]
 
 spoilers:
   # Matching is case-insensitive and swallows a leading "the", so each term is
@@ -27,9 +27,15 @@ spoilers:
 
   # The three secret districts (locations.yaml, `secret: true`). The map
   # withholds them; so does the prose, until the player knows enough to look.
+  # `location:` lifts each row the moment that place is known
+  # (locations.is_known): a found place keeps its name, in the prose as on the
+  # map and in the travel choices.
   - term: "Undercroft"
     instead: "the old drains"
+    location: the_undercroft
   - term: "Rooftop Road"
     instead: "the rooftops"
+    location: rooftop_road
   - term: "Old Bell Tower"
     instead: "the burnt church's tower"
+    location: old_bell_tower

@@ -704,3 +704,138 @@ def test_a_found_way_is_named_not_spelt_as_an_id() -> None:
     name = foraging._place_name("the_undercroft")
     assert name == LOCATIONS["the_undercroft"]["name"]
     assert "_" not in name
+
+
+# -- v0.15 T1: a found place keeps its name --------------------------------------
+#
+# The awareness gate rewrote on awareness alone, so once the Undercroft was
+# found the travel enum called it "The Undercroft" while every gated GM line
+# still called it "the old drains". A spoiler row may now name the place it
+# hides (`location: <id>`), and the row lifts the moment `is_known` says so.
+
+GM_LINE = "GM ONLY: the Watch has not yet thought to search the Undercroft."
+
+
+def _gated(state: GameState) -> str:
+    from engine.lore.interceptors import AwarenessGateInterceptor, mark_spoiler
+
+    return AwarenessGateInterceptor().run_pre(state, "Intro.\n" + mark_spoiler(GM_LINE))
+
+
+def test_a_found_place_is_named_by_its_name_in_gated_text(hue: GameState) -> None:
+    _reveal(hue, "the_undercroft")
+
+    gated = _gated(hue)
+    assert "search the Undercroft." in gated, gated
+    assert "old drains" not in gated
+    # Output is gated by the same rule: found is found.
+    from engine.lore.interceptors import AwarenessGateInterceptor
+
+    assert "Undercroft" in AwarenessGateInterceptor().run_post(hue, GM_LINE)
+
+
+def test_an_unfound_place_is_still_masked(hue: GameState) -> None:
+    gated = _gated(hue)
+    assert "Undercroft" not in gated
+    assert "search the old drains." in gated
+    # Finding one secret lifts exactly one row.
+    _reveal(hue, "the_undercroft")
+    from engine.lore.interceptors import AwarenessGateInterceptor
+
+    other = AwarenessGateInterceptor().run_post(hue, "Up the Rooftop Road to the Old Bell Tower.")
+    assert "Rooftop Road" not in other and "Old Bell Tower" not in other, other
+
+
+def test_every_hue_secret_row_names_its_place() -> None:
+    import yaml
+
+    manifest = registry.get("hue-and-cry")
+    rows = yaml.safe_load(
+        (manifest.resolve(manifest.paths["rules"]) / "spoilers.yaml").read_text(encoding="utf-8")
+    )["spoilers"]
+    by_place = {row.get("location"): row["term"] for row in rows if row.get("location")}
+    assert set(by_place) == set(HUE_SECRETS), by_place
+
+
+def test_the_validator_refuses_a_spoiler_row_for_an_unknown_place(tmp_path) -> None:
+    import shutil
+
+    import yaml
+
+    from engine.games import validation
+
+    manifest = registry.get("hue-and-cry")
+    rules = tmp_path / "rules"
+    shutil.copytree(manifest.resolve(manifest.paths["rules"]), rules)
+    doc = yaml.safe_load((rules / "spoilers.yaml").read_text(encoding="utf-8"))
+    doc["spoilers"].append({"term": "Sunken Chapel", "instead": "the cellar", "location": "sunken_chapel"})
+    (rules / "spoilers.yaml").write_text(yaml.safe_dump(doc), encoding="utf-8")
+    patched = type(manifest)(**{**manifest.__dict__, "paths": {**manifest.paths, "rules": str(rules)}})
+
+    errors = [f"{i.ref_id}|{i.message}" for i in validation.errors_only(validation.validate_story(patched))]
+    assert any("sunken_chapel" in e and "spoiler" in e for e in errors), errors
+    clean = validation.errors_only(validation.validate_story(manifest))
+    assert not [i for i in clean if "spoiler" in i.message], clean
+
+
+@pytest.mark.parametrize(
+    "slug", ["clockwork-dark", "wicked-garden", "neon-city", "the-long-con", "dev-story"]
+)
+def test_other_stories_gate_exactly_as_before(slug: str) -> None:
+    """
+    No other story's row names a place, so knowing every place changes nothing:
+    the gated prompt is byte-identical whether the player knows all of them or
+    none of them.
+    """
+    import yaml
+
+    from engine.game.locations import KNOWN_FLAG_PREFIX, LOCATIONS
+    from engine.lore.interceptors import AwarenessGateInterceptor, mark_spoiler
+
+    registry.activate(slug)
+    manifest = registry.get(slug)
+    rows: list[dict] = []
+    if manifest.paths.get("rules"):
+        path = manifest.resolve(manifest.paths["rules"]) / "spoilers.yaml"
+        if path.is_file():
+            rows = yaml.safe_load(path.read_text(encoding="utf-8")).get("spoilers") or []
+    assert not [row for row in rows if isinstance(row, dict) and row.get("location")], slug
+
+    text = "Intro. " + mark_spoiler(
+        " / ".join([str(row.get("term")) for row in rows if isinstance(row, dict)] + ["evil_progress"])
+    )
+    fresh = GameState(session_id="fresh")
+    knowing = GameState(session_id="knowing")
+    for loc in LOCATIONS:
+        knowing.flags[f"{KNOWN_FLAG_PREFIX}{loc}"] = True
+    gate = AwarenessGateInterceptor()
+    assert gate.run_pre(knowing, text) == gate.run_pre(fresh, text)
+    assert gate.gate_prompt(text, 0.0) == gate.run_pre(fresh, text)
+
+
+def test_the_lore_never_pairs_a_cover_name_with_the_real_one() -> None:
+    """
+    A lore chunk that says "the old drains ... the Undercroft" teaches the
+    narrator the cover and the name are one place, so a found place's prose can
+    slide back to its cover name. Each secret's cover and name never share a
+    chunk.
+    """
+    import re
+
+    import yaml
+
+    manifest = registry.get("hue-and-cry")
+    rows = yaml.safe_load(
+        (manifest.resolve(manifest.paths["rules"]) / "spoilers.yaml").read_text(encoding="utf-8")
+    )["spoilers"]
+    pairs = [
+        (row["term"].lower(), re.sub(r"^the\s+", "", row["instead"].lower()))
+        for row in rows
+        if row.get("location")
+    ]
+    assert len(pairs) == len(HUE_SECRETS), pairs
+    lore_dir = manifest.resolve(manifest.paths["lore"])
+    for md in sorted(lore_dir.glob("*.md")):
+        for chunk in re.split(r"^## ", md.read_text(encoding="utf-8").lower(), flags=re.M):
+            for term, cover in pairs:
+                assert not (term in chunk and cover in chunk), (md.name, term, cover)

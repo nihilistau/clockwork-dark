@@ -524,13 +524,24 @@ def _e_item(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dic
             "day": state.world_day,
         }
         state.provenance.setdefault(item_id, []).extend(dict(record) for _ in range(qty))
-    return {
+    receipt: dict[str, Any] = {
         "type": "item",
         "item_id": item_id,
         "qty": qty,
         "ok": True,
         "text": f"gained {qty}x {name}",
     }
+    # A set closes the moment its last piece lands, by WHATEVER door it came
+    # in: a job's getaway, a quest's reward and a boon all grant through here,
+    # not through ``inventory.grant``, and until v0.15 only that one door
+    # settled a set (the rest waited for the ``collections`` skill).
+    from engine.game import inventory as inventory_module
+
+    if inventory_module.collection_of(item_id):
+        finished = inventory_module.evaluate_collections(state, ledger=ctx.ledger)
+        if finished:
+            receipt["collections"] = finished
+    return receipt
 
 
 @effect_kind("provenance")
@@ -1130,25 +1141,18 @@ def _e_quash_reports(
 
     if not law.declared():
         return _law_refusal("quash_reports", "this story keeps no watch to bribe")
-    spec = law.load_spec()
-    jurisdiction = str(effect.get("jurisdiction") or "").strip()
-    guise = str(effect.get("guise") or "").strip()
-    ceiling = effect.get("max_severity")
-    if jurisdiction and jurisdiction not in spec["jurisdictions"]:
-        return _law_refusal("quash_reports", f"unknown jurisdiction `{jurisdiction}`")
-    if guise and guise not in spec["guises"]:
-        return _law_refusal("quash_reports", f"unknown guise `{guise}`")
-    guises = (law.same_person(state, guise) if effect.get("linked") else {guise}) if guise else set()
-
-    def _matches(row: dict[str, Any]) -> bool:
-        if jurisdiction and row.get("jurisdiction") != jurisdiction:
-            return False
-        if guises and row.get("guise") not in guises:
-            return False
-        if ceiling is not None and _int(row.get("severity")) > _int(ceiling):
-            return False
-        return True
-
+    try:
+        # The one row reading, shared with the `filed` predicate that gates a
+        # bribe on there being something for it to lose.
+        _matches = law.report_matcher(
+            state,
+            jurisdiction=str(effect.get("jurisdiction") or ""),
+            guise=str(effect.get("guise") or ""),
+            linked=bool(effect.get("linked")),
+            max_severity=effect.get("max_severity"),
+        )
+    except ValueError as exc:
+        return _law_refusal("quash_reports", str(exc))
     rows = state.law.get("reports") or []
     kept = [row for row in rows if not _matches(row)]
     removed = len(rows) - len(kept)
@@ -1607,6 +1611,10 @@ def _e_job_close(state: GameState, effect: dict[str, Any], ctx: EffectContext) -
         state.jobs["last"]["by"] = "player"
     if job.get("emptied"):
         state.jobs["last"]["emptied"] = True
+        if job.get("loot"):
+            # What an agenda's robbery left behind (a set's pieces,
+            # ``jobs._left_by_agendas``), so the close line can name it.
+            state.jobs["last"]["left"] = [str(i) for i in job["loot"]]
     state.jobs.pop("active", None)
     return {"type": "job_close", "ok": True, "hidden": True, "outcome": outcome, "text": ""}
 

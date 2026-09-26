@@ -437,6 +437,29 @@ it: until it holds the `bargain` verb does not offer it and `strike_bargain`
 refuses. HUE & CRY's `brask_bribe` is the worked example of both, and its
 `quash_reports` shows that thread hooks are bounded as authored content.
 
+A template is struck **once a run** by default: whatever became of it, a
+struck template is never offered again, and `strike_bargain` refuses it too
+(before v0.15 only the verb stopped offering it). `repeatable: true` (a bool
+— the validator refuses `"yes"`, which would load as once-a-run) makes it a
+line of credit instead: offered again as soon as no copy of it is open, and
+never while one is — two open copies would be one debt counted twice.
+Whether it is offered again after a *break* is its own `requires:`' business.
+`on_seal:` effects apply the moment it is struck (a loan pays out there).
+`broken_text:` is the narrator's line when it breaks — journalled once,
+through `engine/game/moved.py` (kind `promise`), the turn it came due or was
+cut; without it a thread that lapses on the day tick breaks in silence, its
+`on_break` applied and nothing in the prose saying why. It is told on ANY
+break -- one that came due, one broken early, one cut -- so word it true for
+all of them ("you welshed on...", not "it came due"). HUE & CRY's
+`pell_advance` and `marrow_slate` are the worked example of all three, and
+every HUE & CRY thread with an `on_break` carries one (asserted).
+`strike_bargain` refuses in words that say which gate is shut: already open,
+already struck once, or not here and now (`threads.strike_refusal`). A
+template may add `refusals: [{when, text}]`: when its `requires:` fails and
+a row's `when` holds, the first such row's `text` is the refusal instead of
+"not here and now" -- the story's own words for the real reason (validated
+like any condition, no ledger predicates).
+
 The couplings that make a deck story a machine rather than a pile of files —
 deck sets flag, clock watches flag, clock forces deck, thread obstructs
 ending — are wired into the deck template on purpose and listed in its
@@ -550,6 +573,34 @@ encounters must agree. Every vendor id in `economy.yaml` must be an NPC
 scheduled in `npc_schedules.yaml`, or the shop has no keeper — the validator
 says so.
 
+**Eight things a place.** The `buy` verb offers at most eight choices where
+the player stands (`engine/game/intents.py` `_MAX_OPTIONS`, every vendor there
+together) and drops the rest in id order, so a ninth stock row is stock no
+choice can reach. HUE & CRY's two fences sit at eight since v0.15 and its test
+fails if a row is cut (`test_every_counter_offers_all_of_its_stock`).
+
+**Recipes** (`paths.recipes`, a directory; the flagship's
+`data/recipes/mending.yaml` is the annotated schema) become the `craft` verb,
+offered only while a recipe's `station` is here and its tools and inputs are
+carried (`mechanics.craftable_here`). The verb re-reads the directory each
+turn it is built, so keep a story to one or two files. Source every input
+somewhere the player can reach — a stock row or a forage table — and price
+bought inputs so that what they make sells for less than they cost, or the
+bench is a mint. HUE & CRY's Porters' Hall bench
+(`games/hue-and-cry/data/recipes/workshop.yaml`) is the worked example, with
+its measurement in the header.
+
+**Collections** (`<paths.tables>/collections.yaml`; the flagship's is the
+annotated schema) are sets of items that pay once, when every member is
+CARRIED. A member's item row must say `collection: <set id>` -- the set
+settles when such an item lands, by any door (the `item` effect: a purchase,
+a job's getaway, a quest reward) -- and the validator refuses a member that
+does not, a member that is not an item, a `counts` key that is not a member,
+and an item naming a set nobody declared. The set's `reward_text` reaches the
+narrator on the receipt that carried the last piece. HUE & CRY's Magpie's
+Hoard is the second worked example: its pieces are placed in anchors and in
+two secret places, as finds (quests that start and finish on arrival).
+
 **Work has hours.** A `labour.yaml` job may declare `when:`, a condition in
 the shared grammar (`quests.evaluate_condition`; most often
 `hour_between: [start, end]`, start inclusive, end exclusive, wrapping
@@ -603,6 +654,16 @@ chance is above zero and no row is eligible is a roll that cannot pay off
 (it logs and draws nothing). HUE & CRY's night streets are the worked example
 (`games/hue-and-cry/data/encounters/streets.yaml`, measured by
 `scripts/simulate_streets.py`).
+
+**`min_chance`** on an encounter row (v0.15, a number in (0, 1]) raises the
+leg's chance to at least that WHILE the row is eligible for the leg
+(`encounter.row_floor`, `leg_chance`), capped at `trigger.max_chance`, and
+only on an edge with a `danger_dc`. It is for a scene gated on something
+the player did -- HUE & CRY's fences' collectors by day, `requires_flag:
+welshed_on_pell` -- that should find them on streets whose own daytime
+danger is near zero. For anyone the row does not match, the leg's chance
+and every ENCOUNTER draw are exactly what they were (asserted). The row
+still competes by `weight` once the leg triggers.
 
 **`on_roads: false`** on an encounter row keeps it off every road whatever its
 `triggers` say, while `encounter.begin` still opens it on demand. It is for a
@@ -712,6 +773,17 @@ story-neutral rows for identifiers the machinery leaks out of any story
 (`evil_progress` and kin) — so a story with no table still leaks no mechanics,
 and a story that wants its own phrasing for a mechanical id simply declares
 it and wins by ordering.
+
+**A secret place keeps its name once found.** A row may add
+`location: <id>` for the place its term names. The gate drops that row as
+soon as `locations.is_known` says the player knows the place (revealed,
+visited, stood in, or at the end of a found path), so the prose names it the
+way the travel choices and the map already do, below the threshold or not.
+The validator refuses an id that is not in the graph: `is_known` counts a
+place the graph does not hold as nobody's secret, so such a row would lift on
+the first turn and leak the very name it hides. A row with no `location:` is unaffected. Keep the cover phrase
+and the real name out of the same lore chunk, or the narrator learns they are
+one place and keeps using the cover after the reveal.
 
 **A role chosen by the seed is not a table row.** A `paths.agendas` role can
 carry a `mask`:
@@ -824,8 +896,16 @@ nothing when undeclared — the worked example for the whole shape is
   the tier), `household` (roles with routines — see below), `security`
   (`{id, text, tier_min}`; `text` is what a watch learns word for word),
   `loot` (`tier -> [{item_id, weight}]`, ids from `data/items/`), and
-  `secrets` (`[{id, text}]`, one drawn per premise — casing only reveals that
-  a secret *exists*; the `text` is what going inside finds).
+  `secrets` (`[{id, text, thread?}]`, one drawn per premise — casing only
+  reveals that a secret *exists*; the `text` is what going inside finds).
+  `thread` (v0.15, optional) names the `paths.threads` template that holding
+  the secret opens — a blackmail. It is checked at load: the template must
+  exist, and its `requires` must read `secret_held` for this secret (an
+  anchor's clause may also name its own premise, `prem_<anchor id>`; a
+  generated type's may name only the secret, since its premise ids are drawn
+  per seed). A lever offered before the thief holds it, or never, is refused
+  naming the file. A secret with no `thread` is still held when carried out (§3.12)
+  and read by nothing else yet.
 - `anchors/*.yaml` — the same schema, hand-written: a fixed `district`,
   `name`, `tier` and contents rather than generated ones. An anchor may also
   declare `owner: <scheduled npc id>`, validated at load; `premises.owner(state,
@@ -877,6 +957,16 @@ An honest vendor (no `fence: true`) sells a mixed stack's clean and cool
 units normally and refuses only the hot ones, in its own voice. Both read
 `thievery.heat_split` per unit, never per item, so a mixed stack of clean and
 stolen goods is never priced or refused as a whole.
+
+**A vendor who will not buy from you.** Any trade profile (a fence or not)
+may declare `refuses_to_buy: {when: <condition>, text: <her words>}`. While
+`when` holds (the shared grammar, evaluated with no ledger — the validator
+refuses a disposition predicate here, and a `when` or `text` left out) she
+buys nothing from the player: the `sell` verb leaves her out, `sell` refuses
+in `text` (never a `fencing` deed — a grudge is not a crime), and the
+narrator's PEOPLE HERE line for her carries `[buys nothing from you: <text>]`
+while she is present. She still sells. HUE & CRY's two fences each read BOTH
+credit threads' break flags: welsh on one and neither buys (`data/tables/trade.yaml`, §3.4).
 
 ### 3.11 `paths.law` — the watch
 
@@ -995,22 +1085,51 @@ template is not even offered while it fails) and `discharge_requires` gates
 `discharge` (refused, writing nothing, while it fails). Both take any
 predicate the grammar knows, including `at_location` and `min_gold` — HUE &
 CRY's `brask_bribe` requires `at_location: lantern_house` (Brask names his
-price at his desk, nowhere else) and `discharge_requires: {min_gold: 12}`,
-paying it and quashing the Wick's files together in `on_discharge`. There is
+price at his desk, nowhere else) and its `discharge_requires` asks
+`{min_gold: 12}` and the same `filed` clause as its `requires` (below),
+paying it and quashing the Wick's files together in `on_discharge` -- so a
+file gone before payday cannot be paid for. That is safe only because the
+bribe has no `on_break`: a refused discharge lets the thread come due, and a
+template whose break has teeth (`ardane_magpie_file` files a report and
+costs -10) must not gate its discharge on something the player can lose. There is
 no predicate for who else is standing there — see the NOT WIRED row in
 `docs/GOVERNANCE.md`.
+
+**Something to lose: `filed`.** `{filed: {jurisdiction, guise?, linked?}}`
+is true while any LIVE report row matches — read through the same matcher
+`quash_reports` uses (`law.report_matcher`), so the gate and the bribe it
+guards always agree on which rows are meant. The guise is exact unless
+`linked: true` widens it to every face the watch takes for the same person.
+A discharged or quashed deed's rows are gone, so they do not count. False —
+never open — in a story with no Law, with no (or a blank) `jurisdiction`, or naming a
+jurisdiction or guise the Law does not know; an agenda naming one is refused
+at load. `brask_bribe` requires it alongside the desk, so a sergeant names no
+price to a clean record:
+
+```yaml
+requires:
+  all:
+    - { at_location: lantern_house }
+    - { filed: { jurisdiction: wick, guise: self, linked: true } }
+```
+
+`linked: true` matters there: the Magpie agenda files half-seen burglaries
+against `magpie`, which the watch links to `self`. Without it, a thief wanted
+in the Wick only under the Magpie's name would be refused the very bribe whose
+`linked` quash loses her file.
 
 **Law effects, and who may use them.** An encounter outcome may use any of
 `report`, `quash_reports`, `law_guise`, `law_link`, `law_cool`, `arrest`,
 `release`, `law_discharge` and `deed`. A thread's authored
-`on_seal`/`on_discharge`/`on_break` effects may use **`quash_reports` only**:
+`on_seal`/`on_discharge`/`on_break` effects may use **`quash_reports` and
+`report` only** (`report` since v0.15: a squeezed victim going to the watch):
 the thread bounder (`engine/game/threads.py`, `_bound_effects`) drops every
 other Law kind with a logged adjustment, so a thread that tries to `arrest`
-or `report` does nothing. A set-piece's challenge (`paths.challenges`) may
-use **`release` and `quash_reports`** and no other Law kind, and only because
-it is read from the story's own file (`quash_reports` through
-`engine/challenges/spec.py::STRUCTURAL_EFFECT_TYPES`, `release` through
-`AUTHORED_CHALLENGE_EFFECT_TYPES`); a
+does nothing. A set-piece's challenge (`paths.challenges`) may
+use **`release`, `quash_reports` and `report`** and no other Law kind, and
+only because it is read from the story's own file (`quash_reports` and
+`report` through `engine/challenges/spec.py::STRUCTURAL_EFFECT_TYPES`,
+`release` through `AUTHORED_CHALLENGE_EFFECT_TYPES`); a
 model-composed challenge has no Law kinds on its allowlist at all, and a
 thread or deck gate never gets `release`. A quash lasts: the lost deeds are remembered per
 jurisdiction (`law.quashed`), and that watch-house refuses to re-file them
@@ -1102,7 +1221,19 @@ with the take). `stages: {<name>: {hours}}` must give all five and no others
   sampled from the premise's own `loot` (§3.10) without replacement; an
   anchor's score takes **all** of its loot, ignoring `draws`. A cased secret
   (§3.10's `secrets`) is named in the receipt the moment the score succeeds,
-  never before.
+  never before; the narrator is told it was FOUND, and that it is the
+  thief's only if they get clear. From v0.15 it is **held** once the job is
+  carried out — the getaway that closes it `clean` or `noisy` writes,
+  through `apply_effect`, the flag `secret_held:<premise id>:<secret id>`
+  (what the `secret_held` predicate reads) and an engine-sourced ledger fact
+  of `kind: secret` about the premise's owner. Caught, aborted or hurt, the
+  thief holds nothing: the Watch or the house has what was found. The
+  getaway's receipt line says the thief came away holding it and, when the
+  secret names a `thread`, who it is a lever over (the thread's `source`, by
+  name) — never a price, since whether the squeeze can be struck is the
+  thread's own gate. An uncased secret is not taken: the thief does not know
+  what it would be holding. The lever is what was READ — nothing reaches the
+  pack — so a blackmail's terms should never promise to hand an object back.
 - `getaway: {skill, shift}` — the last roll; success or a costly `partial`
   carries the loot out HOT (`stolen_from`) and marks the premise robbed
   (`jobs.robbed`, read by `burgle` so a robbed house is never offered again,
@@ -1142,7 +1273,7 @@ thief carries, does to a roll:
   against whoever else is in the house. It is allowed **only with `stage:
   inside`** — obstacles exist only there, so the loader refuses it on any
   other stage, naming the file.
-- `tools: {<item id>: {stage, entries, shift, consumed}}`. The key must be a
+- `tools: {<item id>: {stage, entries, districts, shift, consumed}}`. The key must be a
   real item (`data/items/`). `stage` is a name or a list of stage ids, same
   widened set as `features` (the five, or any anchor's own). `entries` binds
   only at `entry`, same as a feature's, so `entries` on a tool whose `stage`
@@ -1150,6 +1281,14 @@ thief carries, does to a roll:
   defaults to 0. `consumed: true` (default false)
   removes the item the moment it helps a roll that used it — a smoke pellet
   spent at the getaway, lockpicks that are not.
+  `districts` (optional, a name or a list) limits the tool to jobs on
+  premises standing in those districts, at every stage it names — HUE &
+  CRY's forged Hill pass (`districts: [margraves_hill]`) is shown at a Hill
+  gate and door and is a scrap of vellum anywhere else. Each name must be a
+  location **that `districts.yaml` puts at least one house in**; an unknown
+  location, or one with no premise (a row that could never apply), is a load
+  fault naming the file. A row without the key applies in every district,
+  exactly as before.
 
 Every step above (base band, then features, then tools, then a banked
 flashback shift — see below) is summed and clamped **once**, so a tool that
@@ -1258,7 +1397,7 @@ declares an `iron_bar` could name it, and a lockpicks tool row, against its
 `known_shift` once cased, a carried tool's shift, banked flashback shifts —
 summed and clamped once, same as anywhere else.
 
-**The three predicates this module registers**, for `flashbacks.*.requires`,
+**The four predicates this module registers**, for `flashbacks.*.requires`,
 guild contracts (below) and anything else in the shared grammar:
 
 - `premise_cased: {min, premise?}` — at least `min` intel rows are known
@@ -1271,6 +1410,21 @@ guild contracts (below) and anything else in the shared grammar:
   `discharge_requires` reads. A house an agenda robbed first (§3.13) still
   counts once the player's job carries its (empty) score out.
 - `job: {open}` — whether a job is under way right now (default `true`).
+- `secret_held: {premise?, secret?}` — the thief holds a secret carried out
+  of a job matching every filter given; with none given (or `true`), any held
+  secret does. A bare string is a secret id. This is what a blackmail
+  thread's `requires` reads (below).
+
+**Blackmail is a thread too** (v0.15). A secret's `thread:` names an ordinary
+template tagged as the story likes (HUE & CRY: `Blackmail`), whose
+`requires` gates on `secret_held` and on where — and when — the person it
+squeezes can be found; `on_seal` may cost something the moment it is struck,
+`discharge_requires` is going back to collect, `on_discharge` pays (coin, or
+a `quash_reports` for a captain looking away), and `on_break` is the victim
+acting on the two days you gave them: a `report` of a deed your `law.yaml`
+names, filed in their jurisdiction, and/or a `reputation` loss. HUE & CRY's
+four are in its `data/rules/threads.yaml`; its `blackmail` deed and why it
+is filed only on break are in its `law.yaml`.
 
 **Guild contracts are threads, not a new mechanism.** A contract is an
 ordinary `paths.threads` template (§3.4); nothing in `engine/game/threads.py`
@@ -1415,8 +1569,12 @@ ids (or a masked role's npc id) that would print into the narrator's
 material, and any of them in a trace is a load error. A `premise` selector
 never picks the house of the player's OPEN job. A house an agenda robbed can
 still be burgled — the thief need not know — but its score finds the
-strongroom bare: the receipt says `emptied`, nothing is drawn, and the close
-still records the house robbed, so a contract on it can be paid.
+strongroom stripped: the receipt says `emptied` and nothing is drawn, EXCEPT
+that an agenda never takes a collectable set's piece — the score takes every
+loot row whose item names a `collection:` (`jobs._left_by_agendas`), the
+close records them in `jobs.last`'s `left`, and the narration says the house
+was robbed of everything but them. The close still records the house
+robbed, so a contract on it can be paid.
 
 **No trace may name a role candidate.** Every candidate's display name and
 every declared alias, of every role, is refused in trace text (private or
@@ -1453,6 +1611,12 @@ here too: `{premise_robbed: {owner: npc_gannet}}` is true once a FINISHED job
 (the player's own) has robbed a premise that npc owns — this is how an
 agenda reacts to the player robbing a house that matters to someone, without
 a bespoke flag per house.
+
+Two more Law predicates are open to an agenda and need a Law just the same
+(`engine/world/agendas.py::LAW_PREDICATES`): `in_custody` (§3.11) and, since
+v0.15, `filed {jurisdiction, guise?, linked?}` — something live on file
+there (§3.11's "Something to lose"); an agenda naming an unknown
+jurisdiction or guise in `filed` is refused at load.
 
 A gate cannot read a StoryLedger or a quest's progress (the pass runs inside
 `advance_time`, which holds neither): `disposition`, `days_in_stage` and
@@ -1847,4 +2011,4 @@ are distilled from dev-story** — when a subsystem changes shape, fix dev-story
 first (the suite runs its rows, so it cannot silently rot), then re-distil the
 templates. A template that drifts from the bench teaches the old engine.
 
-Version: v0.1.3 [2026-09-25]
+Version: v0.1.4 [2026-09-26]

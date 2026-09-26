@@ -11,7 +11,12 @@
 #
 # Every id must exist in data/items/.
 #
-# Version: v0.1.2 [2026-09-25]
+# EIGHT ROWS A COUNTER AT MOST. The `buy` verb offers at most eight choices at
+# a location (engine/game/intents.py `_MAX_OPTIONS`) and cuts the rest in id
+# order, so a ninth row is stock nobody can choose. Both fences sit at eight
+# since v0.15; tests/test_hue_and_cry.py fails when any row is cut.
+#
+# Version: v0.1.3 [2026-09-26]
 
 # Hollis's Sundries and Curiosities, Wickmarket, 08:00 to 22:00.
 npc_pell_hollis:
@@ -23,6 +28,14 @@ npc_pell_hollis:
     # hours in the market -- the evening meal after Dock Mag has gone
     # (data/items/food.yaml; data/rules/survival.yaml prices it).
     ship_biscuit: { price: 1 }
+    # The Porters' Hall bench's paper, powder and oddments (v0.15, data/
+    # recipes/workshop.yaml): vellum for luggage labels, saltpetre for curing
+    # pork, a tray of odd buttons and a jar of candle stubs by the till. She
+    # sells them to anyone, and asks nobody what they are curing.
+    vellum_offcut: { price: 3 }
+    saltpetre: { price: 2 }
+    brass_button: { price: 1 }
+    candle_ends: { price: 1 }
 
 # Marrow's rag-and-bone yard, the Snuffs, 17:00 to midnight.
 npc_marrow:
@@ -40,6 +53,16 @@ npc_marrow:
     # four instead of one in six. A pellet is the price of a pie and a pint.
     lockpicks: { price: 15 }
     smoke_pellet: { price: 4 }
+    # The same kit's makings, for a thief who would rather spend hours at the
+    # Porters' Hall bench than crowns at this counter (v0.15, data/recipes/
+    # workshop.yaml). A rag-and-bone yard's stock: wire, file ends and rags
+    # (Pell Hollis keeps the buttons and the candle stubs). Priced so
+    # a set of picks made from them costs under half of the 15 above -- and
+    # more than any counter pays for one, so the bench saves coin on a tool
+    # and never mints it (CHANGELOG [0.15.0], tests/test_hue_and_cry.py).
+    bent_wire: { price: 2 }
+    file_tang: { price: 7 }
+    rag_bundle: { price: 1 }
 
 # Dock Mag, on her crate at the head of the quay, 05:00 to 18:00. The one
 # honest counter in the city so far: she sells the Honest Company's smocks to

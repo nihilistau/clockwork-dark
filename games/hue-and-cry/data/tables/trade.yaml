@@ -26,7 +26,12 @@
 # Both need a stock row in data/economy.yaml: trade.vendor() treats a profile
 # with no faction and no stock as nobody.
 #
-# Version: v0.1.0 [2026-09-23]
+# REFUSING TO BUY (v0.15). `refuses_to_buy: {when, text}`: while `when` (the
+# shared condition grammar) holds, the vendor buys nothing from you, in her
+# own words -- the `sell` verb leaves her out. Both fences carry one, reading
+# EITHER fence's credit-break flag: fences stand together (data/rules/threads.yaml).
+#
+# Version: v0.2.0 [2026-09-26]
 
 version: 1
 
@@ -45,6 +50,12 @@ vendors:
     fence: true
     fence_cut: { hot: 0.45, cool: 0.8 }
     spread: { buy: 1.4, sell: 0.55 }
+    # Welsh on either fence's credit (threads.yaml `pell_advance`,
+    # `marrow_slate`) and she buys nothing more from you: fences stand
+    # together on that. She still sells.
+    refuses_to_buy:
+      when: { any: [{ flag: welshed_on_pell }, { flag: welshed_on_marrow }] }
+      text: "Pell Hollis has heard what you owe and to whom, and does not open the book"
 
   npc_marrow:
     name: "Marrow"
@@ -52,6 +63,11 @@ vendors:
     fence: true
     fence_cut: { hot: 0.7, cool: 0.85 }
     spread: { buy: 1.2, sell: 0.4 }
+    # Welsh on either fence's credit and nothing you carry is scrap to
+    # Marrow any more.
+    refuses_to_buy:
+      when: { any: [{ flag: welshed_on_pell }, { flag: welshed_on_marrow }] }
+      text: "Marrow does not look up, and does not look at what you have brought: a welsher's goods are nobody's scrap"
 
   # The first honest vendor: no `fence`, so a hot unit offered across her
   # crate is refused in her voice -- and, with the Law declared, is a

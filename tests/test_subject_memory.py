@@ -234,6 +234,24 @@ def test_recall_subject_answers_for_an_unknown_subject(engine) -> None:
     assert "ledger" in answer["reason"]
 
 
+def test_recall_subject_answers_from_a_live_session() -> None:
+    """
+    A session's engine carries the session's ledger. Nothing set it before
+    v0.15 (SessionStore._build), so in every live session this tool answered
+    "no ledger in this session" -- the bare-engine answer above, everywhere.
+    """
+    from engine.game.engine import active_engine
+    from engine.scenes.default_state import SessionStore
+    from engine.skills.builtin.memory import recall_subject
+
+    session = SessionStore().create(seed=3, llm_fn=lambda m, **k: "{}")
+    session.ledger.add_fact("Ilya mended the kettle.", subject_id="ilya", turn=1, day=1)
+    with active_engine(session.engine):
+        answer = json.loads(recall_subject(subject_id="ilya"))
+    assert answer["ok"] is True, answer
+    assert any("kettle" in str(f) for f in answer["facts"]), answer
+
+
 def test_recall_subject_refuses_an_empty_id(engine) -> None:
     from engine.skills.builtin.memory import recall_subject
 

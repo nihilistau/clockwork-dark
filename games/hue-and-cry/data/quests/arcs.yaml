@@ -8,7 +8,15 @@
 # The Hanging Fair -- arrive with the content that fills them. What ships now
 # is the one door out of the story that is open from the first morning.
 #
-# Version: v0.1.0 [2026-09-23]
+# AND ONE SIDE ARC (v0.15), `the_magpies_hoard`: the two Hoard pieces that rest
+# in secret places are found by standing there, and a find is a quest that
+# starts and finishes on arrival (the_magpies_hoard/). The arc opens only once
+# the player has stood in one of those places, so neither it nor its quests
+# say a word -- in the journal or the prompt -- before the place is known.
+# Involvement 0 and order 0: a find is not a plot, and `active_arc` stays
+# with the way out (quests.py keeps the first of equal orders).
+#
+# Version: v0.1.1 [2026-09-26]
 
 version: 1
 
@@ -23,3 +31,17 @@ arcs:
     blurb: >-
       The evening barge leaves Tallow Docks every day at dusk. Anyone can be
       on it. Being on it with your name still your own is the hard part.
+
+  the_magpies_hoard:
+    name: "The Magpie's Hoard"
+    involvement: 0
+    order: 0
+    requires_any:
+      - { visited: old_bell_tower }
+      - { visited: the_undercroft }
+    unlock_text: >-
+      Somebody in Tallowmere keeps the city's shine where nobody thinks to
+      look, and you have just looked.
+    blurb: >-
+      Six shines the ballad swears the Magpie took and never fenced. Some of
+      them are in houses. Some of them are not.

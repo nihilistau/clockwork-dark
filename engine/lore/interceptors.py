@@ -82,8 +82,13 @@ def _engine_terms() -> tuple[tuple[re.Pattern[str], str], ...]:
     return tuple(row for row in rows if row is not None)
 
 
+#: One compiled story row: pattern, replacement, and the location id the row
+#: hides ("" for a row that names no place).
+_StoryTerm = tuple[re.Pattern[str], str, str]
+
+
 @functools.lru_cache(maxsize=8)
-def _compile_terms(rules_dir: str, _mtime: float) -> tuple[tuple[re.Pattern[str], str], ...]:
+def _compile_terms(rules_dir: str, _mtime: float) -> tuple[_StoryTerm, ...]:
     """Parse and compile one story's spoiler table, memoized on (dir, mtime)."""
     path = Path(rules_dir) / SPOILER_FILE
     try:
@@ -93,7 +98,7 @@ def _compile_terms(rules_dir: str, _mtime: float) -> tuple[tuple[re.Pattern[str]
         logger.warning("[lore] Unreadable spoiler table at %s: %s", path, exc)
         return ()
 
-    out: list[tuple[re.Pattern[str], str]] = []
+    out: list[_StoryTerm] = []
     for row in rows:
         if not isinstance(row, dict):
             continue
@@ -103,20 +108,33 @@ def _compile_terms(rules_dir: str, _mtime: float) -> tuple[tuple[re.Pattern[str]
             continue
         compiled = _compile(term, instead, case_sensitive=bool(row.get("case_sensitive")))
         if compiled is not None:
-            out.append(compiled)
+            out.append((*compiled, str(row.get("location") or "").strip()))
     return tuple(out)
 
 
-def story_spoiler_terms() -> tuple[tuple[re.Pattern[str], str], ...]:
+def story_spoiler_terms(
+    state: Optional[GameState] = None,
+) -> tuple[tuple[re.Pattern[str], str], ...]:
     """
     Just the RUNNING story's own table, from ``<paths.rules>/spoilers.yaml``::
 
         spoilers:
           - term: "Clockwork Dark"
             instead: "something wrong in the wheat"
+          - term: "Undercroft"
+            instead: "the old drains"
+            location: the_undercroft
 
     Empty for a story that declares none, which is the same shape as clocks,
     threads and endings.
+
+    A FOUND PLACE KEEPS ITS NAME. A row with ``location:`` hides a place, and
+    once ``locations.is_known`` says the player knows that place the row is
+    dropped for ``state`` -- otherwise the travel enum called it "The
+    Undercroft" while every gated GM line still said "the old drains". With no
+    ``state`` every row applies, as before. A row with no ``location:`` is
+    untouched either way, so a story that declares none gates byte-for-byte as
+    it always did.
     """
     rel = str(get_config().get("paths.rules", "") or "").strip()
     if not rel:
@@ -129,12 +147,21 @@ def story_spoiler_terms() -> tuple[tuple[re.Pattern[str], str], ...]:
         mtime = path.stat().st_mtime
     except OSError:
         return ()
-    return _compile_terms(str(root), mtime)
+    rows = _compile_terms(str(root), mtime)
+    if state is not None and any(loc for _p, _i, loc in rows):
+        from engine.game.locations import is_known
+
+        rows = tuple(row for row in rows if not row[2] or not is_known(state, row[2]))
+    return tuple((pattern, instead) for pattern, instead, _loc in rows)
 
 
-def spoiler_terms() -> tuple[tuple[re.Pattern[str], str], ...]:
+def spoiler_terms(
+    state: Optional[GameState] = None,
+) -> tuple[tuple[re.Pattern[str], str], ...]:
     """
     Everything the gate may mask: the story's own words, then the engine's.
+    ``state`` lifts the rows for places the player has found
+    (``story_spoiler_terms``).
 
     THIS WAS A LIST OF ONE STORY'S NOUNS IN THE ENGINE. It masked "Clockwork
     Dark" as "something wrong in the wheat" and ``evil_progress`` as "the
@@ -154,7 +181,7 @@ def spoiler_terms() -> tuple[tuple[re.Pattern[str], str], ...]:
     "what is building", and by the time the engine's row is tried there is
     nothing left to match.
     """
-    return story_spoiler_terms() + _engine_terms()
+    return story_spoiler_terms(state) + _engine_terms()
 
 
 class LoreInjectInterceptor:
@@ -222,20 +249,23 @@ class AwarenessGateInterceptor:
         threshold = float(get_config().get("awareness.spoiler_gate_threshold", 15))
         return awareness < threshold
 
-    def gate(self, text: str, awareness: float) -> str:
+    def gate(self, text: str, awareness: float, state: Optional[GameState] = None) -> str:
         """
         Replace spoiler terms in free text.
 
-        Used for model OUTPUT, where any occurrence is a genuine leak.
+        Used for model OUTPUT, where any occurrence is a genuine leak. With
+        ``state``, a place the player has found is left its own name.
         """
         if not self._below_threshold(awareness):
             return text
         result = text
-        for pattern, replacement in spoiler_terms():
+        for pattern, replacement in spoiler_terms(state):
             result = pattern.sub(replacement, result)
         return result
 
-    def gate_prompt(self, system_prompt: str, awareness: float) -> str:
+    def gate_prompt(
+        self, system_prompt: str, awareness: float, state: Optional[GameState] = None
+    ) -> str:
         """
         Redact only explicitly marked regions of a system prompt.
 
@@ -252,16 +282,16 @@ class AwarenessGateInterceptor:
 
         def _replace(match: re.Match[str]) -> str:
             inner = match.group(1)
-            return self.gate(inner, awareness) if below else inner
+            return self.gate(inner, awareness, state) if below else inner
 
         return _SPOILER_REGION.sub(_replace, system_prompt)
 
     def run_pre(self, state: GameState, system_prompt: str, **_: Any) -> str:
-        return self.gate_prompt(system_prompt, state.awareness)
+        return self.gate_prompt(system_prompt, state.awareness, state)
 
     def run_post(self, state: GameState, narration: str, **_: Any) -> str:
         """POST: redact spoilers the model produced on its own."""
-        return self.gate(narration, state.awareness)
+        return self.gate(narration, state.awareness, state)
 
 
 def run_pre_interceptors(

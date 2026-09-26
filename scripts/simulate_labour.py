@@ -27,6 +27,37 @@ FOUR POLICIES, the same seeds, the same rules of living:
   scrounger  simulate_scrounge's scrounger: four streets a day, what it finds
              eaten or sold. It never steals and never works.
 
+AND TWO MORE, the careful pickpocket on credit (v0.15, the fences' credit,
+data/rules/threads.yaml) -- the same day, the same purse, plus one line of
+credit it runs whenever a fence will stand it one and its purse is under
+``CREDIT_WHEN_BELOW``, and repays at her counter the moment it holds the
+debt:
+
+  careful_pell    Pell Hollis's advance (ten crowns, thirteen back inside
+                  three days): after breakfast on the quay, on a day it has
+                  business with her (a debt open, or a lean purse), it goes
+                  by her counter in Wickmarket, buys its bread there, then
+                  on to the Snuffs as before.
+  careful_marrow  Marrow's slate (five crowns, eight back inside two), at
+                  her yard in the Snuffs after the night's sale, on a day it
+                  has business with her.
+
+``--no-credit`` runs them as their own control: the same lean-purse days at
+her counter, the same bread bought there, and no line ever struck -- because
+a detour past a food counter feeds a careful pickpocket by itself (the plain
+``careful`` policy passes none after breakfast), the credit's own effect is
+the difference between a credit policy and its control, not between it and
+``careful``.
+
+A debt it cannot find by the due day breaks: the word goes round, and NO
+fence buys from it or stands it credit again, and that fence's collectors
+walk the streets for it (streets.yaml `pells_collectors`, `marrows_lads`,
+and by day in the fences' districts `..._by_day`) -- counted in
+``collectors_met``. It never sets the
+advance aside to repay it: a purses-only earner (~1.4 cr a day against
+~1.6 of bread and bed) could repay only by not spending the advance at
+all, which leaves it exactly where the control is, three crowns poorer.
+
 THE RULES OF LIVING, the same for all four. Whenever it stands at a food
 counter it buys the cheapest food until it carries ``STOCK`` meals (one crown
 each, while it has the crowns); it eats a carried meal whenever hunger reaches
@@ -54,14 +85,23 @@ WHAT IT REPORTS, per policy, averaged over seeds:
   saved_per_day    crowns in hand at the end less the purse it started with
   end_gold         crowns in hand at the end, mean (and min)
   min_hp           the lowest hp any seed reached
+  runs_at_zero_hp  the share of seeds whose hp reached 0 (no respawn until
+                   v0.17's death.yaml: CLAUDE.md)
   arrests          mean per run
+  credit_struck    lines of credit struck, mean per run (the credit policies)
+  credit_repaid    of those, the share paid off
+  credit_broken    of those, the share that came due unpaid
+  collectors_met   times a fence's collectors met it on the street, per run
+  collectors_hp_lost  hp those meetings cost it, per run
 
 Usage:
     python scripts/simulate_labour.py                    # 40 seeds x 10 days, all four
     python scripts/simulate_labour.py --policy porter --bed bunk
+    python scripts/simulate_labour.py --policy careful_pell
+    python scripts/simulate_labour.py --policy careful_pell --no-credit   # its control
     python scripts/simulate_labour.py --json
 
-Version: v0.1.0 [2026-09-25]
+Version: v0.2.1 [2026-09-26]
 """
 
 from __future__ import annotations
@@ -84,7 +124,7 @@ from scripts import simulate_law, simulate_scrounge  # noqa: E402
 from scripts.simulate_law import Thief, agendas_off  # noqa: E402
 from scripts.simulate_scrounge import Scrounger  # noqa: E402
 
-POLICIES = ("porter", "dipper", "careful", "scrounger")
+POLICIES = ("porter", "dipper", "careful", "scrounger", "careful_pell", "careful_marrow")
 BEDS = {"flophouse": "sleep_flophouse", "bunk": "sleep_guild_bunk", "rough": "sleep_rough"}
 HOME = "the_snuffs"
 DOCKS = "tallow_docks"
@@ -99,6 +139,12 @@ DUSK_HOUR = 18
 #: Things a policy never sells: the careful thief's guise, and food.
 KEEP = ("porters_smock",)
 ROOFED = ("sleep_flophouse", "sleep_guild_bunk", "sleep_tavern")
+#: The credit policies strike a line only while the purse is under this: a
+#: day's bread and a flophouse bed (~1.6 cr, CHANGELOG [0.14.0]) and change.
+CREDIT_WHEN_BELOW = 3
+#: The street scenes that come for a welsher (data/encounters/streets.yaml).
+COLLECTORS = ("pells_collectors", "marrows_lads",
+              "pells_collectors_by_day", "marrows_lads_by_day")
 
 
 @dataclass
@@ -118,6 +164,11 @@ class Life:
     start_gold: int = 0
     end_gold: int = 0
     arrests: int = 0
+    credit_struck: int = 0
+    credit_repaid: int = 0
+    credit_broken: int = 0
+    collectors_met: int = 0
+    collectors_hp: int = 0
 
 
 class Living:
@@ -296,6 +347,92 @@ class Careful(Living, Thief):
         self.eat()
 
 
+class CarefulOnCredit(Careful):
+    """The careful pickpocket, with one fence's line of credit (``CREDIT``)."""
+
+    #: policy -> (thread template, where her counter is)
+    CREDIT = {"careful_pell": ("pell_advance", MARKET),
+              "careful_marrow": ("marrow_slate", HOME)}
+
+    def __init__(self, seed: int, bed: str, policy: str, strike: bool = True) -> None:
+        Careful.__init__(self, seed, bed)
+        self.life.policy = policy
+        self.template, self.counter = self.CREDIT[policy]
+        #: False is the CONTROL (``--no-credit``): the same days, the same
+        #: visits to her counter and the same bread bought there, and never a
+        #: line struck -- so what credit itself buys is the difference.
+        self.strike = strike
+
+    def answer_stop(self) -> None:
+        """Count the fences' collectors (streets.yaml), then answer as the careful thief does."""
+        from engine.game import encounter
+
+        met = encounter.active(self.state) and str(self.state.encounter.get("id")) in COLLECTORS
+        hp = int(self.state.stats.hp)
+        if met:
+            self.life.collectors_met += 1
+        super().answer_stop()
+        if met:
+            self.life.collectors_hp += max(0, hp - int(self.state.stats.hp))
+            self.note()
+
+    def tend_credit(self) -> None:
+        """Repay the open line if it can, else strike one if the purse is low."""
+        from engine.game import threads
+
+        open_ = [t for t in threads.active(self.state) if t.get("template") == self.template]
+        if open_:
+            thread_id = str(open_[0]["id"])
+            if thread_id in self.legal_targets("discharge"):
+                self.act("discharge", thread_id)
+            return
+        if (self.strike and int(self.state.stats.gold) < CREDIT_WHEN_BELOW
+                and self.template in self.legal_targets("bargain")):
+            self.act("bargain", self.template)
+
+    def has_business(self) -> bool:
+        """A debt open with her, or a lean purse and a fence who has not heard it welshed."""
+        from engine.game import threads
+
+        if any(t.get("template") == self.template for t in threads.active(self.state)):
+            return True
+        welshed = ("welshed_on_pell", "welshed_on_marrow")
+        return (int(self.state.stats.gold) < CREDIT_WHEN_BELOW
+                and not any(self.state.flags.get(f) for f in welshed))
+
+    def day(self, played: int) -> None:
+        if self.counter == MARKET and played > 1 and self.has_business():
+            # Breakfast on the quay, then by Pell's counter -- only on a day
+            # with business there, so every other day is the careful
+            # pickpocket's own -- then the careful day (which walks on to
+            # the Snuffs).
+            if self.state.world_hour < WAKE_HOUR:
+                self.wait_until(WAKE_HOUR)
+            self.walk(DOCKS)
+            self.provision()
+            self.walk(MARKET)
+            if self.state.world_hour < 8:
+                self.wait_until(8)   # her shutters open at eight
+            self.tend_credit()
+            self.provision()
+            simulate_law._careful_day(self, played)
+            self.sell_goods()
+            self.eat()
+            return
+        super().day(played)
+        if self.counter == HOME and played > 1 and self.has_business():
+            self.tend_credit()   # the yard, after the night's sale
+            self.provision()
+
+    def tally(self) -> None:
+        from engine.game import threads
+
+        mine = [t for t in self.state.threads if t.get("template") == self.template]
+        self.life.credit_struck = len(mine)
+        self.life.credit_repaid = sum(t.get("status") == threads.STATUS_DISCHARGED for t in mine)
+        self.life.credit_broken = sum(t.get("status") == threads.STATUS_BROKEN for t in mine)
+
+
 class ScroungeLiving(Living, Scrounger):
     def __init__(self, seed: int, bed: str) -> None:
         Scrounger.__init__(self, seed, "scrounger")
@@ -314,8 +451,12 @@ CLASSES = {"porter": Porter, "dipper": Dipper, "careful": Careful,
            "scrounger": ScroungeLiving}
 
 
-def play(seed: int, policy: str, days: int, bed: str = "flophouse") -> Life:
-    person = CLASSES[policy](seed, bed)
+def play(seed: int, policy: str, days: int, bed: str = "flophouse",
+         strike: bool = True) -> Life:
+    if policy in CarefulOnCredit.CREDIT:
+        person = CarefulOnCredit(seed, bed, policy, strike)
+    else:
+        person = CLASSES[policy](seed, bed)
     person.life.start_gold = int(person.state.stats.gold)
     played = 0
     while person.state.world_day <= days:
@@ -324,6 +465,8 @@ def play(seed: int, policy: str, days: int, bed: str = "flophouse") -> Life:
         person.night()
     person.life.end_gold = int(person.state.stats.gold)
     person.life.arrests = int(person.run.arrests)
+    if isinstance(person, CarefulOnCredit):
+        person.tally()
     return person.life
 
 
@@ -331,8 +474,9 @@ def _mean(values: list[float]) -> float:
     return round(statistics.fmean(values), 2) if values else 0.0
 
 
-def measure(policy: str, seeds: int, days: int, bed: str = "flophouse") -> dict[str, Any]:
-    lives = [play(seed, policy, days, bed) for seed in range(seeds)]
+def measure(policy: str, seeds: int, days: int, bed: str = "flophouse",
+            strike: bool = True) -> dict[str, Any]:
+    lives = [play(seed, policy, days, bed, strike) for seed in range(seeds)]
     earning = ("work", "lift", "sell")
 
     def per_day(life: Life, value: float) -> float:
@@ -355,9 +499,25 @@ def measure(policy: str, seeds: int, days: int, bed: str = "flophouse") -> dict[
         "end_gold": _mean([float(l.end_gold) for l in lives]),
         "end_gold_min": min(l.end_gold for l in lives),
         "min_hp": min(l.min_hp for l in lives),
+        "runs_at_zero_hp": round(sum(l.min_hp <= 0 for l in lives) / len(lives), 3),
         "min_stamina": min(l.min_stamina for l in lives),
         "arrests_per_run": _mean([float(l.arrests) for l in lives]),
         "fines_per_run": _mean([float(-l.money["pay_fine"]) for l in lives]),
+        **_credit(lives),
+    }
+
+
+def _credit(lives: list[Life]) -> dict[str, float]:
+    """The credit columns, for a policy that ran a line of credit at all."""
+    struck = sum(l.credit_struck for l in lives)
+    if not struck:
+        return {}
+    return {
+        "credit_struck": _mean([float(l.credit_struck) for l in lives]),
+        "credit_repaid": round(sum(l.credit_repaid for l in lives) / struck, 2),
+        "credit_broken": round(sum(l.credit_broken for l in lives) / struck, 2),
+        "collectors_met": _mean([float(l.collectors_met) for l in lives]),
+        "collectors_hp_lost": _mean([float(l.collectors_hp) for l in lives]),
     }
 
 
@@ -383,6 +543,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--bed", choices=tuple(BEDS), default="flophouse")
     parser.add_argument("--agendas", action="store_true",
                         help="measure with the story's agendas on (off by default)")
+    parser.add_argument("--no-credit", action="store_true",
+                        help="the credit policies' control: the same visits, no line struck")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
@@ -394,7 +556,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     registry.activate("hue-and-cry")
     with (_nothing() if args.agendas else agendas_off()):
         policies = POLICIES if args.policy == "all" else (args.policy,)
-        reports = {p: measure(p, args.seeds, args.days, args.bed) for p in policies}
+        reports = {p: measure(p, args.seeds, args.days, args.bed, not args.no_credit)
+                   for p in policies}
     if args.json:
         print(json.dumps(reports, indent=2))
     else:

@@ -15,6 +15,10 @@ a story growing a hundred of them.
     anchors/<id>.yaml   a hand-written premise -- same keys, fixed contents,
                         and an optional ``owner: <scheduled npc id>``
 
+A secret row is ``{id, text, thread?}``. ``thread`` (v0.15) names the thread
+template that holding the secret opens -- a blackmail -- and is checked at
+load against the story's ``threads.yaml`` (``_check_secret_threads``).
+
 Generation runs once, inside ``procgen.generate_world``, before any GameState
 exists -- hence ``stable_rng(seed, PREMISES)`` rather than ``world_rng``. The
 stream is its own so that adding a premise type cannot reshuffle the village
@@ -32,7 +36,7 @@ the registry does not have, or a routine sending someone to a place the map
 does not have, would otherwise load, validate and do nothing -- the inert-shape
 failure this repo has shipped before.
 
-Version: v0.2.0 [2026-09-24]
+Version: v0.3.0 [2026-09-26]
 """
 
 from __future__ import annotations
@@ -221,7 +225,71 @@ def _load_type(path: Path, pools: dict[str, list[str]], items: Any, locations: A
         isinstance(s, dict) and s.get("id") for s in secrets
     ):
         raise _fail(path, "`secrets` must be a list of {id, text}")
+    _check_secret_threads(path, secrets, premise_id="")
     return spec
+
+
+def _check_secret_threads(path: Path, secrets: list[Any], *, premise_id: str) -> None:
+    """
+    A secret's optional ``thread: <template_id>`` (v0.15): the blackmail thread
+    holding it opens. It must name a template the story's ``threads.yaml``
+    declares, and that template's ``requires`` must read ``secret_held`` for
+    THIS secret -- otherwise the lever would be offered before the thief
+    holds it, or never, and load and validate and do nothing.
+
+    ``premise_id`` is an anchor's fixed premise id: a ``secret_held`` clause
+    that names a premise must name that one. A generated type's premise ids
+    are drawn per seed, so its clause may name only the secret.
+    """
+    for row in secrets:
+        if "thread" not in row:
+            continue
+        template = row.get("thread")
+        if not isinstance(template, str) or not template.strip():
+            raise _fail(path, f"secret {row['id']!r}: `thread` must be a thread template id")
+        from engine.game import threads
+        from engine.game.quests import condition_clauses
+
+        raw = threads.templates().get(template)
+        if not isinstance(raw, dict):
+            raise _fail(path, f"secret {row['id']!r}: `thread` {template!r} is not a "
+                              "template in the story's threads.yaml")
+        try:
+            condition_clauses(raw.get("requires"), f"thread {template!r} `requires`")
+        except ValueError as exc:
+            raise _fail(path, f"secret {row['id']!r}: {exc}") from None
+        gates = False
+        for name, value in _required_clauses(raw.get("requires")):
+            if name != "secret_held":
+                continue
+            body = {"secret": value} if isinstance(value, str) else value
+            if not isinstance(body, dict) or str(body.get("secret") or "") != str(row["id"]):
+                continue
+            named = str(body.get("premise") or "")
+            if named and named != premise_id:
+                continue
+            gates = True
+        if not gates:
+            raise _fail(path, f"secret {row['id']!r}: thread {template!r} must require "
+                              f"`secret_held: {{secret: {row['id']}}}`, or it is offered "
+                              "before the secret is held")
+
+
+def _required_clauses(node: Any) -> list[tuple[str, Any]]:
+    """The clauses a condition REQUIRES: its own predicates and its ``all``
+    groups', never an ``any`` alternative or a ``none`` (which would gate on
+    NOT holding the secret). Shape is checked first by ``condition_clauses``."""
+    if isinstance(node, list):
+        return [pair for entry in node for pair in _required_clauses(entry)]
+    if not isinstance(node, dict):
+        return []
+    found: list[tuple[str, Any]] = []
+    for key, value in node.items():
+        if key == "all":
+            found.extend(_required_clauses(value))
+        elif key not in ("any", "none", "id"):
+            found.append((str(key), value))
+    return found
 
 
 def _load_anchor(path: Path, items: Any, locations: Any) -> dict[str, Any]:
@@ -261,6 +329,7 @@ def _load_anchor(path: Path, items: Any, locations: Any) -> dict[str, Any]:
         # A premise holds ONE secret; keeping the first of several would drop
         # authored content without a word.
         raise _fail(path, f"an anchor holds one secret, {len(secrets)} are written")
+    _check_secret_threads(path, secrets, premise_id=f"prem_{spec['id']}")
     if spec.get("owner") is not None:
         # Optional: who the house belongs to, when that is someone the story
         # names (agendas react to robbing it). A misspelt id would make the
@@ -611,6 +680,16 @@ def definitions() -> dict[str, dict[str, Any]]:
         "types": copy.deepcopy(loaded["types"]),
         "anchors": copy.deepcopy(loaded["anchors"]),
     }
+
+
+def house_districts() -> set[str]:
+    """
+    The districts ``districts.yaml`` puts at least one house in (a generated
+    count or an anchor). Read by ``jobs`` at load: a tool limited to a
+    district with no premise could never apply to a job. Empty for a story
+    that declares no premises.
+    """
+    return {d for d, row in _load()["districts"].items() if row["count"] or row["anchors"]}
 
 
 # ---------------------------------------------------------------------------

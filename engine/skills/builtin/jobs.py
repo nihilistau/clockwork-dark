@@ -80,7 +80,11 @@ def job_stage(approach: str) -> str:
     from engine.world import jobs
 
     engine = get_active_engine()
-    return json.dumps(jobs.resolve_stage(engine.state, approach))
+    # The session's ledger (SessionStore sets it on the engine), so a set the
+    # take closes can write its ledger fact. None on a bare engine.
+    return json.dumps(
+        jobs.resolve_stage(engine.state, approach, ledger=getattr(engine, "ledger", None))
+    )
 
 
 @skill(

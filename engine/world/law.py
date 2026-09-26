@@ -1238,6 +1238,88 @@ def _p_in_custody(state: GameState, value: Any, ctx: Any) -> bool:
     return held is bool(value)
 
 
+def report_matcher(
+    state: GameState,
+    *,
+    jurisdiction: str = "",
+    guise: str = "",
+    linked: bool = False,
+    max_severity: Any = None,
+) -> Callable[[dict[str, Any]], bool]:
+    """
+    Which ``state.law["reports"]`` rows a filter names. ONE reading, shared by
+    the ``quash_reports`` effect (the rows a bribe loses) and the ``filed``
+    predicate (whether there is anything to lose), so a gate can never open on
+    a row the bribe it guards would not reach.
+
+    Each filter is optional. The guise is matched exactly unless ``linked``
+    widens it to every face the watch takes for the same person
+    (``same_person``); ``max_severity`` caps the rows' severity.
+
+    Raises:
+        ValueError: On a named jurisdiction or guise the Law does not know --
+            the effect refuses it and the predicate stays shut, rather than
+            either matching against nothing.
+    """
+    spec = load_spec()
+    jurisdiction = str(jurisdiction or "").strip()
+    guise = str(guise or "").strip()
+    if jurisdiction and jurisdiction not in spec["jurisdictions"]:
+        raise ValueError(f"unknown jurisdiction `{jurisdiction}`")
+    if guise and guise not in spec["guises"]:
+        raise ValueError(f"unknown guise `{guise}`")
+    guises = (same_person(state, guise) if linked else {guise}) if guise else set()
+
+    def matches(row: dict[str, Any]) -> bool:
+        if jurisdiction and row.get("jurisdiction") != jurisdiction:
+            return False
+        if guises and row.get("guise") not in guises:
+            return False
+        if max_severity is not None and _as_int(row.get("severity")) > _as_int(max_severity):
+            return False
+        return True
+
+    return matches
+
+
+def _as_int(value: Any) -> int:
+    """A YAML scalar as an int, junk as 0 -- the effects module's reading."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _p_filed(state: GameState, value: Any, ctx: Any) -> bool:
+    """``{filed: {jurisdiction, guise?, linked?}}`` -- a live report matches.
+
+    True when any row in ``state.law["reports"]`` matches, read through
+    ``report_matcher`` exactly as ``quash_reports`` reads it. Discharged and
+    quashed deeds' rows are already gone, so a live row is something a bribe
+    would actually buy: HUE & CRY's ``brask_bribe`` requires it, so a
+    sergeant names no price to a clean record. False -- never open -- in a
+    story with no Law, with no ``jurisdiction``, or naming a jurisdiction or
+    guise the Law does not know. A blank or whitespace-only ``jurisdiction``
+    is a missing one: judged after stripping, because ``report_matcher``
+    strips it and reads the empty result as "no filter" -- every drawer.
+    """
+    if not declared() or not isinstance(value, dict):
+        return False
+    jurisdiction = str(value.get("jurisdiction") or "").strip()
+    if not jurisdiction:
+        return False
+    try:
+        matches = report_matcher(
+            state,
+            jurisdiction=jurisdiction,
+            guise=str(value.get("guise") or ""),
+            linked=bool(value.get("linked")),
+        )
+    except ValueError:
+        return False
+    return any(matches(row) for row in state.law.get("reports") or [])
+
+
 def charged_deeds(state: GameState, guise: str, jurisdiction: str) -> dict[str, int]:
     """
     The charge sheet: ``{deed id: severity}`` for every deed filed in
@@ -1572,6 +1654,7 @@ def _register() -> None:
     from engine.game.quests import register_predicate
 
     register_predicate("in_custody", _p_in_custody)
+    register_predicate("filed", _p_filed)
 
 
 _register()
@@ -1611,6 +1694,7 @@ __all__ = [
     "pay_fine",
     "propagate",
     "recognition",
+    "report_matcher",
     "same_person",
     "sentence_for",
     "serve_sentence",

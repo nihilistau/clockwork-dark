@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import socket
+import sys
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -130,6 +132,158 @@ def _content_caches_are_per_test() -> Iterator[None]:
             module = sys.modules.get(module_name)
             if module is not None and hasattr(module, attribute):
                 setattr(module, attribute, None)
+
+
+#: The owner's real save directory, as the engine resolves ``paths.saves``
+#: (a relative path is relative to the repository, where the game runs).
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _real_saves_dir() -> Path:
+    from engine.config import get_config
+
+    base = Path(str(get_config().get("paths.saves", "data/saves") or "data/saves"))
+    return base if base.is_absolute() else _REPO_ROOT / base
+
+
+#: The real save directory as a normalized prefix, resolved once. The owner's
+#: ``paths.saves`` does not move during a run.
+_REAL_SAVES_PREFIX = os.path.normcase(os.path.abspath(_real_saves_dir())) + os.sep
+
+#: Writes THIS process attempted under the real save directory, as
+#: ``(event, path)``. Filled by ``_saves_audit_hook``, drained per test.
+#:
+#: Kept on ``sys`` rather than in this module because this file is imported
+#: TWICE: pytest loads it as ``conftest`` and a test's ``from tests.conftest
+#: import ...`` loads a second copy. Two lists (and two hooks) would let a test
+#: clear one while the fixture asserted on the other.
+_SHARED_KEY = "_clockwork_dark_real_saves_writes"
+_shared: Any = getattr(sys, _SHARED_KEY, None)
+_HOOK_INSTALLED = _shared is not None
+if _shared is None:
+    _shared = []
+    setattr(sys, _SHARED_KEY, _shared)
+REAL_SAVES_WRITES: list[tuple[str, str]] = _shared
+
+#: ``os.open`` flags that mean the file is being written, not just read.
+_WRITE_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_APPEND | os.O_CREAT | os.O_TRUNC
+
+#: Audit events that change the filesystem at a path (the first argument, and
+#: for a rename the second as well).
+_WRITE_EVENTS = frozenset({"os.rename", "os.mkdir", "os.remove", "os.rmdir"})
+
+
+def _under_real_saves(path: Any) -> bool:
+    if isinstance(path, bytes):
+        path = os.fsdecode(path)
+    if not isinstance(path, (str, os.PathLike)):
+        return False  # a file descriptor, or dir_fd-relative: no path to judge
+    full = os.path.normcase(os.path.abspath(os.fspath(path)))
+    return full == _REAL_SAVES_PREFIX[:-1] or full.startswith(_REAL_SAVES_PREFIX)
+
+
+def _saves_audit_hook(event: str, args: tuple[Any, ...]) -> None:
+    """
+    Record any attempt by this process to write under the real save directory.
+
+    Runs on every audit event, so it rejects cheaply: event name first, then
+    (for ``open``) whether the open is a write at all, and only then resolves
+    a path. It must never raise -- an exception here would surface inside
+    whatever unrelated call raised the event.
+    """
+    try:
+        if event == "open":
+            path, mode, flags = args
+            if isinstance(mode, str):
+                if not any(c in mode for c in "wax+"):
+                    return
+            elif not (int(flags or 0) & _WRITE_FLAGS):
+                return
+            if _under_real_saves(path):
+                REAL_SAVES_WRITES.append((event, os.fspath(path)))
+        elif event in _WRITE_EVENTS:
+            paths = args[:2] if event == "os.rename" else args[:1]
+            for path in paths:
+                if _under_real_saves(path):
+                    REAL_SAVES_WRITES.append((event, os.fspath(path)))
+    except Exception:  # noqa: BLE001 -- see the docstring
+        return
+
+
+# Installed once per process, by whichever copy of this file loads first: an
+# audit hook cannot be removed, and a second would double every entry.
+if not _HOOK_INSTALLED:
+    sys.addaudithook(_saves_audit_hook)
+
+
+@pytest.fixture(autouse=True)
+def _no_test_writes_real_saves(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[None]:
+    """
+    Every test's saves go to a temp directory, never the owner's ``data/saves``.
+
+    WHY THIS EXISTS. ``paths.saves`` is an engine output, so no story overlay
+    moves it, and every test that built a session through
+    ``SessionStore().create`` (or played a turn, which autosaves) wrote a real
+    run into the owner's load menu -- a pile of tens of thousands, found in
+    v0.15. A handful of tests redirected their own store; the rest never
+    thought to. Now the one function every namespaced root is built from,
+    ``saves.saves_base``, answers a per-test temp directory, and the cached
+    process-wide store is dropped on the way in and out, so a
+    ``get_save_store()``, a ``saves_root()`` and a store a test patches in for
+    itself all land somewhere disposable. A test that builds a
+    ``SaveStore(root=...)`` of its own (the legacy-migration tests) is
+    untouched: it already named its directory.
+
+    HOW A BREACH IS SEEN, WITHOUT SCANNING THE TREE. The first version
+    snapshotted every file under the real directory before and after each
+    test: O(saves) twice per test, cheap only while the folder was empty (the
+    owner's had ~6k), and wrong whenever the owner's own game autosaved while
+    the suite ran. Now two O(1) checks, both about THIS process only:
+
+      * an audit hook (``_saves_audit_hook``, ``sys.addaudithook``) records
+        every write-mode ``open``, ``mkdir``, ``rename``/``replace`` and
+        ``remove`` this process aims under the real directory -- whatever
+        route reached it, ``write_json_atomic`` or a bare ``write_text``;
+      * the redirect is still in force at teardown: ``saves_base`` and the
+        cached store's root are not under the real directory.
+
+    Asserted at teardown, for ``_no_live_model_calls``' reason: a save failure
+    is logged and forgiven (``SessionStore.create``), so the only honest check
+    is one nothing in the test body can catch.
+
+    ITS OWN MonkeyPatch, not the test's ``monkeypatch`` fixture. A test that
+    calls ``monkeypatch.undo()`` mid-body (``test_forced_and_repeatable_decks``
+    does, to drop a spy) would otherwise undo the redirect with it, and every
+    save for the rest of that test would land in the owner's folder -- found
+    by the teardown check below the first time it ran.
+    """
+    from engine.persistence import saves
+
+    real = _real_saves_dir()
+    base = tmp_path_factory.mktemp("saves")
+    redirect = pytest.MonkeyPatch()
+    redirect.setattr(saves, "saves_base", lambda: base)
+    saves.reset_save_store()
+    REAL_SAVES_WRITES.clear()
+    roots: list[Path] = []
+    try:
+        yield
+        store = saves._store
+        roots = [saves.saves_base()] + ([store.root] if store is not None else [])
+    finally:
+        saves.reset_save_store()
+        redirect.undo()
+        breaches = list(REAL_SAVES_WRITES)
+        REAL_SAVES_WRITES.clear()
+    assert not breaches, (
+        f"this test wrote into the real save directory {real}: {breaches[:5]}"
+    )
+    escaped = [str(r) for r in roots if _under_real_saves(r)]
+    assert not escaped, (
+        f"the save redirect was not in force at teardown; saves resolve to {escaped}"
+    )
 
 
 @pytest.fixture(autouse=True)

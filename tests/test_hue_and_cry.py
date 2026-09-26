@@ -91,7 +91,7 @@ ANCHORS = {"vessaline_manor": "silk_row", "margraves_treasury": "margraves_hill"
 #: is never empty, which is exactly what makes it a job rather than a walk-in.
 NEVER_EMPTY = {"manor", "palace_wing", "vessaline_manor", "margraves_treasury"}
 
-#: MEASURED, v0.9.0, across seeds 0-39 (see CHANGELOG [Unreleased]): 637 of
+#: MEASURED, v0.9.0, across seeds 0-39 (see CHANGELOG [0.9.0]): 637 of
 #: 1240 premises (51.4%) have an empty window of at least three hours; the
 #: worst single seed is 32.3%. The brief's line is 30%. The floor is the
 #: measured aggregate rounded down, so a routine edit that quietly fills the
@@ -404,7 +404,7 @@ def test_the_law_loads_against_the_story(hue) -> None:
     assert spec["arrest"]["encounter"] == "watch_stop"
     assert spec["arrest"]["gaol"] == "lantern_house"
     assert {g["item"] for g in spec["guises"].values() if "item" in g} == {
-        "magpie_mask", "porters_smock"}
+        "magpie_mask", "porters_smock", "lamplighters_coat"}
     # Every public district answers to a watch-house; the three secret places
     # answer to none, on purpose (data/rules/law.yaml).
     for district in PREMISE_DISTRICTS:
@@ -591,6 +591,44 @@ def test_brask_will_not_lose_a_file_for_an_empty_purse(hue) -> None:
     assert law.wanted_band(state, "self", "wick") == "sought"
 
 
+def test_brask_takes_no_price_once_his_file_is_gone(hue) -> None:
+    """Struck while the Wick held a file; the file went before he was paid
+    (the city-wide quash is `ardane_magpie_file`'s first discharge effect).
+    Paying him now would cost twelve crowns and quash nothing, so the
+    discharge is refused and the thread simply comes due (it has no
+    `on_break`)."""
+    from engine.game import intents, threads
+    from engine.game.effects import apply_effect
+    from engine.world import law
+
+    state = _city(11)
+    state.location_id = "lantern_house"
+    _file(state, "self", 2)
+    sealed = threads.seal(state, threads.offer(state, "brask_bribe"))
+    assert sealed["ok"], sealed
+    tid = sealed["thread"]["id"]
+    state.stats.gold = 20
+    assert apply_effect(state, {"type": "quash_reports", "guise": "self", "linked": True})["ok"]
+    assert law.wanted_band(state, "self", "wick") == "unknown"
+
+    verb = intents.find_verb(intents.legal_intents(state), "discharge")
+    assert verb is None or tid not in {t for t, _ in verb.options}
+    out = threads.discharge(state, tid)
+    assert out["ok"] is False, out
+    assert state.stats.gold == 20
+    assert threads.get(state, tid)["status"] == "active"
+
+
+def test_brasks_discharge_asks_for_the_file_as_well_as_the_coin(hue) -> None:
+    from engine.game import threads
+
+    gate = threads.templates()["brask_bribe"]["discharge_requires"]
+    assert {"min_gold": 12} in gate["all"]
+    assert {"filed": {"jurisdiction": "wick", "guise": "self", "linked": True}} in gate["all"]
+    # And he still has no on_break: a file lost before payday breaks nothing.
+    assert not threads.templates()["brask_bribe"].get("on_break")
+
+
 def test_brasks_price_is_named_at_his_desk_and_only_once(session) -> None:
     """Template `requires:` gates the `bargain` verb and the skill; a struck one is not re-offered."""
     import json
@@ -601,6 +639,7 @@ def test_brasks_price_is_named_at_his_desk_and_only_once(session) -> None:
 
     state = session.engine.state
     assert state.location_id == "tallow_docks"
+    _file(state, "self")   # something in his drawer to lose (`filed`)
 
     def offered() -> set:
         verb = intents.find_verb(intents.legal_intents(state), "bargain")
@@ -618,6 +657,100 @@ def test_brasks_price_is_named_at_his_desk_and_only_once(session) -> None:
     assert threads.offerable(state) == []
 
 
+def _brask_offered(state) -> bool:
+    from engine.game import threads
+
+    return "brask_bribe" in {row["id"] for row in threads.offerable(state)}
+
+
+def test_brask_names_no_price_to_a_clean_record(hue) -> None:
+    """Nothing filed in the Wick, nothing to lose: the bribe is not offered, nor struck."""
+    from engine.game import threads
+
+    state = _city(11)
+    state.location_id = "lantern_house"
+    assert not state.law.get("reports")
+    assert not threads.can_strike(state, "brask_bribe")
+    assert not _brask_offered(state)
+
+
+def test_a_lift_filed_in_the_wick_opens_brasks_price(hue) -> None:
+    from engine.game import threads
+
+    state = _city(11)
+    state.location_id = "lantern_house"
+    _file(state, "self")
+    assert threads.can_strike(state, "brask_bribe")
+    assert _brask_offered(state)
+
+
+def test_the_magpies_file_opens_brasks_price_through_the_link(hue) -> None:
+    """The Magpie agenda files against `magpie`; the watch takes her for you."""
+    from engine.game import threads
+    from engine.world import law
+
+    state = _city(11)
+    state.location_id = "lantern_house"
+    assert "magpie" in law.same_person(state, "self")
+    _file(state, "magpie")
+    assert threads.can_strike(state, "brask_bribe")
+    assert _brask_offered(state)
+
+
+def test_another_districts_file_does_not_open_brasks_price(hue) -> None:
+    from engine.game import threads
+
+    state = _city(11)
+    state.location_id = "lantern_house"
+    _file_in(state, "self", "quay")
+    _file(state, "porter")   # the Wick, but a face nobody has tied to you
+    assert not threads.can_strike(state, "brask_bribe")
+    assert not _brask_offered(state)
+
+
+def test_filed_reads_live_rows_the_way_a_quash_matches_them(hue) -> None:
+    """`filed` and `quash_reports` share one row matcher: what one finds, the other loses."""
+    from engine.game.effects import apply_effect
+    from engine.game.quests import evaluate_condition
+
+    state = _city(11)
+    linked = {"filed": {"jurisdiction": "wick", "guise": "self", "linked": True}}
+    exact = {"filed": {"jurisdiction": "wick", "guise": "self"}}
+    _file(state, "magpie")
+    assert evaluate_condition(state, linked)
+    assert not evaluate_condition(state, exact)   # exact guise unless `linked`
+    assert evaluate_condition(state, {"filed": {"jurisdiction": "wick"}})
+    assert not evaluate_condition(state, {"filed": {"jurisdiction": "quay"}})
+    # A gate that cannot be answered stays shut.
+    assert not evaluate_condition(state, {"filed": {"jurisdiction": "atlantis"}})
+    assert not evaluate_condition(state, {"filed": {"jurisdiction": "wick", "guise": "nobody"}})
+    assert not evaluate_condition(state, {"filed": {"guise": "self", "linked": True}})
+    assert not evaluate_condition(state, {"filed": True})
+    assert apply_effect(state, {"type": "quash_reports", "jurisdiction": "wick",
+                                "guise": "self", "linked": True})["ok"]
+    assert not evaluate_condition(state, linked)   # a lost file is nothing to lose
+
+
+@pytest.mark.parametrize("blank", [" ", "   ", "\t"])
+def test_filed_with_a_blank_jurisdiction_stays_shut(hue, blank: str) -> None:
+    """A whitespace jurisdiction is a missing one, not "any jurisdiction":
+    it passed the truthiness check and then stripped to no filter at all."""
+    from engine.game.quests import evaluate_condition
+
+    state = _city(11)
+    _file(state, "self")
+    assert not evaluate_condition(state, {"filed": {"jurisdiction": blank}})
+    assert not evaluate_condition(state, {"filed": {"jurisdiction": blank, "guise": "self"}})
+
+
+def test_brasks_gate_is_the_filed_predicates_production_caller(hue) -> None:
+    from engine.game import threads
+
+    requires = threads.templates()["brask_bribe"]["requires"]
+    assert {"at_location": "lantern_house"} in requires["all"]
+    assert {"filed": {"jurisdiction": "wick", "guise": "self", "linked": True}} in requires["all"]
+
+
 def test_the_missing_death_rules_are_warned_about_once(hue, caplog) -> None:
     import logging
 
@@ -630,7 +763,7 @@ def test_the_missing_death_rules_are_warned_about_once(hue, caplog) -> None:
 
 
 #: MEASURED, v0.10.0, scripts/simulate_law.py over 40 seeds x 10 in-game
-#: days (the table is in CHANGELOG.md [Unreleased]): careful below `sought` on
+#: days (the table is in CHANGELOG.md [0.10.0]): careful below `sought` on
 #: 100% of seed-days; reckless `wanted` by day 4 on 78% of seeds; reckless
 #: arrested at least once on 80%, and a reckless thief who bribes whenever
 #: it can on 80% too (bribes cost it 19% of what it lifted); no sentence
@@ -790,6 +923,40 @@ def _scripts_on_path() -> None:
         sys.path.insert(0, root)
 
 
+def test_a_harness_run_leaves_the_save_store_untouched(hue, monkeypatch) -> None:
+    """T8: every harness run wrote one save per seed into the owner's real
+    `data/saves/hue-and-cry` (SessionStore().create's first save) -- tens of
+    thousands of runs nobody played, in the load menu's index. A harness is
+    a measurement: it keeps nothing. Every harness's player is built on
+    simulate_law.Thief, and each one is asserted here, one short day each."""
+    _scripts_on_path()
+    from engine.persistence import saves
+    from scripts import (simulate_agendas, simulate_hoard, simulate_jobs, simulate_labour,
+                         simulate_law, simulate_scrounge, simulate_streets)
+
+    written: list[str] = []
+    real_save = saves.SaveStore.save
+
+    def spy(self, state, **kwargs):
+        written.append(str(self.root))
+        return real_save(self, state, **kwargs)
+
+    monkeypatch.setattr(saves.SaveStore, "save", spy)
+    root = saves.saves_root("hue-and-cry")
+    before = sorted(p.name for p in root.iterdir()) if root.is_dir() else []
+    with simulate_law.agendas_off():
+        simulate_law.play(0, "careful", 1)
+        simulate_jobs.Burglar(0, "careful")
+        simulate_agendas.measure("idle", 1, 1)
+        simulate_labour.play(0, "careful_pell", 1)
+        simulate_scrounge.play(0, "mornings", 1)
+        simulate_streets.Wanderer(0)
+        simulate_hoard.Hoarder(0)
+    after = sorted(p.name for p in root.iterdir()) if root.is_dir() else []
+    assert written == [], written
+    assert after == before
+
+
 def test_hue_and_cry_declares_jobs_against_its_law(hue) -> None:
     from engine.world import jobs, law
 
@@ -797,7 +964,7 @@ def test_hue_and_cry_declares_jobs_against_its_law(hue) -> None:
     spec = jobs.spec()
     assert spec["alarm"]["deed"] == "burglary"
     assert "burglary" in law.load_spec()["deeds"]
-    assert set(spec["tools"]) == {"lockpicks", "smoke_pellet"}
+    assert set(spec["tools"]) == {"lockpicks", "smoke_pellet", "forged_pass"}
     # The Treasury's own stage, and nothing spliced into Vessaline House.
     assert [s["id"] for s in spec["anchors"]["margraves_treasury"]["stages"]] == ["vault_floor"]
     assert "vessaline_manor" not in spec["anchors"]
@@ -864,7 +1031,7 @@ def test_a_raised_alarm_brings_the_watch_and_the_stop(hue, monkeypatch) -> None:
     assert any(r["deed"] == "burglary" for r in state.law.get("reports") or [])
 
 
-#: MEASURED, v0.11.0, scripts/simulate_jobs.py (CHANGELOG.md [Unreleased]):
+#: MEASURED, v0.11.0, scripts/simulate_jobs.py (CHANGELOG.md [0.11.0]):
 #: over 40 seeds careful carried the take out of 93% of tier-1 and 75% of
 #: tier-2 jobs and was never caught; blind was caught on 22% / 58%; the
 #: prepped Treasury was carried out 20% of the time and the bare one never.
@@ -1233,7 +1400,7 @@ def test_the_storyteller_knows_the_city_moves_and_names_no_magpie(hue) -> None:
 
 
 #: MEASURED, v0.12.0, scripts/simulate_agendas.py over 40 seeds x 10 in-game
-#: days (CHANGELOG.md [Unreleased]): a player who never steals is `sought` by
+#: days (CHANGELOG.md [0.12.0]): a player who never steals is `sought` by
 #: day 6 on 80% of seeds (median day 5); the Magpie robs 9.8 houses a run;
 #: player jobs land on a house the Magpie already robbed 9% (careful) and 7%
 #: (reckless) of the time; the captain's net reaches its top band for 60% of
@@ -1733,6 +1900,11 @@ PRE_TEMPLATE_PREMISES_DIGESTS = {1: "65070778e0010d28", 7: "d0a8e14393f2a60d",
                                  42: "3751ff8b2131f850"}
 
 
+#: The Hoard pieces an anchor's loot list names (v0.15, see HOARD below).
+HOARD_IN_ANCHORS = {"lantern_house_knocker", "swan_salt", "nightingale_comb",
+                    "chandlers_loving_cup"}
+
+
 def _digest(value) -> str:
     import hashlib
     import json
@@ -1747,6 +1919,11 @@ def test_the_secret_ways_never_move_a_house(hue, monkeypatch) -> None:
     for seed in PRE_TEMPLATE_WORLD_DIGESTS:
         world = procgen.generate_world(seed).to_dict()
         assert world["forest"]["hidden_paths"], seed
+        # v0.15 added a Magpie's Hoard piece to four anchors' AUTHORED loot
+        # lists: content, not a draw. Struck out, the city hashes exactly as
+        # it did at 4003587 -- no house moved, which is this test's claim.
+        for prem in world["premises"]:
+            prem["loot"] = [i for i in prem.get("loot") or [] if i not in HOARD_IN_ANCHORS]
         assert _digest(world["premises"]) == PRE_TEMPLATE_PREMISES_DIGESTS[seed], seed
         world.pop("forest")
         assert _digest(world) == PRE_TEMPLATE_WORLD_DIGESTS[seed], seed
@@ -1998,7 +2175,7 @@ def test_every_boon_and_complication_applies_cleanly(hue) -> None:
 
 
 #: MEASURED, v0.14, scripts/simulate_labour.py over 40 seeds x 10 days
-#: (labour.yaml's header, CHANGELOG.md [Unreleased]): an honest porter keeps
+#: (labour.yaml's header, CHANGELOG.md [0.14.0]): an honest porter keeps
 #: 97% of days fed and under a roof and saves about 0.2 cr a day, a candle-
 #: dipper 89% and the same 0.2; the careful pickpocket keeps 8%. Asserted
 #: over 8 seeds x 8 days, loosely.
@@ -2019,7 +2196,7 @@ def measured_living():
     try:
         with simulate_law.agendas_off():
             return {p: simulate_labour.measure(p, LABOUR_SEEDS, LABOUR_DAYS)
-                    for p in ("porter", "dipper", "careful")}
+                    for p in ("porter", "dipper", "careful", "careful_pell")}
     finally:
         if registry.peek() is not before:
             registry.deactivate()
@@ -2054,6 +2231,49 @@ def test_honest_work_keeps_you_better_than_careful_purses(measured_living) -> No
     assert porter["kept_days"] > careful["kept_days"] + 0.3, (porter, careful)
 
 
+#: MEASURED, v0.15 (T7 fix round 2), scripts/simulate_labour.py, 40 seeds,
+#: with `--no-credit` controls (CHANGELOG [0.15.0]). Counted in DAYS kept
+#: (fed and roofed) per run:
+#:   - The careful pickpocket keeps 0.7 over 10 days and 1.0 over 20.
+#:   - On Pell's advance it keeps 5.4 and 5.8: +4.7 and +4.8 over the
+#:     control. 95% of the advances break.
+#:   - The collectors (night, and by day in the fences' districts) meet it
+#:     0.5 and 1.2 times a run.
+#:   - No fence buys from it: earnings 1.20 v 1.36 cr a day over 10 days.
+#: HONESTLY: welshing still beats never borrowing, the gain does not erode
+#: between 10 and 20 days, and it is never a living beside an honest
+#: porter's 18.4 kept days in 20. Asserted over the fixture's 8 x 8, loosely:
+#: the lifeline, the trap, the lower earnings and the gap to the porter.
+def test_pells_advance_is_a_lifeline_and_a_trap(measured_living) -> None:
+    careful, credit = measured_living["careful"], measured_living["careful_pell"]
+    assert credit["credit_struck"] >= 1.0, credit
+    assert credit["kept_days"] >= careful["kept_days"] + 0.2, (careful, credit)
+    # Purses alone cannot find thirteen crowns by the third day.
+    assert credit["credit_broken"] >= 0.6, credit
+    # And the break costs it: no fence will buy what it lifts.
+    assert credit["earned_per_day"] < careful["earned_per_day"], (careful, credit)
+    # Never a better living than honest work.
+    assert credit["kept_days"] < measured_living["porter"]["kept_days"] - 0.2, credit
+
+
+def test_a_welshers_night_streets_are_mostly_the_collectors(session) -> None:
+    """The collectors' odds for a night walker, from the engine's own
+    formula: at 22:00 on the quay-to-Snuffs street, a welsher on Pell meets
+    SOME scene about a quarter of the time, and it is her collectors more
+    than half of those (weight 30 against the street's others)."""
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    state.flags["welshed_on_pell"] = True
+    set_clock(state, day=2, hour=22)
+    rows = encounter.eligible(state, "tallow_docks", "the_snuffs")
+    weights = {r["id"]: int(r.get("weight", 10)) for r in rows}
+    share = weights["pells_collectors"] / sum(weights.values())
+    assert share >= 0.5, weights
+    assert encounter.trigger_chance(state, "tallow_docks", "the_snuffs") * share >= 0.1
+
+
 # ---------------------------------------------------------------------------
 # v0.14 task 4: the streets at night (data/encounters/streets.yaml)
 # ---------------------------------------------------------------------------
@@ -2061,7 +2281,8 @@ def test_honest_work_keeps_you_better_than_careful_purses(measured_living) -> No
 #: The scenes a road may hand the player. `watch_stop` is not one: the Law's
 #: patrol opens it, and it carries `on_roads: false` so no road ever draws it.
 STREET_SCENES = {"cutpurses", "press_gang", "drunk_lantern", "lamplighters_warning",
-                 "silas_toughs"}
+                 "silas_toughs", "pells_collectors", "marrows_lads",
+                 "pells_collectors_by_day", "marrows_lads_by_day"}
 #: MEASURED, v0.14 (rules.yaml's header): the per-leg chance for a fresh
 #: thief (stealth +2) over every public street is 17.5% on average at 23:00
 #: (6% on the Hill, 26% on any street touching the Docks or the Snuffs) and
@@ -2301,8 +2522,10 @@ def test_the_wanderer_meets_the_night_and_not_the_day(hue) -> None:
 
 SEVEN_FACTIONS = {"honest_company", "lantern_watch", "chandlers_guild", "market_stalls",
                   "temple_everflame", "margraves_household", "silk_row"}
-#: Declared for Acts I-III and moved by nothing yet (CLAUDE.md deferred).
-AWAITING_ACTS = {"temple_everflame", "margraves_household", "silk_row"}
+#: Declared for Acts I-III and moved by nothing yet (CLAUDE.md deferred). The
+#: Row and the Hill have been moved since v0.15 by a squeeze left uncollected
+#: (threads.yaml).
+AWAITING_ACTS = {"temple_everflame"}
 
 
 def _story_yaml(rel: str):
@@ -2348,7 +2571,7 @@ def test_striking_a_lantern_costs_the_watchs_good_opinion(session, monkeypatch) 
 
 
 def test_every_faction_but_the_acts_ones_is_moved_by_something() -> None:
-    """A faction nothing moves is the inert shape -- except the three the acts will use."""
+    """A faction nothing moves is the inert shape -- except the Temple, which the acts will use."""
     moved = _faction_movers()
     assert SEVEN_FACTIONS - AWAITING_ACTS <= moved, SEVEN_FACTIONS - AWAITING_ACTS - moved
     assert not (moved - SEVEN_FACTIONS), moved - SEVEN_FACTIONS  # no undeclared faction
@@ -2433,3 +2656,1297 @@ def test_work_elsewhere_says_whether_it_is_open_now(session) -> None:
     set_clock(state, day=2, hour=18)
     rows = {r["id"]: r for r in economy.snapshot(state)["elsewhere"]}
     assert rows["lamplighting"]["open_now"] is True
+
+
+# ---------------------------------------------------------------------------
+# v0.15: the Porters' Hall workshop (data/recipes/workshop.yaml)
+# ---------------------------------------------------------------------------
+
+#: recipe id -> (what it makes, how many). One bench, in the Snuffs.
+WORKSHOP = {
+    "file_lockpicks": ("lockpicks", 1),
+    "roll_smoke_pellets": ("smoke_pellet", 2),
+    "cut_lamplighters_coat": ("lamplighters_coat", 1),
+    "forge_hill_pass": ("forged_pass", 1),
+}
+#: The counters a thief can buy at without an honest vendor.
+FENCES = ("npc_pell_hollis", "npc_marrow")
+#: Marrow's price for a set of picks (data/economy.yaml).
+MARROWS_PICKS = 15
+
+
+def _workshop():
+    from engine.skills.builtin.mechanics import _load_recipes
+
+    return _load_recipes()
+
+
+def _fence_price(item_id: str) -> int:
+    """The cheapest a fence sells it for, or 0 when no fence does."""
+    from engine.game import trade
+
+    state = _city(11)
+    prices = [trade.quote(state, npc, item_id, side=trade.BUY) for npc in FENCES
+              if item_id in trade.vendor(npc).get("sells", {})]
+    return min((int(q["unit_price"]) for q in prices if q["ok"]), default=0)
+
+
+def _scrounged() -> set[str]:
+    from engine.game import foraging
+
+    return {str(row["item_id"]) for table in foraging.load_rules()["tables"]
+            for pool in ("common", "uncommon") for row in table.get(pool) or []}
+
+
+def _per_attempt(recipe: dict, modifier: int = 0) -> dict:
+    """What one attempt yields on average: every d20 face through the story's
+    own DC and degree table, at the recipe's band (a fed, rested thief at
+    `modifier`) -- exact, not sampled."""
+    from engine.game import checks
+    from engine.skills.builtin.mechanics import _craft_yield
+
+    rules = checks.load_skill_rules()
+    _, dc = checks.difficulty_dc(str(recipe["band"]), rules)
+    made = salvage = passed = 0.0
+    for face in range(1, 21):
+        degree = checks.degree_for(face + modifier - dc, rules)
+        got = _craft_yield(degree, recipe)
+        if degree == "failure":
+            salvage += (_fence_price(got["id"]) * got["qty"] if got else 0) / 20
+        else:
+            passed += 1 / 20
+            made += (got["qty"] if got else 0) / 20
+    coin = sum(_fence_price(str(i["id"])) * int(i.get("qty", 1)) for i in recipe["inputs"])
+    return {"made": made, "passed": passed, "coin": coin,
+            "coin_per_unit": (coin - salvage) / made if made else float("inf")}
+
+
+def test_the_porters_hall_is_the_workshop(hue) -> None:
+    recipes = _workshop()
+    assert {rid: (r["output"]["id"], int(r["output"].get("qty", 1)))
+            for rid, r in recipes.items()} == WORKSHOP
+    for rid, recipe in recipes.items():
+        assert recipe["station"] == "the_snuffs", rid
+        assert recipe["skill"] == "craft", rid
+
+
+def test_every_recipe_can_be_sourced_by_a_thief(hue) -> None:
+    """Every input and tool is scrounged off a street or sold by a fence --
+    and each fence, and the gutters, supply at least one of them."""
+    from engine.game import trade
+
+    scrounged = _scrounged()
+    stocked = {npc: set(trade.vendor(npc).get("sells", {})) for npc in FENCES}
+    needed: set[str] = set()
+    for recipe in _workshop().values():
+        needed |= {str(i["id"]) for i in recipe["inputs"]}
+        needed |= {str(t) for t in recipe.get("tools") or []}
+    assert needed
+    for item in needed:
+        assert item in scrounged or any(item in s for s in stocked.values()), item
+    assert needed & scrounged
+    for npc, stock in stocked.items():
+        assert needed & stock, npc
+
+
+def test_every_recipe_is_craftable_from_what_the_fences_sell(session, monkeypatch) -> None:
+    """Buy every input across a fence's counter, walk to the Porters' Hall, and
+    the `craft` verb offers all four -- and each one, executed, makes its thing."""
+    from engine.agents.tool_dispatcher import execute_intent
+    from engine.game import intents, inventory, trade
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    state.stats.gold = 200
+    set_clock(state, day=1, hour=18)   # both fences at their counters
+    for npc in FENCES:
+        state.location_id = trade.vendor_location(npc)
+        for recipe in _workshop().values():
+            for row in recipe["inputs"]:
+                item, qty = str(row["id"]), int(row.get("qty", 1))
+                if item not in trade.vendor(npc).get("sells", {}):
+                    continue
+                while inventory.quantity(state, item) < qty * 2:
+                    receipt = execute_intent({"action": "buy", "target": f"{npc}/{item}"},
+                                             session.engine)
+                    assert receipt and receipt[0]["result"]["success"], (npc, item, receipt)
+    state.location_id = "the_snuffs"
+    verb = intents.find_verb(intents.legal_intents(state), "craft")
+    assert verb is not None and {t for t, _ in verb.options} == set(WORKSHOP)
+    monkeypatch.setattr("engine.game.checks.resolve", lambda *a, **k: _Forced("success"))
+    for rid, (item, qty) in WORKSHOP.items():
+        before = inventory.quantity(state, item)
+        receipt = execute_intent({"action": "craft", "target": rid}, session.engine)
+        assert receipt and receipt[0]["result"]["ok"], (rid, receipt)
+        assert inventory.quantity(state, item) == before + qty, rid
+
+
+def test_the_workshop_is_not_offered_off_its_bench(session) -> None:
+    from engine.game import intents, inventory
+
+    state = session.engine.state
+    for recipe in _workshop().values():
+        for row in recipe["inputs"]:
+            inventory.grant(state, str(row["id"]), int(row.get("qty", 1)))
+    state.location_id = "the_snuffs"
+    assert intents.find_verb(intents.legal_intents(state), "craft") is not None
+    state.location_id = "wickmarket"
+    assert intents.find_verb(intents.legal_intents(state), "craft") is None
+
+
+#: MEASURED, v0.15 (CHANGELOG [0.15.0]): an exact expectation over the
+#: d20 at the recipe's band, inputs at the cheapest fence price, a failed
+#: attempt's salvage credited at the same price: a set of picks from the
+#: bench costs 7.25 crowns against Marrow's 15, and four hours his counter
+#: does not. Bounded at 60% of his price, so one input may move a crown.
+def test_crafted_lockpicks_cost_less_coin_and_more_hours_than_marrows(hue) -> None:
+    from engine.game import trade
+
+    recipe = _workshop()["file_lockpicks"]
+    assert _fence_price("lockpicks") == MARROWS_PICKS
+    measured = _per_attempt(recipe)
+    assert measured["coin_per_unit"] < MARROWS_PICKS * 0.6, measured
+    assert float(recipe["hours"]) >= 4
+    # And no money loop: a set made from bought wire costs more than any
+    # counter in the city pays for one.
+    state = _city(11)
+    paid = [trade.quote(state, npc, "lockpicks", side=trade.SELL)
+            for npc in (*FENCES, "npc_dock_mag")]
+    best = max(int(q["unit_price"]) for q in paid if q["ok"])
+    assert measured["coin_per_unit"] > best, (measured, best)
+
+
+def test_no_workshop_recipe_turns_bought_inputs_into_profit(hue) -> None:
+    """Anything a thief can make from a fence's stock sells for less than the
+    stock cost: the bench saves coin on a tool, it never mints it."""
+    from engine.game import trade
+
+    state = _city(11)
+    for rid, recipe in _workshop().items():
+        measured = _per_attempt(recipe)
+        item = str(recipe["output"]["id"])
+        paid = [trade.quote(state, npc, item, side=trade.SELL)
+                for npc in (*FENCES, "npc_dock_mag")]
+        best = max((int(q["unit_price"]) for q in paid if q["ok"]), default=0)
+        assert measured["coin_per_unit"] > best, (rid, measured, best)
+
+
+def test_the_lamplighters_coat_is_a_face_the_watch_files(session) -> None:
+    """Wear the coat and a witness files `a lamplighter`, not you."""
+    from engine.agents.tool_dispatcher import execute_intent
+    from engine.game import intents, inventory
+    from engine.game.clock import set_clock
+    from engine.world import law
+
+    state = session.engine.state
+    assert law.load_spec()["guises"]["lamplighter"]["item"] == "lamplighters_coat"
+    inventory.grant(state, "lamplighters_coat", 1)
+    verb = intents.find_verb(intents.legal_intents(state), "guise")
+    assert verb and "lamplighter" in {t for t, _ in verb.options}
+    receipt = execute_intent({"action": "guise", "target": "lamplighter"}, session.engine)
+    assert receipt and receipt[0]["result"]["ok"], receipt
+    set_clock(state, day=1, hour=14)
+    law.commit_deed(state, "pickpocket", location="wickmarket", informants=("npc_lantern_1",))
+    filed = state.law["reports"][-1]
+    assert filed["guise"] == "lamplighter"
+    assert law.guise_label(filed["guise"]) == "a lamplighter"
+
+
+def _hill_and_row_bands(state) -> dict:
+    from engine.game.effects import apply_effect
+    from engine.world import jobs, premises
+
+    out = {}
+    for district in ("margraves_hill", "silk_row"):
+        state.location_id = district
+        prem = next(p for p in premises.at(state, district) if not p.get("anchor"))
+        assert jobs.begin(state, prem["id"])["ok"], district
+        out[district] = {"approach": jobs.band_for(state, "approach"),
+                         "door": jobs.band_for(state, "entry", "door"),
+                         "window": jobs.band_for(state, "entry", "window"),
+                         "score": jobs.band_for(state, "score")}
+        assert apply_effect(state, {"type": "job_close", "outcome": "aborted"})["ok"]
+    return out
+
+
+def test_the_forged_pass_opens_the_hill_and_nowhere_else(hue) -> None:
+    """A Margrave's Hill pass eases the approach and the door of a Hill house,
+    and does nothing at all on Silk Row next door."""
+    from engine.game import inventory
+    from engine.game.checks import shift_band
+    from engine.game.clock import set_clock
+    from engine.world import jobs
+
+    assert jobs.spec()["tools"]["forged_pass"]["districts"] == ["margraves_hill"]
+    state = _city(11)
+    set_clock(state, day=1, hour=23)
+    bare = _hill_and_row_bands(state)
+    inventory.grant(state, "forged_pass", 1)
+    carried = _hill_and_row_bands(state)
+    pass_name = inventory.name_of("forged_pass")
+
+    hill, bare_hill = carried["margraves_hill"], bare["margraves_hill"]
+    for stage in ("approach", "door"):
+        assert hill[stage][0] == shift_band(bare_hill[stage][0], -1), (stage, bare_hill, hill)
+        assert pass_name in hill[stage][1], stage
+    assert hill["window"] == bare_hill["window"]
+    assert hill["score"] == bare_hill["score"]
+    assert carried["silk_row"] == bare["silk_row"]
+
+
+def test_every_counter_offers_all_of_its_stock(session) -> None:
+    """The `buy` verb offers at most eight choices at a place and cuts the rest
+    (intents._MAX_OPTIONS): a ninth stock row is stock nobody can choose. v0.15
+    put both fences at eight; this fails the moment a row falls off."""
+    from engine.game import intents, trade
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    state.stats.gold = 500
+    for npc in (*FENCES, "npc_dock_mag"):
+        hour = 18 if npc != "npc_dock_mag" else 10
+        set_clock(state, day=1, hour=hour)
+        state.location_id = trade.vendor_location(npc)
+        verb = intents.find_verb(intents.legal_intents(state), "buy")
+        offered = {t for t, _ in verb.options} if verb else set()
+        stock = {f"{npc}/{item}" for item in trade.vendor(npc).get("sells", {})}
+        assert stock <= offered, (npc, sorted(stock - offered))
+
+
+# ---------------------------------------------------------------------------
+# The Magpie's Hoard (v0.15): six shines the ballad says were never fenced
+# ---------------------------------------------------------------------------
+
+#: Where each piece rests when the city is generated: four in anchors (the
+#: same house in every seed), two in secret places, found once by standing
+#: there (data/quests/the_magpies_hoard/).
+HOARD = {
+    "lantern_house_knocker": "captains_office",
+    "swan_salt": "margraves_treasury",
+    "nightingale_comb": "vessaline_manor",
+    "chandlers_loving_cup": "gannets_house",
+    "mitre_of_saint_wick": "old_bell_tower",
+    "harbourmasters_chain": "the_undercroft",
+}
+HOARD_FINDS = {"old_bell_tower": "mitre_of_saint_wick",
+               "the_undercroft": "harbourmasters_chain"}
+
+
+def _hoard_row():
+    from engine.game import inventory
+
+    return next(r for r in inventory.load_collections() if r.get("id") == "magpies_hoard")
+
+
+def test_the_hoard_is_six_named_shinies(hue) -> None:
+    from engine.game import inventory
+
+    row = _hoard_row()
+    assert set(row["items"]) == set(HOARD) and len(row["items"]) == 6
+    for piece in HOARD:
+        assert {"shiny", "named"} <= set(inventory.tags_of(piece)), piece
+        assert inventory.collection_of(piece) == "magpies_hoard", piece
+        assert "collect" in inventory.verbs_for(piece), piece
+
+
+def test_the_hoard_keeps_the_citys_secrets(hue) -> None:
+    """Every word of it is readable before any secret place is found, and in
+    every seed -- so it names no secret place, and none of the three people
+    the seed may make the Magpie."""
+    from engine.game import inventory
+
+    row = _hoard_row()
+    texts = [str(row.get(k) or "") for k in ("name", "blurb", "reward_text")]
+    for piece in HOARD:
+        spec = inventory.get_item(piece) or {}
+        texts += [str(spec.get("name") or ""), str(spec.get("description") or "")]
+    body = " ".join(texts).lower()
+    for word in ("undercroft", "rooftop", "bell tower", "wren", "silas", "crook", "imelda"):
+        assert word not in body, word
+
+
+def test_every_hoard_piece_is_placed_in_every_seed(hue) -> None:
+    """Across 40 cities: the four anchor pieces sit in their anchor's loot, and
+    standing in each secret place finds its piece. (The Magpie's agenda may
+    still rob an anchor before the thief does -- a piece reachable at the
+    start, not guaranteed at the end.)"""
+    from engine.game import inventory
+    from engine.game.quests import QuestEngine
+
+    for seed in range(40):
+        state = _city(seed)
+        loot = {str(p["id"]): set(p.get("loot") or []) for p in state.procgen.premises}
+        for piece, where in HOARD.items():
+            if where in ANCHORS:
+                assert piece in loot[f"prem_{where}"], (seed, piece)
+        for place, piece in HOARD_FINDS.items():
+            state.location_id = place
+            QuestEngine.evaluate(state)
+            assert inventory.quantity(state, piece) == 1, (seed, place)
+
+
+def test_a_hoard_find_yields_once_and_only_where_it_is(hue) -> None:
+    from engine.game import inventory, quests
+    from engine.game.quests import QuestEngine
+    from engine.world import thievery
+
+    state = _city(11)
+    QuestEngine.evaluate(state)  # on the docks: nothing found, no arc opened
+    assert "the_magpies_hoard" not in state.arcs_unlocked
+    assert not any(q.startswith("hoard_") for q in quests.progress_records(state))
+    assert not any(inventory.quantity(state, p) for p in HOARD)
+
+    state.location_id = "old_bell_tower"
+    QuestEngine.evaluate(state)
+    QuestEngine.evaluate(state)
+    state.location_id = "gallows_green"
+    QuestEngine.evaluate(state)
+    state.location_id = "old_bell_tower"
+    QuestEngine.evaluate(state)
+    assert inventory.quantity(state, "mitre_of_saint_wick") == 1
+    assert inventory.quantity(state, "harbourmasters_chain") == 0
+    # A famous piece off somebody's list: hot, and hot for good.
+    assert thievery.heat(state, "mitre_of_saint_wick") == "hot"
+
+
+def test_collecting_all_six_sets_the_flag_once(hue) -> None:
+    from engine.game import inventory
+
+    state = _city(11)
+    before = int(state.reputations.get("honest_company", 0))
+    pieces = list(HOARD)
+    for piece in pieces[:-1]:
+        assert "collections" not in inventory.grant(state, piece)
+    assert not state.flags.get("magpies_hoard_complete")
+
+    receipt = inventory.grant(state, pieces[-1])
+
+    assert [c["id"] for c in receipt["collections"]] == ["magpies_hoard"]
+    assert receipt["collections"][0]["text"] == _hoard_row()["reward_text"]
+    assert state.flags["magpies_hoard_complete"] is True
+    assert state.flags["collection_magpies_hoard_complete"] is True
+    paid = int(state.reputations.get("honest_company", 0))
+    assert paid > before
+
+    # Put one down and pick it up again: the Hoard pays once.
+    inventory.take(state, pieces[0])
+    again = inventory.grant(state, pieces[0])
+    assert "collections" not in again
+    assert int(state.reputations.get("honest_company", 0)) == paid
+
+
+def test_selling_a_piece_breaks_the_set(hue) -> None:
+    from engine.game import inventory, trade
+    from engine.game.clock import set_clock
+
+    state = _city(11)
+    for piece in HOARD:
+        inventory.grant(state, piece)
+    assert _hoard_row_status(state)["complete"] is True
+
+    set_clock(state, day=1, hour=19)
+    state.location_id = "the_snuffs"
+    sold = trade.sell(state, "npc_marrow", "swan_salt")
+    assert sold.get("success") is True, sold
+
+    status = _hoard_row_status(state)
+    assert status["complete"] is False and status["missing"] == ["swan_salt"]
+    assert status["claimed"] is True  # it paid; selling does not claw it back
+
+
+def _hoard_row_status(state):
+    from engine.game import inventory
+
+    return next(r for r in inventory.collection_status(state) if r["id"] == "magpies_hoard")
+
+
+def test_a_burglary_that_takes_the_last_piece_closes_the_hoard(hue, monkeypatch) -> None:
+    """The anchors' pieces arrive by the getaway, which grants through the
+    effect dispatcher rather than ``inventory.grant`` -- the Hoard must still
+    close on the spot, and the narrator must be told."""
+    from engine.agents import prompts
+    from engine.game import inventory
+    from engine.game.clock import set_clock
+    from engine.game.effects import apply_effect
+    from engine.world import jobs
+
+    state = _city(11)
+    for piece in HOARD:
+        if piece != "lantern_house_knocker":
+            inventory.grant(state, piece)
+    assert not state.flags.get("magpies_hoard_complete")
+
+    state.location_id = "lantern_house"
+    set_clock(state, day=1, hour=13)
+    apply_effect(state, {"type": "job_prep", "delta": 3})
+    state.stats.gold = 50
+    assert jobs.begin(state, "prem_captains_office")["ok"] is True
+    _script_rolls(monkeypatch, "success")
+    out = _walk_job(state)
+
+    assert out.get("closed") is True, out
+    assert inventory.quantity(state, "lantern_house_knocker") == 1
+    assert state.flags.get("magpies_hoard_complete") is True
+    assert [c["id"] for c in out.get("collections") or []] == ["magpies_hoard"]
+    line = prompts.summarise_receipt({"skill": "job_stage", "success": True, "result": out})
+    assert _hoard_row()["reward_text"].strip() in line
+
+
+# -- fix round 1 ------------------------------------------------------------
+
+
+def _hoard_but(state, missing: str) -> None:
+    from engine.game import inventory
+
+    for piece in HOARD:
+        if piece != missing:
+            inventory.grant(state, piece)
+
+
+def _burgle_the_office(state, monkeypatch) -> dict:
+    from engine.game.clock import set_clock
+    from engine.game.effects import apply_effect
+    from engine.world import jobs
+
+    state.location_id = "lantern_house"
+    set_clock(state, day=1, hour=13)
+    apply_effect(state, {"type": "job_prep", "delta": 3})
+    state.stats.gold = 50
+    assert jobs.begin(state, "prem_captains_office")["ok"] is True
+    _script_rolls(monkeypatch, "success")
+    return _walk_job(state)
+
+
+def test_the_magpie_robbing_an_anchor_leaves_its_hoard_piece(hue, monkeypatch) -> None:
+    """`lift_a_shiny` may rob the Office, Gannet's or Vessaline House first. An
+    agenda's robbery never takes a collection member: the thief who comes
+    after finds the house stripped of everything else, and the piece."""
+    from engine.agents import prompts
+    from engine.game import inventory
+    from engine.game.effects import apply_effect
+
+    state = _city(11)
+    hit = apply_effect(state, {"type": "agenda_hit", "agenda": "the_magpie",
+                               "premise": "prem_captains_office", "hour": 1})
+    assert hit["ok"] is True, hit
+    _hoard_but(state, "lantern_house_knocker")
+
+    out = _burgle_the_office(state, monkeypatch)
+
+    assert out.get("closed") is True and out.get("emptied") is True, out
+    assert inventory.quantity(state, "lantern_house_knocker") == 1
+    assert inventory.quantity(state, "captains_spyglass") == 0
+    assert state.flags.get("magpies_hoard_complete") is True
+    line = prompts.summarise_receipt({"skill": "job_stage", "success": True, "result": out})
+    assert inventory.name_of("lantern_house_knocker") in line
+    assert "with nothing" not in line
+
+
+def test_a_find_that_closes_the_hoard_tells_the_narrator(hue) -> None:
+    """The quest event's text is what reaches the ledger and the client from
+    a find; the set's reward line rides it."""
+    from engine.game.quests import QuestEngine
+    from engine.memory.ledger import StoryLedger
+
+    state = _city(11)
+    _hoard_but(state, "mitre_of_saint_wick")
+    ledger = StoryLedger()
+    state.location_id = "old_bell_tower"
+    events = QuestEngine.evaluate(state, ledger)
+
+    assert state.flags.get("magpies_hoard_complete") is True
+    reward = _hoard_row()["reward_text"].strip()
+    assert any(reward in e.text for e in events), [e.text for e in events]
+
+
+def test_a_getaway_that_closes_the_hoard_writes_its_ledger_fact(hue, monkeypatch) -> None:
+    """Through the production door: a session's engine, the `job_stage` skill."""
+    from engine.game.engine import active_engine
+    from engine.skills.builtin.jobs import job_stage
+    from engine.world import jobs
+    from engine.game.clock import set_clock
+    from engine.game.effects import apply_effect
+    import json
+
+    session = SessionStore().create(seed=11, llm_fn=lambda m, **k: "{}")
+    state = session.engine.state
+    _hoard_but(state, "lantern_house_knocker")
+    state.location_id = "lantern_house"
+    set_clock(state, day=1, hour=13)
+    apply_effect(state, {"type": "job_prep", "delta": 3})
+    state.stats.gold = 50
+    assert jobs.begin(state, "prem_captains_office")["ok"] is True
+    _script_rolls(monkeypatch, "success")
+    with active_engine(session.engine):
+        for _ in range(20):
+            if jobs.active(state) is None:
+                break
+            out = json.loads(job_stage(jobs.approaches(state)[0][0]))
+            assert out["ok"] is True, out
+
+    assert state.flags.get("magpies_hoard_complete") is True
+    assert any("Magpie's Hoard" in f.text for f in session.ledger.facts)
+
+
+# -- a secret is a lever (v0.15, Task 6) --------------------------------------
+
+#: Each anchor's secret, the blackmail thread it opens, who it squeezes, and
+#: where and at what hour that person is found awake to be squeezed.
+LEVERS = {
+    "vessaline_manor": ("butlers_memoir", "vessaline_memoir", "npc_imelda", "silk_row", 10),
+    "gannets_house": ("fund_of_ious", "gannet_ious", "npc_gannet", "the_snuffs", 20),
+    "captains_office": ("magpie_file", "ardane_magpie_file", "npc_ardane", "lantern_house", 19),
+    "margraves_treasury": ("light_crowns", "quill_light_crowns", "npc_steward_quill",
+                           "margraves_hill", 15),
+}
+
+
+def _at(state, where: str, hour: int) -> None:
+    from engine.game.clock import set_clock
+
+    state.location_id = where
+    set_clock(state, day=state.world_day, hour=hour)
+
+
+def _hold(state, anchor: str) -> None:
+    """Hold an anchor's secret the way a score does: the flag it writes."""
+    secret = LEVERS[anchor][0]
+    state.flags[f"secret_held:prem_{anchor}:{secret}"] = True
+
+
+def _offered_ids(state) -> set:
+    from engine.game import threads
+
+    return {row["id"] for row in threads.offerable(state)}
+
+
+def test_taking_the_vessaline_memoir_holds_it(hue, monkeypatch) -> None:
+    """Through the production door (a session's engine, the `job_stage` skill):
+    the score names the memoir, the getaway that carries it out writes the
+    flag and an engine `secret` fact, and only THAT receipt line says the
+    thief holds a lever, and over whom."""
+    import json
+
+    from engine.agents import prompts
+    from engine.game.clock import set_clock
+    from engine.game.effects import apply_effect
+    from engine.game.engine import active_engine
+    from engine.skills.builtin.jobs import job_stage
+    from engine.world import jobs
+
+    session = SessionStore().create(seed=11, llm_fn=lambda m, **k: "{}")
+    state = session.engine.state
+    state.location_id = "silk_row"
+    set_clock(state, day=1, hour=1)
+    apply_effect(state, {"type": "intel", "premise": "prem_vessaline_manor", "intel": "secret"})
+    assert jobs.begin(state, "prem_vessaline_manor")["ok"] is True
+    _script_rolls(monkeypatch, "success")
+    score = getaway = None
+    with active_engine(session.engine):
+        for _ in range(20):
+            if jobs.active(state) is None:
+                break
+            out = json.loads(job_stage(jobs.approaches(state)[0][0]))
+            assert out["ok"] is True, out
+            if out["stage"] == "score":
+                score = out
+                assert not state.flags.get("secret_held:prem_vessaline_manor:butlers_memoir")
+            getaway = out
+
+    assert state.flags.get("secret_held:prem_vessaline_manor:butlers_memoir") is True
+    facts = [f for f in session.ledger.facts if f.kind == "secret"]
+    assert facts and "memoir" in facts[0].text and facts[0].source == "engine"
+    assert score is not None and "memoir" in score["secret"]
+    found = prompts.summarise_receipt({"skill": "job_stage", "success": True, "result": score})
+    assert "memoir" in found and "lever" not in found and "Imelda" not in found
+    assert getaway is not None and getaway["closed"] and "memoir" in getaway["held"]
+    line = prompts.summarise_receipt({"skill": "job_stage", "success": True, "result": getaway})
+    assert "memoir" in line and "lever" in line and "Lady Imelda Vessaline" in line
+    assert "pay" not in line   # a lever, not a promised price (the thread has its own gates)
+
+
+def test_a_thief_caught_leaving_the_captains_office_cannot_squeeze_her(hue, monkeypatch) -> None:
+    """Caught at the getaway: the Watch took its file back, so there is no lever."""
+    from engine.game.effects import apply_effect
+    from engine.world import jobs
+
+    state = _city(11)
+    apply_effect(state, {"type": "intel", "premise": "prem_captains_office", "intel": "secret"})
+    _script_rolls(monkeypatch, "success")
+    state.location_id = "lantern_house"
+    from engine.game.clock import set_clock
+    set_clock(state, day=1, hour=13)
+    apply_effect(state, {"type": "job_prep", "delta": 3})
+    assert jobs.begin(state, "prem_captains_office")["ok"] is True
+    for _ in range(20):
+        if jobs.current_stage(state) == "getaway":
+            break
+        jobs.resolve_stage(state, jobs.approaches(state)[0][0])
+    assert jobs.current_stage(state) == "getaway"
+    _script_rolls(monkeypatch, "failure")
+    out: dict = {}
+    for _ in range(10):
+        out = jobs.resolve_stage(state, "getaway")
+        if out.get("closed"):
+            break
+    assert out["closed"] and out["outcome"] == "caught", out
+    assert not any(k.startswith("secret_held:") for k in state.flags)
+    _at(state, "lantern_house", 19)
+    _file(state, "self")
+    assert "ardane_magpie_file" not in _offered_ids(state)
+
+
+def test_imeldas_squeeze_is_offered_only_once_the_memoir_is_held(hue) -> None:
+    state = _city(11)
+    _at(state, "silk_row", 10)
+    assert "vessaline_memoir" not in _offered_ids(state)
+    _hold(state, "vessaline_manor")
+    assert "vessaline_memoir" in _offered_ids(state)
+    _at(state, "silk_row", 14)         # at the Temple, not at home
+    assert "vessaline_memoir" not in _offered_ids(state)
+    _at(state, "wickmarket", 10)       # squeezed on her own street, nowhere else
+    assert "vessaline_memoir" not in _offered_ids(state)
+
+
+def test_every_anchor_secret_names_its_blackmail_thread(hue) -> None:
+    """A secret's `thread:` names its template; the template is a Blackmail
+    squeezing the owner, gated on holding exactly that secret, where they are."""
+    from engine.game import threads
+    from engine.world import premises
+
+    for anchor, (secret, template, npc, where, hour) in LEVERS.items():
+        row = premises.spec(anchor)["secrets"][0]
+        assert (row["id"], row.get("thread")) == (secret, template), anchor
+        raw = threads.templates()[template]
+        assert raw["source"] == npc and raw["tags"] == ["Blackmail"], template
+        assert raw.get("on_break"), template
+        state = _city(11)
+        _at(state, where, hour)
+        _file(state, "self")   # the captain's price wants something on file
+        assert template not in _offered_ids(state), template
+        _hold(state, anchor)
+        assert template in _offered_ids(state), template
+
+
+def test_imeldas_squeeze_never_leans_on_who_the_magpie_is(hue) -> None:
+    """Imelda is a Magpie candidate: her thread turns on her butler's memoir."""
+    from engine.game import threads
+
+    raw = threads.templates()["vessaline_memoir"]
+    words = f"{raw['title']} {raw['terms']}".lower()
+    assert "memoir" in words
+    for word in ("magpie", "debt", "owes", "ruin", "motive", "thief"):
+        assert word not in words, word
+
+
+def _seal(state, template: str) -> dict:
+    from engine.game import threads
+
+    sealed = threads.seal(state, threads.offer(state, template))
+    assert sealed["ok"], sealed
+    return sealed["thread"]
+
+
+def test_imelda_pays_at_the_silversmiths_window(hue) -> None:
+    from engine.game import threads
+    from engine.game.clock import set_clock
+
+    state = _city(11)
+    _at(state, "silk_row", 10)
+    _hold(state, "vessaline_manor")
+    thread = _seal(state, "vessaline_memoir")
+    assert not threads.can_discharge(state, thread)   # in her parlour, not at the window
+    set_clock(state, day=state.world_day, hour=17)
+    gold = state.stats.gold
+    assert threads.discharge(state, thread["id"])["ok"]
+    assert state.stats.gold == gold + 20
+
+
+def test_a_squeeze_left_uncollected_goes_to_the_watch(hue) -> None:
+    """The blackmail deed: filed by the one witness to it, the victim, on break."""
+    from engine.game import threads
+    from engine.world import law
+
+    state = _city(11)
+    _at(state, "silk_row", 10)
+    _hold(state, "vessaline_manor")
+    thread = _seal(state, "vessaline_memoir")
+    assert not state.law.get("reports")
+    out = threads.break_thread(state, thread["id"])
+    assert out["ok"], out
+    rows = state.law["reports"]
+    assert [(r["deed"], r["jurisdiction"], r["guise"]) for r in rows] == [
+        ("blackmail", "rise", "self")]
+    assert law.load_spec()["deeds"]["blackmail"] == rows[0]["severity"]
+
+
+def test_the_blackmail_deed_weighs_what_law_yaml_says(hue) -> None:
+    """T8: law.yaml's severity claim is replayed by a committed harness
+    (`scripts/simulate_hoard.py --severity`), not a scratch script. At the
+    shipped 3: `noticed` two mornings alone; beside a lift seen up the Rise,
+    `sought` the day it lands and `noticed` four days more. At 4 a squeeze
+    alone would be `sought` -- the stop the file's reason turns down."""
+    _scripts_on_path()
+    from engine.world import law
+    from scripts import simulate_hoard
+    from scripts.simulate_law import agendas_off
+
+    assert law.load_spec()["deeds"]["blackmail"] == 3
+    with agendas_off():
+        shipped = simulate_hoard.severity_sweep((law.load_spec()["deeds"]["blackmail"], 4), days=6)
+    assert shipped["3"]["alone"] == ["noticed", "noticed"] + ["unknown"] * 5
+    assert shipped["3"]["beside_a_lift"] == ["sought"] + ["noticed"] * 4 + ["unknown"] * 2
+    assert shipped["4"]["alone"][0] == "sought"
+    assert law.load_spec()["deeds"]["blackmail"] == 3   # the sweep put it back
+
+
+def test_squeezing_mother_gannet_costs_the_company_on_the_spot(hue) -> None:
+    from engine.game import reputation
+
+    state = _city(11)
+    _at(state, "the_snuffs", 20)
+    _hold(state, "gannets_house")
+    before = reputation.get(state, "honest_company")
+    _seal(state, "gannet_ious")
+    assert reputation.get(state, "honest_company") < before
+
+
+def test_ardane_looks_away_from_every_watch_house(hue) -> None:
+    """The captain's price: her file on you, and the Magpie's, lost city-wide."""
+    from engine.game import threads
+    from engine.game.clock import set_clock
+    from engine.world import law
+
+    state = _city(11)
+    _at(state, "lantern_house", 19)
+    _hold(state, "captains_office")
+    assert "ardane_magpie_file" not in _offered_ids(state)   # nothing for her to lose
+    _file(state, "magpie")
+    _file_in(state, "self", "quay")
+    _file(state, "porter")   # a face nobody has tied to you stays filed
+    assert "ardane_magpie_file" in _offered_ids(state)
+    thread = _seal(state, "ardane_magpie_file")
+    assert threads.discharge(state, thread["id"])["ok"]
+    assert [(r["jurisdiction"], r["guise"]) for r in state.law["reports"]] == [("wick", "porter")]
+    assert law.wanted_band(state, "self", "quay") == "unknown"
+
+
+def test_no_squeeze_is_cut_at_the_table(hue) -> None:
+    """The thread bounder drops a disallowed kind and clamps a large one with
+    only a logged adjustment: every squeeze must survive it whole -- the
+    victim's `report` included (authored-only, `STRUCTURAL_EFFECT_TYPES`)."""
+    from engine.game import threads
+
+    state = _city(11)
+    for _anchor, (_s, template, _n, _w, _h) in LEVERS.items():
+        offer = threads.offer(state, template)
+        assert offer is not None and offer.adjustments == [], (template, offer.adjustments)
+        raw = threads.templates()[template]
+        for hook in ("on_seal", "on_discharge", "on_break"):
+            assert getattr(offer, hook) == list(raw.get(hook) or []), (template, hook)
+
+
+def test_a_model_composed_challenge_still_cannot_file_a_report() -> None:
+    """`report` is authored-only: a dice table must not frame the player."""
+    from engine.challenges import spec as spec_module
+
+    notes: list[str] = []
+    out = spec_module.clamp_outcome(
+        {"effects": [{"type": "report", "deed": "blackmail", "guise": "self",
+                      "jurisdiction": "rise", "precision": 1.0}]}, notes)
+    assert out["effects"] == [] and any("report" in n for n in notes)
+
+
+def test_every_squeeze_left_uncollected_has_teeth(hue) -> None:
+    """Row, Hill and captain file blackmail in their own jurisdiction; the Snuffs
+    never go to the Watch, so Gannet's teeth are the Company's opinion."""
+    from engine.game import reputation, threads
+
+    expected = {"vessaline_memoir": ("rise", "silk_row"),
+                "gannet_ious": (None, "honest_company"),
+                "ardane_magpie_file": ("wick", "lantern_watch"),
+                "quill_light_crowns": ("rise", "margraves_household")}
+    for anchor, (_s, template, _n, where, hour) in LEVERS.items():
+        state = _city(11)
+        _at(state, where, hour)
+        _file_in(state, "self", "quay")   # the captain's price wants something on file
+        _hold(state, anchor)
+        thread = _seal(state, template)
+        jurisdiction, faction = expected[template]
+        before = reputation.get(state, faction)
+        filed = len(state.law.get("reports") or [])
+        assert threads.break_thread(state, thread["id"])["ok"]
+        assert reputation.get(state, faction) == before - 10, template
+        rows = (state.law.get("reports") or [])[filed:]
+        if jurisdiction is None:
+            assert rows == [], template
+        else:
+            assert [(r["deed"], r["jurisdiction"], r["precision"]) for r in rows] == [
+                ("blackmail", jurisdiction, 1.0)], template
+
+
+def test_the_steward_pays_at_his_table(hue) -> None:
+    from engine.game import threads
+
+    state = _city(11)
+    _at(state, "margraves_hill", 15)
+    _hold(state, "margraves_treasury")
+    thread = _seal(state, "quill_light_crowns")
+    gold = state.stats.gold
+    assert threads.discharge(state, thread["id"])["ok"]
+    assert state.stats.gold == gold + 25
+
+
+# ---------------------------------------------------------------------------
+# v0.15: the fences' credit (data/rules/threads.yaml `pell_advance`,
+# `marrow_slate`; data/tables/trade.yaml `refuses_to_buy`)
+# ---------------------------------------------------------------------------
+
+#: Each credit thread: its fence, her counter, an hour she trades there and
+#: one she does not, what she stands you, what you owe back, and the flag a
+#: break sets.
+CREDIT = {
+    "pell_advance": ("npc_pell_hollis", "wickmarket", 10, 3, 10, 13, "welshed_on_pell"),
+    "marrow_slate": ("npc_marrow", "the_snuffs", 21, 12, 5, 8, "welshed_on_marrow"),
+}
+
+
+def _credit_state(template: str, *, open_hours: bool = True):
+    _fence, where, hour, closed, *_ = CREDIT[template]
+    state = _city(11)
+    _at(state, where, hour if open_hours else closed)
+    state.stats.gold = 0
+    return state
+
+
+def test_credit_is_offered_only_at_the_fences_own_counter(hue) -> None:
+    from engine.game import threads
+
+    for template, (_fence, where, _h, _c, *_rest) in CREDIT.items():
+        state = _credit_state(template)
+        assert template in _offered_ids(state), template
+        assert threads.can_strike(state, template), template
+        closed = _credit_state(template, open_hours=False)
+        assert template not in _offered_ids(closed), template   # she is not trading
+        for district in PUBLIC_DISTRICTS:
+            if district == where:
+                continue
+            state.location_id = district
+            assert template not in _offered_ids(state), (template, district)
+            assert not threads.can_strike(state, template), (template, district)
+
+
+def test_sealing_credit_pays_out(hue) -> None:
+    for template, (*_x, lent, _owed, _flag) in CREDIT.items():
+        state = _credit_state(template)
+        _seal(state, template)
+        assert state.stats.gold == lent, template
+
+
+def test_an_open_line_of_credit_is_not_offered_twice(hue) -> None:
+    """One copy at a time: a second advance on top of the first is one debt counted twice."""
+    from engine.game import threads
+
+    for template in CREDIT:
+        state = _credit_state(template)
+        _seal(state, template)
+        assert template not in _offered_ids(state), template
+        assert not threads.can_strike(state, template), template
+
+
+def test_credit_is_repaid_in_coin_at_her_counter_and_offered_again(hue) -> None:
+    from engine.game import intents, threads
+
+    for template, (_fence, where, _h, _c, lent, owed, _flag) in CREDIT.items():
+        state = _credit_state(template)
+        thread = _seal(state, template)
+        assert state.stats.gold == lent
+        assert not threads.can_discharge(state, thread), template   # short of it
+        state.stats.gold = owed + 2
+        state.location_id = "tallow_docks"
+        assert not threads.can_discharge(state, thread), template   # not at her counter
+        state.location_id = where
+        verb = intents.find_verb(intents.legal_intents(state), "discharge")
+        assert verb and thread["id"] in {t for t, _ in verb.options}, template
+        out = threads.discharge(state, thread["id"])
+        assert out["ok"], (template, out)
+        assert state.stats.gold == 2, template
+        assert threads.get(state, thread["id"])["status"] == "discharged"
+        assert template in _offered_ids(state), template   # a slate paid is a slate open
+        assert state.moved == [], (template, state.moved)   # settling breaks nothing
+
+
+def test_welshing_on_a_fence_shuts_both_to_you_and_the_word_goes_round(hue) -> None:
+    """Fix round 1: fences stand together -- welsh on one and NEITHER buys
+    from you or lends to you again (before, the other fence still bought,
+    which cost a thief who sold to her nothing at all)."""
+    from engine.game import intents, threads, trade
+    from engine.game.effects import apply_effect
+
+    for template, (_fence, where, hour, _c, _lent, _owed, flag) in CREDIT.items():
+        state = _credit_state(template)
+        thread = _seal(state, template)
+        state.stats.gold = 0
+        state.world_clock_hours += 24 * 4
+        _at(state, where, hour)
+        threads.expire_due(state)
+        assert threads.get(state, thread["id"])["status"] == "broken", template
+        assert state.flags.get(flag) is True, template
+        apply_effect(state, {"type": "item", "item_id": "silver_thimble", "qty": 1})
+        for other, (other_fence, other_where, other_hour, *_r) in CREDIT.items():
+            _at(state, other_where, other_hour)
+            # Neither buys -- refused in her words, never offered.
+            assert trade.refusal_to_buy(state, other_fence), (template, other_fence)
+            sale = trade.sell(state, other_fence, "silver_thimble", 1)
+            assert sale["success"] is False, (template, other_fence)
+            assert sale["message"] == trade.refusal_to_buy(state, other_fence)
+            verb = intents.find_verb(intents.legal_intents(state), "sell")
+            assert not verb or not any(t.startswith(f"{other_fence}/") for t, _ in verb.options)
+            # ...and neither stands you credit again.
+            assert other not in _offered_ids(state), (template, other)
+            assert not threads.can_strike(state, other), (template, other)
+        # Dock Mag is no fence and was never party to it.
+        assert trade.refusal_to_buy(state, "npc_dock_mag") == ""
+
+
+def test_welshing_on_pell_costs_you_the_stalls(hue) -> None:
+    """Her neighbours talk (factions.yaml `market_stalls`)."""
+    from engine.game import reputation, threads
+
+    state = _credit_state("pell_advance")
+    thread = _seal(state, "pell_advance")
+    before = reputation.get(state, "market_stalls")
+    threads.break_thread(state, thread["id"])
+    assert reputation.get(state, "market_stalls") == before - 5
+
+
+def test_the_narrator_hears_the_break_and_sees_the_shut_counter(hue) -> None:
+    """Audit question 2: the break is journalled once, in the story's words,
+    and standing at her counter the PEOPLE HERE line says she will not buy."""
+    from engine.agents import prompts
+    from engine.game import threads, trade
+
+    for template, (fence, where, hour, *_r) in CREDIT.items():
+        state = _credit_state(template)
+        assert "buys nothing from you" not in prompts._npcs_present_block(state)
+        thread = _seal(state, template)
+        state.world_clock_hours += 24 * 4
+        threads.expire_due(state)
+        block = prompts.moved_block(state)
+        assert "the word has gone round" in block, template
+        assert "after dark" in block, template   # the collectors, and why
+        assert threads.get(state, thread["id"])["terms"] not in block   # its own line
+        _at(state, where, hour)
+        people = prompts._npcs_present_block(state)
+        line = next(l for l in people.splitlines() if l.startswith(f"- {fence}:"))
+        assert trade.refusal_to_buy(state, fence) in line, (template, line)
+        assert "buys nothing from you" in line, (template, line)
+
+
+def test_no_credit_state_gates_rest(hue) -> None:
+    """Rule 6: welsh on both fences, sit on an empty purse -- a rough night is
+    still there wherever you stand, and the flophouse still takes your crown."""
+    from engine.game import survival, threads
+
+    state = _city(3)
+    for template, (_f, where, hour, *_r) in CREDIT.items():
+        _at(state, where, hour)
+        thread = _seal(state, template)
+        threads.break_thread(state, thread["id"])
+    state.stats.gold = 0
+    _at(state, "the_snuffs", 22)
+    for district in PUBLIC_DISTRICTS:
+        state.location_id = district
+        assert "sleep_rough" in _rest_targets(state), district
+    state.location_id = "the_snuffs"
+    state.stats.stamina = 5
+    assert survival.rest(state, "sleep_rough")["success"] and state.stats.stamina > 5
+    state.stats.gold = 1
+    assert "sleep_flophouse" in _rest_targets(state)
+    paid = survival.rest(state, "sleep_flophouse")   # a roof, not a downgrade
+    assert paid["success"] and paid.get("kind") == "sleep_flophouse", paid
+    assert state.stats.gold == 0
+
+
+def test_no_credit_term_is_cut_at_the_table(hue) -> None:
+    """Every credit thread survives the bounder whole (gold clamps at 25 here)."""
+    from engine.game import threads
+
+    state = _city(11)
+    for template in CREDIT:
+        offer = threads.offer(state, template)
+        assert offer is not None and offer.adjustments == [], (template, offer.adjustments)
+        assert offer.tags == ["Credit"]
+        raw = threads.templates()[template]
+        for hook in ("on_seal", "on_discharge", "on_break"):
+            assert getattr(offer, hook) == list(raw.get(hook) or []), (template, hook)
+        assert raw.get("repeatable") is True
+
+
+def test_every_hue_thread_that_can_break_says_so(hue) -> None:
+    """Owner direction (T7 fix round 1): no thread with an `on_break` breaks
+    in silence. Each carries the narrator's line, worded true both for a
+    break that came due and for one made early."""
+    from engine.game import threads
+
+    for template_id, raw in threads.templates().items():
+        if not raw.get("on_break"):
+            continue
+        text = str(raw.get("broken_text") or "").strip()
+        assert text, template_id
+        assert "came due" not in text.lower(), template_id
+
+
+def test_every_squeeze_break_tells_the_narrator_about_the_heat(hue) -> None:
+    """A thread whose `on_break` files a report says who went to the Watch."""
+    from engine.game import threads
+
+    for template_id, raw in threads.templates().items():
+        if any(e.get("type") == "report" for e in raw.get("on_break") or []):
+            assert "watch" in raw["broken_text"].lower(), template_id
+
+
+def test_imeldas_broken_line_turns_on_the_memoir_alone(hue) -> None:
+    from engine.game import threads
+
+    words = threads.templates()["vessaline_memoir"]["broken_text"].lower()
+    assert "memoir" in words
+    for word in ("magpie", "debt", "owes", "ruin", "motive", "thief", "mask"):
+        assert word not in words, word
+    for template_id, raw in threads.templates().items():
+        assert "magpie" not in str(raw.get("broken_text") or "").lower(), template_id
+
+
+def test_a_refused_strike_says_why(session) -> None:
+    """Rule 1: the refusal that reaches the prose is the true one -- already
+    open, already struck once, or not here and now."""
+    import json
+
+    from engine.game import threads
+    from engine.game.engine import active_engine
+    from engine.skills.builtin.scenes import strike_bargain
+
+    state = session.engine.state
+    with active_engine(session.engine):
+        _at(state, "tallow_docks", 10)
+        assert json.loads(strike_bargain("pell_advance"))["error"] == threads.REFUSED_HERE
+        _at(state, "wickmarket", 10)
+        assert json.loads(strike_bargain("pell_advance"))["ok"] is True
+        assert json.loads(strike_bargain("pell_advance"))["error"] == threads.REFUSED_OPEN
+        _file(state, "self")
+        _at(state, "lantern_house", 10)
+        assert json.loads(strike_bargain("brask_bribe"))["ok"] is True
+        assert json.loads(strike_bargain("brask_bribe"))["error"] == threads.REFUSED_ONCE
+    assert threads.strike_refusal(state, "no_such_bargain") == threads.REFUSED_HERE
+
+
+
+# -- the fences' collectors (v0.15, T7 fix round 1: the owner's teeth) --------
+
+#: Each collector scene, the flag that sends it, and what settles it.
+COLLECTORS = {"pells_collectors": ("welshed_on_pell", 13, "pell_advance"),
+              "marrows_lads": ("welshed_on_marrow", 8, "marrow_slate"),
+              "pells_collectors_by_day": ("welshed_on_pell", 13, "pell_advance"),
+              "marrows_lads_by_day": ("welshed_on_marrow", 8, "marrow_slate")}
+
+
+def test_no_collector_walks_for_anyone_who_never_welshed(session) -> None:
+    """Seed replay is unchanged: without the flag neither scene is ever
+    eligible, so the ENCOUNTER stream draws from exactly the old table."""
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    for hour in range(24):
+        set_clock(state, day=2, hour=hour)
+        for src, dst in _public_legs():
+            ids = {r["id"] for r in encounter.eligible(state, src, dst)}
+            assert not ids & set(COLLECTORS), (src, dst, hour, ids)
+            # ...and no leg is made one hair more dangerous by the day rows'
+            # `min_chance`: the chance a leg rolls is the v0.14 formula's.
+            assert encounter.row_floor(state, src, dst) == 0.0, (src, dst, hour)
+            assert encounter.leg_chance(state, src, dst) == encounter.trigger_chance(
+                state, src, dst), (src, dst, hour)
+
+
+def test_a_non_welshers_streets_draw_exactly_as_before(session) -> None:
+    """Byte-identical ENCOUNTER stream: the same seeded walks, drawn through
+    `roll_for_encounter` (now `leg_chance`) and through the v0.14 formula
+    alone, pick the same scenes on the same legs at every hour."""
+    import random
+
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+
+    def v014(gen, src, dst):
+        chance = encounter.trigger_chance(state, src, dst)
+        if chance <= 0.0 or gen.random() >= chance:
+            return None
+        rows = encounter.eligible(state, src, dst)
+        return encounter._weighted_choice(rows, gen)["id"] if rows else None
+
+    for hour in range(24):
+        set_clock(state, day=2, hour=hour)
+        a, b = random.Random(hour), random.Random(hour)
+        for _ in range(3):
+            for src, dst in _public_legs():
+                now = encounter.roll_for_encounter(state, src, dst, rng=a)
+                assert ((now or {}).get("id")) == v014(b, src, dst), (hour, src, dst)
+
+
+def test_a_welsher_meets_the_collectors_after_dark(session) -> None:
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    for scene, (flag, _owed, _t) in COLLECTORS.items():
+        if scene.endswith("_by_day"):
+            continue   # the next test's
+        state.flags[flag] = True
+        set_clock(state, day=2, hour=22)
+        assert scene in {r["id"] for r in encounter.eligible(state, "tallow_docks", "the_snuffs")}
+        set_clock(state, day=2, hour=12)
+        assert scene not in {r["id"] for r in encounter.eligible(state, "tallow_docks", "the_snuffs")}
+        set_clock(state, day=2, hour=22)
+        assert scene not in {r["id"] for r in encounter.eligible(state, "silk_row", "margraves_hill")}
+        state.flags[flag] = False
+        set_clock(state, day=2, hour=12)
+        state.flags[flag] = True
+        assert scene not in {r["id"] for r in encounter.eligible(state, "tallow_docks", "the_snuffs")}
+        state.flags[flag] = False
+
+
+def test_a_welsher_meets_the_collectors_by_day_in_the_fences_districts(session) -> None:
+    """Owner, T7 fix round 2: by day too, in Wickmarket and the Snuffs only,
+    at a smaller share than the night's worst leg."""
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+
+    def collectors_share(src: str, dst: str) -> float:
+        rows = encounter.eligible(state, src, dst)
+        weights = {r["id"]: int(r.get("weight", 10)) for r in rows}
+        mine = sum(w for k, w in weights.items() if k in COLLECTORS)
+        return encounter.leg_chance(state, src, dst) * mine / max(1, sum(weights.values()))
+
+    for scene, (flag, _owed, _t) in COLLECTORS.items():
+        if not scene.endswith("_by_day"):
+            continue
+        state.flags[flag] = True
+        set_clock(state, day=2, hour=12)
+        for dst in ("wickmarket", "the_snuffs"):
+            assert scene in {r["id"] for r in encounter.eligible(state, "tallow_docks", dst)}
+            assert encounter.leg_chance(state, "tallow_docks", dst) >= 0.10
+        assert scene not in {r["id"] for r in encounter.eligible(state, "wickmarket", "tallow_docks")}
+        by_day = collectors_share("tallow_docks", "the_snuffs")
+        set_clock(state, day=2, hour=22)
+        assert scene not in {r["id"] for r in encounter.eligible(state, "tallow_docks", "the_snuffs")}
+        at_night = collectors_share("tallow_docks", "the_snuffs")
+        assert 0.05 <= by_day < at_night, (scene, by_day, at_night)
+        state.flags[flag] = False
+
+
+def _strings(node) -> list[str]:
+    if isinstance(node, str):
+        return [node]
+    if isinstance(node, dict):
+        return [s for v in node.values() for s in _strings(v)]
+    if isinstance(node, list):
+        return [s for v in node for s in _strings(v)]
+    return []
+
+
+def test_no_daytime_street_scene_speaks_of_the_night(session) -> None:
+    """Audit questions 2 and 3 (T8): a row that can only fire by day must not
+    tell a noon scene "see you another night" or "they let you go --
+    tonight". The collectors' day rows are YAML merges of the night ones, and
+    inherited exactly that until they overrode the words."""
+    import re
+
+    from engine.game import encounter
+
+    day_hours = set(range(6, 18))
+    day_rows = [r for r in encounter.all_encounters()
+                if (r.get("triggers") or {}).get("hours")
+                and set((r.get("triggers") or {})["hours"]) <= day_hours]
+    ids = {r["id"] for r in day_rows}
+    assert {"pells_collectors_by_day", "marrows_lads_by_day"} <= ids, ids
+    for row in day_rows:
+        for text in _strings({k: v for k, v in row.items() if k != "triggers"}):
+            assert not re.search(r"night", text, re.IGNORECASE), (row["id"], text)
+
+
+def test_the_collectors_say_whose_debt_it_is(session) -> None:
+    """Audit question 2: the scene's own words name the fence and the sum."""
+    from engine.game import encounter
+
+    rows = {r["id"]: r for r in encounter.all_encounters()}
+    assert "Hollis" in rows["pells_collectors"]["intro"]
+    assert "Thirteen crowns" in rows["pells_collectors"]["intro"]
+    assert "Eight crowns" in rows["marrows_lads"]["intro"]
+    assert "gatepost" in rows["marrows_lads"]["intro"]
+
+
+def test_paying_the_collectors_closes_the_debt(session) -> None:
+    from engine.game import encounter, trade
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    for scene, (flag, owed, _t) in COLLECTORS.items():
+        state.flags[flag] = True
+        set_clock(state, day=2, hour=22)
+        state.stats.gold = owed - 1
+        encounter.begin(state, scene)
+        offered = {a["id"] for a in encounter.available_approaches(state)}
+        assert "settle" not in offered and "turn_out_pockets" in offered   # short of it
+        encounter.resolve_approach(state, "turn_out_pockets")
+        assert state.flags.get(flag) is True, scene   # on account: the debt stands
+        state.stats.gold = owed + 1
+        encounter.begin(state, scene)
+        receipt = encounter.resolve_approach(state, "settle")
+        assert receipt["ok"] and receipt["resolved"], receipt
+        assert state.stats.gold == 1, scene
+        assert not state.flags.get(flag), scene
+        assert trade.refusal_to_buy(state, "npc_marrow") == "", scene
+        assert trade.refusal_to_buy(state, "npc_pell_hollis") == "", scene
+
+
+def test_on_account_takes_coin_and_leaves_the_debt(session) -> None:
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+
+    state = session.engine.state
+    state.flags["welshed_on_pell"] = True
+    set_clock(state, day=2, hour=22)
+    state.stats.gold = 9
+    encounter.begin(state, "pells_collectors")
+    encounter.resolve_approach(state, "turn_out_pockets")
+    assert state.stats.gold == 4
+    assert state.flags.get("welshed_on_pell") is True
+
+
+def test_a_known_welsher_is_told_why_no_credit(session) -> None:
+    """T7 fix round 2: a credit line shut by the word going round says so,
+    not "here and now"."""
+    import json
+
+    from engine.game import threads
+    from engine.game.engine import active_engine
+    from engine.skills.builtin.scenes import strike_bargain
+
+    state = session.engine.state
+    with active_engine(session.engine):
+        for flag in ("welshed_on_pell", "welshed_on_marrow"):
+            state.flags[flag] = True
+            for template, (_f, where, hour, *_r) in CREDIT.items():
+                _at(state, where, hour)
+                out = json.loads(strike_bargain(template))
+                assert out["ok"] is False
+                assert "known welsher" in out["error"], (flag, template, out)
+            state.flags[flag] = False
+        # Not a welsher, wrong street: still the honest "here and now".
+        _at(state, "tallow_docks", 10)
+        assert json.loads(strike_bargain("pell_advance"))["error"] == threads.REFUSED_HERE

@@ -307,6 +307,19 @@ def assistant_persona() -> str:
 MAX_GENERATED_PRESENT = 4
 
 
+def _refuses_to_buy(state: GameState, npc_id: str) -> str:
+    """``trade.refusal_to_buy``, or ``""`` for a story with no trade table."""
+    if not npc_id:
+        return ""
+    try:
+        from engine.game import trade
+
+        return trade.refusal_to_buy(state, npc_id)
+    except Exception as exc:  # noqa: BLE001 -- a prompt must still build
+        logger.debug("[prompts] No trade refusal for %s: %s", npc_id, exc)
+        return ""
+
+
 def _npcs_present_block(state: GameState) -> str:
     """
     List NPCs present, with what they are doing.
@@ -349,6 +362,14 @@ def _npcs_present_block(state: GameState) -> str:
             bits.append(f" -- {activity}")
         if npc.get("visiting"):
             bits.append(" [visiting]")
+        grudge = _refuses_to_buy(state, npc_id)
+        if grudge:
+            # A vendor who will not buy from the player (a trade profile's
+            # `refuses_to_buy`): the `sell` verb leaves her out, so without
+            # this line the narrator would see a fence at her counter and no
+            # reason she is not buying. Only while it holds, so every other
+            # PEOPLE HERE line is byte-identical.
+            bits.append(f" [buys nothing from you: {grudge}]")
         lines.append("".join(bits))
     if generated_more:
         noun = "townsfolk" if generated_more > 1 else "townsperson"
@@ -632,6 +653,18 @@ _JOB_EMPTIED_CLOSE_LINE = ("You got clear of {name}{quiet}, with nothing: the st
                            "was already bare -- someone had been there first.")
 #: The same fact while the job is still open, after the score.
 _JOB_EMPTIED_LINE = "The strongroom at {name} was already bare: someone had been there first."
+#: The same two, when the robbery that came first left something: an agenda
+#: never takes a collectable set's piece (``jobs._left_by_agendas``).
+_JOB_LEFT_CLOSE_LINE = ("You got clear of {name}{quiet} with all that was left in it: "
+                        "{left} -- someone had been there first and taken the rest.")
+_JOB_LEFT_LINE = ("The strongroom at {name} had already been robbed: someone had been "
+                  "there first and taken everything but {left}.")
+
+
+def _item_names(ids: Any) -> str:
+    from engine.game.inventory import name_of
+
+    return ", ".join(name_of(str(i)) for i in ids or [])
 
 #: An ``aborted`` close the player did not choose: ``jobs.tick`` found the
 #: house roused with no Law (or no arrest scene) to send anyone.
@@ -660,6 +693,9 @@ def _job_close_line(state: GameState) -> str:
         template = _JOB_ROUSED_LINE
     if outcome in ("clean", "noisy") and last.get("emptied"):
         quiet = "" if outcome == "clean" else ", though not quietly"
+        if last.get("left"):
+            return _JOB_LEFT_CLOSE_LINE.format(name=name, quiet=quiet,
+                                               left=_item_names(last["left"]))
         return _JOB_EMPTIED_CLOSE_LINE.format(name=name, quiet=quiet)
     return template.format(name=name)
 
@@ -710,7 +746,9 @@ def job_block(state: GameState) -> str:
         _, reasons = jobs.band_for(state, stage)
         if reasons:
             lines.append("Working the odds: " + "; ".join(reasons) + ".")
-        if job.get("emptied"):
+        if job.get("emptied") and job.get("loot"):
+            lines.append(_JOB_LEFT_LINE.format(name=name, left=_item_names(job["loot"])))
+        elif job.get("emptied"):
             lines.append(_JOB_EMPTIED_LINE.format(name=name))
         paid_off = jobs.flashback_label_this_turn(state)
         if paid_off:
@@ -1450,6 +1488,29 @@ def _sum_work(result: dict[str, Any]) -> str:
     return " ".join(parts)
 
 
+def _sum_craft(result: dict[str, Any]) -> str:
+    """What was made, how well, and what it cost -- the recipe by name, never id."""
+    head = f"set to crafting: {result.get('name') or 'a recipe'}"
+    how = _degree(result)
+    if how:
+        head += f", and did {how}"
+    produced = result.get("produced") if isinstance(result.get("produced"), dict) else None
+    made = _names([produced]) if produced else ""
+    if made and result.get("salvaged"):
+        head += f"; nothing came of it but salvaged {made}"
+    elif made:
+        head += f"; made {made}"
+    else:
+        head += "; nothing came of it"
+    spent = _names(result.get("spent"))
+    if spent:
+        head += f"; spent {spent}"
+    parts = [head + "."]
+    if _authored(result):
+        parts.append(_authored(result))
+    return " ".join(parts)
+
+
 def _sum_buy(result: dict[str, Any]) -> str:
     return (
         f"bought {result.get('name') or 'it'} from {result.get('vendor') or 'the vendor'}"
@@ -1608,7 +1669,40 @@ _JOB_HELD_WORDS = {
 }
 
 
+def _job_secret_words(result: dict[str, Any]) -> str:
+    """
+    The house's secret, as far as the job has got with it (v0.15).
+
+    Two moments, two sentences. At a score that advanced, ``secret`` is what
+    was FOUND: the thief has read it, and holds nothing yet. At the getaway
+    that carries the job out, ``held`` is what the thief now HOLDS, and
+    ``lever`` -- a name -- who it bears on, when the secret opens a thread.
+    Never a price: whether a squeeze can be struck is the thread's own gate
+    (where, when, and for the captain whether anything is on file), which
+    the ``bargain`` verb answers turn by turn. Before v0.15 the secret rode
+    the receipt and no line spoke it (the audit's second question).
+    """
+    # Authored secrets are noun phrases and whole clauses alike ("the dice in
+    # the back room are loaded..."), so each sentence takes either after a colon.
+    held = str(result.get("held") or "").strip()
+    if held:
+        kept = f" You came away holding the house's secret: {held}."
+        lever = str(result.get("lever") or "").strip()
+        if lever:
+            return f"{kept} It is a lever over {lever}, who would rather nobody else knew it."
+        return kept
+    secret = str(result.get("secret") or "").strip()
+    if secret and str(result.get("stage") or "") == "score" and result.get("advanced"):
+        return f" You found the house's secret: {secret}. It is yours only if you get clear."
+    return ""
+
+
 def _sum_job_stage(result: dict[str, Any]) -> str:
+    """The job's line, and where the house's secret stands when there is one."""
+    return _sum_job_stage_line(result) + _job_secret_words(result)
+
+
+def _sum_job_stage_line(result: dict[str, Any]) -> str:
     # Minimal on purpose: the full JOB block (stage, obstacle, what prep did,
     # the alarm's word) is the prompt's job. Never an id, a band or a number:
     # the house by name, the stage and the outcome in words.
@@ -1624,11 +1718,19 @@ def _sum_job_stage(result: dict[str, Any]) -> str:
             return f"fell badly breaking into {house}, and the job ended there."
         if outcome in ("clean", "noisy"):
             quiet = "" if outcome == "clean" else ", though not quietly"
+            left = ", ".join(str(n) for n in result.get("loot") or [])
+            if result.get("emptied") and left:
+                return (f"got clear of {house}{quiet} with all that was left in it: "
+                        f"{left}; someone had been there first and taken the rest.")
             if result.get("emptied"):
                 return (f"got clear of {house}{quiet}, with nothing: the strongroom "
                         "was already bare.")
             return f"got clear of {house} with the take{quiet}."
     if stage == "score" and result.get("emptied") and result.get("advanced"):
+        left = ", ".join(str(n) for n in result.get("loot") or [])
+        if left:
+            return (f"reached the strongroom at {house}, and found it already robbed "
+                    f"of everything but {left}.")
         # Said outright: a score with no loot would otherwise read as a take
         # the narrator is free to invent.
         return (f"reached the strongroom at {house}, and found it already bare: "
@@ -1665,6 +1767,7 @@ _SUMMARISERS: dict[str, Any] = {
     "eat": _sum_eat,
     "forage": _sum_forage,
     "work": _sum_work,
+    "craft_item": _sum_craft,
     "trade": _sum_buy,
     "trade_sell": _sum_sell,
     "move_to": _sum_move,
@@ -1699,6 +1802,47 @@ def summarise_receipt(receipt: dict[str, Any]) -> str:
     result = receipt.get("result") if isinstance(receipt.get("result"), dict) else {}
     if skill == "set_narrative_flag":
         return ""
+    line = _summarise_one(skill, result)
+    closed = _closed_sets(result)
+    return " ".join(x for x in (line, *closed) if x)
+
+
+def _closed_sets(result: Any) -> list[str]:
+    """
+    The authored line of every collectable set this receipt closed.
+
+    A set closes inside the item effect (``inventory.evaluate_collections``),
+    and its payout rides whichever receipt carried the last piece -- a job's
+    getaway at the top level, a purchase or a scrounge one or two levels down
+    under ``effects``. Walked rather than special-cased per skill, so a set
+    closed by a door nobody listed still reaches the prose. In order, once each.
+    """
+    found: list[str] = []
+    seen: set[str] = set()
+
+    def walk(node: Any, depth: int) -> None:
+        if depth > 4:
+            return
+        if isinstance(node, dict):
+            for row in node.get("collections") or []:
+                if isinstance(row, dict) and str(row.get("id") or "") not in seen:
+                    seen.add(str(row.get("id") or ""))
+                    text = str(row.get("text") or "").strip()
+                    if text:
+                        found.append(text)
+            for key, value in node.items():
+                if key != "collections":
+                    walk(value, depth + 1)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value, depth + 1)
+
+    walk(result, 0)
+    return found
+
+
+def _summarise_one(skill: str, result: dict[str, Any]) -> str:
+    """``summarise_receipt``'s sentence for one skill, before any set it closed."""
     fn = _SUMMARISERS.get(skill)
     if fn is not None:
         return fn(result)

@@ -44,7 +44,7 @@ Threads live in ``GameState.threads`` as plain dicts, for the same reason
 ``encounter`` and ``challenge`` do: the shape is story-declared and must not
 force a save migration per field.
 
-Version: v0.1.0 [2026-08-08]
+Version: v0.2.0 [2026-09-26]
 """
 
 from __future__ import annotations
@@ -130,6 +130,9 @@ class Offer:
     #: DISCHARGED -- a bribe whose ``on_discharge`` pays the sergeant is not
     #: settled by a player with an empty purse. None: always dischargeable.
     discharge_requires: Any = None
+    #: Authored words the narrator is given, once, when the thread breaks
+    #: (``_close``, through ``engine/game/moved.py``). Empty: a silent break.
+    broken_text: str = ""
     #: ``none`` when this variant is "no contract" -- see OUTCOME_NONE.
     outcome: str = "thread"
     #: Renegotiation variants still available from here, by id.
@@ -321,6 +324,7 @@ def _offer_from_spec(
         on_discharge=_bound_effects(raw.get("on_discharge"), adjustments),
         on_break=_bound_effects(raw.get("on_break"), adjustments),
         discharge_requires=raw.get("discharge_requires"),
+        broken_text=" ".join(str(raw.get("broken_text") or "").split())[:MAX_TERMS_CHARS],
         outcome=str(raw.get("outcome") or "thread").strip().lower(),
         variants=dict(raw.get("renegotiations") or {}),
         negotiated=list(negotiated),
@@ -460,6 +464,7 @@ def renegotiate(
         "on_discharge": proposal.on_discharge,
         "on_break": proposal.on_break,
         "discharge_requires": proposal.discharge_requires,
+        "broken_text": proposal.broken_text,
         **{k: v for k, v in raw.items() if k not in ("requires",)},
     }
     return _offer_from_spec(
@@ -564,6 +569,9 @@ def seal(
         # Only when declared, so every thread a story without the key seals
         # stays exactly the shape it always was.
         thread["discharge_requires"] = proposal.discharge_requires
+    if proposal.broken_text:
+        # The same rule: carried only when declared.
+        thread["broken_text"] = proposal.broken_text
 
     if ledger is not None and proposal.to_id:
         promise = ledger.add_promise(
@@ -741,7 +749,8 @@ def offerable(state: GameState) -> list[dict[str, Any]]:
     grammars were permanently false for anything written against them.
 
     A template already sealed is not offered again: a contract is a thing you
-    are on the hook for once.
+    are on the hook for once -- unless it declares ``repeatable: true``, when
+    it is offered again as soon as no copy of it is open (see ``_struck``).
 
     Args:
         state: Game state. Read only -- this runs while a prompt is assembled.
@@ -755,16 +764,11 @@ def offerable(state: GameState) -> list[dict[str, Any]]:
         logger.debug("[threads] No templates: %s", exc)
         return []
 
-    # A sealed thread records its template under `template` (see `seal`);
-    # this read `template_id`, which no thread carries, so a struck contract
-    # was offered again forever.
-    held = {str(t.get("template") or t.get("template_id") or "") for t in state.threads}
     rows: list[dict[str, Any]] = []
     for template_id, raw in declared.items():
         if not isinstance(raw, dict):
             continue
-        if str(template_id) in held:
-            continue
+        # `can_strike` also refuses a template already struck (`_struck`).
         if not can_strike(state, str(template_id)):
             continue
         rows.append(
@@ -776,17 +780,120 @@ def offerable(state: GameState) -> list[dict[str, Any]]:
     return rows
 
 
+def _struck(state: GameState, template_id: str, raw: dict[str, Any]) -> bool:
+    """
+    Whether this template is already on the save in a way that bars another.
+
+    Once a run by default: any thread of this template, whatever became of it.
+    A ``repeatable: true`` template (a line of credit, run up, paid off and
+    run up again) is barred only while a copy is still ACTIVE -- two open
+    copies of one contract would be one debt counted twice.
+
+    A sealed thread records its template under ``template`` (see ``seal``);
+    ``template_id`` is read too, as it always was here, for any thread a
+    caller assembled by hand.
+    """
+    repeatable = raw.get("repeatable") is True
+    for thread in state.threads:
+        if str(thread.get("template") or thread.get("template_id") or "") != template_id:
+            continue
+        if not repeatable or thread.get("status") == STATUS_ACTIVE:
+            return True
+    return False
+
+
+def template_key_problems(raw: Any) -> list[str]:
+    """
+    What is wrong with a template's optional v0.15 keys, for the validator.
+
+    ``repeatable`` must be a bool: ``_struck`` reads only ``is True``, so
+    ``repeatable: "yes"`` would load as a once-a-run contract its author
+    believed could be struck again (the deck rule, AUTHORING §3.4).
+    ``broken_text`` must be words: it is what the narrator is told.
+    """
+    if not isinstance(raw, dict):
+        return []
+    out: list[str] = []
+    if "repeatable" in raw and not isinstance(raw["repeatable"], bool):
+        out.append(f"repeatable must be true or false, got {raw['repeatable']!r}")
+    if "broken_text" in raw and not (
+        isinstance(raw["broken_text"], str) and raw["broken_text"].strip()
+    ):
+        out.append("broken_text must be the words the narrator is told when it breaks")
+    if "refusals" in raw:
+        rows = raw["refusals"]
+        if not isinstance(rows, list):
+            out.append("refusals must be a list of {when, text}")
+            rows = []
+        from engine.game import quests
+
+        for index, row in enumerate(rows):
+            if not isinstance(row, dict) or not str(row.get("text") or "").strip() \
+                    or row.get("when") is None:
+                out.append(f"refusals[{index}] needs a `when` and a `text`")
+                continue
+            problem = quests.condition_problem(
+                row.get("when"), where=f"`refusals[{index}].when`",
+                forbid=quests.CONTEXT_FREE_FORBIDS,
+            )
+            if problem:
+                out.append(problem)
+    return out
+
+
+#: Why a template cannot be struck, in words the prose may use. Kept apart so
+#: a refusal says what is actually in the way (``strike_refusal``): "not here
+#: and now" for a contract already on the books is a refusal that lies.
+REFUSED_OPEN = "that bargain is already struck and still open -- settle it first"
+REFUSED_ONCE = "that bargain has already been struck once, and is not offered again"
+REFUSED_HERE = "that bargain cannot be struck here and now"
+
+
+def strike_refusal(state: GameState, template_id: str, *, ledger: Optional[Any] = None) -> str:
+    """
+    Why ``template_id`` cannot be struck now, or ``""`` when it can.
+
+    ``REFUSED_OPEN`` for a ``repeatable`` template with a copy still open,
+    ``REFUSED_ONCE`` for a once-a-run template already struck, and, when its
+    own ``requires:`` does not hold, the text of the first of its
+    ``refusals:`` whose ``when`` holds -- the story's own words for WHY
+    (HUE & CRY's fences: "not while you are a known welsher") -- or
+    ``REFUSED_HERE``. The ``strike_bargain`` skill hands it to the prose.
+    """
+    raw = templates().get(template_id)
+    if not isinstance(raw, dict):
+        return REFUSED_HERE
+    if _struck(state, template_id, raw):
+        return REFUSED_OPEN if raw.get("repeatable") is True else REFUSED_ONCE
+    if can_strike(state, template_id, ledger=ledger):
+        return ""
+    from engine.game.quests import evaluate_condition
+
+    for row in raw.get("refusals") or []:
+        if not isinstance(row, dict):
+            continue
+        text = " ".join(str(row.get("text") or "").split())
+        if text and evaluate_condition(state, row.get("when"), ledger=ledger):
+            return text
+    return REFUSED_HERE
+
+
 def can_strike(state: GameState, template_id: str, *, ledger: Optional[Any] = None) -> bool:
     """
-    Whether a template's own ``requires:`` holds now. True when it declares none.
+    Whether a template may be struck now: not already struck (``_struck``),
+    and its own ``requires:`` holds. True when it declares none.
 
     A condition from the shared grammar, e.g. ``{at_location: lantern_house}``:
     a sergeant's price is named at his desk, not shouted across the city.
     Read by ``offerable`` (so the ``bargain`` verb never offers what the engine
-    would refuse) and by the ``strike_bargain`` skill.
+    would refuse) and by the ``strike_bargain`` skill -- which, before v0.15,
+    asked only the ``requires:`` and so would seal a second copy of a contract
+    the verb had stopped offering.
     """
     raw = templates().get(template_id)
     if not isinstance(raw, dict):
+        return False
+    if _struck(state, template_id, raw):
         return False
     condition = raw.get("requires")
     if condition is None:
@@ -888,6 +995,14 @@ def _close(
     applied = effects_module.apply_effects(
         state, thread.get(hook) or [], ledger=ledger, by=by, turn=state.turn_number
     )
+    broken_text = str(thread.get("broken_text") or "")
+    if status == STATUS_BROKEN and broken_text:
+        # A break -- above all one that simply came due on the day tick -- is
+        # otherwise invisible to the prose: `on_break` applies and nothing
+        # says why the world turned. The template's own words, told once.
+        from engine.game import moved
+
+        moved.note(state, "promise", broken_text)
     logger.info(
         "[threads] Thread %s (operation=_close, thread=%s, why=%s)",
         status,
@@ -992,6 +1107,7 @@ def transform(
         can_cut_with=list(thread.get("can_cut_with") or []),
         on_discharge=list(thread.get("on_discharge") or []),
         on_break=list(thread.get("on_break") or []),
+        broken_text=str(thread.get("broken_text") or ""),
         variants=dict(variants),
     )
     replacement = renegotiate(state, base, variant_id, ledger=ledger)
@@ -1290,7 +1406,9 @@ __all__ = [
     "offer",
     "renegotiate",
     "seal",
+    "strike_refusal",
     "summary",
+    "template_key_problems",
     "templates",
     "terms_of",
     "transform",

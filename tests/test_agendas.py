@@ -444,7 +444,7 @@ def test_the_lawless_contract_loads(tmp_path: Path) -> None:
         assert list(agendas.spec()["agendas"]) == ["the_magpie", "the_captain"]
 
 
-@pytest.mark.parametrize("fault", ["witness selector", "wanted", "reported_to"])
+@pytest.mark.parametrize("fault", ["witness selector", "wanted", "reported_to", "filed"])
 def test_the_law_references_need_a_law(tmp_path: Path, fault: str) -> None:
     doc = _lawless_doc()
     magpie = doc["agendas"]["the_magpie"]
@@ -453,6 +453,8 @@ def test_the_law_references_need_a_law(tmp_path: Path, fault: str) -> None:
                                 "select": {"witness": {"knows": "self"}}})
     elif fault == "wanted":
         magpie["reactions"] = [{"id": "r", "on": {"wanted": {"min": "hunted"}}}]
+    elif fault == "filed":
+        magpie["reactions"] = [{"id": "r", "on": {"filed": {"jurisdiction": "village"}}}]
     else:
         magpie["reactions"] = [{"id": "r", "on": {"reported_to": {"npc": "npc_ardane"}}}]
     paths = _paths(tmp_path, doc, lawful=False)

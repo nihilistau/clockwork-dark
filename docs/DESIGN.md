@@ -480,7 +480,10 @@ anything is spent; the hours and inputs are then consumed on the attempt, pass
 or fail; the outcome is resolved by `checks.resolve` on the recipe's declared
 band with degrees (a crit adds one to the batch, a partial wastes some, a
 failure falls back to the recipe's declared salvage). `list_recipes` tells the
-narrator what could be attempted here and what it needs.
+narrator what could be attempted here and what it needs. A player reaches it
+through the `craft` intent verb (v0.15.0, `engine/game/intents.py`), whose enum
+is `mechanics.craftable_here` — the recipes that pass `craft_item`'s own
+refusal rule right now — and which is absent when nothing is craftable.
 
 ### Inventory schema (v0.1)
 
@@ -780,7 +783,7 @@ the permission. Enforced by `tests/test_ui_contract.py` and by `ui/tests/`.
 | Runtime | Python 3.13 | Matches both parent repos |
 | Scene server | Flask + Socket.IO (`FlaskScene` pattern), `engine/scenes/default_{scene,state,api}.py` | CosySim skills/MCP/interceptors. The default scene is the ENGINE's: it served every story already (title, opening frames and content all follow the active manifest), so in v0.3.0 it moved out of `content/scenes/clockwork/`, which kept only the shared client asset tree and shims |
 | Client | Vite + React 18 in `ui/`, built into a committed `static/dist` | Real state management for a stateful game; committed build means no Node needed to play |
-| Client per story | A plugin at `ui/src/stories/<plugin>/`, chosen by the manifest's `ui.plugin` | Core alone is a playable client; a plugin fills slots. Three ship for four stories — `dev-story` borrows the Garden's |
+| Client per story | A plugin at `ui/src/stories/<plugin>/`, chosen by the manifest's `ui.plugin` | Core alone is a playable client; a plugin fills slots. Four stories ship their own (`clockwork-dark`, `wicked-garden`, `neon-city`, `the-long-con`); `dev-story` and `hue-and-cry` use `_engine`, the engine's own default skin |
 | Inference | LM Studio `:1234`, SSE + `json_schema` structured output. Two sibling APIs, and the engine is deliberate about which: `POST /v1/chat/completions` (OpenAI-compat, the only route that takes tools and schemas), `POST /api/v1/chat` (native, the only one where `reasoning: "off"` is honoured) and `GET /api/v1/models` (the one model list, health check included — see `engine/lmstudio/routes.py`) | Local-first |
 | Speculative | `draft` model 0.5B–1B → `big` 8B refine | Anubis + CosySim profiles |
 | Lore | SQLite FTS; Nexus KMS optional | Progressive enhancement |
@@ -1205,7 +1208,7 @@ the engine and what is one story's answer?* What landed:
 | `.venv\Scripts\python.exe scripts\simulate.py --policy all --turns 200` | Every balance number quoted above |
 | `.venv\Scripts\python.exe launcher.py --check` | Which local services are up and what you lose without each |
 | `.venv\Scripts\python.exe scripts\doctor.py` | Environment, config, content and data integrity |
-| `npm test --prefix ui` | The client: the plugin contract across all three plugins, the core reducer, and the veiled-meter rule |
+| `npm test --prefix ui` | The client: the plugin contract across all five plugins (`_engine` included), the core reducer, and the veiled-meter rule |
 | `npm run build --prefix ui` | Rebuilds the committed `static/dist` from `ui/src`, after `tools/check-styles.mjs` passes. Nothing detects a STALE dist — it is checked in, so a `ui/src` change that is not rebuilt and committed simply does not reach a player. `tests/test_ui_contract.py` proves the dist that is there is complete and offline-clean, not that it is current |
 
 ---

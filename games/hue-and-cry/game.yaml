@@ -16,7 +16,7 @@
 # THIS FILE: an UNDECLARED `paths.*` key resolves to NOTHING. Declare what you
 # ship; omit what you do not.
 #
-# Version: v0.6.0 [2026-09-25]
+# Version: v0.7.0 [2026-09-26]
 
 id: hue-and-cry
 title: "Hue & Cry"
@@ -67,9 +67,10 @@ settings:
 # (state.yaml, clocks.yaml).
 #
 # DELIBERATELY NOT DECLARED YET, each one a later release's job rather than an
-# omission: recipes, night-street encounters, decks (initiation, the
-# interrogation, the Hanging Fair), the other threads (the rest of the
-# Company's contracts), world_rumors, lore.
+# omission: decks (initiation, the interrogation, the Hanging Fair), the other
+# threads (the rest of the Company's contracts), world_rumors. (Night-street
+# encounters and lore arrived in v0.14; recipes -- the Porters' Hall bench --
+# in v0.15, see below.)
 # (Factions: one, the Honest Company, since v0.11 -- see below.) The graph
 # template's stubs for items, economy, tables and encounters were removed
 # rather than left in place: they were a mill and a hedge-berry forage table,
@@ -107,6 +108,8 @@ paths:
   # labour.yaml, boons.yaml and complications.yaml -- honest work at the hours
   # its employers keep, and the city's luck. Their numbers were set by
   # measurement: scripts/simulate_labour.py, table in labour.yaml's header.
+  # Since v0.15, collections.yaml: the Magpie's Hoard, six famous shines kept
+  # in the anchors and found in two secret places (quests/the_magpies_hoard/).
   tables: "games/hue-and-cry/data/tables"
   # The margin only (v0.14): forage ground for those streets, and the hidden
   # paths that are three of the secret places' ways in -- each pinned to the
@@ -114,6 +117,12 @@ paths:
   # or festival: the city's people are its schedule, its houses premises.
   procgen_templates: "games/hue-and-cry/data/procgen_templates/tallowmere.yaml"
   economy: "games/hue-and-cry/data/economy.yaml"
+  # Since v0.15: the Porters' Hall bench in the Snuffs -- lockpicks, smoke
+  # pellets, a lamplighter's coat and a forged Hill pass, made from what the
+  # fences sell and the gutters drop (the `craft` verb, offered only there
+  # and only with the makings in hand). One file on purpose: the verb re-reads
+  # this directory every turn. Costs measured in workshop.yaml's header.
+  recipes: "games/hue-and-cry/data/recipes"
   # The pack is empty until v1.0; subjects.yaml is the full brief for it, and
   # art_root is declared so the manifest resolves against this story's own
   # tree rather than another's.

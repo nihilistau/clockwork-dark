@@ -55,6 +55,8 @@ ROLLING_SKILLS = frozenset(
         "lift_purse",
         # Every burglary stage rolls inside the skill, for the same reason.
         "job_stage",
+        # A craft rolls the recipe's check inside the skill (the `craft` verb).
+        "craft_item",
     }
 )
 

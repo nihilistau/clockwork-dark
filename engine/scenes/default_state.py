@@ -524,13 +524,17 @@ class DefaultSessionStore(EngineSessionStore):
     resolved at call time, so the process-wide store is looked up late -- and a
     test that redirects saves by patching this module's attribute keeps working
     across the move to ``engine/session/``.
+
+    ``save_store`` replaces that store for this instance alone: the balance
+    harnesses (``scripts/simulate_law.py``'s ``Thief``) pass one that keeps
+    nothing, because a measurement is not a run anybody will load.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, save_store: Optional[Callable[[], Any]] = None) -> None:
         super().__init__(
             opening=opening,
             resume_opening=resume_opening,
-            save_store=lambda: get_save_store(),
+            save_store=save_store or (lambda: get_save_store()),
         )
 
 

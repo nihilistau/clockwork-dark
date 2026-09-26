@@ -20,13 +20,19 @@
 #           engraving, a mint mark, somebody's handwriting. engine/world/
 #           thievery.py keeps a stolen `named` piece HOT for good; no amount of
 #           waiting cools it. Signets, seals, plate and letters carry it.
-#   shiny   what the Magpie takes. Nothing reads it yet; it is the vocabulary
-#           the Hoard and the robbery pattern will be written in, and marking it
-#           now is cheaper than auditing forty rows later. Note which pieces do
-#           NOT carry it: the minting die and the strike fund are worth more
-#           than most silver, and the Magpie would walk straight past both.
+#   shiny   what the Magpie takes. Read by the Magpie's agenda, which robs
+#           only a house with a shiny piece in it (data/rules/agendas.yaml,
+#           `lift_a_shiny`'s `loot_tag: shiny`), and every piece of the
+#           Magpie's Hoard carries it (data/tables/collections.yaml). Note
+#           which pieces do NOT carry it: the minting die and the strike fund
+#           are worth more than most silver, and the Magpie would walk
+#           straight past both.
 #
-# Version: v0.1.0 [2026-09-23]
+# THE MAGPIE'S HOARD (v0.15), at the foot of this file: six famous shines off
+# the Watch's list, each `shiny`, `named` and `collection: magpies_hoard`.
+# Named, so hot for good -- the Hoard is kept, not fenced.
+#
+# Version: v0.1.2 [2026-09-26]
 
 version: 1
 
@@ -476,4 +482,124 @@ items:
     tags: [goods, shiny, metal]
     weight: 2.0
     value: 40
+    stack: false
+
+  # ------------------------------------------------------------------
+  # The workshop's stock (v0.15): what the Porters' Hall bench is fed.
+  # Sold across the fences' counters, never by an honest one
+  # (data/economy.yaml); data/recipes/workshop.yaml turns them into a
+  # burglar's kit.
+  # ------------------------------------------------------------------
+
+  - id: file_tang
+    name: "File Tang"
+    description: >-
+      The hard, narrow end of a locksmith's file that snapped at the handle.
+      Useless for filing. Ground thin and bent right, it is the backbone of a
+      set of picks, which is why a rag-and-bone yard keeps a jar of them.
+    tags: [goods, metal]
+    weight: 0.05
+    value: 3
+    stack: true
+
+  - id: vellum_offcut
+    name: "Vellum Offcut"
+    description: >-
+      A clean scrap of calfskin from a stationer's trimmings, about the size of
+      a hand. Hollis sells them for luggage labels. They take ink, and a seal,
+      exactly as well as the Margrave's own.
+    tags: [goods, paper]
+    weight: 0.02
+    value: 2
+    stack: true
+
+  # ------------------------------------------------------------------
+  # The Magpie's Hoard (v0.15): six shines the ballad counts as taken and
+  # never fenced, and it is right about the second half. Where each one
+  # rests now is data/premises/anchors/ (four) and data/quests/
+  # the_magpies_hoard/ (two, in places a thief has to find first). The set
+  # is data/tables/collections.yaml. Not one line here says who the Magpie
+  # is: the seed picks that, and these words are the same in every seed.
+  # ------------------------------------------------------------------
+
+  - id: lantern_house_knocker
+    name: "The Lantern House Knocker"
+    description: >-
+      A brass hand holding a brass lamp, off the Lantern House's own front
+      door, taken in the Magpie's first spring. It came back three weeks
+      later in a velvet bag on the Lantern House steps, polished, with a
+      black feather through the ring. The Watch has not dared hang it up
+      again.
+    tags: [goods, shiny, metal, named]
+    collection: magpies_hoard
+    weight: 1.5
+    value: 40
+    stack: false
+
+  - id: swan_salt
+    name: "The Margrave's Swan Salt"
+    description: >-
+      A gilt salt-cellar shaped like a swan, from the Margrave's own place at
+      the high table, lifted at the Midwinter feast with forty guests
+      watching the Everflame. The ballad says the Magpie has it still. The
+      ballad has not asked the steward.
+    tags: [goods, shiny, metal, named]
+    collection: magpies_hoard
+    weight: 1.0
+    value: 200
+    stack: false
+
+  - id: nightingale_comb
+    name: "The Nightingale Comb"
+    description: >-
+      Tortoiseshell and gold, with a nightingale in small diamonds perched on
+      the spine. Taken from a dressing table in Vessaline House the Magpie's
+      first winter, and found by a Lantern in a gutter on Silk Row a month
+      later, not a stone missing. Returned with the Watch's compliments, and
+      locked away with the family's jewels ever since.
+    tags: [goods, shiny, named]
+    collection: magpies_hoard
+    weight: 0.1
+    value: 160
+    stack: false
+
+  - id: chandlers_loving_cup
+    name: "The Chandlers' Loving Cup"
+    description: >-
+      Two handles, silver-gilt, a taper crossed with a dipping frame on the
+      bowl. The Worshipful Company of Chandlers drank from it at every feast
+      for a century, until the one it went missing from. Nobody ever sold it:
+      it came up in a porter's eel-net off the quay stairs a year later, not
+      a dent in it, and the Honest Company has declined to mention it since.
+    tags: [goods, shiny, metal, named]
+    collection: magpies_hoard
+    weight: 1.2
+    value: 80
+    stack: false
+
+  - id: mitre_of_saint_wick
+    name: "The Mitre of Saint Wick"
+    description: >-
+      Cloth of gold sewn with seed pearls, a flame worked in garnets up the
+      front: the bishop's second-best mitre, lifted off its stand in the
+      Temple vestry between one vigil and the next. The Temple has had a new
+      one made and preaches that the old one will come home when the thief
+      repents.
+    tags: [goods, shiny, named]
+    collection: magpies_hoard
+    weight: 1.0
+    value: 120
+    stack: false
+
+  - id: harbourmasters_chain
+    name: "The Harbourmaster's Chain"
+    description: >-
+      Heavy gold links, every tenth one a little anchor, and the city's arms
+      on the badge. The harbourmaster hung it on his bedpost one night and
+      woke without it, and has worn a ribbon to every sailing since, which
+      the docks have never let him forget.
+    tags: [goods, shiny, metal, named]
+    collection: magpies_hoard
+    weight: 0.6
+    value: 150
     stack: false

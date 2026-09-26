@@ -28,9 +28,9 @@ settles the result, and a model on your own machine writes the prose.
   generation, voice and ComfyUI are optional and **off by default**. The
   shipped art packs mean scenes have pictures without any of them.
 
-**Status:** **v0.14.1** is the current release; **v0.15.0** is in progress.
-Six stories ship, and each can be played to an ending. At v0.14.0 the suite
-stood at 3030 passing, 4 skipped, plus 144 client tests. Those numbers are
+**Status:** **v0.15.0** is the current release. Six stories ship, and each
+can be played to an ending. At v0.15.0 the suite stood at 3191 passing, 4
+skipped, plus 144 client tests. Those numbers are
 re-measured each release in [CLAUDE.md](CLAUDE.md), and
 [CHANGELOG.md](CHANGELOG.md) records every change from 0.4.0 on.
 
@@ -61,7 +61,7 @@ suite checks that its turns stay byte-identical.** Pick one with
 | **The Wicked Garden** | `wicked-garden` | Fae-court bargain. One day in the garden costs ten at home | Scene decks, veiled meters, clocks, threads, many endings | The deck exemplar, with no HP, no hunger, no travel graph and no dice. It shows the engine isn't one game with the nouns swapped |
 | **NEON CITY: THE CROSSING** | `neon-city` | Cyberpunk survival expedition across the Sprawl on a 21-day timestamp | Graph world, scavenge economy, a doom-style clock that quests can make *slip*, debt escalation, threads, six ending classes | A graph story with no evil clock. The pressure comes from heat, debt, the weather and the file |
 | **THE LONG CON** | `the-long-con` | Rain-and-radiator noir. A client, a photograph, a man already dead | Graph city with road encounters, a shop, and a clock that forces an authored deck scene | The first hybrid: a walkable city with a set-piece deck inside it. It also has secret places, a clue board, gossip, and a continuity guard that rejects a scene greeting someone you know as a stranger |
-| **HUE & CRY** | `hue-and-cry` | Wry, warm thief's comedy with real gallows. Tallowmere, a candle-port, where everyone has decided you are the Magpie | Premises, the Law, jobs and flashbacks, NPC agendas, survival, labour, factions, lore | The systems-heavy one, and the story in progress toward v1.0.0. The world schemes, robs and hunts on its own clock |
+| **HUE & CRY** | `hue-and-cry` | Wry, warm thief's comedy with real gallows. Tallowmere, a candle-port, where everyone has decided you are the Magpie | Premises, the Law, jobs and flashbacks, NPC agendas, survival, labour, factions, lore, a guild economy (crafting, a collectable set, blackmail, credit) | The systems-heavy one, and the story in progress toward v1.0.0. The world schemes, robs and hunts on its own clock |
 | **Dev Story** | `dev-story` | Not a game: the annotated bench. A house, a university and eight people | One small working instance of every subsystem, plus the multi-agent pipeline | The worked example the story templates are distilled from. Change one thing and see what it does |
 
 <details open>
@@ -152,8 +152,18 @@ Magpie!", and the whole city agrees. Today it has:
 - **A living city.** Beds and bread, scrounging, honest work, night streets,
   luck on natural 20s and 1s, seven factions, a lore corpus, and three secret
   places to find.
+- **A guild economy.** A bench at the Porters' Hall where the `craft` verb
+  files lockpicks, rolls smoke pellets, cuts a lamplighter's coat (a new
+  guise) and forges a Margrave's Hill gate pass, from makings bought off the
+  fences or found in the gutters. **The Magpie's Hoard**, six famous pieces
+  the ballad says were never fenced, is a collectable set that pays once
+  when all six are carried. A secret carried out of a job is *held*, and
+  the secrets of four fixed premises (the Captain's Office, the Treasury,
+  Vessaline House, Mother Gannet's) open **blackmail** threads, with teeth if
+  left uncollected. The two fences stand **credit**; a welsher finds neither
+  will buy from them, and collectors on the streets.
 
-One ending ships today (`honest_after_all`); the rest land across v0.15 to
+One ending ships today (`honest_after_all`); the rest land across v0.16 to
 v1.0. It runs on the engine's default skin for now, and no art plates ship
 yet. Its bespoke screens are on the roadmap.
 
@@ -213,8 +223,11 @@ declared meters and clocks.
   declared per story.
 - **Survival:** stamina, hunger and hp. **Rest is never gated**, because it is
   the only thing that restores stamina.
-- **Economy and trade:** vendors, prices, fences, crafting and recipes,
-  scavenging and forage tables, honest labour.
+- **Economy and trade:** vendors, prices, fences, scavenging and forage
+  tables, honest labour, and collectable sets that pay when completed.
+- **Crafting:** a `craft` verb in any story that declares recipes, offered
+  only when a recipe can actually be made right there (station, tools and
+  inputs in hand).
 - **The Law:** watch-houses, wanted bands, guises, stops, bribes, arrest and
   custody.
 - **Jobs and premises:** houses with households, security tiers and loot;
@@ -234,7 +247,9 @@ declared meters and clocks.
 - **Deck stories:** authored days and cards with gates and bands.
 - **Hybrids:** a clock can **force** a deck scene in the middle of a graph.
 - **Clocks** (progress clocks that fill and force scenes), **threads**
-  (contracts with a lifecycle), **endings** with gates, and **epilogues**.
+  (contracts, bribes, blackmail and repeatable lines of credit, with a
+  lifecycle and consequences when broken), **endings** with gates, and
+  **epilogues**.
 - **Declared state.** A story's `state.yaml` says what each value *is*
   (public, `veiled` or `hidden`). A hidden value never leaves the server, and
   a veiled one reaches the client only as a band word.
@@ -275,7 +290,7 @@ declared meters and clocks.
   live validation and a review queue.
 - **Balance harnesses** that run headless, with no LLM: `scripts/simulate.py`
   for the flagship, and one per HUE & CRY system (law, jobs, agendas,
-  scrounging, labour, streets).
+  scrounging, labour, streets, the Hoard).
 - `scripts/art_missing.py` and `scripts/generate_art.py` list missing plates
   and fill them ahead of time.
 
@@ -462,11 +477,13 @@ npm run build --prefix ui     # rebuild, then commit dist in the same change
 .\.venv\Scripts\python.exe scripts\simulate_jobs.py      # blind | careful | greedy | greedy_bare
 .\.venv\Scripts\python.exe scripts\simulate_agendas.py   # idle | careful | reckless
 .\.venv\Scripts\python.exe scripts\simulate_scrounge.py  # scrounger | mornings
-.\.venv\Scripts\python.exe scripts\simulate_labour.py    # porter | dipper | careful | scrounger
-.\.venv\Scripts\python.exe scripts\simulate_streets.py   # wanderer: a street an hour, day and night
+.\.venv\Scripts\python.exe scripts\simulate_labour.py    # porter | dipper | careful | scrounger | careful_pell | careful_marrow (--bed, --no-credit)
+.\.venv\Scripts\python.exe scripts\simulate_streets.py   # wanderer: a street an hour, day and night (--collectors)
+.\.venv\Scripts\python.exe scripts\simulate_hoard.py     # hoarder: the anchors, the Hoard, the squeezes (--no-pass, --severity)
 ```
 
-The HUE & CRY harnesses run 40 seeds of in-game days each. `--set KEY=VALUE`
+The HUE & CRY harnesses run 40 seeds of in-game days each, and none of them
+writes a save. `--set KEY=VALUE`
 tries a number without editing the file, and `--json` prints the raw table.
 NEON CITY's and THE LONG CON's numbers are authored judgement and haven't been
 simulated; their READMEs say so.
@@ -477,12 +494,12 @@ simulated; their READMEs say so.
 
 ## Roadmap
 
-Everything below is **planned, not built**. The order is fixed; details may
-change as each release lands.
+Everything below the shipped row is **planned, not built**. The order is
+fixed; details may change as each release lands.
 
 | Release | What | State |
 |---|---|---|
-| v0.15.0 | **Guild economy** for HUE & CRY: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | in progress |
+| v0.15.0 | **Guild economy** for HUE & CRY: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | **shipped** |
 | v0.16.0 | **Acts I and II**: arcs, the initiation and interrogation decks, the Magpie reveal, the alibi beat | planned |
 | v0.17.0 | **Act III and eight endings**: the Hanging Fair, the jailbreak, The Rope, per-ending tests | planned |
 | v0.18.0 | **A thief policy** for `simulate.py` | planned |

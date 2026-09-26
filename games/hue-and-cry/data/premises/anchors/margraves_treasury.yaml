@@ -12,7 +12,7 @@
 # The Everflame's heart is NOT in here. It is the Hanging Fair's piece, and
 # it belongs to the spine, not to a loot list.
 #
-# Version: v0.1.2 [2026-09-25]
+# Version: v0.1.3 [2026-09-26]
 
 id: margraves_treasury
 label: "treasury"
@@ -53,7 +53,9 @@ security:
   - { id: bell_floor, text: "a vault floor laid on springs over a bell, so the weight of one careless foot rings in the guardroom" }
   - { id: everflame_glare, text: "the Everflame's light through a crystal skylight, falling across every inch of the vault all night long" }
 
-loot: [gold_ingot, minting_die, crested_gold_plate, everflame_prism]
+# The Swan Salt (v0.15, the Magpie's Hoard): quietly back in the Margrave's
+# keeping, whatever the ballad says.
+loot: [gold_ingot, minting_die, crested_gold_plate, everflame_prism, swan_salt]
 
 secrets:
-  - { id: light_crowns, text: "the mint-master's own ledger, showing the Margrave's new crowns struck a tenth light for three years, and where the difference went" }
+  - { id: light_crowns, text: "the mint-master's own ledger, showing the Margrave's new crowns struck a tenth light for three years, and where the difference went", thread: quill_light_crowns }

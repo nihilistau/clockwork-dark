@@ -622,14 +622,18 @@ def collection_status(state: GameState) -> list[dict[str, Any]]:
 _evaluating_collections = False
 
 
-def evaluate_collections(state: GameState) -> list[dict[str, Any]]:
+def evaluate_collections(state: GameState, ledger: Optional[Any] = None) -> list[dict[str, Any]]:
     """
     Pay out any newly completed set. Idempotent.
 
-    Called from ``grant`` and from the ``collections`` skill, so a set completes
-    the moment its last piece lands rather than when the player thinks to check.
-    Completion is recorded as a flag, so a set pays once even if the player
-    sells a piece and re-collects it.
+    Called from the ``item`` effect (engine/game/effects.py, the door every
+    grant goes through -- ``grant``, a job's getaway, a quest reward) and from
+    the ``collections`` skill, so a set completes the moment its last piece
+    lands rather than when the player thinks to check. Completion is recorded
+    as a flag, so a set pays once even if the player sells a piece and
+    re-collects it. ``ledger`` reaches the set's ``ledger_fact`` effects when
+    the caller has one (a quest hook does); without one they are dropped, as
+    every ``ledger_fact`` is outside a turn.
     """
     global _evaluating_collections
     if _evaluating_collections:
@@ -643,7 +647,7 @@ def evaluate_collections(state: GameState) -> list[dict[str, Any]]:
             set_id = row["id"]
             spec = next((c for c in load_collections() if str(c.get("id")) == set_id), {})
             applied = effects_module.apply_effects(
-                state, list(spec.get("effects") or [])
+                state, list(spec.get("effects") or []), ledger=ledger
             )
             effects_module.apply_effect(
                 state,
@@ -706,12 +710,8 @@ def grant(state: GameState, item_id: str, qty: int = 1) -> dict[str, Any]:
         },
     )
     # A set completes the moment its last piece lands, not when the player
-    # thinks to go and look.
-    if collection_of(item_id):
-        finished = evaluate_collections(state)
-        if finished:
-            receipt = dict(receipt)
-            receipt["collections"] = finished
+    # thinks to go and look: the item effect settles it and puts the payout
+    # on this receipt as ``collections``.
     return receipt
 
 

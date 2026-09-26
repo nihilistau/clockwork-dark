@@ -418,6 +418,41 @@ def trigger_chance(state: GameState, from_id: str, to_id: str) -> float:
     return max(low, min(high, chance))
 
 
+def row_floor(state: GameState, from_id: str, to_id: str) -> float:
+    """
+    The highest ``min_chance`` any row ELIGIBLE for this leg declares, or 0.0.
+
+    A row may say "when I can be drawn here, the leg is at least this
+    dangerous" -- ``min_chance: 0.1`` beside its ``weight``. It is how a scene
+    gated on something the player did (HUE & CRY's fences' collectors,
+    ``requires_flag: welshed_on_pell``) can find them on streets and at hours
+    whose own danger is near zero, without making those streets any more
+    dangerous for anyone the row does not match. Only on an edge that has a
+    ``danger_dc`` at all: a door between two rooms stays a door.
+
+    Pure: reads the table and the state, draws nothing. With no eligible row
+    declaring the key it is 0.0, so every leg's chance -- and so every draw on
+    the ENCOUNTER stream -- is exactly what ``trigger_chance`` alone gives.
+    """
+    edge = get_edge(from_id, to_id)
+    if edge is None or int(edge.get("danger_dc", 0) or 0) <= 0:
+        return 0.0
+    floors = [
+        float(row.get("min_chance") or 0.0)
+        for row in eligible(state, from_id, to_id)
+        if row.get("min_chance")
+    ]
+    if not floors:
+        return 0.0
+    high = float((load_encounters().get("trigger", {}) or {}).get("max_chance", 1.0))
+    return max(0.0, min(high, max(floors)))
+
+
+def leg_chance(state: GameState, from_id: str, to_id: str) -> float:
+    """``trigger_chance``, raised to ``row_floor`` where an eligible row asks. What a leg rolls."""
+    return max(trigger_chance(state, from_id, to_id), row_floor(state, from_id, to_id))
+
+
 def _weighted_choice(
     rows: list[dict[str, Any]], gen: random.Random
 ) -> Optional[dict[str, Any]]:
@@ -461,7 +496,7 @@ def roll_for_encounter(
         The chosen encounter definition, or None if nothing happened.
     """
     gen = rng if rng is not None else world_rng(state, ENCOUNTER)
-    chance = trigger_chance(state, from_id, to_id)
+    chance = leg_chance(state, from_id, to_id)
     if chance <= 0.0 or gen.random() >= chance:
         return None
 

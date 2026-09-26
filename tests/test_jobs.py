@@ -255,6 +255,8 @@ def test_the_contract_loads(declared: Path) -> None:
     assert spec["features"]["good_lock"]["stage"] == "entry"
     assert spec["tools"]["hand_lantern"]["stage"] == ["getaway"]
     assert spec["tools"]["hand_lantern"]["consumed"] is True
+    # `districts` is optional: a row without it is not limited to anywhere.
+    assert spec["tools"]["bent_nail"]["districts"] == []
     assert spec["alarm"]["max"] == 4 and spec["alarm"]["deed"] == "burglary"
     assert spec["prep"]["bands"][0] == "none"
     assert spec["flashbacks"]["planted_tool"]["cost"] == {"prep": 1, "gold": 0}
@@ -319,6 +321,17 @@ MALFORMED = {
     ),
     "a remove_obstacle flashback effect of less than one": _mutated(
         flashbacks__bribed_servant__effect={"remove_obstacle": 0}
+    ),
+    "a tool naming a district that is not a location": _mutated(
+        tools__bent_nail={"stage": ["entry"], "districts": ["atlantis"], "shift": -1}
+    ),
+    "a tool naming a district that holds no houses": _mutated(
+        # A real flagship location, but no premise stands in it: the row
+        # could never apply to any job.
+        tools__bent_nail={"stage": ["entry"], "districts": ["forest_clearing"], "shift": -1}
+    ),
+    "a tool whose districts is not a list of names": _mutated(
+        tools__bent_nail={"stage": ["entry"], "districts": {"edgewood_square": 1}, "shift": -1}
     ),
     "an entry whose hurts is not a bool": _mutated(
         entries__roof={"skill": "survival", "shift": 1, "label": "over the roof", "hurts": "yes"}
@@ -736,3 +749,21 @@ def test_the_job_predicates_are_in_the_shared_grammar(declared: Path) -> None:
     assert not evaluate_condition(state, {"premise_robbed": {"premise": other}})
     assert evaluate_condition(state, {"premise_robbed": {"district": SQUARE, "type": "townhouse"}})
     assert not evaluate_condition(state, {"premise_robbed": {"district": MARKET}})
+
+
+@pytest.mark.parametrize("kind", NO_JOBS)
+def test_secret_held_is_in_the_grammar_and_never_holds_without_jobs(
+    kind: str, tmp_path: Path
+) -> None:
+    """v0.15: the predicate is shared grammar; a story with no jobs never writes
+    the flag it reads, so it stays shut (the byte-identity above covers the rest)."""
+    from engine.game.quests import evaluate_condition, predicate_names
+
+    assert "secret_held" in predicate_names()
+    with no_jobs_story(kind, tmp_path) as location:
+        state = GameState(rng_seed=42, location_id=location)
+        state.procgen = generate_world(42)
+        set_clock(state, day=1, hour=8)
+        advance_time(state, 6)
+        assert not any(k.startswith("secret_held:") for k in state.flags)
+        assert not evaluate_condition(state, {"secret_held": {}})

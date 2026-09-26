@@ -9,9 +9,11 @@
 # WHERE THEY COME FROM. The smock is sold by Dock Mag at the head of the quay,
 # because every porter in Tallowmere wears one and nobody looks twice at a
 # brown smock carrying a crate. The mask is sold by Marrow, who swears it is a
-# fair-day copy; the Watch has not asked to see the receipt.
+# fair-day copy; the Watch has not asked to see the receipt. The lamplighter's
+# coat is sold by nobody: a thief cuts one at the Porters' Hall bench from
+# rags and brass buttons (data/recipes/workshop.yaml, v0.15).
 #
-# Version: v0.1.0 [2026-09-24]
+# Version: v0.2.0 [2026-09-26]
 
 version: 1
 
@@ -40,4 +42,16 @@ items:
     tags: [clothing, disguise, shiny]
     weight: 0.1
     value: 8
+    stack: false
+
+  - id: lamplighters_coat
+    name: "Lamplighter's Coat"
+    description: >-
+      Long, dark, oilcloth at the shoulders against the drip, with a row of
+      brass buttons and a ladder-hook sewn at the hip. Every street in the
+      city has a lamplighter at dusk and dawn, and a witness remembers the
+      coat and the ladder long before any face under the brim.
+    tags: [clothing, disguise]
+    weight: 1.2
+    value: 3
     stack: false

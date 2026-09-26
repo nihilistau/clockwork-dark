@@ -10,7 +10,7 @@
 # watch in the morning, is the only hour it is empty, and everyone in the
 # Snuffs knows that too. Nobody has ever robbed it. That is the security.
 #
-# Version: v0.1.1 [2026-09-25]
+# Version: v0.1.2 [2026-09-26]
 
 id: gannets_house
 label: "guild house"
@@ -38,7 +38,10 @@ security:
   - { id: company_keeper, text: "a Company keeper inside the door at every hour but one, armed with a cudgel and a scarf in progress" }
   - { id: the_whole_snuffs, text: "every porter, child and washerwoman in the Snuffs watching the door for nothing, out of love and fear in about equal parts" }
 
-loot: [strike_fund_box, silver_spoons, pewter_candlesticks]
+# The Chandlers' Loving Cup (v0.15, the Magpie's Hoard) is kept here with the
+# fund, which means a thief who wants the one takes the other with it: an
+# anchor's score is its whole list (engine/world/jobs.py `_draw_loot`).
+loot: [strike_fund_box, silver_spoons, pewter_candlesticks, chandlers_loving_cup]
 
 secrets:
-  - { id: fund_of_ious, text: "the strike fund is two-thirds IOUs, and the IOUs are in the handwriting of the Company's own treasurer" }
+  - { id: fund_of_ious, text: "the strike fund is two-thirds IOUs, and the IOUs are in the handwriting of the Company's own treasurer", thread: gannet_ious }

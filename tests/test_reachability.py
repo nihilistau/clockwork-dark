@@ -69,8 +69,6 @@ ALLOWED_UNREACHABLE: dict[str, str] = {
     "items.collections": "MCP query skill; the codex renders collections",
     "livelihood.trade_buy": "the `buy` verb resolves through `trade`",
     "livelihood.trade_haggle": "reached inside a trade, not as its own verb",
-    # WIRED IN PHASE 2.6 -- these rows come out with that change.
-    "mechanics.craft_item": "Phase 3 -- needs a recipe-selection surface first",
 }
 
 

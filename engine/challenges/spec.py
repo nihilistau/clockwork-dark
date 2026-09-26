@@ -198,8 +198,16 @@ ALLOWED_EFFECT_TYPES: frozenset[str] = frozenset(
 #: it has no magnitude to clamp -- it makes a file go missing. A model-composed
 #: challenge that could erase the watch's reports would be a dice table
 #: pardoning the player.
+#:
+#: ``report`` is its other half (v0.15): the victim of a squeeze left
+#: uncollected goes to the watch (HUE & CRY's blackmail threads, ``on_break``).
+#: It has no magnitude either -- the deed's severity is read from the law
+#: file, never from the effect -- and it files a deed the law file names, on
+#: a guise and a jurisdiction it knows, or is refused. A model-composed
+#: challenge that could file reports would be a dice table framing the
+#: player, so it stays authored-only like the rest of this set.
 STRUCTURAL_EFFECT_TYPES: frozenset[str] = frozenset(
-    {"ending_intent", "ending_lock", "ending_module", "quash_reports"}
+    {"ending_intent", "ending_lock", "ending_module", "quash_reports", "report"}
 )
 
 #: Effect types an AUTHORED CHALLENGE -- a set-piece from the story's own

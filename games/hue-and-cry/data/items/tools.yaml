@@ -5,12 +5,14 @@
 # data/rules/jobs.yaml: carried, it moves a job's odds at the stages that row
 # names (engine/world/jobs.py::_plan).
 #
-# WHERE THEY COME FROM. Marrow sells both across the counter in the Snuffs
-# (data/tables/trade.yaml), because a fence who melts crests also knows who
-# files picks and who rolls pellets, and does not ask what either is for.
-# Crafting them yourself is v1.0 work (paths.recipes is not declared yet).
+# WHERE THEY COME FROM. Marrow sells the picks and the pellets across the
+# counter in the Snuffs (data/tables/trade.yaml), because a fence who melts
+# crests also knows who files picks and who rolls pellets, and does not ask
+# what either is for. Since v0.15 a thief can make all three at the Porters'
+# Hall bench instead (data/recipes/workshop.yaml): cheaper in coin, dearer in
+# hours. The forged pass is made nowhere else -- nobody sells one.
 #
-# Version: v0.1.0 [2026-09-24]
+# Version: v0.2.0 [2026-09-26]
 
 version: 1
 
@@ -40,3 +42,16 @@ items:
     weight: 0.05
     value: 2
     stack: true
+
+  - id: forged_pass
+    name: "Forged Hill Pass"
+    description: >-
+      A vellum pass for the gate at the top of Margrave's Hill, in a good
+      clerk's hand, with a wax seal pressed from somebody's thumbed-over copy
+      of the real one. Shown at a Hill door it gets you a nod instead of a
+      question. Anywhere else in Tallowmere it is a bit of calfskin with
+      ideas above its station.
+    tags: [tool, paper]
+    weight: 0.02
+    value: 4
+    stack: false

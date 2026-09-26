@@ -227,6 +227,11 @@ class SessionStore:
     ) -> GameSession:
         engine = GameEngine(state)
         resolved_ledger = ledger or StoryLedger()
+        # The skills that need the session's memory read it off the engine
+        # (``getattr(engine, "ledger", None)``: ``recall_subject``, ``job_stage``).
+        # Nothing set it until v0.15, so ``recall_subject`` answered "no ledger
+        # in this session" in every live session.
+        engine.ledger = resolved_ledger
         session = GameSession(
             engine=engine,
             # One ledger object shared with the agent, not a copy: what the

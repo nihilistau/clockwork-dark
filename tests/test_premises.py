@@ -372,3 +372,70 @@ def test_the_flagship_village_is_byte_identical(seed: int) -> None:
 
 def test_undeclared_generates_nothing() -> None:
     assert premises.generate(42) == ([], [])
+
+
+# -- a secret's `thread:` (v0.15) ---------------------------------------------
+
+
+def _mill_with_thread(thread: str) -> dict[str, Any]:
+    return {**MILL_HOUSE, "secrets": [{**MILL_HOUSE["secrets"][0], "thread": thread}]}
+
+
+def _threads_doc(requires: Any) -> dict[str, Any]:
+    return {"version": 1, "tags": ["Blackmail"], "templates": {
+        "squeeze_the_miller": {"title": "the miller's debt", "source": "npc_marta",
+                               "tags": ["Blackmail"], "terms": "coin for quiet",
+                               "requires": requires}}}
+
+
+def _load_with(tmp_path: Path, mill: dict[str, Any], threads_doc: Any = None) -> Any:
+    root = _build(tmp_path / "premises", **{"anchors/mill_house.yaml": mill})
+    paths = {"premises": str(root)}
+    if threads_doc is not None:
+        path = tmp_path / "threads.yaml"
+        path.write_text(yaml.safe_dump(threads_doc, sort_keys=False), encoding="utf-8")
+        paths["threads"] = str(path)
+    set_overlay({"paths": paths})
+    try:
+        return premises.generate(1)
+    finally:
+        set_overlay(None)
+
+
+def test_a_secrets_thread_must_name_a_declared_template(tmp_path: Path) -> None:
+    with pytest.raises(ValueError) as info:
+        _load_with(tmp_path, _mill_with_thread("squeeze_the_miller"))
+    assert "mill_house.yaml" in str(info.value) and "squeeze_the_miller" in str(info.value)
+
+
+def test_a_secrets_thread_must_gate_on_holding_that_secret(tmp_path: Path) -> None:
+    """A lever offered before the thief holds it is the inert-shape bug: it must
+    read `secret_held` for this secret in its `requires`."""
+    with pytest.raises(ValueError) as info:
+        _load_with(tmp_path, _mill_with_thread("squeeze_the_miller"),
+                   _threads_doc({"at_location": "millhaven_market"}))
+    assert "mill_house.yaml" in str(info.value) and "secret_held" in str(info.value)
+    with pytest.raises(ValueError):
+        _load_with(tmp_path, _mill_with_thread("squeeze_the_miller"),
+                   _threads_doc({"secret_held": {"secret": "some_other_secret"}}))
+    # Held as one alternative, or held NOT at all, gates nothing.
+    for loose in ({"any": [{"secret_held": {"secret": "flour_debt"}},
+                           {"at_location": "millhaven_market"}]},
+                  {"none": [{"secret_held": {"secret": "flour_debt"}}]}):
+        with pytest.raises(ValueError):
+            _load_with(tmp_path, _mill_with_thread("squeeze_the_miller"), _threads_doc(loose))
+
+
+def test_a_secrets_thread_that_gates_on_it_loads(tmp_path: Path) -> None:
+    prems, _ = _load_with(
+        tmp_path, _mill_with_thread("squeeze_the_miller"),
+        _threads_doc({"all": [{"at_location": "millhaven_market"},
+                              {"secret_held": {"secret": "flour_debt"}}]}))
+    assert any(p["type"] == "mill_house" for p in prems)
+
+
+def test_a_secrets_thread_must_be_a_name(tmp_path: Path) -> None:
+    with pytest.raises(ValueError) as info:
+        _load_with(tmp_path, {**MILL_HOUSE, "secrets": [{**MILL_HOUSE["secrets"][0],
+                                                         "thread": ["a", "b"]}]})
+    assert "mill_house.yaml" in str(info.value) and "thread" in str(info.value)

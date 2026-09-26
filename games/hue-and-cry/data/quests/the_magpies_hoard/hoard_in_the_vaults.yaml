@@ -1,0 +1,51 @@
+# HUE & CRY -- the Magpie's Hoard: the piece in the Undercroft (v0.15).
+#
+# The same shape as hoard_under_the_bell.yaml (its header has the reasoning):
+# a find that starts and finishes on the first visit, once. The Undercroft is
+# a secret place, found by scrounging the Snuffs or by a night in the cells
+# (data/world/locations.yaml), and nothing here is read before it is known.
+#
+# Not at the old wharf steps: Marrow the fence keeps an hour there most
+# nights (npc_schedules.yaml), and a Hoard piece beside a fence would say the
+# one thing the city agrees is not true -- that the Magpie sells.
+#
+# Version: v0.1.0 [2026-09-26]
+
+id: hoard_in_the_vaults
+arc: the_magpies_hoard
+name: "Snagged in the Vaults"
+
+preconditions:
+  at_location: the_undercroft
+
+summary: >-
+  Something gold, where the drains run under the old brick vaults.
+
+start_text: >-
+  In the oldest vault, where the tallow hangs from the brick in pale
+  stalactites, something heavy and gold is wound three times round a rusted
+  grating, too carefully to have been dropped: a chain of office, every
+  tenth link an anchor.
+
+stages:
+  - id: found
+    objective: "Work the chain free of the grating."
+    complete_when:
+      at_location: the_undercroft
+    complete_text: >-
+      It comes loose link by link, cold and greasy with tallow.
+
+on_complete:
+  effects:
+    - type: item
+      item_id: harbourmasters_chain
+      name: "The Harbourmaster's Chain"
+      qty: 1
+      tags: [goods, shiny, metal, named]
+      stolen_from: { whom: "the harbourmaster", where: tallow_docks }
+    - type: ledger_fact
+      text: "You took the Harbourmaster's Chain from a grating in the Undercroft's oldest vault."
+      kind: event
+
+complete_text: >-
+  Somewhere on the quay, a harbourmaster is wearing a ribbon.

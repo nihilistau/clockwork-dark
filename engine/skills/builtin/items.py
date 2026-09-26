@@ -220,9 +220,12 @@ def collections() -> str:
     """
     Collectable set progress, settling anything newly complete.
 
-    Sets normally close by themselves the moment their last piece lands (see
-    ``inventory.grant``); this also settles a set assembled by a path that did
-    not go through that door -- a quest effect, a trade, a boon table.
+    Sets close by themselves the moment their last piece lands: the ``item``
+    effect settles them, and every grant -- ``inventory.grant``, a job's
+    getaway, a quest effect, a boon -- goes through it (v0.15). This still
+    settles a set that is complete without a piece having just landed: a save
+    carrying a set assembled before that, or a set whose table was edited
+    under it.
     """
     from engine.game import inventory
 

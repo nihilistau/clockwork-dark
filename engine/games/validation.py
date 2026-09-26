@@ -601,6 +601,7 @@ class StoryValidator:
         self.check_quests()
         self.check_encounters()
         self.check_tables()
+        self.check_collections()
         self.check_npc_schedules()
         self.check_rumors()
         self.check_assistant_hints()
@@ -1006,6 +1007,12 @@ class StoryValidator:
             # The edge itself, not just its endpoints: an encounter keyed to a
             # leg that does not exist can never fire, and nothing says so.
             for row in data.get("encounters") or []:
+                if isinstance(row, dict) and "min_chance" in row:
+                    floor = row["min_chance"]
+                    if (isinstance(floor, bool) or not isinstance(floor, (int, float))
+                            or not 0.0 < float(floor) <= 1.0):
+                        self._add(source, str(row.get("id")),
+                                  f"min_chance must be a number in (0, 1], got {floor!r}")
                 triggers = (row or {}).get("triggers") or {}
                 for edge in triggers.get("edges") or []:
                     src, _, dst = str(edge).partition(">")
@@ -1026,6 +1033,43 @@ class StoryValidator:
             if data is None:
                 continue
             self._check_generic_refs(self._rel(path), data)
+            self._check_vendor_refusals(self._rel(path), data)
+
+    def _check_vendor_refusals(self, source: str, data: Any) -> None:
+        """A trade profile's ``refuses_to_buy`` (v0.15): words, and a condition that can hold."""
+        from engine.game.trade import refuses_to_buy_problem
+
+        vendors = data.get("vendors") if isinstance(data, dict) else None
+        for npc_id, profile in (vendors or {}).items() if isinstance(vendors, dict) else ():
+            if not isinstance(profile, dict) or "refuses_to_buy" not in profile:
+                continue
+            problem = refuses_to_buy_problem(profile["refuses_to_buy"])
+            if problem:
+                self._add(source, str(npc_id), problem)
+
+    def check_collections(self) -> None:
+        """
+        Collectable sets (``<paths.tables>/collections.yaml``) against the items.
+
+        Runs whenever the story has items, not only when it declares tables:
+        an item naming a set in a story with no collections file is the
+        undeclared-set error, not a silence.
+        """
+        if not self.items:
+            return
+        directory = self._dir("tables")
+        path = (directory / "collections.yaml") if directory is not None else None
+        data: Any = {}
+        source = "collections.yaml (not declared)"
+        if path is not None:
+            source = self._rel(path)
+            if path.is_file():
+                data = _read_yaml(path)
+        items_dir = self._dir("items")
+        items_source = (self._rel(items_dir) + "/*.yaml") if items_dir is not None else "items"
+        self.issues.extend(
+            check_collections_data(source, data, items=self.items, items_source=items_source)
+        )
 
     # -- schedules, rumors, hints, lore ------------------------------------
 
@@ -1219,6 +1263,17 @@ class StoryValidator:
                 self._check_beat_shapes(source, card_id, card)
 
         self._check_forced_scenes(known_decks, known_cards)
+
+        # Thread templates' optional keys (v0.15: `repeatable`, `broken_text`).
+        threads_path = self._file("threads")
+        threads_doc = _read_yaml(threads_path) if threads_path is not None else None
+        if isinstance(threads_doc, dict):
+            from engine.game.threads import template_key_problems
+
+            source = self._rel(threads_path)  # type: ignore[arg-type]
+            for template_id, raw in (threads_doc.get("templates") or {}).items():
+                for problem in template_key_problems(raw):
+                    self._add(source, str(template_id), problem)
 
         # Clock table: every clock it drives must be declared in state.yaml as
         # a clock. A clock the schema does not declare is a write the store
@@ -1785,7 +1840,8 @@ class StoryValidator:
     # -- spoilers ----------------------------------------------------------
 
     def check_spoilers(self) -> None:
-        """The spoiler table, if the story ships one: rows are usable."""
+        """The spoiler table, if the story ships one: rows are usable, and a
+        row's ``location:`` is a real place."""
         rules_dir = self._dir("rules")
         if rules_dir is None:
             return
@@ -1814,6 +1870,18 @@ class StoryValidator:
             if term.lower() in seen:
                 self._add(source, term, "duplicate spoiler term", severity="warning")
             seen.add(term.lower())
+            # `location:` lifts the row once the player knows that place
+            # (interceptors.story_spoiler_terms). `locations.is_known` treats
+            # an id the graph does not hold as nobody's secret, so a typo'd
+            # id would lift the row on turn one and leak the name it hides.
+            location = row.get("location")
+            if location is not None and str(location).strip() not in self.locations:
+                self._add(
+                    source,
+                    str(location),
+                    f"spoiler row {term!r} names location {location!r}, which is not "
+                    "in the story's graph; the row would lift at once and leak its term",
+                )
 
     # -- shared reference scan ---------------------------------------------
 
@@ -1879,6 +1947,68 @@ def check_economy_data(
                             f"{vendor_id}.{side} price must be a non-negative integer",
                         )
                     )
+    return issues
+
+
+def check_collections_data(
+    source: str,
+    data: Any,
+    *,
+    items: dict[str, dict[str, Any]],
+    items_source: str = "items",
+) -> list[Issue]:
+    """
+    One collections table against the item registry
+    (engine/game/inventory.py::evaluate_collections reads both).
+
+    Four faults, each silent at runtime: a member the registry lacks (the set
+    lists a thing nothing can grant, and never completes); a ``counts`` key
+    that is not a member (a quantity nobody is asked for); an item whose
+    ``collection:`` names no declared set (a "collect" verb for nothing); and a
+    member that does not name its own set -- the ``item`` effect settles a set
+    only on an item that says it belongs to one, so that piece landing last
+    never closes it.
+    """
+    issues: list[Issue] = []
+    rows = (data or {}).get("collections") if isinstance(data, dict) else None
+    if data and not isinstance(rows, list):
+        issues.append(Issue(source, "-", "`collections` must be a list of sets"))
+        rows = []
+    declared: set[str] = set()
+    for row in rows or []:
+        if not isinstance(row, dict) or not str(row.get("id") or "").strip():
+            issues.append(Issue(source, "-", "a set needs an `id`"))
+            continue
+        set_id = str(row["id"])
+        if set_id in declared:
+            issues.append(Issue(source, set_id, "duplicate set id"))
+        declared.add(set_id)
+        members = [str(m) for m in (row.get("items") or [])]
+        if not members:
+            issues.append(Issue(source, set_id, "a set with no `items` can never complete"))
+        for member in members:
+            spec = items.get(member)
+            if spec is None:
+                issues.append(Issue(source, member, f"{set_id} names an item not in the story's items files"))
+            elif str(spec.get("collection") or "") != set_id:
+                issues.append(Issue(
+                    source, member,
+                    f"member of {set_id} but its item row says collection: "
+                    f"{spec.get('collection')!r}, so landing it last never closes {set_id}",
+                ))
+        counts = row.get("counts") or {}
+        if not isinstance(counts, dict):
+            issues.append(Issue(source, set_id, "`counts` must map item id -> quantity"))
+            counts = {}
+        for key, qty in counts.items():
+            if str(key) not in members:
+                issues.append(Issue(source, set_id, f"counts names {key!r}, which is not a member"))
+            if not isinstance(qty, int) or isinstance(qty, bool) or qty < 1:
+                issues.append(Issue(source, set_id, f"counts for {key!r} must be a positive integer"))
+    for item_id, spec in sorted(items.items()):
+        named = str((spec or {}).get("collection") or "")
+        if named and named not in declared:
+            issues.append(Issue(items_source, item_id, f"collection {named!r} is not a declared set"))
     return issues
 
 

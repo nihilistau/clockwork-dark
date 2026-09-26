@@ -59,7 +59,24 @@
 # ever reached `sought`; at 4 a careful one ended a quarter of its runs
 # `wanted`. The table is in data/rules/jobs.yaml and CHANGELOG.md.
 #
-# Version: v0.3.0 [2026-09-24]
+# BLACKMAIL (v0.15) joined at severity 3. Its only witness is its victim, and
+# a squeeze is struck in private, so it is never committed as a deed on the
+# street: it is FILED, whole, by the one who was squeezed -- the `report` in a
+# blackmail thread's `on_break` (data/rules/threads.yaml), at precision 1.0,
+# because the victim saw your face across the table. Measured with
+# `scripts/simulate_hoard.py --severity` (one report filed up the Rise at
+# 1.0, then quiet days; the Rise's band for your face each morning): at 1 it
+# files nothing a Lantern notices; at 2 it is `noticed` the day it is filed
+# and gone by the next morning; at 3 it is `noticed` for two days alone, and
+# beside a lift seen up the Rise it makes you `sought` -- recognised on
+# sight -- the day it lands, then `noticed` for four days more; at 4 a
+# squeeze alone makes you `sought`, a stop for words said in a parlour.
+# Three, as burglary: a crime against a house, never against the Watch
+# (assault_watch stays the only 5). (v0.15 Task 8 restated this from the
+# committed replay; the first draft's "three days alone" and "sought for
+# five or six" came from a scratch script and did not reproduce.)
+#
+# Version: v0.3.3 [2026-09-26]
 
 # Schedule roles that ARE the law (data/world/npc_schedules.yaml): Captain
 # Ardane, Sergeant Brask, Lanterns Tully and Hobb. A Lantern who sees a deed
@@ -103,6 +120,7 @@ deeds:
   fencing: {severity: 2}        # hot goods offered at an honest counter
   assault_watch: {severity: 5}  # the watch_stop's `fight`
   burglary: {severity: 3}       # a job seen, shouted about, or carried out onto the street
+  blackmail: {severity: 3}      # a squeeze left uncollected: the victim swears to it (threads.yaml)
 
 notice:
   base: 0.6
@@ -126,6 +144,9 @@ guises:
   self: {label: "your own face"}
   magpie: {label: "the Magpie's mask", item: magpie_mask}   # Marrow sells one
   porter: {label: "a porter's smock", item: porters_smock}  # Dock Mag sells them
+  # v0.15: cut at the Porters' Hall bench (data/recipes/workshop.yaml); nobody
+  # sells one. A witness files the trade, not the coat.
+  lamplighter: {label: "a lamplighter", item: lamplighters_coat}
 
 # What the Watch believes on the morning barge: Lantern Tully shouted it in
 # front of the whole quay, and the Watch has not changed its mind.

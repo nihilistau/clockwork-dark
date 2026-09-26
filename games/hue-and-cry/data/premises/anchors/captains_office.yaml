@@ -13,7 +13,7 @@
 # The clerk's role is `clerk`, never `watch`: the Law release counts the Watch
 # by role, and a generated clerk must not be mistaken for a Lantern.
 #
-# Version: v0.1.1 [2026-09-25]
+# Version: v0.1.2 [2026-09-26]
 
 id: captains_office
 label: "watch office"
@@ -37,7 +37,10 @@ security:
   - { id: never_out_lamp, text: "the great lamp over the door, which is never allowed to go out and lights the office window from outside" }
   - { id: duty_clerk, text: "a duty clerk who sleeps on a cot across the office door and wakes if the captain so much as coughs" }
 
-loot: [captains_spyglass, confiscated_shinies, silver_snuffbox]
+# The Lantern House Knocker (v0.15, the Magpie's Hoard) sits on the Magpie
+# file as a paperweight. Worth less than the spyglass, so the casing board's
+# loot hint still names the spyglass.
+loot: [captains_spyglass, confiscated_shinies, silver_snuffbox, lantern_house_knocker]
 
 secrets:
-  - { id: magpie_file, text: "the captain's Magpie file, two years thick, with a map of every robbery and one pin in it that does not belong to any robbery at all" }
+  - { id: magpie_file, text: "the captain's Magpie file, two years thick, with a map of every robbery and one pin in it that does not belong to any robbery at all", thread: ardane_magpie_file }

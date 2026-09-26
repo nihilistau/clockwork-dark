@@ -11,19 +11,26 @@
 # faction nothing moves is the "loads, validates and does nothing" shape:
 #
 #   honest_company     Gannet's contract; a shift for Dock Mag (+1); a
-#                      porter's nod (boon, +2); Silas's toll (streets.yaml).
+#                      porter's nod (boon, +2); Silas's toll (streets.yaml);
+#                      the Magpie's Hoard complete (+8, v0.15,
+#                      data/tables/collections.yaml).
 #   lantern_watch      going round the lamps with Wren (+1; the lamp
 #                      ordinance is the Watch's); striking a drunk Lantern
 #                      (streets.yaml, -10).
 #   chandlers_guild    a good shift at Marsh & Daughters' vats (+1).
 #   market_stalls      running Wickmarket's errands well (+1).
+#   margraves_household  Steward Quill's squeeze left uncollected (-10, v0.15,
+#                      data/rules/threads.yaml).
+#   silk_row           Lady Imelda's squeeze left uncollected (-10, v0.15).
 #   temple_everflame   declared for Acts I-III (the Hanging Fair, the flame);
-#   margraves_household  nothing moves these two yet -- listed so v0.16/v0.17
-#   silk_row           content lands on factions the story owns, the same
-#                      reason the Company was declared before it had a use.
+#                      nothing moves it yet -- listed so v0.16/v0.17 content
+#                      lands on a faction the story owns, the same reason the
+#                      Company was declared before it had a use.
 #
-# The last three are the one deliberate exception to the rule above, recorded
-# in CLAUDE.md "Deliberately deferred" so they are not mistaken for finished.
+# The Temple is the one deliberate exception to the rule above, recorded in
+# CLAUDE.md "Deliberately deferred" so it is not mistaken for finished.
+# (The Company also loses 5 the moment Mother Gannet is squeezed, and 10 if
+# the squeeze is left hanging; the Watch 10 if the captain's is.)
 # No wage is priced by any standing (labour.yaml's header measured why).
 #
 # What reads it today: the `reputation` condition predicate (a later contract
@@ -35,7 +42,7 @@
 # games/dev-story/data/world/factions.yaml gives: bands, clamps and the price
 # curve are mechanics, not story.
 #
-# Version: v0.2.0 [2026-09-26]
+# Version: v0.2.2 [2026-09-26]
 
 version: 1
 

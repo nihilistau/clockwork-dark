@@ -439,8 +439,12 @@ def test_no_shipped_story_opts_in() -> None:
     """Byte-identical by construction too: nothing shipped declares either key."""
     root = Path(__file__).resolve().parents[1] / "games"
     for path in root.glob("*/data/**/*.yaml"):
-        text = path.read_text(encoding="utf-8")
-        assert "repeatable:" not in text, path
+        # A DECK's `repeatable` is a top-level key of its file. Read as YAML
+        # rather than grepped: since v0.15 a thread TEMPLATE may declare its
+        # own `repeatable` (HUE & CRY's fence credit, threads.yaml), nested
+        # under `templates:`, which is not a deck opting in.
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert not (isinstance(doc, dict) and "repeatable" in doc), path
     for path in root.glob("*/data/world/schedules.yaml"):
         doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         for spec in (doc.get("events") or {}).values():

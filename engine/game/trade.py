@@ -193,6 +193,58 @@ def vendor(npc_id: str) -> dict[str, Any]:
     return profile
 
 
+def refusal_to_buy(state: GameState, npc_id: str) -> str:
+    """
+    The vendor's own words for refusing to buy from the player now, or ``""``.
+
+    A trade profile may declare ``refuses_to_buy: {when: <condition>, text:
+    <words>}`` -- the condition in the shared grammar (``quests``), the text
+    in the vendor's voice. While ``when`` holds she buys nothing from the
+    player: ``quote`` refuses the selling side with ``text``, so ``sell``
+    does, and the ``sell`` verb leaves her out (``intents._sell``) so the
+    refusal is never offered as a choice. Her shelves are untouched -- the
+    player may still BUY from her. HUE & CRY's Pell Hollis, once a player has
+    welshed on her advance (``threads.yaml`` ``pell_advance``).
+
+    ``""`` for a profile with no key, a ``when`` that does not hold, or a
+    block with no ``text`` (a refusal nobody can voice is not authored).
+    """
+    rule = vendor(npc_id).get("refuses_to_buy")
+    if not isinstance(rule, dict):
+        return ""
+    text = " ".join(str(rule.get("text") or "").split())
+    if not text or "when" not in rule:
+        return ""
+    from engine.game.quests import evaluate_condition
+
+    return text if evaluate_condition(state, rule.get("when")) else ""
+
+
+def refuses_to_buy_problem(rule: Any) -> Optional[str]:
+    """
+    What is wrong with a trade profile's ``refuses_to_buy`` block, or None.
+
+    For the content validator (``check_tables``): a block with no ``text``
+    or no ``when`` refuses nothing at the counter (``refusal_to_buy`` reads
+    it as absent), and a ``when`` the grammar cannot answer -- a typo, or a
+    predicate that needs a ledger this read never has -- would never hold.
+    """
+    if not isinstance(rule, dict):
+        return "`refuses_to_buy` must be a mapping with `when` and `text`"
+    if not " ".join(str(rule.get("text") or "").split()):
+        return "`refuses_to_buy` needs a `text`: the vendor's own words for refusing"
+    if rule.get("when") is None:
+        return "`refuses_to_buy` needs a `when`: the condition under which she refuses"
+    # Every module that registers a predicate, so the grammar is whole
+    # however this was reached (the validator runs with no story activated).
+    from engine.game import clocks, endings, quests, threads  # noqa: F401
+    from engine.world import agendas, jobs, law  # noqa: F401
+
+    return quests.condition_problem(
+        rule.get("when"), where="`refuses_to_buy.when`", forbid=quests.CONTEXT_FREE_FORBIDS
+    )
+
+
 def vendor_location(npc_id: str) -> str:
     """Where a vendor keeps their counter, or an empty string."""
     return str(vendor(npc_id).get("location") or "")
@@ -498,6 +550,11 @@ def quote(
     # so this whole block is a no-op and every turn stays byte-identical (the
     # v0.9 rule for an optional system).
     if side == SELL:
+        grudge = refusal_to_buy(state, npc_id)
+        if grudge:
+            # No `heat_split` key: `sell` reads that key as "an honest vendor
+            # was offered hot goods", a deed. A grudge is not one.
+            return {"ok": False, "npc_id": npc_id, "item_id": item_id, "reason": grudge}
         refusal, plan = _plan_sale(state, npc_id, item_id, qty, profile)
         if refusal is not None:
             return refusal

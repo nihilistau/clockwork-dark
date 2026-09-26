@@ -24,11 +24,19 @@ walker is fed and rested every six legs through the ``hunger`` and
 ``stamina`` effects, because twenty-four streets a day is more walking than a
 body does, and this harness measures the streets, not the legs.
 
+``--collectors`` instead prints, for a welsher (v0.15, the fences' credit),
+the chance that a leg deals the fence's collectors -- the leg's own chance
+(``encounter.leg_chance``, ``min_chance`` floor included) times the
+collectors' share of the rows eligible on it -- for every public leg they
+can be met on, hour by hour: the least and the most, and on which legs. No
+dice: it is the table the draw is made from, for a fresh thief's stealth.
+
 Usage:
     python scripts/simulate_streets.py                  # 40 seeds x 3 days
     python scripts/simulate_streets.py --seeds 10 --days 2 --json
+    python scripts/simulate_streets.py --collectors
 
-Version: v0.1.0 [2026-09-25]
+Version: v0.2.0 [2026-09-26]
 """
 
 from __future__ import annotations
@@ -182,10 +190,65 @@ def render(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+#: The fences' collectors (data/encounters/streets.yaml), and the flags that send them.
+COLLECTORS = {"welshed_on_pell": ("pells_collectors", "pells_collectors_by_day"),
+              "welshed_on_marrow": ("marrows_lads", "marrows_lads_by_day")}
+
+
+def collector_shares() -> dict[str, dict[str, dict[str, Any]]]:
+    """flag -> hour -> {min, max, min_leg, max_leg, legs}: the chance a leg
+    deals that fence's collectors, over every public leg that can deal them."""
+    from engine.game import encounter
+    from engine.game.clock import set_clock
+    from engine.game.locations import LOCATIONS
+
+    def public(loc: str) -> bool:
+        return not (LOCATIONS.get(loc) or {}).get("secret")
+
+    legs = sorted((a, b) for a, row in LOCATIONS.items() if public(a)
+                  for b in (row.get("connections") or {}) if public(b))
+    state = Thief(0, "collectors").state
+    out: dict[str, dict[str, dict[str, Any]]] = {}
+    for flag, scenes in COLLECTORS.items():
+        state.flags[flag] = True
+        table: dict[str, dict[str, Any]] = {}
+        for hour in range(24):
+            set_clock(state, day=2, hour=hour)
+            shares = []
+            for src, dst in legs:
+                rows = encounter.eligible(state, src, dst)
+                weights = {str(r["id"]): int(r.get("weight", 10)) for r in rows}
+                mine = sum(w for k, w in weights.items() if k in scenes)
+                if mine:
+                    share = encounter.leg_chance(state, src, dst) * mine / sum(weights.values())
+                    shares.append((round(share, 3), f"{src}->{dst}"))
+            if shares:
+                shares.sort()
+                table[f"{hour:02d}"] = {"min": shares[0][0], "min_leg": shares[0][1],
+                                        "max": shares[-1][0], "max_leg": shares[-1][1],
+                                        "legs": len(shares)}
+        out[flag] = table
+        state.flags[flag] = False
+    return out
+
+
+def render_collectors(report: dict[str, dict[str, dict[str, Any]]]) -> str:
+    lines = []
+    for flag, table in report.items():
+        lines += [flag, "| hour | legs | least | most (leg) |", "|---|---|---|---|"]
+        for hour, row in table.items():
+            lines.append(f"| {hour}:00 | {row['legs']} | {row['min']:.1%} | "
+                         f"{row['max']:.1%} ({row['max_leg']}) |")
+        lines.append("")
+    return "\n".join(lines)
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--seeds", type=int, default=40)
     parser.add_argument("--days", type=int, default=3)
+    parser.add_argument("--collectors", action="store_true",
+                        help="the fences' collectors' share of a welsher's legs, hour by hour")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
@@ -195,6 +258,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     from engine.games import registry
 
     registry.activate("hue-and-cry")
+    if args.collectors:
+        shares = collector_shares()
+        print(json.dumps(shares, indent=2) if args.json else render_collectors(shares))
+        return 0
     report = measure(args.seeds, args.days)
     print(json.dumps(report, indent=2) if args.json else render(report))
     return 0

@@ -236,6 +236,39 @@ def test_a_tool_applies_only_on_its_stages_and_entries(plain: Path) -> None:
     assert jobs.band_for(state, "getaway") == ("trivial", [name_of("hand_lantern")])
 
 
+def test_a_tool_with_districts_applies_only_at_houses_in_them(tmp_path: Path) -> None:
+    """`districts` (v0.15, HUE & CRY's forged pass): a tool that names
+    districts shifts a job only on a premise standing in one of them. A row
+    without the key -- the nail -- still applies in every district."""
+    doc = copy.deepcopy(JOBS_SPEC)
+    doc["tools"]["whetstone"] = {"stage": ["approach", "entry"], "entries": ["door"],
+                                 "districts": [MARKET], "shift": -1}
+    set_overlay({"paths": _paths(tmp_path, doc)})
+    try:
+        stone, nail = name_of("whetstone"), name_of("bent_nail")
+        away = _world(location=SQUARE)
+        _open(away, tier=2)
+        apply_effect(away, {"type": "item", "item_id": "whetstone"})
+        assert jobs.band_for(away, "approach") == ("easy", [])
+        assert jobs.band_for(away, "entry", "door") == ("standard", [])
+
+        there = _world(location=MARKET)
+        _open(there, tier=2)
+        assert jobs.band_for(there, "approach") == ("easy", [])
+        apply_effect(there, {"type": "item", "item_id": "whetstone"})
+        assert jobs.band_for(there, "approach") == ("trivial", [stone])
+        assert jobs.band_for(there, "entry", "door") == ("easy", [stone])
+        # Its own filters still bind inside the district: not the window,
+        # not a stage it does not name.
+        assert jobs.band_for(there, "entry", "window") == ("standard", [])
+        assert jobs.band_for(there, "getaway") == ("easy", [])
+        # A row with no `districts` is everywhere, as it always was.
+        apply_effect(there, {"type": "item", "item_id": "bent_nail"})
+        assert jobs.band_for(there, "score") == ("easy", [nail])
+    finally:
+        set_overlay(None)
+
+
 def test_bands_clamp_at_trivial_and_legendary(plain: Path) -> None:
     state = _world()
     _open(state, tier=5)
@@ -1063,3 +1096,119 @@ def test_a_tick_abort_and_a_players_abort_close_differently(plain: Path, monkeyp
     jobs.abort(state)
     assert state.jobs["last"]["outcome"] == "aborted"
     assert state.jobs["last"]["by"] == "player"
+
+# ---------------------------------------------------------------------------
+# A secret is a lever (v0.15): a cased secret found at the score is HELD once
+# the job carries it out -- not at the score, where a caught thief would keep
+# a lever the Watch took back (fix round 1)
+# ---------------------------------------------------------------------------
+
+
+def _score_with_secret(state: GameState, monkeypatch, *, cased: bool = True,
+                       degree: str = "success", ledger: Any = None) -> tuple[str, dict[str, Any]]:
+    pid = _open(state, loot=("golden_ring",))
+    if cased:
+        apply_effect(state, {"type": "intel", "premise": pid, "intel": "secret"})
+    _rolls(monkeypatch, "success")
+    _walk_to(state, "score")
+    _rolls(monkeypatch, degree)
+    return pid, jobs.resolve_stage(state, "score", ledger=ledger)
+
+
+def _no_secret_held(state: GameState) -> bool:
+    from engine.game.quests import evaluate_condition
+
+    return (not any(k.startswith("secret_held:") for k in state.flags)
+            and not evaluate_condition(state, {"secret_held": {}}))
+
+
+def test_a_secret_found_at_the_score_is_not_yet_held(plain: Path, monkeypatch) -> None:
+    """The score names what was found; nothing is held until it is carried out."""
+    state = _world()
+    pid, out = _score_with_secret(state, monkeypatch)
+    secret = premises.get(state, pid)["secret"]
+    text = next(s["text"] for s in premises.spec("townhouse")["secrets"] if s["id"] == secret)
+    assert out["secret"] == text and "held" not in out
+    assert _no_secret_held(state)
+
+
+def test_a_secret_carried_out_is_held(plain: Path, monkeypatch) -> None:
+    """The flag, the engine's ledger fact and the predicate -- at the getaway."""
+    from engine.game.quests import evaluate_condition
+    from engine.memory.ledger import StoryLedger
+
+    state = _world()
+    ledger = StoryLedger()
+    pid, _score = _score_with_secret(state, monkeypatch, ledger=ledger)
+    secret = premises.get(state, pid)["secret"]
+    text = next(s["text"] for s in premises.spec("townhouse")["secrets"] if s["id"] == secret)
+    out = jobs.resolve_stage(state, "getaway", ledger=ledger)
+    assert out["closed"] is True and out["outcome"] in jobs.CARRIED_OUT
+    assert out["held"] == text
+    assert state.flags.get(f"secret_held:{pid}:{secret}") is True
+    facts = [f for f in ledger.facts if f.kind == "secret"]
+    assert len(facts) == 1 and text in facts[0].text and facts[0].source == "engine"
+    assert evaluate_condition(state, {"secret_held": {}})
+    assert evaluate_condition(state, {"secret_held": {"premise": pid}})
+    assert evaluate_condition(state, {"secret_held": {"secret": secret}})
+    assert evaluate_condition(state, {"secret_held": {"premise": pid, "secret": secret}})
+    assert evaluate_condition(state, {"secret_held": secret})
+    assert not evaluate_condition(state, {"secret_held": {"premise": "prem_nowhere"}})
+    assert not evaluate_condition(state, {"secret_held": {"secret": "no_such_secret"}})
+
+
+def test_a_thief_caught_at_the_getaway_holds_no_secret(lawful: Path, monkeypatch) -> None:
+    """The Watch reached the house first: what was found there went back with it."""
+    state = _world()
+    _score_with_secret(state, monkeypatch)
+    _rolls(monkeypatch, "failure")
+    out: dict[str, Any] = {}
+    for _ in range(10):
+        out = jobs.resolve_stage(state, "getaway")
+        if out.get("closed"):
+            break
+    assert out["closed"] is True and out["outcome"] == "caught", out
+    assert "held" not in out
+    assert _no_secret_held(state)
+
+
+def test_an_aborted_job_holds_no_secret(plain: Path, monkeypatch) -> None:
+    state = _world()
+    _score_with_secret(state, monkeypatch)
+    jobs.abort(state)
+    assert state.jobs["last"]["outcome"] == "aborted"
+    assert _no_secret_held(state)
+
+
+def test_an_uncased_secret_is_not_held(plain: Path, monkeypatch) -> None:
+    """Casing found that one exists, or the thief does not know what it is holding."""
+    state = _world()
+    _pid, out = _score_with_secret(state, monkeypatch, cased=False)
+    assert "secret" not in out
+    assert "held" not in jobs.resolve_stage(state, "getaway")
+    assert _no_secret_held(state)
+
+
+def test_a_failed_score_holds_no_secret(plain: Path, monkeypatch) -> None:
+    state = _world()
+    _pid, out = _score_with_secret(state, monkeypatch, degree="failure")
+    assert out["advanced"] is False and "secret" not in out
+    assert _no_secret_held(state)
+
+
+def test_a_held_secret_replays_from_the_seed(plain: Path) -> None:
+    """Real rolls on the JOB stream: the same seed and choices hold the same secret."""
+
+    def run() -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        state = _world(seed=7)
+        pid = _open(state, loot=("golden_ring",))
+        apply_effect(state, {"type": "intel", "premise": pid, "intel": "secret"})
+        outs = []
+        for _ in range(20):
+            if jobs.active(state) is None:
+                break
+            outs.append(jobs.resolve_stage(state, _approach(state)))
+        return outs, {k: v for k, v in state.flags.items() if k.startswith("secret_held:")}
+
+    first, second = run(), run()
+    assert first == second

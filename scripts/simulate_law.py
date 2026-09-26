@@ -146,13 +146,32 @@ def agendas_off() -> Iterator[None]:
 # ---------------------------------------------------------------------------
 
 
+class _KeepsNothing:
+    """A save store that writes nothing.
+
+    ``SessionStore.create`` writes a run's first save, and every harness run
+    used to land one per seed in the owner's real ``data/saves/<slug>/`` --
+    tens of thousands of runs nobody played, crowding the load menu's index.
+    A measurement is not a run anybody will load, so the harnesses' session
+    store is handed this instead: no directory, no path, nothing to clean up.
+    The run itself is untouched (a save reads the state, never writes it).
+    """
+
+    def save(self, state: Any, **_: Any) -> str:
+        return ""
+
+
+_KEEPS_NOTHING = _KeepsNothing()
+
+
 class Thief:
     """One run: a session, an action counter, and the patrol after each action."""
 
     def __init__(self, seed: int, policy: str) -> None:
         from engine.scenes.default_state import SessionStore
 
-        self.session = SessionStore().create(seed=seed, llm_fn=lambda m, **k: "{}")
+        self.session = SessionStore(save_store=lambda: _KEEPS_NOTHING).create(
+            seed=seed, llm_fn=lambda m, **k: "{}")
         self.state = self.session.engine.state
         self.run = Run(seed=seed, policy=policy)
         self.today: Optional[DayRow] = None

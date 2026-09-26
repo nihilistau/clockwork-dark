@@ -371,23 +371,49 @@ def flee() -> str:
     engine = get_active_engine()
     return json.dumps(encounter.resolve_approach(engine.state, "flee"))
 
+#: ``(key, recipes)`` from the last parse, where ``key`` is the recipe
+#: directory plus every file's ``(name, mtime_ns)``. Nulled on a story swap and
+#: between tests (``engine/games/caches.py::NULLED_ATTRIBUTES``).
+_RECIPE_CACHE: Optional[tuple[tuple[Any, ...], dict[str, Any]]] = None
+
+
 def _load_recipes() -> dict[str, Any]:
     """
     All recipes, keyed by id.
 
     Merged across data/recipes/*.yaml so a malformed file costs one category
     rather than every recipe in the game.
+
+    MEMOIZED ON THE DIRECTORY AND ITS MTIMES. ``craftable_here`` asks on every
+    ``legal_intents`` build, three or four times a turn, and a re-parse of the
+    flagship's 22 recipes measured ~30 ms each time. The key is the resolved
+    directory (so a story switch misses) plus each file's name and mtime (so
+    an edit, an added file or a removed one misses), the same shape as
+    ``engine/lore/interceptors._compile_terms``. A stat per file is all a hit
+    costs. Callers get their own copy of the id map.
     """
+    global _RECIPE_CACHE
     rel = str(get_config().get("paths.recipes", "") or "").strip()
-    recipes: dict[str, Any] = {}
     if not rel:
         # No recipe directory means nothing here can be crafted. Resolving ""
         # would glob the repository root instead.
-        return recipes
+        return {}
     root = _ROOT / rel
     if not root.exists():
-        return recipes
-    for path in sorted(root.glob("*.yaml")):
+        return {}
+    paths = sorted(root.glob("*.yaml"))
+    try:
+        key: tuple[Any, ...] = (
+            str(root),
+            tuple((p.name, p.stat().st_mtime_ns) for p in paths),
+        )
+    except OSError:
+        key = ()  # a file vanished mid-glob: parse, and do not memoize
+    if key and _RECIPE_CACHE is not None and _RECIPE_CACHE[0] == key:
+        return dict(_RECIPE_CACHE[1])
+
+    recipes: dict[str, Any] = {}
+    for path in paths:
         try:
             with path.open(encoding="utf-8") as handle:
                 data = yaml.safe_load(handle) or {}
@@ -396,11 +422,67 @@ def _load_recipes() -> dict[str, Any]:
         for entry in data.get("recipes", []) or []:
             if isinstance(entry, dict) and entry.get("id"):
                 recipes[str(entry["id"])] = entry
-    return recipes
+    if key:
+        _RECIPE_CACHE = (key, recipes)
+    return dict(recipes)
 
 
 def _held(state: Any, item_id: str, qty: int = 1) -> bool:
     return any(i.id == item_id and i.qty >= qty for i in state.inventory)
+
+
+def _recipe_inputs(recipe: dict[str, Any]) -> list[dict[str, Any]]:
+    return [i for i in (recipe.get("inputs") or []) if isinstance(i, dict)]
+
+
+def _craft_refusal(state: Any, recipe_id: str, recipe: Optional[dict[str, Any]]) -> Optional[str]:
+    """
+    Why this recipe cannot be attempted here and now, or None if it can.
+
+    ONE RULE, TWO READERS. ``craft_item`` refuses on it before anything is
+    spent, and ``craftable_here`` builds the ``craft`` verb's enum from it, so
+    the grammar can only ever offer a recipe the executor will attempt. A
+    recipe that goes illegal between the choice and its execution (the station
+    left, an input spent) drops out of the enum, so ``execute_intent``'s
+    re-check refuses it before this skill runs; these words are what a direct
+    (Phase A) call is told.
+    """
+    if recipe is None:
+        return f"No such recipe: {recipe_id}"
+
+    station = recipe.get("station")
+    if station and state.location_id != station:
+        return f"That work happens at {station}, not here."
+
+    for tool in recipe.get("tools", []) or []:
+        if not _held(state, str(tool)):
+            return f"You need a {tool} for that."
+
+    missing = [
+        i for i in _recipe_inputs(recipe)
+        if not _held(state, str(i.get("id")), int(i.get("qty", 1)))
+    ]
+    if missing:
+        return "You are short of " + ", ".join(str(m.get("id")) for m in missing)
+    return None
+
+
+def craftable_here(state: Any) -> list[tuple[str, str]]:
+    """
+    ``(recipe_id, name)`` for every recipe the player could attempt right now:
+    its station is here (or it has none), every tool is held and every input
+    is carried in quantity. Recipe-file order.
+
+    What the ``craft`` intent verb offers (engine/game/intents.py). Empty in a
+    story that declares no ``paths.recipes`` -- ``_load_recipes`` returns
+    before touching the disk -- which is what keeps the verb, and so that
+    story's grammar and prompt, absent altogether.
+    """
+    return [
+        (recipe_id, str(recipe.get("name") or recipe_id))
+        for recipe_id, recipe in _load_recipes().items()
+        if _craft_refusal(state, recipe_id, recipe) is None
+    ]
 
 
 def _craft_yield(degree: str, recipe: dict[str, Any]) -> Optional[dict[str, Any]]:
@@ -466,26 +548,13 @@ def craft_item(recipe_id: str) -> str:
     state = engine.state
 
     recipe = _load_recipes().get(recipe_id)
-    if recipe is None:
-        return json.dumps({"success": False, "error": f"No such recipe: {recipe_id}"})
-
-    station = recipe.get("station")
-    if station and state.location_id != station:
-        return json.dumps(
-            {"success": False, "error": f"That work happens at {station}, not here."}
-        )
-
-    for tool in recipe.get("tools", []) or []:
-        if not _held(state, str(tool)):
-            return json.dumps({"success": False, "error": f"You need a {tool} for that."})
-
-    inputs = [i for i in (recipe.get("inputs") or []) if isinstance(i, dict)]
-    missing = [i for i in inputs if not _held(state, str(i.get("id")), int(i.get("qty", 1)))]
-    if missing:
-        return json.dumps(
-            {"success": False, "error": "You are short of " +
-             ", ".join(str(m.get("id")) for m in missing)}
-        )
+    # `ok: False` is the engine declining -- the key the `craft` verb reads
+    # (intents.REFUSAL_KEY_FOR_ACTION). `success` is how an attempt WENT, so a
+    # failed bake must not be scored as one that never happened.
+    refused = _craft_refusal(state, recipe_id, recipe)
+    if refused is not None:
+        return json.dumps({"ok": False, "success": False, "error": refused})
+    inputs = _recipe_inputs(recipe)
 
     # Time first, and unconditionally -- the same shape as foraging: a failed
     # bake still cost the morning. advance_time runs hunger, the evil ticker
@@ -517,11 +586,24 @@ def craft_item(recipe_id: str) -> str:
 
     return json.dumps(
         {
+            "ok": True,
             "success": passed,
             "recipe_id": recipe_id,
+            "name": str(recipe.get("name") or recipe_id),
             "degree": result.degree,
             "check": result.to_dict(),
             "consumed": consumed,
+            # The same spend, by display name, for the narrator's receipt line
+            # (prompts._sum_craft) -- `consumed` is the effect receipts, ids only.
+            "spent": [
+                {
+                    "item_id": str(row.get("item_id")),
+                    "name": inventory_module.name_of(str(row.get("item_id"))),
+                    "qty": int(row.get("removed", 0) or 0),
+                }
+                for row in consumed
+                if int(row.get("removed", 0) or 0) > 0
+            ],
             "produced": produced,
             "salvaged": bool(result.degree == "failure" and granted is not None),
             "hours": float(recipe.get("hours", 1)),

@@ -49,7 +49,7 @@
 # (idle, careful, reckless). The table is at the foot of this file and in
 # CHANGELOG.md.
 #
-# Version: v0.1.1 [2026-09-25]
+# Version: v0.1.2 [2026-09-26]
 
 roles:
   magpie:
@@ -79,7 +79,9 @@ agendas:
         every_hours: 24
         at_hours: [1, 2, 3]
         # Shining loot, a house worth the climb, and never the Treasury: the
-        # Everflame is v1.0's.
+        # Everflame is v1.0's. A Hoard piece in the house is left where it
+        # lies (engine/world/jobs.py `_left_by_agendas`): the Magpie never
+        # takes the same shine twice (data/tables/collections.yaml's blurb).
         select: {premise: {tier_min: 2, tier_max: 4, not_robbed: true, loot_tag: shiny}}
         effects:
           # Filed where the house stands, half-seen: nobody sees the Magpie's

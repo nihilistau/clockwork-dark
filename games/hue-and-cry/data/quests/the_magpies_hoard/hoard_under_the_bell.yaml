@@ -1,0 +1,55 @@
+# HUE & CRY -- the Magpie's Hoard: the piece in the Old Bell Tower (v0.15).
+#
+# A FIND, NOT A QUEST TO DO. It starts and finishes on the same evaluation,
+# the first time the player stands in the tower: the preconditions and the
+# only stage's `complete_when` are the same place, and `on_complete` hands
+# over the piece once (a quest runs once; engine/game/quests.py). The tower
+# is a secret place (data/world/locations.yaml), so nothing here is read
+# before it is known -- the arc it belongs to opens only on a visit, and a
+# quest enters the journal only once it starts.
+#
+# `stolen_from` marks it as somebody's stolen piece: it is `named`, so it
+# stays hot for good (engine/world/thievery.py). Its text must not say who
+# put it there; the seed picks the Magpie, and this file is the same in every
+# seed.
+#
+# Version: v0.1.0 [2026-09-26]
+
+id: hoard_under_the_bell
+arc: the_magpies_hoard
+name: "Under the Cracked Bell"
+
+preconditions:
+  at_location: old_bell_tower
+
+summary: >-
+  Something that catches the light, kept where only the wind comes.
+
+start_text: >-
+  Up the last of the stairs, on a beam under the cracked bell, somebody has
+  made a nest of rags and put one thing in it: a bishop's mitre, cloth of
+  gold and seed pearls, folded as carefully as a letter.
+
+stages:
+  - id: found
+    objective: "Take what is kept under the cracked bell."
+    complete_when:
+      at_location: old_bell_tower
+    complete_text: >-
+      It weighs almost nothing. Every pearl is still on it.
+
+on_complete:
+  effects:
+    - type: item
+      item_id: mitre_of_saint_wick
+      name: "The Mitre of Saint Wick"
+      qty: 1
+      tags: [goods, shiny, named]
+      stolen_from: { whom: "the Temple of the Everflame", where: chandlers_rise }
+    - type: ledger_fact
+      text: "You took the Mitre of Saint Wick from under the cracked bell in the Old Bell Tower."
+      kind: event
+
+complete_text: >-
+  The Temple still preaches that it will come home when the thief repents.
+  Nobody said which thief.

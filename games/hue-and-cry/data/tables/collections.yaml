@@ -1,0 +1,96 @@
+# HUE & CRY -- the Magpie's Hoard: the one collectable set in Tallowmere.
+#
+# Read by engine/game/inventory.py::evaluate_collections through
+# `paths.tables` (the flagship's games/clockwork-dark/data/tables/
+# collections.yaml documents the shape). The engine settles a set the moment
+# its last piece lands, by whichever door it came in -- a job's getaway, a
+# find, a purchase -- and puts `reward_text` on that receipt, where the
+# narrator's receipt line reads it (engine/agents/prompts.py
+# `summarise_receipt`).
+#
+# THE SIX. Famous shines off the Watch's list, each one `shiny`, `named` and
+# `collection: magpies_hoard` in data/items/goods.yaml. The ballad on the
+# Green says the Magpie took them all and fenced none; "nothing the Magpie
+# takes has ever turned up at a fence" is the one thing the city agrees on
+# (data/lore/the_magpie.md). Where they rest now:
+#
+#   lantern_house_knocker   the Captain's Office      anchor, every seed
+#   swan_salt               the Margrave's Treasury   anchor, every seed
+#   nightingale_comb        Vessaline House           anchor, every seed
+#   chandlers_loving_cup    Mother Gannet's House     anchor, every seed
+#   mitre_of_saint_wick     a secret place            found once, on arrival
+#   harbourmasters_chain    a secret place            found once, on arrival
+#
+# (The two finds are data/quests/the_magpies_hoard/, named there and not here:
+# this file's words reach the narrator in every seed, before either place is
+# known.) An anchor's score takes its whole loot list, so each anchor piece is
+# one burglary away in every city. The Magpie's own agenda may rob the Office,
+# Gannet's or Vessaline House first (data/rules/agendas.yaml `lift_a_shiny`,
+# tiers 2-4), which strips the house for the thief who comes after -- of
+# everything BUT its Hoard piece: an agenda's robbery never takes a set's
+# piece (engine/world/jobs.py `_left_by_agendas`), so no seed quietly loses
+# one. Measured (scripts/simulate_hoard.py, 40 seeds, a thief who robs the
+# anchors one a night, goes at the Treasury with a forged Hill pass it made
+# at the bench, and looks for the secret ways): 2.5% of twelve-day runs
+# complete it (one run), 10% of twenty; without the pass (the `--no-pass`
+# control) 5% and 10%. The Treasury is the wall -- caught on nine tries in
+# ten, pass or no pass -- and an arrest takes back every piece carried (each
+# is hot for good, below), so a fifth of twelve-day runs end holding none.
+#
+# KEPT, NOT FENCED. Every piece is `named`, and engine/world/thievery.py keeps
+# a named piece hot for good. Completion counts only what is CARRIED, so a
+# piece sold is a piece the set no longer has -- but the payout is a flag, so
+# it pays once and selling afterwards claws nothing back.
+#
+# WHAT COMPLETING IT DOES, applied once through engine/game/effects.py:
+#   reputation  honest_company +8 -- the Snuffs respect a legend, whoever
+#               holds it (data/world/factions.yaml's header lists it)
+#   flag        magpies_hoard_complete, read by NOTHING until v0.17.0's
+#               The Legend ending (CLAUDE.md "Deliberately deferred")
+#   ledger_fact written into the session's ledger whichever way the last
+#               piece came: a find's quest hook carries it, and so does a
+#               job's getaway (the `job_stage` skill passes it)
+#
+# `reward_text` reaches the prose by both doors too: a burglary's receipt line
+# (prompts.summarise_receipt) and a find's quest event (quests.py
+# `_with_closed_sets`, the text the ledger and the client get).
+#
+# Not one line here may say who the Magpie is: the seed picks that from three
+# people, and these words are the same in all of them.
+#
+# Version: v0.1.4 [2026-09-26]
+
+version: 1
+
+collections:
+
+  - id: magpies_hoard
+    name: "The Magpie's Hoard"
+    blurb: >-
+      Six shines the ballad-sellers on the Green count as the Magpie's and
+      swear were never fenced: a knocker, a salt, a comb, a loving cup, a
+      mitre and a chain. The ballad is right that nobody ever sold them.
+      It is wrong about where they went. And the Magpie never takes the same
+      shine twice: robbing a house that holds one, it leaves it where it lies.
+    items:
+      - lantern_house_knocker
+      - swan_salt
+      - nightingale_comb
+      - chandlers_loving_cup
+      - mitre_of_saint_wick
+      - harbourmasters_chain
+    reward_text: >-
+      Laid out together on a sack, the six of them throw back more candle
+      than the candle gives. Nobody in Tallowmere has ever seen them in one
+      place. By morning half the Snuffs will have heard that somebody has,
+      and the ballad-sellers will want a new verse.
+    effects:
+      - type: reputation
+        faction: honest_company
+        delta: 8
+        why: "holds the whole of the Magpie's Hoard"
+      - type: flag
+        flag: magpies_hoard_complete
+      - type: ledger_fact
+        text: "You hold all six pieces of the Magpie's Hoard, which nobody in Tallowmere has ever seen in one place."
+        kind: event

@@ -45,11 +45,16 @@
 # and under a roof, saving nothing (+0.04 cr a day). A subsistence with a roof
 # -- still never a tool, a job or a crown put by.
 #
+# RESTATED, v0.15: the Snuffs' middens gained two uncommon finds for the
+# Porters' Hall bench (bent wire, saltpetre). Re-measured at 40 x 10 against
+# the run before them: scrounger 1.01 -> 1.02 cr a day, mornings 0.66 ->
+# 0.65, and food, hunger, hp and the secret ways unchanged (CHANGELOG).
+#
 # The secret ways, same run: a scrounger finds the Rooftop Road on 100% of
 # seeds (mean day 2.5), the Undercroft's grating on 97% (2.5), the churchyard
 # wall to the Old Bell Tower on 68% (3.4, the Green is every other day).
 #
-# Version: v0.1.0 [2026-09-25]
+# Version: v0.1.1 [2026-09-26]
 
 version: 1
 
@@ -154,6 +159,12 @@ tables:
     common:
       - { item_id: candle_ends, weight: 4,  qty: [1, 1] }
       - { item_id: rag_bundle,  weight: 3,  qty: [1, 1] }
+    # v0.15: the Porters' Hall bench's makings, free for the finding on the
+    # bench's own street (data/recipes/workshop.yaml). Uncommon, so they
+    # share the odd-shiny roll and change nothing a day of food is made of.
+    uncommon:
+      - { item_id: bent_wire, weight: 10, qty: [1, 1] }
+      - { item_id: saltpetre, weight: 10, qty: [1, 1] }
 
   - id: temple_steps
     label: "the temple steps and the guild yards"

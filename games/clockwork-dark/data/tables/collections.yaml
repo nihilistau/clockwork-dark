@@ -16,8 +16,11 @@
 # piece afterwards does not claw the reward back -- you did the thing.
 #
 # Read by engine/game/inventory.py::evaluate_collections, which is called from
-# ``grant`` (so a set closes the moment its last piece lands) and from the
-# ``collections`` skill. Resolved through paths.tables, so the Brass Coast gets
+# the ``item`` effect -- every grant, quest reward and boon goes through it, so
+# a set closes the moment its last piece lands (v0.15; before, only
+# ``inventory.grant`` did) -- and from the ``collections`` skill. Every member
+# must carry ``collection: <set id>`` in its item row, or landing it last
+# closes nothing (the validator's ``check_collections_data`` says so). Resolved through paths.tables, so the Brass Coast gets
 # its own file rather than this one.
 #
 # Set shape:
@@ -35,7 +38,7 @@
 # that is the one TimedEffect kind engine/game/checks.py itemises into the roll
 # receipt; the deltas here are positive, and the name is historical.
 #
-# Version: v0.1.0 [2026-08-08]
+# Version: v0.1.1 [2026-09-26]
 
 version: 1
 

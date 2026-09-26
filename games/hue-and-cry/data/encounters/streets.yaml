@@ -27,6 +27,20 @@
 #                         Silas Crook's new friends collecting a toll the
 #                         Snuffs never used to pay.
 #
+# AND TWO THAT COME ONLY FOR A WELSHER (v0.15, the fences' collectors):
+#
+#   pells_collectors      the Docks, the Snuffs and Wickmarket, 18:00-06:00,
+#                         once you have welshed on Pell Hollis's advance
+#                         (`requires_flag: welshed_on_pell`). Two cousins from
+#                         the Quay, thirteen crowns, until they get it.
+#   marrows_lads          the same streets and hours, once you have welshed on
+#                         Marrow's slate. Eight crowns, and the gatepost.
+#   Weight 30 each: once they are looking, most night scenes are them.
+#   Paying in full clears the flag. Never more than three hp, like the rest.
+#   pells_collectors_by_day, marrows_lads_by_day: the same, by day (06:00-
+#   18:00), in Wickmarket and the Snuffs only, at a `min_chance` floor of
+#   10% -- about 8% a leg, below the night's worst (see the rows).
+#
 # REAL STAKES, NOT A DEATH. HUE & CRY ships no death.yaml until v0.17 (hp can
 # reach 0 with no respawn), so a street takes coin, stamina, a night's
 # dignity, your liberty -- and at worst three hp in a fight lost
@@ -43,7 +57,7 @@
 # item and no hour, and ends the scene: hand the purse over, go along, stand
 # and be lectured, walk on, turn out your pockets.
 #
-# Version: v0.1.0 [2026-09-25]
+# Version: v0.2.1 [2026-09-26]
 
 encounters:
 
@@ -762,3 +776,418 @@ encounters:
             outcome: robbed
             effects:
               - { type: gold, delta: -2 }
+
+  # -------------------------------------------------------------------------
+  # THE FENCES' COLLECTORS (v0.15). A credit thread left unpaid
+  # (data/rules/threads.yaml `pell_advance`, `marrow_slate`) sets its fence's
+  # `welshed_on_*` flag, and from that night these walk the streets for you
+  # -- `requires_flag`, so for everyone who never welshed the table, and every
+  # draw on the ENCOUNTER stream, is exactly what it was. Heavy weights: once
+  # they are looking, a night street that deals anything usually deals them.
+  # Paying them in full (`settle`) clears the flag -- the debt is closed, the
+  # collectors go home, and the fences buy from you again. Short of that they
+  # take what you carry on account, chase you, or hurt you -- never more than
+  # three hp, like every street here -- and come back another night.
+  - &pells_collectors
+    id: pells_collectors
+    tier: 2
+    weight: 30
+    triggers:
+      to: [wickmarket, the_snuffs, tallow_docks]
+      hours: [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5]
+      requires_flag: welshed_on_pell
+    intro: >-
+      Two cousins from the Quay in good boots fall into step on either side of
+      you. "Mrs Hollis's compliments," says the taller. "Thirteen crowns, she
+      says, the advance and her trouble, and she has been patient. We're what
+      comes after patient." The shorter one is looking at your hands.
+    threat: { name: "Pell Hollis's collectors", resolve: 4 }
+    max_rounds: 3
+    approaches:
+
+      settle: &pell_settle
+        auto: true
+        degree: success
+        cost_gold: 13
+        text: "Count out the thirteen crowns"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              Thirteen crowns into the taller one's glove. He counts them
+              twice, which is theatre, and nods, which is not. "Mrs Hollis
+              will close the book," he says. By morning every fence in the
+              city knows you paid, and Pell's counter is open to you again.
+            outcome: settled
+            effects:
+              - { type: flag, flag: welshed_on_pell, value: false }
+
+      turn_out_pockets:
+        auto: true
+        degree: success
+        text: "Turn out your pockets: on account"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              They take what you have -- "on account," says the taller, writing
+              it in a very small book of his own -- and tell you they will see
+              you another night. The debt is not a crown smaller in Mrs
+              Hollis's book. Interest, they explain.
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -5 }
+
+      talk:
+        skill: persuasion
+        difficulty: hard
+        text: "Promise them the money by the end of the week, and mean it"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You make it sound like a promise a person keeps. The taller one
+              looks at the shorter one, and they let you go -- tonight. "End
+              of the week," he says. They will be back sooner.
+            outcome: talked_down
+          partial: &pell_talk_partial
+            text: >-
+              They let you go, and take two crowns for listening to you.
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -2 }
+          failure: &pell_talk_failure
+            text: >-
+              "Everybody means it," says the taller one, and holds you against
+              the wall while the shorter one shuts your lifting hand in a
+              doorway, carefully, and empties your pockets. "On account."
+            outcome: robbed
+            effects:
+              - { type: hp, delta: -2 }
+              - { type: gold, delta: -3 }
+              - type: wound
+                text: "a lifting hand Pell Hollis's collectors shut in a door"
+                severity: 2
+                check_penalty: -2
+                skills: [stealth]
+                heals_on_day: "+4"
+
+      run: &pell_run
+        skill: stealth
+        difficulty: standard
+        text: "Break between them and run for the alleys"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              Between them, round a corner, over a barrow and gone. They do
+              not shout after you; collectors never do. They know where you
+              sleep.
+            outcome: escaped
+          partial:
+            text: >-
+              You get clear, three streets of it at a flat run, with the
+              shorter one's boots behind you for two of them.
+            outcome: escaped
+            effects:
+              - { type: stamina, delta: -8 }
+          failure:
+            text: >-
+              The taller one has longer legs than you, and a knee he puts in
+              your back. They take what you carry, on account, and leave you
+              in the gutter to think about thirteen crowns.
+            outcome: robbed
+            effects:
+              - { type: hp, delta: -2 }
+              - { type: gold, delta: -3 }
+
+      fight: &pell_fight
+        skill: nerve
+        difficulty: hard
+        text: "Hit the tall one and hope the short one runs"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              The tall one sits down hard in the street, and the short one
+              decides he is paid to collect, not to be hit. They will be back,
+              with a third cousin.
+            outcome: escaped
+            effects:
+              - { type: stamina, delta: -8 }
+          partial:
+            text: >-
+              You get clear, and the short one gets your hand in a door on the
+              way past: nothing broken, and nothing you would want to put in
+              a stranger's pocket for a day or two.
+            outcome: escaped
+            effects:
+              - type: wound
+                text: "a lifting hand caught in a door by Pell Hollis's collectors"
+                severity: 1
+                check_penalty: -1
+                skills: [stealth]
+                heals_on_day: "+2"
+          failure:
+            text: >-
+              There are two of them and they collect for a living. You wake in
+              a doorway with your pockets out and your lifting hand swollen,
+              and a note in your boot in a neat hand: "13 cr. -- P.H."
+            outcome: robbed
+            effects:
+              - { type: hp, delta: -3 }
+              - { type: gold, delta: -3 }
+              - type: wound
+                text: "a lifting hand Pell Hollis's collectors stamped on"
+                severity: 2
+                check_penalty: -2
+                skills: [stealth]
+                heals_on_day: "+4"
+
+  # -------------------------------------------------------------------------
+  - &marrows_lads
+    id: marrows_lads
+    tier: 2
+    weight: 30
+    triggers:
+      to: [the_snuffs, tallow_docks, wickmarket]
+      hours: [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5]
+      requires_flag: welshed_on_marrow
+    intro: >-
+      Three of Marrow's lads -- the ones who sort the yard's scrap by day --
+      are leaning on a wall they did not need to lean on, and stop leaning
+      when you come by. "Eight crowns," says the one with the chalk. "Your
+      name's on the gatepost. Marrow wants it off, one way or the other."
+    threat: { name: "Marrow's lads", resolve: 4 }
+    max_rounds: 3
+    approaches:
+
+      settle: &marrow_settle
+        auto: true
+        degree: success
+        cost_gold: 8
+        text: "Pay the eight crowns"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              Eight crowns. The one with the chalk licks his thumb, and in the
+              morning your name is off the gatepost -- and the fences, who read
+              gateposts, buy from you again.
+            outcome: settled
+            effects:
+              - { type: flag, flag: welshed_on_marrow, value: false }
+
+      turn_out_pockets: &marrow_pockets
+        auto: true
+        degree: success
+        text: "Turn out your pockets and let them take what they like"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              They take what they like, which is what you have, and the one
+              with the chalk says it is "on account of the interest." Your
+              name stays on the gatepost.
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -4 }
+
+      talk:
+        skill: persuasion
+        difficulty: hard
+        text: "Remind them you sell to Marrow too, when you can"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              It lands: a thief who pays late is still a thief who brings
+              silver to the yard. They let you by, tonight.
+            outcome: talked_down
+          partial: &marrow_talk_partial
+            text: >-
+              They let you by, and two crowns come with them for their
+              trouble.
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -2 }
+          failure: &marrow_talk_failure
+            text: >-
+              "Can't sell to Marrow," says the one with the chalk, "with your
+              name on the gatepost," and the other two stand on your fingers
+              to make the point while he goes through your coat.
+            outcome: robbed
+            effects:
+              - { type: hp, delta: -2 }
+              - { type: gold, delta: -2 }
+              - type: wound
+                text: "fingers Marrow's lads stood on"
+                severity: 2
+                check_penalty: -2
+                skills: [stealth]
+                heals_on_day: "+4"
+
+      run: &marrow_run
+        skill: stealth
+        difficulty: standard
+        text: "Go back the way you came, fast"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              Back round the corner and away before the chalk is out of his
+              pocket. They know the Snuffs; so do you.
+            outcome: escaped
+          partial:
+            text: >-
+              You get away with the three of them behind you as far as the
+              middens, and the stitch in your side stays with you after they
+              give up.
+            outcome: escaped
+            effects:
+              - { type: stamina, delta: -8 }
+          failure:
+            text: >-
+              Three of them, and they know every yard in the Snuffs. They
+              catch you in the second one and take what you have, and a kick
+              for the trouble.
+            outcome: robbed
+            effects:
+              - { type: hp, delta: -2 }
+              - { type: gold, delta: -3 }
+
+      fight: &marrow_fight
+        skill: nerve
+        difficulty: hard
+        text: "Take the one with the chalk down first"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              The chalk goes one way and its owner the other, and the other
+              two decide it is Marrow's debt and not theirs. They will be back.
+            outcome: escaped
+            effects:
+              - { type: stamina, delta: -8 }
+          partial:
+            text: >-
+              You get out of it with bruised knuckles on your lifting hand,
+              which is its own kind of lesson.
+            outcome: escaped
+            effects:
+              - type: wound
+                text: "bruised knuckles from Marrow's lads"
+                severity: 1
+                check_penalty: -1
+                skills: [stealth]
+                heals_on_day: "+2"
+          failure:
+            text: >-
+              Three is too many. You wake among the middens with empty pockets
+              and your fingers stood on, and your name, when you pass the yard,
+              is still on the gatepost.
+            outcome: robbed
+            effects:
+              - { type: hp, delta: -3 }
+              - { type: gold, delta: -3 }
+              - type: wound
+                text: "fingers Marrow's lads stood on"
+                severity: 2
+                check_penalty: -2
+                skills: [stealth]
+                heals_on_day: "+4"
+
+  # -------------------------------------------------------------------------
+  # AND BY DAY (owner, T7 fix round 2): the same collectors, the same
+  # approaches and the same mechanics (a YAML merge of the rows above; the
+  # words that said "night" restated day-true, T8), but only in the fences'
+  # own districts -- Wickmarket and the Snuffs -- from 06:00 to 18:00. A day
+  # street's own danger is near nothing (~0.5% a leg for a fresh thief), so
+  # these rows carry `min_chance: 0.10`: while one is eligible -- which is
+  # only ever for a welsher -- the leg rolls at least 10%, and the collectors
+  # take most of that (weight 30). 8.3% of a day leg, against 9-18% of a
+  # night leg (20:00-03:00) and 22% at the worst hour (04:00): a smaller
+  # share by day, as asked. `scripts/simulate_streets.py --collectors` prints
+  # the table, hour by hour.
+  # Nobody who never welshed can match these rows, so their legs' chance and
+  # every ENCOUNTER draw are what they were (engine/game/encounter.py
+  # `row_floor`, asserted in tests/test_hue_and_cry.py).
+  - <<: *pells_collectors
+    id: pells_collectors_by_day
+    min_chance: 0.10
+    triggers:
+      to: [wickmarket, the_snuffs]
+      hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+      requires_flag: welshed_on_pell
+    # Day-true words (T8): the night row's "another night" and "tonight" in
+    # a noon street were narration the scene contradicted. A merge is
+    # shallow, so `approaches` is restated here: the unchanged ones by
+    # anchor, the two whose words were the night's in full.
+    approaches:
+      settle: *pell_settle
+      turn_out_pockets:
+        auto: true
+        degree: success
+        text: "Turn out your pockets: on account"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              They take what you have, in broad day, with the market looking
+              the other way -- "on account," says the taller, writing it in a
+              very small book of his own -- and tell you they will see you
+              again, and soon. The debt is not a crown smaller in Mrs
+              Hollis's book. Interest, they explain.
+            outcome: robbed
+            effects:
+              - { type: gold, delta: -5 }
+      talk:
+        skill: persuasion
+        difficulty: hard
+        text: "Promise them the money by the end of the week, and mean it"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              You make it sound like a promise a person keeps. The taller one
+              looks at the shorter one, and they let you go -- for today.
+              "End of the week," he says. They will be back sooner.
+            outcome: talked_down
+          partial: *pell_talk_partial
+          failure: *pell_talk_failure
+      run: *pell_run
+      fight: *pell_fight
+
+  - <<: *marrows_lads
+    id: marrows_lads_by_day
+    min_chance: 0.10
+    triggers:
+      to: [the_snuffs, wickmarket]
+      hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+      requires_flag: welshed_on_marrow
+    # Day-true words (T8), as Pell's row above: at this hour these lads
+    # ought to be at the yard's scrap, and they let you by for today.
+    intro: >-
+      Three of Marrow's lads -- the ones who ought to be at the yard sorting
+      scrap at this hour -- are leaning on a wall they did not need to lean
+      on, and stop leaning when you come by. "Eight crowns," says the one with
+      the chalk. "Your name's on the gatepost. Marrow wants it off, one way or
+      the other."
+    approaches:
+      settle: *marrow_settle
+      turn_out_pockets: *marrow_pockets
+      talk:
+        skill: persuasion
+        difficulty: hard
+        text: "Remind them you sell to Marrow too, when you can"
+        ends: true
+        outcomes:
+          success:
+            text: >-
+              It lands: a thief who pays late is still a thief who brings
+              silver to the yard. They let you by, for today.
+            outcome: talked_down
+          partial: *marrow_talk_partial
+          failure: *marrow_talk_failure
+      run: *marrow_run
+      fight: *marrow_fight

@@ -23,11 +23,13 @@
 #   careful tier 2        14%    61%      0%      25%        0%       24
 #   greedy  tier 3         8%    75%     17%       0%        0%       96
 #   greedy  tier 4         0%    60%     40%       0%        0%      234
-#   greedy  Treasury       0%    20%     80%       0%       18%      780
+#   greedy  Treasury       0%    20%     80%       0%       18%      980
 #   bare    Treasury       0%     0%    100%       0%       12%        -
 #
 # "caught" is the watch at the door; "arrested" is losing the Lantern's stop
-# that follows (its `run` is easy, data/encounters/watch_stop.yaml). The full
+# that follows (its `run` is easy, data/encounters/watch_stop.yaml). The
+# Treasury's haul was 780 until v0.15 put the Swan Salt (200, a Magpie's Hoard
+# piece) on its list; re-measured, only that column moved. The full
 # table, with alarm, flashbacks, prep and deeds, first tuning and last, is in
 # CHANGELOG.md.
 #
@@ -83,7 +85,7 @@
 #   * walking away from a roused house (`abort`) ends the job before the watch
 #     arrives: the deed is filed and the witnesses stand, but nobody comes.
 #
-# Version: v0.1.0 [2026-09-24]
+# Version: v0.1.2 [2026-09-26]
 
 # One in-game hour a stage: a job begun at eleven is over, one way or another,
 # by four -- unless a fumbled stage has to be tried again.
@@ -210,12 +212,20 @@ features:
   barred_from_within: {stage: entry, entries: [window], shift: 2, known_shift: 2}
   yapping_pug:       {stage: inside, obstacle: true, shift: 1, known_shift: 0}
 
-# Sold by Marrow in the Snuffs (data/economy.yaml). Lockpicks help at a lock
-# -- a door, a cellar hatch, the strongroom -- and are kept; a smoke pellet is
-# one getaway, and gone.
+# Sold by Marrow in the Snuffs (data/economy.yaml), or made at the Porters'
+# Hall bench (data/recipes/workshop.yaml). Lockpicks help at a lock -- a door,
+# a cellar hatch, the strongroom -- and are kept; a smoke pellet is one
+# getaway, and gone.
+#
+# The forged pass (v0.15, made at the bench and sold by nobody) is shown at
+# the gate and at the door, and only on Margrave's Hill: `districts` limits a
+# tool to premises standing in the districts it names (AUTHORING §3.12). Its
+# -1 is the lockpicks' own step, and no measured policy carries one, so the
+# table above is unchanged by it.
 tools:
   lockpicks:    {stage: [entry, score], entries: [door, cellar], shift: -1}
   smoke_pellet: {stage: [getaway], shift: -1, consumed: true}
+  forged_pass:  {stage: [approach, entry], entries: [door], districts: [margraves_hill], shift: -1}
 
 # A fumble raises the house one word (`on_fail`, a partial) or two
 # (`on_crit_fail`, a failure); at the fifth it is raised, and two hours later

@@ -17,7 +17,8 @@ stage, closed with an outcome.
     score:     {skill: craft, shift: 0, draws: {1: 1, 2: 1, 3: 2}}
     getaway:   {skill: stealth, shift: -1}
     features:  {greasy_step: {stage: entry, entries: [door], shift: 1, known_shift: 0}}
-    tools:     {lockpicks: {stage: [entry, score], entries: [door], shift: -1}}
+    tools:     {lockpicks: {stage: [entry, score], entries: [door], shift: -1},
+                hill_pass: {stage: [approach], districts: [margraves_hill], shift: -1}}
     alarm:     {max: 4, bands: [quiet, uneasy, stirring, roused], on_fail: 1,
                 on_crit_fail: 2, watch_delay_hours: 2, deed: burglary}
     prep:      {max: 3, per_case: 1, bands: [none, a little, some, plenty]}
@@ -28,9 +29,9 @@ stage, closed with an outcome.
 
 THIS MODULE holds the data and the door -- the loader, ``stages_for`` (the
 five stages, with an anchored premise's own stages spliced in), ``begin``
-(which opens a job through the ``job_open`` effect), and the three condition
+(which opens a job through the ``job_open`` effect), and the four condition
 predicates flashbacks and guild contracts are written in (``premise_cased``,
-``premise_robbed``, ``job``) -- and the walk: ``approaches`` (what the ``job``
+``premise_robbed``, ``job``, ``secret_held``) -- and the walk: ``approaches`` (what the ``job``
 verb offers), ``band_for`` (the band and the reasons that moved it),
 ``resolve_stage`` (the stage's hours through ``advance_time``, THEN a roll on
 the ``JOB`` stream), ``legal_flashbacks``/``flashback`` (calling on prep and
@@ -41,14 +42,20 @@ whatever spends them.
 EVERY WRITE is an effect (AGENTS.md rule 3): ``job_open`` starts a job,
 ``job_stage`` records a stage turn, ``job_alarm`` moves the alarm and
 ``job_close`` ends it, marking the premise robbed when the score was carried
-out. Nothing here assigns to ``state.jobs``.
+out. Nothing here assigns to ``state.jobs``. A cased secret found at the
+score is HELD once the job carries it out -- a clean or noisy getaway --
+through ``flag`` (``secret_held:<premise>:<secret>``, what the
+``secret_held`` predicate reads) and ``ledger_fact`` (``kind: secret``): the
+lever a blackmail thread's ``requires`` is written against (v0.15). Caught,
+aborted or hurt, the thief holds nothing: whatever was found went back to the
+house, or to the Watch.
 
 Every content fault is a ValueError naming the file, for the reason
 ``premises.py`` gives: a feature no premise has, a tool the registry lacks or
 a flashback gated on a predicate nobody registered would load, validate and do
 nothing -- the inert shape this repo has shipped before.
 
-Version: v0.4.2 [2026-09-25]
+Version: v0.5.0 [2026-09-26]
 """
 
 from __future__ import annotations
@@ -86,6 +93,10 @@ EXPOSURES = ("household",)
 _FLASHBACK_EFFECTS = ("shift", "remove_obstacle")
 #: What a flashback's ``cost`` may spend.
 _FLASHBACK_COSTS = ("prep", "gold")
+#: The flag a secret carried out of a job sets, ``secret_held:<premise>:<secret>``.
+#: Written only by ``_hold_secret`` (through the ``flag`` effect), read only
+#: by the ``secret_held`` predicate.
+SECRET_HELD_PREFIX = "secret_held:"
 
 
 # ---------------------------------------------------------------------------
@@ -276,8 +287,11 @@ def _load_features(path: Path, doc: dict[str, Any], security: set[str],
 def _load_tools(path: Path, doc: dict[str, Any],
                 entries: dict[str, Any], stage_ids: set[str]) -> dict[str, dict[str, Any]]:
     from engine.game.inventory import load_items
+    from engine.game.locations import LOCATIONS
+    from engine.world import premises
 
     items = load_items()
+    house_districts = premises.house_districts()
     out: dict[str, dict[str, Any]] = {}
     for tid, raw in _mapping(path, doc.get("tools"), "tools").items():
         tid = str(tid)
@@ -300,9 +314,18 @@ def _load_tools(path: Path, doc: dict[str, Any],
         for entry in on:
             if entry not in entries:
                 raise _fail(path, f"tool `{tid}`: unknown entry `{entry}`")
+        districts = _names(path, f"tool `{tid}` districts", body.get("districts"))
+        for district in districts:
+            # A pass for a district that does not exist, or one with no house
+            # to rob, would load and never apply: the inert shape again.
+            if district not in LOCATIONS:
+                raise _fail(path, f"tool `{tid}`: unknown district `{district}`")
+            if district not in house_districts:
+                raise _fail(path, f"tool `{tid}`: district `{district}` holds no premises")
         out[tid] = {
             "stage": stages,
             "entries": on,
+            "districts": districts,
             "shift": _int(path, f"tool `{tid}` shift", body.get("shift", 0)),
             "consumed": bool(body.get("consumed", False)),
         }
@@ -932,6 +955,8 @@ def _plan(state: GameState, job: dict[str, Any], stage: str,
             continue
         if stage == "entry" and tool["entries"] and approach not in tool["entries"]:
             continue
+        if tool["districts"] and str(prem.get("district") or "") not in tool["districts"]:
+            continue
         steps += tool["shift"]
         tools.append(tid)
         if tool["shift"]:
@@ -959,7 +984,8 @@ def band_for(state: GameState, stage: str,
     security feature of the premise that applies to this stage and approach
     -- ``known_shift`` if casing found it, else ``shift``; an obstacle
     feature only on its own roll -- then every carried tool that applies (the
-    entries filter binds only at the entry), then any flashback shift banked
+    entries filter binds only at the entry; a tool naming ``districts`` only
+    on a premise in one of them), then any flashback shift banked
     for the stage. An anchor stage starts from its authored band. Read-only.
 
     Returns:
@@ -993,15 +1019,79 @@ def _draw_loot(state: GameState, prem: dict[str, Any]) -> list[str]:
     return world_rng(state, JOB).sample(rows, want)
 
 
-def _secret_text(state: GameState, prem: dict[str, Any]) -> str:
-    """The premise's secret as authored, when casing found that one exists."""
+def _left_by_agendas(prem: dict[str, Any]) -> list[str]:
+    """
+    What an agenda's robbery leaves in a house: every collectable-set piece.
+
+    GENERIC ON PURPOSE. A set member is authored to be reachable -- HUE &
+    CRY's Magpie's Hoard puts four pieces in anchors -- and an agenda's
+    robbery is a simulated one, recorded as a hit and never as items moved,
+    so taking a piece would erase it from the run with nobody told. The
+    agenda strips the house of everything else. Read from the premise's loot
+    list in its order, with no JOB draw, so an emptied house still spends
+    nothing on that stream.
+    """
+    from engine.game.inventory import collection_of
+
+    return [str(i) for i in prem.get("loot") or [] if collection_of(str(i))]
+
+
+def _known_secret(state: GameState, prem: dict[str, Any]) -> dict[str, Any]:
+    """The premise's secret row as authored (``{id, text, thread?}``), when
+    casing found that one exists; ``{}`` otherwise."""
     from engine.world import premises
 
     secret = str(prem.get("secret") or "")
     if not secret or premises.SECRET_HINT not in premises.known(state, str(prem.get("id"))):
-        return ""
+        return {}
     rows = premises.spec(str(prem.get("type") or "")).get("secrets") or []
-    return next((str(r.get("text") or "") for r in rows if str(r.get("id")) == secret), "")
+    row = next((r for r in rows if str(r.get("id")) == secret), None)
+    return dict(row) if isinstance(row, dict) and str(row.get("text") or "") else {}
+
+
+def secret_flag(premise_id: str, secret_id: str) -> str:
+    """The flag that says the thief holds this premise's secret."""
+    return f"{SECRET_HELD_PREFIX}{premise_id}:{secret_id}"
+
+
+def _lever(row: dict[str, Any]) -> str:
+    """Who a held secret squeezes, by name: the source of the thread its
+    ``thread:`` names (validated at load), or "" for a secret with none."""
+    template = str(row.get("thread") or "")
+    if not template:
+        return ""
+    from engine.game import threads
+    from engine.world import npc_sim
+
+    raw = threads.templates().get(template)
+    source = str(raw.get("source") or "") if isinstance(raw, dict) else ""
+    return npc_sim.display_name(source) if source else ""
+
+
+def _hold_secret(state: GameState, prem: dict[str, Any], row: dict[str, Any],
+                 ledger: Optional[Any]) -> None:
+    """
+    The thief now HOLDS the secret, not just read it: called when the job
+    that found it is carried out, never at the score (a thief caught at the
+    getaway keeps no lever -- the Watch took back what was found). A flag the
+    ``secret_held`` predicate reads (and a blackmail thread's ``requires``
+    with it), and an engine-sourced ledger fact of ``kind: secret`` -- the
+    kind ``LedgerFact`` already declares -- about the premise's owner, so the
+    memory keeps it after the receipt is gone. Both through ``apply_effect``.
+    A ledger-less caller (tests, a simulator) still sets the flag; the fact
+    is dropped, as every ``ledger_fact`` is outside a turn.
+    """
+    from engine.game.effects import apply_effect
+    from engine.world import premises
+
+    premise_id = str(prem.get("id") or "")
+    apply_effect(state, {"type": "flag", "flag": secret_flag(premise_id, str(row["id"]))})
+    house = str(prem.get("name") or "the house")
+    apply_effect(state, {
+        "type": "ledger_fact", "kind": "secret",
+        "subject_id": premises.owner(state, premise_id),
+        "text": f"Took a secret out of {house}: {str(row.get('text') or '').strip()}.",
+    }, ledger=ledger)
 
 
 def _commit(state: GameState, kind: str, **kwargs: Any) -> list[str]:
@@ -1063,7 +1153,9 @@ def _drop_the_absent(state: GameState, prem: dict[str, Any],
     return active(state) or job
 
 
-def resolve_stage(state: GameState, approach: str) -> dict[str, Any]:
+def resolve_stage(
+    state: GameState, approach: str, *, ledger: Optional[Any] = None
+) -> dict[str, Any]:
     """
     Play one turn of the open job's current stage by ``approach``.
 
@@ -1079,10 +1171,18 @@ def resolve_stage(state: GameState, approach: str) -> dict[str, Any]:
     dropped from the queue before the roll, ``_drop_the_absent``, so only
     someone present is rolled against or sees the thief); the score draws
     the loot into the job (not yet the pack) and names the secret if it was
-    cased -- or, on a house an agenda already robbed (``emptied``), draws
-    nothing and says so (``emptied: True``, on the job and the receipt); the
-    getaway carries
-    the loot out HOT and closes the job ``clean`` (no alarm) or ``noisy``.
+    cased (``secret``) -- or, on a house an agenda
+    already robbed (``emptied``), draws
+    nothing and says so (``emptied: True``, on the job and the receipt),
+    taking only what an agenda leaves: the pieces of a collectable set
+    (``_left_by_agendas``); the getaway carries
+    the loot out HOT and closes the job ``clean`` (no alarm) or ``noisy``,
+    and only then is a secret found at the score HELD (``_hold_secret``: the
+    ``secret_held`` flag and a ``secret`` ledger fact, through ``ledger``;
+    ``held`` and ``lever`` on the receipt).
+    ``ledger``, when the caller has one (the ``job_stage`` skill passes the
+    session's), reaches the getaway's item effects, so a set the take closes
+    writes its ``ledger_fact``.
     An anchor stage just advances. A partial pays for it: the alarm rises by
     ``alarm.on_fail`` and the outcome is ``noisy``.
 
@@ -1099,7 +1199,9 @@ def resolve_stage(state: GameState, approach: str) -> dict[str, Any]:
     Returns:
         ``{ok, stage, approach, label, name, band, reasons, degree, outcome,
         alarm_band, witnesses, loot, closed, advanced}`` (+ ``secret`` when
-        named, + ``emptied`` at the score and getaway of an emptied house). ``advanced`` says whether the thief got past this stage (or
+        found at the score, + ``held`` -- its text -- at the getaway that
+        carries it out, with ``lever``, the name of whom it squeezes, when the
+        secret names a thread, + ``emptied`` at the score and getaway of an emptied house). ``advanced`` says whether the thief got past this stage (or
         this obstacle) -- a ``noisy`` partial did, a ``noisy`` failure did not.
         ``ok`` is "the attempt happened"; ``ok: False`` with a ``message`` is
         the engine declining, and spends nothing.
@@ -1190,20 +1292,23 @@ def resolve_stage(state: GameState, approach: str) -> dict[str, Any]:
             step["advance"] = not obstacles[1:]
         elif stage == "score":
             if emptied(state, str(job.get("premise") or "")):
-                # An agenda got here first: nothing to take, and nothing drawn
-                # on JOB for it. The score is still DONE -- the take (none)
-                # goes out at the getaway and the close records the house
-                # robbed, so a contract on it can still be paid.
-                taken = []
+                # An agenda got here first: nothing drawn on JOB for it, and
+                # nothing to take but what an agenda leaves (a set's pieces).
+                # The score is still DONE -- the take goes out at the getaway
+                # and the close records the house robbed, so a contract on it
+                # can still be paid.
+                taken = _left_by_agendas(prem)
                 step["emptied"] = True
                 receipt["emptied"] = True
             else:
                 taken = _draw_loot(state, prem)
             step["loot"] = taken
             receipt["loot"] = [name_of(i) for i in taken]
-            secret = _secret_text(state, prem)
-            if secret:
-                receipt["secret"] = secret
+            found = _known_secret(state, prem)
+            if found:
+                # Found and read -- not yet held: it is held only once the
+                # job carries it out (the getaway, below).
+                receipt["secret"] = str(found["text"])
             step["advance"] = True
         elif stage != "getaway":
             # The getaway never advances: it closes the job, below.
@@ -1230,14 +1335,20 @@ def resolve_stage(state: GameState, approach: str) -> dict[str, Any]:
 
     if advances and stage == "getaway":
         carried = list(job.get("loot") or [])
+        closed_sets: list[dict[str, Any]] = []
         for item_id in carried:
-            apply_effect(state, {
+            landed = apply_effect(state, {
                 "type": "item", "item_id": item_id, "qty": 1,
                 "name": name_of(item_id), "tags": tags_of(item_id),
                 "stolen_from": {"whom": receipt["name"],
                                 "where": str(prem.get("district") or "")},
-            })
+            }, ledger=ledger)
+            # The piece that closes a set (HUE & CRY's Magpie's Hoard) closes
+            # it here, and the narrator hears it from this receipt.
+            closed_sets.extend(landed.get("collections") or [])
         receipt["loot"] = [name_of(i) for i in carried]
+        if closed_sets:
+            receipt["collections"] = closed_sets
         if job.get("emptied"):
             receipt["emptied"] = True
         now = active(state) or {}
@@ -1264,6 +1375,16 @@ def resolve_stage(state: GameState, approach: str) -> dict[str, Any]:
     if advances and stage == "getaway":
         receipt["alarm_band"] = alarm_band(state)
         apply_effect(state, {"type": "job_close", "outcome": receipt["outcome"]})
+        # Carried out: only now is a secret found at the score HELD. A getaway
+        # reached means the score advanced, and casing is never forgotten
+        # mid-job, so the same row the score named is the one held.
+        found = _known_secret(state, prem)
+        if found and str((state.jobs.get("last") or {}).get("outcome") or "") in CARRIED_OUT:
+            _hold_secret(state, prem, found, ledger)
+            receipt["held"] = str(found["text"])
+            lever = _lever(found)
+            if lever:
+                receipt["lever"] = lever
     elif failed and stage == "entry" and sp["entries"].get(approach, {}).get("hurts"):
         receipt["outcome"] = "hurt"
         apply_effect(state, {"type": "hp", "delta": -1})
@@ -1585,6 +1706,35 @@ def _p_job(state: GameState, value: Any, ctx: Any) -> bool:
     return (active(state) is not None) is bool(want)
 
 
+def _p_secret_held(state: GameState, value: Any, ctx: Any) -> bool:
+    """``{secret_held: {premise?, secret?}}`` -- the thief holds a matching secret.
+
+    Read from the flags ``_hold_secret`` writes when a job carries a secret out. Every given filter
+    must hold of the same flag; with none given, any held secret does. A bare
+    string is a secret id. Anything else stays shut.
+    """
+    if isinstance(value, str):
+        body: dict[str, Any] = {"secret": value}
+    elif isinstance(value, dict):
+        body = value
+    elif value is True:
+        body = {}
+    else:
+        return False
+    want_premise = str(body.get("premise") or "")
+    want_secret = str(body.get("secret") or "")
+    for key, held in state.flags.items():
+        if not held or not str(key).startswith(SECRET_HELD_PREFIX):
+            continue
+        premise_id, _, secret_id = str(key)[len(SECRET_HELD_PREFIX):].partition(":")
+        if want_premise and premise_id != want_premise:
+            continue
+        if want_secret and secret_id != want_secret:
+            continue
+        return True
+    return False
+
+
 def _register() -> None:
     """
     Extend the shared condition grammar.
@@ -1598,6 +1748,7 @@ def _register() -> None:
     register_predicate("premise_cased", _p_premise_cased)
     register_predicate("premise_robbed", _p_premise_robbed)
     register_predicate("job", _p_job)
+    register_predicate("secret_held", _p_secret_held)
 
 
 _register()
@@ -1607,6 +1758,7 @@ __all__ = [
     "CARRIED_OUT",
     "OUTCOMES",
     "RAISED",
+    "SECRET_HELD_PREFIX",
     "STAGES",
     "abort",
     "active",
@@ -1624,6 +1776,7 @@ __all__ = [
     "prep_band",
     "resolve_stage",
     "robbed",
+    "secret_flag",
     "spec",
     "stage_labels",
     "stage_words",

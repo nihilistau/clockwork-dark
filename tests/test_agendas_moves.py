@@ -650,6 +650,9 @@ MALFORMED: dict[str, dict[str, Any]] = {
                                                      "jurisdiction": "atlantis"}},
     "reported_to on an unknown guise": {"reported_to": {"npc": "npc_ardane",
                                                         "guise": "phantom"}},
+    "filed with no jurisdiction": {"filed": {"guise": "self"}},
+    "filed in an unknown jurisdiction": {"filed": {"jurisdiction": "atlantis"}},
+    "filed on an unknown guise": {"filed": {"jurisdiction": "village", "guise": "phantom"}},
 }
 
 

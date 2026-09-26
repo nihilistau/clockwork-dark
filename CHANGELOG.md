@@ -14,6 +14,661 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-09-26
+
+**HUE & CRY: the guild economy**, the third of the v1.0 stages. A thief in
+Tallowmere now has something to build, something to collect and something to
+hold over people: a bench at the Porters' Hall where the new `craft` verb
+turns fence-bought makings into picks, smoke, a lamplighter's coat and a
+forged Hill pass; the Magpie's Hoard, six famous shines to carry home and
+never fence; a secret carried out of a job held as a lever, and four
+squeezes on the people who matter; and the fences' credit, a lifeline that
+turns on a welsher. Brask names no price to a clean record now. The engine
+seams it needed are generic (`filed`, `secret_held`, `repeatable`,
+`broken_text`, `refusals`, `refuses_to_buy`, `districts`, `min_chance`, a
+collections validator), and the flagship gains the `craft` verb wherever it
+can actually make something. Every number was measured, and re-measured
+together at the end; no earlier bound moved. Welshing on a fence still nets a
+purses-only pickpocket a few kept days, and the owner let that stand (below).
+Neither the balance harnesses nor the test suite write saves any more.
+
+### Added
+
+- **`filed`, a condition predicate: is there anything on file?**
+  `{filed: {jurisdiction, guise?, linked?}}` is true while a live report row
+  matches, read through `law.report_matcher` -- the one row matcher the
+  `quash_reports` effect now uses too, so a gate and the bribe it guards
+  agree on which rows are meant. False in a story with no Law, with no
+  jurisdiction (a blank or whitespace-only one included: it used to strip
+  to "no filter" and match every drawer), or naming a jurisdiction or guise the Law does not know; an
+  agenda naming one is refused at load, and a lawless story's agenda may not
+  use it at all.
+- **`craft`, an intent verb: making something is a choice now.**
+  `craft_item` was an optional storyteller skill no choice could reach
+  (`tests/test_reachability.py` allowlisted it as "needs a recipe-selection
+  surface first"; that row is gone). The verb's enum is built per turn from
+  `mechanics.craftable_here` -- the recipes whose station is here (or which
+  have none), whose tools are held and whose inputs are carried -- asked of
+  the same refusal rule `craft_item` applies (`_craft_refusal`), so an
+  unaffordable recipe is unsamplable, and one that goes illegal before it
+  runs (the station left, an input spent) comes back as the engine's refusal
+  and reaches the prose as one. `craft_item` now reports the attempt under
+  `ok` (a spoiled batch happened; `success` is how it went), adds the
+  recipe's `name` and a `spent` list, and has a receipt line: what was
+  made, how well, and what was spent. It is in the evaluator's
+  `ROLLING_SKILLS`, because the check rolls inside it. With nothing
+  craftable the verb is absent altogether, so every story without
+  `paths.recipes` keeps byte-identical turns (asserted per story).
+  **The Clockwork Dark gains the verb** wherever the player can actually
+  make something: at the forge or the bakery with the tools and the stock,
+  or anywhere for a stationless recipe (five wild mushrooms to dry, say).
+  Its opening pack crafts nothing, so a new run's first turns are unchanged.
+- **HUE & CRY: the Porters' Hall bench.** The story declares
+  `paths.recipes` (`data/recipes/workshop.yaml`): four recipes, all
+  `station: the_snuffs`, all `craft` -- file a set of lockpicks (bent wire
+  and a file tang), roll two smoke pellets (candle ends for the tallow, and
+  saltpetre), cut a **lamplighter's coat** (rags and brass buttons) and
+  forge a **Margrave's Hill gate pass** (a vellum offcut, candle ends for the
+  seal). Every input comes from a fence or the gutters, never an honest
+  counter: Marrow sells wire, file tangs and rags; Pell Hollis sells vellum,
+  saltpetre, buttons and candle stubs; the Snuffs' middens now turn up bent
+  wire and saltpetre among the odd finds (`forage.yaml` `tenements`,
+  uncommon). New items `bent_wire`, `saltpetre` (scrounge.yaml),
+  `file_tang`, `vellum_offcut` (goods.yaml), `lamplighters_coat`
+  (guises.yaml) and `forged_pass` (tools.yaml). The coat is a new guise,
+  `lamplighter` (`law.yaml`): wear it and a witness files "a lamplighter".
+  The pass is a jobs `tools` row -- approach and the door, -1 -- limited to
+  Margrave's Hill by the new `districts` key (below). Nobody sells a coat or
+  a pass; the bench is the only way to one. The `craft` verb reaches
+  HUE & CRY only at the bench with the makings in hand; everywhere else its
+  turns are byte-identical (asserted: the docks' opening, the bench
+  empty-handed, the makings away from it).
+- **`districts` on a jobs `tools` row.** Optional, a name or a list: the
+  tool applies only to jobs on premises standing in those districts. Each
+  must be a location that `districts.yaml` puts a house in -- an unknown
+  place, or one with no premise, is a load fault naming the file. A row
+  without it applies everywhere, as before (asserted); docs/AUTHORING.md
+  §3.12. `premises.house_districts()` answers the loader.
+- **HUE & CRY: the Magpie's Hoard.** The story's one collectable set
+  (`data/tables/collections.yaml`, new): six famous shines off the Watch's
+  list that the ballad says the Magpie took and never fenced -- the Lantern
+  House Knocker, the Margrave's Swan Salt, the Nightingale Comb, the
+  Chandlers' Loving Cup, the Mitre of Saint Wick and the Harbourmaster's
+  Chain (goods.yaml, each `shiny`, `named` and `collection:
+  magpies_hoard`). Four rest in the anchors, so in every seed: the Captain's
+  Office, the Margrave's Treasury, Vessaline House (a piece stolen FROM the
+  house and returned by the Watch) and Mother Gannet's House. Two are found
+  in secret places by standing there -- under the Old Bell Tower's cracked
+  bell and on a grating in the Undercroft -- as quests that start and finish
+  on arrival (`data/quests/the_magpies_hoard/`, a side arc that opens only on
+  a visit to one of them, so the journal says nothing before the place is
+  known). Named pieces stay hot for good, so the Hoard is kept, not fenced;
+  it counts only what is carried, and pays once. Completing it: the Honest
+  Company +8, the flag `magpies_hoard_complete` (read by nothing until
+  v0.17.0's The Legend -- CLAUDE.md), and a ledger fact; its reward line
+  reaches the prose whether the last piece came by a burglary (the receipt
+  line) or a find (the quest event's text, `quests._with_closed_sets`). No word of it names a secret place or any of the three people the
+  seed may make the Magpie (asserted). `goods.yaml`'s "shiny: nothing reads
+  it yet" now says what does: the Magpie's agenda (`loot_tag: shiny`).
+- **`check_collections`, a validator for collectable sets.** There was none.
+  Every set's members must be items, `counts` may name only members, an
+  item's `collection:` must name a declared set, and every member must name
+  its own set in its item row. `check_collections_data` is the reusable
+  half (tests/test_items.py feeds it broken tables).
+
+- **A secret carried out of a job is held: `secret_held`.** Before, a
+  cased secret reached the job's score receipt as prose and nothing else --
+  no state, no memory, and no line the narrator was ever given. Now the
+  score's line says it was FOUND (and is the thief's only if they get
+  clear), and the getaway that carries the job out (`clean` or `noisy`)
+  writes, through `apply_effect`, the flag `secret_held:<premise>:<secret>`
+  and an engine-sourced ledger fact of `kind: secret` (the kind
+  `LedgerFact` already declared) about the premise's owner, through the
+  ledger the `job_stage` skill passes. Held at the getaway and not at the
+  score: a thief caught leaving the Captain's Office must not squeeze the
+  captain over a file the Watch just took back (review, fix round 1).
+  Caught, aborted, hurt, uncased or a failed score: nothing held.
+  `{secret_held: {premise?, secret?}}` joins the shared grammar beside
+  `premise_robbed`. The getaway's line says the thief came away holding the
+  secret and, where it opens a thread, who it is a lever over
+  (`receipt["held"]`, `receipt["lever"]`, a name) -- never a price, since
+  whether a squeeze can be struck is its thread's own gate. No new draw, so
+  a seed replays the same. Stories without jobs never write the flag (asserted for the flagship
+  and the synthetic Law-only story).
+- **`thread:` on a premise secret.** `{id, text, thread?}`: the template
+  holding the secret opens. Checked at load: it must be a template in the
+  story's `threads.yaml`, and its `requires` must read `secret_held` for that
+  secret (an anchor's clause may name its own premise too), or the premise
+  file fails naming itself -- a lever offered before it is held, or never,
+  is the inert shape. docs/AUTHORING.md §3.10 and §3.12.
+- **HUE & CRY: four squeezes.** Each anchor's secret names a `Blackmail`
+  thread (a new tag), sourced by the person it squeezes and struck only
+  where and when that person is awake and receiving (their schedule rows),
+  with the secret held:
+  - **The butler's memoir** (`vessaline_memoir`) -- Lady Imelda, in her
+    parlour or at the silversmith's window; twenty crowns, collected at the
+    window of an afternoon. It turns on her butler's book about the rest of
+    the Row and on nothing that says whether she is the Magpie (asserted:
+    no `magpie`, `debt`, `owes`, `ruin`, `motive` or `thief` in its words).
+  - **The strike fund's IOUs** (`gannet_ious`) -- Mother Gannet, in the
+    Porters' Hall; twelve crowns, and the Company's goodwill -5 the moment
+    it is struck (`on_seal`: the guild bunk wants 0 or better).
+  - **The captain's own file** (`ardane_magpie_file`) -- Captain Ardane, at
+    her desk or in her office, only while the Watch holds something on you
+    somewhere (`filed`, all three jurisdictions asked). Her price is looking
+    away: `quash_reports`, `linked`, with NO jurisdiction -- every
+    watch-house, because all four officers and the sergeant answer to her,
+    where Brask's drawer is only the Wick's.
+  - **The mint-master's ledger** (`quill_light_crowns`) -- Steward Quill, at
+    his table on the terrace; twenty-five crowns.
+  Left uncollected for two days, each has teeth: the Row, the Hill and the
+  captain file `blackmail` in their own jurisdiction (the Rise, the Rise,
+  the Wick) at precision 1.0, and each squeezed party's people think 10
+  worse of you (`silk_row`, `margraves_household`, `lantern_watch`); Mother
+  Gannet does not go to the Watch -- nobody in the Snuffs does -- and the
+  Company takes another 10. Two of the three factions CLAUDE.md listed as
+  moved by nothing are moved now; only the Temple waits for the Acts.
+- **`blackmail`, a Law deed, severity 3.** Decided against the deed list
+  (`law.yaml`, pickpocket 1, fencing 2, burglary 3, assault_watch 5): a
+  squeeze is a crime, and the Watch should be able to hear of it -- but a
+  squeeze is struck in private, so its only witness is its victim, and it
+  is never committed on the street as a deed with bystanders. It is FILED,
+  whole, by the victim, in the thread's `on_break`: the one moment the
+  victim has both the reason and the time to go to the Watch. Precision
+  1.0: they saw your face. Severity measured (`scripts/simulate_hoard.py
+  --severity`: one report up the Rise, then quiet days, the band each
+  morning): 1 files nothing a Lantern notices; 2 is `noticed` the day it
+  is filed; **3** is `noticed` for two days alone, and beside a lift seen
+  up the Rise it is `sought` -- recognised on sight -- the day it lands
+  and `noticed` four days more; 4 makes a squeeze alone a stop. Three,
+  burglary's weight: a crime against a house, never against the Watch.
+  (Restated in Task 8 from that committed replay: the first draft's
+  "three days alone" and "sought for five or six" came from a scratch
+  script and do not reproduce. `test_the_blackmail_deed_weighs_what_law_yaml_says`
+  holds the replay.)
+
+- **HUE & CRY: the fences' credit.** Two `Credit` threads (a new tag),
+  each struck only at its fence's own counter while she is trading there
+  (`at_location` plus her schedule's hours) and only while no copy of it is
+  open:
+  - **Pell Hollis's advance** (`pell_advance`), Wickmarket, 08:00-23:00: ten
+    crowns across the counter when struck (`on_seal`), thirteen back across
+    it inside three days.
+  - **Marrow's slate** (`marrow_slate`), the Snuffs, 17:00-01:00: smaller
+    and dearer -- five crowns, eight back inside two.
+  Settled in coin at her counter, in her hours, with the crowns in hand
+  (`discharge_requires`), and then offered again. **Repaid in coin, not
+  goods** -- the honest fallback the brief allowed: nothing in the condition
+  grammar can say "carrying hot goods worth V", and no effect can hand over
+  unnamed goods, so the debt is counted in crowns and the interest is the
+  price (30% over three days, 60% over two). Left unpaid (or broken
+  early) it breaks, with teeth. **The word goes round the fences:** neither
+  fence buys from you (a flag both trade profiles' new `refuses_to_buy`
+  read; their shelves stay open) and neither stands you credit again. **Her
+  collectors walk the streets after dark for you:** two new street scenes,
+  `pells_collectors` and `marrows_lads` (`data/encounters/streets.yaml`,
+  the Docks, the Snuffs and Wickmarket, 18:00-06:00, weight 30,
+  `requires_flag` on the break's flag, so nobody who never welshed ever
+  draws them and the ENCOUNTER stream is unchanged for them, asserted).
+  They take coin on account, chase or hurt (never more than three hp, a
+  -2 stealth wound at worst -- the lifting hand), and paying the whole
+  debt clears the flag and opens the fences again. **By day too** (owner,
+  fix round 2): `pells_collectors_by_day` and `marrows_lads_by_day`, the
+  same scenes (a YAML merge of the night rows), only in Wickmarket and the
+  Snuffs, 06:00-18:00, at a `min_chance` floor of 10% -- 8.3% of a
+  welsher's day legs into those districts, against 9-18% of a night leg
+  from 20:00 to 03:00 and 22% at its worst (04:00, Wickmarket to the
+  Snuffs); `scripts/simulate_streets.py --collectors` prints the table,
+  hour by hour. (Earlier drafts said 13-18% and 14-18%; neither was the
+  whole range.) Every one has a way out
+  that needs no roll, coin or flag. Pell's stallholder neighbours think 5
+  worse of you (`market_stalls`). The narrator hears the break once, in the
+  thread's own `broken_text` (who is waiting after dark, and why), the
+  collectors' own intro names the fence and the sum, and at a fence's
+  counter afterwards the PEOPLE HERE line says she buys nothing from you,
+  and why. No credit state gates rest (rule 6, asserted: a rough night
+  everywhere and a paid flophouse bed after welshing on both). Both survive
+  the thread bounder whole.
+- **`repeatable: true` on a thread template.** A line of credit, not a
+  once-a-run contract: offered again as soon as no copy of it is open, never
+  while one is. Without it a struck template is still never offered again.
+  Validated as a bool (`"yes"` would load as once-a-run). docs/AUTHORING.md
+  §3.4.
+- **`broken_text:` on a thread template.** The narrator's line when the
+  thread breaks, journalled once through `engine/game/moved.py` (kind
+  `promise`) -- a thread that comes due on the day tick otherwise breaks in
+  silence, its `on_break` applied and nothing in the prose saying why.
+  Carried on the thread only when declared, so every other thread keeps its
+  shape and breaks exactly as before (asserted). Told on any break -- came
+  due, broken early or cut -- so worded true for all three. **Every HUE &
+  CRY thread with an `on_break` carries one** (asserted): the credit
+  threads, Mother Gannet's contract, and the four squeezes, whose lines say
+  who went to the Watch (so the narrator can explain the heat) -- Lady
+  Imelda's about her butler's memoir and nothing else, and none naming or
+  hinting at the Magpie (asserted).
+- **`min_chance` on an encounter row.** While the row is eligible for a
+  leg, the leg rolls at least that chance (`encounter.row_floor`,
+  `leg_chance`, which `roll_for_encounter` now uses), capped at
+  `trigger.max_chance`, only on an edge with a `danger_dc`. A row no one
+  matches raises nothing. So every leg of a player who never welshed rolls
+  exactly the v0.14 chance and draws exactly the v0.14 scene, at every hour
+  (asserted draw for draw against the old formula on a seeded stream). The
+  validator refuses a value outside (0, 1]. docs/AUTHORING.md §3.7.
+- **`refusals: [{when, text}]` on a thread template.** When its
+  `requires:` fails and a row's `when` holds, `strike_bargain` refuses in
+  that row's words instead of "not here and now". HUE & CRY's credit lines
+  say "no fence stands credit to a known welsher -- not until the debt is
+  paid" while either welsh flag is set (asserted). Validated like any
+  condition, no ledger predicates.
+- **`refuses_to_buy: {when, text}` on a trade profile.** While `when` holds
+  (the shared grammar) the vendor buys nothing from the player: `quote` and
+  `sell` refuse in her own words (never a `fencing` deed), the `sell` verb
+  leaves her out so the refusal is unsamplable, and the narrator's PEOPLE
+  HERE line carries it. Her shelves stay open. The validator refuses a
+  block with no `text` or `when`, or a `when` the grammar cannot answer
+  here (an unknown predicate, or one that needs a ledger).
+  docs/AUTHORING.md §3.10.
+
+### Changed
+
+- **A thread may file a `report`.** `report` joins `quash_reports` in
+  `engine/challenges/spec.py::STRUCTURAL_EFFECT_TYPES`, the kinds authored
+  content (threads, deck gates, set pieces) may use and a model-composed
+  challenge may not. Without it the thread bounder dropped a squeeze's
+  `on_break` report with only a logged adjustment -- the blackmail deed
+  filed nothing. It has no magnitude to clamp (severity comes from the law
+  file), and a model-composed challenge still drops it (asserted: a dice
+  table must not frame the player). docs/AUTHORING.md §3.11 and
+  docs/GOVERNANCE.md say so. Every squeeze is asserted to survive the
+  bounder whole; the steward's price was written at 30 and the bounder
+  clamps gold at 25 in this story, so it is 25.
+- **Brask names no price to a clean record.** HUE & CRY's `brask_bribe`
+  now requires `{filed: {jurisdiction: wick, guise: self, linked: true}}`
+  beside the desk, so the `bargain` verb offers it (and `strike_bargain`
+  accepts it) only while the Wick's drawer holds something against you or
+  against the Magpie, whom the watch takes for you. Before, it could be
+  struck and paid with nothing filed, quashing nothing; that row leaves
+  CLAUDE.md's deferred list. His `discharge_requires` asks the same `filed`
+  clause beside the twelve crowns, so a file that goes before payday (the
+  captain's squeeze quashes it, say) cannot be paid for: the thread comes
+  due and, having no `on_break`, ends without charge.
+  `test_brask_takes_no_price_once_his_file_is_gone`. The captain's own
+  squeeze is deliberately NOT gated so: her discharge refused would force a
+  break, which files a report and costs -10.
+- **A set closes by any door its last piece comes in.** Collection payouts
+  moved from `inventory.grant` into the `item` effect, which every grant
+  goes through: a job's getaway, a quest reward and a boon now close a set
+  on the spot (before, only `grant` did, and the rest waited for the
+  `collections` skill), and the payout rides the receipt as `collections`.
+  A job's getaway receipt carries it up, and the narrator's receipt line
+  now reads any set a receipt closed, in its `reward_text`
+  (`prompts.summarise_receipt`). `evaluate_collections` takes the caller's
+  ledger, so a set's `ledger_fact` lands when a quest hook closes it, and
+  when a job's getaway does: `jobs.resolve_stage` takes a `ledger`, which
+  the `job_stage` skill passes from the engine. A quest event whose hook
+  closed a set carries the set's `reward_text` in its text
+  (`quests._with_closed_sets`), which is what the ledger and the client get.
+- **An agenda's robbery never takes a collectable set's piece.** An agenda
+  robs by recording a hit, not by moving items, and the thief who burgles
+  the house afterwards found it bare -- so HUE & CRY's Magpie, robbing the
+  Captain's Office, Gannet's House or Vessaline House first, quietly erased
+  that house's Hoard piece from the run. Now the score on an emptied house
+  takes exactly the loot rows that are set pieces (`jobs._left_by_agendas`,
+  no JOB draw, generic to any story), and the narration says the house was
+  robbed of everything but them (`prompts`: the score, the close line and the
+  job block).
+  `scripts/simulate.py --policy all --turns 200` is byte-identical for The
+  Clockwork Dark.
+
+- **`strike_bargain` refuses a template already struck, and says why.**
+  `can_strike` asked only the template's `requires:`, so the skill would seal
+  a second copy of a contract the `bargain` verb had stopped offering; it now
+  asks the verb's own once-a-run rule (or, for a `repeatable` template, "no
+  copy open") first, and `offerable` reads it through `can_strike`. The
+  refusal names the gate that is shut (`threads.strike_refusal`): "already
+  struck and still open -- settle it first", "already struck once", or
+  "cannot be struck here and now" -- never the last for the first two.
+
+### Fixed
+
+- **The balance harnesses and the test suite filled the owner's save
+  folder.** Both wrote real runs into `data/saves/<slug>/` -- about 29,700
+  of them in `hue-and-cry/` alone, nobody's play, crowding the load menu's
+  index. The owner has cleared them. Two leaks, two fixes:
+  - **The harnesses** wrote one save per seed (`SessionStore().create`'s
+    first save, through `simulate_law.Thief`, which every harness's player
+    is built on). `DefaultSessionStore` now takes an optional `save_store`
+    for one instance, and the harnesses hand it one that keeps nothing (no
+    path, so nothing to configure or clean up). The measured runs are
+    unchanged: a save reads the state and never writes it.
+    `test_a_harness_run_leaves_the_save_store_untouched` plays a short day
+    of every harness and asserts no save is written.
+  - **The tests** wrote one for every session they created or turn they
+    played (autosave): `paths.saves` is an engine output no story overlay
+    moves, and only a handful of tests redirected their own store. A new
+    autouse fixture, `tests/conftest.py::_no_test_writes_real_saves`,
+    points `saves.saves_base` -- the one function every save root is built
+    from -- at a per-test temp directory and drops the cached store on the
+    way in and out; a test that names its own `SaveStore(root=...)` (the
+    legacy-migration tests) is untouched. A breach fails the test at
+    teardown (a save failure is logged and forgiven, so nothing in the test
+    body can be trusted to see it), by two O(1) checks about this process
+    only: an audit hook (`sys.addaudithook`) records every write-mode
+    `open`, `mkdir`, `rename`/`replace` and `remove` aimed under the real
+    directory, and the redirect must still be in force (`saves_base` and
+    the cached store's root outside it). It does not scan the directory, so
+    it costs the same with the owner's thousands of saves as with none, and
+    the owner's own game autosaving mid-suite fails nothing. The redirect
+    is held by the fixture's own `MonkeyPatch`: the teardown check found
+    that a test calling `monkeypatch.undo()` mid-body
+    (`test_forced_and_repeatable_decks`) undid it along with its own spy,
+    so the rest of that test saved into the owner's folder
+    (`test_a_tests_own_monkeypatch_undo_keeps_the_saves_redirect`).
+    `test_the_saves_guard_sees_a_write_into_the_real_directory` is its
+    canary (each write aims at a folder that does not exist, so nothing
+    lands). After a full-suite run, `data/saves/*` is still empty.
+- **The `craft` verb re-parsed every recipe file on every build.**
+  `mechanics._load_recipes` read the recipe YAML each time
+  `craftable_here` built the verb -- three or four `legal_intents` calls a
+  turn, ~30 ms each for the flagship's 22 recipes. It is memoized now on
+  the recipe directory and every file's name and mtime (a story switch, an
+  edit, an added or removed file all reload), and nulled on activation and
+  between tests (`engine/games/caches.py`). A flagship `legal_intents`
+  went from 36.4 ms to 2.8 ms a call.
+- **The collectors' day rows spoke of the night.** `pells_collectors_by_day`
+  and `marrows_lads_by_day` were YAML merges of the night rows and inherited
+  "see you another night", "they let you go -- tonight" and "They let you
+  by, tonight" -- in a noon street (audit questions 2 and 3). The day rows
+  now restate `approaches` (the unchanged ones by YAML anchor, the two whose
+  words were the night's in full) and Marrow's lads' intro, day-true.
+  Mechanics identical (checked field for field but the text).
+  `test_no_daytime_street_scene_speaks_of_the_night` fails any row that can
+  only fire by day and says "night" anywhere in its words.
+- **A found place kept its cover name.** The awareness gate rewrote on
+  awareness alone, so once HUE & CRY's Undercroft was found the travel
+  choices called it "The Undercroft" while every gated GM line still said
+  "the old drains". A `spoilers.yaml` row may now carry `location: <id>`;
+  the gate drops the row for a player who knows that place
+  (`locations.is_known`), in gated prompt regions. The three
+  hue-and-cry secret rows name their places; `check_spoilers` refuses a
+  `location:` that is not in the graph. No other story's rows name a place,
+  so their gated prompts are byte-identical (asserted per story).
+- **The lore paired a cover name with its place.** `the_hidden_city.md`
+  said "the old drains ... the Undercroft" in one sentence, teaching the
+  narrator they are one place; it no longer does, and a test keeps every
+  secret's cover and name out of the same chunk. Rebuild the story's
+  `lore.db` with `CLOCKWORK_GAME=hue-and-cry python scripts/seed_lore.py
+  --clear`.
+- **The flagship's tinderbox never closed the road kit.** It is a
+  `road_kit` member whose item row did not say so, and a set settles only on
+  an item that names its set, so a tinderbox bought last closed nothing.
+  The new collections validator found it; `gear.yaml` names the set now.
+- **`recall_subject` never had a ledger in a live session.** It reads the
+  session's memory off the engine (`getattr(engine, "ledger", None)`), and
+  nothing ever put it there, so in every session it answered "no ledger in
+  this session". `SessionStore._build` now sets `engine.ledger` to the
+  session's ledger; the `job_stage` skill reads it the same way.
+
+### Measured — the fences' credit
+
+`scripts/simulate_labour.py` gains `careful_pell` and `careful_marrow`: the
+careful pickpocket's own day, plus one line of credit struck whenever that
+fence will stand it one and its purse is under 3 crowns, repaid at her
+counter the moment it holds the debt. `--no-credit` runs each as its own
+control (the same visits to her counter, no line ever struck), and
+`collectors_met` counts the collectors' street scenes, night and day, that
+came for it. Flophouse beds, agendas off, 40 seeds. Kept days are counted
+as DAYS (days fed and under a roof, per run), because a share of a longer
+run is not comparable with a share of a shorter one:
+
+| policy | run | kept days | gain over control | earned / day | end gold | broken | collectors met |
+|---|---|---|---|---|---|---|---|
+| careful_pell `--no-credit` | 10 d | 0.7 | -- | 1.36 cr | 2.30 | -- | -- |
+| **careful_pell** | 10 d | **5.4** | **+4.7** | 1.20 cr | 1.85 | 95% | 0.53 |
+| careful_pell `--no-credit` | 20 d | 1.0 | -- | 1.39 cr | 2.92 | -- | -- |
+| **careful_pell** | 20 d | **5.8** | **+4.8** | 1.25 cr | 3.10 | 95% | 1.20 |
+| careful_marrow `--no-credit` | 10 d | 0.7 | -- | 1.36 cr | 2.17 | -- | -- |
+| **careful_marrow** | 10 d | **3.1** | **+2.4** | 1.18 cr | 1.27 | 93% | 0.50 |
+| careful_marrow `--no-credit` | 20 d | 1.0 | -- | 1.44 cr | 3.52 | -- | -- |
+| **careful_marrow** | 20 d | **3.4** | **+2.4** | 1.27 cr | 2.50 | 93% | 1.32 |
+| porter (honest) | 20 d | 18.4 | -- | 2.37 cr | 7.42 | -- | -- |
+
+**Welshing still beats never borrowing, and the teeth do not erode the
+gain.** A careful pickpocket who takes Pell's advance and never repays it
+keeps about 4.7 more days fed and roofed than one who never borrows. Over
+20 days the gain is +4.8, the same. Marrow's slate gives +2.4 at both
+lengths. Nothing claws the gain back. The ten crowns of bread are eaten in
+the first week; after that the welsher's days look like the control's.
+
+What welshing does cost it:
+- 93-95% of lines break.
+- No fence buys from it again: earnings are about 0.15-0.19 cr a day lower.
+- Neither fence lends to it again.
+- The collectors find it about once in ten days and about 1.2-1.3 times in
+  twenty. That is by day too, in the fences' districts, since fix round 2.
+  But they rarely find more than a crown or two on a thief who lives on
+  less than it needs, and it usually outruns them.
+
+At 20 days a Marrow welsher holds less coin than its control. A Pell welsher
+holds a little more (3.10 against 2.92), because its lost sales are
+cheap goods and its lost crowns are its rent.
+
+Welshing is never a living: 5.8 kept days out of 20, against an honest
+porter's 18.4.
+
+**The owner's decision, for v0.15.0: this stands.** Welshing on a fence's
+credit still nets a purses-only pickpocket about 5 kept days over never
+borrowing (Pell's advance) or about 2 (Marrow's slate), and the owner
+accepted that for this release. The real cost of welshing falls on a thief
+who needs a fence -- a burglar with a haul to sell, shut out of both
+counters -- and v0.18.0's thief policy is where that is measured. Nothing
+in v0.15.0 re-tunes the credit to close the gap.
+
+**Where hp goes to 0** (Task 8; `simulate_labour.py` now reports
+`runs_at_zero_hp` and `collectors_hp_lost`). Hunger, not the collectors:
+the careful pickpocket who never borrows reaches 0 hp on 95% of seeds in 10
+days (97.5% in 20), on bread it cannot afford. On credit it starves less --
+Pell's advance 45% of seeds in 10 days, Marrow's slate 82.5%; 97.5% for both
+in 20 -- and the collectors cost it 0.15-0.45 hp a run in 10 days and
+0.3-0.6 in 20 (three hp is the most one meeting takes). A starving welsher
+meeting the collectors is a way to 0 hp, but a rare one; the everyday way
+is the empty purse. Both wait on v0.17.0's `death.yaml` (CLAUDE.md).
+
+(Earlier drafts of this entry said kept days "halve" between 10 and 20
+days. They did as a share -- 54% to 29% -- only because the run doubled;
+in days they did not move.)
+
+The policy never sets the advance aside to repay it, and for this earner
+that changes nothing. A purses-only pickpocket takes in about 1.4 cr a day
+and spends about 1.6 on bread and a bed. It could find thirteen crowns by
+the third day only by leaving the advance unspent. That returns it to where
+the control is, three crowns poorer. The credit helps it only if it is
+spent, and a spent advance is one it cannot repay.
+
+The controls reproduce the v0.14 `careful` row exactly (1.36 / 7% / -0.28
+at 10 days), so no draw moved. The difference is the credit, not the walk
+to her counter.
+
+A note on method: control figures from runs made eight at a time once
+drifted by a hundredth in earnings on two rows, and the table uses solo
+re-runs for those rows. Task 8 re-checked it on a clean tree (a detached
+worktree at `wip T7: fix round 2`): the two controls run four times each,
+all eight at once, came out byte-identical, and equal to the table. No
+engine path could cause the drift; content edited mid-batch is the likely
+cause, and every Task 8 figure was measured in a worktree nobody edited.
+
+`tests/test_hue_and_cry.py::test_pells_advance_is_a_lifeline_and_a_trap`
+holds four things over 8 seeds x 8 days:
+- the lifeline;
+- the trap;
+- the lower earnings;
+- the gap to the porter.
+
+### Measured — the bench
+
+An exact expectation rather than a sample: every d20 face through HUE & CRY's
+skills.yaml DCs and degree table at each recipe's band, for a thief at +0
+craft (every archetype, fed and rested), inputs at the cheapest fence price,
+a failed attempt's salvage credited at that price (`tests/test_hue_and_cry.py`
+`_per_attempt`, the same arithmetic the tests assert):
+
+| recipe | band | hours | coin a try | made a try | coin each | at a counter | best a counter pays |
+|---|---|---|---|---|---|---|---|
+| lockpicks | easy | 4 | 9 | 1.00 | **7.25** | 15 (Marrow) | 5 |
+| smoke pellets (x2) | standard | 2 | 3 | 1.10 | 2.7 | 4 (Marrow) | 1 |
+| lamplighter's coat | standard | 3 | 4 | 0.70 | 5.1 | nobody | 1 |
+| forged Hill pass | hard | 3 | 4 | 0.45 | 8.9 | nobody | 2 |
+
+So a set of picks from the bench costs under half of Marrow's 15 and four
+hours his counter does not. Against the v0.14 cost of living ([0.14.0]: a
+careful pickpocket keeps ~1.4 cr a day, a porter ~2.3), the 7.75 crowns saved
+are five or six days' keep; the four hours are a sixth of a day's bread
+(~0.3 cr) and an evening not spent casing. Nothing on the bench is a mint:
+everything made sells for less than its bought makings cost, unhaggled and
+haggled -- at the 20% cap on both sides the picks cost 6.5 and fetch 6, which
+is why the tang is 7 crowns and not 6 (at 6, a double haggle cleared a
+quarter-crown a set).
+
+The middens' two new finds were measured against HEAD before them (40 seeds
+x 10 days, a detached worktree at `wip T3`): `simulate_scrounge.py`'s
+scrounger 1.01 -> 1.02 cr a day and mornings 0.66 -> 0.65, food a day, hungry
+days, min hp and every secret way's share and day unchanged (the finds are
+uncommon rows, so the draws are the same and only which odd thing turns up
+moves); `simulate_labour.py` identical for porter, dipper and careful, the
+scrounger's end gold 4.53 -> 4.50; `simulate_jobs.py` byte-identical (no
+policy carries a pass, and the careful thief's picks are still on Marrow's
+counter). No bound in tests/test_hue_and_cry.py moved.
+
+**Found on the way: the `buy` verb shows eight things a place.** Adding the
+bench's makings to Marrow's counter (five rows before, ten in the first
+draft) pushed `rag_bundle` and `smoke_pellet` off the end of the enum
+(`intents._MAX_OPTIONS`, cut in id order): stock nobody could choose, and
+the pellet gone from its only counter. Caught by this task's own
+buy-everything test before it shipped. The makings were split between the two fences so each
+holds eight, docs/AUTHORING.md §3.7 says so, and
+`test_every_counter_offers_all_of_its_stock` fails if a row is cut again.
+
+### Measured — the Hoard against the jobs harness
+
+`simulate_jobs.py`, 40 seeds, re-run against the run before the Hoard: only
+the greedy thief's haul moved, because only it robs an anchor -- the
+Treasury's 780 -> 980 crowns (the Swan Salt), its "all" row 277.4 -> 320.6.
+Every other cell of every policy is identical (`data/rules/jobs.yaml`'s
+table restated). `simulate_agendas.py` identical but for wall-clock timings:
+the Magpie chooses a house by the `shiny` tag, and every anchor it may rob
+already held a shiny piece. Re-run once more after an agenda's robbery
+stopped taking set pieces: `simulate_agendas.py` again identical but for
+timings (it counts collisions, not what a collision leaves), and
+`simulate_jobs.py` byte-identical (agendas off). How often a run completes
+the Hoard is measured below (the guild economy, all at once).
+
+### Measured — the guild economy, all at once (Task 8)
+
+**Every HUE & CRY harness, re-run at 40 seeds** -- on the release branch's
+head (`wip T7: fix round 2`) and on the `v0.14.0` tag, each in a detached
+worktree nobody edited during the batch:
+
+| harness | v0.14.0 | v0.15 head | moved because |
+|---|---|---|---|
+| simulate_law | careful below `sought` 100%; reckless `wanted` by day 4 75%; reckless / briber arrested 82.5% / 82.5% | identical (but wall-clock timings) | -- |
+| simulate_jobs | careful tier 1-2 carried out 80.8% / caught 0%; blind caught 36.7%; prepped Treasury 20% | identical, but the greedy Treasury haul 780 -> 980 cr | the Swan Salt (the Hoard, above) |
+| simulate_agendas | idle `sought` by day 6 80%; Magpie 9.8 houses a run; reckless net at `utmost` 65% | identical (but timings) | -- |
+| simulate_scrounge | scrounger 1.01 cr a day, mornings 0.66 | 1.02, 0.65 | the middens' two new finds (the bench, above) |
+| simulate_labour | porter 94% kept, +0.05 cr a day; dipper 87%; careful 7%; scrounger end gold 4.53 | identical; scrounger end gold 4.50 | the same finds |
+| simulate_streets | night legs 19.7% a scene, 0.09 cr lost a night leg | byte-identical | -- |
+
+No bound in `tests/test_hue_and_cry.py` moved, and none is restated. (One
+correction to [0.14.0]'s restatement table: its "after" cells for the jobs
+harness, 80.6% and 36.5%, are not what the v0.14.0 tag measures -- the tag
+gives 80.8% and 36.7%, the table's "before".)
+
+**A concurrent determinism re-check.** The fences' credit measurement (above)
+once saw a hundredth of drift between runs made eight at a time. On the
+clean worktree, `careful_pell --no-credit` and `careful_marrow --no-credit`
+(40 seeds x 10 days) were each run four times, all eight at once: every copy
+of each came out byte-identical (and equal to the table). No drift.
+
+**Crafted against bought tools**: the bench's table above (the exact
+per-attempt expectation). A set of picks from the bench costs 7.25 crowns
+and four hours against Marrow's 15; nothing on the bench sells for more than
+its makings.
+
+**Fence-credit kept days**: the credit table above -- +4.7 days over 10 (+4.8
+over 20) on Pell's advance, +2.4 on Marrow's slate, 93-95% of lines broken,
+and the owner's decision beside it.
+
+**The Magpie's Hoard in a twelve-day run** (`scripts/simulate_hoard.py`, new:
+the `hoarder` robs the four anchors one a night, easiest first, the
+simulate_jobs greedy way -- lockpicks and smoke pellets, cased until casing
+tells it nothing more, in at eleven, never walking away -- and goes at the
+Treasury carrying the **forged Margrave's Hill pass**, v0.15's own tool for
+it (jobs.yaml: -1 at the Hill's approach and door). Nobody sells a pass, so
+it makes one as a player would: the makings for five tries bought at Pell
+Hollis's counter on day one (20 crowns), then the Porters' Hall bench of a
+morning until a try takes. It scrounges the streets whose hidden paths lead
+to the secret places, walks to one the moment it knows the way, and keeps
+everything; fed and rested, and handed its kit's price on day one, as the
+jobs harness is; agendas off; 40 seeds. `--no-pass` is the control: the
+same thief without the pass, which is what this entry first reported):
+
+| | 12 days | 20 days | control (`--no-pass`), 12 / 20 days |
+|---|---|---|---|
+| **Hoard completed** | **2.5%** (1 run of 40) | **10%** (mean day 18) | 5% / 10% |
+| the Hill pass made (mean day) | 92% (1.2), 2.0 tries a run | 92% (1.2) | -- |
+| Treasury tries carrying it | 70% | 83% | -- |
+| pieces held at the end, mean | 3.2 | 2.1 | 2.5 / 2.2 |
+| runs ending with no piece | 20% | 45% | 40% / 45% |
+| Mother Gannet's House carried out / caught a try | 100% / 17% | 100% / 17% | 100% / 11% (both) |
+| the Captain's Office | 100% / 11% | 100% / 11% | 98-100% / 11% |
+| Vessaline House | 48% / 80% | 68% / 83% | 48% / 79%, 70% / 82% |
+| **the Margrave's Treasury** | 2% / 90% (0.25 tries a run) | **20% / 92%** (2.6 tries) | 5% / 91% (0.57), 12% / 96% (2.9) |
+| the Old Bell Tower found (mean day) | 88% (4.5) | 92% (5.2) | 80% (4.4), 88% (5.3) |
+| the Undercroft found (mean day) | 78% (4.2) | 100% (7.3) | 92% (4.5), 98% (5.1) |
+| arrests a run | 0.28 | 0.88 | 0.5 / 1.05 |
+
+The one twelve-day completion closed on the twelfth night's getaway, in the
+small hours of day 13.
+
+**What the pass buys: a little, late.** Over twenty days it takes the
+Treasury from 12% of runs to 20%, and a try there from 96% caught to 92%.
+Over twelve it buys nothing measurable: the day at the bench pushes every
+job back a night, so the Treasury -- robbed last -- is reached a quarter as
+often (0.25 tries a run against 0.57), and twelve-day completion is 2.5%
+against the control's 5% (one run against two: noise, at 40 seeds). The
+Treasury stays the wall -- caught on nine tries in ten with the pass or
+without -- and Vessaline House nearly as hard. And **an arrest takes the
+whole Hoard back**: every piece is `named`, so hot for good, and
+`{type: arrest}` takes every hot thing carried (watch_stop.yaml). That is
+why a fifth to a half of runs end holding nothing -- they held pieces until
+a stop went wrong. A thief who wants the Hoard wants the Treasury last, a
+pass in its coat, and no Lantern in between.
+
+**Blackmail yield** (the same runs, with the pass: a secret carried out is
+squeezed the next day at its owner's door and collected there on the spot,
+so almost none broke):
+
+| squeeze | secret held (12 d) | pays when collected |
+|---|---|---|
+| The strike fund's IOUs (Mother Gannet) | 100% | 12 cr, and the Honest Company -5 on striking |
+| The captain's own file (Captain Ardane) | 100% (collected in 92%) | no coin: each collection makes about 3 Watch reports go missing, in every watch-house |
+| The butler's memoir (Lady Imelda) | 40% | 20 cr |
+| The mint-master's ledger (Steward Quill) | 0% (15% over 20 days) | 25 cr |
+
+20.0 crowns a twelve-day run from squeezes (28.75 over twenty; the control
+22.25 and 28.0) -- almost all of it Mother Gannet's twelve and, in two runs
+of five, Lady Imelda's twenty, because the richest squeeze sits behind the
+hardest door. The captain's is the one a thief with a file on it most
+wants: it pays in files, not crowns. `scripts/simulate_hoard.py --severity`
+replays the `blackmail` deed's weight (the deed's entry above, restated
+from it).
+
+**The collectors' share of a welsher's legs**, hour by hour:
+`scripts/simulate_streets.py --collectors` (no dice -- the table the draw is
+made from, for a fresh thief). 8.3% of every day leg into Wickmarket or the
+Snuffs (06:00-16:00), 4-8% at dusk, 9-18% of a night leg from 20:00 to
+03:00 (the most on Wickmarket to the Snuffs), and 22% at 04:00, the worst
+hour. The same for both fences.
+
 ## [0.14.1] — 2026-09-26
 
 A documentation release: the GitHub README, rewritten. No engine, content or
@@ -2409,7 +3064,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.14.1...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.12.0...v0.13.0

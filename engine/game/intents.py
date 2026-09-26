@@ -444,6 +444,28 @@ def _forage(state: GameState) -> Optional[IntentVerb]:
     return IntentVerb("forage", targets[:_MAX_OPTIONS]) if targets else None
 
 
+def _craft(state: GameState) -> Optional[IntentVerb]:
+    """
+    Recipes the player could attempt right here, right now.
+
+    ``mechanics.craftable_here`` asks ``craft_item``'s own refusal rule of
+    every recipe -- station here (or none), tools held, inputs carried -- so
+    an offered recipe is one the skill will attempt, and an unaffordable one
+    is unsamplable. Nothing craftable means no verb at all (the ``forage``
+    lesson above), which is what keeps a story without ``paths.recipes``, and
+    the flagship away from a station with nothing to work, byte-identical.
+    """
+    try:
+        from engine.skills.builtin import mechanics
+
+        rows = mechanics.craftable_here(state)
+    except Exception as exc:  # noqa: BLE001 -- a story with no recipes
+        _absent("crafting", exc)
+        return None
+    targets = tuple((recipe_id, name) for recipe_id, name in rows if recipe_id)
+    return IntentVerb("craft", targets[:_MAX_OPTIONS]) if targets else None
+
+
 def _case(state: GameState) -> Optional[IntentVerb]:
     """
     Houses in this district that watching can still tell the player about.
@@ -652,6 +674,13 @@ def _sell(state: GameState) -> Optional[IntentVerb]:
 
     targets: list[tuple[str, str]] = []
     for npc_id in vendors:
+        try:
+            if trade.refusal_to_buy(state, npc_id):
+                # She buys nothing from you (a trade profile's
+                # `refuses_to_buy`): a sale she would refuse is not a choice.
+                continue
+        except Exception:  # noqa: BLE001 -- one bad row must not kill the verb
+            continue
         for item in state.inventory:
             try:
                 if not trade.deals_in(npc_id, item.id):
@@ -865,6 +894,8 @@ def legal_intents(state: GameState) -> tuple[IntentVerb, ...]:
             _sell,
             _work,
             _forage,
+            # Making something. Offered only where a recipe is craftable now.
+            _craft,
             # Watching a house. Offered only where a story declares premises.
             _case,
             # Opening a job. Offered only where a story declares jobs.
@@ -987,6 +1018,7 @@ SKILL_FOR_ACTION: dict[str, str] = {
     "sell": "trade_sell",
     "work": "work",
     "forage": "forage",
+    "craft": "craft_item",
     "set_piece": "start_set_piece",
     "challenge": "resolve_challenge",
     "bargain": "strike_bargain",
@@ -1052,6 +1084,11 @@ REFUSAL_KEY_FOR_ACTION: dict[str, Optional[str]] = {
     # `success` whatever it found, so it is unaffected.
     "work": "worked",
     "forage": "success",
+    # `ok` means the attempt was made (inputs and hours spent, a roll made);
+    # how it went is `success`/`degree` -- a spoiled batch HAPPENED and must
+    # be narrated as one (the `work` lesson). `ok: False` is only the engine
+    # declining: unknown recipe, wrong station, a tool or an input missing.
+    "craft": "ok",
     "set_piece": "ok",
     "challenge": "ok",
     "bargain": "ok",
@@ -1217,6 +1254,8 @@ def to_tool_call(
         return name, {"job_id": target}
     if action == "forage":
         return name, {"node_id": target}
+    if action == "craft":
+        return name, {"recipe_id": target}
     if action == "set_piece":
         return name, {"piece_id": target}
     if action == "challenge":

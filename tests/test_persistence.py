@@ -367,3 +367,64 @@ def test_reindex_recovers_from_a_corrupt_index(tmp_path):
 
     assert store.reindex() == 4
     assert len(store.list_saves()) == 4
+
+
+def test_a_test_session_never_saves_into_the_real_save_directory() -> None:
+    """v0.15 (owner): the suite wrote a real run into `data/saves/<slug>/`
+    for every session a test created. `conftest._no_test_writes_real_saves`
+    points the save base at a temp directory; this is its canary -- a
+    session created the way the game creates one saves, and the save lands
+    in the temp base, not the owner's directory, with no write aimed there."""
+    from pathlib import Path
+
+    from engine.persistence import saves
+    from engine.scenes.default_state import SessionStore
+    from tests.conftest import REAL_SAVES_WRITES, _real_saves_dir
+
+    real = _real_saves_dir().resolve()
+    session = SessionStore().create(seed=3, llm_fn=lambda m, **k: "{}")
+    assert session.save_id, "the first save was not written at all"
+    written = Path(saves.get_save_store().root).resolve()
+    assert real not in (written, *written.parents), written
+    assert (written / session.save_id / "save.json").is_file()
+    assert REAL_SAVES_WRITES == []
+
+
+@pytest.mark.parametrize(
+    "attempt",
+    ["open_for_write", "mkdir", "replace"],
+)
+def test_the_saves_guard_sees_a_write_into_the_real_directory(attempt: str) -> None:
+    """The guard's own canary. Each attempt aims at a directory that does not
+    exist under the real save root, so the write fails and nothing lands in
+    the owner's folder -- but the audit event fires before the OS refuses it,
+    which is exactly what the guard records."""
+    import os
+
+    from tests.conftest import REAL_SAVES_WRITES, _real_saves_dir
+
+    missing = _real_saves_dir() / "no-such-story-9f3c" / "no-such-save"
+    assert not missing.parent.exists()
+    try:
+        with pytest.raises(OSError):
+            if attempt == "open_for_write":
+                open(missing / "save.json", "w", encoding="utf-8")  # noqa: SIM115
+            elif attempt == "mkdir":
+                os.mkdir(missing / "run0")
+            else:
+                os.replace(missing / "a.tmp", missing / "save.json")
+        assert REAL_SAVES_WRITES, f"{attempt} into {missing} went unseen"
+        assert all(str(missing) in path for _, path in REAL_SAVES_WRITES)
+    finally:
+        REAL_SAVES_WRITES.clear()
+    assert not missing.parent.exists()
+
+
+def test_a_tests_own_monkeypatch_undo_keeps_the_saves_redirect(monkeypatch) -> None:
+    """`monkeypatch.undo()` mid-test undid the shared redirect with the test's
+    own patches (test_forced_and_repeatable_decks); the guard holds its own."""
+    from engine.persistence import saves
+    from tests.conftest import _under_real_saves
+
+    monkeypatch.undo()
+    assert not _under_real_saves(saves.saves_base())

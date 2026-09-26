@@ -422,6 +422,18 @@ def test_a_collection_reward_that_grants_an_item_does_not_recurse(state: GameSta
     assert inventory.quantity(state, "tinker_map") == 1
 
 
+def test_the_road_kit_closes_whichever_piece_lands_last(state: GameState):
+    """The tinderbox was a road_kit member that never said so (v0.15's
+    collections validator found it): bought last, it closed nothing."""
+    for item_id in ("wool_cloak", "oiled_hood", "hobnail_boots", "travel_pack", "hand_lantern"):
+        inventory.grant(state, item_id)
+    assert not state.flags.get("collection_road_kit_complete")
+
+    inventory.grant(state, "tinderbox")
+
+    assert state.flags.get("collection_road_kit_complete") is True
+
+
 def test_collection_status_reports_what_is_missing(state: GameState):
     inventory.grant(state, "wool_cloak")
     row = next(r for r in inventory.collection_status(state) if r["id"] == "road_kit")
@@ -470,6 +482,76 @@ def test_the_garden_declares_the_same_blocks():
         (_ROOT / "games/wicked-garden/data/art/subjects.yaml").read_text(encoding="utf-8")
     )
     assert set(rows) == set(subjects["items"]) - {"defaults"}
+
+
+# ---------------------------------------------------------------------------
+# the collections validator (v0.15)
+# ---------------------------------------------------------------------------
+#
+# There was none. A set naming an item the registry lacks loads, lists a
+# member nothing can grant, and never completes; an item naming a set nobody
+# declared carries a "collect" verb for nothing. Both were silent. So was the
+# shipped case the check found on its first run: the flagship's tinderbox is a
+# road_kit member that never said so, so a tinderbox bought LAST never closed
+# the set (``grant`` settles only on an item that names its set).
+
+_SETS_ITEMS = {
+    "ring": {"id": "ring", "collection": "trinkets"},
+    "bell": {"id": "bell", "collection": "trinkets"},
+    "loaf": {"id": "loaf"},
+}
+
+
+def _sets_doc(**overrides):
+    row = {"id": "trinkets", "name": "Trinkets", "items": ["ring", "bell"],
+           "reward_text": "Done.", "effects": []}
+    row.update(overrides)
+    return {"version": 1, "collections": [row]}
+
+
+def _collection_errors(doc, items=None):
+    from engine.games.validation import check_collections_data, errors_only
+
+    return errors_only(check_collections_data(
+        "tables/collections.yaml", doc, items=_SETS_ITEMS if items is None else items,
+        items_source="items/*.yaml",
+    ))
+
+
+def test_a_sound_collections_table_passes():
+    assert _collection_errors(_sets_doc(counts={"ring": 2})) == []
+
+
+def test_a_set_naming_an_unknown_item_fails():
+    errors = _collection_errors(_sets_doc(items=["ring", "bell", "no_such_ring"]))
+    assert any(e.ref_id == "no_such_ring" for e in errors), errors
+
+
+def test_an_item_naming_an_undeclared_set_fails():
+    items = dict(_SETS_ITEMS, lamp={"id": "lamp", "collection": "no_such_set"})
+    errors = _collection_errors(_sets_doc(), items=items)
+    assert any(e.ref_id == "lamp" and "no_such_set" in e.message for e in errors), errors
+
+
+def test_a_count_for_a_non_member_fails():
+    errors = _collection_errors(_sets_doc(counts={"loaf": 3}))
+    assert any(e.ref_id == "trinkets" and "loaf" in e.message for e in errors), errors
+
+
+def test_a_member_that_does_not_name_its_set_fails():
+    """The tinderbox shape: listed by a set, silent about it, so never settles it."""
+    errors = _collection_errors(_sets_doc(items=["ring", "bell", "loaf"]))
+    assert any(e.ref_id == "loaf" and "trinkets" in e.message for e in errors), errors
+
+
+def test_every_shipped_story_has_sound_collections():
+    from engine.games import registry
+    from engine.games.validation import errors_only, validate_story
+
+    for manifest in registry.discover().values():
+        bad = [e for e in errors_only(validate_story(manifest))
+               if "collection" in e.source or "collection" in e.message]
+        assert not bad, (manifest.slug, bad)
 
 
 def test_a_game_with_no_collections_file_is_silent(monkeypatch, tmp_path):

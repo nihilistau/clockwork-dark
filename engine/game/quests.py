@@ -348,6 +348,25 @@ def load_quests() -> dict[str, dict[str, Any]]:
     return _QUEST_CACHE
 
 
+def _with_closed_sets(text: str, receipts: list[dict[str, Any]]) -> str:
+    """
+    An event's text, with the line of any collectable set its hook closed.
+
+    A quest reward that lands a set's last piece closes the set inside the
+    ``item`` effect, and the payout rides that effect's receipt -- which a hook
+    otherwise throws away. The event text is what reaches the ledger and the
+    client (``default_state._evaluate_quests``), so the set's ``reward_text``
+    goes there. Unchanged when the hook closed nothing.
+    """
+    closed = [
+        str(row.get("text") or "").strip()
+        for receipt in receipts or []
+        for row in (receipt.get("collections") or [])
+        if isinstance(row, dict)
+    ]
+    return " ".join(x for x in (text, *closed) if x)
+
+
 # ---------------------------------------------------------------------------
 # Bookkeeping stored on state
 # ---------------------------------------------------------------------------
@@ -737,7 +756,7 @@ _GRAMMAR_MODULES = (
     "engine.game.clocks",  # value, clock, track, forced_scene
     "engine.game.threads",  # thread, no_thread
     "engine.game.endings",  # ending
-    "engine.world.law",  # in_custody
+    "engine.world.law",  # in_custody, filed
     "engine.world.jobs",  # premise_cased, premise_robbed, job
     "engine.world.agendas",  # wanted, reported_to, agenda_hit
 )
@@ -1344,13 +1363,15 @@ class QuestEngine:
                 ):
                     break
 
-                QuestEngine._apply_hook(state, stage.get("on_complete"), ledger)
+                hook = QuestEngine._apply_hook(state, stage.get("on_complete"), ledger)
                 events.append(
                     QuestEvent(
                         kind=EVENT_STAGE_COMPLETE,
                         quest_id=quest_id,
                         stage_id=str(stage.get("id", "")),
-                        text=str(stage.get("complete_text") or stage.get("objective", "")),
+                        text=_with_closed_sets(
+                            str(stage.get("complete_text") or stage.get("objective", "")), hook
+                        ),
                     )
                 )
                 logger.info(
@@ -1411,9 +1432,11 @@ class QuestEngine:
     ) -> QuestEvent:
         record.status = STATUS_COMPLETED
         _write(state, record)
-        QuestEngine._apply_hook(state, definition.get("on_complete"), ledger)
+        hook = QuestEngine._apply_hook(state, definition.get("on_complete"), ledger)
         name = str(definition.get("name", record.quest_id))
-        text = str(definition.get("complete_text") or f"{name} is finished.")
+        text = _with_closed_sets(
+            str(definition.get("complete_text") or f"{name} is finished."), hook
+        )
         QuestEngine._remember(state, ledger, f"Finished: {name}.")
         logger.info(
             "[quests] Quest completed (operation=evaluate, quest=%s, day=%s)",

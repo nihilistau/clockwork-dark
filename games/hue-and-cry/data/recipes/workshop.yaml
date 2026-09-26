@@ -1,0 +1,131 @@
+# HUE & CRY -- the Porters' Hall bench.
+#
+# Read by engine/skills/builtin/mechanics.py through `paths.recipes` (every
+# *.yaml in this directory merges; keep it to this one file -- the `craft`
+# verb re-reads the directory every turn it is built). The Honest Company of
+# Night Porters keeps a workbench at the back of its hall in the Snuffs, for
+# mending crates and straps; what else gets made on it after dark is the
+# Company's business. Every recipe here is `station: the_snuffs`, and the
+# `craft` verb offers one only while the player stands there with every input
+# in the pack (mechanics.craftable_here).
+#
+# WHERE THE MAKINGS COME FROM -- never an honest counter:
+#   bent_wire      Marrow (2), or the Snuffs' middens (forage.yaml `tenements`)
+#   file_tang      Marrow (7)
+#   saltpetre      Pell Hollis (2), or the Snuffs' middens
+#   vellum_offcut  Pell Hollis (3)
+#   candle_ends    Pell Hollis (1), or any street's gutters -- the tallow of
+#                  a smoke pellet and the wax of a forged seal
+#   rag_bundle     Marrow (1), or the gutters
+#   brass_button   Pell Hollis (1), or the gutters' odd shiny
+#
+# THE NUMBERS, BY MEASUREMENT (AGENTS.md rule 10). An exact expectation, not
+# a sample: every d20 face through skills.yaml's DCs and degree table at the
+# recipe's band, for a thief at +0 craft (every archetype, fed and rested),
+# inputs at the cheapest fence price, a failed attempt's salvage credited at
+# that same price. `_craft_yield` decides the batch (a crit adds one, a
+# partial halves, a failure falls back to salvage).
+#
+#   recipe                band      hrs  coin/try  made/try  coin each  bought at
+#   file_lockpicks        easy       4      9       1.00        7.25     15 (Marrow)
+#   roll_smoke_pellets    standard   2      3       1.10        2.7       4 (Marrow)
+#   cut_lamplighters_coat standard   3      4       0.70        5.1       -- (nobody)
+#   forge_hill_pass       hard       3      4       0.45        8.9       -- (nobody)
+#
+# So a set of picks from the bench costs under half of Marrow's 15 and four
+# hours his counter does not; against the v0.14 cost of living (CHANGELOG
+# [0.14.0]: a careful pickpocket keeps ~1.4 cr a day, a porter ~2.3) the 7.75
+# crowns saved are most of a week's keep, and the four hours are a sixth of
+# a day's bread (~0.3 cr) and a job not cased. And no recipe is a money loop:
+# the best any counter in the city pays for each thing made (Pell Hollis,
+# Marrow or Dock Mag) is below its coin each -- picks fetch 5, a pellet 1, a
+# coat 1, a pass 2. Haggled to the 20% cap on both sides (trade.py) the picks
+# cost 6.5 and fetch 6, still a loss; the tang is 7 rather than 6 for exactly
+# that reason. tests/test_hue_and_cry.py holds both claims, unhaggled.
+#
+# Version: v0.1.0 [2026-09-26]
+
+version: 1
+category: workshop
+
+recipes:
+
+  - id: file_lockpicks
+    name: "File a set of lockpicks"
+    category: workshop
+    skill: craft
+    band: easy
+    hours: 4
+    station: the_snuffs
+    inputs:
+      - { id: bent_wire, qty: 1 }
+      - { id: file_tang, qty: 1 }
+    output: { id: lockpicks, qty: 1 }
+    salvage: { id: file_tang, qty: 1 }
+    success_text: >-
+      The tang ground thin on the Company's stone, the wire drawn straight and
+      bent into rakes and a tension bar, and the whole lot rolled in a strip of
+      oiled rag. They will not win a prize. They will open a door.
+    failure_text: >-
+      The wire snaps at the third bend and the fourth, and there is no more of
+      it. The tang is still good; the evening is gone.
+
+  - id: roll_smoke_pellets
+    name: "Roll smoke pellets"
+    category: workshop
+    skill: craft
+    band: standard
+    hours: 2
+    station: the_snuffs
+    inputs:
+      - { id: candle_ends, qty: 1 }
+      - { id: saltpetre, qty: 1 }
+    output: { id: smoke_pellet, qty: 2 }
+    success_text: >-
+      Tallow melted in a spoon over a stub, saltpetre stirred in, rolled while
+      warm in twists of waxed paper with a short wick each. The porters at the
+      far end of the hall open a window without being asked.
+    failure_text: >-
+      Too much saltpetre, or too little tallow: the first one goes off in the
+      spoon, and the hall fills with smoke and language. Nothing left to roll.
+
+  - id: cut_lamplighters_coat
+    name: "Cut a lamplighter's coat"
+    category: workshop
+    skill: craft
+    band: standard
+    hours: 3
+    station: the_snuffs
+    inputs:
+      - { id: rag_bundle, qty: 2 }
+      - { id: brass_button, qty: 2 }
+    output: { id: lamplighters_coat, qty: 1 }
+    salvage: { id: rag_bundle, qty: 1 }
+    success_text: >-
+      Sailcloth for the body, an old oilskin for the shoulders, the buttons in
+      a proper row and a hook stitched at the hip where the ladder hangs. From
+      across a street at dusk it is the lamp trade's coat. Close to, nobody
+      looks.
+    failure_text: >-
+      It hangs like a sack with sleeves, and one of the buttons is on the
+      inside. Half the rags will do for something else.
+
+  - id: forge_hill_pass
+    name: "Forge a Hill gate pass"
+    category: workshop
+    skill: craft
+    band: hard
+    hours: 3
+    station: the_snuffs
+    inputs:
+      - { id: vellum_offcut, qty: 1 }
+      - { id: candle_ends, qty: 1 }
+    output: { id: forged_pass, qty: 1 }
+    success_text: >-
+      A clerk's hand, copied letter by letter from a pass somebody in the hall
+      was once careless with, and the seal pressed from wax off the candle ends
+      with the side of a spoon. It will stand being looked at by a man who
+      wants to go back to his brazier.
+    failure_text: >-
+      The ink runs where the hand shook and the seal comes out with a thumb in
+      it. There is no mending vellum; it goes in the stove.

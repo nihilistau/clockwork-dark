@@ -5,7 +5,7 @@ Tallowmere has more city than the maps show. There are ways under the streets, w
 
 ## The Undercroft
 <!-- scope: #gm_secrets -->
-Beneath the Snuffs and the Lantern House run the old drains and the vaults of a city that was built over twice: the Undercroft. A grating in the Snuffs opens onto it, and a drain in the Lantern House cells leads down into it -- a fact every prisoner who has ever sat in those cells has noticed, and some have used. It is wet, dark and full of echoes, and the Company knows its turns better than the Watch does.
+Beneath the Snuffs and the Lantern House lie the vaults and culverts of a city that was built over twice: the Undercroft. A grating in the Snuffs opens onto it, and a drain in the Lantern House cells leads down into it -- a fact every prisoner who has ever sat in those cells has noticed, and some have used. It is wet, dark and full of echoes, and the Company knows its turns better than the Watch does.
 
 ## The Rooftop Road
 <!-- scope: #gm_secrets -->

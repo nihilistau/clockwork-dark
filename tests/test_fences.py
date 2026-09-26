@@ -50,6 +50,8 @@ SQUARE = "edgewood_square"
 RING = "golden_ring"
 #: Never touched by a `stolen_from` record in any test below.
 LOAF = "loaf"
+#: Where `npc_grudge` keeps her counter (v0.15's `refuses_to_buy`).
+BACK_ROOM = "edgewood_bakery"
 
 THIEVERY_SPEC = {
     "alertness": {"default": "standard"},
@@ -75,6 +77,18 @@ TRADE_DOC = {
             "fence": True,
             "fence_cut": {"hot": 0.4, "cool": 0.75},
         },
+        # v0.15: a fence who will not buy from a player who welshed on her
+        # (`refuses_to_buy`). In another room, so the square's verbs above
+        # are exactly what they were.
+        "npc_grudge": {
+            "name": "Old Grudge",
+            "location": BACK_ROOM,
+            "fence": True,
+            "refuses_to_buy": {
+                "when": {"flag": "welshed_on_grudge"},
+                "text": "Old Grudge buys nothing from someone who owes her ten crowns.",
+            },
+        },
     },
 }
 
@@ -84,6 +98,7 @@ TRADE_DOC = {
 ECONOMY_DOC = {
     "npc_honest": {"sells": {}, "buys": {}},
     "npc_fence": {"sells": {}, "buys": {}},
+    "npc_grudge": {"sells": {LOAF: {"price": 2}}, "buys": {}},
 }
 
 
@@ -450,3 +465,52 @@ def test_the_flagship_sell_path_is_unaffected_without_thievery() -> None:
     assert sale["success"] is True
     assert state.stats.gold > gold_before
     assert state.provenance == {}
+
+
+# -- a vendor who will not buy from you (v0.15, `refuses_to_buy`) ------------
+
+
+def _at_grudge(welshed: bool) -> GameState:
+    state = _mixed_state(clean=1, stolen_days=[1])
+    state.location_id = BACK_ROOM
+    if welshed:
+        apply_effect(state, {"type": "flag", "flag": "welshed_on_grudge", "value": True})
+    return state
+
+
+def test_a_vendor_refuses_to_buy_while_her_condition_holds(market: None) -> None:
+    state = _at_grudge(welshed=True)
+    assert trade.refusal_to_buy(state, "npc_grudge") == (
+        "Old Grudge buys nothing from someone who owes her ten crowns.")
+    quote = trade.quote(state, "npc_grudge", RING, side="sell")
+    assert quote["ok"] is False
+    assert quote["reason"] == "Old Grudge buys nothing from someone who owes her ten crowns."
+    gold, held = state.stats.gold, state.inventory[0].qty
+    sale = trade.sell(state, "npc_grudge", RING, 1)
+    assert sale["success"] is False and "owes her ten crowns" in sale["message"]
+    assert state.stats.gold == gold and state.inventory[0].qty == held
+    assert len(state.provenance[RING]) == 1     # nothing laundered
+    assert "reported" not in sale                # a grudge is not a fencing deed
+
+
+def test_a_refusing_vendor_is_not_offered_to_sell_to(market: None) -> None:
+    """Rule 1: a sale the engine would refuse is unsamplable."""
+    welshed = _at_grudge(welshed=True)
+    assert "sell" not in _verbs(welshed)
+    clean = _at_grudge(welshed=False)
+    assert {t for t, _ in _verbs(clean)["sell"]} == {f"npc_grudge/{RING}"}
+
+
+def test_a_refusing_vendor_still_sells_to_you(market: None) -> None:
+    """`refuses_to_buy` is the buying side only: her shelves stay open."""
+    state = _at_grudge(welshed=True)
+    state.stats.gold = 10
+    assert trade.quote(state, "npc_grudge", LOAF, side="buy")["ok"] is True
+    assert trade.buy(state, "npc_grudge", LOAF, 1)["success"] is True
+
+
+def test_a_vendor_whose_condition_does_not_hold_buys_as_before(market: None) -> None:
+    state = _at_grudge(welshed=False)
+    assert trade.refusal_to_buy(state, "npc_grudge") == ""
+    assert trade.refusal_to_buy(state, "npc_fence") == ""   # no key at all
+    assert trade.sell(state, "npc_grudge", RING, 1)["success"] is True

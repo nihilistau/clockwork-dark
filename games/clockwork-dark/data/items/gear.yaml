@@ -21,7 +21,7 @@
 #   use                  a verb: hours, what it consumes, what it does
 #   collection           set id in data/tables/collections.yaml
 #
-# Version: v0.2.0 [2026-08-08]
+# Version: v0.2.1 [2026-09-26]
 
 version: 1
 
@@ -119,6 +119,9 @@ items:
         Char takes on the third strike. You sit with your boots off and your
         back to the light and stop being cold, which turns out to have been
         most of what was wrong.
+    # A road_kit member that did not say so until v0.15's collections
+    # validator asked: bought last, it closed nothing.
+    collection: road_kit
     stack: false
 
   - id: wool_cloak

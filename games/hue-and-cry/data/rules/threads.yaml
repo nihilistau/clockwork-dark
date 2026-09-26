@@ -4,7 +4,8 @@
 # (the `bargain` verb), then settled (`discharge`) or left to come due, when
 # it breaks.
 #
-# TWO CONTRACTS: Sergeant Brask's price, and Mother Gannet's first job.
+# TWO CONTRACTS -- Sergeant Brask's price, and Mother Gannet's first job --
+# and FOUR SQUEEZES (v0.15), one for each anchor's secret.
 #
 # SERGEANT BRASK'S PRICE. Everything about Brask has a
 # price, including looking the other way (prompts/storyteller.md), and the
@@ -54,16 +55,113 @@
 #              does it. What you carried out of the house is yours to fence.
 #   comes due  Three days, and unpaid it breaks: the Company does not forget
 #              a job it promised a client and did not deliver
-#              (`reputation` against `honest_company`, the one faction
-#              data/world/factions.yaml declares).
+#              (`reputation` against `honest_company`).
 #
-# Version: v0.3.2 [2026-09-24]
+# THE SQUEEZES (v0.15, "a secret is a lever"). A premise's secret found at a
+# job's score is HELD once the job carries it out (a clean or noisy getaway):
+# engine/world/jobs.py sets the flag the `secret_held` predicate reads and
+# writes a `secret` ledger fact. Caught or aborted, the thief holds nothing --
+# the Watch, or the house, has it back. The lever is what the thief READ:
+# nothing physical reaches the pack, so no term promises to hand an object
+# back, only to keep what was read quiet. Each anchor's secret
+# names its squeeze (`thread:` on the secret row, data/premises/anchors/),
+# and the loader refuses a `thread:` whose `requires` does not read
+# `secret_held` for that secret. Every squeeze is a Blackmail:
+#   strike     Only where the person it squeezes is, awake and receiving
+#              (`at_location` and an `hour_between` read off
+#              data/world/npc_schedules.yaml), and only with their secret
+#              held. Struck once a run, like every template.
+#   discharge  Collecting: back to them, at the hour named in the terms, and
+#              they pay -- coin, or for the captain, looking away.
+#   comes due  Two days. Left uncollected, the one witness to the squeeze --
+#              its victim -- has had two days to think, and goes to the
+#              Watch: a `report` of the `blackmail` deed (law.yaml, severity
+#              3, measured there), filed at 1.0 in the victim's own
+#              jurisdiction, and their people's good opinion goes with it.
+#              Mother Gannet does not go to the Watch (nobody in the Snuffs
+#              does, law.yaml `reporters`); the Company remembers instead.
+#
+# The fees, against the v0.14 cost of living (CHANGELOG [0.14.0]: an honest
+# day clears ~2.4 cr and keeps ~0.2; a careful job fetches 7-10 at a fence;
+# Brask's bribe is 12, Gannet's contract pays 15, the Watch's largest fine is
+# 30): Gannet 12 -- a bribe's worth, and it costs the Company's goodwill the
+# moment it is struck (`on_seal`, -5: the guild bunk wants standing of 0 or
+# better, survival.yaml); Lady Imelda 20 -- what a client pays the Company
+# for a whole Silk Row job; Steward Quill 25 -- the most one authored beat may
+# pay in this story (the thread bounder clamps gold there, and a template
+# written above it would be cut without a word at the table), for the
+# hardest house in the city (the Treasury is carried out on 20% of prepped
+# runs, data/rules/jobs.yaml). Captain Ardane pays in the one coin
+# she has that nobody else does: every file on you, city-wide.
+#
+# THE FENCES' CREDIT (v0.15). Both fences will stand a thief a few crowns
+# against what the thief will owe them -- a `Credit` thread, struck only at
+# the fence's own counter (`at_location` and the hours her schedule has her
+# trading there, data/world/npc_schedules.yaml), and `repeatable: true`: paid
+# off, it is offered again; while one is open, it is not.
+#   Pell Hollis's advance (`pell_advance`), in Wickmarket: ten crowns across
+#              the counter, thirteen back inside three days.
+#   Marrow's slate (`marrow_slate`), in the Snuffs: smaller and dearer --
+#              five crowns, eight back inside two.
+#   discharge  At her counter again, in her hours, with the crowns in hand.
+#              IN COIN, NOT GOODS. The brief asked for an advance "against
+#              goods of a stated worth", but nothing in the condition grammar
+#              can say "carrying hot goods worth V" and no effect can hand
+#              over unnamed goods, so the debt is counted in crowns and the
+#              interest is the price: 30% for Pell over three days, 60% for
+#              Marrow over two. Selling her the goods is how most thieves
+#              raise it anyway.
+#   comes due  Left unpaid (or broken early), it breaks, and the word goes
+#              round the fences: NEITHER buys from you (`refuses_to_buy` on
+#              both trade profiles reads either break flag; their shelves stay
+#              open) and neither credit template is offered while either flag
+#              is set. And from that night her collectors walk the streets
+#              after dark for you -- `pells_collectors` / `marrows_lads`,
+#              data/encounters/streets.yaml, gated on the flag: they take coin
+#              on account, chase you or hurt you (never more than three hp),
+#              and paying them the whole debt clears the flag and opens the
+#              fences again. Pell's stallholder neighbours hear it too
+#              (`market_stalls`, "they talk"). The break's `broken_text` is
+#              the narrator's line for it, told once.
+#
+# EVERY THREAD HERE WITH AN `on_break` CARRIES A `broken_text` (asserted in
+# tests/test_hue_and_cry.py): a break that files a report, costs standing or
+# sends collectors is told to the narrator once, in these words, whether it
+# came due or was broken early -- so each is worded true for either.
+#
+# MEASURED against the v0.14 cost of living (scripts/simulate_labour.py
+# `careful_pell`/`careful_marrow` and their `--no-credit` controls, 40 seeds;
+# the table is in CHANGELOG). Counted in DAYS fed and roofed per run:
+#   - A careful pickpocket (purses only, ~1.4 cr a day) keeps 0.7 over 10
+#     days and 1.0 over 20.
+#   - On Pell's advance it keeps 5.4 and 5.8, a gain of +4.7 and +4.8.
+#   - On Marrow's slate it keeps 3.1 and 3.4, a gain of +2.4 at both lengths.
+#   - 93-95% of those lines break.
+# So WELSHING STILL BEATS NEVER BORROWING, and the teeth do not erode the
+# gain: the ten crowns of bread are eaten in the first week, and after that
+# the welsher's days look like its control's.
+# What it costs: no fence buys from it (about 0.15-0.19 cr a day), neither
+# lends again, and the collectors find it about once in ten days and 1.2-1.3
+# times in twenty, by night and (fix round 2) by day in the fences' own
+# districts. They rarely find much on it.
+# It is never a living: 5.8 kept days in 20 against an honest porter's 18.4.
+# Credit carries a thief to a job; it does not replace one.
+#
+# SECRECY. Lady Imelda is one of the three people the seed may make the
+# Magpie. Her squeeze turns on her BUTLER's memoir -- a scandal of her
+# household, about the rest of the Row -- and on nothing that says she is,
+# or is not, the Magpie (asserted in tests/test_hue_and_cry.py). The
+# captain's squeeze names the Magpie only as the Watch's belief about YOU.
+#
+# Version: v0.5.3 [2026-09-26]
 
 version: 1
 
 tags:
   - Bribe
   - Contract
+  - Blackmail
+  - Credit
 
 templates:
 
@@ -76,9 +174,22 @@ templates:
       tomorrow, and certain papers about you go the way of all paper.
     due_in_days: 2
     # Struck at his desk in the Lantern House, nowhere else: a sergeant's
-    # price is not shouted across the city.
-    requires: { at_location: lantern_house }
-    discharge_requires: { min_gold: 12 }
+    # price is not shouted across the city. And only while the Wick's drawer
+    # holds something against you -- or against the Magpie, whom the watch
+    # takes for you (`linked`): a clean record has nothing for him to lose.
+    # `filed` reads the rows exactly as the quash below matches them.
+    requires:
+      all:
+        - { at_location: lantern_house }
+        - { filed: { jurisdiction: wick, guise: self, linked: true } }
+    # Paid only while there is still something for him to lose: the same
+    # `filed` clause as `requires`. If the file goes before payday (the
+    # captain's squeeze quashes it, say), the price cannot be paid for
+    # nothing; the thread comes due and, having no on_break, ends quietly.
+    discharge_requires:
+      all:
+        - { min_gold: 12 }
+        - { filed: { jurisdiction: wick, guise: self, linked: true } }
     on_discharge:
       - { type: gold, delta: -12 }
       # The Wick's files only: Brask is the Wick's sergeant, not the city's.
@@ -111,3 +222,237 @@ templates:
       - { type: gold, delta: 15 }                # twenty, less the Company's five
     on_break:
       - { type: reputation, faction: honest_company, delta: -10 }
+    broken_text: >-
+      Mother Gannet's Silk Row job was never done. The Company promised a
+      client, and the Company does not forget who let it down: the Porters'
+      Hall is cooler to you now.
+
+  # -- the squeezes (v0.15) -------------------------------------------------
+
+  vessaline_memoir:
+    title: "The butler's memoir"
+    source: npc_imelda
+    tags: [Blackmail]
+    terms: >-
+      Twenty crowns from Lady Imelda's own purse, handed over at the
+      silversmith's window on Silk Row of a late afternoon, inside two days --
+      and what you read in her butler's writing-case stays with you, with
+      nobody else on the Row any the wiser about what he has written of them.
+    due_in_days: 2
+    # In her parlour of a morning or at the silversmith's window of an
+    # afternoon (npc_schedules.yaml): never at the Temple, the Margrave's
+    # table or her bedroom door.
+    requires:
+      all:
+        - { at_location: silk_row }
+        - any: [{ hour_between: [9, 13] }, { hour_between: [16, 19] }]
+        - { secret_held: { premise: prem_vessaline_manor, secret: butlers_memoir } }
+    discharge_requires:
+      all:
+        - { at_location: silk_row }
+        - { hour_between: [16, 19] }
+    on_discharge:
+      - { type: gold, delta: 20 }
+    on_break:
+      - { type: report, deed: blackmail, guise: self, jurisdiction: rise, precision: 1.0 }
+      - { type: reputation, faction: silk_row, delta: -10, why: "squeezed Lady Imelda over her butler's memoir" }
+    # Her butler's memoir, and nothing else (the SECRECY note above).
+    broken_text: >-
+      You never went back to the silversmith's window, and Lady Imelda has had
+      time to think about her butler's memoir. She has sworn to the Watch up
+      the Rise that you tried to squeeze her, and Silk Row has shut its doors
+      to you.
+
+  gannet_ious:
+    title: "The strike fund's IOUs"
+    source: npc_gannet
+    tags: [Blackmail]
+    terms: >-
+      Twelve crowns out of the strike fund's honest third, counted out at the
+      long table in the Porters' Hall, inside two days -- and the treasurer's
+      IOUs stay something only you, Mother Gannet and the treasurer know
+      about. She will pay. She will also knit, and remember who asked.
+    due_in_days: 2
+    # Awake in the Hall: the accounts from noon, court until the small hours.
+    requires:
+      all:
+        - { at_location: the_snuffs }
+        - { hour_between: [12, 4] }
+        - { secret_held: { premise: prem_gannets_house, secret: fund_of_ious } }
+    discharge_requires:
+      all:
+        - { at_location: the_snuffs }
+        - { hour_between: [12, 4] }
+    # Dangerous from the moment it is struck: nobody squeezes the Company's
+    # head and stays in its good books.
+    on_seal:
+      - { type: reputation, faction: honest_company, delta: -5, why: "put the squeeze on Mother Gannet" }
+    on_discharge:
+      - { type: gold, delta: 12 }
+    on_break:
+      - { type: reputation, faction: honest_company, delta: -10, why: "left a squeeze on Mother Gannet hanging" }
+    broken_text: >-
+      You left your squeeze on Mother Gannet hanging. She has not gone to the
+      Watch -- nobody in the Snuffs does -- but she has knitted your name into
+      the Company's list of the people who let it down.
+
+  ardane_magpie_file:
+    title: "The captain's own file"
+    source: npc_ardane
+    tags: [Blackmail]
+    terms: >-
+      The captain looks the other way. Every file the Watch holds on you --
+      and on the Magpie, whom the Watch takes for you -- goes missing from
+      all three watch-houses, and what you read in her own Magpie file is
+      never repeated to anybody. In her office, inside two days.
+    due_in_days: 2
+    # At the tall desk of a morning or in her office of an evening
+    # (npc_schedules.yaml), and only while the Watch holds something on you
+    # anywhere: a clean record has nothing for her to lose (Brask's gate, and
+    # the reason -- `filed` names one jurisdiction, so all three are asked).
+    requires:
+      all:
+        - { at_location: lantern_house }
+        - any: [{ hour_between: [6, 13] }, { hour_between: [18, 23] }]
+        - { secret_held: { premise: prem_captains_office, secret: magpie_file } }
+        - any:
+            - { filed: { jurisdiction: wick, guise: self, linked: true } }
+            - { filed: { jurisdiction: quay, guise: self, linked: true } }
+            - { filed: { jurisdiction: rise, guise: self, linked: true } }
+    discharge_requires:
+      all:
+        - { at_location: lantern_house }
+        - any: [{ hour_between: [6, 13] }, { hour_between: [18, 23] }]
+    # Her jurisdiction is the whole Watch: four sworn officers, a sergeant and
+    # every lamp answer to her (factions.yaml `lantern_watch`), where Brask's
+    # drawer is only the Wick's. So no `jurisdiction`: all three watch-houses.
+    # `linked`, as Brask's: your file and the Magpie's are one file to her.
+    on_discharge:
+      - { type: quash_reports, guise: self, linked: true }
+    on_break:
+      - { type: report, deed: blackmail, guise: self, jurisdiction: wick, precision: 1.0 }
+      - { type: reputation, faction: lantern_watch, delta: -10, why: "tried to squeeze the captain" }
+    broken_text: >-
+      You never went back to the captain's office, and Captain Ardane did not
+      wait to be squeezed: she has sworn out a charge of blackmail against you
+      at the Lantern House herself, and every Lantern of the Watch in the Wick
+      wards has been told your face.
+
+  quill_light_crowns:
+    title: "The mint-master's ledger"
+    source: npc_steward_quill
+    tags: [Blackmail]
+    terms: >-
+      Twenty-five crowns in a plain purse from the steward's table on the terrace,
+      inside two days -- and the mint-master's ledger is never mentioned
+      again, to the Margrave or to anybody.
+    due_in_days: 2
+    # At the steward's table on the terrace, receiving (npc_schedules.yaml).
+    requires:
+      all:
+        - { at_location: margraves_hill }
+        - { hour_between: [13, 22] }
+        - { secret_held: { premise: prem_margraves_treasury, secret: light_crowns } }
+    discharge_requires:
+      all:
+        - { at_location: margraves_hill }
+        - { hour_between: [13, 22] }
+    on_discharge:
+      - { type: gold, delta: 25 }
+    on_break:
+      - { type: report, deed: blackmail, guise: self, jurisdiction: rise, precision: 1.0 }
+      - { type: reputation, faction: margraves_household, delta: -10, why: "squeezed the Margrave's steward" }
+    broken_text: >-
+      You never collected from Steward Quill, and he went to the Watch up the
+      Rise before you could: he has sworn that you tried to squeeze the
+      Margrave's household, and the Hill's servants have been given your
+      description.
+
+  # -- the fences' credit (v0.15) ---------------------------------------------
+
+  pell_advance:
+    title: "Pell Hollis's advance"
+    source: npc_pell_hollis
+    tags: [Credit]
+    repeatable: true
+    terms: >-
+      Ten crowns across the counter now, and thirteen back across it inside
+      three days -- in coin; sell her what you like in the meantime, but the
+      debt is counted in crowns. She writes it in a very small book.
+    due_in_days: 3
+    # At her counter in Wickmarket while she is trading (08:00 to 23:00,
+    # npc_schedules.yaml), and never to anyone either fence has heard of.
+    requires:
+      all:
+        - { at_location: wickmarket }
+        - { hour_between: [8, 23] }
+      none:
+        - { flag: welshed_on_pell }
+        - { flag: welshed_on_marrow }
+    # When the `none:` above is what shuts it, say so (threads.strike_refusal).
+    refusals:
+      - when: { any: [{ flag: welshed_on_pell }, { flag: welshed_on_marrow }] }
+        text: "no fence stands credit to a known welsher -- not until the debt is paid"
+    on_seal:
+      - { type: gold, delta: 10 }
+    discharge_requires:
+      all:
+        - { at_location: wickmarket }
+        - { hour_between: [8, 23] }
+        - { min_gold: 13 }
+    on_discharge:
+      - { type: gold, delta: -13 }
+    on_break:
+      - { type: flag, flag: welshed_on_pell }
+      - { type: reputation, faction: market_stalls, delta: -5, why: "welshed on Pell Hollis's advance" }
+    # And from tonight her collectors walk the streets for you: the
+    # `pells_collectors` scene (data/encounters/streets.yaml), which the flag
+    # above opens and paying them in full closes.
+    broken_text: >-
+      You welshed on Pell Hollis's advance. She has put your name in her
+      small book and your description in the hands of two cousins from the
+      Quay, who will be waiting on the streets after dark -- and by day in
+      Wickmarket and the Snuffs -- until she has her thirteen crowns. No fence in Tallowmere will buy from you or stand you a
+      crown now; the word has gone round.
+
+  marrow_slate:
+    title: "Marrow's slate"
+    source: npc_marrow
+    tags: [Credit]
+    repeatable: true
+    terms: >-
+      Five crowns off Marrow's slate now, and eight back into the yard inside
+      two days, in coin. Marrow chalks it on the gatepost where everybody can
+      see it, which is the point.
+    due_in_days: 2
+    # In the rag-and-bone yard while Marrow is sorting (17:00 to 01:00).
+    requires:
+      all:
+        - { at_location: the_snuffs }
+        - { hour_between: [17, 1] }
+      none:
+        - { flag: welshed_on_pell }
+        - { flag: welshed_on_marrow }
+    # When the `none:` above is what shuts it, say so (threads.strike_refusal).
+    refusals:
+      - when: { any: [{ flag: welshed_on_pell }, { flag: welshed_on_marrow }] }
+        text: "no fence stands credit to a known welsher -- not until the debt is paid"
+    on_seal:
+      - { type: gold, delta: 5 }
+    discharge_requires:
+      all:
+        - { at_location: the_snuffs }
+        - { hour_between: [17, 1] }
+        - { min_gold: 8 }
+    on_discharge:
+      - { type: gold, delta: -8 }
+    on_break:
+      - { type: flag, flag: welshed_on_marrow }
+    # Marrow's lads walk the streets for you after dark (`marrows_lads`,
+    # data/encounters/streets.yaml) until the eight crowns are paid.
+    broken_text: >-
+      You welshed on Marrow's slate, and your name is chalked on the gatepost
+      for all the Snuffs to read. Marrow's lads will be looking for you on the
+      streets after dark -- and by day in the Snuffs and Wickmarket -- until
+      the eight crowns are paid. No fence in Tallowmere will buy from you or stand you a
+      crown now; the word has gone round.

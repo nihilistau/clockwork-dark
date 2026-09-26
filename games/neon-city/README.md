@@ -31,15 +31,16 @@ three declared systems the flagship does not use —
 **No doom clock** — `world.evil_base_rate_per_day: 0.0`; the pressure is
 heat, debt, the weather and the file.
 
+**Its own UI plugin** — `ui.plugin: neon-city` (`ui/src/stories/neon-city/`):
+black canvas, a #06b6d4 scene accent, gold mono prices and the heat ladder
+as chrome (BIBLE.md §7.4). It borrowed the Garden's skin until that landed.
+
 ## What is deliberately not here yet
 
 - **Art pack**: `data/art/manifest.yaml` maps nothing; the procedural
   silhouette carries the story. `data/art/subjects.yaml` is the complete
   brief (both prompt dialects) for the batch render, and
   `scripts/art_missing.py --game neon-city` writes the gap list.
-- **Bespoke UI plugin**: the manifest borrows the Garden's skin
-  (`ui.plugin: wicked-garden`); the NeonCity look (black canvas, #06b6d4,
-  gold mono prices) is a later phase.
 - **Balance measurements**: `scripts/simulate.py` refuses non-flagship graph
   stories (its five policies walk Edgewood by design), so this story's
   economy and clock numbers are UNMEASURED — they are the bible's canon

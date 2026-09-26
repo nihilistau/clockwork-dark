@@ -1,8 +1,10 @@
 # HUE & CRY -- what the streets drop.
 #
 # Read by engine/game/inventory.py through `paths.items` (every *.yaml in this
-# directory merges into one registry). Everything here is found, not bought:
-# data/tables/forage.yaml draws it when a thief scrounges a street. The rest
+# directory merges into one registry). Everything here is found before it is
+# bought: data/tables/forage.yaml draws it when a thief scrounges a street
+# (since v0.15 the fences also sell the wire, the saltpetre and the rags to a
+# thief with no time to look -- data/economy.yaml). The rest
 # of what scrounging turns up is already in the registry -- a heel of bread
 # (food.yaml), a brass button, a pawn ticket, a silver thimble, a bundle of
 # beeswax tapers (goods.yaml).
@@ -13,7 +15,7 @@
 # these is worth exactly one crown and no more -- the forage table's weights,
 # not these values, decide how much a day of it earns (measured there).
 #
-# Version: v0.1.0 [2026-09-25]
+# Version: v0.1.1 [2026-09-26]
 
 version: 1
 
@@ -48,5 +50,31 @@ items:
       stallholder decided it was not worth bending down for. It is, just.
     tags: [food]
     weight: 0.2
+    value: 1
+    stack: true
+
+  # The Snuffs' own middens (v0.15, data/tables/forage.yaml `tenements`):
+  # both feed the Porters' Hall bench (data/recipes/workshop.yaml), and both
+  # sell at the same one-crown floor as everything else in this file.
+
+  - id: bent_wire
+    name: "Bent Wire"
+    description: >-
+      A hank of stiff wire off a broken crate-binding or a birdcage nobody
+      wanted. Straightened, filed and bent again it makes a rake and a
+      tension bar; left as it is, it makes a mess of your fingers.
+    tags: [goods, metal]
+    weight: 0.05
+    value: 1
+    stack: true
+
+  - id: saltpetre
+    name: "Twist of Saltpetre"
+    description: >-
+      White crust scraped off a midden wall into a twist of paper. The
+      pork-curers pay for it by the pound; a pellet-roller pays for it by the
+      pinch, and asks for it quietly.
+    tags: [goods]
+    weight: 0.05
     value: 1
     stack: true

@@ -118,7 +118,7 @@ SELECTOR_KEYS: dict[str, frozenset[str]] = {
 #: Where a trace may be left, besides a location id.
 TRACE_WHERES = ("target", "owner")
 #: Predicates that read the Law, and so need one declared.
-LAW_PREDICATES = frozenset({"wanted", "reported_to", "in_custody"})
+LAW_PREDICATES = frozenset({"wanted", "reported_to", "in_custody", "filed"})
 #: Predicates that need a StoryLedger in scope. The agendas pass runs inside
 #: ``advance_time``, which holds none, so each would be False forever there.
 LEDGER_PREDICATES = frozenset({"disposition"})
@@ -249,6 +249,13 @@ def _check_condition(path: Path, where: str, node: Any, ctx: dict[str, Any]) -> 
             npc = str(body.get("npc") or "")
             if npc not in ctx["npcs"]:
                 raise _fail(path, f"{where}: `reported_to.npc` `{npc}` is not a scheduled NPC")
+            if body.get("guise") and str(body["guise"]) not in ctx["law"]["guises"]:
+                raise _fail(path, f"{where}: unknown guise `{body['guise']}`")
+        elif name == "filed":
+            jurisdiction = str(body.get("jurisdiction") or "")
+            if jurisdiction not in ctx["law"]["jurisdictions"]:
+                raise _fail(path, f"{where}: `filed.jurisdiction` `{jurisdiction}` is not a "
+                                  "jurisdiction")
             if body.get("guise") and str(body["guise"]) not in ctx["law"]["guises"]:
                 raise _fail(path, f"{where}: unknown guise `{body['guise']}`")
         elif name == "agenda_hit":

@@ -18,7 +18,7 @@
 # points at the rest of the Row -- static content must not hand her a motive
 # (debt, grudge, need) in every seed when the seed is what picks the thief.
 #
-# Version: v0.1.1 [2026-09-25]
+# Version: v0.1.2 [2026-09-26]
 
 id: vessaline_manor
 label: "manor"
@@ -49,7 +49,11 @@ security:
   - { id: barred_from_within, text: "every shutter on the street side barred from within at dusk, by the butler, personally" }
   - { id: yapping_pug, text: "a pug called Admiral who yaps at everything, including the moon, the butler and his own tail" }
 
-loot: [vessaline_girandoles, silver_hand_mirror, pearl_earrings, gilt_candelabrum]
+# The Nightingale Comb (v0.15, the Magpie's Hoard) is here as a thing STOLEN
+# FROM this house and returned by the Watch -- the Vessalines are the
+# Magpie's victims in its text, exactly as every other house is, and it says
+# nothing about who took it (see the paragraph above).
+loot: [vessaline_girandoles, silver_hand_mirror, pearl_earrings, gilt_candelabrum, nightingale_comb]
 
 secrets:
-  - { id: butlers_memoir, text: "the butler's memoir of forty years in service on Silk Row, in a locked writing-case, in which every family on the Row appears under a transparent false name -- except the Vessalines, who do not appear at all" }
+  - { id: butlers_memoir, text: "the butler's memoir of forty years in service on Silk Row, in a locked writing-case, in which every family on the Row appears under a transparent false name -- except the Vessalines, who do not appear at all", thread: vessaline_memoir }
