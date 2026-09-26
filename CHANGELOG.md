@@ -14,6 +14,23 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.14.1] — 2026-09-26
+
+A documentation release: the GitHub README, rewritten. No engine, content or
+client change.
+
+### Changed
+
+- **README.md** now leads with what the engine is (a deterministic engine
+  that resolves, local models that narrate) and shows it: a table of the six
+  stories and what sets each apart, the systems grouped by what they do, a
+  turn-loop diagram, getting started kept to what `launcher.py` and
+  `scripts/start.ps1` actually do, and the roadmap to v1.0.0 in the owner's
+  order, every item there marked planned.
+- **docs/images/** adds 13 images (952 KB): 11 captures of the running UI
+  (opening screens, maps, one deck card -- taken with no model server, so no
+  generated narration is shown) and two montages of committed art plates.
+
 ## [0.14.0] — 2026-09-26
 
 **HUE & CRY: the living city**, the second of the v1.0 stages. Tallowmere
@@ -2392,7 +2409,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.14.1...HEAD
+[0.14.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.11.0...v0.12.0

@@ -10,7 +10,7 @@ release to release.
 
 ## Status
 
-**v0.14.0** is the current release (CHANGELOG.md has every release since 0.4.0).
+**v0.14.1** is the current release (CHANGELOG.md has every release since 0.4.0); it is v0.14.0 plus the rewritten README.
 
 **3030 passing, 4 skipped in 13m15s**, no expected failures (measured
 2026-09-26, v0.14.0 release; the fourth skip is the stamina soft-lock test,
