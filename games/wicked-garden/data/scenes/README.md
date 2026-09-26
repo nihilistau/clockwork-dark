@@ -15,7 +15,7 @@ for every id, `games/wicked-garden/state.yaml` for every value and clock.
 ## The shape is a deck
 
 Every file is a **deck** in the exact grammar `engine/content/deck.py` already
-parses, the same one `data/rules/decks/thorn_labyrinth.yaml` is written in.
+parses, the same one the labyrinth's `thorn_labyrinth.yaml`, beside them, is written in.
 There is no second format and no new loader:
 
 | Key | Meaning |
@@ -104,9 +104,9 @@ tool call, not an effect.
 
 ## Wiring
 
-Four things in this list were unwired when these files were authored. All four
-are wired now, and they are recorded here rather than deleted because each was a
-different way for authored content to be invisible.
+Every item in this list was unwired when these files were authored. All of
+them are wired now, and they are recorded here rather than deleted because each
+was a different way for authored content to be invisible.
 
 1. **This directory is what `paths.decks` names.** It briefly was not:
    `game.yaml` pointed at `data/rules/decks`, so these ten files parsed,
@@ -162,4 +162,9 @@ Stated plainly, per AGENTS.md rule 9.
 
 1. **Six of the fourteen locations have no art plate**, including the entry
    `mortal_threshold`, so the opening screen draws a procedural placeholder.
-   The generation prompts are in `MISSING-PLATES.md`.
+   The generation prompts are in `../art/MISSING-PLATES.md`.
+2. **Some endings are never reached.** `scripts/simulate_decks.py --game
+   wicked-garden` (measured 2026-09-26) never reaches 7 of the 23 endings in
+   1000 runs -- E2b, E2c, E3a, E3b, E3c, E4d, E5a -- and 9 in 200. Every card
+   is dealt; no card is an orphan.
+3. **`day_09_finale` is dealt twice** (recorded in CLAUDE.md's deferred list).

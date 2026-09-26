@@ -56,8 +56,7 @@
 # * The ending gallery (concept/gallery/endings/**, 36 files). There is no
 #   ending-gallery screen and no `art:` field on an ending in
 #   data/rules/endings.yaml, so nothing could render them.
-# * The intimate set (concept/scenes/intimate/int-*.jpg). Outside the
-#   `safety.intensity.ceiling: suggestive` this story is authored to.
+# * The intimate set (concept/scenes/intimate/int-*.jpg). Nothing maps it.
 #   `env-boudoir-rumpled-empty.jpg` is from that folder and IS imported: it is
 #   an empty room with no figure in it.
 #

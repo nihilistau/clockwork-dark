@@ -13,8 +13,8 @@
 # where she explains it. DAY-00:261 says "always by end of P6", and a fact the
 # player needs at Day 8 must not depend on which of four things they said.
 #
-# Content ceiling: suggestive. The night-0 heat variant the design specifies is
-# left as a marked hook, not written.
+# The night-0 heat variant the design specifies is left as a marked hook, not
+# written.
 #
 # Version: v0.1.0 [2026-08-08]
 
@@ -329,7 +329,7 @@ cards:
       dream is the mortal kitchen going wrong and a rose on the pillow with no
       thorns, which is worse. Invited, she sits at the edge of the bed and maps
       your face with a gaze that feels like hands.
-      CEILING: suggestive. Heat without claim. She stops, and says she is
+      Heat without claim. She stops, and says she is
       stopping, and means both the mercy and the leash.
       MENU -- resolve exactly the beat that matches `invited_sophia_night0`.
     beats:
@@ -357,11 +357,10 @@ cards:
               - { type: value, name: autonomy, delta: -3 }
 
       # EXPLICIT VARIANT: not authored.
-      # DAY-00:304 specifies an N0-Heat branch at intensity Explicit+, setting
-      # `night0_intimate` and moving Favor/Desire/Corruption/Autonomy harder.
-      # This content is authored to the `suggestive` ceiling declared in
-      # game.yaml; the beat is deliberately absent rather than stubbed, because
-      # a stub that resolves is content and this is not.
+      # DAY-00:304 specifies an N0-Heat branch setting `night0_intimate` and
+      # moving Favor/Desire/Corruption/Autonomy harder. The beat is deliberately
+      # absent rather than stubbed, because a stub that resolves is content and
+      # this is not.
 
   - id: day0_toll
     required: true

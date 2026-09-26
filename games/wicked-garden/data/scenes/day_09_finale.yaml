@@ -174,9 +174,9 @@ cards:
     text: >-
       INTENT: run ONE crisis, chosen by what is still live rather than by taste.
       Every major NPC may cameo one line even when they are not the crisis.
-      CONSTRAINT: collision priority, in order -- product safety and fade;
-      ending-lock consistency; unpaid rival debt; Briar hunger at maximum; her
-      emotional climax; cosmetic court colour. If two apply, the higher one is
+      CONSTRAINT: collision priority, in order -- ending-lock consistency;
+      unpaid rival debt; Briar hunger at maximum; her emotional climax;
+      cosmetic court colour. If two apply, the higher one is
       the scene and the lower one is a line.
       VERBS available to the player: convince, defy, submit, bargain, invoke
       law, call gift, sacrifice item, silence.
@@ -184,7 +184,7 @@ cards:
     beats:
       - id: the_vale_claims_his_debt
         text: >-
-          Highest priority after safety and consistency. He collects mid-ending,
+          Highest priority after consistency. He collects mid-ending,
           in front of whoever is there, and an E1 attempt with an unpaid service
           may be hijacked toward E6a or E1b. Discharge, break or renegotiate
           through the thread tool -- the outcome is the thread's, not this
@@ -405,9 +405,7 @@ cards:
       are ordinary beats in the same grammar and there was never a reason for
       them to be a second one. It takes no id, because which three these are was
       decided by F3's lock. It runs once.
-      CONSTRAINT: intensity stays suggestive except inside an E2 or E3 intimacy
-      seal where the player has raised it, and this content ships none of those.
-      Sophia owns her own monologues and her intimate seals; the GM owns world
+      CONSTRAINT: Sophia owns her own monologues and her intimate seals; the GM owns world
       physics, the Vale, the roots and the mortal card.
     beats:
       - id: run_the_locked_module
@@ -433,8 +431,7 @@ cards:
       days times ten -- and the numbers come from state, never from the card.
       CONSTRAINT: past a hundred mortal days the hollow clause is injected into
       any E1 or E2 mortal card. Even this ending cannot give back the years the
-      hourglass already ate. Epilogues stay SUGGESTIVE even on an Explicit
-      campaign; they are a fade-forward summary.
+      hourglass already ate. Epilogues are a summary, not a scene.
     beats:
       - id: the_toll_is_charged_first
         text: >-

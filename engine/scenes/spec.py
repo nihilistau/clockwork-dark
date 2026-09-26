@@ -11,8 +11,8 @@ A story declares this at the TOP LEVEL of its ``games/<slug>/game.yaml``::
       blueprint: games.tide_and_bell.api:story_blueprint   # optional
       name: tide-and-bell                             # optional; picks scene.<name>.*
 
-Top level, not under ``settings:``, for the same reason ``phase_names:`` and
-``safety:`` are: the manifest keeps unknown top-level keys verbatim in
+Top level, not under ``settings:``, for the same reason ``phase_names:`` is:
+the manifest keeps unknown top-level keys verbatim in
 ``extras``, so a story's scene never becomes a config value that a stale
 ``config/local.yaml`` could silently move. (``settings.scene.*`` is refused
 outright -- see ``SETTING_REFUSALS`` -- because bind host and port belong to

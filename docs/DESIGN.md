@@ -142,7 +142,7 @@ player, so its arrival alone cannot be the Whisper gate — that would drag ever
 baker into the arc on a dice roll. What separates the two arcs is not that the
 trader came, it is that the player **listened** to him.
 
-24 quests, six per arc (`games/clockwork-dark/data/quests/<arc>/*.yaml`). Each arc is **valid**. The
+25 quests, six per arc and seven in `quiet_life` (`games/clockwork-dark/data/quests/<arc>/*.yaml`). Each arc is **valid**. The
 game never punishes the baker for baking.
 
 > **Caveat, measured.** Convergence's `min_phase: spreading` term is a timer, not
@@ -751,7 +751,7 @@ story, which is what makes a story with no plugin at all a playable client.
 ├──────────────┬──────────────────────────────┬───────────────┤
 │              │  Stage                        │               │
 │  Aside       │  Narrative log (streamed)     │  Ledger       │
-│              │  Fade card · Reasoning panel  │               │
+│              │  Reasoning panel              │               │
 │              │  Choices / compose + mic      │               │
 ├──────────────┴──────────────────────────────┴───────────────┤
 │  Day·Time   status   [story overlays]  [mute][saves][⚙][⏸]  │  ← chrome
@@ -830,7 +830,7 @@ division that matters most is the engine/story seam:
 
 | Tree | Owns | Rule |
 |------|------|------|
-| `engine/` | Every mechanism: clock, dice, effects, quests, encounters, memory, agents, safety, and the default scene server | Must never import from a story |
+| `engine/` | Every mechanism: clock, dice, effects, quests, encounters, memory, agents, and the default scene server | Must never import from a story |
 | `games/<slug>/` | One story: `game.yaml` (the manifest), `state.yaml` (declared values), `agents.yaml` (the roster), `prompts/`, `data/` | Declares what it ships; **an undeclared `paths.*` key resolves to nothing** |
 | `ui/src/core/` | The client shell: socket, reducer, screens, chrome | Must never import a story plugin |
 | `ui/src/stories/<plugin>/` | One story's look: theme and slots | May import `@core`; the direction is one-way |
@@ -1151,7 +1151,7 @@ trusting this line — it has been stale before.
 | **P3** | Vite + React UI: design tokens, socket store, components and screens; Jinja serves the built app; UI contract tests |
 | **P4 / P5** | Survival (hunger, rest, the stamina soft-lock fix); the 7-skill taxonomy, difficulty bands, itemised modifiers, degrees; `effects.py` single mutation dispatcher; archetypes → starting kit; `skill_check`/`dc_mod` contract removed |
 | **P6** | Encounters as contested scenes; edge `danger_dc` finally read; wounds; death rules |
-| **P7** | Quest engine — 24 quests across 4 awareness-gated arcs, engine-only stage predicates, `set_narrative_flag` as the model's one lever |
+| **P7** | Quest engine — 25 quests across 4 awareness-gated arcs, engine-only stage predicates, `set_narrative_flag` as the model's one lever |
 | **P8** | Media providers: shipped art pack → cache → live generation (off by default) → deterministic procedural SVG |
 | **P9** | Content pass: items registry, economy, recipes, art manifest, content-integrity tests |
 | **P10** | Cutscene and settings UI; `engine/stack.py`, `launcher.py --stack/--check` |

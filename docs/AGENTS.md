@@ -24,7 +24,7 @@ reconciled with the world's before either of them speaks.
 ## The shape
 
 ```
-input → safety → plans (per agent, private) → negotiate
+input → plans (per agent, private) → negotiate
       → commit (atomic) → narrate → choices → briefs
 ```
 
@@ -146,7 +146,7 @@ for any story declaring two or more agents.
 | Phase | What happens |
 |---|---|
 | Plan | Every declared agent proposes, concurrently, against the SAME pre-commit state and the same player action, seeing only what its knowledge scopes allow. `plan_schema()` is filled in per agent: `speaks_as` is enumerated to the voices it owns and `effects[].name` to the values it owns, so a claim it has no right to make is unsampleable rather than merely discouraged. |
-| Negotiate | Safety first and not reorderable, then voice ownership, then the story's rule table in declared order, then highest confidence. Every decision is recorded as a `Resolution` — a turn whose shape has an explanation. |
+| Negotiate | Voice ownership first and not reorderable, then the story's rule table in declared order, then highest confidence. Every decision is recorded as a `Resolution` — a turn whose shape has an explanation. |
 | Commit | Accepted effects applied ONCE, inside one `StateTransaction`, through `apply_effect` with `by=` set to the proposing agent. Half-applying would leave a state neither agent proposed and no rule produced. |
 | Narrate | Unchanged, except that `build_storyteller_messages(agreed_block=...)` hands the narrator what was settled. It reports the turn rather than re-deciding it, and a character's line goes in verbatim. |
 

@@ -24,13 +24,13 @@ function Kicker({ children }) {
     color: "var(--accent-brass)" }}>{children}</p>;
 }
 
-function Prompt({ children, neg }) {
+function Prompt({ children }) {
   return (
     <div style={{ marginTop: 10, padding: "8px 11px", borderRadius: "var(--radius-sm)",
       background: "rgba(0,0,0,.32)", border: "1px solid rgba(214,178,108,.14)" }}>
       <span style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: "10px",
         textTransform: "uppercase", letterSpacing: ".1em", color: "var(--accent-brass)", marginBottom: 3 }}>
-        {neg ? "negative" : "ComfyUI prompt"}
+        ComfyUI prompt
       </span>
       <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", lineHeight: 1.5,
         color: "rgba(214,206,184,.78)" }}>{children}</span>

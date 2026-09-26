@@ -2,8 +2,8 @@
 # Art subjects -- Dev Story.
 #
 # ONE source, TWO prompt dialects. `engine/media/art.py` renders natural prose
-# for Grok Imagine (`render_prose`) and comma-separated tags plus a negative for
-# ComfyUI SDXL (`render_tags`) from the same entry, so the two can never drift.
+# for Grok Imagine (`render_prose`) and comma-separated tags for ComfyUI SDXL
+# (`render_tags`) from the same entry, so the two can never drift.
 #
 # NOTHING HERE IS SHIPPED AS A PICTURE except the bedroom. This story copied
 # three scene plates and eight portraits from The Wicked Garden so it would have
@@ -43,12 +43,6 @@ style:
     palette, greys and warm beige, worn everyday surfaces, scuffed vinyl,
     fluorescent strip lighting, shallow depth of field, natural composition,
     unremarkable, no text, no watermark
-  negative: >-
-    child, teenager, youthful minor, childlike proportions, chibi, anime, manga,
-    cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines,
-    petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk,
-    sci-fi, text, lettering, watermark, logo, signature, blurry, low quality,
-    oversaturated, HDR, heroic pose
   loras:
     - {name: Photoreal_Interior, weight: 0.5}
 

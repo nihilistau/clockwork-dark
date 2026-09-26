@@ -12,14 +12,8 @@ Source of truth for every id, in this order:
 2. The design docs under `Design_files/Wicked-Garden/docs/design/`.
 3. The concept pack under `Design_files/Wicked-Garden/concept/`.
 
-Content is rated **explicit** — the ceiling and default declared in
-`game.yaml`. Atmosphere, tension, power and threat are the spine, and the
-narrator may take the marked hooks in the day chapters to the explicit
-register the run is set to. The player can lower the working intensity at any
-time from the Settings screen; lowering is always honoured, raising past the
-declared ceiling never is.
 Everyone depicted is an adult; the design says so repeatedly and so does this
-content, including in the negative prompt of `art/subjects.yaml`.
+content, including in the positive prompts of `art/subjects.yaml`.
 
 ---
 
@@ -226,8 +220,7 @@ composites.
 
 Also in the pack and unmapped by anything here: `player-silhouette-back.jpg`,
 seven scene composites, six UI mockups, the ending gallery (6 unlocked, 6
-locked, 6 silhouettes), and the intimate set. The last of those is outside this
-content's ceiling by design.
+locked, 6 silhouettes), and the intimate set.
 
 ---
 
@@ -248,7 +241,8 @@ the comment in `game.yaml` says DECLARE EVERYTHING THIS STORY SHIPS.
 
 A note on `world/schedules.yaml`: the three keys in it —
 `caravan_arrival`, `tinker_camp`, `militia_press` — are **hardcoded lookups**
-in `engine/world/schedules.py`, not names of this story's choosing. The Brass
-Coast renamed its three and, in doing so, wrote three event blocks the
-simulator can never find. This file uses the engine's names and puts the
-Garden's names in the comments.
+in `engine/world/schedules.py`, not names of this story's choosing; a file
+that renames them writes event blocks the simulator can never find. This file
+uses the engine's names and puts the Garden's names in the comments. (A story
+can also declare its own events in an `events:` block, which this one does
+not use.)

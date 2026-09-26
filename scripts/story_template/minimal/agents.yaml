@@ -51,9 +51,8 @@ agents:
 # How proposals are reconciled when the two disagree. First match wins, in
 # declared order. Intents must be ones plan.py accepts (narrate, speak,
 # interrupt, offer, withhold, silent) -- an unknown intent downgrades to
-# `silent` and the rule never matches. The engine's own two rules (safety
-# outranks everything; no agent speaks as a voice it does not own) run first
-# and are not reorderable from here.
+# `silent` and the rule never matches. The engine's own rule (no agent speaks
+# as a voice it does not own) runs first and is not reorderable from here.
 negotiation:
   # Alex finishes their sentence; the world's interruption becomes what
   # happens next instead of being thrown away.

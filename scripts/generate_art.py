@@ -186,7 +186,7 @@ def print_prompts(requests: list[ImageRequest]) -> None:
             time_of_day=request.time_of_day,
             evil_phase=request.evil_phase,
         )
-        positive, negative = render_tags(
+        tags = render_tags(
             request.subject_id,
             kind=request.kind,
             time_of_day=request.time_of_day,
@@ -197,8 +197,7 @@ def print_prompts(requests: list[ImageRequest]) -> None:
             f"({request.time_of_day}/{request.evil_phase})"
         )
         print(f"  grok    : {prose}")
-        print(f"  comfy + : {positive}")
-        print(f"  comfy - : {negative}")
+        print(f"  comfy   : {tags}")
 
 
 def missing(requests: list[ImageRequest]) -> list[ImageRequest]:

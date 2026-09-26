@@ -21,7 +21,7 @@ This system was built by reading the game's codebase and creative-direction docs
 | `content/scenes/clockwork/templates/clockwork.html` | The real DOM structure of the game scene. |
 | `content/scenes/clockwork/static/js/clockwork.js` | Socket.IO turn loop — narration append, choices, stats, assistant bubble, image-ready crossfade. |
 | `data/lore/*.md`, `data/economy.yaml`, `data/tables/*.yaml` | Voice, copy samples, item & NPC names. |
-| `data/procgen_templates/comfyui.yaml` | ComfyUI prompt templates, style suffix, negative prompt, cutscene captions. |
+| `data/procgen_templates/comfyui.yaml` | ComfyUI prompt templates, style suffix, cutscene captions. |
 
 No font binaries shipped in the repo. The brief names web families (EB Garamond, Source Sans 3, IBM Plex Mono, Nunito) over system fallbacks (Georgia, Segoe UI, Consolas, Trebuchet). **We load the web families from Google Fonts** — see Caveats.
 

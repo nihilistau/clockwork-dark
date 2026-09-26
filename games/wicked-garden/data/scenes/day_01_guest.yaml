@@ -16,7 +16,7 @@
 # in a flag cannot be cut, discharged, or broken, and all three of those are
 # scenes later.
 #
-# Content ceiling: suggestive. The night-1 heat variant is a marked hook.
+# The night-1 heat variant is a marked hook, not written.
 #
 # Version: v0.1.0 [2026-08-08]
 
@@ -420,7 +420,7 @@ cards:
 
       - id: invite_intimacy
         text: >-
-          Suggestive ceiling. Extended affection, warmth, entanglement; no
+          Extended affection, warmth, entanglement; no
           thrall, no ritual, no mark that was not already there.
         gate:
           on_pass:
@@ -431,9 +431,8 @@ cards:
               - { type: value, name: autonomy, delta: -4 }
 
       # EXPLICIT VARIANT: not authored.
-      # DAY-01:282 specifies N1-Heat at Explicit+, dominant-leaning claim-play
-      # without the thrall ritual, with harder deltas. Out of the ceiling this
-      # content is authored to.
+      # DAY-01:282 specifies N1-Heat, dominant-leaning claim-play without the
+      # thrall ritual, with harder deltas. Not written here.
 
   - id: D1_09_night
     required: true

@@ -10,11 +10,20 @@ stakes -- wry and affectionate, and the gallows are real.
 ```
 
 Design: `docs/superpowers/specs/2026-09-23-hue-and-cry-design.md` §6.
+What changed, release by release: [CHANGELOG.md](CHANGELOG.md).
 
-## What ships now: the skeleton
+It draws with the engine's default skin (`ui.plugin: _engine`) until v0.21.0's
+UI overhaul builds the wanted poster, job panel and casing board as engine
+panels. No art plates ship yet: `data/art/subjects.yaml` briefs 19 locations
+and 15 portraits, and `generate_art.py --game hue-and-cry` plans them.
 
-v0.9 builds four engine features on this story -- the Law, premises, heists,
-NPC agendas -- and v1.0 finishes it. What is here is the ground they stand on:
+## What ships now
+
+The story was built alongside four engine features -- premises (v0.9), the
+Law (v0.10), jobs and flashbacks (v0.11), agendas (v0.12) -- and is being
+finished as a run of point releases up to v1.0.0 (living city v0.14, guild
+economy v0.15; Acts I--III and the eight endings are v0.16--v0.17). Here is
+what is in it today:
 
 | What | Where |
 |---|---|
@@ -42,51 +51,67 @@ NPC agendas -- and v1.0 finishes it. What is here is the ground they stand on:
 | Somewhere to sleep (v0.14): a pallet at Old Nance's flophouse in the Snuffs (1 cr), a free bunk over the Porters' Hall for anyone the Honest Company has no quarrel with, a room at the Snuffed Wick or over the Tallow Barge (3 cr), the plank bench in the cells while you are held, and a rough night anywhere, always -- plus bread and eel pie from Dock Mag's basket and ship's biscuit at Hollis's. Hunger runs at 2 an hour, and every street now costs stamina | `data/rules/survival.yaml`, `data/items/food.yaml`, `data/economy.yaml` |
 | Scrounging and the secret ways (v0.14): two hours in the gutters of the docks, Wickmarket, the Snuffs, Gallows Green or Chandlers' Rise for bread, candle ends and the odd lost button -- and the hidden ways in: a drainpipe and a loading crane to the Rooftop Road, a yard grating to the Undercroft, the churchyard wall to the Old Bell Tower. The cells' drain reveals the Undercroft to anyone arrested; the Rooftop Road reveals the tower | `data/tables/forage.yaml`, `data/items/scrounge.yaml`, `data/procgen_templates/tallowmere.yaml`, `data/world/locations.yaml` |
 | Honest work and luck (v0.14): carry for Dock Mag's gang on the quay (mornings, a crown or two and the end of the loaf), dip candles at Marsh & Daughters on the Rise (mornings), run errands for the Wickmarket stalls (market hours), or go round the lamps with Wren at dusk -- each open only in the hours its employer keeps, posted on the notice board, two shifts a day. An honest day covers bread and a flophouse bed with a little over; thieving pays more. Natural 20s and 1s draw Tallowmere's luck: a dropped crown, a Lantern's blind eye, a pie across the counter, tallow on the step, a crown lighter, and a jackdaw with opinions | `data/tables/labour.yaml`, `data/tables/boons.yaml`, `data/tables/complications.yaml` |
-| Factions and the city's memory (v0.14): seven groups keep an opinion of you -- the Honest Company, the Lantern Watch, the Worshipful Company of Chandlers, the Wickmarket stallholders (each moved by honest work or a fight with a Lantern), and the Temple, the Margrave's household and the Silk Row houses (declared for the acts to come) -- and a lore corpus the narrator can draw on: the city, the Everflame, the Magpie's legend, the Watch, the Company, the Hanging Fair, the guilds, and the hidden city (the narrator's alone) | `data/world/factions.yaml`, `data/lore/*.md` |
+| Factions and the city's memory (v0.14): seven groups keep an opinion of you -- the Honest Company, the Lantern Watch, the Worshipful Company of Chandlers, the Wickmarket stallholders (each moved by honest work or a fight with a Lantern), the Margrave's household and the Silk Row houses (moved since v0.15 by a squeeze left uncollected), and the Temple of the Everflame (declared for the acts to come, moved by nothing yet) -- and a lore corpus the narrator can draw on: the city, the Everflame, the Magpie's legend, the Watch, the Company, the Hanging Fair, the guilds, and the hidden city (the narrator's alone) | `data/world/factions.yaml`, `data/lore/*.md` |
 | Mother Gannet's job: any house on Silk Row for the Honest Company, fifteen crowns net of its cut, three days to do it; left undone it costs the Company's good opinion | `data/rules/threads.yaml`, `data/world/factions.yaml` |
 
 ## What it deliberately does not ship yet
 
-No decks (the initiation, the interrogation and the fair-day decks are
-v0.16-v0.17), and none of the acts' story yet: the threads are Brask's
-bribe, Mother Gannet's job, the four squeezes and the two lines of credit,
-and completing the Magpie's Hoard sets a flag nothing reads until v0.17's
-The Legend. No
-`death.yaml` either: it waits for v0.17 and The Rope ending, so until then a
-lost fight can leave hp at zero with no respawn. Each is a later release's
-job, and `game.yaml` lists them.
-The graph template's stubs for these were removed rather than left in place --
-they described a mill and a hedge-berry wood.
+Each of these is a later release's job, and CLAUDE.md's "Deliberately
+deferred" list carries the engine-side rows:
+
+- **No decks.** The initiation, interrogation and fair-day decks are
+  v0.16--v0.17, with Acts I--II in v0.16; Act III and the eight endings
+  are v0.17. Until then the one ending is
+  `honest_after_all`.
+- **No `death.yaml`.** It waits for v0.17 and The Rope ending, so until then a
+  lost fight or hunger can leave hp at zero with no respawn.
+- **Flags nothing reads yet.** Completing the Magpie's Hoard sets
+  `magpies_hoard_complete`, read by nothing until v0.17's The Legend; the
+  agenda clocks' beats set flags only later scenes will read; and nothing
+  sets `magpie_unmasked`, so nothing ever says who the Magpie is.
+- **A generated house's secret opens no thread.** It is held when carried out
+  of a job; only the four anchors' secrets name a blackmail.
+- **Hired hands** (spec §4) are not built: a job is walked solo.
+- **No bespoke screens.** The Law and the job reach the client payload and the
+  prose; no panel draws them until v0.21.0.
+
+The threads that do ship are Brask's bribe, Mother Gannet's job, the four
+squeezes and the two lines of credit. The graph template's stubs were removed
+rather than left in place -- they described a mill and a hedge-berry wood.
 
 The ids above are pinned: later features read the districts, the fence ids
 (`npc_pell_hollis`, `npc_marrow`) and the watch roles by name.
 
 ## Balance
 
-The Law is measured: `scripts/simulate_law.py` plays a careful thief, a
-reckless one, and a briber -- the reckless thief answering every Lantern's
-stop with the bribe whenever its purse covers the price -- over 40 seeds x 10
-in-game days, and every number in `data/rules/law.yaml` was set against it (the table is in CHANGELOG.md;
-`tests/test_hue_and_cry.py` asserts the floors).
+Every HUE & CRY system is measured by its own headless harness, with no model,
+over 40 seeds of in-game days (AGENTS.md rule 10). None of them writes a
+save.
 
-Jobs are measured too: `scripts/simulate_jobs.py` plays four burglars over 40
-seeds -- `blind` (tier-1/2 houses, uncased, empty-handed, whenever, never
-walking away), `careful` (lockpicks, cases a house to two lines, goes in the
-hour nobody is home, spends its flashbacks, walks away from a roused house),
-`greedy` (the careful method with a smoke pellet, on a tier-3+ house and then
-the Treasury) and `greedy_bare` (the Treasury the blind way). Every number in
-`data/rules/jobs.yaml` was set against it; the table is in its header and in
-CHANGELOG.md, and `tests/test_hue_and_cry.py` asserts the bounds.
-Scrounging is measured: `scripts/simulate_scrounge.py` plays a thief who
-lives on it and one who does it mornings only, over 40 seeds x 10 days; the
-table is in `data/tables/forage.yaml`'s header and CHANGELOG.md, and
-`tests/test_hue_and_cry.py` bounds it (under a careful pickpocket's income,
-under a full day's food).
-The cost of living is measured: `scripts/simulate_labour.py` has an honest
-porter, a candle-dipper, the careful pickpocket and the scrounger each buy
-their own bread and bed over 40 seeds x 10 days; the table is in
-`data/tables/labour.yaml`'s header and CHANGELOG.md, and
-`tests/test_hue_and_cry.py` bounds it (an honest day keeps you most days with
-little over, and pays less than thieving).
-Everything else is unmeasured: `scripts/simulate.py`'s policies are
-flagship-owned.
+| Harness | Policies | Numbers set against it |
+|---|---|---|
+| `scripts/simulate_law.py` | `careful`, `reckless`, `briber` | `data/rules/law.yaml` |
+| `scripts/simulate_jobs.py` | `blind`, `careful`, `greedy`, `greedy_bare` | `data/rules/jobs.yaml` (table in its header) |
+| `scripts/simulate_agendas.py` | `idle`, `careful`, `reckless` | `data/rules/agendas.yaml`, `data/rules/clocks.yaml` |
+| `scripts/simulate_scrounge.py` | `scrounger`, `mornings` | `data/tables/forage.yaml` (table in its header) |
+| `scripts/simulate_labour.py` | `porter`, `dipper`, `careful`, `scrounger`, `careful_pell`, `careful_marrow` | `data/tables/labour.yaml` (table in its header) |
+| `scripts/simulate_streets.py` | `wanderer` | `data/encounters/rules.yaml`, `data/encounters/streets.yaml` |
+| `scripts/simulate_hoard.py` | `hoarder` | `data/tables/collections.yaml`, the squeezes in `data/rules/threads.yaml` |
+
+The law, jobs and agendas harnesses take `--set KEY=VALUE` to try a number
+without editing the file; every one takes `--json` for the raw table. The measured tables are in [the root
+CHANGELOG](../../CHANGELOG.md) under the release that set them (summarised in
+this story's [CHANGELOG.md](CHANGELOG.md)), and `tests/test_hue_and_cry.py`
+asserts the Law's floors and the jobs, scrounging and cost-of-living bounds.
+`scripts/simulate.py`'s policies are flagship-owned; a thief policy for it is
+v0.18.0.
+
+## Tests
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\test_hue_and_cry.py -q
+```
+
+`tests/test_hue_and_cry.py` holds the story's shape and its measured bounds;
+the story also has a row in every per-story test (`tests/test_finales.py`
+plays it to `honest_after_all`).

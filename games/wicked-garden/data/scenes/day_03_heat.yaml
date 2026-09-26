@@ -20,7 +20,7 @@
 # `ashen_route` moves by ONE here, to 1 (*aware*). Its per-beat ceiling is 1 and
 # the ladder is deliberate: aware today, bargained on Day 4, deep on Day 5.
 #
-# Content ceiling: suggestive. The Day 3 heat peak is a marked hook.
+# The Day 3 heat peak is a marked hook, not written.
 #
 # Version: v0.1.0 [2026-08-08]
 
@@ -144,11 +144,9 @@ cards:
     tags: [menu, sophia, intimate]
     title: "Wear What I Send"
     text: >-
-      INTENT: the safety card, disguised as a wardrobe scene. Intensity, fade
-      and limits are all still available and this is the last quiet moment to
-      say so without breaking tone.
-      SHE WANTS: to lace it herself. Suggestive: proximity, breath, hands that
-      take longer than they need to. If the player sets a boundary here and she
+      INTENT: a wardrobe scene, and the last quiet moment of the day.
+      SHE WANTS: to lace it herself. Proximity, breath, hands that take
+      longer than they need to. If the player sets a boundary here and she
       HONOURS it, that is a rare trust beat and it is worth more than the touch.
       MENU -- resolve exactly the beat the player chose, plus the iron beat if
       it applies.
@@ -171,7 +169,7 @@ cards:
 
       - id: let_her_lace_it
         text: >-
-          Suggestive. Her hands, the time she takes, the fact that she is
+          Her hands, the time she takes, the fact that she is
           enjoying being watched enjoying it.
         gate:
           on_pass:
@@ -461,11 +459,11 @@ cards:
       INTERROGATION INTIMACY, questions between touch, power on a knife edge.
       Neutral -> PROVING, she demands a clear yes or no and will accept either.
       Defied -> withheld, or brief and unkind.
-      CEILING: suggestive. Mouth at the throat, vine-light, verbal claim, sleep
+      Mouth at the throat, vine-light, verbal claim, sleep
       entangled. No thrall ritual -- that is Act II at the earliest, and the
       design is explicit.
       CONSTRAINT: refusal is valid play and must not be punished into
-      irrelevance. Fade is always available and sits above her.
+      irrelevance.
       MENU -- resolve exactly one beat.
     beats:
       - id: the_soft_peak
@@ -544,10 +542,10 @@ cards:
               - { type: value, name: equality_seed, delta: 1 }
 
       # EXPLICIT VARIANT: not authored.
-      # DAY-03:235 specifies the Explicit+ heat path, with a mid-scene
-      # negotiation beat above Autonomy 60 and harder deltas, setting
-      # `night3_intimate`. Out of the ceiling this content is authored to; the
-      # flag exists in the state dictionary and nothing here sets it.
+      # DAY-03:235 specifies a further heat path, with a mid-scene negotiation
+      # beat above Autonomy 60 and harder deltas, setting `night3_intimate`.
+      # Not written here; the flag exists in the state dictionary and nothing
+      # here sets it.
 
   - id: D3_09_act_one_seal
     required: true

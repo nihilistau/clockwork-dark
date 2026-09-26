@@ -10,10 +10,11 @@ release to release.
 
 ## Status
 
-**v0.15.0** is the current release (CHANGELOG.md has every release since 0.4.0).
+**v0.15.1** is the current release (v0.15.0 plus per-story changelogs and a docs cleanup; CHANGELOG.md has every release since 0.4.0;
+each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
-**3191 passing, 4 skipped in 17m32s**, no expected failures (measured
-2026-09-26, v0.15.0 release; the fourth skip is the stamina soft-lock test,
+**3201 passing, 5 skipped in 18m31s** (v0.15.1, measured in a fresh worktree, where the Design_files-only Garden test skips; a checkout holding the gitignored `Design_files/` runs it, so 4 skip there), no expected failures (measured
+2026-09-26, v0.15.1 release; one skip is the stamina soft-lock test,
 which covers only stories with no rest verb and now skips HUE & CRY too), plus **144 client tests** under `ui/tests/`
 (`npm test --prefix ui`; `vitest` is a devDependency, so
 `npm install --prefix ui` once first). Re-measure and restate these at every
@@ -54,7 +55,7 @@ only once the last of them lands:
 | v0.13.0 | Engine seams for HUE & CRY's finish: secret places, custody + jailbreak, forced/repeatable decks, a terminal death, the clarity word, `generate_art --game` | **shipped** |
 | v0.14.0 | Living city: survival, forage + Rooftop Road's hidden paths, labour, boons, night encounters, factions, city lore | **shipped** |
 | v0.15.0 | Guild economy: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | **shipped** |
-| v0.16.0 | Acts I–II: arcs, initiation deck, interrogation deck, the Magpie reveal, the alibi beat | next |
+| v0.16.0 | Acts I–II: arcs, initiation deck, interrogation deck, the Magpie reveal, the alibi beat | in progress |
 | v0.17.0 | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | queued |
 | v0.18.0 | `simulate.py`'s thief policy -- and re-measure welshing's cost for a burglar shut out of both fences (owner decision in v0.15) | queued |
 | v0.19.0 | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | queued |
@@ -72,6 +73,10 @@ instruction, 2026-09-26): status, features and roadmap each release; new
 screenshots after v0.21.0's UI overhaul; the backends (v0.19.0) and hosting
 (v0.20.0) documented when they land.
 
+Every change updates the docs it makes stale: the story's CHANGELOG/README,
+the root CHANGELOG/README, this file and AGENTS.md (AGENTS.md "Docs move with
+the change").
+
 Spec: [docs/superpowers/specs/2026-09-23-hue-and-cry-design.md](docs/superpowers/specs/2026-09-23-hue-and-cry-design.md).
 Plans live in `docs/superpowers/plans/`; each release is executed
 subagent-driven, one fresh subagent per task with review between (v0.14.0's
@@ -83,7 +88,10 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 
 - neon-city ships **zero** art plates against 75 subjects, its entry location
   included.
-- The Wicked Garden has 11 of 23 endings unreachable and 4 orphan cards.
+- The Wicked Garden's deck walker never reaches 7 of its 23 endings in 1000
+  runs (E2b, E2c, E3a, E3b, E3c, E4d, E5a; 9 in 200), and deals every card
+  (`scripts/simulate_decks.py --game wicked-garden`, measured 2026-09-26;
+  this line said "11 unreachable, 4 orphan cards" before).
 - `mortal_threshold`, the Garden's entry location, has no plate on purpose (it
   hosts the ten-card prologue), so a new player sees no scene art until the
   prologue ends.
@@ -133,11 +141,11 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   in-game hours (`jobs.now_hour` floors), so a stage of fractional hours can
   bring it up to an hour late.
 - The Magpie's reveal: `magpie_unmasked` (agendas.yaml's role mask) is set
-  by nothing in v0.12 -- the unmasking is v1.0 content (the interrogation
-  deck, or the thief caught in the act). Until then the GM line never says
-  who the Magpie is. The agenda clocks' beats set flags (`ardane_warrant_sworn`,
-  `silas_splits_the_company`, `magpie_spree_full`, ...) that only v1.0's
-  scenes will read.
+  by nothing yet -- the unmasking is v0.16.0's (the interrogation deck, or
+  the thief caught in the act). Until then the GM line never says who the
+  Magpie is. The agenda clocks' beats set flags (`ardane_warrant_sworn`,
+  `silas_splits_the_company`, `magpie_spree_full`, ...) that only the Acts'
+  scenes (v0.16.0–v0.17.0) will read.
 - Ardane's `takes_a_statement` move can only file her OWN report at a fixed
   deed (`pickpocket`): a move has no way to name the deed a witness actually
   saw, so it cannot upgrade that row directly -- it adds a second, lesser
@@ -176,7 +184,7 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   stories, the validator gives no advisory, and a thief carrying bench
   makings can crowd loot out of Marrow's `sell` list.
 - The Magpie keeps robbing while the player serves a sentence: its
-  robberies land on the player's name from inside a cell. v1.0 content
+  robberies land on the player's name from inside a cell. v0.16.0's content
   answers it with an alibi beat (a night in the cells as proof), not the
   engine.
 - The Wicked Garden deals `day_09_finale` twice (pre-existing).

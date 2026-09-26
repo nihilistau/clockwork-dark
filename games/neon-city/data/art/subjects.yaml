@@ -1,7 +1,7 @@
 # ============================================================
 # NEON CITY: THE CROSSING -- art subjects. ONE source, TWO dialects:
-# engine/media/art.py renders `prose` for Grok Imagine and `tags` (plus the
-# negative) for ComfyUI SDXL from the same structured fields.
+# engine/media/art.py renders `prose` for Grok Imagine and `tags` for ComfyUI
+# SDXL from the same structured fields.
 #
 # VISUAL IDENTITY (BIBLE.md 7.4): black canvas; scene accent #06b6d4 (the
 # CATHEDRAL cyan); district accents where a plate is district-specific --
@@ -28,10 +28,6 @@ style:
     cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan
     accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric
     haze, no text, no watermark
-  negative: >-
-    daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful
-    colors, text, lettering, watermark, logo, blurry, low quality, clean
-    streets, emoji, user interface elements
   loras:
     - {name: Neon_Noir, weight: 0.6}
     - {name: Rain_City, weight: 0.4}

@@ -14,6 +14,62 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+
+## [0.15.1] — 2026-09-26
+
+A documentation and cleanup release: every story now keeps its own
+CHANGELOG.md, every README was audited against the content it describes,
+AGENTS.md gains the "Docs move with the change" convention, and the last
+leftovers of the layer removed in 0.3.0 are gone -- including rating
+language in The Wicked Garden's narrator-read deck and ending text (no id,
+flag, gate or number changed). The art prompts no longer carry negative
+keyword lists, in any story; the only engine change follows from that: the
+ComfyUI tag dialect is positive-only and its workflow encodes an empty
+negative.
+
+### Added
+
+- **Each story keeps its own CHANGELOG.md** (`games/<slug>/CHANGELOG.md`,
+  backfilled from 0.4.0), beside a README audited against its content; this
+  file now covers the engine and the release. AGENTS.md's "Docs move with the
+  change" makes both part of every change, and `tests/test_release_hygiene.py`
+  holds every story to an `## [Unreleased]` section and releases no newer
+  than `pyproject.toml`'s.
+
+### Removed
+
+- **The last leftovers of the layer removed in 0.3.0** (AGENTS.md rule 12,
+  owner's decision): NEON CITY's `BIBLE.md` §8; rating and fade language, and
+  bare "Suggestive" register labels, in The Wicked Garden's deck, ending and
+  epilogue text, its art and canon files;
+  a "safety" negotiation rule named in three rosters' comments (two stories
+  and the `minimal` template), in docs/AGENTS.md's pipeline and in
+  docs/DESIGN.md, which the engine does not have (only voice ownership is
+  structural); `SafetyCeiling` named as the shipped commit-chain occupant in
+  docs/GOVERNANCE.md (the chain ships empty); a `safety:` manifest key in
+  `engine/scenes/spec.py`'s docstring; and a `.gitignore` comment.
+- **The client's dead "fade card" styles** (`.fade`, `.fade__*`,
+  `.fade__aftercare` in `ui/src/styles/index.css`): no component used them,
+  and they were the removed fade control's UI. The committed `dist` is
+  rebuilt.
+- **Every negative-prompt keyword list** (owner's decision, 2026-09-26): all
+  of them, art-style terms as much as any other. Gone from the `style.negative`
+  (and The Wicked Garden's `style.variants.mortal.negative`) blocks of five
+  stories' `data/art/subjects.yaml`, from clockwork-dark's
+  `procgen_templates/comfyui.yaml` (`negative_prompt`), from every `NEGATIVE:`
+  line of the three regenerated `MISSING-PLATES.md` briefs, and from
+  docs/CLAUDE_DESIGN_BRIEF.md and `Design_files/`. Whoever generates their own
+  plates drives their own model; nothing ever read a user-supplied negative,
+  so no config key replaces them. `engine/media/art.py::render_tags` now
+  returns the positive tags alone; `providers/comfy.py` keeps the negative
+  `CLIPTextEncode` node KSampler requires and gives it an empty string;
+  `engine/media/comfyui.py`'s job payload drops its `negative_prompt` slot;
+  `scripts/art_missing.py`, `generate_art.py` and `generate_dice_art.py`
+  print no negative line. `tests/test_no_negative_prompts.py` fails the suite
+  if a story's art or procgen-template file declares one again.
+- A rating clause in docs/AUTHORING.md's worked premise, and the "Fade card"
+  slot in docs/DESIGN.md's client layout diagram.
+
 ## [0.15.0] — 2026-09-26
 
 **HUE & CRY: the guild economy**, the third of the v1.0 stages. A thief in
@@ -3064,7 +3120,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.15.1...HEAD
+[0.15.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.13.0...v0.14.0

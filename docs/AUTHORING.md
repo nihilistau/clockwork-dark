@@ -1790,7 +1790,7 @@ The archivist (an AGENT, her own voice). Two clerks (NPCs, scheduled).
 A claim form that changes while folded. A lamp that burns only borrowed oil.
 
 ## Tone
-Bureaucratic dread, played warm. Nothing explicit; the ceiling is suggestive.
+Bureaucratic dread, played warm.
 ```
 
 **Promote's two warnings, worth respecting:**

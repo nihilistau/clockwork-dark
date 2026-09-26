@@ -55,7 +55,7 @@ bottom.
 
 - **Size:** 1280x720
 
-Renders under the **`mortal`** style variant, not the house style — a drab modern flat has to read as the opposite of the Garden, and that contrast is the opening screen's job. So the prompt below carries no vines, petals or botanical art nouveau, and pushes against them in the negative, because the LoRA stack it still loads is called `Botanical_Fantasy`. The one flower that belongs here is in the **night** alt, through the floorboards, and nowhere else.
+Renders under the **`mortal`** style variant, not the house style — a drab modern flat has to read as the opposite of the Garden, and that contrast is the opening screen's job. So the prompt below carries no vines, petals or botanical art nouveau, even though the LoRA stack it still loads is called `Botanical_Fantasy`. The one flower that belongs here is in the **night** alt, through the floorboards, and nowhere else.
 
 #### dawn
 
@@ -73,10 +73,6 @@ An ordinary empty room in the waking world, seen from the doorway. Visible detai
 An ordinary empty room in the waking world, seen from the doorway, a coat still on its hook, unopened post stacked by the door, a dead houseplant, dust on every horizontal surface, nobody has been in for days and the room has settled into it, flat grey window light, all colour a shade too low, painterly digital illustration, muted contemporary realism, photographic lighting, greyed beige and cold window-white palette, dull wood tones, desaturated, ordinary modern interior, worn domestic surfaces, nothing growing, shallow depth of field, cinematic composition, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, vines, petals, pollen, flowers, foliage, moss, art nouveau ornament, bioluminescence, gold dust, fantasy architecture, magical glow
-```
-
 <details><summary>day (`scenes/mortal-threshold-day.jpg`)</summary>
 
 - **File:** `scenes/mortal-threshold-day.jpg`
@@ -91,10 +87,6 @@ An ordinary empty room in the waking world, seen from the doorway. Visible detai
 
 ```text
 An ordinary empty room in the waking world, seen from the doorway, a coat still on its hook, unopened post stacked by the door, a dead houseplant, dust on every horizontal surface, the post gone from a stack to a drift, desaturated daylight, warm tones drained out of the wood, painterly digital illustration, muted contemporary realism, photographic lighting, greyed beige and cold window-white palette, dull wood tones, desaturated, ordinary modern interior, worn domestic surfaces, nothing growing, shallow depth of field, cinematic composition, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, vines, petals, pollen, flowers, foliage, moss, art nouveau ornament, bioluminescence, gold dust, fantasy architecture, magical glow
 ```
 
 </details>
@@ -115,10 +107,6 @@ An ordinary empty room in the waking world, seen from the doorway. Visible detai
 An ordinary empty room in the waking world, seen from the doorway, a coat still on its hook, unopened post stacked by the door, a dead houseplant, dust on every horizontal surface, the room going dark without anyone turning anything on, streetlight through net curtains, orange and unhelpful, painterly digital illustration, muted contemporary realism, photographic lighting, greyed beige and cold window-white palette, dull wood tones, desaturated, ordinary modern interior, worn domestic surfaces, nothing growing, shallow depth of field, cinematic composition, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, vines, petals, pollen, flowers, foliage, moss, art nouveau ornament, bioluminescence, gold dust, fantasy architecture, magical glow
-```
-
 </details>
 
 <details><summary>night (`scenes/mortal-threshold-night.jpg`)</summary>
@@ -135,10 +123,6 @@ An ordinary empty room in the waking world, seen from the doorway. Visible detai
 
 ```text
 An ordinary empty room in the waking world, seen from the doorway, a coat still on its hook, unopened post stacked by the door, a dead houseplant, dust on every horizontal surface, black, except that one flower has come up through the floorboards, no light source, a faint rose bioluminescence at floor level, painterly digital illustration, muted contemporary realism, photographic lighting, greyed beige and cold window-white palette, dull wood tones, desaturated, ordinary modern interior, worn domestic surfaces, nothing growing, shallow depth of field, cinematic composition, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, vines, petals, pollen, flowers, foliage, moss, art nouveau ornament, bioluminescence, gold dust, fantasy architecture, magical glow
 ```
 
 </details>
@@ -165,10 +149,6 @@ A narrow path of white petals through leaning trees. Visible detail: petals laid
 A narrow path of white petals through leaning trees, petals laid ahead and absent behind, trees inclined inward as if listening, a single pale glass moth in the air, the petals wet, the path uncertain more than ten paces ahead, silver pre-dawn under canopy, everything low-contrast, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
-```
-
 <details><summary>day (`scenes/path-first-petals-day.jpg`)</summary>
 
 - **File:** `scenes/path-first-petals-day.jpg`
@@ -183,10 +163,6 @@ A narrow path of white petals through leaning trees. Visible detail: petals laid
 
 ```text
 A narrow path of white petals through leaning trees, petals laid ahead and absent behind, trees inclined inward as if listening, a single pale glass moth in the air, god rays through the leaves with pollen turning in them, magic hour under canopy, dust and pollen as glitter, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
 </details>
@@ -207,10 +183,6 @@ A narrow path of white petals through leaning trees. Visible detail: petals laid
 A narrow path of white petals through leaning trees, petals laid ahead and absent behind, trees inclined inward as if listening, a single pale glass moth in the air, the moth landing, its wings showing a calendar coming apart, gold going to rose, long shadows off the leaning trunks, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
-```
-
 </details>
 
 <details><summary>night (`scenes/path-first-petals-night.jpg`)</summary>
@@ -227,10 +199,6 @@ A narrow path of white petals through leaning trees. Visible detail: petals laid
 
 ```text
 A narrow path of white petals through leaning trees, petals laid ahead and absent behind, trees inclined inward as if listening, a single pale glass moth in the air, the petals faintly luminous and the trees closer together than they were, moonlight silver, ghost-teal at the path edges, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
 </details>
@@ -257,10 +225,6 @@ The interior of a great domed aviary of wire and briar, full of paper birds. Vis
 The interior of a great domed aviary of wire and briar, full of paper birds, folded paper birds in the hundreds, none of them settling, ink showing through the folds, a wire floor thick with the ones that fell, the birds quiet and low, drifting rather than flying, cold light down through the dome, dust in the beams, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
-```
-
 <details><summary>day (`scenes/aviary-unsent-day.jpg`)</summary>
 
 - **File:** `scenes/aviary-unsent-day.jpg`
@@ -275,10 +239,6 @@ The interior of a great domed aviary of wire and briar, full of paper birds. Vis
 
 ```text
 The interior of a great domed aviary of wire and briar, full of paper birds, folded paper birds in the hundreds, none of them settling, ink showing through the folds, a wire floor thick with the ones that fell, the whole flock in the air at once and none of it landing, flat white daylight through wire, hard shadows on the floor, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
 </details>
@@ -299,10 +259,6 @@ The interior of a great domed aviary of wire and briar, full of paper birds. Vis
 The interior of a great domed aviary of wire and briar, full of paper birds, folded paper birds in the hundreds, none of them settling, ink showing through the folds, a wire floor thick with the ones that fell, one bird at the dome's apex trying the same gap repeatedly, gold through the briar lattice, the floor already dark, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
-```
-
 </details>
 
 <details><summary>night (`scenes/aviary-unsent-night.jpg`)</summary>
@@ -319,10 +275,6 @@ The interior of a great domed aviary of wire and briar, full of paper birds. Vis
 
 ```text
 The interior of a great domed aviary of wire and briar, full of paper birds, folded paper birds in the hundreds, none of them settling, ink showing through the folds, a wire floor thick with the ones that fell, still, and the ink faintly luminous through the paper, no source, a pale glow off the folded pages, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
 </details>
@@ -349,10 +301,6 @@ A market of small strange stalls between two hedges at night. Visible detail: ve
 A market of small strange stalls between two hedges at night, vendors the size of children's toys and the size of doors, wares that are appetites rather than objects, lit by things that are not lamps, the hedges gone back to being two hedges, nothing left but flattened grass, grey, ordinary, and disappointing, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
-```
-
 <details><summary>day (`scenes/night-market-day.jpg`)</summary>
 
 - **File:** `scenes/night-market-day.jpg`
@@ -367,10 +315,6 @@ A market of small strange stalls between two hedges at night. Visible detail: ve
 
 ```text
 A market of small strange stalls between two hedges at night, vendors the size of children's toys and the size of doors, wares that are appetites rather than objects, lit by things that are not lamps, shut, and the gap between the hedges narrower than a body, green daylight, nothing worth looking at, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
 </details>
@@ -391,10 +335,6 @@ A market of small strange stalls between two hedges at night. Visible detail: ve
 A market of small strange stalls between two hedges at night, vendors the size of children's toys and the size of doors, wares that are appetites rather than objects, lit by things that are not lamps, the stalls coming up in an order, the lights lit one by one, biolume teal and rose, the sky still blue behind, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
-```
-
 </details>
 
 <details><summary>night (`scenes/night-market-night.jpg`)</summary>
@@ -411,10 +351,6 @@ A market of small strange stalls between two hedges at night. Visible detail: ve
 
 ```text
 A market of small strange stalls between two hedges at night, vendors the size of children's toys and the size of doors, wares that are appetites rather than objects, lit by things that are not lamps, the market at full trade, prices being quoted in years, ghost teal and thorn-gold, no two stalls lit the same colour, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
 </details>
@@ -441,10 +377,6 @@ An under-root cathedral with no far wall, roots the size of towers. Visible deta
 An under-root cathedral with no far wall, roots the size of towers, root columns going up out of frame, roses growing on them at every height, a vast face half-arranged out of the mass, more hands than there were, the face not assembled, the roots merely roots, amber sap light from below, everything backlit and enormous, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
-```
-
 <details><summary>day (`scenes/briar-deep-day.jpg`)</summary>
 
 - **File:** `scenes/briar-deep-day.jpg`
@@ -459,10 +391,6 @@ An under-root cathedral with no far wall, roots the size of towers. Visible deta
 
 ```text
 An under-root cathedral with no far wall, roots the size of towers, root columns going up out of frame, roses growing on them at every height, a vast face half-arranged out of the mass, more hands than there were, the scale visible, the far wall genuinely absent, no daylight, warm root-light coming up through the floor, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
 </details>
@@ -483,10 +411,6 @@ An under-root cathedral with no far wall, roots the size of towers. Visible deta
 An under-root cathedral with no far wall, roots the size of towers, root columns going up out of frame, roses growing on them at every height, a vast face half-arranged out of the mass, more hands than there were, the face coming together and taking an interest, underlighting from the roots, eyes catching the light last, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
-```
-
 </details>
 
 <details><summary>night (`scenes/briar-deep-night.jpg`)</summary>
@@ -503,10 +427,6 @@ An under-root cathedral with no far wall, roots the size of towers. Visible deta
 
 ```text
 An under-root cathedral with no far wall, roots the size of towers, root columns going up out of frame, roses growing on them at every height, a vast face half-arranged out of the mass, more hands than there were, the floor moving very slightly, in time, deep amber and rot-purple, one bloom lit like an eye, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
 </details>
@@ -535,10 +455,6 @@ A figure standing in a place with no architecture and no horizon. Visible detail
 A figure standing in a place with no architecture and no horizon, light with no source, ground with no texture, a suggestion of petals at the very edge of the frame that resolves into nothing, no scale, no distance, no way to tell which way is out, even ambient light from nowhere, no shadows at all, painterly digital illustration, muted contemporary realism, photographic lighting, greyed beige and cold window-white palette, dull wood tones, desaturated, ordinary modern interior, worn domestic surfaces, nothing growing, shallow depth of field, cinematic composition, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, vines, petals, pollen, flowers, foliage, moss, art nouveau ornament, bioluminescence, gold dust, fantasy architecture, magical glow
-```
-
 <details><summary>day (`scenes/unknown-day.jpg`)</summary>
 
 - **File:** `scenes/unknown-day.jpg`
@@ -553,10 +469,6 @@ A figure standing in a place with no architecture and no horizon. Visible detail
 
 ```text
 A figure standing in a place with no architecture and no horizon, light with no source, ground with no texture, a suggestion of petals at the very edge of the frame that resolves into nothing, the same, and the sameness has begun to be the point, flat white void, faint rose at the extreme edges, painterly digital illustration, muted contemporary realism, photographic lighting, greyed beige and cold window-white palette, dull wood tones, desaturated, ordinary modern interior, worn domestic surfaces, nothing growing, shallow depth of field, cinematic composition, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, vines, petals, pollen, flowers, foliage, moss, art nouveau ornament, bioluminescence, gold dust, fantasy architecture, magical glow
 ```
 
 </details>
@@ -577,10 +489,6 @@ A figure standing in a place with no architecture and no horizon. Visible detail
 A figure standing in a place with no architecture and no horizon, light with no source, ground with no texture, a suggestion of petals at the very edge of the frame that resolves into nothing, something at the periphery deciding what this place will be, colour bleeding in from the edges of the frame inward, painterly digital illustration, muted contemporary realism, photographic lighting, greyed beige and cold window-white palette, dull wood tones, desaturated, ordinary modern interior, worn domestic surfaces, nothing growing, shallow depth of field, cinematic composition, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, vines, petals, pollen, flowers, foliage, moss, art nouveau ornament, bioluminescence, gold dust, fantasy architecture, magical glow
-```
-
 </details>
 
 <details><summary>night (`scenes/unknown-night.jpg`)</summary>
@@ -597,10 +505,6 @@ A figure standing in a place with no architecture and no horizon. Visible detail
 
 ```text
 A figure standing in a place with no architecture and no horizon, light with no source, ground with no texture, a suggestion of petals at the very edge of the frame that resolves into nothing, the ground beginning to have a smell of soil, near black with a warm suggestion underneath it, painterly digital illustration, muted contemporary realism, photographic lighting, greyed beige and cold window-white palette, dull wood tones, desaturated, ordinary modern interior, worn domestic surfaces, nothing growing, shallow depth of field, cinematic composition, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, vines, petals, pollen, flowers, foliage, moss, art nouveau ornament, bioluminescence, gold dust, fantasy architecture, magical glow
 ```
 
 </details>
@@ -628,10 +532,6 @@ A group of adult fae courtiers in botanical couture, arranged to be looked at. V
 A group of adult fae courtiers in botanical couture, arranged to be looked at, living fabric that grows and jewellery that has rooted, too-sharp smiles, shadows that lag very slightly behind their owners, the heart grove at dusk, hanging silk and lantern-moths, mid-figure of a dance, beautiful, bored, and taking notes, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
-```
-
 ---
 
 ## Items (1)
@@ -651,10 +551,6 @@ A fast charcoal sketch of a face, on a rough torn sheet. Visible detail: the mou
 
 ```text
 A fast charcoal sketch of a face, on a rough torn sheet, the mouth clearly wrong and the eyes exactly right, charcoal smudged by a thumb, one drop of amber sap dried on the corner of the paper, the single object alone at the centre of the frame, laid on deep plum-black velvet, reliquary still-life, nothing else in the frame, no hands and no figure, hero-lit from the upper left with a warm rose key and a ghost-teal rim, soft vignette falling to plum-black at the edges, a faint dust of pollen in the air, painterly reliquary photography, painterly digital illustration, pre-raphaelite dark romantic fantasy, semi-realistic adult figures, tactile skin and heavy fabric, photographic lighting, plum-black and poison-emerald palette, crimson rose accents, antique thorn-gold, pale lilac-silver, ghost-teal bioluminescence, living vines and petals, pollen and dew in the air, botanical art nouveau, shallow depth of field, cinematic composition, one beautiful wrong detail, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, flat mobile-game art, nudity, explicit content, genitalia, sexual act, gore, viscera, rotting flesh, zombie, neon, cyberpunk, sci-fi, modern clothing, plastic hair, sterile UI, floating interface, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, costume-party elf ears, heroic power pose
 ```
 
 ---

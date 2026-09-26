@@ -398,9 +398,7 @@ classes:
         beats:
           - id: E3a_speak
             text: >-
-              SPEAK. A yes that is a ritual word, and the product layer sits
-              above the character layer for all of it -- hard limits and fade
-              remain available inside the ritual, not before it.
+              SPEAK. A yes that is a ritual word.
             gate:
               on_pass:
                 effects:
@@ -408,12 +406,9 @@ classes:
                   - { type: value, name: autonomy, delta: -8 }
           - id: E3a_act
             text: >-
-              ACT. The mark completes. Suggestive: weather requested and
+              ACT. The mark completes: weather requested and
               arriving. Duties of pleasure and presence, structured as love and
               genuinely functioning as it.
-              # EXPLICIT VARIANT: not authored. DAY-09-FINALE.md:159 permits an
-              # explicit intimacy seal inside E3 where the player has raised the
-              # ceiling. This content ships the suggestive one only.
             gate:
               on_pass:
                 effects:

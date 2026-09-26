@@ -136,12 +136,11 @@ def test_every_face_has_a_saved_prompt_for_both_pipelines():
     for number in range(1, SIDES + 1):
         subject = f"dice_face_{number}"
         prose = render_prose(subject, kind="dice")
-        positive, negative = render_tags(subject, kind="dice")
+        positive = render_tags(subject, kind="dice")
         # The numeral is the entire point of the plate; a prompt that renders
         # to the bare id means the subject is not reachable from the renderer.
         assert f"numeral {number} " in prose, f"{subject} prose lost its numeral"
         assert f"numeral {number} " in positive, f"{subject} tags lost its numeral"
-        assert negative, "the ComfyUI dialect must carry the house negative prompt"
 
 
 def test_the_comfyui_client_has_the_dice_prompts_too():

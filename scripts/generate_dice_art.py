@@ -15,7 +15,7 @@ as every other subject in the game:
 
     games/clockwork-dark/data/art/subjects.yaml  ->  engine/media/art.py
         render_prose(f"dice_face_{n}", kind="dice")   Grok Imagine  (default)
-        render_tags (f"dice_face_{n}", kind="dice")   ComfyUI SDXL  (+negative)
+        render_tags (f"dice_face_{n}", kind="dice")   ComfyUI SDXL
 
     python scripts/generate_dice_art.py --list      what the pack is missing
     python scripts/generate_dice_art.py --prompts   both dialects, generate nothing
@@ -233,11 +233,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.prompts:
         for number in args.face or range(1, SIDES + 1):
-            positive, negative = render_tags(f"dice_face_{number}", kind="dice")
+            tags = render_tags(f"dice_face_{number}", kind="dice")
             print(f"\n=== d20 face {number}")
             print(f"  grok    : {render_prose(f'dice_face_{number}', kind='dice')}")
-            print(f"  comfy + : {positive}")
-            print(f"  comfy - : {negative}")
+            print(f"  comfy   : {tags}")
         return 0
 
     print(f"{SIDES} faces, {SIDES - len(gaps(faces))} on disk, {len(gaps(faces))} missing")

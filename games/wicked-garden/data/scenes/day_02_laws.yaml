@@ -412,8 +412,8 @@ cards:
       - id: she_arrives
         text: >-
           Only if the day left enough heat. Theme is PRIDE AFTER INDEPENDENCE:
-          she reasserts presence without claiming anything new. Suggestive
-          ceiling; no ritual, no mark.
+          she reasserts presence without claiming anything new. No ritual, no
+          mark.
         gate:
           when:
             all:

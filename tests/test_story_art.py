@@ -317,20 +317,17 @@ def test_a_subject_may_opt_out_of_the_house_style(garden: Any) -> None:
 
     for subject_id in ("mortal_threshold", "unknown"):
         prose = render_prose(subject_id)
-        positive, negative = render_tags(subject_id)
+        positive = render_tags(subject_id)
         assert "botanical art nouveau" not in positive, subject_id
+        assert "vines" not in positive, subject_id
         assert "vines" not in prose.lower(), subject_id
-        # And the variant pushes the other way, because the LoRA stack it still
-        # loads is called Botanical_Fantasy.
-        assert "vines" in negative, subject_id
 
     # Every other location keeps the house style. This is the half that matters:
     # an opt-out that leaked would cost the pack its coherence.
     prose = render_prose("gate_of_briars")
-    positive, negative = render_tags("gate_of_briars")
+    positive = render_tags("gate_of_briars")
     assert "botanical art nouveau" in positive
     assert "vines" in prose.lower()
-    assert "vines" not in negative
 
 
 def test_an_unknown_variant_falls_back_to_the_house_style() -> None:

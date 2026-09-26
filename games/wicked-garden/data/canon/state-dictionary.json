@@ -22,22 +22,9 @@
       "background_tags": {
         "type": "string[]",
         "examples": ["artist", "scholar", "lost_traveler", "runaway_spouse", "occult_dabbler"]
-      },
-      "boundaries": {
-        "hard_nos": { "type": "string[]", "owner": "product", "above_agents": true },
-        "soft_nos": { "type": "string[]" },
-        "green_lights": { "type": "string[]" }
       }
     },
     "content": {
-      "intensity": {
-        "type": "enum",
-        "values": ["suggestive", "explicit", "extreme"],
-        "default": "suggestive",
-        "owner": "product"
-      },
-      "fade_available": { "type": "boolean", "default": true },
-      "aftercare_mode": { "type": "boolean", "default": false },
       "reduced_motion": { "type": "boolean", "default": false },
       "analyst_mode": { "type": "boolean", "default": false, "description": "Show raw meter numbers" }
     },
@@ -525,9 +512,7 @@
         "clocks",
         "location_key",
         "inventory",
-        "threads",
-        "content.intensity",
-        "content.boundaries"
+        "threads"
       ]
     },
     "sophia_agent": {
@@ -544,8 +529,6 @@
       ],
       "owns_voice": ["sophia_dialogue", "sophia_intimate_direction", "sophia_echo_epilogue"],
       "must_not": [
-        "override hard_nos",
-        "set intensity above player",
         "speak as ashen/briar/thornwake",
         "reveal gm_secrets she does not know in-character",
         "unlock endings without system eligibility"
@@ -553,8 +536,6 @@
       "must_read_each_turn": [
         "meters",
         "flags related to claim/gift/jealousy",
-        "player.boundaries",
-        "content.intensity",
         "act2_compass",
         "relationships.sophia",
         "inventory gifts she gave"
@@ -578,13 +559,11 @@
       "owns": [
         "eligibility recompute",
         "day toll time_debt",
-        "product safety gates",
         "act transitions",
         "ending lock validation"
       ]
     },
     "negotiation_rules": [
-      "Product safety > all character goals",
       "If Sophia private scene and GM random event conflict: finish private, event becomes aftermath",
       "Threshold Law correctly invoked beats Sophia will for exit physics; she may still react on meters",
       "State board commit happens once per turn after negotiation",
@@ -593,7 +572,6 @@
   },
   "turn_pipeline": [
     "player_input",
-    "safety_filter",
     "intent_parse",
     "sophia_plan_if_present",
     "gm_plan",
@@ -612,8 +590,7 @@
     "mood_palette": "string",
     "wardrobe_state": "string",
     "key_action": "string",
-    "ui_overlay_hint": "string",
-    "content_level": ["suggestive", "explicit", "extreme"]
+    "ui_overlay_hint": "string"
   },
   "video_brief_schema": {
     "duration_intent": [6, 10],

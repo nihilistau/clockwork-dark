@@ -89,7 +89,7 @@ def build_workflow(
     Returns:
         The ``prompt`` object for POST /prompt.
     """
-    positive, negative = render_tags(
+    positive = render_tags(
         request.subject_id,
         kind=request.kind,
         time_of_day=request.time_of_day,
@@ -106,9 +106,12 @@ def build_workflow(
             "class_type": "CLIPTextEncode",
             "inputs": {"text": positive, "clip": ["1", 1]},
         },
+        # KSampler requires a negative conditioning input, so the node stays;
+        # it encodes an empty string because no story carries a negative
+        # prompt (v0.15.1).
         "3": {
             "class_type": "CLIPTextEncode",
-            "inputs": {"text": negative, "clip": ["1", 1]},
+            "inputs": {"text": "", "clip": ["1", 1]},
         },
         "4": {
             "class_type": "EmptyLatentImage",

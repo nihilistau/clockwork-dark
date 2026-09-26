@@ -4,7 +4,10 @@ ComfyUI Client
 
 Image generation queue with template prompts and placeholder fallback.
 
-Version: v0.1.0 [2026-06-20]
+v0.15.1: no negative prompt. The templates carry none and the job payload
+no longer has a ``negative_prompt`` slot.
+
+Version: v0.1.1 [2026-09-26]
 """
 
 from __future__ import annotations
@@ -125,7 +128,6 @@ class ComfyUIClient:
             evil_phase=phase_bucket,
             templates=templates,
         )
-        tpl = templates or load_comfyui_templates()
 
         queue = get_media_queue()
         job = MediaJob(
@@ -138,7 +140,6 @@ class ComfyUIClient:
                 "location_id": location_id,
                 "time_of_day": time_of_day,
                 "evil_phase": phase_bucket,
-                "negative_prompt": tpl.get("negative_prompt", ""),
             },
         )
 
@@ -159,7 +160,7 @@ class ComfyUIClient:
             return queue.enqueue(job)
 
         try:
-            submitted = self._submit_prompt(prompt, job.payload.get("negative_prompt", ""))
+            submitted = self._submit_prompt(prompt)
             job.status = "submitted"
             job.payload["comfyui"] = submitted
             job.url = submitted.get("preview_url", "")
@@ -175,7 +176,7 @@ class ComfyUIClient:
 
         return queue.enqueue(job)
 
-    def _submit_prompt(self, prompt: str, negative_prompt: str) -> dict[str, Any]:
+    def _submit_prompt(self, prompt: str) -> dict[str, Any]:
         """POST minimal workflow payload to ComfyUI."""
         payload = {
             "prompt": {

@@ -349,6 +349,19 @@ def test_the_graph_templates_ids_all_resolve(story_root):
     assert {"crossroads>old_wood", "old_wood>crossroads"} <= edges
 
 
+def test_each_template_starts_its_own_changelog(story_root):
+    """Every shipped story keeps a CHANGELOG.md (AGENTS.md, "Docs move with
+    the change"); a scaffold starts with one, titled, and nothing released."""
+    for template in TEMPLATES:
+        destination = _scaffold(story_root, template)
+        changelog = destination / "CHANGELOG.md"
+        assert changelog.is_file(), f"{template} scaffolds no CHANGELOG"
+        text = changelog.read_text(encoding="utf-8")
+        assert "\n## [Unreleased]\n" in text, f"{template}'s CHANGELOG has no [Unreleased]"
+        assert "{{" not in text, f"{template}'s CHANGELOG kept a template token"
+        assert "\n## [0." not in text, f"{template}'s CHANGELOG claims a release"
+
+
 def test_each_template_carries_its_own_readme(story_root):
     """The scaffold's first instruction is 'read the README'; ship one."""
     for template in TEMPLATES:

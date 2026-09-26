@@ -642,30 +642,6 @@ faces lit by screens. **No emoji anywhere.**
 
 ---
 
-## 8. SAFETY & RATING
-
-**Suggested ceiling: `mature`. Suggested default: `mature`.** (This story does not have a
-meaningful `teen` cut; shipping one would gut the register. If the engine requires a lower
-fallback, mark the story `mature`-only the way the flagship marks content it deliberately does
-not ship, rather than auto-softening prose.)
-
-In scope, handled in canon's clinical register:
-- **Violence:** street-level and consequential; injuries are priced (Sable's table), never
-  lingered on. Knockouts, not gore.
-- **Body-horror-adjacent cyberware:** chrome as confession, Marrow's back room, "come out
-  short a kidney" — implication and invoice, never surgery on the page.
-- **Substance references:** synth dust, Red Lace, braindance as addiction-analogue (Jun's
-  rented memory gaps). Transactional, unglamorised, no use instructions.
-- **Death of the player-adjacent:** Halloran, the proxy in your coat, the forecast itself.
-  The story's whole engine — keep it administrative, which is what makes it land.
-
-Out of scope entirely: sexual content beyond canon-level innuendo (Mira's "the Grid can wait an
-hour" is the ceiling); harm to children on the page (Bex is seventeen and *protected* by every
-adult in the alley — keep it that way); torture scenes; self-harm framing around the timestamp
-(the file is an external enemy, never an invitation).
-
----
-
 ## APPENDIX — Canon ambiguities resolved
 
 1. **Heat tier names/thresholds.** `juice.js` says COLD/NOTICED/WANTED/HUNTED/BURNING at

@@ -118,7 +118,7 @@ NOTES_BY_STORY["wicked-garden"] = {
         "Renders under the **`mortal`** style variant, not the house style — a drab "
         "modern flat has to read as the opposite of the Garden, and that contrast is "
         "the opening screen's job. So the prompt below carries no vines, petals or "
-        "botanical art nouveau, and pushes against them in the negative, because the "
+        "botanical art nouveau, even though the "
         "LoRA stack it still loads is called `Botanical_Fantasy`. The one flower that "
         "belongs here is in the **night** alt, through the floorboards, and nowhere else."
     ),
@@ -188,7 +188,7 @@ def slug(subject_id: str) -> str:
 
 
 def block(subject_id: str, kind: str, time_of_day: str) -> list[str]:
-    positive, negative = render_tags(subject_id, kind=kind, time_of_day=time_of_day)
+    positive = render_tags(subject_id, kind=kind, time_of_day=time_of_day)
     return [
         "**Grok Imagine** (prose)",
         "",
@@ -200,10 +200,6 @@ def block(subject_id: str, kind: str, time_of_day: str) -> list[str]:
         "",
         "```text",
         positive,
-        "```",
-        "",
-        "```text",
-        f"NEGATIVE: {negative}",
         "```",
         "",
     ]

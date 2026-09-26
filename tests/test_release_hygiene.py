@@ -16,8 +16,12 @@ be checked mechanically are checked here:
   * CLAUDE.md states that same version, so it is touched every release.
   * CLAUDE.md imports AGENTS.md, and AGENTS.md carries all twelve critical rules
     -- including rule 12 in full, the one whose absence was how it got rebuilt.
+  * Every story under games/ keeps its own CHANGELOG.md with an
+    ``## [Unreleased]`` section, releases newest first and none newer than
+    pyproject.toml's, and AGENTS.md carries the convention that keeps it so
+    ("Docs move with the change").
 
-Version: v0.1.0 [2026-09-23]
+Version: v0.2.0 [2026-09-26]
 """
 
 from __future__ import annotations
@@ -26,6 +30,8 @@ import json
 import re
 import tomllib
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -101,3 +107,101 @@ def test_the_declared_python_floor_is_one_the_suite_runs_on() -> None:
         f"pyproject says {spec}; this suite is running on "
         f"{sys.version_info.major}.{sys.version_info.minor}"
     )
+
+
+def _story_dirs() -> list[Path]:
+    return sorted(p for p in (ROOT / "games").iterdir() if (p / "game.yaml").is_file())
+
+
+def _story_changelog_problems(
+    name: str, text: str, root_versions: set[str], current: tuple[int, ...]
+) -> list[str]:
+    """Everything wrong with one story's CHANGELOG.md, as readable lines."""
+    problems: list[str] = []
+    if "\n## [Unreleased]\n" not in text:
+        problems.append(f"{name}: no '## [Unreleased]' section")
+    headings = re.findall(r"^## \[.*$", text, re.MULTILINE)
+    for heading in headings:
+        if heading != "## [Unreleased]" and not _RELEASE.fullmatch(heading):
+            problems.append(
+                f"{name}: {heading!r} is not written '## [x.y.z] — YYYY-MM-DD'"
+            )
+    if "## [Unreleased]" in headings and headings[0] != "## [Unreleased]":
+        problems.append(f"{name}: '## [Unreleased]' is not above every release")
+    releases = [v for v, _ in _RELEASE.findall(text)]
+    for version in sorted({v for v in releases if releases.count(v) > 1}):
+        problems.append(f"{name}: {version} is listed more than once")
+    for version in releases:
+        if version not in root_versions:
+            problems.append(f"{name}: {version} is not a release in the root CHANGELOG")
+    versions = [tuple(int(p) for p in v.split(".")) for v in releases]
+    if versions != sorted(versions, reverse=True):
+        problems.append(f"{name}: releases are not newest first")
+    if versions and versions[0] > current:
+        problems.append(f"{name}: names {versions[0]}, newer than {current}")
+    return problems
+
+
+def test_every_story_keeps_its_own_changelog() -> None:
+    """Owner, 2026-09-26: each story keeps a CHANGELOG.md for its content; the
+    root file covers the engine and the release. Its README links it. A
+    story's file keeps an ``## [Unreleased]`` section above its releases, lists
+    them newest first with no repeats, writes every heading the root's way
+    (em dash and date), and names only releases the root CHANGELOG has, none
+    newer than the one pyproject.toml claims."""
+    current = tuple(int(p) for p in _version().split("."))
+    root_text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    root_versions = {v for v, _ in _RELEASE.findall(root_text)}
+    stories = _story_dirs()
+    assert stories, "no games/<slug>/game.yaml found"
+    problems: list[str] = []
+    for story in stories:
+        readme = story / "README.md"
+        if not readme.is_file():
+            problems.append(f"{story.name}: no README.md")
+        elif "(CHANGELOG.md)" not in readme.read_text(encoding="utf-8"):
+            problems.append(f"{story.name}: README.md does not link CHANGELOG.md")
+        path = story / "CHANGELOG.md"
+        if not path.is_file():
+            problems.append(f"{story.name}: no CHANGELOG.md")
+            continue
+        problems += _story_changelog_problems(
+            story.name, path.read_text(encoding="utf-8"), root_versions, current
+        )
+    assert not problems, problems
+
+
+_GOOD = "# Changelog\n\n## [Unreleased]\n\n## [0.9.0] — 2026-09-23\n\n## [0.5.0] — 2026-09-20\n"
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        (_GOOD.replace("## [0.5.0] — ", "## [0.5.0] - "), "not written"),
+        (_GOOD.replace("[0.5.0]", "[0.9.0]"), "more than once"),
+        (
+            "# Changelog\n\n## [0.9.0] — 2026-09-23\n\n## [Unreleased]\n",
+            "above",
+        ),
+        (_GOOD.replace("[0.5.0]", "[0.4.7]"), "root CHANGELOG"),
+        (_GOOD.replace("[0.9.0]", "[0.4.0]"), "newest first"),
+        (_GOOD.replace("## [Unreleased]\n", ""), "Unreleased"),
+    ],
+    ids=["hyphen", "duplicate", "unreleased-below", "unknown-version", "order", "no-unreleased"],
+)
+def test_the_story_changelog_guard_catches(text: str, expected: str) -> None:
+    """Each shape the guard exists for, fed to it directly: a guard that only
+    ever reads correct files proves nothing about wrong ones."""
+    problems = _story_changelog_problems("probe", text, {"0.9.0", "0.5.0", "0.4.0"}, (0, 15, 0))
+    assert any(expected in p for p in problems), problems
+    assert _story_changelog_problems("probe", _GOOD, {"0.9.0", "0.5.0"}, (0, 15, 0)) == []
+
+
+def test_agents_md_says_docs_move_with_the_change() -> None:
+    """The standing rule that keeps the per-story CHANGELOG/README, the root
+    ones, CLAUDE.md and AGENTS.md current lives in AGENTS.md's working
+    conventions -- once, where every agent reads it."""
+    text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    section = text.split("## Working conventions", 1)[1].split("\n## ", 1)[0]
+    assert "**Docs move with the change.**" in section
+    assert "games/<slug>/CHANGELOG.md" in section

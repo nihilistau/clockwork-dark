@@ -321,7 +321,7 @@ cards:
 
       - id: price_a_cold_kiss
         text: >-
-          Suggestive. Sealed rather than shared: cold as an event that happens
+          Sealed rather than shared: cold as an event that happens
           to the mouth. He is not seducing the player, he is signing something.
         gate:
           on_pass:
@@ -475,7 +475,7 @@ cards:
     title: "Repair, Exile, or Cold Dream"
     text: >-
       INTENT: four nights, and the player does not fully choose which. Repair --
-      suggestive claim, theme of CHOICE UNDER RIVALRY, and it should feel earned
+      a claim, theme of CHOICE UNDER RIVALRY, and it should feel earned
       rather than owed. Exile -- alone, while frost draws a map of the labyrinth
       on the inside of the window. Cold dream -- his, uninvited, and it will
       feel like betrayal in the morning even though nothing happened. Chalk --

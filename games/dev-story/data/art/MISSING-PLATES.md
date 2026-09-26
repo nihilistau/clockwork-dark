@@ -66,10 +66,6 @@ The hallway of an ordinary house. Visible detail: coats on hooks, shoes not quit
 The hallway of an ordinary house, coats on hooks, shoes not quite paired, a radiator, doors standing open onto other rooms, a light switch worn pale, nobody through it yet, grey from the frosted panel in the front door, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 <details><summary>day (`scenes/hallway-day.jpg`)</summary>
 
 - **File:** `scenes/hallway-day.jpg`
@@ -84,10 +80,6 @@ The hallway of an ordinary house. Visible detail: coats on hooks, shoes not quit
 
 ```text
 The hallway of an ordinary house, coats on hooks, shoes not quite paired, a radiator, doors standing open onto other rooms, a light switch worn pale, a bag dropped where somebody stopped to answer their phone, flat daylight from both ends, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -108,10 +100,6 @@ The hallway of an ordinary house. Visible detail: coats on hooks, shoes not quit
 The hallway of an ordinary house, coats on hooks, shoes not quite paired, a radiator, doors standing open onto other rooms, a light switch worn pale, the overhead on because the hall has no window worth the name, warm overhead, the doorways darker, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 </details>
 
 <details><summary>night (`scenes/hallway-night.jpg`)</summary>
@@ -128,10 +116,6 @@ The hallway of an ordinary house. Visible detail: coats on hooks, shoes not quit
 
 ```text
 The hallway of an ordinary house, coats on hooks, shoes not quite paired, a radiator, doors standing open onto other rooms, a light switch worn pale, one lamp left on for whoever is still out, low, yellow, the far end unlit, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -158,10 +142,6 @@ A small domestic bathroom. Visible detail: a mirror with a damp patch cleared in
 A small domestic bathroom, a mirror with a damp patch cleared in it, tiles, a towel over the radiator, too many bottles on the ledge, still humid from someone earlier, the extractor fan light, cold and mean, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 <details><summary>day (`scenes/bathroom-day.jpg`)</summary>
 
 - **File:** `scenes/bathroom-day.jpg`
@@ -176,10 +156,6 @@ A small domestic bathroom. Visible detail: a mirror with a damp patch cleared in
 
 ```text
 A small domestic bathroom, a mirror with a damp patch cleared in it, tiles, a towel over the radiator, too many bottles on the ledge, dry and blank, daylight through frosted glass, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -200,10 +176,6 @@ A small domestic bathroom. Visible detail: a mirror with a damp patch cleared in
 A small domestic bathroom, a mirror with a damp patch cleared in it, tiles, a towel over the radiator, too many bottles on the ledge, the mirror fogged at the edges, overhead, unflattering, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 </details>
 
 <details><summary>night (`scenes/bathroom-night.jpg`)</summary>
@@ -220,10 +192,6 @@ A small domestic bathroom. Visible detail: a mirror with a damp patch cleared in
 
 ```text
 A small domestic bathroom, a mirror with a damp patch cleared in it, tiles, a towel over the radiator, too many bottles on the ledge, the light left on by accident, a single hard overhead, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -250,10 +218,6 @@ A domestic kitchen with the everyday mess left in it. Visible detail: mugs by th
 A domestic kitchen with the everyday mess left in it, mugs by the sink, a kettle, a noticeboard, a chair pulled out at an angle, a window over the worktop, the kettle just boiled and nobody in the room, early grey, the overhead not on yet, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 <details><summary>day (`scenes/kitchen-day.jpg`)</summary>
 
 - **File:** `scenes/kitchen-day.jpg`
@@ -268,10 +232,6 @@ A domestic kitchen with the everyday mess left in it. Visible detail: mugs by th
 
 ```text
 A domestic kitchen with the everyday mess left in it, mugs by the sink, a kettle, a noticeboard, a chair pulled out at an angle, a window over the worktop, somebody eating standing up, daylight from the window over the sink, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -292,10 +252,6 @@ A domestic kitchen with the everyday mess left in it. Visible detail: mugs by th
 A domestic kitchen with the everyday mess left in it, mugs by the sink, a kettle, a noticeboard, a chair pulled out at an angle, a window over the worktop, the overhead on and the window gone black, warm overhead against a dark window, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 </details>
 
 <details><summary>night (`scenes/kitchen-night.jpg`)</summary>
@@ -312,10 +268,6 @@ A domestic kitchen with the everyday mess left in it. Visible detail: mugs by th
 
 ```text
 A domestic kitchen with the everyday mess left in it, mugs by the sink, a kettle, a noticeboard, a chair pulled out at an angle, a window over the worktop, one light over the hob, the rest dark, a single low source, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -342,10 +294,6 @@ An ordinary living room. Visible detail: a sofa with a throw pulled crooked, a l
 An ordinary living room, a sofa with a throw pulled crooked, a low table with rings on it, a television nobody is watching, a lamp in the corner, curtains still shut, the little that gets past the curtains, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 <details><summary>day (`scenes/living-room-day.jpg`)</summary>
 
 - **File:** `scenes/living-room-day.jpg`
@@ -360,10 +308,6 @@ An ordinary living room. Visible detail: a sofa with a throw pulled crooked, a l
 
 ```text
 An ordinary living room, a sofa with a throw pulled crooked, a low table with rings on it, a television nobody is watching, a lamp in the corner, curtains open, the room honest about its wear, flat daylight, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -384,10 +328,6 @@ An ordinary living room. Visible detail: a sofa with a throw pulled crooked, a l
 An ordinary living room, a sofa with a throw pulled crooked, a low table with rings on it, a television nobody is watching, a lamp in the corner, lamps on, the room suddenly warmer than it is, two lamps, no overhead, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 </details>
 
 <details><summary>night (`scenes/living-room-night.jpg`)</summary>
@@ -404,10 +344,6 @@ An ordinary living room. Visible detail: a sofa with a throw pulled crooked, a l
 
 ```text
 An ordinary living room, a sofa with a throw pulled crooked, a low table with rings on it, a television nobody is watching, a lamp in the corner, the television the only thing lit, screen light, blue and moving, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -434,10 +370,6 @@ The front step of an ordinary house, looking out. Visible detail: a door that st
 The front step of an ordinary house, looking out, a door that sticks, a mat, a bin at the corner of the path, the street beyond and the campus buildings past it, nobody on the street yet, cold early light, long shadows, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 <details><summary>day (`scenes/front-porch-day.jpg`)</summary>
 
 - **File:** `scenes/front-porch-day.jpg`
@@ -452,10 +384,6 @@ The front step of an ordinary house, looking out. Visible detail: a door that st
 
 ```text
 The front step of an ordinary house, looking out, a door that sticks, a mat, a bin at the corner of the path, the street beyond and the campus buildings past it, the walk to campus visible past the gate, plain daylight, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -476,10 +404,6 @@ The front step of an ordinary house, looking out. Visible detail: a door that st
 The front step of an ordinary house, looking out, a door that sticks, a mat, a bin at the corner of the path, the street beyond and the campus buildings past it, the street lights coming on before they are needed, orange sodium against the last of the blue, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 </details>
 
 <details><summary>night (`scenes/front-porch-night.jpg`)</summary>
@@ -496,10 +420,6 @@ The front step of an ordinary house, looking out. Visible detail: a door that st
 
 ```text
 The front step of an ordinary house, looking out, a door that sticks, a mat, a bin at the corner of the path, the street beyond and the campus buildings past it, the porch light on, the street empty, one bulb over the door, everything past it dark, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -526,10 +446,6 @@ A university quad between buildings. Visible detail: wet paving, a strip of gras
 A university quad between buildings, wet paving, a strip of grass nobody walks on, bike racks, a noticeboard with too many pins, students crossing at angles, empty, still wet from overnight, flat early grey, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 <details><summary>day (`scenes/quad-day.jpg`)</summary>
 
 - **File:** `scenes/quad-day.jpg`
@@ -544,10 +460,6 @@ A university quad between buildings. Visible detail: wet paving, a strip of gras
 
 ```text
 A university quad between buildings, wet paving, a strip of grass nobody walks on, bike racks, a noticeboard with too many pins, students crossing at angles, full, everyone crossing to somewhere else, open daylight, no shelter, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -568,10 +480,6 @@ A university quad between buildings. Visible detail: wet paving, a strip of gras
 A university quad between buildings, wet paving, a strip of grass nobody walks on, bike racks, a noticeboard with too many pins, students crossing at angles, thinning out, the windows brighter than the sky, lit windows against a darkening quad, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 </details>
 
 <details><summary>night (`scenes/quad-night.jpg`)</summary>
@@ -588,10 +496,6 @@ A university quad between buildings. Visible detail: wet paving, a strip of gras
 
 ```text
 A university quad between buildings, wet paving, a strip of grass nobody walks on, bike racks, a noticeboard with too many pins, students crossing at angles, empty except the lights on the paths, pooled lamplight, the middle dark, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -618,10 +522,6 @@ A university administration corridor and counter. Visible detail: a counter with
 A university administration corridor and counter, a counter with a bell nobody rings twice, laminated notices, a queue rail, closed office doors with names on them, shutters still down on the counter, corridor strips only, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 <details><summary>day (`scenes/admin-block-day.jpg`)</summary>
 
 - **File:** `scenes/admin-block-day.jpg`
@@ -636,10 +536,6 @@ A university administration corridor and counter. Visible detail: a counter with
 
 ```text
 A university administration corridor and counter, a counter with a bell nobody rings twice, laminated notices, a queue rail, closed office doors with names on them, somebody ahead of you in the queue, hard fluorescent, no windows worth the name, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -660,10 +556,6 @@ A university administration corridor and counter. Visible detail: a counter with
 A university administration corridor and counter, a counter with a bell nobody rings twice, laminated notices, a queue rail, closed office doors with names on them, the counter closing, one light left over it, one strip on, the rest off, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 </details>
 
 <details><summary>night (`scenes/admin-block-night.jpg`)</summary>
@@ -680,10 +572,6 @@ A university administration corridor and counter. Visible detail: a counter with
 
 ```text
 A university administration corridor and counter, a counter with a bell nobody rings twice, laminated notices, a queue rail, closed office doors with names on them, locked, dark, a green exit sign, exit-sign green and nothing else, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -710,10 +598,6 @@ A university cafeteria at the serving line. Visible detail: steel counters, tray
 A university cafeteria at the serving line, steel counters, trays stacked, a hot cabinet, tables in rows, chairs pushed in wrong, chairs still up on the tables, half the strips on, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 <details><summary>day (`scenes/cafeteria-day.jpg`)</summary>
 
 - **File:** `scenes/cafeteria-day.jpg`
@@ -728,10 +612,6 @@ A university cafeteria at the serving line. Visible detail: steel counters, tray
 
 ```text
 A university cafeteria at the serving line, steel counters, trays stacked, a hot cabinet, tables in rows, chairs pushed in wrong, the line moving, every table taken, full fluorescent, steam over the counter, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -752,10 +632,6 @@ A university cafeteria at the serving line. Visible detail: steel counters, tray
 A university cafeteria at the serving line, steel counters, trays stacked, a hot cabinet, tables in rows, chairs pushed in wrong, the last of the food and most of the tables empty, strips over the counter, the room dimmer, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 </details>
 
 <details><summary>night (`scenes/cafeteria-night.jpg`)</summary>
@@ -772,10 +648,6 @@ A university cafeteria at the serving line. Visible detail: steel counters, tray
 
 ```text
 A university cafeteria at the serving line, steel counters, trays stacked, a hot cabinet, tables in rows, chairs pushed in wrong, wiped down and shut, one row of lights left on, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -802,10 +674,6 @@ A student dorm room. Visible detail: a narrow bed, a desk with a laptop and a mu
 A student dorm room, a narrow bed, a desk with a laptop and a mug on it, things stuck to the wall, a wardrobe that does not shut flush, the laptop still open from last night, grey through a thin curtain, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 <details><summary>day (`scenes/dorm-room-day.jpg`)</summary>
 
 - **File:** `scenes/dorm-room-day.jpg`
@@ -820,10 +688,6 @@ A student dorm room. Visible detail: a narrow bed, a desk with a laptop and a mu
 
 ```text
 A student dorm room, a narrow bed, a desk with a laptop and a mug on it, things stuck to the wall, a wardrobe that does not shut flush, the door propped open onto the corridor, daylight and corridor light both, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -844,10 +708,6 @@ A student dorm room. Visible detail: a narrow bed, a desk with a laptop and a mu
 A student dorm room, a narrow bed, a desk with a laptop and a mug on it, things stuck to the wall, a wardrobe that does not shut flush, desk lamp on, the overhead off, one warm lamp, screen glow, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 </details>
 
 <details><summary>night (`scenes/dorm-room-night.jpg`)</summary>
@@ -864,10 +724,6 @@ A student dorm room. Visible detail: a narrow bed, a desk with a laptop and a mu
 
 ```text
 A student dorm room, a narrow bed, a desk with a laptop and a mug on it, things stuck to the wall, a wardrobe that does not shut flush, only the screen, laptop light on a face's worth of room, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -894,10 +750,6 @@ A university classroom between sessions. Visible detail: rows of tables, a white
 A university classroom between sessions, rows of tables, a whiteboard half wiped, a projector on standby, chairs at angles where people got up, empty and straightened, daylight, blinds half down, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 <details><summary>day (`scenes/classroom-day.jpg`)</summary>
 
 - **File:** `scenes/classroom-day.jpg`
@@ -912,10 +764,6 @@ A university classroom between sessions. Visible detail: rows of tables, a white
 
 ```text
 A university classroom between sessions, rows of tables, a whiteboard half wiped, a projector on standby, chairs at angles where people got up, mid-session, bags on the floor, daylight plus overheads, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -936,10 +784,6 @@ A university classroom between sessions. Visible detail: rows of tables, a white
 A university classroom between sessions, rows of tables, a whiteboard half wiped, a projector on standby, chairs at angles where people got up, emptying out, someone still packing up, overheads on, the windows dark, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 </details>
 
 <details><summary>night (`scenes/classroom-night.jpg`)</summary>
@@ -956,10 +800,6 @@ A university classroom between sessions. Visible detail: rows of tables, a white
 
 ```text
 A university classroom between sessions, rows of tables, a whiteboard half wiped, a projector on standby, chairs at angles where people got up, chairs up, board wiped, one bank of lights, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -986,10 +826,6 @@ A university gym. Visible detail: rubber matting, a rack of weights, mirrors alo
 A university gym, rubber matting, a rack of weights, mirrors along one wall, a water fountain, a hand-written sign taped to a machine, two people in and neither talking, strips over the mats, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 <details><summary>day (`scenes/gym-day.jpg`)</summary>
 
 - **File:** `scenes/gym-day.jpg`
@@ -1004,10 +840,6 @@ A university gym. Visible detail: rubber matting, a rack of weights, mirrors alo
 
 ```text
 A university gym, rubber matting, a rack of weights, mirrors along one wall, a water fountain, a hand-written sign taped to a machine, busy, everything in use, bright, even, unkind, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -1028,10 +860,6 @@ A university gym. Visible detail: rubber matting, a rack of weights, mirrors alo
 A university gym, rubber matting, a rack of weights, mirrors along one wall, a water fountain, a hand-written sign taped to a machine, the after-class rush, full lights, dark windows, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 </details>
 
 <details><summary>night (`scenes/gym-night.jpg`)</summary>
@@ -1048,10 +876,6 @@ A university gym. Visible detail: rubber matting, a rack of weights, mirrors alo
 
 ```text
 A university gym, rubber matting, a rack of weights, mirrors along one wall, a water fountain, a hand-written sign taped to a machine, nearly empty, one machine running, half the lights off, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -1078,10 +902,6 @@ A university library reading room. Visible detail: long tables with individual l
 A university library reading room, long tables with individual lamps, stacks receding, a trolley of returns, a laptop left open at an empty chair, unlocked and nobody in yet, daylight from high windows, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 <details><summary>day (`scenes/library-day.jpg`)</summary>
 
 - **File:** `scenes/library-day.jpg`
@@ -1096,10 +916,6 @@ A university library reading room. Visible detail: long tables with individual l
 
 ```text
 A university library reading room, long tables with individual lamps, stacks receding, a trolley of returns, a laptop left open at an empty chair, every other seat taken and completely silent, daylight and table lamps together, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>
@@ -1120,10 +936,6 @@ A university library reading room. Visible detail: long tables with individual l
 A university library reading room, long tables with individual lamps, stacks receding, a trolley of returns, a laptop left open at an empty chair, the lamps doing the work now, pools of lamplight, the stacks dark, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
 ```
 
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
-```
-
 </details>
 
 <details><summary>night (`scenes/library-night.jpg`)</summary>
@@ -1140,10 +952,6 @@ A university library reading room. Visible detail: long tables with individual l
 
 ```text
 A university library reading room, long tables with individual lamps, stacks receding, a trolley of returns, a laptop left open at an empty chair, close to closing, one or two left, table lamps only, photographic, contemporary interior, available light, muted institutional palette, greys and warm beige, worn everyday surfaces, scuffed vinyl, fluorescent strip lighting, shallow depth of field, natural composition, unremarkable, no text, no watermark
-```
-
-```text
-NEGATIVE: child, teenager, youthful minor, childlike proportions, chibi, anime, manga, cartoon, cel shading, fantasy, magic, medieval, ornate, gilded, vines, petals, foliage, art nouveau, bioluminescence, glowing, neon, cyberpunk, sci-fi, text, lettering, watermark, logo, signature, blurry, low quality, oversaturated, HDR, heroic pose
 ```
 
 </details>

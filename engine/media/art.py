@@ -4,11 +4,15 @@ Art Prompt Renderer
 
 One source of art direction, two prompt dialects.
 
-Grok Imagine wants natural prose, 2-5 sentences, positive description only,
-and explicitly no negative prompts. ComfyUI SDXL wants comma-separated keyword
-tags with a separate negative prompt and LoRA hints. Maintaining both by hand
-guarantees they drift apart; both are rendered here from the structured
-subjects in data/art/subjects.yaml.
+Grok Imagine wants natural prose, 2-5 sentences, positive description only.
+ComfyUI SDXL wants comma-separated keyword tags and LoRA hints. Maintaining
+both by hand guarantees they drift apart; both are rendered here from the
+structured subjects in data/art/subjects.yaml.
+
+v0.15.1 removes negative prompts. No story's art direction carries a negative
+keyword list any more (the owner's decision, 2026-09-26), so ``render_tags``
+returns the positive tags alone and the ComfyUI workflow encodes an empty
+negative. Whoever drives their own image model supplies their own.
 
 v0.3.0 adds ``kind="item"``. The chain has been able to SERVE item art since
 P6 -- engine/media/providers/shipped.py resolves ``kind == "item"`` against the
@@ -18,7 +22,7 @@ id" branch. Asking either backend for a picture of ``bent_nail`` produced a
 prompt that read "bent nail" and nothing else, which is why the 52 items with
 no packed plate had no realistic route to one.
 
-Version: v0.3.0 [2026-08-08]
+Version: v0.15.1 [2026-09-26]
 """
 
 from __future__ import annotations
@@ -84,7 +88,7 @@ def style_for(variant: str, key: str) -> str:
 
     So a subject may name a variant (``style: mortal``) and the story declares
     it under ``style.variants.mortal``. Only the keys the variant declares are
-    replaced, so a variant that changes the prose keeps the shared negative.
+    replaced, so a variant that changes the prose keeps the shared LoRAs.
 
     An unknown variant name falls back to the shared block and logs -- a typo
     should cost a prompt its exception, not produce no art direction at all.
@@ -186,7 +190,7 @@ def render_prose(
     Natural-prose prompt for Grok Imagine.
 
     Subject first, then setting, light, style -- the order the imagine skill
-    asks for. Positive description only; no negative prompt.
+    asks for. Positive description only.
     """
     spec = load_subjects()
     fields = _fields(kind, subject_id, time_of_day)
@@ -216,12 +220,10 @@ def render_tags(
     kind: str = "location",
     time_of_day: str = "dawn",
     evil_phase: str = "dormant",
-) -> tuple[str, str]:
+) -> str:
     """
-    Keyword-tag prompt and negative prompt for ComfyUI SDXL.
-
-    Returns:
-        (positive, negative)
+    Keyword-tag prompt for ComfyUI SDXL. Positive tags only: no story carries
+    a negative prompt (v0.15.1).
     """
     spec = load_subjects()
     fields = _fields(kind, subject_id, time_of_day)
@@ -235,9 +237,7 @@ def render_tags(
         if corrupt:
             parts.append(corrupt)
 
-    positive = ", ".join(p.strip() for p in parts if p and p.strip())
-    negative = style_for(fields.get("style", ""), "negative")
-    return positive, negative
+    return ", ".join(p.strip() for p in parts if p and p.strip())
 
 
 def lora_hints() -> list[dict[str, Any]]:

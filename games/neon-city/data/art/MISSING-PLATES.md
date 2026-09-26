@@ -69,10 +69,6 @@ An underground night market in a converted service vault. Visible detail: counte
 An underground night market in a converted service vault, counter rows under strung cabling, green neon accents, ticker screens scrolling prices, crowd of traders, condensation on concrete, half the counters shuttered, one figure restocking from unmarked crates, green neon and one work lamp, everything else in vault-dark, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/the-grid-day.jpg`)</summary>
 
 - **File:** `scenes/the-grid-day.jpg`
@@ -87,10 +83,6 @@ An underground night market in a converted service vault. Visible detail: counte
 
 ```text
 An underground night market in a converted service vault, counter rows under strung cabling, green neon accents, ticker screens scrolling prices, crowd of traders, condensation on concrete, full trade, three conversations deep at every counter, dense green-white neon, no daylight ever reaches here, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -111,10 +103,6 @@ An underground night market in a converted service vault. Visible detail: counte
 An underground night market in a converted service vault, counter rows under strung cabling, green neon accents, ticker screens scrolling prices, crowd of traders, condensation on concrete, the evening surge, couriers threading the crowd, tickers casting scrolling light across faces, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/the-grid-night.jpg`)</summary>
@@ -131,10 +119,6 @@ An underground night market in a converted service vault. Visible detail: counte
 
 ```text
 An underground night market in a converted service vault, counter rows under strung cabling, green neon accents, ticker screens scrolling prices, crowd of traders, condensation on concrete, thinner crowd, serious buyers, shutters half down, pools of green neon with long dark gaps between them, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -161,10 +145,6 @@ A canyon of light and appetite through Midtown at street level. Visible detail: 
 A canyon of light and appetite through Midtown at street level, stacked signage, magenta neon, crowds under umbrellas, camera masts at intervals, steam from food stalls, the morning after: cleaners, litter, signage still burning, grey wet first light losing to magenta neon, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/neon-strip-day.jpg`)</summary>
 
 - **File:** `scenes/neon-strip-day.jpg`
@@ -179,10 +159,6 @@ A canyon of light and appetite through Midtown at street level. Visible detail: 
 
 ```text
 A canyon of light and appetite through Midtown at street level, stacked signage, magenta neon, crowds under umbrellas, camera masts at intervals, steam from food stalls, thin daytime crowd under dead signage, flat overcast day, the neon waiting, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -203,10 +179,6 @@ A canyon of light and appetite through Midtown at street level. Visible detail: 
 A canyon of light and appetite through Midtown at street level, stacked signage, magenta neon, crowds under umbrellas, camera masts at intervals, steam from food stalls, the evening flood beginning, every sign waking, magenta and cyan neon doubling in the wet street, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/neon-strip-night.jpg`)</summary>
@@ -223,10 +195,6 @@ A canyon of light and appetite through Midtown at street level. Visible detail: 
 
 ```text
 A canyon of light and appetite through Midtown at street level, stacked signage, magenta neon, crowds under umbrellas, camera masts at intervals, steam from food stalls, full flood, a river crossing made of people, total neon saturation, rain as falling light, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -253,10 +221,6 @@ A casino interior dressed as a cathedral nave. Visible detail: black marble, gol
 A casino interior dressed as a cathedral nave, black marble, gold table lamps, card tables in pools of light, a vaulted dark ceiling, dealers in black, the last table still playing, chips being counted, one table lamp, the nave in darkness, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/club-noir-day.jpg`)</summary>
 
 - **File:** `scenes/club-noir-day.jpg`
@@ -271,10 +235,6 @@ A casino interior dressed as a cathedral nave. Visible detail: black marble, gol
 
 ```text
 A casino interior dressed as a cathedral nave, black marble, gold table lamps, card tables in pools of light, a vaulted dark ceiling, dealers in black, empty tables under cloths, a cleaner moving slowly, work lights, the gold dimmed, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -295,10 +255,6 @@ A casino interior dressed as a cathedral nave. Visible detail: black marble, gol
 A casino interior dressed as a cathedral nave, black marble, gold table lamps, card tables in pools of light, a vaulted dark ceiling, dealers in black, tables uncovering, the first serious money arriving, table lamps lighting one by one down the nave, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/club-noir-night.jpg`)</summary>
@@ -315,10 +271,6 @@ A casino interior dressed as a cathedral nave. Visible detail: black marble, gol
 
 ```text
 A casino interior dressed as a cathedral nave, black marble, gold table lamps, card tables in pools of light, a vaulted dark ceiling, dealers in black, full play, secrets moving with the cards, gold pools on green baize, black between the tables, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -345,10 +297,6 @@ A low-ceilinged speakeasy below street level. Visible detail: a long zinc bar, b
 A low-ceilinged speakeasy below street level, a long zinc bar, booth shadows, a fence's cloth spread on a back table, bottles lit from behind, chairs on tables, one booth still occupied, back-bar glow only, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/velvet-pit-day.jpg`)</summary>
 
 - **File:** `scenes/velvet-pit-day.jpg`
@@ -363,10 +311,6 @@ A low-ceilinged speakeasy below street level. Visible detail: a long zinc bar, b
 
 ```text
 A low-ceilinged speakeasy below street level, a long zinc bar, booth shadows, a fence's cloth spread on a back table, bottles lit from behind, quiet trade, deals in the booths, dim amber, no windows, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -387,10 +331,6 @@ A low-ceilinged speakeasy below street level. Visible detail: a long zinc bar, b
 A low-ceilinged speakeasy below street level, a long zinc bar, booth shadows, a fence's cloth spread on a back table, bottles lit from behind, filling up, the hiring hall coming to order, amber bar light, faces in half shadow, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/velvet-pit-night.jpg`)</summary>
@@ -407,10 +347,6 @@ A low-ceilinged speakeasy below street level. Visible detail: a long zinc bar, b
 
 ```text
 A low-ceilinged speakeasy below street level, a long zinc bar, booth shadows, a fence's cloth spread on a back table, bottles lit from behind, full, loud, every table a negotiation, warm dark, the cloth's corner lit by one lamp, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -437,10 +373,6 @@ Mountains of dead technology under a crane line. Visible detail: stacked drone h
 Mountains of dead technology under a crane line, stacked drone hulls and server racks, amber work lights, a crane cab lit high up, oily puddles, mist between the stacks, the crane starting up, amber floods and grey first light, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/junkyard-sprawl-day.jpg`)</summary>
 
 - **File:** `scenes/junkyard-sprawl-day.jpg`
@@ -455,10 +387,6 @@ Mountains of dead technology under a crane line. Visible detail: stacked drone h
 
 ```text
 Mountains of dead technology under a crane line, stacked drone hulls and server racks, amber work lights, a crane cab lit high up, oily puddles, crews working the faces, sparks off a cutting torch, flat industrial daylight, amber accents, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -479,10 +407,6 @@ Mountains of dead technology under a crane line. Visible detail: stacked drone h
 Mountains of dead technology under a crane line, stacked drone hulls and server racks, amber work lights, a crane cab lit high up, oily puddles, shift change, tallies being argued, the yard lights waking, stack shadows going long, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/junkyard-sprawl-night.jpg`)</summary>
@@ -499,10 +423,6 @@ Mountains of dead technology under a crane line. Visible detail: stacked drone h
 
 ```text
 Mountains of dead technology under a crane line, stacked drone hulls and server racks, amber work lights, a crane cab lit high up, oily puddles, empty faces, the north face very dark, isolated amber pools, the crane cab lit alone, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -529,10 +449,6 @@ A street of chop shops and back-room clinics. Visible detail: shopfronts of chro
 A street of chop shops and back-room clinics, shopfronts of chrome limbs and parts bins, a red cross in dead neon, awnings dripping, a recovery chair visible through glass, the night's work sleeping it off, shutters half up, pale wet light, one clinic sign burning, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/ripper-street-day.jpg`)</summary>
 
 - **File:** `scenes/ripper-street-day.jpg`
@@ -547,10 +463,6 @@ A street of chop shops and back-room clinics. Visible detail: shopfronts of chro
 
 ```text
 A street of chop shops and back-room clinics, shopfronts of chrome limbs and parts bins, a red cross in dead neon, awnings dripping, a recovery chair visible through glass, open trade, parts changing hands off folding tables, overcast day, neon crosses buzzing, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -571,10 +483,6 @@ A street of chop shops and back-room clinics. Visible detail: shopfronts of chro
 A street of chop shops and back-room clinics, shopfronts of chrome limbs and parts bins, a red cross in dead neon, awnings dripping, a recovery chair visible through glass, the queue forming at Sable's door, red and white clinic neon in the wet, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/ripper-street-night.jpg`)</summary>
@@ -591,10 +499,6 @@ A street of chop shops and back-room clinics. Visible detail: shopfronts of chro
 
 ```text
 A street of chop shops and back-room clinics, shopfronts of chrome limbs and parts bins, a red cross in dead neon, awnings dripping, a recovery chair visible through glass, the late shift: stretchers, cash, no questions, clinic light spilling across dark pavement, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -621,10 +525,6 @@ A dead-end lane where netrunners meet in the flesh. Visible detail: taped juncti
 A dead-end lane where netrunners meet in the flesh, taped junction boxes, a noodle stall's steam, dead screens that sometimes wake, cable bundles overhead, empty, the noodle stall lighting its burner, blue-grey dark, one steam-lit lamp, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/ghost-alley-day.jpg`)</summary>
 
 - **File:** `scenes/ghost-alley-day.jpg`
@@ -639,10 +539,6 @@ A dead-end lane where netrunners meet in the flesh. Visible detail: taped juncti
 
 ```text
 A dead-end lane where netrunners meet in the flesh, taped junction boxes, a noodle stall's steam, dead screens that sometimes wake, cable bundles overhead, quiet, one figure at a junction box, thin daylight that never reaches the alley floor, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -663,10 +559,6 @@ A dead-end lane where netrunners meet in the flesh. Visible detail: taped juncti
 A dead-end lane where netrunners meet in the flesh, taped junction boxes, a noodle stall's steam, dead screens that sometimes wake, cable bundles overhead, the broker line's hours beginning, screen-light waking in upper windows, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/ghost-alley-night.jpg`)</summary>
@@ -683,10 +575,6 @@ A dead-end lane where netrunners meet in the flesh. Visible detail: taped juncti
 
 ```text
 A dead-end lane where netrunners meet in the flesh, taped junction boxes, a noodle stall's steam, dead screens that sometimes wake, cable bundles overhead, figures at intervals, all pretending not to wait, cyan screen-glow, the rest in true dark, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -713,10 +601,6 @@ A dockside-style tavern interior that remembers everyone. Visible detail: a long
 A dockside-style tavern interior that remembers everyone, a long scarred bar, keg stack, a ledger under the taps, crews at plank tables, steamed windows, chairs down, Ines counting kegs, grey window light, the bar lamps off, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/rusty-anchor-day.jpg`)</summary>
 
 - **File:** `scenes/rusty-anchor-day.jpg`
@@ -731,10 +615,6 @@ A dockside-style tavern interior that remembers everyone. Visible detail: a long
 
 ```text
 A dockside-style tavern interior that remembers everyone, a long scarred bar, keg stack, a ledger under the taps, crews at plank tables, steamed windows, eaters and one quiet negotiation, warm lamps against a wet grey window, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -755,10 +635,6 @@ A dockside-style tavern interior that remembers everyone. Visible detail: a long
 A dockside-style tavern interior that remembers everyone, a long scarred bar, keg stack, a ledger under the taps, crews at plank tables, steamed windows, shift crowd arriving, the room getting loud, amber bar light, faces warm, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/rusty-anchor-night.jpg`)</summary>
@@ -775,10 +651,6 @@ A dockside-style tavern interior that remembers everyone. Visible detail: a long
 
 ```text
 A dockside-style tavern interior that remembers everyone, a long scarred bar, keg stack, a ledger under the taps, crews at plank tables, steamed windows, crews forged over synth-beer, one man alone at the short end, low warm light, the ledger in shadow, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -805,10 +677,6 @@ A vast corporate plaza between glass towers at street level. Visible detail: pol
 A vast corporate plaza between glass towers at street level, polished stone, sparse figures, silent security drones, camera masts, tower glass rising out of frame, empty acres of stone, sprinklers washing it, cold blue pre-dawn, tower lights above, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/omnicorp-plaza-day.jpg`)</summary>
 
 - **File:** `scenes/omnicorp-plaza-day.jpg`
@@ -823,10 +691,6 @@ A vast corporate plaza between glass towers at street level. Visible detail: pol
 
 ```text
 A vast corporate plaza between glass towers at street level, polished stone, sparse figures, silent security drones, camera masts, tower glass rising out of frame, lanyards crossing at intervals, security watching, white corporate daylight, no warmth in it, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -847,10 +711,6 @@ A vast corporate plaza between glass towers at street level. Visible detail: pol
 A vast corporate plaza between glass towers at street level, polished stone, sparse figures, silent security drones, camera masts, tower glass rising out of frame, the exodus, a thousand identical coats, tower glass burning with sunset it does not share, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/omnicorp-plaza-night.jpg`)</summary>
@@ -867,10 +727,6 @@ A vast corporate plaza between glass towers at street level. Visible detail: pol
 
 ```text
 A vast corporate plaza between glass towers at street level, polished stone, sparse figures, silent security drones, camera masts, tower glass rising out of frame, empty, lit like a stage nobody performs on, white security floods, drone running-lights, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -897,10 +753,6 @@ A militarized checkpoint between the city and the dark. Visible detail: wire fen
 A militarized checkpoint between the city and the dark, wire fencing, a sensor mast, a gatehouse, red floodlights, a truck lane with a barrier arm, one corporal at the gate, shift change, trucks queued at the wire, red floods against grey first light, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/synthsec-gridpoint-day.jpg`)</summary>
 
 - **File:** `scenes/synthsec-gridpoint-day.jpg`
@@ -915,10 +767,6 @@ A militarized checkpoint between the city and the dark. Visible detail: wire fen
 
 ```text
 A militarized checkpoint between the city and the dark, wire fencing, a sensor mast, a gatehouse, red floodlights, a truck lane with a barrier arm, one corporal at the gate, papers being checked, the mast turning slowly, hard flat light, red accents, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -939,10 +787,6 @@ A militarized checkpoint between the city and the dark. Visible detail: wire fen
 A militarized checkpoint between the city and the dark, wire fencing, a sensor mast, a gatehouse, red floodlights, a truck lane with a barrier arm, one corporal at the gate, the day's last crossings, the dark side going black, red floodlight and long shadows through wire, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/synthsec-gridpoint-night.jpg`)</summary>
@@ -959,10 +803,6 @@ A militarized checkpoint between the city and the dark. Visible detail: wire fen
 
 ```text
 A militarized checkpoint between the city and the dark, wire fencing, a sensor mast, a gatehouse, red floodlights, a truck lane with a barrier arm, one corporal at the gate, the gate an island of light with nothing beyond it, red floods, the mast's status lights, absolute dark past the wire, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -989,10 +829,6 @@ An archive hall below ground, shelving receding past the light. Visible detail: 
 An archive hall below ground, shelving receding past the light, numbered drive racks going back into dark, a single desk with a blotter, a counter with tags face down, violet accent light, unchanged; the hall does not have mornings, violet accents over dark shelving, one desk lamp, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/deepstate-bunker-day.jpg`)</summary>
 
 - **File:** `scenes/deepstate-bunker-day.jpg`
@@ -1007,10 +843,6 @@ An archive hall below ground, shelving receding past the light. Visible detail: 
 
 ```text
 An archive hall below ground, shelving receding past the light, numbered drive racks going back into dark, a single desk with a blotter, a counter with tags face down, violet accent light, unchanged, one figure at the counter, the same violet dark, the same lamp, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -1031,10 +863,6 @@ An archive hall below ground, shelving receding past the light. Visible detail: 
 An archive hall below ground, shelving receding past the light, numbered drive racks going back into dark, a single desk with a blotter, a counter with tags face down, violet accent light, unchanged, the blotter mid-page, lamp and violet dark, always, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/deepstate-bunker-night.jpg`)</summary>
@@ -1051,10 +879,6 @@ An archive hall below ground, shelving receding past the light. Visible detail: 
 
 ```text
 An archive hall below ground, shelving receding past the light, numbered drive racks going back into dark, a single desk with a blotter, a counter with tags face down, violet accent light, unchanged; time is a thing that happens upstairs, the desk lamp, and the dark taking the rest, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -1081,10 +905,6 @@ Open dead ground between a distant wire and a far structure, no lights anywhere.
 Open dead ground between a distant wire and a far structure, no lights anywhere, wrecks half-sunk in mud, rain moving in sheets, pre-corporate concrete stubs, a tiny torch-beam scale figure, grey light finding the wrecks one at a time, weak colourless dawn under full cloud, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/shadow-crossing-day.jpg`)</summary>
 
 - **File:** `scenes/shadow-crossing-day.jpg`
@@ -1099,10 +919,6 @@ Open dead ground between a distant wire and a far structure, no lights anywhere.
 
 ```text
 Open dead ground between a distant wire and a far structure, no lights anywhere, wrecks half-sunk in mud, rain moving in sheets, pre-corporate concrete stubs, a tiny torch-beam scale figure, flat waste under a low sky, the city a glow behind, dim storm-light, no shadows, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -1123,10 +939,6 @@ Open dead ground between a distant wire and a far structure, no lights anywhere.
 Open dead ground between a distant wire and a far structure, no lights anywhere, wrecks half-sunk in mud, rain moving in sheets, pre-corporate concrete stubs, a tiny torch-beam scale figure, the dark arriving early and completely, the last light on wet mud, the city's neon a far smear, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/shadow-crossing-night.jpg`)</summary>
@@ -1143,10 +955,6 @@ Open dead ground between a distant wire and a far structure, no lights anywhere.
 
 ```text
 Open dead ground between a distant wire and a far structure, no lights anywhere, wrecks half-sunk in mud, rain moving in sheets, pre-corporate concrete stubs, a tiny torch-beam scale figure, true dark, rain, something's suggestion of movement, one hand torch against everything, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -1173,10 +981,6 @@ A freight lift head inside a poured-slab shed older than the city. Visible detai
 A freight lift head inside a poured-slab shed older than the city, massive slab walls, a winch mechanism with three stations, lift doors of pitted metal, cable spools, one cage lamp, the shed interior, doors shut, dust unmoved, one cage lamp, slab-dark corners, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/the-lift-day.jpg`)</summary>
 
 - **File:** `scenes/the-lift-day.jpg`
@@ -1191,10 +995,6 @@ A freight lift head inside a poured-slab shed older than the city. Visible detai
 
 ```text
 A freight lift head inside a poured-slab shed older than the city, massive slab walls, a winch mechanism with three stations, lift doors of pitted metal, cable spools, one cage lamp, the winch stations, the panel's single waking light, torchlight and the panel's cyan point, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -1215,10 +1015,6 @@ A freight lift head inside a poured-slab shed older than the city. Visible detai
 A freight lift head inside a poured-slab shed older than the city, massive slab walls, a winch mechanism with three stations, lift doors of pitted metal, cable spools, one cage lamp, figures at the winch, the doors considering, cage lamp and torches, cyan on the panel, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/the-lift-night.jpg`)</summary>
@@ -1235,10 +1031,6 @@ A freight lift head inside a poured-slab shed older than the city. Visible detai
 
 ```text
 A freight lift head inside a poured-slab shed older than the city, massive slab walls, a winch mechanism with three stations, lift doors of pitted metal, cable spools, one cage lamp, the doors open on a descending dark, the shaft swallowing every lumen offered, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -1265,10 +1057,6 @@ An immense server hall of pre-corporate scale, cold and humming. Visible detail:
 An immense server hall of pre-corporate scale, cold and humming, rack rows receding beyond sight, cyan status lights by the million, poured stone older than any logo, a single human figure for scale, the hall; it has no dawn, a million cyan points in absolute black, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 <details><summary>day (`scenes/core-hall-day.jpg`)</summary>
 
 - **File:** `scenes/core-hall-day.jpg`
@@ -1283,10 +1071,6 @@ An immense server hall of pre-corporate scale, cold and humming. Visible detail:
 
 ```text
 An immense server hall of pre-corporate scale, cold and humming, rack rows receding beyond sight, cyan status lights by the million, poured stone older than any logo, a single human figure for scale, the hall, unchanged, patient, cyan constellation light, cold, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -1307,10 +1091,6 @@ An immense server hall of pre-corporate scale, cold and humming. Visible detail:
 An immense server hall of pre-corporate scale, cold and humming, rack rows receding beyond sight, cyan status lights by the million, poured stone older than any logo, a single human figure for scale, the hall, indifferent, cyan on black, a cursor's worth of movement somewhere, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 </details>
 
 <details><summary>night (`scenes/core-hall-night.jpg`)</summary>
@@ -1327,10 +1107,6 @@ An immense server hall of pre-corporate scale, cold and humming. Visible detail:
 
 ```text
 An immense server hall of pre-corporate scale, cold and humming, rack rows receding beyond sight, cyan status lights by the million, poured stone older than any logo, a single human figure for scale, the hall, describing, cyan points to the horizon of the room, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 </details>
@@ -1356,10 +1132,6 @@ A fixer at her market counter, red hair, green eyes, faster than her smile. Visi
 A fixer at her market counter, red hair, green eyes, faster than her smile, fingerless gloves, a counter of street-tech between her and the viewer, one eyebrow pricing something, the Grid's green neon behind her, ticker light on the glass, fast, flat, amused at a rate she controls, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `lyra_vance`
@@ -1377,10 +1149,6 @@ A broker lit by three screens in a dark room. Visible detail: close-cut hair, un
 
 ```text
 A broker lit by three screens in a dark room, close-cut hair, unblinking eyes with screen reflections, a headset around the neck, cable everywhere, Ghost Alley's broker room, cyan screen-glow the only light, precise, remote, listening to something else as well, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1402,10 +1170,6 @@ A gate corporal in SynthSec grey, tired and exact. Visible detail: middle years,
 A gate corporal in SynthSec grey, tired and exact, middle years, weather-worn face, immaculate uniform worn like a debt, eyes that count, the Grid Point gatehouse, red floodlight from one side, tired, exact, six years deep, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `grease`
@@ -1423,10 +1187,6 @@ A scrap queen in a crane harness, third generation and it shows. Visible detail:
 
 ```text
 A scrap queen in a crane harness, third generation and it shows, broad shoulders, oil-marked overalls, a priced glance, hair tied back with cable, the Junkyard's amber floods and stacked hulls behind her, honest by the kilo, nobody's fool, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1448,10 +1208,6 @@ A struck-off surgeon in a spotless apron over street clothes. Visible detail: st
 A struck-off surgeon in a spotless apron over street clothes, steady hands, magnifier pushed up on her forehead, eyes that have seen the whole menu, the clinic's white-and-red light, a recovery chair behind, brisk, unshockable, cash up front, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `rho`
@@ -1469,10 +1225,6 @@ A fence of indeterminate everything at a table with a spread cloth. Visible deta
 
 ```text
 A fence of indeterminate everything at a table with a spread cloth, plain dark clothes with no labels and no history, gloved hands, face half out of the lamp light on purpose, the Velvet Pit's back table, one lamp on the cloth, epigrammatic, amused by provenance, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1494,10 +1246,6 @@ A wheelwoman drawing tunnel junctions on a napkin from memory. Visible detail: w
 A wheelwoman drawing tunnel junctions on a napkin from memory, wiry, driving gloves tucked in an epaulette, eyes that have already left by every exit, the end of the Pit's bar, amber light, professional, precise about numbers, unhurried, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `frankie`
@@ -1515,10 +1263,6 @@ An info broker dealing cards at a private table. Visible detail: slicked black h
 
 ```text
 An info broker dealing cards at a private table, slicked black hair, immaculate cuffs, a card face-down under one finger, a smile with a ledger behind it, Club Noir's gold table light, black marble dark behind, charming, transactional, first to know, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1540,10 +1284,6 @@ A tavern keeper at her taps with a ledger below the bar. Visible detail: strong 
 A tavern keeper at her taps with a ledger below the bar, strong forearms, an apron older than the clientele, eyes that record, the Rusty Anchor's warm lamps and steamed window, warm at a fixed rate, remembers everything, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `wren_solis`
@@ -1563,10 +1303,6 @@ A courier-faced person of no fixed name at an archive counter. Visible detail: u
 A courier-faced person of no fixed name at an archive counter, unremarkable on purpose, neat dark clothes, price tags face down on the counter, a gaze with a shutter in it, the Bunker's violet-lit shelving receding behind, flat, contained, four names this year, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `the_archivist`
@@ -1584,10 +1320,6 @@ An old archivist writing in a ledger, face never quite resolving. Visible detail
 
 ```text
 An old archivist writing in a ledger, face never quite resolving, a blotter, an antique pen, hands older than the shelving, features that slide off memory, a desk lamp's pool in an archive dark, shelving beyond, patient, past-tense, without cruelty, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1611,10 +1343,6 @@ A vacuum-pressed synthetic food brick in drab shrink-wrap. Visible detail: ratio
 A vacuum-pressed synthetic food brick in drab shrink-wrap, ration-grade, corner torn, dense extruded texture visible, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `sprawl_ramen`
@@ -1632,10 +1360,6 @@ A steaming bag of street ramen with a tape handle. Visible detail: noodles and b
 
 ```text
 A steaming bag of street ramen with a tape handle, noodles and broth in translucent plastic, chopsticks through the tape, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1657,10 +1381,6 @@ A dented metal flask of black street coffee. Visible detail: steam off the mouth
 A dented metal flask of black street coffee, steam off the mouth, oily sheen on the coffee, thumb-worn flask, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `sealed_ration`
@@ -1678,10 +1398,6 @@ A corp-issue field ration in a foil brick, seal intact. Visible detail: serial b
 
 ```text
 A corp-issue field ration in a foil brick, seal intact, serial burned off one corner, decade-old packaging design, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1703,10 +1419,6 @@ A half-rolled tube of grey protein paste. Visible detail: nutrition grid printed
 A half-rolled tube of grey protein paste, nutrition grid printed small, a bead of grey at the nozzle, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `synth_beer`
@@ -1724,10 +1436,6 @@ A condensation-beaded bottle of unlabelled synth-beer. Visible detail: amber gla
 
 ```text
 A condensation-beaded bottle of unlabelled synth-beer, amber glass, no label, a tavern's own crown cap, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1749,10 +1457,6 @@ A translucent adhesive stimulant patch on its backing. Visible detail: micro-nee
 A translucent adhesive stimulant patch on its backing, micro-needle grid catching the light, one lifted corner, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `overdrive_amp`
@@ -1770,10 +1474,6 @@ A matte-black injector ampoule with a red band. Visible detail: military lines, 
 
 ```text
 A matte-black injector ampoule with a red band, military lines, a dose window showing amber fluid, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1795,10 +1495,6 @@ A soft-shell street medkit, unzipped a finger's width. Visible detail: worn red 
 A soft-shell street medkit, unzipped a finger's width, worn red shell, sutures and sealant visible at the zip, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `trauma_patch`
@@ -1816,10 +1512,6 @@ A heavy trauma patch in sterile foil, palm sized. Visible detail: clinical print
 
 ```text
 A heavy trauma patch in sterile foil, palm sized, clinical print, one corner dog-eared from a pocket, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1841,10 +1533,6 @@ A bundle of salvaged circuit boards and relays tied with wire. Visible detail: g
 A bundle of salvaged circuit boards and relays tied with wire, gold contacts bright against corrosion, yard mud in the sockets, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `copper_spool`
@@ -1862,10 +1550,6 @@ A tight hand-wound spool of stripped copper wire. Visible detail: bright metal w
 
 ```text
 A tight hand-wound spool of stripped copper wire, bright metal where the sheath came off, heavy and honest, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1887,10 +1571,6 @@ A cyberdeck's pulled internals laid in a neat row. Visible detail: co-processor,
 A cyberdeck's pulled internals laid in a neat row, co-processor, cooling sleeve, an input array with thumb-wear, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `courier_wrap`
@@ -1908,10 +1588,6 @@ A weatherproof courier carry-harness, coiled. Visible detail: matte straps, seal
 
 ```text
 A weatherproof courier carry-harness, coiled, matte straps, sealed seams, one buckle scorched, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1933,10 +1609,6 @@ A grounded surveillance drone chassis, rotors snapped. Visible detail: corp seri
 A grounded surveillance drone chassis, rotors snapped, corp serial ground off, lens cluster cracked, yard grit, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `dropped_credstick`
@@ -1954,10 +1626,6 @@ An anonymous credstick trodden flat into wet asphalt. Visible detail: scuffed ca
 
 ```text
 An anonymous credstick trodden flat into wet asphalt, scuffed casing, contact strip still bright, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -1979,10 +1647,6 @@ A rental AR visor with a snapped strap. Visible detail: candy-coloured shell, ge
 A rental AR visor with a snapped strap, candy-coloured shell, geofence sticker peeling, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `dead_drop_shard`
@@ -2000,10 +1664,6 @@ A data shard wrapped in weatherproof tape. Visible detail: tape half peeled, cya
 
 ```text
 A data shard wrapped in weatherproof tape, tape half peeled, cyan contact edge showing, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2025,10 +1685,6 @@ A fractured black data crystal with sharp edges. Visible detail: internal fault-
 A fractured black data crystal with sharp edges, internal fault-lines catching cyan light, faintly wrong to look at, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `cache_key`
@@ -2046,10 +1702,6 @@ A single-use credential key, industrial and anonymous. Visible detail: rolling c
 
 ```text
 A single-use credential key, industrial and anonymous, rolling code window dark, tamper seal intact, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2071,10 +1723,6 @@ A thin frame-set cartridge from a street camera. Visible detail: evidence-grade 
 A thin frame-set cartridge from a street camera, evidence-grade housing, timestamp window blank, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `patrol_log`
@@ -2092,10 +1740,6 @@ A dot-matrix patrol route sheet, folded twice. Visible detail: grey print on che
 
 ```text
 A dot-matrix patrol route sheet, folded twice, grey print on cheap paper, rain-spotted, one route circled, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2117,10 +1761,6 @@ A length of pre-corporate sheathed cable, coiled. Visible detail: insulation sta
 A length of pre-corporate sheathed cable, coiled, insulation stamped with an unregistered maker's mark, unaged, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `precorp_tooling`
@@ -2138,10 +1778,6 @@ A machined hand tool for an unnameable job. Visible detail: tolerances too fine 
 
 ```text
 A machined hand tool for an unnameable job, tolerances too fine to measure, no wear anywhere, older than every logo, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2163,10 +1799,6 @@ A small machined object with no production siblings. Visible detail: geometry th
 A small machined object with no production siblings, geometry that resolves differently at second glance, matte finish, no marks, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `rain_shell`
@@ -2184,10 +1816,6 @@ A folded laminate rain poncho, taped seams. Visible detail: packs to a fist, dra
 
 ```text
 A folded laminate rain poncho, taped seams, packs to a fist, drab, acid-spotted at the hem, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2209,10 +1837,6 @@ A twin-cartridge civilian filter mask. Visible detail: rubber seals cracked at t
 A twin-cartridge civilian filter mask, rubber seals cracked at the edges, cartridge windows half spent, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `climbing_rig`
@@ -2230,10 +1854,6 @@ A compact climbing harness with line and two cams. Visible detail: yard-worn web
 
 ```text
 A compact climbing harness with line and two cams, yard-worn webbing, chalk and oil, the line coiled tight, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2255,10 +1875,6 @@ A heavy hand lamp with a scarred lens. Visible detail: aluminium body dented, ta
 A heavy hand lamp with a scarred lens, aluminium body dented, tape grip, honest white beam off, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `street_pistol`
@@ -2276,10 +1892,6 @@ A stamped-frame pistol with a filed serial. Visible detail: two magazines beside
 
 ```text
 A stamped-frame pistol with a filed serial, two magazines beside it, matte and history-free, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2301,10 +1913,6 @@ A collapsed shock baton with a capacitor window. Visible detail: livestock-tool 
 A collapsed shock baton with a capacitor window, livestock-tool markings, charge light dark, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `burner_deck`
@@ -2322,10 +1930,6 @@ A cheap cyberdeck with the casing screws mismatched. Visible detail: boots, work
 
 ```text
 A cheap cyberdeck with the casing screws mismatched, boots, works, disposable; a storm-drain-ready deck, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2347,10 +1951,6 @@ A drab pulse charge the size of a fist. Visible detail: arming collar taped, ste
 A drab pulse charge the size of a fist, arming collar taped, stencil markings sanded off, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `id_scrub`
@@ -2368,10 +1968,6 @@ A single-use identity solvent stick in plain packaging. Visible detail: one-time
 
 ```text
 A single-use identity solvent stick in plain packaging, one-time chip visible through the shell, no branding, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2393,10 +1989,6 @@ A forged closure-paperwork injector chip on a lanyard. Visible detail: official-
 A forged closure-paperwork injector chip on a lanyard, official-looking seal that does not survive attention, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `burner_face`
@@ -2414,10 +2006,6 @@ A subdermal restructuring kit in a clinical case. Visible detail: applicator and
 
 ```text
 A subdermal restructuring kit in a clinical case, applicator and ampoules in cut foam, deeply unpleasant implications, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2439,10 +2027,6 @@ A matte black card with no markings at all. Visible detail: absorbs the light th
 A matte black card with no markings at all, absorbs the light that hits it, one contact edge, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `black_ice`
@@ -2460,10 +2044,6 @@ A jet-black data spike that seems to bite the light. Visible detail: faint red t
 
 ```text
 A jet-black data spike that seems to bite the light, faint red tracery under the surface, edges you do not test with a thumb, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2485,10 +2065,6 @@ A folded paper wrap leaking a red crystalline dust. Visible detail: wax-paper fo
 A folded paper wrap leaking a red crystalline dust, wax-paper folds, a residue that catches neon, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `forged_id`
@@ -2506,10 +2082,6 @@ A clean identity laminate with a stranger's name. Visible detail: hologram sligh
 
 ```text
 A clean identity laminate with a stranger's name, hologram slightly too perfect, two good spends in it, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2531,10 +2103,6 @@ A single black data shard on wet asphalt. Visible detail: unlabelled, corporate 
 A single black data shard on wet asphalt, unlabelled, corporate header notch, forty seconds inside it, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `halloran_drop`
@@ -2552,10 +2120,6 @@ A taped weatherproof package from inside a junction box. Visible detail: tape pr
 
 ```text
 A taped weatherproof package from inside a junction box, tape printed with rain, a careful man's knots, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2577,10 +2141,6 @@ A corporate routing stamp chip in an evidence sleeve. Visible detail: authority 
 A corporate routing stamp chip in an evidence sleeve, authority glyph etched small, older styling than the corp that uses it, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `stamp_registry`
@@ -2598,10 +2158,6 @@ A sheaf of registry printout, still printer-warm. Visible detail: columns of aut
 
 ```text
 A sheaf of registry printout, still printer-warm, columns of authorities, one row's worth of dread, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2623,10 +2179,6 @@ A single sheet of paper with a decimal figure on it. Visible detail: typed, unsi
 A single sheet of paper with a decimal figure on it, typed, unsigned, too many decimal places to argue with, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `truck_manifest`
@@ -2644,10 +2196,6 @@ A cargo manifest flimsy with one resolved column. Visible detail: carbon-copy gr
 
 ```text
 A cargo manifest flimsy with one resolved column, carbon-copy grey, the cargo line legible and wrong, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2669,10 +2217,6 @@ A laminated visitor pass for an unlisted floor. Visible detail: corporate blank 
 A laminated visitor pass for an unlisted floor, corporate blank with an 87 punched where a floor code goes, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `access_codes`
@@ -2690,10 +2234,6 @@ A cold-boot credential slate of pre-corporate make. Visible detail: numbering th
 
 ```text
 A cold-boot credential slate of pre-corporate make, numbering that does not start at one, contacts of unworn gold, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---
@@ -2715,10 +2255,6 @@ A hand-drawn map of ground no satellite will admit to. Visible detail: draughtsm
 A hand-drawn map of ground no satellite will admit to, draughtsman-precise linework, annotations in a careful hand, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
 ```
 
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
-```
-
 ---
 
 ### `proxy_effigy`
@@ -2736,10 +2272,6 @@ A telemetry doppel folded into a coat, boxed. Visible detail: gait servos at the
 
 ```text
 A telemetry doppel folded into a coat, boxed, gait servos at the joints, a pulse unit where a heart would sit, the single object alone in the centre of a square frame, laid on wet black asphalt or dark brushed metal, a faint cyan rim light, nothing else in the frame, one cold cyan accent light from the upper left, soft neon reflections in the wet ground, deep black surround, cyberpunk illustration, black canvas, neon noir, rain-slick streets, cyan accent lighting, screen-lit faces, painterly, heavy atmosphere, volumetric haze, no text, no watermark
-```
-
-```text
-NEGATIVE: daylight, sunshine, medieval, fantasy, cartoon, anime, bright cheerful colors, text, lettering, watermark, logo, blurry, low quality, clean streets, emoji, user interface elements
 ```
 
 ---

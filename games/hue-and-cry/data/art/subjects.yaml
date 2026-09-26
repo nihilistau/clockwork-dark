@@ -2,7 +2,7 @@
 # Art subjects -- HUE & CRY.
 #
 # ONE source, TWO prompt dialects: engine/media/art.py renders prose for Grok
-# Imagine and tags plus a negative for ComfyUI from the same entry.
+# Imagine and tags for ComfyUI from the same entry.
 #
 # PROMPTS ONLY. No plate ships until the v1.0 art pack (~55 plates: eleven
 # districts by day and night, the portraits, the premises, key items), so every
@@ -31,10 +31,6 @@ style:
     painterly storybook illustration, old port city, candlelight, lamplight,
     warm amber and cool blue, smoke haze, timber and slate, wet cobbles,
     hanging lanterns, characterful, lived-in, no text, no watermark
-  negative: >-
-    child, childlike proportions, modern, electric light, neon, cars, plastic,
-    sci-fi, photographic, anime, chibi, grimdark, gore, text, lettering,
-    watermark, logo, signature, blurry, low quality, oversaturated
 
 formats:
   location: {aspect: "16:9", width: 1344, height: 768}

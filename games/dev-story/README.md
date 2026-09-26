@@ -1,9 +1,9 @@
 # Dev Story — the bench
 
 A sandbox story for testing the engine. Not a game: a house, a university, eight
-people, and one small working instance of every subsystem, so you can change a
-thing and see what it does without 5,300 lines of authored content answering
-first.
+people, and one small working instance of the subsystems a story declares, so
+you can change a thing and see what it does without a big story's authored
+content answering first.
 
 ```powershell
 .\.venv\Scripts\python.exe launcher.py --game dev-story --port 5599
@@ -11,9 +11,14 @@ first.
 
 This story ships. It used to be gitignored; it is committed now because it is
 the full worked example the story templates (`scripts/story_template/`) are
-distilled from, and because it puts a third row under every per-story test —
-one that shares almost nothing with either big story. Break it freely on a
-branch; the suite runs its rows, so leave it working on main.
+distilled from, and because it puts a row under every per-story test that
+shares almost nothing with the other five stories. Break it freely on a
+branch; the suite runs its rows (`tests/test_finales.py` plays it to an
+ending), so leave it working on main.
+
+It draws with the engine's default skin (`ui.plugin: _engine`): the generic
+sheet built from its declared meters and clock. What changed, release by
+release: [CHANGELOG.md](CHANGELOG.md).
 
 Writing a story of your own? The end-to-end guide — manifest contract, content
 types, the authoring tools, verification — is
@@ -35,9 +40,9 @@ example.
 | Where the other seven people are, hour by hour | `data/world/npc_schedules.yaml` |
 | A progress clock that fills and forces a scene | `data/rules/clocks.yaml` |
 | A contract with a lifecycle | `data/rules/threads.yaml` |
-| How the story can end, and what the gates are | `data/rules/endings.yaml` |
+| How the story can end (three classes: `top_of_the_class`, `everyones_friend`, `just_another_term`), and what the gates are | `data/rules/endings.yaml` |
 | The last screen | `data/epilogues/` |
-| Authored scene cards, gates and bands | `data/scenes/campus_day.yaml` |
+| Authored scene cards, gates and bands (one five-card deck) | `data/scenes/campus_day.yaml` |
 | Items, quests | `data/items/`, `data/quests/` |
 | What the awareness gate hides | `data/rules/spoilers.yaml` |
 | The pictures | `data/art/manifest.yaml`, `data/art/subjects.yaml` |
@@ -101,4 +106,4 @@ both dialects at the right pixel size. Generate what you want to look at.
 
 ---
 
-Version: v0.4.0 [2026-09-20]
+Version: v0.5.0 [2026-09-26]

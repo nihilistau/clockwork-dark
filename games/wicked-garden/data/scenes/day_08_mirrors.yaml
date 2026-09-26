@@ -459,10 +459,9 @@ cards:
       INTENT: the night is chosen by intent, or by its absence. Door -- quiet,
       mortal memories, and she may visit softly or block the corridor. Equal --
       partnership, planning against whatever is coming. Thrall -- surrender
-      romance, intensity-gated. Usurper -- ambition insomnia and dreams of the
+      romance. Usurper -- ambition insomnia and dreams of the
       Seat. Winter or other -- cold intimacy, or isolation. Unsworn --
       fragmented dreams of all of them at once.
-      CEILING: suggestive.
       MENU -- resolve exactly one beat.
     beats:
       - id: the_quiet_night

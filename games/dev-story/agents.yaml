@@ -112,9 +112,8 @@ agents:
 # interrupt, offer, withhold, silent -- because an unknown intent is silently
 # downgraded to `silent` and the rule would simply never match.
 #
-# The engine's own two rules (safety outranks every agent goal; no agent may
-# speak as a voice it does not own) are applied ahead of this table and are not
-# reorderable from here.
+# The engine's own rule (no agent may speak as a voice it does not own) is
+# applied ahead of this table and is not reorderable from here.
 # ---------------------------------------------------------------------------
 negotiation:
   # She is mid-sentence and the world wants to cut in. She finishes;

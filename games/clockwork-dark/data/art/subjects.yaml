@@ -3,10 +3,9 @@
 #
 # The two image backends want opposite things:
 #
-#   Grok Imagine  natural prose, 2-5 sentences, positive description only,
-#                 no negative prompts (per ~/.grok/skills/imagine/SKILL.md)
-#   ComfyUI SDXL  comma-separated keyword tags plus an explicit negative
-#                 prompt and LoRA hints
+#   Grok Imagine  natural prose, 2-5 sentences, positive description only
+#                 (per ~/.grok/skills/imagine/SKILL.md)
+#   ComfyUI SDXL  comma-separated keyword tags and LoRA hints
 #
 # Writing each subject twice guarantees they drift. Everything here is stored
 # once as structured fields, and engine/media/art.py renders whichever dialect
@@ -32,10 +31,6 @@ style:
     oil-painted fantasy illustration, grounded realism, muted earth palette,
     soft atmospheric lighting, detailed textures, frontier village aesthetic,
     no modern elements, no text, no watermark
-  negative: >-
-    cartoon, anime, neon, sci-fi, cyberpunk, modern clothing, cars, guns, text,
-    watermark, logo, blurry, low quality, oversaturated, heroic pose,
-    glowing magic effects, floating UI
   loras:
     - {name: Oil_Painting_Style, weight: 0.6}
     - {name: Medieval_Environment, weight: 0.4}
@@ -73,7 +68,7 @@ formats:
 #
 # ONE spec, TWO dialects, as everything else in this file:
 #   render_prose(f"dice_face_{n}", kind="dice")  -> Grok Imagine (default)
-#   render_tags (f"dice_face_{n}", kind="dice")  -> ComfyUI SDXL + negative
+#   render_tags (f"dice_face_{n}", kind="dice")  -> ComfyUI SDXL
 # `formats.dice` above gives both of them the 1:1 the plates are drawn at.
 #
 # The one place these fight the shared house style is `no text or lettering
@@ -309,8 +304,8 @@ portraits:
 # `light` when the object needs it -- a lit candle is not lit by the plate.
 #
 # Rendered by engine/media/art.py::render_prose (Grok Imagine: natural prose,
-# positive only) and ::render_tags (ComfyUI SDXL: comma tags plus the shared
-# negative prompt and the LoRA hints above). ONE source, TWO dialects -- see
+# positive only) and ::render_tags (ComfyUI SDXL: comma tags plus the LoRA
+# hints above). ONE source, TWO dialects -- see
 # the file header. Nothing here is written twice.
 #
 # `formats.item` above is 1:1 at 256x256, which is what the UI renders at and

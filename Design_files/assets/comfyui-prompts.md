@@ -1,19 +1,12 @@
 # ComfyUI Prompt Templates — The Clockwork Dark
 
-Lifted from `clockwork-dark/data/procgen_templates/comfyui.yaml` and the design brief (§5–§6). Append the **style suffix** to every prompt; pair with the **standard negative**. Add the **corruption suffix** only from the SPREADING phase onward.
+Lifted from `clockwork-dark/data/procgen_templates/comfyui.yaml` and the design brief (§5–§6). Append the **style suffix** to every prompt. Add the **corruption suffix** only from the SPREADING phase onward.
 
 ## Style suffix (append to all)
 ```
 oil-painted fantasy illustration, grounded realism, muted earth palette,
 soft atmospheric lighting, detailed textures, frontier village aesthetic,
 no modern elements, no text, no watermark
-```
-
-## Negative prompt (standard)
-```
-cartoon, anime, neon, sci-fi, cyberpunk, modern clothing, cars, guns,
-text, watermark, logo, blurry, low quality, oversaturated, heroic pose,
-glowing magic effects, floating UI
 ```
 
 ## Corruption overlay (SPREADING+ only)
@@ -38,7 +31,7 @@ uncanny wrongness, melancholy dread
 - **millhaven_gate** — dawn: *wooden palisade gate, militia banners, mud road, cold morning*
 - **corruption_border** (SPREADING only) — *wheat field with brass gear growths, sick sky, wrong perspective*
 
-## NPC portrait briefs (subject; append style suffix + negative)
+## NPC portrait briefs (subject; append style suffix)
 - **npc_maris** (Baker) — *woman, 40s, flour on forearms, kind tired eyes, bakery interior, oven glow; warmth with worry underneath*
 - **npc_odran** (Caravan Master) — *man, 50s, weathered, ledger in hand, coiled horse whip, wagon trail at dusk; merchant cheer masking gossip hunger*
 - **npc_ilya** (Tinker) — *androgynous, sharp eyes, nine brass pins in scarf, tent interior with hanging charms; curious, slightly unsettling smile*
@@ -79,7 +72,7 @@ with nothing else in shot, one low warm lamp from the upper left, thick oil impa
 lit facets, the ground falling away to near-black in the corners
 ```
 
-Then the standard **style suffix** and **negative prompt**. Do *not* add the
+Then the standard **style suffix**. Do *not* add the
 corruption suffix — the dice are chrome, not world, and do not rot with it.
 
 The `no text` clause in the style suffix fights a numbered die by definition.

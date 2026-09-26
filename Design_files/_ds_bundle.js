@@ -3513,8 +3513,7 @@ function Kicker({
   }, children);
 }
 function Prompt({
-  children,
-  neg
+  children
 }) {
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -3534,7 +3533,7 @@ function Prompt({
       color: "var(--accent-brass)",
       marginBottom: 3
     }
-  }, neg ? "negative" : "ComfyUI prompt"), /*#__PURE__*/React.createElement("span", {
+  }, "ComfyUI prompt"), /*#__PURE__*/React.createElement("span", {
     style: {
       fontFamily: "var(--font-mono)",
       fontSize: "11px",

@@ -75,6 +75,23 @@ bump is something a player or an author would notice; a PATCH is repair.
 Describe engine SCOPE in commit bodies, never a content-policy decision (see
 rule 12). Nothing is pushed without the owner's explicit word.
 
+**Docs move with the change.** Each story keeps `games/<slug>/CHANGELOG.md`
+and `games/<slug>/README.md` for its own content; the root `CHANGELOG.md` and
+`README.md` cover the engine and the release. Any change updates, in the same
+commit, every doc it makes stale: the affected story's CHANGELOG
+(`## [Unreleased]`) and README; the root CHANGELOG and README for an engine
+change; CLAUDE.md when the status, the roadmap or the deferred list moves;
+and this file when a rule or convention does. "Updated" means reviewed and
+cleaned up, not appended to: anything no longer true or relevant is removed.
+A release renames each touched story's `## [Unreleased]` to the release's
+heading, as the root file does. It exists because docs that drifted from the
+code were a finding in almost every review this repo has had.
+`tests/test_release_hygiene.py` checks that every story keeps a README that
+links its CHANGELOG, and a CHANGELOG whose `## [Unreleased]` sits above its
+releases, whose release headings are written the root's way (em dash and
+date), newest first, never repeated, each a version the root CHANGELOG has
+and none newer than `pyproject.toml`'s.
+
 **Tests.** A fix ships with a test that FAILED against the code before it, and a
 guard is canary-checked by reintroducing the bug it guards. A test that
 activates a story is cleaned up by `tests/conftest.py::_no_story_outlives_its_test`;

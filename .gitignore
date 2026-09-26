@@ -64,8 +64,7 @@ data/media/
 # Ignored rather than committed for three reasons: this repository is public
 # and git history is permanent; the concept art here is a second, larger copy
 # of pictures that already ship under games/<slug>/data/art/; and these
-# documents specify content at intensity tiers the shipped stories
-# deliberately stop short of.
+# documents specify content the shipped stories do not ship.
 #
 # The engine never reads it. The suite reads it exactly once -- a test that
 # compares the shipped epilogue index to the JSON it was transcribed from --

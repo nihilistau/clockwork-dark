@@ -118,9 +118,9 @@ agents:
 # How their proposals are reconciled, when they disagree.
 #
 # These are THIS STORY'S dramatic priorities, which is why they are data. The
-# engine ships only the two rules that are structural rather than dramatic --
-# safety outranks every agent goal, and no agent may speak as a voice it does
-# not own -- and neither of those is reorderable from here.
+# engine ships only the rule that is structural rather than dramatic -- no
+# agent may speak as a voice it does not own -- and it is not reorderable from
+# here.
 #
 # First match wins, in declared order. A rule with no `when` never fires.
 # ---------------------------------------------------------------------------

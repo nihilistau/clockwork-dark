@@ -28,7 +28,7 @@ settles the result, and a model on your own machine writes the prose.
   generation, voice and ComfyUI are optional and **off by default**. The
   shipped art packs mean scenes have pictures without any of them.
 
-**Status:** **v0.15.0** is the current release. Six stories ship, and each
+**Status:** **v0.15.1** is the current release. Six stories ship, and each
 can be played to an ending. At v0.15.0 the suite stood at 3191 passing, 4
 skipped, plus 144 client tests. Those numbers are
 re-measured each release in [CLAUDE.md](CLAUDE.md), and
@@ -53,12 +53,15 @@ The engine doesn't know any of these stories exist. Each one is a directory
 under `games/<slug>/` with a manifest (`game.yaml`) that declares which systems
 it uses. **A story pays nothing for a system it doesn't declare, and the test
 suite checks that its turns stay byte-identical.** Pick one with
-`launcher.py --game <slug>`.
+`launcher.py --game <slug>`. Each story keeps its own `README.md` and
+`CHANGELOG.md` beside its manifest (linked under [Documentation](#documentation));
+this file and the root [CHANGELOG.md](CHANGELOG.md) cover the engine and the
+release.
 
 | Story | Slug | Genre and register | Leans on | What sets it apart |
 |---|---|---|---|---|
 | **The Clockwork Dark** | `clockwork-dark` | Grounded low fantasy. A frontier village, and something brass winding outward from the Wound | Travel graph, survival, crafting, encounters, awareness-gated arcs, the evil clock, death rules | The flagship. The evil advances whether you become a hero or a baker, and the quiet life counts as a complete game |
-| **The Wicked Garden** | `wicked-garden` | Fae-court bargain. One day in the garden costs ten at home | Scene decks, veiled meters, clocks, threads, many endings | The deck exemplar, with no HP, no hunger, no travel graph and no dice. It shows the engine isn't one game with the nouns swapped |
+| **The Wicked Garden** | `wicked-garden` | Fae-court bargain. One day in the garden costs ten at home | Scene decks, veiled meters, clocks, threads, many endings | The deck exemplar, with no HP, no hunger, no skill checks and nothing to buy. It shows the engine isn't one game with the nouns swapped |
 | **NEON CITY: THE CROSSING** | `neon-city` | Cyberpunk survival expedition across the Sprawl on a 21-day timestamp | Graph world, scavenge economy, a doom-style clock that quests can make *slip*, debt escalation, threads, six ending classes | A graph story with no evil clock. The pressure comes from heat, debt, the weather and the file |
 | **THE LONG CON** | `the-long-con` | Rain-and-radiator noir. A client, a photograph, a man already dead | Graph city with road encounters, a shop, and a clock that forces an authored deck scene | The first hybrid: a walkable city with a set-piece deck inside it. It also has secret places, a clue board, gossip, and a continuity guard that rejects a scene greeting someone you know as a stranger |
 | **HUE & CRY** | `hue-and-cry` | Wry, warm thief's comedy with real gallows. Tallowmere, a candle-port, where everyone has decided you are the Magpie | Premises, the Law, jobs and flashbacks, NPC agendas, survival, labour, factions, lore, a guild economy (crafting, a collectable set, blackmail, credit) | The systems-heavy one, and the story in progress toward v1.0.0. The world schemes, robs and hunts on its own clock |
@@ -71,7 +74,7 @@ You wake at the forest's edge beside Edgewood, the last comfortable village
 before the Marches. The **evil clock** ticks through `dormant`, `stirring`,
 `spreading` and `consuming` whatever you do. Four story arcs (quiet life,
 whisper, march, convergence) open on **awareness**, a hidden stat, so a baker
-who never listens to the caravan master stays a baker. It has 24 quests,
+who never listens to the caravan master stays a baker. It has 25 quests,
 survival with rest that is never gated, crafting and recipes, trade, encounters
 played as scenes rather than a combat system, death rules, and an in-world
 companion (the Assistant) whose trust you earn. It has the largest shipped art
@@ -289,8 +292,9 @@ declared meters and clocks.
 - **The studio:** `launcher.py --studio` edits stories in the browser, with
   live validation and a review queue.
 - **Balance harnesses** that run headless, with no LLM: `scripts/simulate.py`
-  for the flagship, and one per HUE & CRY system (law, jobs, agendas,
-  scrounging, labour, streets, the Hoard).
+  for the flagship, `scripts/simulate_decks.py` for deck stories, and one
+  per HUE & CRY system (law, jobs, agendas, scrounging, labour, streets, the
+  Hoard).
 - `scripts/art_missing.py` and `scripts/generate_art.py` list missing plates
   and fill them ahead of time.
 
@@ -483,8 +487,10 @@ npm run build --prefix ui     # rebuild, then commit dist in the same change
 ```
 
 The HUE & CRY harnesses run 40 seeds of in-game days each, and none of them
-writes a save. `--set KEY=VALUE`
-tries a number without editing the file, and `--json` prints the raw table.
+writes a save. The law, jobs and agendas harnesses take `--set KEY=VALUE` to
+try a number without editing the file, and every one takes `--json` for the
+raw table. `scripts/simulate_decks.py --game wicked-garden` walks a deck
+story the same way: every ending, card and clock, over seeded runs.
 NEON CITY's and THE LONG CON's numbers are authored judgement and haven't been
 simulated; their READMEs say so.
 
@@ -500,7 +506,7 @@ fixed; details may change as each release lands.
 | Release | What | State |
 |---|---|---|
 | v0.15.0 | **Guild economy** for HUE & CRY: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | **shipped** |
-| v0.16.0 | **Acts I and II**: arcs, the initiation and interrogation decks, the Magpie reveal, the alibi beat | planned |
+| v0.16.0 | **Acts I and II**: arcs, the initiation and interrogation decks, the Magpie reveal, the alibi beat | in progress |
 | v0.17.0 | **Act III and eight endings**: the Hanging Fair, the jailbreak, The Rope, per-ending tests | planned |
 | v0.18.0 | **A thief policy** for `simulate.py` | planned |
 | v0.19.0 | **Model-server agnostic**: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | planned |
@@ -520,7 +526,8 @@ down, not implied. They're in CLAUDE.md's "Deliberately deferred" list and the
 
 | Document | Audience | Purpose |
 |---|---|---|
-| [CHANGELOG.md](CHANGELOG.md) | Everyone | What changed in each release, and why. Authoritative from 0.4.0 |
+| [CHANGELOG.md](CHANGELOG.md) | Everyone | What changed in the engine in each release, and why. Authoritative from 0.4.0 |
+| `games/<slug>/CHANGELOG.md` | Everyone | What changed in one story's content, release by release (links below) |
 | [docs/DESIGN.md](docs/DESIGN.md) | Architects | System design, story bible, mechanics, measured balance |
 | [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) | Anyone picking this up | What the overhaul found, what it fixed, what's still open |
 | [docs/AUTHORING.md](docs/AUTHORING.md) | Story authors | Writing a story under `games/<slug>/` without reading engine source |
@@ -531,10 +538,18 @@ down, not implied. They're in CLAUDE.md's "Deliberately deferred" list and the
 | [AGENTS.md](AGENTS.md) | Any coding agent | The operating rules for changing this repo, tool-neutral |
 | [CLAUDE.md](CLAUDE.md) | Claude Code | Imports AGENTS.md, then current status and what's in flight |
 
-Each story has its own notes: [dev-story](games/dev-story/README.md),
-[neon-city](games/neon-city/README.md), [the-long-con](games/the-long-con/README.md),
-[hue-and-cry](games/hue-and-cry/README.md). When documents disagree, the code
-wins, then DESIGN.md.
+Each story has its own README and CHANGELOG:
+
+| Story | README | CHANGELOG |
+|---|---|---|
+| The Clockwork Dark | [games/clockwork-dark/README.md](games/clockwork-dark/README.md) | [CHANGELOG](games/clockwork-dark/CHANGELOG.md) |
+| The Wicked Garden | [games/wicked-garden/README.md](games/wicked-garden/README.md) | [CHANGELOG](games/wicked-garden/CHANGELOG.md) |
+| NEON CITY: THE CROSSING | [games/neon-city/README.md](games/neon-city/README.md) | [CHANGELOG](games/neon-city/CHANGELOG.md) |
+| THE LONG CON | [games/the-long-con/README.md](games/the-long-con/README.md) | [CHANGELOG](games/the-long-con/CHANGELOG.md) |
+| HUE & CRY | [games/hue-and-cry/README.md](games/hue-and-cry/README.md) | [CHANGELOG](games/hue-and-cry/CHANGELOG.md) |
+| Dev Story | [games/dev-story/README.md](games/dev-story/README.md) | [CHANGELOG](games/dev-story/CHANGELOG.md) |
+
+When documents disagree, the code wins, then DESIGN.md.
 
 ## Parent projects
 

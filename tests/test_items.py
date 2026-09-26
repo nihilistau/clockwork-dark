@@ -137,10 +137,8 @@ def test_every_item_has_a_generation_prompt_for_both_backends():
         assert fields is not None and fields["details"] and fields["setting"]
 
         prose = render_prose(item_id, kind="item")
-        positive, negative = render_tags(item_id, kind="item")
+        positive = render_tags(item_id, kind="item")
         assert fields["details"] in prose and fields["details"] in positive
-        assert negative, "ComfyUI needs a negative prompt; Grok Imagine must not get one"
-        assert negative not in prose, "Grok Imagine takes positive description only"
 
 
 def test_every_item_has_its_own_shipped_plate():
@@ -655,7 +653,10 @@ def test_the_comfyui_workflow_ends_in_a_saved_file():
     )
     classes = {node["class_type"] for node in graph.values()}
     assert {"CheckpointLoaderSimple", "KSampler", "VAEDecode", "SaveImage"} <= classes
-    # Positive and negative are separate encodes -- that is the whole reason
-    # ComfyUI gets the tag dialect and Grok Imagine does not.
+    # KSampler takes a positive and a negative conditioning, so there are two
+    # encodes; the negative one is empty, because no story carries a negative
+    # prompt (v0.15.1).
     assert sum(1 for n in graph.values() if n["class_type"] == "CLIPTextEncode") == 2
+    assert graph["3"]["inputs"]["text"] == ""
+    assert graph["5"]["inputs"]["negative"] == ["3", 0]
     assert graph["4"]["inputs"]["width"] == 256, "items render square at 256"

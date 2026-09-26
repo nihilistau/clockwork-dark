@@ -996,7 +996,7 @@ def test_the_thrall_endings_are_reachable_by_a_surrender_line(
     with an end mean of 94. The content simply had no autonomy-draining beats
     worth the name -- surrender was narrated and never charged for.
 
-    The register is explicit-rated and consent-forward, so the fix is texture
+    The register is consent-forward, so the fix is texture
     rather than a lowered gate: chosen surrender beats across days 1-8, each
     one a decision the player makes out loud, each one paying real autonomy for
     real favour and heat. Menace and surrender, never non-choice -- which is
