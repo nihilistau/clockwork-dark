@@ -310,10 +310,16 @@ def test_every_registered_cache_names_a_real_target() -> None:
         assert hasattr(importlib.import_module(src_name), src_attr)
 
 
-def test_reset_all_caches_is_idempotent_and_never_imports() -> None:
+def test_reset_all_caches_is_idempotent_and_never_imports(monkeypatch: pytest.MonkeyPatch) -> None:
     import sys
 
-    sys.modules.pop("engine.media.comfyui", None)
+    # Through monkeypatch, so the module is back in sys.modules afterwards. A
+    # bare pop orphaned it: every file imported before this one kept the old
+    # module object, whose `_TEMPLATE_CACHE` the per-test cache reset (which
+    # looks modules up in sys.modules) could no longer reach -- so the first
+    # later turn run in a story with no image templates memoized `{}` there
+    # for good, and tests/test_media.py read it (found in v0.16 Task 3).
+    monkeypatch.delitem(sys.modules, "engine.media.comfyui", raising=False)
     caches_module.reset_all_caches()
     caches_module.reset_all_caches()
     assert "engine.media.comfyui" not in sys.modules

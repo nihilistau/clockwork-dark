@@ -64,9 +64,23 @@ each, while it has the crowns); it eats a carried meal whenever hunger reaches
 ``EAT_AT``; and it sleeps in the Snuffs in the bed ``--bed`` names --
 ``flophouse`` (Old Nance's, 1 cr; the default, because bread plus a flophouse
 bed is the cost of living the labour table was tuned against), ``bunk`` (the
-Porters' Hall, free while the Honest Company has no quarrel with you) or
+Porters' Hall, free to the Company's sworn while it has no quarrel with you) or
 ``rough``. A bed it cannot pay for is a rough night (survival.yaml's
 fallback), never a refusal.
+
+THE OATH, A HARNESS STEP (v0.16). The guild bunk waits for the Honest
+Company's oath (`guild_initiated`, games/hue-and-cry/data/scenes/
+initiation.yaml), which a player takes when ``run_turn`` deals the initiation
+deck -- and this harness drives intents, not turns, so nothing would ever deal
+it. So the ``bunk`` policy takes it the way a player does: the first night it
+comes home to the Snuffs while Mother Gannet holds court (18:00-04:00),
+the deck is dealt (``director.ensure_scene``, as ``run_turn`` calls it) and every card is
+answered through the ``card`` verb with its roll-free answer (``ROLL_FREE``),
+so the oath draws nothing from the check stream the day's lifts and shifts
+roll on. The other beds never deal it: their runs are exactly as before.
+Every policy reports ``initiation_due_day``, the first day it stood where a
+played turn would have been dealt the deck (the Snuffs, free, Gannet at the
+long table).
 
 Every walk, shift, lift, sale, purchase, meal and night goes through
 ``tool_dispatcher.execute_intent``, the production channel a chosen option
@@ -93,6 +107,8 @@ WHAT IT REPORTS, per policy, averaged over seeds:
   credit_broken    of those, the share that came due unpaid
   collectors_met   times a fence's collectors met it on the street, per run
   collectors_hp_lost  hp those meetings cost it, per run
+  initiation_due_day  mean first day a played turn would have dealt the
+                   initiation (v0.16); `initiated` the share sworn (bunk only)
 
 Usage:
     python scripts/simulate_labour.py                    # 40 seeds x 10 days, all four
@@ -101,7 +117,7 @@ Usage:
     python scripts/simulate_labour.py --policy careful_pell --no-credit   # its control
     python scripts/simulate_labour.py --json
 
-Version: v0.2.1 [2026-09-26]
+Version: v0.3.0 [2026-09-26]
 """
 
 from __future__ import annotations
@@ -139,6 +155,11 @@ DUSK_HOUR = 18
 #: Things a policy never sells: the careful thief's guise, and food.
 KEEP = ("porters_smock",)
 ROOFED = ("sleep_flophouse", "sleep_guild_bunk", "sleep_tavern")
+#: The initiation deck (v0.16), and the answer the bunk policy gives on each of
+#: its cards: the one that asks no dice (a sequence card's only answer is
+#: `resolve`). The deck's own test asserts every card carries one.
+INITIATION = "initiation"
+ROLL_FREE = ("say_nothing", "carry_the_crates", "take_a_bow", "resolve")
 #: The credit policies strike a line only while the purse is under this: a
 #: day's bread and a flophouse bed (~1.6 cr, CHANGELOG [0.14.0]) and change.
 CREDIT_WHEN_BELOW = 3
@@ -169,6 +190,8 @@ class Life:
     credit_broken: int = 0
     collectors_met: int = 0
     collectors_hp: int = 0
+    initiation_due_day: Optional[int] = None
+    initiated_day: Optional[int] = None
 
 
 class Living:
@@ -260,6 +283,7 @@ class Living:
         from engine.game import survival
 
         self.walk(HOME)  # type: ignore[attr-defined]
+        self.meet_the_company()
         self.eat()
         self.life.days += 1
         fed = survival.hunger_stage(self.state) not in ("hungry", "starving")
@@ -269,6 +293,29 @@ class Living:
         self.life.bed_nights += int(roofed)
         self.life.kept_days += int(fed and roofed)
         self.note()
+
+    def meet_the_company(self) -> None:
+        """Note the first day the initiation would be dealt here; and, for the
+        bunk policy only, take the oath then (the module docstring)."""
+        from engine.content import director
+
+        if self.state.flags.get("guild_initiated"):
+            return
+        if (self.life.initiation_due_day is None
+                and director.due(self.state)[0] == INITIATION):
+            self.life.initiation_due_day = int(self.state.world_day)
+        if self.life.bed != "bunk":
+            return
+        director.ensure_scene(self.state)
+        guard = 0
+        while director.active(self.state) and guard < 8:
+            guard += 1
+            offered = self.legal_targets("card")  # type: ignore[attr-defined]
+            if not offered:
+                break
+            self.act("card", next((b for b in ROLL_FREE if b in offered), offered[0]))
+        if self.state.flags.get("guild_initiated"):
+            self.life.initiated_day = int(self.state.world_day)
 
     def work(self, job_id: str) -> None:
         if job_id not in self.legal_targets("work"):  # type: ignore[attr-defined]
@@ -504,6 +551,14 @@ def measure(policy: str, seeds: int, days: int, bed: str = "flophouse",
         "arrests_per_run": _mean([float(l.arrests) for l in lives]),
         "fines_per_run": _mean([float(-l.money["pay_fine"]) for l in lives]),
         **_credit(lives),
+        "initiation_due_day": _mean([float(l.initiation_due_day) for l in lives
+                                     if l.initiation_due_day is not None]),
+        "initiation_never_due": round(sum(l.initiation_due_day is None for l in lives)
+                                      / len(lives), 3),
+        **({"initiated": round(sum(l.initiated_day is not None for l in lives) / len(lives), 3),
+            "initiated_day": _mean([float(l.initiated_day) for l in lives
+                                    if l.initiated_day is not None])}
+           if bed == "bunk" else {}),
     }
 
 

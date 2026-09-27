@@ -428,6 +428,19 @@ def ensure_scene(state: GameState, *, ledger: Any = None) -> list[dict[str, Any]
 
     if jobs.active(state) is not None:
         return []
+    # An open encounter owns the turn too, and here it must win: a card can
+    # open an encounter but never the reverse (intents.legal_intents checks
+    # a dealt card FIRST, so a hand dealt over an encounter leaves `card` the
+    # only verb and the encounter hanging). In run_turn the Law's patrol runs
+    # before this call, so a Lantern's stop on arrival would otherwise be
+    # buried under the scene the arrival made due. The deal WAITS, unspent --
+    # nothing is marked played -- and lands on the first turn after the
+    # encounter resolves, if its `when:` still holds. `state.encounter` is
+    # `{}` whenever no encounter is open, so a turn with none is unchanged.
+    from engine.game import encounter
+
+    if encounter.active(state):
+        return []
 
     deck_id, forced_card, source = due(state, ledger=ledger)
     if not deck_id:

@@ -297,8 +297,10 @@ def test_a_house_the_player_or_an_agenda_robbed_is_never_picked_again(
     [hit] = [r for r in receipts if r["move"] == "lift"]
     assert hit["target"] == TARGETS[1]
     assert state.rng_counters.get(AGENDA, 0) == 0  # one candidate left
+    # Joined to the burglary the same move filed (v0.16: the alibi's key).
+    [report] = state.law["reports"]
     assert state.agendas["hits"] == [{"agenda": "the_magpie", "premise": TARGETS[1],
-                                      "hour": 25}]
+                                      "hour": 25, "deed_id": report["deed_id"]}]
     # The agenda's robbery is its own record: the player's list is untouched.
     assert jobs.robbed(state) == [TARGETS[0], TARGETS[2]]
     assert agendas.candidates(state, LIFT["select"]) == []

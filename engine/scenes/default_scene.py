@@ -45,6 +45,7 @@ from engine.api import shared_blueprints
 from engine.persistence import MigrationError
 from engine.scenes.default_state import (
     SessionStore,
+    resolve_authored_choice,
     resolve_player_action,
     resolve_player_intent,
     run_turn,
@@ -134,6 +135,7 @@ def run_guarded(
     action: str,
     intent: Any,
     *,
+    authored: Optional[dict[str, Any]] = None,
     emit_callback: Optional[Any] = None,
 ) -> tuple[Optional[dict[str, Any]], str, bool]:
     """
@@ -151,6 +153,8 @@ def run_guarded(
         session: The live session. Its lock is the mutex.
         action: The player's sentence for this turn.
         intent: The structured mechanic the chosen option declared, or None.
+        authored: The chosen option's authored consequences
+            (``resolve_authored_choice``), or None.
         emit_callback: Socket emitter, or None for the HTTP path.
 
     Returns:
@@ -162,7 +166,9 @@ def run_guarded(
     if not session.lock.acquire(blocking=False):
         return None, "A turn is already in progress.", True
     try:
-        payload = run_turn(session, action, intent=intent, emit_callback=emit_callback)
+        payload = run_turn(
+            session, action, intent=intent, authored=authored, emit_callback=emit_callback
+        )
         return payload, "", False
     except Exception as exc:  # noqa: BLE001 — last line of defence
         # Without this the socket handler raised into Socket.IO, no event was
@@ -284,7 +290,12 @@ class DefaultScene(FlaskScene):
             intent = resolve_player_intent(
                 session, choice_id, body.get("custom_text")
             )
-            turn, error, busy = run_guarded(session, action, intent)
+            # And what an authored opening choice does beyond its intent --
+            # read from the manifest, never from the choice dict.
+            authored = resolve_authored_choice(
+                session, choice_id, body.get("custom_text")
+            )
+            turn, error, busy = run_guarded(session, action, intent, authored=authored)
             if busy:
                 return jsonify({"error": error}), 409
             if turn is None:
@@ -333,10 +344,13 @@ class DefaultScene(FlaskScene):
             intent = resolve_player_intent(
                 session, choice_id, data.get("custom_text")
             )
+            authored = resolve_authored_choice(
+                session, choice_id, data.get("custom_text")
+            )
             # One turn at a time per session. The client also guards, but a
             # double-click or a reconnect race must not reach the engine.
             _, error, busy = run_guarded(
-                session, action, intent, emit_callback=_emit
+                session, action, intent, authored=authored, emit_callback=_emit
             )
             if error:
                 # `busy` is the difference between "your keypress did nothing"

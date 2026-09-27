@@ -857,3 +857,67 @@ def test_quest_skills_are_storyteller_only() -> None:
     for definition in SKILL_REGISTRY.all_tools():
         assert "complete_quest" not in definition.name
         assert "advance_quest" not in definition.name
+
+
+# ---------------------------------------------------------------------------
+# Per-story default arcs, and the act the narrator is told (v0.16)
+# ---------------------------------------------------------------------------
+
+
+def test_default_arcs_are_the_storys_own() -> None:
+    """The flagship's default arc IS quiet_life -- read from its arcs.yaml,
+    no longer a literal every story inherited."""
+    assert quests_mod.default_arcs() == ["quiet_life"]
+
+
+def test_a_fresh_flagship_run_is_unchanged_by_per_story_defaults() -> None:
+    """Byte-identical: the flagship's fresh state carries exactly the arcs
+    the old hardcoded default gave it, before and after a turn's evaluate."""
+    from engine.game.procgen import new_game_state
+
+    fresh = new_game_state(seed=42)
+    assert fresh.active_arc == "quiet_life"
+    assert fresh.arcs_unlocked == ["quiet_life"]
+
+    legacy = new_game_state(seed=42)
+    legacy.active_arc, legacy.arcs_unlocked = "quiet_life", ["quiet_life"]
+    legacy.session_id = fresh.session_id
+    QuestEngine.evaluate(fresh)
+    QuestEngine.evaluate(legacy)
+    assert fresh.to_save_dict() == legacy.to_save_dict()
+
+
+def test_an_arc_that_does_not_opt_in_puts_no_act_in_the_prompt() -> None:
+    from engine.agents import prompts
+
+    state = GameState()
+    QuestEngine.evaluate(state)
+    assert prompts.act_block(state) == ""
+
+
+SHIPPED = ["clockwork-dark", "wicked-garden", "neon-city", "the-long-con", "dev-story"]
+
+
+@pytest.mark.parametrize("slug", SHIPPED)
+def test_a_story_whose_arcs_do_not_narrate_keeps_its_prompt(slug: str) -> None:
+    """
+    Every story whose arcs don't opt in to `narrate:` builds the same
+    world-state block it built before per-story defaults -- the phantom
+    `quiet_life` leaving `arcs_unlocked` reaches no narration.
+    """
+    from engine.agents import prompts
+    from engine.game.procgen import new_game_state
+    from engine.games import registry
+
+    registry.activate(slug)
+    quests_mod.reset_cache()
+    assert not any(a.get("narrate") for a in load_arcs().values()), slug
+
+    fresh = new_game_state(seed=7)
+    legacy = new_game_state(seed=7)
+    legacy.active_arc, legacy.arcs_unlocked = "quiet_life", ["quiet_life"]
+    QuestEngine.evaluate(fresh)
+    QuestEngine.evaluate(legacy)
+    assert fresh.active_arc == legacy.active_arc
+    assert prompts.act_block(fresh) == ""
+    assert prompts.world_state_block(fresh, {}) == prompts.world_state_block(legacy, {})

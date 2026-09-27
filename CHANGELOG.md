@@ -14,6 +14,450 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-09-27
+
+**HUE & CRY: Acts I and II**, the fourth of the v1.0 stages. The story now
+has a spine to walk. The barge opening's three choices are real: a run that
+is a deed, a talk that can put the Magpie in a sergeant's book, and coming
+quietly as an arrest on the quay. The Honest Company swears the thief in
+through the story's first deck, and the oath opens Act II. Every arrest ends
+in the Lantern House's small room, a repeatable interrogation deck that can
+change the file but never the sentence. The seed hides the Magpie's trail in
+the city's houses, so burglary is also the investigation, and the Lantern
+House front desk is where it ends: an alibi from the Watch's own duty book,
+and an accusation that unmasks the Magpie or costs the accuser. The engine
+seams are generic and opt-in -- `narrate` on an arc; the law's memory
+(`custody_log`, `law_unlink`, `linked`, `alibi`, `agenda_role`,
+`law_discharge {alibi}`); `deed`/`on_pass`/`on_fail` on an authored opening
+choice; a bed's `refusals`; `clues.yaml`, `clues_favour` and `fresh_flag`;
+`ledger_fact` in authored content -- and a story that declares none of them
+builds byte-identical turns. Three engine fixes land with it: no hand is
+dealt over an open encounter, every story opens on its own default arcs
+rather than the flagship's, and a card's beats see the session's ledger. A
+new harness, `scripts/simulate_acts.py`, plays the spine on purpose and set
+the accusation's evidence bar (3 -> 2). Along the way the trail moved
+only the greedy burglar's numbers, a little, and the oath moved the guild
+bunk's labour bounds slightly up, each restated where it moved; at the end
+every earlier harness re-ran identical. The trail
+reads slowly -- a deliberate investigator unmasks the Magpie by day 12 on
+60% of runs -- and that was measured and left (CLAUDE.md's deferred list).
+
+### Added
+
+- **Acts the narrator can see: `narrate: true` on an arc.** While an arc
+  that declares it is the active arc, the world-state prompt carries one
+  line, `ACT: <name>. <blurb>` (`prompts.act_block`), the same two strings
+  the journal shows. Arcs reached the prose before only sideways, through an
+  unlock fact and their quests' objectives. Opt-in: a story whose arcs don't
+  declare it builds a byte-identical prompt, asserted for all five of them.
+- **HUE & CRY's first two acts.** `hue_and_cry` (Act I, the default, order
+  1) and `honest_work` (Act II, order 2, opening on `guild_initiated`, which
+  the initiation deck sets, below). `the_way_out` stays the default
+  door at order 0 and `the_magpies_hoard` a side arc at order 0, so neither
+  takes `active_arc` from an act. Pacing is unchanged: `plot.arc_weight`
+  reads the involvement of arcs the player holds quest records in, not of
+  unlocked arcs or `active_arc`, so an act's involvement (1 and 2) counts
+  only once a quest filed under that act has started -- and neither act has
+  a quest yet.
+- **The law's memory: custody hours, joined robberies, broken links.** The
+  engine seams HUE & CRY's interrogation, clues and alibi stand on. All
+  generic; a story with no Law or no agendas pays nothing.
+  - `arrest` stamps `since_hour` beside `since_day` (`law.next_hour`: the
+    first whole hour the clock has not crossed, the agendas pass's own
+    boundary), and `release` appends `{since_hour, until_hour, jurisdiction}`
+    to `state.law["custody_log"]` before it clears custody.
+  - An agenda move's or reaction's `report` rows carry `agenda` and `hour`,
+    and a robbing move's `agenda_hit` carries that report's `deed_id`
+    (`agendas._try_move`), so a robbery can be joined to the charge it put on
+    a name. (A reaction cannot rob, so it has no hit to join.)
+  - `law_unlink {a, b}` breaks a direct link and records it in
+    `broken_links`. A broken link stays broken until a witness sees the
+    guise change again: authored `law_link` is refused for the pair, and
+    only `law.change_guise`, when someone present notices, re-forms it (it
+    applies `law_link` as `law.WRITER_WITNESS`, a writer id no YAML can
+    choose). Wanted is read live
+    through `law.links`, so an unlinked Magpie report stops counting against
+    `self` at once -- in the wanted score, the charge sheet, `best_precision`,
+    `filed {linked}` and `quash_reports {linked}`.
+  - Predicates: `linked {a, b}` (the watch takes them for one person),
+    `alibi {agenda?, min?}` (at least `min` joined robberies fell while the
+    player was held, logged or live; `agendas.alibi_deeds` names them) and
+    `agenda_role {role, npc}` (the seed chose that NPC; no draw, and no
+    prompt renders it). The agendas loader checks each in a gate.
+  - `law_discharge` takes `alibi: true` (plus an optional `agenda`),
+    resolved to `agendas.alibi_deeds` when applied. `law_discharge` and
+    `law_unlink` join `STRUCTURAL_EFFECT_TYPES`: an authored card, thread or
+    set-piece may use them; a model-composed challenge still drops both.
+  - Old saves load unchanged: no log, no broken links, rows and hits without
+    the new keys. A custody record with no `since_hour` releases without a
+    log row, and a hit with no `deed_id` is never an alibi. Re-measured,
+    `scripts/simulate_law.py` (agendas off and on) and
+    `scripts/simulate_agendas.py` at 40 seeds give identical numbers; only
+    the wall-clock timings differ.
+- **Authored choices: `deed`, `on_pass`, `on_fail` on an opening choice**
+  (`engine/game/authored_choice.py`). What one intent cannot say about an
+  authored moment. `deed: <kind>` is committed after the intent, pass or
+  fail, through `law.commit_deed` (witnesses on the LAW stream, the check's
+  margin passed through). `on_pass`/`on_fail` -- `{text, effects,
+  encounter}` -- apply by whether the choice passed (a `check` at `success`
+  or better; otherwise, the intent went through); `text` is the narrator's
+  line for the outcome (receipt skill `authored_choice`, summarised with the
+  Law effects' own words and whether the deed was seen, never an id);
+  `effects` are bounded like a card's plus `arrest`
+  (`spec.AUTHORED_CHOICE_EFFECT_TYPES`, which no card, thread, set-piece or
+  model-composed spec gets); `encounter` begins that scene through
+  `encounter.begin`, the patrol's door. A refused intent applies nothing.
+  - Authored only. `default_state.resolve_authored_choice` reads the keys from
+    the MANIFEST, by choice id, and only while `last_turn` is the opening frame
+    (`opening()` now stamps `frame: "opening"`; no turn payload carries it), so
+    a narrated choice that writes `deed:` -- whose extra keys do ride through
+    `_positional_ids` into `last_turn` -- gets nothing, and the keys never reach
+    the client. Both turn doors (`POST /api/game/choice`, `player_choice`)
+    pass it to `run_turn(authored=...)`, which applies it after the intent and
+    before the patrol.
+  - Shown before it is taken (rule 1). An arrest is not a verb the grammar
+    offers, so an opening choice that arrests carries no intent and had no
+    consequence chip. `default_state._label_authored` now labels any opening
+    choice with no intent whose authored `on_pass` carries `arrest` as
+    `arrest · <the gaol's name>` (HUE & CRY's (c): `arrest · The Lantern
+    House`, the name the arrest receipt says). Display only: it runs and
+    widens nothing, and every other story's opening choices are
+    byte-identical (asserted per story).
+  - Opt-in: every other story's opening resolves to `{}` and its turns are
+    unchanged (asserted per story). `validate_content.py` gains
+    `check_opening`: a deed the law file does not list, an undeclared
+    encounter, an effect an authored choice may not use.
+  - `scripts/simulate_law.py --opening a|b|c` takes a barge choice through the
+    same three halves before the policy's first day and reports what it did;
+    without it every number is as before (re-measured: agendas off and on,
+    and `simulate_agendas.py`, identical at 40 seeds).
+- **HUE & CRY's opening is real** (Act I's first beat). Run is a stealth
+  check plus `resisting_watch`, a new deed at severity 3; failing it begins
+  the Lantern's `watch_stop` on the spot (the encounter, rather than the
+  patrol's next roll: the patrol recognises nobody below `sought`, so a
+  fumbled run would otherwise be nothing). Talk is persuasion, hard; failing
+  it files a `pickpocket` report against `magpie` on the Quay at 0.3, and
+  success files nothing. Coming quietly is an `arrest` on that same blurred
+  report: three crowns or one day, and custody ends as all custody does.
+  `resisting_watch`'s severity, measured with `simulate_law.py --opening a
+  --days 3` (40 seeds, careful; the Quay's band each morning; 80% of runs
+  filed, 50% passed, 8% ended in a cell):
+
+  | severity | morning 1 | morning 2 | morning 3 |
+  |---|---|---|---|
+  | 2 | unknown 40 | unknown 37 | unknown 37 |
+  | 3 | noticed 29, unknown 8 | unknown 37 | unknown 37 |
+  | 4 | noticed 29, unknown 8 | noticed 29, unknown 8 | noticed 29, unknown 8 |
+  | 3, agendas on | noticed 30, unknown 7 | noticed 2, unknown 35 | noticed 2, unknown 35 |
+  | 4, agendas on | noticed 32, unknown 5 | noticed 31, unknown 6 | sought 2, noticed 28, unknown 7 |
+
+  At 2 the deed is invisible within the hour (2.0 is `noticed`'s floor); at
+  4 it is `sought` the hour it is filed. Three: noticed through the next
+  morning, never sought alone. (Rows read fewer than 40 where a sentence
+  swallowed a morning.)
+- **A bed's `refusals:`, in the story's own words**
+  (`engine/game/survival.py::_refusal`). A rest entry whose `requires:` is
+  unmet may carry `refusals: [{when, text}]`, the shape threads already use.
+  The first row whose `when` holds becomes the downgrade's note in the
+  receipt, in place of the generic "that bed is not yours tonight". It is
+  still a downgrade to `fallback`, never a refusal (rule 6). A raising or
+  malformed row is skipped. A story that declares none gets the same text as
+  before, and its receipts are unchanged.
+- **HUE & CRY's first deck, the initiation** (the story's CHANGELOG has
+  the detail). The engine is unchanged by it. hue-and-cry joins the deck
+  walks in `tests/test_forced_and_repeatable_decks.py`, whose test is renamed
+  `test_shipped_deck_stories_deal_as_recorded`: its row is a new recording,
+  not a before. That walk starts in the Snuffs and is kept fed. The other
+  three digests are unchanged.
+- **A masked role's trail, laid in the houses: `clues.yaml`**
+  (`engine/world/clues.py`). HUE & CRY spec §3's unbuilt promise, as a
+  generic seam: a story whose `paths.premises` holds `clues.yaml` has the
+  seed hide a role's trail in its generated houses, so casing and burglary
+  are also the investigation. A story without the file pays nothing: its
+  premises gain no key, and every other story's city and turns are
+  byte-identical.
+  - **Laid at world generation** by `premises.generate`, after its last
+    PREMISES draw, on a new named stream, `rng.CLUES`. `trail` clues point at
+    the role's chosen candidate -- READ through the new
+    `agendas.role_for_seed(seed, name)`, the derivation `agendas.role` now
+    delegates to, never drawn -- and `herrings` at each other candidate.
+    Every premise carries `clue` (a row id, or ""); anchors never hold one.
+    No house moved: HUE & CRY's pinned premise digests
+    (`test_the_secret_ways_never_move_a_house`) are equal once the new field
+    is struck out, and a city generated with `place` disabled equals one
+    with the field removed (asserted).
+  - **Casing** gives a clue house up last, as "something here doesn't
+    belong" (`premises.CLUE_HINT`, appended AFTER the shuffled intel so no
+    other row's order moves), and only while the clue is still in the house
+    (`clues.in_house`): carried out, the hint leaves the district block and
+    the board. **The score** puts the clue's words on its
+    receipt (`clue`), cased or not, and an emptied house still holds it. **A
+    job carried out** keeps it through `clues.take`: the flag
+    `clue_found:<id>`, an engine-sourced ledger fact of `kind: clue`, and
+    the story's `evidence` meter +1, all through `apply_effect`; the
+    getaway's receipt carries `clue_taken` and `evidence` (the band word).
+    Caught, aborted or hurt, nothing is kept, as with a secret.
+    `prompts._sum_job_stage` speaks both moments, in the clue's own words
+    and never whom it points to.
+  - **`clues_favour {npc, min?: 1}`** joins the shared grammar
+    (`quests._GRAMMAR_MODULES`): at least `min` found clues point at `npc`
+    and strictly more than at any other candidate. A condition only; nothing
+    under `engine/agents/` reads it, a row's `points_to` or the tally
+    (asserted, as T2 did for `agenda_role`).
+  - **The loader refuses**, naming the file: an undeclared role, a role with
+    one candidate, an `evidence` value that is not a veiled, bounded meter, a
+    `points_to` outside the role, a duplicate id, too few rows for any
+    candidate, a trail longer than the city has houses, a clue text that
+    names any candidate by display name or alias (the mask's own matching),
+    and a text longer than the ledger clips a fact at (`MAX_FACT_CHARS`;
+    the `clue` fact leads with the clue, so a long house name is what a
+    clip would cut).
+  - The file cache is registered in `engine/games/caches.py`.
+  - A save from before the trail loads and plays: no `clue` key, no hint,
+    nothing found (asserted; CLAUDE.md's deferred list).
+  - `scripts/simulate_jobs.py` reports what its thieves found of the trail
+    (clues a run, runs that found one, runs whose finds lean toward the real
+    Magpie); no policy hunts for clues. **Measured, 40 seeds, before and
+    after:** `simulate_hoard.py` byte-identical; `simulate_jobs.py` outcome
+    rates identical for every policy. Only greedy moved, since it cases
+    until watching yields nothing and a clue house yields one more line
+    (one more watch, one more loitering roll): deeds filed a job 0.75 →
+    0.74, runs ending sought or worse 37.5% → 32.5%, wanted 2.5% → 5%;
+    with `--agendas`, arrests a job 8.9% → 7.6%, sought or worse 80% →
+    82.5%. Found per run: blind 0.65 (52.5% of runs find one, 27.5% lean
+    toward the real Magpie), careful 0.6 (45%, 20%), greedy 0.2 (20%,
+    7.5%), greedy_bare 0.
+- **The reveal and the alibi: four small seams** (v0.16 T7), all opt-in by
+  content, so every story that does not use them is byte-identical.
+  - **`alibi {open: true}`** (`engine/world/agendas.py`). `alibi` stays true
+    once earned: the robbery happened while you were held, and discharging
+    it does not undo that. `open: true` counts only the joined robberies
+    whose deed is not yet discharged (`law.discharged`), so a card gated on
+    it is offered once per alibi EARNED: once presented it closes, and a
+    robbery in a later stay opens it again. `alibi_deeds` and
+    `law_discharge {alibi: true}` are unchanged. A non-bool `open` is false
+    at run time and refused in an agenda gate at load.
+  - **`clues_favour {excluding: [npc, ...]}`** (`engine/world/clues.py`).
+    It sets candidates aside: the lead is counted among the others, and an
+    excluded `npc` never leads. HUE & CRY uses it so a suspect already named
+    wrongly stops standing in front of the rest. Malformed (not a list of
+    names), it is false.
+  - **`fresh_flag`, an optional `clues.yaml` key.** It names a flag that
+    `clues.take` sets true on every clue carried out, through
+    `apply_effect`, so content may clear it and later ask "a clue found
+    since then?". It is refused if it is not a name, or if it is a
+    `clue_found:` one. A story that does not name one gets no new write.
+  - **`ledger_fact` is a structural effect** (`STRUCTURAL_EFFECT_TYPES`):
+    authored content (a deck card, a thread, a set-piece, an authored
+    choice) may write what the story now knows. A model-composed challenge
+    still may not write itself into memory as truth (asserted).
+- **HUE & CRY's reveal and alibi** (the story's CHANGELOG has the whole
+  shape). A third deck, `lantern_house_desk`, repeatable, is dealt at the
+  Lantern House to a thief walking in free.
+  - The duty book's alibi discharges exactly the Magpie's robberies walked
+    while the thief was held (`alibi {open: true}`). The interrogation's
+    `Q4_the_alibi` is the same card in the cells, with the same effects,
+    asserted equal. **Ruling: the alibi alone does not unlink `self` from
+    `magpie`.** It proves you were not the Magpie on those nights; breaking
+    the Watch's belief is the accusation's job. Each door ships the book
+    twice (Task 8), one card per belief -- `D1_the_alibi`/`Q4_the_alibi`
+    while the file says Magpie, `D1_the_alibi_struck`/`Q4_the_alibi_struck`
+    once a right naming struck the word off -- because an alibi can still
+    be open after the naming, and the old card told the narrator the file
+    "still says Magpie" then.
+  - The accusation names, to Captain Ardane, the one suspect the thief's
+    found clues favour. It is gated on Evidence at 2 or more AND
+    `clues_favour` -- together, at least two clues that agree (agree, not
+    necessarily true: two herrings can open a wrong naming; the bar was
+    measured by Task 8, below, and the first cut was a provisional 3).
+    `agenda_role`
+    decides whether the name is right:
+    - right: `magpie_unmasked`, then `law_unlink self/magpie`, plus ledger
+      facts;
+    - wrong: `magpie_named_wrongly`, `wrongly_accused_<suspect>`, and a new
+      `false_witness` deed (severity 3) filed against your own face. Alone
+      that is `noticed` for two days and never `sought` -- but no accuser's
+      face is alone: the Watch still links it to the Magpie, so the false
+      witness stacks on the Magpie's Wick file and usually lands the thief
+      at `sought` or worse (measured below).
+  - **A second try is allowed (owner's decision),** only once a clue has
+    been carried out since (`fresh_flag`), and never against the same
+    suspect (`excluding`).
+  - **For v0.17's endings:** `magpie_unmasked`, `magpie_named_wrongly`,
+    `wrongly_accused_wren` / `_silas` / `_imelda` (count them for the
+    number of wrong namings, at most two), and `alibi_proven`.
+  - The earlier harnesses never walk in free or accuse anyone, so
+    `simulate_jobs` (with and without agendas), `simulate_law --agendas`
+    and `simulate_agendas` were identical before and after (40 seeds).
+    `scripts/simulate_acts.py` (below) measures the reveal.
+- **`scripts/simulate_acts.py`, the Acts harness** (HUE & CRY). The first
+  harness that plays the spine on purpose, and the first that deals decks:
+  after every action the director deals what is due, as `run_turn` places
+  it (after the intent and the patrol), and the hand is answered through
+  the `card` verb -- the initiation and the interrogation roll-free, the
+  alibi presented, the name said. Built on `simulate_jobs.Burglar` (so on
+  `simulate_law.Thief`: the same action channel, stop and cell, and no
+  save written). Agendas ON by default, unlike every earlier harness: the
+  Magpie's robberies are the spine, and `agenda_role` reads nothing
+  without them (`--no-agendas` is the control). `--opening a|b|c`,
+  `--gate N` (the desk deck's evidence bar, patched in the loaded deck
+  only) and `--set deeds.false_witness=N`; `--json`. The table is below.
+
+### Fixed
+
+- **A card's beats see the session's ledger** (`resolve_scene_card`,
+  `engine/skills/builtin/scenes.py`). The `card` intent's skill called
+  `director.resolve(..., ledger=None)`, so a beat's `ledger_fact` was dropped
+  ("no ledger in scope") and a gate on `disposition` could never hold at
+  resolution, even in a live session. It now passes the engine's session
+  ledger, as the `job_stage` skill does. No shipped deck read either before
+  v0.16 T7, so no story's recorded behaviour moves.
+- **No hand is dealt over an open encounter** (`director.ensure_scene`).
+  The director guarded against an open scene and an open job, but not an
+  open encounter. In `run_turn` the Law's patrol runs before the deal, so a
+  Lantern could stop a thief on arrival and the scene the arrival made due
+  was then dealt over the stop. `legal_intents` checks a dealt card first
+  (a card can open an encounter, never the reverse), so `card` was the only
+  verb and the stop was left hanging. Found in HUE & CRY's initiation review.
+  Now the deal waits, unspent, and lands on the first turn after the
+  encounter resolves if its `when:` still holds. A turn with no encounter
+  open is unchanged. The four shipped deck walks (the Garden, THE LONG CON,
+  dev-story, HUE & CRY) open no encounter and deal exactly as recorded, and
+  the flagship's and NEON CITY's no-deck gate still passes.
+- **A story's run opens on its own default arcs.** `GameState` defaulted
+  `active_arc` and `arcs_unlocked` to the flagship's `quiet_life` for every
+  story, so each of the others carried a phantom "quiet_life" in its journal
+  forever. `procgen.new_game_state` now seeds them from the story's
+  `default: true` arcs (`quests.seed_default_arcs`); the flagship's default is
+  `quiet_life`, so its fresh state is unchanged, and a story declaring no
+  default arc keeps the placeholder. A save from before this still loads
+  (the unknown arc reads as order -1 and is climbed off on the next
+  evaluate), and the journal lists only arcs the story declares.
+- **The live-model guard survives `monkeypatch.undo()`.**
+  `tests/conftest.py::_no_live_model_calls` installed its socket guard and
+  its three pins through the test's shared `monkeypatch`, so a test that
+  undid its own patches mid-body (`test_forced_and_repeatable_decks` does)
+  dropped the guard for the rest of that test. It holds its own
+  `pytest.MonkeyPatch()` now, as the saves redirect has since v0.15.
+- **A test orphaned `engine.media.comfyui`.**
+  `test_games.py::test_reset_all_caches_is_idempotent_and_never_imports`
+  popped the module from `sys.modules` and never put it back, so every file
+  imported earlier kept an old module object whose `_TEMPLATE_CACHE` the
+  per-test cache reset could not reach. The first turn run afterwards in a
+  story with no image templates (HUE & CRY's new opening tests) memoized `{}`
+  there, and `tests/test_media.py` failed in the full suite only. The pop goes
+  through `monkeypatch` now and is restored.
+- **A studio test left a tracked file modified.**
+  `test_studio.py::test_a_write_reports_the_health_it_caused` writes
+  `games/dev-story/README.md` through the studio API and restored it as text
+  with `newline="\n"`, so a CRLF checkout came back with LF endings and
+  `git status` showed it modified after every suite run. It restores the
+  bytes now, and asserts they match.
+- **The acts told the narrator two things that were not so** (final review;
+  `games/hue-and-cry/data/quests/arcs.yaml`, whose blurbs are the ACT line of
+  every prompt and the journal's). Act I said "fresh off the evening barge";
+  the story opens on the morning one. Act II said every Magpie robbery
+  "lands on your name", false once a right naming breaks the link -- and
+  60% of investigators unmask by day 12, still in Act II. Act I now says the
+  morning barge, and Act II conditions the robberies on the Watch taking the
+  two of you for one, true on both sides of the naming.
+- **The struck alibi said what `law_discharge` does not do.** The duty book
+  presented after a right naming (`D1_the_alibi_struck`, `Q4_the_alibi_struck`)
+  said the nights were "marked in red against the Magpie's name, where they
+  belong"; `law_discharge` drops those reports from every file, the Magpie's
+  included. The cards and their ledger fact say so now.
+- **`test_a_wrong_naming_always_costs_the_accuser_something`** held only
+  that the band did not fall, which an accuser already `hunted` passes
+  having paid nothing. `simulate_acts.py` records the Wick score around each
+  naming (`score_before`/`score_after`), and the test asserts it strictly
+  rises.
+
+### Measured — Acts I–II (Task 8)
+
+`scripts/simulate_acts.py` (new, above), 40 seeds x 12 in-game days per
+barge choice, agendas on. One `investigator` policy: it takes the opening,
+is sworn to the Company, cases the city's generated houses to the end for
+the clue hint, burgles every clue house it learns of, and walks to the
+Lantern House desk whenever it has something new to show, naming the
+suspect the desk offers and presenting every alibi. Replays byte for byte:
+run twice, the JSON is identical for every opening.
+
+| | a: run | b: talk | c: come quietly |
+|---|---|---|---|
+| opening passed / filed / stopped / arrested | 50% / 80% / 50% / 8% | 28% / 72% / 0% / 0% | 100% / 100% / 0% / 100% |
+| days served in the opening, mean | 0.23 (3 runs x 3 days) | 0 | 0 (the fine is paid) |
+| runs arrested / arrests a run / days served a run | 18% / 0.17 / 0.53 | 20% / 0.20 / 0.60 | 100% / 1.15 / 0.45 |
+| Lantern stops a run | 0.65 | 0.80 | 0.62 |
+| sworn to the Company | day 1 (37), day 4 (3) | day 1 (40) | day 1 (40) |
+| houses cased to the end / clue houses found | 7.7 / 2.4 | 7.5 / 2.4 | 7.7 / 2.4 |
+| clues carried out by day 6 / 10 / 12 | 1.23 / 2.27 / 2.52 | 1.35 / 2.30 / 2.48 | 1.38 / 2.27 / 2.48 |
+| evidence "some" or better, mornings 6 / 8 / 10 / 12 | 43% / 80% / 90% / 93% | 48% / 83% / 93% / 95% | 48% / 83% / 93% / 98% |
+| evidence "strong" or better, morning 12 | 53% | 48% | 48% |
+| a name offered at the desk (first offer, mean day) | 75% (8.9) | 75% (8.8) | 78% (8.9) |
+| first naming right / wrong | 62% / 12% | 62% / 12% | 65% / 12% |
+| retried after a wrong naming, and right | 1 run / 1 run | 1 run / 1 run | 1 run / 1 run |
+| **unmasked by day 6 / 8 / 10 / 12** | 10% / 28% / 43% / **60%** | 10% / 30% / 45% / **60%** | 10% / 33% / 48% / **60%** |
+| unmasked, mean day | 9.1 | 9.0 | 9.0 |
+| an alibi opened / presented (all at the desk) | 18% / 18% | 20% / 20% | 15% / 15% |
+| lowest hp | 10 | 11 | 12 |
+
+No clue job was caught (0 of ~3.4 a run). An alibi opens only for a thief
+who served days, and the investigator presents it the moment it is released
+at the desk; none was presented in the cells.
+
+**The evidence bar, tuned: 3 -> 2.** Every opening, the same seeds:
+
+| `--gate` | unmasked by day 12 | mean day | first naming wrong | retried |
+|---|---|---|---|---|
+| 1 | 89% | 5.9 | 42% | 39% |
+| **2 (shipped)** | **60%** | **9.0** | **12%** | 2.5% |
+| 3 (T7's provisional) | 48% | 9.7 | 19% | 5% |
+| 4 | 21% | 11.5 | 4% | 4% |
+
+The desk also needs the clues to lean (`clues_favour`, a tie favours
+nobody), so at 2 the favoured suspect holds both clues: two that agree
+(agree, not necessarily true -- two herrings can agree, and open a wrong
+naming). 3's weakest lead is the same two plus one that points elsewhere,
+so by construction it makes a first naming no more accurate than 2; it only
+arrives a house later. Measured, fewer runs got there (48% unmasked by day
+12, against 60%) and its first namings were no more often right (19% wrong
+pooled over the three openings, 18-20% per opening, against 12%). 1 is a guess
+off a single clue. 4 leaves four runs in five without a reveal inside the
+spine's ~10-12 days. So the bar is the lead, not the count. The trail
+itself is slow -- a clue is the last thing a watch learns, so one costs ~3
+houses cased to the end -- and was left as it is (CLAUDE.md's deferred
+list names the two levers).
+
+**`false_witness`, kept at 3 -- restated.** "Never `sought` alone" is true
+of a clean face only, and no accuser has one: until a right naming, the
+Watch links you to the Magpie, and a false witness lands on top of the
+Magpie's Wick file. The harness reads your heat in the Wick at every name
+the desk offered (94 offers) and the band a false witness of each severity
+would have left you in (exact: it adds whole to your own file):
+
+| severity | unknown | noticed | sought | wanted | hunted |
+|---|---|---|---|---|---|
+| (at the offer) | 27% | 32% | 20% | 9% | 13% |
+| 2 | – | 27% | 37% | 19% | 17% |
+| **3 (shipped)** | – | 13% | 46% | 21% | 20% |
+| 4 | – | – | 39% | 39% | 21% |
+
+At 3, 87% of wrong-namers stand at `sought` or worse (42% before), where a
+Lantern can know them on the way out. The 15 real wrong namings measured
+went from unknown 6 / noticed 7 / sought 1 / hunted 1 to noticed 5 / sought
+8 / wanted 1 / hunted 1; 3 were stopped afterwards and none was arrested
+before day 12. A cost, not a spiral. The desk's header, `law.yaml`'s and
+the HUE & CRY CHANGELOG now say so; `tests/test_hue_and_cry.py` pins the
+linked case.
+
+**Every earlier harness, re-run at 40 seeds** against a worktree of the
+commit before (JSON compared, wall-clock keys aside): `simulate_law`
+(default, `--agendas`, and `--policy careful --opening a|b|c`),
+`simulate_jobs` (with and without `--agendas`), `simulate_agendas`,
+`simulate_labour` (flophouse and `--bed bunk`), `simulate_scrounge`,
+`simulate_streets` and `simulate_hoard` (default, `--no-pass`,
+`--severity`) are identical. None deals a deck or walks into the desk, and
+nothing they walk moved. No bound moved.
 
 ## [0.15.1] — 2026-09-26
 
@@ -3120,7 +3564,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.15.1...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.14.0...v0.14.1

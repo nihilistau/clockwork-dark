@@ -766,6 +766,30 @@ def job_block(state: GameState) -> str:
     return "THE JOB:\n" + "\n".join(lines)
 
 
+def act_block(state: GameState) -> str:
+    """
+    The act the story is in, for an arc that opts in with ``narrate: true``.
+
+    One line: the arc's ``name`` and its ``blurb`` -- the same two strings the
+    journal shows the player, so narrator and journal cannot disagree about
+    which act this is. Arcs had reached the prose only sideways (an unlock
+    fact, the objectives of their quests); a story told in acts needs its
+    narrator to know which one it is standing in.
+
+    Empty unless the ACTIVE arc declares ``narrate: true``, so a story whose
+    arcs don't opt in -- every story but HUE & CRY -- builds the byte-identical
+    prompt.
+    """
+    from engine.game.quests import load_arcs
+
+    arc = load_arcs().get(str(state.active_arc)) or {}
+    if not arc.get("narrate"):
+        return ""
+    title = str(arc.get("name") or state.active_arc).strip()
+    blurb = " ".join(str(arc.get("blurb") or "").split())
+    return f"ACT: {title}. {blurb}".rstrip()
+
+
 def _objectives_block(state: GameState) -> str:
     """
     What the player is currently trying to do, and the flags that record it.
@@ -1112,6 +1136,7 @@ def world_state_block(state: GameState, evil_snapshot: dict[str, Any]) -> str:
         _encounter_block(state),
         _scene_block(state),
         _intents_block(state),
+        act_block(state),
         _objectives_block(state),
         _events_block(state),
         moved_block(state),
@@ -1697,9 +1722,35 @@ def _job_secret_words(result: dict[str, Any]) -> str:
     return ""
 
 
+def _job_clue_words(result: dict[str, Any]) -> str:
+    """
+    A clue to the Magpie's trail, as far as the job has got with it (v0.16).
+
+    The same two moments as the secret's. At a score that advanced, ``clue``
+    is what the thief SAW -- its words, found cased or not. At the getaway
+    that carries the job out, ``clue_taken`` is what the thief now HAS, and
+    ``evidence`` the trail's band word after it. Only ever the clue's own
+    words: never whom it might point to (clues describe, they never accuse),
+    and never a number. The band is what the TRAIL adds up to, never
+    evidence against the real Magpie: a red herring raises it too.
+    """
+    taken = str(result.get("clue_taken") or "").strip()
+    if taken:
+        line = (f" You came away with something that did not belong in the house: {taken}."
+                " On its own it proves nothing")
+        band = str(result.get("evidence") or "").strip()
+        return (f"{line}; what the trail adds up to so far: {band}." if band
+                else f"{line}.")
+    clue = str(result.get("clue") or "").strip()
+    if clue and str(result.get("stage") or "") == "score" and result.get("advanced"):
+        return (f" Something here did not belong: {clue}. It is yours only if you get "
+                "clear.")
+    return ""
+
+
 def _sum_job_stage(result: dict[str, Any]) -> str:
-    """The job's line, and where the house's secret stands when there is one."""
-    return _sum_job_stage_line(result) + _job_secret_words(result)
+    """The job's line, and where the house's secret and clue stand."""
+    return _sum_job_stage_line(result) + _job_secret_words(result) + _job_clue_words(result)
 
 
 def _sum_job_stage_line(result: dict[str, Any]) -> str:
@@ -1762,6 +1813,26 @@ def _sum_call_flashback(result: dict[str, Any]) -> str:
     return f"called on it: {label}, spending {paid}.{tail}"
 
 
+def _sum_authored_choice(result: dict[str, Any]) -> str:
+    # The author's line for the branch taken, then what the Law made of it in
+    # its own words (a place, a guise's label, a clarity word -- never an id;
+    # engine/game/authored_choice.py passes only those), then whether the deed
+    # was seen: "unseen" is the one word the narrator must not be left to
+    # guess, as with a lift. Never the witnesses' names, never the deed's id.
+    parts = [str(result.get("text") or "").strip()]
+    for said in result.get("effects") or []:
+        said = str(said).strip().rstrip(".")
+        if said:
+            parts.append(f"{said[0].upper()}{said[1:]}.")
+    if result.get("reported"):
+        parts.append("It was seen, and reported.")
+    elif result.get("witnessed"):
+        parts.append("It was seen.")
+    elif result.get("deed"):
+        parts.append("Nobody saw it.")
+    return " ".join(p for p in parts if p)
+
+
 _SUMMARISERS: dict[str, Any] = {
     "rest": _sum_rest,
     "eat": _sum_eat,
@@ -1784,6 +1855,7 @@ _SUMMARISERS: dict[str, Any] = {
     "job_stage": _sum_job_stage,
     "call_flashback": _sum_call_flashback,
     "abort_job": _sum_abort_job,
+    "authored_choice": _sum_authored_choice,
 }
 
 #: Keys whose value is a sentence written for a reader, in order of preference.

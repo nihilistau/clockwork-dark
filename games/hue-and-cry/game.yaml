@@ -5,18 +5,19 @@
 # "the Magpie!" -- the city's famous thief, who only ever steals things that
 # shine. You are not the Magpie. Nobody is interested in that.
 #
-# THIS IS THE SKELETON. v0.9 builds four engine features on top of it -- the
-# Law, premises, heists, NPC agendas -- and each is proven against this story as
-# it grows. What ships now is the ground they stand on: eleven districts, the
-# fourteen people who keep hours in them, a two-agent turn (the city and Pip),
-# and one ending you can actually reach. The design is
-# docs/superpowers/specs/2026-09-23-hue-and-cry-design.md §6.
+# The design is docs/superpowers/specs/2026-09-23-hue-and-cry-design.md §6;
+# what has shipped of it, release by release, is this story's CHANGELOG.md.
+# It began (v0.9) as a skeleton -- eleven districts, the fourteen people who
+# keep hours in them, a two-agent turn (the city and Pip), one reachable
+# ending -- and the engine's Law, premises, jobs and agendas were each proven
+# against it as it grew. Since v0.16 it has acts: the opening below is Act I's
+# first beat, and its three choices are real.
 #
 # Scaffolded from the `graph` template, then cut back. THE ONE RULE THAT SHAPES
 # THIS FILE: an UNDECLARED `paths.*` key resolves to NOTHING. Declare what you
 # ship; omit what you do not.
 #
-# Version: v0.7.0 [2026-09-26]
+# Version: v0.9.0 [2026-09-26]
 
 id: hue-and-cry
 title: "Hue & Cry"
@@ -66,8 +67,11 @@ settings:
 # v0.12, agendas: the Magpie, the captain and Silas, each on a hidden clock
 # (state.yaml, clocks.yaml).
 #
+# Since v0.16, decks: Mother Gannet's initiation, the Watch's
+# interrogation and the Lantern House front desk (see `decks` below).
+#
 # DELIBERATELY NOT DECLARED YET, each one a later release's job rather than an
-# omission: decks (initiation, the interrogation, the Hanging Fair), the other
+# omission: the other decks (the Hanging Fair's), the other
 # threads (the rest of the Company's contracts), world_rumors. (Night-street
 # encounters and lore arrived in v0.14; recipes -- the Porters' Hall bench --
 # in v0.15, see below.)
@@ -136,6 +140,18 @@ paths:
   # Two contracts: Sergeant Brask's price for losing your file, and Mother
   # Gannet's first job for the Honest Company.
   threads: "games/hue-and-cry/data/rules/threads.yaml"
+  # Decks (v0.16): three. `initiation` -- the Honest Company takes you in,
+  # dealt once in the Snuffs while Mother Gannet holds court (18:00-04:00)
+  # and the thief is free and not yet sworn. Its oath sets `guild_initiated`, which opens Act
+  # II, the guild bunk and Gannet's contract (the file's header).
+  # `interrogation` -- the small room in the Lantern House, dealt on the
+  # first turn of EVERY stay in the cells (`in_custody: true`, repeatable):
+  # Captain Ardane, Sergeant Brask or the duty desk, by the hour. It moves
+  # the file, never the sentence (the file's header). `lantern_house_desk`
+  # -- the reveal and the alibi, dealt when the thief walks into the
+  # Lantern House FREE with something to show (repeatable): the duty book's
+  # alibi, and the accusation that names the Magpie to Captain Ardane.
+  decks: "games/hue-and-cry/data/scenes"
   # Jobs (v0.11): a burglary walked stage by stage, what every house's
   # security does to it, the burglar's tools, flashbacks, and the Treasury's
   # vault floor (engine/world/jobs.py). Its numbers were set by measurement --
@@ -193,23 +209,92 @@ entry:
       bellows, pointing at you with his whole arm. "Stop -- it's the MAGPIE!"
       Every head on the docks turns. The sergeant behind him puts down his
       pastry.
-    # ALL THREE RISK OR MOVE, SO ALL THREE DECLARE IT (engine/game/intents.py).
+    # ALL THREE RISK OR MOVE, AND ALL THREE ARE REAL (v0.16). Each declares
+    # its mechanic as an `intent` where one verb says it, and what an intent
+    # cannot say as AUTHORED consequences (engine/game/authored_choice.py,
+    # docs/AUTHORING.md): a `deed` committed through the Law as for any
+    # crime, and an `on_pass`/`on_fail` branch -- a line for the narrator,
+    # bounded effects, a scene to open. A narrated choice can carry none of
+    # this: it is read from this file, and only on this frame.
     #
-    # (a) RISKS: running from the Watch is `stealth` -- slipping a crowd, being
-    # somewhere else when the lamp swings round. `standard`, because the quay
-    # is full of people to hide behind and so is the Watch.
-    # (b) RISKS: talking a shouting boy down in front of his sergeant is
-    # `persuasion`, and `hard`, because he has already said it out loud.
-    # (c) MOVES: coming quietly is a walk to The Lantern House with an escort.
-    # It costs the hour the edge declares and nothing else, which is the whole
-    # appeal and the whole trap.
+    # (a) RUN. A `stealth` check, `standard` because the quay is full of
+    # people to hide behind and so is the Watch -- and, pass or fail, the
+    # deed `resisting_watch` (law.yaml, severity 3, measured there): Brask and
+    # Tully are both on the quay at eight, and a Lantern who sees you bolt
+    # files it on the Quay in your own face. Slip away and you are free, with
+    # a face the Quay has `noticed` until the next morning; fail and the
+    # Lantern's stop,
+    # `watch_stop`, begins on the spot -- run again (easy), talk, bribe,
+    # surrender or fight, the same five ways out as any stop.
+    # (b) TALK. `persuasion`, `hard`, because he has already said it out
+    # loud. Talk him down and nothing is written; fail and he writes the
+    # Magpie into his book anyway -- a `pickpocket` report against `magpie`
+    # on the Quay at 0.3, a third-hand blur -- and the sergeant waves you on.
+    # (c) COME QUIETLY. No roll and no walk: an arrest (`arrest`, which only
+    # an authored choice may carry), on the charge the Lantern files as he
+    # takes you -- the same blurred `pickpocket` -- so the Lantern House holds
+    # you for a fine of three crowns or a day's sentence, and custody ends as
+    # all custody does (pay_fine / serve; the cells have a bunk, rule 6).
+    # Like every arrest it deals the interrogation (data/scenes/
+    # interrogation.yaml) on this same turn: at eight, Captain Ardane asks
+    # the questions, and the fine is offered again once the cards are
+    # answered.
+    # Every arrest learns the cell drain, so this one does too.
+    #
+    # All three leave the player free to walk to the Snuffs within four
+    # actions, not counting the interrogation's two cards after an arrest
+    # (tests/test_hue_and_cry.py): there by 10:00-11:00 on day one,
+    # except a fumbled run answered by surrender, which serves its three days
+    # and arrives on day four. The Honest Company receives newcomers after
+    # dark: the initiation deck (data/scenes/initiation.yaml) is dealt on the
+    # first turn in the Snuffs from 18:00, while Mother Gannet holds court --
+    # so that evening, for most arrivals. Until then her contract and the
+    # guild bunk say so, in the story's words.
     choices:
       - id: a
         text: "Duck the lamp and lose yourself in the crowd"
         intent: { action: check, target: stealth, difficulty: standard }
+        deed: resisting_watch
+        on_pass:
+          text: >-
+            You are behind a cart of tallow, then behind a knot of porters,
+            then simply somewhere else. The whistle shrills three berths away,
+            at nobody, and the jackdaw on your shoulder has not so much as
+            ruffled.
+        on_fail:
+          text: >-
+            You make it four steps. The fifth is into a porter's crate of
+            candles, and the young Lantern is on you while they are still
+            rolling, lamp up, breathing hard, very pleased with himself.
+          encounter: watch_stop
       - id: b
         text: "Raise your empty hands and explain, calmly, that he is wrong"
         intent: { action: check, target: persuasion, difficulty: hard }
+        on_pass:
+          text: >-
+            Something in it lands: the barge you came off, the one bag, the
+            plain unlikeliness of the city's famous thief stopping to argue.
+            The sergeant takes the young Lantern by the elbow and steers him
+            off to apologise to a bollard. Nothing is written down.
+        on_fail:
+          text: >-
+            He has a drawing, and the drawing has a nose, and so do you. The
+            sergeant waves you on -- there is no charge in a nose -- but the
+            young Lantern writes it in his little book first, licking the
+            pencil: the Magpie, seen on the quay, working the crowd off the
+            barge.
+          effects:
+            - { type: report, deed: pickpocket, guise: magpie, jurisdiction: quay, precision: 0.3 }
       - id: c
         text: "Hold out your wrists and go quietly"
-        intent: { action: travel, target: lantern_house }
+        on_pass:
+          text: >-
+            You hold out your wrists. The young Lantern blinks -- nobody ever
+            does that -- and the sergeant sighs, pockets his pastry and walks
+            you up to the Lantern House himself, where the charge is written
+            as the Magpie, seen working the crowd on the quay, and the cell
+            door is heavier than it looks.
+          effects:
+            - { type: report, deed: pickpocket, guise: magpie, jurisdiction: quay, precision: 0.3 }
+            - { type: arrest }
+            - { type: flag, flag: "location_known:the_undercroft", value: true }

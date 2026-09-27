@@ -124,6 +124,11 @@ def quest_journal(state: Any) -> dict[str, Any]:
                 "blurb": str((arcs.get(str(arc_id)) or {}).get("blurb") or "").strip(),
             }
             for arc_id in (getattr(state, "arcs_unlocked", None) or [])
+            # A save from before per-story default arcs still carries the
+            # flagship's `quiet_life` in a story that never declared it; the
+            # journal lists only arcs the story has. A story with no arcs
+            # file at all lists what the state holds, as before.
+            if not arcs or str(arc_id) in arcs
         ],
         "objectives": QuestEngine.active_objectives(state),
         "quests": quests,

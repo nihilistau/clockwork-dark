@@ -28,8 +28,8 @@ settles the result, and a model on your own machine writes the prose.
   generation, voice and ComfyUI are optional and **off by default**. The
   shipped art packs mean scenes have pictures without any of them.
 
-**Status:** **v0.15.1** is the current release. Six stories ship, and each
-can be played to an ending. At v0.15.0 the suite stood at 3191 passing, 4
+**Status:** **v0.16.0** is the current release. Six stories ship, and each
+can be played to an ending. At v0.16.0 the suite stood at 3405 passing, 4
 skipped, plus 144 client tests. Those numbers are
 re-measured each release in [CLAUDE.md](CLAUDE.md), and
 [CHANGELOG.md](CHANGELOG.md) records every change from 0.4.0 on.
@@ -64,7 +64,7 @@ release.
 | **The Wicked Garden** | `wicked-garden` | Fae-court bargain. One day in the garden costs ten at home | Scene decks, veiled meters, clocks, threads, many endings | The deck exemplar, with no HP, no hunger, no skill checks and nothing to buy. It shows the engine isn't one game with the nouns swapped |
 | **NEON CITY: THE CROSSING** | `neon-city` | Cyberpunk survival expedition across the Sprawl on a 21-day timestamp | Graph world, scavenge economy, a doom-style clock that quests can make *slip*, debt escalation, threads, six ending classes | A graph story with no evil clock. The pressure comes from heat, debt, the weather and the file |
 | **THE LONG CON** | `the-long-con` | Rain-and-radiator noir. A client, a photograph, a man already dead | Graph city with road encounters, a shop, and a clock that forces an authored deck scene | The first hybrid: a walkable city with a set-piece deck inside it. It also has secret places, a clue board, gossip, and a continuity guard that rejects a scene greeting someone you know as a stranger |
-| **HUE & CRY** | `hue-and-cry` | Wry, warm thief's comedy with real gallows. Tallowmere, a candle-port, where everyone has decided you are the Magpie | Premises, the Law, jobs and flashbacks, NPC agendas, survival, labour, factions, lore, a guild economy (crafting, a collectable set, blackmail, credit) | The systems-heavy one, and the story in progress toward v1.0.0. The world schemes, robs and hunts on its own clock |
+| **HUE & CRY** | `hue-and-cry` | Wry, warm thief's comedy with real gallows. Tallowmere, a candle-port, where everyone has decided you are the Magpie | Premises, the Law, jobs and flashbacks, NPC agendas, survival, labour, factions, lore, a guild economy (crafting, a collectable set, blackmail, credit), Acts I and II (three decks, the Magpie's trail, an alibi and an accusation) | The systems-heavy one, and the story in progress toward v1.0.0. The world schemes, robs and hunts on its own clock |
 | **Dev Story** | `dev-story` | Not a game: the annotated bench. A house, a university and eight people | One small working instance of every subsystem, plus the multi-agent pipeline | The worked example the story templates are distilled from. Change one thing and see what it does |
 
 <details open>
@@ -165,9 +165,20 @@ Magpie!", and the whole city agrees. Today it has:
   Vessaline House, Mother Gannet's) open **blackmail** threads, with teeth if
   left uncollected. The two fences stand **credit**; a welsher finds neither
   will buy from them, and collectors on the streets.
+- **Acts I and II.** The barge opening's three choices are real (run, talk,
+  or come quietly into an arrest). The Honest Company swears you in through
+  an initiation deck, and the oath opens Act II. Every arrest ends in the
+  Lantern House's small room, an interrogation deck that can change your
+  file but never your sentence. The seed hides **the Magpie's trail** in the
+  city's houses, eight clues of which only some point true, so burglary is
+  also the investigation. At the Lantern House front desk the Watch's own
+  duty book is your **alibi** for the nights the Magpie robbed while you sat
+  in a cell, and with two clues that agree (not necessarily truly) you can **name the Magpie** to
+  the captain: rightly, and the Watch stops taking you for the Magpie;
+  wrongly, and it costs you.
 
-One ending ships today (`honest_after_all`); the rest land across v0.16 to
-v1.0. It runs on the engine's default skin for now, and no art plates ship
+One ending ships today (`honest_after_all`); Act III and the other seven
+land in v0.17. It runs on the engine's default skin for now, and no art plates ship
 yet. Its bespoke screens are on the roadmap.
 
 | In play: the casing board beside the opening | The map |
@@ -213,7 +224,8 @@ declared meters and clocks.
 - **Factions and reputation**, **gossip** that travels between venues, and
   **rumours** that improve as your awareness grows.
 - **NPC agendas.** Authored schemes that move on the clock while you aren't
-  looking (HUE & CRY).
+  looking, and a masked role's **trail** of clues the seed lays through the
+  generated houses, for the player to read (HUE & CRY).
 
 </details>
 
@@ -294,7 +306,7 @@ declared meters and clocks.
 - **Balance harnesses** that run headless, with no LLM: `scripts/simulate.py`
   for the flagship, `scripts/simulate_decks.py` for deck stories, and one
   per HUE & CRY system (law, jobs, agendas, scrounging, labour, streets, the
-  Hoard).
+  Hoard, the Acts).
 - `scripts/art_missing.py` and `scripts/generate_art.py` list missing plates
   and fill them ahead of time.
 
@@ -484,11 +496,12 @@ npm run build --prefix ui     # rebuild, then commit dist in the same change
 .\.venv\Scripts\python.exe scripts\simulate_labour.py    # porter | dipper | careful | scrounger | careful_pell | careful_marrow (--bed, --no-credit)
 .\.venv\Scripts\python.exe scripts\simulate_streets.py   # wanderer: a street an hour, day and night (--collectors)
 .\.venv\Scripts\python.exe scripts\simulate_hoard.py     # hoarder: the anchors, the Hoard, the squeezes (--no-pass, --severity)
+.\.venv\Scripts\python.exe scripts\simulate_acts.py      # investigator: Acts I-II, the trail and the reveal (--opening, --gate)
 ```
 
 The HUE & CRY harnesses run 40 seeds of in-game days each, and none of them
-writes a save. The law, jobs and agendas harnesses take `--set KEY=VALUE` to
-try a number without editing the file, and every one takes `--json` for the
+writes a save. The law, jobs, agendas and acts harnesses take `--set KEY=VALUE`
+to try a number without editing the file, and every one takes `--json` for the
 raw table. `scripts/simulate_decks.py --game wicked-garden` walks a deck
 story the same way: every ending, card and clock, over seeded runs.
 NEON CITY's and THE LONG CON's numbers are authored judgement and haven't been
@@ -506,13 +519,23 @@ fixed; details may change as each release lands.
 | Release | What | State |
 |---|---|---|
 | v0.15.0 | **Guild economy** for HUE & CRY: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | **shipped** |
-| v0.16.0 | **Acts I and II**: arcs, the initiation and interrogation decks, the Magpie reveal, the alibi beat | in progress |
+| v0.16.0 | **Acts I and II** for HUE & CRY: the opening, the initiation and interrogation decks, the Magpie's trail, the reveal and the alibi | **shipped** |
 | v0.17.0 | **Act III and eight endings**: the Hanging Fair, the jailbreak, The Rope, per-ending tests | planned |
-| v0.18.0 | **A thief policy** for `simulate.py` | planned |
+| v0.18.0 | **A thief policy** for `simulate.py`, which also measures welshing's cost for a burglar | planned |
 | v0.19.0 | **Model-server agnostic**: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | planned |
 | v0.20.0 | **Linux as a first-class platform**, and a **hosted, web-served mode**: auth, per-user sessions and saves, a production server, Docker | planned |
 | v0.21.0 | **UI/UX overhaul**, together with HUE & CRY's screens: wanted poster, job panel, casing board, portraits | planned |
-| v1.0.0 | **HUE & CRY finished**: a thief mistaken for the Magpie in Tallowmere, eight endings, its art pack, live-played | planned |
+| v0.22.0 | **The Clockwork Dark overhaul** | planned |
+| v0.23.0 | **The Wicked Garden overhaul** | planned |
+| v0.24.0 | **NEON CITY overhaul** | planned |
+| v0.25.0 | **THE LONG CON overhaul** | planned |
+| v0.26.0 | **Dev Story overhaul** | planned |
+| v1.0.0 | **All six stories finished**, each with its art and live play | planned |
+
+Each overhaul gives a story HUE & CRY's full treatment: a design spec, its
+story and characters, the engine systems apt to it, every ending reachable
+and tested, measured balance, reviews, UI screens and art. A large story may
+take two releases, which shifts the numbers after it.
 
 Until those land, the engine talks to LM Studio, Windows is the supported
 platform, and the game is a local single-player server. Known gaps are written

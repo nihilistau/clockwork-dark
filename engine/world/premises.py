@@ -15,6 +15,10 @@ a story growing a hundred of them.
     anchors/<id>.yaml   a hand-written premise -- same keys, fixed contents,
                         and an optional ``owner: <scheduled npc id>``
 
+``clues.yaml`` (v0.16, optional) lays a masked role's trail through the
+generated houses -- ``engine/world/clues.py``; every premise of a story that
+ships one carries a ``clue`` (a row id, or "").
+
 A secret row is ``{id, text, thread?}``. ``thread`` (v0.15) names the thread
 template that holding the secret opens -- a blackmail -- and is checked at
 load against the story's ``threads.yaml`` (``_check_secret_threads``).
@@ -36,7 +40,7 @@ the registry does not have, or a routine sending someone to a place the map
 does not have, would otherwise load, validate and do nothing -- the inert-shape
 failure this repo has shipped before.
 
-Version: v0.3.0 [2026-09-26]
+Version: v0.4.0 [2026-09-27]
 """
 
 from __future__ import annotations
@@ -589,6 +593,12 @@ def generate(seed: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
             )
             premises.append(prem)
             npcs.extend(household)
+    # AFTER every PREMISES draw and on its own CLUES stream (clues.py), so a
+    # story laying a trail generates the very houses it did without one, and
+    # a story without one (no clues.yaml) never gains a `clue` key.
+    from engine.world import clues
+
+    clues.place(seed, premises)
     logger.info(
         "[premises] Generated (operation=generate, seed=%s, premises=%s, people=%s)",
         seed,
@@ -706,6 +716,8 @@ LOITERING_DEED = "loitering"
 OCCUPANCY = "occupancy"
 LOOT_HINT = "loot"
 SECRET_HINT = "secret"
+#: A house holding a clue to a masked role's trail (engine/world/clues.py).
+CLUE_HINT = "clue"
 _SECURITY_PREFIX = "security:"
 
 
@@ -728,7 +740,15 @@ def _ordered_ids(state: GameState, prem: dict[str, Any]) -> list[str]:
         rest.append(SECRET_HINT)
     rng = stable_rng(int(state.rng_seed), f"{PREMISES}:{prem.get('id')}")
     rng.shuffle(rest)
-    return [OCCUPANCY, *rest]
+    # A clue is the LAST thing a watch learns, and outside the shuffle: added
+    # to it, a trail arriving would reorder what every clue house gives up
+    # first. Asked of the clue still IN the house (``clues.in_house``), so a
+    # clue already carried out, a clue the file no longer writes, or a save
+    # from before the trail hints at nothing.
+    from engine.world import clues
+
+    tail = [CLUE_HINT] if clues.in_house(state, prem) else []
+    return [OCCUPANCY, *rest, *tail]
 
 
 def _occupancy_text(state: GameState, prem: dict[str, Any]) -> str:
@@ -800,6 +820,10 @@ def _text_for(state: GameState, prem: dict[str, Any], intel_id: str) -> str:
         # That a secret EXISTS, never what it is: the lever itself is found by
         # going in, not by watching the door.
         return "somebody here is hiding something"
+    if intel_id == CLUE_HINT:
+        # That something is there, never what: the thing itself, and whoever
+        # it might point to, is found by going in.
+        return "something here doesn't belong"
     return _security_text(prem, intel_id.removeprefix(_SECURITY_PREFIX))
 
 

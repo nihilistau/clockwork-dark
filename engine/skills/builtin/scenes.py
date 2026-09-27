@@ -16,7 +16,7 @@ engine, call the module that owns the work (``engine/content/director.py``), and
 return its receipt verbatim so a test can assert the engine did not quietly add
 a number it did not show.
 
-Version: v0.1.0 [2026-08-15]
+Version: v0.1.1 [2026-09-27]
 """
 
 from __future__ import annotations
@@ -57,8 +57,11 @@ def resolve_scene_card(chosen: str = "") -> str:
     from engine.content import director
 
     engine = get_active_engine()
+    # The session's ledger (SessionStore sets it on the engine), as the job
+    # skill passes it: a card's `ledger_fact` needs somewhere to land, and a
+    # gate on `disposition` a ledger to read. None on a bare engine.
     return json.dumps(
-        director.resolve(engine.state, chosen=chosen, ledger=None)
+        director.resolve(engine.state, chosen=chosen, ledger=getattr(engine, "ledger", None))
     )
 
 

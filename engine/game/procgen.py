@@ -444,6 +444,10 @@ def new_game_state(
         archetype=chosen,
         location_id=location_id or entry_location_id(),
     )
+    # The story's own opening arc(s), not the flagship's `quiet_life`.
+    from engine.game.quests import seed_default_arcs
+
+    seed_default_arcs(state)
     apply_archetype(state, chosen)
     populate_state(state, seed=seed)
     return state

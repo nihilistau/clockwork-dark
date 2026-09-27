@@ -539,3 +539,127 @@ def test_a_rules_path_pointing_at_nothing_is_still_loud(
     messages = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
     assert len(messages) == 2, messages
     assert all("directory missing" in m.lower() for m in messages), messages
+
+
+# ---------------------------------------------------------------------------
+# 4. authored choices: what an opening may do beyond its intent (v0.16)
+# ---------------------------------------------------------------------------
+
+#: The stories whose opening carries authored consequences. Every other
+#: story's opening resolves to nothing, so its turns are what they were.
+AUTHORED_OPENINGS = {"hue-and-cry"}
+
+
+@pytest.mark.parametrize("activated", GAMES, indirect=True)
+def test_an_opening_without_authored_keys_resolves_to_nothing(activated: str) -> None:
+    from engine.scenes.default_state import resolve_authored_choice
+
+    session = _session_at_entry()
+    found = {
+        str(row.get("id")): resolve_authored_choice(session, str(row.get("id")))
+        for row in session.last_turn.get("choices") or []
+    }
+    if activated in AUTHORED_OPENINGS:
+        assert all(found.values()), found
+    else:
+        assert not any(found.values()), found
+    # And never for a choice the frame did not offer, nor for typed text.
+    assert resolve_authored_choice(session, "zz") == {}
+    first = next(iter(found), "a")
+    assert resolve_authored_choice(session, first, "I do something else") == {}
+
+
+@pytest.mark.parametrize("activated", ["hue-and-cry"], indirect=True)
+def test_a_narrated_choice_never_carries_authored_consequences(activated: str) -> None:
+    """
+    A model that writes ``deed:`` or ``on_pass: {effects: [arrest]}`` onto a
+    choice gets nothing: the consequences are read from the MANIFEST, and
+    only while the player is choosing from the opening frame. Here the
+    narrated turn copies the authored opening row for row -- same ids, same
+    text, the authored keys riding through ``_positional_ids`` -- and the
+    player still walks free.
+    """
+    from engine.agents.storyteller import _positional_ids
+    from engine.scenes.default_state import resolve_authored_choice
+    from engine.world import law
+
+    session = _session_at_entry()
+    authored_rows = registry.get("hue-and-cry").entry["opening"]["choices"]
+    narrated = _positional_ids([dict(row) for row in authored_rows])
+    assert any("on_pass" in row for row in narrated)  # the keys did ride through
+    session.last_turn = {"narration": NARRATION, "choices": narrated}
+    for row in narrated:
+        assert resolve_authored_choice(session, row["id"]) == {}, row
+
+    quiet = next(r for r in narrated if "intent" not in r)
+    payload = run_turn(
+        session,
+        resolve_player_action(session, quiet["id"]),
+        intent=resolve_player_intent(session, quiet["id"]),
+        authored=resolve_authored_choice(session, quiet["id"]),
+    )
+    assert not law.in_custody(session.engine.state)
+    assert not [r for r in payload.get("tool_receipts") or [] if r.get("skill") == "authored_choice"]
+
+
+def test_only_an_authored_choice_may_arrest() -> None:
+    """``arrest`` is in AUTHORED_CHOICE_EFFECT_TYPES alone: a model-composed
+    spec, a dealt card or a thread (authored=True) and a set-piece all drop it."""
+    from engine.challenges import spec
+
+    outcome = {"text": "", "effects": [{"type": "arrest"}]}
+
+    def kept(**kwargs: Any) -> list[str]:
+        return [e["type"] for e in spec.clamp_outcome(outcome, [], **kwargs)["effects"]]
+
+    assert kept() == []
+    assert kept(authored=True) == []
+    assert kept(authored=True, extra_types=spec.AUTHORED_CHALLENGE_EFFECT_TYPES) == []
+    assert kept(authored=True, extra_types=spec.AUTHORED_CHOICE_EFFECT_TYPES) == ["arrest"]
+    # Nothing but an authored choice's own `deed:` key commits a deed.
+    for allowed in (spec.ALLOWED_EFFECT_TYPES, spec.STRUCTURAL_EFFECT_TYPES,
+                    spec.AUTHORED_CHALLENGE_EFFECT_TYPES, spec.AUTHORED_CHOICE_EFFECT_TYPES):
+        assert "deed" not in allowed
+
+
+@pytest.mark.parametrize("activated", ["hue-and-cry"], indirect=True)
+def test_a_refused_intent_takes_no_authored_branch(activated: str) -> None:
+    """The player did not do it: no deed witnessed, no branch applied."""
+    from engine.game import authored_choice
+    from engine.game.intents import refusal
+    from engine.world import law
+
+    session = _session_at_entry()
+    state = session.engine.state
+    before = json.dumps(state.law, sort_keys=True)
+    consequences = authored_choice.bound({
+        "deed": "resisting_watch",
+        "on_pass": {"effects": [{"type": "arrest"}]},
+        "on_fail": {"effects": [{"type": "arrest"}], "encounter": "watch_stop"},
+    })
+    intent = {"action": "check", "target": "stealth"}
+    assert authored_choice.resolve(state, consequences, intent, [refusal(intent, "no")]) == []
+    assert authored_choice.resolve(state, {}, intent, []) == []
+    assert json.dumps(state.law, sort_keys=True) == before
+    assert not law.in_custody(state) and not state.encounter
+
+
+def test_the_validator_names_a_broken_authored_choice() -> None:
+    """A deed the law does not list, a scene nobody declared, and an effect an
+    authored choice may not use each commit, open or apply nothing at play
+    time -- so `check_opening` names all three, and a sound row is clean."""
+    from engine.game.authored_choice import problems
+
+    broken = {
+        "deed": "jaywalking",
+        "on_pass": {"effects": [{"type": "release"}, {"type": "arrest"}]},
+        "on_fail": {"encounter": "no_such_scene", "effects": [{"type": "report"}]},
+    }
+    found = problems(broken, deeds=["resisting_watch"], encounters=["watch_stop"])
+    assert len(found) == 3, found
+    assert any("jaywalking" in p for p in found)
+    assert any("no_such_scene" in p for p in found)
+    assert any("release" in p for p in found)
+    sound = {"deed": "resisting_watch", "on_fail": {"encounter": "watch_stop"}}
+    assert problems(sound, deeds=["resisting_watch"], encounters=["watch_stop"]) == []
+    assert problems({"id": "a", "text": "Go"}, deeds=[], encounters=[]) == []

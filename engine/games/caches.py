@@ -99,6 +99,9 @@ NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
     # Parsed agendas file: roles, owners, clocks, moves, reactions. A swap that
     # kept it warm would set one city's thief loose in another's streets.
     ("engine.world.agendas", "_SPEC_CACHE"),
+    # Parsed clues file: the role, the evidence meter, every clue's row. A swap
+    # that kept it warm would lay one city's trail through another's houses.
+    ("engine.world.clues", "_SPEC_CACHE"),
     # Warn-once memory for a story's missing death rules; per story.
     ("engine.game.encounter", "_WARNED_DEATH"),
     ("engine.media.comfyui", "_TEMPLATE_CACHE"),

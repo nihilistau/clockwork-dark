@@ -50,13 +50,24 @@ from the Watch, so it runs with `paths.agendas` declared off
 (``agendas_off``); ``--agendas`` runs it with the city's agendas on, and
 scripts/simulate_agendas.py measures the two together.
 
+THE OPENING (v0.16). ``--opening a|b|c`` has every thief take that choice
+off the morning barge first -- run, talk, or come quietly -- through the same
+three halves ``run_turn`` takes it by (``resolve_player_intent``, then
+``resolve_authored_choice``, applied by ``authored_choice.resolve``), then
+answer a stop or a cell the way its policy answers any, before its first
+day. Without the flag no thief takes the opening (every table before v0.16),
+so the default numbers are unchanged. With it, the report gains an
+``opening`` block: how often the choice passed, was filed, opened the stop,
+ended in a cell, and the thief's band on the Quay each morning for three days.
+
 Usage:
     python scripts/simulate_law.py                    # 40 seeds x 10 days, both
+    python scripts/simulate_law.py --opening a --policy careful --set deeds.resisting_watch=3
     python scripts/simulate_law.py --seeds 10 --days 5 --policy reckless
     python scripts/simulate_law.py --agendas          # with the Magpie and co. on
     python scripts/simulate_law.py --json
 
-Version: v0.4.0 [2026-09-25]
+Version: v0.5.0 [2026-09-26]
 """
 
 from __future__ import annotations
@@ -90,6 +101,10 @@ RECKLESS_HOUR = 13
 CAREFUL_CHANGE_HOUR = 23
 CAREFUL_LIFT_HOUR = 21
 POLICIES = ("careful", "reckless", "briber")
+#: The watch-house the opening happens under: the barge docks on the Quay.
+OPENING_JURISDICTION = "quay"
+#: Mornings of the Quay band the ``opening`` block reports.
+OPENING_MORNINGS = 3
 
 
 @dataclass
@@ -117,6 +132,8 @@ class Run:
     bribes: int = 0          # stops answered with coin
     bribe_gold: int = 0
     days_served: list[int] = field(default_factory=list)
+    #: ``--opening`` only: what the barge choice did (see ``take_opening``).
+    opening: dict[str, Any] = field(default_factory=dict)
 
 
 @contextmanager
@@ -249,6 +266,34 @@ class Thief:
 
         verb = intents.find_verb(intents.legal_intents(self.state), action)
         return [t for t, _label in (verb.options if verb else ())]
+
+    def take_opening(self, choice_id: str) -> None:
+        """The morning barge's choice, the way ``run_turn`` takes it, then
+        whatever it led to answered as the policy answers any stop or cell."""
+        from engine.agents.tool_dispatcher import execute_intent
+        from engine.game import authored_choice, encounter
+        from engine.scenes.default_state import (resolve_authored_choice,
+                                                 resolve_player_intent)
+        from engine.world import law
+
+        filed_before = len(self.state.law.get("reports") or [])
+        intent = resolve_player_intent(self.session, choice_id)
+        consequences = resolve_authored_choice(self.session, choice_id)
+        receipts = execute_intent(intent, self.session.engine) if intent else []
+        receipts += authored_choice.resolve(self.state, consequences, intent, receipts)
+        mine = next((r["result"] for r in receipts if r.get("skill") == "authored_choice"), {})
+        self.run.opening = {
+            "passed": bool(mine.get("passed")),
+            # Anything the choice put on file: its deed's report, or a branch's.
+            "reported": len(self.state.law.get("reports") or []) > filed_before,
+            "stopped": encounter.active(self.state),
+        }
+        arrests = self.run.arrests
+        self.answer_stop()
+        if law.in_custody(self.state):  # came quietly: no stop to answer
+            self.run.arrests += 1
+            self.leave_custody()
+        self.run.opening["arrested"] = self.run.arrests > arrests
 
     # -- composite moves ----------------------------------------------------
 
@@ -426,16 +471,19 @@ def _worst_band(state: Any, jurisdictions: list[str]) -> str:
     return bands[worst]
 
 
-def play(seed: int, policy: str, days: int) -> Run:
+def play(seed: int, policy: str, days: int, opening: str = "") -> Run:
     """
     One run of ``days`` IN-GAME days. A row per in-game day, read at the next
     08:00. A sentence that swallows days fills them with the band read when
     the prisoner walks out (they were in a cell; nothing new was filed).
+    ``opening`` is the barge choice taken first, or "" for none.
     """
     from engine.world import law
 
     thief = Thief(seed, policy)
     everywhere = list(law.load_spec()["jurisdictions"])
+    if opening:
+        thief.take_opening(opening)
     played = 0
     while thief.state.world_day <= days:
         played += 1
@@ -449,6 +497,9 @@ def play(seed: int, policy: str, days: int) -> Run:
         thief.wait_until(8)
         row.band = _worst_band(thief.state, [BUSY_JURISDICTION])
         row.worst_band = _worst_band(thief.state, everywhere)
+        if opening:
+            thief.run.opening.setdefault("quay", []).append(
+                _worst_band(thief.state, [OPENING_JURISDICTION]))
         row.seconds = time.perf_counter() - start
         thief.run.days.append(row)
         for skipped in range(first_day + 1, min(thief.state.world_day - 1, days) + 1):
@@ -512,11 +563,27 @@ def summarise(runs: list[Run], days: int) -> dict[str, Any]:
             if sum(r.income for r in runs) else 0.0
         ),
         "max_seconds_per_day": round(max(x.seconds for x in seed_days), 3),
+        **({"opening": _opening_summary(runs, bands)} if runs and runs[0].opening else {}),
     }
 
 
-def measure(policy: str, seeds: int, days: int) -> dict[str, Any]:
-    runs = [play(seed, policy, days) for seed in range(seeds)]
+def _opening_summary(runs: list[Run], bands: list[str]) -> dict[str, Any]:
+    """What ``--opening`` did, across the seeds: rates, and the Quay each morning."""
+    n = len(runs)
+
+    def rate(key: str) -> float:
+        return round(sum(bool(r.opening.get(key)) for r in runs) / n, 3)
+
+    mornings = []
+    for d in range(OPENING_MORNINGS):
+        seen = [r.opening["quay"][d] for r in runs if len(r.opening.get("quay") or []) > d]
+        mornings.append({band: seen.count(band) for band in bands if seen.count(band)})
+    return {"passed": rate("passed"), "reported": rate("reported"), "stopped": rate("stopped"),
+            "arrested": rate("arrested"), "quay_band_by_morning": mornings}
+
+
+def measure(policy: str, seeds: int, days: int, opening: str = "") -> dict[str, Any]:
+    runs = [play(seed, policy, days, opening) for seed in range(seeds)]
     return summarise(runs, days)
 
 
@@ -539,6 +606,13 @@ def render(policy: str, report: dict[str, Any]) -> str:
         f"{report['bribe_share_of_income']:.0%} of lifted income; "
         f"slowest day {report['max_seconds_per_day']}s"
     )
+    if "opening" in report:
+        o = report["opening"]
+        lines.append(
+            f"opening: passed {o['passed']:.0%}, filed {o['reported']:.0%}, stopped "
+            f"{o['stopped']:.0%}, arrested {o['arrested']:.0%}; the Quay by morning "
+            f"{o['quay_band_by_morning']}"
+        )
     return "\n".join(lines)
 
 
@@ -584,6 +658,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--days", type=int, default=10)
     parser.add_argument("--policy", choices=(*POLICIES, "all"), default="all")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--opening", choices=("a", "b", "c"), default="",
+                        help="take this barge choice first (run, talk, come quietly)")
     parser.add_argument("--agendas", action="store_true",
                         help="measure with the story's agendas on (off by default; see above)")
     parser.add_argument(
@@ -603,7 +679,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         for assignment in args.set:
             _override(assignment)
         policies = POLICIES if args.policy == "all" else (args.policy,)
-        reports = {p: measure(p, args.seeds, args.days) for p in policies}
+        reports = {p: measure(p, args.seeds, args.days, args.opening) for p in policies}
     if args.json:
         print(json.dumps(reports, indent=2))
     else:

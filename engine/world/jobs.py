@@ -48,14 +48,15 @@ through ``flag`` (``secret_held:<premise>:<secret>``, what the
 ``secret_held`` predicate reads) and ``ledger_fact`` (``kind: secret``): the
 lever a blackmail thread's ``requires`` is written against (v0.15). Caught,
 aborted or hurt, the thief holds nothing: whatever was found went back to the
-house, or to the Watch.
+house, or to the Watch. A clue to a masked role's trail (``clues.py``, v0.16)
+is seen at the score and kept on the same terms, by ``clues.take``.
 
 Every content fault is a ValueError naming the file, for the reason
 ``premises.py`` gives: a feature no premise has, a tool the registry lacks or
 a flashback gated on a predicate nobody registered would load, validate and do
 nothing -- the inert shape this repo has shipped before.
 
-Version: v0.5.0 [2026-09-26]
+Version: v0.6.0 [2026-09-27]
 """
 
 from __future__ import annotations
@@ -1201,7 +1202,10 @@ def resolve_stage(
         alarm_band, witnesses, loot, closed, advanced}`` (+ ``secret`` when
         found at the score, + ``held`` -- its text -- at the getaway that
         carries it out, with ``lever``, the name of whom it squeezes, when the
-        secret names a thread, + ``emptied`` at the score and getaway of an emptied house). ``advanced`` says whether the thief got past this stage (or
+        secret names a thread, + ``emptied`` at the score and getaway of an
+        emptied house, + ``clue`` -- a clue's words -- at a score that found
+        one, and ``clue_taken`` with ``evidence``, the meter's band word, at
+        the getaway that carries it out: ``clues.take``). ``advanced`` says whether the thief got past this stage (or
         this obstacle) -- a ``noisy`` partial did, a ``noisy`` failure did not.
         ``ok`` is "the attempt happened"; ``ok: False`` with a ``message`` is
         the engine declining, and spends nothing.
@@ -1210,6 +1214,7 @@ def resolve_stage(
     from engine.game.clock import advance_time
     from engine.game.effects import apply_effect
     from engine.game.inventory import name_of, tags_of
+    from engine.world import clues
 
     if not declared():
         return {"ok": False, "message": "there is no job under way"}
@@ -1309,6 +1314,13 @@ def resolve_stage(
                 # Found and read -- not yet held: it is held only once the
                 # job carries it out (the getaway, below).
                 receipt["secret"] = str(found["text"])
+            # A clue to the Magpie's trail is seen here, cased or not -- the
+            # thief is in the room -- and, like the secret, kept only if the
+            # job is carried out. An emptied house still holds it: whoever
+            # robbed it first took shine, not the thing that doesn't belong.
+            clue = clues.in_house(state, prem)
+            if clue:
+                receipt["clue"] = str(clue["text"])
             step["advance"] = True
         elif stage != "getaway":
             # The getaway never advances: it closes the job, below.
@@ -1385,6 +1397,11 @@ def resolve_stage(
             lever = _lever(found)
             if lever:
                 receipt["lever"] = lever
+        if str((state.jobs.get("last") or {}).get("outcome") or "") in CARRIED_OUT:
+            taken = clues.take(state, prem, ledger)
+            if taken:
+                receipt["clue_taken"] = taken["text"]
+                receipt["evidence"] = taken["evidence"]
     elif failed and stage == "entry" and sp["entries"].get(approach, {}).get("hurts"):
         receipt["outcome"] = "hurt"
         apply_effect(state, {"type": "hp", "delta": -1})

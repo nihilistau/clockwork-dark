@@ -62,7 +62,11 @@ Usage:
     python scripts/simulate_jobs.py --set tier_band.1=trivial --json
     python scripts/simulate_jobs.py --agendas
 
-Version: v0.2.0 [2026-09-25]
+THE MAGPIE'S TRAIL (v0.16) is read at the end of every run, never chased:
+how many clues the jobs carried out (engine/world/clues.py) and whether the
+finds lean toward the seed's real Magpie (``clues_favour``).
+
+Version: v0.3.0 [2026-09-27]
 """
 
 from __future__ import annotations
@@ -145,6 +149,8 @@ class Run:
     hp_after_sentence: list[int] = field(default_factory=list)
     min_hp: int = 99
     worst_band: str = ""        # the worst wanted band anywhere when the run ends
+    clues: int = 0              # clues to the Magpie's trail carried out (v0.16)
+    favours_magpie: bool = False  # the found clues lean toward the seed's real Magpie
 
 
 class Burglar(_LawThief):
@@ -463,7 +469,20 @@ def play(seed: int, policy: str) -> Run:
     b.morning()
     PLAYS[policy](b)
     b.run.worst_band = _worst_band(b.state, list(law.load_spec()["jurisdictions"]))
+    _read_the_trail(b)
     return b.run
+
+
+def _read_the_trail(b: Burglar) -> None:
+    """What the jobs found of the Magpie's trail (engine/world/clues.py): a
+    reading at the end, never a choice -- no policy hunts for clue houses."""
+    from engine.game.quests import evaluate_condition
+    from engine.world import agendas, clues
+
+    b.run.clues = len(clues.found(b.state))
+    magpie = agendas.role(b.state, "magpie")
+    b.run.favours_magpie = bool(evaluate_condition(
+        b.state, {"clues_favour": {"npc": magpie}}))
 
 
 # ---------------------------------------------------------------------------
@@ -525,6 +544,10 @@ def summarise(runs: list[Run]) -> dict[str, Any]:
         "treasury": _rates(treasury),
         "refused": sum(r.outcome == "refused" for run in runs for r in run.jobs),
         "min_hp": min((run.min_hp for run in runs), default=None),
+        "clues_per_run": round(statistics.mean(run.clues for run in runs), 2) if runs else 0.0,
+        "runs_with_a_clue": round(sum(run.clues > 0 for run in runs) / max(1, len(runs)), 3),
+        "runs_favouring_the_magpie": round(sum(run.favours_magpie for run in runs)
+                                           / max(1, len(runs)), 3),
     }
 
 
@@ -560,6 +583,9 @@ def render(policy: str, report: dict[str, Any]) -> str:
     lines.append(f"runs ending sought or worse {report['ended_sought']:.0%}, wanted or worse "
                  f"{report['ended_wanted']:.0%}; min hp {report['min_hp']}; "
                  f"refused opens {report['refused']}")
+    lines.append(f"the Magpie's trail: {report['clues_per_run']} clues a run, "
+                 f"{report['runs_with_a_clue']:.0%} of runs found one, "
+                 f"{report['runs_favouring_the_magpie']:.0%} lean toward the real Magpie")
     return "\n".join(lines)
 
 

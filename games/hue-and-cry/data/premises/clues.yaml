@@ -1,0 +1,111 @@
+# HUE & CRY -- the Magpie's trail (spec §3).
+#
+# Read by engine/world/clues.py, found by fixed filename inside
+# `paths.premises`. At world generation the seed lays a trail through the
+# city's GENERATED houses: `trail` clues pointing at the seed's real Magpie
+# (agendas.yaml's `magpie` role, read and never drawn), and `herrings` clues
+# pointing at EACH of the other two candidates. Which rows and which houses
+# are drawn on the CLUES stream, after every premise draw, so no house,
+# household or casing order moved when this file arrived.
+#
+# HOW IT IS FOUND. Casing a house that holds one reveals, last of all it has
+# to give, "something here doesn't belong". The score takes it whether the
+# house was cased or not -- the thief is standing in the room -- and a job
+# carried out (a clean or noisy getaway) keeps it: the flag
+# `clue_found:<id>`, a `clue` ledger fact, and the story's veiled `evidence`
+# meter (state.yaml) one higher. A thief caught or driven off keeps nothing,
+# as with a house's secret.
+#
+# WHY NEVER AN ANCHOR. The four hand-written houses are the Watch's own
+# office, Mother Gannet's, the Treasury and Vessaline House: a clue in a
+# candidate's own home would be proof, not a trail.
+#
+# THE RULES FOR A CLUE'S TEXT, every one held by the loader or a test:
+#
+#   * It DESCRIBES and never ACCUSES: a thing a thief could pick up or notice
+#     in a strongroom. Never a name, an alias or a family (the loader refuses
+#     any candidate's name or alias; tests/test_premises_clues.py refuses the
+#     trade words too).
+#   * It never gives the Magpie a sex -- no pronoun at all, and nothing that
+#     belongs to "a lady" or "a gentleman": no dress, no grooming, no
+#     jewellery (a waistcoat, a cufflink, a cane, pomade, a kid glove -- all
+#     cut in fix round 1; "scented" sealing-wax, cut in v0.16 T7). The Watch takes the PLAYER for the Magpie, so a
+#     clue that sexes the Magpie sexes the player. A clue points at its
+#     suspect through TRADE, PLACE or HABIT instead (tests/test_premises_clues.py
+#     holds a wordlist).
+#   * It fits every kind of house: a warehouse, a tavern, a temple house and a
+#     palace wing alike.
+#   * A candidate's rows are the SAME whether the seed makes them the Magpie
+#     or an innocent: a true clue and a red herring are the same sentence.
+#     One clue suggests; only the tally leans (the `clues_favour` predicate,
+#     a condition that no prompt renders).
+#
+# `points_to` is never rendered anywhere. The narrator hears a clue's `text`
+# only once the player has found it.
+#
+# Version: v0.1.2 [2026-09-27]
+
+role: magpie
+evidence: evidence
+# Four for the real Magpie, two for each of the others: eight houses of the
+# twenty-seven generated. With everything found the tally leans 4-2-2; with
+# a clue or two, it may lean anywhere.
+trail: 4
+herrings: 2
+# Set true by every clue carried out (v0.16 T7). The Lantern House desk's
+# accusation (data/scenes/lantern_house_desk.yaml) clears it on a WRONG
+# naming, and a second accusation waits until it is set again: something new
+# found since, before the captain will hear another name.
+fresh_flag: clue_fresh
+
+clues:
+  # -- the one who keeps the city's lamps ---------------------------------
+  - id: wick_ends
+    points_to: npc_wren
+    text: "a twist of cheap lamp-wick ends, the kind the chandlers sell off by the bundle, dropped under the strongroom window"
+  - id: lamp_soot
+    points_to: npc_wren
+    text: "lamp-soot smudged on the inside of the sill, the black that comes off a great many glass lamps and never quite washes out"
+  - id: brass_ferrule
+    points_to: npc_wren
+    text: "a dented brass ferrule, the cap off the end of a long pole, rolled under the strongroom shelf"
+  - id: ladder_feet
+    points_to: npc_wren
+    text: "two square dents in the soft ground under the window, the feet of a short ladder, the kind somebody carries from post to post"
+  - id: snuffer_ring
+    points_to: npc_wren
+    text: "a neat ring of soot on the shelf where something small, round and hot was set down -- a snuffer's cap, by the size of it"
+
+  # -- the one who stands the young porters their rounds ------------------
+  - id: pie_papers
+    points_to: npc_silas
+    text: "greasy papers from the pie shop on Wickmarket, a dozen of them folded together, the kind bought to feed a whole table"
+  - id: company_chit
+    points_to: npc_silas
+    text: "a porter's tally-chit of the Honest Company, marked paid, with the Company's mark scratched out and a new one cut beside it"
+  - id: back_stair_mud
+    points_to: npc_silas
+    text: "black mud dried on the sill, the tarry kind that only the back stairs of the Snuffs' flophouse hold after rain"
+  - id: taproom_token
+    points_to: npc_silas
+    text: "a brass drinking-token from a Snuffs taproom, good for one pint, dropped just inside the door"
+  - id: porters_rota
+    points_to: npc_silas
+    text: "a scrap of the porters' rota for the Wickmarket stands, half its names crossed out and written in again in another hand"
+
+  # -- the one who sups on the Hill ---------------------------------------
+  - id: violet_wax
+    points_to: npc_imelda
+    text: "a crumb of violet sealing-wax, the costly kind only the great houses of Silk Row send out their letters in"
+  - id: gilded_taper
+    points_to: npc_imelda
+    text: "the stub of a gilded temple taper, the kind the Everflame's patrons are handed at the altar rail"
+  - id: appraisal_slip
+    points_to: npc_imelda
+    text: "a Silk Row silversmith's appraisal slip, a price written on it and struck through twice, as if nothing in the shop quite pleased"
+  - id: blue_tissue
+    points_to: npc_imelda
+    text: "a square of the silversmith's blue tissue paper, the kind Silk Row wraps a purchase in, folded small"
+  - id: place_card
+    points_to: npc_imelda
+    text: "a gilt-edged place card from somebody's supper table on the Hill, the name torn off it"

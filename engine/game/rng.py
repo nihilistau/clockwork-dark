@@ -81,6 +81,11 @@ JOB = "job"
 # so that a story adding an agenda cannot shift a burglary's stage rolls (JOB)
 # or a witness's telling (LAW) on a replayed seed.
 AGENDA = "agenda"
+# Where a masked role's trail lies (engine/world/clues.py): which authored
+# clues a seed uses and which houses hold them. Laid out at world generation,
+# AFTER every PREMISES draw and never on that stream, so a story adding its
+# first clue moves no house, household or casing order any seed generated.
+CLUES = "clues"
 
 
 def _mix(seed: int, stream: str, counter: int) -> int:

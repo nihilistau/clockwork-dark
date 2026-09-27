@@ -12,6 +12,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-09-27
+
+### Fixed
+
+- **A run opens on this story's own first arc**, `term` (`default:
+  true` in `data/quests/arcs.yaml`), not on the flagship's `quiet_life`,
+  which the journal carried for the whole run before (an engine fix,
+  `quests.seed_default_arcs`; root CHANGELOG). A save from before still
+  loads, and its journal lists only this story's arcs.
+
 ## [0.15.1] — 2026-09-26
 
 ### Added

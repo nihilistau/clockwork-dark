@@ -543,3 +543,31 @@ def test_a_bed_out_of_reach_is_named_by_its_place_not_its_id():
     assert f"(no bed at {name})" in out["text"], out["text"]
     for text in (out["text"], line):
         assert "forest_clearing" not in text, text
+
+
+def test_a_gated_bed_says_why_in_the_storys_own_words(monkeypatch):
+    """v0.16: a `requires:` gate may carry `refusals:` (the threads shape): the
+    first row whose `when` holds is the downgrade's note, so the narrator
+    hears the story's reason, not the engine's generic one. Still a
+    downgrade, never a refusal (rule 6)."""
+    rules = {"rest": {
+        "sleep_club": {
+            "hours": 8, "stamina": "full", "requires": {"flag": "member"},
+            "refusals": [{"when": {"not_flag": "member"},
+                          "text": "the club takes new members on Tuesdays"}],
+            "fallback": "sleep_rough", "text": "A members' cot.",
+        },
+        "sleep_rough": {"hours": 8, "stamina": 40, "text": "A doorway."},
+    }}
+    monkeypatch.setattr(survival, "load_rules", lambda: rules)
+    state = fed_state()
+    out = survival.rest(state, "sleep_club")
+    assert out["success"] is True and out["kind"] == "sleep_rough", out
+    assert "the club takes new members on Tuesdays" in out["text"], out
+
+
+def test_a_gated_bed_with_no_matching_refusal_keeps_the_plain_reason(priced):
+    state = fed_state()
+    out = survival.rest(state, "sleep_club")
+    assert out["kind"] == "sleep_rough"
+    assert "that bed is not yours tonight" in out["text"], out

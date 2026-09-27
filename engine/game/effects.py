@@ -1054,6 +1054,14 @@ def _e_report(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> d
 
     ``deed_id`` names the deed this report is OF; a report without one is a
     deed of its own. The wanted score counts each deed once (``law.filed_score``).
+
+    ``agenda`` and ``hour`` (v0.16) are the agendas pass's stamp: a move that
+    files a report passes its agenda id and the absolute hour it fired at
+    (``agendas._try_move``), and the row carries both, so the robbery's
+    ``agenda_hit`` can be joined to the charge it put on a name. Both or
+    neither; the agenda must be declared and the hour an integer, or the
+    report is refused. A row without them (every other caller, every older
+    save) is exactly what it was.
     """
     from engine.world import law
 
@@ -1072,6 +1080,17 @@ def _e_report(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> d
         return _law_refusal("report", f"unknown jurisdiction `{jurisdiction}`")
     if not 0.0 <= precision <= 1.0:
         return _law_refusal("report", "precision must be between 0 and 1")
+    stamp: dict[str, Any] = {}
+    if "agenda" in effect or "hour" in effect:
+        from engine.world import agendas
+
+        agenda = str(effect.get("agenda") or "").strip()
+        hour = _strict_int(effect.get("hour"))
+        if agenda not in (agendas.spec().get("agendas") or {}):
+            return _law_refusal("report", f"unknown agenda `{agenda}`")
+        if hour is None:
+            return _law_refusal("report", "an agenda's report needs an integer `hour`")
+        stamp = {"agenda": agenda, "hour": hour}
     deed_id = _deed_id(state, effect)
     given = str(effect.get("deed_id") or "").strip()
     if given in law.discharged(state):
@@ -1090,6 +1109,7 @@ def _e_report(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> d
         "jurisdiction": jurisdiction,
         "precision": precision,
         "day": state.world_day,
+        **stamp,
     })
     # Prose only: the guise's authored label and a clarity word. The deed kind
     # and jurisdiction are ids, and the precision is a number -- all three are
@@ -1326,6 +1346,16 @@ def _e_law_link(state: GameState, effect: dict[str, Any], ctx: EffectContext) ->
 
     Symmetric and deduplicated: ``[a, b]`` and ``[b, a]`` are the same belief,
     and asking twice writes once.
+
+    A pair the player has broken (``law_unlink``, remembered in
+    ``broken_links``) is refused, writing nothing: the watch has been shown it
+    was wrong about those two faces, and no authored outcome can talk it back
+    into the belief. It stays broken UNTIL A WITNESS SEES THE GUISE CHANGE
+    AGAIN: ``law.change_guise``, when someone present notices, applies this
+    with ``by=law.WRITER_WITNESS``, and then the pair is dropped from
+    ``broken_links`` and linked -- new evidence, not a retraction. The writer
+    id is the gate because no YAML effect can choose it; a ``witnessed:`` key
+    would have been one any encounter outcome could write.
     """
     from engine.world import law
 
@@ -1338,11 +1368,67 @@ def _e_law_link(state: GameState, effect: dict[str, Any], ctx: EffectContext) ->
         return _law_refusal("law_link", "a link needs two known guises")
     if a == b:
         return _law_refusal("law_link", "a guise cannot be linked to itself")
+    if law.is_broken(state, a, b):
+        if ctx.by != law.WRITER_WITNESS:
+            return _law_refusal(
+                "law_link", "that link was broken and stays broken until a witness sees it again"
+            )
+        state.law["broken_links"] = [
+            pair for pair in law.broken_links(state) if {pair[0], pair[1]} != {a, b}
+        ]
     pairs = law.links(state)
     if not any({pair[0], pair[1]} == {a, b} for pair in pairs):
         pairs.append([a, b])
         state.law["links"] = pairs
     return {"type": "law_link", "ok": True, "text": ""}
+
+
+@effect_kind("law_unlink")
+def _e_law_unlink(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> dict[str, Any]:
+    """
+    Break a link: the watch no longer takes ``a`` and ``b`` for one person.
+    With ``law_link``, the only writer of ``state.law["links"]`` and of
+    ``state.law["broken_links"]`` (this adds a pair; only a WITNESSED
+    ``law_link`` removes one).
+
+    Shape: ``{type: law_unlink, a: self, b: magpie}``.
+
+    Removes the DIRECT pair, either way round, from what the watch believes
+    (reading the file's starting belief through, as ``law_link`` does, so the
+    first write stores the survivors -- possibly none, which ``law.links``
+    then reads as "no belief" rather than falling back to the file), and
+    records the pair as broken so ``law_link`` refuses it until a witness
+    sees the guise change again.
+    Nothing is recomputed or cached: wanted, the charge sheet and every
+    ``linked`` reader go through ``law.links`` each time they are asked, so a
+    Magpie report stops counting against ``self`` at once. The reports
+    themselves stay filed -- against the Magpie, where they belong.
+
+    Refused, writing nothing, for an unknown guise, a guise paired with
+    itself, or a pair not directly linked (a belief reached only through a
+    third face is broken by unlinking one of the pairs it runs through).
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return _law_refusal("law_unlink", "this story keeps no watch to unlink anything for")
+    spec = law.load_spec()
+    a = str(effect.get("a") or "").strip()
+    b = str(effect.get("b") or "").strip()
+    if a not in spec["guises"] or b not in spec["guises"]:
+        return _law_refusal("law_unlink", "an unlink needs two known guises")
+    if a == b:
+        return _law_refusal("law_unlink", "a guise cannot be unlinked from itself")
+    pairs = law.links(state)
+    kept = [pair for pair in pairs if {pair[0], pair[1]} != {a, b}]
+    if len(kept) == len(pairs):
+        return _law_refusal("law_unlink", "the watch does not link those two")
+    state.law["links"] = kept
+    broken = law.broken_links(state)
+    if not law.is_broken(state, a, b):
+        broken.append([a, b])
+    state.law["broken_links"] = broken
+    return {"type": "law_unlink", "ok": True, "hidden": True, "text": ""}
 
 
 @effect_kind("arrest")
@@ -1369,7 +1455,9 @@ def _e_arrest(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> d
          first, so a mixed stack keeps its cool units cool). Cool and clean
          goods stay: the watch takes what a victim could name this week.
       3. The move to ``arrest.gaol``, and ``custody`` set to ``{fine, days,
-         since_day, jurisdiction, guise, charged}`` -- ``charged`` the deed ids
+         since_day, since_hour, jurisdiction, guise, charged}`` --
+         ``since_hour`` the first whole hour held (``law.next_hour``), and
+         ``charged`` the deed ids
          on the sheet, so ``pay_fine`` and ``serve_sentence`` discharge exactly
          what was charged and nothing committed from the cell.
 
@@ -1414,6 +1502,9 @@ def _e_arrest(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> d
         "fine": sentence["fine"],
         "days": sentence["days"],
         "since_day": state.world_day,
+        # The first whole hour the prisoner is held through (`law.next_hour`,
+        # the agendas pass's own boundary): what an alibi is checked against.
+        "since_hour": law.next_hour(state),
         "jurisdiction": jurisdiction,
         "guise": guise,
         # Exactly what this arrest charged, so paying or serving discharges
@@ -1433,6 +1524,14 @@ def _e_release(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> 
     Clears custody and NOTHING else: the file stays filed. ``law.pay_fine``
     and ``law.serve_sentence`` discharge the charge before they call this; a
     story's break-out scene calls it bare, and walks out still wanted.
+
+    The stay is remembered first (v0.16): ``{since_hour, until_hour,
+    jurisdiction}`` appended to ``state.law["custody_log"]`` (the only
+    writer), ``until_hour`` being ``law.next_hour`` -- so the interval is
+    half-open and holds exactly the hour boundaries walked while held. That
+    log is what ``alibi`` reads. A custody record with no ``since_hour`` (one
+    loaded from a save made before v0.16) is released without a log row: its
+    start cannot be placed, and a guessed one would invent an alibi.
     """
     from engine.world import law
 
@@ -1440,6 +1539,16 @@ def _e_release(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> 
         return _law_refusal("release", "this story keeps no watch to hold anyone")
     if not law.in_custody(state):
         return _law_refusal("release", "not held")
+    held = law.custody(state)
+    since = _strict_int(held.get("since_hour"))
+    if since is not None:
+        log = law.custody_log(state)
+        log.append({
+            "since_hour": since,
+            "until_hour": law.next_hour(state),
+            "jurisdiction": str(held.get("jurisdiction") or ""),
+        })
+        state.law["custody_log"] = log
     state.law.pop("custody", None)
     return {"type": "release", "ok": True, "text": "released"}
 
@@ -1460,12 +1569,23 @@ def _e_law_discharge(
     ``law.propagate`` and a sighting in every later reader. Cooling is
     re-capped, as ``quash_reports`` does, so an offset never outlives the
     file it wore down.
+
+    ``alibi: true`` (v0.16, with an optional ``agenda``) names the deeds at
+    APPLY time: ``agendas.alibi_deeds`` -- every agenda robbery joined to a
+    report and walked while the player was held -- merged with any
+    ``deed_ids``. An authored card presenting the cells as an alibi does not
+    know the ids when it is written; the engine does when it is played.
     """
     from engine.world import law
 
     if not law.declared():
         return _law_refusal("law_discharge", "this story keeps no watch to settle with")
     ids = [str(d).strip() for d in effect.get("deed_ids") or [] if str(d).strip()]
+    if effect.get("alibi") is True:
+        from engine.world import agendas
+
+        ids += [d for d in agendas.alibi_deeds(state, str(effect.get("agenda") or ""))
+                if d not in ids]
     if not ids:
         return _law_refusal("law_discharge", "no deeds named to discharge")
     closing = set(ids)
@@ -1838,12 +1958,18 @@ def _e_agenda_hit(
     """
     Record that an agenda robbed a premise. The only writer of ``state.agendas["hits"]``.
 
-    Shape: ``{type: agenda_hit, agenda: the_magpie, premise: prem_x, hour: 49}``.
+    Shape: ``{type: agenda_hit, agenda: the_magpie, premise: prem_x, hour: 49,
+    deed_id?: d7}``.
 
     Deliberately NOT ``jobs.robbed``: that list is the player's -- the scores
     a job of theirs carried out -- and ``premise_robbed`` reads it as such. An
     agenda's robbery is its own record; ``not_robbed`` selectors and the
     ``agenda_hit`` predicate read it here.
+
+    ``deed_id`` (v0.16) joins the robbery to the report the same move filed
+    (``agendas._try_move``), so an alibi can name the charge to discharge.
+    Absent when the move filed nothing (no report, or one refused), and from
+    every hit in an older save; ``alibi`` ignores such a hit.
     """
     from engine.world import agendas, premises
 
@@ -1858,9 +1984,13 @@ def _e_agenda_hit(
         return _agenda_refusal("agenda_hit", f"unknown premise `{premise}`")
     if hour is None:
         return _agenda_refusal("agenda_hit", "a hit needs an integer `hour`")
-    state.agendas.setdefault("hits", []).append(
-        {"agenda": agenda, "premise": premise, "hour": hour}
-    )
+    row: dict[str, Any] = {"agenda": agenda, "premise": premise, "hour": hour}
+    if "deed_id" in effect:
+        deed_id = effect.get("deed_id")
+        if not isinstance(deed_id, str) or not deed_id.strip():
+            return _agenda_refusal("agenda_hit", "`deed_id` must name a deed")
+        row["deed_id"] = deed_id.strip()
+    state.agendas.setdefault("hits", []).append(row)
     return {"type": "agenda_hit", "ok": True, "hidden": True, "text": ""}
 
 

@@ -428,3 +428,22 @@ def test_a_tests_own_monkeypatch_undo_keeps_the_saves_redirect(monkeypatch) -> N
 
     monkeypatch.undo()
     assert not _under_real_saves(saves.saves_base())
+
+
+def test_a_tests_own_monkeypatch_undo_keeps_the_live_model_guard(monkeypatch) -> None:
+    """The same hole in `_no_live_model_calls` (v0.15 re-review): it installed
+    its socket guard and its three pins through the test's shared
+    `monkeypatch`, so a mid-test `monkeypatch.undo()` dropped the live-model
+    guard for the rest of that test. It holds its own now."""
+    import socket
+
+    from engine.lmstudio.native import NativeClient
+    from engine.lmstudio.registry import ModelRegistry
+    from tests.conftest import MODEL_ENDPOINTS
+
+    if not MODEL_ENDPOINTS:
+        pytest.skip("no model endpoint configured, so no guard is installed")
+    monkeypatch.undo()
+    assert socket.socket.connect.__name__ == "guarded"
+    assert NativeClient.is_available.__name__ == "<lambda>"
+    assert ModelRegistry._fetch.__name__ == "<lambda>"

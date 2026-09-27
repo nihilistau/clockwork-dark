@@ -10,13 +10,18 @@
 # THE LABELS ARE GM-FACING and say what the clock MEANS. They never name who
 # the Magpie is: the label is the same sentence in every seed.
 #
-# NO FORCED SCENES THIS RELEASE. `forces_scene` names a deck card, and HUE &
-# CRY ships no decks until v1.0 (the interrogation, the Hanging Fair). A beat
-# here sets a flag, writes a line to the "world moved" journal (`text`) and,
-# for the captain, files a warrant through an ordinary Law effect. The flags
-# are what v1.0's scenes will read.
+# NO BEAT FORCES A SCENE. HUE & CRY has shipped decks since v0.16 -- the
+# initiation, the interrogation and the Lantern House front desk
+# (data/scenes/) -- but all three are SCHEDULED by their own `when:` (the
+# Snuffs while Gannet holds court; `in_custody: true`, repeatable, on every
+# arrest; the Lantern House, free, with an alibi or an accusation to make,
+# repeatable), not forced from here: a clock-forced deck never re-arms
+# (engine/content/director.py::rearm), and the small room must deal on every
+# arrest. A beat here sets a flag, writes a line to the "world moved"
+# journal (`text`) and, for the captain, files a warrant through an ordinary
+# Law effect. The flags are what the Acts' later scenes will read.
 #
-# Version: v0.1.1 [2026-09-25]
+# Version: v0.1.3 [2026-09-27]
 
 version: 1
 

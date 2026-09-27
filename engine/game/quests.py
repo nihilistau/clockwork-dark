@@ -239,6 +239,46 @@ def load_arcs() -> dict[str, dict[str, Any]]:
     return _ARC_CACHE
 
 
+def default_arcs() -> list[str]:
+    """
+    The active story's ``default: true`` arcs, in ``unlock_arcs``' order.
+
+    Sorted by ``arc_order`` with a stable sort over declaration order, which is
+    exactly the order ``unlock_arcs`` would append them in on the first
+    evaluate -- so a state seeded from this list and one that reached it by
+    evaluating are the same list. Empty when the story declares no arcs file
+    or no default.
+    """
+    arcs = load_arcs()
+    return [
+        arc_id
+        for arc_id in sorted(arcs, key=arc_order)
+        if arcs[arc_id].get("default")
+    ]
+
+
+def seed_default_arcs(state: GameState) -> None:
+    """
+    Open a fresh state on the active story's own default arcs.
+
+    ``GameState`` defaults ``active_arc``/``arcs_unlocked`` to ``quiet_life``,
+    the flagship's answer, and every other story carried that phantom arc in
+    its journal forever. A new game now starts from the story's declared
+    defaults, with ``active_arc`` the furthest along of them (the first of
+    equal orders, as ``unlock_arcs`` keeps). The flagship's default IS
+    ``quiet_life``, so its fresh state is unchanged.
+
+    A story that declares no default arc keeps the dataclass default: a quest
+    with no ``arc:`` key belongs to ``quiet_life`` (``_DEFAULT_ARC``), and
+    emptying the list would lock every such quest.
+    """
+    defaults = default_arcs()
+    if not defaults:
+        return
+    state.arcs_unlocked = list(defaults)
+    state.active_arc = max(defaults, key=arc_order)
+
+
 def arc_order(arc_id: str) -> int:
     """
     Rank an arc for "furthest along" comparisons.
@@ -756,9 +796,10 @@ _GRAMMAR_MODULES = (
     "engine.game.clocks",  # value, clock, track, forced_scene
     "engine.game.threads",  # thread, no_thread
     "engine.game.endings",  # ending
-    "engine.world.law",  # in_custody, filed
+    "engine.world.law",  # in_custody, filed, linked
     "engine.world.jobs",  # premise_cased, premise_robbed, job
-    "engine.world.agendas",  # wanted, reported_to, agenda_hit
+    "engine.world.agendas",  # wanted, reported_to, agenda_hit, alibi, agenda_role
+    "engine.world.clues",  # clues_favour
 )
 
 _grammar_loaded = False

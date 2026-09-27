@@ -931,8 +931,8 @@ def test_a_harness_run_leaves_the_save_store_untouched(hue, monkeypatch) -> None
     simulate_law.Thief, and each one is asserted here, one short day each."""
     _scripts_on_path()
     from engine.persistence import saves
-    from scripts import (simulate_agendas, simulate_hoard, simulate_jobs, simulate_labour,
-                         simulate_law, simulate_scrounge, simulate_streets)
+    from scripts import (simulate_acts, simulate_agendas, simulate_hoard, simulate_jobs,
+                         simulate_labour, simulate_law, simulate_scrounge, simulate_streets)
 
     written: list[str] = []
     real_save = saves.SaveStore.save
@@ -952,6 +952,7 @@ def test_a_harness_run_leaves_the_save_store_untouched(hue, monkeypatch) -> None
         simulate_scrounge.play(0, "mornings", 1)
         simulate_streets.Wanderer(0)
         simulate_hoard.Hoarder(0)
+    simulate_acts.play(0, "c", 1)  # agendas on: the spine needs the Magpie
     after = sorted(p.name for p in root.iterdir()) if root.is_dir() else []
     assert written == [], written
     assert after == before
@@ -1122,6 +1123,7 @@ def test_mother_gannets_job_is_struck_in_the_snuffs_and_pays_after_the_house(
     from engine.world import jobs, premises
 
     state = _city(11)
+    state.flags["guild_initiated"] = True  # sworn to the Company (v0.16)
     set_clock(state, day=1, hour=20)
     state.location_id = "wickmarket"
     assert threads.can_strike(state, "gannet_silk_row") is False
@@ -1183,6 +1185,7 @@ def test_mother_gannets_job_left_undone_sours_the_company_quietly(hue, caplog) -
 
     assert "honest_company" in reputation.faction_ids()
     state = _city(11)
+    state.flags["guild_initiated"] = True  # sworn to the Company (v0.16)
     set_clock(state, day=1, hour=20)
     state.location_id = "the_snuffs"
     thread_id = threads.seal(state, threads.offer(state, "gannet_silk_row"))["thread"]["id"]
@@ -1249,6 +1252,7 @@ def test_mother_gannets_job_is_not_paid_by_a_robbery_that_came_first(
     from engine.world import jobs
 
     state = _city(11)
+    state.flags["guild_initiated"] = True  # sworn to the Company (v0.16)
     set_clock(state, day=1, hour=20)
     state.location_id = "silk_row"
     assert jobs.begin(state, _silk_row_house(state))["ok"]
@@ -1562,6 +1566,7 @@ def test_gannets_contract_completes_on_a_house_the_magpie_emptied(hue, monkeypat
 
     _script_rolls(monkeypatch, "success")
     state = _city(11)
+    state.flags["guild_initiated"] = True  # sworn to the Company (v0.16)
     set_clock(state, day=1, hour=20)
     state.location_id = "the_snuffs"
     thread_id = threads.seal(state, threads.offer(state, "gannet_silk_row"))["thread"]["id"]
@@ -1806,6 +1811,7 @@ def test_the_guild_bunk_needs_the_companys_good_opinion(hue) -> None:
     from engine.game.clock import set_clock
 
     state = _city(9)
+    state.flags["guild_initiated"] = True  # sworn to the Company (v0.16)
     set_clock(state, day=1, hour=22)
     state.location_id = "the_snuffs"
     state.stats.gold = 5
@@ -1924,6 +1930,12 @@ def test_the_secret_ways_never_move_a_house(hue, monkeypatch) -> None:
         # it did at 4003587 -- no house moved, which is this test's claim.
         for prem in world["premises"]:
             prem["loot"] = [i for i in prem.get("loot") or [] if i not in HOARD_IN_ANCHORS]
+            # v0.16 laid the Magpie's trail (data/premises/clues.yaml): a
+            # `clue` field on every premise, drawn on its own CLUES stream
+            # after every PREMISES draw. Struck out for the same reason as the
+            # Hoard pieces -- it is the one added field, and no house moved.
+            assert "clue" in prem, prem["id"]
+            prem.pop("clue")
         assert _digest(world["premises"]) == PRE_TEMPLATE_PREMISES_DIGESTS[seed], seed
         world.pop("forest")
         assert _digest(world) == PRE_TEMPLATE_WORLD_DIGESTS[seed], seed
@@ -3950,3 +3962,2039 @@ def test_a_known_welsher_is_told_why_no_credit(session) -> None:
         # Not a welsher, wrong street: still the honest "here and now".
         _at(state, "tallow_docks", 10)
         assert json.loads(strike_bargain("pell_advance"))["error"] == threads.REFUSED_HERE
+
+
+# ---------------------------------------------------------------------------
+# v0.16 T1: the acts, and the act the narrator is told
+# ---------------------------------------------------------------------------
+
+
+def test_a_fresh_run_opens_in_act_one_with_no_phantom_arc(hue) -> None:
+    """The run starts in Act I, the way out open beside it, and no
+    `quiet_life` -- the flagship's arc every story used to inherit."""
+    from engine.scenes.default_api import quest_journal
+
+    state = _city(11)
+    assert state.active_arc == "hue_and_cry"
+    assert state.arcs_unlocked == ["the_way_out", "hue_and_cry"]
+    journal = quest_journal(state)
+    assert journal["active_arc_title"] == "Hue and Cry"
+    assert [a["id"] for a in journal["arcs_unlocked"]] == ["the_way_out", "hue_and_cry"]
+
+
+def test_the_acts_climb_on_initiation_and_the_side_arcs_stay_open(hue) -> None:
+    """Act II opens on `guild_initiated` (set here directly: the initiation
+    deck that sets it is T4). The way out's quest still offers itself, and
+    finding the Hoard opens its arc without taking the act away."""
+    from engine.game.quests import EVENT_ARC_UNLOCKED, QuestEngine, progress_records
+
+    state = _city(11)
+    QuestEngine.evaluate(state)
+    assert state.active_arc == "hue_and_cry"
+    assert "honest_work" not in state.arcs_unlocked
+    assert "the_evening_barge" in progress_records(state)
+
+    state.location_id = "old_bell_tower"
+    QuestEngine.evaluate(state)
+    assert "the_magpies_hoard" in state.arcs_unlocked
+    assert state.active_arc == "hue_and_cry"
+
+    state.flags["guild_initiated"] = True
+    events = QuestEngine.evaluate(state)
+    assert [e.quest_id for e in events if e.kind == EVENT_ARC_UNLOCKED] == ["honest_work"]
+    assert state.active_arc == "honest_work"
+
+    # Monotonic: the flag going away does not walk the act back.
+    state.flags["guild_initiated"] = False
+    QuestEngine.evaluate(state)
+    assert state.active_arc == "honest_work"
+
+
+def test_a_save_from_before_the_acts_climbs_into_act_one(hue) -> None:
+    """An old-shaped save: `quiet_life` active and unlocked, the way out
+    open. It loads, reads the unknown arc as order -1, climbs into Act I on
+    the next evaluate, and its journal no longer lists the phantom."""
+    import json
+
+    from engine.game.quests import QuestEngine, arc_order
+    from engine.game.state import GameState
+    from engine.scenes.default_api import quest_journal
+
+    old = json.loads(json.dumps(_city(11).to_save_dict()))
+    old["active_arc"] = "quiet_life"
+    old["arcs_unlocked"] = ["quiet_life", "the_way_out"]
+    state = GameState.from_dict(old)
+    assert arc_order("quiet_life") == -1
+    QuestEngine.evaluate(state)
+    assert state.active_arc == "hue_and_cry"
+    assert "hue_and_cry" in state.arcs_unlocked
+    titles = [a["id"] for a in quest_journal(state)["arcs_unlocked"]]
+    assert "quiet_life" not in titles
+
+
+def test_the_narrator_is_told_the_act(hue) -> None:
+    from engine.agents import prompts
+    from engine.game.quests import QuestEngine
+
+    state = _city(11)
+    QuestEngine.evaluate(state)
+    act = prompts.act_block(state)
+    assert act.startswith("ACT: Hue and Cry. ")
+    assert len(act.splitlines()) == 1
+    assert act in prompts.world_state_block(state, {})
+
+    state.flags["guild_initiated"] = True
+    QuestEngine.evaluate(state)
+    act = prompts.act_block(state)
+    assert act.startswith("ACT: Honest Work. ")
+    assert act in prompts.world_state_block(state, {})
+
+
+def test_the_act_line_is_the_only_change_to_the_prompt(hue) -> None:
+    """Against the pre-acts state (the old default arcs), the world-state
+    block differs by the ACT line and nothing else -- and the act never
+    names the real Magpie."""
+    from engine.agents import prompts
+    from engine.game.quests import QuestEngine, load_arcs
+
+    fresh = _city(11)
+    legacy = _city(11)
+    legacy.active_arc, legacy.arcs_unlocked = "quiet_life", ["quiet_life"]
+    QuestEngine.evaluate(fresh)
+    QuestEngine.evaluate(legacy)
+    # Where the pre-acts content settled: the way out was the highest arc.
+    legacy.active_arc = "the_way_out"
+    act = prompts.act_block(fresh)
+    lines = prompts.world_state_block(fresh, {}).splitlines()
+    assert act in lines
+    lines.remove(act)
+    old = prompts.world_state_block(legacy, {})
+    assert "ACT:" not in old
+    assert "\n".join(lines) == old
+    # Both acts: no candidate's name or alias (agendas.yaml's role mask).
+    acts = [act, "ACT: " + " ".join(str(load_arcs()["honest_work"]["blurb"]).split())]
+    for word in ("wren", "silas", "crook", "imelda", "lamplighter", "dapper", "vessaline"):
+        assert not any(word in line.lower() for line in acts), word
+
+
+def test_act_one_arrives_on_the_barge_the_opening_arrives_on(hue) -> None:
+    """The Act I blurb is in every Act I prompt and in the journal: the barge
+    it says you came off must be the one the opening lands you from."""
+    import re
+
+    from engine.game.quests import load_arcs
+    from engine.scenes.default_state import opening_narration
+
+    opening = opening_narration().lower()
+    blurb = " ".join(str(load_arcs()["hue_and_cry"]["blurb"]).split()).lower()
+    arrived = set(re.findall(r"(\w+) barge", opening))
+    said = set(re.findall(r"(\w+) barge", blurb))
+    assert arrived == {"morning"}, arrived
+    assert said <= arrived, (said, blurb)
+
+
+def test_act_two_stays_true_after_a_right_naming(hue) -> None:
+    """Audit question 3: a right naming (`law_unlink self/magpie`) lands
+    while Act II is still the act, so the ACT line must not go on telling the
+    narrator that the Magpie's robberies land on your name."""
+    from engine.agents import prompts
+    from engine.game.effects import apply_effect
+    from engine.game.quests import QuestEngine
+
+    state = _city(11)
+    state.flags["guild_initiated"] = True
+    QuestEngine.evaluate(state)
+    assert state.active_arc == "honest_work"
+    assert apply_effect(state, {"type": "law_unlink", "a": "self", "b": "magpie"})["ok"]
+    act = prompts.act_block(state).lower()
+    assert act.startswith("act: honest work. ")
+    assert "on your name" not in act, act
+    assert "lands on you" not in act, act
+
+
+# ---------------------------------------------------------------------------
+# Off the barge (v0.16 Task 3): the opening's three choices are real
+# ---------------------------------------------------------------------------
+
+#: Every name and alias the Magpie's role mask hides (agendas.yaml), plus the
+#: trades that would point at one of them. Nothing the opening says or does
+#: may carry any of them.
+_CANDIDATE_WORDS = ("wren", "silas", "crook", "imelda", "lamplighter", "dapper", "vessaline")
+
+
+def _opening_llm(_messages, **_kwargs) -> str:
+    import json
+
+    return json.dumps({"narration": "The quay holds its breath, and then lets it go.",
+                       "choices": [{"id": "a", "text": "Wait"},
+                                   {"id": "b", "text": "Look about"}]})
+
+
+def _opening_session(seed: int):
+    session = SessionStore().create(seed=seed, llm_fn=_opening_llm)
+    session.storyteller.llm_fn = _opening_llm
+    session.assistant.llm_fn = _opening_llm
+    return session
+
+
+@pytest.fixture()
+def quay_saves(tmp_path, monkeypatch):
+    """HUE & CRY active, every save this test makes kept in a temp directory."""
+    from engine.persistence import reset_save_store
+    from engine.persistence.saves import SaveStore
+
+    registry.activate("hue-and-cry")
+    reset_save_store()
+    store = SaveStore(root=tmp_path / "saves")
+    monkeypatch.setattr("engine.scenes.default_state.get_save_store", lambda: store)
+    monkeypatch.setattr("engine.session.store.get_save_store", lambda: store)
+    yield
+    reset_save_store()
+
+
+@pytest.fixture()
+def barge(quay_saves):
+    """A fresh run on the quay at 08:00, on the opening frame."""
+    return _opening_session(11)
+
+
+def _opening_row(choice_id: str) -> dict:
+    rows = registry.get("hue-and-cry").entry["opening"]["choices"]
+    return next(r for r in rows if r["id"] == choice_id)
+
+
+def _take_opening(session, choice_id: str) -> dict:
+    """The real door: the sentence, the intent and the authored half, then run_turn."""
+    from engine.scenes.default_state import (resolve_authored_choice, resolve_player_action,
+                                             resolve_player_intent, run_turn)
+
+    action = resolve_player_action(session, choice_id)
+    intent = resolve_player_intent(session, choice_id)
+    authored = resolve_authored_choice(session, choice_id)
+    return run_turn(session, action, intent=intent, authored=authored)
+
+
+def _force(monkeypatch, degree: str) -> None:
+    """Every check lands at ``degree`` (the opening's roll and the stop's)."""
+    from engine.game import checks
+
+    real = checks.resolve
+
+    def forced(state, skill, difficulty, **kwargs):
+        result = real(state, skill, difficulty, **kwargs)
+        result.degree = degree
+        return result
+
+    monkeypatch.setattr(checks, "resolve", forced)
+
+
+def _authored_receipt(payload: dict) -> dict:
+    rows = [r for r in payload.get("tool_receipts") or [] if r.get("skill") == "authored_choice"]
+    assert len(rows) == 1, payload.get("tool_receipts")
+    return rows[0]["result"]
+
+
+def test_the_openings_authored_consequences_are_sound(hue) -> None:
+    """Every deed a law deed, every scene a declared one, every effect one an
+    authored choice may use -- the validator's check, asked of the shipped
+    file -- and the three choices do what the brief says they do."""
+    from engine.game import authored_choice, encounter
+    from engine.games.validation import validate_story
+    from engine.world import law
+
+    deeds = law.load_spec()["deeds"]
+    scenes = {row["id"] for row in encounter.all_encounters()}
+    for choice_id in ("a", "b", "c"):
+        assert authored_choice.problems(_opening_row(choice_id), deeds=deeds,
+                                        encounters=scenes) == [], choice_id
+    assert not [i for i in validate_story("hue-and-cry") if "entry.opening" in i.ref_id]
+
+    run = authored_choice.bound(_opening_row("a"))
+    assert run["deed"] == "resisting_watch"
+    assert run["on_fail"]["encounter"] == "watch_stop"
+    talk = authored_choice.bound(_opening_row("b"))
+    assert "deed" not in talk and not talk["on_pass"]["effects"]
+    assert [e["type"] for e in talk["on_fail"]["effects"]] == ["report"]
+    quiet = authored_choice.bound(_opening_row("c"))
+    assert "intent" not in _opening_row("c")
+    assert [e["type"] for e in quiet["on_pass"]["effects"]] == ["report", "arrest", "flag"]
+    assert "adjustments" not in run and "adjustments" not in talk and "adjustments" not in quiet
+
+
+def test_going_quietly_says_it_arrests_before_it_is_taken(hue) -> None:
+    """Rule 1: choice (c) declares no intent -- an arrest is not a verb the
+    grammar offers -- yet it takes the player to the Lantern House. Its chip
+    is read from its authored `on_pass`, so the button says so first."""
+    from engine.scenes.default_state import opening
+
+    choices = {c["id"]: c for c in opening(_city(11))["choices"]}
+    assert "intent" not in choices["c"]
+    # The gaol's own name, the one the arrest receipt says ("taken to ...").
+    assert choices["c"].get("intent_label") == "arrest · The Lantern House", choices["c"]
+    # (b) arrests nobody; its chip stays the check's own.
+    assert "arrest" not in str(choices["b"].get("intent_label") or "")
+
+
+@pytest.mark.parametrize("slug", ["clockwork-dark", "wicked-garden", "neon-city",
+                                  "the-long-con", "dev-story"])
+def test_other_openings_are_labelled_exactly_as_before(slug) -> None:
+    """Display only: a story with no authored opening consequences gets the
+    same opening choices, byte for byte, as `_label_intents` alone gives."""
+    import json
+
+    from engine.scenes import default_state
+
+    registry.activate(slug)
+    state = _city(11)
+    before = default_state._label_intents(state, default_state.opening_choices())
+    after = default_state.opening(state)["choices"]
+    assert json.dumps(after, sort_keys=True) == json.dumps(before, sort_keys=True)
+
+
+def test_a_filed_run_is_noticed_on_the_quay_and_never_sought(hue) -> None:
+    """Measured (law.yaml header, CHANGELOG [Unreleased]): a run a Lantern
+    files leaves the Quay `noticed` into the next morning -- the narrator can
+    feel it -- and never `sought` on its own; two mornings on, it has gone."""
+    from engine.game.clock import advance_time
+    from engine.world import law
+
+    state = next(s for s in (_city(seed) for seed in range(20))
+                 if law.commit_deed(s, "resisting_watch")["reported"])
+    assert law.wanted_band(state, "self", "quay") == "noticed"
+    advance_time(state, 24.0)  # the next morning
+    assert law.wanted_band(state, "self", "quay") == "noticed"
+    # The morning after, it crosses `noticed`'s floor within the hour (the
+    # harness reads it at 08:00, a hair under); a day and a half on, clear.
+    advance_time(state, 30.0)
+    assert law.wanted_band(state, "self", "quay") == "unknown"
+    deeds = law.load_spec()["deeds"]
+    assert deeds["fencing"] < deeds["resisting_watch"] < deeds["assault_watch"]
+
+
+def test_a_clean_run_slips_away_with_the_deed_on_the_quays_book(barge, monkeypatch) -> None:
+    from engine.game import encounter
+    from engine.world import law
+
+    _force(monkeypatch, "success")
+    payload = _take_opening(barge, "a")
+    state = barge.engine.state
+    receipt = _authored_receipt(payload)
+    assert receipt["passed"] is True and receipt["scene"] is False
+    assert not encounter.active(state) and not law.in_custody(state)
+    assert state.location_id == "tallow_docks"
+    # Committed through commit_deed: witness rows rolled on LAW, and a Lantern
+    # who saw it files it on the Quay, in the player's own face.
+    assert {w["deed"] for w in state.law.get("witnessed") or []} == {"resisting_watch"}
+    for row in state.law.get("reports") or []:
+        assert (row["deed"], row["guise"], row["jurisdiction"]) == ("resisting_watch", "self", "quay")
+
+
+def test_a_failed_run_is_the_lanterns_stop(barge, monkeypatch) -> None:
+    from engine.game import encounter
+    from engine.world import law
+
+    _force(monkeypatch, "failure")
+    payload = _take_opening(barge, "a")
+    state = barge.engine.state
+    assert _authored_receipt(payload)["scene"] is True
+    assert encounter.active(state) and state.encounter["id"] == "watch_stop"
+    assert not law.in_custody(state)
+    assert {w["deed"] for w in state.law.get("witnessed") or []} == {"resisting_watch"}
+    offered = {a["id"] for a in encounter.available_approaches(state)}
+    assert {"run", "talk", "surrender"} <= offered
+
+
+def test_talking_him_down_files_nothing(barge, monkeypatch) -> None:
+    from engine.world import law
+
+    _force(monkeypatch, "success")
+    payload = _take_opening(barge, "b")
+    state = barge.engine.state
+    assert _authored_receipt(payload)["passed"] is True
+    assert not state.law.get("reports") and not state.law.get("witnessed")
+    assert not law.in_custody(state)
+
+
+def test_a_failed_talk_files_the_magpie_blurred(barge, monkeypatch) -> None:
+    from engine.game import encounter
+    from engine.world import law
+
+    _force(monkeypatch, "failure")
+    payload = _take_opening(barge, "b")
+    state = barge.engine.state
+    assert _authored_receipt(payload)["passed"] is False
+    rows = state.law.get("reports") or []
+    assert [(r["guise"], r["jurisdiction"], r["precision"]) for r in rows] == [("magpie", "quay", 0.3)]
+    assert not law.in_custody(state) and not encounter.active(state)
+    assert state.location_id == "tallow_docks"
+
+
+def test_coming_quietly_is_an_arrest_on_the_quay(barge) -> None:
+    from engine.game.locations import is_known
+    from engine.world import law
+
+    payload = _take_opening(barge, "c")
+    state = barge.engine.state
+    assert _authored_receipt(payload)["passed"] is True
+    assert law.in_custody(state) and state.location_id == "lantern_house"
+    held = law.custody(state)
+    # A small fine or a short sentence: the Lantern's one blurred charge.
+    assert held["jurisdiction"] == "quay"
+    assert (held["fine"], held["days"]) == (3, 1)
+    assert held["fine"] <= state.stats.gold
+    assert is_known(state, "the_undercroft")  # every arrest learns the drain
+
+
+def _answer_and_walk(session, target: str = "the_snuffs", budget: int = 8) -> int:
+    """Answer whatever holds the player, then walk; the actions it took.
+
+    A card the director dealt (since v0.16 T5, the interrogation on every
+    arrest) is answered roll-free and NOT counted: the budget is the walk and
+    the way out of the cells, and the small room is its own scene
+    (`test_coming_quietly_walks_straight_into_the_small_room`)."""
+    from engine.agents.tool_dispatcher import execute_intent
+    from engine.content import director
+    from engine.game import encounter
+    from engine.game.intents import find_verb, legal_intents
+    from engine.world import law
+
+    state = session.engine.state
+    cards = 0
+    while director.active(state) and cards < 8:
+        cards += 1
+        card = director.current_card(state)
+        beat = next((str(b["id"]) for b in card.beats if _roll_free(b)), "resolve")
+        if "menu" not in card.tags:
+            beat = "resolve"
+        execute_intent({"action": "card", "target": beat}, session.engine)
+    for spent in range(budget):
+        if encounter.active(state):
+            offered = [a["id"] for a in encounter.available_approaches(state)]
+            execute_intent({"action": "encounter",
+                            "target": "surrender" if "surrender" in offered else offered[0]},
+                           session.engine)
+        elif law.in_custody(state):
+            fine = int(law.custody(state).get("fine") or 0)
+            execute_intent({"action": "pay_fine" if state.stats.gold >= fine else "serve"},
+                           session.engine)
+        elif state.location_id == target:
+            return spent
+        else:
+            step = _next_street(state.location_id, target)
+            verb = find_verb(legal_intents(state), "travel")
+            assert verb is not None and step in verb.targets, (state.location_id, verb)
+            execute_intent({"action": "travel", "target": step}, session.engine)
+    return budget
+
+
+def _next_street(start: str, goal: str) -> str:
+    """The first leg of the shortest walk over public streets."""
+    from collections import deque
+
+    back: dict[str, str] = {start: ""}
+    queue = deque([start])
+    while queue:
+        here = queue.popleft()
+        for there in (LOCATIONS.get(here) or {}).get("connections") or {}:
+            if there in back or there in SECRET_DISTRICTS:
+                continue
+            back[there] = here
+            queue.append(there)
+    step = goal
+    while back.get(step) and back[step] != start:
+        step = back[step]
+    return step
+
+
+@pytest.mark.parametrize("choice_id,degree", [
+    ("a", "success"), ("a", "failure"), ("b", "success"), ("b", "failure"), ("c", "success"),
+])
+def test_every_opening_reaches_the_snuffs(barge, monkeypatch, choice_id, degree) -> None:
+    """Act I's next beat is the guild finding you in the Snuffs (Task 4 deals
+    it). Every way off the barge leaves the player free to walk there within
+    a few turns: a getaway walks, a stop is answered, a cell is paid out of."""
+    from engine.world import law
+
+    _force(monkeypatch, degree)
+    _take_opening(barge, choice_id)
+    spent = _answer_and_walk(barge)
+    state = barge.engine.state
+    assert state.location_id == "the_snuffs" and not law.in_custody(state), spent
+    assert spent <= 4, spent
+
+
+def test_the_opening_names_no_magpie_candidate(barge) -> None:
+    """Spec §6: nothing names or implies the real Magpie before the reveal --
+    not the opening's prose, its buttons or its authored lines."""
+    import json
+
+    opening = registry.get("hue-and-cry").entry["opening"]
+    texts = [opening["narration"], json.dumps(barge.last_turn.get("choices"))]
+    for row in opening["choices"]:
+        texts.append(row["text"])
+        for branch in ("on_pass", "on_fail"):
+            texts.append(str((row.get(branch) or {}).get("text") or ""))
+    for text in texts:
+        assert not any(word in text.lower() for word in _CANDIDATE_WORDS), text
+
+
+@pytest.mark.parametrize("choice_id,degree", [
+    ("a", "success"), ("a", "failure"), ("b", "failure"), ("c", "success"),
+])
+def test_what_the_narrator_is_handed_names_no_candidate(barge, monkeypatch, choice_id,
+                                                        degree) -> None:
+    """The receipts block for each outcome: the authored line reaches it,
+    and nothing in it names a candidate or an engine id."""
+    from engine.agents import prompts
+
+    _force(monkeypatch, degree)
+    payload = _take_opening(barge, choice_id)
+    block = prompts.receipts_block(payload.get("tool_receipts") or [])
+    line = str(_authored_receipt(payload)["text"])
+    assert line and line in block
+    lowered = block.lower()
+    assert "authored_choice" not in lowered and "resisting_watch" not in lowered
+    assert not any(word in lowered for word in _CANDIDATE_WORDS), block
+
+
+def test_an_opening_replays_from_its_seed(quay_saves) -> None:
+    """Same seed, same choice: the same witnesses, reports and scene -- the
+    deed's rolls are the LAW stream's, not the wall clock's -- and a save
+    carries them whole."""
+    from engine.game.state import GameState
+
+    def one(seed: int):
+        session = _opening_session(seed)
+        _take_opening(session, "a")
+        return session.engine.state
+
+    for seed in (3, 7):
+        first, second = one(seed), one(seed)
+        assert first.law.get("witnessed"), seed
+        assert (first.law, first.encounter, first.location_id) == (
+            second.law, second.encounter, second.location_id), seed
+        loaded = GameState.from_dict(first.to_save_dict())
+        assert (loaded.law, loaded.encounter) == (first.law, first.encounter)
+
+
+# ---------------------------------------------------------------------------
+# The Honest Company takes you in (v0.16 Task 4): Mother Gannet's initiation
+# ---------------------------------------------------------------------------
+
+#: The deck's id (data/scenes/initiation.yaml). The Company's two gifts that
+#: wait for its oath are the guild bunk and Gannet's contract; the bench, the
+#: flophouse and a rough night do not wait for anything.
+INITIATION = "initiation"
+
+
+def _in_the_hall(seed: int = 9, hour: int = 20):
+    """A fresh city with the thief standing in the Snuffs while Gannet holds court."""
+    from engine.game.clock import set_clock
+
+    state = _city(seed)
+    state.location_id = "the_snuffs"
+    set_clock(state, day=1, hour=hour)
+    return state
+
+
+def _initiation_deck():
+    from engine.content import deck
+
+    found = deck.load_deck(INITIATION)
+    assert found is not None, "no initiation deck"
+    return found
+
+
+def _play_initiation(state, picks: dict | None = None) -> list[dict]:
+    """Deal the initiation where it stands and answer every card: ``picks``
+    names a card's beat, otherwise its first option. The receipts, in order."""
+    from engine.content import director
+
+    dealt = director.ensure_scene(state)
+    assert dealt and dealt[0]["result"]["deck_id"] == INITIATION, dealt
+    receipts = []
+    guard = 0
+    while director.active(state) and guard < 16:
+        guard += 1
+        card = director.current_card(state)
+        chosen = (picks or {}).get(card.id) or director.options(state)[0]["id"]
+        receipts.append(director.resolve(state, chosen=chosen))
+    assert not director.active(state)
+    return receipts
+
+
+def _roll_free(beat: dict) -> bool:
+    """A beat that asks no dice and no threshold: text, or a gate with neither."""
+    gate = beat.get("gate")
+    if "band" in beat:
+        return True  # a band is judged, never failed
+    return gate is None or (not gate.get("check") and "when" not in gate)
+
+
+def test_the_initiation_is_a_one_shot_deck(hue) -> None:
+    from engine.content import deck
+    from engine.games.validation import validate_story
+
+    # Since v0.16 T5 the interrogation ships beside it (its own section below).
+    assert INITIATION in deck.deck_ids()
+    found = _initiation_deck()
+    assert found.repeatable is False  # dealt once, never re-armed
+    for card in found.cards:
+        # The menu/sequence contract, and nothing clamped at load.
+        assert (deck.MENU_TAG in card.tags) != ("sequence" in card.tags), card.id
+        for beat in card.beats:
+            assert "adjustments" not in beat, (card.id, beat)
+    issues = [i for i in validate_story("hue-and-cry")
+              if "scenes" in str(i.ref_id) or INITIATION in str(i.ref_id)]
+    assert issues == [], issues
+
+
+def test_the_initiation_is_dealt_in_the_snuffs_while_gannet_holds_court(hue) -> None:
+    """At the Snuffs, free, not yet sworn, and while Gannet holds court at the
+    long table (npc_schedules.yaml: 18:00-04:00) -- not while she sleeps or
+    does the accounts, and nowhere else."""
+    from engine.content import director
+    from engine.game.clock import set_clock
+
+    state = _city(9)
+    set_clock(state, day=1, hour=8)
+    assert director.ensure_scene(state) == []  # on the quay, off the barge
+    state.location_id = "wickmarket"
+    set_clock(state, day=1, hour=20)
+    assert director.ensure_scene(state) == []
+    state.location_id = "the_snuffs"
+    set_clock(state, day=1, hour=10)
+    assert director.ensure_scene(state) == []  # she is asleep behind four locks
+    set_clock(state, day=1, hour=12)
+    assert director.ensure_scene(state) == []  # the accounts, in two ledgers
+    set_clock(state, day=1, hour=17)
+    assert director.ensure_scene(state) == []
+    set_clock(state, day=1, hour=18)
+    dealt = director.ensure_scene(state)
+    assert dealt and dealt[0]["result"]["ok"], dealt
+    assert dealt[0]["result"]["deck_id"] == INITIATION
+
+
+def test_the_initiation_is_not_dealt_in_the_cells_or_to_the_sworn(hue) -> None:
+    from engine.content import director
+    from engine.game.effects import apply_effect
+    from engine.world import law
+
+    state = _in_the_hall()
+    state.flags["guild_initiated"] = True
+    assert director.ensure_scene(state) == []
+
+    state = _in_the_hall()
+    apply_effect(state, {"type": "report", "deed": "pickpocket", "guise": "self",
+                         "jurisdiction": "wick", "precision": 1.0})
+    apply_effect(state, {"type": "arrest"})
+    assert law.in_custody(state)
+    state.location_id = "the_snuffs"  # held, wherever the test says it stands
+    dealt = director.ensure_scene(state)
+    # The cells deal the interrogation (v0.16 T5), never the Company's welcome.
+    assert [r["result"]["deck_id"] for r in dealt] == ["interrogation"], dealt
+
+
+def test_the_initiation_is_dealt_once_and_never_over_a_job(hue, monkeypatch) -> None:
+    from engine.content import director
+    from engine.world import jobs
+
+    state = _in_the_hall()
+    monkeypatch.setattr(jobs, "active", lambda _state: {"house": "somewhere"})
+    assert director.ensure_scene(state) == []  # the job owns the turn
+    monkeypatch.undo()
+    _play_initiation(state)
+    state.flags["guild_initiated"] = False  # even unsworn again, it is spent
+    assert director.ensure_scene(state) == []
+
+
+def test_every_initiation_card_has_a_way_through_without_a_roll(hue) -> None:
+    for card in _initiation_deck().cards:
+        if "menu" in card.tags:
+            assert any(_roll_free(b) for b in card.beats), card.id
+        else:
+            assert all(_roll_free(b) for b in card.beats), card.id
+
+
+def _every_path():
+    """Every menu answer the required cards offer, one card at a time."""
+    rows = []
+    for card in _initiation_deck().cards:
+        if "menu" in card.tags and card.required:
+            rows += [(card.id, str(b["id"])) for b in card.beats]
+    return rows
+
+
+@pytest.mark.parametrize("degree", ["success", "failure"])
+def test_initiation_always_takes_you_in(hue, monkeypatch, degree) -> None:
+    """Whichever way the cards fall -- every answer, every roll passed or
+    failed, on seeds that deal either pool card -- the thief is sworn, and
+    Act II opens."""
+    from engine.game.quests import QuestEngine
+
+    _force(monkeypatch, degree)
+    paths = _every_path()
+    assert paths
+    for seed, (card_id, beat_id) in enumerate(paths * 2):
+        state = _in_the_hall(seed)
+        _play_initiation(state, {card_id: beat_id})
+        assert state.flags.get("guild_initiated") is True, (card_id, beat_id)
+        assert state.reputations.get("honest_company", 0) >= 1, (card_id, beat_id)
+        QuestEngine.evaluate(state, None)
+        assert state.active_arc == "honest_work", (card_id, beat_id)
+
+
+def _standing_after(monkeypatch, degree: str, picks: dict) -> int:
+    _force(monkeypatch, degree)
+    state = _in_the_hall()
+    _play_initiation(state, picks)
+    monkeypatch.undo()
+    return int(state.reputations.get("honest_company", 0))
+
+
+def test_the_rolls_decide_how_warmly_the_company_takes_you_in(hue, monkeypatch) -> None:
+    """The dice buy standing, never the oath: a thief who wins every roll
+    starts warmer than one who takes the roll-free way, who starts warmer than
+    one who fails every roll -- and all three are in."""
+    deck = _initiation_deck()
+    rolled = {c.id: next(str(b["id"]) for b in c.beats if not _roll_free(b))
+              for c in deck.cards
+              if "menu" in c.tags and any(not _roll_free(b) for b in c.beats)}
+    free = {c.id: next(str(b["id"]) for b in c.beats if _roll_free(b))
+            for c in deck.cards if "menu" in c.tags}
+    best = _standing_after(monkeypatch, "success", rolled)
+    plain = _standing_after(monkeypatch, "success", free)
+    worst = _standing_after(monkeypatch, "failure", rolled)
+    assert best > plain > worst >= 1, (best, plain, worst)
+    assert best <= 10, best  # a welcome, not a promotion
+
+
+def test_the_guild_bunk_and_gannets_job_wait_for_the_oath(hue) -> None:
+    from engine.game import survival, threads
+
+    state = _in_the_hall(hour=22)
+    assert state.reputations.get("honest_company", 0) == 0
+    assert survival.rest(state, "sleep_guild_bunk")["kind"] == "sleep_rough"
+    assert threads.can_strike(state, "gannet_silk_row") is False
+    refusal = threads.strike_refusal(state, "gannet_silk_row")
+    assert refusal != threads.REFUSED_HERE and "oath" in refusal.lower(), refusal
+    # Both say when the Company receives: the narrator and the player can
+    # tell a door that opens after dark from one that never will.
+    assert "after dark" in refusal.lower(), refusal
+    bunk = survival.rest(_in_the_hall(hour=10), "sleep_guild_bunk")
+    assert bunk["kind"] == "sleep_rough" and "after dark" in bunk["text"].lower(), bunk
+
+    state = _in_the_hall(hour=22)
+    state.flags["guild_initiated"] = True
+    assert survival.rest(state, "sleep_guild_bunk")["kind"] == "sleep_guild_bunk"
+    assert threads.can_strike(state, "gannet_silk_row") is True
+
+
+def test_rest_and_the_bench_stay_open_to_the_unsworn(hue) -> None:
+    """Rule 6: the bunk may wait for the oath only because the flophouse and a
+    rough night never do -- and the Porters' Hall bench is paid bench time,
+    open to anyone (the v0.15 hoarder and the craft verb rely on it)."""
+    from pathlib import Path
+
+    from engine.game import intents, survival
+
+    state = _in_the_hall(hour=22)
+    state.stats.gold = 5
+    assert survival.rest(state, "sleep_flophouse")["kind"] == "sleep_flophouse"
+    assert survival.rest(state, "sleep_rough")["kind"] == "sleep_rough"
+    for district in DISTRICTS:
+        if district in SECRET_DISTRICTS:
+            continue
+        state.location_id = district
+        verb = intents.find_verb(intents.legal_intents(state), "rest")
+        assert verb is not None and "sleep_rough" in verb.targets, district
+    root = Path(__file__).resolve().parents[1]
+    paths = registry.get("hue-and-cry").paths
+    text = (root / paths["rules"] / "survival.yaml").read_text(encoding="utf-8")
+    for bed in ("  sleep_flophouse:", "  sleep_rough:", "  rest_short:", "  sleep_cell:"):
+        block = text.split(bed, 1)[1].split("\n  sleep_", 1)[0]
+        assert "guild_initiated" not in block, bed
+    for recipe in (root / paths["recipes"]).glob("*.yaml"):
+        assert "guild_initiated" not in recipe.read_text(encoding="utf-8"), recipe
+
+
+def test_the_initiation_names_no_magpie_candidate(hue) -> None:
+    """Spec §6: Gannet believes the stranger is the Magpie; she may tell the
+    legend, and nothing on any card points at who the real one is."""
+    import json
+
+    found = _initiation_deck()
+    for card in found.cards:
+        text = json.dumps([card.title, card.text, card.beats]).lower()
+        assert not any(word in text for word in _CANDIDATE_WORDS), card.id
+    assert "magpie" in json.dumps([c.text for c in found.cards]).lower()
+
+
+def _plain_turn(session, action: str = "The player looks about the Hall.") -> dict:
+    from engine.scenes.default_state import run_turn
+
+    return run_turn(session, action)
+
+
+@pytest.mark.parametrize("choice_id,degree", [("a", "success"), ("b", "failure"),
+                                              ("c", "success")])
+def test_every_way_off_the_barge_meets_the_company_in_the_snuffs(barge, monkeypatch,
+                                                                 choice_id, degree) -> None:
+    """End to end through run_turn: the opening, then the walk to the Snuffs,
+    then the first turn there while Gannet holds court deals the initiation. Coming
+    quietly meets it after release, never in the cell."""
+    from engine.game.clock import advance_time
+    from engine.world import law
+
+    _force(monkeypatch, degree)
+    _take_opening(barge, choice_id)
+    state = barge.engine.state
+    if law.in_custody(state):
+        # The cell deals the interrogation (v0.16 T5), and never the Company.
+        assert state.scene.get("deck_id") == "interrogation", state.scene
+        payload = _plain_turn(barge, "The player waits in the cell.")
+        assert payload["state"]["scene"].get("deck_id") != INITIATION, "dealt in the cell"
+    _answer_and_walk(barge)
+    assert state.location_id == "the_snuffs"
+    advance_time(state, (18 - state.world_hour) % 24)  # until Gannet holds court
+    payload = _plain_turn(barge)
+    dealt = [r for r in payload["tool_receipts"] if r.get("type") == "scene"]
+    assert dealt and dealt[0]["result"]["deck_id"] == INITIATION, payload["tool_receipts"]
+
+
+def test_the_bunk_harness_takes_the_oath_as_a_player_would(hue) -> None:
+    """simulate_labour's `bunk` policy relied on the guild bunk from its first
+    night; since the bunk waits for the oath, the harness deals the initiation
+    the way run_turn does and answers it roll-free, then sleeps upstairs. The
+    other beds never deal it, and every policy reports the day it was due."""
+    _scripts_on_path()
+    from scripts import simulate_labour, simulate_law
+
+    with simulate_law.agendas_off():
+        bunk = simulate_labour.play(0, "porter", 1, "bunk")
+        flop = simulate_labour.play(0, "porter", 1, "flophouse")
+    assert bunk.initiated_day == 1 and bunk.bed_nights == bunk.days, bunk
+    assert flop.initiated_day is None and flop.initiation_due_day == 1, flop
+
+
+def test_the_initiation_waits_for_a_lanterns_stop_to_end(hue) -> None:
+    """Review, fix round 1: a patrol runs before the deal in run_turn, so a
+    Lantern could stop a wanted thief entering the Snuffs and the deck was
+    then dealt over the open stop -- `card` the only verb, the stop hanging.
+    The deal waits for the stop; it is not spent by waiting."""
+    from engine.content import director
+    from engine.game import encounter, intents
+
+    state = _in_the_hall(9, hour=20)
+    encounter.begin(state, "watch_stop")
+    assert encounter.active(state)
+    assert director.ensure_scene(state) == []
+    assert director.active(state) is False
+    assert intents.find_verb(intents.legal_intents(state), "encounter") is not None
+    assert not state.flags.get("deck_played_initiation")
+
+    encounter.end(state)
+    dealt = director.ensure_scene(state)
+    assert dealt and dealt[0]["result"]["deck_id"] == INITIATION, dealt
+
+
+# ---------------------------------------------------------------------------
+# The small room (v0.16 Task 5): the interrogation, dealt on every arrest
+# ---------------------------------------------------------------------------
+
+#: The deck's id (data/scenes/interrogation.yaml): scheduled by
+#: `in_custody: true`, repeatable, so every stay in the cells deals it once.
+INTERROGATION = "interrogation"
+#: The three interrogators, exactly one eligible at any hour.
+CAPTAIN, SERGEANT, DUTY_DESK = "Q2_the_captain", "Q2_the_sergeant", "Q2_the_duty_desk"
+#: One hour inside each interrogator's window.
+_ASKED_AT = {CAPTAIN: 8, SERGEANT: 16, DUTY_DESK: 14}
+
+
+def _interrogation_deck():
+    from engine.content import deck
+
+    found = deck.load_deck(INTERROGATION)
+    assert found is not None, "no interrogation deck"
+    return found
+
+
+def _arrested(seed: int = 9, hour: int = 8, *, gold: int = 50):
+    """A thief with one petty lift on file in the Wick wards, arrested there
+    at ``hour`` -- a fine of three crowns or a day, and crowns to pay it."""
+    from engine.game.clock import set_clock
+    from engine.game.effects import apply_effect
+    from engine.world import law
+
+    state = _city(seed)
+    state.location_id = "wickmarket"
+    set_clock(state, day=2, hour=hour)
+    state.stats.gold = gold
+    apply_effect(state, {"type": "report", "deed": "pickpocket", "guise": "self",
+                         "jurisdiction": "wick", "precision": 1.0})
+    assert apply_effect(state, {"type": "arrest"})["ok"]
+    assert law.in_custody(state) and state.location_id == "lantern_house"
+    return state
+
+
+def _play_interrogation(state, picks: dict | None = None) -> list[str]:
+    """Deal the interrogation where it stands and answer every card; the ids
+    of the cards answered. While a card is open the card is the only verb."""
+    from engine.content import director
+
+    dealt = director.ensure_scene(state)
+    assert dealt and dealt[0]["result"]["deck_id"] == INTERROGATION, dealt
+    answered = []
+    guard = 0
+    while director.active(state) and guard < 16:
+        guard += 1
+        assert _verbs(state) == {"card"}  # pay_fine and serve are hidden
+        card = director.current_card(state)
+        answered.append(card.id)
+        chosen = (picks or {}).get(card.id) or director.options(state)[0]["id"]
+        director.resolve(state, chosen=chosen)
+    assert not director.active(state)
+    return answered
+
+
+def _verbs(state) -> set:
+    from engine.game import intents
+
+    return {v.action for v in intents.legal_intents(state)}
+
+
+def test_hue_and_cry_ships_the_interrogation_and_it_deals_again(hue) -> None:
+    from engine.content import deck
+    from engine.games.validation import validate_story
+
+    assert deck.deck_ids() == [INITIATION, INTERROGATION, DESK]
+    found = _interrogation_deck()
+    assert found.repeatable is True  # every arrest, not the first
+    assert found.when == {"in_custody": True}
+    assert [c.id for c in found.required] == ["Q1_the_book"]
+    # Task 7 filled Q4_the_alibi and released Q3_the_evidence (the header);
+    # Task 8 split the alibi by what the Watch believes (the _struck card).
+    assert {c.id for c in found.pool} == {CAPTAIN, SERGEANT, DUTY_DESK, "Q4_the_alibi",
+                                          "Q4_the_alibi_struck"}
+    # Room for the interrogator and the alibi, so the alibi never makes the
+    # hand a random draw.
+    assert found.draw >= 2
+    for card in found.cards:
+        assert (deck.MENU_TAG in card.tags) != ("sequence" in card.tags), card.id
+        for beat in card.beats:
+            assert "adjustments" not in beat, (card.id, beat)
+    issues = [i for i in validate_story("hue-and-cry") if INTERROGATION in str(i.source)
+              or INTERROGATION in str(i.ref_id)]
+    assert issues == [], issues
+
+
+def test_nothing_on_an_interrogation_card_was_cut_to_fit(hue) -> None:
+    """The loader truncates text past deck.MAX_TEXT without a word; a card
+    whose constraints were cut off is a narrator told half the rules."""
+    from pathlib import Path
+
+    import yaml
+
+    from engine.content import deck
+
+    root = Path(__file__).resolve().parents[1]
+    raw = yaml.safe_load((root / registry.get("hue-and-cry").paths["decks"]
+                          / f"{INTERROGATION}.yaml").read_text(encoding="utf-8"))
+    for card in raw["cards"]:
+        assert len(card["text"].strip()) <= deck.MAX_TEXT, card["id"]
+        for beat in card["beats"]:
+            assert len(str(beat.get("text") or "").strip()) <= deck.MAX_TEXT, beat["id"]
+            for branch in ("on_pass", "on_fail"):
+                line = str(((beat.get("gate") or {}).get(branch) or {}).get("text") or "")
+                assert len(line.strip()) <= deck.MAX_TEXT, (beat["id"], branch)
+
+
+def test_exactly_one_interrogator_asks_at_every_hour_and_the_schedule_agrees(hue) -> None:
+    """Captain Ardane when she is in the Lantern House and awake; Sergeant
+    Brask when he is at its desk and she is not; the Lantern who brought you
+    in when neither is -- read off npc_schedules.yaml, so a card never puts
+    somebody in the room the schedule puts elsewhere."""
+    from engine.content import deck
+    from engine.game.clock import set_clock
+
+    state = _arrested()
+    found = _interrogation_deck()
+    for hour in range(24):
+        set_clock(state, day=2, hour=hour)
+        eligible, _rejected = deck.eligible_cards(state, found)
+        present = {p.npc_id for p in npc_sim.npcs_at(state, "lantern_house") if p.available}
+        expected = (CAPTAIN if "npc_ardane" in present
+                    else SERGEANT if "npc_brask" in present else DUTY_DESK)
+        assert [c.id for c in eligible] == [expected], (hour, present)
+
+
+def test_the_interrogation_is_dealt_on_arrest_and_only_in_custody(hue) -> None:
+    from engine.content import director
+
+    free = _in_the_hall(9, hour=10)  # the Snuffs, before Gannet holds court
+    assert director.ensure_scene(free) == []
+    for card_id, hour in _ASKED_AT.items():
+        state = _arrested(hour=hour)
+        dealt = director.ensure_scene(state)
+        assert dealt and dealt[0]["result"]["card_ids"] == ["Q1_the_book", card_id], dealt
+
+
+def _every_answer():
+    rows = []
+    for card_id, hour in _ASKED_AT.items():
+        card = next(c for c in _interrogation_deck().cards if c.id == card_id)
+        rows += [(card_id, hour, str(b["id"])) for b in card.beats]
+    return rows
+
+
+@pytest.mark.parametrize("degree", ["success", "failure"])
+def test_no_held_thief_is_ever_stuck_in_the_small_room(hue, monkeypatch, degree) -> None:
+    """While a card is open `pay_fine` and `serve` are hidden. Every answer on
+    every interrogator's card, every roll passed and failed: the hand ends,
+    both ways out come back, the sentence is what the door said, and serving
+    it ends custody."""
+    from engine.world import law
+
+    _force(monkeypatch, degree)
+    rows = _every_answer()
+    assert len(rows) == 8, rows
+    for card_id, hour, beat_id in rows:
+        state = _arrested(hour=hour)
+        sentence = (law.custody(state)["fine"], law.custody(state)["days"])
+        answered = _play_interrogation(state, {card_id: beat_id})
+        assert answered == ["Q1_the_book", card_id]
+        assert {"pay_fine", "serve"} <= _verbs(state), (card_id, beat_id)
+        held = law.custody(state)
+        assert (held["fine"], held["days"]) == sentence, (card_id, beat_id)  # it stands
+        assert law.serve_sentence(state)["ok"]
+        assert not law.in_custody(state), (card_id, beat_id)
+
+
+def test_every_interrogation_card_has_a_way_through_without_a_roll(hue) -> None:
+    """A menu card offers one answer with no dice and no threshold; the
+    sequence card asks no dice at all (its one gate reads the Watch's belief,
+    and both branches only say it)."""
+    for card in _interrogation_deck().cards:
+        if "menu" in card.tags:
+            assert any(_roll_free(b) for b in card.beats), card.id
+        else:
+            for beat in card.beats:
+                gate = beat.get("gate") or {}
+                assert not gate.get("check"), (card.id, beat["id"])
+                for branch in ("on_pass", "on_fail"):
+                    assert not (gate.get(branch) or {}).get("effects"), (card.id, beat["id"])
+
+
+def _rows(state) -> list:
+    return sorted((r["deed"], r["guise"], r["jurisdiction"], r["precision"])
+                  for r in state.law.get("reports") or [])
+
+
+def _thick_file(hour: int = 8):
+    """Held in the Wick, with petty sheets filed in three jurisdictions and a
+    burglary up the Rise that no answer can lose."""
+    from engine.game.effects import apply_effect
+
+    state = _arrested(hour=hour)
+    for deed, jurisdiction in (("pickpocket", "rise"), ("pickpocket", "quay"),
+                               ("burglary", "rise")):
+        apply_effect(state, {"type": "report", "deed": deed, "guise": "self",
+                             "jurisdiction": jurisdiction, "precision": 1.0})
+    return state
+
+
+def test_what_the_room_can_do_to_the_file(hue, monkeypatch) -> None:
+    """Quashed, kept or added -- and never the sentence. A good answer to the
+    captain loses every petty sheet against your face; a steady eye loses the
+    Wick's; a lie caught writes one more lift into the Magpie's file; a plain
+    answer changes nothing. A house broken stays filed whatever is said."""
+    from engine.world import law
+
+    def after(degree: str, beat: str, card: str = CAPTAIN):
+        _force(monkeypatch, degree)
+        state = _thick_file(_ASKED_AT[card])
+        sentence = dict(law.custody(state))
+        _play_interrogation(state, {card: beat})
+        monkeypatch.undo()
+        assert law.custody(state) == sentence
+        return _rows(state)
+
+    before = _rows(_thick_file())
+    burglary = [("burglary", "self", "rise", 1.0)]
+    assert after("success", "talk_her_round") == burglary
+    assert after("success", "hold_her_eye") == [r for r in before if r[2] != "wick"]
+    assert after("failure", "talk_her_round") == sorted(
+        before + [("pickpocket", "magpie", "rise", 1.0)])
+    assert after("failure", "hold_her_eye") == sorted(
+        before + [("pickpocket", "magpie", "rise", 0.6)])
+    assert after("success", "answer_straight") == before
+    assert after("failure", "answer_straight") == before
+    assert after("success", "the_biscuit_tin", SERGEANT) == burglary
+    assert after("failure", "stare_him_out", SERGEANT) == sorted(
+        before + [("pickpocket", "magpie", "wick", 0.3)])
+    assert after("failure", "sleep_on_it", DUTY_DESK) == before
+
+
+def test_a_lie_in_the_magpies_file_is_yours_while_the_watch_links_you(hue, monkeypatch) -> None:
+    """The added row is filed against the MAGPIE: it weighs on your face
+    exactly as long as the Watch takes the two for one person."""
+    from engine.game.effects import apply_effect
+    from engine.world import law
+
+    _force(monkeypatch, "failure")
+    state = _arrested()
+    _play_interrogation(state, {CAPTAIN: "talk_her_round"})
+    assert law.wanted_score(state, "self", "rise") > 0
+    assert apply_effect(state, {"type": "law_unlink", "a": "self", "b": "magpie"})["ok"]
+    assert law.wanted_score(state, "self", "rise") == 0
+
+
+def _beat_text(receipt) -> str:
+    import json
+
+    return json.dumps(receipt)
+
+
+def test_the_file_says_what_the_watch_believes(hue) -> None:
+    """The spine restates the link: while it holds the file says MAGPIE; once
+    something breaks it (Task 7), the same beat says so instead."""
+    from engine.content import director
+    from engine.game.effects import apply_effect
+
+    state = _arrested()
+    director.ensure_scene(state)
+    text = _beat_text(director.resolve(state))
+    assert "THE MAGPIE" in text, text
+
+    state = _arrested()
+    assert apply_effect(state, {"type": "law_unlink", "a": "self", "b": "magpie"})["ok"]
+    director.ensure_scene(state)
+    text = _beat_text(director.resolve(state))
+    assert "THE MAGPIE" not in text and "line drawn through" in text, text
+
+
+def test_the_interrogation_deals_again_on_the_next_arrest_and_not_twice_a_stay(hue) -> None:
+    from engine.content import director
+    from engine.game.clock import advance_time
+    from engine.game.effects import apply_effect
+    from engine.world import law
+
+    state = _arrested()
+    _play_interrogation(state)
+    assert director.ensure_scene(state) == []  # still held: spent
+    advance_time(state, 12)
+    assert director.ensure_scene(state) == []  # still held, half a day on
+    assert law.pay_fine(state)["ok"] and not law.in_custody(state)
+    assert director.ensure_scene(state) == []  # free: re-armed, nothing to deal
+    assert not state.flags.get("deck_played_interrogation")
+    apply_effect(state, {"type": "report", "deed": "pickpocket", "guise": "self",
+                         "jurisdiction": "wick", "precision": 1.0})
+    assert apply_effect(state, {"type": "arrest"})["ok"]
+    _play_interrogation(state)  # the second arrest deals it again
+
+
+def test_the_small_room_survives_a_save(hue) -> None:
+    """Dealt, half-answered, saved and loaded: the same card is waiting, the
+    deck is still spent for this stay, and it re-arms after release."""
+    from engine.content import director
+    from engine.game.state import GameState
+    from engine.world import law
+
+    state = _arrested()
+    director.ensure_scene(state)
+    director.resolve(state)  # the book
+    loaded = GameState.from_dict(state.to_save_dict())
+    assert director.active(loaded) and director.current_card(loaded).id == CAPTAIN
+    assert _verbs(loaded) == {"card"}
+    director.resolve(loaded, chosen="answer_straight")
+    assert director.ensure_scene(loaded) == []
+    reloaded = GameState.from_dict(loaded.to_save_dict())
+    assert reloaded.flags.get("deck_played_interrogation") is True
+    assert law.pay_fine(reloaded)["ok"]
+    director.ensure_scene(reloaded)
+    assert not reloaded.flags.get("deck_played_interrogation")
+
+
+def test_an_arrest_replays_to_the_same_room(hue, monkeypatch) -> None:
+    """Same seed, same hour, same answer: the same hand and the same file."""
+    def one():
+        state = _arrested(seed=5, hour=19)
+        _play_interrogation(state, {CAPTAIN: "talk_her_round"})
+        return state
+
+    first, second = one(), one()
+    assert first.law.get("reports") and first.rng_counters
+    assert (first.law, first.rng_counters) == (second.law, second.rng_counters)
+
+
+def test_the_small_room_names_no_magpie_candidate(hue) -> None:
+    import json
+
+    found = _interrogation_deck()
+    for card in found.cards:
+        text = json.dumps([card.title, card.text, card.beats]).lower()
+        assert not any(word in text for word in _CANDIDATE_WORDS), card.id
+    assert "magpie" in json.dumps([c.text for c in found.cards]).lower()
+
+
+def _card_turn(session, beat: str = "") -> dict:
+    """Answer the open card through run_turn, the way a player's choice does."""
+    from engine.content import director
+    from engine.scenes.default_state import run_turn
+
+    chosen = beat or director.options(session.engine.state)[0]["id"]
+    return run_turn(session, "The player answers.", intent={"action": "card", "target": chosen})
+
+
+def _dealt(payload: dict) -> list:
+    return [r["result"]["deck_id"] for r in payload.get("tool_receipts") or []
+            if r.get("type") == "scene"]
+
+
+@pytest.fixture()
+def street(quay_saves):
+    """A run in Wickmarket at 08:00 on day two, with a lift on file there."""
+    from engine.game.clock import set_clock
+    from engine.game.effects import apply_effect
+
+    session = _opening_session(11)
+    state = session.engine.state
+    state.location_id = "wickmarket"
+    set_clock(state, day=2, hour=8)
+    state.stats.gold = 50
+    apply_effect(state, {"type": "report", "deed": "pickpocket", "guise": "self",
+                         "jurisdiction": "wick", "precision": 1.0})
+    return session
+
+
+def _stop_ends_in_arrest(session, approach: str) -> dict:
+    from engine.game import encounter
+    from engine.scenes.default_state import run_turn
+    from engine.world import law
+
+    state = session.engine.state
+    encounter.begin(state, "watch_stop")
+    payload = run_turn(session, "The player answers the Lantern.",
+                       intent={"action": "encounter", "target": approach})
+    assert law.in_custody(state), payload.get("tool_receipts")
+    assert not encounter.active(state)
+    return payload
+
+
+@pytest.mark.parametrize("approach,degree", [("surrender", "success"), ("run", "failure")])
+def test_a_lanterns_stop_that_ends_in_the_cells_ends_in_the_small_room(street, monkeypatch,
+                                                                        approach, degree) -> None:
+    """The real path, through run_turn: the stop is answered with a surrender
+    or a fumbled run, the arrest closes the stop, and the interrogation is
+    dealt on that same turn -- then again on the next arrest, after release."""
+    from engine.content import director
+    from engine.scenes.default_state import run_turn
+    from engine.world import law
+
+    _force(monkeypatch, degree)
+    state = street.engine.state
+    payload = _stop_ends_in_arrest(street, approach)
+    assert _dealt(payload) == [INTERROGATION]
+    guard = 0
+    while director.active(state) and guard < 8:
+        guard += 1
+        assert _verbs(state) == {"card"}
+        _card_turn(street)
+    assert not director.active(state)
+    assert {"pay_fine", "serve"} <= _verbs(state)
+    run_turn(street, "The player pays.", intent={"action": "pay_fine"})
+    assert not law.in_custody(state)
+    assert not state.flags.get("deck_played_interrogation")  # re-armed on that turn
+
+    payload = _stop_ends_in_arrest(street, approach)
+    assert _dealt(payload) == [INTERROGATION], "the second arrest did not re-deal"
+
+
+def test_coming_quietly_walks_straight_into_the_small_room(barge) -> None:
+    """The opening's (c), end to end: the authored arrest, custody, and the
+    interrogation dealt on the opening turn itself; answered, the fine is
+    offered again and paid, and the thief walks out free."""
+    from engine.content import director
+    from engine.scenes.default_state import run_turn
+    from engine.world import law
+
+    payload = _take_opening(barge, "c")
+    state = barge.engine.state
+    assert law.in_custody(state)
+    assert _dealt(payload) == [INTERROGATION]
+    assert director.current_card(state).id == "Q1_the_book"
+    assert _verbs(state) == {"card"}
+    _card_turn(barge)
+    assert director.current_card(state).id == CAPTAIN  # 08:00, at her desk
+    _card_turn(barge, "answer_straight")
+    assert not director.active(state) and {"pay_fine", "serve"} <= _verbs(state)
+    run_turn(barge, "The player pays.", intent={"action": "pay_fine"})
+    assert not law.in_custody(state)
+
+
+def test_a_release_seen_only_under_a_lanterns_stop_still_rearms(hue) -> None:
+    """Task 4's review: while an open encounter holds a deal back, is the
+    repeatable deck's fall still seen? Released, then stopped by a Lantern
+    before any turn saw the thief free: the director deals nothing over the
+    stop, but re-arms under it -- so the arrest that ends the stop deals the
+    small room again."""
+    from engine.content import director
+    from engine.game import encounter
+    from engine.game.effects import apply_effect
+    from engine.world import law
+
+    state = _arrested()
+    _play_interrogation(state)
+    assert law.pay_fine(state)["ok"]  # no turn in between
+    encounter.begin(state, "watch_stop")
+    assert director.ensure_scene(state) == []  # the stop owns the turn
+    assert not state.flags.get("deck_played_interrogation")  # ...but the fall was seen
+    assert apply_effect(state, {"type": "arrest"})["ok"]
+    encounter.end(state)
+    _play_interrogation(state)
+
+
+#: Reviewed and legitimate: each phrase has "the Magpie" and a sexed pronoun
+#: in one window, and the pronoun belongs to somebody else. Matched against
+#: the text around the hit, lower-cased. Add a row only after reading it.
+_UNGENDERED_ALLOWED = (
+    # The Lantern writes the Magpie into HIS book (the opening's talk branch).
+    "the magpie into his book",
+    # The Margrave's own desk (palace_wing.yaml's security line).
+    "the margrave's snuffbox off his own",
+    # Ardane's clock, after the people who saw the Magpie's face (agendas.yaml).
+    "the magpie's face, and when her",
+    # Silas, who lets the Snuffs wonder whether the new Magpie did it (agendas.yaml).
+    "the new magpie did it, and he",
+    # Ardane, whose reach the Magpie's file is heavy within (agendas.yaml).
+    "the magpie's file is heavy anywhere she",
+    # Ardane, to whom your file and the Magpie's are one (threads.yaml).
+    "the magpie's are one file to her",
+    # Ardane again, who feeds the petty sheets to the stove (interrogation.yaml).
+    "in all those years, and she",
+    # Brask's feet, not the Magpie's (interrogation.yaml, the biscuit tin).
+    "the magpie -- his feet",
+    # Gannet's thimble, in the README's initiation row.
+    "(steal her thimble",
+)
+
+
+def test_the_magpie_is_never_given_a_sex(hue) -> None:
+    """Spec §6 and the lore (data/lore/the_magpie.md): the Magpie is "a
+    gentleman", "a lady", by turns -- the city does not know, and the real one
+    is any of the three candidates. A pronoun that sexes the Magpie rules a
+    candidate out, and genders the player the Watch takes for the Magpie (the
+    player is "they", prompts/storyteller.md).
+
+    Over everything in the story's tree the narrator or an author reads --
+    YAML (comments included), lore, prompts, README and CHANGELOG -- no
+    she/he/her/his/hers/him follows "Magpie" (or "Magpie's") within ten words
+    of one sentence, whatever punctuation, dashes or backticks sit between;
+    and nobody "has caught her" about the Magpie. A POSSESSIVE is read too: a
+    pronoun after "the Magpie's file" is often somebody else's, but not
+    always ("the Magpie's file ... links your face to hers" was a slip), so
+    every such hit is either fixed or reviewed into `_UNGENDERED_ALLOWED`
+    with its reason. Only the Magpie as the object of a preposition ("a
+    warrant for the Magpie in her own hand") is skipped unread."""
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "games" / "hue-and-cry"
+    pronoun = r"(?:she|he|her|his|hers|him|herself|himself)"
+    # Anything but a letter or a sentence's end between words: commas,
+    # dashes, parentheses and backticks do not end the window.
+    gap = r"[^a-z.!?;:\"]+"
+    in_clause = re.compile(r"\bmagpie\b(?:'s)?(?:" + gap + r"[a-z]+){0,10}?" + gap
+                           + pronoun + r"\b")
+    caught = re.compile(r"\bmagpie\b[^.!?]{0,80}?\b(?:caught|catch|catching|hunted|hunting|hunt"
+                        r"|believes? (?:it|you|they) (?:has |have )?(?:caught|are|is)) "
+                        r"(?:her|him)\b")
+    preposition = re.compile(r"\b(?:of|for|at|about|to|with|by|from|on|into|as|than)"
+                             r"\s+(?:the|a)\s+$")
+    found = []
+    paths = [p for p in root.rglob("*") if p.suffix in (".yaml", ".md") and "art" not in p.parts]
+    assert any(p.name == "interrogation.yaml" for p in paths)
+    assert any(p.name == "clues.yaml" for p in paths)
+    for path in paths:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        text = " ".join(re.sub(r"^\s*#\s?", "", line).strip() for line in lines).lower()
+        for match in in_clause.finditer(text):
+            if preposition.search(text[max(0, match.start() - 12):match.start()]):
+                continue
+            around = text[max(0, match.start() - 40):match.end() + 12]
+            if any(ok in around for ok in _UNGENDERED_ALLOWED):
+                continue
+            found.append((path.name, match.group(0)))
+        found += [(path.name, m.group(0)) for m in caught.finditer(text)]
+    assert found == [], found
+
+
+# ---------------------------------------------------------------------------
+# The reveal and the alibi (v0.16 Task 7): the Lantern House front desk
+# ---------------------------------------------------------------------------
+
+#: data/scenes/lantern_house_desk.yaml -- walked into FREE, repeatable.
+DESK = "lantern_house_desk"
+ALIBI_CARD = "D1_the_alibi"
+#: The same duty book once a right naming struck the word Magpie off the
+#: file (v0.16 T8): the card says what the Watch believes.
+STRUCK_CARD = "D1_the_alibi_struck"
+#: The accusation, one card a suspect; the short name each card's id carries.
+SUSPECTS = {"npc_wren": "wren", "npc_silas": "silas", "npc_imelda": "imelda"}
+#: Each suspect's clue rows (data/premises/clues.yaml `points_to`).
+CLUES_OF = {
+    "npc_wren": ("wick_ends", "lamp_soot", "brass_ferrule", "ladder_feet", "snuffer_ring"),
+    "npc_silas": ("pie_papers", "company_chit", "back_stair_mud", "taproom_token",
+                  "porters_rota"),
+    "npc_imelda": ("violet_wax", "gilded_taper", "appraisal_slip", "blue_tissue",
+                   "place_card"),
+}
+#: The evidence bar (the deck's `value: {name: evidence, min: 2}`), MEASURED in
+#: v0.16 T8 (scripts/simulate_acts.py; the desk's header has the reasoning).
+EVIDENCE_BAR = 2
+
+
+def _desk_deck():
+    from engine.content import deck
+
+    found = deck.load_deck(DESK)
+    assert found is not None, "no front desk"
+    return found
+
+
+def _seed_for(magpie: str) -> int:
+    from engine.world import agendas
+
+    return next(s for s in range(200) if agendas.role(_city(s), "magpie") == magpie)
+
+
+def _carry(state, *clue_ids: str) -> None:
+    """Carry clues out of a house the way a getaway does: the engine's own
+    ``clues.take`` (flag, meter, fresh flag)."""
+    from engine.world import clues
+
+    for cid in clue_ids:
+        assert clues.take(state, {"id": f"prem_{cid}", "name": "a house", "clue": cid})
+
+
+def _at_the_desk(seed: int, *, hour: int = 9, carried: tuple = ()):
+    """A free thief standing in the Lantern House on day two at ``hour``."""
+    from engine.game.clock import set_clock
+
+    state = _city(seed)
+    state.location_id = "lantern_house"
+    set_clock(state, day=2, hour=hour)
+    _carry(state, *carried)
+    return state
+
+
+def _desk_hand(state) -> list:
+    """Deal what is due here; the card ids of the desk's hand, or []."""
+    from engine.content import director
+
+    dealt = director.ensure_scene(state)
+    if not dealt or dealt[0]["result"].get("deck_id") != DESK:
+        return []
+    return list(dealt[0]["result"]["card_ids"])
+
+
+def _answer_hand(state, picks: dict | None = None, ledger=None) -> list:
+    from engine.content import director
+
+    answered = []
+    guard = 0
+    while director.active(state) and guard < 8:
+        guard += 1
+        assert _verbs(state) == {"card"}
+        card = director.current_card(state)
+        answered.append(card.id)
+        chosen = (picks or {}).get(card.id) or director.options(state)[0]["id"]
+        receipt = director.resolve(state, chosen=chosen, ledger=ledger)
+        assert receipt["ok"], receipt
+    assert not director.active(state)
+    return answered
+
+
+def _walk_out_and_back(state) -> list:
+    """Leave the Lantern House for a turn (the desk's `when:` falls, so it
+    re-arms), come back, and return what is dealt."""
+    from engine.content import director
+
+    state.location_id = "wickmarket"
+    director.ensure_scene(state)
+    state.location_id = "lantern_house"
+    return _desk_hand(state)
+
+
+def _linked(state) -> bool:
+    from engine.game.quests import evaluate_condition
+
+    return evaluate_condition(state, {"linked": {"a": "self", "b": "magpie"}})
+
+
+def _gm(state) -> str:
+    import re
+
+    from engine.agents import prompts
+
+    found = re.search(r"GM ONLY.*", prompts.world_state_block(state, {}), re.S)
+    return found.group(0) if found else ""
+
+
+def test_the_front_desk_ships_bounded_and_repeatable(hue) -> None:
+    from engine.content import deck
+    from engine.games.validation import validate_story
+
+    found = _desk_deck()
+    assert found.repeatable is True
+    assert found.required == []
+    assert {c.id for c in found.pool} == {ALIBI_CARD, STRUCK_CARD} | {
+        f"D2_name_{short}" for short in SUSPECTS.values()}
+    assert found.draw >= 2  # the alibi and the one favoured suspect
+    for card in found.cards:
+        assert deck.MENU_TAG in card.tags, card.id
+        assert any(_roll_free(b) for b in card.beats), card.id
+        for beat in card.beats:
+            assert "adjustments" not in beat, (card.id, beat)  # nothing clamped
+    issues = [i for i in validate_story("hue-and-cry") if DESK in str(i.source)
+              or DESK in str(i.ref_id)]
+    assert issues == [], issues
+
+
+def test_nothing_on_a_desk_card_was_cut_to_fit(hue) -> None:
+    from pathlib import Path
+
+    import yaml
+
+    from engine.content import deck
+
+    root = Path(__file__).resolve().parents[1]
+    raw = yaml.safe_load((root / registry.get("hue-and-cry").paths["decks"]
+                          / f"{DESK}.yaml").read_text(encoding="utf-8"))
+    for card in raw["cards"]:
+        assert len(card["text"].strip()) <= deck.MAX_TEXT, card["id"]
+        for beat in card["beats"]:
+            assert len(str(beat.get("text") or "").strip()) <= deck.MAX_TEXT, beat["id"]
+            for branch in ("on_pass", "on_fail"):
+                line = str(((beat.get("gate") or {}).get(branch) or {}).get("text") or "")
+                assert len(line.strip()) <= deck.MAX_TEXT, (beat["id"], branch)
+
+
+def test_the_alibi_is_one_set_of_effects_at_both_doors(hue) -> None:
+    """The ruling: the front desk's alibi and the cell's share their effects,
+    so one door cannot drift from the other."""
+    def present(deck, card_id):
+        card = next(c for c in deck.cards if c.id == card_id)
+        beat = next(b for b in card.beats if b["id"] == "present_it")
+        return beat["gate"]["on_pass"]["effects"]
+
+    for desk_card, cell_card in ((ALIBI_CARD, "Q4_the_alibi"),
+                                 (STRUCK_CARD, "Q4_the_alibi_struck")):
+        desk = present(_desk_deck(), desk_card)
+        cell = present(_interrogation_deck(), cell_card)
+        assert desk == cell, desk_card
+        assert [e["type"] for e in desk] == ["law_discharge", "flag", "ledger_fact"]
+        assert desk[0] == {"type": "law_discharge", "alibi": True, "agenda": "the_magpie"}
+        assert desk[1] == {"type": "flag", "flag": "alibi_proven"}
+        # The alibi alone never breaks the Watch's belief (controller's ruling).
+        assert all(e["type"] != "law_unlink" for e in desk)
+
+
+@pytest.mark.parametrize("magpie", list(SUSPECTS))
+def test_naming_the_magpie_rightly_breaks_the_watchs_belief(hue, magpie) -> None:
+    """For each of the three: the clues lean to the real Magpie, the captain
+    hears the name, and the spine happens -- `magpie_unmasked`, the link
+    broken, the Magpie's robberies off your face -- and only THEN does the GM
+    line say who it is."""
+    from engine.game.clock import advance_time
+    from engine.game.effects import apply_effect
+    from engine.world import law, npc_sim
+
+    state = _at_the_desk(_seed_for(magpie), carried=CLUES_OF[magpie][:EVIDENCE_BAR])
+    # The Magpie's night's work, on your name while the watch links you.
+    apply_effect(state, {"type": "report", "deed": "burglary", "guise": "magpie",
+                         "jurisdiction": "rise", "precision": 0.6})
+    assert law.wanted_score(state, "self", "rise") > 0
+    before = _gm(state).lower()
+    assert not any(w in before for w in _CANDIDATE_WORDS), before
+    card = f"D2_name_{SUSPECTS[magpie]}"
+    assert _desk_hand(state) == [card]
+    assert _answer_hand(state, {card: "name_them"}) == [card]
+    assert state.flags.get("magpie_unmasked") is True
+    assert not state.flags.get("magpie_named_wrongly")
+    assert not _linked(state)
+    assert law.wanted_score(state, "self", "rise") == 0
+    assert law.wanted_score(state, "magpie", "rise") > 0  # still the Magpie's
+    assert npc_sim.display_name(magpie) in _gm(state)
+    # Unmasked, the accusation is never dealt again.
+    advance_time(state, 1)
+    assert _walk_out_and_back(state) == []
+
+
+def test_a_wrong_naming_costs_and_a_second_try_waits_for_a_new_clue(hue) -> None:
+    """The owner's decision: a wrong naming files a false witness on your own
+    face and leaves the Watch's belief whole; the same suspect is never
+    offered again, and nobody else is until a clue has been carried out since
+    -- with the wrongly named set aside, a new clue can let the real Magpie
+    lead, and the second try, named rightly, unmasks and unlinks."""
+    from engine.world import law
+
+    # Wren three, Silas one: the clues favour Wren, and Silas leads the rest.
+    state = _at_the_desk(_seed_for("npc_silas"),
+                         carried=CLUES_OF["npc_wren"][:3] + CLUES_OF["npc_silas"][:1])
+    assert _desk_hand(state) == ["D2_name_wren"]
+    _answer_hand(state, {"D2_name_wren": "name_them"})
+    assert state.flags.get("magpie_named_wrongly") is True
+    assert state.flags.get("wrongly_accused_wren") is True
+    assert not state.flags.get("magpie_unmasked") and _linked(state)
+    assert not state.flags.get("clue_fresh")
+    [row] = [r for r in state.law["reports"] if r["deed"] == "false_witness"]
+    assert (row["guise"], row["jurisdiction"], row["precision"]) == ("self", "wick", 1.0)
+    assert law.wanted_band(state, "self", "wick") == "noticed"  # felt, never a stop
+    assert not any(w in _gm(state).lower() for w in _CANDIDATE_WORDS)
+    # No instant retry: Silas already leads the rest, but nothing is new.
+    assert _walk_out_and_back(state) == []
+    # A clue carried out since -- another of Wren's, as it happens: Wren still
+    # leads the whole tally and is never offered again; Silas, leading the
+    # rest, is.
+    _carry(state, CLUES_OF["npc_wren"][3])
+    assert _walk_out_and_back(state) == ["D2_name_silas"]
+    _answer_hand(state, {"D2_name_silas": "name_them"})
+    assert state.flags.get("magpie_unmasked") is True and not _linked(state)
+    assert state.flags.get("magpie_named_wrongly") is True  # v0.17 reads both
+
+
+def test_two_clues_that_agree_are_what_the_captain_asks(hue) -> None:
+    """T8's measured bar: evidence 2 with the lead -- which, since a tie
+    favours nobody, is exactly two clues pointing at the same suspect. One
+    clue is not enough, and two that disagree lead nowhere; a third that
+    points elsewhere leaves the two still leading (the weakest lead at 3 is
+    no stronger than at 2 -- why the bar is 2)."""
+    wren, silas = CLUES_OF["npc_wren"], CLUES_OF["npc_silas"]
+    seed = _seed_for("npc_silas")
+    assert _desk_hand(_at_the_desk(seed, carried=wren[:1])) == []
+    assert _desk_hand(_at_the_desk(seed, carried=(wren[0], silas[0]))) == []
+    assert _desk_hand(_at_the_desk(seed, carried=wren[:2])) == ["D2_name_wren"]
+    assert _desk_hand(_at_the_desk(seed, carried=(*wren[:2], silas[0]))) == ["D2_name_wren"]
+
+
+def test_a_wrong_naming_stacks_on_the_magpies_file_while_you_are_linked(hue) -> None:
+    """T7 review, measured in T8: "never `sought` alone" is true only of a
+    clean face. Every accuser is still linked to the Magpie (a right naming is
+    what breaks the link), so the false witness lands on top of whatever the
+    Magpie has done in the Wick in your name. Two of the Magpie's robberies
+    there (agendas.yaml's burglary at 0.6: 3.6, `noticed`) and a wrong naming
+    (3 at 1.0) is 6.6: `sought`, the band a Lantern knows you in on the way
+    out (law.yaml `recognise`). scripts/simulate_acts.py measures the band
+    a real wrong-namer lands in; this pins the arithmetic it reads."""
+    from engine.game.effects import apply_effect
+    from engine.world import law
+
+    state = _at_the_desk(_seed_for("npc_silas"), carried=CLUES_OF["npc_wren"][:3])
+    for _ in range(2):
+        assert apply_effect(state, {"type": "report", "deed": "burglary", "guise": "magpie",
+                                    "jurisdiction": "wick", "precision": 0.6})["ok"]
+    assert _linked(state)
+    assert law.wanted_band(state, "self", "wick") == "noticed"
+    assert _desk_hand(state) == ["D2_name_wren"]
+    _answer_hand(state, {"D2_name_wren": "name_them"})
+    assert state.flags.get("magpie_named_wrongly") is True
+    assert law.wanted_band(state, "self", "wick") == "sought"
+    assert "sought" in law.load_spec()["recognise"]  # a patrol can know you now
+    # The false witness is on your own file and the Magpie's file is
+    # unchanged: it is the link that adds the two together, both ways.
+    assert law.filed_score(state, "self", "wick") == pytest.approx(3.0)
+    assert law.filed_score(state, "magpie", "wick") == pytest.approx(3.6)
+    assert law.wanted_band(state, "magpie", "wick") == "sought"
+
+
+@pytest.mark.parametrize("case", ["low_evidence", "no_lead", "captain_out",
+                                  "captain_asleep", "in_custody", "elsewhere", "unmasked"])
+def test_the_accusation_is_refused_without_its_gate(hue, case) -> None:
+    from engine.content import deck
+    from engine.game.effects import apply_effect
+
+    wren = CLUES_OF["npc_wren"]
+    carried = {"low_evidence": wren[:EVIDENCE_BAR - 1],
+               "no_lead": (wren[0], CLUES_OF["npc_silas"][0], CLUES_OF["npc_imelda"][0])
+               }.get(case, wren[:3])
+    hour = {"captain_out": 14, "captain_asleep": 23}.get(case, 9)
+    state = _at_the_desk(_seed_for("npc_wren"), hour=hour, carried=carried)
+    if case == "in_custody":
+        assert apply_effect(state, {"type": "arrest"})["ok"]
+    if case == "elsewhere":
+        state.location_id = "wickmarket"
+    if case == "unmasked":
+        apply_effect(state, {"type": "flag", "flag": "magpie_unmasked"})
+    if case not in ("in_custody", "elsewhere"):  # those two are the deck's own gate
+        eligible, _ = deck.eligible_cards(state, _desk_deck())
+        assert not [c.id for c in eligible if c.id.startswith("D2_")], case
+    assert _desk_hand(state) == [], case
+
+
+def _alibi_earned(seed: int = 9):
+    """Arrested in the Wick at 20:00, held through the Magpie's small hours
+    (the robbery at 01:00 is joined to its report), and released by paying:
+    free, standing in the Lantern House, one alibi earned."""
+    from engine.game.clock import advance_time
+    from engine.world import agendas, law
+
+    state = _arrested(seed=seed, hour=20)
+    advance_time(state, 8)
+    assert law.pay_fine(state)["ok"] and not law.in_custody(state)
+    assert state.location_id == "lantern_house"
+    [deed] = agendas.alibi_deeds(state, "the_magpie")
+    return state, deed
+
+
+def test_the_alibi_is_presented_at_the_front_desk_once(hue) -> None:
+    """Released, standing at the desk: the duty book clears exactly the
+    Magpie's robberies walked while you were held. It does not break the
+    Watch's belief. Presented, it is not offered again; a robbery in a LATER
+    stay earns (and offers) another."""
+    from engine.game.clock import advance_time
+    from engine.game.effects import apply_effect
+    from engine.game.quests import evaluate_condition
+    from engine.world import agendas, law
+
+    state, deed = _alibi_earned()
+    assert any(r["deed_id"] == deed for r in state.law["reports"])
+    assert _desk_hand(state) == [ALIBI_CARD]
+    _answer_hand(state, {ALIBI_CARD: "present_it"})
+    assert deed in law.discharged(state)
+    assert not any(r["deed_id"] == deed for r in state.law["reports"])
+    assert state.flags.get("alibi_proven") is True
+    assert _linked(state) and not state.flags.get("magpie_unmasked")  # ruling: NO
+    assert evaluate_condition(state, {"alibi": {}})  # earned stays earned
+    assert _walk_out_and_back(state) == []           # ...but presented once
+    # A second stay, a second robbery, a second alibi.
+    apply_effect(state, {"type": "report", "deed": "pickpocket", "guise": "self",
+                         "jurisdiction": "wick", "precision": 1.0})
+    assert apply_effect(state, {"type": "arrest"})["ok"]
+    advance_time(state, 24)
+    assert law.pay_fine(state)["ok"]
+    assert len(agendas.alibi_deeds(state, "the_magpie")) == 2
+    assert _desk_hand(state) == [ALIBI_CARD]
+
+
+def test_an_alibi_kept_back_is_offered_again(hue) -> None:
+    state, deed = _alibi_earned()
+    assert _desk_hand(state) == [ALIBI_CARD]
+    _answer_hand(state, {ALIBI_CARD: "let_it_lie"})
+    assert not state.flags.get("alibi_proven")
+    from engine.world import law
+
+    assert deed not in law.discharged(state)
+    assert _walk_out_and_back(state) == [ALIBI_CARD]
+
+
+def _unmask(state) -> None:
+    """What a right naming writes about the Watch's belief (the desk's
+    `name_them` on_pass): the flag, and the link broken."""
+    from engine.game.effects import apply_effect
+
+    assert apply_effect(state, {"type": "flag", "flag": "magpie_unmasked"})["ok"]
+    assert apply_effect(state, {"type": "law_unlink", "a": "self", "b": "magpie"})["ok"]
+
+
+def _card_text(found_deck, card_id: str) -> str:
+    return next(c for c in found_deck.cards if c.id == card_id).text
+
+
+def test_the_duty_book_says_what_the_watch_believes(hue) -> None:
+    """T7 review: the alibi's CONSTRAINT told the narrator "the file still
+    says Magpie" -- false once a right naming struck the word off, and an
+    alibi can still be open then (earned before the naming and kept back,
+    or earned in a later stay). The book comes in two now, one per belief,
+    at both doors, with the same discharge."""
+    from engine.content import director
+    from engine.game.effects import apply_effect
+    from engine.world import law
+
+    desk, cells = _desk_deck(), _interrogation_deck()
+    for card_id, found in ((ALIBI_CARD, desk), ("Q4_the_alibi", cells)):
+        assert "still says Magpie" in _card_text(found, card_id), card_id
+    for card_id, found in ((STRUCK_CARD, desk), ("Q4_the_alibi_struck", cells)):
+        text = _card_text(found, card_id)
+        assert "still says" not in text and "no longer takes you for" in text, card_id
+
+    # Linked: the plain card.
+    state, deed = _alibi_earned()
+    assert _desk_hand(state) == [ALIBI_CARD]
+    _answer_hand(state, {ALIBI_CARD: "let_it_lie"})
+    # Named rightly while the alibi is still open: the struck card, never the plain one.
+    _unmask(state)
+    assert not _linked(state)
+    assert _walk_out_and_back(state) == [STRUCK_CARD]
+    _answer_hand(state, {STRUCK_CARD: "present_it"})
+    assert deed in law.discharged(state) and state.flags.get("alibi_proven") is True
+    assert _walk_out_and_back(state) == []  # presented once, as before
+    # The cells say the same: a later stay's alibi, after the naming.
+    state2, _ = _alibi_earned()
+    _unmask(state2)
+    state2.location_id = "wickmarket"
+    apply_effect(state2, {"type": "report", "deed": "pickpocket", "guise": "self",
+                          "jurisdiction": "wick", "precision": 1.0})
+    assert apply_effect(state2, {"type": "arrest"})["ok"]
+    dealt = director.ensure_scene(state2)
+    assert dealt[0]["result"]["deck_id"] == INTERROGATION
+    ids = dealt[0]["result"]["card_ids"]
+    assert "Q4_the_alibi_struck" in ids and "Q4_the_alibi" not in ids
+
+
+def test_the_struck_duty_book_says_the_nights_leave_every_file(hue) -> None:
+    """Final review: `law_discharge` drops a discharged deed's reports from
+    EVERY file, the Magpie's included (effects.py), so the struck alibi's
+    prose may not say those nights stay marked against the Magpie's name."""
+    import json
+
+    from engine.world import law
+
+    state, deed = _alibi_earned()
+    _unmask(state)
+    assert _walk_out_and_back(state) == [STRUCK_CARD]
+    _answer_hand(state, {STRUCK_CARD: "present_it"})
+    assert deed in law.discharged(state)
+    assert not any(r["deed_id"] == deed for r in state.law["reports"])  # magpie's too
+
+    for card_id, found in ((STRUCK_CARD, _desk_deck()),
+                           ("Q4_the_alibi_struck", _interrogation_deck())):
+        card = next(c for c in found.cards if c.id == card_id)
+        said = (card.text + json.dumps(card.beats)).lower()
+        for claim in ("where they belong", "against the magpie's name", "file straight",
+                      "file was put straight"):
+            assert claim not in said, (card_id, claim)
+
+
+def test_the_alibi_in_the_cells_on_a_later_arrest(hue) -> None:
+    """Q4: an alibi not presented at the desk, then a second arrest -- the
+    one asking has the duty book, and it clears the same robberies. The
+    charge you came in on stands; the next stay's file remembers in red."""
+    from engine.content import director
+    from engine.game.effects import apply_effect
+    from engine.world import law
+
+    state, deed = _alibi_earned()
+    state.location_id = "wickmarket"  # walked out without a word at the desk
+    apply_effect(state, {"type": "report", "deed": "pickpocket", "guise": "self",
+                         "jurisdiction": "wick", "precision": 1.0})
+    assert apply_effect(state, {"type": "arrest"})["ok"]
+    sentence = (law.custody(state)["fine"], law.custody(state)["days"])
+    dealt = director.ensure_scene(state)
+    assert dealt[0]["result"]["deck_id"] == INTERROGATION
+    assert "Q4_the_alibi" in dealt[0]["result"]["card_ids"]
+    answered = _answer_hand(state, {"Q4_the_alibi": "present_it"})
+    assert answered[0] == "Q1_the_book" and "Q4_the_alibi" in answered
+    assert deed in law.discharged(state) and state.flags.get("alibi_proven")
+    assert (law.custody(state)["fine"], law.custody(state)["days"]) == sentence
+    assert {"pay_fine", "serve"} <= _verbs(state)
+    assert law.pay_fine(state)["ok"]
+    assert _desk_hand(state) == []  # presented in the cell: the desk has nothing
+    # The next stay's book remembers it in red.
+    state.location_id = "wickmarket"
+    director.ensure_scene(state)
+    apply_effect(state, {"type": "report", "deed": "pickpocket", "guise": "self",
+                         "jurisdiction": "wick", "precision": 1.0})
+    assert apply_effect(state, {"type": "arrest"})["ok"]
+    dealt = director.ensure_scene(state)
+    assert "Q4_the_alibi" not in dealt[0]["result"]["card_ids"]  # presented once
+    receipt = director.resolve(state)
+    assert "In red" in _beat_text(receipt), receipt
+
+
+def _desk_rows():
+    rows = []
+    for card in _desk_deck().cards:
+        rows += [(card.id, str(b["id"])) for b in card.beats]
+    return rows
+
+
+#: Every answer on every desk card (held equal to the deck's own beats below:
+#: parametrising needs the list before any story is active).
+_DESK_ROWS = [(ALIBI_CARD, "present_it"), (ALIBI_CARD, "let_it_lie"),
+              (STRUCK_CARD, "present_it"), (STRUCK_CARD, "let_it_lie")] + [
+    (f"D2_name_{s}", b) for s in SUSPECTS.values() for b in ("name_them", "not_yet")]
+
+
+@pytest.mark.parametrize("card_id,beat_id", _DESK_ROWS)
+def test_no_thief_is_ever_stuck_at_the_front_desk(hue, card_id, beat_id) -> None:
+    """Every answer on every desk card, right and wrong: the hand ends and the
+    city's verbs come back; nothing here arrests or moves the thief."""
+    from engine.world import law
+
+    if card_id == ALIBI_CARD:
+        state, _deed = _alibi_earned()
+    elif card_id == STRUCK_CARD:
+        state, _deed = _alibi_earned()
+        _unmask(state)
+    else:
+        suspect = next(n for n, s in SUSPECTS.items() if card_id.endswith(s))
+        for magpie in SUSPECTS:  # named rightly, and named wrongly
+            state = _at_the_desk(_seed_for(magpie), carried=CLUES_OF[suspect][:3])
+            assert _desk_hand(state) == [card_id]
+            _answer_hand(state, {card_id: beat_id})
+            assert _verbs(state) - {"card"} and not law.in_custody(state)
+            assert state.location_id == "lantern_house"
+        return
+    assert _desk_hand(state) == [card_id]
+    _answer_hand(state, {card_id: beat_id})
+    assert _verbs(state) - {"card"} and not law.in_custody(state)
+
+
+def test_every_desk_answer_is_offered_by_the_parametrised_guard(hue) -> None:
+    """The stuck-guard's rows are the deck's own beats, so a new beat is not
+    left out of it."""
+    assert sorted(_desk_rows()) == sorted(_DESK_ROWS)
+
+
+def test_the_front_desk_replays(hue) -> None:
+    """Same seed, same clues, same wrong name then right one: the same file."""
+    def one():
+        state = _at_the_desk(_seed_for("npc_silas"), carried=CLUES_OF["npc_wren"][:3])
+        _desk_hand(state)
+        _answer_hand(state, {"D2_name_wren": "name_them"})
+        _carry(state, CLUES_OF["npc_silas"][0])
+        _walk_out_and_back(state)
+        _answer_hand(state, {"D2_name_silas": "name_them"})
+        return state
+
+    first, second = one(), one()
+    assert first.flags.get("magpie_unmasked")
+    assert (first.law, first.flags, first.rng_counters) == \
+        (second.law, second.flags, second.rng_counters)
+
+
+def test_an_old_save_meets_the_front_desk(hue) -> None:
+    """A save from before Task 7 (clues found, no `clue_fresh`, no false
+    witness) still reaches the first accusation; a save with the desk's hand
+    open reloads to the same card; and a save from before v0.16 (no custody
+    log, no joined hits) is offered no alibi."""
+    from engine.content import director
+    from engine.game.state import GameState
+
+    state = _at_the_desk(_seed_for("npc_imelda"), carried=CLUES_OF["npc_imelda"][:3])
+    old = state.to_save_dict()
+    old["flags"].pop("clue_fresh", None)
+    loaded = GameState.from_dict(old)
+    assert _desk_hand(loaded) == ["D2_name_imelda"]
+    reloaded = GameState.from_dict(loaded.to_save_dict())
+    assert director.current_card(reloaded).id == "D2_name_imelda"
+    _answer_hand(reloaded, {"D2_name_imelda": "name_them"})
+    assert reloaded.flags.get("magpie_unmasked")
+
+    earned, _deed = _alibi_earned()
+    pre = earned.to_save_dict()
+    pre["law"].pop("custody_log", None)
+    for hit in pre["agendas"].get("hits") or []:
+        hit.pop("deed_id", None)
+    assert _desk_hand(GameState.from_dict(pre)) == []
+
+
+def test_the_right_naming_is_remembered_through_the_card_verb(street) -> None:
+    """Through run_turn and the `card` intent: the reveal's ledger facts land
+    in the session's ledger (the skill passes it now), and the next prompt's
+    GM line names the Magpie."""
+    from engine.content import director
+    from engine.game.clock import set_clock
+    from engine.world import agendas, npc_sim
+
+    state = street.engine.state
+    magpie = agendas.role(state, "magpie")
+    state.location_id = "lantern_house"
+    set_clock(state, day=2, hour=9)
+    _carry(state, *CLUES_OF[magpie][:3])
+    assert _desk_hand(state) == [f"D2_name_{SUSPECTS[magpie]}"]
+    assert "WHO THE MAGPIE IS" not in _gm(state)
+    _card_turn(street, "name_them")
+    assert not director.active(state) and state.flags.get("magpie_unmasked")
+    facts = [f.text for f in street.ledger.recall(magpie, limit=8)]
+    assert any("is the Magpie" in f for f in facts), facts
+    assert npc_sim.display_name(magpie) in _gm(state)
+
+
+# ---------------------------------------------------------------------------
+# Acts I-II, measured (v0.16 Task 8): scripts/simulate_acts.py
+# ---------------------------------------------------------------------------
+
+#: MEASURED, v0.16 T8, scripts/simulate_acts.py over 40 seeds x 12 days, every
+#: opening (the table is in CHANGELOG.md [Unreleased]): an investigator who
+#: cases the city for clue houses, burgles them and takes what it finds to
+#: Captain Ardane's desk carries out 2.5 clues by day 12 and unmasks the
+#: Magpie by day 12 on 60% of runs (mean day 9), naming wrongly first on 12%.
+#: Asserted here over the FIRST 10 SEEDS of "come quietly" -- every thief
+#: arrested, interrogated and released through the Lantern House -- where the
+#: harness reads 2.7 clues by day 12, 7 of 10 unmasked by day 12, 1 wrong
+#: first naming, and every run sworn to the Company on day 1.
+ACTS_SEEDS = 10
+ACTS_OPENING = "c"
+
+
+@pytest.fixture(scope="module")
+def measured_acts():
+    _scripts_on_path()
+    from scripts import simulate_acts
+
+    # Module-scoped, as measured_law: activated here and undone here. The
+    # agendas stay ON -- the spine needs the Magpie (and `agenda_role` reads
+    # nothing without them).
+    before = registry.peek()
+    registry.activate("hue-and-cry")
+    try:
+        return [simulate_acts.play(seed, ACTS_OPENING) for seed in range(ACTS_SEEDS)]
+    finally:
+        if registry.peek() is not before:
+            registry.deactivate()
+
+
+def test_every_investigator_is_sworn_to_the_company_on_day_one(measured_acts) -> None:
+    """Off the barge by the Lantern House, fine paid, to the Snuffs by
+    evening: the initiation is dealt, and answered, on the first night."""
+    assert [r.initiated_day for r in measured_acts] == [1] * ACTS_SEEDS
+
+
+def test_the_trail_reads_slowly_but_it_reads(measured_acts) -> None:
+    """A clue costs about three houses cased to the end; by day 12 every run
+    has carried out at least two, and the mean is well above that."""
+    by_twelve = [sum(d <= 12 for d in r.clue_days) for r in measured_acts]
+    assert min(by_twelve) >= 2, by_twelve
+    assert sum(by_twelve) / ACTS_SEEDS >= 2.3, by_twelve
+    # And not so fast that the reveal is free: nobody has two by day 3.
+    assert all(sum(d <= 3 for d in r.clue_days) < 2 for r in measured_acts)
+
+
+def test_the_reveal_is_an_achievement_within_the_spine(measured_acts) -> None:
+    """Reachable for a deliberate investigator within the spine's ~10-12
+    days, and not for everyone: most unmask the Magpie by day 12, some do
+    not, and a first naming is right far more often than wrong."""
+    unmasked = [r.unmasked_day for r in measured_acts]
+    by_twelve = sum(d is not None and d <= 12 for d in unmasked)
+    assert 0.5 <= by_twelve / ACTS_SEEDS < 1.0, unmasked
+    first = [r.namings[0]["right"] for r in measured_acts if r.namings]
+    assert sum(first) > 2 * (len(first) - sum(first)), first
+    assert min(d for d in unmasked if d is not None) >= 4, unmasked
+
+
+def test_a_wrong_naming_always_costs_the_accuser_something(measured_acts, hue) -> None:
+    """Every real wrong naming strictly raises the accuser's own wanted score
+    in the Wick -- an accuser already `hunted` pays too, not only one a band
+    below it -- and leaves that face at least `noticed`."""
+    from engine.world import law
+
+    bands = list(law.load_spec()["wanted"]["bands"])
+    wrong = [n for r in measured_acts for n in r.namings if not n["right"]]
+    assert wrong, "no wrong naming in the measured seeds"
+    for n in wrong:
+        assert n["score_after"] > n["score_before"], n
+        assert bands.index(n["band_after"]) >= max(1, bands.index(n["band_before"])), n
+
+
+def test_no_investigator_starves_or_is_stuck(measured_acts) -> None:
+    assert min(r.min_hp for r in measured_acts) > 0
+
+
+def test_the_acts_harness_replays_from_its_seed(hue) -> None:
+    """Rule 4 and the harness's own promise: a seed replays byte for byte."""
+    _scripts_on_path()
+    from scripts import simulate_acts
+
+    assert simulate_acts.play(3, "a", 5) == simulate_acts.play(3, "a", 5)

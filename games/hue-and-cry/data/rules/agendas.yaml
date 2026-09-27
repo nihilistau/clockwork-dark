@@ -35,11 +35,13 @@
 # Wren is the thief. tests/test_hue_and_cry.py holds every premise name, in
 # every seed, unchanged under every candidate's mask.
 #
-# THE REVEAL IS v1.0 CONTENT. `magpie_unmasked` is the unmask flag, and NOTHING
-# SETS IT THIS RELEASE: the story's unmasking (the interrogation deck, or
-# catching the thief in the act) is v1.0's, and it sets this flag. Until then
-# the GM line never says who the Magpie is -- recorded in CHANGELOG.md and
-# CLAUDE.md "Deliberately deferred".
+# THE REVEAL. `magpie_unmasked` is the unmask flag. Since v0.16 it is set by
+# one thing: the accusation at the Lantern House front desk
+# (data/scenes/lantern_house_desk.yaml), when the thief lays the trail found
+# in the city's houses before Captain Ardane and names the right suspect --
+# which that card decides with `agenda_role`, a condition no prompt renders.
+# Until then the GM line never says who the Magpie is; from the next prompt
+# after, it does (prompts._agenda_reveal_block).
 #
 # `"on":` IS QUOTED ON PURPOSE. YAML reads a bare `on:` key as the boolean
 # true, and the loader then finds a reaction with no trigger.
@@ -49,7 +51,7 @@
 # (idle, careful, reckless). The table is at the foot of this file and in
 # CHANGELOG.md.
 #
-# Version: v0.1.2 [2026-09-26]
+# Version: v0.1.3 [2026-09-27]
 
 roles:
   magpie:

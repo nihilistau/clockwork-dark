@@ -609,6 +609,7 @@ class StoryValidator:
         self.check_decks_and_structures()
         self.check_declared_event_scenes()
         self.check_endings_and_epilogues()
+        self.check_opening()
         self.check_death_rules()
         self.check_procgen_templates()
         self.check_agents()
@@ -1711,6 +1712,42 @@ class StoryValidator:
             for side in ("card_m", "card_g"):
                 if not str(card.get(side) or "").strip():
                     self._add(cards_source, str(ending_id), f"epilogue card has no {side} prose")
+
+    # -- the opening's authored choices --------------------------------------
+
+    def check_opening(self) -> None:
+        """
+        ``entry.opening`` choices that carry ``deed``/``on_pass``/``on_fail``
+        (``engine/game/authored_choice.py``): the deed is one the law file
+        lists, an ``encounter`` is a declared scene, and every effect is one an
+        authored choice may use. Each would otherwise commit, open or apply
+        nothing on the player's first move, with nothing said.
+        """
+        from engine.game.authored_choice import problems
+
+        opening = (self.manifest.entry or {}).get("opening")
+        choices = (opening or {}).get("choices") if isinstance(opening, dict) else None
+        if not isinstance(choices, list):
+            return
+        deeds: set[str] = set()
+        law_path = self._file("law")
+        law_doc = _read_yaml(law_path) if law_path is not None else None
+        if isinstance(law_doc, dict) and isinstance(law_doc.get("deeds"), dict):
+            deeds = {str(k) for k in law_doc["deeds"]}
+        encounters: set[str] = set()
+        directory = self._dir("encounters")
+        for path in _yaml_files(directory) if directory is not None else []:
+            doc = _read_yaml(path)
+            for row in (doc or {}).get("encounters") or [] if isinstance(doc, dict) else []:
+                if isinstance(row, dict) and row.get("id"):
+                    encounters.add(str(row["id"]))
+        source = "game.yaml"
+        for row in choices:
+            if not isinstance(row, dict):
+                continue
+            for problem in problems(row, deeds=deeds, encounters=encounters,
+                                    values=self.declared_values):
+                self._add(source, f"entry.opening.{row.get('id') or '?'}", problem)
 
     # -- death rules -------------------------------------------------------
 

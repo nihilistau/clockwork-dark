@@ -17,10 +17,29 @@
 # through what the city does. Their ranges were set with the cadences, by
 # measurement -- scripts/simulate_agendas.py, table in CHANGELOG.md.
 #
-# Version: v0.1.0 [2026-09-25]
+# ONE METER, `evidence` (v0.16): how much of the real Magpie's trail the thief
+# has found (data/premises/clues.yaml, engine/world/clues.py). `veiled`, so
+# the narrator and the sheet get a band word -- none, faint, some, strong,
+# utmost -- and never a count to optimise. Its max is 5 because the engine's
+# five bands are cut evenly across the range: one clue must read "faint", not
+# "none". The trail holds eight clues; past the fifth the meter stays at its
+# top while the clues themselves still count toward `clues_favour`. Written
+# only by the engine (no `owners`), one point a clue carried out of a house.
+#
+# Version: v0.1.1 [2026-09-27]
 
 version: 1
 slug: hue-and-cry
+
+meters:
+
+  evidence:
+    backing: bag
+    min: 0
+    max: 5
+    default: 0
+    visibility: veiled
+    label: "Evidence"
 
 clocks:
 

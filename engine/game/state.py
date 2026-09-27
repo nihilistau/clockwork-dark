@@ -278,6 +278,11 @@ class GameState:
     # replaying a stale copy. See engine/content/director.py.
     scene: dict[str, Any] = field(default_factory=dict)
     # Quests and arcs (P7). quests maps quest_id -> progress record.
+    # The arc defaults are the flagship's and only a bare GameState() keeps
+    # them: a real run is opened on the active story's own `default: true`
+    # arcs by procgen.new_game_state (quests.seed_default_arcs). An old save
+    # carrying `quiet_life` in a story without it reads it as order -1 and
+    # climbs off it on the next evaluate.
     quests: dict[str, Any] = field(default_factory=dict)
     active_arc: str = "quiet_life"
     arcs_unlocked: list[str] = field(default_factory=lambda: ["quiet_life"])

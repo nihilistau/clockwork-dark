@@ -129,6 +129,23 @@ def test_a_dealt_deck_is_not_dealt_again(garden) -> None:
     assert deck_id != "day_00_prologue"
 
 
+def test_no_hand_is_dealt_over_an_open_encounter(garden) -> None:
+    """A card can open an encounter, never the reverse (intents.py): a hand
+    dealt while an encounter is open would leave `card` the only verb and the
+    encounter hanging. The deal waits; it is not spent, and lands the first
+    turn after the encounter resolves."""
+    from engine.content import director
+
+    state = _state()
+    state.encounter = {"id": "a_stop_on_the_road", "resolved": False}
+    assert director.ensure_scene(state) == []
+    assert state.scene == {} and not state.flags.get("deck_played_day_00_prologue")
+
+    state.encounter["resolved"] = True
+    dealt = director.ensure_scene(state)
+    assert dealt and dealt[0]["result"]["deck_id"] == "day_00_prologue"
+
+
 def test_only_one_scene_opens_per_turn(garden) -> None:
     """A hand IS the turn; dealing two means the player answered neither."""
     from engine.content import director

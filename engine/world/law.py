@@ -45,8 +45,11 @@ EVERY WRITE is an effect (AGENTS.md rule 3): ``witness`` records one sighting,
 ``report`` files one,
 ``quash_reports`` discharges some (a bribed sergeant's thread), ``law_cool``
 lets time wear them down, ``arrest`` and ``release`` hold and free the
-player, and ``deed`` lets authored content (a scene's fight with the watch)
-commit one through ``commit_deed``. Nothing here assigns to ``state.law``.
+player (``release`` logging the stay's hours in ``custody_log``, which the
+agendas' ``alibi`` reads), ``law_link`` and ``law_unlink`` make and break the
+watch's belief that two faces are one person, and ``deed`` lets authored
+content (a scene's fight with the watch) commit one through ``commit_deed``.
+Nothing here assigns to ``state.law``.
 
 The narrator never sees a number from here: the band is a word, and a
 report's precision is spoken as ``clarity``. How well the watch knows the face
@@ -57,7 +60,7 @@ Every content fault is a ValueError naming the file, for the reason
 ``premises.py`` gives: a guise naming an item the registry lacks, or a gaol
 that is not on the map, would load, validate and do nothing.
 
-Version: v0.6.0 [2026-09-25]
+Version: v0.7.0 [2026-09-26]
 """
 
 from __future__ import annotations
@@ -91,6 +94,10 @@ DEFAULT_SPREAD_PER_HOUR = 0.3
 #: ``clarity_words``: the first is "no live report at all", the rest split
 #: precision (0, 1] evenly -- see ``clarity_word``.
 DEFAULT_CLARITY_WORDS = ("nothing", "a rumour", "a description", "a likeness")
+#: The writer id ``change_guise`` applies ``law_link`` under when someone saw
+#: the change: the only writer allowed to re-form a pair ``law_unlink`` broke.
+#: A writer id, not an effect key, because no authored YAML can choose one.
+WRITER_WITNESS = "law:witness"
 
 
 # ---------------------------------------------------------------------------
@@ -437,13 +444,50 @@ def links(state: GameState) -> list[list[str]]:
     """What the watch currently believes: pairs of guises it takes for one person.
 
     State wins once it holds any belief, including an empty one -- a link the
-    player has broken must stay broken. Until then the file's starting belief
-    is read through rather than copied in, so a story with a Law writes
-    nothing to a new save just by existing.
+    player has broken stays broken until a witness sees the guise change
+    again (``law_unlink`` writes the survivors, possibly none, and records
+    the pair in ``broken_links``, which ``law_link`` then refuses unless
+    ``change_guise`` applies it as ``WRITER_WITNESS``). Until then the
+    file's starting belief is read through rather than copied in, so a story
+    with a Law writes nothing to a new save just by existing.
+
+    EVERY reader of identity comes through here (``same_person``, and through
+    it ``wanted_score``, ``best_precision``, ``charged_deeds``,
+    ``report_matcher``'s ``linked`` and the agendas' witness rows), so an
+    unlinked pair stops counting everywhere at once: nothing is cached.
     """
     if "links" in state.law:
         return [list(pair) for pair in state.law.get("links") or []]
     return [list(pair) for pair in load_spec().get("links") or []]
+
+
+def broken_links(state: GameState) -> list[list[str]]:
+    """Pairs the player has broken (``law_unlink``); ``law_link`` refuses them
+    until a witness sees the guise change again (``WRITER_WITNESS``)."""
+    return [list(pair) for pair in state.law.get("broken_links") or []
+            if isinstance(pair, (list, tuple)) and len(pair) == 2]
+
+
+def is_broken(state: GameState, a: str, b: str) -> bool:
+    """Whether the pair ``{a, b}``, either way round, has been broken."""
+    return any({str(x), str(y)} == {a, b} for x, y in broken_links(state))
+
+
+def _p_linked(state: GameState, value: Any, ctx: Any) -> bool:
+    """``{linked: {a, b}}`` -- the watch takes ``a`` and ``b`` for one person.
+
+    Read through ``same_person``, so transitive: the belief the wanted score
+    itself uses. False -- never open -- with no Law, with either guise
+    missing, or naming a guise the Law does not know.
+    """
+    if not declared() or not isinstance(value, dict):
+        return False
+    a = str(value.get("a") or "").strip()
+    b = str(value.get("b") or "").strip()
+    guises = load_spec().get("guises") or {}
+    if a not in guises or b not in guises:
+        return False
+    return b in same_person(state, a)
 
 
 def same_person(state: GameState, guise: str) -> set[str]:
@@ -1198,7 +1242,10 @@ def change_guise(state: GameState, guise_id: str) -> dict[str, Any]:
             if rng.random() < chance:
                 seen = True
         if seen:
-            apply_effect(state, {"type": "law_link", "a": old, "b": guise_id})
+            # A witness: new evidence, so it re-forms a pair the player once
+            # broke (`law_link`'s WRITER_WITNESS gate) -- the one way back.
+            apply_effect(state, {"type": "law_link", "a": old, "b": guise_id},
+                         by=WRITER_WITNESS)
     return {"ok": True, "guise": guise_id, "label": guise_label(guise_id), "seen": seen}
 
 
@@ -1222,6 +1269,61 @@ def custody(state: GameState) -> dict[str, Any]:
 def in_custody(state: GameState) -> bool:
     """Whether the watch is holding the player. Cheap: a story with no Law reads {}."""
     return bool(custody(state))
+
+
+def next_hour(state: GameState) -> int:
+    """
+    The first whole absolute hour the clock has not yet crossed.
+
+    The agendas pass's own convention (``agendas.Walk``): a move fires AT the
+    integer boundary ``h`` once the clock reaches ``h``, and an ``agenda_hit``
+    records that ``h``. So every boundary up to ``floor(clock)`` has already
+    been walked, and the first one anything can still happen at is the next.
+    ``arrest`` stamps it as ``since_hour`` and ``release`` as ``until_hour``:
+    a hit with ``since_hour <= hour < until_hour`` was walked while the player
+    was held, whatever fractions the clock was cut into.
+    """
+    return int(math.floor(float(state.world_clock_hours) + _HOUR_EPSILON)) + 1
+
+
+def custody_log(state: GameState) -> list[dict[str, Any]]:
+    """Every stay the watch has logged (``release``): ``{since_hour, until_hour,
+    jurisdiction}``, oldest first. A copy. [] for an old save or a clean record."""
+    rows = state.law.get("custody_log")
+    return [dict(row) for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+
+
+def _strict_hour(value: Any) -> Optional[int]:
+    """An int hour, or None for anything else (a bool, a float, a missing key)."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
+
+def custody_intervals(state: GameState) -> list[tuple[int, Optional[int]]]:
+    """
+    Every hour span the player was (or is) held: ``(since, until)``, half-open,
+    ``until`` None for the live stay. Logged stays first, then the live one.
+
+    A stay with no ``since_hour`` -- a custody record from a save made before
+    v0.16, still open or logged -- cannot be placed in time and is left out:
+    an alibi is a claim about hours, and a guessed start would invent one.
+    """
+    out: list[tuple[int, Optional[int]]] = []
+    for row in custody_log(state):
+        since, until = _strict_hour(row.get("since_hour")), _strict_hour(row.get("until_hour"))
+        if since is not None and until is not None:
+            out.append((since, until))
+    since = _strict_hour(custody(state).get("since_hour"))
+    if since is not None:
+        out.append((since, None))
+    return out
+
+
+def held_at(state: GameState, hour: int) -> bool:
+    """Whether absolute ``hour`` falls inside any custody interval, past or live."""
+    return any(since <= hour and (until is None or hour < until)
+               for since, until in custody_intervals(state))
 
 
 def _p_in_custody(state: GameState, value: Any, ctx: Any) -> bool:
@@ -1655,6 +1757,7 @@ def _register() -> None:
 
     register_predicate("in_custody", _p_in_custody)
     register_predicate("filed", _p_filed)
+    register_predicate("linked", _p_linked)
 
 
 _register()
@@ -1664,9 +1767,11 @@ __all__ = [
     "DEFAULT_SPREAD_PER_HOUR",
     "MAX_PROPAGATION_HOURS",
     "SELF_GUISE",
+    "WRITER_WITNESS",
     "DEFAULT_CLARITY_WORDS",
     "band_for",
     "best_precision",
+    "broken_links",
     "cap_cooling",
     "charged_deeds",
     "charged_severity",
@@ -1679,16 +1784,21 @@ __all__ = [
     "cool",
     "current_guise",
     "custody",
+    "custody_intervals",
+    "custody_log",
     "declared",
     "discharged",
     "filed_score",
     "guise_label",
+    "held_at",
     "in_custody",
+    "is_broken",
     "jurisdiction_at",
     "jurisdiction_label",
     "jurisdiction_of",
     "links",
     "load_spec",
+    "next_hour",
     "notice_chance",
     "patrol",
     "pay_fine",

@@ -288,6 +288,38 @@ def _resolve_rest_kind(
         kind, spec, note = alt, rest_cfg[alt], why
 
 
+def _refusal(state: GameState, spec: dict[str, Any]) -> str:
+    """
+    The story's own reason an unmet ``requires:`` shuts this bed, or "".
+
+    ``refusals: [{when, text}]`` -- the shape ``threads.strike_refusal`` reads
+    for a bargain -- asked in order, the first whose ``when`` holds. Only a
+    NOTE on the downgrade: the rest still happens, in the fallback (rule 6).
+    A malformed row or a raising predicate is skipped, never raised.
+    """
+    rows = spec.get("refusals")
+    if not isinstance(rows, list):
+        return ""
+    from engine.game.quests import evaluate_condition
+
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        text = " ".join(str(row.get("text") or "").split())
+        if not text:
+            continue
+        try:
+            if evaluate_condition(state, row.get("when")):
+                return text
+        except Exception:  # noqa: BLE001 -- a broken note is no reason to refuse rest
+            logger.warning(
+                "[survival] Rest refusal raised (operation=rest, when=%r)",
+                row.get("when"),
+                exc_info=True,
+            )
+    return ""
+
+
 def _rest_gate(state: GameState, spec: dict[str, Any]) -> str:
     """
     Why this rest entry is not open to the player right now, or "".
@@ -319,7 +351,7 @@ def _rest_gate(state: GameState, spec: dict[str, Any]) -> str:
             )
             allowed_here = False
         if not allowed_here:
-            return "that bed is not yours tonight"
+            return _refusal(state, spec) or "that bed is not yours tonight"
     cost = int(spec.get("cost") or 0)
     if cost > 0 and state.stats.gold < cost:
         from engine.game.trade import currency_label

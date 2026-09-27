@@ -344,6 +344,43 @@ def _label_intents(
     return choices
 
 
+def _label_authored(choices: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Chip an opening choice whose consequence is AUTHORED rather than an intent.
+
+    Rule 1 says a choice that moves or risks anything declares it before it is
+    taken. An arrest cannot be an intent -- it is not a verb the grammar
+    offers, and only an authored choice may carry it -- so HUE & CRY's "go
+    quietly" had no chip and still took the player to the cells. The label is
+    read from the choice's authored ``on_pass`` effects on the opening frame
+    (``authored_choice.opening_consequences``), the same row that will run.
+
+    Display only: it widens nothing, runs nothing, and leaves alone any choice
+    that already carries an intent or a label -- so a story whose opening
+    authors no arrest gets its choices back unchanged.
+    """
+    from engine.game.authored_choice import opening_consequences
+
+    for choice in choices:
+        if isinstance(choice.get("intent"), dict) or choice.get("intent_label"):
+            continue
+        try:
+            effects = (opening_consequences(str(choice.get("id") or "")).get("on_pass")
+                       or {}).get("effects") or []
+            if not any((e or {}).get("type") == "arrest" for e in effects):
+                continue
+            from engine.game.locations import LOCATIONS
+            from engine.world import law
+
+            gaol = str((law.load_spec().get("arrest") or {}).get("gaol") or "")
+            where = str((LOCATIONS.get(gaol) or {}).get("name") or "").strip()
+        except Exception as exc:  # noqa: BLE001 -- a label must never lose a turn
+            logger.debug("[default_state] Could not label authored %r: %s", choice, exc)
+            continue
+        choice["intent_label"] = f"arrest · {where}" if where else "arrest"
+    return choices
+
+
 def _is_id_echo(text: str, intent: dict[str, Any]) -> bool:
     """Whether a choice's text is the machine id rather than a written line."""
     bare = text.strip().lower()
@@ -498,12 +535,19 @@ def opening(state: GameState) -> dict[str, Any]:
     One of the two story seams ``engine.session.SessionStore`` takes; see that
     module's docstring for the other.
     """
+    from engine.game.authored_choice import OPENING_FRAME
+
     return {
+        # Which frame this is. `resolve_authored_choice` reads a choice's
+        # authored consequences (deed, on_pass, on_fail) from the manifest
+        # only while the player is choosing from THIS frame; no turn payload
+        # carries the key, so a narrated choice can never borrow them.
+        "frame": OPENING_FRAME,
         "narration": opening_narration(),
         # Labelled like any other turn's: an opening choice declares an intent
         # exactly as a narrated one does, and the flagship's "Follow the smoke
         # toward Edgewood" is a walk with hours on it.
-        "choices": _label_intents(state, opening_choices()),
+        "choices": _label_authored(_label_intents(state, opening_choices())),
         "state": state.to_client_dict(),
         # The opening is a scene like any other and needs its picture.
         # image_ready only fires from run_turn, so without this the very
@@ -603,6 +647,41 @@ def resolve_player_intent(
         return {}
     intent = _chosen(session, choice_id).get("intent")
     return intent if isinstance(intent, dict) else {}
+
+
+def resolve_authored_choice(
+    session: GameSession,
+    choice_id: str,
+    custom_text: Optional[str] = None,
+) -> dict[str, Any]:
+    """
+    What the chosen option does beyond its intent, when an AUTHOR wrote it.
+
+    The third half of a choice, beside ``resolve_player_action``'s sentence
+    and ``resolve_player_intent``'s mechanic: an opening choice's ``deed``,
+    ``on_pass`` and ``on_fail`` (``engine/game/authored_choice.py``), bounded,
+    for ``run_turn`` to apply after the intent.
+
+    Read from the MANIFEST, never from the choice dict the player picked: a
+    narrated choice's extra keys ride through to ``last_turn``, and a model
+    that wrote ``deed:`` onto one must get nothing. So it answers only while
+    ``last_turn`` is the opening frame, and only for a choice that frame
+    actually offered.
+
+    Returns:
+        The bounded consequences, or ``{}`` -- typed text, any other frame, a
+        choice not on offer, or an opening that declares none (every story's
+        but HUE & CRY's, whose turns are therefore unchanged).
+    """
+    from engine.game import authored_choice
+
+    if custom_text and custom_text.strip():
+        return {}
+    if (session.last_turn or {}).get("frame") != authored_choice.OPENING_FRAME:
+        return {}
+    if not _chosen(session, choice_id):
+        return {}
+    return authored_choice.opening_consequences(choice_id)
 
 
 def _evaluate_quests(session: GameSession) -> list[dict[str, Any]]:
@@ -892,6 +971,7 @@ def run_turn(
     player_action: str,
     *,
     intent: Optional[dict[str, Any]] = None,
+    authored: Optional[dict[str, Any]] = None,
     emit_callback: Optional[Callable[[str, dict[str, Any]], None]] = None,
 ) -> dict[str, Any]:
     """
@@ -905,6 +985,11 @@ def run_turn(
             anything plans or narrates. Optional throughout: a caller that
             passes none, a model that declares none and a save written before
             intents existed all take the path the turn took before.
+        authored: The chosen option's authored consequences, from
+            ``resolve_authored_choice`` -- a deed and a pass/fail branch,
+            applied right after the intent. ``{}``/None for every choice but
+            an authored opening's, which is every turn of every story that
+            declares none.
         emit_callback: Optional (event_name, payload) emitter for Socket.IO.
 
     Returns:
@@ -966,6 +1051,18 @@ def run_turn(
             from engine.agents.tool_dispatcher import execute_intent
 
             intent_receipts = execute_intent(intent, session.engine)
+
+        # WHAT THE AUTHOR SAID THE CHOICE DOES BEYOND ITS INTENT. After the
+        # intent, so the deed is witnessed where the choice left the player and
+        # the branch knows whether the roll passed; before the patrol, so a
+        # scene it opens (the Lantern's stop) or a cell it closes stands the
+        # patrol down this turn, as any open scene does.
+        if authored:
+            from engine.game import authored_choice
+
+            intent_receipts = intent_receipts + authored_choice.resolve(
+                state, authored, intent, intent_receipts
+            )
 
         # THE WATCH'S TURN. Once a turn, after the choice has landed -- so a
         # walk into a watchman's street is seen in that street -- and before
@@ -1358,6 +1455,7 @@ __all__ = [
     "nominal_tick_hours",
     "opening",
     "resolve_player_action",
+    "resolve_authored_choice",
     "resolve_player_intent",
     "resume_opening",
     "run_turn",

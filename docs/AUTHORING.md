@@ -201,6 +201,63 @@ discovered story: each authored opening intent is driven through a real
 travel graph must be able to move. Your story is swept the moment its directory
 exists.
 
+**When one verb is not the whole moment: `deed`, `on_pass`, `on_fail`
+(v0.16).** An opening choice may carry three more keys beside its `intent`
+(`engine/game/authored_choice.py`). HUE & CRY's is the worked example: a
+stranger who bolts from a Lantern has rolled stealth *and* done something the
+Watch can file, and one who holds out their wrists is arrested on the quay,
+not walked to the gaol.
+
+```yaml
+      - id: a
+        text: "Duck the lamp and lose yourself in the crowd"
+        intent: { action: check, target: stealth, difficulty: standard }
+        deed: resisting_watch          # a deed kind your law file lists
+        on_pass:
+          text: "You are behind a cart of tallow, then simply somewhere else."
+        on_fail:
+          text: "You make it four steps."
+          encounter: watch_stop        # begins this scene, on the spot
+      - id: c
+        text: "Hold out your wrists and go quietly"
+        on_pass:                       # no intent: the choice always passes
+          text: "You hold out your wrists."
+          effects:
+            - { type: report, deed: pickpocket, guise: magpie, jurisdiction: quay, precision: 0.3 }
+            - { type: arrest }
+```
+
+- `deed:` is committed after the intent, pass or fail, through
+  `law.commit_deed` -- witnesses rolled on the LAW stream exactly as for a
+  lift, with the check's margin when the intent was a check. Needs a Law
+  (§3.11); a kind the law file does not list commits nothing.
+- `on_pass` applies when the choice passed -- its `check` came up `success`
+  or better (a `partial` is a fail here), or, for any other intent or none,
+  the intent went through -- and `on_fail` otherwise. Each is `{text,
+  effects, encounter}`, all optional. `text` is handed to the narrator as the
+  outcome's line, followed by what any Law effect said in its own words (the
+  gaol's name, a guise's label, a clarity word) and whether the deed was
+  seen. `effects` are bounded like a card beat's -- the ordinary types, the
+  structural ones (`report`, `quash_reports`, `law_discharge`, ...) -- plus
+  `arrest`, which ONLY an authored choice may carry
+  (`spec.AUTHORED_CHOICE_EFFECT_TYPES`): a card, a thread, a set-piece and a
+  model-composed challenge all drop it. `encounter` begins that scene through
+  the same door the patrol uses, unless one is already open.
+- A **refused** intent applies nothing: the player did not do it.
+- The button says it first. A choice with an intent gets its intent's chip
+  as any choice does; one with NO intent whose `on_pass` carries `arrest` is
+  chipped `arrest · <the gaol's name>` (`default_state._label_authored`) --
+  HUE & CRY's (c) reads `arrest · The Lantern House`. Nothing else in the
+  authored keys is chipped; display only, it runs nothing.
+- The model can never carry any of this. The keys are read from your manifest,
+  by choice id, and only while the player is choosing from the opening frame
+  (`default_state.resolve_authored_choice`); a narrated choice that writes
+  `deed:` gets nothing, and the keys never reach the client.
+- An opening with none of the keys is exactly what it was.
+  `scripts/validate_content.py` (`check_opening`) names a deed the law does
+  not list, an encounter nobody declared, and an effect an authored choice
+  may not use.
+
 ### 2.5 `ui:` — the plugin, declared not inferred
 
 ```yaml
@@ -381,7 +438,11 @@ What cuts across:
   branch, and the `track` effect kind is deliberately unreachable from deck
   beats — an ending intent set by a dice table is not a scene, it is a hijack.
   Enums are spelled as one flag per value (`entry_mode_guest`), the convention
-  the Garden's scenes README documents.
+  the Garden's scenes README documents. A beat may write a **`ledger_fact`**
+  (since v0.16: it is in `STRUCTURAL_EFFECT_TYPES`, so authored content
+  may and a model-composed challenge may not): the `card` verb hands the
+  beat the session's ledger, so the fact lands, and a gate on `disposition`
+  can hold. HUE & CRY's accusation remembers who the Magpie is this way.
 - A clock's `forces_scene` names a deck by its filename id (or a single card
   by its card id, which is placed first in the hand). A forced scene naming
   nothing is a promise with no scene behind it, and the validator says so. A
@@ -391,6 +452,13 @@ What cuts across:
   lifetime: a clock beat's promise stands for the rest of the run, an event's
   only while the event is active, so a player who takes no turn during its
   window never sees it.
+- **A deal waits for whatever owns the turn.** The director deals nothing
+  while a hand is open, a job is under way, or an encounter is open. The
+  last covers a Lantern's stop, which the Law's patrol can open in the same
+  turn an arrival makes a deck due. A card can open an encounter, never the
+  reverse. The deal is not spent by waiting: it lands on the first turn
+  after, if its `when:` still holds. So a deck scheduled on arrival
+  (HUE & CRY's initiation) is met after the stop, not over it.
 - **A deck is dealt once, unless it says `repeatable: true`.** Every deck is
   spent by its deal (`deck_played_<id>`, and for a forced deal
   `scene_played_<id>`), so a scheduled deck does not re-deal on every turn its
@@ -418,6 +486,17 @@ What cuts across:
   repeatable: true
   cards: [...]
   ```
+
+  HUE & CRY's interrogation (`data/scenes/interrogation.yaml`) is the shipped
+  example, and it shows two rules any deck in the cells lives by. A card
+  cannot write custody (`arrest` and `release` are not card effects), so the
+  fine and the days fixed at the door stand: such a deck moves the FILE
+  (`quash_reports`, `report`), never the sentence. And while a card is open
+  `pay_fine` and `serve` are hidden (the card is the turn), so every card
+  there needs an answer that asks no roll, or a held player is stuck behind
+  a hand. A deck scheduled on custody deals on the same turn an arrest closes
+  the arrest encounter, and the re-arm is read before any guard, so a release
+  seen only under a later encounter still counts.
 
 ### 3.4 Clocks and threads
 
@@ -572,6 +651,27 @@ shipped that bug and `scripts/simulate.py` is how it was found); danger and
 encounters must agree. Every vendor id in `economy.yaml` must be an NPC
 scheduled in `npc_schedules.yaml`, or the shop has no keeper — the validator
 says so.
+
+**Arcs and acts.** `arcs.yaml` maps an arc id to `name`, `blurb`, `order`,
+`involvement`, `default`, `requires_all`/`requires_any` (the shared condition
+grammar) and `unlock_text`. A new run opens on the story's own `default: true`
+arcs (`quests.seed_default_arcs`, called by `procgen.new_game_state`), with
+`active_arc` the highest `order` among them; `active_arc` then only climbs, to
+the highest-order arc unlocked. A story that declares no default keeps the
+engine's `quiet_life` placeholder, since a quest with no `arc:` key belongs to
+it. An arc that is an ACT of the story declares **`narrate: true`**: while it
+is the active arc the narrator is given one line, `ACT: <name>. <blurb>`
+(`prompts.act_block`), the same two strings the journal shows the player, so
+keep the blurb to one sentence and free of anything the player has not
+earned. An arc without the key puts nothing in the prompt, and that holds
+byte-for-byte for every story that does not use it. A side door such as a way
+out or a collection belongs at a lower `order` than the acts, so it never
+takes `active_arc` from one. HUE & CRY's `data/quests/arcs.yaml` is the
+worked example: Act I is the default, Act II opens on a flag, and the way out
+and the Hoard sit at order 0 beneath them. `involvement` is the pacing weight
+(`plot.PlotFormula.arc_weight`), and it is read from arcs the player holds
+QUEST RECORDS in, not from unlocked arcs or `active_arc`: an act's
+involvement counts only once a quest filed under that act has started.
 
 **Eight things a place.** The `buy` verb offers at most eight choices where
 the player stands (`engine/game/intents.py` `_MAX_OPTIONS`, every vendor there
@@ -915,6 +1015,69 @@ nothing when undeclared — the worked example for the whole shape is
   reads "the player robbed a house so-and-so keeps" without a hand-rolled flag
   per house.
 
+**`clues.yaml` — a masked role's trail (v0.16, optional).** Found by fixed
+filename inside `paths.premises` (`engine/world/clues.py`); a story without
+one pays nothing, and its premises never gain a `clue` key. HUE & CRY's is
+the worked example (`games/hue-and-cry/data/premises/clues.yaml`):
+
+```yaml
+role: magpie          # a role in paths.agendas (§3.13), two candidates or more
+evidence: evidence    # a meter the story's state.yaml declares: veiled, min and max
+trail: 4              # clues pointing at the seed's chosen candidate
+herrings: 2           # clues pointing at EACH other candidate
+fresh_flag: clue_fresh  # optional (v0.16): set true by every clue carried out
+clues:
+  - {id: wick_ends, points_to: npc_wren, text: "a twist of cheap lamp-wick ends ..."}
+```
+
+- **Laid at world generation**, after every PREMISES draw, on its own
+  `CLUES` stream (`engine/game/rng.py`), so a trail arriving moves no house.
+  The role's candidate is READ (`agendas.role_for_seed`, the derivation
+  `agendas.role` makes), never drawn. The seed samples `trail` of that
+  candidate's rows and `herrings` of each other candidate's, and as many
+  **generated** premises — never an anchor, which may be a candidate's own
+  home. Every premise of the story then carries `clue`: a row id, or `""`.
+- **Rows:** `id` (unique), `points_to` (one of the role's `from`
+  candidates — never rendered anywhere) and `text` (what the thief finds, word
+  for word). A candidate's rows are the same sentences whether the seed makes
+  them the culprit or a red herring, so one clue suggests and never proves.
+  Every candidate needs at least `max(trail, herrings)` rows, and the trail
+  may not lay more clues than the city generates houses.
+- **Refused at load, naming the file:** an undeclared role, a role with one
+  candidate, an `evidence` value that is not a veiled, bounded meter, a
+  `points_to` outside the role, an id written twice, and a `text` naming any
+  candidate by display name or alias (the mask's own matching: a clue
+  describes, it never accuses).
+- **Found by a job** (§3.12): casing gives a clue house up LAST, as
+  "something here doesn't belong" (intel id `clue`, appended after the
+  shuffled rows so no other intel moves), until the clue is carried out; the
+  score sees the clue cased or not; a job carried out keeps it. The ledger
+  fact leads with the clue's text, and a `text` longer than the ledger's
+  fact length (`MAX_FACT_CHARS`, 140) is refused at load.
+- **The meter rises for red herrings too.** A gate on `evidence` alone can
+  open on herrings; pair it with `clues_favour` before a card treats the
+  evidence as pointing at anyone. A clue's `text` must not sex its owner
+  either (no dress, grooming or jewellery): in a story where the player is
+  taken for the role, that sexes the player.
+- **`clues_favour: {npc, min?: 1, excluding?: [npc, ...]}`** is registered
+  in the shared grammar: at least `min` found clues point at `npc` AND
+  strictly more than at any other candidate (a tie favours nobody).
+  `excluding` (v0.16) sets candidates aside -- the lead is counted among the
+  rest, and an excluded `npc` never leads -- so a suspect already named
+  wrongly stops standing in front of the others. Like `agenda_role`, **a
+  condition only** — no prompt block renders it or any `points_to`
+  (`tests/test_premises_clues.py`), so a card may ask whom the evidence
+  favours while the narrator still does not know. False with no trail, an
+  `npc` who is not a candidate, a `min` below 1, or an `excluding` that is
+  not a list of names.
+- **`fresh_flag`** (optional, v0.16) names a flag `clues.take` sets true on
+  every clue carried out (through `apply_effect`). Content clears it (`{type:
+  flag, flag: clue_fresh, value: false}`) and later asks `{flag: clue_fresh}`:
+  "has a clue been found since?". HUE & CRY's accusation clears it on a
+  wrong naming, so a second accusation waits for something new
+  (`data/scenes/lantern_house_desk.yaml`). Refused at load if it is not a
+  name, or is a `clue_found:` one. Without it, `take` writes nothing new.
+
 **Household routines.** A `household` role's `routine` is an ordinary
 schedule-row list (`{hours, location, activity, available}`), with two
 special location tokens: `@home` (this premise) and `@work` (one of the
@@ -1119,19 +1282,117 @@ in the Wick only under the Magpie's name would be refused the very bribe whose
 `linked` quash loses her file.
 
 **Law effects, and who may use them.** An encounter outcome may use any of
-`report`, `quash_reports`, `law_guise`, `law_link`, `law_cool`, `arrest`,
-`release`, `law_discharge` and `deed`. A thread's authored
-`on_seal`/`on_discharge`/`on_break` effects may use **`quash_reports` and
-`report` only** (`report` since v0.15: a squeezed victim going to the watch):
-the thread bounder (`engine/game/threads.py`, `_bound_effects`) drops every
-other Law kind with a logged adjustment, so a thread that tries to `arrest`
-does nothing. A set-piece's challenge (`paths.challenges`) may
-use **`release`, `quash_reports` and `report`** and no other Law kind, and
-only because it is read from the story's own file (`quash_reports` and
-`report` through `engine/challenges/spec.py::STRUCTURAL_EFFECT_TYPES`,
-`release` through `AUTHORED_CHALLENGE_EFFECT_TYPES`); a
-model-composed challenge has no Law kinds on its allowlist at all, and a
-thread or deck gate never gets `release`. A quash lasts: the lost deeds are remembered per
+`report`, `quash_reports`, `law_guise`, `law_link`, `law_unlink`, `law_cool`,
+`arrest`, `release`, `law_discharge` and `deed`. A thread's authored
+`on_seal`/`on_discharge`/`on_break` effects and a deck card's gate outcomes
+may use **`quash_reports`, `report`, `law_discharge` and `law_unlink` only**
+(`report` since v0.15: a squeezed victim going to the watch; the other two
+since v0.16: the alibi and the reveal): the bounder (`engine/game/threads.py`,
+`_bound_effects`; `engine/content/deck.py`, `_bound_gate`) drops every other
+Law kind with a logged adjustment, so a thread that tries to `arrest` does
+nothing. A set-piece's challenge (`paths.challenges`) may use those four
+plus **`release`** and no other Law kind, and only because it is read from
+the story's own file (the four through
+`engine/challenges/spec.py::STRUCTURAL_EFFECT_TYPES`, `release` through
+`AUTHORED_CHALLENGE_EFFECT_TYPES`); a model-composed challenge has no Law
+kinds on its allowlist at all, and a thread or deck gate never gets
+`release`. An authored opening choice's `on_pass`/`on_fail` (§2.4, v0.16)
+may use the four plus **`arrest`** (`AUTHORED_CHOICE_EFFECT_TYPES`), and
+commits a deed through its own `deed:` key rather than the `deed` effect;
+nothing else outside an encounter may arrest.
+
+**Breaking a link: `law_unlink` and `linked`.** `{type: law_unlink, a: self,
+b: magpie}` removes that DIRECT pair from what the watch believes (the file's
+starting `links` read through, as `law_link` does) and records it in
+`state.law["broken_links"]`. A broken link stays broken until a witness sees
+the guise change again: an authored `law_link` of the pair, either way round,
+is refused (no key re-forms it), but when the player changes face with
+someone present who notices (`law.change_guise`, the same roll that makes
+any link), that is new evidence -- the pair leaves `broken_links` and is
+linked again, and the Magpie's file counts against you once more. So a
+player who has broken the link and then puts the Magpie's mask on in front
+of a witness has undone their own alibi. `law_unlink` is refused, writing
+nothing, for an unknown guise, a guise paired with itself, or a pair not
+directly linked (a belief running through a third face is broken by
+unlinking one of its pairs). Nothing is recomputed: wanted,
+the charge sheet, the wanted poster's likeness, `filed {linked: true}` and
+`quash_reports {linked: true}` all read `law.links` each time, so once
+`self`/`magpie` is broken the Magpie's reports stay on the Magpie's file and
+stop counting against you at once. `{linked: {a, b}}` is the grammar's face
+of that belief -- true while the watch takes `a` and `b` for one person,
+transitively, as the wanted score does; false with no Law or an unknown
+guise (refused at load in an agenda gate).
+
+**Custody history, and the alibi.** `arrest` stamps `since_hour` (the first
+whole absolute hour the clock has not yet crossed, `law.next_hour` -- the
+same boundary an agenda move fires at) beside `since_day`, and `release` --
+however it comes: paid, served, broken out or a death in the cells --
+appends `{since_hour, until_hour, jurisdiction}` to
+`state.law["custody_log"]` before clearing custody. An agenda's robbery
+(`robs: true`) whose move filed a `report` carries that report's `deed_id`
+(§3.13). Together: `{alibi: {agenda?, min?: 1, open?: false}}` is true
+when at least `min` of that agenda's joined robberies (any agenda's,
+without `agenda`) fell at an hour inside a logged stay (`since_hour <= hour
+< until_hour`) or at or after the live stay's `since_hour`. `{type: law_discharge, alibi: true,
+agenda?: the_magpie}` closes exactly those deeds, resolved when the effect is
+applied (`agendas.alibi_deeds`), merged with any `deed_ids` it also names;
+with nothing to close it is refused. Only ROBBERIES are joined: a report an
+agenda files with no robbery behind it -- HUE & CRY's Ardane
+`takes_a_statement`, a Magpie `pickpocket` on the witness's word -- has no
+hit, so no alibi can discharge it, and its charge stays on `self` for as
+long as the watch links you to the Magpie; a card that only discharges by
+alibi leaves such rows filed, and `law_unlink` is what takes their weight
+off you. An alibi, once earned, stays earned -- discharging the robbery
+does not undo the night in the cells -- so a card that should be offered
+once per alibi gates on **`open: true`** (v0.16): only the joined robberies
+whose deed is not yet discharged (`law.discharged`) count. Presented, the
+card is not offered again; a robbery in a LATER stay opens a new one. A
+card presenting a night in the cells as proof is the intended caller.
+HUE & CRY's is the Lantern House front desk
+(`games/hue-and-cry/data/scenes/lantern_house_desk.yaml` `D1_the_alibi`,
+and its twin in the cells, `interrogation.yaml` `Q4_the_alibi`), cut down:
+
+```yaml
+# data/scenes/lantern_house_desk.yaml
+repeatable: true
+when:
+  all:
+    - { at_location: lantern_house }
+    - { in_custody: false }
+    - { alibi: { agenda: the_magpie, open: true } }
+cards:
+  - id: D1_the_alibi
+    tags: [menu]
+    when: { alibi: { agenda: the_magpie, open: true } }
+    beats:
+      - id: present_it
+        text: "Put your finger on the dates, and let the book say it."
+        gate:
+          on_pass:
+            effects:
+              - { type: law_discharge, alibi: true, agenda: the_magpie }
+              - { type: flag, flag: alibi_proven }
+      - id: let_it_lie        # a roll-free way to say nothing: offered again next visit
+        text: "Say nothing about it."
+        gate: { on_pass: { text: "The book will keep." } }
+```
+
+Whether the alibi also breaks the link is the story's call. HUE & CRY's
+does not (it proves you were not the Magpie on those nights, no more); its
+`law_unlink self/magpie` is on the accusation that names the real Magpie,
+`D2_name_*` in the same deck. Because an alibi can still be open AFTER that
+naming, HUE & CRY ships the book twice at each door, one card per belief:
+`D1_the_alibi` (and `Q4_the_alibi`) gated `not_flag: magpie_unmasked`, whose
+text says the file still says Magpie, and `D1_the_alibi_struck` (and
+`Q4_the_alibi_struck`) gated `flag: magpie_unmasked`, whose text says it no
+longer does. A card's words are handed to the narrator as fact: when a
+flag can change what the card should say, gate a second card on it rather
+than write one sentence that is true only half the time.
+
+A save from before v0.16 has no log and no hit `deed_id`s: a custody record
+with no `since_hour` releases without a log row (its start cannot be placed,
+and a guessed one would invent an alibi), and an unjoined hit is never an
+alibi. A quash lasts: the lost deeds are remembered per
 jurisdiction (`law.quashed`), and that watch-house refuses to re-file them
 when a witness's gossip reaches one of its watchmen. All are
 `engine/game/effects.py` kinds; none is written anywhere else (AGENTS.md
@@ -1234,6 +1495,15 @@ with the take). `stages: {<name>: {hours}}` must give all five and no others
   thread's own gate. An uncased secret is not taken: the thief does not know
   what it would be holding. The lever is what was READ — nothing reaches the
   pack — so a blackmail's terms should never promise to hand an object back.
+  A **clue** (§3.10's `clues.yaml`, v0.16) is kept on the same terms but
+  needs no casing: the score's receipt carries its words (`clue`) whether or
+  not the house was watched, and the getaway that carries the job out writes,
+  through `apply_effect`, the flag `clue_found:<clue id>`, an engine-sourced
+  ledger fact of `kind: clue` (no subject) and the story's `evidence` meter
+  +1, and its receipt carries `clue_taken` and `evidence` (the meter's band
+  word). The narrator hears the clue's words at the score and again when it
+  is kept — never whom it points to. A house an agenda emptied first still
+  holds its clue.
 - `getaway: {skill, shift}` — the last roll; success or a costly `partial`
   carries the loot out HOT (`stolen_from`) and marks the premise robbed
   (`jobs.robbed`, read by `burgle` so a robbed house is never offered again,
@@ -1439,7 +1709,9 @@ can read `premise_robbed`:
   reads it should also only be struck while no matching premise is robbed
   yet — `requires: {all: [{at_location: …}], none: [{premise_robbed: …}]}`,
   as HUE & CRY's `gannet_silk_row` does — or a robbery done before the
-  contract pays it on the spot.
+  contract pays it on the spot. (Since v0.16 that `all:` also holds
+  `{flag: guild_initiated}`, and a `refusals:` row says why before the
+  initiation deck's oath: a Guild's work is for its own members.)
 - `discharge_requires: {premise_robbed: {type: <premise type>, district:
   <location>}}` (and/or `has_item`, for "bring back the ledger itself" rather
   than merely robbing the place) gates `discharge`: refused, paying nothing,
@@ -1564,8 +1836,13 @@ that guise). A firing move substitutes `{target}`, `{target_name}`,
 `{target_district}`, `{target_jurisdiction}`, `{owner}` into its effects,
 advances its clock by `advance`, and — with `robs: true` — records the
 premise as taken through the agenda's own `hits` (never the player's
-`jobs.robbed`). **Trace text may use only `{target_name}`**: the others are
-ids (or a masked role's npc id) that would print into the narrator's
+`jobs.robbed`). Since v0.16 the pass stamps every `report` a move (or a
+reaction) files with `agenda` (its id) and `hour` (the absolute hour it
+fired at, overwriting anything authored -- the stamp is the pass's to say),
+and a robbery's hit carries the `deed_id` of the first report that firing
+filed; a move that filed nothing (or whose report was refused) leaves a hit
+with no `deed_id`. That join is what `alibi` reads (§3.11). **Trace text
+may use only `{target_name}`**: the others are ids (or a masked role's npc id) that would print into the narrator's
 material, and any of them in a trace is a load error. A `premise` selector
 never picks the house of the player's OPEN job. A house an agenda robbed can
 still be burgled — the thief need not know — but its score finds the
@@ -1616,7 +1893,26 @@ Two more Law predicates are open to an agenda and need a Law just the same
 (`engine/world/agendas.py::LAW_PREDICATES`): `in_custody` (§3.11) and, since
 v0.15, `filed {jurisdiction, guise?, linked?}` — something live on file
 there (§3.11's "Something to lose"); an agenda naming an unknown
-jurisdiction or guise in `filed` is refused at load.
+jurisdiction or guise in `filed` is refused at load. Since v0.16, two more:
+`linked {a, b}` and `alibi {agenda?, min?, open?}` (both §3.11; an unknown
+guise, an undeclared agenda, a `min` below 1 or a non-bool `open` is
+refused at load).
+
+`agenda_role {role, npc}` (v0.16) is true iff the seed chose `npc` for
+`role` -- `{agenda_role: {role: magpie, npc: npc_wren}}` in the seeds where
+Wren is the Magpie. It reads `agendas.role` (derived from the seed, never
+stored) and advances no stream, so asking it changes nothing. **It is a
+condition only**: no prompt block renders it or its answer, so a card or a
+clue may branch on who the Magpie is while the narrator still does not know
+(`tests/test_law_memory.py` holds this). An undeclared role, or an `npc`
+that is not one of the role's `from` candidates, is refused at load in an
+agenda gate; elsewhere either is simply false. Its companion for the trail
+the seed lays through the houses is `clues_favour {npc, min?, excluding?}`
+(§3.10's `clues.yaml`), a condition only on the same terms. HUE & CRY's
+accusation (`data/scenes/lantern_house_desk.yaml`) uses both: the card for
+a suspect is dealt only while the clues favour them, and whether naming
+them is right is its beat's `agenda_role` gate, resolved when the player
+names them.
 
 A gate cannot read a StoryLedger or a quest's progress (the pass runs inside
 `advance_time`, which holds neither): `disposition`, `days_in_stage` and
@@ -1677,6 +1973,13 @@ rule 6). Leave it out and the story has neither. Models:
   - `cost: N` — the price in the story's coin, paid at the door through the
     `gold` effect; the receipt carries `paid` and the narrator's receipt line
     says "paid 3 cr for the bed". A purse short of it downgrades.
+
+  An unmet `requires:` may say why, in the story's voice:
+  `refusals: [{when, text}]`, the same shape a thread uses. The first row
+  whose `when` holds is the downgrade's note, in place of the generic "that
+  bed is not yours tonight". HUE & CRY's guild bunk tells an unsworn thief
+  that the Company receives newcomers after dark. It is still a downgrade,
+  never a refusal.
 
   **Give every gated entry a `fallback` that is not gated** — the story's
   rough night. An entry whose gate fails with no fallback is slept in anyway

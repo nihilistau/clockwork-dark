@@ -10,11 +10,14 @@ release to release.
 
 ## Status
 
-**v0.15.1** is the current release (v0.15.0 plus per-story changelogs and a docs cleanup; CHANGELOG.md has every release since 0.4.0;
+**v0.16.0** is the current release (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
-**3201 passing, 5 skipped in 18m31s** (v0.15.1, measured in a fresh worktree, where the Design_files-only Garden test skips; a checkout holding the gitignored `Design_files/` runs it, so 4 skip there), no expected failures (measured
-2026-09-26, v0.15.1 release; one skip is the stamina soft-lock test,
+**3405 passing, 4 skipped in 19m27s** (v0.16.0, measured in a checkout
+holding the gitignored `Design_files/`, which runs the Design_files-only
+Garden test; a fresh worktree skips it, so 3404 pass and 5 skip there), no
+expected failures (measured 2026-09-27, v0.16.0 release; one skip is the
+stamina soft-lock test,
 which covers only stories with no rest verb and now skips HUE & CRY too), plus **144 client tests** under `ui/tests/`
 (`npm test --prefix ui`; `vitest` is a devDependency, so
 `npm install --prefix ui` once first). Re-measure and restate these at every
@@ -33,9 +36,13 @@ deterministic, never a model plan — and, since v0.14, a living city: beds and
 bread, scrounging, honest work, night streets, seven factions and the city's
 lore, with its three secret places findable — and, since v0.15, a guild
 economy: the `craft` verb at the Porters' Hall bench, the Magpie's Hoard,
-four blackmail squeezes and the fences' credit; still playable to its one
-shipped ending, `honest_after_all`, with the rest of its content landing
-across v0.16.0–v1.0.0). Pick one with `launcher.py --game <slug>`.
+four blackmail squeezes and the fences' credit — and, since v0.16, Acts I
+and II: the barge opening's three choices made real, the Honest Company's
+initiation deck, the Lantern House's interrogation deck on every arrest, the
+Magpie's trail laid through the houses, and the front desk's alibi and
+accusation; still playable to its one shipped ending, `honest_after_all`,
+with Act III and the eight endings landing in v0.17.0). Pick one with
+`launcher.py --game <slug>`.
 
 ## In flight
 
@@ -55,18 +62,33 @@ only once the last of them lands:
 | v0.13.0 | Engine seams for HUE & CRY's finish: secret places, custody + jailbreak, forced/repeatable decks, a terminal death, the clarity word, `generate_art --game` | **shipped** |
 | v0.14.0 | Living city: survival, forage + Rooftop Road's hidden paths, labour, boons, night encounters, factions, city lore | **shipped** |
 | v0.15.0 | Guild economy: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | **shipped** |
-| v0.16.0 | Acts I–II: arcs, initiation deck, interrogation deck, the Magpie reveal, the alibi beat | in progress |
-| v0.17.0 | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | queued |
+| v0.16.0 | Acts I–II: arcs, the opening, initiation deck, interrogation deck, the Magpie's trail, the reveal and the alibi beat | **shipped** |
+| v0.17.0 | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | next |
 | v0.18.0 | `simulate.py`'s thief policy -- and re-measure welshing's cost for a burglar shut out of both fences (owner decision in v0.15) | queued |
 | v0.19.0 | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | queued |
 | v0.20.0 | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker | queued |
 | v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | queued |
-| v1.0.0 | `hue-and-cry` finished: a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, ~55-plate Grok art pack, live-played -- tagged only once this lands | queued |
+| v0.22.0 | The Clockwork Dark overhaul | queued |
+| v0.23.0 | The Wicked Garden overhaul | queued |
+| v0.24.0 | NEON CITY overhaul | queued |
+| v0.25.0 | THE LONG CON overhaul | queued |
+| v0.26.0 | Dev Story overhaul | queued |
+| v1.0.0 | All six stories finished, each with its art and live play -- `hue-and-cry`'s being a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, a ~55-plate Grok art pack -- tagged only once this lands | queued |
 
 Re-cut once more by the owner on 2026-09-26: the platform releases (v0.19.0
 backends, v0.20.0 Linux and hosting) land before v1.0.0, and the UI/UX
 overhaul merges with what was HUE & CRY's own UI-plugin release into
 v0.21.0, so the shared surfaces are built once, as engine panels.
+
+Re-cut again by the owner on 2026-09-26 (during v0.16.0): after the UI/UX
+overhaul, each of the other five stories gets the full HUE & CRY treatment,
+one a release (v0.22.0–v0.26.0): a design spec, its story and characters,
+the engine systems apt to it, every ending reachable and tested, measured
+balance, reviews, UI screens and art. A large story may take two minors,
+which shifts the later numbers. v1.0.0 now means all six stories finished,
+with art and live play for each. The owner does not approve each
+overhaul's design: write the spec, have it reviewed (opus), build it, and
+keep going.
 
 **The README is kept current at every release through v1.0.0** (owner
 instruction, 2026-09-26): status, features and roadmap each release; new
@@ -112,13 +134,26 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 - A generated premise's secret, carried out of a job, is HELD (the
   `secret_held:<premise>:<secret>` flag and a `secret` ledger fact) and opens
   no thread: only the four anchors' secrets name a blackmail (`thread:`).
-  Nothing reads a generated secret until v0.16.0's interrogation deck and the
-  Acts content.
+  Nothing reads a generated secret yet (none of v0.16's three decks does);
+  Act III (v0.17.0) may.
 - `survival.sleep_until` looks only for a rest entry named `sleep_bed`, so in
   HUE & CRY (whose beds have their own names) it always sleeps rough.
 - A HUE & CRY save from before v0.14 keeps the world it was generated with,
   so it never gains the rooftop and grating hidden paths; only the arrest
   reveal of the Undercroft reaches it.
+- Likewise a HUE & CRY save from before v0.16 has no Magpie's trail: its
+  premises carry no `clue`, so casing never hints and no job finds one
+  (`engine/world/clues.py::row_for`; loads and plays, asserted).
+- The Magpie's trail reads slowly, measured and left (v0.16 T8,
+  `scripts/simulate_acts.py`): a house gives its clue up only on the LAST
+  watch, so a clue costs ~3 houses cased to the end and a deliberate
+  investigator carries out ~2.5 by day 12. 40% of such runs have not
+  unmasked the Magpie by day 12, and a retry after a wrong naming almost
+  never lands in time (1 run in 40). The evidence bar was set to the lead -- two
+  clues that agree (agree, not necessarily true: two herrings can open a
+  wrong naming) -- not to a count; the levers if Act III's fair needs the
+  reveal sooner are the hint's place in casing (`premises._ordered_ids`)
+  and the trail's density (`clues.yaml` `trail`/`herrings`).
 - `death.yaml` is loaded, and so validated, only at the moment of death
   (`encounter.load_death_rules`): a malformed one is a ValueError on the turn
   the player dies, not at story activation. `scripts/doctor.py` and the
@@ -140,12 +175,11 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   (`jobs.yaml`'s header, AUTHORING §3.12): the watch's delay counts whole
   in-game hours (`jobs.now_hour` floors), so a stage of fractional hours can
   bring it up to an hour late.
-- The Magpie's reveal: `magpie_unmasked` (agendas.yaml's role mask) is set
-  by nothing yet -- the unmasking is v0.16.0's (the interrogation deck, or
-  the thief caught in the act). Until then the GM line never says who the
-  Magpie is. The agenda clocks' beats set flags (`ardane_warrant_sworn`,
-  `silas_splits_the_company`, `magpie_spree_full`, ...) that only the Acts'
-  scenes (v0.16.0–v0.17.0) will read.
+- The agenda clocks' beats set flags (`ardane_warrant_sworn`,
+  `silas_splits_the_company`, `magpie_spree_full`, ...) that no scene reads
+  yet (none of v0.16's decks does); Act III's (v0.17.0) will. (The reveal is no longer on this
+  list: since v0.16 the Lantern House front desk's accusation sets
+  `magpie_unmasked`; catching the thief in the act is not built.)
 - Ardane's `takes_a_statement` move can only file her OWN report at a fixed
   deed (`pickpocket`): a move has no way to name the deed a witness actually
   saw, so it cannot upgrade that row directly -- it adds a second, lesser
@@ -183,10 +217,37 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   `test_every_counter_offers_all_of_its_stock`; nothing guards other
   stories, the validator gives no advisory, and a thief carrying bench
   makings can crowd loot out of Marrow's `sell` list.
-- The Magpie keeps robbing while the player serves a sentence: its
-  robberies land on the player's name from inside a cell. v0.16.0's content
-  answers it with an alibi beat (a night in the cells as proof), not the
-  engine.
+- The reveal's and the alibi's flags are for endings that do not exist
+  yet: `magpie_named_wrongly`, `wrongly_accused_<suspect>` and
+  `alibi_proven` are read by nothing but the desk and interrogation decks'
+  own gates, and `magpie_unmasked` by those and the GM line's mask
+  (`agendas.yaml`, `spoilers.yaml`), until v0.17.0's endings. The
+  interrogation's reserved `Q3_the_evidence` slot was released unfilled
+  (the accusation lives at the front desk).
+- The Lantern House front desk (`lantern_house_desk.yaml`) is a repeatable
+  deck, re-armed only when its `when:` is seen false: a card that becomes
+  eligible while the thief is already standing in the Lantern House (the
+  captain coming on duty, say) waits until they walk out and back in
+  (`director.rearm`).
+- `clues_favour {excluding: [...]}` accepts ids that are not candidates of
+  the role and ignores them, and `clues.yaml`'s `fresh_flag` accepts any
+  flag name but a `clue_found:` one (`engine/world/clues.py`); neither is
+  cross-checked against the story.
+- The casing board's `of` count (`premises` casing receipt, `"of"`) is one
+  higher on a house holding a clue, as it is on one holding a secret: it
+  shows that a house holds something more, never whose (accepted in v0.16
+  T6's review).
+- A bed's `requires`/`cost`/`fallback`/`refusals` (a `survival.yaml` rest
+  entry) and an arc's `narrate:` are read at run time and checked by
+  neither `validate_content.py` nor `doctor.py`: a misspelt fallback or a
+  malformed refusal row is skipped, and `narrate` is read truthily.
+- Every story's opening payload now carries `frame: "opening"`
+  (`default_state.opening`, the authored-choice gate): its turns are
+  unchanged, but the opening payload is not byte-identical to v0.15's.
+- `scripts/simulate_decks.py` builds a bare `GameState`, so its walks start
+  on the flagship's phantom `quiet_life` arc, not the story's default arcs
+  (`quests.seed_default_arcs` runs only in `procgen.new_game_state`).
+  Judged harmless in v0.16 T1's review.
 - The Wicked Garden deals `day_09_finale` twice (pre-existing).
 - Survival's hunger/death is not cut-invariant (pre-existing).
 - Set pieces (`paths.challenges`) aren't checked by `doctor.py` or

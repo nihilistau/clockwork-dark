@@ -206,8 +206,24 @@ ALLOWED_EFFECT_TYPES: frozenset[str] = frozenset(
 #: a guise and a jurisdiction it knows, or is refused. A model-composed
 #: challenge that could file reports would be a dice table framing the
 #: player, so it stays authored-only like the rest of this set.
+#:
+#: ``law_discharge`` and ``law_unlink`` (v0.16) are the alibi's two halves:
+#: an authored card that presents a night in the cells as proof closes the
+#: robberies it covers (``law_discharge``, by ``deed_ids`` or by ``alibi:
+#: true``, resolved when the card is played) and breaks the watch's belief
+#: that the player is the Magpie (``law_unlink``). Neither has a magnitude;
+#: from a model-composed challenge either would be a dice table pardoning
+#: the player, so both are authored-only.
+#:
+#: ``ledger_fact`` (v0.16 T7) is what the story now KNOWS: HUE & CRY's
+#: accusation, named rightly, remembers that the captain believed you and who
+#: the Magpie is. It has no magnitude -- the ledger clips its text -- and it
+#: is one of the kinds ``ALLOWED_EFFECT_TYPES``' note keeps from a model-composed
+#: challenge on purpose (a dice table writing itself into memory as
+#: established truth), so authored content gets it here and a model never.
 STRUCTURAL_EFFECT_TYPES: frozenset[str] = frozenset(
-    {"ending_intent", "ending_lock", "ending_module", "quash_reports", "report"}
+    {"ending_intent", "ending_lock", "ending_module", "quash_reports", "report",
+     "law_discharge", "law_unlink", "ledger_fact"}
 )
 
 #: Effect types an AUTHORED CHALLENGE -- a set-piece from the story's own
@@ -223,6 +239,19 @@ STRUCTURAL_EFFECT_TYPES: frozenset[str] = frozenset(
 #: set -- a dice table springing the player is the hijack the note on
 #: ``track`` above describes.
 AUTHORED_CHALLENGE_EFFECT_TYPES: frozenset[str] = frozenset({"release"})
+
+#: Effect types an AUTHORED CHOICE -- an option a story's manifest declares,
+#: today only ``entry.opening`` (``engine/game/authored_choice.py``) -- may
+#: use on top of the structural ones, and nothing else may.
+#:
+#: ``arrest`` is how "hold out your wrists and go quietly" is an arrest and
+#: not a walk: HUE & CRY's opening, where the Lantern takes the stranger in on
+#: the quay. Not structural, for ``release``'s reason turned round: a dealt
+#: card or a sealed bargain that could lock the player up would be a sentence
+#: with no stop behind it. A model-composed spec, a card, a thread and a
+#: set-piece get none of it; the watch's own stop (an encounter outcome) and
+#: a quest hook were already unbounded authored content.
+AUTHORED_CHOICE_EFFECT_TYPES: frozenset[str] = frozenset({"arrest"})
 
 #: How much of a bounded value's RANGE one scene may be worth.
 #:
@@ -759,6 +788,7 @@ __all__ = [
     "ALLOWED_DICE",
     "ALLOWED_EFFECT_TYPES",
     "AUTHORED_CHALLENGE_EFFECT_TYPES",
+    "AUTHORED_CHOICE_EFFECT_TYPES",
     "DEFAULT_UNBOUNDED_CEILING",
     "DIFFICULTIES",
     "EFFECT_CEILINGS",

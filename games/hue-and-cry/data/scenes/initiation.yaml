@@ -1,0 +1,338 @@
+# HUE & CRY -- the initiation: the Honest Company takes you in.
+# ==============================================================
+#
+# Act I's second beat (v0.16). The barge put you on the quay and a Lantern
+# cried you as the Magpie; this is the other half of that mistake. The Honest
+# Company of Night Porters has heard it too, and Mother Gannet wants the
+# Magpie inside the Company rather than working its streets outside it. You
+# are not the Magpie. She does not believe that either, and it is why she
+# wants you.
+#
+# Read by engine/content/deck.py through `paths.decks`; THE FILENAME IS THE
+# DECK ID. The model is the Wicked Garden's prologue (day_00_prologue.yaml):
+# a required spine, then one pool card.
+#
+# WHAT THIS DECK OWES THE REST OF THE GAME. Exactly one durable fact:
+# `guild_initiated`, set by the oath card UNCONDITIONALLY. It opens Act II
+# (`honest_work`, data/quests/arcs.yaml), the guild bunk (survival.yaml) and
+# Mother Gannet's contract (threads.yaml). Nothing on any card can stop it:
+# initiation always completes, whichever way the cards fall. What the rolls
+# decide is how WARMLY the Company takes you in -- the standing you start
+# with (`honest_company` reputation, data/world/factions.yaml):
+#
+#   every roll won                          +8 or +9  (the ballad's lore roll)
+#   the roll-free answer on every card      +4
+#   every roll lost                         +2, and a crown and some wind lost
+#
+# Never below +1 from here, so the bunk's `reputation >= 0` stays open to the
+# newly sworn. (asserted, tests/test_hue_and_cry.py)
+#
+# EVERY CARD HAS A WAY THROUGH WITHOUT A ROLL: each menu card has one answer
+# that asks no dice, and the sequence cards ask none at all. A failed roll
+# costs something small -- a crown, some stamina -- and never the oath.
+#
+# WHEN IT IS DEALT (`when:` below). In the Snuffs, free, not yet sworn, and
+# while Mother Gannet holds court at the long table: 18:00 to 04:00 in
+# data/world/npc_schedules.yaml, which is the scene these cards describe. From
+# noon she is doing the accounts, and from 04:00 she is asleep upstairs behind
+# four locks; a scene that names somebody the schedule puts elsewhere is the
+# bug NEON CITY shipped. So a thief off the 08:00 barge who walks straight to
+# the Snuffs is there by mid-morning and meets the Company that EVENING, on
+# the first turn in the Snuffs from 18:00; until then Gannet's contract and
+# the bunk say the Company receives newcomers after dark (their `refusals`,
+# threads.yaml and survival.yaml). One who came quietly meets it after the
+# cells, never in them (arrest puts the thief in the Lantern House, and
+# `in_custody: false` is the belt to that braces). Dealt ONCE
+# (`deck_played_initiation`), and never over a burglary in progress or an
+# open encounter -- a Lantern's stop on the way in, say: the director deals
+# nothing while either owns the turn, and deals on the first turn after it
+# ends (engine/content/director.py::ensure_scene).
+#
+# SECRECY (spec §6). Gannet believes the stranger is the Magpie and may tell
+# the legend -- the feather, the shine, a thief never seen -- and nothing on
+# any card says or implies who the real Magpie is. She does not know, and she
+# does not guess aloud. (asserted: no candidate's name, alias or trade)
+#
+# The flag convention is the Garden's: one flag, one fact. Nothing here sets a
+# flag v0.17 has not been told about -- `guild_initiated` is the whole record.
+#
+# Version: v0.1.1 [2026-09-27]
+
+id: initiation
+
+# One pool card after the oath: supper, or the ballad. Variety in the welcome,
+# not in the test.
+draw: 1
+
+when:
+  all:
+    - { at_location: the_snuffs }
+    - { in_custody: false }
+    - { not_flag: guild_initiated }
+    - { hour_between: [18, 4] }
+
+cards:
+
+  # =====================================================================
+  # SPINE
+  # =====================================================================
+
+  - id: I1_the_long_table
+    required: true
+    tags: [menu, gm, gannet]
+    title: "The Long Table"
+    text: >-
+      INTENT: the Honest Company finds you before you find it. A porter in a
+      tarred smock falls in beside you in the Snuffs, says "Mother wants a
+      word," and walks you into the Porters' Hall, past the union charter in
+      the window, to the long table where Mother Gannet sits knitting
+      something grey. She calls you the Magpie as if it were your given
+      name. She is delighted to meet you. She has heard about the quay.
+      WARMTH AND TEETH: she pours you tea and tells you, kindly, that the
+      Snuffs is Company ground and a thief who works it outside the Company
+      is a thief who stops working. The Company believes you are the Magpie,
+      and that is exactly why it wants you.
+      CONSTRAINTS: she does not know who the real Magpie is and never guesses
+      aloud. Whatever the player says, the conversation ends with her
+      offering the oath; this card cannot close the door.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: own_the_name
+        text: >-
+          Let her believe it. Play the Magpie: modest, amused, giving nothing
+          away. A persuasion roll -- she has met a great many liars.
+        gate:
+          check: { skill: persuasion, difficulty: standard }
+          on_pass:
+            text: >-
+              She laughs, a real laugh, and the needles stop for a moment.
+              "Oh, you'll do. You'll do very nicely."
+            effects:
+              - { type: reputation, faction: honest_company, delta: 3, why: "played the Magpie at the long table and was believed" }
+          on_fail:
+            text: >-
+              She lets you see that she sees the seams in it, and takes a
+              crown off the table in front of you. "For the lesson, dear.
+              Nobody lies to me in my own Hall. Now drink your tea."
+            effects:
+              - { type: gold, delta: -1 }
+
+      - id: tell_her_the_truth
+        text: >-
+          Tell her plainly: you came for honest work, and you are not the
+          Magpie. A sympathy roll -- whether she hears the person under the
+          denial.
+        gate:
+          check: { skill: sympathy, difficulty: standard }
+          on_pass:
+            text: >-
+              She believes you, which is worse. "Then you're a stranger the
+              Watch has already hanged in its head. The Company looks after
+              strangers like that. It's what we're for."
+            effects:
+              - { type: reputation, faction: honest_company, delta: 3, why: "told Gannet the truth and was heard" }
+          on_fail:
+            text: >-
+              She pats your hand and does not believe a word, and asks you
+              the same six questions again, slower, for an hour, while the
+              tea goes cold.
+            effects:
+              - { type: stamina, delta: -10 }
+
+      - id: say_nothing
+        text: >-
+          Say nothing at all. Drink the tea. Let her do the talking, which
+          she was going to do anyway.
+        gate:
+          on_pass:
+            text: >-
+              "A thief who doesn't talk," says Mother Gannet, approving, to
+              her knitting. "There's a novelty."
+            effects:
+              - { type: reputation, faction: honest_company, delta: 1, why: "held your tongue at the long table" }
+
+  - id: I2_the_proving
+    required: true
+    tags: [menu, gm, gannet]
+    title: "The Proving"
+    text: >-
+      INTENT: the Company's test, in front of the whole back room -- a dozen
+      night porters on the benches with their pipes, watching the famous
+      Magpie the way a crowd watches a dancing bear it has paid for. Gannet
+      names it lightly: show us your hands, dear.
+      WARMTH AND TEETH: the porters cheer a good try and laugh at a bad one,
+      and both are kindly meant; nobody is hurt here, and nobody forgets.
+      CONSTRAINTS: failing the test costs a little and never the oath. The
+      last answer -- work, not theft -- is always open and always honoured.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: lift_the_thimble
+        text: >-
+          Take the silver thimble off Mother Gannet's own finger while she is
+          still knitting. A stealth roll, and a hard one: she is watching for
+          exactly this.
+        gate:
+          check: { skill: stealth, difficulty: hard }
+          on_pass:
+            text: >-
+              You set it on the table in front of her. The needles stop. The
+              back room is silent, and then it is roaring, and Gannet holds
+              out her finger to have it put back on, beaming.
+            effects:
+              - { type: reputation, faction: honest_company, delta: 3, why: "took the thimble off Gannet's finger in front of the Hall" }
+          on_fail:
+            text: >-
+              Her hand closes over yours before you are halfway. "Not bad,"
+              she says, not letting go. The porters make you carry the beer
+              up from the cellar for the rest of the evening, as is
+              traditional.
+            effects:
+              - { type: stamina, delta: -15 }
+
+      - id: open_the_strongbox
+        text: >-
+          The Company's strongbox, on the table, with a lock the size of a
+          fist. Open it. A craft roll.
+        gate:
+          check: { skill: craft, difficulty: standard }
+          on_pass:
+            text: >-
+              The lock gives with a sound like a small bone. Inside is a
+              single copper crown and a note in Gannet's hand that says WELL
+              DONE. You are allowed to keep neither.
+            effects:
+              - { type: reputation, faction: honest_company, delta: 3, why: "opened the Company's strongbox at the proving" }
+          on_fail:
+            text: >-
+              An hour of picking at it, with advice from every bench. Then
+              somebody points out that it was never locked, and the room
+              falls about.
+            effects:
+              - { type: stamina, delta: -10 }
+
+      - id: stare_down_the_doorman
+        text: >-
+          The Hall's doorman, a porter the size of a door, has been told to
+          put you out. Do not let him. A nerve roll.
+        gate:
+          check: { skill: nerve, difficulty: standard }
+          on_pass:
+            text: >-
+              He looks at you. You look back. After a while he laughs,
+              claps you on the shoulder hard enough to hurt, and goes to sit
+              down.
+            effects:
+              - { type: reputation, faction: honest_company, delta: 3, why: "stared down the Hall's doorman" }
+          on_fail:
+            text: >-
+              You find yourself on the step outside without quite knowing how,
+              and have to knock to be let back in. The whole room heard the
+              knock.
+            effects:
+              - { type: stamina, delta: -10 }
+
+      - id: carry_the_crates
+        text: >-
+          Decline to perform. Take off your coat and carry the evening's
+          crates up the Hall stairs with the night porters instead, the way
+          the Company's charter says a porter should.
+        gate:
+          on_pass:
+            text: >-
+              Forty crates of tallow, up two flights. Nobody cheers. The old
+              porters, the ones who remember when the Company carried things,
+              nod to you on the stairs, and Gannet notices that they do.
+            effects:
+              - { type: stamina, delta: -20 }
+              - { type: reputation, faction: honest_company, delta: 1, why: "carried the crates like a porter at the proving" }
+
+  - id: I3_the_oath
+    required: true
+    tags: [sequence, gm, gannet]
+    title: "The Oath"
+    text: >-
+      INTENT: the oath, which is short, and the terms, which are not. Gannet
+      puts down her knitting for it -- the only time anybody in the Hall can
+      remember her doing so. Whatever happened at the table and the proving,
+      it happens now; the Company has decided.
+      WARMTH AND TEETH: a welcome with a price read out loud. Never rob a
+      porter. Never sell a porter to the Watch. The Company's quarter comes off
+      the top of every job. A job taken is a job finished. And a bunk upstairs,
+      and work at her table, from tonight.
+      SEQUENCE -- both beats resolve, in order.
+    beats:
+      - id: the_terms
+        text: >-
+          The four rules of the Honest Company, read out by Mother Gannet
+          from memory while the back room says the last words of each along
+          with her.
+
+      - id: swear_it
+        text: >-
+          Your hand on the charter, and the Company's word for you: one of
+          ours.
+        gate:
+          on_pass:
+            text: >-
+              "There," says Mother Gannet, and picks her knitting back up.
+              "Welcome home, Magpie. Your bunk's the one by the window. Don't
+              let me down."
+            effects:
+              - { type: flag, flag: guild_initiated }
+              - { type: reputation, faction: honest_company, delta: 2, why: "swore the Honest Company's oath" }
+
+  # =====================================================================
+  # POOL -- `draw: 1` of these two, after the oath.
+  # =====================================================================
+
+  - id: I4_supper_in_the_hall
+    tags: [sequence, porters]
+    title: "Supper in the Hall"
+    text: >-
+      INTENT: the warmth, with no teeth at all for once. The night porters eat
+      before the night's work, and tonight you eat with them: eel stew from a
+      copper the size of a bath, bread torn by hand, somebody's terrible
+      brother-in-law's jokes. Nobody asks you anything.
+      SEQUENCE -- one step.
+    beats:
+      - id: eat_with_them
+        text: "A bowl, a heel of bread and a place on the bench."
+        gate:
+          on_pass:
+            text: "It is the first hot meal you have had in Tallowmere, and it tastes like it."
+            effects:
+              - { type: hunger, delta: -25 }
+
+  - id: I4_the_ballad
+    tags: [menu, porters]
+    title: "The Ballad of the Magpie"
+    text: >-
+      INTENT: after the oath, somebody finds a fiddle, and the back room
+      sings the ballad the sellers on the Green have made of the Magpie -- the
+      black feather on the windowsill, the thief who only takes what shines and
+      has never once been seen -- and every porter in the room turns to watch
+      you while they sing it.
+      CONSTRAINTS: the ballad's verses are the city's gossip, not evidence;
+      no verse points at anybody in Tallowmere.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: sing_the_third_verse
+        text: >-
+          Join in on the third verse, the one nobody knows the words to. A
+          lore roll.
+        gate:
+          check: { skill: lore, difficulty: easy }
+          on_pass:
+            text: "You know it. The room goes wild."
+            effects:
+              - { type: reputation, faction: honest_company, delta: 1, why: "knew the third verse of the Magpie's ballad" }
+          on_fail:
+            text: "You do not know it, which is funnier, and the custom is that you buy the next jug."
+            effects:
+              - { type: gold, delta: -1 }
+
+      - id: take_a_bow
+        text: "Let them sing. Take a bow at the end, as the Magpie would."
+        gate:
+          on_pass:
+            text: "They cheer the bow. It is, everybody agrees, exactly what the Magpie would have done."

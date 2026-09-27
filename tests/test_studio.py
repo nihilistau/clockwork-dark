@@ -143,16 +143,20 @@ def test_a_write_reports_the_health_it_caused(client) -> None:
     that it is.
     """
     path = ROOT / "games" / BENCH / "README.md"
-    original = path.read_text(encoding="utf-8")
+    # Byte-exact, line endings included: this is a TRACKED file, and a
+    # restore that normalised them left it modified after every suite run.
+    original = path.read_bytes()
     try:
         body = client.put(
             "/api/studio/file",
-            json={"slug": BENCH, "path": "README.md", "text": original + "\n"},
+            json={"slug": BENCH, "path": "README.md",
+                  "text": original.decode("utf-8") + "\n"},
         ).get_json()
         assert body["ok"] is True
         assert body["health"]["errors"] == 0
     finally:
-        path.write_text(original, encoding="utf-8", newline="\n")
+        path.write_bytes(original)
+    assert path.read_bytes() == original
 
 
 def test_writing_outside_the_story_is_refused(client) -> None:

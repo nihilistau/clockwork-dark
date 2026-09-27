@@ -4,23 +4,73 @@
 # Quest files live in `<paths.quests>/<arc>/*.yaml`; a quest whose arc is not
 # unlocked loads, sits in the table, and never offers itself.
 #
-# ONE ARC IN THE SKELETON. The spine's three acts -- Hue and Cry, Honest Work,
-# The Hanging Fair -- arrive with the content that fills them. What ships now
-# is the one door out of the story that is open from the first morning.
+# THE ACTS (v0.16). The spine is told in acts, and an act is an arc that
+# declares `narrate: true`: while it is the active arc, the narrator is told
+# its `name` and `blurb` in one ACT line (engine/agents/prompts.py::act_block),
+# the same two strings the journal shows the player.
+#
+#   hue_and_cry   Act I, default, order 1 -- off the barge and cried as the
+#                 Magpie. A fresh run opens here (quests.seed_default_arcs).
+#   honest_work   Act II, order 2 -- opens on `guild_initiated`, which the
+#                 initiation deck sets (v0.16 T4). Its blurb conditions the
+#                 Magpie's robberies on the link ("for as long as it takes
+#                 the two of you for one"), because a right naming
+#                 (`law_unlink self/magpie`) usually lands inside Act II and
+#                 the ACT line must stay true after it.
+#   The Hanging Fair, Act III, arrives in v0.17.
+#
+# THE WAY OUT is a door, not an act: default and order 0, so it is open from
+# the first morning (the evening barge, and the `ending_lock` that quest
+# carries) while `active_arc` sits on the act above it. `active_arc` is the
+# highest order unlocked, so order 0 is what keeps the way out from ever
+# outranking an act.
 #
 # AND ONE SIDE ARC (v0.15), `the_magpies_hoard`: the two Hoard pieces that rest
 # in secret places are found by standing there, and a find is a quest that
 # starts and finishes on arrival (the_magpies_hoard/). The arc opens only once
 # the player has stood in one of those places, so neither it nor its quests
 # say a word -- in the journal or the prompt -- before the place is known.
-# Involvement 0 and order 0: a find is not a plot, and `active_arc` stays
-# with the way out (quests.py keeps the first of equal orders).
+# Involvement 0 and order 0: a find is not a plot, and it never takes
+# `active_arc` from an act.
 #
-# Version: v0.1.1 [2026-09-26]
+# Involvement: plot.py (`PlotFormula.arc_weight`) reads the highest
+# involvement among arcs the player holds QUEST RECORDS in -- not the unlocked
+# arcs, and not `active_arc`. An act's involvement therefore counts only once
+# a quest filed under that act (`data/quests/<act>/`) has started. Neither act
+# has a quest yet, so their 1 and 2 move nothing today, and a fresh run paces
+# exactly as it did before the acts. The first quest filed under an act puts
+# its number into play, and is measured then (v0.16 T4/T8).
+#
+# Version: v0.2.0 [2026-09-26]
 
 version: 1
 
 arcs:
+  hue_and_cry:
+    name: "Hue and Cry"
+    default: true
+    narrate: true
+    involvement: 1
+    order: 1
+    blurb: >-
+      Fresh off the morning barge and already cried as the Magpie, you have a
+      watch that believes it and a thieves' guild that believes it too.
+
+  honest_work:
+    name: "Honest Work"
+    narrate: true
+    involvement: 2
+    order: 2
+    requires_any:
+      - { flag: guild_initiated }
+    unlock_text: >-
+      The Honest Company has your oath and your cut, and now it has work for
+      you.
+    blurb: >-
+      The Honest Company has taken you in: contracts to cut, houses to case,
+      and a Watch that files the Magpie's robberies against your face for as
+      long as it takes the two of you for one.
+
   the_way_out:
     name: "The Way Out"
     default: true

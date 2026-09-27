@@ -20,9 +20,13 @@
 #   sleep_flophouse   Old Nance's in the Snuffs: a straw pallet in a row of
 #                     them, 1 crown at the door.
 #   sleep_guild_bunk  the bunk room over the Porters' Hall, the Snuffs: free
-#                     to anyone the Honest Company has no quarrel with
-#                     (standing 0 or better -- where a new face starts, and
-#                     where a contract left undone, -10, takes it away).
+#                     to the Company's own -- sworn (`guild_initiated`,
+#                     v0.16, the initiation deck) and with no quarrel
+#                     outstanding (standing 0 or better; the oath leaves a
+#                     new porter at +2 to +9, and a contract left undone,
+#                     -10, takes it away). Until the oath, a rough night,
+#                     and its `refusals` tell the narrator why: the Company
+#                     receives newcomers after dark (18:00, the deck).
 #   sleep_tavern      a room with a door at the Snuffed Wick (Wickmarket) or
 #                     over the Tallow Barge on the quay: 3 crowns.
 #   sleep_cell        the plank bench at the Lantern House, while the Watch
@@ -77,7 +81,7 @@
 # v1.0 (CLAUDE.md), so hp 0 has no respawn yet, and 20 hp at 1.0 an hour was
 # less than a day from the `starving` line to the end.
 #
-# Version: v0.1.0 [2026-09-25]
+# Version: v0.2.0 [2026-09-26]
 
 version: 1
 
@@ -120,9 +124,22 @@ rest:
     stamina: full
     hp: 2
     locations: [the_snuffs]
-    # The Company's good opinion, and nothing else: a standing below zero
-    # (a contract left undone, a Company house robbed) and the door is shut.
-    requires: {reputation: {faction: honest_company, min: 0}}
+    # The Company's own, in its good opinion (v0.16): sworn to it
+    # (`guild_initiated`, the initiation deck, data/scenes/initiation.yaml)
+    # and at a standing of zero or better -- below it (a contract left undone,
+    # a Company house robbed) the door is shut. Gating a bed is allowed only
+    # because the flophouse next door and a rough night never are (rule 6).
+    requires:
+      all:
+        - {flag: guild_initiated}
+        - {reputation: {faction: honest_company, min: 0}}
+    # The story's words for the downgrade (survival.py `refusals`): the
+    # narrator is told why the door is shut, and when it opens.
+    refusals:
+      - when: {not_flag: guild_initiated}
+        text: "the bunks over the Porters' Hall are for the Company's own, and the Company receives newcomers after dark, at the long table"
+      - when: {reputation: {faction: honest_company, max: -1}}
+        text: "the Company has a quarrel with you, and the bunk room door stays shut until it is settled"
     fallback: sleep_rough
 
   sleep_tavern:

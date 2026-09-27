@@ -50,9 +50,12 @@ THIS MODULE holds:
   stored, so it survives a save and cannot be read out of one;
 * ``owner_of``;
 * the selectors (``candidates``/``select``);
-* the three predicates the loader validates gates against: ``wanted``,
-  ``reported_to`` and ``agenda_hit``. ``premise_robbed``'s ``owner`` filter
-  lives with the rest of that predicate in ``jobs``;
+* the predicates the loader validates gates against: ``wanted``,
+  ``reported_to`` and ``agenda_hit``, and (v0.16) ``alibi`` -- robberies
+  walked while the watch held the player, named for a discharge by
+  ``alibi_deeds`` -- and ``agenda_role``, a condition on who the seed chose
+  that no prompt renders. ``premise_robbed``'s ``owner`` filter lives with
+  the rest of that predicate in ``jobs``;
 * ``advance``, the per-hour pass that fires moves and then reactions,
   called from ``engine/game/clock.py::advance_time``;
 * what the narrator may see: ``signs_here`` (private traces at the player's
@@ -83,7 +86,7 @@ Every content fault is a ValueError naming the file, for the reason
 on a clock the narrator's clock block never reads, would load, validate and
 do nothing -- the inert shape this repo has shipped before.
 
-Version: v0.4.1 [2026-09-25]
+Version: v0.5.0 [2026-09-26]
 """
 
 from __future__ import annotations
@@ -118,7 +121,8 @@ SELECTOR_KEYS: dict[str, frozenset[str]] = {
 #: Where a trace may be left, besides a location id.
 TRACE_WHERES = ("target", "owner")
 #: Predicates that read the Law, and so need one declared.
-LAW_PREDICATES = frozenset({"wanted", "reported_to", "in_custody", "filed"})
+LAW_PREDICATES = frozenset({"wanted", "reported_to", "in_custody", "filed", "linked",
+                            "alibi"})
 #: Predicates that need a StoryLedger in scope. The agendas pass runs inside
 #: ``advance_time``, which holds none, so each would be False forever there.
 LEDGER_PREDICATES = frozenset({"disposition"})
@@ -134,7 +138,7 @@ BOOKKEEPING_EFFECTS = frozenset({"agenda_mark", "agenda_hit", "agenda_trace",
 #: refuses at runtime -- a move that loads and files nothing.
 LAW_EFFECTS = frozenset({
     "witness", "report", "quash_reports", "deed", "law_cool", "law_guise",
-    "law_link", "arrest", "release", "law_discharge", "law_last_deed",
+    "law_link", "law_unlink", "arrest", "release", "law_discharge", "law_last_deed",
 })
 #: What an authored effect's strings may name, substituted when the move
 #: fires. Every ``{target...}`` needs a ``select``; ``{owner}`` is an npc id.
@@ -260,6 +264,29 @@ def _check_condition(path: Path, where: str, node: Any, ctx: dict[str, Any]) -> 
                 raise _fail(path, f"{where}: unknown guise `{body['guise']}`")
         elif name == "agenda_hit":
             _check_agenda_hit(path, where, body, ctx)
+        elif name == "linked":
+            for key in ("a", "b"):
+                if str(body.get(key) or "") not in ctx["law"]["guises"]:
+                    raise _fail(path, f"{where}: `linked.{key}` `{body.get(key)}` is not a "
+                                      "guise")
+        elif name == "alibi":
+            if "agenda" in body and str(body["agenda"]) not in ctx["agenda_ids"]:
+                raise _fail(path, f"{where}: `alibi.agenda` `{body['agenda']}` is not a "
+                                  "declared agenda")
+            least = body.get("min", 1)
+            if isinstance(least, bool) or not isinstance(least, int) or least < 1:
+                raise _fail(path, f"{where}: `alibi.min` must be a whole number of at least 1")
+            if not isinstance(body.get("open", False), bool):
+                raise _fail(path, f"{where}: `alibi.open` must be true or false")
+        elif name == "agenda_role":
+            role_name = str(body.get("role") or "")
+            members = ctx["role_members"].get(role_name)
+            if members is None:
+                raise _fail(path, f"{where}: `agenda_role.role` `{role_name}` is not a "
+                                  "declared role")
+            if str(body.get("npc") or "") not in members:
+                raise _fail(path, f"{where}: `agenda_role.npc` `{body.get('npc')}` is not "
+                                  f"one of role `{role_name}`'s candidates")
     return node
 
 
@@ -649,6 +676,13 @@ def spec() -> dict[str, Any]:
         # Read before any gate is checked, so `agenda_hit {agenda}` may name an
         # agenda declared further down the file.
         "agenda_ids": {str(k) for k in _mapping(path, doc.get("agendas"), "agendas")},
+        # Likewise the roles' candidates, raw, so an `agenda_role` gate --
+        # even one inside a role's own `unmask_when` -- is checked against them.
+        "role_members": {
+            str(name): [str(m) for m in (body.get("from") or [])]
+            if isinstance(body, dict) and isinstance(body.get("from"), list) else []
+            for name, body in _mapping(path, doc.get("roles"), "roles").items()
+        },
     }
     roles = _load_roles(path, doc, ctx)
     ctx["candidate_names"] = _candidate_names(roles)
@@ -682,12 +716,21 @@ def role(state: GameState, name: str) -> str:
     leak who the Magpie is, and a reload cannot change it. Its own stream, so
     adding a second role never re-deals the first.
     """
+    return role_for_seed(int(state.rng_seed), name)
+
+
+def role_for_seed(seed: int, name: str) -> str:
+    """
+    ``role`` from the seed alone, for world generation, which runs before any
+    GameState exists (``clues.place``). The same derivation -- one read, no
+    counter, nothing stored -- so the two can never disagree.
+    """
     from engine.game.rng import stable_rng
 
     row = (spec().get("roles") or {}).get(str(name))
     if not row:
         return ""
-    return str(stable_rng(int(state.rng_seed), f"agenda:{name}").choice(row["from"]))
+    return str(stable_rng(int(seed), f"agenda:{name}").choice(row["from"]))
 
 
 def owner_of(state: GameState, agenda_id: str) -> str:
@@ -954,13 +997,19 @@ def _try_move(state: GameState, at: GameState, agenda_id: str, agenda: dict[str,
             return None  # nothing to act on: it does not fire and does not stamp
         target = picked
         subs.update(_target_facts(at, move["select"], target))
-    receipts = apply_effects(state, _substitute(move["effects"], subs))
+    before = _filed_deeds(state)
+    receipts = apply_effects(state, _stamped(_substitute(move["effects"], subs),
+                                             agenda_id, hour))
     if move["advance"]:
         receipts.append(apply_effect(state, {"type": "value", "name": agenda["clock"],
                                              "delta": move["advance"], "why": f"agenda:{key}"}))
     if move["robs"]:
-        receipts.append(apply_effect(state, {"type": "agenda_hit", "agenda": agenda_id,
-                                             "premise": target, "hour": hour}))
+        hit: dict[str, Any] = {"type": "agenda_hit", "agenda": agenda_id,
+                               "premise": target, "hour": hour}
+        deed_id = _filed_by(state, before, agenda_id, hour)
+        if deed_id:
+            hit["deed_id"] = deed_id
+        receipts.append(apply_effect(state, hit))
     trace = move["trace"]
     if trace:
         receipts.append(apply_effect(state, {
@@ -972,6 +1021,45 @@ def _try_move(state: GameState, at: GameState, agenda_id: str, agenda: dict[str,
     apply_effect(state, {"type": "agenda_mark", "move": key, "hour": hour})
     return {"agenda": agenda_id, "move": move["id"], "hour": hour, "target": target,
             "effects": receipts}
+
+
+def _stamped(effects: Any, agenda_id: str, hour: int) -> Any:
+    """A move's or reaction's effects with every ``report`` stamped ``{agenda, hour}`` (v0.16).
+
+    The pass's own stamp, overwriting anything authored: which agenda filed a
+    report, and at which absolute hour, is the pass's to say -- the same
+    reason ``agenda_hit`` is bookkeeping an authored move may not write.
+    """
+    if not isinstance(effects, list):
+        return effects
+    return [
+        {**effect, "agenda": agenda_id, "hour": hour}
+        if isinstance(effect, dict) and str(effect.get("type") or "").strip().lower() == "report"
+        else effect
+        for effect in effects
+    ]
+
+
+def _filed_deeds(state: GameState) -> set[str]:
+    """Every deed id on file: what a move's own filing is told apart from."""
+    return {str(row.get("deed_id")) for row in state.law.get("reports") or []
+            if row.get("deed_id")}
+
+
+def _filed_by(state: GameState, before: set[str], agenda_id: str, hour: int) -> str:
+    """
+    The deed id of the first report THIS firing filed -- a row stamped with
+    this agenda and hour whose deed was not on file before its effects ran --
+    or "". Not merely the first stamped row: two of one agenda's moves firing
+    in the same hour would otherwise both claim the first one's deed.
+    """
+    for row in state.law.get("reports") or []:
+        deed_id = str(row.get("deed_id") or "")
+        if not deed_id or deed_id in before:
+            continue
+        if row.get("agenda") == agenda_id and row.get("hour") == hour:
+            return deed_id
+    return ""
 
 
 def _scratch(state: GameState, hour: int) -> GameState:
@@ -1012,8 +1100,12 @@ def _try_reaction(state: GameState, agenda_id: str, agenda: dict[str, Any],
     if not now:
         apply_effect(state, {"type": "agenda_mark", "truth": {key: False}})
         return None
-    receipts = apply_effects(state, _substitute(reaction["effects"],
-                                                {"owner": owner_of(state, agenda_id)}))
+    # Stamped as a move's are (v0.16): a report a reaction files names its
+    # agenda and hour too. A reaction has no `select` and so no `robs`
+    # (`_load_reaction`), so there is no hit here to join a deed to.
+    receipts = apply_effects(state, _stamped(
+        _substitute(reaction["effects"], {"owner": owner_of(state, agenda_id)}),
+        agenda_id, hour))
     if reaction["advance"]:
         receipts.append(apply_effect(state, {"type": "value", "name": agenda["clock"],
                                              "delta": reaction["advance"],
@@ -1410,6 +1502,104 @@ def _p_agenda_hit(state: GameState, value: Any, ctx: Any) -> bool:
     return False
 
 
+def _alibi_hits(state: GameState, agenda: str = "", *,
+                open_only: bool = False) -> list[dict[str, Any]]:
+    """
+    The ONE reading ``alibi`` and ``alibi_deeds`` share, so a card's gate can
+    never open on an alibi its discharge would not reach: every hit of
+    ``agenda`` (any agenda when "") that is joined to a report (``deed_id``)
+    and whose absolute hour the watch held the player through
+    (``law.held_at``: a logged stay, or the live one).
+
+    A hit with no ``deed_id`` -- one whose move filed nothing, or any hit in
+    a save made before v0.16 -- cannot be joined to a charge and is ignored.
+    ``open_only`` (v0.16 T7) keeps only the hits whose deed is not yet
+    discharged (``law.discharged``): an alibi not yet presented.
+    """
+    from engine.world import law
+
+    if not declared() or not law.declared():
+        return []
+    if agenda and agenda not in (spec().get("agendas") or {}):
+        return []
+    closed = set(law.discharged(state)) if open_only else set()
+    out: list[dict[str, Any]] = []
+    for hit in state.agendas.get("hits") or []:
+        if agenda and str(hit.get("agenda")) != agenda:
+            continue
+        hour = hit.get("hour")
+        if not hit.get("deed_id") or isinstance(hour, bool) or not isinstance(hour, int):
+            continue
+        if str(hit["deed_id"]) in closed:
+            continue
+        if law.held_at(state, hour):
+            out.append(hit)
+    return out
+
+
+def alibi_deeds(state: GameState, agenda: str = "") -> list[str]:
+    """
+    The deed ids an alibi clears: each robbery by ``agenda`` (any when "")
+    walked while the player sat in the cells, in the order they happened.
+    What ``law_discharge {alibi: true}`` resolves to when a card is played.
+    [] in a story with no Law or no agendas.
+    """
+    out: list[str] = []
+    for hit in _alibi_hits(state, str(agenda or "")):
+        deed_id = str(hit["deed_id"])
+        if deed_id not in out:
+            out.append(deed_id)
+    return out
+
+
+def _p_alibi(state: GameState, value: Any, ctx: Any) -> bool:
+    """``{alibi: {agenda?, min?: 1, open?: false}}`` -- at least ``min`` of
+    that agenda's joined robberies fell while the watch held the player
+    (``_alibi_hits``).
+
+    An alibi, once earned, is earned: the robbery happened while you sat in
+    a cell, and discharging it does not undo that. ``open: true`` (v0.16 T7)
+    counts only the robberies whose deed is still on the books -- an alibi
+    not yet presented -- so a card gated on it is offered once per alibi
+    EARNED, and again when a later stay earns another.
+
+    ``alibi: true`` reads as ``{}``. False -- never open -- with no Law or no
+    agendas, for an agenda the file does not declare, a ``min`` below 1, or
+    an ``open`` that is not a bool.
+    """
+    if value is True:
+        value = {}
+    if not isinstance(value, dict):
+        return False
+    least = value.get("min", 1)
+    if isinstance(least, bool) or not isinstance(least, int) or least < 1:
+        return False
+    open_only = value.get("open", False)
+    if not isinstance(open_only, bool):
+        return False
+    hits = _alibi_hits(state, str(value.get("agenda") or ""), open_only=open_only)
+    return len(hits) >= least
+
+
+def _p_agenda_role(state: GameState, value: Any, ctx: Any) -> bool:
+    """``{agenda_role: {role, npc}}`` -- the seed chose ``npc`` for ``role``.
+
+    Reads ``role`` -- a ``stable_rng`` derived afresh from the seed, so it
+    advances no counter and writes nothing -- and nothing else. A CONDITION
+    ONLY: no prompt block renders it (held by
+    ``tests/test_law_memory.py``), so a card may branch on who the Magpie is
+    without the narrator learning it before ``magpie_unmasked``. False with
+    no agendas, an undeclared role, or a missing ``npc``.
+    """
+    if not isinstance(value, dict):
+        return False
+    name = str(value.get("role") or "").strip()
+    npc = str(value.get("npc") or "").strip()
+    if not name or not npc or not declared():
+        return False
+    return role(state, name) == npc
+
+
 def _register() -> None:
     """Extend the shared condition grammar (listed in ``quests._GRAMMAR_MODULES``)."""
     from engine.game.quests import register_predicate
@@ -1417,6 +1607,8 @@ def _register() -> None:
     register_predicate("wanted", _p_wanted)
     register_predicate("reported_to", _p_reported_to)
     register_predicate("agenda_hit", _p_agenda_hit)
+    register_predicate("alibi", _p_alibi)
+    register_predicate("agenda_role", _p_agenda_role)
 
 
 _register()
@@ -1436,6 +1628,7 @@ __all__ = [
     "TRACE_WHERES",
     "Walk",
     "advance",
+    "alibi_deeds",
     "begin",
     "candidates",
     "clear_shown",
@@ -1448,6 +1641,7 @@ __all__ = [
     "reaction_keys",
     "revealed",
     "role",
+    "role_for_seed",
     "select",
     "signs_here",
     "spec",

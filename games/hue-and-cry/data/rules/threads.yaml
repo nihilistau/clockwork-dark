@@ -34,7 +34,10 @@
 # how it hands out work: a house, a fee, a day to have it done by. It is an
 # ordinary thread (docs/AUTHORING.md §3.12, "Guild contracts are threads"):
 #   strike     At the long table in the Porters' Hall (`requires`: the
-#              Snuffs, where Gannet keeps court), she names Silk Row: the
+#              Snuffs, where Gannet keeps court), and only to a thief who has
+#              sworn the Company's oath (`guild_initiated`, since v0.16: the
+#              initiation deck, data/scenes/initiation.yaml; refused in
+#              those words before it), she names Silk Row: the
 #              client wants a Silk Row name in the morning's gossip, and
 #              does not mind which house it is. Only while Silk Row is still
 #              unrobbed (`none: [premise_robbed ...]`): the discharge cannot
@@ -153,7 +156,7 @@
 # or is not, the Magpie (asserted in tests/test_hue_and_cry.py). The
 # captain's squeeze names the Magpie only as the Watch's belief about YOU.
 #
-# Version: v0.5.3 [2026-09-26]
+# Version: v0.6.0 [2026-09-26]
 
 version: 1
 
@@ -211,9 +214,15 @@ templates:
     # and only while no Silk Row house has been robbed yet. The discharge
     # below reads "a Silk Row house robbed, ever", so a contract struck after
     # the robbery would be paid by a job done before it was offered.
+    # And only to the Company's own (v0.16): the Company's work is for those
+    # who have sworn its oath (`guild_initiated`, data/scenes/initiation.yaml).
     requires:
-      all: [{ at_location: the_snuffs }]
+      all: [{ at_location: the_snuffs }, { flag: guild_initiated }]
       none: [{ premise_robbed: { district: silk_row } }]
+    # When the oath is what shuts it, say so (threads.strike_refusal).
+    refusals:
+      - when: { all: [{ at_location: the_snuffs }, { not_flag: guild_initiated }] }
+        text: "Mother Gannet gives the Company's work to the Company's own, and you have not sworn its oath yet -- the Company receives newcomers after dark, at the long table in the Porters' Hall"
     # Paid only once a job has carried the take out of a house on Silk Row --
     # any type, so every seed has one to rob (see the header).
     discharge_requires:

@@ -76,7 +76,66 @@
 # committed replay; the first draft's "three days alone" and "sought for
 # five or six" came from a scratch script and did not reproduce.)
 #
-# Version: v0.3.3 [2026-09-26]
+# RESISTING THE WATCH (v0.16) joined at severity 3: the opening's "duck the
+# lamp and run" (game.yaml), committed pass or fail through the Law's own
+# witnesses -- Brask and Tully stand on the quay at eight, so a Lantern files
+# it on the Quay about four runs in five. Measured with
+# `scripts/simulate_law.py --opening a --days 3 --set deeds.resisting_watch=N`
+# (40 seeds, careful policy; the Quay's band each morning):
+#
+#   at 2  invisible: 2.0 is `noticed`'s floor and an hour's cooling takes it
+#         under, so every seed reads `unknown` the next morning -- a run the
+#         Watch filed and the narrator could never feel.
+#   at 3  `noticed` on the Quay the next morning on 29 of the 37 seeds read
+#         (all 32 that were filed, less the three it charged in a cell), gone
+#         by the morning after (a hair under `noticed`'s floor at 08:00:
+#         three less two days' cooling); never `sought` alone, with or without the
+#         agendas (with them, `noticed` on 30, then 2 and 2: the Magpie's nights).
+#   at 4  4.0 is `sought`'s floor, so a Lantern may know you on sight in the
+#         hour it is filed, and it is still `noticed` three mornings on (29
+#         of 37 each morning); with the agendas, `sought` again on the third
+#         morning on two seeds. A stop for running.
+#
+# Three: as heavy as a house, below a blow -- a run is resisting, not
+# striking (assault_watch stays the only 5). Charged, it is a fine of nine
+# crowns or three days, so a runner who fumbles and then surrenders to the
+# stop pays more than one who came quietly (one blurred lift: three crowns or
+# a day). The table is in the root CHANGELOG.md, [Unreleased].
+#
+# FALSE WITNESS (v0.16 T7) joined at severity 3: naming the wrong person to
+# Captain Ardane as the Magpie (data/scenes/lantern_house_desk.yaml). She
+# files it herself, against your own face, in the Wick wards, at precision
+# 1.0 -- she was sitting across the desk. ON A CLEAN FACE, by the arithmetic
+# resisting_watch was set by: at 2 an hour's cooling puts it under `noticed`
+# before the player leaves the building, a cost nobody could feel; at 3 it
+# is `noticed` in the Wick for two days (0.5 a day of cooling) and never
+# `sought` alone; at 4 it is `sought` the hour it is filed.
+#
+# BUT NO ACCUSER HAS A CLEAN FACE (v0.16 T8, measured). Until a right naming
+# breaks it, the Watch links you to the Magpie (`links`, below), so the false
+# witness lands on top of every robbery the Magpie has walked in the Wick in
+# your name. scripts/simulate_acts.py reads your heat in the Wick at every
+# name the desk offered (94 offers, 40 seeds x 3 openings) and the band a
+# false witness of each severity WOULD have left you in there:
+#
+#   severity         unknown  noticed   sought   wanted   hunted
+#   (at the offer)     27%      32%      20%       9%      13%
+#   2                   -       27%      37%      19%      17%
+#   3                   -       13%      46%      21%      20%    <- shipped
+#   4                   -        -       39%      39%      21%
+#
+# So at 3, 87% of wrong-namers would stand at `sought` or worse -- where a
+# Lantern can know you on the way out (`recognise`) -- against 42% before
+# the naming: typically a band worse (12 of the 19 `hunted` were `hunted`
+# already, on the Magpie's heat). Of the 15 real wrong namings measured, none
+# led to an arrest before day 12, and 3 were stopped at least once
+# afterwards. A cost, not a spiral. 2 would leave more than a quarter of
+# wrong-namers feeling nothing; 4 puts every one at `sought` or worse and a
+# clean face `sought` the hour it is filed. Kept at 3; charged, nine crowns
+# or three days. A crime against the Watch's time, not a blow: below
+# assault_watch.
+#
+# Version: v0.5.1 [2026-09-27]
 
 # Schedule roles that ARE the law (data/world/npc_schedules.yaml): Captain
 # Ardane, Sergeant Brask, Lanterns Tully and Hobb. A Lantern who sees a deed
@@ -121,6 +180,8 @@ deeds:
   assault_watch: {severity: 5}  # the watch_stop's `fight`
   burglary: {severity: 3}       # a job seen, shouted about, or carried out onto the street
   blackmail: {severity: 3}      # a squeeze left uncollected: the victim swears to it (threads.yaml)
+  resisting_watch: {severity: 3}  # bolting from a Lantern who shouted: the opening's run (game.yaml)
+  false_witness: {severity: 3}  # naming the wrong Magpie to the captain (lantern_house_desk.yaml)
 
 notice:
   base: 0.6

@@ -19,19 +19,24 @@ features were, and `v1.0.0` is tagged only once the last of them lands:
 |---|---|---|
 | **v0.8** | The audit fixes (§1) | Presence and the evaluator are prerequisites: a thief story in which the narrator does not know who is in the room cannot be built |
 | **v0.9.0** | Premises (§3), plus the HUE & CRY skeleton | Shipped -- proven first because a thief needs a city before it needs a law, a job or an agenda |
-| **v0.10.0** | The Law (§2) | Next -- reads the `noticed`/witness groundwork Premises and thievery already lay down |
+| **v0.10.0** | The Law (§2) | Shipped -- reads the `noticed`/witness groundwork Premises and thievery already lay down |
 | **v0.11.0** | Jobs & flashbacks (§4) | Depends on Premises (a job opens on a premise) and the Law (an alarm summons the watch) |
 | **v0.12.0** | Agendas (§5) | Last of the four -- deterministic world motion, proven once the other three systems exist to move around |
 | **v0.13.0** | Engine seams for HUE & CRY's finish (§6): secret places, custody + jailbreak, forced/repeatable decks, a terminal death, the clarity word, `generate_art --game` | Shipped -- closes the small seams the four engine features left before §6's content can be built on them |
 | **v0.14.0** | Living city: survival, forage + Rooftop Road's hidden paths, labour, boons, night encounters, factions, city lore | Shipped |
 | **v0.15.0** | Guild economy: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | Shipped |
-| **v0.16.0** | Acts I--II: arcs, initiation deck, interrogation deck, the Magpie reveal, the alibi beat | Next |
-| **v0.17.0** | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | |
+| **v0.16.0** | Acts I--II: arcs, initiation deck, interrogation deck, the Magpie reveal, the alibi beat | Shipped |
+| **v0.17.0** | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | Next |
 | **v0.18.0** | `simulate.py`'s thief policy, which also re-measures welshing's cost for a burglar shut out of both fences (owner decision in v0.15) | |
 | **v0.19.0** | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | Platform, before v1.0.0's live play |
 | **v0.20.0** | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker | Platform |
 | **v0.21.0** | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | The overhaul and the story's screens share their surfaces, so they are built once |
-| **v1.0.0** | HUE & CRY finished (§6): the art pack (~55 Grok plates) and live play | Tagged only once this lands |
+| **v0.22.0** | The Clockwork Dark overhaul | The other five stories get HUE & CRY's full treatment, after the UI overhaul so each is built on the new screens |
+| **v0.23.0** | The Wicked Garden overhaul | |
+| **v0.24.0** | NEON CITY overhaul | |
+| **v0.25.0** | THE LONG CON overhaul | |
+| **v0.26.0** | Dev Story overhaul | |
+| **v1.0.0** | All six stories finished, each with its art and live play -- HUE & CRY's (§6) being its art pack (~55 Grok plates) and live play | Tagged only once this lands |
 
 Re-cut a third time (owner, 2026-09-26, during v0.15.0): two platform
 releases -- model-server agnostic (v0.19.0), then Linux and a hosted mode
@@ -39,6 +44,17 @@ releases -- model-server agnostic (v0.19.0), then Linux and a hosted mode
 HUE & CRY's own UI-plugin release as v0.21.0, so the wanted poster, job panel
 and casing board are built once as generic engine panels rather than as one
 story's plugin.
+
+Re-cut a fourth time (owner, 2026-09-26, during v0.16.0): after the UI/UX
+overhaul, each of the other five stories gets the full HUE & CRY treatment
+-- a design spec, its story and characters, the engine systems apt to it,
+every ending reachable and tested, measured balance, reviews, UI screens and
+art -- one story a release: The Clockwork Dark (v0.22.0), The Wicked Garden
+(v0.23.0), NEON CITY (v0.24.0), THE LONG CON (v0.25.0) and Dev Story
+(v0.26.0). A large story may take two minors, which shifts the later
+numbers. v1.0.0 now means all six stories finished, with art and live play
+for each, not HUE & CRY alone. The owner does not need to approve each
+overhaul's design: its spec is written, reviewed and built.
 
 Every feature is **generic**: a story that does not declare its `paths.*` key
 pays nothing and its turns stay byte-identical, asserted by test the way

@@ -1,0 +1,408 @@
+# HUE & CRY -- the front desk of the Lantern House, walked into free.
+# ====================================================================
+#
+# Act II's two ways to make the Watch change its mind (v0.16 Task 7). The
+# Watch believes you are the Magpie (law.yaml `links: [[self, magpie]]`), and
+# every house the real Magpie robs lands on your name. A thief who walks in
+# through the front door of the Lantern House -- not carried in -- can answer
+# that two ways:
+#
+#   THE ALIBI      the Watch's own duty book says you sat in its cells on a
+#                  night the Magpie robbed a house. Presented, those
+#                  robberies come off your file (`law_discharge {alibi:
+#                  true}`: exactly the deeds `agendas.alibi_deeds` joins to a
+#                  stay). It proves you were not the Magpie on THOSE nights;
+#                  it does NOT break the Watch's belief that you are the
+#                  Magpie (controller's ruling, v0.16 T7) -- that is the
+#                  accusation's job. The same card, word for word in its
+#                  effects, is the interrogation's Q4_the_alibi, for a thief
+#                  arrested again before presenting it here (asserted equal).
+#   THE ACCUSATION put the trail you carried out of the city's houses on
+#                  Captain Ardane's desk and name the Magpie. Named rightly,
+#                  the Watch's belief breaks: `magpie_unmasked`, then
+#                  `law_unlink {a: self, b: magpie}` -- the Magpie's reports
+#                  stay on the Magpie's file and stop counting against you,
+#                  and from the next line on the narrator is told who the
+#                  Magpie is (agendas.yaml's mask, prompts._agenda_reveal_block).
+#                  Named wrongly, it costs (below), and the captain will hear
+#                  another name only once there is something new to show her.
+#
+# WHEN IT IS DEALT (`when:` below). At the Lantern House, FREE, and only when
+# a card here has something to offer: an alibi not yet presented, or an
+# accusation the captain can hear. REPEATABLE: dealt once per visit that
+# finds something to offer, and again once the thief has left (or the hour
+# has moved Ardane out of the house) and comes back -- the director re-arms a
+# repeatable deck the first turn its `when:` is seen false
+# (engine/content/director.py::rearm). So "not yet" on either card is never
+# the last chance: walk out, walk back in. A thief released from the cells is
+# standing in the Lantern House (law.yaml `arrest.gaol`), so a paid fine or a
+# served sentence can walk straight to this desk.
+#
+# THE ALIBI IS OFFERED ONCE PER ALIBI EARNED. `alibi` stays true for good
+# once earned -- the robbery did happen while you were held -- so the card is
+# gated on `alibi {open: true}`: a robbery whose deed is still on the books.
+# Presented, the deeds are discharged and the card is not offered again; a
+# LATER stay in which the Magpie robs again earns a new one, and offers it.
+#
+# THE ACCUSATION'S GATE, every clause held by tests/test_hue_and_cry.py:
+#
+#   * Captain Ardane is in the house and awake: 06:00-13:00 and 18:00-23:00
+#     (npc_schedules.yaml; the interrogation's own window for her).
+#   * The thief holds EVIDENCE: the veiled meter at 2 or more ("some"), one
+#     point a clue carried out of a house (data/premises/clues.yaml).
+#     MEASURED (v0.16 T8, scripts/simulate_acts.py, 40 seeds x 12 days, an
+#     investigator who cases the city for clue houses and burgles them):
+#     with the lead below, 2 means TWO CLUES THAT AGREE (agree, not
+#     necessarily true: two herrings can agree, and open a wrong naming) --
+#     a tie favours nobody, so at 2 the favoured suspect holds both. 3 asks
+#     for nothing more convincing: its weakest lead is still two agreeing
+#     clues, plus one that points elsewhere, so by construction it cannot
+#     make a first naming any more accurate than 2 does; it only arrives a
+#     house later. Measured, fewer runs got there -- unmasked by day 12 on
+#     48% against 60% at 2 -- and its first namings were no more often
+#     right: wrong on 18-20% per opening (19% pooled over the three)
+#     against 12% at 2. At 4, 21% by day 12 (mean day 11.5); at 1, 89%
+#     (mean day 6), but 42% of first namings wrong -- a guess, not a trail.
+#     The trail is slow to read -- a house gives up its clue only on the
+#     LAST watch, so a clue costs ~3 houses cased to the end, and the
+#     investigator carries out ~2.5 by day 12 -- so the bar is the lead,
+#     not the count. The table is in CHANGELOG.md [0.16.0].
+#   * The clues FAVOUR somebody: `clues_favour {npc}`, at least one found
+#     clue pointing at them and more than at anyone else. MIND THE HERRINGS:
+#     the meter rises for a red herring as much as for a true clue, so the
+#     evidence gate alone could open on herrings; the card for a suspect is
+#     dealt only while the clues lean toward THAT suspect. At most one suspect
+#     is favoured at a time (a tie favours nobody), so the player is offered
+#     the one name the trail they read points to -- by its public name,
+#     chosen, never told whether it is right until it is said.
+#   * The Magpie is not already unmasked.
+#   * That suspect has not already been named wrongly.
+#   * AFTER A WRONG NAMING (owner's decision, v0.16 T7): a second accusation
+#     is allowed, but only once a clue has been carried out SINCE -- the
+#     wrong naming clears `clue_fresh`, which every clue carried out sets
+#     again (clues.yaml `fresh_flag`). The gentlest rule that stops an instant
+#     retry; "a higher evidence band" was not chosen because the meter tops
+#     out at 5 and could leave a thief with nothing higher to show. And the
+#     suspect already named wrongly is SET ASIDE: the lead is counted among
+#     the others (`clues_favour {excluding}`), so a herring the thief was
+#     wrong about stops standing in front of the rest.
+#
+# WHAT A NAMING COSTS AND WRITES. At most four effects a branch (the card
+# bounder's limit), and every one card-accessible authored content:
+#
+#   rightly   magpie_unmasked; law_unlink self/magpie; two ledger facts
+#             (who the Magpie is; that the captain believed you).
+#   wrongly   magpie_named_wrongly; wrongly_accused_<suspect>; clue_fresh
+#             cleared; and a `report` of `false_witness` (law.yaml, severity
+#             3) against your own face in the Wick at precision 1.0 -- she
+#             was across the desk. ON A CLEAN FACE that alone is `noticed`
+#             for about two days and never `sought`. BUT NO ACCUSER HAS A
+#             CLEAN FACE: until a right naming breaks it, the Watch links you
+#             to the Magpie (law.yaml `links`), so the false witness lands on
+#             top of every robbery the Magpie has walked in the Wick in your
+#             name. Measured at the moment of every name offered (v0.16 T8,
+#             simulate_acts.py, 94 offers): had it been wrong, 13% of
+#             accusers would stay `noticed`, 46% go `sought`, 21% `wanted`
+#             and 20% `hunted` -- 87% at `sought` or worse, where a Lantern
+#             can know you on the way out (law.yaml `recognise`), against
+#             42% before the naming; typically a band worse. A cost, not a
+#             spiral: none of the 15 real wrong-namers measured was arrested
+#             before day 12 (law.yaml's header has the table).
+#             Never a soft-lock -- nothing here arrests, and HUE & CRY's one
+#             shipped ending does not read any of these flags.
+#
+# FOR v0.17's ENDINGS (CHANGELOG [Unreleased]): `magpie_unmasked`,
+# `magpie_named_wrongly`, `wrongly_accused_wren`, `wrongly_accused_silas`,
+# `wrongly_accused_imelda` (how many wrong namings: count these, at most two
+# -- the third suspect left standing is the Magpie), and `alibi_proven` (an
+# alibi presented, here or in the cells).
+#
+# SECRECY (spec §6). Nothing on a card says or implies who the real Magpie is
+# before `magpie_unmasked`: the accusation card for a suspect names only that
+# suspect, is dealt only when the player's own clues favour them, and says
+# whether the naming was right only in the outcome of the player's choice.
+# Nobody on a card gives the Magpie a sex (test_the_magpie_is_never_given_a_sex).
+#
+# Version: v0.2.0 [2026-09-27]
+
+id: lantern_house_desk
+
+repeatable: true
+
+# The alibi and the one accusation the clues allow: at most two eligible
+# cards, so nothing is ever picked at random.
+draw: 3
+
+when:
+  all:
+    - { at_location: lantern_house }
+    - { in_custody: false }
+    - any:
+        - &alibi_open { alibi: { agenda: the_magpie, open: true } }
+        - all:
+            - &ardane_hears
+              all:
+                - { not_flag: magpie_unmasked }
+                - { value: { name: evidence, min: 2 } }
+                # A second naming waits for a clue carried out since the first.
+                - any: [{ not_flag: magpie_named_wrongly }, { flag: clue_fresh }]
+                - any: [{ hour_between: [6, 13] }, { hour_between: [18, 23] }]
+            - any:
+                - &favours_wren
+                  all:
+                    - { not_flag: wrongly_accused_wren }
+                    - any:
+                        - { clues_favour: { npc: npc_wren } }
+                        - all: [{ flag: wrongly_accused_silas },
+                                { clues_favour: { npc: npc_wren, excluding: [npc_silas] } }]
+                        - all: [{ flag: wrongly_accused_imelda },
+                                { clues_favour: { npc: npc_wren, excluding: [npc_imelda] } }]
+                        - all: [{ flag: [wrongly_accused_silas, wrongly_accused_imelda] },
+                                { clues_favour: { npc: npc_wren,
+                                                  excluding: [npc_silas, npc_imelda] } }]
+                - &favours_silas
+                  all:
+                    - { not_flag: wrongly_accused_silas }
+                    - any:
+                        - { clues_favour: { npc: npc_silas } }
+                        - all: [{ flag: wrongly_accused_wren },
+                                { clues_favour: { npc: npc_silas, excluding: [npc_wren] } }]
+                        - all: [{ flag: wrongly_accused_imelda },
+                                { clues_favour: { npc: npc_silas, excluding: [npc_imelda] } }]
+                        - all: [{ flag: [wrongly_accused_wren, wrongly_accused_imelda] },
+                                { clues_favour: { npc: npc_silas,
+                                                  excluding: [npc_wren, npc_imelda] } }]
+                - &favours_imelda
+                  all:
+                    - { not_flag: wrongly_accused_imelda }
+                    - any:
+                        - { clues_favour: { npc: npc_imelda } }
+                        - all: [{ flag: wrongly_accused_wren },
+                                { clues_favour: { npc: npc_imelda, excluding: [npc_wren] } }]
+                        - all: [{ flag: wrongly_accused_silas },
+                                { clues_favour: { npc: npc_imelda, excluding: [npc_silas] } }]
+                        - all: [{ flag: [wrongly_accused_wren, wrongly_accused_silas] },
+                                { clues_favour: { npc: npc_imelda,
+                                                  excluding: [npc_wren, npc_silas] } }]
+
+cards:
+
+  # =====================================================================
+  # THE ALIBI -- the same effects as interrogation.yaml's Q4_the_alibi.
+  # Two cards, one a moment: the card says what the Watch believes, and a
+  # right naming changes that (v0.16 T8). D1_the_alibi while the file still
+  # says Magpie; D1_the_alibi_struck once the word is struck off it -- an
+  # alibi can still be open then (earned before the naming and not yet
+  # presented, or earned in a later stay), and the narrator must not be
+  # handed a belief the Watch no longer holds.
+  # =====================================================================
+
+  - id: D1_the_alibi
+    tags: [menu, gm, watch]
+    title: "The Duty Book"
+    when: { all: [*alibi_open, { not_flag: magpie_unmasked }] }
+    text: >-
+      INTENT: the Watch's duty book lies open on the front desk, and it says
+      in the Watch's own hand which nights you slept in its cells. The
+      Magpie's file says which nights a house was robbed. Some of those
+      nights are the same nights, and a thief who can read can show them.
+      CONSTRAINTS: whoever holds the desk pen at this hour reads it; name no
+      Lantern the schedule puts elsewhere. Presenting it clears those
+      robberies off your file. It does not change what the Watch believes
+      you are: the file still says Magpie.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: present_it
+        text: >-
+          Put your finger on the dates, one after the other, and let the
+          book say it for you.
+        gate:
+          on_pass:
+            text: >-
+              The pen stops. The book is checked against the file, twice,
+              and the robberies on those nights are struck off your sheet in
+              red. Nobody apologises. Somebody offers you the good chair.
+            effects: &alibi_effects
+              - { type: law_discharge, alibi: true, agenda: the_magpie }
+              - { type: flag, flag: alibi_proven }
+              - type: ledger_fact
+                kind: alibi
+                text: "The Watch's own duty book proved you sat in its cells on nights the Magpie robbed; those robberies came off your file."
+
+      - id: let_it_lie
+        text: >-
+          Say nothing about it. The book will keep.
+        gate:
+          on_pass:
+            text: >-
+              You leave the book where it lies. The file stays as thick as
+              it was.
+
+  - id: D1_the_alibi_struck
+    tags: [menu, gm, watch]
+    title: "The Duty Book"
+    when: { all: [*alibi_open, { flag: magpie_unmasked }] }
+    text: >-
+      INTENT: the Watch's duty book lies open on the front desk, and it says
+      in the Watch's own hand which nights you slept in its cells. The
+      Magpie's file says which nights a house was robbed. Some of those
+      nights are the same nights.
+      CONSTRAINTS: whoever holds the desk pen at this hour reads it; name no
+      Lantern the schedule puts elsewhere. The Watch no longer takes you for
+      the Magpie -- the word is struck off your file -- so the book changes
+      nobody's mind; presenting it strikes those robberies off every file,
+      the Magpie's too.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: present_it
+        text: >-
+          Put your finger on the dates anyway, one after the other, and let
+          the book say it for you.
+        gate:
+          on_pass:
+            text: >-
+              The pen stops. The book is checked against the Magpie's file,
+              and those nights' robberies are struck through in red, off
+              every file the Watch keeps. Somebody offers you the good chair.
+            effects: &alibi_struck_effects
+              - { type: law_discharge, alibi: true, agenda: the_magpie }
+              - { type: flag, flag: alibi_proven }
+              - type: ledger_fact
+                kind: alibi
+                text: "The Watch's own duty book showed you sat in its cells on nights the Magpie robbed; those robberies were struck off the Watch's books."
+
+      - id: let_it_lie
+        text: >-
+          Say nothing about it. The book will keep.
+        gate:
+          on_pass:
+            text: >-
+              You leave the book where it lies. Nobody here takes you for the
+              Magpie now, book or no book.
+
+  # =====================================================================
+  # THE ACCUSATION -- one card a suspect; at most one is ever eligible.
+  # =====================================================================
+
+  - id: D2_name_wren
+    tags: [menu, gm, ardane]
+    title: "The Name"
+    when: { all: [*ardane_hears, *favours_wren] }
+    text: &accusation_text >-
+      INTENT: Captain Ardane at her desk under the wanted board, the Magpie
+      file open, and the thief standing in front of it with a trail carried
+      out of the city's houses, piece by piece. Everything the player found
+      leans one way, toward one name, and the player may say it.
+      CONSTRAINTS: the captain listens properly, and does not know who the
+      Magpie is. Say nothing about whether the name is right until the player
+      has chosen; the outcome says it. Nobody here guesses aloud.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: name_them
+        text: >-
+          Lay the trail on her desk, clue by clue, and name Wren, the
+          lamplighter who keeps the city's lamps, as the Magpie.
+        gate:
+          when: { agenda_role: { role: magpie, npc: npc_wren } }
+          on_pass:
+            text: &named_rightly >-
+              She reads it through twice, slowly, and then goes to the wanted
+              board and takes a pin out of it. The name you gave her is the
+              right one, and she knows it before she says it. She draws a line
+              through a word on the front of your file, and it stays drawn.
+            effects:
+              - { type: flag, flag: magpie_unmasked }
+              - { type: law_unlink, a: self, b: magpie }
+              - type: ledger_fact
+                kind: reveal
+                subject_id: npc_wren
+                text: "Wren is the Magpie. You laid the trail before Captain Ardane, and she believed you."
+              - &ardane_believes
+                type: ledger_fact
+                kind: reveal
+                subject_id: npc_ardane
+                text: "Captain Ardane heard your evidence out and struck the word Magpie off your file."
+          on_fail:
+            text: &named_wrongly >-
+              She hears every word, and weighs it, and does not believe it:
+              the trail breaks where her own Lanterns have already looked. She
+              writes something at the foot of a fresh sheet -- your name, and
+              an hour of the captain's time -- and tells you, not unkindly, to
+              come back with something new.
+            effects:
+              - { type: flag, flag: magpie_named_wrongly }
+              - { type: flag, flag: wrongly_accused_wren }
+              - &clue_spent { type: flag, flag: clue_fresh, value: false }
+              - &false_witness { type: report, deed: false_witness, guise: self, jurisdiction: wick, precision: 1.0 }
+
+      - &not_yet
+        id: not_yet
+        text: >-
+          Keep it back. A trail is not a proof, not yet.
+        gate:
+          on_pass:
+            text: >-
+              She waits, then goes back to her reading. The file stays open on
+              the desk.
+
+  - id: D2_name_silas
+    tags: [menu, gm, ardane]
+    title: "The Name"
+    when: { all: [*ardane_hears, *favours_silas] }
+    text: *accusation_text
+    beats:
+      - id: name_them
+        text: >-
+          Lay the trail on her desk, clue by clue, and name Silas Crook, of
+          the Honest Company, as the Magpie.
+        gate:
+          when: { agenda_role: { role: magpie, npc: npc_silas } }
+          on_pass:
+            text: *named_rightly
+            effects:
+              - { type: flag, flag: magpie_unmasked }
+              - { type: law_unlink, a: self, b: magpie }
+              - type: ledger_fact
+                kind: reveal
+                subject_id: npc_silas
+                text: "Silas Crook is the Magpie. You laid the trail before Captain Ardane, and she believed you."
+              - *ardane_believes
+          on_fail:
+            text: *named_wrongly
+            effects:
+              - { type: flag, flag: magpie_named_wrongly }
+              - { type: flag, flag: wrongly_accused_silas }
+              - *clue_spent
+              - *false_witness
+      - *not_yet
+
+  - id: D2_name_imelda
+    tags: [menu, gm, ardane]
+    title: "The Name"
+    when: { all: [*ardane_hears, *favours_imelda] }
+    text: *accusation_text
+    beats:
+      - id: name_them
+        text: >-
+          Lay the trail on her desk, clue by clue, and name Lady Imelda
+          Vessaline, of Silk Row, as the Magpie.
+        gate:
+          when: { agenda_role: { role: magpie, npc: npc_imelda } }
+          on_pass:
+            text: *named_rightly
+            effects:
+              - { type: flag, flag: magpie_unmasked }
+              - { type: law_unlink, a: self, b: magpie }
+              - type: ledger_fact
+                kind: reveal
+                subject_id: npc_imelda
+                text: "Lady Imelda Vessaline is the Magpie. You laid the trail before Captain Ardane, and she believed you."
+              - *ardane_believes
+          on_fail:
+            text: *named_wrongly
+            effects:
+              - { type: flag, flag: magpie_named_wrongly }
+              - { type: flag, flag: wrongly_accused_imelda }
+              - *clue_spent
+              - *false_witness
+      - *not_yet

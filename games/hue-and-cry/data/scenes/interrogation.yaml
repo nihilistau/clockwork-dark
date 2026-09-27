@@ -1,0 +1,453 @@
+# HUE & CRY -- the interrogation: the small room in the Lantern House.
+# =====================================================================
+#
+# Act I's other door (v0.16). Every arrest ends here: whatever put the thief
+# in the cells -- coming quietly off the barge, a Lantern's stop answered with
+# a surrender or a fumbled run, a job gone loud -- the Watch sits them down
+# and asks about the Magpie, because the Watch believes it has the Magpie
+# in its cells at last.
+#
+# Read by engine/content/deck.py through `paths.decks`; THE FILENAME IS THE
+# DECK ID. The model is THE LONG CON's the_interview.yaml (a required spine,
+# then the interrogator's own card), but that deck is FORCED by a clock; this
+# one is SCHEDULED by its own `when:` and is REPEATABLE -- the first shipped
+# deck to be either (tests/test_forced_and_repeatable_decks.py).
+#
+# WHEN IT IS DEALT. `when: {in_custody: true}` and `repeatable: true`: dealt
+# on the first turn of every stay in the cells, once per stay. The director
+# spends it on the deal (`deck_played_interrogation`) and re-arms it the
+# first turn it sees the thief free again (engine/content/director.py::rearm,
+# which runs before any guard -- a hand, a job or an open Lantern's stop
+# cannot hide the release from it). So a second arrest deals it again, and a
+# stay never deals it twice. An arrest that closes a Lantern's stop deals on
+# the same turn: the stop ends as the thief is carried out of it.
+#
+# WHO ASKS. The pool holds three interrogators and exactly one is eligible at
+# any hour, read off data/world/npc_schedules.yaml (asserted against it):
+#
+#   Q2_the_captain      06:00-13:00 and 18:00-23:00 -- Captain Ardane, awake
+#                       and in the Lantern House: her desk, then her office.
+#   Q2_the_sergeant     16:00-18:00 -- Sergeant Brask at the front desk,
+#                       while the captain is up at the palace or on the market.
+#   Q2_the_duty_desk    13:00-16:00 and 23:00-06:00 -- nobody of rank is in
+#                       the house and awake, so the Lantern who brought the
+#                       thief in books them and does the asking. Nobody
+#                       fetches the captain; she says to, for every Magpie.
+#
+# `draw: 3`, not 1: there is room for the interrogator and the alibi
+# (Q4_the_alibi, below), with one to spare. A draw of more cards than are
+# eligible deals every eligible card and picks nothing at random, so the hand
+# is always the spine, the one interrogator, and the alibi when there is one.
+#
+# WHAT THE WATCH HOLDS, AND WHAT THE ROOM CAN CHANGE. The cards test nerve and
+# persuasion; they move the FILE, never the sentence:
+#
+#   quashed   the petty sheets (severity 1, the lifts) against your face or
+#             any face linked to it go in the stove -- everywhere, or in the
+#             Wick wards only (`quash_reports ... max_severity: 1`). A house
+#             broken (3) or a Lantern struck (5) stays filed: no captain loses
+#             that for a good answer.
+#   kept      the roll-free answer on every card: nothing moves.
+#   added     a lie caught is one more lift written into the MAGPIE's file
+#             (`report ... guise: magpie`) -- which, while the Watch links
+#             your face to the Magpie's (law.yaml `links`), is yours.
+#   restated  the spine's second beat reads the link (`linked`) and says what
+#             the Watch believes: you are the Magpie -- or, once an
+#             accusation named rightly broke the link, that it no longer does.
+#   cleared   the alibi (Q4_the_alibi, below) discharges the Magpie's
+#             robberies walked while you sat in a cell; the spine's third
+#             beat remembers an alibi presented (`alibi_proven`) in red.
+#
+# THE SENTENCE STANDS (controller's ruling, v0.16 T5). The fine and the days
+# are fixed at the door by `arrest` (custody.fine / custody.days) and no card
+# effect writes custody -- `arrest` and `release` are not card-accessible, and
+# widening that was ruled out. So the charge you were brought in on is the
+# charge you pay or serve; what the room decides is what is still filed
+# against you when you walk out, and so how soon a Lantern knows you again.
+#
+# NO HELD PLAYER IS EVER STUCK. While a card is open `pay_fine` and `serve`
+# are hidden (intents.legal_intents: the card is the turn). Every menu card
+# has an answer that asks no dice and no threshold, the sequence card asks
+# none, and no card can open another scene or release anyone -- so the hand
+# always ends, and the two ways out come back. (asserted for every hour,
+# every answer, every roll passed and failed)
+#
+# THE TWO SLOTS v0.16 Task 5 RESERVED, and what became of them in Task 7:
+#
+#   Q4_the_alibi     FILLED. When the Magpie robbed while the thief sat in a
+#                    cell and that alibi has not yet been presented --
+#                    `alibi {agenda: the_magpie, open: true}` -- the one
+#                    asking has the duty book at their elbow, and the thief
+#                    may put a finger on the dates. Presented, it
+#                    `law_discharge {alibi: true}`s exactly those robberies
+#                    and sets `alibi_proven`. ITS EFFECTS ARE THE LANTERN
+#                    HOUSE DESK'S, word for word (data/scenes/
+#                    lantern_house_desk.yaml `D1_the_alibi`; asserted equal):
+#                    that desk is the alibi's main door -- a thief walking in
+#                    free -- and this card is for one arrested again before
+#                    walking in. Either door closes the alibi (`open` falls
+#                    once its deeds are discharged), so one alibi is
+#                    presented once. It clears robberies; it does not break
+#                    the Watch's belief that you are the Magpie, and the
+#                    charge you came in on stands. Roll-free, with a
+#                    roll-free way to say nothing. TWO CARDS, ONE A MOMENT
+#                    (v0.16 T8): Q4_the_alibi while the file still says
+#                    Magpie, Q4_the_alibi_struck once a right naming has
+#                    struck the word off it -- an alibi can still be open
+#                    then, and the card must not hand the narrator a belief
+#                    the Watch no longer holds (the desk's D1 pair likewise).
+#   Q3_the_evidence  RELEASED, NOT FILLED. Evidence put before the captain is
+#                    the accusation, and it lives at the Lantern House desk
+#                    (lantern_house_desk.yaml `D2_name_*`), one card per
+#                    suspect, dealt only when the thief's own clues favour
+#                    that suspect. A copy here would be three more cards for
+#                    no new door: a released thief is standing in the
+#                    Lantern House (law.yaml `arrest.gaol`), and the desk
+#                    deals the accusation on the first free turn the captain
+#                    is in. The id stays unused. This room names no suspect.
+#
+# AN ALIBI HERE IS ALWAYS FROM AN EARLIER STAY. The deck deals on the first
+# turn of a stay, and nothing has been robbed yet in the stay that has just
+# begun (`custody.since_hour` is the next whole hour), so `alibi` can only
+# hold for robberies walked during a PREVIOUS stay in the cells.
+#
+# SECRECY (spec §6). The Watch believes the thief is the Magpie and says so.
+# Nobody in this room knows who the real Magpie is or guesses aloud.
+# (asserted: no candidate's name, alias or trade)
+#
+# Version: v0.1.2 [2026-09-27]
+
+id: interrogation
+
+repeatable: true
+
+# The interrogator, the alibi when there is one, and one to spare.
+draw: 3
+
+when: { in_custody: true }
+
+cards:
+
+  # =====================================================================
+  # SPINE
+  # =====================================================================
+
+  - id: Q1_the_book
+    required: true
+    tags: [sequence, gm, watch]
+    title: "The Book"
+    text: >-
+      INTENT: the Lantern House takes you in. The front desk, the big book,
+      your name spelled wrong and then corrected to the Magpie's; a bench in
+      the small room with a lamp and a table and the file.
+      WARMTH AND TEETH: nobody is cruel. The Watch is proud of this catch,
+      and a little in awe of it, and entirely sure.
+      CONSTRAINTS: the charge you came in on stands; the cards that follow
+      decide what else stays filed. Nobody here knows who the real Magpie is.
+      SEQUENCE -- every beat resolves, in order; a beat with no text says
+      nothing.
+    beats:
+      - id: booked
+        text: >-
+          Name, trade, where you slept last night. The pen scratches. Somebody
+          takes your belt, and somebody else brings it back, embarrassed,
+          because it turns out nobody ever takes the belt.
+
+      - id: the_magpie_file
+        text: >-
+          The file on the table. What the Watch believes about you is written
+          on the front of it.
+        gate:
+          # No dice: the Watch's belief, read off the Law's links. While
+          # law.yaml's starting link holds, the file says MAGPIE. Once
+          # something breaks it (`law_unlink`), the same beat says so.
+          when: { linked: { a: self, b: magpie } }
+          on_pass:
+            text: >-
+              THE MAGPIE, in capitals, and under it your description, pinned
+              there the morning you came off the barge. Every theft that
+              shone this season is in it. As far as the Lantern Watch is
+              concerned, every one of them is yours.
+          on_fail:
+            text: >-
+              Your own name, in capitals, and a line drawn through the word
+              under it. The file is thinner than it used to be.
+
+      - id: the_red_ink
+        text: >-
+          The margin of the file, where the Watch corrects itself.
+        gate:
+          # No dice: an alibi already presented (`alibi_proven`, set by the
+          # duty-book card here or at the front desk) is remembered in red.
+          # Nothing else is written in that margin, so without one this beat
+          # says nothing.
+          when: { flag: alibi_proven }
+          on_pass:
+            text: >-
+              In red, down the margin, the nights the Watch's own duty book
+              says you were in these cells while a house was robbed. Somebody
+              has underlined them.
+
+  # =====================================================================
+  # POOL -- the interrogator. Exactly one of these three is eligible at
+  # any hour (the header's table, asserted against the schedule).
+  # =====================================================================
+
+  - id: Q2_the_captain
+    tags: [menu, gm, ardane]
+    title: "The Captain's Questions"
+    when:
+      any:
+        - { hour_between: [6, 13] }
+        - { hour_between: [18, 23] }
+    text: >-
+      INTENT: Captain Ardane comes in with the Magpie file under her arm and
+      sits down across from you as if she has all the time in the world.
+      She is sharp, fair, tired, and certain: she has hunted the Magpie for
+      two years and here you are. She asks good questions and listens to the answers.
+      CONSTRAINTS: she is never cruel and never threatens; she can lose the
+      petty sheets, never the charge you came in on.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: talk_her_round
+        text: >-
+          Argue it: the Magpie is a legend and you are a stranger with one
+          bag. A persuasion roll, and a hard one: she has heard every story.
+        gate:
+          check: { skill: persuasion, difficulty: hard }
+          on_pass:
+            text: >-
+              She does not believe you. She does, she says, believe the
+              Magpie never lifted a purse in all those years, and she feeds
+              the petty sheets to the stove one at a time while you watch.
+            effects:
+              - { type: quash_reports, guise: self, linked: true, max_severity: 1 }
+          on_fail:
+            text: >-
+              She lets you finish. Then she opens the file and writes in a
+              silver cup that went missing up the Rise last month. "You
+              were very good just now," she says. "So was that."
+            effects:
+              - { type: report, deed: pickpocket, guise: magpie, jurisdiction: rise, precision: 1.0 }
+
+      - id: hold_her_eye
+        text: >-
+          Say little and hold her eye while she reads the file aloud. A nerve
+          roll: she watches faces for a living.
+        gate:
+          check: { skill: nerve, difficulty: standard }
+          on_pass:
+            text: >-
+              Nothing she reads moves you, and she notices, and it interests
+              her more than a confession would. The Wick's petty sheets she
+              lets drop in the bin. "Not worth your time or mine."
+            effects:
+              - { type: quash_reports, jurisdiction: wick, guise: self, linked: true, max_severity: 1 }
+          on_fail:
+            text: >-
+              Your eyes go to the wrong line at the wrong moment. She sees it,
+              and writes something small in the margin.
+            effects:
+              - { type: report, deed: pickpocket, guise: magpie, jurisdiction: rise, precision: 0.6 }
+
+      - id: answer_straight
+        text: >-
+          Answer what she asks, plainly, and nothing else.
+        gate:
+          on_pass:
+            text: >-
+              She takes it all down in a neat hand, closes the file, and
+              thanks you, and means it. Nothing in it has changed.
+
+  - id: Q2_the_sergeant
+    tags: [menu, gm, brask]
+    title: "The Sergeant's Desk"
+    when: { hour_between: [16, 18] }
+    text: >-
+      INTENT: the captain is out, so Sergeant Brask does it at the front
+      desk, between chits, with the biscuit tin at his elbow. He would
+      rather be doing almost anything else, and he believes you are the
+      Magpie mostly because it saves arguing.
+      CONSTRAINTS: comic, never contemptible; he can lose a petty sheet for
+      a quiet life, never the charge you came in on.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: the_biscuit_tin
+        text: >-
+          Talk to him about anything but the Magpie -- his feet, his pension,
+          the biscuits. A persuasion roll.
+        gate:
+          check: { skill: persuasion, difficulty: standard }
+          on_pass:
+            text: >-
+              By the second biscuit he is telling you about his feet. By the
+              third, several small pieces of paper have found their way into
+              the stove, and he is sure it was a draught.
+            effects:
+              - { type: quash_reports, guise: self, linked: true, max_severity: 1 }
+          on_fail:
+            text: >-
+              He closes the tin. "Pension," he says darkly, and writes down
+              something you said about the Rise that you did not mean.
+            effects:
+              - { type: report, deed: pickpocket, guise: magpie, jurisdiction: rise, precision: 0.6 }
+
+      - id: stare_him_out
+        text: >-
+          Stare at him until he gets bored. A nerve roll.
+        gate:
+          check: { skill: nerve, difficulty: easy }
+          on_pass:
+            text: >-
+              He gets bored. The Wick's petty sheets go back in the drawer
+              that sticks, and the drawer, by some miracle, sticks shut.
+            effects:
+              - { type: quash_reports, jurisdiction: wick, guise: self, linked: true, max_severity: 1 }
+          on_fail:
+            text: >-
+              You blink first, and he takes it as a confession to something,
+              and writes it down to be safe.
+            effects:
+              - { type: report, deed: pickpocket, guise: magpie, jurisdiction: wick, precision: 0.3 }
+
+      - id: answer_straight
+        text: >-
+          Answer his questions, such as they are.
+        gate:
+          on_pass:
+            text: >-
+              He writes it all down slowly, spells your name two ways, and
+              files the lot under M.
+
+  - id: Q2_the_duty_desk
+    tags: [menu, gm, watch]
+    title: "The Duty Desk"
+    when:
+      any:
+        - { hour_between: [13, 16] }
+        - { hour_between: [23, 6] }
+    text: >-
+      INTENT: nobody of rank is in the house and awake, so the Lantern who
+      brought you in books you at the duty desk and does the asking. The
+      captain, out or asleep, has left word to be fetched for the Magpie;
+      she leaves that word for every Magpie, and nobody has dared twice.
+      CONSTRAINTS: a Lantern with a pen is still the Watch, and what you
+      say goes in the book. Name no Lantern the schedule puts elsewhere.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: keep_your_story_straight
+        text: >-
+          Tell it once, the same way twice, while he writes it down. A nerve
+          roll.
+        gate:
+          check: { skill: nerve, difficulty: standard }
+          on_pass:
+            text: >-
+              He reads it back and cannot find the hole in it, and is so
+              pleased with his own handwriting that he shares his supper.
+            effects:
+              - { type: hunger, delta: -15 }
+          on_fail:
+            text: >-
+              The second telling has a street in it the first one did not. He
+              writes the street down, and underlines it.
+            effects:
+              - { type: report, deed: pickpocket, guise: magpie, jurisdiction: wick, precision: 0.3 }
+
+      - id: sleep_on_it
+        text: >-
+          Tell him the captain can ask you herself, and lie down on the bench.
+        gate:
+          on_pass:
+            text: >-
+              He does not argue. The lamp is turned down, and the book is
+              closed with your page still open in it.
+
+  # =====================================================================
+  # POOL -- the alibi, for a thief arrested again before presenting it at
+  # the front desk. Its effects are lantern_house_desk.yaml D1_the_alibi's.
+  # =====================================================================
+
+  - id: Q4_the_alibi
+    tags: [menu, gm, watch]
+    title: "The Duty Book"
+    when: { all: [{ alibi: { agenda: the_magpie, open: true } }, { not_flag: magpie_unmasked }] }
+    text: >-
+      INTENT: the one asking has the Watch's duty book at their elbow, and it
+      says in the Watch's own hand which nights you slept in these cells
+      before. The Magpie's file says which nights a house was robbed. Some of
+      those nights are the same nights.
+      CONSTRAINTS: presenting it clears those robberies off your file; the
+      charge you came in on stands, and the file still says Magpie.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: present_it
+        text: >-
+          Put your finger on the dates, one after the other, and let the book
+          say it for you.
+        gate:
+          on_pass:
+            text: >-
+              The questions stop while the book is checked against the file,
+              twice. The robberies on those nights are struck off your sheet
+              in red, and the one asking looks at you differently for the
+              rest of it.
+            effects:
+              - { type: law_discharge, alibi: true, agenda: the_magpie }
+              - { type: flag, flag: alibi_proven }
+              - type: ledger_fact
+                kind: alibi
+                text: "The Watch's own duty book proved you sat in its cells on nights the Magpie robbed; those robberies came off your file."
+
+      - id: say_nothing
+        text: >-
+          Keep the dates to yourself for now.
+        gate:
+          on_pass:
+            text: >-
+              The book stays shut at their elbow, and the questions go on.
+
+  # The same book once a right naming has struck the word Magpie off the
+  # file (v0.16 T8): an alibi can still be open then, and the card must not
+  # tell the narrator the Watch still believes it. Its effects are
+  # lantern_house_desk.yaml D1_the_alibi_struck's.
+  - id: Q4_the_alibi_struck
+    tags: [menu, gm, watch]
+    title: "The Duty Book"
+    when: { all: [{ alibi: { agenda: the_magpie, open: true } }, { flag: magpie_unmasked }] }
+    text: >-
+      INTENT: the one asking has the Watch's duty book at their elbow, and it
+      says in the Watch's own hand which nights you slept in these cells
+      before. The Magpie's file says which nights a house was robbed. Some of
+      those nights are the same nights.
+      CONSTRAINTS: the Watch no longer takes you for the Magpie -- the word
+      is struck off your file -- so the book changes nobody's mind;
+      presenting it only strikes those nights' robberies off the Watch's
+      books -- every file, the Magpie's as well -- and the charge you came in
+      on stands.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: present_it
+        text: >-
+          Put your finger on the dates anyway, one after the other, and let
+          the book say it for you.
+        gate:
+          on_pass:
+            text: >-
+              The questions stop while the book is checked against the
+              Magpie's file, and those nights' robberies are struck through
+              in red, off every file the Watch keeps.
+            effects:
+              - { type: law_discharge, alibi: true, agenda: the_magpie }
+              - { type: flag, flag: alibi_proven }
+              - type: ledger_fact
+                kind: alibi
+                text: "The Watch's own duty book showed you sat in its cells on nights the Magpie robbed; those robberies were struck off the Watch's books."
+
+      - id: say_nothing
+        text: >-
+          Keep the dates to yourself for now.
+        gate:
+          on_pass:
+            text: >-
+              The book stays shut at their elbow, and the questions go on.

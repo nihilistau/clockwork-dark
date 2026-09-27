@@ -287,7 +287,7 @@ def _no_test_writes_real_saves(
 
 
 @pytest.fixture(autouse=True)
-def _no_live_model_calls(request: Any, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+def _no_live_model_calls(request: Any) -> Iterator[None]:
     """
     Fail any test that opens a real connection to the model server.
 
@@ -321,11 +321,20 @@ def _no_live_model_calls(request: Any, monkeypatch: pytest.MonkeyPatch) -> Itera
     the forgiveness that hid the original bug. So the breach is also recorded in
     a list this fixture asserts on AFTER the test body, where nothing is left to
     catch it.
+
+    ITS OWN MonkeyPatch, for ``_no_test_writes_real_saves``' reason. Installed
+    through the test's ``monkeypatch``, the socket guard and the three pins
+    below went with a mid-test ``monkeypatch.undo()``
+    (``test_forced_and_repeatable_decks`` does one to drop a spy), and the
+    rest of that test could reach the model unwatched. A test's own later
+    patch of ``_fetch`` or ``is_available`` still wins, and is undone before
+    this guard is, since the ``monkeypatch`` fixture is set up after it.
     """
     if request.node.get_closest_marker("live") or not MODEL_ENDPOINTS:
         yield
         return
 
+    guard = pytest.MonkeyPatch()
     # Model DISCOVERY is pinned before the socket guard goes up, because it is
     # not a leak to be caught -- it is a legitimate dependency to be made
     # deterministic. Sizing a prompt needs the model's context window, so
@@ -349,7 +358,7 @@ def _no_live_model_calls(request: Any, monkeypatch: pytest.MonkeyPatch) -> Itera
         try:
             from engine.lmstudio.registry import ModelRegistry
 
-            monkeypatch.setattr(
+            guard.setattr(
                 ModelRegistry, "_fetch", lambda self, path: {"models": []}, raising=True
             )
         except Exception as exc:  # noqa: BLE001 -- never block collection on this
@@ -369,7 +378,7 @@ def _no_live_model_calls(request: Any, monkeypatch: pytest.MonkeyPatch) -> Itera
     try:
         from engine.lmstudio.native import NativeClient
 
-        monkeypatch.setattr(NativeClient, "is_available", lambda self: False)
+        guard.setattr(NativeClient, "is_available", lambda self: False)
     except Exception as exc:  # noqa: BLE001
         print(f"[conftest] could not pin the native probe: {exc}")
 
@@ -387,7 +396,7 @@ def _no_live_model_calls(request: Any, monkeypatch: pytest.MonkeyPatch) -> Itera
     try:
         from engine.scenes import default_state as _default_state
 
-        monkeypatch.setattr(_default_state, "_summarizer_fn", lambda: None)
+        guard.setattr(_default_state, "_summarizer_fn", lambda: None)
     except Exception as exc:  # noqa: BLE001
         print(f"[conftest] could not pin the summarizer: {exc}")
 
@@ -411,8 +420,11 @@ def _no_live_model_calls(request: Any, monkeypatch: pytest.MonkeyPatch) -> Itera
                 )
         return real_connect(self, address)
 
-    monkeypatch.setattr(socket.socket, "connect", guarded)
-    yield
+    guard.setattr(socket.socket, "connect", guarded)
+    try:
+        yield
+    finally:
+        guard.undo()
     assert not breaches, (
         f"{request.node.nodeid} tried to reach the real model server "
         f"({', '.join(sorted(set(breaches)))}). Tests must inject their own "

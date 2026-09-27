@@ -367,6 +367,26 @@ def test_repeatable_dealing_does_not_depend_on_how_the_clock_was_cut(story: Any)
 # -- the shipped deck stories are unchanged --------------------------------------
 
 
+#: Where a story's walk stands, when its one deck is not dealt at the entry.
+#: HUE & CRY's initiation is dealt in the Snuffs (v0.16), not on the quay.
+_WALK_FROM = {"hue-and-cry": "the_snuffs"}
+
+#: Walks kept fed. Left standing forty eight-hour turns, HUE & CRY's walk
+#: starved to 0 hp by its third day -- recorded in its digest, and nothing to
+#: do with dealing. Fed at each step (hunger set to 0), it records the deal
+#: alone. The other walks were recorded unfed and stay as recorded. (The
+#: "Death rules missing" line it still logs is not starvation: every
+#: advance_time asks for death.yaml, which HUE & CRY ships only in v0.17.)
+_WALK_FED = {"hue-and-cry"}
+
+#: Arrests and releases at fixed steps (``arrest`` / ``release`` effects, before
+#: the step's deal). HUE & CRY's interrogation (v0.16 T5) is the first shipped
+#: REPEATABLE deck -- dealt by `in_custody: true` on every stay -- so its walk
+#: is taken to the cells twice, and the record holds both deals and the
+#: re-arm between them (the `deck_played_interrogation` False write).
+_WALK_CUSTODY = {"hue-and-cry": {4: "arrest", 6: "release", 9: "arrest", 11: "release"}}
+
+
 def _walk(slug: str, winds: dict[int, list[tuple[str, float]]]) -> dict[str, Any]:
     """A fixed director walk: a turn every eight hours, first answer every time."""
     from engine.game import clocks
@@ -375,12 +395,19 @@ def _walk(slug: str, winds: dict[int, list[tuple[str, float]]]) -> dict[str, Any
 
     registry.activate(slug)
     try:
-        state = new_game_state(seed=7, location_id=registry.get(slug).entry_location)
+        state = new_game_state(
+            seed=7, location_id=_WALK_FROM.get(slug) or registry.get(slug).entry_location
+        )
         log: list[Any] = []
         for step in range(40):
+            if slug in _WALK_FED:
+                state.hunger = 0.0
             for name, by in winds.get(step, []):
                 clocks.advance(state, name, by)
             clocks.resolve(state)
+            custody = (_WALK_CUSTODY.get(slug) or {}).get(step)
+            if custody:
+                assert apply_effect(state, {"type": custody})["ok"], (slug, step, custody)
             for receipt in director.ensure_scene(state):
                 result = receipt["result"]
                 log.append([step, state.world_day, result.get("deck_id"), result.get("source"),
@@ -401,7 +428,8 @@ def _walk(slug: str, winds: dict[int, list[tuple[str, float]]]) -> dict[str, Any
         registry.deactivate()
 
 
-#: Recorded at b59a3ea, before repeatable decks and event-forced scenes existed.
+#: The first three recorded at b59a3ea, before repeatable decks and
+#: event-forced scenes existed; later rows say when they were recorded.
 #: (slug, clock winds, dealt deck sequence, sha256 of the full walk).
 SHIPPED_WALKS = [
     (
@@ -421,11 +449,29 @@ SHIPPED_WALKS = [
         "9e7a75a2c4dcd655c4cd184c19e5f36c088a35342a44a4bb4886a4548ccd5642",
     ),
     ("dev-story", {}, [], "82dfe7a6e57ac5fb42c513213580018f7ebf23a5e7d5dcfe9b312774785d8a96"),
+    # Recorded at v0.16 T4 (fix round 1), when HUE & CRY gained its first
+    # deck: the initiation, dealt once in the Snuffs on the first turn Gannet
+    # holds court (18:00-04:00). Walked from the Snuffs, fed (`_WALK_FED`).
+    # RE-RECORDED at v0.16 T5, and why: the interrogation joined it -- the
+    # first shipped repeatable deck -- and a walk that is never arrested
+    # would pin nothing of it (its digest came out unchanged). The walk is
+    # now taken to the cells twice (`_WALK_CUSTODY`): the initiation, then
+    # the interrogation on each arrest, re-armed by the release between.
+    # RE-RECORDED at v0.16 T7, and why: the Lantern House front desk joined
+    # (lantern_house_desk.yaml, repeatable). The first stay (steps 4-6) holds
+    # the thief through the Magpie's small hours, so the release at step 6
+    # leaves a free thief in the Lantern House with an alibi earned: the
+    # desk deals D1_the_alibi, the walk's first answer presents it, and the
+    # second stay's hand has no Q4 (the alibi was closed at the desk). The
+    # desk's played flag is re-armed once its `when:` falls. The same run
+    # twice gave the same digest.
+    ("hue-and-cry", {}, ["initiation", "interrogation", "lantern_house_desk", "interrogation"],
+     "83e47fb3974971b797898c1b9b26b7df91ddfb08afc51ba6730327b074b718ae"),
 ]
 
 
 @pytest.mark.parametrize("slug,winds,decks,digest", SHIPPED_WALKS, ids=[w[0] for w in SHIPPED_WALKS])
-def test_shipped_deck_stories_deal_exactly_as_before(
+def test_shipped_deck_stories_deal_as_recorded(
     slug: str, winds: dict[int, list[tuple[str, float]]], decks: Any, digest: Any
 ) -> None:
     walk = _walk(slug, winds)
@@ -435,16 +481,34 @@ def test_shipped_deck_stories_deal_exactly_as_before(
     assert hashlib.sha256(encoded).hexdigest() == digest
 
 
-def test_no_shipped_story_opts_in() -> None:
-    """Byte-identical by construction too: nothing shipped declares either key."""
+#: The shipped decks that opt in to `repeatable`, and nothing else. Until
+#: v0.16 this set was empty and the test asserted that nothing shipped opted
+#: in. HUE & CRY's interrogation (v0.16 T5) is the first: dealt on every
+#: arrest, which is exactly the case the key was built for (v0.13). Its walk
+#: in SHIPPED_WALKS covers two deals and the re-arm between them; every other
+#: story still declares neither key, so their walks stay byte-identical.
+#: v0.16 T7 adds the second: HUE & CRY's Lantern House front desk (the
+#: alibi and the accusation), dealt on each visit that finds something to
+#: offer. The same walk now deals it once, after the first release.
+SHIPPED_REPEATABLE = {("hue-and-cry", "interrogation"), ("hue-and-cry", "lantern_house_desk")}
+
+
+def test_only_hue_and_crys_two_decks_opt_in() -> None:
+    """Byte-identical by construction for every other story: nothing else
+    shipped declares either key."""
     root = Path(__file__).resolve().parents[1] / "games"
+    opted: set[tuple[str, str]] = set()
     for path in root.glob("*/data/**/*.yaml"):
         # A DECK's `repeatable` is a top-level key of its file. Read as YAML
         # rather than grepped: since v0.15 a thread TEMPLATE may declare its
         # own `repeatable` (HUE & CRY's fence credit, threads.yaml), nested
         # under `templates:`, which is not a deck opting in.
         doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-        assert not (isinstance(doc, dict) and "repeatable" in doc), path
+        if isinstance(doc, dict) and "repeatable" in doc:
+            assert doc["repeatable"] is True, path
+            assert path.parent.name == "scenes", path
+            opted.add((path.relative_to(root).parts[0], path.stem))
+    assert opted == SHIPPED_REPEATABLE
     for path in root.glob("*/data/world/schedules.yaml"):
         doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         for spec in (doc.get("events") or {}).values():
