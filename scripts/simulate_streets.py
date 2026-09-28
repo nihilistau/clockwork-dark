@@ -55,7 +55,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from scripts.simulate_law import Thief  # noqa: E402
+from scripts.simulate_law import Thief, counting_deaths, deaths  # noqa: E402
 
 #: Legs between the harness's feed-and-rest (its one liberty).
 REST_EVERY_LEGS = 6
@@ -77,6 +77,7 @@ class Walk:
     seed: int
     legs: list[Leg] = field(default_factory=list)
     min_hp: int = 999
+    deaths: int = 0     # respawns since v0.17 (simulate_law.counting_deaths)
 
 
 class Wanderer(Thief):
@@ -119,6 +120,11 @@ class Wanderer(Thief):
 
 
 def play(seed: int, days: int) -> Walk:
+    with counting_deaths():
+        return _play(seed, days)
+
+
+def _play(seed: int, days: int) -> Walk:
     from engine.game.clock import advance_time
 
     w = Wanderer(seed)
@@ -132,6 +138,7 @@ def play(seed: int, days: int) -> Walk:
         # One street an hour: a refused or free walk still lets the hour go.
         if w.state.world_clock_hours - before < 1.0 - 1e-9:
             advance_time(w.state, 1.0 - (w.state.world_clock_hours - before))
+    w.walk_log.deaths = deaths(w.state)
     return w.walk_log
 
 
@@ -165,6 +172,10 @@ def summarise(walks: list[Walk]) -> dict[str, Any]:
             round(100 * sum(x.arrested for x in night) / len(night), 2) if night else 0.0),
         "min_hp": min((w.min_hp for w in walks), default=None),
         "median_min_hp": statistics.median_low([w.min_hp for w in walks]) if walks else None,
+        "deaths_per_run": (round(statistics.fmean(w.deaths for w in walks), 2)
+                           if walks else 0.0),
+        "runs_with_a_death": (round(sum(w.deaths > 0 for w in walks) / len(walks), 3)
+                              if walks else 0.0),
     }
 
 
@@ -186,7 +197,8 @@ def render(report: dict[str, Any]) -> str:
         f"robbed in {report['robbed_share_of_scenes']:.0%} of scenes; "
         f"{report['gold_lost_per_night_leg']} cr lost per night leg; "
         f"{report['arrests_per_100_night_legs']} arrests per 100 night legs; "
-        f"min hp {report['min_hp']} (median of runs {report['median_min_hp']})")
+        f"min hp {report['min_hp']} (median of runs {report['median_min_hp']}); "
+        f"deaths/run {report['deaths_per_run']} ({report['runs_with_a_death']:.0%} of runs)")
     return "\n".join(lines)
 
 

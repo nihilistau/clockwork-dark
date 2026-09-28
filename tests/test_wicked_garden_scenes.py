@@ -1390,3 +1390,35 @@ def test_epilogues_are_inert_for_a_story_that_declares_none(
     assert epilogue_module.render(GameState(), "E1a") is None
     # And the turn payload never grows an `ending` key for it, on any turn.
     assert epilogue_module.for_state(GameState()) is None
+
+
+def test_the_longest_card_reaches_the_prompt_whole_and_within_budget(garden: GameState) -> None:
+    """v0.17 T8 fix round 3: deck text is AUTHORED, so it takes the authored
+    cap (`spec.MAX_AUTHORED_TEXT`), and the Garden's longest cards -- cut at
+    600 characters, unseen, until then -- reach the narrator whole. The
+    longest (`D8_06b_sophia_unmasked`, 899 characters; `D8_06c` was longer
+    until the v0.17 final review moved its RUNTIME note to a comment) as the
+    card in play:
+    the scene block carries all of it, its MENU line included, and the
+    assembled storyteller prompt still fits the default budget it was
+    built against."""
+    from engine.agents import prompts
+    from engine.content import director
+    from engine.memory.budget import estimate_messages
+    from engine.memory.context import build_storyteller_messages, default_budget
+    from engine.memory.ledger import StoryLedger
+
+    raw = _read(SCENES / "day_08_mirrors.yaml")
+    authored = next(c for c in raw["cards"] if c["id"] == "D8_06b_sophia_unmasked")
+    whole = " ".join(str(authored["text"]).split())
+    assert len(whole) > 600
+    receipt = director.begin(garden, "day_08_mirrors", forced_card="D8_06b_sophia_unmasked")
+    assert receipt.get("ok"), receipt
+    while director.current_card(garden).id != "D8_06b_sophia_unmasked":
+        director.resolve(garden, chosen=director.options(garden)[0]["id"])
+    block = " ".join(prompts._scene_block(garden).split())
+    assert whole in block
+    budget = default_budget()
+    messages = build_storyteller_messages(garden, StoryLedger(), "I listen.", budget=budget)
+    assert estimate_messages(messages) <= budget.available
+    assert whole in " ".join(" ".join(m["content"].split()) for m in messages)

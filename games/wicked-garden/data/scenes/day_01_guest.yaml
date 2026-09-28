@@ -9,12 +9,12 @@
 # reason the player agreed to. Every other card on this day exists to make the
 # court real enough that refusing in front of it costs something.
 #
-# THE GIFT IS A THREAD, NOT A FLAG. `data/rules/threads.yaml` declares
-# `obligation_gift` with three renegotiations already written -- costly_gift,
-# service_named, refuse. The beats here set the flags the rest of the game
-# reads and leave the CONTRACT to the thread tool, because a bargain that lives
-# in a flag cannot be cut, discharged, or broken, and all three of those are
-# scenes later.
+# THE GIFT'S CONTRACT IS A THREAD, NOT A FLAG. `data/rules/threads.yaml`
+# declares `obligation_gift`; the player's `bargain` verb strikes it as
+# written, `discharge` settles it, and it breaks when it falls due. The beats
+# here set the flags the rest of the game reads. Its three renegotiations
+# (costly_gift, service_named, refuse) and any cutting of it are NOT WIRED --
+# see D1_05 and docs/GOVERNANCE.md.
 #
 # The night-1 heat variant is a marked hook, not written.
 #
@@ -211,6 +211,18 @@ cards:
     required: true
     tags: [menu, setpiece, sophia]
     title: "The Gift of Soft Thorns"
+    # RUNTIME (moved out of the text in v0.17.0, AGENTS.md rule 1): no card
+    # effect here touches a thread. What IS wired: `obligation_gift` in
+    # threads.yaml has no `requires`, so the player's `bargain` verb
+    # (engine/skills/builtin/scenes.py `strike_bargain`) strikes it as written
+    # on any turn no card holds, `discharge` settles it, and it breaks when it
+    # falls due (`threads.expire_due`, from engine/game/clock.py).
+    # NOT WIRED (docs/GOVERNANCE.md): its `costly_gift`, `service_named` and
+    # `refuse` renegotiations -- `strike_bargain` seals only the offer as
+    # written, and `threads.renegotiate`/`transform` have no production
+    # caller -- and the gift_obligation auto-thread, which runs through
+    # `threads.accept_gift`, also with no caller. Accepting the collar below
+    # sets flags and values; it seals no thread.
     text: >-
       INTENT: THE setpiece. A collar of soft thorns, offered in public, framed
       as protection and priced as ownership. Terms shown plainly -- protection
@@ -218,20 +230,16 @@ cards:
       thrall, removable only with her leave or with rare law or iron.
       SHE WANTS: to be refused interestingly. She says so out loud. She also
       does not always honour refusal, and the player should believe both.
-      CONSTRAINT: whichever branch runs, OPEN A THREAD through the thread tool.
-      `obligation_gift` for acceptance; its `costly_gift`, `service_named` and
-      `refuse` renegotiations are already written in threads.yaml and are the
-      mechanical body of the three renegotiate answers below. If the player
-      names a limit and asks for the throat-garland rename, honour it silently
-      and change nothing mechanical.
+      CONSTRAINT: if the player names a limit and asks for the throat-garland
+      rename, honour it silently and change nothing mechanical.
       MENU -- resolve exactly the beat the player chose.
     beats:
       - id: accept_the_gift
+        # NOTE: the design lists a fifth delta (Desire +6) that the four-effect
+        # ceiling has no room for; it belongs to the night card and is taken
+        # there.
         text: >-
           The court softens into smiles with edges. Someone claps once, slowly.
-          NOTE: the design lists a fifth delta (Desire +6) that the four-effect
-          ceiling has no room for; it belongs to the night card and is taken
-          there.
         gate:
           on_pass:
             effects:
@@ -266,11 +274,17 @@ cards:
               - { type: value, name: knowledge, delta: 3 }
 
       - id: renegotiate
+        # RUNTIME (moved out of the text in v0.17.0, AGENTS.md rule 1): this
+        # beat sets a flag and a value, nothing more. NOT WIRED
+        # (docs/GOVERNANCE.md): sealing the counter the player argued for as
+        # its own contract. threads.yaml writes these as `obligation_gift`'s
+        # renegotiations, but the `bargain` verb seals only the offer as
+        # written (`strike_bargain`, engine/skills/builtin/scenes.py) and
+        # `threads.renegotiate` has no production caller.
         text: >-
           Three real counters, each a DIFFERENT contract rather than the same
           one on better numbers: protection without the ownership scent (she
           offers the thorn ring), three days only, or a gift that costs HER.
-          Seal whichever the player argued for through threads.yaml.
         gate:
           on_pass:
             effects:

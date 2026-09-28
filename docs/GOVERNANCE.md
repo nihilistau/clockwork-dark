@@ -204,8 +204,8 @@ A set-piece may also carry `requires:` -- any condition in the shared grammar
 `quests.evaluate_condition`), AND-ed with the flag and location gates. It is
 how a gate asks something no flag records: a break-out gated `{in_custody:
 true}` is offered only in the cell (the worked example in AUTHORING §3.11 and
-`tests/test_custody_predicate.py`; HUE & CRY's own jailbreak is v0.17.0
-content, not shipped). Checked
+`tests/test_custody_predicate.py`; HUE & CRY's own jailbreak, since v0.17,
+is `games/hue-and-cry/data/challenges/lantern_house.yaml`). Checked
 at load through `quests.condition_problem`: an unknown predicate, a sibling
 beside `all`/`any`/`none`, or one the gate cannot answer (`disposition`,
 `days_in_stage`, `days_since_started` -- no ledger, no quest) logs and skips
@@ -215,6 +215,14 @@ files through) and no other Law kind.
 
 Authored specs go through the same validator as model-composed ones — a YAML file
 is not more trustworthy than a model, just wrong less often.
+
+Since v0.17 the content validator reads them too
+(`engine/games/validation.py::check_set_pieces`, rules in
+`set_pieces.set_piece_problems`), so doctor and `validate_content` report a
+piece at a place the graph lacks, a malformed flag gate, a challenge the spec
+rejects, an effect no set-piece may apply, or a `release` outside a challenge's
+success outcome. The runtime loader is unchanged: it still keeps what it
+always kept, and the validator is what says so.
 
 ### Storage
 
@@ -291,7 +299,15 @@ the rolled-d20 stills — all 20 plates and all
 and premise security (stage/band/bypass) — `engine/world/jobs.py`'s `entry`
 and `inside` stages read a feature's `known_shift` once casing found it, its
 `shift` otherwise, and an `obstacle: true` feature blocks the `inside` stage
-in its own right, exactly the wiring this row once asked for (v0.11.0).
+in its own right, exactly the wiring this row once asked for (v0.11.0);
+and resuming an interrupted sentence (v0.17 T4) -- `law.serve_sentence`
+counts every step it serves on the custody record through the
+`custody_served` effect (`custody["served_hours"]`), and a second `serve`
+after a scene stopped the first waits out only the rest, exactly the
+served-hours field this row once asked for. Wired before it was reachable
+in a shipped story: HUE & CRY's one interrupting deck, the gallows, still
+ends the story, and its jailbreak takes no time, so it stops no sentence
+either.
 
 ### NOT WIRED
 
@@ -309,6 +325,7 @@ in its own right, exactly the wiring this row once asked for (v0.11.0).
 | Agenda moves posted on the notice board | `engine/scenes/default_api.py::notice_board` | Spec §5 lists "posted on the notice board" as one way the player learns of a move. The board serves labour only. An agenda move reaches the prose as a private sign where it was left (`prompts.agenda_block`) or as a public trace in the moved journal, and nowhere else. Wiring it needs a `trace.board: true` (or similar) that the board reads alongside its labour rows, masked through `agendas.mask_text` like every other piece of agenda text. |
 | A `fence {most: hot_goods}` selector | `engine/world/agendas.py::_fence_candidates`, `SELECTOR_KEYS` | Spec §5 names it. Fences hold no stock (`engine/game/trade.py`), so there is nothing to count. The `fence` selector accepts `district` only, and any other key is a load error. |
 | `disposition` and quest-progress predicates in agenda conditions | `engine/world/agendas.py::LEDGER_PREDICATES`, `PROGRESS_PREDICATES` | The agendas pass runs inside `advance_time`, which holds no StoryLedger and evaluates no quest. `disposition`, `days_in_stage` and `days_since_started` would be false there forever, so each is refused at load (naming the file) rather than left inert. Wiring them needs a ledger and quest progress in the pass's scope. |
+| Thread renegotiation, cutting, the gift auto-thread, and The Wicked Garden's two undeclared templates | `engine/game/threads.py::renegotiate`, `transform`, `cut`, `cut_item`, `cut_arbitrary`, `accept_gift`; `engine/skills/builtin/scenes.py::strike_bargain`; `games/wicked-garden/data/rules/threads.yaml`; `games/wicked-garden/data/canon/state-dictionary.json` | The player's `bargain` verb (`strike_bargain`) seals a template as written, and `discharge` and the day-tick `expire_due` settle and break it -- so the Garden's `obligation_gift`, `ashen_service_owed` and `hospitality_dawn` (no `requires`) work. Nothing else in the lifecycle is reached: `renegotiate`/`transform` have no production caller (only `scripts/simulate_decks.py` calls `renegotiate`), so the Garden's renegotiations (`costly_gift`, `service_named`, `refuse`, `intel_only`) never happen; no production caller cuts a thread, so the `cutters` block only filters `can_cut_with` and the narrator's "severed only by" line, and D8's `shatter_it_with_the_knife` cuts nothing; `accept_gift` has no caller, so the `gift_obligation` auto-thread never seals. `briar_witness` (D6_06) and `three_nights_or_truths` (`bargain_at_the_threshold`) are named in the state dictionary and declared in no `threads.yaml`, so nothing can strike them. The Wicked Garden overhaul (v0.23.0) takes these up. |
 | The static spoiler table's narration half | `engine/lore/interceptors.py::AwarenessGateInterceptor.run_post` | Only `tests/test_awareness_gate.py` calls it. The governance POST chain holds `RulesGovernor` alone, and `engine/agents/storyteller.py::run_turn` never gates the final narration. So a story's `spoilers.yaml` masks prompt regions wrapped in `mark_spoiler`, and not what the model writes. Streamed deltas (`on_delta`) would also reach the client before any post-mask. Wiring it needs a call after the retry loop, plus a decision on the stream: a hold-back buffer, or the authoritative `turn_update` replacing the streamed text. Agenda masking does not depend on it, because the narrator is never told a role's NPC until the player has earned it. |
 
 ### Deliberately deferred -- the Law (v0.10.0)

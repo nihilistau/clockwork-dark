@@ -145,10 +145,13 @@ classes:
                 effects:
                   - { type: value, name: knowledge, delta: 6 }
           - id: E1b_act
+            # RUNTIME (moved out of the text in v0.17.0, AGENTS.md rule 1):
+            # discharge or break the live thread -- the epilogue's account book
+            # is that thread's final status, not a flag. No beat effect touches
+            # a thread; the player settles one with the `discharge` verb, which
+            # the engine executes and which is not offered while a card is dealt.
             text: >-
-              ACT. Pay it, or leave it standing and walk anyway. RUNTIME:
-              discharge or break the live thread through the thread tool -- the
-              epilogue's account book is that thread's final status, not a flag.
+              ACT. Pay it, or leave it standing and walk anyway.
             gate:
               on_pass:
                 effects:

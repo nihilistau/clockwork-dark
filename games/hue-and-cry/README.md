@@ -23,9 +23,11 @@ The story was built alongside four engine features -- premises (v0.9), the
 Law (v0.10), jobs and flashbacks (v0.11), agendas (v0.12) -- and is being
 finished as a run of point releases: living city v0.14, guild economy v0.15,
 Acts I--II v0.16 (the opening, the initiation, the small room, the Magpie's
-trail, and the front desk's alibi and accusation); Act III and the eight
-endings are v0.17, its screens come with v0.21's UI overhaul, and its art
-pack and live play with v1.0.0. Here is what is in it today:
+trail, and the front desk's alibi and accusation) and Act III with the
+eight endings v0.17 (the Hanging Fair, the gallows, the jailbreak and
+`death.yaml`), so a run can now be finished eight ways. Its screens come
+with v0.21's UI overhaul, and its art pack and live play with v1.0.0. Here
+is what is in it today:
 
 | What | Where |
 |---|---|
@@ -35,7 +37,11 @@ pack and live play with v1.0.0. Here is what is in it today:
 | Three archetypes: Cutpurse, Silver-tongue, Bruiser | `data/rules/archetypes.yaml` |
 | The opening on Tallow Docks, Act I's first beat (v0.16): **run** (stealth; a Lantern who sees you bolt files `resisting_watch` on the Quay, and a fumble begins his stop on the spot), **talk** (persuasion, hard; fail and he writes the Magpie into his book, blurred) or **go quietly** (an arrest there and then: three crowns or a day in the cells). Every way leaves you free to walk to the Snuffs within a few turns, by mid-morning of day one (a fumbled run you surrender to costs three days in the cells first) | `game.yaml` → `entry.opening`, `data/rules/law.yaml` |
 | The Honest Company takes you in (v0.16), Act I's second beat: the first turn in the Snuffs while Mother Gannet holds court (18:00–04:00), free and not yet sworn, deals the initiation deck -- so a thief off the morning barge meets the Company that evening, and until then her contract and the guild bunk say the Company receives newcomers after dark -- tea at the long table with a Company that is sure you are the Magpie, a proving in front of the back room (steal her thimble, open the strongbox, stare down the doorman, or just carry the crates), and the oath, then supper or the Magpie's ballad. Every card has an answer that asks no dice; the oath always lands, sets `guild_initiated` and opens Act II, and the rolls decide only how warmly the Company takes you (+2 to +9 standing) | `data/scenes/initiation.yaml`, `data/quests/arcs.yaml` |
-| One reachable ending, `honest_after_all`, with its epilogue | `data/quests/the_way_out/`, `data/rules/endings.yaml`, `data/epilogues/` |
+| All eight endings, each with Speak/Act/Seal and an epilogue card, each through its own door, and every one but the fail-forward EARNED. **Cleared** (v0.17): name the Magpie rightly at the front desk, and at the Hanging Fair the Watch takes the real thief on the Green -- stay and see it done, or walk away and it is offered again when you come back; after the fair, the captain clears your name at the front desk instead (a wrong name left standing on the captain's desk keeps it out of reach until a right one takes it off). **A Lantern** (v0.17): the Magpie named rightly, the Watch's good opinion (five good rounds of the lamps with Wren), and the captain's own file never used against her -- then Captain Ardane offers you a badge at the front desk -- or, if you would rather, just clears your name -- and "not yet" is never the last chance. **Honest After All**: the evening barge takes only a thief who never stole in Tallowmere -- no purse, no house, no squeeze, no hand on the Everflame's heart, whether or not anybody saw -- with a clean enough record of their own (below `sought` in every watch-house for what you did -- the Magpie's robberies pinned on you do not count), square with the fences (no credit open, no welsh), one honest wage earned in the city, and not the Everflame's heart in the pack -- otherwise the bargemaster says why, and the barge sails without you. **The Rope** (`the_rope`), the fail-forward -- taken at the fair, hanged at the fair, and told like a Quest for Glory death screen, through `death.yaml`'s terminal block (below) or the gallows on the fair's last morning (the Hanging Fair, below). **Partners** (v0.17): follow the trail to the Magpie's own door instead of the captain's and say it -- rightly, and the Magpie takes you on (wrongly, and that suspect's people hear of it); then at the Hanging Fair the two of you take the Everflame's heart off the palace steps together -- or, once the fair is over, out of the Everflame itself, up the Hill after dark (sell the Magpie out to the captain first and it is gone for good). **The Legend** (v0.17): lift the heart alone at the Showing (a severe stealth roll) and get it home to the Snuffs before the Watch takes it back -- the Magpie's Hoard carried whole makes the legend a little larger. **Guildmaster** (v0.17): sworn to the Company, trusted by the Hall (5 of its good opinion), and Mother Gannet's measure taken -- her Silk Row job done, or her strike fund's secret in your hands -- and she offers you her needles at the long table, any evening from the Hanging Fair on (she names nobody before it); not while Silas Crook's rise has won. **The Dapper's City** (v0.17): Silas's rise complete, and at the fair you stand with him -- or stand against him and lose; stand against him and win, and he is stopped, and Guildmaster opens again | `data/rules/endings.yaml`, `data/epilogues/`, `data/quests/the_way_out/`, `data/quests/the_hanging_fair/`, `data/scenes/fair_day.yaml`, `data/scenes/lantern_house_desk.yaml`, `data/scenes/the_confrontation.yaml`, `data/scenes/the_last_job.yaml`, `data/scenes/porters_hall.yaml`, `data/tables/labour.yaml` |
+| The Hanging Fair (v0.17), Act III: a declared world event on days 10-12, on Gallows Green, which opens Act III (`the_hanging_fair`, whose ACT line the narrator sees from then on). The first turn you stand on the Green free while it is on deals the fair deck: the crowd, the ballad (whose verse says what the Watch believes of you -- the Magpie, or, after a right naming, a stranger it took for one), and the Showing of the Flame -- watch the Everflame's heart catch the sun on the palace steps, or go up the Hill for it (stealth, severe, once). Win and the heart is yours, filed as the Magpie's `sacrilege`; lose and a Lantern had your wrist, `sacrilege` on your own face, `sought` for the rest of the fair. Walk off the Green and back while the fair is on and the deck is dealt again, with whatever has come due since. An arrest at the fair is questioned as any arrest is. A thief the Watch was already holding when the fair came is walked down to the Green at nine on its last morning: The Rope, unless the fine is paid or the cells are broken out of first (the jailbreak, below) -- serving does not wait the fair out (a sentence that would run past nine stops there) | `data/world/schedules.yaml`, `data/scenes/fair_day.yaml`, `data/scenes/the_gallows.yaml`, `data/quests/arcs.yaml` |
+| The jailbreak (v0.17): a third way out of the cells, beside the fine and the wait, offered while you are held once the interrogation is answered. Lift the sleeping Lantern's keys off their nail and walk past the duty desk (stealth, then nerve); after the first time the keys are chained, and it is a rusted window bar and the yard wall (craft, then stealth) on every stay after. About one try in three, and one try a day. Out, you stand free on the Lantern House's back step with an `escape` on file in the Wick (`sought` as you walk out) and everything the arrest charged still on it; caught, a hiding (3 hp), the door locked again and no second try before midnight -- rest, pay, serve, or try again tomorrow. The cells heal nothing, and a hiding that kills is a death: the bench again before the fair, The Rope during it. On the fair's last morning it is the only way past the gallows without the fine | `data/challenges/lantern_house.yaml`, `data/rules/law.yaml` |
+| The Everflame's heart (v0.17): named, shiny and a `relic` -- no counter in the city will buy it, fence or honest -- stolen only at the fair, and taken back by the Watch at any arrest. Not a piece of the Magpie's Hoard | `data/items/goods.yaml`, `data/tables/trade.yaml` |
+| Death, since v0.17: hp 0 -- hunger, a street fight, a fall off a roof -- is a setback, not a game over. You wake the next morning on the step of Old Nance's flophouse in the Snuffs, half a purse lighter, with stiff hands, a sore ankle (-1 stealth, craft and survival for three days) and a charity crust. Die in the cells and you wake on the bench still held: dying is not a way out. The one death that ends the story is dying held while the Hanging Fair is on: that is The Rope | `data/rules/death.yaml` |
 | Art prompts for every district, person and premise type; no plates yet | `data/art/` |
 | Thirty-one premises a run -- eight generated types and four anchors (Vessaline House, the Margrave's Treasury, Mother Gannet's House, the Captain's Office) -- each with a household that keeps real hours, security by tier, loot and one secret | `data/premises/` |
 | Pockets: alertness and purse by role, six days of heat | `data/rules/thievery.yaml` |
@@ -55,7 +61,7 @@ pack and live play with v1.0.0. Here is what is in it today:
 | Somewhere to sleep (v0.14): a pallet at Old Nance's flophouse in the Snuffs (1 cr), a free bunk over the Porters' Hall for the Honest Company's sworn members while it has no quarrel with them (since v0.16; the flophouse and a rough night never wait for the oath), a room at the Snuffed Wick or over the Tallow Barge (3 cr), the plank bench in the cells while you are held, and a rough night anywhere, always -- plus bread and eel pie from Dock Mag's basket and ship's biscuit at Hollis's. Hunger runs at 2 an hour, and every street now costs stamina | `data/rules/survival.yaml`, `data/items/food.yaml`, `data/economy.yaml` |
 | Scrounging and the secret ways (v0.14): two hours in the gutters of the docks, Wickmarket, the Snuffs, Gallows Green or Chandlers' Rise for bread, candle ends and the odd lost button -- and the hidden ways in: a drainpipe and a loading crane to the Rooftop Road, a yard grating to the Undercroft, the churchyard wall to the Old Bell Tower. The cells' drain reveals the Undercroft to anyone arrested; the Rooftop Road reveals the tower | `data/tables/forage.yaml`, `data/items/scrounge.yaml`, `data/procgen_templates/tallowmere.yaml`, `data/world/locations.yaml` |
 | Honest work and luck (v0.14): carry for Dock Mag's gang on the quay (mornings, a crown or two and the end of the loaf), dip candles at Marsh & Daughters on the Rise (mornings), run errands for the Wickmarket stalls (market hours), or go round the lamps with Wren at dusk -- each open only in the hours its employer keeps, posted on the notice board, two shifts a day. An honest day covers bread and a flophouse bed with a little over; thieving pays more. Natural 20s and 1s draw Tallowmere's luck: a dropped crown, a Lantern's blind eye, a pie across the counter, tallow on the step, a crown lighter, and a jackdaw with opinions | `data/tables/labour.yaml`, `data/tables/boons.yaml`, `data/tables/complications.yaml` |
-| Factions and the city's memory (v0.14): seven groups keep an opinion of you -- the Honest Company, the Lantern Watch, the Worshipful Company of Chandlers, the Wickmarket stallholders (each moved by honest work or a fight with a Lantern), the Margrave's household and the Silk Row houses (moved since v0.15 by a squeeze left uncollected), and the Temple of the Everflame (declared for the acts to come, moved by nothing yet) -- and a lore corpus the narrator can draw on: the city, the Everflame, the Magpie's legend, the Watch, the Company, the Hanging Fair, the guilds, and the hidden city (the narrator's alone) | `data/world/factions.yaml`, `data/lore/*.md` |
+| Factions and the city's memory (v0.14): seven groups keep an opinion of you -- the Honest Company, the Lantern Watch, the Worshipful Company of Chandlers, the Wickmarket stallholders (each moved by honest work or a fight with a Lantern), the Margrave's household and the Silk Row houses (moved since v0.15 by a squeeze left uncollected), and the Temple of the Everflame (moved since v0.17 by the Everflame's heart taken off the palace steps) -- and a lore corpus the narrator can draw on: the city, the Everflame, the Magpie's legend, the Watch, the Company, the Hanging Fair, the guilds, and the hidden city (the narrator's alone) | `data/world/factions.yaml`, `data/lore/*.md` |
 | The small room (since v0.16): every arrest ends in the Lantern House's interrogation, dealt on the first turn of every stay in the cells. Captain Ardane asks when she is in the house and awake, Sergeant Brask at his desk in the late afternoon, and the Lantern who brought you in at the duty desk otherwise. Nerve and persuasion can lose the petty sheets against you (every one, or the Wick's), a caught lie writes one more lift into the Magpie's file -- yours while the Watch believes you are the Magpie -- and a plain answer changes nothing. The fine and the days stand: the room moves the file, never the sentence. Every card has an answer with no roll, and paying or serving comes back once the cards are answered. If the Magpie robbed a house while you sat in a cell on an earlier stay and you have not yet shown it, the duty book is on the table there too (the same alibi as the front desk's, below), and a file that has cleared you once remembers it in red | `data/scenes/interrogation.yaml` |
 | The Lantern House front desk (since v0.16), walked into free -- the reveal and the alibi. **The alibi:** when the Magpie robbed while you were in the cells, the Watch's own duty book proves it, and those robberies come off your file (once per alibi earned; it clears the nights, and while the Watch still takes you for the Magpie the file still says so -- after a right naming the book changes nobody's mind, and those nights' robberies are struck off every file, the Magpie's as well). **The accusation:** while Captain Ardane is in and awake, with Evidence at "some" or better and your found clues leaning toward one suspect -- two clues that agree (agree, not necessarily true: two herrings can open a wrong naming), at the least -- put the trail on her desk and name that suspect as the Magpie. Named rightly, the Watch stops believing you are the Magpie -- its robberies stay on its file, not yours -- and the story knows who the Magpie is. Named wrongly, she files a false witness against your face -- on top of everything the Magpie has done in the Wick in your name, since the Watch still links the two, so it typically costs a band and often leaves you `sought` -- and the Watch's belief stands; she will hear another name only once you have carried out a clue since, and never the same one twice. Every card can be answered "not yet", and walking out and back in offers it again | `data/scenes/lantern_house_desk.yaml`, `data/rules/law.yaml` |
 | Mother Gannet's job, offered to the Company's sworn (since v0.16; before the oath she says why not): any house on Silk Row for the Honest Company, fifteen crowns net of its cut, three days to do it; left undone it costs the Company's good opinion | `data/rules/threads.yaml`, `data/world/factions.yaml` |
@@ -65,12 +71,18 @@ pack and live play with v1.0.0. Here is what is in it today:
 Each of these is a later release's job, and CLAUDE.md's "Deliberately
 deferred" list carries the engine-side rows:
 
-- **Three decks: the initiation, the interrogation and the front desk.**
-  The fair-day deck is v0.17, with Act III and the eight endings. Until then
-  the one ending is `honest_after_all`, and the reveal and the alibi change
-  what the Watch believes and what is on your file, not how the story ends.
-  The interrogation's reserved `Q3_the_evidence` slot is left unfilled: the
-  accusation lives at the front desk.
+- **The endings are measured.** `scripts/simulate_endings.py` plays eleven
+  policies to the ending each run locks (the table is in the
+  [CHANGELOG](CHANGELOG.md)): every ending is reached by the policy that
+  plays for it, from The Rope's 7.5% (a reckless pickpocket) to Honest
+  After All's 100% (a porter), and the fair stays on day 10. A run that
+  earns nothing by two days after the fair simply goes on: nothing ends it
+  but a door. The interrogation's reserved `Q3_the_evidence` slot is left
+  unfilled: the accusation lives at the front desk.
+- **Naming the Magpie to the captain shuts Silas's door.** A thief who has
+  done so is never dealt Silas's move at the fair, so cannot stand against
+  Silas there either: if Silas's rise has won, Guildmaster stays shut for
+  that thief.
 - **The trail reads slowly, measured and left.** A house gives its clue up
   only on the last watch, so a clue costs about three houses cased to the
   end: a deliberate investigator (`scripts/simulate_acts.py`) unmasks the
@@ -79,15 +91,28 @@ deferred" list carries the engine-side rows:
 - **The front desk deals on the way in.** A card that becomes due while you
   are already standing in the Lantern House (the captain coming on duty,
   say) waits until you walk out and back in.
-- **No `death.yaml`.** It waits for v0.17 and The Rope ending, so until then a
-  lost fight or hunger can leave hp at zero with no respawn.
+- **The warning is in the cells only.** The fair is on day 10 of every run;
+  from day 7 the interrogation's bill on the wall says the Watch keeps its
+  thieves for it, and nothing else announces it (no rumour, no notice).
 - **Flags nothing reads yet.** Completing the Magpie's Hoard sets
-  `magpies_hoard_complete`, read by nothing until v0.17's The Legend; the
-  agenda clocks' beats set flags only later scenes will read; and the
-  reveal's and the alibi's flags (`magpie_unmasked`, `magpie_named_wrongly`,
-  `wrongly_accused_*`, `alibi_proven`) are for v0.17's endings.
+  `magpies_hoard_complete`, which only colours The Legend (its closeness and
+  its last line) and opens no door; the captain's warrant and the Magpie's
+  spree beats set flags nothing reads yet (Silas's is read since v0.17: The
+  Dapper's City); and of the reveal's and the alibi's flags,
+  `wrongly_accused_*` and `alibi_proven` are read only by the decks' own
+  gates. The Temple's good opinion is moved and read by nothing.
 - **A generated house's secret opens no thread.** It is held when carried out
   of a job; only the four anchors' secrets name a blackmail.
+- **A purses-only living still starves.** The careful pickpocket
+  (`scripts/simulate_labour.py`) reaches 0 hp on 95% of seeds in ten days,
+  about twice a run; since v0.17 it wakes on Old Nance's step and goes on,
+  but lifting alone is still below the cost of living. v0.18.0's thief
+  policy takes it up.
+- **A quiet death at the fair.** Starving in the cells while the fair is on
+  is The Rope, and that turn's prose gets no death receipt (a card's or a
+  challenge step's death does), so the story goes straight to the ending's
+  beats. A prisoner serving a sentence is fed, so only one who sat unfed in
+  the cell reaches it.
 - **Hired hands** (spec §4) are not built: a job is walked solo.
 - **No bespoke screens.** The Law and the job reach the client payload and the
   prose; no panel draws them until v0.21.0.
@@ -111,17 +136,18 @@ save.
 | `scripts/simulate_jobs.py` | `blind`, `careful`, `greedy`, `greedy_bare` | `data/rules/jobs.yaml` (table in its header) |
 | `scripts/simulate_agendas.py` | `idle`, `careful`, `reckless` | `data/rules/agendas.yaml`, `data/rules/clocks.yaml` |
 | `scripts/simulate_scrounge.py` | `scrounger`, `mornings` | `data/tables/forage.yaml` (table in its header) |
-| `scripts/simulate_labour.py` | `porter`, `dipper`, `careful`, `scrounger`, `careful_pell`, `careful_marrow` | `data/tables/labour.yaml` (table in its header) |
+| `scripts/simulate_labour.py` | `porter`, `dipper`, `careful`, `scrounger`, `careful_pell`, `careful_marrow` (`--endings`: what the earned endings read, day by day) | `data/tables/labour.yaml` (table in its header), `data/rules/endings.yaml` |
 | `scripts/simulate_streets.py` | `wanderer` | `data/encounters/rules.yaml`, `data/encounters/streets.yaml` |
 | `scripts/simulate_hoard.py` | `hoarder` | `data/tables/collections.yaml`, the squeezes in `data/rules/threads.yaml` |
 | `scripts/simulate_acts.py` | `investigator` (`--opening a\|b\|c`; `--gate N` tries the desk's evidence bar) | `data/scenes/lantern_house_desk.yaml`, `false_witness` in `data/rules/law.yaml` (tables in their headers) |
+| `scripts/simulate_endings.py` | `investigator_a/b/c`, `lantern`, `partner`, `heister`, `loyalist`, `dapper`, `porter`, `reckless`, `runner` -- each plays for one ending, to two days past the fair (`--fair-day N` tries the fair on another day; `--break-out all\|none`) | the Hanging Fair's day (`data/world/schedules.yaml`), the eight endings' gates (`data/rules/endings.yaml`); the table is in the CHANGELOG |
 
 The law, jobs, agendas and acts harnesses take `--set KEY=VALUE` to try a number
 without editing the file; every one takes `--json` for the raw table. The measured tables are in [the root
 CHANGELOG](../../CHANGELOG.md) under the release that set them (summarised in
 this story's [CHANGELOG.md](CHANGELOG.md)), and `tests/test_hue_and_cry.py`
 asserts the Law's floors, the jobs, scrounging and cost-of-living bounds,
-and the investigator's.
+the investigator's, and every ending's reach by a policy that plays for it.
 `scripts/simulate.py`'s policies are flagship-owned; a thief policy for it is
 v0.18.0.
 
@@ -132,5 +158,10 @@ v0.18.0.
 ```
 
 `tests/test_hue_and_cry.py` holds the story's shape and its measured bounds;
-the story also has a row in every per-story test (`tests/test_finales.py`
-plays it to `honest_after_all`).
+the story also has a row in every per-story test, and `tests/test_finales.py`
+drives each of its endings through its own door (the barge, the real Magpie
+at the fair, Cleared at the desk after it, the captain's badge, the death in
+the cells at the fair, the gallows, the heart taken with a partner at the
+fair or by night after it, the heart carried home, Gannet's needles, and
+Silas's move) -- and walks each earned
+ending's door with its gate unmet, to prove it stays shut.

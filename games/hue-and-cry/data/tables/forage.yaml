@@ -33,8 +33,8 @@
 # a flophouse, a tool or a job. Picking pockets stays the only way to MONEY
 # (the pickpocket earns its day in an hour or two); scrounging is what keeps a
 # broke thief alive while it learns. A half-day of it does not: the mornings
-# thief still goes hungry, and one seed starved to 0 hp (there is no death.yaml
-# until v1.0 -- CLAUDE.md). The first cut (picks 3/2/1, the flagship's easier
+# thief still goes hungry, and one seed starved to 0 hp (there was no
+# death.yaml then; since v0.17 that seed respawns in the Snuffs). The first cut (picks 3/2/1, the flagship's easier
 # bands, food and junk weights half again) measured 2.75 cr and 70 food a day,
 # a better living than stealing; tests/test_hue_and_cry.py bounds both sides.
 #

@@ -68,11 +68,13 @@ settings:
 # (state.yaml, clocks.yaml).
 #
 # Since v0.16, decks: Mother Gannet's initiation, the Watch's
-# interrogation and the Lantern House front desk (see `decks` below).
+# interrogation and the Lantern House front desk (see `decks` below). Since
+# v0.17, the calendar: the Hanging Fair (`world_schedules`), with its own two
+# decks, the fair and the gallows.
 #
 # DELIBERATELY NOT DECLARED YET, each one a later release's job rather than an
-# omission: the other decks (the Hanging Fair's), the other
-# threads (the rest of the Company's contracts), world_rumors. (Night-street
+# omission: the other threads (the rest of the Company's contracts),
+# world_rumors. (Night-street
 # encounters and lore arrived in v0.14; recipes -- the Porters' Hall bench --
 # in v0.15, see below.)
 # (Factions: one, the Honest Company, since v0.11 -- see below.) The graph
@@ -90,6 +92,10 @@ settings:
 paths:
   locations: "games/hue-and-cry/data/world/locations.yaml"
   npc_schedules: "games/hue-and-cry/data/world/npc_schedules.yaml"
+  # Since v0.17: the city's calendar -- one declared event, the Hanging Fair
+  # (days 10-12 on Gallows Green), which forces the fair deck and opens Act
+  # III. The file's header says why day 10 and what hangs off it.
+  world_schedules: "games/hue-and-cry/data/world/schedules.yaml"
   prompts: "games/hue-and-cry/prompts"
   # skills.yaml, archetypes.yaml, spoilers.yaml and (since v0.14) survival.yaml
   # are found INSIDE this directory by fixed filename. survival.yaml is the
@@ -151,12 +157,24 @@ paths:
   # -- the reveal and the alibi, dealt when the thief walks into the
   # Lantern House FREE with something to show (repeatable): the duty book's
   # alibi, and the accusation that names the Magpie to Captain Ardane.
+  # Since v0.17, two more: `fair_day` -- the Hanging Fair on Gallows Green,
+  # forced by the fair and dealt once, free, on the Green (the Showing of the
+  # Flame, and the Everflame's heart on the palace steps) -- and
+  # `the_gallows`, dealt in the cell from nine on the fair's last morning to
+  # a thief held since before it began: The Rope's hanging door.
   decks: "games/hue-and-cry/data/scenes"
   # Jobs (v0.11): a burglary walked stage by stage, what every house's
   # security does to it, the burglar's tools, flashbacks, and the Treasury's
   # vault floor (engine/world/jobs.py). Its numbers were set by measurement --
   # scripts/simulate_jobs.py, table in CHANGELOG.md and in the file's header.
   jobs: "games/hue-and-cry/data/rules/jobs.yaml"
+  # Since v0.17: the jailbreak -- two set-pieces in the Lantern House cells,
+  # offered only while held (`requires: {in_custody: true}`): the third way
+  # out beside the fine and the wait, and on the Hanging Fair's last morning
+  # the only one past the gallows for a thief who cannot pay. Success is a
+  # `release` and a fresh `escape` on file; failure is a hiding (hp). The
+  # file's header has the rest.
+  challenges: "games/hue-and-cry/data/challenges"
   # Seven factions since v0.14 (engine/game/reputation.py); the file's
   # header says what moves each and which wait for Acts I-III.
   factions: "games/hue-and-cry/data/world/factions.yaml"

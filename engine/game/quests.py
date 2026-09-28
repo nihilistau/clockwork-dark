@@ -796,7 +796,7 @@ _GRAMMAR_MODULES = (
     "engine.game.clocks",  # value, clock, track, forced_scene
     "engine.game.threads",  # thread, no_thread
     "engine.game.endings",  # ending
-    "engine.world.law",  # in_custody, filed, linked
+    "engine.world.law",  # in_custody, held_before_event, filed, linked, committed_deed
     "engine.world.jobs",  # premise_cased, premise_robbed, job
     "engine.world.agendas",  # wanted, reported_to, agenda_hit, alibi, agenda_role
     "engine.world.clues",  # clues_favour
@@ -1199,8 +1199,49 @@ class QuestEngine:
             if not objective:
                 continue
             name = str(definition.get("name") or record.quest_id)
-            lines.append(f"{name} - {objective}")
+            refused = QuestEngine.stage_refusal(state, stage, progress=record)
+            if refused:
+                # Audit question 2: a stage that will not close is told to the
+                # narrator in the story's words, so a player who tries is
+                # answered with the reason, not with a departure it refused.
+                lines.append(f"{name} - {objective} (Not yet: {refused})")
+            else:
+                lines.append(f"{name} - {objective}")
         return lines
+
+    @staticmethod
+    def stage_refusal(
+        state: GameState,
+        stage: dict[str, Any],
+        *,
+        progress: Optional[QuestProgress] = None,
+    ) -> str:
+        """
+        Why this stage will not close now, in the story's words, or ``""``.
+
+        ``refusals: [{when, text}]`` on a stage -- the shape a thread's and a
+        bed's refusals already use (``threads.strike_refusal``,
+        ``survival._refusal``) -- asked in order; the first whose ``when``
+        holds. Evaluated with no ledger (the objective line is built with
+        none; the validator refuses a ledger predicate here). A stage that
+        declares none -- every stage before v0.17 -- refuses nothing, and its
+        objective line and flag vocabulary are what they always were.
+
+        While a refusal holds, the stage's own ``narrative_flags`` are
+        withheld from the narrator (``allowed_narrative_flags``): the flag
+        that would say "aboard" must not be offered while the bargemaster
+        will not take you.
+        """
+        rows = stage.get("refusals") if isinstance(stage, dict) else None
+        if not isinstance(rows, list):
+            return ""
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            text = " ".join(str(row.get("text") or "").split())
+            if text and evaluate_condition(state, row.get("when"), progress=progress):
+                return text
+        return ""
 
     # -- narrative flags -------------------------------------------------
 
@@ -1218,7 +1259,12 @@ class QuestEngine:
         for definition, record in QuestEngine.active_quests(state):
             allowed.update(str(f) for f in (definition.get("narrative_flags") or []))
             stage = QuestEngine.current_stage(definition, record)
-            if stage is not None:
+            # A refused stage's flags are not offered (``stage_refusal``): the
+            # engine would not close the stage, so the narrator may not say it
+            # happened.
+            if stage is not None and not QuestEngine.stage_refusal(
+                state, stage, progress=record
+            ):
                 allowed.update(str(f) for f in (stage.get("narrative_flags") or []))
         return allowed
 

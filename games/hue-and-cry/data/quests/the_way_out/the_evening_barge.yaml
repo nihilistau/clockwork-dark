@@ -4,21 +4,33 @@
 # the evening, get aboard, and the story locks `honest_after_all`
 # (data/rules/endings.yaml), plays its three beats and hands over its epilogue.
 #
-# WHY IT IS OPEN FROM THE FIRST MORNING. Quest-for-Glory rule: the player can
-# always just leave. Most runs will not want to -- that is what the other seven
-# endings are for, once they exist -- but a story that cannot be walked out of
-# is a story with a locked door painted to look like a wall.
+# WHY IT IS OFFERED FROM THE FIRST MORNING. Quest-for-Glory rule: the player
+# can always see the way out. Most runs will not want it -- that is what the
+# other seven endings are for -- but a story that cannot be walked out of is a
+# story with a locked door painted to look like a wall.
 #
-# EVERY `complete_when` IS ENGINE-EVALUABLE: a place, an hour window, and one
-# narrative flag the stage hands the narrator to raise when the player is
-# actually aboard. `hour_between` is inclusive-start, exclusive-end, so
-# [17, 22] is five to ten in the evening.
+# WHY IT DOES NOT ALWAYS TAKE YOU (v0.17 Task 5). Honest After All is an
+# EARNED ending now (data/rules/endings.yaml): a clean name, square with the
+# fences, and an honest wage earned. The stage waits on the ending itself --
+# `{ending: {eligible: honest_after_all}}` in `complete_when` -- so the barge
+# and the gate cannot disagree: an unearned thief is simply not taken, the
+# quest does not complete and nothing is locked. And the narrator is told WHY,
+# in the bargemaster's terms: the stage's `refusals` restate the three
+# clauses (tests/test_hue_and_cry.py holds them to the gate, case by case);
+# while one holds, the objective line carries it ("Not yet: ...") and the
+# `nf_boarded_the_evening_barge` flag is not offered, so the prose cannot put
+# the player aboard a barge the engine refused (engine/game/quests.py
+# `stage_refusal`). The refusals name no hour or place: the reason is the
+# thief's own life, true anywhere in the city. (Since v0.17 T6 a fourth: the
+# Everflame's heart in the pack. Since T8's fix round 1 a fifth, and first:
+# anything stolen at all, seen or not; since fix round 2, second, a squeeze.)
 #
-# "WITH A CLEAN NAME" IS NOT YET TESTED HERE. There is no wanted level for it
-# to read until the Law lands; that release adds the clause, and until then a
-# player can board this barge as notorious as they like.
+# EVERY `complete_when` IS ENGINE-EVALUABLE: a place, an hour window, the
+# ending's gate, and one narrative flag the stage hands the narrator to raise
+# when the player is actually aboard. `hour_between` is inclusive-start,
+# exclusive-end, so [17, 22] is five to ten in the evening.
 #
-# Version: v0.1.0 [2026-09-23]
+# Version: v0.3.1 [2026-09-28] -- nor a squeeze, paid or not (T8 fix round 2)
 
 id: the_evening_barge
 arc: the_way_out
@@ -43,7 +55,64 @@ stages:
       all:
         - at_location: tallow_docks
         - hour_between: [17, 22]
+        - ending: { eligible: honest_after_all }
         - flag: nf_boarded_the_evening_barge
+    # The bargemaster's terms, one a clause of endings.yaml's gate, in its
+    # order: the first that holds is the narrator's reason.
+    refusals:
+      # T8 fix round 1 (the owner's ruling): endings.yaml's `never_stole`,
+      # first because it never cools -- a thief who has stolen is not told
+      # to wait for the Watch to forget.
+      - when:
+          any:
+            - { committed_deed: [pickpocket, burglary, fencing] }
+            - { flag: laid_a_hand_on_the_heart }
+        text: >-
+          the bargemaster takes honest passengers, and you have taken what was
+          not yours in Tallowmere -- a purse, a house, a hand on the
+          Everflame's heart -- and whether or not anybody saw it, you know it,
+          and a bargemaster who has watched thieves try his gangplank for
+          thirty years knows the look; nobody who has leaves on the evening
+          barge honest
+      # Fix round 2: the same clause's squeeze -- a Blackmail thread, paid or
+      # not (a paid one files nothing, so only the thread remembers).
+      - when: { thread: { tag: Blackmail, status: "" } }
+        text: >-
+          you put the squeeze on somebody in Tallowmere, and whether or not
+          they paid, a squeeze is coin taken that was never yours; the
+          bargemaster carries honest passengers, and nobody who has leaves
+          on the evening barge honest
+      - when:
+          any:
+            - { wanted: { guise: self, jurisdiction: quay, min: sought, own: true } }
+            - { wanted: { guise: self, jurisdiction: wick, min: sought, own: true } }
+            - { wanted: { guise: self, jurisdiction: rise, min: sought, own: true } }
+        text: >-
+          the Watch stands at the gangplank to ask the bargemaster's questions
+          for him, and what you yourself have done in Tallowmere is still
+          fresh on your file -- while it is looking for your face for that, it
+          will not let you aboard
+      - when:
+          any:
+            - { thread: { tag: Credit } }
+            - { flag: welshed_on_pell }
+            - { flag: welshed_on_marrow }
+        text: >-
+          a fence's debt follows a thief onto any barge, and the fences' people
+          watch the gangplank too -- you owe a fence in Tallowmere, and nobody
+          sails while they owe
+      - when: { not_flag: honest_wage_earned }
+        text: >-
+          the bargemaster takes his fare only in coin that was earned, and you
+          have not yet earned an honest wage in Tallowmere -- not one day's pay
+          for one day's work, on the quay, at the vats, in the market or on the
+          lamps
+      # T6 review round 1: endings.yaml's `empty_handed`.
+      - when: { has_item: everflame_heart }
+        text: >-
+          the Everflame's heart is in your pack, and no honest passenger
+          carries the city's holy relic down the gangplank -- whatever the
+          Watch's file says of you, nobody leaves Tallowmere honest with that
     complete_text: >-
       The gangplank comes up behind you with a bang like a door. The quay
       lamps slide away one by one, and Tallowmere folds itself up into a
@@ -55,7 +124,10 @@ on_complete:
     - type: ledger_fact
       text: "You left Tallowmere on the evening barge."
       kind: event
-    - { type: ending_lock }
+    # BY NAME (v0.17). An id-less lock asks `endings.resolve()`, and once
+    # honest_after_all is gated and The Rope is the fail-forward, that answer
+    # can be the gallows for a thief who only stepped aboard.
+    - { type: ending_lock, ending: honest_after_all }
     - { type: ending_module }
 
 complete_text: >-

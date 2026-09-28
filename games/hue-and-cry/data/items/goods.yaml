@@ -27,12 +27,16 @@
 #           which pieces do NOT carry it: the minting die and the strike fund
 #           are worth more than most silver, and the Magpie would walk
 #           straight past both.
+#   relic   nobody buys it (v0.17): data/tables/trade.yaml's
+#           `never_traded_tags`, read by engine/game/trade.py::deals_in, so no
+#           counter deals in it, fence or honest. One piece carries it: the
+#           Everflame's heart, at the foot of this file.
 #
 # THE MAGPIE'S HOARD (v0.15), at the foot of this file: six famous shines off
 # the Watch's list, each `shiny`, `named` and `collection: magpies_hoard`.
 # Named, so hot for good -- the Hoard is kept, not fenced.
 #
-# Version: v0.1.2 [2026-09-26]
+# Version: v0.2.0 [2026-09-27]
 
 version: 1
 
@@ -602,4 +606,30 @@ items:
     collection: magpies_hoard
     weight: 0.6
     value: 150
+    stack: false
+
+  # ------------------------------------------------------------------
+  # The Everflame's heart (v0.17): the great glass at the flame's centre,
+  # shown on the palace steps at the Hanging Fair (data/lore/
+  # the_everflame.md, the_hanging_fair.md) and lifted, if it is lifted, only
+  # there: the Showing's heist on the fair deck (data/scenes/fair_day.yaml).
+  # In no premise and no anchor -- the Treasury's header says it is not
+  # there -- and NOT a piece of the Magpie's Hoard: the Hoard is six shines
+  # the ballad says the Magpie took, and the heart is the one it says nobody
+  # could. `relic`, so no counter in the city will touch it; `named`, so once
+  # stolen it is hot for good and the Watch takes it back at any arrest. What
+  # it is worth to a thief is not coin: v0.17's endings (The Legend,
+  # Partners) read it.
+  # ------------------------------------------------------------------
+
+  - id: everflame_heart
+    name: "The Everflame's Heart"
+    description: >-
+      A single flawless prism the size of two fists, cut so that it seems to
+      hold a flame of its own even in a dark pocket. Worth more than Silk Row
+      put together, and the one object in Tallowmere that everyone agrees
+      nobody could possibly steal. No fence will so much as look at it.
+    tags: [goods, shiny, named, relic]
+    weight: 2.0
+    value: 5000
     stack: false

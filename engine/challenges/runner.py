@@ -18,7 +18,7 @@ where being injured did not matter.
 State lives in ``GameState.challenge`` and is therefore saved, so a challenge
 survives a reload mid-gauntlet.
 
-Version: v0.1.0 [2026-08-08]
+Version: v0.2.0 [2026-09-27]
 """
 
 from __future__ import annotations
@@ -63,9 +63,12 @@ class ChallengeResult:
     adjustments: list[str] = field(default_factory=list)
     ended: bool = False
     success: bool = False
+    #: The death record when this step's outcome took the player to the
+    #: threshold (``encounter.check_death``), else None. See ``resolve``.
+    death: Optional[dict[str, Any]] = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        out = {
             "challenge_id": self.challenge_id,
             "kind": self.kind,
             "status": self.status,
@@ -83,6 +86,11 @@ class ChallengeResult:
             "ended": self.ended,
             "success": self.success,
         }
+        # Only a step that killed carries the key, so every other receipt
+        # is byte-identical to what it was.
+        if self.death is not None:
+            out["death"] = self.death
+        return out
 
 
 def _error(message: str, kind: str = "") -> ChallengeResult:
@@ -192,14 +200,29 @@ def resolve(
         return _error("no active challenge")
 
     kind = str(active.get("kind", ""))
+    hp_before = int(state.stats.hp)
+    result: Optional[ChallengeResult] = None
     if kind == "skill_gauntlet":
-        return _resolve_gauntlet(state, active, rng=rng, ledger=ledger)
-    if kind == "decision_tree":
-        return _resolve_tree(state, active, choice, ledger=ledger)
-    if kind == "puzzle":
-        return _resolve_puzzle(state, active, answer, ledger=ledger)
-    if kind == "dice_table":
-        return _resolve_dice_table(state, active, rng=rng, ledger=ledger)
+        result = _resolve_gauntlet(state, active, rng=rng, ledger=ledger)
+    elif kind == "decision_tree":
+        result = _resolve_tree(state, active, choice, ledger=ledger)
+    elif kind == "puzzle":
+        result = _resolve_puzzle(state, active, answer, ledger=ledger)
+    elif kind == "dice_table":
+        result = _resolve_dice_table(state, active, rng=rng, ledger=ledger)
+    if result is not None:
+        # A STEP THAT TAKES HP CAN KILL, ON THAT STEP (v0.17 T4), as a card's
+        # beat can (``director.resolve``). A challenge moves no clock, so hp
+        # an outcome took used to wait for whatever next called
+        # ``advance_time``: HUE & CRY's jailbreak beating a thief to 0 in the
+        # cells, and the narrator walking them on. Asked only when this step
+        # LOWERED hp -- no shipped set-piece before this one takes any -- and
+        # a player already down from elsewhere is that elsewhere's death.
+        if int(state.stats.hp) < hp_before:
+            from engine.game import encounter
+
+            result.death = encounter.check_death(state, ledger=ledger)
+        return result
 
     # Unreachable via start(), reachable via a save written by a newer build.
     logger.error(

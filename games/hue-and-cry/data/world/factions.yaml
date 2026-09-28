@@ -13,22 +13,32 @@
 #   honest_company     Gannet's contract; a shift for Dock Mag (+1); a
 #                      porter's nod (boon, +2); Silas's toll (streets.yaml);
 #                      the Magpie's Hoard complete (+8, v0.15,
-#                      data/tables/collections.yaml).
+#                      data/tables/collections.yaml); since v0.17, standing
+#                      against Silas at the fair and winning (+5) or
+#                      accusing him, to his face, of being the Magpie,
+#                      wrongly (-5,
+#                      data/scenes/fair_day.yaml, the_confrontation.yaml).
+#                      Guildmaster asks 5 of it (data/rules/endings.yaml).
 #   lantern_watch      going round the lamps with Wren (+1; the lamp
 #                      ordinance is the Watch's); striking a drunk Lantern
-#                      (streets.yaml, -10).
+#                      (streets.yaml, -10); since v0.17, accusing the
+#                      lamplighter, at her own door, of being the Magpie,
+#                      wrongly (-5).
 #   chandlers_guild    a good shift at Marsh & Daughters' vats (+1).
 #   market_stalls      running Wickmarket's errands well (+1).
 #   margraves_household  Steward Quill's squeeze left uncollected (-10, v0.15,
 #                      data/rules/threads.yaml).
-#   silk_row           Lady Imelda's squeeze left uncollected (-10, v0.15).
-#   temple_everflame   declared for Acts I-III (the Hanging Fair, the flame);
-#                      nothing moves it yet -- listed so v0.16/v0.17 content
-#                      lands on a faction the story owns, the same reason the
-#                      Company was declared before it had a use.
+#   silk_row           Lady Imelda's squeeze left uncollected (-10, v0.15);
+#                      since v0.17, accusing her, in her own parlour, of
+#                      being the Magpie, wrongly (-5).
+#   temple_everflame   since v0.17, the Everflame's heart taken off the palace
+#                      steps at the Hanging Fair under the Temple's blessing
+#                      (-10, data/scenes/fair_day.yaml F2 alone or F6 with a
+#                      partner) -- the Temple's first mover. Nothing reads it
+#                      yet but the save and the `reputation` predicate.
 #
-# The Temple is the one deliberate exception to the rule above, recorded in
-# CLAUDE.md "Deliberately deferred" so it is not mistaken for finished.
+# Since v0.17 every faction here is moved by something (the Temple was the
+# last, and CLAUDE.md's deferred row for it is closed).
 # (The Company also loses 5 the moment Mother Gannet is squeezed, and 10 if
 # the squeeze is left hanging; the Watch 10 if the captain's is.)
 # No wage is priced by any standing (labour.yaml's header measured why).
@@ -42,7 +52,7 @@
 # games/dev-story/data/world/factions.yaml gives: bands, clamps and the price
 # curve are mechanics, not story.
 #
-# Version: v0.2.2 [2026-09-26]
+# Version: v0.3.0 [2026-09-28] -- the Temple moves
 
 version: 1
 

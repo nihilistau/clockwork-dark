@@ -77,9 +77,10 @@
 # Hunger itself keeps the engine's defaults (2 an hour, starving at 85), which
 # is also what the Law's gaol rations are timed against (law.py
 # `_ration_hours`). Starvation's bite is the flagship's measured 0.4 hp an
-# hour, not the engine default of 1.0: hue-and-cry ships no death.yaml until
-# v1.0 (CLAUDE.md), so hp 0 has no respawn yet, and 20 hp at 1.0 an hour was
-# less than a day from the `starving` line to the end.
+# hour, not the engine default of 1.0: hue-and-cry shipped no death.yaml
+# then, so hp 0 had no respawn, and 20 hp at 1.0 an hour was less than a day
+# from the `starving` line to the end. (Since v0.17 hp 0 respawns on Old
+# Nance's step, data/rules/death.yaml; the 0.4 stands.)
 #
 # Version: v0.2.0 [2026-09-26]
 
@@ -172,9 +173,9 @@ rest:
     stamina: 55
     hp: 0
     on_failure:
-      # No hp lost: a bad night is a tired morning, not a wound -- there is
-      # no death.yaml to catch the thief yet, and rough sleep must never be
-      # a way to die slowly for want of a crown.
+      # No hp lost: a bad night is a tired morning, not a wound -- rough
+      # sleep must never be a way to die slowly for want of a crown (even
+      # now that death.yaml, v0.17, would wake the thief again).
       stamina: 25
       text: "Every doorway on the street has a Lantern's lamp swinging past it or somebody's boot in it. You get an hour, maybe two."
 

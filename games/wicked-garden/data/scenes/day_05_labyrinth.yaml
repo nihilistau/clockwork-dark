@@ -121,20 +121,23 @@ cards:
     required: true
     tags: [sequence, gm]
     title: "Five Chambers"
+    # RUNTIME (moved out of the text in v0.17.0; the narrator cannot deal a
+    # deck, AGENTS.md rule 1): nothing on this card deals `thorn_labyrinth`.
+    # The scene director (engine/content/director.py) deals it by itself, as
+    # it deals any deck in `paths.decks` -- three required cards and two drawn
+    # middles, selected from state by engine/content/deck.py and reproducible
+    # from the seed. If the Heart Trial in that hand is the Rose Heart it is
+    # authored there; the two variants it does not carry are D5_03 below.
     text: >-
-      INTENT: this beat is an instruction to the runtime, not a scene. DEAL
-      `thorn_labyrinth` NOW -- three required cards and two drawn middles,
-      selected from state by the deck engine and reproducible from the seed.
-      Narrate the hand that comes back. Do not invent a sixth chamber and do not
-      skip one because it is inconvenient.
+      INTENT: the threshold of the interior, not a chamber of it. The chambers
+      arrive as they are dealt -- narrate the ones that come. Do not invent a
+      sixth chamber and do not skip one because it is inconvenient.
       CONSTRAINT: keep the interior to three to five player choices in total.
       Every chamber gets one beautiful detail and one wrong detail.
     beats:
       - id: the_hand_is_dealt
         text: >-
-          Whatever the deck returned. If the Heart Trial in that hand is the
-          Rose Heart, it is already authored there; the two variants it does not
-          carry are the next card in this file.
+          Whatever the Labyrinth deals, in the order it deals it.
 
   - id: D5_03_heart_trial_variants
     required: true

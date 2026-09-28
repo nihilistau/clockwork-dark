@@ -33,7 +33,21 @@ this gate cannot answer (``disposition``, ``days_in_stage``,
 since an unknown predicate is
 unmet forever, silently.
 
-Version: v0.2.0 [2026-09-25]
+ONE TRY A DAY, OPT-IN (v0.17). ``retry: next_day`` keeps a FAILED piece
+off offer for the rest of the world day it failed on: ``resolve`` stamps the
+day under ``FAILED_ON_PREFIX + id`` through the ``flag`` effect, and
+``is_available`` compares it with ``state.world_day``. A piece without the
+key is offered again at once, as every piece always was. HUE & CRY's
+jailbreak uses it, so a break-out that costs no time is one roll a day and
+not a string of free rerolls.
+
+VALIDATED WITH THE STORY (v0.17). Everything else the loader forgives --
+a place the graph lacks, a flag gate written as a string, a challenge the spec
+rejects, a ``release`` in a failed outcome -- is reported by
+``set_piece_problems``, which ``engine/games/validation.py`` (so doctor and
+``validate_content``) runs over ``paths.challenges``.
+
+Version: v0.4.0 [2026-09-27]
 """
 
 from __future__ import annotations
@@ -56,6 +70,15 @@ _CACHE: Optional[dict[str, dict[str, Any]]] = None
 #: Key under which the owning set-piece id is stashed on the active challenge,
 #: so resolution knows which terminal flag to grant.
 SET_PIECE_KEY = "set_piece"
+
+#: ``retry:`` values a piece may declare. Absent: a failed piece is offered
+#: again at once (every piece before v0.17). ``next_day``: not again on the
+#: day it failed -- HUE & CRY's jailbreak, one try a day.
+RETRY_VALUES = ("next_day",)
+
+#: Flag ``<prefix><piece id>`` holds the world day a ``retry: next_day``
+#: piece last FAILED on (an int, through the ``flag`` effect). Engine-owned.
+FAILED_ON_PREFIX = "set_piece_failed_on_"
 
 
 def _catalogue_dir() -> Optional[Path]:
@@ -161,6 +184,178 @@ def _requires_problem(node: Any) -> Optional[str]:
     )
 
 
+def _flag_name_ok(value: Any) -> bool:
+    """One flag name: a non-empty string with no whitespace in it."""
+    return isinstance(value, str) and bool(value) and not any(ch.isspace() for ch in value)
+
+
+def _outcome_blocks(challenge: dict[str, Any]) -> list[tuple[str, bool, Any]]:
+    """
+    Every effect list a challenge can apply, as ``(where, succeeded, effects)``.
+
+    ``succeeded`` is whether the runner applies that list on a SUCCESS
+    (``engine/challenges/runner.py``): a gauntlet's or puzzle's ``reward``, a
+    decision tree's success node's ``reward``, and every dice-table row (a
+    roll always succeeds). A ``fail`` block, and a failure node's ``reward``
+    -- which the runner never reads -- are not.
+    """
+    blocks: list[tuple[str, bool, Any]] = []
+    kind = str(challenge.get("kind", "")).strip().lower()
+    if kind == "decision_tree":
+        for node_id, node in (challenge.get("nodes") or {}).items():
+            if not isinstance(node, dict) or not node.get("terminal"):
+                continue
+            won = str(node.get("outcome", "success")).strip().lower() != "failure"
+            for key in ("reward", "fail"):
+                block = node.get(key)
+                if isinstance(block, dict):
+                    blocks.append(
+                        (f"node '{node_id}' {key}", won and key == "reward", block.get("effects"))
+                    )
+    elif kind == "dice_table":
+        for index, row in enumerate(challenge.get("outcomes") or []):
+            if isinstance(row, dict):
+                blocks.append((f"outcomes[{index}]", True, row.get("effects")))
+    else:
+        for key in ("reward", "fail"):
+            block = challenge.get(key)
+            if isinstance(block, dict):
+                blocks.append((key, key == "reward", block.get("effects")))
+    return blocks
+
+
+def _count_releases(node: Any) -> int:
+    if isinstance(node, dict):
+        own = 1 if str(node.get("type", "")).strip().lower() == "release" else 0
+        return own + sum(_count_releases(v) for v in node.values())
+    if isinstance(node, list):
+        return sum(_count_releases(v) for v in node)
+    return 0
+
+
+def set_piece_problems(
+    raw: Any,
+    *,
+    locations: Optional[set[str]] = None,
+    effect_types: Optional[frozenset[str]] = None,
+) -> list[str]:
+    """
+    Everything wrong with one authored set-piece, for the load-time checks.
+
+    THE LOADER'S FORGIVENESS IS WHY THIS EXISTS. ``load_set_pieces`` keeps
+    any mapping with an id and a readable ``requires:``, and every other
+    mistake loads and does nothing -- or the wrong thing -- with nothing said:
+    a ``requires_flags: gate_open`` gates on the letters g, a, t, e; a piece
+    at a place the graph lacks is never offered; a challenge the spec rejects
+    fails on the turn the player starts it; a ``release`` in a ``fail`` block
+    frees the prisoner who FAILED the break-out. ``engine/games/validation.py``
+    (and so doctor and validate_content) calls this, the way it calls
+    ``encounter.death_terminal_problem``: one home for the rule.
+
+    Args:
+        raw: The set-piece as written.
+        locations: The story's place ids, or None to skip that check (a story
+            with no graph).
+        effect_types: Every effect type a set-piece's outcome may apply in
+            this story, or None to skip that check. ``{type: value, name: x}``
+            is checked under ``x``.
+
+    Returns:
+        Human-readable problems; ``[]`` for a clean piece.
+    """
+    from engine.challenges import spec as spec_module
+
+    if not isinstance(raw, dict):
+        return ["set-piece entry is not a mapping"]
+    problems: list[str] = []
+
+    location = raw.get("location_id")
+    if location is not None:
+        if not isinstance(location, str) or not location.strip():
+            problems.append("`location_id` is not a place id")
+        elif locations is not None and location.strip() not in locations:
+            problems.append(f"`location_id` {location!r} is not a place in the story's graph")
+
+    for key in ("requires_flags", "forbids_flags"):
+        value = raw.get(key)
+        if value is None:
+            continue
+        if not isinstance(value, list):
+            problems.append(f"`{key}` must be a list of flag names, not {type(value).__name__}")
+            continue
+        for flag in value:
+            if not _flag_name_ok(flag):
+                problems.append(f"`{key}` holds {flag!r}, which is not a flag name")
+
+    if "grants_flag" in raw and not _flag_name_ok(raw.get("grants_flag")):
+        problems.append(f"`grants_flag` {raw.get('grants_flag')!r} is not one flag name")
+
+    if "retry" in raw and raw.get("retry") not in RETRY_VALUES:
+        problems.append(
+            f"`retry` {raw.get('retry')!r} is not one of {', '.join(RETRY_VALUES)}; "
+            "leave it out to offer a failed piece again at once"
+        )
+
+    requires_problem = _requires_problem(raw.get("requires"))
+    if requires_problem:
+        problems.append(requires_problem)
+
+    challenge = raw.get("challenge")
+    checked = spec_module.validate(challenge, authored=True)
+    if not checked.ok:
+        problems.append(f"`challenge` will not start: {checked.error}")
+    challenge = challenge if isinstance(challenge, dict) else {}
+
+    allowed_releases = 0
+    for where, succeeded, effects in _outcome_blocks(challenge):
+        for effect in effects if isinstance(effects, list) else []:
+            if not isinstance(effect, dict):
+                problems.append(f"`challenge` {where}: effect {effect!r} is not a mapping")
+                continue
+            kind = str(effect.get("type", "")).strip().lower()
+            name = kind
+            if kind == "value":
+                name = str(effect.get("name") or effect.get("id") or "").strip().lower()
+            if kind == "release":
+                if succeeded:
+                    allowed_releases += 1
+                else:
+                    problems.append(
+                        f"`challenge` {where}: `release` frees the player only from a "
+                        "challenge's success outcome, never a failed one"
+                    )
+                    allowed_releases += 1  # reported here, not again below
+                continue
+            if effect_types is not None and name not in effect_types:
+                problems.append(
+                    f"`challenge` {where}: effect type {name!r} is not one a set-piece "
+                    "may apply; the runner drops it"
+                )
+    if _count_releases(raw) > allowed_releases:
+        problems.append(
+            "`release` appears outside the challenge's outcomes; only a challenge's "
+            "success outcome can free the player"
+        )
+    return problems
+
+
+def set_piece_effect_types(declared_values: set[str]) -> frozenset[str]:
+    """
+    What a set-piece's outcome may apply in a story declaring these values:
+    the model-composed set, the structural kinds, ``release``, and the
+    story's own values. The same union ``spec.validate(authored=True)`` admits
+    at runtime, built without activating the story.
+    """
+    from engine.challenges import spec as spec_module
+
+    return frozenset(
+        spec_module.ALLOWED_EFFECT_TYPES
+        | spec_module.STRUCTURAL_EFFECT_TYPES
+        | spec_module.AUTHORED_CHALLENGE_EFFECT_TYPES
+        | {str(v).lower() for v in declared_values}
+    )
+
+
 def reset_set_piece_cache() -> None:
     """Drop the cached catalogue. Game swap and tests."""
     global _CACHE
@@ -190,12 +385,20 @@ def is_available(state: GameState, piece: dict[str, Any]) -> bool:
     # author forgot to list it under forbids_flags.
     if grants and state.flags.get(grants):
         return False
+    if piece.get("retry") == "next_day" and _failed_today(state, piece):
+        return False
     requires = piece.get("requires")
     if requires is not None:
         from engine.game.quests import evaluate_condition
 
         return evaluate_condition(state, requires)
     return True
+
+
+def _failed_today(state: GameState, piece: dict[str, Any]) -> bool:
+    """Whether this piece's last failure was on the current world day."""
+    stamp = state.flags.get(FAILED_ON_PREFIX + str(piece.get("id", "")))
+    return isinstance(stamp, int) and not isinstance(stamp, bool) and stamp == state.world_day
 
 
 def available(state: GameState) -> list[dict[str, Any]]:
@@ -258,12 +461,25 @@ def resolve(state: GameState, **kwargs: Any) -> runner.ChallengeResult:
     # Captured BEFORE resolution: a resolved challenge is cleared off the state,
     # taking the set-piece id with it.
     piece_id = str((state.challenge or {}).get(SET_PIECE_KEY, ""))
+    # The day the attempt was MADE: a lethal failure's respawn can carry the
+    # clock past midnight inside `runner.resolve`.
+    day = state.world_day
     result = runner.resolve(state, **kwargs)
 
-    if not piece_id or not result.ended or not result.success:
+    if not piece_id or not result.ended:
+        return result
+    piece = load_set_pieces().get(piece_id) or {}
+    if not result.success:
+        if piece.get("retry") == "next_day":
+            # `retry: next_day` (v0.17 T4 fix round 1, opt-in): a failed piece
+            # waits for tomorrow. Stamped with the day, through the one writer.
+            from engine.game import effects as effects_module
+
+            effects_module.apply_effect(
+                state, {"type": "flag", "flag": FAILED_ON_PREFIX + piece_id, "value": day}
+            )
         return result
 
-    piece = load_set_pieces().get(piece_id) or {}
     grants = str(piece.get("grants_flag", "")).strip()
     if grants:
         from engine.game import effects as effects_module
@@ -280,11 +496,15 @@ def resolve(state: GameState, **kwargs: Any) -> runner.ChallengeResult:
 
 
 __all__ = [
+    "FAILED_ON_PREFIX",
+    "RETRY_VALUES",
     "SET_PIECE_KEY",
     "available",
     "is_available",
     "load_set_pieces",
     "reset_set_piece_cache",
     "resolve",
+    "set_piece_effect_types",
+    "set_piece_problems",
     "start",
 ]

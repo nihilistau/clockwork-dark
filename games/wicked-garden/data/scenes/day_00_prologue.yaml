@@ -188,12 +188,12 @@ cards:
               - { type: value, name: corruption, delta: 2 }
 
       - id: enter_as_claimed
+        # NOTE: the design also lists Corruption +5 here; four effects is the
+        # engine's ceiling for one branch, so the corruption lands on the night
+        # card instead of being silently clamped away.
         text: >-
           Cross knowing what you are. She will not pretend this is fair, and the
           court will smell it on you by morning.
-          NOTE: the design also lists Corruption +5 here; four effects is the
-          engine's ceiling for one branch, so the corruption lands on the night
-          card instead of being silently clamped away.
         gate:
           on_pass:
             effects:
@@ -203,10 +203,16 @@ cards:
               - { type: value, name: desire, delta: 10 }
 
       - id: bargain_at_the_threshold
+        # RUNTIME (moved out of the text in v0.17.0, AGENTS.md rule 1): this
+        # beat sets a flag and values; no card effect touches a thread. What
+        # IS wired: `hospitality_dawn` (threads.yaml, no `requires`) is
+        # struck by the player's `bargain` verb on any turn no card holds,
+        # settled by `discharge`, and broken when it falls due. NOT WIRED
+        # (docs/GOVERNANCE.md): `three_nights_or_truths` is not declared in
+        # threads.yaml -- it is named only in data/canon/state-dictionary.json
+        # -- so nothing can strike it.
         text: >-
-          Speak terms. She adores people who think ink can leash a rose. The
-          terms themselves are a THREAD -- offer `hospitality_dawn` or
-          `three_nights_or_truths` through the thread tool, not from here.
+          Speak terms. She adores people who think ink can leash a rose.
         gate:
           on_pass:
             effects:

@@ -206,11 +206,15 @@ cards:
               - { type: value, name: autonomy, delta: -4 }
 
       - id: answer_the_vale
+        # RUNTIME (moved out of the text in v0.17.0, AGENTS.md rule 1):
+        # discharge or break the thread; the finale's collision table reads
+        # what is still live. No card effect touches a thread; the player
+        # settles one with the `discharge` verb, which the engine executes and
+        # which is not offered while a card is dealt.
         text: >-
           If a service is owed, this is where it is CALLED -- spy, deliver an
-          insult, or open a frost path. Discharge or break the thread through
-          the thread tool; the finale's collision table reads what is still
-          live. The passport can also be burned here for one hard door clue.
+          insult, or open a frost path. The passport can also be burned here
+          for one hard door clue.
         gate:
           when:
             any:

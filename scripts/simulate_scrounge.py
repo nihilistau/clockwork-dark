@@ -59,7 +59,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from scripts.simulate_law import Thief, agendas_off  # noqa: E402
+from scripts.simulate_law import Thief, agendas_off, counting_deaths, deaths  # noqa: E402
 
 POLICIES = ("scrounger", "mornings")
 #: The loop, in walking order. Chandlers' Rise and the Green are both off
@@ -98,6 +98,7 @@ class Run:
     min_hp: int = 999
     min_stamina: int = 999
     ways: dict[str, int] = field(default_factory=dict)   # secret -> day found
+    deaths: int = 0     # respawns since v0.17 (simulate_law.counting_deaths)
 
 
 class Scrounger(Thief):
@@ -206,6 +207,11 @@ def _streets(policy: str, day: int) -> tuple[str, ...]:
 
 
 def play(seed: int, policy: str, days: int) -> Run:
+    with counting_deaths():
+        return _play(seed, policy, days)
+
+
+def _play(seed: int, policy: str, days: int) -> Run:
     from engine.game import survival
 
     s = Scrounger(seed, policy)
@@ -227,6 +233,7 @@ def play(seed: int, policy: str, days: int) -> Run:
             s.eat_if_hungry()
         s.act("rest", "sleep_rough")
         s.note()
+    s.log.deaths = deaths(s.state)
     return s.log
 
 
@@ -250,6 +257,7 @@ def measure(policy: str, seeds: int, days: int) -> dict[str, Any]:
         "bread_bought_per_day": _mean([r.bought / per_day for r in runs]),
         "hungry_days": _mean([float(r.hungry_days) for r in runs]),
         "min_hp": min(r.min_hp for r in runs),
+        "runs_with_a_death": round(sum(r.deaths > 0 for r in runs) / len(runs), 3),
         "min_stamina": min(r.min_stamina for r in runs),
         "ways_found": {
             secret: {

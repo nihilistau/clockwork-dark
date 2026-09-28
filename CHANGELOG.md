@@ -14,6 +14,482 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-09-28
+
+**HUE & CRY: Act III and the eight endings**, the fifth of the v1.0 stages,
+and the release that makes the story finishable. The Hanging Fair comes to
+Gallows Green on days 10-12 and opens Act III: the ballad, the Showing of
+the Flame, the Everflame's heart on the palace steps to watch or to steal,
+and a gallows on the last morning for the thieves the Watch saved up for it.
+All eight endings the design names are declared, each with Speak/Act/Seal
+and an epilogue card, each through a door that locks it by name and opens
+only while it is earned: Cleared, A Lantern, Honest After All, Partners, The
+Legend, Guildmaster, The Dapper's City, and The Rope, the fail-forward.
+HUE & CRY ships `death.yaml` at last: an ordinary hp 0 respawns in the
+Snuffs (still held, if held), and only a death in the cells during the fair
+is The Rope. The cells gain a jailbreak, one try a day, and a sentence now
+stops when a scene falls due in the middle of it. The engine seams are
+generic and opt-in -- `respawn.in_custody`, `held_before_event`, `retry:
+next_day` on a set-piece, labour `effects`, a quest stage's `refusals`,
+`wanted {own}`, `committed_deed` -- and a story that declares none of them
+builds the turns it built before. The validator now reads set-pieces, the
+events a condition names, a `report`'s deed and every cut the loader makes
+to authored text; that last check found 28 cards and a beat in two stories
+whose tails the narrator had never read, so authored text gets its own cap
+(1500) and those tails now reach the prose (The Wicked Garden's CHANGELOG
+lists them) -- all but the author's notes among them, which moved to YAML
+comments. A committed harness, `scripts/simulate_endings.py`, plays
+eleven policies to the ending each run locks: every ending is reached by the
+policy that plays for it, the fair stays on day 10, nothing was tuned, and
+three of its findings went to the owner -- Honest After All means no
+thieving at all, Guildmaster waits for the fair, and Partners gains a door
+after it. Where a harness table moved, it is restated here with its
+measurement; every other re-ran byte-identical.
+
+### Added
+
+- **Set-pieces are validated with the rest of a story's content.**
+  `validation.check_set_pieces` (so `scripts/doctor.py` and
+  `scripts/validate_content.py` both run it) reads `paths.challenges` and
+  reports each set-piece whose `location_id` is not in the graph, whose
+  `requires:` the grammar cannot read, whose `requires_flags` /
+  `forbids_flags` are not lists of flag names or whose `grants_flag` is not
+  one, whose `challenge` the spec validator rejects, whose outcome applies an
+  effect no set-piece may, or which carries `release` anywhere but a
+  challenge's success outcome (a `reward`, or a dice-table row). Missing and
+  duplicate ids are reported too. The rules live in
+  `set_pieces.set_piece_problems`; the runtime loader is unchanged. Every
+  shipped story validates clean.
+- **A per-ending test driver**, `tests/endings_driver.py`
+  (`drive_ending(slug, ending_id, door, setup=None, *, state=None, seed=7,
+  location_id="")`): one ending, through its real door (`Door.quest`,
+  `Door.card`, `Door.set_piece`, `Door.death`), to `endings.locked` and that
+  ending's epilogue card. `tests/test_finales.py` registers doors per ending
+  (`ENDING_DOORS`), and a story in `COMPLETE_DOORS` must register one for
+  every ending it declares. Proved on HUE & CRY's evening barge and the
+  Wicked Garden's F3 finale card.
+- **HUE & CRY: The Rope and death.yaml** (content; the story's CHANGELOG has
+  the prose and the full table). `the_rope` is declared and is the
+  fail-forward. Ordinary hp 0 respawns on Old Nance's step in the Snuffs,
+  and a thief who dies held wakes still held. Dying held while the Hanging
+  Fair is on is terminal and locks The Rope. Measured at 40 seeds x 10 days
+  (simulate_labour): the careful pickpocket still reaches 0 on 95% of seeds,
+  now ~1.9 respawns a run, and keeps 26% of days instead of 7%. The porter,
+  scrounger, streets, jobs and acts tables are unchanged, since none of them
+  dies. Welshing's gain over never borrowing, accepted by the owner for
+  v0.15, shrank over the 10 flophouse days from about +4.7 kept days to
+  +3.1 (Pell) and from +2.4 to +1.2 (Marrow). The credit lines did not
+  change: the respawn keeps the no-credit baseline alive. v0.18.0's
+  re-measure should start from these figures.
+- **`respawn.in_custody` in `death.yaml`: a death in the cells can leave the
+  player held** (opt-in). By default a respawn releases a held player and
+  carries them to `respawn.location_id`. A story that declares
+  `respawn.in_custody` (`true`, or a mapping of respawn keys laid over the
+  respawn's -- a `text`, `effects`) respawns a player held AT THE MOMENT OF
+  DEATH at the Law's `arrest.gaol`, the custody record untouched, so the stay
+  goes on and ends the usual way (paid, served or broken out); a repeatable
+  deck keyed on `in_custody` is not dealt twice, since the stay never ended.
+  The death record gains `kept_in_custody: true`. A `location_id` inside the
+  block is refused (the gaol is where a held player wakes). A story that
+  does not declare it respawns byte-identically -- asserted by a digest of a
+  held player's respawn measured before the change, alongside the shipped
+  stories' existing death digests. HUE & CRY opts in (the owner's ruling):
+  dying is not a way out of the cells.
+- **The HUE & CRY harnesses count deaths.** `simulate_law.counting_deaths()`
+  wraps `encounter.check_death` for a run and counts every death it handles
+  (`simulate_law.deaths(state)`); simulate_law, simulate_labour,
+  simulate_scrounge, simulate_streets, simulate_jobs and simulate_acts each
+  run under it and report `runs_with_a_death` (and `deaths_per_run` where it
+  reads). Since HUE & CRY ships death.yaml a death respawns inside the very
+  hour that reached 0, so the sampled `min_hp` alone no longer sees it;
+  simulate_labour's `runs_at_zero_hp` now counts a run that died.
+  `simulate_hoard.severity_sweep` now feeds its idle thief each morning. It
+  measures a file cooling, and unfed it starved by day three; a respawn's
+  move to the Snuffs then shifted the band it read. Its recorded
+  table is reproduced exactly.
+- **`{held_before_event: <event id>}`, a Law predicate** in the shared
+  condition grammar (`engine/world/law.py`, registered beside `in_custody`;
+  an agenda gate may use it only with a Law). True while the player is held
+  in a stay whose `since_hour` is at or before the midnight the live event
+  started on; false when free, with no Law, when the event is not active,
+  and for a pre-v0.16 custody record with no `since_hour`. It answers "was
+  the watch already holding the player when this event began?", which
+  `in_custody` plus `event_active` cannot: HUE & CRY's gallows hangs the
+  thieves the Watch saved up for the fair, not one taken while it is on.
+- **HUE & CRY: the Hanging Fair and Act III** (content; the story's CHANGELOG
+  has the prose). The story's first declared world event, `hanging_fair`
+  (days 10-12 on Gallows Green), forces the fair deck (`fair_day`, dealt
+  once on the Green: the Showing of the Flame, and the Everflame's heart as
+  a severe stealth roll) and opens Act III (`the_hanging_fair`). The gallows
+  deck (`the_gallows`) is The Rope's hanging door, dealt at nine on the
+  fair's last morning to a thief held since before it began. New: the
+  `everflame_heart` item, a `relic` tag no counter deals in, and the
+  `sacrilege` deed (severity 5). The fair deck's header reserves four card
+  ids for v0.17's remaining ending doors.
+  Measured at 40 seeds against the commit before it: `simulate_agendas`
+  (all policies, 10 days) is byte-identical but for wall-clock timing;
+  `simulate_acts` (12 days) moves only where an investigator crosses the
+  Green during the fair and answers its deck (one more patrol roll per
+  card): alibis presented 0.175/0.2/0.15 -> 0.125/0.15/0.125 by opening,
+  houses cased 7.72/7.53 -> 7.70/7.50 (a/b), clue jobs 3.48 -> 3.42 (c).
+  Unmasking, namings, min hp and deaths are unchanged.
+- **The validator checks the events a condition names.**
+  `validation.check_event_references`: an `event_active`, `event_seen`,
+  `held_before_event` or `days_since_event: {event}` naming an event the
+  story never raises -- no `world_schedules` event, engine slot block,
+  procgen festival or `event_id` its own content emits -- is an error, since
+  the predicate is false forever. Every shipped story validates clean. A
+  validator run now parses each YAML file once (`_read_yaml` memoised for
+  the length of one `StoryValidator.run`), so the new check costs nothing
+  measurable: flagship 0.83s, Garden 0.82s, HUE & CRY 0.67s a run, against
+  1.9 / 2.4 / 1.5s with the check and no memo.
+- **HUE & CRY: the jailbreak** (content; the story's CHANGELOG has the
+  prose). The story's first `paths.challenges`: two skill gauntlets in the
+  Lantern House cells (`data/challenges/lantern_house.yaml`), offered only
+  while held. Success is a `release` and a fresh `escape` report (a new
+  deed, severity 4, measured below); failure a hiding (`hp -3`) and no
+  second try until the next day (`retry: next_day`, below). On the Hanging
+  Fair's last morning it is the only way past the gallows for a thief who
+  cannot pay.
+- **`retry: next_day` on a set-piece** (opt-in; `engine/challenges/
+  set_pieces.py`). A FAILED piece that declares it is not offered again on
+  the world day it failed: `resolve` stamps the day of the attempt under
+  `set_piece_failed_on_<id>` through the `flag` effect, and `is_available`
+  compares it with today; midnight reopens it. The validator reports any
+  other `retry` value. A piece without the key is offered again at once, as
+  before, so no flagship set-piece changes. Why: a challenge takes no time,
+  so HUE & CRY's break-out could be rolled again inside one turn until hp
+  ran out, and 37 of 40 careful thieves walked out of every stay (review of
+  v0.17 T4); one try a day brings it to 13 of 40 (below).
+- **The validator checks a `report`'s deed, guise and jurisdiction, and
+  refuses engine-only effects,** in every file a story's `paths.*` resolve to
+  (`validation.check_law_effects`): a `report` naming one the law file does
+  not declare is refused at runtime and files nothing, so a set-piece's or a
+  card's report with a typo did nothing, silently (a value holding `{` is an
+  agenda placeholder and left to the agendas loader). And an effect of an
+  `effects.ENGINE_ONLY_EFFECTS` kind -- `custody_served`, below -- is an
+  error anywhere in a story; the agendas loader refuses it too
+  (`agendas.BOOKKEEPING_EFFECTS`), and no bounder admits it, so a card, a
+  thread or a set-piece drops it. Every shipped story validates clean.
+- **The law harness counts what a served day costs.** `simulate_law` records
+  `clock.advance_time` calls per day served (`max_advances_per_day_served`:
+  3.0 in HUE & CRY), and `test_a_sentence_never_kills_and_a_day_is_cheap`
+  holds that at 4 or fewer instead of a 1.0s-a-day wall-clock guard that sat
+  inside the owner's machine noise (0.7-1.25s between identical runs); a 3s
+  backstop stays. `--break-out` has a held thief try the jailbreak first and
+  reports attempts, escapes, hidings and the Wick's band as it walks out.
+  Measured, 40 seeds, 10 days, one try an arrest (a failure closes it for
+  the day, and the thief then pays or serves): 13 of 40 careful thieves
+  taken off the barge walk out (0.33 a try), 16 of 43 reckless arrests
+  (0.37); before one-try-a-day it was 37 of 40 (103 tries) and 54 escapes
+  in 144 tries. `escape` at 3 leaves a quietly-taken thief `noticed` walking
+  out and forgotten by morning, at 4 `sought` walking out and `noticed`
+  three mornings on, at 5 `sought` and below `sought` on 91% of seed-days
+  instead of 100% -- 4 ships (the table is in law.yaml's header; measured
+  before one-try-a-day, and re-measured at 4 after: every escape still
+  walks out `sought`). Without the flag
+  nobody breaks out: `simulate_law` (every policy) and `simulate_acts`
+  (every opening) are byte-identical to the commit before but for the new
+  key and wall-clock timing.
+- **A labour posting can leave a record: `effects:` on a `labour.yaml` job**
+  (opt-in; `economy.work`). Authored effects, each row optionally
+  degree-gated with `degrees:` as `in_kind` and `reputation` rows are, applied
+  through `effects.apply_effect` after the wage and listed on the receipt's
+  `effects`. The shift cap's markers expire with the day, so nothing kept a
+  record that the player had ever worked; HUE & CRY's four postings now write
+  `honest_wage_earned` on the degrees they pay, and its Honest After All
+  reads it. The validator's two-direction flag sweep counts these rows as
+  writers (`StoryValidator._labour_flags_written`), so an ending may read a
+  flag only a shift writes; a posting with no `effects` writes exactly what
+  it did (no other story declares one).
+  The validator checks each row (`_check_labour_effects`): a known effect
+  type, fields that agree with it, and `degrees` naming only the job's
+  `pay` degrees.
+- **A quest stage can say why it will not close: `refusals: [{when, text}]`**
+  (opt-in; `QuestEngine.stage_refusal`, the shape a thread's and a bed's
+  refusals already use). While one holds, the narrator's objective line
+  reads `<quest> - <objective> (Not yet: <text>)`, and the stage's own
+  `narrative_flags` leave the narrator's vocabulary
+  (`allowed_narrative_flags`, so the `flag` intent's enum and
+  `set_narrative_flag` too): the prose cannot report as done a step the
+  engine will not close, and a player who tries is answered with the reason
+  (audit question 2). It gates nothing itself -- `complete_when` does. The
+  validator (`_check_stage_refusals`) wants a `when` and a `text` on every
+  row, a `when` the grammar reads, and no ledger predicate (the objective
+  line is built with none). A stage without refusals is unchanged, line for
+  line; only HUE & CRY's evening barge declares them.
+- **`wanted {..., own: true}`: your own deeds only** (opt-in; the `wanted`
+  predicate, `law.filed_score/wanted_score/wanted_band(own=)`). Skips every
+  report row the agendas pass stamped (`agenda`/`hour`) -- the Magpie's
+  robberies pinned on a face the watch links to yours -- and still counts
+  everything the player did, under any linked guise; each file's cooling
+  stands. Absent, every row counts, byte-identically. The agendas loader and
+  now the story validator (`check_law_effects`, over every story file) check
+  a `wanted` condition: a known band, guise and jurisdiction, `own` a boolean.
+- **`scripts/simulate_labour.py --endings`**: the share of seeds at the end
+  of days 3/5/8/10/12 whose state holds what HUE & CRY's earned endings read
+  (the Watch's standing, your own record and the whole file, the fences, the
+  wage, Honest After All itself). The endings tables come from it.
+  Since T6 it reads endings II too: `hall_trusts` (the Honest Company's
+  standing at Guildmaster's `GUILD_STANDING`, 5) and `silas_won`; the
+  earlier keys are unchanged.
+- **HUE & CRY: Cleared, A Lantern, and Honest After All earned** (content;
+  the story's CHANGELOG has the prose and the measurements). Two new endings,
+  each through doors gated on the ending itself (`{ending: {eligible:
+  <id>}}`), re-offered until taken: Cleared at the Hanging Fair (`fair_day`'s
+  `F3_the_real_magpie`) and, after it, at the front desk
+  (`D4_cleared_at_the_desk`); A Lantern at the front desk (`D3_the_badge`),
+  whose card also offers Cleared when both are earned.
+  Honest After All is gated (your own record below `sought`, square with the
+  fences, an honest wage) and the evening barge's stage waits on it and says
+  why not. Measured with the agendas on: an honest porter qualifies on 100%
+  of seeds every day to day 12 (by the whole file it would be 70/53/5/0/5% at
+  days 3/5/8/10/12). `tests/test_finales.py` drives each through its doors
+  and walks each door with its gate unmet (`UNEARNED_DOORS`).
+- **The validator counts a collection's completion `effects` as flag
+  writers** (`StoryValidator._collection_flags_written`, beside the labour
+  sweep): an ending may read a flag only a completed set writes (HUE & CRY's
+  `magpies_hoard_complete`, read by The Legend). Writers only; every shipped
+  story validates clean.
+- **HUE & CRY: Partners, The Legend, Guildmaster, The Dapper's City**
+  (content, v0.17 T6; the story's CHANGELOG has the prose and tables). All
+  eight of the design's endings are declared, each through a door that locks
+  it by name and opens only while it is earned. Partners: a confrontation
+  deck (`the_confrontation`) at each suspect's haunt, dealt as the
+  accusation is (the clues favour them; judged by `agenda_role` only in the
+  beat), then the heart taken together at the fair (`F6`). The Legend: the
+  fair's heist starts a getaway quest that locks on reaching the Snuffs with
+  the heart; the Hoard flag's first reader and the Temple faction's first
+  mover. Guildmaster: Mother Gannet's long table (`porters_hall`) any
+  evening, the fair's reserved `F5` released. The Dapper's City: Silas's
+  move at the fair (`F4`). Measured: a sworn porter holds Guildmaster's
+  standing on 20/8/10/20/30% of seeds at days 3/5/8/10/12, and Silas's rise
+  wins on 42% of seeds, all by day 8.
+  Review round 1: Honest After All is also empty-handed (no heart in the
+  pack; after a right naming the heist's sacrilege is the Magpie's alone),
+  and the front desk sets aside a suspect confronted wrongly. Guildmaster
+  can end a run on days 2-4; Task 8 measures it.
+- **`scripts/simulate_endings.py`: HUE & CRY's endings as a distribution**
+  (v0.17 T8). A committed harness that plays eleven policies -- three
+  investigators (one per opening), a lamplighter, a partner, a heister, a
+  loyalist, a Silas man, a porter, a reckless pickpocket and one who wants
+  the barge -- from the morning barge to two days past the Hanging Fair, and
+  reads the ending each run locks (`endings.locked`), the door, the day, and
+  how early each ending was open; the fair, the gallows, the jailbreak, the
+  heist and the barge's refusals. It builds on `simulate_acts.py`'s
+  investigator through two new seams (`Investigator.choose_beat`,
+  `CASING_ENDS`) whose defaults leave that harness's tables byte-identical.
+  Policies act only on what a player sees (a test reads the harness's code
+  for the Magpie's role, `points_to`, `clues_favour` and eligibility);
+  `--fair-day N` moves the loaded fair, `--break-out all|none` who tries
+  the jailbreak; it replays byte for byte (tested) and keeps no save. The
+  numbers (story CHANGELOG): every ending is reached by the policy that
+  plays for it, the fair stays on day 10, and three findings went to the
+  owner (fix round 1, below: no numbers were tuned). Every earlier
+  harness re-run at 40 seeds is byte-identical.
+- **What the player did, seen or not: `committed_deed`** (v0.17 T8 fix
+  round 1). `law.commit_deed` now counts every deed it commits before it
+  looks for a witness -- the engine-only `law_deed_committed` effect, into
+  `state.law["committed"]`, no roll drawn -- and the condition grammar gains
+  `{committed_deed: <deed> | [<deed>, ...]}` (and `law.committed`): true
+  once the player has committed a deed of a kind named, whether or not
+  anybody saw it. `wanted` and `filed` read what the Watch knows; this reads
+  what the player did. A deed only filed by a `report` was never committed
+  and is not counted. A story with no Law never reaches it (`commit_deed`
+  returns first), so its saves and turns are byte-identical; in HUE & CRY
+  the harness tables that do not read Honest After All are byte-identical
+  too. The validator names a `committed_deed` deed the law file does not
+  declare, and reports `law_deed_committed` in any story file as the
+  engine's bookkeeping (it is in `ENGINE_ONLY_EFFECTS` and the agendas'
+  `BOOKKEEPING_EFFECTS`). HUE & CRY's Honest After All reads it: no
+  thieving at all (the story's CHANGELOG has the owner's three rulings --
+  that, Guildmaster waiting for the fair, and Partners' door after it).
+  `simulate_acts.py` gains a third seam, `trail_done`, for the endings
+  harness's partner; its tables are unchanged.
+- **`resolve()`'s broken oaths, driven** (T7's review): deterministic cases
+  for the combinations the sampled property test never reached, and the
+  sample now checks each pick against what the ending needs and forbids,
+  written from the design rather than asked of the gate.
+
+### Changed
+
+- **A malformed `death.yaml` is refused at activation.** `registry.validate`
+  (which `activate` raises on before repointing anything) now runs the
+  loader's checks through `encounter.death_file_problem`: `terminal: {when,
+  ending}` against the endings file, and `respawn.in_custody`. The loader
+  reads death.yaml only when the player first reaches hp 0, so a misspelt
+  terminal ending used to be a ValueError on the turn they died; an
+  unreadable file, which the loader reads as no rules at all, is refused
+  there too. The validator's `check_death_rules` shares the same helpers
+  (`declared_ending_ids`, `death_respawn_problem`). Every shipped story
+  activates clean.
+- **A forced deck honours its own `when:`.** A deck forced by a clock beat or
+  a declared event whose `when:` does not hold now WAITS in
+  `director.due`: neither dealt nor retired, and other due decks (a
+  scheduled or repeatable one, such as an interrogation) may deal meanwhile.
+  It deals once the `when:` holds while the promise stands; if the event
+  lapses first, it is not dealt. It used to come due anyway and `begin`
+  answered "no cards were eligible" every turn, outranking every other
+  deck. A forced deck with no `when:` -- every one shipped -- and a forced
+  single CARD are unchanged; the shipped director walks replay to their
+  recorded digests.
+- **A card that takes hp to the death threshold is a death on that card.**
+  `director.resolve` runs `encounter.check_death` when the card lowered hp
+  (a terminal `death.yaml` block locks its ending there; a respawn carries
+  the player out), ends the hand, and puts the death record on the receipt
+  (`death`), whose line in the narrator's results block now ends with the
+  death's text. It used to wait for the next `advance_time`, so the player
+  answered the rest of the hand at 0 hp. No shipped card touches hp, so no
+  shipped turn changes.
+- **A scene that falls due stops a sentence.** `law.serve_sentence` serves
+  days in one action and decks deal only at a turn, so a deck whose `when:`
+  came true mid-sentence was walked straight past. After each meal step
+  (the last included, before the release) it now asks `director.due`, and a
+  deck due now that was not due when the sentence began stops it: the
+  prisoner stays held, and the receipt says `served_out: false` and names it
+  (`interrupted_by`); `run_turn` deals it on the same turn, and the
+  narrator's results line says the prisoner was still waiting out the
+  sentence when the day's business came to the cell door. A deck owed at
+  the start (the stay's interrogation) does not interrupt. Serving again
+  after a stop serves only what was left (v0.17 Task 4, below). Only a
+  story with a Law serves, so no other story's turn changes.
+- **A serve stops at the hour a scene falls due.** `serve_sentence` still
+  feeds the prisoner once a meal, but cuts each meal at every hour `due` can
+  change its answer (`director.due_boundary_hours(in_custody=True)`:
+  midnight, plus each `hour_between` bound of a deck that can be due while
+  held -- in HUE & CRY midnight and nine) and asks `director.due` at each
+  cut. With a day-long meal step it asked once a day, at the hour the serve
+  began, so a sentence begun before nine checked the fair's last day before
+  the gallows was due and the day after the fair, and walked free. Three
+  `advance_time` calls a day held in HUE & CRY (an hourly walk was 24, and
+  pushed the law harness's slowest day over its 1s guard).
+- **A repeatable forced deck with its own `when:` re-arms on that `when:`.**
+  `director.rearm`'s trigger for a deck forced by an event used to be the
+  event alone, which is still active after the player walks off a fair's
+  green, so the deck could never re-arm for a return. A forced deck that
+  declares a `when:` (and is dealt only while it holds, since v0.17) now
+  re-arms when its `when:` falls. Only that row changes: a declared event
+  forcing a single CARD stays the trigger (the forced card deals whatever
+  the deck's `when:` says, so the event must hold the deck spent), and a
+  clock beat's permanent row still never lets its deck re-arm. A forced
+  deck with no `when:` is unchanged; no other shipped deck is both forced
+  and repeatable.
+- **A sentence stops at a `time_of_day` band edge.** When any deck that can
+  be due while held reads `time_of_day`, `director.due_boundary_hours` adds
+  the band edges (`director.TIME_OF_DAY_EDGES`: 5, 8, 17, 20) to the hours
+  a serve cuts at; a dusk-gated deck used to fall due and away again
+  between two cuts and be waited out in the cell. The docstrings now say
+  what the cuts do NOT catch: a gate on a flag, value or clock that the
+  hours move in passing is caught at the next cut, not on its hour. No
+  shipped deck reads `time_of_day`, so no shipped serve changes.
+- **A challenge step that takes hp to the death threshold is a death on
+  that step**, as a card's beat is: `runner.resolve` runs
+  `encounter.check_death` when the step lowered hp and puts the record on
+  the result (`death`, on the receipt only when set), and the narrator's
+  results line for `resolve_challenge` ends with the death's text. It used
+  to wait for the next `advance_time`. No flagship set-piece touches hp, but
+  a MODEL-COMPOSED challenge may apply `hp` (within its ceiling) in any
+  story: one that takes the player to 0 now dies on that step -- the same
+  death, respawn or terminal, arriving at the step instead of at the next
+  clock tick -- so that turn's receipt and prose change for it.
+- **A card that plays an ending ends the hand** (`director.resolve`). When
+  one card both locks the run's ending and plays its module, and neither had
+  happened before it, the scene ends there: no later card in that hand is
+  presented or resolved. Before, a second door dealt in the same hand was
+  still presented, and its "this ends the story" prose and ledger fact
+  resolved over an ending already locked (its own lock refused). Scoped to
+  the card that PLAYS the ending, so the Wicked Garden's finale -- which
+  locks on F3 and plays the module on F4, with epilogue cards after -- runs
+  on exactly as before (its recorded walks replay); no other shipped hand
+  locks.
+- **A locked run is dealt no door** (`deck.eligible_cards`, carried from
+  v0.17 T5's review). `endings.eligible` reads each ending's gate and ignores
+  a lock already made, so a door card gated on its own ending's eligibility
+  (HUE & CRY's re-offered doors) could be dealt again after the run had
+  ended -- reachable only by an API or harness caller playing on. A POOL card
+  whose beats carry an `ending_lock` anywhere (`deck.locks_an_ending`) is now
+  rejected while the run is locked ("the run's ending is locked"). Required
+  cards are untouched: the Wicked Garden's finale spine, whose only lock is
+  its required F3 and which is re-dealt after the lock by its forced card,
+  replays its recorded walk byte for byte. A story with no endings is never
+  locked, so it is unchanged. (So a required door -- HUE & CRY's gallows
+  card -- is still dealt to a locked run; CLAUDE.md records it.)
+
+### Fixed
+
+- **Thread docs say what is wired.** docs/AUTHORING.md §3.4 and §5.2 no
+  longer say an agent seals a thread mid-scene: the player seals one with
+  `bargain`, settles it with `discharge`, and `expire_due` breaks it when
+  due. Renegotiation (`threads.transform`/`renegotiate`), cutting
+  (`cut`, `cut_item`, `cut_arbitrary`), `accept_gift` and two templates the
+  Garden names but never declares are recorded in docs/GOVERNANCE.md's NOT
+  WIRED table, for The Wicked Garden's v0.23.0 overhaul.
+- **A stopped sentence is resumed, not begun again.** The new
+  `custody_served` effect counts the hours of the live stay served
+  (`custody["served_hours"]`, its only writer; refused outside a live stay,
+  and engine-only: no story file may name it), `law.serve_sentence` applies it
+  after every step it serves, and a later `serve` waits out `days x 24` less
+  that. It used to serve the full term again after a scene stopped it
+  (docs/GOVERNANCE.md's NOT WIRED row, now closed). A resumed serve's
+  receipt carries `resumed: true`; a serve nothing stopped is receipted and
+  cut exactly as before. Still unreachable in a shipped story -- HUE &
+  CRY's one interrupting deck ends it -- so no shipped turn changes.
+- **Nothing authored is cut short in silence** (v0.17 T8 fix round 2). The
+  bounders clamp rather than reject, and text was cut with no record at all:
+  `spec._text` and `deck._text` now RECORD a cut in the adjustments they are
+  handed (`spec.TEXT_CUT`), beside the effects cut (`spec.EFFECTS_CUT`), and
+  the new `validation.check_truncated_content` reports every one as an
+  error -- asked of the real bounders, so the caps cannot drift: deck cards
+  (title and text against the deck's caps; beats through
+  `deck.bound_beats`), ending modules, thread templates and renegotiations
+  (plus terms, label and broken text), opening choices
+  (`authored_choice.bound`) and set-pieces (`spec.validate`). A model's
+  output mid-turn is still clamped, not refused. The first scan found 28
+  card texts and one beat cut short in two shipped stories -- eight in HUE &
+  CRY, and twenty cards and a beat in The Wicked Garden, among them
+  `D8_06b_sophia_unmasked`, `D8_06c_ashen_collects` and
+  `F5b_the_empty_rooms`, whose "fires only where ... on every other run
+  this card deals and stays silent" constraints the narrator had never
+  seen whole.
+- **Authored text gets an authored cap** (v0.17 T8 fix round 3, the
+  controller's ruling: the cap bounds MODEL-composed text; the bug was
+  authored text cut in silence, not authored text being long).
+  `spec.MAX_AUTHORED_TEXT` (1500) sits beside `spec.MAX_TEXT` (400) and
+  applies on the `authored=True` bounder path (`spec.text_cap`): outcome
+  text in `clamp_outcome`, set-piece steps, nodes, prompts and dice rows.
+  A deck is always a story's own file, so `deck.MAX_TEXT` -- card and beat
+  text, 600 until now -- is the authored cap too. 1500 is set above the
+  longest authored line any shipped story has (a Wicked Garden beat, 1097
+  characters; the longest card is 950), measured across all six. Model
+  output is bounded exactly as before. Fix round 2's rewrites are reverted:
+  every one of the 28 cards and the beat is back to its authored text,
+  whole, and `check_truncated_content` (still an error) now fires only past
+  the authored cap. **This changes what the narrator reads** in The Wicked
+  Garden and HUE & CRY: those cards' tails -- their closing CONSTRAINT and
+  MENU lines -- now reach the prose, where they had been cut. Nothing else
+  moves: ids, gates, effects and flags are untouched, and the other four
+  stories' turns are byte-identical. The longest card in play still fits
+  the default prompt budget with its text whole (tested).
+- **No author's note reaches the narrator** (v0.17 final review). Lifting
+  the cap also carried The Wicked Garden's notes to its author and its
+  engine into the prose: "RUNTIME: call `endings.recompute(state)`...",
+  "NOTE: the design lists a fifth delta...", `the_asking_night`'s "WHY IT
+  IS NOT ON D8_05" and its "two doors", F2b's note on the deck's order and,
+  on eight cards and beats (`D1_05`, `bargain_at_the_threshold`, `D4_05`,
+  `D6_06`, `answer_the_vale`, `D8_06c`, `the_vale_claims_his_debt`, and
+  the E1b ending's `E1b_act`), an instruction to open, discharge or break a
+  thread "through the thread tool" (and `renegotiate`'s "through
+  threads.yaml") -- the narrator told to act, against AGENTS.md rule 1. Each note is now a YAML comment beside its card or beat,
+  intact for authors (and, for the thread notes, saying what is true: no
+  card effect touches a thread; the player's `bargain` and `discharge`
+  verbs do). Ids, gates, effects and numbers are unchanged; the Garden's
+  deck-walk digests did not move. `tests/test_no_author_meta_in_narration.py`
+  fails any story's narrator-visible `text` carrying `RUNTIME:`, `NOTE: the
+  design`, `WHY IT IS NOT`, `thread tool` or `through threads.yaml` (it
+  failed on 20 texts before the move). The longest shipped authored line
+  is now a card, `D8_06b_sophia_unmasked` at 899 characters (it was
+  `the_asking_night`, 1097), and the prompt-budget test reads it.
+
 ## [0.16.0] — 2026-09-27
 
 **HUE & CRY: Acts I and II**, the fourth of the v1.0 stages. The story now
@@ -3564,7 +4040,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.14.1...v0.15.0

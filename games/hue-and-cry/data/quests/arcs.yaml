@@ -17,7 +17,14 @@
 #                 the two of you for one"), because a right naming
 #                 (`law_unlink self/magpie`) usually lands inside Act II and
 #                 the ACT line must stay true after it.
-#   The Hanging Fair, Act III, arrives in v0.17.
+#   the_hanging_fair  Act III, order 3 (v0.17) -- opens on `event_seen:
+#                 hanging_fair`: the fair's first day (data/world/
+#                 schedules.yaml, day 10). `event_seen`, not `event_active`,
+#                 so it stays the act after the three days are over -- and
+#                 arcs never walk back anyway. Its blurb says nothing about
+#                 what the Watch believes of you, because by the fair a right
+#                 naming may have broken that (the Act II fix, v0.16 T8), and
+#                 nothing about who the Magpie is.
 #
 # THE WAY OUT is a door, not an act: default and order 0, so it is open from
 # the first morning (the evening barge, and the `ending_lock` that quest
@@ -36,12 +43,12 @@
 # Involvement: plot.py (`PlotFormula.arc_weight`) reads the highest
 # involvement among arcs the player holds QUEST RECORDS in -- not the unlocked
 # arcs, and not `active_arc`. An act's involvement therefore counts only once
-# a quest filed under that act (`data/quests/<act>/`) has started. Neither act
-# has a quest yet, so their 1 and 2 move nothing today, and a fresh run paces
+# a quest filed under that act (`data/quests/<act>/`) has started. No act
+# has a quest yet, so their 1, 2 and 3 move nothing today, and a fresh run paces
 # exactly as it did before the acts. The first quest filed under an act puts
 # its number into play, and is measured then (v0.16 T4/T8).
 #
-# Version: v0.2.0 [2026-09-26]
+# Version: v0.3.0 [2026-09-27]
 
 version: 1
 
@@ -70,6 +77,23 @@ arcs:
       The Honest Company has taken you in: contracts to cut, houses to case,
       and a Watch that files the Magpie's robberies against your face for as
       long as it takes the two of you for one.
+
+  the_hanging_fair:
+    name: "The Hanging Fair"
+    narrate: true
+    involvement: 3
+    order: 3
+    requires_any:
+      - { event_seen: hanging_fair }
+    unlock_text: >-
+      The Hanging Fair has come to Gallows Green, and the whole city has come
+      with it.
+    blurb: >-
+      Three days of bunting, pies and ballads on Gallows Green; the
+      Everflame's heart shown to the sun on the palace steps; and on the last
+      morning, whatever hangings the Watch has saved up. Every Lantern in the
+      city is on duty, and every house is half empty. Whatever Tallowmere is
+      going to make of you, it makes of you here.
 
   the_way_out:
     name: "The Way Out"

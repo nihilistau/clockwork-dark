@@ -378,6 +378,23 @@ def test_an_undeclared_law_is_inert_end_to_end() -> None:
     assert state.law == {}
 
 
+def test_an_undeclared_law_counts_no_deed() -> None:
+    """v0.17 T8 fix round 1: the seen-or-unseen deed count is the Law's own.
+    With none declared, a committed deed writes nothing -- the save stays
+    byte-identical -- the counting effect refuses, and `committed_deed`
+    holds for nothing."""
+    from engine.game.quests import evaluate_condition
+
+    assert not law.declared()
+    state = GameState()
+    assert law.commit_deed(state, "pickpocket") == {"witnesses": [], "reported": False}
+    out = apply_effect(state, {"type": "law_deed_committed", "deed": "pickpocket"})
+    assert out["ok"] is False and out["message"]
+    assert state.law == {}
+    assert law.committed(state) == 0
+    assert not evaluate_condition(state, {"committed_deed": "pickpocket"})
+
+
 def test_the_flagship_save_round_trips_with_an_empty_law() -> None:
     state = GameState()
     data = state.to_save_dict()

@@ -99,8 +99,10 @@ WHAT IT REPORTS, per policy, averaged over seeds:
   saved_per_day    crowns in hand at the end less the purse it started with
   end_gold         crowns in hand at the end, mean (and min)
   min_hp           the lowest hp any seed reached
-  runs_at_zero_hp  the share of seeds whose hp reached 0 (no respawn until
-                   v0.17's death.yaml: CLAUDE.md)
+  runs_at_zero_hp  the share of seeds whose hp reached 0 -- since v0.17 a
+                   death, which respawns (death.yaml): counted as it happens
+                   (simulate_law.counting_deaths), not sampled
+  deaths_per_run   those deaths, mean per run
   arrests          mean per run
   credit_struck    lines of credit struck, mean per run (the credit policies)
   credit_repaid    of those, the share paid off
@@ -116,8 +118,22 @@ Usage:
     python scripts/simulate_labour.py --policy careful_pell
     python scripts/simulate_labour.py --policy careful_pell --no-credit   # its control
     python scripts/simulate_labour.py --json
+    python scripts/simulate_labour.py --endings --days 12 --agendas   # v0.17 T5
 
-Version: v0.3.0 [2026-09-26]
+ENDINGS I (v0.17 T5), ``--endings``: instead of the living table, the share
+of seeds at the end of days 3/5/8/10/12 whose state holds what v0.17's
+earned endings read -- A Lantern's standing (``lamps_kept``), Honest After All's
+clauses (your own record clean, ``own_record_clean``, and for comparison the
+whole file, ``whole_file_clean``; ``square_with_fences``; ``wage_earned``)
+and Honest After All itself. The endings.yaml and CHANGELOG tables come from
+it; run it with ``--agendas`` to let the Magpie rob on your name.
+
+ENDINGS II (v0.17 T6) adds two keys: ``hall_trusts`` (the Honest Company's
+standing at Guildmaster's ``GUILD_STANDING``) and ``silas_won`` (Silas
+Crook's rise complete and not stood against). Guildmaster's number comes from
+``--endings --policy porter --bed bunk --agendas``: a sworn porter, Silas on.
+
+Version: v0.5.0 [2026-09-28]
 """
 
 from __future__ import annotations
@@ -192,6 +208,7 @@ class Life:
     collectors_hp: int = 0
     initiation_due_day: Optional[int] = None
     initiated_day: Optional[int] = None
+    deaths: int = 0
 
 
 class Living:
@@ -499,7 +516,13 @@ CLASSES = {"porter": Porter, "dipper": Dipper, "careful": Careful,
 
 
 def play(seed: int, policy: str, days: int, bed: str = "flophouse",
-         strike: bool = True) -> Life:
+         strike: bool = True, each_night: Optional[Any] = None) -> Life:
+    with simulate_law.counting_deaths():
+        return _play(seed, policy, days, bed, strike, each_night)
+
+
+def _play(seed: int, policy: str, days: int, bed: str, strike: bool,
+          each_night: Optional[Any] = None) -> Life:
     if policy in CarefulOnCredit.CREDIT:
         person = CarefulOnCredit(seed, bed, policy, strike)
     else:
@@ -510,8 +533,11 @@ def play(seed: int, policy: str, days: int, bed: str = "flophouse",
         played += 1
         person.day(played)
         person.night()
+        if each_night is not None:
+            each_night(person.state, played)
     person.life.end_gold = int(person.state.stats.gold)
     person.life.arrests = int(person.run.arrests)
+    person.life.deaths = simulate_law.deaths(person.state)
     if isinstance(person, CarefulOnCredit):
         person.tally()
     return person.life
@@ -546,7 +572,12 @@ def measure(policy: str, seeds: int, days: int, bed: str = "flophouse",
         "end_gold": _mean([float(l.end_gold) for l in lives]),
         "end_gold_min": min(l.end_gold for l in lives),
         "min_hp": min(l.min_hp for l in lives),
-        "runs_at_zero_hp": round(sum(l.min_hp <= 0 for l in lives) / len(lives), 3),
+        # Since v0.17 hp 0 respawns inside the hour that reached it, so the
+        # sampled `min_hp` rarely shows the 0: a run "at zero" is one that
+        # died (`simulate_law.counting_deaths`), or was sampled at 0.
+        "runs_at_zero_hp": round(sum(l.min_hp <= 0 or l.deaths > 0 for l in lives)
+                                 / len(lives), 3),
+        "deaths_per_run": _mean([float(l.deaths) for l in lives]),
         "min_stamina": min(l.min_stamina for l in lives),
         "arrests_per_run": _mean([float(l.arrests) for l in lives]),
         "fines_per_run": _mean([float(-l.money["pay_fine"]) for l in lives]),
@@ -590,6 +621,73 @@ def _nothing() -> Iterator[None]:
     yield
 
 
+#: The days `--endings` reports (end of day N).
+ENDING_DAYS = (3, 5, 8, 10, 12)
+#: A Lantern's standing (endings.yaml `a_lantern` `lamps_kept`), and the
+#: wanted bands Honest After All allows (below `sought`).
+LAMPS_KEPT = 5
+CLEAN_BANDS = ("unknown", "noticed")
+#: Guildmaster's standing with the Honest Company (endings.yaml `guildmaster`
+#: `the_hall_trusts_you`, v0.17 T6), measured here: `hall_trusts`.
+GUILD_STANDING = 5
+
+
+def ending_snapshot(state: Any) -> dict[str, bool]:
+    """What endings I (v0.17 T5) read, at the end of a day: the Watch's
+    standing, your own record and the whole file (`wanted` with and without
+    `own`), the fences, the labour record, and Honest After All itself; and
+    (T6) the Honest Company's standing Guildmaster asks, and Silas's win."""
+    from engine.game import endings
+    from engine.game.quests import evaluate_condition
+    from engine.world import law
+
+    places = ("quay", "wick", "rise")
+    return {
+        "lamps_kept": int(state.reputations.get("lantern_watch", 0)) >= LAMPS_KEPT,
+        "own_record_clean": all(law.wanted_band(state, "self", j, own=True) in CLEAN_BANDS
+                                for j in places),
+        "whole_file_clean": all(law.wanted_band(state, "self", j) in CLEAN_BANDS
+                                for j in places),
+        "square_with_fences": not evaluate_condition(state, {"any": [
+            {"thread": {"tag": "Credit"}}, {"flag": "welshed_on_pell"},
+            {"flag": "welshed_on_marrow"}]}),
+        "wage_earned": bool(state.flags.get("honest_wage_earned")),
+        "honest_after_all": "honest_after_all" in endings.eligible(state).eligible,
+        # Endings II (v0.17 T6): Guildmaster's standing, and whether Silas
+        # Crook's rise has won (which shuts it until he is stood against).
+        "hall_trusts": int(state.reputations.get("honest_company", 0)) >= GUILD_STANDING,
+        "silas_won": bool(state.flags.get("silas_splits_the_company"))
+        and not state.flags.get("silas_stopped"),
+    }
+
+
+def measure_endings(policy: str, seeds: int, days: int, bed: str = "flophouse",
+                    strike: bool = True) -> dict[str, Any]:
+    """``--endings``: for each day in ``ENDING_DAYS``, the share of seeds
+    whose snapshot holds each key at the end of that day."""
+    nights: dict[int, list[dict[str, bool]]] = defaultdict(list)
+
+    def each_night(state: Any, played: int) -> None:
+        if played in ENDING_DAYS:
+            nights[played].append(ending_snapshot(state))
+
+    for seed in range(seeds):
+        play(seed, policy, days, bed, strike, each_night)
+    return {str(day): {key: round(sum(s[key] for s in rows) / len(rows), 3)
+                       for key in rows[0]}
+            for day, rows in sorted(nights.items())}
+
+
+def render_endings(policy: str, report: dict[str, Any]) -> str:
+    days = list(report)
+    keys = list(report[days[0]]) if days else []
+    lines = [f"{policy} -- share of seeds at the end of day", f"  {'':20}" +
+             "".join(f"{d:>7}" for d in days)]
+    for key in keys:
+        lines.append(f"  {key:20}" + "".join(f"{report[d][key]:>7.0%}" for d in days))
+    return "\n".join(lines)
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
     parser.add_argument("--seeds", type=int, default=40)
@@ -600,6 +698,9 @@ def main(argv: Optional[list[str]] = None) -> int:
                         help="measure with the story's agendas on (off by default)")
     parser.add_argument("--no-credit", action="store_true",
                         help="the credit policies' control: the same visits, no line struck")
+    parser.add_argument("--endings", action="store_true",
+                        help="report what v0.17's endings read at the end of days "
+                             "3/5/8/10/12 (run with --days 12)")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
@@ -611,10 +712,16 @@ def main(argv: Optional[list[str]] = None) -> int:
     registry.activate("hue-and-cry")
     with (_nothing() if args.agendas else agendas_off()):
         policies = POLICIES if args.policy == "all" else (args.policy,)
-        reports = {p: measure(p, args.seeds, args.days, args.bed, not args.no_credit)
-                   for p in policies}
+        if args.endings:
+            reports = {p: measure_endings(p, args.seeds, args.days, args.bed,
+                                          not args.no_credit) for p in policies}
+        else:
+            reports = {p: measure(p, args.seeds, args.days, args.bed, not args.no_credit)
+                       for p in policies}
     if args.json:
         print(json.dumps(reports, indent=2))
+    elif args.endings:
+        print("\n\n".join(render_endings(p, r) for p, r in reports.items()))
     else:
         print("\n\n".join(render(p, r) for p, r in reports.items()))
     return 0

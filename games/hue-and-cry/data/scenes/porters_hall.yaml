@@ -1,0 +1,112 @@
+# HUE & CRY -- the Porters' Hall: Mother Gannet's long table, after the oath.
+# ==========================================================================
+#
+# GUILDMASTER's door (v0.17 Task 6). The initiation (initiation.yaml) is the
+# long table's first hand and is dealt once; this is the same table on any
+# evening after, when there is something at it for the thief. Today that is
+# one thing: Mother Gannet handing over the Honest Company.
+#
+# Read by engine/content/deck.py through `paths.decks`; THE FILENAME IS THE
+# DECK ID.
+#
+# WHY HERE AND NOT AT THE FAIR. The fair deck's header reserved
+# `F5_gannets_stake` for this door; the controller's ruling left the choice
+# open, and preferred a door outside the fair if its gates can be met outside
+# it. They can: every clause of Guildmaster's gate (data/rules/endings.yaml)
+# is state a thief builds across Acts I-II -- the oath, the Hall's good
+# opinion, Gannet's measure taken -- and none of it waits for day 10. So the
+# door is where Gannet actually sits, and F5 was released unbuilt
+# (fair_day.yaml's header).
+#
+# FROM THE FAIR ON (T8 fix round 1, the owner's ruling). Measured, 18 of the
+# endings harness loyalist's 40 runs took the chair on days 3-7, before Act
+# III. Gannet now names nobody before the Hanging Fair has come: the gate
+# itself asks it (endings.yaml `the_fair_has_come`, `event_seen:
+# hanging_fair`), so the deck's own `when:` below -- the ending's eligibility
+# -- keeps this door shut until then, and the gallery says why.
+#
+# WHEN IT IS DEALT (`when:` below). In the Snuffs, free, while Mother Gannet
+# holds court at the long table (18:00 to 04:00, npc_schedules.yaml -- the
+# initiation's own window), and only while Guildmaster is EARNED: the deck's
+# `when:` asks `{ending: {eligible: guildmaster}}` itself, so the door and the
+# gate cannot drift apart (AUTHORING §3.5, one door per ending, gated on the
+# ending). That gate includes the oath, so this deck and the initiation are
+# never due together.
+#
+# REPEATABLE, and the card is NOT `once`: "not yet" is never the last chance.
+# The director re-arms the deck the first turn its `when:` is seen false --
+# the thief walks out, or Gannet goes up to bed at four -- and deals it again
+# on the next evening at the table (director.rearm). Taking it locks the
+# ending by name and plays its module, and a card that does both ends the
+# hand (director.resolve); a locked run is never dealt a door again
+# (deck.eligible_cards, v0.17 T6).
+#
+# ALWAYS ANSWERABLE: both answers are roll-free, and nothing opens a scene.
+#
+# SECRECY (spec §6). Gannet does not know who the Magpie is and does not
+# guess aloud; nothing here says or implies it. (asserted: no candidate's
+# name, alias or trade)
+#
+# Version: v0.1.1 [2026-09-28] -- from the fair on (T8 fix round 1)
+
+id: porters_hall
+
+repeatable: true
+
+draw: 1
+
+when:
+  all:
+    - { at_location: the_snuffs }
+    - { in_custody: false }
+    - { hour_between: [18, 4] }
+    - { ending: { eligible: guildmaster } }
+
+cards:
+
+  - id: P1_the_needles
+    # Gated on its own ending, like every door the owner allowed to be
+    # offered again (fair_day.yaml's header): declining closes nothing, and a
+    # locked run cannot lock twice.
+    when: { ending: { eligible: guildmaster } }
+    tags: [menu, gm, gannet]
+    title: "The Needles"
+    text: >-
+      INTENT: Mother Gannet at the long table in the Hall's back room, the
+      needles going, the Company's two ledgers at her elbow. The Hall has
+      watched the thief keep faith with it, and Gannet has taken the thief's
+      measure -- a job of hers done and paid, or something of hers the thief
+      knows and she would rather they did not; with Gannet the two are much
+      the same. She is old, and the young porters are restless, and she has
+      decided who the Company goes to while it is still hers to give.
+      CONSTRAINTS: Gannet offers it plainly, in front of the table, and does
+      not beg. Name nobody the schedule puts elsewhere. Say nothing about who
+      the Magpie is. Taking it ends the story.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: take_the_chair
+        text: >-
+          Take the needles out of her hands, and the chair at the head of the
+          long table with them. This ends the story: Guildmaster.
+        gate:
+          on_pass:
+            text: >-
+              She lets go of them one finger at a time. The Hall goes quiet
+              the way it goes quiet for a verdict, and then somebody at the far
+              end starts banging a tankard on the table, and does not stop.
+            effects:
+              - type: ledger_fact
+                kind: event
+                text: "Mother Gannet gave you the Honest Company at the long table in the Porters' Hall, and you took it."
+              - { type: ending_lock, ending: guildmaster }
+              - { type: ending_module }
+
+      - id: not_yet
+        text: >-
+          Not yet. Ask her to keep them a while longer; there is something
+          you mean to do first.
+        gate:
+          on_pass:
+            text: >-
+              Gannet nods and goes on knitting as if nothing had been said.
+              "They'll keep," she says. "I shan't, for ever. Mind that."

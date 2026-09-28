@@ -1,0 +1,154 @@
+# HUE & CRY -- what happens when the thief's hp reaches the floor.
+#
+# Found by fixed filename inside `paths.rules`; consumed by
+# engine/game/encounter.py::check_death, which runs it wherever hp can fall:
+# every hour of `advance_time` (hunger), after every encounter round (a
+# Lantern's stop, a night street), after a job's stage (a fall off the roof)
+# and after a card beat that lowers hp (v0.17). Until v0.17 this story shipped
+# none, so hp 0 had no consequence at all: a thief could starve to nothing
+# and walk on (CLAUDE.md's deferred rows, now closed).
+#
+# TWO WAYS DOWN, AND ONLY ONE OF THEM IS THE END.
+#
+#   respawn   ordinary hp 0 -- hunger, a street fight, the roof. A SETBACK,
+#             never a game over: you wake on the step of Old Nance's
+#             flophouse in the Snuffs the next morning, poorer, sore, and a
+#             little fed. Death is the fail-forward's job only at the fair.
+#   terminal  hp 0 while the Watch holds you on the day of the Hanging Fair.
+#             A thief taken at the fair is hanged at the fair
+#             (data/lore/the_hanging_fair.md), and this is that: the run ends
+#             in `the_rope` (data/rules/endings.yaml), its Speak / Act / Seal
+#             module plays and its epilogue card shows. The Rope's OTHER door
+#             -- the hanging itself -- is data/scenes/the_gallows.yaml
+#             (v0.17 Task 3), not this file's.
+#
+# THE QUIET DEATH: the terminal fires on ANY death while held during the
+# fair. When hunger takes the last hp inside a stretch of hours (a rest,
+# waiting), the turn's prose gets no death receipt and goes straight to the
+# scaffold. A card beat's death does get one (`director.resolve`, T1), and
+# the hanging itself is narrated by the gallows deck (v0.17 Task 3) for the
+# thief the Watch walks out at nine on the last morning -- but a thief who
+# starves in the cell before then has no card; CLAUDE.md records the gap.
+#
+# `hanging_fair` is the declared world event the fair runs as
+# (data/world/schedules.yaml, since v0.17 Task 3: days 10-12 on Gallows
+# Green). The loader does not ask whether an event id is declared; the
+# validator does (`check_event_references`, since v0.17 Task 3), and it is.
+#
+# RULE 6 IS UNTOUCHED. Nothing here gates rest: the flophouse, the guild
+# bunk, the cells and a rough night stay exactly as survival.yaml has them.
+#
+# THE NUMBERS, BY MEASUREMENT (AGENTS.md rule 10), 40 seeds, agendas off:
+# scripts/simulate_labour.py (10 days), simulate_streets.py (3),
+# simulate_jobs.py and simulate_acts.py -- the table is in CHANGELOG.md
+# [0.17.0] and the story's CHANGELOG. What the numbers were chosen
+# against: before this file the careful pickpocket reached hp 0 on 95% of
+# seeds (simulate_labour's `runs_at_zero_hp`), every one of them hunger.
+#
+#   hours 8           the night you are not there for. The city, the
+#                     Magpie and Captain Ardane's net keep their hours.
+#   hp_fraction 0.4   8 of 20: up, but one bad fight from the step again.
+#   stamina 0.3       enough to walk to breakfast, not to work a shift.
+#   gold 0.5, min 1   somebody went through your pockets while you lay there.
+#                     In the Snuffs this is not a mystery, only a courtesy.
+#   hunger -60        a charity crust and a mug of Old Nance's broth. The
+#                     flagship's -45 would leave a thief who starved down
+#                     (hunger at the 100 cap) at 40 -- `peckish` -- and the
+#                     next starving line 22 hours off, not 7: the flagship's
+#                     own note on respawn hunger is why it comes DOWN at all
+#                     (a death loop), and a thief who died of hunger with an
+#                     empty purse needs a day to find the next meal.
+#   the wound         stiff hands and a bad ankle: -1 to the three skills a
+#                     thief works with, healed on the third day. Lighter than
+#                     the flagship's (-2 on four skills for five days): a
+#                     Tallowmere death is a gutter, not a monster.
+#
+# Custody: a thief who dies in the cells on an ordinary day wakes STILL HELD,
+# in the cells (`respawn.in_custody`, below -- the engine's default would
+# release them and carry them to the Snuffs). A prisoner serving a sentence
+# is fed through it (law.py `_feed`), so a death in the cells takes a thief
+# who came in at the edge, or one who sat in the cell unfed without serving.
+#
+# Version: v0.1.1 [2026-09-27]
+
+version: 1
+
+# hp at or below this triggers the rules below.
+threshold: 0
+
+respawn:
+  location_id: the_snuffs
+
+  hours: 8
+
+  # Targets, not deltas -- encounter.py converts them.
+  hp_fraction: 0.4
+  stamina_fraction: 0.3
+
+  gold_loss_fraction: 0.5
+  gold_loss_min: 1
+
+  wound:
+    text: "stiff hands and an ankle that remembers the fall"
+    severity: 2
+    check_penalty: -1
+    skills: [stealth, craft, survival]
+    heals_on_day: "+3"
+
+  effects:
+    # Hunger comes DOWN, not up (the flagship's death-loop lesson; the number
+    # is argued in the header).
+    - type: hunger
+      delta: -60
+    - type: ledger_fact
+      kind: engine
+      text: "You were left on the step of Old Nance's flophouse in the Snuffs, lighter by half a purse."
+
+  text: >-
+    You come to on the step of Old Nance's flophouse with the morning on your
+    face, a blanket that smells of cat, and a heel of charity bread in your
+    fist that somebody closed your fingers round. Your purse is lighter by
+    about half. The jackdaw is sitting on your chest, looking at you with his
+    one eye as if you owe him money, which by the look of your purse somebody
+    now does.
+
+  # HELD WHEN YOU FELL (the owner's ruling, v0.17): dying is not a way out of
+  # the cells. A thief the Watch is holding wakes on the plank bench at the
+  # Lantern House, still held -- the fine, the days and the charge exactly as
+  # they were, the interrogation not dealt twice (the stay never ended) --
+  # and the stay ends the usual way: paid, served, or broken out. The bench
+  # is still a bed (survival.yaml's `sleep_cell`; rule 6). These keys are
+  # laid over the ones above; the hours, hp, stamina, purse and wound are
+  # the same, because the turnkey's hands are no cleaner than the Snuffs'.
+  in_custody:
+    effects:
+      - type: hunger
+        delta: -60
+      - type: ledger_fact
+        kind: engine
+        text: "You were carried back to the cells at the Lantern House, lighter by half a purse."
+    text: >-
+      You come to on the plank bench at the Lantern House with a turnkey's
+      boot nudging your shoulder and a bowl of something grey by your head.
+      "Not dead, then," he says, disappointed about a bet. Your purse is
+      lighter by about half; the Watch counts what it holds in its own
+      fashion. The door is still locked, and your name is still on it.
+
+# ------------------------------------------------------------
+# The one true game over: taken at the fair, hanged at the fair.
+# ------------------------------------------------------------
+#
+# Read at the moment of death, BEFORE any respawn hours: held by the Watch
+# while the Hanging Fair is on. The lock skips `the_rope`'s own gates (the
+# death is its eligibility; docs/AUTHORING.md §3.5), and a run already locked
+# to another ending keeps it.
+terminal:
+  when:
+    all:
+      - in_custody: true
+      - event_active: hanging_fair
+  ending: the_rope
+  text: >-
+    The cell door opens on bunting, pie-sellers and a crowd that has been
+    waiting since breakfast. Nobody asks whether you are the Magpie any more.
+    It is fair day, and the fair has a programme.

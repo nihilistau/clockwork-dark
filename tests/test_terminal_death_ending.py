@@ -365,9 +365,71 @@ def test_the_validator_reports_an_unknown_terminal_ending(tmp_path: Path) -> Non
 def test_every_shipped_story_validates_its_death_rules() -> None:
     from engine.games import registry, validation
 
-    for slug in ("clockwork-dark", "neon-city"):
+    for slug in registry.discover():
         errors = validation.errors_only(validation.validate_story(registry.get(slug)))
-        assert not [i for i in errors if "death.yaml" in i.source], errors
+        assert not [i for i in errors if "death.yaml" in i.source], (slug, errors)
+
+
+def _hue_with_death(tmp_path: Path, death: Any):
+    """HUE & CRY's manifest, its rules directory swapped for a copy whose
+    death.yaml is ``death``."""
+    from engine.games import registry
+
+    manifest = registry.get("hue-and-cry")
+    rules = tmp_path / "rules"
+    shutil.copytree(manifest.resolve(manifest.paths["rules"]), rules)
+    _dump(rules / "death.yaml", death)
+    return type(manifest)(**{**manifest.__dict__, "paths": {**manifest.paths, "rules": str(rules)}})
+
+
+@pytest.mark.parametrize("fault", sorted(MALFORMED))
+def test_activation_refuses_a_malformed_terminal_naming_the_file(
+    tmp_path: Path, fault: str
+) -> None:
+    """v0.17: a malformed death.yaml is refused when the story is ACTIVATED
+    (``registry.validate``, which ``activate`` raises on before repointing
+    anything), not on the turn the player first dies into it."""
+    from engine.games import registry
+
+    problems = registry.validate(_hue_with_death(tmp_path, MALFORMED[fault]))
+    hits = [p for p in problems if "death.yaml" in p]
+    assert len(hits) == 1, problems
+
+
+def test_activation_refuses_an_unreadable_death_file(tmp_path: Path) -> None:
+    from engine.games import registry
+
+    manifest = _hue_with_death(tmp_path, {"version": 1})
+    (tmp_path / "rules" / "death.yaml").write_text("terminal: [unclosed\n", encoding="utf-8")
+    problems = registry.validate(manifest)
+    assert [p for p in problems if "death.yaml" in p], problems
+
+
+@pytest.mark.parametrize("block", [["text"], "yes", {"location_id": "the_snuffs"}])
+def test_a_malformed_in_custody_block_is_refused_everywhere(tmp_path: Path, block: Any) -> None:
+    """`respawn.in_custody` is `true` or a mapping of respawn keys, never a
+    location: refused by activation, the validator and the loader alike."""
+    from engine.games import registry, validation
+
+    death = copy.deepcopy(DEATH)
+    death["respawn"]["in_custody"] = block
+    manifest = _hue_with_death(tmp_path, death)
+    assert [p for p in registry.validate(manifest) if "in_custody" in p]
+    errors = validation.errors_only(validation.validate_story(manifest))
+    assert [i for i in errors if "in_custody" in i.message], errors
+    set_overlay({"paths": _story(tmp_path / "synthetic", death)})
+    try:
+        with pytest.raises(ValueError, match="in_custody"):
+            encounter.load_death_rules()
+    finally:
+        set_overlay(None)
+
+
+def test_activation_accepts_every_shipped_death_file() -> None:
+    from engine.games import registry
+
+    for slug in registry.discover():
+        assert not [p for p in registry.validate(registry.get(slug)) if "death" in p], slug
 
 
 # ---------------------------------------------------------------------------
@@ -504,6 +566,75 @@ def _death_digest(case: str) -> str:
 @pytest.mark.parametrize("case", sorted(GOLDEN))
 def test_shipped_death_handling_is_byte_identical(case: str) -> None:
     assert _death_digest(case) == GOLDEN[case]
+
+
+#: sha256 of a HELD player's respawn in a story whose death.yaml does not opt
+#: into `respawn.in_custody` (v0.17): released and carried to the respawn
+#: location, as before. Measured against the code BEFORE `in_custody` landed
+#: (HEAD 6da3245), so the opt-in cannot have moved an opted-out story.
+HELD_RESPAWN_GOLDEN = "4e790ca2b71c120a3310e4a90b9b1880d4d17f752a447ac384306e1d24c3add5"
+
+
+def _kept(tmp_path: Path, **override: Any) -> None:
+    death = copy.deepcopy(DEATH)
+    death.pop("terminal")
+    death["respawn"]["in_custody"] = override or {}
+    set_overlay({"paths": _story(tmp_path, death)})
+
+
+def test_a_held_respawn_with_the_opt_in_stays_held_at_the_gaol(tmp_path: Path) -> None:
+    """``respawn.in_custody`` (v0.17): a player the watch is holding respawns
+    HELD -- at the gaol, the custody record untouched -- with the block's own
+    keys over the respawn's (here the text). Hours, hp and the rest still run."""
+    _kept(tmp_path, text="You wake on the bench.")
+    try:
+        state = _world()
+        set_clock(state, day=2, hour=10)
+        _held(state)
+        held = law.custody(state)
+        gaol = state.location_id
+        state.stats.hp = 0
+        record = encounter.check_death(state)
+        assert record["terminal"] is False and record["kept_in_custody"] is True
+        assert record["text"] == "You wake on the bench."
+        assert law.custody(state) == held and state.location_id == gaol
+        assert state.stats.hp == 10  # hp_fraction 0.5 of 20
+        assert state.world_hour == 13  # the respawn's three hours
+    finally:
+        set_overlay(None)
+
+
+def test_the_opt_in_changes_nothing_for_a_free_player(tmp_path: Path) -> None:
+    _kept(tmp_path, text="You wake on the bench.")
+    try:
+        state = _world()
+        state.stats.hp = 0
+        record = encounter.check_death(state)
+        assert "kept_in_custody" not in record
+        assert record["text"] == "You wake on the square."
+        assert state.location_id == SQUARE
+    finally:
+        set_overlay(None)
+
+
+def test_a_held_respawn_without_the_opt_in_is_byte_identical(tmp_path: Path) -> None:
+    death = copy.deepcopy(DEATH)
+    death.pop("terminal")
+    set_overlay({"paths": _story(tmp_path, death)})
+    try:
+        state = _world()
+        set_clock(state, day=2, hour=10)
+        state.stats.gold = 12
+        _held(state)
+        state.stats.hp = 0
+        record = encounter.check_death(state)
+        assert record["terminal"] is False and not law.in_custody(state)
+        saved = state.to_save_dict()
+        saved.pop("session_id", None)
+        blob = json.dumps({"death": record, "state": saved}, sort_keys=True, default=str)
+    finally:
+        set_overlay(None)
+    assert hashlib.sha256(blob.encode("utf-8")).hexdigest() == HELD_RESPAWN_GOLDEN
 
 
 def test_the_flagship_terminal_still_ends_without_an_ending() -> None:

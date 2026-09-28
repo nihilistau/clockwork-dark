@@ -224,6 +224,12 @@ def validate(manifest: GameManifest) -> list[str]:
     for key, reason in manifest.refused_settings().items():
         problems.append(f"settings.{key} is not honoured: {reason}")
 
+    # Death rules (v0.17). The loader reads death.yaml only when the player
+    # first reaches hp 0, and raises there on a malformed `terminal` -- on the
+    # turn they die. The same check runs here, so a story whose death rules
+    # would raise is refused at activation instead.
+    problems.extend(_death_rules_problems(manifest))
+
     raw_summary = manifest.extras.get("save_summary")
     if raw_summary is not None and not isinstance(raw_summary, (list, tuple, str)):
         problems.append("save_summary must be a list of declared value names")
@@ -235,6 +241,21 @@ def validate(manifest: GameManifest) -> list[str]:
             len(problems),
         )
     return problems
+
+
+def _death_rules_problems(manifest: GameManifest) -> list[str]:
+    """``death.yaml`` inside ``paths.rules``, checked as its loader checks it."""
+    rules = str(manifest.paths.get("rules") or "").strip()
+    if not rules:
+        return []
+    path = manifest.resolve(rules) / "death.yaml"
+    if not path.is_file():
+        return []
+    from engine.game.encounter import death_file_problem
+
+    endings = str(manifest.paths.get("endings") or "").strip()
+    problem = death_file_problem(path, manifest.resolve(endings) if endings else None)
+    return [f"paths.rules -> death.yaml: {problem}"] if problem else []
 
 
 # ---------------------------------------------------------------------------

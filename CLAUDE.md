@@ -10,15 +10,15 @@ release to release.
 
 ## Status
 
-**v0.16.0** is the current release (CHANGELOG.md has every release since 0.4.0;
+**v0.17.0** is the current release (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
-**3405 passing, 4 skipped in 19m27s** (v0.16.0, measured in a checkout
+**3734 passing, 4 skipped in 23m38s** (v0.17.0, measured in a checkout
 holding the gitignored `Design_files/`, which runs the Design_files-only
-Garden test; a fresh worktree skips it, so 3404 pass and 5 skip there), no
-expected failures (measured 2026-09-27, v0.16.0 release; one skip is the
-stamina soft-lock test,
-which covers only stories with no rest verb and now skips HUE & CRY too), plus **144 client tests** under `ui/tests/`
+Garden test; a fresh worktree skips it, so 3733 pass and 5 skip there), no
+expected failures (measured 2026-09-28, v0.17.0 release; one skip is the
+stamina soft-lock test, which covers only stories with no rest verb and so
+skips HUE & CRY too), plus **144 client tests** under `ui/tests/`
 (`npm test --prefix ui`; `vitest` is a devDependency, so
 `npm install --prefix ui` once first). Re-measure and restate these at every
 release rather than trusting this line -- it has been stale before, in the
@@ -40,8 +40,13 @@ four blackmail squeezes and the fences' credit — and, since v0.16, Acts I
 and II: the barge opening's three choices made real, the Honest Company's
 initiation deck, the Lantern House's interrogation deck on every arrest, the
 Magpie's trail laid through the houses, and the front desk's alibi and
-accusation; still playable to its one shipped ending, `honest_after_all`,
-with Act III and the eight endings landing in v0.17.0). Pick one with
+accusation — and, since v0.17, Act III: the Hanging Fair on Gallows Green
+(days 10–12), the gallows for a thief held since before it, the jailbreak,
+and `death.yaml` (hp 0 respawns in the Snuffs; dying held at the fair is The
+Rope), with all eight endings, each through its own door and each earned:
+Cleared, A Lantern, Honest After All, Partners, The Legend, Guildmaster, The
+Dapper's City and The Rope, the fail-forward. HUE & CRY is finishable; its
+screens, art and live play are still to come). Pick one with
 `launcher.py --game <slug>`.
 
 ## In flight
@@ -63,8 +68,8 @@ only once the last of them lands:
 | v0.14.0 | Living city: survival, forage + Rooftop Road's hidden paths, labour, boons, night encounters, factions, city lore | **shipped** |
 | v0.15.0 | Guild economy: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | **shipped** |
 | v0.16.0 | Acts I–II: arcs, the opening, initiation deck, interrogation deck, the Magpie's trail, the reveal and the alibi beat | **shipped** |
-| v0.17.0 | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | next |
-| v0.18.0 | `simulate.py`'s thief policy -- and re-measure welshing's cost for a burglar shut out of both fences (owner decision in v0.15) | queued |
+| v0.17.0 | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | **shipped** |
+| v0.18.0 | `simulate.py`'s thief policy -- and re-measure welshing's cost for a burglar shut out of both fences (owner decision in v0.15; its gain over never borrowing shrank in v0.17, see CHANGELOG), and the careful pickpocket's ~1.9 deaths a run | next |
 | v0.19.0 | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | queued |
 | v0.20.0 | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker | queued |
 | v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | queued |
@@ -114,28 +119,25 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   runs (E2b, E2c, E3a, E3b, E3c, E4d, E5a; 9 in 200), and deals every card
   (`scripts/simulate_decks.py --game wicked-garden`, measured 2026-09-26;
   this line said "11 unreachable, 4 orphan cards" before).
+- The Garden's bargains work only as written: `bargain` strikes, `discharge`
+  settles, falling due breaks. Its renegotiations, the knife's cut, the gift
+  auto-thread (`accept_gift`) and two undeclared templates (`briar_witness`,
+  `three_nights_or_truths`) are NOT WIRED (docs/GOVERNANCE.md); the v0.23.0
+  Wicked Garden overhaul takes them up.
 - `mortal_threshold`, the Garden's entry location, has no plate on purpose (it
   hosts the ten-card prologue), so a new player sees no scene art until the
   prologue ends.
 - The studio review queue can keep one draft but does not draft from the
   browser.
-- `hue-and-cry` ships no `death.yaml` until v0.17.0 (The Rope ending): the
-  watch_stop's fight can push hp to 0 with no respawn until then, and so can
-  hunger -- the measured candle-dipper reaches 0 hp on 5% of seeds, and the
-  careful pickpocket on 95%, in ten days (CHANGELOG [0.14.0]
-  cost-of-living table; [0.15.0] "Where hp goes to 0"). A welsher on a
-  fence's credit reaches it on 45% (Pell's advance) to 82.5% (Marrow's
-  slate) of seeds in ten days, starving; the fences' collectors cost it
-  under an hp a run, so they are a rare way there, not the usual one.
-- One of HUE & CRY's seven factions -- the Temple of the Everflame -- is
-  declared for Acts I–III and moved by nothing yet
-  (`data/world/factions.yaml`'s header). The Margrave's household and the
-  Silk Row houses are moved since v0.15 by a squeeze left uncollected.
+- HUE & CRY's Temple of the Everflame is moved since v0.17 T6 (the heart
+  taken off the palace steps, -10) and READ by nothing yet but the save and
+  the `reputation` predicate (`data/world/factions.yaml`'s header): no
+  ending, price or card asks the Temple's opinion.
 - A generated premise's secret, carried out of a job, is HELD (the
   `secret_held:<premise>:<secret>` flag and a `secret` ledger fact) and opens
   no thread: only the four anchors' secrets name a blackmail (`thread:`).
-  Nothing reads a generated secret yet (none of v0.16's three decks does);
-  Act III (v0.17.0) may.
+  Nothing reads a generated secret: none of v0.16's decks does, and v0.17's
+  endings read only an anchor's (Guildmaster, Mother Gannet's IOUs).
 - `survival.sleep_until` looks only for a rest entry named `sleep_bed`, so in
   HUE & CRY (whose beds have their own names) it always sleeps rough.
 - A HUE & CRY save from before v0.14 keeps the world it was generated with,
@@ -151,17 +153,11 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   unmasked the Magpie by day 12, and a retry after a wrong naming almost
   never lands in time (1 run in 40). The evidence bar was set to the lead -- two
   clues that agree (agree, not necessarily true: two herrings can open a
-  wrong naming) -- not to a count; the levers if Act III's fair needs the
-  reveal sooner are the hint's place in casing (`premises._ordered_ids`)
+  wrong naming) -- not to a count. v0.17's endings harness kept it against
+  the fair (`scripts/simulate_endings.py`: Cleared open for 68-73% of
+  investigators, locked on 27-29 of 40); the levers, should the reveal need
+  to come sooner, are the hint's place in casing (`premises._ordered_ids`)
   and the trail's density (`clues.yaml` `trail`/`herrings`).
-- `death.yaml` is loaded, and so validated, only at the moment of death
-  (`encounter.load_death_rules`): a malformed one is a ValueError on the turn
-  the player dies, not at story activation. `scripts/doctor.py` and the
-  validator (`check_death_rules`) catch it before that; nothing in the
-  running engine does.
-- A job/death seam that lands with that `death.yaml`:
-  `test_no_job_takes_the_thief_to_zero_hp` passes trivially, because no
-  measured policy takes the roof (the one entry that hurts).
 - The wanted-poster UI: the payload exists (`to_client_dict`'s `law` key,
   `clarity` included) and the narrator already speaks it in prose; no plugin
   renders it until v0.21.0's UI overhaul.
@@ -175,11 +171,13 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   (`jobs.yaml`'s header, AUTHORING §3.12): the watch's delay counts whole
   in-game hours (`jobs.now_hour` floors), so a stage of fractional hours can
   bring it up to an hour late.
-- The agenda clocks' beats set flags (`ardane_warrant_sworn`,
-  `silas_splits_the_company`, `magpie_spree_full`, ...) that no scene reads
-  yet (none of v0.16's decks does); Act III's (v0.17.0) will. (The reveal is no longer on this
-  list: since v0.16 the Lantern House front desk's accusation sets
-  `magpie_unmasked`; catching the thief in the act is not built.)
+- Some agenda clock beats set flags no scene or ending reads yet:
+  `ardane_warrant_sworn`, `ardane_doubles_the_watch`, `magpie_spree_full`
+  and `magpie_emboldened` (clocks.yaml). `silas_splits_the_company` is read
+  since v0.17 T6 (The Dapper's City, Guildmaster, the fair's F4). (The
+  reveal is no longer on this list: since v0.16 the Lantern House front
+  desk's accusation sets `magpie_unmasked`; catching the thief in the act is
+  not built.)
 - Ardane's `takes_a_statement` move can only file her OWN report at a fixed
   deed (`pickpocket`): a move has no way to name the deed a witness actually
   saw, so it cannot upgrade that row directly -- it adds a second, lesser
@@ -187,10 +185,11 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 - Agenda moves are never posted to the notice board, and no `fence {most:
   hot_goods}` selector exists (fences hold no stock to count) -- both rows in
   docs/GOVERNANCE.md's NOT WIRED table.
-- The Magpie's Hoard (v0.15, `data/tables/collections.yaml`) sets
-  `magpies_hoard_complete` when all six pieces are carried, and nothing reads
-  that flag until v0.17.0's The Legend ending; until then completing it pays
-  the Honest Company's +8 and the narrator's reward line, and nothing else.
+- The Magpie's Hoard's `magpies_hoard_complete` is read since v0.17 T6 only
+  by The Legend's closeness `score` and its Seal beat's text
+  (`data/rules/endings.yaml`): it opens no door and gates no ending, so a
+  thief who carries the Hoard but never lifts the heart gets the Company's
+  +8 and the reward line, and nothing else.
 - The fences' credit (v0.15, `pell_advance`, `marrow_slate`) is repaid in
   coin, not in goods: nothing in the condition grammar can say "carrying hot
   goods worth V" and no effect can hand over unnamed goods, so the debt is
@@ -217,18 +216,24 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   `test_every_counter_offers_all_of_its_stock`; nothing guards other
   stories, the validator gives no advisory, and a thief carrying bench
   makings can crowd loot out of Marrow's `sell` list.
-- The reveal's and the alibi's flags are for endings that do not exist
-  yet: `magpie_named_wrongly`, `wrongly_accused_<suspect>` and
-  `alibi_proven` are read by nothing but the desk and interrogation decks'
-  own gates, and `magpie_unmasked` by those and the GM line's mask
-  (`agendas.yaml`, `spoilers.yaml`), until v0.17.0's endings. The
+- Some of the reveal's and the alibi's flags still wait for endings:
+  `wrongly_accused_<suspect>` and `alibi_proven` are read by nothing but the
+  desk, interrogation and (since v0.17 T6) confrontation decks' own gates. (Since v0.17 T5 Cleared and A
+  Lantern read `magpie_unmasked`, and Cleared `magpie_named_wrongly`.) The
   interrogation's reserved `Q3_the_evidence` slot was released unfilled
   (the accusation lives at the front desk).
 - The Lantern House front desk (`lantern_house_desk.yaml`) is a repeatable
   deck, re-armed only when its `when:` is seen false: a card that becomes
   eligible while the thief is already standing in the Lantern House (the
-  captain coming on duty, say) waits until they walk out and back in
+  captain coming on duty, say, or A Lantern's badge right after a right
+  naming at the same desk) waits until they walk out and back in
   (`director.rearm`).
+- HUE & CRY's Act III arc, D4 (Cleared after the fair, v0.17 T5),
+  Guildmaster's `the_fair_has_come` and Partners' `the_last_job` (v0.17 T8
+  fix round 1) read `event_seen: hanging_fair`, which the quests pass
+  records only at a turn that ends while the fair is on. A single action
+  that began before day 10 and ended after day 12 would miss it; none exists today (the longest, a
+  served sentence, is stopped by the gallows at nine on day 12).
 - `clues_favour {excluding: [...]}` accepts ids that are not candidates of
   the role and ignores them, and `clues.yaml`'s `fresh_flag` accepts any
   flag name but a `clue_found:` one (`engine/world/clues.py`); neither is
@@ -248,10 +253,52 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   on the flagship's phantom `quiet_life` arc, not the story's default arcs
   (`quests.seed_default_arcs` runs only in `procgen.new_game_state`).
   Judged harmless in v0.16 T1's review.
+- HUE & CRY's careful pickpocket still starves: it dies ~1.9 times a run and
+  reaches 0 hp on 95% of seeds in ten days, keeping 26% of days
+  (simulate_labour, 40 seeds, flophouse; the credit policies reach 0 on
+  52.5% (Pell) to 87.5% (Marrow)). Since v0.17 a death respawns in the Snuffs
+  (`data/rules/death.yaml`), so it no longer ends the run, but a purses-only
+  living is still below the cost of living. It is taken up with v0.18.0's
+  thief policy (hue CHANGELOG [0.17.0]).
+- A death in the cells during HUE & CRY's Hanging Fair is The Rope, whatever
+  took hp to 0. The hanging itself has a scene since v0.17 T3 (the gallows
+  deck, `data/scenes/the_gallows.yaml`, dealt at nine on the fair's last
+  morning to a thief held since before it), but hunger inside a stretch of
+  hours still gives that turn's prose no death receipt (a card beat's death
+  does get one, v0.17 T1), so a thief who starves in the cell goes straight
+  to the ending module's beats (AUTHORING §3.5). Narrowed, not closed: a
+  prisoner serving a sentence is fed, so only one who sat unfed in the cell
+  reaches it; flagged in `death.yaml`'s header.
+- The bounders still CLAMP rather than reject (right for a model's output
+  mid-turn): text past its cap and an outcome's effects past four are cut
+  at load. Authored text has its own cap (`spec.MAX_AUTHORED_TEXT`, 1500,
+  v0.17 T8 fix round 3; model text keeps `MAX_TEXT`, 400). Every cut is
+  recorded in the bounder's adjustments and
+  `validation.check_truncated_content` reports it as an ERROR for decks
+  (card title and text, beats, outcomes), ending modules, thread templates,
+  opening choices and set-pieces. Not covered: quest, encounter, epilogue
+  and lore text, which pass through no bounder.
+- A thief who names the Magpie to the captain (`magpie_unmasked`) is never
+  dealt HUE & CRY's `F4_silas_makes_his_move` (it is The Dapper's City's
+  door, and that ending shuts on the naming), so cannot stand against Silas
+  at the fair either: if Silas's rise has won, Guildmaster stays shut for
+  that thief (v0.17 T6, `data/rules/endings.yaml`).
+- A locked run is dealt no door -- but only POOL doors (`deck.eligible_cards`,
+  v0.17 T6): a REQUIRED card that locks an ending is still dealt, because the
+  Wicked Garden's recorded walk re-deals its required finale lock after the
+  run is locked. HUE & CRY's `the_gallows` `G1_the_last_morning` is required
+  and locks `the_rope`, so it could still be dealt to a locked run (its lock
+  refused). And a deck whose `when:` reads an ending's eligibility (HUE &
+  CRY's `porters_hall`, the desk's badge branch) still comes due after the
+  lock and deals nothing (spent, "no cards were eligible"). Both reachable
+  only by an API or harness caller that plays on past an ending.
+- `validation.check_law_effects` checks a `report`'s deed, guise and
+  jurisdiction, a `wanted` condition and a `committed_deed` only against a
+  law file: in a story with no `paths.law` it checks none of them, though at
+  runtime such a report is refused ("no watch to report to") and such a
+  condition is false. Only the engine-only effects are reported there.
 - The Wicked Garden deals `day_09_finale` twice (pre-existing).
 - Survival's hunger/death is not cut-invariant (pre-existing).
-- Set pieces (`paths.challenges`) aren't checked by `doctor.py` or
-  `validate_content.py` (pre-existing).
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 

@@ -150,6 +150,7 @@ class Run:
     min_hp: int = 99
     worst_band: str = ""        # the worst wanted band anywhere when the run ends
     clues: int = 0              # clues to the Magpie's trail carried out (v0.16)
+    deaths: int = 0             # respawns since v0.17 (simulate_law.counting_deaths)
     favours_magpie: bool = False  # the found clues lean toward the seed's real Magpie
 
 
@@ -462,14 +463,22 @@ PLAYS: dict[str, Callable[[Burglar], None]] = {
 
 
 def play(seed: int, policy: str) -> Run:
+    from scripts.simulate_law import counting_deaths
+
+    with counting_deaths():
+        return _play(seed, policy)
+
+
+def _play(seed: int, policy: str) -> Run:
     from engine.world import law
-    from scripts.simulate_law import _worst_band
+    from scripts.simulate_law import _worst_band, deaths
 
     b = Burglar(seed, policy)
     b.morning()
     PLAYS[policy](b)
     b.run.worst_band = _worst_band(b.state, list(law.load_spec()["jurisdictions"]))
     _read_the_trail(b)
+    b.run.deaths = deaths(b.state)
     return b.run
 
 
@@ -544,6 +553,7 @@ def summarise(runs: list[Run]) -> dict[str, Any]:
         "treasury": _rates(treasury),
         "refused": sum(r.outcome == "refused" for run in runs for r in run.jobs),
         "min_hp": min((run.min_hp for run in runs), default=None),
+        "runs_with_a_death": round(sum(run.deaths > 0 for run in runs) / max(1, len(runs)), 3),
         "clues_per_run": round(statistics.mean(run.clues for run in runs), 2) if runs else 0.0,
         "runs_with_a_clue": round(sum(run.clues > 0 for run in runs) / max(1, len(runs)), 3),
         "runs_favouring_the_magpie": round(sum(run.favours_magpie for run in runs)
@@ -582,6 +592,7 @@ def render(policy: str, report: dict[str, Any]) -> str:
     line("treasury", report["treasury"])
     lines.append(f"runs ending sought or worse {report['ended_sought']:.0%}, wanted or worse "
                  f"{report['ended_wanted']:.0%}; min hp {report['min_hp']}; "
+                 f"runs with a death {report['runs_with_a_death']:.0%}; "
                  f"refused opens {report['refused']}")
     lines.append(f"the Magpie's trail: {report['clues_per_run']} clues a run, "
                  f"{report['runs_with_a_clue']:.0%} of runs found one, "

@@ -848,6 +848,24 @@ def test_death_rules_load():
     assert rules.get("terminal", {}).get("flag")
 
 
+def test_missing_death_rules_are_warned_about_once(tmp_path, caplog):
+    """A story whose rules directory holds no death.yaml says so once per
+    activation, not once per hour (every `advance_time` asks). Synthetic since
+    v0.17: HUE & CRY, the story this was measured on, now ships the file."""
+    import logging
+
+    from engine.config import set_overlay
+
+    set_overlay({"paths": {"rules": str(tmp_path)}})
+    try:
+        with caplog.at_level(logging.WARNING, logger="engine.game.encounter"):
+            for _ in range(4):
+                assert encounter.load_death_rules() == {}
+    finally:
+        set_overlay(None)
+    assert sum("Death rules missing" in r.getMessage() for r in caplog.records) == 1
+
+
 # ---------------------------------------------------------------------------
 # `on_roads: false` -- a scene some other system opens (v0.14)
 # ---------------------------------------------------------------------------

@@ -485,6 +485,21 @@ def work(
             }
         )
 
+    # A posting's own authored effects (v0.17): what a shift writes beyond
+    # coin, bread and standing -- HUE & CRY's record that an honest wage was
+    # earned, which its Honest After All ending reads. Degree-gated like
+    # `in_kind` and `reputation`; a row with no `degrees` fires on every shift
+    # worked. Through the one writer (AGENTS.md rule 3). A posting that
+    # declares none writes exactly what it always did.
+    for row in job.get("effects") or []:
+        if not isinstance(row, dict):
+            continue
+        if "degrees" in row and degree not in [str(d) for d in (row.get("degrees") or [])]:
+            continue
+        applied.append(
+            effects_module.apply_effect(state, {k: v for k, v in row.items() if k != "degrees"})
+        )
+
     _record_shift(state, job_id, day=day_at_start)
 
     text = str(

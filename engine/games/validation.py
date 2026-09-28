@@ -385,11 +385,34 @@ def canon_flags(dictionary: Optional[dict[str, Any]], clocks_doc: Any = None) ->
 # ---------------------------------------------------------------------------
 
 
+#: Documents already parsed during ONE ``StoryValidator.run`` (None outside a
+#: run), keyed by resolved path. Many checks read the same file, and
+#: ``check_event_references`` reads every file the story declares; without
+#: this a run parsed the story's YAML over again (v0.17 T3 review: the
+#: flagship's validation went from 2.7s to 4.7s). Scoped to one run, so an
+#: edited file is always read fresh by the next. Callers treat the documents
+#: as read-only (none mutates a parsed document).
+_RUN_DOCS: Optional[dict[str, Any]] = None
+
+
 def _read_yaml(path: Path) -> Any:
-    """Parse one YAML file, returning None on any failure (reported upstream)."""
+    """Parse one YAML file, returning None on any failure (reported upstream).
+
+    Memoised for the length of one validator run (``_RUN_DOCS``)."""
+    key = ""
+    if _RUN_DOCS is not None:
+        try:
+            key = str(path.resolve())
+        except OSError:
+            key = str(path)
+        if key in _RUN_DOCS:
+            return _RUN_DOCS[key]
     try:
         with path.open(encoding="utf-8") as fh:
-            return yaml.safe_load(fh)
+            doc = yaml.safe_load(fh)
+        if _RUN_DOCS is not None:
+            _RUN_DOCS[key] = doc
+        return doc
     except (OSError, yaml.YAMLError) as exc:
         logger.error(
             "[validation] Unreadable file (operation=_read_yaml, path=%s): %s",
@@ -590,6 +613,15 @@ class StoryValidator:
 
     def run(self) -> list[Issue]:
         """Run every applicable check, in dependency order."""
+        global _RUN_DOCS
+        outer = _RUN_DOCS
+        _RUN_DOCS = {} if outer is None else outer
+        try:
+            return self._run()
+        finally:
+            _RUN_DOCS = outer
+
+    def _run(self) -> list[Issue]:
         self._build_registries()
 
         self.check_state_schema()
@@ -608,9 +640,13 @@ class StoryValidator:
         self.check_lore()
         self.check_decks_and_structures()
         self.check_declared_event_scenes()
+        self.check_event_references()
         self.check_endings_and_epilogues()
         self.check_opening()
+        self.check_law_effects()
         self.check_death_rules()
+        self.check_set_pieces()
+        self.check_truncated_content()
         self.check_procgen_templates()
         self.check_agents()
         self.check_spoilers()
@@ -990,7 +1026,41 @@ class StoryValidator:
                 self._add(source, quest_id or "-", "quest has no stages")
 
             self._check_stage_reachability(source, quest_id, data, declared_flags)
+            self._check_stage_refusals(source, quest_id, data)
             self._check_generic_refs(source, data)
+
+    def _check_stage_refusals(self, source: str, quest_id: str, data: dict[str, Any]) -> None:
+        """
+        A stage's ``refusals: [{when, text}]`` (v0.17, ``QuestEngine.
+        stage_refusal``): the narrator's reason a stage will not close. Read
+        as the thread and bed refusals are: a list of rows each with a
+        ``when`` and a ``text``, the ``when`` in the shared grammar and
+        answerable with no ledger -- the objective line is built with none,
+        so a ``disposition`` clause would never hold and the reason would
+        never be told.
+        """
+        from engine.game import quests as quests_module
+
+        forbid = {name: reason for name, reason in quests_module.CONTEXT_FREE_FORBIDS.items()
+                  if name in quests_module.LEDGER_PREDICATES}
+        for stage in data.get("stages") or []:
+            if not isinstance(stage, dict) or "refusals" not in stage:
+                continue
+            ref = f"{quest_id or '-'}/{str(stage.get('id') or '-')}"
+            rows = stage["refusals"]
+            if not isinstance(rows, list):
+                self._add(source, ref, "refusals must be a list of {when, text}")
+                continue
+            for index, row in enumerate(rows):
+                if not isinstance(row, dict) or not str(row.get("text") or "").strip() \
+                        or row.get("when") is None:
+                    self._add(source, ref, f"refusals[{index}] needs a `when` and a `text`")
+                    continue
+                problem = quests_module.condition_problem(
+                    row.get("when"), where=f"`refusals[{index}].when`", forbid=forbid,
+                )
+                if problem:
+                    self._add(source, ref, problem)
 
     # -- encounters --------------------------------------------------------
 
@@ -1035,6 +1105,50 @@ class StoryValidator:
                 continue
             self._check_generic_refs(self._rel(path), data)
             self._check_vendor_refusals(self._rel(path), data)
+            if path.name == "labour.yaml":
+                self._check_labour_effects(self._rel(path), data)
+
+    def _check_labour_effects(self, source: str, data: Any) -> None:
+        """
+        A posting's ``effects`` (v0.17, ``economy.work``): an effect kind the
+        engine knows, fields that agree with the kind (``_check_effect_rows``),
+        and ``degrees`` naming only degrees the job's ``pay`` table knows -- a
+        misspelt degree is a row that never fires, and an unknown kind one
+        ``apply_effect`` drops, both without a word at the table.
+        """
+        from engine.game.effects import registered_kinds
+
+        kinds = set(registered_kinds())
+        for job in (data.get("jobs") or []) if isinstance(data, dict) else []:
+            if not isinstance(job, dict) or "effects" not in job:
+                continue
+            job_id = str(job.get("id") or "-")
+            rows = job["effects"]
+            if not isinstance(rows, list):
+                self._add(source, job_id, "effects must be a list of effect rows")
+                continue
+            pay = job.get("pay")
+            known = {str(d) for d in pay} if isinstance(pay, dict) else set()
+            for index, row in enumerate(rows):
+                if not isinstance(row, dict):
+                    self._add(source, job_id, f"effects[{index}] is not an effect row")
+                    continue
+                kind = str(row.get("type") or "")
+                if kind not in kinds:
+                    self._add(source, job_id, f"effects[{index}]: unknown effect type "
+                                              f"{kind!r}; it is dropped when the shift pays")
+                degrees = row.get("degrees")
+                if degrees is not None:
+                    if not isinstance(degrees, list):
+                        self._add(source, job_id, f"effects[{index}].degrees must be a list")
+                    else:
+                        for degree in degrees:
+                            if known and str(degree) not in known:
+                                self._add(source, job_id,
+                                          f"effects[{index}].degrees names {degree!r}, "
+                                          "which the job's `pay` table does not; the row "
+                                          "never fires on it")
+            self._check_effect_rows(source, {"effects": rows})
 
     def _check_vendor_refusals(self, source: str, data: Any) -> None:
         """A trade profile's ``refuses_to_buy`` (v0.15): words, and a condition that can hold."""
@@ -1219,6 +1333,29 @@ class StoryValidator:
                     docs[self._rel(path)] = data
         return docs
 
+    def _labour_flags_written(self) -> set[str]:
+        """Flags a labour posting's ``effects`` write (``economy.work``)."""
+        directory = self._dir("tables")
+        path = directory / "labour.yaml" if directory is not None else None
+        doc = _read_yaml(path) if path is not None and path.is_file() else None
+        if not isinstance(doc, dict):
+            return set()
+        rows = [row for job in (doc.get("jobs") or []) if isinstance(job, dict)
+                for row in (job.get("effects") or []) if isinstance(row, dict)]
+        return flags_written({"effects": rows})
+
+    def _collection_flags_written(self) -> set[str]:
+        """Flags a collection's completion ``effects`` write
+        (``inventory.evaluate_collections``, ``tables/collections.yaml``)."""
+        directory = self._dir("tables")
+        path = directory / "collections.yaml" if directory is not None else None
+        doc = _read_yaml(path) if path is not None and path.is_file() else None
+        if not isinstance(doc, dict):
+            return set()
+        rows = [row for entry in (doc.get("collections") or []) if isinstance(entry, dict)
+                for row in (entry.get("effects") or []) if isinstance(row, dict)]
+        return flags_written({"effects": rows})
+
     def check_decks_and_structures(self) -> None:
         """
         Decks, clocks and threads: ids unique, every reference resolves, and
@@ -1317,6 +1454,13 @@ class StoryValidator:
         for doc in docs.values():
             written |= flags_written(doc)
             read |= flags_read(doc)
+        # A labour posting's own `effects` (v0.17, economy.work) write flags a
+        # gate may read -- HUE & CRY's `honest_wage_earned`, read by an ending.
+        # Writers only: the labour table is not a structural document.
+        written |= self._labour_flags_written()
+        # And a collection's completion `effects` (v0.17 T6): HUE & CRY's
+        # `magpies_hoard_complete`, read by The Legend. Writers only, too.
+        written |= self._collection_flags_written()
 
         for source, doc in docs.items():
             for flag in sorted(flags_read(doc)):
@@ -1588,6 +1732,75 @@ class StoryValidator:
         for _event_id, scene_id in declared:
             self._check_scene_ref(source, scene_id, known_decks, known_cards, "event's")
 
+    #: Condition predicates whose value names a world event (a string or a list).
+    EVENT_PREDICATES = ("event_active", "event_seen", "held_before_event")
+    #: Events the engine raises itself: the flagship's three schedule slots
+    #: (known only when the story's schedules file declares the block) and the
+    #: procgen festival (``schedules.declared_events_due``).
+    ENGINE_EVENT_IDS = frozenset({"festival"})
+
+    def _story_yaml_files(self) -> list[Path]:
+        """Every YAML file a declared ``paths.*`` entry resolves to, once each."""
+        seen: dict[str, Path] = {}
+        for key in sorted(self.manifest.paths):
+            directory = self._dir(key)
+            if directory is not None and directory.is_dir():
+                for path in _yaml_files(directory):
+                    seen.setdefault(str(path.resolve()), path)
+                continue
+            path = self._file(key)
+            if path is not None and path.is_file() and path.suffix == ".yaml":
+                seen.setdefault(str(path.resolve()), path)
+        return [seen[k] for k in sorted(seen)]
+
+    def check_event_references(self) -> None:
+        """
+        Every event a condition names is an event the story can raise (v0.17).
+
+        ``{event_active: hanging_fiar}`` is a predicate that is false forever
+        and says nothing: nothing checked an event id against anything, so a
+        typo in the Hanging Fair's gallows gate would have hanged nobody, ever.
+        The events a story can raise are its ``world_schedules``' ``events:``
+        (and any engine slot block that file declares -- the flagship's
+        caravan, tinker, militia), the procgen festival, and every
+        ``event_id`` its own content emits (a clock beat's or a doom phase's
+        ``world_events``). Checked: ``event_active``, ``event_seen``,
+        ``held_before_event`` and ``days_since_event``'s mapping form.
+        """
+        files = self._story_yaml_files()
+        docs = [(path, _read_yaml(path)) for path in files]
+        known: set[str] = set(self.ENGINE_EVENT_IDS)
+        sched_path = self._file("world_schedules")
+        if sched_path is not None and sched_path.is_file():
+            sched = _read_yaml(sched_path)
+            if isinstance(sched, dict):
+                known |= {str(k) for k in (sched.get("events") or {})}
+                known |= {str(k) for k, v in sched.items()
+                          if k not in ("events", "rumors") and isinstance(v, dict)}
+        for _path, doc in docs:
+            for node in walk(doc):
+                if node.get("event_id") and isinstance(node.get("event_id"), str):
+                    known.add(node["event_id"])
+        for path, doc in docs:
+            for node in walk(doc):
+                named: list[str] = []
+                for key in self.EVENT_PREDICATES:
+                    if key in node:
+                        value = node[key]
+                        named += [str(v) for v in (value if isinstance(value, list) else [value])]
+                since = node.get("days_since_event")
+                if isinstance(since, dict):
+                    named.append(str(since.get("event") or since.get("event_id") or ""))
+                for event_id in named:
+                    if event_id and event_id not in known:
+                        self._add(
+                            self._rel(path),
+                            event_id,
+                            f"a condition names event '{event_id}', which the story "
+                            "never raises (no `world_schedules` event, engine slot "
+                            "or `event_id` declares it), so it is false forever",
+                        )
+
     def _check_beat_shapes(self, source: str, card_id: str, card: Any) -> None:
         """
         ``_resolve_gate`` starts at ``passed = True`` and only lowers it on a
@@ -1749,6 +1962,90 @@ class StoryValidator:
                                     values=self.declared_values):
                 self._add(source, f"entry.opening.{row.get('id') or '?'}", problem)
 
+    # -- law effects in content (v0.17 T4 fix round 1) ----------------------
+
+    def check_law_effects(self) -> None:
+        """
+        Two effect-row mistakes that load and do nothing, in ANY story file.
+
+        A ``report`` whose ``deed``, ``guise`` or ``jurisdiction`` the law file
+        does not declare is refused at runtime (``effects._e_report``) and
+        files nothing -- a set-piece's "the Watch writes up the escape", or a
+        card's squeezed victim, that never reaches the Watch. A value holding
+        ``{`` is an agenda placeholder filled when the move fires, and left to
+        the agendas loader. And an effect of an ``effects.ENGINE_ONLY_EFFECTS``
+        kind is the engine's own bookkeeping, which a story naming it forges.
+        """
+        from engine.game.effects import ENGINE_ONLY_EFFECTS
+
+        law_path = self._file("law")
+        law_doc = _read_yaml(law_path) if law_path is not None else None
+        declared: dict[str, set[str]] = {}
+        if isinstance(law_doc, dict):
+            for field, key in (("deed", "deeds"), ("guise", "guises"),
+                               ("jurisdiction", "jurisdictions")):
+                table = law_doc.get(key)
+                declared[field] = {str(k) for k in table} if isinstance(table, dict) else set()
+        bands: set[str] = set()
+        if isinstance(law_doc, dict) and isinstance(law_doc.get("wanted"), dict):
+            bands = {str(b) for b in (law_doc["wanted"].get("bands") or [])}
+        for path in self._story_yaml_files():
+            doc = _read_yaml(path)
+            if doc is None:
+                continue
+            source = self._rel(path)
+            is_law_file = law_path is not None and path.resolve() == law_path.resolve()
+            for node in walk(doc):
+                # A `wanted` CONDITION anywhere (v0.17 `own`): the loader of an
+                # agenda gate checks its own, but an ending, a stage or a card
+                # had nothing -- `own: "yes"` read as false, a band typo as a
+                # gate that never opens. (The law file's own `wanted:` table is
+                # not a condition.)
+                clause = node.get("wanted")
+                if declared and not is_law_file and isinstance(clause, dict) and "min" in clause:
+                    self._check_wanted_clause(source, clause, bands, declared)
+                # A `committed_deed` condition (v0.17) naming a deed the law
+                # file does not list counts nothing, ever.
+                if declared and "committed_deed" in node:
+                    named = node["committed_deed"]
+                    for deed in (named if isinstance(named, list) else [named]):
+                        if str(deed or "") not in declared["deed"]:
+                            self._add(source, f"committed_deed({deed})",
+                                      f"`committed_deed` names deed {deed!r}, which the law "
+                                      "file does not declare; the condition is false forever")
+                kind = str(node.get("type") or "").strip().lower()
+                if kind in ENGINE_ONLY_EFFECTS:
+                    self._add(source, kind, f"`{kind}` is the engine's own bookkeeping; "
+                                            "no story file may apply it")
+                if kind != "report" or not declared:
+                    continue
+                for field, known in declared.items():
+                    value = node.get(field)
+                    if isinstance(value, str) and "{" in value:
+                        continue
+                    if str(value or "") not in known:
+                        self._add(source, f"report({field}: {value})",
+                                  f"`report` names {field} {value!r}, which the law file "
+                                  f"does not declare; it is refused and files nothing")
+
+    def _check_wanted_clause(self, source: str, clause: dict[str, Any], bands: set[str],
+                             declared: dict[str, set[str]]) -> None:
+        """One ``{wanted: {...}}`` condition: a band, known faces and places,
+        and ``own`` a boolean when present."""
+        ref = f"wanted({', '.join(f'{k}: {v}' for k, v in clause.items())})"
+        if bands and str(clause.get("min") or "") not in bands:
+            self._add(source, ref, f"`wanted.min` {clause.get('min')!r} is not a wanted "
+                                   "band; the condition is false forever")
+        for field in ("guise", "jurisdiction"):
+            value = clause.get(field)
+            if isinstance(value, str) and "{" in value:
+                continue  # an agenda placeholder, the agendas loader's to check
+            if value and declared.get(field) and str(value) not in declared[field]:
+                self._add(source, ref, f"`wanted.{field}` {value!r} is not declared in "
+                                       "the law file; the condition is false forever")
+        if "own" in clause and not isinstance(clause["own"], bool):
+            self._add(source, ref, "`wanted.own` must be true or false")
+
     # -- death rules -------------------------------------------------------
 
     def check_death_rules(self) -> None:
@@ -1758,7 +2055,8 @@ class StoryValidator:
         (``encounter.death_terminal_problem``), so doctor finds it before a
         player dies into it.
         """
-        from engine.game.encounter import death_terminal_problem
+        from engine.game.encounter import (death_respawn_problem, death_terminal_problem,
+                                           declared_ending_ids)
 
         rules_dir = self._dir("rules")
         if rules_dir is None or not (rules_dir / "death.yaml").is_file():
@@ -1769,19 +2067,173 @@ class StoryValidator:
         if not isinstance(doc, dict):
             self._add(source, "-", "death rules are not a YAML mapping")
             return
+        # `respawn.in_custody` (v0.17): `true` or a mapping, never a location.
+        problem = death_respawn_problem(doc.get("respawn"))
+        if problem:
+            self._add(source, "respawn.in_custody", problem)
         terminal = doc.get("terminal")
         if not isinstance(terminal, dict):
             return
         # Mirror engine/game/endings.py::declared(), as check_endings does.
-        ending_ids: set[str] = set()
         endings_path = self._file("endings")
         endings_doc = _read_yaml(endings_path) if endings_path is not None else None
-        for class_id, body in ((endings_doc or {}).get("classes") or {}).items():
-            block = (body or {}).get("variants") or {}
-            ending_ids.update(str(e) for e in (block or {str(class_id): body}))
-        problem = death_terminal_problem(terminal, ending_ids)
+        problem = death_terminal_problem(terminal, declared_ending_ids(endings_doc))
         if problem:
             self._add(source, str(terminal.get("ending") or "terminal"), problem)
+
+    # -- set-pieces --------------------------------------------------------
+
+    def check_set_pieces(self) -> None:
+        """
+        ``paths.challenges`` (v0.17): each set-piece has an id, stands at a
+        place the graph holds, gates on a readable ``requires:`` and on flag
+        LISTS, grants one flag name, carries a challenge the spec validator
+        accepts, applies only effects a set-piece may, and frees the player
+        (``release``) only from a challenge's success outcome. The rules live
+        in ``set_pieces.set_piece_problems``; the runtime loader keeps what
+        this reports, so nothing else says it.
+        """
+        from engine.challenges.set_pieces import set_piece_effect_types, set_piece_problems
+
+        directory = self._dir("challenges")
+        if directory is None:
+            return
+        locations = {str(k) for k in self.locations} if self.locations else None
+        effect_types = set_piece_effect_types(self.declared_values)
+        seen: dict[str, str] = {}
+        for path in _yaml_files(directory):
+            source = self._rel(path)
+            doc = _read_yaml(path)
+            if not isinstance(doc, dict):
+                self._add(source, "-", "set-piece file is not a YAML mapping")
+                continue
+            pieces = doc.get("set_pieces")
+            if pieces is None:
+                continue
+            if not isinstance(pieces, list):
+                self._add(source, "set_pieces", "`set_pieces` is not a list")
+                continue
+            for index, raw in enumerate(pieces):
+                piece_id = str((raw or {}).get("id") or "").strip() if isinstance(raw, dict) else ""
+                ref = piece_id or f"set_pieces[{index}]"
+                if isinstance(raw, dict) and not piece_id:
+                    self._add(source, ref, "set-piece has no id; the loader will skip it")
+                if piece_id:
+                    if piece_id in seen:
+                        self._add(
+                            source, ref,
+                            f"duplicate set-piece id, already defined in {seen[piece_id]}; "
+                            "the loader keeps the first",
+                        )
+                        continue
+                    seen[piece_id] = source
+                for problem in set_piece_problems(
+                    raw, locations=locations, effect_types=effect_types
+                ):
+                    self._add(source, ref, problem)
+
+    # -- content the loader would cut short (v0.17 T8 fix round 2) ----------
+
+    def _cuts(self, source: str, ref: str, adjustments: list[str]) -> None:
+        """Report every recorded cut: text past its cap, effects past four."""
+        from engine.challenges import spec as spec_module
+
+        for note in adjustments:
+            if spec_module.TEXT_CUT in note or spec_module.EFFECTS_CUT in note:
+                self._add(source, ref, f"{note}: the loader cuts it, silently, at play "
+                                       "time -- shorten it or split it")
+
+    def check_truncated_content(self) -> None:
+        """
+        Authored text or effects the loader would cut off (v0.17 T8 fix round
+        2). Every bounder clamps rather than rejects -- right for a model's
+        output mid-turn, wrong for a story's own file, where the cut is a line
+        whose end (or an effect) simply never plays. Asked of the REAL
+        bounders, so the caps cannot drift apart: each deck card
+        (``deck.bound_beats`` for its beats; its title and text against the
+        deck's own caps), each ending's module beats, each thread template
+        and renegotiation (``threads._offer_from_spec``, plus its terms,
+        label and broken text), each authored opening choice
+        (``authored_choice.bound``) and each set-piece's challenge
+        (``spec.validate``). A bounder records a cut in its adjustments
+        (``spec.TEXT_CUT`` / ``spec.EFFECTS_CUT``); this reports it.
+        """
+        from engine.challenges import spec as spec_module
+        from engine.content import deck as deck_module
+        from engine.game import authored_choice
+        from engine.game import threads as threads_module
+
+        def over(source: str, ref: str, what: str, value: Any, limit: int) -> None:
+            text = str(value or "").strip()
+            if len(text) > limit:
+                self._cuts(source, ref, [f"{what} was {len(text)} "
+                                         f"{spec_module.TEXT_CUT} {limit}"])
+
+        for path in _yaml_files(self._dir("decks")):
+            data = _read_yaml(path)
+            if not isinstance(data, dict):
+                continue
+            source = self._rel(path)
+            deck_id = str(data.get("id") or path.stem)
+            for card in data.get("cards") or []:
+                if not isinstance(card, dict):
+                    continue
+                card_id = str(card.get("id") or "-")
+                over(source, card_id, "card title", card.get("title"), 120)
+                over(source, card_id, "card text", card.get("text"), deck_module.MAX_TEXT)
+                for beat in deck_module.bound_beats(card.get("beats"), deck_id, card_id):
+                    self._cuts(source, f"{card_id}/{beat['id']}", beat.get("adjustments") or [])
+
+        endings_path = self._file("endings")
+        doc = _read_yaml(endings_path) if endings_path is not None else None
+        if isinstance(doc, dict):
+            source = self._rel(endings_path)
+            for ending_id, body in (doc.get("classes") or {}).items():
+                if not isinstance(body, dict):
+                    continue
+                for beat in deck_module.bound_beats(body.get("beats"), str(ending_id), "module"):
+                    self._cuts(source, f"{ending_id}/{beat['id']}", beat.get("adjustments") or [])
+
+        threads_path = self._file("threads")
+        doc = _read_yaml(threads_path) if threads_path is not None else None
+        if isinstance(doc, dict):
+            source = self._rel(threads_path)
+            for template_id, raw in (doc.get("templates") or {}).items():
+                if not isinstance(raw, dict):
+                    continue
+                bodies = [(str(template_id), raw)] + [
+                    (f"{template_id}/{vid}", {**raw, **vraw})
+                    for vid, vraw in (raw.get("renegotiations") or {}).items()
+                    if isinstance(vraw, dict)]
+                for ref, body in bodies:
+                    adjustments: list[str] = []
+                    threads_module._offer_from_spec(
+                        str(template_id), body, source="", to_id="", thread_id="",
+                        negotiated=[], adjustments=adjustments)
+                    self._cuts(source, ref, adjustments)
+                    over(source, ref, "terms", body.get("terms"),
+                         threads_module.MAX_TERMS_CHARS)
+                    over(source, ref, "label", body.get("label"), 120)
+                    over(source, ref, "broken text",
+                         " ".join(str(body.get("broken_text") or "").split()),
+                         threads_module.MAX_TERMS_CHARS)
+
+        opening = (self.manifest.entry or {}).get("opening")
+        choices = (opening or {}).get("choices") if isinstance(opening, dict) else None
+        for row in choices if isinstance(choices, list) else []:
+            if isinstance(row, dict):
+                self._cuts("game.yaml", f"entry.opening.{row.get('id') or '?'}",
+                           authored_choice.bound(row).get("adjustments") or [])
+
+        directory = self._dir("challenges")
+        for path in _yaml_files(directory) if directory is not None else []:
+            data = _read_yaml(path)
+            pieces = data.get("set_pieces") if isinstance(data, dict) else None
+            for raw in pieces if isinstance(pieces, list) else []:
+                if isinstance(raw, dict) and isinstance(raw.get("challenge"), dict):
+                    result = spec_module.validate(raw["challenge"], authored=True)
+                    self._cuts(self._rel(path), str(raw.get("id") or "-"),
+                               result.adjustments)
 
     def check_procgen_templates(self) -> None:
         """

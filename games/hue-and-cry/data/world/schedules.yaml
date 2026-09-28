@@ -1,0 +1,82 @@
+# HUE & CRY -- what happens in Tallowmere on the calendar.
+#
+# Read by engine/world/schedules.py through `paths.world_schedules`. ONE KEY,
+# `events:` -- things that HAPPEN on a day, fired from `advance_time`'s day
+# roll with no randomness, so the fair comes from the seed and the choices,
+# never from how long the menu sat open (docs/AUTHORING.md §3.7, "World
+# events on the calendar").
+#
+# NOT the flagship's three slots. `caravan_arrival`, `tinker_camp` and
+# `militia_press` are engine ids the flagship fills; a story that does not
+# declare them stages none (schedules.py reads `{}` and fires nothing), and
+# Tallowmere has no caravan, no tinker and no militia. No flat `rumors:` list
+# either: this story declares no `world_rumors`, and none is wanted yet.
+#
+# THE HANGING FAIR (v0.17, Act III). Once a year, on Gallows Green: three days
+# of stalls, ballads and candle-racing, the Everflame's heart shown on the
+# palace steps, and on the last morning whatever hangings the Watch has saved
+# up (data/lore/the_hanging_fair.md). Everything Act III does hangs off it:
+#
+#   forces_scene  fair_day -- the fair deck (data/scenes/fair_day.yaml), dealt
+#                 once, the first turn the thief stands on the Green FREE
+#                 while the fair is on. Its own `when:` names the event and
+#                 the Green, so the forced deal WAITS for the thief to walk
+#                 there (engine/content/director.py::due, v0.17 T1) and an
+#                 arrest meanwhile still deals the interrogation.
+#   the gallows   data/scenes/the_gallows.yaml -- not forced: scheduled by its
+#                 own `when:`, dealt in the cell from 09:00 on the fair's LAST
+#                 day to a thief held since before the fair began
+#                 (`held_before_event: hanging_fair`). Its `min_day` is this
+#                 entry's `on_day + duration_days - 1`: change one, change the
+#                 other (asserted, tests/test_hue_and_cry.py).
+#   the Rope      data/rules/death.yaml's terminal: any death while held and
+#                 the fair is on ends the story in `the_rope`.
+#   Act III       data/quests/arcs.yaml `the_hanging_fair` opens on
+#                 `event_seen: hanging_fair`, so it stays the act after the
+#                 three days are over.
+#
+# WHY DAY 10, FOR THREE DAYS (proposed here; v0.17 Task 8 measures and tunes
+# it with scripts/simulate_acts.py, and restates it). A run is expected to
+# last 12-16 days, and the fair is its climax, so it must come:
+#
+#   - after Act II has had room. The initiation lands on night one for most
+#     arrivals and night four at the latest (data/scenes/initiation.yaml), so
+#     a thief has had about a week of contracts, jobs and the Magpie's trail
+#     by day 10.
+#   - after most investigations can have ended. v0.16's measured investigator
+#     unmasks the Magpie on day 9.0-9.1 on average, 43-48% by day 10 and 60%
+#     by day 12 (root CHANGELOG, simulate_acts, 40 seeds): the doors that need
+#     an unmasking (Cleared, A Lantern) are open for about half the careful
+#     runs when the fair begins and for most by its last day.
+#   - inside the run. Days 10-12, with the gallows on the morning of the 12th,
+#     so every Act III ending lands on day 10-13 -- inside 12-16 with room for
+#     a slower run to arrive late. A fixed day rather than a `when:`: the
+#     fair is the city's calendar, not a reward for the player's progress, and
+#     a fixed day can be learned and planned for.
+#   - three days, as the lore has it. One day would be a window a thief in
+#     the cells or across the city could miss by resting through it; three
+#     give time to reach the Green and, for a thief held when it came, from
+#     midnight on day 10 until nine on day 12 to get out first (pay the fine,
+#     or v0.17 Task 4's jailbreak).
+#
+# No `npc_ids`: an event's npc_ids stand those people on its location as
+# visitors, whatever their schedule says, and a fair that put Captain Ardane
+# on the Green while npc_schedules.yaml has her at her desk would be the bug
+# NEON CITY shipped. The fair's crowd is the city; its named people keep their
+# own hours.
+#
+# Version: v0.1.0 [2026-09-27]
+
+events:
+  hanging_fair:
+    on_day: 10
+    duration_days: 3
+    location_id: gallows_green
+    forces_scene: fair_day
+    text: >-
+      The Hanging Fair has come to Gallows Green: bunting on every rope that
+      is not for hanging, pie-stalls and ballad-sellers three deep, a
+      candle-race chalked out on the grass, and the whole city in something
+      bright. On the palace steps up the Hill, the Everflame's heart is to be
+      shown to the sun. On the last morning, the Watch will hang whatever it
+      has saved up for the occasion.

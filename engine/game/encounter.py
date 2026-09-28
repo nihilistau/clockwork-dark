@@ -213,7 +213,9 @@ def load_death_rules() -> dict[str, Any]:
             )
         return {}
     rules = _read_death(str(path), mtime)
-    problem = _terminal_ending_problem(rules.get("terminal"))
+    problem = _terminal_ending_problem(rules.get("terminal")) or death_respawn_problem(
+        rules.get("respawn")
+    )
     if problem:
         # Loud, naming the file: a `terminal:` whose ending is misspelt would
         # otherwise load, never match, and quietly respawn the player the one
@@ -246,6 +248,51 @@ def _condition_problem(node: Any, where: str) -> Optional[str]:
             name: reason for name, reason in quests.CONTEXT_FREE_FORBIDS.items()
             if name in quests.PROGRESS_PREDICATES
         },
+    )
+
+
+def declared_ending_ids(endings_doc: Any) -> set[str]:
+    """
+    Every ending id an endings file declares, read from the parsed document:
+    a class with ``variants`` is its variant ids, one without is its own id.
+    Mirrors ``endings.declared()`` for callers with no story activated.
+    """
+    ids: set[str] = set()
+    classes = endings_doc.get("classes") if isinstance(endings_doc, dict) else None
+    for class_id, body in (classes or {}).items():
+        block = (body or {}).get("variants") if isinstance(body, dict) else None
+        ids.update(str(e) for e in (block or {str(class_id): body}))
+    return ids
+
+
+def death_file_problem(death_path: Path, endings_path: Optional[Path]) -> Optional[str]:
+    """
+    What is wrong with a death.yaml on disk, or None -- for callers with no
+    story activated: ``registry.validate`` (so ``activate`` refuses a story
+    whose death rules the loader would raise on, rather than the turn the
+    player first dies) and the content validator.
+
+    The same checks as ``load_death_rules``: ``terminal: {when, ending}``
+    against the endings file's ids, and ``respawn.in_custody``.
+    """
+    try:
+        with death_path.open(encoding="utf-8") as fh:
+            doc = yaml.safe_load(fh)
+    except (OSError, yaml.YAMLError) as exc:
+        return f"death rules are unreadable: {exc}"
+    if doc is None:
+        return None
+    if not isinstance(doc, dict):
+        return "death rules are not a YAML mapping"
+    ending_ids: set[str] = set()
+    if endings_path is not None and endings_path.is_file():
+        try:
+            with endings_path.open(encoding="utf-8") as fh:
+                ending_ids = declared_ending_ids(yaml.safe_load(fh))
+        except (OSError, yaml.YAMLError):
+            ending_ids = set()
+    return death_terminal_problem(doc.get("terminal"), ending_ids) or death_respawn_problem(
+        doc.get("respawn")
     )
 
 
@@ -1123,6 +1170,13 @@ def _check_death_inner(
         return {"died": True, "terminal": True, "ended": True, "text": text}
 
     respawn = rules.get("respawn") or {}
+    # `respawn.in_custody` (v0.17, opt-in): a player the watch is holding
+    # respawns HELD, at the gaol, its keys laid over the respawn's. Read at
+    # the moment of death, as the terminal `when` is. Absent, a held player is
+    # released and carried to `location_id`, exactly as before.
+    kept_block = _kept_in_custody_block(respawn, state)
+    if kept_block is not None:
+        respawn = {**respawn, **kept_block}
     # An unresolved scene cannot survive the player being carried out of it --
     # ended BEFORE the respawn's hours, not after. Those hours run
     # `jobs.tick`, which can bring the watch and open the arrest scene; ending
@@ -1164,15 +1218,26 @@ def _check_death_inner(
 
     applied = effects_module.apply_effects(state, queued, ledger=ledger)
 
-    location = str(respawn.get("location_id") or state.location_id)
-    state.location_id = location
-    # Nor can a cell. A prisoner who dies is carried out with everyone else;
-    # left in custody they would wake "held" somewhere with no road offered.
-    # The story moves on: released, the file still filed (engine/world/law.py).
     from engine.world import law
 
-    if law.in_custody(state):
-        effects_module.apply_effect(state, {"type": "release"})
+    if kept_block is not None and law.in_custody(state):
+        # Held through it: back on the gaol's bench, the custody record (fine,
+        # days, charge, since_hour) untouched, so the stay goes on and ends
+        # the usual way -- paid, served or broken out.
+        gaol = str((law.load_spec().get("arrest") or {}).get("gaol") or "")
+        location = gaol or state.location_id
+        state.location_id = location
+    else:
+        kept_block = None
+        location = str(respawn.get("location_id") or state.location_id)
+        state.location_id = location
+        # Nor can a cell. A prisoner who dies is carried out with everyone
+        # else; left in custody they would wake "held" somewhere with no road
+        # offered. The story moves on: released, the file still filed
+        # (engine/world/law.py). A story that means otherwise declares
+        # `respawn.in_custody`, above.
+        if law.in_custody(state):
+            effects_module.apply_effect(state, {"type": "release"})
     # Nor a burglary. A thief carried off to wake somewhere else is not still
     # standing in the house at the stage they fell at; left open, the job's
     # `job`/`abort` verbs would be offered from wherever they woke.
@@ -1196,7 +1261,7 @@ def _check_death_inner(
         state.world_day,
     )
 
-    return {
+    record = {
         "died": True,
         "terminal": False,
         "ended": False,
@@ -1208,3 +1273,50 @@ def _check_death_inner(
         "effects": applied,
         "text": text,
     }
+    if kept_block is not None:
+        # Only when it happened: an opted-out story's record keeps its shape.
+        record["kept_in_custody"] = True
+    return record
+
+
+def _kept_in_custody_block(respawn: dict[str, Any], state: GameState) -> Optional[dict[str, Any]]:
+    """
+    ``respawn.in_custody``'s overrides when it applies to this death, else None.
+
+    It applies when the story declares it (``true``, or a mapping of respawn
+    keys -- ``text``, ``effects``, ``hours`` ... -- laid over the respawn's)
+    and the watch is holding the player right now. ``location_id`` is never
+    taken from it: a held player wakes at the gaol.
+    """
+    raw = respawn.get("in_custody")
+    if raw is None or raw is False:
+        return None
+    from engine.world import law
+
+    if not law.in_custody(state):
+        return None
+    block = dict(raw) if isinstance(raw, dict) else {}
+    block.pop("location_id", None)
+    block.pop("in_custody", None)
+    return block
+
+
+def death_respawn_problem(respawn: Any) -> Optional[str]:
+    """
+    What is wrong with a ``respawn:`` block's ``in_custody`` key, or None.
+
+    Shared by the loader, activation and the validator. ``in_custody`` is
+    ``true`` or a mapping of respawn keys; a ``location_id`` inside it is
+    refused, because a held player wakes at the gaol and the key would read
+    as a promise the engine does not keep.
+    """
+    if not isinstance(respawn, dict) or "in_custody" not in respawn:
+        return None
+    raw = respawn.get("in_custody")
+    if isinstance(raw, bool):
+        return None
+    if not isinstance(raw, dict):
+        return "`respawn.in_custody` must be `true` or a mapping of respawn keys"
+    if "location_id" in raw:
+        return "`respawn.in_custody` cannot name a `location_id`: a held player wakes at the gaol"
+    return None

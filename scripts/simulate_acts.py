@@ -92,13 +92,21 @@ WHAT IT REPORTS, per opening, averaged over seeds:
 ``--gate N`` and ``--set deeds.false_witness=N`` try a number without editing
 a file (the loaded desk deck's evidence gate; the loaded law file).
 
+PAST THE FAIR (v0.17 T8): scripts/simulate_endings.py plays this
+investigator, and policies built on it, through the Hanging Fair to the
+ending each run locks. It overrides three seams and nothing else:
+``Investigator.choose_beat`` (how a card is answered), ``CASING_ENDS``
+(when casing stops for the day) and, since T8's fix round 1, ``trail_done``
+(when the trail is over). Their defaults are this harness's own, so its
+tables are unchanged.
+
 Usage:
     python scripts/simulate_acts.py                      # 40 seeds x 12 days, every opening
     python scripts/simulate_acts.py --opening c --seeds 10
     python scripts/simulate_acts.py --gate 2 --set deeds.false_witness=2
     python scripts/simulate_acts.py --json
 
-Version: v0.1.0 [2026-09-27]
+Version: v0.1.2 [2026-09-28] -- seams for simulate_endings.py (trail_done: T8 fix round 1)
 """
 
 from __future__ import annotations
@@ -175,10 +183,15 @@ class ActsRun:
     arrest_hours: list[float] = field(default_factory=list)
     days_served: list[int] = field(default_factory=list)
     min_hp: int = 99
+    deaths: int = 0     # respawns since v0.17 (simulate_law.counting_deaths)
 
 
 class Investigator(Burglar):
     """simulate_jobs.py's burglar, with the director's hand dealt and answered every turn."""
+
+    #: The hour casing stops for the day (scripts/simulate_endings.py's
+    #: lamplighter stops earlier, to be at Wren's round by dusk).
+    CASING_ENDS = CASE_UNTIL
 
     def __init__(self, seed: int, opening: str) -> None:
         super().__init__(seed, "careful")
@@ -230,8 +243,7 @@ class Investigator(Burglar):
         if not offered:
             director.end(self.state)
             return
-        beat = next((b for b in PREFERRED if b in offered), None)
-        beat = beat or next((b for b in ROLL_FREE if b in offered), offered[0])
+        beat = self.choose_beat(card_id, offered)
         if card_id.startswith("D2_name_"):
             if self.acts.offered_day is None:
                 self.acts.offered_day = int(self.state.world_day)
@@ -266,6 +278,13 @@ class Investigator(Burglar):
                 self.acts.unmasked_day = int(self.state.world_day)
         if beat == "present_it" and self.state.flags.get("alibi_proven"):
             self.acts.alibi_presented.append("cells" if law.in_custody(self.state) else "desk")
+
+    def choose_beat(self, card_id: str, offered: list[str]) -> str:
+        """The answer to the card on the table, from what it offers: the
+        alibi presented and the name said first, else the roll-free answer,
+        else the first on offer (simulate_endings.py's policies override it)."""
+        beat = next((b for b in PREFERRED if b in offered), None)
+        return beat or next((b for b in ROLL_FREE if b in offered), offered[0])
 
     # -- the stop, the cell, and what the table reads ----------------------------
 
@@ -359,7 +378,7 @@ class Investigator(Burglar):
         self.walk(str(prem["district"]))
         for _ in range(12):
             if (law.in_custody(self.state) or self.state.location_id != prem["district"]
-                    or not CASE_FROM <= self.state.world_hour < CASE_UNTIL):
+                    or not CASE_FROM <= self.state.world_hour < self.CASING_ENDS):
                 return
             if pid not in self.legal_targets("case"):
                 break
@@ -399,7 +418,7 @@ class Investigator(Burglar):
             if premises.empty_now(self.state, pid):
                 return True
             other = self._caseable_here(exclude=pid)
-            if other and CASE_FROM <= self.state.world_hour < CASE_UNTIL - 1:
+            if other and CASE_FROM <= self.state.world_hour < self.CASING_ENDS - 1:
                 before = self.state.world_clock_hours
                 self.act("case", other)
                 if self.state.world_clock_hours > before:
@@ -455,6 +474,11 @@ class Investigator(Burglar):
 
     # -- a day -------------------------------------------------------------------
 
+    def trail_done(self) -> bool:
+        """The trail has taken the thief where it leads: the Magpie unmasked
+        (simulate_endings.py's partner also stops once partnered)."""
+        return bool(self.state.flags.get("magpie_unmasked"))
+
     def work_the_day(self) -> None:
         from engine.world import law
 
@@ -462,10 +486,10 @@ class Investigator(Burglar):
             self.leave_custody()
         if self.has_business_at_the_desk():
             self.visit_desk()
-        if self.state.flags.get("magpie_unmasked"):
+        if self.trail_done():
             return
         for _ in range(12):
-            if law.in_custody(self.state) or self.state.flags.get("magpie_unmasked"):
+            if law.in_custody(self.state) or self.trail_done():
                 return
             pending = self.clue_houses()
             if pending:
@@ -473,7 +497,7 @@ class Investigator(Burglar):
                 if self.has_business_at_the_desk() and self._ardane_in_reach():
                     self.visit_desk()
                 continue
-            if not CASE_FROM <= self.state.world_hour < CASE_UNTIL:
+            if not CASE_FROM <= self.state.world_hour < self.CASING_ENDS:
                 break
             prem = self.next_to_case()
             if prem is None:
@@ -529,8 +553,16 @@ def set_gate(n: int) -> None:
 
 
 def play(seed: int, opening: str, days: int = DAYS) -> ActsRun:
+    from scripts.simulate_law import counting_deaths
+
+    with counting_deaths():
+        return _play(seed, opening, days)
+
+
+def _play(seed: int, opening: str, days: int) -> ActsRun:
     from engine.game.effects import apply_effect
     from engine.world import law
+    from scripts.simulate_law import deaths
 
     inv = Investigator(seed, opening)
     inv.morning()
@@ -565,6 +597,7 @@ def play(seed: int, opening: str, days: int = DAYS) -> ActsRun:
             inv.wait_until(7)
     inv.acts.evidence_by_morning = inv.acts.evidence_by_morning[:days]
     inv.acts.min_hp = min(inv.acts.min_hp, int(inv.run.min_hp))
+    inv.acts.deaths = deaths(inv.state)
     return inv.acts
 
 
@@ -676,6 +709,7 @@ def summarise(runs: list[ActsRun], days: int) -> dict[str, Any]:
         "alibi_presented_at": {door: sum(door in r.alibi_presented for r in runs)
                                for door in ("desk", "cells")},
         "min_hp": min((r.min_hp for r in runs), default=None),
+        "runs_with_a_death": _share(sum(r.deaths > 0 for r in runs), n),
     }
 
 
@@ -693,7 +727,7 @@ def render(opening: str, r: dict[str, Any]) -> str:
         f" arrested {o['arrested']:.0%}, days served {o['days_served_mean']}",
         f"  law       runs arrested {r['arrested_runs']:.0%}; arrests/run {r['arrests_per_run']};"
         f" days served/run {r['days_served_per_run']}; stops/run {r['stops_per_run']};"
-        f" min hp {r['min_hp']}",
+        f" min hp {r['min_hp']}; runs with a death {r['runs_with_a_death']:.0%}",
         f"  company   initiated {r['initiated']:.0%}, by day {r['initiated_day']}",
         f"  trail     houses cased/run {r['houses_cased_per_run']}, clue houses known/run"
         f" {r['clue_houses_known_per_run']}, clue jobs/run {r['clue_jobs_per_run']}"

@@ -510,7 +510,7 @@ def same_person(state: GameState, guise: str) -> set[str]:
     return seen
 
 
-def filed_score(state: GameState, guise: str, jurisdiction: str) -> float:
+def filed_score(state: GameState, guise: str, jurisdiction: str, *, own: bool = False) -> float:
     """
     Severity x precision over the DEEDS filed under exactly ``guise`` here --
     one file in the watch-house, before cooling and before links.
@@ -526,10 +526,18 @@ def filed_score(state: GameState, guise: str, jurisdiction: str) -> float:
     applied later, in ``wanted_score``: a link is what the watch believes about
     who wears which face, and it can change; which file a report went into
     cannot.
+
+    ``own=True`` (v0.17) skips every row carrying the agendas pass's stamp
+    (``agenda``, ``effects._e_report``): what the world's own actors filed --
+    the Magpie's robberies landing on a face the watch links to yours -- and
+    leaves what the PLAYER did, under whatever guise it was filed. The
+    default counts every row, exactly as before.
     """
     best: dict[Any, float] = {}
     for index, r in enumerate(state.law.get("reports") or []):
         if r.get("jurisdiction") != jurisdiction or r.get("guise") != guise:
+            continue
+        if own and r.get("agenda"):
             continue
         try:
             value = float(r.get("severity", 0)) * float(r.get("precision", 0))
@@ -559,7 +567,7 @@ def cooling_of(state: GameState, guise: str, jurisdiction: str) -> float:
         return 0.0
 
 
-def wanted_score(state: GameState, guise: str, jurisdiction: str) -> float:
+def wanted_score(state: GameState, guise: str, jurisdiction: str, *, own: bool = False) -> float:
     """
     How badly the watch here wants the person it takes ``guise`` for: the sum,
     over every guise linked to it (itself included), of that file's score less
@@ -568,11 +576,15 @@ def wanted_score(state: GameState, guise: str, jurisdiction: str) -> float:
     Per file, not per jurisdiction: quiet days over the Magpie's assaults must
     not pre-forgive a porter's fresh one. An engine number -- it feeds bands and
     rolls, never the narrator.
+
+    ``own=True``: each file's score counts only the player's own deeds
+    (``filed_score(own=True)``), less the same cooling -- quiet days wear a
+    file down at one rate whoever filled it, so the file's offset stands.
     """
     if not declared():
         return 0.0
     return sum(
-        max(0.0, filed_score(state, g, jurisdiction) - cooling_of(state, g, jurisdiction))
+        max(0.0, filed_score(state, g, jurisdiction, own=own) - cooling_of(state, g, jurisdiction))
         for g in same_person(state, guise)
     )
 
@@ -587,11 +599,12 @@ def band_for(score: float) -> str:
     return band
 
 
-def wanted_band(state: GameState, guise: str, jurisdiction: str) -> str:
-    """The wanted band word for ``guise`` here, or "" for a story with no Law."""
+def wanted_band(state: GameState, guise: str, jurisdiction: str, *, own: bool = False) -> str:
+    """The wanted band word for ``guise`` here, or "" for a story with no Law.
+    ``own``: the player's own deeds only (``wanted_score``)."""
     if not declared():
         return ""
-    return band_for(wanted_score(state, guise, jurisdiction))
+    return band_for(wanted_score(state, guise, jurisdiction, own=own))
 
 
 def clarity(precision: float) -> str:
@@ -813,6 +826,9 @@ def commit_deed(
         return result
     where = str(location or state.location_id)
     guise = current_guise(state)
+    # Counted whether or not anybody sees it (the `committed_deed` predicate):
+    # what the player did, beside what the Watch comes to know. No roll.
+    apply_effect(state, {"type": "law_deed_committed", "deed": kind})
     excluded = {str(n) for n in exclude}
     sure = [str(n) for n in certain if str(n) not in excluded]
     telling = [str(n) for n in informants if str(n) not in excluded]
@@ -1340,6 +1356,71 @@ def _p_in_custody(state: GameState, value: Any, ctx: Any) -> bool:
     return held is bool(value)
 
 
+def _p_held_before_event(state: GameState, value: Any, ctx: Any) -> bool:
+    """``{held_before_event: <event id>}`` -- held now, in a stay that began
+    no later than the live world event did (v0.17).
+
+    What "the watch saved you up for it" means: HUE & CRY's gallows deck
+    hangs the thief the Watch was holding when the Hanging Fair came, not
+    one taken while it was on (that one is questioned, and may pay or serve).
+    The event starts at midnight of its ``day`` (a declared event fires on
+    ``advance_time``'s day roll), so a stay counts when its ``since_hour``
+    (``law.next_hour`` at the arrest) is at or before that hour: an arrest at
+    23:30 the night before is held through the whole of the event.
+
+    False when free, in a story with no Law, when no event of that id is
+    active, and for a custody record with no ``since_hour`` (a save from
+    before v0.16): a stay whose start cannot be placed is not guessed.
+    """
+    from engine.game.clock import HOURS_PER_DAY
+
+    if not (declared() and in_custody(state)):
+        return False
+    since = _strict_hour(custody(state).get("since_hour"))
+    if since is None:
+        return False
+    wanted = str(value)
+    for event in state.world_events:
+        if str(event.get("event_id")) != wanted:
+            continue
+        day = _strict_hour(event.get("day"))
+        if day is None:
+            return False
+        return since <= (day - 1) * HOURS_PER_DAY
+    return False
+
+
+def committed(state: GameState, kinds: Any = None) -> int:
+    """How many deeds the player has committed, seen or not (v0.17): of the
+    kinds named (a deed id or a list of them), or of every kind. 0 with no
+    Law. Written only by ``commit_deed`` (the ``law_deed_committed`` effect)."""
+    if not declared():
+        return 0
+    counts = state.law.get("committed") or {}
+    if kinds is None:
+        wanted = set(counts)
+    else:
+        wanted = {str(k) for k in (kinds if isinstance(kinds, (list, tuple)) else [kinds])}
+    return sum(int(counts.get(k) or 0) for k in wanted)
+
+
+def _p_committed_deed(state: GameState, value: Any, ctx: Any) -> bool:
+    """``{committed_deed: pickpocket}`` / ``{committed_deed: [pickpocket,
+    burglary]}`` -- the player has committed at least one deed of a kind
+    named, SEEN OR NOT (v0.17).
+
+    ``wanted`` and ``filed`` read what the Watch knows; this reads what the
+    player did -- every deed ``commit_deed`` commits is counted before any
+    witness is looked for, so an unseen lift counts as a seen one does. A
+    deed filed by a report alone (a card's, an agenda's) was never
+    committed, and is not counted. False with no Law, and for a value
+    naming nothing.
+    """
+    if not declared() or value in (None, "", []):
+        return False
+    return committed(state, value) > 0
+
+
 def report_matcher(
     state: GameState,
     *,
@@ -1641,6 +1722,20 @@ def _discharge(state: GameState, held: dict[str, Any]) -> None:
         apply_effect(state, {"type": "law_discharge", "deed_ids": charged})
 
 
+def _hours_to_boundary(clock_hours: float, boundaries: tuple[int, ...]) -> float:
+    """Hours from ``clock_hours`` to the next of ``boundaries`` (hours of the
+    day), strictly ahead: standing on one, the next is a day or less away."""
+    from engine.game.clock import HOURS_PER_DAY
+
+    hour = float(clock_hours) % HOURS_PER_DAY
+    ahead = HOURS_PER_DAY
+    for bound in boundaries:
+        gap = (float(bound) - hour) % HOURS_PER_DAY
+        if gap > _HOUR_EPSILON:
+            ahead = min(ahead, gap)
+    return ahead
+
+
 def _ration_hours() -> float:
     """
     How long a prisoner goes between meals: a day, unless the story's hunger
@@ -1709,7 +1804,8 @@ def pay_fine(state: GameState) -> dict[str, Any]:
 def serve_sentence(state: GameState) -> dict[str, Any]:
     """
     Wait the way out: the charge discharged, then ``days x 24`` hours through
-    ``clock.advance_time`` meal by meal, then ``release``.
+    ``clock.advance_time`` meal by meal (each meal cut at the hours a scene
+    can fall due), then ``release``.
 
     Always possible while held -- a sentence always ends (HUE & CRY §2), so a
     player with no coin is never trapped. A SENTENCE NEVER KILLS: the time
@@ -1721,13 +1817,50 @@ def serve_sentence(state: GameState) -> dict[str, Any]:
 
     Discharged FIRST, so the rumour that runs while the prisoner waits cannot
     carry a served deed anywhere. Should the prisoner leave custody some other
-    way mid-sentence (a death's respawn ends custody), the rest is not served
+    way mid-sentence (a death's respawn ends custody, unless the story's
+    death.yaml declares ``respawn.in_custody``), the rest is not served
     and the receipt says ``served_out: False`` (the charge is closed either way:
     it was discharged before the first hour).
 
+    A SCENE THAT FALLS DUE STOPS THE WAIT (v0.17). Serving is one action over
+    days, and the scene director deals only at a turn, so a scene whose
+    ``when:`` came true in the middle of a sentence used to be walked straight
+    past: HUE & CRY's gallows deck, dealt to a thief the Watch held when the
+    Hanging Fair came, could be waited out in the cell. The prisoner is still
+    fed once a meal, but each meal is cut at every hour ``due`` can change its
+    answer without a turn (``director.due_boundary_hours``: midnight, and
+    each ``hour_between`` bound in the ``when:`` of a deck that can be due
+    while held -- in HUE & CRY midnight and nine, the gallows: two cuts a
+    day besides the meal, not twenty-four), and after every cut -- the last one included,
+    before the release -- ``director.due`` is asked: a deck due now that was
+    NOT due when the sentence began stops it. (A deck gated on
+    ``time_of_day`` adds the band edges to the cuts, v0.17 T4. A gate on a
+    flag, a value or a clock that ``advance_time`` moves in passing is
+    caught at the next cut, not on its hour: at worst the next midnight.)
+    The prisoner is still held, the receipt says ``served_out: False`` and names it (``interrupted_by``), and
+    ``run_turn`` deals it on this same turn. A deck already owed at the start
+    (the stay's own interrogation, before its turn) does not interrupt. So
+    the stop lands on the very hour the scene came due, whatever hour the
+    serve began (review round 1 found a day-long step walking a sentence
+    begun before nine past a gallows due at nine; stepping every hour was
+    correct but slow); a scene due by the hour the sentence ends stops the
+    release too. The charge was discharged at the start.
+
+    A STOPPED SENTENCE IS RESUMED, NOT BEGUN AGAIN (v0.17 T4). Every step
+    served while held is counted on the custody record through the
+    ``custody_served`` effect, and a later ``serve`` waits out ``days x 24``
+    less that: the hours add up to the sentence however many scenes stopped
+    it. (It used to serve the full term again. Still unreachable in a
+    shipped story -- HUE & CRY's one interrupting deck, the gallows, ends
+    it -- and fixed ahead of the second.) Only a story that declares a Law
+    serves at all, so no other story's turn changes.
+
     Returns:
-        ``{"ok": True, "days", "gaol", "served_out"}`` or ``{"ok": False, "message"}``.
+        ``{"ok": True, "days", "gaol", "served_out"}`` (plus ``interrupted_by``
+        on a stop, and ``resumed: True`` when an earlier serve of this stay
+        was stopped) or ``{"ok": False, "message"}``.
     """
+    from engine.content import director
     from engine.game import clock
     from engine.game.effects import apply_effect
 
@@ -1737,18 +1870,40 @@ def serve_sentence(state: GameState) -> dict[str, Any]:
     days = int(held.get("days") or 0)
     gaol = _gaol_name(state)
     _discharge(state, held)
-    remaining = float(days * clock.HOURS_PER_DAY)
+    # A stay a scene stopped part-way is RESUMED (v0.17 T4): what was served
+    # is on the record (`custody_served`), and only the rest is waited out.
+    served = float(held.get("served_hours") or 0.0)
+    remaining = float(days * clock.HOURS_PER_DAY) - served
+    if remaining <= _HOUR_EPSILON:
+        remaining = 0.0
+    resumed = {"resumed": True} if served > 0 else {}
     meal = _ration_hours()
+    owed_at_start = director.due(state)[0]
+    boundaries = director.due_boundary_hours(in_custody=True)
     while remaining > 0 and in_custody(state):
+        # Fed once a meal, as ever; the meal is cut at every hour a deck can
+        # fall due, so the director is asked there and nowhere in between.
         step = min(meal, remaining)
         _feed(state)
-        clock.advance_time(state, step)
-        remaining -= step
+        left = step
+        while left > 0 and in_custody(state):
+            tick = min(left, _hours_to_boundary(state.world_clock_hours, boundaries))
+            clock.advance_time(state, tick)
+            left -= tick
+            remaining -= tick
+            if remaining <= _HOUR_EPSILON:
+                remaining = 0.0
+            if in_custody(state):
+                apply_effect(state, {"type": "custody_served", "hours": tick})
+                owed = director.due(state)[0]
+                if owed and owed != owed_at_start:
+                    return {"ok": True, "days": days, "gaol": gaol, "served_out": False,
+                            "interrupted_by": owed, **resumed}
     if not in_custody(state):
-        return {"ok": True, "days": days, "gaol": gaol, "served_out": False}
+        return {"ok": True, "days": days, "gaol": gaol, "served_out": False, **resumed}
     _feed(state)
     apply_effect(state, {"type": "release"})
-    return {"ok": True, "days": days, "gaol": gaol, "served_out": True}
+    return {"ok": True, "days": days, "gaol": gaol, "served_out": True, **resumed}
 
 
 def _register() -> None:
@@ -1756,6 +1911,8 @@ def _register() -> None:
     from engine.game.quests import register_predicate
 
     register_predicate("in_custody", _p_in_custody)
+    register_predicate("held_before_event", _p_held_before_event)
+    register_predicate("committed_deed", _p_committed_deed)
     register_predicate("filed", _p_filed)
     register_predicate("linked", _p_linked)
 
@@ -1781,6 +1938,7 @@ __all__ = [
     "DARK_HOURS",
     "change_guise",
     "commit_deed",
+    "committed",
     "cool",
     "current_guise",
     "custody",

@@ -129,7 +129,17 @@ MAX_NODES = 24
 MAX_OPTIONS = 6
 MAX_OUTCOMES = 12
 MAX_ATTEMPTS = 5
+#: A line of MODEL-composed text: bounded, because a model mid-turn can write
+#: at any length and every character lands in a payload and a save.
 MAX_TEXT = 400
+#: A line of AUTHORED text -- a story's own file, on the ``authored=True``
+#: bounder path (deck cards and beats, ending modules, set-pieces). Set above
+#: the longest shipped authored line (1097 characters at v0.17 T8 fix round
+#: 3, 899 since the final review moved author's notes to comments; measured
+#: across all six stories) with room to spare: the cap bounds model
+#: output, and authored text past it was being cut, unseen, before the
+#: narrator read it. Past it, the validator says so (``TEXT_CUT``).
+MAX_AUTHORED_TEXT = 1500
 MAX_ID = 64
 
 #: Sides a dice_table may roll. Bounded so a "d1000000" table cannot be used to
@@ -380,9 +390,33 @@ class SpecResult:
     adjustments: list[str] = field(default_factory=list)
 
 
-def _text(value: Any, *, limit: int = MAX_TEXT) -> str:
-    """Coerce to a bounded single string."""
-    return str(value or "").strip()[:limit]
+#: How a text cut is recorded in an adjustment list: the validator
+#: (``validation.check_truncated_content``) reads the phrase back.
+TEXT_CUT = "characters, cut to"
+#: How an outcome's effect cut is recorded (``clamp_outcome``).
+EFFECTS_CUT = "kept first"
+
+
+def text_cap(authored: bool) -> int:
+    """The text cap for this bounder path: authored lines get the room a
+    story's own file needs, model-composed ones stay bounded."""
+    return MAX_AUTHORED_TEXT if authored else MAX_TEXT
+
+
+def _text(value: Any, *, limit: int = MAX_TEXT, adjustments: Optional[list[str]] = None,
+          what: str = "text") -> str:
+    """Coerce to a bounded single string.
+
+    A cut is RECORDED in ``adjustments`` when one is passed (v0.17 T8 fix
+    round 2): an authored line that loses its end loses it silently at play
+    time, so the validator reads the record back and names it.
+    """
+    text = str(value or "").strip()
+    if len(text) > limit:
+        if adjustments is not None:
+            adjustments.append(f"{what} was {len(text)} {TEXT_CUT} {limit}")
+        text = text[:limit]
+    return text
 
 
 def _ident(value: Any, fallback: str = "") -> str:
@@ -474,7 +508,8 @@ def _clamp_effect(
             adjustments.append(f"item qty {quantity} clamped to {MAX_ITEM_QTY}")
             quantity = MAX_ITEM_QTY
         bounded["qty"] = quantity
-        bounded["name"] = _text(effect.get("name") or item_id.replace("_", " "), limit=80)
+        bounded["name"] = _text(effect.get("name") or item_id.replace("_", " "), limit=80,
+                                adjustments=adjustments, what="item name")
 
     if kind == "flag":
         name = _ident(effect.get("flag") or effect.get("name"))
@@ -519,7 +554,7 @@ def clamp_outcome(
     effects_in = effects_in if isinstance(effects_in, list) else []
     if len(effects_in) > MAX_EFFECTS:
         adjustments.append(
-            f"outcome had {len(effects_in)} effects, kept first {MAX_EFFECTS}"
+            f"outcome had {len(effects_in)} effects, {EFFECTS_CUT} {MAX_EFFECTS}"
         )
         effects_in = effects_in[:MAX_EFFECTS]
 
@@ -531,7 +566,9 @@ def clamp_outcome(
         if clamped is not None:
             bounded.append(clamped)
 
-    return {"text": _text(raw.get("text")), "effects": bounded}
+    return {"text": _text(raw.get("text"), limit=text_cap(authored), adjustments=adjustments,
+                          what="outcome text"),
+            "effects": bounded}
 
 
 def _clamp_options(raw: Any, adjustments: list[str], *, node: str) -> list[dict[str, str]]:
@@ -550,7 +587,8 @@ def _clamp_options(raw: Any, adjustments: list[str], *, node: str) -> list[dict[
         options.append(
             {
                 "id": option_id,
-                "text": _text(entry.get("text"), limit=160),
+                "text": _text(entry.get("text"), limit=160, adjustments=adjustments,
+                              what=f"node {node!r} option text"),
                 "goto": _ident(entry.get("goto")),
             }
         )
@@ -601,8 +639,10 @@ def _validate_gauntlet(
             {
                 "skill": skill,
                 "difficulty": difficulty,
-                "text": _text(raw.get("text")),
-                "on_fail_text": _text(raw.get("on_fail_text"), limit=200),
+                "text": _text(raw.get("text"), limit=text_cap(authored), adjustments=adj,
+                              what=f"step {index} text"),
+                "on_fail_text": _text(raw.get("on_fail_text"), limit=200, adjustments=adj,
+                                      what=f"step {index} on_fail_text"),
             }
         )
 
@@ -631,7 +671,8 @@ def _validate_tree(
             continue
         terminal = bool(raw.get("terminal"))
         node: dict[str, Any] = {
-            "text": _text(raw.get("text")),
+            "text": _text(raw.get("text"), limit=text_cap(authored), adjustments=adj,
+                          what=f"node {key!r} text"),
             "terminal": terminal,
         }
         if terminal:
@@ -677,7 +718,8 @@ def _validate_puzzle(
         attempts = clamped
     out["answer"] = normalise_answer(spec["answer"])
     out["attempts_left"] = attempts
-    out["prompt"] = _text(spec.get("prompt"))
+    out["prompt"] = _text(spec.get("prompt"), limit=text_cap(authored), adjustments=adj,
+                          what="prompt")
     out["reward"] = _challenge_outcome(spec.get("reward"), adj, authored)
     out["fail"] = _challenge_outcome(spec.get("fail"), adj, authored)
     return None
@@ -709,14 +751,16 @@ def _validate_dice_table(
             {
                 "min": low,
                 "max": high,
-                "text": _text(raw.get("text")),
+                "text": _text(raw.get("text"), limit=text_cap(authored), adjustments=adj,
+                              what="dice row text"),
                 "effects": _challenge_outcome(raw, adj, authored)["effects"],
             }
         )
 
     out["die"] = die
     out["outcomes"] = outcomes
-    out["prompt"] = _text(spec.get("prompt"))
+    out["prompt"] = _text(spec.get("prompt"), limit=text_cap(authored), adjustments=adj,
+                          what="prompt")
     return None
 
 
@@ -756,7 +800,8 @@ def validate(spec: Any, *, authored: bool = False) -> SpecResult:
     out: dict[str, Any] = {
         "id": challenge_id,
         "kind": kind,
-        "title": _text(spec.get("title") or challenge_id, limit=120),
+        "title": _text(spec.get("title") or challenge_id, limit=120,
+                       adjustments=adjustments, what="title"),
     }
 
     validators = {

@@ -17,3 +17,6 @@ The Watch does not see everything. It hears things: from a stallholder who count
 
 ## The Cells and the Green
 The cells under the Lantern House are cold, and the charge-book decides how long a guest stays in them or what they pay to leave. The Watch hangs thieves on Gallows Green, and the Green is not a metaphor.
+
+## Going Out Without Leave
+There is a third way out of the cells, and every guest the Lantern House has ever kept has looked at it: the Lantern on the cells door sleeps in his chair with the keys on a nail, and one bar in the window has been rusting in its socket since before the captain was born. A guest who is caught at it gets a hiding and goes back behind the door. A guest who is not caught walks out still owing everything the charge-book says, and the Lantern House writes the empty cell in the book as a charge of its own. After the first time, it chains the keys to a Lantern's belt; it has never got round to the window.

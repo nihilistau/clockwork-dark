@@ -31,7 +31,7 @@
 # own words -- the `sell` verb leaves her out. Both fences carry one, reading
 # EITHER fence's credit-break flag: fences stand together (data/rules/threads.yaml).
 #
-# Version: v0.2.0 [2026-09-26]
+# Version: v0.3.0 [2026-09-27]
 
 version: 1
 
@@ -42,6 +42,11 @@ trade:
     buy: 1.3
     sell: 0.5
   min_sale_price: 1
+  # NOBODY BUYS A RELIC (v0.17). An item tagged `relic` is dealt in by no
+  # counter at all, fence or honest (engine/game/trade.py::deals_in): the
+  # Everflame's heart (items/goods.yaml) is the one thing in Tallowmere every
+  # fence would rather not have been shown. No other item carries the tag.
+  never_traded_tags: [relic]
 
 vendors:
   npc_pell_hollis:

@@ -268,6 +268,70 @@ def test_a_failed_jailbreak_leaves_the_player_held(cells: Path) -> None:
     set_pieces.resolve(state, answer="still wrong")
     assert not state.challenge
     assert law.in_custody(state)
+    # No `retry:` -- a failed piece is offered again at once, as it always was.
+    assert set_pieces.is_available(state, set_pieces.load_set_pieces()["lantern_house_break"])
+
+
+def _retry_cells(tmp_path: Path, retry: Any) -> None:
+    piece = copy.deepcopy(JAILBREAK)
+    piece["retry"] = retry
+    paths = _paths(tmp_path)
+    paths["challenges"] = _write_pieces(tmp_path, [piece])
+    set_pieces.reset_set_piece_cache()
+    set_overlay({"paths": paths})
+
+
+def test_retry_next_day_closes_a_failed_piece_until_midnight(tmp_path: Path) -> None:
+    """`retry: next_day` (v0.17 T4 fix round 1, opt-in): a FAILED piece is
+    not offered again on the day it failed, whatever the hour, and is from
+    the next midnight. The day is stamped through the `flag` effect, and it
+    is the day the attempt was made -- read before the outcome applies."""
+    from engine.game.clock import advance_time, set_clock
+
+    _retry_cells(tmp_path, "next_day")
+    try:
+        state = _world([])
+        set_clock(state, day=2, hour=10)
+        _held(state)
+        piece = set_pieces.load_set_pieces()["lantern_house_break"]
+        set_pieces.start(state, "lantern_house_break")
+        set_pieces.resolve(state, answer="wrong")
+        set_pieces.resolve(state, answer="still wrong")
+        assert state.flags.get(set_pieces.FAILED_ON_PREFIX + "lantern_house_break") == 2
+        assert not set_pieces.is_available(state, piece)
+        assert set_pieces.start(state, "lantern_house_break").status == runner.STATUS_ERROR
+        advance_time(state, 13.0)  # 23:00, the same day
+        assert not set_pieces.is_available(state, piece)
+        advance_time(state, 1.0)  # midnight
+        assert set_pieces.is_available(state, piece)
+        set_pieces.start(state, "lantern_house_break")
+        set_pieces.resolve(state, answer="patience")
+        assert not law.in_custody(state)
+    finally:
+        set_overlay(None)
+        set_pieces.reset_set_piece_cache()
+
+
+def test_retry_next_day_leaves_a_won_piece_to_its_own_gates(tmp_path: Path) -> None:
+    _retry_cells(tmp_path, "next_day")
+    try:
+        state = _world([])
+        _held(state)
+        set_pieces.start(state, "lantern_house_break")
+        set_pieces.resolve(state, answer="patience")
+        assert not any(k.startswith(set_pieces.FAILED_ON_PREFIX) for k in state.flags)
+    finally:
+        set_overlay(None)
+        set_pieces.reset_set_piece_cache()
+
+
+@pytest.mark.parametrize("bad", ["tomorrow", True, 1])
+def test_an_unknown_retry_is_a_problem(bad: Any) -> None:
+    piece = copy.deepcopy(JAILBREAK)
+    piece["retry"] = bad
+    assert any("retry" in p for p in set_pieces.set_piece_problems(piece))
+    piece["retry"] = "next_day"
+    assert set_pieces.set_piece_problems(piece) == []
 
 
 def test_a_model_composed_challenge_cannot_release() -> None:

@@ -589,6 +589,11 @@ def severity_sweep(severities: tuple[int, ...] = (1, 2, 3, 4),
                                          "precision": 1.0})
                 bands = [law.wanted_band(state, "self", "rise")]
                 for _ in range(days):
+                    # Fed each morning: the file's cooling is under test, not
+                    # hunger. Unfed, the thief starves by day three, and since
+                    # v0.17 (death.yaml) a death carries it to the Snuffs --
+                    # a move that is not the measurement.
+                    apply_effect(state, {"type": "hunger", "delta": -state.hunger})
                     advance_time(state, 24.0)
                     bands.append(law.wanted_band(state, "self", "rise"))
                 row[label] = bands

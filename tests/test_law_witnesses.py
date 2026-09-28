@@ -146,7 +146,9 @@ def test_nobody_present_nobody_sees(lawful: Path) -> None:
     state = _world([])
     out = law.commit_deed(state, "pickpocket")
     assert out == {"witnesses": [], "reported": False}
-    assert state.law == {}
+    # No witness row, no report, no stamp: only the deed itself, counted
+    # seen or not (v0.17 T8 fix round 1, `committed_deed`).
+    assert state.law == {"committed": {"pickpocket": 1}}
     # Nobody to roll for draws nothing: the stream does not move.
     assert LAW not in state.rng_counters
 

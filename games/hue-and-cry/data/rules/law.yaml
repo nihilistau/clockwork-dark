@@ -100,7 +100,7 @@
 # striking (assault_watch stays the only 5). Charged, it is a fine of nine
 # crowns or three days, so a runner who fumbles and then surrenders to the
 # stop pays more than one who came quietly (one blurred lift: three crowns or
-# a day). The table is in the root CHANGELOG.md, [Unreleased].
+# a day). The table is in the root CHANGELOG.md, [0.16.0].
 #
 # FALSE WITNESS (v0.16 T7) joined at severity 3: naming the wrong person to
 # Captain Ardane as the Magpie (data/scenes/lantern_house_desk.yaml). She
@@ -135,7 +135,72 @@
 # or three days. A crime against the Watch's time, not a blow: below
 # assault_watch.
 #
-# Version: v0.5.1 [2026-09-27]
+# SACRILEGE (v0.17 T3) joined at severity 5, beside assault_watch: a hand on
+# the Everflame's heart while it is shown on the palace steps at the Hanging
+# Fair (data/scenes/fair_day.yaml, the Showing's heist). It is never a
+# `deed` committed on the street -- a card may not commit one -- but a
+# `report`, two ways:
+#
+#   the lift lost   filed against your own face in the Wick wards (the Green's
+#                   watch-house) at precision 1.0: a Lantern had your wrist.
+#                   5.0 on a clean face is `sought` the hour it is filed
+#                   (sought's floor is 4) and, at 0.5 a day of cooling, 4.5 a
+#                   day later and on sought's floor two days on -- the rest of
+#                   the fair; beside a filed burglary (8.0) it is `wanted`.
+#                   (law.wanted_score, filed at 11:00 on day 10, seed 11: 5.0,
+#                   4.5 at +24h; the Magpie's nights, on your face through the
+#                   link, then push it UP, to 5.7 at +45h.) Charged, it is the
+#                   most the Lantern House ever asks: fifteen crowns or three
+#                   days.
+#   the lift won    filed against the MAGPIE's mask up the Rise at precision
+#                   0.6 (3.0): nobody saw a face, and everybody knows whose
+#                   work a shine gone off the Hill is. While the Watch links
+#                   your face to the Magpie's it is yours; after a right
+#                   naming it is the Magpie's alone.
+#
+# By this file's own arithmetic (no harness plays the fair deck yet; v0.17
+# Task 8 extends scripts/simulate_acts.py to it and restates the bands): at 4
+# a lost lift sits on sought's floor, and the first hour's cooling takes it
+# under -- `sought` only in the hour it is filed; at 5 it outlasts the fair.
+# The one crime the city holds equal to striking a Lantern.
+#
+# ESCAPE (v0.17 T4) joined at severity 4: out of the Lantern House cells
+# without paying or waiting (data/challenges/lantern_house.yaml, the
+# jailbreak). Never a deed on the street: a `report` the Lantern House files
+# itself when it finds the cell empty, against your own face, in the Wick
+# wards (the Lantern House's), at precision 1.0 -- they had you in a cell.
+# Filed on top of whatever the arrest charged, since a break-out discharges
+# nothing. Measured with `scripts/simulate_law.py --break-out --set
+# deeds.escape=N` (40 seeds, 10 days, agendas off; the Wick's band on your
+# own face the moment you walk out, then the policy's Wick band each
+# morning):
+#
+#   careful, taken quietly on the barge (--opening c): a blurred lift on the
+#   Quay, so the escape is nearly all the Wick knows of you
+#     at 3  `noticed` as you walk out (37 of 37), gone by the next morning --
+#           a break-out priced like a run from a Lantern
+#     at 4  `sought` as you walk out (37 of 37) -- a Lantern may know you on
+#           the way down the steps -- and `noticed` three mornings on
+#     at 5  `sought`, `noticed` four mornings on, and the careful thief below
+#           `sought` on 91% of its seed-days instead of 100%
+#   reckless (--policy reckless): already `wanted` or `hunted` in the Wick
+#   when the stop comes, so the escape moves no band at any severity (54
+#   escapes, `hunted` walking out at 4 and 5; 5 of them `wanted` at 3), and
+#   9-10 of those escapes are back in a cell within a day at every severity.
+#
+# (That table was measured before the jailbreak became one try a day -- v0.17
+# T4 fix round 1 -- when 37 of 40 careful thieves walked out. Re-measured at
+# 4 with one try a day: 13 of 40 walk out, every one `sought` walking out;
+# reckless 16 of 43, every one `hunted`, 3 back in a cell within a day. The
+# band an escape leaves did not change, only how many escape.)
+#
+# Four: on a clean face `sought` in the hour it is filed (sought's floor is
+# 4; an hour's cooling takes it under), which is the hour the thief is
+# walking out past the Lanterns, and felt for three days after -- heavier
+# than a run (3), below a blow or a hand on the Everflame (5). Charged at a
+# later arrest, twelve crowns or three days.
+#
+# Version: v0.7.0 [2026-09-27]
 
 # Schedule roles that ARE the law (data/world/npc_schedules.yaml): Captain
 # Ardane, Sergeant Brask, Lanterns Tully and Hobb. A Lantern who sees a deed
@@ -182,6 +247,8 @@ deeds:
   blackmail: {severity: 3}      # a squeeze left uncollected: the victim swears to it (threads.yaml)
   resisting_watch: {severity: 3}  # bolting from a Lantern who shouted: the opening's run (game.yaml)
   false_witness: {severity: 3}  # naming the wrong Magpie to the captain (lantern_house_desk.yaml)
+  sacrilege: {severity: 5}      # a hand on the Everflame's heart at the fair (fair_day.yaml, v0.17)
+  escape: {severity: 4}         # out of the cells without leave: the jailbreak (data/challenges/, v0.17)
 
 notice:
   base: 0.6

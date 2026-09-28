@@ -17,6 +17,732 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-09-28
+
+Act III and the eight endings, the fifth of the v1.0 stages: the story can
+now be finished, eight ways. The Hanging Fair (days 10-12, Gallows Green)
+opens Act III with the fair deck, the Showing of the Flame and the
+Everflame's heart; the gallows takes a thief the Watch held from before it;
+the Lantern House cells gain a jailbreak, one try a day; and `death.yaml`
+makes hp 0 a respawn in the Snuffs, or The Rope when it comes in the cells
+at the fair. Every ending -- Cleared, A Lantern, Honest After All,
+Partners, The Legend, Guildmaster, The Dapper's City and The Rope -- has
+Speak/Act/Seal, an epilogue card and a door that opens only while it is
+earned, and `scripts/simulate_endings.py` measures which policy reaches
+which (Measured, below). Honest After All, the one ending before, is now
+earned: no thieving at all, a clean record of your own, square with the
+fences, and an honest wage.
+
+### Added
+
+- **The Rope (`the_rope`), the fail-forward.** Taken at the fair, hanged at
+  the fair, and told like a Quest for Glory death screen: warm, wry and fond
+  of the player. Speak (your true last words, which the crowd takes for
+  exactly what the Magpie would say), Act (the jackdaw goes for the hangman's
+  brass button), Seal (the story looks at the pies, and up on the Hill
+  something that shines goes missing). An epilogue row
+  (`gallery_key: hanging_fair`) and a card that laughs with you -- the
+  ballad sells four hundred copies, and Captain Ardane takes the file back
+  out of the drawer. `fail_forward` moves from `honest_after_all` to
+  `the_rope` (`data/rules/endings.yaml`). `honest_after_all` is gated since
+  v0.17 Task 5 (below).
+- **`data/rules/death.yaml`: death, at last.** Until now hp 0 had no
+  consequence at all.
+  - **Ordinary hp 0 respawns.** Hunger, a street fight and a fall off the
+    roof all respawn. You wake eight hours later on the step of Old Nance's
+    flophouse in the Snuffs, at 8 hp and 30 stamina, half a purse lighter,
+    with a charity crust (hunger -60) and stiff hands and a sore ankle (-1
+    to stealth, craft and survival, healed on the third day). The numbers
+    and why they were chosen are in the file's header.
+  - **Held when you fell, you wake still held** (`respawn.in_custody`, a new
+    engine key, at the owner's word). You wake on the plank bench at the
+    Lantern House, and the fine, days and charge stand. The interrogation is
+    not dealt again, because the stay never ended. The stay ends the usual
+    way: paid, served or broken out. Dying is not a way out of the cells.
+    The engine's default would have released the thief and walked them free
+    to the Snuffs, with the charge still filed unless a sentence being
+    served had already discharged it. That was judged not acceptable (a
+    free escape), and this is the fix.
+  - **The one death that ends the story** is dying while the Watch holds you
+    and the Hanging Fair is on (`terminal.when: {all: [{in_custody: true},
+    {event_active: hanging_fair}]}`). It locks The Rope past its gates and
+    plays its module. `hanging_fair` is the Hanging Fair's declared event
+    (below: days 10-12).
+  - Rule 6 is untouched: every bed, the cells' bench and a rough night stay
+    as they were.
+  - **Known gap: a quiet death on fair day.** A death in the cells while the
+    fair is on is The Rope whatever brought hp to 0. If the cause is hunger
+    inside a stretch of hours (a rest, waiting), the turn's prose gets no
+    death receipt (a card beat's death does get one), so the story jumps straight to the
+    scaffold, with the ending module's beats as the only explanation. The
+    hanging itself now has its own scene (the gallows, below), so the gap is
+    narrowed to a thief who starves in the cell during the fair. Recorded in
+    CLAUDE.md and in death.yaml's header.
+- **The Rope's death door** is registered in `tests/test_finales.py`'s
+  per-ending doors and driven through the real death path: the clock walked
+  into the declared fair, not a stand-in event. Its hanging door (below) is
+  its second row.
+- **The Hanging Fair, and Act III** (v0.17 Task 3). A declared world event,
+  `hanging_fair` (`data/world/schedules.yaml`, the story's first
+  `paths.world_schedules`): day 10, three days long, on Gallows Green, raised
+  by the calendar's day roll. Day 10 was proposed here: after most
+  initiations (night one to four) and around the measured investigator's
+  unmasking (mean day 9, 60% by day 12), with every fair ending landing on
+  day 10-13, inside a 12-16 day run. Task 8 measured it against days 8 and
+  12 and kept it (Measured, below). Three days, as the lore has it, so a thief across the city or in the cells
+  has time to reach the Green or get out first. No flagship caravan, tinker
+  or militia is staged: the file declares `events:` only.
+  - **Act III, `the_hanging_fair`** (`data/quests/arcs.yaml`, order 3,
+    narrated), opens on `event_seen: hanging_fair` and so stays the act after
+    the fair. Its ACT line says nothing about what the Watch believes of you
+    (a right naming may have broken that by then) and nothing about who the
+    Magpie is.
+  - **The fair deck** (`data/scenes/fair_day.yaml`), forced by the event and
+    waiting on its own `when:` (the event, the Green, free): dealt on the
+    first turn you stand on Gallows Green during the fair, and again on each
+    return (it is `repeatable`: walk off the Green and back and whatever has
+    come due since -- a door card for a Magpie unmasked on day 11 -- is
+    offered; the Showing is `once`, and the spine tells the fair only the
+    first time, then just the ballad and a line). The spine is
+    the crowd, the ballad (whose verse reads the Watch's belief off the
+    Law's links: your nose on the woodcut, or, after a right naming, a new
+    verse about a stranger it took for the Magpie), the Showing of the Flame
+    seen from the Green, and the gallows in bunting. Then the Showing itself:
+    watch the Everflame's heart catch the sun (no roll), or go up the Hill
+    for it -- stealth, `severe`. Won: the heart, a ledger fact, and a
+    `sacrilege` report against the Magpie's mask up the Rise (0.6). Lost: a
+    Lantern had your wrist, `sacrilege` against your own face in the Wick
+    (1.0), `sought` for the rest of the fair. Every card has a way through
+    with no roll. An arrest during the fair still deals the interrogation.
+  - **A warning, where it is needed.** From day 7 until the fair comes, the
+    interrogation's spine has a bill on the wall: whoever the Watch is still
+    holding when the fair comes goes down to the Green on its last morning.
+    That is the one place a thief at risk of the gallows stands, and nothing
+    else announces the fair.
+  - **Ending doors reserved for Tasks 5 and 6.** The deck's header reserves
+    `F3_the_real_magpie` (Cleared, A Lantern), `F4_silas_makes_his_move` (The
+    Dapper's City), `F5_gannets_stake` (Guildmaster) and
+    `F6_the_heist_together` (Partners), and says what each may read. None is
+    a card yet. The heist is built; its lock is The Legend's getaway, T6's.
+    (Since Task 5, F3 is built -- Cleared's door only, below; A Lantern's
+    door is the front desk.)
+  - **The gallows** (`data/scenes/the_gallows.yaml`): The Rope's hanging
+    door. Dealt in the cell from nine on the fair's last morning (day 12) to
+    a thief the Watch was already holding when the fair came
+    (`held_before_event: hanging_fair`, a new engine predicate). One card --
+    how you go down the Hill: head up, arguing your case, or looking for the
+    jackdaw -- every answer roll-free, each locking `the_rope` by name and
+    playing its module. A thief taken DURING the fair is questioned and may
+    pay or serve like anyone else. Until nine on the last day a held thief
+    can still pay the fine (or break out, Task 4); serving does not wait the
+    fair out, because a sentence now stops when a scene falls due in the
+    middle of it (engine, root CHANGELOG), and this is that scene.
+  - **The Everflame's heart** (`everflame_heart`, `data/items/goods.yaml`):
+    named, shiny, and a `relic`, a new tag no counter deals in
+    (`never_traded_tags: [relic]` in `data/tables/trade.yaml`; fence or
+    honest). Stolen from the Margrave's household, so hot for good and taken
+    back by the Watch at any arrest. Not a piece of the Magpie's Hoard, and
+    in no house: the Treasury's header already said it is not there.
+  - **`sacrilege`**, severity 5 (`data/rules/law.yaml`, beside
+    `assault_watch`), filed only by the heist. Its bands, by the file's own
+    arithmetic, are in the law file's header.
+- **The jailbreak** (v0.17 Task 4, `data/challenges/lantern_house.yaml`, the
+  story's first `paths.challenges`). A third way out of the Lantern House
+  cells, beside the fine and the wait, offered through `set_piece` only
+  while you are held (`requires: {in_custody: true}`) and once the
+  interrogation's cards are answered. On the Hanging Fair's last morning it
+  is the only way past the gallows for a thief who cannot pay: the gallows
+  is dealt at nine to a thief still held, and a thief who broke out before
+  nine is not.
+  - **Two skill gauntlets, never a dice table.** The ring on the nail
+    (stealth, then nerve: lift the sleeping Lantern's keys, then walk past
+    the duty desk as if somebody sent for you) until it has once worked;
+    then, on every stay after, the window bar (craft, then stealth: a supper
+    spoon on a rusted bar, then the yard wall). The first retires by its
+    `grants_flag` (`broke_out_of_the_lantern_house`); the second reads that
+    flag and grants none, so no stay is ever without it. Both steps are
+    `easy`: about one try in three for every archetype (the table is in the
+    file's header).
+  - **Success:** `release` -- you stand free on the Lantern House's back
+    step -- and a fresh `escape` report, filed against your own face in the
+    Wick at full precision. A break-out discharges nothing, so everything
+    the arrest charged is still on file too.
+  - **Failure:** a hiding, `hp -3`, the door locked again, and **no second
+    try until tomorrow** (`retry: next_day`; midnight reopens it). The fine
+    and the days stand, the bench is still a bed (rule 6), and `serve` still
+    ends the stay. One try a day because a try costs no time: rolled again
+    and again inside one turn, nine thieves in ten walked out of every stay,
+    for less than the fine. A thief the Watch saves up for the fair still has
+    a try on day 10, day 11 and day 12 before nine. The cells heal nothing,
+    and a hiding can kill a thief already low, checked on the step that took
+    it -- before the fair you wake on the same bench, still held; held at the
+    fair it is The Rope. The failure texts say nothing of how badly you are
+    hurt, so they read true either way.
+  - **Failure costs hp, not days,** because the engine has no authored way
+    to lengthen a stay (the custody record's `days` is the arrest's alone).
+  - **`escape`**, severity 4 (`data/rules/law.yaml`): `sought` in the Wick as
+    you walk out, and felt for three days. Measured; the table is in the law
+    file's header.
+  - The lore gains "Going Out Without Leave" (`the_lantern_watch.md`).
+- **Endings I: Cleared, A Lantern, and Honest After All earned** (v0.17 Task
+  5). Every one through its own door, every door locking its ending by name
+  and opening only while the ending is earned -- the door asks
+  `{ending: {eligible: <id>}}` itself, so the gate is written once, in
+  `data/rules/endings.yaml`, whose header has the rulings.
+  - **Cleared** (`cleared`). Requires the Watch's belief broken:
+    `magpie_unmasked`, which only a right naming at the front desk sets. An
+    alibi is not enough -- it clears the nights you were held and leaves the
+    Watch believing you are the Magpie (v0.16's ruling). While a wrong name
+    you gave the captain stands uncorrected (`magpie_named_wrongly` without a
+    right naming after it) the ending is out of reach, and the gallery says
+    why. **Two doors.** During the fair, `F3_the_real_magpie`
+    (`fair_day.yaml`, roll-free) is dealt on the Green while Cleared is
+    earned -- the Magpie you named is there, and the Watch closes in. See it
+    done (locks Cleared, then Speak/Act/Seal: the captain says your name out
+    loud with "not" in front of the other one; the young Lantern shakes your
+    hand; a new verse of the ballad) or walk away, and it is offered again on
+    your next return to the Green (not `once`: the owner's decision -- a door
+    gated on its own ending's eligibility cannot be walked through twice).
+    After the fair, `D4_cleared_at_the_desk` (`lantern_house_desk.yaml`,
+    the captain's hours): the captain burns the old drawing and reads your
+    name out to the front room -- so a thief who names the Magpie after the
+    fair, or walked away from F3, still has a door (controller's ruling).
+    Neither card names anybody: both come only after the unmasking, when the
+    narrator's GM line already names the Magpie; the beats and card name no
+    place, so both doors tell them true.
+  - **A Lantern** (`a_lantern`). Requires `magpie_unmasked`, the Watch's good
+    opinion (`lantern_watch` 5 or more: five good rounds of the lamps with
+    Wren, measured below), and the captain's own file never struck against
+    her (no `ardane_magpie_file` thread, in any status). **The door is the
+    front desk:** `D3_the_badge` (`lantern_house_desk.yaml`), dealt free
+    while Captain Ardane is in and the ending is earned. Take the badge and
+    swear the oath (locks A Lantern), or keep it back and it is offered again
+    next visit. A thief who has earned the badge has earned Cleared too, so
+    the badge card offers both (T5 review round 2): take the badge, or ask
+    only for your name cleared (locks Cleared) -- one card, a choice the
+    player can see. D4 serves the Cleared-only thief after the fair.
+  - **Honest After All**, gated at last: a clean name (below `sought` in all
+    three watch-houses, counting YOUR OWN deeds only -- the owner's decision:
+    the Magpie's robberies the Watch pins on you while it links you to the
+    Magpie do not count, a heist you pulled under the Magpie's mask does, and
+    `noticed` will do; the engine's new `wanted {own: true}`), square
+    with the fences (no credit open, no welsh on either book), and an honest
+    wage earned. **The door stays the evening barge**, whose stage now waits
+    on the ending; an unearned thief is simply not taken, nothing is locked,
+    and the narrator hears why in the bargemaster's terms (the stage's new
+    `refusals`, an engine seam: the objective line says "Not yet: ...", and
+    the flag that would say "aboard" is not offered while it holds). Its
+    epilogue card and Seal no longer assume the Magpie is still unknown.
+  - **The labour record.** Every posting's new `effects` writes
+    `honest_wage_earned` on the degrees it pays (`data/tables/labour.yaml`);
+    a botched shift is no wage. Nothing else changes about work.
+  - Each has an epilogue row and card (`magpie_taken`, `lantern_badge`), a
+    row in `tests/test_finales.py`'s per-ending doors (Cleared two), and a
+    row in its `UNEARNED_DOORS`: the same door walked with the gate unmet
+    stays shut.
+
+- **Endings II: Partners, The Legend, Guildmaster, The Dapper's City**
+  (v0.17 Task 6). All eight of the design's endings are declared now, each
+  with Speak/Act/Seal, an epilogue row and card, a door that locks it by name
+  and opens only while it is earned, a row in `tests/test_finales.py`'s
+  per-ending doors and one in its `UNEARNED_DOORS`. No hand can hold two
+  doors: the gates keep every pair that shares a deck apart (asserted over
+  every combination of the facts they read).
+  - **Partners** (`partners`). Follow the trail to the Magpie's own door
+    instead of the captain's: a new repeatable deck,
+    `data/scenes/the_confrontation.yaml`, dealt at the suspect's haunt at an
+    hour they are there (Wren up the garret stair, Silas in the flophouse
+    taproom, Lady Imelda in her parlour or at the silversmith's window),
+    free, on the accusation's own bar (evidence 2, the clues favouring that
+    suspect, a suspect named or confronted wrongly set aside). Say it --
+    "I know what you are, and I want in" -- and whether you are right is
+    decided only then, by `agenda_role` in the beat's own gate. Rightly: the
+    Magpie takes you on (`partners_with_the_magpie`, a ledger fact), and from
+    the next line the narrator is told who the Magpie is (the mask's
+    `unmask_when` now reads the partnership as well as the right naming);
+    the Watch is told nothing. Wrongly: the lead is spent (`clue_fresh`),
+    that suspect is set aside, and their people hear of it -- 5 off the
+    Lantern Watch (Wren), the Honest Company (Silas) or the Silk Row houses
+    (Lady Imelda); nothing arrests and no ending closes. The door is the
+    fair's `F6_the_heist_together`: at the Showing, the heart taken with the
+    Magpie (roll-free; re-offered until taken). Requires the partnership and
+    the heart not already taken alone; out of reach for good once you name
+    the Magpie to the captain (you have sold them). A partner is offered F6
+    and not F2 -- one Showing card, one choice.
+  - **The Legend** (`the_legend`). Lift the heart alone at the Showing (F2,
+    severe stealth, as before) and get it home: the heist starts a new quest,
+    `data/quests/the_hanging_fair/the_heart_goes_home.yaml`, and reaching the
+    Snuffs with the heart, free, locks the ending. Taken first, the Watch has
+    the heart back and the getaway fails. Its closeness score and its Seal
+    read `magpies_hoard_complete` -- the Hoard flag's first reader.
+  - **Guildmaster** (`guildmaster`). Sworn to the Company; the Hall's good
+    opinion at 5 or more (measured below); Mother Gannet's measure taken --
+    her Silk Row job done and paid, or the strike fund's IOUs held or struck;
+    and no heart in the pack. Out of reach while Silas Crook's rise has won.
+    The door is a new repeatable deck, `data/scenes/porters_hall.yaml`: the
+    long table any evening Gannet holds court (18:00-04:00) while the ending
+    is earned. Every clause can be met before the fair, so the fair's
+    reserved `F5_gannets_stake` was released unbuilt.
+  - **The Dapper's City** (`the_dappers_city`). Silas's rise complete
+    (`silas_splits_the_company`) and sworn to the Company; never for a thief
+    who named the Magpie to the captain or threw in with the Magpie. The door
+    is the fair's `F4_silas_makes_his_move`: stand with him, or stand against
+    him in front of the Company and lose (a hard persuasion roll failed) --
+    both lock it. Stand against him and win, and he is stopped
+    (`silas_stopped`): the Company +5, his two agenda moves stop, The
+    Dapper's City shuts and Guildmaster opens again. Keep out of it and it is
+    offered again.
+  - **The Temple of the Everflame moves** at last: the heart taken off the
+    palace steps, alone or with a partner, costs 10 of its good opinion.
+  - **Honest After All is empty-handed** (T6 review round 1): a new clause,
+    `empty_handed` (no Everflame's heart in the pack), and a fourth barge
+    refusal to match. After a right naming the heist's sacrilege is filed on
+    the Magpie's file alone, so an unmasked thief's own record read clean and
+    the barge would have taken the relic aboard as Honest After All.
+  - **The front desk honours a wrong confrontation** (T6 review round 1): a
+    suspect confronted wrongly at their door is set aside at the desk as one
+    named wrongly is, and a wrong confrontation spends the lead there too
+    (a second naming waits for a clue carried out since) -- so the right
+    suspect surfaces at the desk without a false naming first.
+  - **Measured by Task 8 (below):** Guildmaster's gate can be met in the
+    first week (a won initiation and Gannet's Silk Row job), and its door is
+    open any evening, so a run can end as Guildmaster on days 2-4, before
+    Act III -- 45% of the harness loyalist's runs do.
+- **All eight, held (v0.17 Task 7): the endings audited as a set.** Tests,
+  no new mechanism:
+  - **One set of ids.** `endings.yaml`'s classes, the epilogue index's ids
+    and classes, and the prose file's cards are the same eight, each index
+    title its ending's label; every ending has Speak/Act/Seal, and all 24
+    beats (both branches of the Legend's Hoard-gated Seal) resolve through
+    the deck engine with no unknown effect.
+  - **Every ending through its real door** (`tests/test_finales.py`
+    `ENDING_DOORS`, all eight, `COMPLETE_DOORS` enforcing it), and **every
+    gate clause has an unearned row**: 26 `UNEARNED_DOORS` rows, each
+    leaving out exactly the clause it names -- asserted as the ONLY reason
+    the ending is not eligible -- and a coverage test that fails if a
+    clause of any earned ending has no row. Two clauses cannot fail alone,
+    and the rows say why: Cleared's `no_wrong_name_standing` (its `any`
+    includes the unmasking it requires), and The Legend's `still_free`
+    (an arrest takes the heart with it, so a held thief fails `the_heart`
+    too).
+  - **`resolve()` never picks an unearned ending**: a seeded sample of 120
+    states over every fact the gates read, oaths sworn and then broken --
+    `resolve` answers an ending whose own gate holds, or The Rope, and
+    `lock` refuses everything the report does not call eligible.
+  - **The Rope, in one place**: its two doors (the death at the fair, the
+    hanging) are driven rows; an ordinary hp 0 -- free on any day, free at
+    the fair, or held the day before it -- respawns (held, if held), locks
+    nothing and shows no epilogue.
+  - **Secrecy**: the GM line names the Magpie only after the right naming
+    or the partnership, whatever else the thief has done (a played-out
+    ending included); no sentence of any ending text -- the gallery's, the
+    module's or the card's -- pairs "Magpie" with a candidate; nothing
+    shows a module or card before its lock; no deck or card anywhere
+    decides presence by `agenda_role` (only six beat gates read it); the
+    no-sex guard is pinned to read Act III's files.
+- **The endings, measured (v0.17 Task 8).** `scripts/simulate_endings.py`
+  (committed) plays eleven policies from the morning barge to two days past
+  the fair and reads the ending each run locks; the table is under
+  Measured, below. Every ending is reached by a policy that plays for it,
+  none crowds out the rest, and day 10 is kept for the fair; three of its
+  findings the owner ruled on (fix round 1, next). Tests:
+  - every ending is reached, through its door, by the policy that plays for
+    it on a pinned seed; the harness replays byte for byte; it reads the
+    fair the story declares; and no policy's code reads the Magpie's role,
+    a clue's `points_to`, `clues_favour`, or an ending's eligibility (the
+    table alone reads that).
+  - **`resolve()`, the combinations the sample never reached** (T7's
+    review): a partner who then names the Magpie at the desk falls to
+    Cleared; a thief bound for the barge who then lifts the heart, to The
+    Legend; Gannet's needles earned and then Silas's rise won, to The
+    Dapper's City -- each sworn while eligible, broken, and the pick and the
+    locks asserted. Cleared sworn on a right naming survives a later wrong
+    one (the right naming stands over it); before any right naming it can
+    be neither sworn nor picked. The sampled property test now checks every
+    pick and every eligible ending against what each ending needs and
+    forbids in terms of the facts applied, written from the design (it had
+    asked the gate itself, which agreed with `endings.eligible` by
+    construction).
+- **Three rulings on what the harness found (v0.17 Task 8, fix round 1;
+  the owner's).**
+  - **Honest After All means no thieving at all.** A new first clause,
+    `never_stole`: no lift, burglary or fencing the thief ever COMMITTED,
+    seen or unseen, and no hand laid on the Everflame's heart at the
+    Showing, won or lost. The engine now counts every deed it commits
+    before it looks for a witness (`committed_deed`, root CHANGELOG), and
+    the Showing's heist sets `laid_a_hand_on_the_heart` on both branches
+    (its ledger fact moves to the getaway's `on_start`, the same turn: an
+    outcome keeps four effects). The own-record clause (`a_clean_name`)
+    stays beside it: the Watch's file also holds what is not thieving -- a
+    Lantern knocked down, a jailbreak, a false name at the desk, a squeeze
+    sworn to. The barge's first refusal says so, in the bargemaster's
+    terms, first because it never cools: nobody is told to wait for the
+    Watch to forget a theft. (The measured runner, a reckless pickpocket
+    after one honest shift, boarded on 30 of 40 runs, 22 of them the
+    evening of its first purses; now on none.)
+  - **Gannet waits for the fair.** Guildmaster gains `the_fair_has_come`
+    (`event_seen: hanging_fair`): she names a successor only once the
+    Hanging Fair has come, at it or after it, and the gallery says why. The
+    Porters' Hall door reads the ending's eligibility, so it stays shut
+    until then. (Measured: 18 of the loyalist's 40 runs had taken the chair
+    on days 3-7; now none before day 10.)
+  - **Partners after the fair: the last job.** A second door,
+    `data/scenes/the_last_job.yaml` `L1_the_heart_by_night`: once the fair
+    has come and gone, on Margrave's Hill after dark (the clock's night,
+    20:00-05:00 since fix round 2; 22:00-04:00 before), a
+    partner is dealt the heart out of the Everflame itself -- make the
+    noise, and the Magpie does the rest. Gated on Partners' own eligibility,
+    repeatable, "not yet" never the last chance; never open during the fair
+    (F6 is the door then). Legible: the partnership's own words now say
+    where ("at the Hanging Fair, or after it, up the Hill after dark"), and
+    F6's "not yet" says the same. Partners' Act beat has two tellings (the
+    Showing's while the fair is on, the night's after it); its Speak and
+    Seal are true of both. (Measured: 2 of the partner's 40 runs threw in
+    with the Magpie on the last night and had nowhere to go; both now end
+    as Partners, by night.)
+
+- **Fix round 2 (v0.17 Task 8; the controller's rulings on the review).**
+  - **A squeeze is thieving.** `never_stole` also reads any Blackmail-tagged
+    thread, in any status: a squeeze paid commits and files nothing, so only
+    the thread remembers it. The barge has a matching refusal, second, in the
+    bargemaster's words.
+  - **"After dark" means the dark.** The last job's window widens from
+    22:00-04:00 to the clock's whole night, 20:00-05:00, so the partnership's
+    words and the Hill's hours agree; its header quotes what shipped.
+  - **Nothing authored is cut short in silence** (root CHANGELOG). The
+    validator's new check found eight HUE & CRY cards whose text the loader
+    had been cutting at 600 characters -- `F1`, `F3`, `F4`, `F6`, `I1`,
+    `P1`, `G1` and `L1` -- which had cost the narrator, among other lines,
+    F3's "nothing on this card arrests anyone but the Magpie", F6's and
+    L1's "MENU" instruction, and the gallows' "name no suspect as the real
+    Magpie". Since fix round 3 authored text has its own cap (root
+    CHANGELOG), and all eight cards are back to their authored text, whole:
+    those lines now reach the narrator.
+  - **Re-measured:** `simulate_endings` at 40 seeds is identical, policy
+    for policy, to fix round 1's table below (no harness policy squeezes
+    anyone, and the partners who reach the Hill after the fair arrive after
+    22:00 anyway); every earlier harness is byte-identical.
+
+### Measured (rule 10)
+
+- **The endings (v0.17 T8), 40 seeds, fair days 10-12, each run to the end
+  of day 14,** `scripts/simulate_endings.py` (committed; agendas on; runs
+  out of 40; the policies are in its header -- each acts only on what a
+  player sees, and takes a door because a card or the gangplank offered it):
+
+  | policy (opening) | Cleared | A Lantern | Honest | Partners | Legend | Guildmaster | Dapper's | Rope | none |
+  |---|---|---|---|---|---|---|---|---|---|
+  | investigator (a) | 29 | | | | | | | 2 | 9 |
+  | investigator (b) | 27 | | | | | | | 2 | 11 |
+  | investigator (c) | 28 | | | | | | | 1 | 11 |
+  | lantern (c) | 8 | 12 | | | | | | | 20 |
+  | partner (b) | | | | 20 | | | | | 20 |
+  | heister (b) | | | | | 8 | | | | 32 |
+  | loyalist (b) | | | | | | 18 | 10 | | 12 |
+  | dapper (b) | | | | | | | 17 | | 23 |
+  | porter (b) | | | 40 | | | | | | |
+  | reckless (a) | | | | | | | | 3 | 37 |
+  | runner (a) | | | | | | | | 3 | 37 |
+
+  (Restated after fix round 1, above. Before it: partner 18 Partners and 22
+  none; loyalist 24 Guildmaster, 5 Dapper's, 11 none; runner 30 Honest
+  After All, 1 Rope, 9 none. Every other row is unchanged.)
+
+  **Reach.** Every ending is reached by at least one policy that plays for
+  it: Cleared 72.5% at best (29/40), Honest After All 100%, Partners 50%,
+  Guildmaster 45%, The Dapper's City 42.5%, A Lantern 30%, The Legend 20%,
+  The Rope 7.5% (3/40, the reckless pickpocket and the runner alike; 10%
+  for the reckless one with nobody breaking out, below). The Rope is reached by five policies, every time by the gallows
+  on the fair's last morning, never by a death in the cells (the harness
+  feeds its prisoners). No ending crowds out another: each policy's own
+  ending, or none, is all but every run; "none" is a run that has earned
+  nothing by day 14 (the trail unread, the heart dropped, Silas never
+  risen) and would go on.
+
+  **When each locks** (mean day; the days seen): Cleared 10.7-10.9 (days
+  10/11/12/13/14 on 17-19/4-6/1/1/2-4 runs of each investigator: 24 through
+  the fair's `F3`, 3-5 at the desk's `D4` after it; the lantern's 8 on day
+  14, its fallback). A Lantern 12.8 (days 11-14, `D3`). Partners 10.7 (18
+  on days 10-12 through `F6`; 2 by night after the fair through
+  `the_last_job`'s `L1`, on day 14 and in the small hours after it). The
+  Legend 10 (all 8 on the fair's first day, the getaway home). Guildmaster
+  10.7 (days 10/12/13/14 on 14/1/2/1 runs: none before the fair). The
+  Dapper's City 10 (`F4`, all on day 10: the dapper's 17 and the
+  loyalist's 10 who stood against Silas and lost). Honest After All: the
+  porter's 40 on day 10 (it boards the evening it has seen the fair). The
+  Rope 12 (the gallows).
+
+  **How early each ending is open** (the first end of day it was eligible,
+  read by the table, never by a policy): Honest After All from day 1.4 for
+  every porter (its first paid shift) and, until its first purse, 1.3 for
+  78% of runners; Guildmaster from day 10.7 for 45% of loyalists (from 5.5
+  for 60% before fix round 1); The Dapper's City from day 7 for 42.5% of
+  sworn porters (Silas's rise, as T6 measured); Cleared from day 9.2-9.6
+  for 68-73% of investigators; Partners from 8.9 for 50% of partners; A
+  Lantern 12.8, 30%; The Legend on day 10, 20%.
+
+  **Guildmaster before Act III** (carried from T6): before fix round 1, 18
+  of the loyalist's 40 runs ended as Guildmaster before the fair -- 12 on
+  day 3, 5 on day 4, 1 on day 7 -- every one sworn on its first night and
+  Gannet's Silk Row job done and paid. The owner ruled she waits for the
+  fair (above): now none does, and 18 of 40 take the chair from day 10
+  (14 of them that night). The loyalist's other runs: 10 stood against
+  Silas at the fair and lost (The Dapper's City, 5 before), 12 end with
+  nothing -- Silas's rise won and not stood against, or the Hall's good
+  opinion short.
+
+  **The barge and a thief's own deeds** (carried from T5): before fix round
+  1 the runner -- the reckless pickpocket after one honest shift on its
+  first morning -- asked at the gangplank 164 times over its 40 runs: refused
+  106 times for its own record (`sought` somewhere, on 13 runs), 28 for no
+  wage, and taken aboard on 30 runs, 22 of them the evening of its first
+  day's purses (a lift nobody reported was on no file). Since the owner's
+  ruling it is refused all 431 times it asks, on all 40 runs, for having
+  stolen (`never_stole`, the barge's first refusal), and stays in the city:
+  held at some hour of the fair on 37.5% of runs, and hanged on 3 (1
+  before). The porter is never refused.
+
+  **The fair's day, measured and kept at 10.** The same eleven policies
+  with the fair moved (`--fair-day N`, the gallows' last morning with it;
+  each run to its fair's last day + 2; re-run after fix round 1, before it
+  in brackets where it moved):
+
+  | fair begins | Cleared (best investigator) | A Lantern | Partners | Legend | Guildmaster | Dapper's (dapper) | Rope (best) |
+  |---|---|---|---|---|---|---|---|
+  | day 8 | 24 | 5 | 18 [15] | 8 | 12 [19] | 17 | 2 |
+  | **day 10** | **29** | **12** | **20 [18]** | **8** | **18 [24]** | **17** | **3** |
+  | day 12 | 30 | 17 | 24 [18] | 8 | 18 [25] | 17 | 2 [1] |
+
+  Earlier, fewer investigators have unmasked by the fair and the
+  lamplighter has fewer rounds behind it, and Guildmaster -- waiting for
+  the fair since fix round 1 -- goes to 12 loyalists, 14 losing to Silas at
+  it instead; later, the trail endings gain a little, Partners' last
+  job catches more late partnerships, the run is two days longer, and The
+  Rope thins (fewer reckless thieves are held from before a later fair to
+  its last morning). Day 10 keeps every ending at 7.5% or more; day 8 drops
+  A Lantern to 12.5%, day 12 The Rope to 5%. The gallows' `min_day` is
+  unchanged (the test that holds it to the fair's last day stands).
+
+  **The fair, the gallows, the jailbreak, the heist.** On the Green during
+  the fair: every heister, dapper, porter and loyalist (day 10), 60% of
+  investigators (the unmasked, day 10.3), 47.5% of partners, a third of
+  lamplighters. Held at some hour of the fair: 5-10% of investigators, 65%
+  of reckless thieves (most taken during it, and so questioned, not
+  hanged), 37.5% of runners. Hanged: 11 of the 440 runs. The jailbreak: the
+  reckless thief tried it in 38 runs (73 tries, 24 escapes, 33%), the
+  runner in 38 (67 tries, 23 escapes); with nobody breaking out
+  (`--break-out none`) the reckless thief hangs on 4 runs instead of 3 (the
+  runner's control was measured before fix round 1: 1 either way). The investigators pay or serve, as `simulate_acts`'
+  investigator always has (T4 left the choice here); breaking out
+  (`--break-out all`) would have saved one of the two hanged in openings a
+  and b each (7 and 8 tries, 2 escapes each), and moves Cleared by one run. The heist: every heister tries the heart on the fair's
+  first morning; the severe roll wins it on 8 of 40, and all 8 get it home
+  to the Snuffs (The Legend). No heister was arrested before the fair (3
+  careful jobs each).
+
+  **Not measured here: welshing's cost for a burglar shut out of both
+  fences** (the owner's v0.15 decision). No policy in this harness sells to
+  a fence or runs a line of credit; it stays with v0.18.0's thief policy
+  (CLAUDE.md's roadmap row), starting from T2's figures below.
+
+  **Every earlier harness, re-run at 40 seeds against the commit before**
+  (a scratch worktree): `simulate_acts` (every opening), `simulate_law`
+  (every policy, and `--break-out` careful/c and reckless),
+  `simulate_labour` (every policy; `--endings --days 12 --agendas`, all
+  policies and the bunked porter), `simulate_hoard`, `simulate_jobs`,
+  `simulate_agendas`, `simulate_scrounge` and `simulate_streets` are
+  byte-identical apart from wall-clock timing columns. No bound moved.
+  `simulate_acts` gained three seams (`choose_beat`, `CASING_ENDS` and, in
+  fix round 1, `trail_done`) whose defaults are its own. **Re-run after fix
+  round 1** (the deed count, the new clauses and door, the heist's flag):
+  every one of them is byte-identical again apart from timing -- none of
+  their policies' tables reads Honest After All but `simulate_labour
+  --endings`, whose porter and dipper never steal and whose pickpockets
+  already never qualified (no wage, or on credit).
+
+- **Endings II (v0.17 T6), 40 seeds x 12 days,** `scripts/simulate_labour.py
+  --endings --days 12 --policy porter --bed bunk --agendas` (committed): a
+  porter sworn to the Company on its first night, on the quay every day,
+  Silas's agenda on.
+
+  | end of day | 3 | 5 | 8 | 10 | 12 |
+  |---|---|---|---|---|---|
+  | `honest_company` >= 5 (`hall_trusts`) | 20% | 8% | 10% | 20% | 30% |
+  | Silas's rise has won (`silas_won`) | 0% | 0% | 42% | 42% | 42% |
+
+  5 is Guildmaster's number. The standing falls as Silas robs the Company's
+  ward (-2 a house), so a porter who only works holds it on a fifth of seeds
+  by the fair; standing against Silas (+5, and his robbing stops) or the
+  Hoard (+8) carry a thief well over it. From the same walk (a scratch read
+  of the standing): at 4 or more 60/38/22/28/45%, at 6 or more
+  5/8/5/8/18% -- 4 is the roll-free oath and no more, 6 one seed in twelve at
+  the fair. Silas wins on 42% of seeds, every one by day 8.
+  `simulate_acts --opening all` (40 seeds, 12 days) is byte-identical to the
+  commit before, apart from wall-clock timing: its investigator never stands
+  at a suspect's haunt at their hour with a lead, is never sworn with
+  Silas's rise complete at the fair, and never earns Guildmaster, so no new
+  card is dealt to it. Task 8 measures the eight endings as a distribution.
+- **Endings I (v0.17 T5), 40 seeds x 12 days,** `scripts/simulate_labour.py
+  --endings --days 12 [--agendas]` (committed; share of seeds at the end of
+  each day):
+
+  | policy, end of day | 3 | 5 | 8 | 10 | 12 |
+  |---|---|---|---|---|---|
+  | porter, `lantern_watch` >= 5 (off or on) | 0% | 8% | 50% | 70% | 85% |
+  | porter, Honest After All earned, agendas off | 100% | 100% | 100% | 100% | 100% |
+  | porter, Honest After All earned, agendas ON | 100% | 100% | 100% | 100% | 100% |
+  | porter, whole file below `sought`, agendas on (for comparison) | 70% | 53% | 5% | 0% | 5% |
+  | dipper, earned (off or on) | 98% | 100% | 100% | 100% | 100% |
+  | careful pickpocket, earned (either) | 0% | 0% | 0% | 0% | 0% |
+  | careful on Pell's credit, earned (either) | 0% | 0% | 0% | 0% | 0% |
+
+  The lamps: 5 is five good rounds; `lantern_watch` means 5.7 on day 10 for
+  a thief who walks the lamps every evening, and 0 for one who never does
+  (at 4: 80% by day 8, near a formality; at 6: 75% by day 12). The barge:
+  every honest worker has the wage from its first paid shift (the dipper's
+  one miss is a day-one botched shift), the careful pickpocket never works,
+  and Pell's borrower is on credit or welshed on 97.5% of its days. With the
+  agendas on, the Magpie's robberies still land on the face the Watch links
+  to it -- the whole file is `sought` somewhere on 30% of seeds by day 3 and
+  95% by day 8, as the comparison row shows -- but since fix round 1 (the
+  owner's decision) Honest After All reads the thief's own record only
+  (`wanted {own: true}`), so an honest worker keeps the barge open all run.
+  Before the fix it closed on 47% by day 5 and 95% by day 8. **Not yet
+  measured: a thief refused for their OWN deeds.** No simulate_labour policy
+  commits a reportable deed of its own (the careful pickpocket's purses are
+  unwitnessed on these seeds), so no row above shows the clean-name clause
+  shutting anyone out; Task 8 measured it with a thieving policy (above).
+  `simulate_acts --opening all` (40 seeds, 12 days) is
+  byte-identical to the commit before: its investigator never lamplights, so
+  the badge is never dealt; it never boards the barge; and F3 moves nothing
+  it measures (Task 8 extends it past the fair and reads the endings).
+
+**death.yaml (v0.17 T2).** 40 seeds, agendas off. Everything is re-run against the code before
+death.yaml.
+
+- **simulate_labour, 10 days, flophouse.** The harnesses now count deaths as
+  they happen (`simulate_law.counting_deaths`), because a respawn restores hp
+  inside the hour that reached 0 and the sampled `min_hp` no longer shows it.
+  "At 0" is now a death.
+
+  | policy | kept_days | fed_days | end gold | at 0 hp / died | deaths/run |
+  |---|---|---|---|---|---|
+  | porter | 0.94 → 0.94 | 0.99 → 0.99 | 5.47 → 5.47 | 0% → 0% | 0 |
+  | dipper | 0.87 → 0.87 | 0.96 → 0.97 | 5.90 → 5.92 | 5% → 5% | 0.07 |
+  | careful | 0.07 → 0.26 | 0.22 → 0.51 | 2.17 → 3.65 | 95% → 95% | 1.9 |
+  | scrounger | 0.93 → 0.93 | 0.97 → 0.97 | 4.50 → 4.50 | 0% → 0% | 0 |
+  | careful_pell | 0.54 → 0.57 | 0.68 → 0.72 | 1.85 → 2.58 | 45% → 52.5% | 0.53 |
+  | careful_marrow | 0.31 → 0.38 | 0.45 → 0.59 | 1.27 → 2.75 | 82.5% → 87.5% | 1.3 |
+
+  The careful pickpocket still reaches 0 on 95% of seeds, about twice a run.
+  It now wakes and goes on instead of lying at 0 hp for the rest of the ten
+  days, so it keeps more days (0.07 → 0.26), lifts more (1.36 → 1.50 cr a
+  day) and ends richer. The credit policies die slightly more often than
+  they sat at 0 before (a respawn that wakes them starving again can reach 0
+  twice). The honest days (porter, scrounger) do not move, and the dipper's
+  one starving seed now respawns.
+
+  With `--bed bunk` (the guild's free bed), porter, dipper, scrounger and
+  careful_pell are unchanged (0 deaths).
+
+  | policy | kept_days | at 0 hp / died | deaths/run |
+  |---|---|---|---|
+  | careful | 0.39 → 0.53 | 57.5% → 72.5% | 0.85 |
+  | careful_marrow | 0.70 → 0.71 | 10% → 20% | 0.2 |
+
+  More runs "reach 0" than the old sampling showed. This is not separated
+  further here. Two things plausibly add to it: the "before" column read hp
+  only between actions, so a 0 touched inside a long stretch of hours and
+  climbed back from (a bed's +1) was never counted; and a respawn's half
+  purse can starve a thief who would not otherwise have starved.
+- **Welshing's gain over never borrowing shrank.** The owner accepted it for
+  v0.15. Over the 10 flophouse days it was about +4.7 kept days (Pell's
+  advance) and +2.4 (Marrow's slate). It is now about +3.1 and +1.2 (careful
+  0.26, Pell 0.57, Marrow 0.38). The credit lines did not change: the
+  respawn keeps the no-credit baseline alive, so it no longer lies at 0 hp
+  for the rest of the run. v0.18.0's thief policy re-measures welshing
+  anyway, and should start from these figures.
+- **simulate_streets (3 days), simulate_jobs (every policy) and
+  simulate_acts (all three openings, 12 days):** byte-identical tables. None
+  of them reaches 0 hp (streets min 20, jobs min 20, acts min 10–12), so
+  none has a death to respawn.
+
+- **The Hanging Fair in the harnesses (v0.17 T3), 40 seeds.** Against the
+  commit before it (a scratch worktree): `simulate_agendas` (every policy,
+  10 days) is byte-identical apart from its wall-clock timing column --
+  its runs end as the fair begins. `simulate_acts` (12 days, all three
+  openings) moves only where an investigator walks across the Green during
+  the fair and is dealt the fair deck (each card answered is one more turn,
+  so one more patrol roll, and later draws shift): alibis presented 0.175 ->
+  0.125 (a), 0.2 -> 0.15 (b), 0.15 -> 0.125 (c); houses cased 7.72 -> 7.70
+  (a), 7.53 -> 7.50 (b); clue jobs 3.48 -> 3.42 (c); and in opening c one
+  run's evidence reads "some" instead of "plenty" from its day-9 slot on
+  (slots are filled when the loop next reads them, after a sentence served
+  into the fair). The unmasking (by day and mean day), the namings, min hp
+  (10-12) and deaths (0) do not move, and every acts bound in
+  `tests/test_hue_and_cry.py` holds. No harness plays the fair's choices yet;
+  Task 8 extends simulate_acts past the fair.
+- **The jailbreak (v0.17 T4), 40 seeds, 10 days, agendas off.**
+  `simulate_law --break-out` (a held thief tries the jailbreak until it walks
+  out or is down to 3 hp, then pays or serves): the harness's cutpurse
+  clears a try 0.36 (careful, taken quietly off the barge: 37 escapes in 103
+  tries, 3 of 40 beaten down to the floor and paying) to 0.38 (reckless: 54
+  in 144). With `--set deeds.escape=N`, the Wick's band on a quietly-taken
+  thief's face as it walks out, and after: at 3 `noticed`, gone by the next
+  morning; at 4 `sought`, `noticed` for three mornings; at 5 `sought`,
+  `noticed` for four, and the careful thief below `sought` on 91% of its
+  seed-days instead of 100%. A reckless thief is `hunted` already when the
+  stop comes, so the escape moves no band at any severity, and 9-10 of its
+  54 escapes are back in a cell within a day. 4 ships.
+
+  **Re-measured with one try a day** (fix round 1; a failure closes it for
+  the day, and the harness's thief then pays or serves rather than sit a
+  day unserved): 13 of 40 careful thieves taken off the barge walk out (0.33
+  of arrests; the other 27 pay the fine), and 16 of 43 reckless arrests
+  (0.37; 17 serve, 10 pay, 3 back in a cell within a day). Every escape
+  still walks out `sought` (careful) or `hunted` (reckless): the severity
+  table above holds, only fewer escape. Before, it was 37 of 40. Without the flag
+  nobody breaks out: `simulate_law` (every policy) and `simulate_acts`
+  (every opening, 12 days) are byte-identical to the commit before, apart
+  from wall-clock timing and the law harness's new count of clock advances
+  per served day (3.0; the test holds it at 4 or fewer, in place of a
+  wall-clock guard). The investigator in `simulate_acts` does not break out
+  (it pays or serves, as before); Task 8 decides whether it should.
+
+### Changed
+
+- **A wrong naming spends the lead at the confrontation too** (v0.17 T7,
+  carried from T6's review): the confrontation's second-try bar now mirrors
+  the front desk's, `any: [none: [magpie_named_wrongly,
+  magpie_confronted_wrongly], clue_fresh]`. Before, only a wrong
+  confrontation spent it, so a thief who named the wrong suspect at the desk
+  could confront the next one at once with no fresh clue.
+- **The Dapper's City's `nobody_stopped_him` reason no longer says "the
+  Magpie"** next to Silas's name (v0.17 T7): it reads "you already have a
+  partner of your own up on the roofs". No ending text now pairs the Magpie
+  with a candidate in one sentence.
+- **The Showing (F2) is not dealt while Partners' door is open** (v0.17 T6):
+  a partner is offered the heart with the Magpie (F6) instead. Its heist
+  now also costs the Temple of the Everflame 10.
+- **The Magpie's mask lifts on a partnership too** (`agendas.yaml`
+  `unmask_when: any: [magpie_unmasked, partners_with_the_magpie]`), and
+  **Silas Crook's two moves wait on `silas_stopped`**: beaten at the fair,
+  he stops robbing the Company's ward.
+- **The fair deck's header**: F4 and F6 built, F5 released (Guildmaster's
+  door is the Porters' Hall), and a door re-offered on its own ending may
+  also be one whose won branch shuts that ending (F4).
+
+- **The evening barge takes only a thief who has earned Honest After All**
+  (v0.17 Task 5, above). Until now anyone could board it from the first
+  evening; the barge's header, stage and epilogue say what changed.
+- **The evening barge locks `honest_after_all` by name.**
+  `data/quests/the_way_out/the_evening_barge.yaml`'s `on_complete` was an
+  id-less `ending_lock`, which asks `endings.resolve()` -- harmless with one
+  ending, and the gallows once `honest_after_all` is gated and The Rope is
+  the fail-forward. Every authored `ending_lock` in this story now names a
+  declared ending (`tests/test_hue_and_cry.py`), and the barge is the
+  story's first row in `tests/test_finales.py`'s per-ending doors.
+
 ## [0.16.0] — 2026-09-27
 
 Acts I and II, the fourth of the v1.0 stages: the opening, the initiation,

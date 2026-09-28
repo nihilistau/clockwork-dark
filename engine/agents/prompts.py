@@ -1659,6 +1659,10 @@ def _sum_pay_fine(result: dict[str, Any]) -> str:
 
 def _sum_serve(result: dict[str, Any]) -> str:
     where = str(result.get("gaol") or "the cells")
+    if result.get("served_out") is False and result.get("interrupted_by"):
+        # Still held: a scene fell due mid-sentence (law.serve_sentence), and
+        # it is dealt on this same turn -- the card says what came for them.
+        return f"was still waiting out the sentence in {where} when the day's business came to the cell door."
     if result.get("served_out") is False:
         # Carried out mid-sentence (a death's respawn ends custody).
         return f"was carried out of {where} before the sentence ran out."
@@ -1876,7 +1880,14 @@ def summarise_receipt(receipt: dict[str, Any]) -> str:
         return ""
     line = _summarise_one(skill, result)
     closed = _closed_sets(result)
-    return " ".join(x for x in (line, *closed) if x)
+    # A card that killed (v0.17, `director.resolve`): the death is this
+    # card's, so it is this receipt's last sentence -- the narrator must not
+    # have the player answer the next card. Only a card that took hp to the
+    # threshold carries `death`, so no other receipt's sentence changes.
+    # A challenge step that killed (v0.17 T4, `runner.resolve`) the same way.
+    died = result.get("death") if skill in ("resolve_scene_card", "resolve_challenge") else None
+    death_line = str(died.get("text") or "").strip() if isinstance(died, dict) else ""
+    return " ".join(x for x in (line, *closed, death_line) if x)
 
 
 def _closed_sets(result: Any) -> list[str]:

@@ -77,7 +77,12 @@ _ROOT = Path(__file__).resolve().parents[2]
 MAX_CARDS = 32
 MAX_DRAW = 8
 MAX_BEATS = 12
-MAX_TEXT = 600
+#: A card's or a beat's text. A deck is always a story's own file -- its text
+#: is AUTHORED -- so it takes the authored cap (``spec.MAX_AUTHORED_TEXT``,
+#: v0.17 T8 fix round 3; it was 600, and longer cards were cut, unseen,
+#: before the narrator read them). An outcome's text is capped the same way
+#: through ``spec.clamp_outcome(authored=True)``.
+MAX_TEXT = spec_module.MAX_AUTHORED_TEXT
 
 #: Flag prefix recording that a ``once: true`` card has been dealt on this save.
 DRAWN_FLAG_PREFIX = "deck_drawn_"
@@ -181,8 +186,16 @@ def _read_deck(path_str: str, _mtime: float) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def _text(value: Any, limit: int = MAX_TEXT) -> str:
-    return str(value or "").strip()[:limit]
+def _text(value: Any, limit: int = MAX_TEXT, adjustments: Optional[list[str]] = None,
+          what: str = "text") -> str:
+    """Bounded text; a cut is recorded in ``adjustments`` when one is passed
+    (the same phrase as ``spec._text``, read back by the validator)."""
+    text = str(value or "").strip()
+    if len(text) > limit:
+        if adjustments is not None:
+            adjustments.append(f"{what} was {len(text)} {spec_module.TEXT_CUT} {limit}")
+        text = text[:limit]
+    return text
 
 
 def bound_beats(raw: Any, deck_id: str, card_id: str) -> list[dict[str, Any]]:
@@ -225,7 +238,7 @@ def bound_beats(raw: Any, deck_id: str, card_id: str) -> list[dict[str, Any]]:
         adjustments: list[str] = []
         beat: dict[str, Any] = {
             "id": str(raw_beat.get("id") or f"{card_id}_{index}"),
-            "text": _text(raw_beat.get("text")),
+            "text": _text(raw_beat.get("text"), adjustments=adjustments, what="beat text"),
         }
         if "gate" in raw_beat and isinstance(raw_beat["gate"], dict):
             beat["gate"] = _bound_gate(raw_beat["gate"], adjustments)
@@ -295,7 +308,8 @@ def _bound_band(raw: dict[str, Any], adjustments: list[str]) -> dict[str, Any]:
     ``engine/challenges/spec.py`` makes for clamping over rejection.
     """
     name = str(raw.get("value") or raw.get("name") or "").strip()
-    band: dict[str, Any] = {"value": name, "text": _text(raw.get("text"), 200)}
+    band: dict[str, Any] = {"value": name,
+                            "text": _text(raw.get("text"), 200, adjustments, "band text")}
     try:
         low = float(raw.get("min", 0))
     except (TypeError, ValueError):
@@ -426,6 +440,22 @@ def _drawn_flag(deck_id: str, card_id: str) -> str:
     return f"{DRAWN_FLAG_PREFIX}{deck_id}_{card_id}"
 
 
+def locks_an_ending(card: Card) -> bool:
+    """True when any beat of ``card`` -- either branch, at any depth -- carries
+    an ``ending_lock`` effect: the card is a door out of the story."""
+
+    def walk(node: Any) -> bool:
+        if isinstance(node, dict):
+            if node.get("type") == "ending_lock":
+                return True
+            return any(walk(v) for v in node.values())
+        if isinstance(node, list):
+            return any(walk(v) for v in node)
+        return False
+
+    return walk(card.beats)
+
+
 def eligible_cards(
     state: GameState,
     deck: Deck,
@@ -435,18 +465,35 @@ def eligible_cards(
     """
     Which pool cards could be dealt right now, and why the others could not.
 
+    A LOCKED RUN DEALS NO DOOR (v0.17). ``endings.eligible`` reads each
+    ending's gate and ignores a lock already made, so a door card gated on its
+    own ending's eligibility (``{ending: {eligible: X}}`` -- HUE & CRY's
+    re-offered doors) stayed eligible after the run had ended, and a later
+    hand could put a "this ends the story" card on the table of a story that
+    was over. A pool card that ``locks_an_ending`` is therefore rejected while
+    the run is locked. POOL cards only: a required card is the spine, dealt
+    whatever its conditions say, and the Wicked Garden's finale spine (its
+    only lock, ``F3_point_of_no_return``) is re-dealt by its forced card after
+    the lock -- a recorded, pre-existing walk (CLAUDE.md) this leaves as it was.
+    A story with no endings is never locked, so it is unchanged.
+
     Returns:
         ``(eligible, rejected)``. The rejection reasons exist because a
         labyrinth that quietly never shows the Winter Mouth is indistinguishable
         from one where the Winter Mouth is broken.
     """
+    from engine.game import endings as endings_module
     from engine.game.quests import evaluate_condition
 
     eligible: list[Card] = []
     rejected: dict[str, str] = {}
+    run_locked = endings_module.locked(state) != endings_module.NONE_ID
     for card in deck.pool:
         if card.once and state.flags.get(_drawn_flag(deck.id, card.id)):
             rejected[card.id] = "already drawn"
+            continue
+        if run_locked and locks_an_ending(card):
+            rejected[card.id] = "the run's ending is locked"
             continue
         if card.weight <= 0:
             rejected[card.id] = "weight 0"

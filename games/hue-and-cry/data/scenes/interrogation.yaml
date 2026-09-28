@@ -106,6 +106,14 @@
 #                    deals the accusation on the first free turn the captain
 #                    is in. The id stays unused. This room names no suspect.
 #
+# THE FAIR'S WARNING (v0.17 T3). The spine's last beat, `the_fair_coming`,
+# says something only from day 7 until the Hanging Fair has come: a bill on
+# the wall, and the Watch saying out loud that whoever it still holds when
+# the fair comes goes down to the Green on its last morning
+# (data/scenes/the_gallows.yaml). The cells are where a thief at risk of the
+# gallows stands, so this is where the story tells them. Roll-free, and
+# silent on every other day.
+#
 # AN ALIBI HERE IS ALWAYS FROM AN EARLIER STAY. The deck deals on the first
 # turn of a stay, and nothing has been robbed yet in the stay that has just
 # begun (`custody.since_hour` is the next whole hour), so `alibi` can only
@@ -115,7 +123,7 @@
 # Nobody in this room knows who the real Magpie is or guesses aloud.
 # (asserted: no candidate's name, alias or trade)
 #
-# Version: v0.1.2 [2026-09-27]
+# Version: v0.1.3 [2026-09-27]
 
 id: interrogation
 
@@ -187,6 +195,25 @@ cards:
               In red, down the margin, the nights the Watch's own duty book
               says you were in these cells while a house was robbed. Somebody
               has underlined them.
+
+      - id: the_fair_coming
+        text: >-
+          On the wall behind the desk, a bill.
+        gate:
+          # No dice: the warning the at-risk thief needs, where they stand
+          # (v0.17 T3 review): from day 7 until the Hanging Fair has come
+          # (data/world/schedules.yaml, day 10), the Watch says out loud
+          # that it keeps whoever it is holding for the fair's last morning
+          # (data/scenes/the_gallows.yaml). Silent before and after.
+          when: { all: [{ min_day: 7 }, { none: [{ event_seen: hanging_fair }] }] }
+          on_pass:
+            text: >-
+              A bill for the Hanging Fair, pasted up askew, a gallows in
+              bunting at the top. Whoever is doing the booking taps it with
+              the pen, cheerfully: whoever the Watch is still holding when the
+              fair comes goes down to the Green on its last morning, and the
+              ballad-sellers are already asking for names. Best not to be in
+              here then.
 
   # =====================================================================
   # POOL -- the interrogator. Exactly one of these three is eligible at

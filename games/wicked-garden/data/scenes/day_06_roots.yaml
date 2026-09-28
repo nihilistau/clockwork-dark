@@ -317,13 +317,16 @@ cards:
     required: true
     tags: [menu, setpiece, gm]
     title: "Choose What You Will Feed Me"
+    # RUNTIME (moved out of the text in v0.17.0, AGENTS.md rule 1): the beats
+    # set flags and values; no card effect touches a thread. NOT WIRED
+    # (docs/GOVERNANCE.md): the `briar_witness` thread meant to record an
+    # Ambition spoken aloud, so she can quote it back in the finale. It is
+    # not declared in threads.yaml -- it is named only in
+    # data/canon/state-dictionary.json -- so the `bargain` verb cannot offer
+    # it and nothing else seals it.
     text: >-
       INTENT: the bargain-lite. Not a contract -- an arrangement, offered the
       way a landlord offers terms. Desire, fear, ambition, or nothing.
-      CONSTRAINT: if the player chooses Ambition, open the `briar_witness`
-      thread through the thread tool. The whole point of speaking a goal aloud
-      to her is that she can quote it back in the finale, and a flag cannot be
-      quoted.
       If Black Honey is drunk here, run the short deep bargain instead: ONE of a
       glamour-resistant day, a true exit clue, her soft century, or a seed
       upgrade -- and the cost is a memory or a favour spike that leaves a mark.

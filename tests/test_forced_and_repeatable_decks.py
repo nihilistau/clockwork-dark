@@ -25,6 +25,10 @@ WHAT THESE TESTS HOLD.
   ``apply_effect`` -- so it is state, survives save/load, and does not depend
   on how the clock was cut between turns.
 - A deck with no ``repeatable`` is exactly as one-shot as it was.
+- A forced deck with its own ``when:`` waits for it (v0.17): the fair forced
+  while the thief is in the Snuffs is neither dealt nor retired, deals once
+  they reach Gallows Green, and an arrest on fair day deals the interrogation
+  meanwhile. If the event lapses first, the fair is never dealt.
 - The shipped deck stories deal byte-identically: a fixed director walk of
   the-long-con, wicked-garden and dev-story, recorded at b59a3ea (before this
   change), replays to the same hands and the same played flags.
@@ -83,6 +87,15 @@ DECKS = {
     # Scheduled on custody, repeatable and one-shot.
     "the_cells": _deck("the_cells", when={"in_custody": True}, repeatable=True),
     "first_night_inside": _deck("first_night_inside", when={"in_custody": True}),
+    # Forced by a declared event (the fair), but only where the fair IS and
+    # only to a free thief: its own `when:` must hold before it deals (v0.17).
+    # `event_active` too, because a deck with a `when:` is also SCHEDULED by
+    # it: without it the green would deal the fair on any day.
+    "fair_day": _deck(
+        "fair_day",
+        when={"all": [{"event_active": "hanging_fair"}, {"at_location": "gallows_green"},
+                      {"in_custody": False}]},
+    ),
 }
 
 EVENTS = {
@@ -105,6 +118,13 @@ EVENTS = {
             "duration_days": 1,
             "text": "They come back for the ones they missed.",
             "forces_scene": "raid",
+        },
+        "hanging_fair": {
+            "on_day": 3,
+            "duration_days": 1,
+            "location_id": "gallows_green",
+            "text": "The gallows are dressed in bunting.",
+            "forces_scene": "fair_day",
         },
     }
 }
@@ -222,6 +242,74 @@ def test_a_repeatable_forced_deck_deals_on_every_firing_of_its_event(story: Any)
             dealt += [(state.world_day, d) for d in _turn(state)]
             clock_module.advance_time(state, 2)
     assert dealt == [(2, "market_brawl"), (4, "market_brawl"), (6, "market_brawl")]
+
+
+# -- a forced deck honours its own `when:` (v0.17) --------------------------------
+
+
+def _scene_played(state: GameState, scene_id: str) -> bool:
+    from engine.game import clocks
+
+    return bool(state.flags.get(f"{clocks.SCENE_PLAYED_FLAG_PREFIX}{scene_id}"))
+
+
+def test_a_forced_deck_waits_for_its_when_and_deals_once_it_holds(story: Any) -> None:
+    """The fair is forced, but the thief is in the Snuffs: nothing is dealt,
+    nothing is spent, and the promise stands. Walked to Gallows Green, it deals."""
+    story("fair_day")
+    state = _world([])
+    state.location_id = "the_snuffs"
+    _to_day(state, 3)
+    from engine.game import clocks
+
+    assert "fair_day" in clocks.forced_scenes(state)
+    assert director.due(state) == ("", "", "")
+    receipts = director.ensure_scene(state)
+    assert receipts == [], receipts  # not "no cards were eligible"
+    assert not state.flags.get(director._played_flag("fair_day"))
+    assert not _scene_played(state, "fair_day"), "retired without being dealt"
+    assert "fair_day" in clocks.forced_scenes(state)
+
+    state.location_id = "gallows_green"
+    assert director.due(state) == ("fair_day", "", "forced")
+    assert _turn(state) == ["fair_day"]
+    assert _scene_played(state, "fair_day")
+    assert _turn(state) == []
+
+
+def test_other_due_decks_deal_while_a_forced_deck_waits(story: Any) -> None:
+    """An arrest on fair day deals the interrogation, not the fair: the fair
+    wants a free thief on the green, and a forced promise it cannot yet keep
+    must not hold the turn from a deck that can deal."""
+    story("fair_day", "the_cells")
+    state = _world([])
+    state.location_id = "gallows_green"
+    _to_day(state, 3)
+    _arrest(state)
+    state.location_id = "gallows_green"  # arrested on the green itself
+    assert _turn(state) == ["the_cells"]
+    assert not _scene_played(state, "fair_day")
+    _release(state)
+    state.location_id = "gallows_green"
+    assert _turn(state) == ["fair_day"]
+
+
+def test_a_forced_deck_whose_when_never_held_is_simply_not_dealt(story: Any) -> None:
+    """The event lapses with the thief elsewhere the whole day: the fair is
+    never dealt, and nothing about it is left pending once the row expires."""
+    story("fair_day")
+    state = _world([])
+    state.location_id = "the_snuffs"
+    dealt: list[str] = []
+    for day in range(1, 6):
+        _to_day(state, day)
+        dealt += _turn(state)
+    from engine.game import clocks
+
+    assert dealt == []
+    assert "fair_day" not in clocks.forced_scenes(state)
+    state.location_id = "gallows_green"
+    assert _turn(state) == []
 
 
 # -- repeatable decks deal once per rising edge ---------------------------------
@@ -375,8 +463,8 @@ _WALK_FROM = {"hue-and-cry": "the_snuffs"}
 #: starved to 0 hp by its third day -- recorded in its digest, and nothing to
 #: do with dealing. Fed at each step (hunger set to 0), it records the deal
 #: alone. The other walks were recorded unfed and stay as recorded. (The
-#: "Death rules missing" line it still logs is not starvation: every
-#: advance_time asks for death.yaml, which HUE & CRY ships only in v0.17.)
+#: "Death rules missing" line it logged until v0.17 was not starvation: every
+#: advance_time asks for death.yaml, which HUE & CRY ships since v0.17.)
 _WALK_FED = {"hue-and-cry"}
 
 #: Arrests and releases at fixed steps (``arrest`` / ``release`` effects, before
@@ -490,10 +578,17 @@ def test_shipped_deck_stories_deal_as_recorded(
 #: v0.16 T7 adds the second: HUE & CRY's Lantern House front desk (the
 #: alibi and the accusation), dealt on each visit that finds something to
 #: offer. The same walk now deals it once, after the first release.
-SHIPPED_REPEATABLE = {("hue-and-cry", "interrogation"), ("hue-and-cry", "lantern_house_desk")}
+#: v0.17 T3 (review round 1): the Hanging Fair re-deals on each return to the
+#: Green while it is on, so a door card come due since the last visit is met.
+SHIPPED_REPEATABLE = {("hue-and-cry", "interrogation"), ("hue-and-cry", "lantern_house_desk"),
+                      ("hue-and-cry", "fair_day"),
+                      # v0.17 T6: Guildmaster's door and Partners' first half.
+                      ("hue-and-cry", "porters_hall"), ("hue-and-cry", "the_confrontation"),
+                      # v0.17 T8 fix round 1: Partners' door after the fair.
+                      ("hue-and-cry", "the_last_job")}
 
 
-def test_only_hue_and_crys_two_decks_opt_in() -> None:
+def test_only_hue_and_crys_six_decks_opt_in() -> None:
     """Byte-identical by construction for every other story: nothing else
     shipped declares either key."""
     root = Path(__file__).resolve().parents[1] / "games"
@@ -509,10 +604,16 @@ def test_only_hue_and_crys_two_decks_opt_in() -> None:
             assert path.parent.name == "scenes", path
             opted.add((path.relative_to(root).parts[0], path.stem))
     assert opted == SHIPPED_REPEATABLE
+    # An event that forces a scene: HUE & CRY's Hanging Fair (v0.17 T3), and
+    # nothing in any other story.
+    forcing: set[tuple[str, str, str]] = set()
     for path in root.glob("*/data/world/schedules.yaml"):
         doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        for spec in (doc.get("events") or {}).values():
-            assert "forces_scene" not in (spec or {}), path
+        for event_id, spec in (doc.get("events") or {}).items():
+            if "forces_scene" in (spec or {}):
+                forcing.add((path.relative_to(root).parts[0], str(event_id),
+                             str(spec["forces_scene"])))
+    assert forcing == {("hue-and-cry", "hanging_fair", "fair_day")}
 
 
 # -- validation ------------------------------------------------------------------
@@ -565,3 +666,100 @@ def test_an_event_forcing_a_real_deck_or_card_is_clean(tmp_path: Path) -> None:
 def test_repeatable_must_be_a_bool(tmp_path: Path) -> None:
     issues = _issues(tmp_path, {"raid": _deck("raid", repeatable="yes")}, {"events": {}})
     assert [i for i in issues if "repeatable" in i], issues
+
+
+# -- event ids in conditions name declared events (v0.17 T3, review round 1) --
+
+
+def test_an_event_predicate_naming_no_declared_event_is_an_error(tmp_path: Path) -> None:
+    """A typo in `event_active` / `held_before_event` / `event_seen` is false
+    forever and silently: the validator names it."""
+    events = {"events": {"hanging_fair": {"on_day": 3, "forces_scene": "fair"}}}
+    decks = {"fair": _deck("fair", when={"all": [{"event_active": "hanging_fiar"},
+                                                 {"held_before_event": "hanging_fair"}]})}
+    issues = _issues(tmp_path, decks, events)
+    hits = [i for i in issues if "hanging_fiar" in i]
+    assert hits and "fair.yaml" in hits[0], issues
+    assert not [i for i in issues if "'hanging_fair'" in i], issues
+
+
+def test_an_event_predicate_naming_a_declared_event_is_clean(tmp_path: Path) -> None:
+    events = {"events": {"hanging_fair": {"on_day": 3, "forces_scene": "fair"}}}
+    decks = {"fair": _deck("fair", when={"all": [{"event_active": "hanging_fair"},
+                                                 {"event_seen": ["hanging_fair"]},
+                                                 {"held_before_event": "hanging_fair"}]})}
+    issues = _issues(tmp_path, decks, events)
+    assert not [i for i in issues if "event" in i.split("|")[-1] and "declare" in i], issues
+
+
+# -- the re-arm trigger, by the kind of row that forces (T3 review round 2) -----
+
+
+def _one_story(tmp_path: Path, decks: dict[str, Any], events: dict[str, Any]) -> None:
+    set_overlay({"paths": _write_story(tmp_path, decks, events)})
+    schedules._SCHEDULE_CACHE = None
+    director._WARNED_FORCED = None
+
+
+def _clear_story() -> None:
+    schedules._SCHEDULE_CACHE = None
+    director._WARNED_FORCED = None
+    set_overlay(None)
+
+
+def test_a_card_forced_repeatable_deck_is_dealt_once_per_event(tmp_path: Path) -> None:
+    """The reviewer's probe: a repeatable deck whose `when:` never holds, with
+    one of its CARDS forced by an event. The forced-card path ignores the
+    deck's `when:`, so the card deals; the event is its trigger, and while
+    the event stands the deck stays spent -- one deal, not one a turn."""
+    deck = _deck("brawl", when={"flag": "never_set"}, repeatable=True)
+    events = {"events": {"market_day": {"on_day": 2, "duration_days": 1,
+                                        "forces_scene": "brawl_card"}}}
+    _one_story(tmp_path, {"brawl": deck}, events)
+    try:
+        state = _world([])
+        _to_day(state, 2)
+        dealt = []
+        for _ in range(5):
+            dealt += _turn(state)
+            clock_module.advance_time(state, 1)
+        assert dealt == ["brawl"], dealt
+    finally:
+        _clear_story()
+
+
+def test_a_deck_forced_repeatable_deck_with_a_when_re_arms_on_its_when(tmp_path: Path) -> None:
+    """The fair's shape: forced as a DECK by a declared event and gated on its
+    own `when:`. Walking off the green (the `when:` falls) re-arms it while
+    the event still stands; coming back deals it again, once."""
+    deck = _deck("fair", when={"all": [{"event_active": "the_fair"}, {"flag": "on_green"}]},
+                 repeatable=True)
+    events = {"events": {"the_fair": {"on_day": 2, "duration_days": 2, "forces_scene": "fair"}}}
+    _one_story(tmp_path, {"fair": deck}, events)
+    try:
+        state = _world([])
+        _to_day(state, 2)
+        dealt = []
+        for on_green in (True, True, False, True, True):
+            apply_effect(state, {"type": "flag", "flag": "on_green", "value": on_green})
+            dealt += _turn(state)
+        assert dealt == ["fair", "fair"], dealt
+    finally:
+        _clear_story()
+
+
+def test_a_clock_forced_repeatable_deck_never_re_arms(tmp_path: Path) -> None:
+    """A clock beat's row is permanent, so a deck it forces is its promise
+    kept once -- `when:` or no `when:` (rearm's docstring)."""
+    deck = _deck("omen", when={"flag": "on_green"}, repeatable=True)
+    _one_story(tmp_path, {"omen": deck}, {"events": {}})
+    try:
+        state = _world([])
+        state.world_events.append({"event_id": "clock_beat_omen", "forces_scene": "omen"})
+        dealt = []
+        for on_green in (True, True, False, True, False, True):
+            apply_effect(state, {"type": "flag", "flag": "on_green", "value": on_green})
+            dealt += _turn(state)
+        assert dealt == ["omen"], dealt
+    finally:
+        _clear_story()

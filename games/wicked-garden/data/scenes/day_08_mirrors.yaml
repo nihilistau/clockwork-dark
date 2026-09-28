@@ -121,13 +121,13 @@ cards:
     required: true
     tags: [menu, setpiece, gm]
     title: "The Mirror of Endings"
+    # RUNTIME: call `endings.recompute(state)` before narrating this card. It
+    # writes `ending_eligible` and `ending_scores`, which Day 9 takes as its
+    # prerequisite. Nothing here computes eligibility by hand.
     text: >-
       INTENT: the eligible endings shown as clear petal cards, the ineligible
       ones as silhouettes with the lock reasons `endings.yaml` authored. This is
       a PREVIEW, not a commitment; Day 9 commits.
-      RUNTIME: call `endings.recompute(state)` before narrating this card. It
-      writes `ending_eligible` and `ending_scores`, which Day 9 takes as its
-      prerequisite. Nothing here computes eligibility by hand.
       CONSTRAINT: Sophia may appear at the pool edge if favour is high or the
       compass is the dual path -- *if you pick the door, look at me while you do
       it.* Ashen appears on the winter road -- *if you pick the rose, remember
@@ -145,12 +145,12 @@ cards:
               - { type: value, name: autonomy, delta: 3 }
 
       - id: swear_the_reflection
+        # RUNTIME: call `endings.set_intent(state, <id>)`. It refuses anything
+        # not in the eligible set and applies the ending's `closes:` list as
+        # `ending_closed_*` flags. The buff toward the sworn path is the
+        # equality seed and the knowledge below.
         text: >-
-          RUNTIME: call `endings.set_intent(state, <id>)`. It refuses anything
-          not in the eligible set and applies the ending's `closes:` list as
-          `ending_closed_*` flags. The buff toward the sworn path is the
-          equality seed and the knowledge below; the cost is that some
-          reflections go dark and stay dark.
+          The cost of swearing is that some reflections go dark and stay dark.
         gate:
           when: { ending: { eligible: E4e } }
           on_pass:
@@ -198,12 +198,16 @@ cards:
               - { type: value, name: desire, delta: 6 }
 
       - id: shatter_it_with_the_knife
+        # RUNTIME: this beat moves two values and cuts nothing. NOT WIRED
+        # (docs/GOVERNANCE.md): the seeded cut it was written for,
+        # `threads.cut_arbitrary(state, using="mirror_glass_knife")` in
+        # engine/game/threads.py, which would free the Vale's service or break
+        # her gift with equal probability. It has no production caller, nor
+        # does `threads.cut`, so threads.yaml's `cutters` block only filters
+        # what a thread's `can_cut_with` may list; no thread is ever cut.
         text: >-
           The mirror-glass knife cuts a bargain when it cuts the glass, and the
-          player does not choose which one. RUNTIME: this is
-          `threads.cut_arbitrary(state, using="mirror_glass_knife")` -- it is
-          seeded and reproducible, and it may free the Vale's service or break
-          her gift with equal probability.
+          player does not choose which one.
         gate:
           when: { has_item: mirror_glass_knife }
           on_pass:
@@ -420,10 +424,13 @@ cards:
       over an active Vale thread; on every other run this card deals and stays
       silent, like the Deep's mouth and the mask above it. He is never rescue
       and never cruelty for its own sake: this is a creditor, collecting.
-      RUNTIME: discharge or break the `ashen_service_owed` thread through the
-      thread tool -- the account book is the thread's final status, not this
-      card's.
       MENU -- resolve exactly the beat the player chose.
+    # RUNTIME (an author's note, moved out of the text in v0.17.0: the
+    # narrator never acts, AGENTS.md rule 1): discharge or break the
+    # `ashen_service_owed` thread -- the account book is the thread's final
+    # status, not this card's. No card effect touches a thread; the player
+    # settles one with the `discharge` verb, which the engine executes and
+    # which is not offered while a card is dealt.
     beats:
       - id: carry_winters_errand
         text: >-
@@ -515,6 +522,17 @@ cards:
               - { type: value, name: desire, delta: 4 }
 
       - id: the_asking_night
+        # WHY IT IS NOT ON D8_05: `thrall_consent` used to have exactly one
+        # author, `the_almost_thrall_conversation`, which is a beat of the war
+        # table -- and so is `plan_public_leverage`, the only author of
+        # `public_seal`. One menu card resolves ONE beat, so E3b (Display
+        # thrall) required two flags that could not both exist, and was dead
+        # rather than rare. Consent lives on the night instead, where nothing
+        # competes with it.
+        # The two doors are the compass or her own terms: a devotion run
+        # arrives here already leaning, and a run she demanded the
+        # keeping-talk on can say yes to it whatever compass it walked in on
+        # -- which is what makes the condemn-then-submit arc reachable.
         text: >-
           The second road to the thing itself, and the only one that is not on
           the war table: the player asks, awake, in their own words, on the
@@ -523,17 +541,6 @@ cards:
           before she will believe it. Consent asked for is still consent, and
           this is the most consent-forward scene in the story precisely
           because she was not the one who raised it.
-          WHY IT IS NOT ON D8_05: `thrall_consent` used to have exactly one
-          author, `the_almost_thrall_conversation`, which is a beat of the war
-          table -- and so is `plan_public_leverage`, the only author of
-          `public_seal`. One menu card resolves ONE beat, so E3b (Display
-          thrall) required two flags that could not both exist, and was dead
-          rather than rare. Consent lives on the night instead, where nothing
-          competes with it.
-          The two doors are the compass or her own terms: a devotion run
-          arrives here already leaning, and a run she demanded the
-          keeping-talk on can say yes to it whatever compass it walked in on
-          -- which is what makes the condemn-then-submit arc reachable.
         gate:
           when:
             all:
@@ -564,11 +571,10 @@ cards:
               - { type: value, name: time_debt_mortal_days, delta: 10, why: "day 8 toll" }
 
       - id: the_gallery_opens
-        text: >-
-          RUNTIME: `endings.recompute(state)` once more, after the day's writes.
-          Day 9 takes `ending_eligible` as its prerequisite and recomputes if
-          missing, but arriving with a stale list is how a finale offers a card
-          the morning invalidated.
+        # RUNTIME: `endings.recompute(state)` once more, after the day's writes.
+        # Day 9 takes `ending_eligible` as its prerequisite and recomputes if
+        # missing, but arriving with a stale list is how a finale offers a card
+        # the morning invalidated.
         gate:
           on_pass:
             effects:

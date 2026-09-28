@@ -1,0 +1,83 @@
+# HUE & CRY -- the heart goes home: THE LEGEND's getaway.
+#
+# v0.17 Task 6. The fair's Showing (data/scenes/fair_day.yaml F2_the_showing,
+# `lift_the_heart`) is the heist: a severe stealth roll that puts the
+# Everflame's heart under the thief's coat. It is NOT the ending. The lock
+# belongs on the GETAWAY (T3's ruling, recorded in fair_day.yaml's header): a
+# thief who wins the heart and is taken before they are clear -- the Watch
+# takes it back at the arrest, it being hot for good (thievery.yaml) -- does
+# not end as a legend. So the heist starts this quest, and the quest is the
+# door.
+#
+# WHERE "AWAY" IS. The Snuffs: the Company's ward, where nobody goes to the
+# Watch (law.yaml `reporters`) and nobody asks what is under a porter's coat.
+# One street from the Green, and every step of it through a city whose every
+# Lantern is on fair duty and whose file on the Magpie has just gained a
+# sacrilege -- the patrol that walks with the thief is the getaway's risk.
+#
+# THE DOOR IS THE ENDING'S GATE. `complete_when` asks
+# `{ending: {eligible: the_legend}}` itself (AUTHORING §3.5): the heart in hand
+# and the thief free. It locks `the_legend` BY NAME (an id-less lock asks
+# `endings.resolve()`, which can land on the fail-forward) and plays its
+# module. The heart lost -- confiscated at an arrest -- fails the quest
+# (`fail_when`), so the objective never stands in the journal over an empty
+# coat.
+#
+# NOT PARTNERS'. A thief who threw in with the Magpie is offered the heart
+# WITH the Magpie at the fair (F6_the_heist_together), which locks Partners on
+# the card; F2 -- and so this quest -- is not dealt to them while that door is
+# open. And Guildmaster's door, the Porters' Hall in the same Snuffs, is never
+# open to a thief holding the heart (endings.yaml): no hand in the Snuffs holds
+# a second door while this one closes.
+#
+# Version: v0.1.1 [2026-09-28] -- the heist's ledger fact is written here (T8 fix round 1)
+
+id: the_heart_goes_home
+arc: the_hanging_fair
+name: "The Heart Goes Home"
+
+preconditions:
+  has_item: everflame_heart
+
+summary: >-
+  The Everflame's heart is under your coat, and every Lantern in Tallowmere is
+  about to find out.
+
+# The heist's ledger fact (moved here from fair_day.yaml F2 in T8's fix round
+# 1, where an outcome's four effects are spent): the quest starts the turn the
+# heart is lifted, whatever becomes of the getaway.
+on_start:
+  effects:
+    - type: ledger_fact
+      kind: theft
+      text: "You took the Everflame's heart off the palace steps at the Hanging Fair, in front of the whole city."
+
+start_text: >-
+  Behind you, up the Hill, somebody in the household is holding up a glass of
+  nothing to the sun, and has not noticed yet.
+
+stages:
+  - id: home
+    objective: "Get the Everflame's heart down into the Snuffs, where nobody talks to the Watch."
+    complete_when:
+      all:
+        - at_location: the_snuffs
+        - ending: { eligible: the_legend }
+    fail_when:
+      not_has_item: everflame_heart
+    fail_text: >-
+      The Watch has the Everflame's heart back, and the household is already
+      polishing your fingerprints off it.
+    complete_text: >-
+      The Snuffs close round you like a coat, and nobody so much as looks up.
+
+on_complete:
+  effects:
+    - type: ledger_fact
+      text: "You carried the Everflame's heart off the palace steps and home to the Snuffs, and the Watch never laid a hand on you."
+      kind: event
+    - { type: ending_lock, ending: the_legend }
+    - { type: ending_module }
+
+complete_text: >-
+  Up on the Hill the bells are still ringing.

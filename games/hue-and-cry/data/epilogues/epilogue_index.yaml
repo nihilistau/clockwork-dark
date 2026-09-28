@@ -4,24 +4,82 @@
 # below must be a class id in data/rules/endings.yaml, and every `id:` must
 # have a card in the file named by `prose_source`.
 #
-# Version: v0.1.0 [2026-09-23]
+# Version: v0.4.0 [2026-09-28] -- endings II
 
 version: 1
 prose_source: epilogue_cards.yaml
 
 # `{garden_days}` is the engine's name for the in-game day count, whatever the
-# story calls its calendar.
+# story calls its calendar. ONE template serves every ending, so it says how
+# long the run lasted and never how it ended (until v0.17 it read "back on the
+# evening one", the barge's ending, told to all of them).
 time_line_template: >-
-  Off the morning barge and back on the evening one: {garden_days}
+  Off the morning barge on the first day: {garden_days}
   {garden_days_word} in Tallowmere, start to finish.
 
 render_order: [title, card_m, card_g, echoes, time_line, gallery_unlock]
 
 endings:
 
+  # v0.17 Task 5: the Watch takes the right thief -- at the fair, or after it.
+  - id: cleared
+    class: cleared
+    title: "Cleared"
+    gallery_key: magpie_taken
+    echo_speaker: [npc_ardane]
+    ng_plus_seed: null
+
+  # v0.17 Task 5: the captain's badge.
+  - id: a_lantern
+    class: a_lantern
+    title: "A Lantern"
+    gallery_key: lantern_badge
+    echo_speaker: [npc_brask]
+    ng_plus_seed: null
+
   - id: honest_after_all
     class: honest_after_all
     title: "Honest After All"
     gallery_key: evening_barge
     echo_speaker: [npc_dock_mag]
+    ng_plus_seed: null
+
+  # v0.17 Task 6: the heart taken with the Magpie, at the fair.
+  - id: partners
+    class: partners
+    title: "Partners"
+    gallery_key: two_on_the_roofs
+    echo_speaker: [npc_ardane]
+    ng_plus_seed: null
+
+  # v0.17 Task 6: the heart taken alone, and carried home to the Snuffs.
+  - id: the_legend
+    class: the_legend
+    title: "The Legend"
+    gallery_key: everflame_heart
+    echo_speaker: [npc_sister_ember]
+    ng_plus_seed: null
+
+  # v0.17 Task 6: Mother Gannet's needles, at the long table.
+  - id: guildmaster
+    class: guildmaster
+    title: "Guildmaster"
+    gallery_key: gannets_needles
+    echo_speaker: [npc_gannet]
+    ng_plus_seed: null
+
+  # v0.17 Task 6: Silas Crook's Company, at the fair.
+  - id: the_dappers_city
+    class: the_dappers_city
+    title: "The Dapper's City"
+    gallery_key: plum_ribbons
+    echo_speaker: [npc_silas]
+    ng_plus_seed: null
+
+  # The fail-forward (v0.17): taken at the fair, hanged at the fair.
+  - id: the_rope
+    class: the_rope
+    title: "The Rope"
+    gallery_key: hanging_fair
+    echo_speaker: [npc_ardane]
     ng_plus_seed: null

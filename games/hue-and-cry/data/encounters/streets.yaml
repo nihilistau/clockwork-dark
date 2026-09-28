@@ -41,8 +41,9 @@
 #   18:00), in Wickmarket and the Snuffs only, at a `min_chance` floor of
 #   10% -- about 8% a leg, below the night's worst (see the rows).
 #
-# REAL STAKES, NOT A DEATH. HUE & CRY ships no death.yaml until v0.17 (hp can
-# reach 0 with no respawn), so a street takes coin, stamina, a night's
+# REAL STAKES, NOT A DEATH. Written when HUE & CRY shipped no death.yaml (hp
+# could reach 0 with no respawn; since v0.17 it respawns in the Snuffs,
+# data/rules/death.yaml), so a street takes coin, stamina, a night's
 # dignity, your liberty -- and at worst three hp in a fight lost
 # (tests/test_hue_and_cry.py holds that line). A robbery takes two crowns --
 # a day's bread and a bed. MEASURED at three (simulate_labour, 40 seeds x 10

@@ -274,10 +274,11 @@ def test_no_livelihood_system_logs_an_error_in_any_game(
     # fail for a fact about character generation.
     #
     # Same for death rules: foraging spends hours, hours run `check_death`,
-    # and HUE & CRY ships no death.yaml until v1.0 -- which it warns about,
-    # once per activation, on purpose (test_hue_and_cry's
-    # `test_the_missing_death_rules_are_warned_about_once`). Spend that one
-    # warning here, in setup, where it is not on trial.
+    # and a story that ships no death.yaml warns about it once per
+    # activation, on purpose (test_encounter's
+    # `test_missing_death_rules_are_warned_about_once`; HUE & CRY ships one
+    # since v0.17). Spend any such warning here, in setup, where it is not on
+    # trial.
     from engine.game import encounter
 
     encounter.load_death_rules()

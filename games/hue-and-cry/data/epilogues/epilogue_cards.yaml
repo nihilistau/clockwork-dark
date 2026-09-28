@@ -6,11 +6,56 @@
 #   card_m  what happens to you
 #   card_g  what Tallowmere does about it
 #
-# Version: v0.1.0 [2026-09-23]
+# Version: v0.4.0 [2026-09-28] -- endings II
 
 version: 1
 
 cards:
+
+  # v0.17 Task 5. Names nobody as the Magpie: the card is the same for all
+  # three the seed may choose, so it says "the right drawing", never whose.
+  cleared:
+    title: "Cleared"
+    card_m: |-
+      You stay in Tallowmere, which surprises everybody, you most of all. The
+      Lantern House owes you a debt it has no idea how to pay, so it pays it
+      in the only coin it has: no Lantern ever stops you in the street again.
+      You find honest work on the quay, and Dock Mag introduces you to every
+      new hand as "the one who wasn't", which is the nearest thing to a
+      title the docks give out.
+
+      The jackdaw stayed. He has one eye, no sense of property, and a
+      standing grudge against the ballad-sellers, who never once put him in
+      the song.
+    card_g: |-
+      The Watch closes its Magpie file with the right drawing pinned to the
+      front at last, and the broadsheets print a new woodcut and sell twice
+      as many as before.
+
+      Captain Ardane keeps the old drawing -- the one with your nose -- in
+      the desk drawer that sticks, and takes it out now and then, whenever a
+      young Lantern is very, very sure of something.
+
+  # v0.17 Task 5.
+  a_lantern:
+    title: "A Lantern"
+    card_m: |-
+      You wear the lantern badge for eleven years. You walk the Wick at dusk
+      with a brass pole and learn every lamp in the city by the sound its
+      shutter makes, and you never stop the young Lanterns telling the story
+      of the first morning, because it makes them look twice before they
+      shout.
+
+      The jackdaw has a badge of his own now. Nobody gave it to him.
+    card_g: |-
+      Tallowmere sleeps a little easier and is robbed a little less, and the
+      Honest Company takes it personally: a scarf arrives at the Lantern
+      House in the Company's colours, knitted, with a note that says only
+      "traitor". You wear it every winter.
+
+      Captain Ardane retires in your fourth year and leaves you the tall
+      desk, the file drawer that sticks, and Sergeant Brask, who comes with
+      the desk and always has.
 
   honest_after_all:
     title: "Honest After All"
@@ -26,9 +71,125 @@ cards:
       The jackdaw stayed. He has one eye, no sense of property, and he still
       insists, to anyone who will listen, that he is a magpie.
     card_g: |-
-      In Tallowmere the Magpie goes on stealing things that shine, and the
-      broadsheets go on putting a face to it, and for one season the face
-      looks a little like yours. Then the drawing changes. Captain Ardane
-      takes your description off the wanted board herself, folds it in four,
-      and keeps it in her desk -- not because she thinks she was wrong, but
-      because she cannot yet prove who was right.
+      In Tallowmere the broadsheets go on selling the Magpie, and for one
+      season the woodcut looks a little like you. Then the drawing changes.
+      Captain Ardane takes your description off the wanted board by hand,
+      folds it in four and keeps it in the desk drawer that sticks. Nobody
+      at the Lantern House asks why, and the captain does not say.
+
+  # v0.17 Task 6. The Magpie is named nowhere: the card is the same whoever
+  # the seed made the Magpie, and it never says which of them it was.
+  partners:
+    title: "Partners"
+    card_m: |-
+      There are two Magpies now, which the ballad-sellers never work out, and
+      which explains a great deal about the next ten years in Tallowmere: how
+      the Magpie can be seen on the quay and on Silk Row in the same hour, and
+      why the Magpie has started taking things in pairs.
+
+      You never learn to like heights. The jackdaw never learns to like your
+      partner. Neither of you ever gets caught.
+    card_g: |-
+      The Everflame burns on in its crystal on the Hill, with a very good
+      glass copy at its heart, which the household swears was always there
+      and the Temple blesses twice a year without looking too closely.
+
+      Captain Ardane keeps the Magpie's file open for the rest of a long
+      career. The drawing with your nose on it is still pinned to the front.
+      It is, the captain says to anyone who asks, half right.
+
+  # v0.17 Task 6.
+  the_legend:
+    title: "The Legend"
+    card_m: |-
+      You never sell it. You could not: no counter in the city would touch it,
+      and after the first week you would not have let it go for Silk Row put
+      together. You keep it wrapped in a porter's smock under a loose board,
+      and on the longest night of the year you take it out and let it throw
+      one candle's light round the room like a whole sky.
+
+      The jackdaw sleeps on the board. He has never once tried to take it,
+      which you choose to find touching.
+    card_g: |-
+      The Temple of the Everflame declares a year of penance and lights a
+      thousand more tapers; the household installs a glass copy and swears
+      the flame never noticed. The Hanging Fair goes on every year, and the
+      Showing with it, and every year the whole city climbs the Hill to watch
+      a glass of nothing catch the sun.
+
+      The ballad about the thing nobody could possibly steal is sung on the
+      Green for a hundred years. It never has a name in it. That, you
+      decide, is what a legend is.
+
+  # v0.17 Task 6.
+  guildmaster:
+    title: "Guildmaster"
+    card_m: |-
+      You run the Honest Company for twenty-two years from the chair at the
+      head of the long table, which never does take your shape. You keep two
+      ledgers, and the honest one stays honest, which surprises the city more
+      than anything the Magpie ever took.
+
+      You never learn to knit. The jackdaw learns to unpick, which Mother
+      Gannet, retired to a cottage up the coast, says in her letters is the
+      more useful half of the skill.
+    card_g: |-
+      The Company carries the city's tallow by night and robs nobody on the
+      Green, by long custom, and on fair days every house in Tallowmere is
+      half empty.
+
+      Silas Crook opens a very respectable shop on Silk Row and raises his hat
+      to you in the street. You raise yours back. Neither of you ever turns
+      your back on the other.
+
+  # v0.17 Task 6. Bittersweet by design: nothing here is a punishment.
+  the_dappers_city:
+    title: "The Dapper's City"
+    card_m: |-
+      You do well out of it. That is the trouble. You have a room above the
+      taproom with a carpet, a share of every toll in the Snuffs, and a plum
+      ribbon you stop noticing after a year; and some nights, going home up
+      the back stair, you catch yourself listening for the click of Mother
+      Gannet's needles in the Hall, and there is nothing there.
+
+      The jackdaw left in the first winter, for the docks. You tell people he
+      was always half wild. It is not quite true.
+    card_g: |-
+      The Honest Company becomes Crook's Company in everything but the
+      charter, which Silas has framed in gilt. The toll goes up. The porters
+      carry the city's tallow for a better wage and a worse master, and the
+      Watch finds, to its surprise, that it prefers dealing with a
+      businessman.
+
+      Mother Gannet writes to you once a year from a cottage up the coast. The
+      letters are kind, and there is always a pair of knitted socks inside,
+      and they are always a little too small.
+
+  # The QfG death screen: it laughs WITH the player. Nothing on the scaffold
+  # is described; the fair looks at the pies, and so does this card.
+  the_rope:
+    title: "The Rope"
+    card_m: |-
+      You are hanged at the Hanging Fair, on the last morning, between the
+      candle-race and the procession up the Hill, which is to say on
+      schedule. It is, everyone agrees, a lovely day for it.
+
+      The ballad about you is on sale by noon. It gets your nose right and
+      everything else wrong, rhymes "Tallowmere" with "never here", and
+      sells four hundred copies, which is more than anything you ever did
+      in the city while you were alive to do it. Children sing it on the
+      Green for years. Nobody sings the verse about you being innocent,
+      because there isn't one.
+
+      Thank you for visiting Tallowmere. Would you like to restore, to
+      restart, or to buy a pie? The pies are very good this year.
+    card_g: |-
+      The Watch closes the Magpie's file on the afternoon of the fair, with
+      your drawing pinned to the front, and Sergeant Brask celebrates with a
+      pastry he does not put down for anybody. The broadsheets say the city
+      can sleep.
+
+      A week later something that shines goes missing from the Hill. Captain
+      Ardane takes the file back out of the drawer, looks at the drawing
+      for a long time, and says nothing to anyone, which the Lantern House
+      has learned is worse than shouting. The jackdaw kept the button.

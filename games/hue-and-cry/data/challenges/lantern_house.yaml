@@ -1,0 +1,188 @@
+# HUE & CRY -- the jailbreak: going out of the Lantern House cells without
+# paying and without waiting (v0.17).
+#
+# Read by engine/challenges/set_pieces.py through `paths.challenges`. The
+# third way out of a cell, beside `pay_fine` and `serve` (docs/AUTHORING.md
+# §3.11), and on the Hanging Fair's last morning the only one for a thief
+# the Watch saved up for it who cannot pay: the gallows deck
+# (data/scenes/the_gallows.yaml) is dealt at nine on day 12 to a thief STILL
+# HELD, and a thief who broke out before nine is not held.
+#
+# WHEN IT IS OFFERED. `requires: {in_custody: true}` at `lantern_house` (the
+# law file's gaol): only in the cells, only while held, through the
+# `set_piece` verb. Not while a card is open -- the interrogation dealt on
+# the first turn of every stay is the turn until it is answered -- and
+# offered from the next turn on. ONE TRY A DAY (`retry: next_day`, fix round
+# 1): a failed attempt closes it for the rest of that world day, and
+# midnight opens it again. It takes no in-game time. So a thief held since
+# before the fair has a try on day 10, one on day 11 and one on day 12 before
+# nine -- the gallows' hour.
+#
+# EXACTLY ONE OF THE TWO PIECES IS OFFERED AT A TIME. `lantern_house_break`
+# (the ring on the nail) until it has once succeeded -- its `grants_flag`
+# retires it, which is the engine's one-shot -- and from then on
+# `lantern_house_break_again` (the window bar), which READS that flag
+# (`requires_flags`) and grants none, so it is offered on every later stay.
+# The Watch chains its keys after the first time; it does not wall up the
+# window. So no stay -- a first arrest or a fifth, before the fair or on its
+# last morning -- is ever without a way out but the fine and the wait.
+#
+# A GAUNTLET, NEVER A DICE TABLE (AUTHORING §3.11): the runner treats every
+# dice-table row as a success, so a row written as "the Lantern wakes" would
+# still free the prisoner. Two rolled steps; the first failure ends it, and
+# the `fail` outcome keeps the thief held.
+#
+# SUCCESS: `release` -- custody clears, the thief stands free on the Lantern
+# House's back step (the gaol; the engine moves nobody) -- and a fresh
+# `escape` report, filed by the Lantern House itself against your own face
+# in the Wick wards at precision 1.0: they had you in a cell, they know the
+# face. Unlike paying or serving, a break-out DISCHARGES NOTHING: every deed
+# the arrest charged is still on file, and the escape is filed on top.
+# `escape`'s severity, and what it does to the thief's band, are measured in
+# law.yaml's header. The narrator hears the reward's text and the report
+# (the Law block: the Wick's band for your face).
+#
+# FAILURE: a hiding, `hp -3`, the cell door locked again, and no second try
+# until tomorrow. The sentence and the fine stand exactly as they were (see
+# below), the bench is still a bed (survival.yaml `sleep_cell`, rule 6), and
+# `serve` still ends the stay. WHY A DAY: a try costs no time, so without it
+# a thief could roll again and again inside one turn -- about one in three a
+# try, six tries to a fresh thief's hp -- and walk out nine times in ten, for
+# less than a fine or a day in the cells (the review of v0.17 T4). The cells
+# heal nothing (the bench's hp is 0). A hiding can kill a thief already
+# low -- before the fair a respawn on the same bench, still held (death.yaml
+# `respawn.in_custody`); held during the fair, The Rope (death.yaml
+# `terminal`) -- checked on the step that took it (engine/challenges/
+# runner.py). The failure texts say nothing of how badly you are hurt, so
+# they read true before the death's own text too.
+#
+# WHY NOT MORE DAYS ON FAILURE. The engine has no authored way to change a
+# stay's `days`: the custody record is written by `arrest` alone (from the
+# charge sheet) and counted down by `serve` (`custody_served`), and no card,
+# thread or set-piece effect can reach it -- deliberately, as `release` is a
+# set-piece's alone and `arrest` an authored choice's. So failure costs hp,
+# not time. A report on a failed attempt was considered and left out: every
+# retry would file another, and a thief who tried four times would be
+# `hunted` for a break-out that never happened.
+#
+# THE ODDS (rule 10). Both steps `easy` (DC 10) on both pieces. From the
+# engine's own modifiers (checks.gather_modifiers), a try clears:
+#
+#                    the ring (stealth, nerve)   the window bar (craft, stealth)
+#   cutpurse          0.65 x 0.50 = 0.33          0.55 x 0.65 = 0.36
+#   silver-tongue     0.55 x 0.50 = 0.28          0.55 x 0.55 = 0.30
+#   bruiser           0.50 x 0.65 = 0.33          0.55 x 0.50 = 0.28
+#
+# and scripts/simulate_law.py --break-out (40 seeds, 10 days, the harness's
+# cutpurse, one try an arrest and then the fine or the days) measured:
+#
+#                         before fix round 1         one try a day (shipped)
+#   careful, opening c    37 of 40 walked out        13 of 40 arrests (0.33)
+#                         (103 tries, 0.36 a try)    27 paid the fine
+#   reckless              54 escapes in 144 tries    16 of 43 arrests (0.37)
+#                                                    17 served, 10 paid
+#
+# Before, a try cost no time and could be rolled again at once, so nine
+# thieves in ten walked out of every stay: cheaper than a three-crown fine.
+# Now a break-out is a one-in-three gamble a day against the fine or a day's
+# sentence -- and a hiding if it fails. A thief saved up for the fair gets at
+# least three: day 10, day 11, and day 12 before nine, so about 0.7 escape the
+# gallows by the break-out alone (1 - 0.67^3), before the fine. At
+# `standard` (DC 13) the ring would be 0.14 to 0.18 a try, and three tries
+# would free about four in ten: the fair's one door, mostly shut.
+#
+# Secrecy: nothing here names or guesses the Magpie.
+#
+# Version: v0.1.1 [2026-09-27]
+
+set_pieces:
+
+  - id: lantern_house_break
+    location_id: lantern_house
+    requires: { in_custody: true }
+    grants_flag: broke_out_of_the_lantern_house
+    retry: next_day
+    challenge:
+      id: lantern_house_break
+      kind: skill_gauntlet
+      title: "The Ring on the Nail"
+      steps:
+        - skill: stealth
+          difficulty: easy
+          text: >-
+            The Lantern on the cells door is asleep in his chair with his mouth
+            open, and his ring of keys hangs on a nail an arm and a blanket's
+            length from your bars. The jackdaw on the window ledge watches it
+            with professional interest. Hook it off without a jingle.
+          on_fail_text: >-
+            The ring jingles. The Lantern wakes, and he and the desk give you a
+            hiding for your cheek and hang the keys somewhere else.
+        - skill: nerve
+          difficulty: easy
+          text: >-
+            The key turns. Now the corridor, the duty desk at the end of it,
+            and a Lantern writing up the charge-book with his tongue between
+            his teeth. Walk past him as if somebody sent for you.
+          on_fail_text: >-
+            Halfway past the desk the pen stops. They walk you back to the cell
+            by the elbows, not gently, and a boot helps you through the door.
+      reward:
+        text: >-
+          Nobody looks up. You are out of the cells and standing on the Lantern
+          House's back step in the lamp-smoke, free -- and somewhere behind
+          you a Lantern is about to find an empty cell and write it in the
+          charge-book in capital letters.
+        effects:
+          - { type: release }
+          - { type: report, deed: escape, guise: self, jurisdiction: wick, precision: 1.0 }
+      fail:
+        text: >-
+          The cell door shuts on you again and the bolt goes home.
+        effects:
+          - { type: hp, delta: -3 }
+
+  - id: lantern_house_break_again
+    location_id: lantern_house
+    requires: { in_custody: true }
+    requires_flags: [broke_out_of_the_lantern_house]
+    retry: next_day
+    challenge:
+      id: lantern_house_break_again
+      kind: skill_gauntlet
+      title: "The Window Bar"
+      steps:
+        - skill: craft
+          difficulty: easy
+          text: >-
+            Since your last visit the ring of keys is chained to a Lantern's
+            belt, and there is a new notice on the wall about it. But one bar
+            in the cell window has rusted in its socket, and a supper spoon
+            has a good strong handle. Work it loose.
+          on_fail_text: >-
+            The spoon handle snaps with a crack like a pistol. The Lantern who
+            comes to look brings two friends and they give you a hiding for
+            the spoon.
+        - skill: stealth
+          difficulty: easy
+          text: >-
+            The bar comes out. Through the window, across the Watch's yard in
+            the dark, and over the wall by the rain-barrel while the lamps
+            swing past the gate.
+          on_fail_text: >-
+            The rain-barrel goes over with a noise like the end of the world.
+            They haul you back in through the front door and give you a
+            hiding on the way.
+      reward:
+        text: >-
+          You drop into the lane behind the Lantern House with a scrape on
+          each palm and nobody shouting yet. Free -- and by the morning the
+          whole Watch will know which cell has a bar missing.
+        effects:
+          - { type: release }
+          - { type: report, deed: escape, guise: self, jurisdiction: wick, precision: 1.0 }
+      fail:
+        text: >-
+          The cell door shuts on you again, and this time a Lantern sits on a
+          stool outside it for a while, looking at you.
+        effects:
+          - { type: hp, delta: -3 }

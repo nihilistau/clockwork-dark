@@ -198,6 +198,17 @@ class EffectContext:
 #: Registered effect kinds. Populated by ``@effect_kind`` at import time.
 _KINDS: dict[str, EffectHandler] = {}
 
+#: Kinds only the ENGINE may apply: bookkeeping whose one writer is an engine
+#: function, which authored content naming it would forge. Refused in an
+#: agenda move at load (``agendas.BOOKKEEPING_EFFECTS`` lists them), reported
+#: by the validator anywhere else in a story's files
+#: (``validation.check_law_effects``), and in no bounder's allowlist, so a
+#: card, a thread or a set-piece drops one. ``custody_served`` (v0.17):
+#: the hours of a sentence ``law.serve_sentence`` has served.
+#: ``law_deed_committed`` (v0.17): every deed ``law.commit_deed`` commits,
+#: seen or not.
+ENGINE_ONLY_EFFECTS: frozenset[str] = frozenset({"custody_served", "law_deed_committed"})
+
 
 def effect_kind(*names: str) -> Callable[[EffectHandler], EffectHandler]:
     """
@@ -1553,6 +1564,36 @@ def _e_release(state: GameState, effect: dict[str, Any], ctx: EffectContext) -> 
     return {"type": "release", "ok": True, "text": "released"}
 
 
+@effect_kind("custody_served")
+def _e_custody_served(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    Count ``hours`` of the live stay's sentence as served (v0.17). The only
+    writer of ``state.law["custody"]["served_hours"]``, and engine-only
+    (``ENGINE_ONLY_EFFECTS``): no story file may name it.
+
+    ``law.serve_sentence`` applies it after every step of the wait, so a
+    sentence a scene stopped part-way (``interrupted_by``) is resumed, not
+    begun again: the second ``serve`` waits out ``days x 24`` less what this
+    has counted. Bookkeeping, like ``law_discharge``: no receipt line, and
+    refused outside a live stay (the count belongs to the stay, and
+    ``release`` takes it away with the record).
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return _law_refusal("custody_served", "this story keeps no watch to hold anyone")
+    if not law.in_custody(state):
+        return _law_refusal("custody_served", "not held")
+    hours = _float(effect.get("hours"), 0.0)
+    if hours <= 0:
+        return _law_refusal("custody_served", "hours served must be more than none")
+    held = state.law["custody"]
+    held["served_hours"] = float(held.get("served_hours") or 0.0) + hours
+    return {"type": "custody_served", "ok": True, "hidden": True, "text": ""}
+
+
 @effect_kind("law_discharge")
 def _e_law_discharge(
     state: GameState, effect: dict[str, Any], ctx: EffectContext
@@ -1601,6 +1642,35 @@ def _e_law_discharge(
     return {"type": "law_discharge", "ok": True, "hidden": True, "text": ""}
 
 
+@effect_kind("law_deed_committed")
+def _e_law_deed_committed(
+    state: GameState, effect: dict[str, Any], ctx: EffectContext
+) -> dict[str, Any]:
+    """
+    Count one deed of ``deed`` the player committed, SEEN OR NOT (v0.17). The
+    only writer of ``state.law["committed"]`` (``{deed kind: times}``), and
+    engine-only (``ENGINE_ONLY_EFFECTS``): ``law.commit_deed`` applies it for
+    every deed it commits, before any witness is looked for, so a lift nobody
+    saw is counted exactly as one the whole market saw.
+
+    What the Watch KNOWS is its reports; this is what the player DID -- read
+    by the ``committed_deed`` predicate (HUE & CRY's Honest After All: no
+    thieving at all). A story with no Law never reaches it (``commit_deed``
+    returns first), so its saves never carry the key.
+    """
+    from engine.world import law
+
+    if not law.declared():
+        return _law_refusal("law_deed_committed", "this story keeps no watch")
+    kind = str(effect.get("deed") or "").strip()
+    if kind not in law.load_spec()["deeds"]:
+        return _law_refusal("law_deed_committed", f"unknown deed `{kind}`")
+    counts = dict(state.law.get("committed") or {})
+    counts[kind] = int(counts.get(kind) or 0) + 1
+    state.law["committed"] = counts
+    return {"type": "law_deed_committed", "ok": True, "hidden": True, "text": ""}
+
+
 @effect_kind("law_last_deed")
 def _e_law_last_deed(
     state: GameState, effect: dict[str, Any], ctx: EffectContext
@@ -1612,9 +1682,9 @@ def _e_law_last_deed(
     A SEEN deed is stamped ``{id, turn, where}`` -- the id its first witness
     row allocated, ``state.turn_number``, the place. An UNSEEN deed (no id:
     nobody saw it, so none was allocated) removes any earlier stamp instead,
-    which reads identically -- no seen deed this turn -- and keeps a clean
-    save clean: a deed nobody saw in a Law that holds nothing still writes
-    nothing at all.
+    which reads identically -- no seen deed this turn -- and writes no stamp
+    of its own. (The deed itself is still counted, seen or not, by
+    ``law_deed_committed``, v0.17.)
 
     ``commit_deed`` applies it for every deed, so the narrator's "you were
     seen" line (``prompts.law_block``) asks about THIS turn's deed and not
@@ -2444,6 +2514,7 @@ def apply_effects(
 
 
 __all__ = [
+    "ENGINE_ONLY_EFFECTS",
     "EQUIP_ID_PREFIX",
     "EQUIP_NEVER_EXPIRES",
     "EffectContext",

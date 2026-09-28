@@ -1,0 +1,537 @@
+# HUE & CRY -- the Hanging Fair: a day on Gallows Green.
+# =======================================================
+#
+# Act III (v0.17). Once a year Tallowmere holds the Hanging Fair on the Green
+# (data/lore/the_hanging_fair.md): stalls, ballads, candle-racing, the
+# Showing of the Flame on the palace steps up the Hill, and on the last
+# morning whatever hangings the Watch has saved up. This deck is the fair as
+# the thief walks into it, and it is where Act III's choices are made.
+#
+# Read by engine/content/deck.py through `paths.decks`; THE FILENAME IS THE
+# DECK ID.
+#
+# WHEN IT IS DEALT. FORCED by the declared world event `hanging_fair`
+# (data/world/schedules.yaml `forces_scene: fair_day`, days 10-12) and GATED
+# by its own `when:` below -- the event, the Green, and free. A forced deck
+# waits for its own `when:` (engine/content/director.py::due, v0.17 T1): so
+# the fair is dealt on the first turn the thief stands on Gallows Green while
+# it is on, not wherever they stand when it starts, and an arrest meanwhile
+# deals the interrogation as any arrest does. The `when:` names the event as
+# well as the Green because a deck's `when:` ALSO schedules it on its own:
+# without `event_active` the fair would be dealt on any visit to the Green.
+#
+# REPEATABLE: DEALT AGAIN ON EVERY RETURN (controller's ruling, T3 review
+# round 1). A door can come due after the first visit -- the Magpie unmasked
+# on day 11 by a thief who saw the fair on day 10 -- so each walk back onto
+# the Green while the fair is on deals the deck again: the director re-arms
+# it the first turn it sees the thief OFF the Green (`director.rearm`; a
+# forced deck with its own `when:` has that `when:` as its trigger, v0.17),
+# and one deal per visit, never twice while standing there. What must not
+# repeat does not: the Showing is `once`, and every door card is `once` or
+# offered only while its own ending is earned (below), so a return offers
+# exactly what has come due since. The spine is
+# required and so is dealt every time, but it tells the fair only once --
+# its first-visit beats gate on `not_flag: saw_the_hanging_fair`, which its
+# last beat sets -- and on a return it is the ballad and a line (asserted).
+# A thief who never walks to the Green in the three days never sees it, and
+# the Act (arcs.yaml `the_hanging_fair`) opens on the event either way.
+#
+# THE CARDS.
+#
+#   F1_the_green     the spine (required, sequence): the fair, the ballad --
+#                    which says what the Watch believes of you, read off the
+#                    Law's links, so a right naming changes the verse -- the
+#                    Showing of the Flame seen from the Green, and the
+#                    gallows in the middle of it all. On a return, the ballad
+#                    and a line that the fair goes on.
+#   F2_the_showing   the Everflame's heart on the palace steps (pool, menu,
+#                    `once`: one Showing, one try at the heart; not dealt
+#                    while Partners' F6 is, below):
+#                    watch it shine (no roll), or go up the Hill for it -- a
+#                    `severe` stealth roll. Won: the heart (items/goods.yaml
+#                    `everflame_heart`: named, shiny, a relic no counter
+#                    buys), stolen from the Margrave's household so hot for
+#                    good and taken back at any arrest; a ledger fact; a
+#                    `sacrilege` report against the MAGPIE's mask up the
+#                    Rise at 0.6 (law.yaml's header: yours while the Watch
+#                    links you, the Magpie's alone after a right naming);
+#                    and the Temple of the Everflame's good opinion, -10
+#                    (its first mover, v0.17 T6).
+#                    Lost: a Lantern had your wrist -- `sacrilege` against your
+#                    own face in the Wick at 1.0, `sought` for the rest of the
+#                    fair. A card cannot arrest; the patrol can.
+#   F3_the_real_magpie       Cleared's door (pool, menu, re-offered): below.
+#   F4_silas_makes_his_move  The Dapper's City's door (pool, menu,
+#                    re-offered): below.
+#   F6_the_heist_together    Partners' door (pool, menu, re-offered): below.
+#
+# THE ENDING DOORS (v0.17 Tasks 5 and 6). The endings that end AT the fair
+# are T5's and T6's to declare; this deck hosts their doors and locks nothing
+# it does not declare (the story's rule: every lock names a declared ending).
+# NO HAND HOLDS TWO: the three doors' gates keep them apart -- Cleared asks
+# the right naming, which shuts The Dapper's City and Partners; Partners asks
+# the partnership, which shuts The Dapper's City (asserted over every
+# combination of the facts they read, tests/test_hue_and_cry.py).
+#
+#   BUILT     F2_the_showing / lift_the_heart -- the heist, and NOT a door.
+#             It gives `everflame_heart`, which starts THE LEGEND's getaway
+#             (data/quests/the_hanging_fair/the_heart_goes_home.yaml): the
+#             lock is on getting the heart home to the Snuffs, so a thief who
+#             wins it and is taken first -- the Watch takes it back at the
+#             arrest -- does not end as a legend. No flag: the heart in the
+#             pack is the record, and a confiscation fails the getaway.
+#   BUILT     F3_the_real_magpie (v0.17 Task 5) -- the unmasked Magpie taken
+#             at the fair: CLEARED's door during the fair, and only Cleared's.
+#             A menu: see it done (locks `cleared` by name, then its module)
+#             or walk away (nothing locked; offered again on the next return
+#             while the fair is on -- NOT `once`, the exemption below). After
+#             the fair, Cleared's door is the front desk's D4.
+#             Its `when:` is `{ending: {eligible: cleared}}` -- the ending's
+#             own gate (`magpie_unmasked`, no wrong name left standing), so
+#             the door opens exactly when the ending is earned. It reads no
+#             `agenda_role` anywhere and names nobody: it is dealt only after
+#             the unmasking, when the narrator's GM line already names the
+#             Magpie (the mask's `unmask_when`). A LANTERN is NOT offered
+#             here: its door is the Lantern House front desk (D3_the_badge),
+#             so each door locks one ending and a thief who could have
+#             either chooses by where they walk.
+#   BUILT     F4_silas_makes_his_move (v0.17 Task 6) -- THE DAPPER'S CITY's
+#             door: Silas Crook's move for the Company at the fair, on
+#             `silas_splits_the_company` (his clock filled) for a thief sworn
+#             to the Company. Stand with him (locks), stand against him and
+#             lose (a hard persuasion roll failed: locks), stand against him
+#             and win (`silas_stopped`, the Company +5: The Dapper's City
+#             shut and Guildmaster opened again), or keep out of it (re-
+#             offered). Its `when:` is the ending's eligibility. It names
+#             Silas -- the Company's quarrel is his -- and says nothing about
+#             the Magpie.
+#   RELEASED  F5_gannets_stake -- reserved by T3 for GUILDMASTER's door, and
+#             released unbuilt: every clause of Guildmaster's gate can be met
+#             before the fair, so its door is Mother Gannet's long table on
+#             any evening (data/scenes/porters_hall.yaml), the controller's
+#             preferred reach. No card takes the id.
+#   BUILT     F6_the_heist_together (v0.17 Task 6) -- PARTNERS' door: the
+#             heart taken WITH the Magpie the thief found out and threw in
+#             with (the confrontation, data/scenes/the_confrontation.yaml, is
+#             where the partnership is made -- offered per candidate the
+#             clues favour and judged by `agenda_role` only when the name is
+#             said). Here it is read only as the ending's eligibility: the
+#             partnership, the Magpie never given up to the Watch, and the
+#             heart not already taken alone. Take it together (locks
+#             `partners`, the Temple -10) or not this Showing (re-offered).
+#
+# `draw: 5` leaves room for the Showing and every door, so a door is never
+# lost to a random draw. EVERY DOOR CARD MUST BE `once`: the deck re-deals on
+# each return, and a door already walked through must not be offered again --
+# UNLESS its `when:` is its own ending's eligibility (`{ending: {eligible:
+# <id>}}`) and every way through it that does anything either locks that
+# ending or shuts it (owner's decision, T5 review; F4's won stand shuts it).
+# Such a door cannot be walked through twice -- a locked run never locks
+# again (endings.lock), and since v0.17 T6 a locked run is dealt no door at
+# all (deck.eligible_cards) -- and declining it must not close the ending for
+# good. F3, F4 and F6 are all such doors. (asserted, tests/test_hue_and_cry.py,
+# which proves the re-deal with a test-only door.)
+#
+# ALWAYS ANSWERABLE. The spine asks no dice, and every menu card has an
+# answer with no roll and no threshold; no card opens another scene; so the
+# hand always ends. (asserted: every answer, every roll passed and failed)
+#
+# The Rope's hanging is NOT here: a thief held when the fair came is in the
+# cells, not on the Green. It is data/scenes/the_gallows.yaml.
+#
+# SECRECY (spec §6). The ballad-sellers sing the Magpie, and no card names or
+# guesses who the real one is; no `when:` reads `agenda_role`.
+# (asserted: no candidate's name, alias or trade)
+#
+# Version: v0.4.1 [2026-09-28] -- a hand on the heart is recorded; F6's not-yet points up the Hill
+
+id: fair_day
+
+repeatable: true
+
+# The Showing (or the heart with a partner), and room for every door.
+draw: 5
+
+when:
+  all:
+    - { event_active: hanging_fair }
+    - { at_location: gallows_green }
+    - { in_custody: false }
+
+cards:
+
+  # =====================================================================
+  # SPINE
+  # =====================================================================
+
+  - id: F1_the_green
+    required: true
+    tags: [sequence, gm, fair]
+    title: "The Hanging Fair"
+    text: >-
+      INTENT: the whole of Tallowmere on Gallows Green in something bright --
+      pie-stalls, ballad-sellers, a candle-race chalked on the grass, bunting
+      on every rope that is not for hanging -- and every Lantern in the city
+      on duty.
+      WARMTH AND TEETH: it is the city's great holiday and its great warning
+      in the same breath, and nobody here sees a contradiction.
+      CONSTRAINTS: the Company robs nobody on the Green, by long custom.
+      Name no suspect as the real Magpie. Name nobody the schedule puts
+      elsewhere. On a return to the Green, only the beats below that say
+      something are told: the fair goes on.
+      SEQUENCE -- every beat resolves, in order.
+    beats:
+      - id: the_crowd
+        text: >-
+          Onto the Green.
+        gate:
+          # No dice: the first visit tells the fair; a return says it goes on.
+          when: { not_flag: saw_the_hanging_fair }
+          on_pass:
+            text: >-
+              You are carried onto the Green by the crowd rather than walking
+              onto it: a pie in somebody's hand passes under your nose, a
+              child on a father's shoulders drops a ribbon on your head, and a
+              chandler's boy is selling tapers that burn in three colours, one
+              after the other, for a penny.
+          on_fail:
+            text: >-
+              The fair is still going on the Green, louder than when you left
+              it, and somebody has won the candle-race and is being carried
+              round on a door.
+
+      - id: the_ballad
+        text: >-
+          A ballad-seller on a barrel, a sheaf of broadsheets under one arm,
+          singing the Magpie.
+        gate:
+          # No dice: the verse says what the Watch believes, read off the
+          # Law's links -- as the interrogation's file does.
+          when: { linked: { a: self, b: magpie } }
+          on_pass:
+            text: >-
+              The broadsheet has a woodcut on it, and the woodcut has your
+              nose. Three people in the crowd look from it to you and back,
+              and one of them, delighted, buys two.
+          on_fail:
+            text: >-
+              There is a new verse this year, about a stranger off the
+              morning barge the whole Watch took for the Magpie, and it gets
+              the biggest laugh of the song. Nobody in the crowd looks at you
+              twice.
+
+      - id: the_showing_seen
+        text: >-
+          Up the Hill, the palace steps.
+        gate:
+          when: { not_flag: saw_the_hanging_fair }
+          on_pass:
+            text: >-
+              Up the Hill, on the palace steps, the Margrave's household
+              carries out the Everflame's heart -- the great glass at the
+              flame's centre -- and holds it up to the sun, and the whole
+              Green says "ah" at once, like a congregation. The jackdaw on
+              your shoulder leans forward with his entire body.
+
+      - id: the_gallows_seen
+        text: >-
+          The middle of the Green.
+        gate:
+          when: { not_flag: saw_the_hanging_fair }
+          on_pass:
+            text: >-
+              And in the middle of it all, hung with bunting like everything
+              else, the gallows the city has learned not to look at directly.
+              On the last morning, the Watch will hang whatever it has saved
+              up.
+            effects:
+              # One fact: the fair has been told. Read by the three gates
+              # above on every return (the deck is repeatable).
+              - { type: flag, flag: saw_the_hanging_fair }
+
+  # =====================================================================
+  # POOL -- the Showing of the Flame. (The doors follow: the header.)
+  # =====================================================================
+
+  - id: F2_the_showing
+    once: true
+    # Not while PARTNERS' door is open (v0.17 T6): a thief who threw in with
+    # the Magpie is offered the heart with a partner (F6), so the Showing is
+    # one card, one choice. A partner who later sold the Magpie out (the
+    # ending closed) is offered it alone again.
+    when: { none: [{ ending: { eligible: partners } }] }
+    tags: [menu, gm, fair]
+    title: "The Showing of the Flame"
+    text: >-
+      INTENT: the crowd presses up the Hill toward the palace steps, where
+      the Everflame's heart is held up to the sun in a ring of the
+      Margrave's household, the Temple's blessing and every Lantern on
+      duty. It is the one object in Tallowmere everyone agrees nobody could
+      possibly steal.
+      CONSTRAINTS: the steps are not the Green, and the Company's custom
+      does not reach them. Name no suspect as the real Magpie. A hand
+      caught on the heart is not arrested on this card: it is seen, and
+      filed.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: watch_it_shine
+        text: >-
+          Stand in the crowd and watch it catch the sun, like everybody else.
+        gate:
+          on_pass:
+            text: >-
+              It throws the light of the whole sky back at the city, and for
+              a moment every face on the Hill is the same colour. You do
+              nothing at all with your hands, and it is, you will think
+              afterwards, one of the better moments of your life.
+
+      - id: lift_the_heart
+        text: >-
+          Work your way up through the crowd to the palace steps, and take
+          the heart of the Everflame while the whole city is looking at it.
+          A stealth roll, and a severe one: this is the thing nobody could
+          possibly steal.
+        gate:
+          check: { skill: stealth, difficulty: severe }
+          on_pass:
+            text: >-
+              A cheer, a surge, a footman's elbow, the sun in everybody's
+              eyes -- and the heart is under your coat, warm as a loaf, and
+              the household on the steps is holding up a glass of nothing to
+              the sky. It takes the city a whole minute to notice. By then you
+              are three streets away, and the jackdaw is beside himself.
+            effects:
+              - type: item
+                item_id: everflame_heart
+                name: "The Everflame's Heart"
+                stolen_from: { whom: "the Margrave's household", where: margraves_hill }
+              - { type: report, deed: sacrilege, guise: magpie, jurisdiction: rise, precision: 0.6 }
+              # (The theft's ledger fact is written by the getaway it starts,
+              # the_heart_goes_home.yaml's `on_start`, the same turn: an
+              # outcome keeps four effects, and this one needs the flag.)
+              # The Temple of the Everflame's first mover (v0.17 T6): its
+              # blessing was on those steps.
+              - { type: reputation, faction: temple_everflame, delta: -10, why: "the Everflame's heart taken off the palace steps under the Temple's blessing" }
+              # Won or lost, a hand on the heart is thieving: Honest After
+              # All reads it (endings.yaml `never_stole`, T8 fix round 1).
+              - &a_hand_on_the_heart { type: flag, flag: laid_a_hand_on_the_heart }
+          on_fail:
+            text: >-
+              Your fingers are on the glass when a Lantern's hand closes on
+              your wrist. The crowd surges, the Lantern goes over backwards
+              into a pie-stall, and you are carried back down onto the Green
+              with a face half the Watch has now seen very clearly.
+            effects:
+              - { type: report, deed: sacrilege, guise: self, jurisdiction: wick, precision: 1.0 }
+              - *a_hand_on_the_heart
+
+  # =====================================================================
+  # DOOR -- CLEARED (v0.17 Task 5): the real Magpie taken at the fair.
+  # =====================================================================
+
+  - id: F3_the_real_magpie
+    # NOT `once` (owner's decision, T5 review): a door gated on its own
+    # ending's eligibility may be offered again. Walk away and it is offered
+    # on the next return to the Green while the fair is on; taking it locks
+    # the ending, and a locked run cannot lock twice (endings.lock), so it can
+    # never be walked through twice either. After the fair, Cleared's door is
+    # the front desk (lantern_house_desk.yaml D4_cleared_at_the_desk).
+    # Exactly while Cleared is earned (endings.yaml: the Magpie named rightly,
+    # no wrong name left standing), so the door and the gate cannot drift. It
+    # reads the ENDING, never the role: the card is the same whoever the seed
+    # made the Magpie, and it is dealt only after the unmasking, when the
+    # narrator is told who that is (the mask's `unmask_when`, prompts.
+    # _agenda_reveal_block) -- so it names nobody itself.
+    when: { ending: { eligible: cleared } }
+    tags: [menu, gm, fair, ardane]
+    title: "The Real Magpie"
+    text: >-
+      INTENT: the Magpie the thief named to Captain Ardane has come to the
+      fair -- the city's famous thief could never stay away from the Showing
+      of the Flame -- and the Watch, told at last where to look, is closing
+      in through the crowd. The thief may stay and see it done, or walk away
+      before it is.
+      CONSTRAINTS: the Magpie may be named now, as the GM line names them;
+      give the Magpie no sex. Take the Magpie wherever the schedule has them
+      at this hour: if not on the Green, the news comes down to it with a
+      running Lantern and the crowd hears it there. Nobody on the Green takes
+      the thief for the Magpie any more, and nothing on this card arrests
+      anyone but the Magpie.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: see_it_done
+        text: >-
+          Stay on the Green and see the Watch take the Magpie, in front of
+          the whole fair. This ends the story: Cleared.
+        gate:
+          on_pass:
+            text: >-
+              It is over in a moment, the way the real thing always is: four
+              Lanterns, a shout, a scuffle by the pie-stalls, and the Magpie
+              walked down the Green between them with the whole fair turning
+              to look. Captain Ardane finds you in the crowd, and nods, once.
+            effects:
+              - type: ledger_fact
+                kind: event
+                text: "At the Hanging Fair the Watch took the Magpie you had named, in front of the whole city, and cleared your name aloud."
+              - { type: ending_lock, ending: cleared }
+              - { type: ending_module }
+
+      - id: walk_away
+        text: >-
+          Leave the Watch to it for now. You have somewhere else to be first,
+          and the Green will still be here when you come back.
+        gate:
+          on_pass:
+            text: >-
+              You turn your back on it and let the crowd close behind you. The
+              Watch is in no hurry: a thief who comes to the Showing comes
+              back to the Green, and so, it seems, do you.
+
+  # =====================================================================
+  # DOOR -- THE DAPPER'S CITY (v0.17 Task 6): Silas Crook's move at the fair.
+  # =====================================================================
+
+  - id: F4_silas_makes_his_move
+    # NOT `once`: its `when:` is its own ending's eligibility, and each way
+    # through that does anything either locks it or closes it (standing
+    # against him and winning sets `silas_stopped`, which the ending's
+    # `completable` reads). Kept out of it, it is offered on the next return.
+    # Silas's clock filled (`silas_splits_the_company`, clocks.yaml) and the
+    # thief sworn to the Company; never to one who took a name to the
+    # captain or threw in with the Magpie (endings.yaml) -- so never in the
+    # same hand as F3 or F6.
+    when: { ending: { eligible: the_dappers_city } }
+    tags: [menu, gm, fair, company]
+    title: "The Dapper Makes His Move"
+    text: >-
+      INTENT: Silas Crook picks the fair to do it, in front of the whole
+      Company at its own stall on the Green -- plum ribbons on half the young
+      porters, a barrel for a platform, and Mother Gannet at the end of the
+      trestle with her needles stopped for once. He asks the porters who they
+      answer to now, and then he looks at the thief, because the thief is
+      sworn to the Company and the thief's answer counts.
+      CONSTRAINTS: Silas comes to the Green for this, whatever his usual
+      hours. Nobody is robbed on the Green. This card is the Company's quarrel
+      and nothing else: it says nothing about the Magpie.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: stand_with_him
+        text: >-
+          Take the plum ribbon and stand at Silas's shoulder in front of the
+          Company. This ends the story: The Dapper's City.
+        gate:
+          on_pass:
+            text: >-
+              Silas pins the ribbon on you himself, and the young porters
+              cheer, and Mother Gannet looks at you over her spectacles for a
+              long moment and then, very slowly, starts knitting again.
+            effects:
+              - type: ledger_fact
+                kind: event
+                text: "At the Hanging Fair you stood with Silas Crook when he took the Honest Company from Mother Gannet."
+              - { type: ending_lock, ending: the_dappers_city }
+              - { type: ending_module }
+
+      - id: stand_against_him
+        text: >-
+          Get up on the trestle in front of the Company and call Silas what he
+          is. A persuasion roll, and a hard one: half the young porters
+          already wear his ribbon. Lose them, and the story ends: The
+          Dapper's City.
+        gate:
+          check: { skill: persuasion, difficulty: hard }
+          on_pass:
+            text: >-
+              You say it plainly: whose toll the Snuffs pay now, and whose
+              people cleaned out the Company's own houses while the Snuffs
+              blamed the Magpie. Then a young porter takes his ribbon off,
+              and another, and then the barrel is just a barrel and Silas is
+              just a man in a plum waistcoat, smiling at nobody in particular.
+            effects:
+              - { type: flag, flag: silas_stopped }
+              - { type: reputation, faction: honest_company, delta: 5, why: "stood against Silas Crook in front of the Company at the fair" }
+              - type: ledger_fact
+                kind: event
+                text: "At the Hanging Fair you stood against Silas Crook in front of the Honest Company, and the young porters took off his ribbons."
+          on_fail:
+            text: >-
+              They hear you out, and some of them even agree, and then Silas
+              makes a joke about you that is better than anything you said,
+              and the ribbons stay on. He shakes your hand afterwards, warmly,
+              in front of everybody. It is the worst moment of the fair.
+            effects:
+              - type: ledger_fact
+                kind: event
+                text: "At the Hanging Fair you stood against Silas Crook in front of the Honest Company, and lost them to him."
+              - { type: ending_lock, ending: the_dappers_city }
+              - { type: ending_module }
+
+      - id: keep_out_of_it
+        text: >-
+          Keep your head down and your hands in your pockets. It is the
+          Company's quarrel, and the fair is long.
+        gate:
+          on_pass:
+            text: >-
+              Silas's eyes pass over you and on, and he keeps talking. Nobody
+              has settled anything yet. The fair is long.
+
+  # =====================================================================
+  # DOOR -- PARTNERS (v0.17 Task 6): the heart taken with the Magpie.
+  # =====================================================================
+
+  - id: F6_the_heist_together
+    # NOT `once`, as F3: its `when:` is its own ending's eligibility and its
+    # one way through that does anything locks it. The partnership is made
+    # elsewhere -- data/scenes/the_confrontation.yaml, where the thief's
+    # trail leads to the Magpie's own door -- and read here only as the
+    # ending: `partners_with_the_magpie`, the Magpie never given up
+    # (`magpie_unmasked`), and the heart not already taken alone. It reads no
+    # `agenda_role`, and names nobody: the GM line names the Magpie from the
+    # partnership on (agendas.yaml's mask).
+    when: { ending: { eligible: partners } }
+    tags: [menu, gm, fair]
+    title: "The Heart, Between Two"
+    text: >-
+      INTENT: the Magpie the thief found out and threw in with is at the
+      thief's elbow in the crowd pressing up the Hill toward the Showing,
+      with a plan: the thief makes the scene the whole city watches, the
+      Magpie does the part nobody sees, and the Everflame's heart leaves the
+      palace steps by the Magpie's own road over the roofs.
+      CONSTRAINTS: the Magpie may be named now, as the GM line names them;
+      give the Magpie no sex. The Magpie may be anywhere the schedule says
+      at other hours; for the Showing, the Magpie is here. Nothing on this
+      card is seen by the Watch.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: take_it_together
+        text: >-
+          Do your part on the palace steps and let the Magpie do the rest.
+          This ends the story: Partners.
+        gate:
+          on_pass:
+            text: >-
+              You fall up the palace steps in front of the whole household,
+              loudly, with a purse that bursts, and by the time a footman has
+              helped you up and every Lantern on the Hill has laughed, the
+              heart is gone and so is the Magpie, and so, a moment later, are
+              you.
+            effects:
+              - type: ledger_fact
+                kind: theft
+                text: "At the Hanging Fair you and the Magpie took the Everflame's heart off the palace steps together."
+              - { type: reputation, faction: temple_everflame, delta: -10, why: "the Everflame's heart taken off the palace steps under the Temple's blessing" }
+              - { type: ending_lock, ending: partners }
+              - { type: ending_module }
+
+      - id: not_yet
+        text: >-
+          Not this Showing. Tell the Magpie to wait for your word.
+        gate:
+          on_pass:
+            text: >-
+              The Magpie shrugs and melts back into the crowd. The heart goes
+              up into the sun and comes down again, untouched. There is time
+              yet: the fair is long, and when it is over the heart goes back
+              into the Everflame up the Hill, where the nights are longer.

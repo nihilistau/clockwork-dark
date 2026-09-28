@@ -121,8 +121,8 @@ SELECTOR_KEYS: dict[str, frozenset[str]] = {
 #: Where a trace may be left, besides a location id.
 TRACE_WHERES = ("target", "owner")
 #: Predicates that read the Law, and so need one declared.
-LAW_PREDICATES = frozenset({"wanted", "reported_to", "in_custody", "filed", "linked",
-                            "alibi"})
+LAW_PREDICATES = frozenset({"wanted", "reported_to", "in_custody", "held_before_event",
+                            "filed", "linked", "alibi", "committed_deed"})
 #: Predicates that need a StoryLedger in scope. The agendas pass runs inside
 #: ``advance_time``, which holds none, so each would be False forever there.
 LEDGER_PREDICATES = frozenset({"disposition"})
@@ -132,8 +132,11 @@ PROGRESS_PREDICATES = frozenset({"days_in_stage", "days_since_started"})
 #: Effect kinds only the pass itself may write. An authored move applying one
 #: would forge the bookkeeping: stamp a move that never fired, rob a house
 #: nobody entered, or leave a sign with no move behind it.
+#: Also every kind ``effects.ENGINE_ONLY_EFFECTS`` names (v0.17: a served
+#: sentence's hours, ``custody_served``), which only the engine may write.
 BOOKKEEPING_EFFECTS = frozenset({"agenda_mark", "agenda_hit", "agenda_trace",
-                                 "agenda_trace_seen"})
+                                 "agenda_trace_seen", "custody_served",
+                                 "law_deed_committed"})
 #: Effect kinds that write the Law, and so need one declared. Without it each
 #: refuses at runtime -- a move that loads and files nothing.
 LAW_EFFECTS = frozenset({
@@ -249,6 +252,8 @@ def _check_condition(path: Path, where: str, node: Any, ctx: dict[str, Any]) -> 
                 "jurisdictions"
             ]:
                 raise _fail(path, f"{where}: unknown jurisdiction `{body['jurisdiction']}`")
+            if "own" in body and not isinstance(body["own"], bool):
+                raise _fail(path, f"{where}: `wanted.own` must be true or false")
         elif name == "reported_to":
             npc = str(body.get("npc") or "")
             if npc not in ctx["npcs"]:
@@ -1444,10 +1449,17 @@ def revealed(state: GameState) -> list[tuple[str, str, str]]:
 
 
 def _p_wanted(state: GameState, value: Any, ctx: Any) -> bool:
-    """``{wanted: {guise?: self, jurisdiction?: <here>, min: <band>}}``.
+    """``{wanted: {guise?: self, jurisdiction?: <here>, min: <band>, own?: false}}``.
 
     The wanted band for that face in that jurisdiction is ``min`` or above, in
     the Law's own band order. False with no Law, and for a band it lacks.
+
+    ``own: true`` (v0.17, opt-in) counts only the player's own deeds: report
+    rows the agendas pass stamped (``agenda``) -- the Magpie's robberies the
+    watch pins on a face it links to yours -- are left out, and everything
+    the player did still counts, under any linked guise
+    (``law.filed_score(own=True)``). Absent, it reads every row, as it
+    always has.
     """
     from engine.world import law
 
@@ -1459,7 +1471,7 @@ def _p_wanted(state: GameState, value: Any, ctx: Any) -> bool:
         return False
     guise = str(value.get("guise") or law.SELF_GUISE)
     jurisdiction = str(value.get("jurisdiction") or law.jurisdiction_at(state.location_id))
-    band = law.wanted_band(state, guise, jurisdiction)
+    band = law.wanted_band(state, guise, jurisdiction, own=value.get("own") is True)
     return band in bands and bands.index(band) >= bands.index(floor)
 
 

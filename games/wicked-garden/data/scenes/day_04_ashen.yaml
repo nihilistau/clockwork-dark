@@ -284,6 +284,15 @@ cards:
     required: true
     tags: [menu, setpiece, gm]
     title: "The Honest Cold Bargain"
+    # RUNTIME (moved out of the text in v0.17.0, AGENTS.md rule 1): no card
+    # effect here touches a thread; the beats set flags and values. What IS
+    # wired: `ashen_service_owed` (threads.yaml, no `requires`) is struck as
+    # written by the player's `bargain` verb on any turn no card holds,
+    # settled by `discharge`, and broken when it falls due -- the finale's
+    # collision table asks what is still live. NOT WIRED (docs/GOVERNANCE.md):
+    # its `intel_only` renegotiation (`strike_bargain` seals only the offer as
+    # written; `threads.renegotiate` has no production caller), and cutting it
+    # with `law` or `death` (no production caller of `threads.cut`).
     text: >-
       INTENT: a contract in silver ink. What he offers -- a passport toward a
       gate that does not need her blessing, and intelligence she has no reason
@@ -291,10 +300,7 @@ cards:
       separately from the woman, and that Mother Briar starves when love becomes
       theatre.
       CONSTRAINT: the price is chosen by the player and every one of them is
-      collectable. Whichever runs, seal `ashen_service_owed` (or its
-      `intel_only` renegotiation) through the thread tool -- the finale's
-      collision table asks what is still live, and a bargain stored as a flag
-      cannot be paid, cut or broken.
+      collectable.
       MENU -- resolve exactly one price beat, then one outcome beat.
     beats:
       - id: price_a_warm_memory

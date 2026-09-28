@@ -60,14 +60,27 @@ so the default numbers are unchanged. With it, the report gains an
 ``opening`` block: how often the choice passed, was filed, opened the stop,
 ended in a cell, and the thief's band on the Quay each morning for three days.
 
+THE BREAK-OUT (v0.17). ``--break-out`` has a held thief try the story's
+jailbreak (the ``set_piece`` verb, then each ``challenge`` step) before the
+fine or the days, attempt after attempt until it walks out or its hp is down
+to ``BREAK_OUT_HP_FLOOR``. The report gains a ``break_out`` block: attempts,
+escapes, hidings, the Wick's band on the thief's own face the moment it
+walked out, and stops back into a cell within a day. With ``--set
+deeds.escape=N`` it is how the ``escape`` deed's severity was set (law.yaml).
+Without the flag nobody breaks out, so every table before it is unchanged;
+every run also counts the clock advances a served day took
+(``max_advances_per_day_served``), the cost guard tests/test_hue_and_cry.py
+holds instead of a wall-clock one.
+
 Usage:
     python scripts/simulate_law.py                    # 40 seeds x 10 days, both
     python scripts/simulate_law.py --opening a --policy careful --set deeds.resisting_watch=3
     python scripts/simulate_law.py --seeds 10 --days 5 --policy reckless
     python scripts/simulate_law.py --agendas          # with the Magpie and co. on
+    python scripts/simulate_law.py --break-out --policy reckless --set deeds.escape=4
     python scripts/simulate_law.py --json
 
-Version: v0.5.0 [2026-09-26]
+Version: v0.6.0 [2026-09-27]
 """
 
 from __future__ import annotations
@@ -105,6 +118,10 @@ POLICIES = ("careful", "reckless", "briber")
 OPENING_JURISDICTION = "quay"
 #: Mornings of the Quay band the ``opening`` block reports.
 OPENING_MORNINGS = 3
+#: ``--break-out``: the thief stops trying at this hp or below -- the
+#: jailbreak's hiding is 3 (data/challenges/lantern_house.yaml), so one more
+#: failure would be a death -- and pays or serves instead.
+BREAK_OUT_HP_FLOOR = 3
 
 
 @dataclass
@@ -132,8 +149,89 @@ class Run:
     bribes: int = 0          # stops answered with coin
     bribe_gold: int = 0
     days_served: list[int] = field(default_factory=list)
+    #: ``clock.advance_time`` calls a served sentence took, per day of it
+    #: (v0.17 T4): the cost guard, counted rather than timed.
+    advances_per_day_served: list[float] = field(default_factory=list)
+    #: ``--break-out`` only: attempts, beatings, escapes, the Wick's band on
+    #: your face the moment you walked out, and stops back into a cell within
+    #: a day of an escape (see ``Thief.try_break_out``).
+    break_out: dict[str, Any] = field(default_factory=dict)
     #: ``--opening`` only: what the barge choice did (see ``take_opening``).
     opening: dict[str, Any] = field(default_factory=dict)
+    #: Deaths ``check_death`` handled (``counting_deaths``), respawns included.
+    deaths: int = 0
+
+
+#: Deaths per live state, while ``counting_deaths`` is installed. Keyed by
+#: ``id(state)``; each ``Thief`` clears its own entry when it is made, so a
+#: recycled id never inherits a finished run's count.
+_DEATHS: dict[int, int] = {}
+
+
+@contextmanager
+def counting_deaths() -> Iterator[None]:
+    """
+    Count every death ``encounter.check_death`` handles, per state, for the
+    duration (v0.17). A harness switch, like ``agendas_off``.
+
+    Since HUE & CRY ships death.yaml (v0.17), hp 0 RESPAWNS: the thief wakes
+    at 8 hp inside the very ``advance_time`` that starved it, so a harness
+    that samples hp between actions no longer sees the 0. Every caller
+    reaches the rules through the module attribute (``encounter.check_death``
+    -- the clock, a round, a job stage, a card), so the wrapper sees them
+    all. Nested use is a no-op.
+    """
+    from engine.game import encounter
+
+    real = encounter.check_death
+    if getattr(real, "counts_deaths", False):
+        yield
+        return
+
+    def counted(state: Any, *args: Any, **kwargs: Any) -> Any:
+        record = real(state, *args, **kwargs)
+        if record and record.get("died"):
+            _DEATHS[id(state)] = _DEATHS.get(id(state), 0) + 1
+        return record
+
+    counted.counts_deaths = True  # type: ignore[attr-defined]
+    encounter.check_death = counted  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        encounter.check_death = real  # type: ignore[assignment]
+
+
+def deaths(state: Any) -> int:
+    """How many times ``state`` died while ``counting_deaths`` was installed."""
+    return _DEATHS.get(id(state), 0)
+
+
+@contextmanager
+def _counting_advances() -> Iterator[list[int]]:
+    """
+    Count every ``clock.advance_time`` call for the duration, into the one
+    element of the yielded list (v0.17 T4).
+
+    What a served sentence costs is how many times it moves the clock --
+    every call runs the world's hour: rumour, agendas, the director's
+    question. Counted, not timed: the per-day wall-clock guard it replaces
+    swung 0.7-1.25s between identical runs on the owner's machine.
+    """
+    from engine.game import clock
+
+    real = clock.advance_time
+    calls = [0]
+
+    def counted(*args: Any, **kwargs: Any) -> Any:
+        calls[0] += 1
+        return real(*args, **kwargs)
+
+    clock.advance_time = counted  # type: ignore[assignment]
+    try:
+        yield calls
+    finally:
+        clock.advance_time = real  # type: ignore[assignment]
 
 
 @contextmanager
@@ -184,12 +282,18 @@ _KEEPS_NOTHING = _KeepsNothing()
 class Thief:
     """One run: a session, an action counter, and the patrol after each action."""
 
+    #: ``--break-out`` (v0.17 T4): held, try the story's jailbreak before the
+    #: fine or the days. Off by default -- and for every harness that
+    #: subclasses Thief -- so every table before it is unchanged.
+    break_out = False
+
     def __init__(self, seed: int, policy: str) -> None:
         from engine.scenes.default_state import SessionStore
 
         self.session = SessionStore(save_store=lambda: _KEEPS_NOTHING).create(
             seed=seed, llm_fn=lambda m, **k: "{}")
         self.state = self.session.engine.state
+        _DEATHS.pop(id(self.state), None)
         self.run = Run(seed=seed, policy=policy)
         self.today: Optional[DayRow] = None
 
@@ -247,19 +351,66 @@ class Thief:
             self.run.arrests += 1
             if self.today is not None:
                 self.today.arrests += 1
+            tally = getattr(self.run, "break_out", None)
+            if self.break_out and tally is not None:
+                now = float(self.state.world_clock_hours)
+                if any(now - h <= 24.0 for h in tally.get("escape_hours", [])):
+                    tally["rearrested_within_a_day"] = tally.get("rearrested_within_a_day", 0) + 1
             self.leave_custody()
 
     def leave_custody(self) -> None:
         from engine.world import law
 
+        if self.break_out and self.try_break_out():
+            return
         held = law.custody(self.state)
         if self.state.stats.gold >= int(held.get("fine") or 0):
             self.act("pay_fine")
             self.run.fines_paid += 1
         else:
-            receipt = self.act("serve")
+            with _counting_advances() as calls:
+                receipt = self.act("serve")
             self.run.hp_after_sentence.append(int(self.state.stats.hp))
             self.run.days_served.append(int(receipt.get("days") or 0))
+            # Other harnesses subclass Thief with Runs of their own; only
+            # this one's reads the count.
+            counts = getattr(self.run, "advances_per_day_served", None)
+            if counts is not None and receipt.get("days"):
+                counts.append(calls[0] / int(receipt["days"]))
+
+    def try_break_out(self) -> bool:
+        """
+        The jailbreak, while one is offered and the thief can take another
+        hiding (``BREAK_OUT_HP_FLOOR``). True when it walked out. Since fix
+        round 1 a failed try closes the break-out until tomorrow
+        (``retry: next_day``), so in practice this is ONE try an arrest: the
+        thief does not sit a day in the cell unserved to try again, it pays
+        or serves. Every attempt goes through ``execute_intent`` -- the
+        ``set_piece`` verb, then ``challenge`` for each step -- so the rolls,
+        the hiding, the ``release`` and the ``escape`` report are the engine's.
+        """
+        from engine.world import law
+
+        tally = self.run.break_out
+        while law.in_custody(self.state):
+            offered = self.legal_targets("set_piece")
+            if not offered or self.state.stats.hp <= BREAK_OUT_HP_FLOOR:
+                return False
+            tally["attempts"] = tally.get("attempts", 0) + 1
+            self.act("set_piece", offered[0])
+            guard = 0
+            while self.state.challenge and guard < 8:
+                guard += 1
+                self.act("challenge", "attempt")
+            if law.in_custody(self.state):
+                tally["beatings"] = tally.get("beatings", 0) + 1
+                continue
+            tally["escapes"] = tally.get("escapes", 0) + 1
+            tally.setdefault("wick_band_after", []).append(
+                law.wanted_band(self.state, law.SELF_GUISE, BUSY_JURISDICTION))
+            tally.setdefault("escape_hours", []).append(float(self.state.world_clock_hours))
+            return True
+        return False
 
     def legal_targets(self, action: str) -> list[str]:
         from engine.game import intents
@@ -471,16 +622,24 @@ def _worst_band(state: Any, jurisdictions: list[str]) -> str:
     return bands[worst]
 
 
-def play(seed: int, policy: str, days: int, opening: str = "") -> Run:
+def play(seed: int, policy: str, days: int, opening: str = "",
+         break_out: bool = False) -> Run:
     """
     One run of ``days`` IN-GAME days. A row per in-game day, read at the next
     08:00. A sentence that swallows days fills them with the band read when
     the prisoner walks out (they were in a cell; nothing new was filed).
-    ``opening`` is the barge choice taken first, or "" for none.
+    ``opening`` is the barge choice taken first, or "" for none;
+    ``break_out`` has a held thief try the jailbreak first (``Thief.try_break_out``).
     """
+    with counting_deaths():
+        return _play(seed, policy, days, opening, break_out)
+
+
+def _play(seed: int, policy: str, days: int, opening: str, break_out: bool = False) -> Run:
     from engine.world import law
 
     thief = Thief(seed, policy)
+    thief.break_out = break_out
     everywhere = list(law.load_spec()["jurisdictions"])
     if opening:
         thief.take_opening(opening)
@@ -506,6 +665,7 @@ def play(seed: int, policy: str, days: int, opening: str = "") -> Run:
             thief.run.days.append(DayRow(day=skipped, band=row.band, worst_band=row.worst_band,
                                          seconds=0.0))
     thief.run.days = thief.run.days[:days]
+    thief.run.deaths = deaths(thief.state)
     return thief.run
 
 
@@ -554,9 +714,13 @@ def summarise(runs: list[Run], days: int) -> dict[str, Any]:
         "runs_with_an_arrest": round(arrested, 3),
         "stops_per_run": round(statistics.mean(r.stops for r in runs), 2),
         "min_hp_after_sentence": min(hp) if hp else None,
+        "deaths_per_run": round(statistics.mean(r.deaths for r in runs), 2),
+        "runs_with_a_death": round(sum(r.deaths > 0 for r in runs) / len(runs), 3),
         "sentences_served": len(hp),
         "fines_paid": sum(r.fines_paid for r in runs),
         "max_days_served": max((d for r in runs for d in r.days_served), default=None),
+        "max_advances_per_day_served": max(
+            (a for r in runs for a in r.advances_per_day_served), default=None),
         "bribes_per_run": round(statistics.mean(r.bribes for r in runs), 2),
         "bribe_share_of_income": (
             round(sum(r.bribe_gold for r in runs) / sum(r.income for r in runs), 3)
@@ -564,6 +728,8 @@ def summarise(runs: list[Run], days: int) -> dict[str, Any]:
         ),
         "max_seconds_per_day": round(max(x.seconds for x in seed_days), 3),
         **({"opening": _opening_summary(runs, bands)} if runs and runs[0].opening else {}),
+        **({"break_out": _break_out_summary(runs, bands)}
+           if any(r.break_out for r in runs) else {}),
     }
 
 
@@ -582,8 +748,29 @@ def _opening_summary(runs: list[Run], bands: list[str]) -> dict[str, Any]:
             "arrested": rate("arrested"), "quay_band_by_morning": mornings}
 
 
-def measure(policy: str, seeds: int, days: int, opening: str = "") -> dict[str, Any]:
-    runs = [play(seed, policy, days, opening) for seed in range(seeds)]
+def _break_out_summary(runs: list[Run], bands: list[str]) -> dict[str, Any]:
+    """What ``--break-out`` did, across the seeds."""
+    def total(key: str) -> int:
+        return sum(int(r.break_out.get(key, 0)) for r in runs)
+
+    after = [b for r in runs for b in r.break_out.get("wick_band_after", [])]
+    return {
+        "attempts": total("attempts"),
+        "escapes": total("escapes"),
+        "beatings": total("beatings"),
+        "escape_rate_per_attempt": (round(total("escapes") / total("attempts"), 3)
+                                    if total("attempts") else None),
+        "arrests": sum(r.arrests for r in runs),
+        "escape_rate_per_arrest": (round(total("escapes") / sum(r.arrests for r in runs), 3)
+                                   if sum(r.arrests for r in runs) else None),
+        "wick_band_after_escape": {b: after.count(b) for b in bands if after.count(b)},
+        "rearrested_within_a_day": total("rearrested_within_a_day"),
+    }
+
+
+def measure(policy: str, seeds: int, days: int, opening: str = "",
+            break_out: bool = False) -> dict[str, Any]:
+    runs = [play(seed, policy, days, opening, break_out) for seed in range(seeds)]
     return summarise(runs, days)
 
 
@@ -601,8 +788,10 @@ def render(policy: str, report: dict[str, Any]) -> str:
         f"({report['never_sought']} never); arrests/run {report['arrests_per_run']}, "
         f"runs with an arrest {report['runs_with_an_arrest']:.0%}; stops/run "
         f"{report['stops_per_run']}; min hp after a sentence {report['min_hp_after_sentence']} "
-        f"({report['sentences_served']} served, longest {report['max_days_served']} days; "
-        f"{report['fines_paid']} fines paid); bribes/run {report['bribes_per_run']}, "
+        f"({report['sentences_served']} served, longest {report['max_days_served']} days, "
+        f"at most {report['max_advances_per_day_served']} clock advances a day; "
+        f"{report['fines_paid']} fines paid); deaths/run {report['deaths_per_run']} "
+        f"({report['runs_with_a_death']:.0%} of runs); bribes/run {report['bribes_per_run']}, "
         f"{report['bribe_share_of_income']:.0%} of lifted income; "
         f"slowest day {report['max_seconds_per_day']}s"
     )
@@ -612,6 +801,15 @@ def render(policy: str, report: dict[str, Any]) -> str:
             f"opening: passed {o['passed']:.0%}, filed {o['reported']:.0%}, stopped "
             f"{o['stopped']:.0%}, arrested {o['arrested']:.0%}; the Quay by morning "
             f"{o['quay_band_by_morning']}"
+        )
+    if "break_out" in report:
+        b = report["break_out"]
+        lines.append(
+            f"break-out: {b['escapes']} escapes in {b['attempts']} attempts "
+            f"({b['escape_rate_per_attempt']} a try; {b['escape_rate_per_arrest']} of "
+            f"{b['arrests']} arrests), {b['beatings']} hidings; the Wick on "
+            f"your face as you walked out {b['wick_band_after_escape']}; back in a cell "
+            f"within a day {b['rearrested_within_a_day']}"
         )
     return "\n".join(lines)
 
@@ -662,6 +860,8 @@ def main(argv: Optional[list[str]] = None) -> int:
                         help="take this barge choice first (run, talk, come quietly)")
     parser.add_argument("--agendas", action="store_true",
                         help="measure with the story's agendas on (off by default; see above)")
+    parser.add_argument("--break-out", action="store_true",
+                        help="held, try the jailbreak before the fine or the days (v0.17)")
     parser.add_argument(
         "--set", action="append", default=[], metavar="KEY=VALUE",
         help="try a number without editing the file: wanted.cool_per_day=0.75, "
@@ -679,7 +879,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         for assignment in args.set:
             _override(assignment)
         policies = POLICIES if args.policy == "all" else (args.policy,)
-        reports = {p: measure(p, args.seeds, args.days, args.opening) for p in policies}
+        reports = {p: measure(p, args.seeds, args.days, args.opening, args.break_out)
+                   for p in policies}
     if args.json:
         print(json.dumps(reports, indent=2))
     else:

@@ -449,9 +449,13 @@ def test_serve_takes_exactly_its_days_through_the_clock(
     before = state.world_clock_hours
     out = law.serve_sentence(state)
     assert out["ok"] is True
-    # Day by day, with rations between (fix round 1): the hours add up to
-    # exactly the sentence, every one of them through the clock's one writer.
-    assert calls == [24.0] * held["days"]
+    # Rations between meals (fix round 1), and since v0.17 each meal cut at
+    # the hours a scene can fall due (`director.due_boundary_hours` -- here,
+    # with no decks, only midnight): the hours add up to exactly the
+    # sentence, every one of them through the clock's one writer, in at most
+    # two calls a day.
+    assert sum(calls) == held["days"] * 24
+    assert all(0 < c <= 24 for c in calls) and len(calls) <= 2 * held["days"]
     assert state.world_clock_hours == before + held["days"] * 24
     assert not law.in_custody(state)
 
@@ -844,3 +848,136 @@ def test_a_bad_cap_fails_naming_the_file(tmp_path: Path, cap: str, value: Any) -
     finally:
         set_overlay(None)
     assert str(tmp_path / "law.yaml") in str(caught.value) and cap in str(caught.value)
+
+
+# -- v0.17 Task 4: a sentence resumed, and the hours a scene can fall due at --------
+
+
+def _custody_deck_paths(tmp_path: Path, when: Any) -> dict[str, str]:
+    """The synthetic Law plus one one-shot deck gated ``when``."""
+    paths = _paths(tmp_path)
+    deck_dir = tmp_path / "scenes"
+    deck_dir.mkdir(exist_ok=True)
+    doc = {
+        "id": "a_visitor",
+        "draw": 1,
+        "when": when,
+        "cards": [{
+            "id": "a_visitor_card",
+            "required": True,
+            "tags": ["sequence"],
+            "title": "A Visitor",
+            "text": "INTENT: somebody comes to the bars.",
+            "beats": [{"id": "a_visitor_go", "text": "They say their piece and go."}],
+        }],
+    }
+    (deck_dir / "a_visitor.yaml").write_text(yaml.safe_dump(doc), encoding="utf-8")
+    paths["decks"] = str(deck_dir)
+    return paths
+
+
+@pytest.fixture()
+def dusk_visitor(tmp_path: Path) -> Iterator[Path]:
+    """A deck due to a prisoner at dusk: gated on custody and a time-of-day
+    band, with no `hour_between` for the serve to cut at."""
+    set_overlay({"paths": _custody_deck_paths(
+        tmp_path, {"all": [{"in_custody": True}, {"time_of_day": "dusk"}]})})
+    try:
+        yield tmp_path
+    finally:
+        set_overlay(None)
+
+
+def _answer_the_visitor(state: GameState) -> None:
+    from engine.content import director
+
+    dealt = director.ensure_scene(state)
+    assert dealt and dealt[0]["result"]["deck_id"] == "a_visitor", dealt
+    while director.active(state):
+        director.resolve(state, chosen=director.options(state)[0]["id"])
+
+
+def test_a_time_of_day_gate_stops_a_sentence_at_the_band_edge(dusk_visitor: Path) -> None:
+    """Review of v0.17 T3: the serve cut each meal only at midnight and each
+    `hour_between` bound, so a deck gated on a `time_of_day` band fell due
+    and fell away again between two cuts -- a dusk visitor waited out in
+    the cell. The band edges (5, 8, 17, 20) are cut at too, when any deck
+    that can be due while held reads `time_of_day`."""
+    from engine.content import director
+
+    state = _world([])
+    _held(state)  # 2 days, from 08:00 on day 1
+    assert (state.world_day, state.world_hour) == (1, 8)
+    assert {5, 8, 17, 20} <= set(director.due_boundary_hours(in_custody=True))
+    out = law.serve_sentence(state)
+    assert out["served_out"] is False and out.get("interrupted_by") == "a_visitor", out
+    assert (state.world_day, state.world_hour) == (1, 17)
+    assert state.world_clock_hours == 17.0
+    assert law.in_custody(state)
+
+
+def test_the_edges_are_the_bands_the_state_names() -> None:
+    """The band edges the director cuts at are the hours `time_of_day`
+    changes its answer at -- read off the property itself, so the two
+    cannot drift apart."""
+    from engine.content import director
+    from engine.game.clock import set_clock
+
+    state = GameState(rng_seed=1)
+    names = []
+    for hour in range(24):
+        set_clock(state, day=1, hour=hour)
+        names.append(state.time_of_day)
+    edges = {h for h in range(24) if names[h] != names[h - 1]}
+    assert edges == set(director.TIME_OF_DAY_EDGES)
+
+
+def test_no_time_of_day_deck_means_no_band_cuts(tmp_path: Path) -> None:
+    """A story whose decks read no `time_of_day` is cut exactly as before."""
+    from engine.content import director
+
+    set_overlay({"paths": _custody_deck_paths(tmp_path, {"in_custody": True})})
+    try:
+        assert director.due_boundary_hours(in_custody=True) == (0,)
+    finally:
+        set_overlay(None)
+
+
+def test_a_resumed_sentence_serves_only_what_was_left(dusk_visitor: Path) -> None:
+    """GOVERNANCE's NOT WIRED row, closed: a sentence stopped by a scene
+    used to serve its FULL term again on the second `serve`. The hours
+    served are kept on the custody record (`custody_served`, the effect
+    that writes them), and a second serve waits out only the rest."""
+    state = _world([])
+    held = _held(state)  # 2 days, from 08:00 on day 1
+    start = state.world_clock_hours
+    first = law.serve_sentence(state)
+    assert first.get("interrupted_by") == "a_visitor", first
+    assert law.custody(state)["served_hours"] == 9.0
+    _answer_the_visitor(state)
+    second = law.serve_sentence(state)
+    assert second["served_out"] is True, second
+    assert second.get("resumed") is True
+    assert not law.in_custody(state)
+    assert state.world_clock_hours == start + held["days"] * 24
+
+
+def test_custody_served_writes_only_a_live_stay(lawful: Path) -> None:
+    state = _world([])
+    assert apply_effect(state, {"type": "custody_served", "hours": 3})["ok"] is False
+    _held(state)
+    assert apply_effect(state, {"type": "custody_served", "hours": 0})["ok"] is False
+    assert apply_effect(state, {"type": "custody_served", "hours": 3})["ok"] is True
+    assert apply_effect(state, {"type": "custody_served", "hours": 2.5})["ok"] is True
+    assert law.custody(state)["served_hours"] == 5.5
+    apply_effect(state, {"type": "release"})
+    assert "served_hours" not in law.custody(state)
+
+
+def test_a_first_serve_is_cut_and_receipted_as_before(lawful: Path) -> None:
+    """Byte-identity for every sentence nothing stops: no `resumed` key,
+    and the hours exactly the term."""
+    state = _world([])
+    held = _held(state)
+    out = law.serve_sentence(state)
+    assert out == {"ok": True, "days": held["days"], "gaol": out["gaol"], "served_out": True}

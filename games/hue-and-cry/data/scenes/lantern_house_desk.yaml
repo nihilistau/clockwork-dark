@@ -28,8 +28,9 @@
 #                  another name only once there is something new to show her.
 #
 # WHEN IT IS DEALT (`when:` below). At the Lantern House, FREE, and only when
-# a card here has something to offer: an alibi not yet presented, or an
-# accusation the captain can hear. REPEATABLE: dealt once per visit that
+# a card here has something to offer: an alibi not yet presented, an
+# accusation the captain can hear, or (v0.17) the badge or Cleared after the
+# fair. REPEATABLE: dealt once per visit that
 # finds something to offer, and again once the thief has left (or the hour
 # has moved Ardane out of the house) and comes back -- the director re-arms a
 # repeatable deck the first turn its `when:` is seen false
@@ -76,13 +77,17 @@
 #     the one name the trail they read points to -- by its public name,
 #     chosen, never told whether it is right until it is said.
 #   * The Magpie is not already unmasked.
-#   * That suspect has not already been named wrongly.
+#   * That suspect has not already been named wrongly -- nor, since v0.17
+#     T6, confronted wrongly at their own door (the_confrontation.yaml): the
+#     thief knows they are not the Magpie either way, and the lead is counted
+#     among the others without them, as below.
 #   * AFTER A WRONG NAMING (owner's decision, v0.16 T7): a second accusation
 #     is allowed, but only once a clue has been carried out SINCE -- the
 #     wrong naming clears `clue_fresh`, which every clue carried out sets
 #     again (clues.yaml `fresh_flag`). The gentlest rule that stops an instant
 #     retry; "a higher evidence band" was not chosen because the meter tops
-#     out at 5 and could leave a thief with nothing higher to show. And the
+#     out at 5 and could leave a thief with nothing higher to show. A wrong
+#     CONFRONTATION (v0.17 T6) spends the lead the same way. And the
 #     suspect already named wrongly is SET ASIDE: the lead is counted among
 #     the others (`clues_favour {excluding}`), so a herring the thief was
 #     wrong about stops standing in front of the rest.
@@ -108,14 +113,40 @@
 #             42% before the naming; typically a band worse. A cost, not a
 #             spiral: none of the 15 real wrong-namers measured was arrested
 #             before day 12 (law.yaml's header has the table).
-#             Never a soft-lock -- nothing here arrests, and HUE & CRY's one
-#             shipped ending does not read any of these flags.
+#             Never a soft-lock -- nothing here arrests. Since v0.17 a wrong
+#             naming left standing keeps CLEARED out of reach until a right
+#             one corrects it (data/rules/endings.yaml `completable`).
 #
-# FOR v0.17's ENDINGS (CHANGELOG [Unreleased]): `magpie_unmasked`,
+# FOR v0.17's ENDINGS (CHANGELOG [0.16.0]): `magpie_unmasked`,
 # `magpie_named_wrongly`, `wrongly_accused_wren`, `wrongly_accused_silas`,
 # `wrongly_accused_imelda` (how many wrong namings: count these, at most two
 # -- the third suspect left standing is the Magpie), and `alibi_proven` (an
-# alibi presented, here or in the cells).
+# alibi presented, here or in the cells). Cleared and A Lantern read
+# `magpie_unmasked`; Cleared reads `magpie_named_wrongly` too.
+#
+# THE BADGE (v0.17 Task 5): A LANTERN's door. `D3_the_badge` is dealt here,
+# free, while Captain Ardane is in (the accusation's hours) and the ending is
+# earned -- its `when:` asks `{ending: {eligible: a_lantern}}` itself: the
+# Magpie named rightly, the Watch's good opinion (`lantern_watch` 5+, from
+# Wren's lamp round) and the captain's own file never struck against the
+# captain. Take it and the story ends (locks `a_lantern` by name, then its
+# module); keep it back and it is offered again next visit -- NOT `once`, so
+# "not yet" is never the last chance. A thief who has earned the badge has
+# earned Cleared too (both ask the right naming), so the badge card offers
+# BOTH (controller's ruling, T5 review round 2): take the badge, or
+# `clear_my_name` (gated on Cleared's eligibility; locks `cleared`). One
+# card, one visible choice -- cards come one at a time, and a second door
+# later in the hand is a choice the player cannot see.
+#
+# CLEARED, AFTER THE FAIR (v0.17 T5 fix round 1, controller's ruling):
+# `D4_cleared_at_the_desk`. Cleared's door during the fair is the Green
+# (fair_day.yaml F3), which exists only days 10-12; once the fair has been
+# (`event_seen`) and is over (not `event_active`), a thief who has earned
+# Cleared -- and NOT A Lantern, whose card already offers Cleared -- is
+# cleared here, in the captain's hours. Take it (locks `cleared` by name) or
+# "not yet" (offered again next visit). So the desk never deals two doors in
+# one hand; and should any hand hold one, a card that locks and plays an
+# ending ends the hand (engine/content/director.py, v0.17).
 #
 # SECRECY (spec §6). Nothing on a card says or implies who the real Magpie is
 # before `magpie_unmasked`: the accusation card for a suspect names only that
@@ -123,14 +154,15 @@
 # whether the naming was right only in the outcome of the player's choice.
 # Nobody on a card gives the Magpie a sex (test_the_magpie_is_never_given_a_sex).
 #
-# Version: v0.2.0 [2026-09-27]
+# Version: v0.3.3 [2026-09-28] -- a wrong confrontation honoured
 
 id: lantern_house_desk
 
 repeatable: true
 
-# The alibi and the one accusation the clues allow: at most two eligible
-# cards, so nothing is ever picked at random.
+# The alibi and the one accusation the clues allow before a right naming;
+# after it, the struck alibi, the badge and Cleared-after-the-fair. At most
+# three eligible cards, so nothing is ever picked at random.
 draw: 3
 
 when:
@@ -139,52 +171,83 @@ when:
     - { in_custody: false }
     - any:
         - &alibi_open { alibi: { agenda: the_magpie, open: true } }
+        # A Lantern's door (v0.17 T5): the captain in, and the ending earned.
+        - &badge_offered
+          all:
+            - any: [{ hour_between: [6, 13] }, { hour_between: [18, 23] }]
+            - { ending: { eligible: a_lantern } }
+        # Cleared's door once the fair is over (controller's ruling, T5
+        # review): F3 exists only on the Green during the fair.
+        - &cleared_after_the_fair
+          all:
+            - any: [{ hour_between: [6, 13] }, { hour_between: [18, 23] }]
+            - { event_seen: hanging_fair }
+            - none:
+                - { event_active: hanging_fair }
+                # Both earned: the badge card offers both (legibility ruling).
+                - { ending: { eligible: a_lantern } }
+            - { ending: { eligible: cleared } }
         - all:
             - &ardane_hears
               all:
                 - { not_flag: magpie_unmasked }
                 - { value: { name: evidence, min: 2 } }
-                # A second naming waits for a clue carried out since the first.
-                - any: [{ not_flag: magpie_named_wrongly }, { flag: clue_fresh }]
+                # A second naming waits for a clue carried out since the first
+                # -- or since a wrong confrontation at a suspect's door (v0.17
+                # T6, the_confrontation.yaml): either spends the lead.
+                - any:
+                    - none: [{ flag: magpie_named_wrongly }, { flag: magpie_confronted_wrongly }]
+                    - { flag: clue_fresh }
                 - any: [{ hour_between: [6, 13] }, { hour_between: [18, 23] }]
             - any:
+                # A suspect named wrongly here OR confronted wrongly at their
+                # own door (v0.17 T6) is set aside: the thief knows they are
+                # not the Magpie. The same blocks as the_confrontation.yaml's.
                 - &favours_wren
                   all:
-                    - { not_flag: wrongly_accused_wren }
+                    - none: [{ flag: wrongly_accused_wren }, { flag: wrongly_confronted_wren }]
                     - any:
                         - { clues_favour: { npc: npc_wren } }
-                        - all: [{ flag: wrongly_accused_silas },
-                                { clues_favour: { npc: npc_wren, excluding: [npc_silas] } }]
-                        - all: [{ flag: wrongly_accused_imelda },
-                                { clues_favour: { npc: npc_wren, excluding: [npc_imelda] } }]
-                        - all: [{ flag: [wrongly_accused_silas, wrongly_accused_imelda] },
-                                { clues_favour: { npc: npc_wren,
-                                                  excluding: [npc_silas, npc_imelda] } }]
+                        - all:
+                            - any: [{ flag: wrongly_accused_silas }, { flag: wrongly_confronted_silas }]
+                            - { clues_favour: { npc: npc_wren, excluding: [npc_silas] } }
+                        - all:
+                            - any: [{ flag: wrongly_accused_imelda }, { flag: wrongly_confronted_imelda }]
+                            - { clues_favour: { npc: npc_wren, excluding: [npc_imelda] } }
+                        - all:
+                            - any: [{ flag: wrongly_accused_silas }, { flag: wrongly_confronted_silas }]
+                            - any: [{ flag: wrongly_accused_imelda }, { flag: wrongly_confronted_imelda }]
+                            - { clues_favour: { npc: npc_wren, excluding: [npc_silas, npc_imelda] } }
                 - &favours_silas
                   all:
-                    - { not_flag: wrongly_accused_silas }
+                    - none: [{ flag: wrongly_accused_silas }, { flag: wrongly_confronted_silas }]
                     - any:
                         - { clues_favour: { npc: npc_silas } }
-                        - all: [{ flag: wrongly_accused_wren },
-                                { clues_favour: { npc: npc_silas, excluding: [npc_wren] } }]
-                        - all: [{ flag: wrongly_accused_imelda },
-                                { clues_favour: { npc: npc_silas, excluding: [npc_imelda] } }]
-                        - all: [{ flag: [wrongly_accused_wren, wrongly_accused_imelda] },
-                                { clues_favour: { npc: npc_silas,
-                                                  excluding: [npc_wren, npc_imelda] } }]
+                        - all:
+                            - any: [{ flag: wrongly_accused_wren }, { flag: wrongly_confronted_wren }]
+                            - { clues_favour: { npc: npc_silas, excluding: [npc_wren] } }
+                        - all:
+                            - any: [{ flag: wrongly_accused_imelda }, { flag: wrongly_confronted_imelda }]
+                            - { clues_favour: { npc: npc_silas, excluding: [npc_imelda] } }
+                        - all:
+                            - any: [{ flag: wrongly_accused_wren }, { flag: wrongly_confronted_wren }]
+                            - any: [{ flag: wrongly_accused_imelda }, { flag: wrongly_confronted_imelda }]
+                            - { clues_favour: { npc: npc_silas, excluding: [npc_wren, npc_imelda] } }
                 - &favours_imelda
                   all:
-                    - { not_flag: wrongly_accused_imelda }
+                    - none: [{ flag: wrongly_accused_imelda }, { flag: wrongly_confronted_imelda }]
                     - any:
                         - { clues_favour: { npc: npc_imelda } }
-                        - all: [{ flag: wrongly_accused_wren },
-                                { clues_favour: { npc: npc_imelda, excluding: [npc_wren] } }]
-                        - all: [{ flag: wrongly_accused_silas },
-                                { clues_favour: { npc: npc_imelda, excluding: [npc_silas] } }]
-                        - all: [{ flag: [wrongly_accused_wren, wrongly_accused_silas] },
-                                { clues_favour: { npc: npc_imelda,
-                                                  excluding: [npc_wren, npc_silas] } }]
-
+                        - all:
+                            - any: [{ flag: wrongly_accused_wren }, { flag: wrongly_confronted_wren }]
+                            - { clues_favour: { npc: npc_imelda, excluding: [npc_wren] } }
+                        - all:
+                            - any: [{ flag: wrongly_accused_silas }, { flag: wrongly_confronted_silas }]
+                            - { clues_favour: { npc: npc_imelda, excluding: [npc_silas] } }
+                        - all:
+                            - any: [{ flag: wrongly_accused_wren }, { flag: wrongly_confronted_wren }]
+                            - any: [{ flag: wrongly_accused_silas }, { flag: wrongly_confronted_silas }]
+                            - { clues_favour: { npc: npc_imelda, excluding: [npc_wren, npc_silas] } }
 cards:
 
   # =====================================================================
@@ -406,3 +469,131 @@ cards:
               - *clue_spent
               - *false_witness
       - *not_yet
+
+  # =====================================================================
+  # THE BADGE -- A LANTERN's door (v0.17 Task 5). Offered while the ending
+  # is earned and the captain is in; kept back, it is offered again on the
+  # next visit (the deck re-arms on the way out), so it is NOT `once`.
+  # =====================================================================
+
+  - id: D3_the_badge
+    tags: [menu, gm, ardane]
+    title: "The Badge"
+    when: *badge_offered
+    text: >-
+      INTENT: Captain Ardane at the tall desk under the wanted board, where a
+      drawing with the thief's nose used to hang. The thief found what four
+      sworn officers could not, has kept the city's lamps lit beside the
+      Watch, and never once turned the captain's own file against the Watch.
+      A brass badge lies on the desk between them -- a lantern on a chain.
+      CONSTRAINTS: the captain offers it plainly and does not beg; nobody
+      here takes the thief for the Magpie now. The thief may take the badge,
+      or ask only for their name cleared: either ends the story.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: take_the_badge
+        text: >-
+          Pick up the badge and swear the Watch's oath. This ends the story:
+          A Lantern.
+        gate:
+          on_pass:
+            text: >-
+              The chain is heavier than it looks, and warm from the desk lamp.
+              Captain Ardane watches you put it on, and for the first time
+              since the morning you came off the barge, the captain smiles.
+            effects:
+              - type: ledger_fact
+                kind: event
+                text: "Captain Ardane offered you a Lantern's badge, and you took the Watch's oath."
+              - { type: ending_lock, ending: a_lantern }
+              - { type: ending_module }
+
+      # Cleared's door on the same card (controller's ruling, T5 review
+      # round 2): a thief who has earned the badge has earned Cleared too, and
+      # one card that offers both is a choice the player can see. Gated on
+      # Cleared's own eligibility; unmet, it locks nothing.
+      - id: clear_my_name
+        text: >-
+          Leave the badge. Ask the captain only to clear your name, and let
+          you go. This ends the story: Cleared.
+        gate:
+          when: { ending: { eligible: cleared } }
+          on_pass:
+            text: >-
+              The captain looks at the badge, then at you, and puts it back in
+              the drawer without a word. Then the old drawing comes off the
+              wanted board, and your name is read out to the front room with
+              the word "not" in front of the other one.
+            effects:
+              - type: ledger_fact
+                kind: event
+                text: "Captain Ardane offered you a Lantern's badge; you asked only for your name, and the captain cleared it aloud."
+              - { type: ending_lock, ending: cleared }
+              - { type: ending_module }
+          on_fail:
+            text: >-
+              The captain does not answer that yet. The badge stays where it
+              is.
+
+      - id: not_yet
+        text: >-
+          Leave the badge on the desk. Not yet -- there is still something
+          you mean to do first.
+        gate:
+          on_pass:
+            text: >-
+              The captain nods and puts the badge away in a drawer -- not the
+              one that sticks. It will be there when you come back.
+
+  # =====================================================================
+  # CLEARED, AFTER THE FAIR -- Cleared's second door (v0.17 T5, fix round
+  # 1). The fair's F3 exists only while the fair is on (days 10-12); a thief
+  # who names the Magpie rightly after it -- or walked away from F3 and never
+  # went back -- is cleared here instead, by the captain, at the desk. Dealt
+  # only once the fair has been and gone, while Cleared is earned (and A
+  # Lantern is not: the badge card offers Cleared then) and the captain is in; NOT `once`, for the same reason as F3 and the badge: its
+  # gate is its own ending's eligibility, and every way through that does
+  # anything locks it.
+  # =====================================================================
+
+  - id: D4_cleared_at_the_desk
+    tags: [menu, gm, ardane]
+    title: "Your Name, Struck Off"
+    when: *cleared_after_the_fair
+    text: >-
+      INTENT: the Hanging Fair is over. The Watch took the Magpie the thief
+      named, quietly, and Captain Ardane has the thief's own file open on
+      the desk, the old drawing with the thief's nose on top of it.
+      CONSTRAINTS: the Magpie may be named now, as the GM line names them;
+      give the Magpie no sex. The captain is plain and does not apologise,
+      which in the Lantern House is the same thing. Hearing it said ends
+      the story.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: hear_it_said
+        text: >-
+          Stand at the desk and let the captain say it. This ends the story:
+          Cleared.
+        gate:
+          on_pass:
+            text: >-
+              Captain Ardane tears the old drawing in half, then in quarters,
+              and drops it in the stove. Then the captain reads your name
+              aloud to the whole front room, with the word "not" in front of
+              the other one, and has the duty Lantern write it down.
+            effects:
+              - type: ledger_fact
+                kind: event
+                text: "After the Hanging Fair Captain Ardane cleared your name at the Lantern House desk, aloud, in front of the Watch."
+              - { type: ending_lock, ending: cleared }
+              - { type: ending_module }
+
+      - id: not_yet
+        text: >-
+          Not yet. Leave the file where it lies; there is something you mean
+          to do first.
+        gate:
+          on_pass:
+            text: >-
+              The captain closes the file and leaves it on the corner of the
+              desk. It will keep.

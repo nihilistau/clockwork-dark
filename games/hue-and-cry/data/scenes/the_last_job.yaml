@@ -1,0 +1,112 @@
+# HUE & CRY -- the last job: the heart, by night, after the fair.
+# ==============================================================
+#
+# PARTNERS' SECOND DOOR (v0.17 Task 8, fix round 1; the owner's ruling). The
+# first is the Hanging Fair's `F6_the_heist_together` (fair_day.yaml): the
+# heart lifted off the palace steps at the Showing, with the Magpie. A thief
+# who finds the Magpie out and throws in with them AFTER the fair's last day
+# had no door at all (measured: 2 of the endings harness partner's 40 runs).
+# Once the fair is over the heart goes back into the Everflame on Margrave's
+# Hill (locations.yaml: the flame "burns in a crystal lantern the size of a
+# coach"), and this is the partners' one last job: out of the flame itself,
+# by night.
+#
+# Read by engine/content/deck.py through `paths.decks`; THE FILENAME IS THE
+# DECK ID.
+#
+# WHEN IT IS DEALT (`when:` below). On Margrave's Hill, free, after dark
+# (20:00 to 05:00, the clock's night), once the Hanging Fair has come and gone -- and only while
+# Partners is EARNED: the deck's `when:` and the card's ask
+# `{ending: {eligible: partners}}` themselves, so the door and the gate cannot
+# drift apart (AUTHORING §3.5). During the fair F6 is the door, and never
+# this one (`none: event_active`), so no two doors of one ending are open at
+# once.
+#
+# LEGIBLE. The partnership says where (the_confrontation.yaml's right
+# answer: "at the Hanging Fair, or after it, up the Hill after dark"), and
+# F6's "not yet" says the heart goes back into the Everflame up the Hill.
+# "After dark" is this deck's own window: the clock's night, 20:00 to 05:00
+# (widened from 22:00-04:00 in fix round 2, so the words and the hours agree).
+#
+# REPEATABLE, and the card is NOT `once`: "not yet" is never the last chance.
+# The director re-arms the deck the first turn its `when:` is seen false (the
+# thief walks off the Hill, or the dawn comes) and deals it again the next
+# night there. Taking it locks the ending by name and plays its module, which
+# tells this night's telling (endings.yaml `partners_act`'s gate); a card that
+# does both ends the hand, and a locked run is never dealt a door again.
+#
+# ALWAYS ANSWERABLE: both answers are roll-free (the risk of Partners sits in
+# the confrontation, as at the fair), and nothing opens a scene.
+#
+# SECRECY. Nothing here decides presence by who the Magpie is: the deck asks
+# only where, when and whether Partners is earned, and the partnership is
+# what the thief already knows. The Magpie may be named, as the GM line names
+# them once partnered; the Magpie is given no sex.
+#
+# Version: v0.1.1 [2026-09-28] -- the clock's whole night; header quotes what shipped (T8 fix round 2)
+
+id: the_last_job
+
+repeatable: true
+
+draw: 1
+
+when:
+  all:
+    - { at_location: margraves_hill }
+    - { in_custody: false }
+    - { hour_between: [20, 5] }
+    - { event_seen: hanging_fair }
+    - { none: [{ event_active: hanging_fair }] }
+    - { ending: { eligible: partners } }
+
+cards:
+
+  - id: L1_the_heart_by_night
+    # Gated on its own ending, like every door the owner allowed to be
+    # offered again: declining closes nothing.
+    when: { ending: { eligible: partners } }
+    tags: [menu, gm]
+    title: "The Heart, by Night"
+    text: >-
+      INTENT: the Hanging Fair is over and the heart is back in the Everflame,
+      in its crystal lantern on the Hill, with two sleepy Lanterns and a
+      steward's kennel of dogs between it and the dark. The Magpie the thief
+      threw in with is waiting in the shadow of the palace wall, exactly as
+      promised, with a plan: the thief makes the noise, the Magpie does the
+      part nobody sees, and the heart leaves the flame by the Magpie's own
+      road over the roofs.
+      CONSTRAINTS: the Magpie may be named now, as the GM line names them;
+      give the Magpie no sex. The Magpie may be anywhere the schedule says at
+      other hours; tonight, the Magpie is here. Nothing on this card is seen
+      by the Watch. Taking it ends the story.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: take_it_together
+        text: >-
+          Make the noise, and let the Magpie do the rest. This ends the
+          story: Partners.
+        gate:
+          on_pass:
+            text: >-
+              You kick a bucket over on the gravel and set every dog in the
+              Margrave's kennels going, and while two Lanterns run the wrong
+              way the Magpie goes up the crystal like a cat up a curtain, and
+              down again, and the two of you are gone before the dogs have
+              run out of opinions.
+            effects:
+              - type: ledger_fact
+                kind: theft
+                text: "After the Hanging Fair you and the Magpie took the Everflame's heart out of the flame itself, by night, off Margrave's Hill."
+              - { type: reputation, faction: temple_everflame, delta: -10, why: "the Everflame's heart taken out of the flame itself on Margrave's Hill" }
+              - { type: ending_lock, ending: partners }
+              - { type: ending_module }
+      - id: not_yet
+        text: >-
+          Not tonight. Tell the Magpie to wait for your word.
+        gate:
+          on_pass:
+            text: >-
+              The Magpie shrugs and is simply not there any more. Up in its
+              crystal the Everflame burns on round the heart, untouched. The
+              Hill will still be dark tomorrow night.

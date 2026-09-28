@@ -1,0 +1,157 @@
+# HUE & CRY -- the gallows: the last morning of the Hanging Fair.
+# ================================================================
+#
+# The Rope's hanging door (v0.17 T3). "A thief taken at the fair is hanged at
+# the fair" (data/lore/the_hanging_fair.md): on the fair's last morning the
+# Watch walks the thieves it saved up for the occasion down to Gallows Green.
+# This deck is that walk, and it ends the story in `the_rope`
+# (data/rules/endings.yaml) -- the fail-forward, told as a Quest for Glory
+# death screen tells one: warm, wry and fond of the player, never cruel.
+# The Rope's OTHER door is data/rules/death.yaml's terminal: any death while
+# held during the fair.
+#
+# Read by engine/content/deck.py through `paths.decks`; THE FILENAME IS THE
+# DECK ID. Not forced: SCHEDULED by its own `when:`, which is the whole
+# of who hangs --
+#
+#   held_before_event: hanging_fair   in the cells NOW, in a stay that began
+#                                     no later than the fair did (midnight of
+#                                     its first day). A thief taken DURING the
+#                                     fair is questioned and may pay or serve
+#                                     like any other; the one the Watch was
+#                                     already holding when the fair came is
+#                                     the one it saved up. (engine/world/
+#                                     law.py, v0.17)
+#   event_active: hanging_fair        the fair is still on.
+#   min_day: 12                       its LAST day: schedules.yaml's
+#                                     `on_day + duration_days - 1`. Change one,
+#                                     change the other (asserted).
+#   hour_between: [9, 24]             from nine in the morning: the lore's
+#                                     "last morning", and the hour the card
+#                                     text keeps. No upper bound, so a thief
+#                                     who rests through the morning in the
+#                                     cell is not skipped.
+#
+# UNTIL NINE ON THE LAST DAY, A WAY OUT. From midnight on day 10 to nine on
+# day 12 the held thief can still pay the fine (the fine and the days stand,
+# as for every stay), or break out (data/challenges/lantern_house.yaml: a
+# thief who is free at nine is not dealt this deck). SERVING does
+# not wait the fair out: `law.serve_sentence` asks the director at every
+# hour a deck can fall due at (midnight and nine, here) whether a scene has
+# fallen due (v0.17), so a sentence that would
+# run past nine on the last morning stops at nine, whatever hour it was begun,
+# and this deck is dealt on that turn. A sentence that
+# ends before nine is served out as always. Rule 6 is untouched: the cells'
+# bunk is offered all the while, and resting through the morning simply
+# brings nine o'clock.
+#
+# THE CARD. One required menu card, `G1_the_last_morning`: how you go down the
+# Hill. Every answer asks no roll, and every one does the same two things,
+# in order: `ending_lock {ending: the_rope}` -- BY NAME, never an id-less lock
+# -- and `ending_module`, which plays The Rope's Speak / Act / Seal and shows
+# its epilogue card. The choice is the manner, not the outcome. The scaffold
+# itself is never described; the module keeps it just out of sight.
+#
+# THE QUIET DEATH (death.yaml's header, CLAUDE.md). A thief who dies of hunger
+# in the cells during the fair still goes to The Rope through the terminal
+# death, with no card: this deck narrates the hanging for the thief the Watch
+# walks out, and a prisoner serving a sentence is fed through it.
+#
+# SECRECY (spec §6). The Watch hangs the one it believes is the Magpie -- or,
+# after a right naming, a thief it held on a lesser charge: `argue_the_case`
+# reads the Law's links, as the fair's ballad does -- and no card names or
+# guesses who the real one is. (asserted: no candidate's name, alias or
+# trade)
+#
+# Version: v0.1.2 [2026-09-27]
+
+id: the_gallows
+
+draw: 1
+
+when:
+  all:
+    - { held_before_event: hanging_fair }
+    - { event_active: hanging_fair }
+    - { min_day: 12 }
+    - { hour_between: [9, 24] }
+
+cards:
+
+  - id: G1_the_last_morning
+    required: true
+    tags: [menu, gm, watch]
+    title: "The Last Morning"
+    text: >-
+      INTENT: nine o'clock on the last morning of the Hanging Fair. The cell
+      door opens, two Lanterns in their best coats take an elbow each, and
+      you are walked out of the Lantern House and down through the fair to
+      Gallows Green behind a drum, with the crowd parting to let you by and
+      closing again behind you to see.
+      WARMTH AND TEETH: a Quest for Glory death screen, not an execution.
+      The crowd is in a holiday mood, the pies are hot, and a ballad-seller
+      walks backwards in front of you the whole way, taking notes.
+      CONSTRAINTS: this is the end of the story; the ending plays next. Never
+      describe the scaffold. Name no suspect as the real Magpie; what the
+      Watch believes of you is in the answer below.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: head_up
+        text: >-
+          Walk down the Hill with your head up, as if the whole fair were for
+          you.
+        gate:
+          on_pass:
+            text: >-
+              You walk it like a procession, and the crowd, which knows a
+              performance when it sees one, starts to clap in time with the
+              drum. A child throws you a ribbon. A Lantern at your elbow
+              straightens his own back without meaning to.
+            effects:
+              - { type: ending_lock, ending: the_rope }
+              - { type: ending_module }
+
+      - id: argue_the_case
+        text: >-
+          Argue your case with the Lantern at your elbow, all the way down
+          the Hill.
+        gate:
+          # No dice: what you are arguing against is what the Watch believes
+          # (the Law's links), as the fair's ballad reads it. After a right
+          # naming the thief is hanged on the charge they were held for, and
+          # the Watch knows they are not the Magpie.
+          when: { linked: { a: self, b: magpie } }
+          on_pass:
+            text: >-
+              You tell the Lantern you are not the Magpie, and the Lantern
+              agrees with every word, kindly, in the voice people use for the
+              very old and the very drunk, and at the bottom of the Hill buys
+              you a pie with a Lantern's own money, which you are in no
+              position to eat.
+            effects:
+              - { type: ending_lock, ending: the_rope }
+              - { type: ending_module }
+          on_fail:
+            text: >-
+              The Lantern knows you are not the Magpie -- the whole Watch
+              knows it now -- and says so, and says too, kindly, that the fair
+              was never particular, and that what you were held for will do.
+              At the bottom of the Hill there is a pie, which you are in no
+              position to eat.
+            effects:
+              - { type: ending_lock, ending: the_rope }
+              - { type: ending_module }
+
+      - id: look_for_the_jackdaw
+        text: >-
+          Look for the jackdaw.
+        gate:
+          on_pass:
+            text: >-
+              He is there, of course: rooftop to rooftop along the whole of
+              the route, one good eye on you and the other on a hangman's
+              brass button he has not yet been introduced to. It is a
+              comfort. It is not very much of a comfort.
+            effects:
+              - { type: ending_lock, ending: the_rope }
+              - { type: ending_module }

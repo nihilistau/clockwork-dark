@@ -28,10 +28,10 @@ settles the result, and a model on your own machine writes the prose.
   generation, voice and ComfyUI are optional and **off by default**. The
   shipped art packs mean scenes have pictures without any of them.
 
-**Status:** **v0.16.0** is the current release. Six stories ship, and each
-can be played to an ending. At v0.16.0 the suite stood at 3405 passing, 4
-skipped, plus 144 client tests. Those numbers are
-re-measured each release in [CLAUDE.md](CLAUDE.md), and
+**Status:** **v0.17.0** is the current release. Six stories ship, and each
+can be played to an ending; HUE & CRY can now be finished eight ways. At
+v0.17.0 the suite stood at 3734 passing, 4 skipped, plus 144 client tests.
+Those numbers are re-measured each release in [CLAUDE.md](CLAUDE.md), and
 [CHANGELOG.md](CHANGELOG.md) records every change from 0.4.0 on.
 
 ---
@@ -64,7 +64,7 @@ release.
 | **The Wicked Garden** | `wicked-garden` | Fae-court bargain. One day in the garden costs ten at home | Scene decks, veiled meters, clocks, threads, many endings | The deck exemplar, with no HP, no hunger, no skill checks and nothing to buy. It shows the engine isn't one game with the nouns swapped |
 | **NEON CITY: THE CROSSING** | `neon-city` | Cyberpunk survival expedition across the Sprawl on a 21-day timestamp | Graph world, scavenge economy, a doom-style clock that quests can make *slip*, debt escalation, threads, six ending classes | A graph story with no evil clock. The pressure comes from heat, debt, the weather and the file |
 | **THE LONG CON** | `the-long-con` | Rain-and-radiator noir. A client, a photograph, a man already dead | Graph city with road encounters, a shop, and a clock that forces an authored deck scene | The first hybrid: a walkable city with a set-piece deck inside it. It also has secret places, a clue board, gossip, and a continuity guard that rejects a scene greeting someone you know as a stranger |
-| **HUE & CRY** | `hue-and-cry` | Wry, warm thief's comedy with real gallows. Tallowmere, a candle-port, where everyone has decided you are the Magpie | Premises, the Law, jobs and flashbacks, NPC agendas, survival, labour, factions, lore, a guild economy (crafting, a collectable set, blackmail, credit), Acts I and II (three decks, the Magpie's trail, an alibi and an accusation) | The systems-heavy one, and the story in progress toward v1.0.0. The world schemes, robs and hunts on its own clock |
+| **HUE & CRY** | `hue-and-cry` | Wry, warm thief's comedy with real gallows. Tallowmere, a candle-port, where everyone has decided you are the Magpie | Premises, the Law, jobs and flashbacks, NPC agendas, survival, labour, factions, lore, a guild economy (crafting, a collectable set, blackmail, credit), Acts I–III (the Magpie's trail, an alibi and an accusation, the Hanging Fair, a jailbreak), death with a respawn, and eight endings | The systems-heavy one, finishable eight ways, and still in progress toward v1.0.0 (screens, art, live play). The world schemes, robs and hunts on its own clock |
 | **Dev Story** | `dev-story` | Not a game: the annotated bench. A house, a university and eight people | One small working instance of every subsystem, plus the multi-agent pipeline | The worked example the story templates are distilled from. Change one thing and see what it does |
 
 <details open>
@@ -137,7 +137,7 @@ city. The cast is narrated rather than run as agents: this story ships no
 </details>
 
 <details>
-<summary><b>HUE & CRY</b>, in progress toward v1.0.0</summary>
+<summary><b>HUE & CRY</b>, finishable in eight ways, in progress toward v1.0.0</summary>
 
 You step off the barge at Tallowmere, a Lantern of the Watch shouts "the
 Magpie!", and the whole city agrees. Today it has:
@@ -177,9 +177,29 @@ Magpie!", and the whole city agrees. Today it has:
   the captain: rightly, and the Watch stops taking you for the Magpie;
   wrongly, and it costs you.
 
-One ending ships today (`honest_after_all`); Act III and the other seven
-land in v0.17. It runs on the engine's default skin for now, and no art plates ship
-yet. Its bespoke screens are on the roadmap.
+- **Act III: the Hanging Fair.** On days 10 to 12 the fair comes to Gallows
+  Green: the ballad, the Showing of the Flame, and the Everflame's heart on
+  the palace steps, to watch or to steal (a severe stealth roll). A thief the
+  Watch was already holding when the fair came is walked down to the gallows
+  on its last morning, unless the fine is paid or the cells are broken out
+  of first: **the jailbreak** is two skill gauntlets, about one try in
+  three, and one try a day.
+- **Death, and a way on.** At hp 0 you wake on the step of Old Nance's
+  flophouse, half a purse lighter (still held, if the Watch held you). Only
+  a death in the cells while the fair is on ends the story.
+- **Eight endings**, each through its own door and each earned: **Cleared**
+  (name the real Magpie, and see the Watch take them at the fair), **A
+  Lantern** (the captain's badge), **Honest After All** (the evening barge,
+  for a thief who never stole), **Partners** (throw in with the Magpie and
+  take the heart together), **The Legend** (take the heart alone and get it
+  home), **Guildmaster** (Mother Gannet's needles), **The Dapper's City**
+  (Silas Crook's rise), and **The Rope**, the fail-forward, told like a Quest
+  for Glory death screen. `tests/test_finales.py` drives every one through
+  its door, and `scripts/simulate_endings.py` measures which policy reaches
+  which.
+
+It runs on the engine's default skin for now, and no art plates ship yet.
+Its bespoke screens, art pack and live play are on the roadmap.
 
 | In play: the casing board beside the opening | The map |
 |---|---|
@@ -497,6 +517,7 @@ npm run build --prefix ui     # rebuild, then commit dist in the same change
 .\.venv\Scripts\python.exe scripts\simulate_streets.py   # wanderer: a street an hour, day and night (--collectors)
 .\.venv\Scripts\python.exe scripts\simulate_hoard.py     # hoarder: the anchors, the Hoard, the squeezes (--no-pass, --severity)
 .\.venv\Scripts\python.exe scripts\simulate_acts.py      # investigator: Acts I-II, the trail and the reveal (--opening, --gate)
+.\.venv\Scripts\python.exe scripts\simulate_endings.py   # eleven policies to the ending each run locks (--fair-day, --break-out)
 ```
 
 The HUE & CRY harnesses run 40 seeds of in-game days each, and none of them
@@ -520,7 +541,7 @@ fixed; details may change as each release lands.
 |---|---|---|
 | v0.15.0 | **Guild economy** for HUE & CRY: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | **shipped** |
 | v0.16.0 | **Acts I and II** for HUE & CRY: the opening, the initiation and interrogation decks, the Magpie's trail, the reveal and the alibi | **shipped** |
-| v0.17.0 | **Act III and eight endings**: the Hanging Fair, the jailbreak, The Rope, per-ending tests | planned |
+| v0.17.0 | **Act III and eight endings**: the Hanging Fair, the jailbreak, The Rope, per-ending tests | **shipped** |
 | v0.18.0 | **A thief policy** for `simulate.py`, which also measures welshing's cost for a burglar | planned |
 | v0.19.0 | **Model-server agnostic**: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | planned |
 | v0.20.0 | **Linux as a first-class platform**, and a **hosted, web-served mode**: auth, per-user sessions and saves, a production server, Docker | planned |

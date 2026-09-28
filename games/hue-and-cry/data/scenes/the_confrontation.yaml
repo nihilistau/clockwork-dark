@@ -1,0 +1,272 @@
+# HUE & CRY -- the confrontation: the trail followed to the Magpie's own door.
+# ===========================================================================
+#
+# PARTNERS' first half (v0.17 Task 6). The front desk (lantern_house_desk.yaml)
+# is where a thief with a trail can NAME the Magpie to Captain Ardane. This is
+# its opposite number: the same trail, the same lead, taken not to the Watch
+# but to the suspect's own door -- to say "I know what you are, and I want
+# in." Named rightly, the Magpie takes the thief on (`partners_with_the_magpie`)
+# and the heist of the Everflame's heart becomes a thing for two: the fair's
+# F6_the_heist_together, PARTNERS' door (fair_day.yaml), which is where the
+# ending locks. Named wrongly, it costs.
+#
+# Read by engine/content/deck.py through `paths.decks`; THE FILENAME IS THE
+# DECK ID.
+#
+# WHERE. At the suspect's own haunt, at the hours npc_schedules.yaml has them
+# there -- somewhere they can be found alone enough to be asked:
+#
+#   Wren             the Snuffs, 21:00-05:00: home from the lamp round, up
+#                    the garret stair
+#   Silas Crook      the Snuffs, 20:00-05:00: the flophouse taproom, then his
+#                    back stair
+#   Lady Imelda      Silk Row, 09:00-13:00 (the front parlour) or
+#                    16:00-19:00 (the silversmith's window)
+#
+# WHEN IT IS DEALT (`when:` below). Free; the Magpie never given up to the
+# Watch (`magpie_unmasked`) and not already a partner; the same evidence bar
+# as the accusation (`evidence` 2 or more, the desk's measured bar: two clues
+# that agree); and the clues FAVOUR the suspect whose haunt this is, at an
+# hour they are there. CARD PRESENCE NEVER READS THE ROLE: a card for a
+# suspect is dealt only while the player's own clues lean that way, exactly
+# as the desk's accusation is, and whether the name is right is decided only
+# when the player says it -- by `agenda_role` in the beat's own gate, which
+# no prompt renders.
+#
+# SET ASIDE. A suspect the thief has confronted wrongly, or named wrongly at
+# the desk, is not the Magpie, and the thief knows it: their card is never
+# dealt again, and the lead is counted among the others without them
+# (`clues_favour {excluding}`), as the desk does. A second confrontation after
+# a wrong one -- or after a wrong naming at the desk -- waits for a clue
+# carried out SINCE (`clue_fresh`, cleared by either; the desk's own bar,
+# mirrored in v0.17 T7).
+#
+# WHAT IT COSTS AND WRITES. At most four effects a branch.
+#
+#   rightly   `partners_with_the_magpie`; a ledger fact naming the Magpie to
+#             the player. From the next line on, the narrator is told who the
+#             Magpie is too (agendas.yaml's mask: `unmask_when` reads the
+#             partnership as well as the right naming). The Watch is told
+#             nothing: it still takes you for the Magpie.
+#   wrongly   `magpie_confronted_wrongly`; `wrongly_confronted_<suspect>`;
+#             `clue_fresh` cleared; and the suspect's own people hear of it
+#             -- the Lantern Watch for Wren (whose lamps are the Watch's
+#             ordinance), the Honest Company for Silas, the Silk Row houses
+#             for Lady Imelda: 5 off that standing. A cost and never a
+#             soft-lock: nothing here arrests, and no ending is closed by it.
+#
+# REPEATABLE; no card is `once`. "Leave it" is never the last chance: walk
+# away and back (the director re-arms the deck when its `when:` falls).
+#
+# SECRECY (spec §6). A card names only its own suspect, is dealt only when the
+# player's clues favour them, and says whether the name was right only in the
+# outcome. Nobody on a card gives the Magpie a sex.
+#
+# Version: v0.1.2 [2026-09-28] -- the partnership names the Hill after the fair (T8 fix round 1)
+
+id: the_confrontation
+
+repeatable: true
+
+# At most one suspect is favoured at a time, so at most one card.
+draw: 1
+
+when:
+  all:
+    - { in_custody: false }
+    - &still_asking
+      all:
+        - { not_flag: magpie_unmasked }
+        - { not_flag: partners_with_the_magpie }
+        - { value: { name: evidence, min: 2 } }
+        # A second try -- after a wrong confrontation here OR a wrong naming
+        # at the desk -- waits for a clue carried out since (the desk's own
+        # bar, mirrored; v0.17 T7).
+        - any:
+            - none: [{ flag: magpie_named_wrongly }, { flag: magpie_confronted_wrongly }]
+            - { flag: clue_fresh }
+    - any:
+        - &at_wrens_door
+          all:
+            - { at_location: the_snuffs }
+            - { hour_between: [21, 5] }
+            - &favours_wren
+              all:
+                - none: [{ flag: wrongly_accused_wren }, { flag: wrongly_confronted_wren }]
+                - any:
+                    - { clues_favour: { npc: npc_wren } }
+                    - all:
+                        - any: [{ flag: wrongly_accused_silas }, { flag: wrongly_confronted_silas }]
+                        - { clues_favour: { npc: npc_wren, excluding: [npc_silas] } }
+                    - all:
+                        - any: [{ flag: wrongly_accused_imelda }, { flag: wrongly_confronted_imelda }]
+                        - { clues_favour: { npc: npc_wren, excluding: [npc_imelda] } }
+                    - all:
+                        - any: [{ flag: wrongly_accused_silas }, { flag: wrongly_confronted_silas }]
+                        - any: [{ flag: wrongly_accused_imelda }, { flag: wrongly_confronted_imelda }]
+                        - { clues_favour: { npc: npc_wren, excluding: [npc_silas, npc_imelda] } }
+        - &at_silas_door
+          all:
+            - { at_location: the_snuffs }
+            - { hour_between: [20, 5] }
+            - &favours_silas
+              all:
+                - none: [{ flag: wrongly_accused_silas }, { flag: wrongly_confronted_silas }]
+                - any:
+                    - { clues_favour: { npc: npc_silas } }
+                    - all:
+                        - any: [{ flag: wrongly_accused_wren }, { flag: wrongly_confronted_wren }]
+                        - { clues_favour: { npc: npc_silas, excluding: [npc_wren] } }
+                    - all:
+                        - any: [{ flag: wrongly_accused_imelda }, { flag: wrongly_confronted_imelda }]
+                        - { clues_favour: { npc: npc_silas, excluding: [npc_imelda] } }
+                    - all:
+                        - any: [{ flag: wrongly_accused_wren }, { flag: wrongly_confronted_wren }]
+                        - any: [{ flag: wrongly_accused_imelda }, { flag: wrongly_confronted_imelda }]
+                        - { clues_favour: { npc: npc_silas, excluding: [npc_wren, npc_imelda] } }
+        - &at_imeldas_door
+          all:
+            - { at_location: silk_row }
+            - any: [{ hour_between: [9, 13] }, { hour_between: [16, 19] }]
+            - &favours_imelda
+              all:
+                - none: [{ flag: wrongly_accused_imelda }, { flag: wrongly_confronted_imelda }]
+                - any:
+                    - { clues_favour: { npc: npc_imelda } }
+                    - all:
+                        - any: [{ flag: wrongly_accused_wren }, { flag: wrongly_confronted_wren }]
+                        - { clues_favour: { npc: npc_imelda, excluding: [npc_wren] } }
+                    - all:
+                        - any: [{ flag: wrongly_accused_silas }, { flag: wrongly_confronted_silas }]
+                        - { clues_favour: { npc: npc_imelda, excluding: [npc_silas] } }
+                    - all:
+                        - any: [{ flag: wrongly_accused_wren }, { flag: wrongly_confronted_wren }]
+                        - any: [{ flag: wrongly_accused_silas }, { flag: wrongly_confronted_silas }]
+                        - { clues_favour: { npc: npc_imelda, excluding: [npc_wren, npc_silas] } }
+
+cards:
+
+  - id: C1_wrens_stair
+    tags: [menu, gm, confrontation]
+    title: "The Garret Stair"
+    when: *at_wrens_door
+    text: &confrontation_text >-
+      INTENT: the thief has followed a trail out of the city's houses, piece by
+      piece, and it leads one way, to one door; and the thief has come to that
+      door and not to the Watch's. The player may say it to their face -- "I
+      know what you are, and I want in" -- or leave it unsaid.
+      CONSTRAINTS: say nothing about whether the thief is right until the
+      player has chosen; the outcome says it. Nobody here guesses aloud, and
+      nobody gives the Magpie a sex. Nothing on this card arrests anyone.
+      MENU -- resolve exactly the beat the player chose.
+    beats:
+      - id: say_it
+        text: >-
+          Catch Wren, the lamplighter, on the garret stair with the long brass
+          pole still on one shoulder, lay out the trail, and say you know Wren
+          is the Magpie -- and that you want in, not out.
+        gate:
+          when: { agenda_role: { role: magpie, npc: npc_wren } }
+          on_pass:
+            text: &confronted_rightly >-
+              A long silence, then a laugh, low and delighted. "The Watch has
+              been trying for three years. You did it in a week, and came
+              here instead." A hand is held out to you. "Partners, then. There
+              is one thing in this city I have never taken, and it needs two:
+              at the Hanging Fair, or after it, up the Hill after dark."
+            effects:
+              - &partnered { type: flag, flag: partners_with_the_magpie }
+              - type: ledger_fact
+                kind: reveal
+                subject_id: npc_wren
+                text: "Wren is the Magpie. You followed the trail to Wren's door, said so, and asked to be let in; the Magpie took you on as a partner."
+          on_fail:
+            text: >-
+              Wren looks at you for a long moment with the lamp-black still on
+              her cheek, and then laughs -- not unkindly -- and goes up the
+              stair. By morning the Lantern House has heard that a stranger
+              came to the lamplighter's door looking for the Magpie.
+            effects:
+              - &confronted_wrongly { type: flag, flag: magpie_confronted_wrongly }
+              - { type: flag, flag: wrongly_confronted_wren }
+              - &confrontation_spent { type: flag, flag: clue_fresh, value: false }
+              - { type: reputation, faction: lantern_watch, delta: -5, why: "accused the lamplighter, at her own door, of being the Magpie" }
+
+      - &leave_it
+        id: leave_it
+        text: >-
+          Say nothing. A trail is not a proof, and a door can be knocked on
+          another night.
+        gate:
+          on_pass:
+            text: >-
+              You let the moment go by. Nobody on the stair seems to have
+              noticed that there was one.
+
+  - id: C1_silas_taproom
+    tags: [menu, gm, confrontation]
+    title: "The Taproom"
+    when: *at_silas_door
+    text: *confrontation_text
+    beats:
+      - id: say_it
+        text: >-
+          Find Silas Crook, the Dapper, at his own table in the flophouse
+          taproom, lay out the trail, and say you know Silas is the Magpie --
+          and that you want in, not out.
+        gate:
+          when: { agenda_role: { role: magpie, npc: npc_silas } }
+          on_pass:
+            text: *confronted_rightly
+            effects:
+              - *partnered
+              - type: ledger_fact
+                kind: reveal
+                subject_id: npc_silas
+                text: "Silas Crook is the Magpie. You followed the trail to Silas's table, said so, and asked to be let in; the Magpie took you on as a partner."
+          on_fail:
+            text: >-
+              Silas hears you out with every appearance of enjoyment, then
+              stands on his chair and tells the whole taproom what you just
+              accused him of, and the taproom laughs until it cries. By
+              morning the Snuffs are telling it at the Porters' Hall.
+            effects:
+              - *confronted_wrongly
+              - { type: flag, flag: wrongly_confronted_silas }
+              - *confrontation_spent
+              - { type: reputation, faction: honest_company, delta: -5, why: "accused Silas Crook, in his own taproom, of being the Magpie" }
+      - *leave_it
+
+  - id: C1_imeldas_parlour
+    tags: [menu, gm, confrontation]
+    title: "The Parlour"
+    when: *at_imeldas_door
+    text: *confrontation_text
+    beats:
+      - id: say_it
+        text: >-
+          Get a word alone with Lady Imelda Vessaline, of Silk Row, lay out
+          the trail, and say you know Lady Imelda is the Magpie -- and that
+          you want in, not out.
+        gate:
+          when: { agenda_role: { role: magpie, npc: npc_imelda } }
+          on_pass:
+            text: *confronted_rightly
+            effects:
+              - *partnered
+              - type: ledger_fact
+                kind: reveal
+                subject_id: npc_imelda
+                text: "Lady Imelda Vessaline is the Magpie. You followed the trail to her door on Silk Row, said so, and asked to be let in; the Magpie took you on as a partner."
+          on_fail:
+            text: >-
+              Lady Imelda hears you out, rings for the footman, and has you put
+              on the pavement with great courtesy and no hurry at all. By
+              evening every house on Silk Row knows what the stranger said to
+              her in her own parlour.
+            effects:
+              - *confronted_wrongly
+              - { type: flag, flag: wrongly_confronted_imelda }
+              - *confrontation_spent
+              - { type: reputation, faction: silk_row, delta: -5, why: "accused Lady Imelda, in her own parlour, of being the Magpie" }
+      - *leave_it

@@ -435,7 +435,19 @@ What cuts across:
   The deck walker's `rejected` table (§5.2) is where this bug becomes visible.
 - Effects are clamped to per-scene ceilings derived from each value's own
   scale (`engine/challenges/spec.py`), at most four effects per outcome
-  branch, and the `track` effect kind is deliberately unreachable from deck
+  branch, and text is capped. AUTHORED text -- a story's own file: card and
+  beat text, an outcome's text, a set-piece's steps and prompt -- is capped
+  at `spec.MAX_AUTHORED_TEXT` (1500 characters; a card title at 120); the
+  smaller `spec.MAX_TEXT` (400) bounds only what a model composes mid-turn.
+  Past a cap the loader cuts; since v0.17 the validator names every cut in a
+  story's own files as an error (`check_truncated_content`), so shorten or
+  split the line -- no shipped line comes near it (the longest, 899). The
+  narrator reads every character of it, so a note to yourself or to the
+  engine (`RUNTIME:`, "NOTE: the design...", "open the thread through the
+  thread tool") goes in a YAML comment beside the card or beat, never in
+  its `text`: the narrator never acts (AGENTS.md rule 1), and
+  `tests/test_no_author_meta_in_narration.py` fails a story that forgets.
+  The `track` effect kind is deliberately unreachable from deck
   beats — an ending intent set by a dice table is not a scene, it is a hijack.
   Enums are spelled as one flag per value (`entry_mode_guest`), the convention
   the Garden's scenes README documents. A beat may write a **`ledger_fact`**
@@ -452,6 +464,32 @@ What cuts across:
   lifetime: a clock beat's promise stands for the rest of the run, an event's
   only while the event is active, so a player who takes no turn during its
   window never sees it.
+- **A forced deck waits for its own `when:`** (v0.17). A deck that is
+  forced (by a clock beat or an event) and also declares a top-level `when:`
+  is dealt only while that `when:` holds. Until then it WAITS: it is neither
+  dealt nor retired, and any other deck that is due (a scheduled one, or a
+  repeatable one such as an interrogation dealt on arrest) may deal
+  meanwhile. Once the `when:` holds while the promise still stands, it
+  deals. If the forcing ends first (the event expires) before the `when:`
+  ever held, it is simply not dealt. So a fair forced by its event and gated
+  `at_location: gallows_green` meets the player on the green, not wherever
+  they happen to stand. Because a `when:` also SCHEDULES a deck on its own,
+  put the event in it too (`event_active: <event id>`), or the deck deals
+  whenever the rest of its `when:` holds, fair or no fair. A forced single
+  CARD ignores its deck's `when:` and is placed in the hand as before. A
+  `repeatable` deck forced AS A DECK by a declared world event and gated on
+  its own `when:` re-arms on that `when:` alone, not on the event (still
+  active when the player walks off the green): so HUE & CRY's fair is dealt
+  again on each return to the Green, with `once` on every card that must not
+  repeat (`data/scenes/fair_day.yaml`). The event stays the trigger for a
+  row that forces a single card (which deals whatever the `when:` says, so
+  it must hold the deck spent while its event stands), and a clock beat's
+  row, which is permanent, never lets its deck re-arm at all.
+- **A card that takes hp can kill, on that card** (v0.17). When a card's
+  beats lower hp to the death threshold, `encounter.check_death` runs on that
+  card: `death.yaml`'s terminal block (locking its ending) or its respawn.
+  Either way the rest of the hand is dropped, the same as an open encounter,
+  and the narrator is told on that turn.
 - **A deal waits for whatever owns the turn.** The director deals nothing
   while a hand is open, a job is under way, or an encounter is open. The
   last covers a Lantern's stop, which the Law's patrol can open in the same
@@ -505,8 +543,14 @@ predicates, threshold beats, and `forces_scene`. Wound from
 `clock.advance_time`, so they move even for a player who sleeps through the
 week. `paths.threads` → `engine/game/threads.py`: contracts with a lifecycle —
 offer → terms → renegotiate → seal → discharge/break/expire. No card effect
-seals a thread; an **agent** does, mid-scene (which has consequences for how
-the walker measures them — §5.2). A template may declare
+seals a thread, and nothing in `engine/agents` does either: the **player**
+does, with the `bargain` verb (`strike_bargain`,
+`engine/skills/builtin/scenes.py`), on a turn no card holds. It seals the
+template **as written** — the renegotiate step is **NOT WIRED**
+(`threads.renegotiate`/`transform` have no production caller; see
+docs/GOVERNANCE.md), so a template's `renegotiations:` block is never reached
+in play. Because the walker plays cards rather than verbs, it seals threads
+itself (§5.2). A template may declare
 `discharge_requires:` — a condition from the shared grammar, e.g.
 `{min_gold: 12}` — and until it holds the `discharge` verb does not offer the
 thread and settling it is refused: a bribe whose `on_discharge` pays the
@@ -573,6 +617,36 @@ blank last screen. The lock itself is authored content: a finale card declares
 the three ending-flow effect kinds are authored-content-only — a model
 composing a challenge mid-turn cannot reach them.
 
+**A door per ending, gated on the ending** (HUE & CRY, v0.17). A story whose
+endings each have their own door locks each BY NAME (`{type: ending_lock,
+ending: <id>}`; an id-less lock can resolve to the fail-forward) and opens the
+door only while that ending is earned, by asking the ending itself: a card's
+`when: {ending: {eligible: <id>}}`, a stage's `complete_when` clause of the
+same. The gate is then written once, in endings.yaml, and a door cannot open
+on a state the gate refuses -- a lock the engine would refuse anyway, but
+after the card had already told the player it happened. Such a card need
+not be `once` in a repeatable deck: declining it must not close the ending,
+and it cannot be walked through twice (a locked run never locks again).
+**A locked run is dealt no door** (`deck.eligible_cards`, v0.17): a POOL card
+whose beats carry an `ending_lock` anywhere is not dealt once the run's
+ending is locked -- `{ending: {eligible: <id>}}` reads the gate, not the
+lock, so without this a re-offered door came back after the story had
+ended. A required card is the spine and is dealt regardless (the Garden's
+finale spine is re-dealt after its lock, by design). A deck whose own `when:`
+reads an ending's eligibility may therefore come due and deal nothing after
+the lock (spent, as any deck with no eligible card).
+**A card that locks the ending AND plays its module ends its hand**
+(`director.resolve`, v0.17): nothing after it in that hand is presented. A
+finale that locks on one card and plays the module on a later one (the
+Garden's F3/F4, epilogue cards after) runs on as before. Cards come one at a
+time, so two doors in one hand is a choice the player cannot see: when two
+endings can be open at once, offer both as beats of ONE card (HUE & CRY's
+badge card: take the badge, or `clear_my_name`, the second gated on its own
+ending) and keep the other door's card for the case where only it is open.
+HUE & CRY's `data/rules/endings.yaml` header lists each door; `tests/test_finales.py`
+drives each ending through its door (`ENDING_DOORS`) and walks each earned
+one's door with its gate unmet (`UNEARNED_DOORS`).
+
 **A death that ends the story in an ending.** `death.yaml` (inside
 `paths.rules`, §2.2) may declare
 
@@ -606,16 +680,49 @@ checks death itself; a death found there locks the ending and ends the run,
 but the turn's receipt comes from whatever spent the hours (a rest, a served
 sentence), not from a death. So `when: {in_custody: true}` also fires on a
 prisoner starving through a sentence in the cell, and that turn's narration
-does not hear why. HUE & CRY's The Rope (v0.17.0) should gate on more than
-custody — a flag its own scene sets, say — if starving in the cell is not
-meant to be a hanging.
+does not hear why. HUE & CRY's The Rope (v0.17.0) gates on more than
+custody for that reason: `{all: [{in_custody: true}, {event_active:
+hanging_fair}]}` — held while the fair is on. A `when` may name an event id
+the story has not declared yet (neither the loader nor the validator checks
+event ids); it is simply false until the event fires.
 
-Validated at load and by the validator, naming `death.yaml`: `when` and
-`ending` come together, `ending` must be declared, `when` must use known
-predicates (and no combinator beside a sibling predicate), and the block may
-not also carry the flagship's older `phases:`/`flag:` shape — that one
-(a second death while the world is `consuming`) still sets `state.ended`
-with no ending, unchanged.
+**A death in the cells: `respawn.in_custody`** (v0.17, opt-in). By default a
+respawn RELEASES a held player and carries them to `respawn.location_id` — a
+prisoner carried out of the cells is not still in them. A story that means
+otherwise declares
+
+```yaml
+respawn:
+  location_id: the_snuffs
+  # ... hours, hp_fraction, wound, effects, text ...
+  in_custody:            # `true`, or a mapping of respawn keys laid over the above
+    text: "You come to on the plank bench, still held."
+    effects: [...]
+```
+
+and a player the watch holds AT THE MOMENT OF DEATH respawns HELD: at the
+Law's `arrest.gaol`, the custody record (fine, days, charge, `since_hour`)
+untouched, so the stay goes on and ends the usual way — paid, served or
+broken out. The block's keys replace the respawn's for that death only (a
+`text` and `effects` that do not say "the step of the flophouse"); hours,
+hp, stamina, the purse and the wound are shared unless it names them. It may
+not carry a `location_id` (the gaol is where a held player wakes). A free
+player's respawn is unchanged, and a story that does not declare it is
+byte-identical (asserted). The death record gains `kept_in_custody: true`.
+A repeatable deck keyed on `in_custody` (HUE & CRY's interrogation) is not
+dealt again: the stay never ended, so it never re-armed.
+
+**Validated at activation, by the validator and at load**, naming
+`death.yaml`: `when` and `ending` come together, `ending` must be declared,
+`when` must use known predicates (and no combinator beside a sibling
+predicate), the block may not also carry the flagship's older
+`phases:`/`flag:` shape — that one (a second death while the world is
+`consuming`) still sets `state.ended` with no ending, unchanged — and
+`respawn.in_custody` is `true` or a mapping without `location_id`. Since
+v0.17 `registry.validate` runs the loader's checks (`encounter.
+death_file_problem`), so `activate` refuses a story whose death rules would
+raise, instead of the player's first death raising it; an unreadable
+death.yaml is refused there too (the loader alone would read it as empty).
 
 ### 3.6 The canon dictionary and the two-direction flag rule
 
@@ -625,7 +732,10 @@ however you like. The validator runs the strongest check in the repo against
 it, in both directions across decks, clocks, threads and endings:
 
 - a flag that is **read but never written** and not canon → **error**: "this
-  gate can never open";
+  gate can never open". Besides the four structural files, a labour
+  posting's `effects` (§3.7) and a collection's completion `effects`
+  (`tables/collections.yaml`, v0.17 -- HUE & CRY's `magpies_hoard_complete`,
+  read by an ending) count as WRITERS;
 - a flag that is **written but never read** and not canon → **error** when
   the story ships a dictionary, advisory when it does not (without a declared
   vocabulary a write-only flag is dead weight, not a provable typo).
@@ -718,6 +828,40 @@ faction on `reputation:` rows and off the wage (HUE & CRY's labour.yaml
 header). `scripts/simulate_labour.py` measures what a working day keeps
 against the cost of living.
 
+**A shift can leave a record: `effects:`** (v0.17). A job may list authored
+effects, each row optionally degree-gated with `degrees:` exactly as `in_kind`
+and `reputation` rows are (no `degrees` fires on every shift worked); the
+engine applies them through `effects.apply_effect` after the wage
+(`economy.work`). It exists because the shift cap's own markers expire with
+the day, so without it nothing remembers that the player ever worked. HUE &
+CRY's four postings each write `{type: flag, flag: honest_wage_earned,
+degrees: [crit_success, success, partial]}` -- the degrees their pay tables
+pay -- and its Honest After All ending gates on that flag. The validator's
+two-direction flag sweep (§3.6) counts these rows as writers, so an ending
+may read a flag only a shift writes; and it checks each row: a known effect
+type, fields that agree with it, and `degrees` naming only degrees the job's
+`pay` table has (a misspelt degree is a row that never fires). A job that declares none writes exactly
+what it always did.
+
+**A stage can say why it will not close: `refusals:`** (v0.17). A quest
+stage may carry `refusals: [{when, text}]` -- the shape a thread's and a
+bed's refusals use -- read in order, the first whose `when` holds
+(`QuestEngine.stage_refusal`). While one holds, the stage's objective line in
+the narrator's prompt reads `<quest> - <objective> (Not yet: <text>)`, and the
+stage's own `narrative_flags` are withheld from the narrator's vocabulary
+(`allowed_narrative_flags`, and so from the `flag` intent's enum): a player
+who tries is answered with the reason, and the prose cannot report as done a
+step the engine will not close. It gates nothing by itself -- put the real
+gate in `complete_when` and let the refusals restate it in the story's words.
+The `when` is evaluated with no ledger, so `disposition` is refused there by
+the validator, which also wants a `when` and a `text` on every row. HUE &
+CRY's evening barge is the worked example: `complete_when` asks `{ending:
+{eligible: honest_after_all}}` itself, so door and gate cannot drift, and
+six refusals give the bargemaster's terms in the gate's order, each restating
+one of its clauses (`never_stole` takes two: a theft, and a squeeze), and a
+test holds them equal, case by case. A stage with no refusals is unchanged, line
+for line.
+
 **World events on the calendar.** The `events:` block of `paths.world_schedules`
 declares things that HAPPEN — a market day, a raid, a curfew. Each entry fires
 on a fixed day (`on_day`), on a cadence (`every_days`, from `first_day`), or on
@@ -737,6 +881,18 @@ events:
     text: "The watch kicks in doors along the quay."
     forces_scene: raid          # data/scenes/raid.yaml
 ```
+
+The shipped example is HUE & CRY's `hanging_fair` (`data/world/schedules.yaml`,
+v0.17): `on_day: 10`, `duration_days: 3`, on Gallows Green, forcing
+`fair_day` — a deck whose own `when:` names the event AND the Green, so the
+forced deal waits for the player to walk there (§3.3). A schedules file that
+declares only `events:` stages none of the flagship's caravan, tinker or
+militia: those fire only for a story that declares their blocks. **An event
+a condition names must be one the story raises** (v0.17): an `event_active`,
+`event_seen`, `held_before_event` or `days_since_event: {event}` whose id is
+no `events:` entry, engine slot block, procgen `festival` or `event_id` the
+story's own content emits is a validator error, because the predicate is
+false forever (`validation.check_event_references`).
 
 **Road danger, by the hour.** A walk rolls for an encounter on ARRIVAL
 (`engine/game/engine.py::_roll_travel_encounter`, the ENCOUNTER stream). The
@@ -1223,7 +1379,25 @@ either outcome:
   jurisdiction. `pay_fine` (offered only with the coin) and `serve_sentence`
   (days × 24 hours, fed before each meal) discharge exactly those deeds —
   their reports and witness rows are dropped for good — and a bare `release`
-  (a story's own break-out) discharges nothing.
+  (a story's own break-out) discharges nothing. **A scene that falls due
+  stops a sentence** (v0.17): serving is one action over days, and decks deal
+  only at a turn, so `serve_sentence` cuts each meal's hours at every hour a
+  deck's `when:` can change its answer on the clock alone
+  (`director.due_boundary_hours`: midnight, every `hour_between` bound, and —
+  when any deck that can be due while held reads `time_of_day` — the four
+  band edges 5, 8, 17 and 20) and asks the director (`director.due`) at each
+  cut; a deck due now that was not due when the sentence began stops it, the
+  prisoner still held — the receipt says `served_out: false,
+  interrupted_by: <deck>`, and `run_turn` deals the deck that same turn. A
+  deck already owed at the start (the stay's own interrogation) does not
+  interrupt. A clock-read gate stops the sentence on its very hour, whatever
+  hour the serve began (the prisoner is still fed once a meal); a gate on a
+  flag, a value or a clock that the hours move in passing is caught at the
+  next cut, not on its hour — at worst the next midnight or band edge. **A
+  stopped sentence is resumed, not begun again** (v0.17): every step served is
+  counted on the custody record (`served_hours`, written by the engine's
+  `custody_served` effect, engine-only: the validator reports a story file naming it), so a second `serve`
+  waits out only what was left. The charge was discharged at the start.
 - `{type: deed, deed: <kind>, seen_by_watch: true}` — commits a deed from
   inside authored content (a scene's own outcome can be a crime); the story's
   `deeds` must list `<kind>`. `seen_by_watch: true` makes every law-role
@@ -1326,7 +1500,8 @@ guise (refused at load in an agenda gate).
 **Custody history, and the alibi.** `arrest` stamps `since_hour` (the first
 whole absolute hour the clock has not yet crossed, `law.next_hour` -- the
 same boundary an agenda move fires at) beside `since_day`, and `release` --
-however it comes: paid, served, broken out or a death in the cells --
+however it comes: paid, served, broken out or a death in the cells (unless
+`death.yaml` declares `respawn.in_custody`, §3.5) --
 appends `{since_hour, until_hour, jurisdiction}` to
 `state.law["custody_log"]` before clearing custody. An agenda's robbery
 (`robs: true`) whose move filed a `report` carries that report's `deed_id`
@@ -1401,10 +1576,31 @@ rule 3).
 **Custody in the grammar, and a break-out.** `{in_custody: true}` is a
 predicate in the shared condition grammar (§3.7), true exactly while the
 watch holds the player — from `arrest` until `pay_fine`, `serve_sentence`, a
-`release` or a death in the cells — and always false in a story with no Law
+`release` or a death in the cells (a respawn releases, unless `death.yaml`
+declares `respawn.in_custody`, §3.5) — and always false in a story with no Law
 (so `{in_custody: false}` is always true there; an agenda may not use it
 without a Law). `arrest` sets no flag, so this is the only way content can ask
-"is the player in the cells?". A set-piece may carry an optional `requires:`
+"is the player in the cells?". **`{held_before_event: <event id>}`** (v0.17)
+asks the sharper question "was the watch already holding the player when this
+event began?": true while held, in a stay whose `since_hour` is at or before
+the midnight the live event started on (a declared event starts on
+`advance_time`'s day roll) — so an arrest at 23:30 the night before counts,
+one at 00:30 does not. False when free, with no Law, when no event of that
+id is active, and for a pre-v0.16 custody record with no `since_hour`. HUE &
+CRY's gallows (`data/scenes/the_gallows.yaml`) hangs exactly the thieves the
+Watch saved up for the Hanging Fair with it; one taken at the fair is
+questioned and may pay or serve.
+
+**What the player did, seen or not.** **`{committed_deed: <deed>}`** or
+**`{committed_deed: [<deed>, ...]}`** (v0.17) is true once the player has
+committed at least one deed of a kind named, WHETHER OR NOT ANYBODY SAW IT:
+`law.commit_deed` counts every deed it commits (the engine-only
+`law_deed_committed` effect, into `state.law["committed"]`) before it looks
+for a witness. `wanted` and `filed` read what the Watch KNOWS; this reads what
+the player DID. A deed only filed by a `report` effect (a card's, an agenda's)
+was never committed and is not counted; false with no Law. The validator
+names a deed the law file does not declare. HUE & CRY's Honest After All
+reads it: no lift, burglary or fencing, ever. A set-piece may carry an optional `requires:`
 — any condition from the same grammar, checked alongside its
 `location_id`/`requires_flags`/`forbids_flags` gates (an unknown predicate, a
 sibling beside `all`/`any`/`none`, or a predicate the gate cannot answer --
@@ -1431,10 +1627,54 @@ set_pieces:
 ```
 
 Held, the travel verb is withheld but set-pieces are not, so the break-out is
-offered; once started it owns the turn like any set-piece. Success runs
-`release` and nothing else: custody clears, the player stays where they are
-(the gaol) and walks out still wanted — unlike paying or serving, a break-out
-discharges no deed. Failure leaves the player held.
+offered; once started it owns the turn like any set-piece. (A dealt card owns
+the turn first: HUE & CRY's interrogation is answered before the break-out is
+offered.) Success runs `release` and nothing else: custody clears, the player
+stays where they are (the gaol) and walks out still wanted — unlike paying or
+serving, a break-out discharges no deed. Failure leaves the player held. A
+challenge takes no in-game time.
+
+What a break-out may cost, and what it may not. Its outcomes may carry any
+set-piece effect: HUE & CRY's (`data/challenges/lantern_house.yaml`, two
+skill gauntlets) files a fresh `report` of an `escape` deed on success and
+takes `hp` on failure. **A challenge step that lowers hp checks death on
+that step** (v0.17, `runner.resolve`, as a card's beat does): the receipt
+carries `death`, and the narrator hears it as the step's last sentence. There
+is **no authored way to lengthen a stay**: the custody record's `days` is
+written by `arrest` alone and counted down by `serve`, and no card, thread
+or set-piece effect reaches it — so "failure adds days" cannot be written;
+price a failed attempt in hp, stamina or a report instead. **A challenge
+takes no in-game time**, so a failed piece is offered again on the very next
+turn and a cheap failure is a free reroll: declare `retry: next_day` on the
+piece (v0.17, opt-in, the only value) and a FAILED attempt closes it for the
+rest of the world day it was made on (midnight reopens it; a win is left to
+the piece's own gates). HUE & CRY's break-out is one try a day this way. A
+`report` in any outcome must name a deed, guise and jurisdiction the law file
+declares — the validator checks it (`check_law_effects`); a typo is refused
+at runtime and files nothing. And mind the
+`grants_flag`: it retires the piece for the rest of the run (the engine's
+one-shot). HUE & CRY keeps a way out on every stay by pairing its first
+break-out with a second that `requires_flags` the first's flag and grants
+none.
+
+**Set-pieces are validated** (v0.17) with the rest of the story, by
+`validate_content` and doctor (`validation.check_set_pieces`, rules in
+`set_pieces.set_piece_problems`). Each of these is an error naming the
+challenge file and the piece: a missing or duplicate `id`; a `location_id`
+not in the graph; a `requires:` the grammar cannot read; `requires_flags` or
+`forbids_flags` that are not a LIST of flag names (a bare string would gate
+on its letters); a `grants_flag` that is not one flag name (no spaces); a
+`challenge` the spec validator rejects (unknown `kind`, a puzzle with no
+`answer`, an empty gauntlet); an outcome effect no set-piece may apply (the
+model-composed set, the structural kinds, `release` and the story's own
+values are allowed); a `retry` other than `next_day` (the only value); and
+`release` anywhere but a challenge's SUCCESS outcome. That means a `reward` (on a decision tree, only a success node's)
+or a dice-table row (a roll always succeeds), never a `fail` block and never
+outside the `challenge`. Mind the dice table: the runner treats EVERY row as
+a success, so `release` is allowed in every row, including one you wrote as
+a flavour failure ("the guard wakes"). A row that should keep the prisoner
+held must simply not carry `release`, and for a break-out that can truly
+fail, use a puzzle, gauntlet or decision tree, which have a `fail` outcome.
 
 ### 3.12 `paths.jobs` — authored jobs and guild contracts
 
@@ -1879,7 +2119,17 @@ already holds.
 `unmask_when` alike (all refused at load, naming the file, if the story
 declares no Law where a Law is needed): `wanted {guise?: self, jurisdiction?:
 <here>, min: <band>}` — that face's wanted band in that jurisdiction is
-`min` or above, in the Law's own band order; `reported_to {npc, guise?:
+`min` or above, in the Law's own band order. **`own: true`** (v0.17,
+opt-in) counts only the player's OWN deeds: report rows the agendas pass
+stamped (`agenda`/`hour`, filed by a move -- the Magpie's robberies landing
+on a mask the watch links to your face, or Ardane's own statement) are left
+out, and everything the player did still counts, under any linked guise
+(`law.wanted_band(..., own=True)`); each file's cooling stands as it is.
+Absent, every row counts, exactly as before. HUE & CRY's Honest After All
+gates on it, so the Magpie robbing on your name does not keep an honest
+thief off the barge. The validator checks a `wanted` condition in ANY story
+file -- a known band, guise and jurisdiction, and `own` a boolean -- not
+only an agenda's; `reported_to {npc, guise?:
 self}` — that person holds a LIVE (not discharged, not lost to a bribe)
 witness row for a face the watch links to `guise`; `agenda_hit {agenda?,
 premise?, district?}` — some agenda's `hits` record a match. `premise_robbed`
@@ -2261,8 +2511,9 @@ acceptance:
 And read it knowing what the walker honestly approximates: **bands are
 swept** with seeded qualities so the whole range is exercised; **menu choices
 are uniform**, not in-character — it measures reachability, not taste;
-**threads are sealed at `--thread-rate`** because in real play an agent seals
-them mid-scene, so **a clock only agents wind reads low by construction** —
+**threads are sealed at `--thread-rate`** because in real play the player
+seals them with the `bargain` verb, which the walker never chooses, so **a
+clock that waits on a live thread reads low by construction** —
 the Garden's `ashen_pressure` reporting 0.0 is the walker's blind spot, not
 the story's bug; and **`--max-days`** lets a small deck (a fresh scaffold's
 one file) loop until its meters travel far enough to open gated endings —
@@ -2296,13 +2547,28 @@ this test),
 the story surface. Run the full suite
 before calling the story done; it is the same bar the shipped stories clear.
 
+**Every ending, through its own door.** `tests/endings_driver.py` drives one
+ending through the door a player uses: a quest's completion
+(`Door.quest(quest_id)`), a card beat played in its dealt hand
+(`Door.card(deck_id, card_id, beat_id)`, dealt as the director would and
+never placed past the card's own `when:`), a set-piece won
+(`Door.set_piece(piece_id, {"answer": ...})`) or a terminal death
+(`Door.death()`). It then asserts the ending is locked and its epilogue card
+shows. Register a row per ending in `tests/test_finales.py`'s
+`ENDING_DOORS`, with a `setup(state)` that puts the run at the door through
+`apply_effect`. List your story in `COMPLETE_DOORS` and the suite fails on
+any declared ending with no door. The driver's docstring has the row shape.
+Name the ending on every authored `ending_lock`. An id-less lock asks
+`endings.resolve()`, and a door that can land on the fail-forward is a door
+to the wrong ending.
+
 ---
 
 ## 6. The worked examples index
 
 | Where | What it teaches |
 |---|---|
-| `games/dev-story/` | **The full worked example.** One small working instance of every subsystem — thirteen locations, eight scheduled NPCs, a two-agent pipeline, a clock that forces a scene, a thread with renegotiations, three gated endings and their epilogues — each file annotated at a depth a template cannot afford. When a mechanism is unclear, it is running here with the lights on. |
+| `games/dev-story/` | **The full worked example.** One small working instance of every subsystem — thirteen locations, eight scheduled NPCs, a two-agent pipeline, a clock that forces a scene, a thread with renegotiations (declared only: renegotiation is NOT WIRED, §3.4), three gated endings and their epilogues — each file annotated at a depth a template cannot afford. When a mechanism is unclear, it is running here with the lights on. |
 | `games/wicked-garden/` | **The deck exemplar**, full scale. Its `data/scenes/README.md` is the deck grammar's reference treatment; its `data/canon/` established the dictionary shape; its manifest shows the "what this story deliberately does not ship" comment style. |
 | `games/clockwork-dark/` | **The graph exemplar**, full scale. The travel graph, arcs, encounters, the livelihood economy, doom — 5,300 lines of the shape the engine's clock was tuned for. |
 | `scripts/story_template/minimal/` | The smallest thing that validates and plays a turn. Start here unless you already know your shape. |

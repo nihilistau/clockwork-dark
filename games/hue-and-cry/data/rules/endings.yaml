@@ -2,42 +2,324 @@
 #
 # Read by engine/game/endings.py through `paths.endings`.
 #
-# ONE ENDING IN THE SKELETON, and it is also the fail-forward, because a story
-# with one ending has nothing else to fall forward to. The design has eight
-# (Cleared, Partners, The Legend, Guildmaster, The Dapper's City, Honest After
-# All, A Lantern, The Rope); when they arrive, `fail_forward` moves to
-# `the_rope` -- the QfG death screen, played for the laugh it deserves -- and
-# `honest_after_all` gains the requirement its name promises.
+# ALL EIGHT OF THE DESIGN'S ENDINGS (v0.17 Tasks 2, 5 and 6): Cleared,
+# Partners, The Legend, Guildmaster, The Dapper's City, Honest After All, A
+# Lantern, The Rope.
+#
+# THE FAIL-FORWARD IS THE ROPE (v0.17 Task 2) -- the QfG death screen,
+# played for the laugh it deserves: `resolve()` falls to it when nothing else
+# was earned, so a run that asks "how does this end?" with nothing to show is
+# answered by the gallows, warmly. Every other ending is EARNED (v0.17 Task
+# 5): a `requires:` built only from state the player can change, and a door
+# that opens only while it holds.
 #
 # NO `variants:`. When a class declares none, `endings.declared()` returns the
-# class body keyed by the class id, so `honest_after_all` is what `lock()` and
+# class body keyed by the class id, so each class id is what `lock()` and
 # data/epilogues/epilogue_index.yaml have to agree on.
 #
-# Locked by data/quests/the_way_out/the_evening_barge.yaml, whose
-# `ending_lock` carries no id: the highest-scoring eligible class wins, which
-# with one class is this one.
+# THE DOORS. Every authored door locks by name (an id-less lock asks
+# `endings.resolve()`, which can land on the fail-forward), and every door of
+# an earned ending opens only while the ending is eligible -- a card's `when:`
+# or a stage's `complete_when` asks `{ending: {eligible: <id>}}` itself, so the
+# door and the gate cannot drift apart:
 #
-# Version: v0.1.0 [2026-09-23]
+#   cleared           data/scenes/fair_day.yaml `F3_the_real_magpie` -- at the
+#                     Hanging Fair, the Magpie you named is taken on the Green
+#                     (walk away and it is offered on your next return). After
+#                     the fair: data/scenes/lantern_house_desk.yaml
+#                     `D4_cleared_at_the_desk` -- the captain clears your name
+#                     at the desk. The beats and card name no place, so both
+#                     doors tell them true.
+#   a_lantern         data/scenes/lantern_house_desk.yaml `D3_the_badge` --
+#                     Captain Ardane's badge, at the front desk in her hours
+#                     (re-offered each visit until taken).
+#   honest_after_all  data/quests/the_way_out/the_evening_barge.yaml -- the
+#                     stage waits on the ending and tells the narrator why not
+#                     (its `refusals`).
+#   partners          data/scenes/fair_day.yaml `F6_the_heist_together` --
+#                     the heart taken with the Magpie at the Showing. The
+#                     partnership it reads is made at the Magpie's own door:
+#                     data/scenes/the_confrontation.yaml (v0.17 Task 6).
+#                     After the fair (T8 fix round 1): data/scenes/
+#                     the_last_job.yaml `L1_the_heart_by_night` -- the heart
+#                     taken out of the Everflame itself, up the Hill by night.
+#   the_legend        data/quests/the_hanging_fair/the_heart_goes_home.yaml
+#                     -- the GETAWAY, not the heist: the fair's F2 puts the
+#                     heart under your coat and starts the quest; reaching the
+#                     Snuffs with it, free, locks the ending.
+#   guildmaster       data/scenes/porters_hall.yaml `P1_the_needles` --
+#                     Mother Gannet's long table, any evening (18:00-04:00)
+#                     the ending is earned -- from the Hanging Fair on (T8
+#                     fix round 1, `the_fair_has_come`). The fair's reserved
+#                     F5 stays released: the table is her door.
+#   the_dappers_city  data/scenes/fair_day.yaml `F4_silas_makes_his_move` --
+#                     stand with Silas at the fair, or stand against him and
+#                     lose (a hard persuasion roll failed). Stand against him
+#                     and WIN, and he is stopped (`silas_stopped`): this
+#                     ending shuts and Guildmaster opens again.
+#   the_rope          data/rules/death.yaml's `terminal` -- hp 0 while the
+#                     Watch holds you during the Hanging Fair. The death is
+#                     its eligibility: the terminal lock skips `requires`.
+#                     Its other door, the hanging itself:
+#                     data/scenes/the_gallows.yaml (v0.17 Task 3), dealt at
+#                     nine on the fair's last morning to a thief held since
+#                     before the fair began.
+#
+# THE GATES (v0.17 Task 5, controller's rulings):
+#
+#   CLEARED     `magpie_unmasked`: the Watch's belief broken, which only a
+#               right naming does (the front desk's accusation). NOT the
+#               alibi -- v0.16's ruling: an alibi proves you were in the
+#               cells on THOSE nights, and leaves the Watch believing you are
+#               the Magpie. `completable` while no wrong naming stands
+#               uncorrected: a wrong name on the captain's desk shuts it (the
+#               gallery shows it out of reach, and why) until a right one
+#               takes it off.
+#   A LANTERN   `magpie_unmasked`; the Watch's good opinion, `lantern_watch`
+#               at 5 or more (below); and the captain's own file NEVER used
+#               against her -- no `ardane_magpie_file` thread struck, in any
+#               status: paid or broken, a squeeze is a squeeze.
+#   HONEST      never a thief (T8 fix round 1, the owner's ruling: no
+#   AFTER ALL   thieving at all): no lift, burglary or fencing COMMITTED,
+#               seen or unseen (`committed_deed`: law.commit_deed counts
+#               each deed before it looks for a witness), and no hand laid on
+#               the Everflame's heart at the Showing, won or lost, and no
+#               squeeze ever struck (a Blackmail thread, any status: fix
+#               round 2). Kept beside it, not replaced by it -- the Watch's
+#               file also holds what is not thieving (a Lantern knocked
+#               down, a jailbreak, a false name at the desk) --
+#               a clean name: `wanted` below `sought` in all three
+#               watch-houses, counting YOUR OWN deeds only (`own: true`,
+#               owner's decision, T5 review): the Magpie's robberies the Watch
+#               pins on you while it links you to the Magpie (report rows the
+#               agendas pass stamped) do not count; everything you did does,
+#               under any guise -- a heist filed as the Magpie's included.
+#               `noticed` is clean enough (a blurred sighting cools in a
+#               couple of days), `sought` is where a Lantern can know you at
+#               the gangplank (law.yaml `recognise`);
+#               square with the fences: no credit open and no welsh on
+#               either book (paying the collectors clears a welsh); and an
+#               honest wage earned: `honest_wage_earned`, written by any
+#               shift that pays (data/tables/labour.yaml `effects`). One
+#               wage, not a count: the labour record is what the engine
+#               keeps (a shift's own markers expire with the day), and one
+#               day's pay for one day's work is the promise of the title.
+#               And empty-handed (T6 review round 1): no Everflame's heart
+#               in the pack. After a right naming the heist's sacrilege is
+#               the Magpie's alone, so the clean name cannot see it.
+#
+#   PARTNERS    `partners_with_the_magpie` (the confrontation, named
+#               rightly), and not holding the heart already (taken alone,
+#               it is The Legend's). `completable` while the Magpie was never
+#               given up to the Watch (`magpie_unmasked`): a partner who then
+#               names the Magpie at the desk has sold them, for good.
+#   THE LEGEND  the heart under your coat and the Watch not holding you. Its
+#               `score` (the gallery's closeness) reads the heart and the
+#               Magpie's Hoard carried whole (`magpies_hoard_complete`,
+#               v0.15's promise), and so does its Seal beat: the Hoard's
+#               first reader.
+#   GUILDMASTER sworn (`guild_initiated`); the Honest Company's standing at
+#               5 or more (below); Gannet's measure taken -- her blessing
+#               (her Silk Row job done and paid, `gannet_silk_row`
+#               discharged) or her lever (the strike fund's IOUs, held from
+#               her house or struck against her); and not holding the heart
+#               (the Legend's getaway ends in the same Snuffs). `completable`
+#               while Silas Crook has not WON: his rise complete
+#               (`silas_splits_the_company`) and nobody stood against him and
+#               beat him at the fair (`silas_stopped`). And not before the
+#               Hanging Fair (T8 fix round 1, the owner's ruling: Gannet
+#               names a successor only once the fair has come,
+#               `event_seen: hanging_fair`).
+#   THE DAPPER'S CITY  Silas's rise complete, and sworn to the Company.
+#               `completable` while nobody has stopped him, and never for a
+#               thief who took a name to the captain (`magpie_unmasked`) or
+#               threw in with the Magpie (`partners_with_the_magpie`) -- which
+#               also keeps its door apart from Cleared's and Partners' in the
+#               one fair hand.
+#
+# NO HAND HOLDS TWO DOORS (the ruling): the gates above keep every pair of
+# doors that share a deck apart, and tests/test_hue_and_cry.py asserts it
+# over every combination of the facts they read.
+#
+# A LANTERN'S STANDING, MEASURED (rule 10). The Watch's standing moves only
+# by Wren's lamp round (+1 a good shift, one a day, labour.yaml) and falls by
+# 10 for striking a Lantern or breaking the captain's squeeze -- nothing else
+# raises it. scripts/simulate_labour.py --endings --days 12 (committed), its
+# porter (the quay by day, the lamps at dusk, EVERY day), 40 seeds,
+# `lantern_watch` at the end of the day (agendas off and on alike):
+#
+#   end of day        3     5     8     10    12
+#   mean             1.7   2.9   4.5   5.7   6.8
+#   at 4 or more      0%   35%   80%   88%   95%
+#   at 5 or more      0%    8%   50%   70%   85%
+#   at 6 or more      0%    0%   28%   55%   75%
+#
+# 5 is five good rounds with Wren. A thief who walks the lamps every evening
+# has it by the fair (day 10) on 70% of seeds and by day 12 on 85% -- the
+# unmasking itself comes on mean day 9 for a careful investigator (v0.16
+# T8), so the badge is a late, earned thing, never a first-week one; a thief
+# who never walks the lamps never has it. 4 was nearer a formality (80% by
+# day 8), 6 left a quarter of every-evening lamplighters short at day 12.
+# The badge goes to someone the Watch has seen keep its city lit.
+#
+# GUILDMASTER'S STANDING, MEASURED (rule 10). The Company's standing rises
+# by the initiation's welcome (+4 answered roll-free, +8/9 every roll won),
+# a good shift for Dock Mag (+1), a porter's nod (+2), the Hoard (+8) and,
+# since T6, beating Silas at the fair (+5); it falls by Silas's rise (-2 a
+# Company house he robs, -3 the strike fund) and by squeezing Gannet (-5).
+# scripts/simulate_labour.py --endings --days 12 --policy porter --bed bunk
+# --agendas (committed): a sworn porter on the quay every day, Silas on, 40
+# seeds, `honest_company` at the end of the day:
+#
+#   end of day              3     5     8     10    12
+#   at 4 or more           60%   38%   22%   28%   45%
+#   at 5 or more           20%    8%   10%   20%   30%
+#   at 6 or more            5%    8%    5%    8%   18%
+#   Silas has won           0%    0%   42%   42%   42%
+#
+# 5 -- the Lantern's number, and the roll-free oath plus a good shift before
+# Silas starts robbing the Company's ward -- is held on a fifth of seeds by
+# the fair by a thief who only works; a thief who also stands against Silas
+# (+5, and his robbing stops) or carries the Hoard (+8) is well over it. At 4
+# the roll-free oath alone is two shifts short of a formality; at 6 one seed
+# in twelve has it at the fair. Silas wins on 42% of seeds, all by day 8.
+#
+# HONEST AFTER ALL, MEASURED (same harness, agendas ON): the porter qualifies
+# on 100% of seeds at the end of every day to day 12, the dipper from its
+# first paid shift (98% on day 3); the careful pickpocket never (no wage) and
+# Pell's borrower never (credit open or welshed). Counted by the whole file
+# instead, the porter's record would be clean on 70 / 53 / 5 / 0 / 5% of
+# seeds at days 3 / 5 / 8 / 10 / 12 -- the Magpie's robberies on the face
+# the Watch links to yours -- which is why the gate reads `own: true`.
+#
+# Version: v0.5.1 [2026-09-28] -- T8 fix round 2: a squeeze is thieving too
 
 version: 1
 
-fail_forward: honest_after_all
+fail_forward: the_rope
 
 classes:
+
+  # The Watch takes the right thief at last, and says so out loud.
+  cleared:
+    label: "Cleared"
+    tease: "The Watch takes the right thief at last, and says your name out loud with the word 'not' in front of the other one."
+    requires:
+      all:
+        - { id: unmasked, flag: magpie_unmasked }
+    completable:
+      id: no_wrong_name_standing
+      any:
+        - { not_flag: magpie_named_wrongly }
+        - { flag: magpie_unmasked }
+    lock_reasons:
+      unmasked: "The Watch still takes you for the Magpie. Only the right name, laid on the captain's desk, will change its mind."
+      no_wrong_name_standing: "A wrong name you gave the captain still stands on the desk, and only the right one will take it off."
+    beats:
+      - id: cleared_speak
+        text: >-
+          SPEAK. The Watch has the Magpie -- the one you named -- and Captain
+          Ardane says your name after it, out loud, with the word "not" in
+          front of the other one. It carries further than any ballad-seller.
+      - id: cleared_act
+        text: >-
+          ACT. The young Lantern from the quay comes looking for you, goes the
+          colour of tallow all over again, and shakes your hand for a long time
+          without being able to think of one thing to say. The sergeant gives
+          you half a pastry. By the standards of the Lantern House, this is a
+          public apology.
+      - id: cleared_seal
+        text: >-
+          SEAL. By evening the ballad-sellers have a new verse, about a
+          stranger off the morning barge the whole Watch took for the Magpie,
+          and the crowd laughs, and this time you laugh with it. The jackdaw
+          has found a brass button somewhere. Nobody asks where.
+
+  # The captain who hunted you holds out a badge.
+  a_lantern:
+    label: "A Lantern"
+    tease: "The captain who hunted you across the city holds out a badge."
+    requires:
+      all:
+        - { id: unmasked, flag: magpie_unmasked }
+        - { id: lamps_kept, reputation: { faction: lantern_watch, min: 5 } }
+        - id: never_squeezed_her
+          none:
+            - { thread: { template: ardane_magpie_file, status: "" } }
+    lock_reasons:
+      unmasked: "The captain has no badge for anyone the Watch still takes for the Magpie."
+      lamps_kept: "The Watch does not know you yet as one of its own -- not the way the lamps know the people who light them."
+      never_squeezed_her: "You held the captain's own file over the captain's head, and no badge is ever pinned on the hand that did it."
+    beats:
+      - id: a_lantern_speak
+        text: >-
+          SPEAK. Captain Ardane takes a brass badge out of the desk drawer --
+          a lantern on a chain, worn smooth by somebody else's thumb for
+          twenty years -- and holds it out across the desk. "You found what
+          four sworn officers could not," the captain says. "Find me the next
+          one."
+      - id: a_lantern_act
+        text: >-
+          ACT. You take the oath with your hand on the Watch's duty book, and
+          Sergeant Brask witnesses it, and puts his pastry down to do it,
+          which the Lantern House agrees has never happened before. The young
+          Lantern from the quay has to step outside for a minute.
+      - id: a_lantern_seal
+        text: >-
+          SEAL. At dusk you walk the lamp round of the Wick with a long brass
+          pole, and every window you light is one more corner of Tallowmere
+          where nobody can mistake anybody for anybody else. The jackdaw rides
+          on the badge. He has decided it is his.
 
   # You came for honest work, and in the end you took the only honest way out.
   honest_after_all:
     label: "Honest After All"
-    # No `requires` while it is the fail-forward: it must always be eligible.
-    # No `score:` either -- closeness is for foreshadowing one ending over
-    # another, and with one ending there is nothing to foreshadow against.
+    tease: "The evening barge, a clean name, and a pocket of coin that nobody else ever owned."
+    requires:
+      all:
+        # Fix round 1 of T8 (the owner's ruling): no thieving at all. Every
+        # lift, burglary and fencing the thief COMMITTED, seen or unseen
+        # (law.commit_deed counts each one before any witness is looked
+        # for: the `committed_deed` predicate), and a hand laid on the
+        # Everflame's heart at the Showing, won or lost (fair_day.yaml F2's
+        # flag), and (fix round 2) no squeeze ever struck: a Blackmail
+        # thread in ANY status -- a paid squeeze commits and files nothing,
+        # so only the thread remembers it. The Watch's file below still
+        # reads the rest: a Lantern knocked down, a jailbreak, a false name
+        # at the desk.
+        - id: never_stole
+          none:
+            - { committed_deed: [pickpocket, burglary, fencing] }
+            - { flag: laid_a_hand_on_the_heart }
+            - { thread: { tag: Blackmail, status: "" } }
+        - id: a_clean_name
+          none:
+            - { wanted: { guise: self, jurisdiction: quay, min: sought, own: true } }
+            - { wanted: { guise: self, jurisdiction: wick, min: sought, own: true } }
+            - { wanted: { guise: self, jurisdiction: rise, min: sought, own: true } }
+        - id: square_with_the_fences
+          none:
+            - { thread: { tag: Credit } }
+            - { flag: welshed_on_pell }
+            - { flag: welshed_on_marrow }
+        - { id: an_honest_wage, flag: honest_wage_earned }
+        # T6 review round 1: after a right naming the heist's sacrilege is
+        # filed on the Magpie's file alone, so your own record reads clean --
+        # the heart in the pack is what says otherwise.
+        - { id: empty_handed, not_has_item: everflame_heart }
+    lock_reasons:
+      never_stole: "You have taken what was not yours in Tallowmere -- a purse, a house, a squeeze, a hand on the Everflame's heart -- seen or not, and an honest passage is not for you."
+      a_clean_name: "What you yourself have done in Tallowmere is still fresh on the Watch's file, and the Lanterns at the gangplank are looking for your face."
+      square_with_the_fences: "You owe a fence in Tallowmere, and a fence's debt follows a thief onto any barge."
+      an_honest_wage: "You have not earned an honest wage in Tallowmere yet -- not one day's pay for one day's work."
+      empty_handed: "The Everflame's heart is in your pack, and nobody leaves Tallowmere honest with that."
     beats:
       - id: honest_after_all_speak
         text: >-
           SPEAK. The bargemaster asks your name for the list, and you give it
           -- your own, the real one -- and he writes it down without looking
-          up, and it is the first time since the morning that anybody in
-          Tallowmere has taken your word for who you are.
+          up, which is more than the Lantern House managed on your first
+          morning.
       - id: honest_after_all_act
         text: >-
           ACT. You find a place on the cargo between two crates of beeswax
@@ -48,5 +330,243 @@ classes:
       - id: honest_after_all_seal
         text: >-
           SEAL. The last lamp on the quay goes by. Up on the hill the
-          Everflame burns on without you, and the Magpie -- whoever they
-          are -- goes on without you too.
+          Everflame burns on without you, and whatever Tallowmere does about
+          its Magpie now, it does without you too.
+
+  # You found the real Magpie, and instead of going to the Watch you asked to
+  # be let in. The heart of the Everflame, taken by two.
+  partners:
+    label: "Partners"
+    tease: "You found the real Magpie, and instead of shouting it to the Watch you asked for half."
+    requires:
+      all:
+        - { id: in_league, flag: partners_with_the_magpie }
+        # The heart taken alone is The Legend's, not a partnership's.
+        - { id: nothing_shared_yet, not_has_item: everflame_heart }
+    completable:
+      id: never_gave_them_up
+      not_flag: magpie_unmasked
+    lock_reasons:
+      in_league: "You have not found the Magpie out and asked to be let in -- not face to face, with the trail to show for it."
+      nothing_shared_yet: "The heart is already under your coat, taken alone: a partner has nothing left to share."
+      never_gave_them_up: "You laid the Magpie's name on the captain's desk. Nobody takes a partner who has already sold them."
+    beats:
+      # Two tellings (T8 fix round 1): at the Showing (fair_day.yaml F6), or
+      # by night up the Hill once the fair has gone (the_last_job.yaml L1).
+      # The Speak and the Seal are true of both; the Act says which.
+      - id: partners_speak
+        text: >-
+          SPEAK. "Nobody could possibly steal it," says the Magpie, at your
+          elbow on the Hill, in the voice of somebody who has been waiting a
+          very long time to say the next part. "Nobody alone."
+      - id: partners_act
+        text: >-
+          ACT. You do the part everybody watches, and the Magpie does the
+          part nobody sees.
+        gate:
+          when: { event_active: hanging_fair }
+          on_pass:
+            text: >-
+              A stumble on the palace steps, a dropped purse, a scene -- and
+              when the household holds the heart up to the sun it is holding
+              up a glass of nothing, and the two of you are already on the
+              roofs, going the Magpie's own road over the city.
+          on_fail:
+            text: >-
+              A bucket kicked over on the gravel, a dog set barking in the
+              Margrave's kennels, two sleepy Lanterns running the wrong way --
+              and when they come back the Everflame is burning round a glass
+              of nothing in its crystal, and the two of you are already on
+              the roofs, going the Magpie's own road over the city.
+      - id: partners_seal
+        text: >-
+          SEAL. On a beam under a cracked bell, where only the wind comes, the
+          Magpie turns the heart in what light there is, then puts it in
+          your hands and does not take it back. "Half," says the Magpie. "And
+          the next one is yours to plan." The jackdaw looks from one of you to
+          the other and decides, generously, to allow it.
+
+  # The one thing in Tallowmere nobody could possibly steal -- stolen, alone,
+  # and carried home.
+  the_legend:
+    label: "The Legend"
+    tease: "The heart of the Everflame, off the palace steps in front of the whole city, and home before the Watch has finished shouting."
+    requires:
+      all:
+        - { id: the_heart, has_item: everflame_heart }
+        - { id: still_free, in_custody: false }
+    lock_reasons:
+      the_heart: "The Everflame's heart is not under your coat: still on the palace steps, or back in the household's hands."
+      still_free: "The Watch has you, and whatever you carried up the Hill it has back."
+    # Closeness, for the gallery's omens: the heart is most of it; the
+    # Magpie's Hoard carried whole (data/tables/collections.yaml
+    # `magpies_hoard_complete`, v0.15) is the rest -- the Hoard flag's first
+    # reader (its Seal beat, below, is the other).
+    score:
+      - { when: { has_item: everflame_heart }, weight: 0.7 }
+      - { when: { flag: magpies_hoard_complete }, weight: 0.3 }
+    beats:
+      - id: the_legend_speak
+        text: >-
+          SPEAK. In the Snuffs nobody asks what is under your coat, because in
+          the Snuffs nobody asks anything, and by the time you reach the
+          Porters' Hall the bells up the Hill have been ringing for an hour.
+          "What's all that about?" says somebody. "Somebody," says somebody
+          else, with enormous satisfaction, "has had the Everflame."
+      - id: the_legend_act
+        text: >-
+          ACT. You take the heart out once, in a room with the shutters
+          closed, and it throws the light of one candle back at you so bright
+          that you put it away again at once and sit on your hands. The
+          jackdaw has to be shut in a cupboard.
+      - id: the_legend_seal
+        text: >-
+          SEAL. By morning the ballad-sellers have a new verse -- the one
+          about the thing nobody could possibly steal -- and the whole city is
+          singing it, and not one of them knows it is about you.
+        gate:
+          # The Hoard's first reader (v0.15's promise, CLAUDE.md): the six
+          # shines the Magpie kept, carried whole, and now a seventh.
+          when: { flag: magpies_hoard_complete }
+          on_pass:
+            text: >-
+              And in a place only you know, the six famous shines lie in a row
+              on a folded coat -- the knocker, the salt, the comb, the cup,
+              the mitre and the chain -- with a space at the end of the row
+              exactly the size of the Everflame's heart. It fits.
+          on_fail:
+            text: >-
+              You tell nobody. It is, you discover, the hardest thing you have
+              done all week.
+
+  # Mother Gannet hands you her needles.
+  guildmaster:
+    label: "Guildmaster"
+    tease: "Mother Gannet puts her knitting in your hands, and the Honest Company is yours to keep honest."
+    requires:
+      all:
+        - { id: sworn, flag: guild_initiated }
+        - { id: the_hall_trusts_you, reputation: { faction: honest_company, min: 5 } }
+        - id: gannets_measure
+          any:
+            # Her blessing: the Company's own job, done and paid.
+            - { thread: { template: gannet_silk_row, status: discharged } }
+            # Or her lever: the strike fund's IOUs, read at her own house --
+            # held, or struck against her.
+            - { secret_held: { premise: prem_gannets_house, secret: fund_of_ious } }
+            - { thread: { template: gannet_ious, status: "" } }
+        # The heart under your coat is The Legend's, and its getaway ends in
+        # the Snuffs: Gannet will not hand the Company to a thief the whole
+        # Watch is turning the city over for. (It keeps the two doors apart.)
+        - { id: no_heart_in_the_hall, not_has_item: everflame_heart }
+        # Fix round 1 of T8 (the owner's ruling): Gannet names nobody before
+        # the Hanging Fair. Measured, 18 of the harness loyalist's 40 runs
+        # ended as Guildmaster on days 3-7, before Act III began.
+        - { id: the_fair_has_come, event_seen: hanging_fair }
+    completable:
+      id: silas_has_not_won
+      none:
+        - all:
+            - { flag: silas_splits_the_company }
+            - { not_flag: silas_stopped }
+    lock_reasons:
+      sworn: "You have not sworn the Honest Company's oath at the long table."
+      the_hall_trusts_you: "The Porters' Hall does not think enough of you yet to follow you anywhere."
+      gannets_measure: "Mother Gannet has not taken your measure: no job of hers done and paid, and nothing of hers you know that she would rather you did not."
+      the_fair_has_come: "Mother Gannet names nobody to the chair before the Hanging Fair: the whole Company goes up to the Green together first, as it has every year of her thirty, and she has always said she will know by then."
+      no_heart_in_the_hall: "Nobody hands the Company to a thief with the Everflame's heart under their coat and the whole Watch at the door."
+      silas_has_not_won: "Silas Crook holds the Company now: half the young porters wear his plum ribbons, and Mother Gannet has nothing left to hand anybody while that stands."
+    beats:
+      - id: guildmaster_speak
+        text: >-
+          SPEAK. Mother Gannet finishes her row, and bites the wool, and puts
+          the needles -- and the half-knitted thing on them, which has been
+          half-knitted for thirty years -- into your hands. "Two ledgers,"
+          she says. "Keep the honest one honest. The other one keeps itself."
+      - id: guildmaster_act
+        text: >-
+          ACT. The long table stands up for you, which it has done for nobody
+          since the charter was new, and Dock Mag, who never stands for
+          anybody, stands too, and then sits down again quickly and pretends
+          she was reaching for her tin.
+      - id: guildmaster_seal
+        text: >-
+          SEAL. You take the chair at the head of the long table, under the
+          framed charter, and discover that it has been sat in the shape of
+          Mother Gannet for thirty years and does not intend to change for
+          you. The jackdaw takes the top of the charter's frame. Nobody objects.
+
+  # Silas Crook takes the Company, and you with it.
+  the_dappers_city:
+    label: "The Dapper's City"
+    tease: "Plum ribbons in every buttonhole in the Snuffs, and a seat at the Dapper's right hand, which is the hand he watches."
+    requires:
+      all:
+        - { id: silas_won, flag: silas_splits_the_company }
+        - { id: sworn, flag: guild_initiated }
+    completable:
+      id: nobody_stopped_him
+      all:
+        - { not_flag: silas_stopped }
+        # The Dapper's city has no room for anyone who took a name to the
+        # captain's desk -- whoever's name it was -- nor for anyone the
+        # Magpie already calls a partner. (Keeps this door apart from
+        # Cleared's and from Partners' at the fair.)
+        - { not_flag: magpie_unmasked }
+        - { not_flag: partners_with_the_magpie }
+    lock_reasons:
+      silas_won: "Silas Crook has not pulled enough of the young porters his way -- not yet."
+      sworn: "You never swore the Company's oath, so the Company's quarrel is not yours to lose."
+      nobody_stopped_him: "Silas has no seat for you: he was stood against at the fair, or you went to the captain with a name, or you already have a partner of your own up on the roofs."
+    beats:
+      - id: the_dappers_city_speak
+        text: >-
+          SPEAK. "Nothing personal," says Silas Crook, pinning a plum ribbon
+          to your coat with his own hands, "and nothing honest either. The
+          Company was a union of porters. I am making it a business." He
+          smiles. It is a very good smile. It has been practised.
+      - id: the_dappers_city_act
+        text: >-
+          ACT. Mother Gannet packs her knitting into a carpet bag, and the old
+          porters carry her trunk down to the evening barge for nothing, which
+          is the last honest job the Company does. She pats your cheek on the
+          gangplank and tells you, not unkindly, that you will learn.
+      - id: the_dappers_city_seal
+        text: >-
+          SEAL. The toll goes up in the Snuffs, and the Porters' Hall gets new
+          curtains, and you get a room above the taproom, a share of
+          everything and a friend who would let you hang. The jackdaw does not
+          like Silas. The jackdaw, it turns out, has taste.
+
+  # Taken at the fair, hanged at the fair. The fail-forward, and the one
+  # ending here that is a death -- told the way a Quest for Glory death screen
+  # tells one: warm, wry, and fond of the player, never cruel. The hanging
+  # itself happens where the fair keeps it, just out of the story's sight.
+  the_rope:
+    label: "The Rope"
+    tease: "Taken at the fair, hanged at the fair, which the ballad-sellers find very good for business."
+    # No `requires`: the fail-forward must always be eligible, and a terminal
+    # death locks it past any gate anyway.
+    beats:
+      - id: the_rope_speak
+        text: >-
+          SPEAK. Asked from the scaffold whether you have any last words, you
+          give the true ones -- that you are not the Magpie, whatever else
+          you may have been, and that you came here for honest work -- and
+          the whole of Gallows Green laughs, warmly, because that is exactly
+          what the Magpie would say. A ballad-seller at the
+          front writes it down word for word.
+      - id: the_rope_act
+        text: >-
+          ACT. There is nothing left to do with your hands, which is as well,
+          since they are tied. The jackdaw is not so limited. He lands on the
+          hangman's hat, sets to work on its brass button with enormous
+          concentration, and for one long moment half the crowd is watching
+          the bird and not you, which is the kindest thing anybody in
+          Tallowmere has done for you all week.
+      - id: the_rope_seal
+        text: >-
+          SEAL. The drum rolls. Here the story does what the fair has always
+          done, and turns to look at the pies. Up on the Hill, while every
+          Lantern in the city is watching the Green, something that shines
+          goes quietly missing.

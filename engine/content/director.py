@@ -34,7 +34,12 @@ on (path, mtime), so re-resolving an id costs nothing, the save stays small, and
 editing a deck mid-run degrades to "that card is gone, skip it" instead of
 replaying a stale copy the author has since rewritten.
 
-Version: v0.1.0 [2026-08-15]
+v0.17: a forced deck waits for its own ``when:`` (``due``) -- and a deck's
+``when:`` schedules it on its own as well, forced or not -- and a card that
+takes hp to the death threshold runs the death check on that card
+(``resolve``).
+
+Version: v0.2.0 [2026-09-27]
 """
 
 from __future__ import annotations
@@ -56,6 +61,12 @@ MAX_SCENE_CARDS = 32
 #: Flag marking a deck as already dealt this run, so scheduled decks do not
 #: re-deal every turn their ``when`` is true.
 PLAYED_FLAG_PREFIX = "deck_played_"
+
+#: The hours of the day at which ``GameState.time_of_day`` changes its answer
+#: (dawn 5, day 8, dusk 17, night 20). ``due_boundary_hours`` cuts a long wait
+#: here when a deck reads the band; tests/test_law_arrest.py reads the edges
+#: off the property itself, so the two cannot drift apart.
+TIME_OF_DAY_EDGES: tuple[int, ...] = (5, 8, 17, 20)
 
 #: Forced scenes already warned about. A clock names a scene once and it stays
 #: pending for the rest of the run, so an unanswerable one logged a WARNING on
@@ -185,7 +196,15 @@ def due(state: GameState, *, ledger: Any = None) -> tuple[str, str, str]:
 
     Order is deliberate. A clock that has FILLED is a promise the engine made
     and owes the player now; a scheduled deck is merely the next thing due. A
-    promise outranks a schedule.
+    promise outranks a schedule -- once it can be kept: a forced DECK whose own
+    ``when:`` does not hold waits, and does not hold the turn from the decks
+    that can deal (v0.17).
+
+    A deck's ``when:`` ALSO SCHEDULES IT ON ITS OWN. Any unplayed deck whose
+    ``when:`` holds comes due below as ``scheduled``, forced or not -- so a
+    deck meant to deal only while an event forces it must name the event in
+    its ``when:`` (``event_active: <id>``), or it deals whenever the rest of
+    that ``when:`` holds.
     """
     known = deck_module.deck_ids()
     if not known:
@@ -193,8 +212,29 @@ def due(state: GameState, *, ledger: Any = None) -> tuple[str, str, str]:
         # line that keeps graph-shaped stories byte-identical.
         return "", "", ""
 
+    from engine.game.quests import evaluate_condition
+
     for scene_id in clocks_module.forced_scenes(state):
         if scene_id in known:
+            # A FORCED DECK HONOURS ITS OWN `when:` (v0.17). A fair forced by
+            # its event but gated `at_location: gallows_green` used to come
+            # due wherever the player stood, and `begin` answered "no cards
+            # were eligible" every turn -- while outranking the interrogation
+            # an arrest on fair day owed. It now WAITS: neither dealt nor
+            # retired (`scene_played_` is written only by a deal), and the
+            # decks below may deal meanwhile. When the `when:` holds while the
+            # promise still stands, it deals; if the event lapses first, it is
+            # simply not dealt. A deck with no `when:` -- every forced deck
+            # shipped before this -- is unaffected. A forced CARD is not read
+            # here: it is placed in the hand whatever the draw says (`begin`),
+            # as it always was.
+            deck = deck_module.load_deck(scene_id)
+            if (
+                deck is not None
+                and deck.when is not None
+                and not evaluate_condition(state, deck.when, ledger=ledger)
+            ):
+                continue
             return scene_id, "", "forced"
         deck_id, card_id = _deck_holding_card(scene_id)
         if deck_id:
@@ -210,8 +250,6 @@ def due(state: GameState, *, ledger: Any = None) -> tuple[str, str, str]:
             "(operation=due, scene=%s). The clock's promise cannot be kept.",
             scene_id,
         )
-
-    from engine.game.quests import evaluate_condition
 
     for deck_id in known:
         if state.flags.get(_played_flag(deck_id)):
@@ -230,6 +268,72 @@ def due(state: GameState, *, ledger: Any = None) -> tuple[str, str, str]:
     return "", "", ""
 
 
+def _requires_custody(when: Any) -> Optional[bool]:
+    """``True``/``False`` when a deck's ``when:`` pins ``in_custody`` at its
+    top level (bare, or one clause of a top-level ``all:``); ``None`` if not."""
+    if not isinstance(when, dict):
+        return None
+    if "in_custody" in when:
+        return bool(when["in_custody"])
+    for clause in when.get("all") or []:
+        if isinstance(clause, dict) and "in_custody" in clause and len(clause) == 1:
+            return bool(clause["in_custody"])
+    return None
+
+
+def due_boundary_hours(*, in_custody: Optional[bool] = None) -> tuple[int, ...]:
+    """
+    The hours of the day at which ``due`` can change its answer without a turn.
+
+    Midnight -- a declared event starts and ends on the day roll, and
+    ``min_day``/``max_day`` turn over -- plus every bound of an
+    ``hour_between`` in any deck's ``when:``, plus the four band edges
+    (``TIME_OF_DAY_EDGES``) when any deck's ``when:`` reads ``time_of_day``
+    (v0.17 T4: a dusk-gated deck used to fall due and away again between two
+    cuts). Sorted, 0-23. For a caller that moves the clock a long way in one
+    action and must stop where a scene falls due (``law.serve_sentence``):
+    stepping to each of these hours and asking ``due`` there sees every hour
+    a CLOCK-READING gate can move at, for a handful of ``advance_time`` calls
+    a day rather than one an hour. ``(0,)`` for a story with no decks.
+
+    NOT every hour anything can change at: a gate on a flag, a value, a
+    clock or anything else ``advance_time`` moves in passing (hunger, an
+    agenda's beat, a rumour) is caught at the next cut, not on the hour it
+    turned true -- at worst the next midnight or band edge.
+
+    ``in_custody``: the caller knows the player's custody will not change
+    over the stretch (a sentence served), so a deck whose ``when:`` pins the
+    OTHER value can never come due in it and its hours are left out. HUE &
+    CRY held: midnight and nine (the gallows), not the free decks' five more.
+    """
+    hours: set[int] = {0}
+    for deck_id in deck_module.deck_ids():
+        deck = deck_module.load_deck(deck_id)
+        if deck is None or deck.when is None:
+            continue
+        pinned = _requires_custody(deck.when)
+        if in_custody is not None and pinned is not None and pinned is not in_custody:
+            continue
+        stack: list[Any] = [deck.when]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    if key == "hour_between" and isinstance(value, (list, tuple)):
+                        for bound in value:
+                            try:
+                                hours.add(int(bound) % 24)
+                            except (TypeError, ValueError):
+                                continue
+                    elif key == "time_of_day":
+                        hours.update(TIME_OF_DAY_EDGES)
+                    else:
+                        stack.append(value)
+            elif isinstance(node, list):
+                stack.extend(node)
+    return tuple(sorted(hours))
+
+
 # ---------------------------------------------------------------------------
 # Re-arming a repeatable deck
 # ---------------------------------------------------------------------------
@@ -243,11 +347,28 @@ def _trigger_holds(state: GameState, deck: deck_module.Deck, *, ledger: Any = No
     forces the deck or one of its cards (read WITHOUT the played flags -- the
     question is whether the promise is still standing, not whether it is still
     owed), or the deck's own ``when:``.
+
+    ONE EXCEPTION (v0.17): a DECLARED EVENT's row that forces the DECK itself,
+    when the deck declares a ``when:``. Such a deck is dealt only while its
+    ``when:`` holds (``due``), so that row is not a trigger of its own and the
+    ``when:`` alone is: the event is still active after the player walks off
+    the fair's green, and counting it would never let HUE & CRY's fair re-arm
+    for a return. Everything else keeps the row as a trigger, deliberately:
+    a row forcing a single CARD deals that card whatever the deck's ``when:``
+    says (``begin``), so its event must hold the deck spent or it re-deals
+    every turn; and a CLOCK beat's row is permanent, so a clock-forced deck is
+    one promise kept once, ``when:`` or no ``when:``.
     """
-    ids = {deck.id} | {c.id for c in deck.cards}
+    card_ids = {c.id for c in deck.cards}
     for event in state.world_events:
-        if clocks_module.event_forced_scene(event) in ids:
+        scene_id = clocks_module.event_forced_scene(event)
+        if scene_id in card_ids:
             return True
+        if scene_id == deck.id:
+            payload = event.get("payload")
+            declared_event = isinstance(payload, dict) and bool(payload.get("declared"))
+            if not (declared_event and deck.when is not None):
+                return True
     if deck.when is None:
         return False
     from engine.game.quests import evaluate_condition
@@ -265,8 +386,12 @@ def rearm(state: GameState, *, ledger: Any = None) -> list[str]:
     stays true. It comes back only once that trigger has been seen FALSE: a
     deck gated ``{in_custody: true}`` deals on the first arrest, not again
     while the player is still held, and again on the second arrest. A forced
-    repeatable deck re-arms when no active world event forces it any more; a
-    clock beat's row is permanent, so a clock-forced deck never does.
+    repeatable deck re-arms when no active world event forces it any more --
+    except a deck forced AS A DECK by a declared event and gated on its own
+    ``when:``, which re-arms when that ``when:`` falls (``_trigger_holds``,
+    v0.17: HUE & CRY's fair, dealt again on each return to the green). A
+    clock beat's row is permanent, so a clock-forced deck never re-arms,
+    ``when:`` or no ``when:``.
 
     THE FALL IS STATE. Clearing the played flags IS the "has fallen" bit, and
     it is written through ``apply_effect`` like every other flag -- so it
@@ -497,6 +622,12 @@ def resolve(
             "options": sorted(legal),
         }
 
+    hp_before = int(state.stats.hp)
+    from engine.game import endings as endings_module
+
+    # Neither locked nor played before this card: see "ENDS THE HAND" below.
+    story_open = (endings_module.locked(state) == endings_module.NONE_ID
+                  and endings_module.module_ran(state) == endings_module.NONE_ID)
     results = deck_module.resolve_card(
         state,
         card,
@@ -506,12 +637,50 @@ def resolve(
     )
 
     state.scene["cursor"] = int(state.scene.get("cursor", 0)) + 1
-    finished = not active(state)
     deck_id = str(state.scene.get("deck_id", ""))
+
+    # A CARD THAT TAKES HP CAN KILL, ON THAT CARD (v0.17). An encounter's
+    # outcome and a job's stage check death the moment they land; a card turn
+    # moves no clock, so hp lost to a beat used to wait for whatever next
+    # called `advance_time` -- the player answered the rest of the hand at 0
+    # hp and died after the narrator had them walk on. Asked only when this
+    # card LOWERED hp: a card that takes none (every card shipped before
+    # this) never calls it, and a player already down from elsewhere is
+    # that elsewhere's death. A death -- terminal or a respawn -- ends the
+    # hand, as it ends an open encounter: the scene cannot outlive the
+    # player being carried out of it.
+    death: Optional[dict[str, Any]] = None
+    if int(state.stats.hp) < hp_before:
+        from engine.game import encounter
+
+        death = encounter.check_death(state, ledger=ledger)
+        if death is not None:
+            end(state)
+
+    # A CARD THAT PLAYS AN ENDING ENDS THE HAND (v0.17, controller's ruling).
+    # When this card both LOCKED the run's ending and played its module
+    # (Speak/Act/Seal) -- neither had happened before it -- the story is
+    # over: no later card in the hand may be
+    # presented or resolved -- HUE & CRY's desk once dealt two doors in one
+    # hand, and the second resolved its "this ends the story" prose and
+    # ledger fact over an ending already locked. Scoped to the card that
+    # plays the ending, not merely the one that locks it: the Wicked Garden's
+    # finale locks on F3 and plays the module on F4, with its epilogue cards
+    # after, and that hand must run on. A hand in which no card plays an
+    # ending (every other shipped hand) is untouched.
+    if (
+        story_open
+        and active(state)
+        and endings_module.locked(state) != endings_module.NONE_ID
+        and endings_module.module_ran(state) != endings_module.NONE_ID
+    ):
+        end(state)
+
+    finished = not active(state)
     if finished:
         end(state)
 
-    return {
+    receipt: dict[str, Any] = {
         "ok": True,
         "deck_id": deck_id,
         "card_id": card.id,
@@ -519,10 +688,14 @@ def resolve(
         "beats": [r.to_dict() for r in results],
         "scene_complete": finished,
     }
+    if death is not None:
+        receipt["death"] = death
+    return receipt
 
 
 __all__ = [
     "MAX_SCENE_CARDS",
+    "TIME_OF_DAY_EDGES",
     "active",
     "begin",
     "current_card",

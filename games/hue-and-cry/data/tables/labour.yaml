@@ -56,7 +56,7 @@
 # ten days two crowns up: a living, just. The dipper (the vats 09:00-15:00,
 # the stalls' errands 16:00-19:00) earns more coin but no bread, and keeps
 # fewer days -- at least one seed in forty ran out of both and starved to
-# 0 hp (no death.yaml until v1.0).
+# 0 hp (no death.yaml then; since v0.17 hp 0 respawns, data/rules/death.yaml).
 # `candle_dipping` was measured first at 3 crowns: 2.39 a day, 79% kept,
 # 0.31 a day lost, so it went to 4. A porter who sleeps in the free guild
 # bunk instead (`--bed bunk`) saves ~1.0 cr a day (re-measured at v0.16,
@@ -71,13 +71,20 @@
 # v0.14 scrounging entry said it never would -- that was not measured with a
 # bed; this is). Scrounging keeps you; it never gets you ahead.
 #
+# THE LABOUR RECORD (v0.17). Every posting's `effects` writes
+# `honest_wage_earned` on the degrees its pay table pays (a botched shift
+# took the hours and paid nothing, and is no wage). It is what Honest After
+# All reads for "a paid-up life" (data/rules/endings.yaml): the shift cap's
+# own markers expire with the day, so without it the engine keeps no record
+# that you ever worked. The flag is all it writes -- no coin, no standing.
+#
 # Measured and rejected: `faction: honest_company` on the porter's wage. At a
 # neutral face 0.85 floors a 2-crown shift to 1, and the same porter earned
 # 1.66 a day, kept 84% of days, lost 0.32 a day and reached 0 hp -- honest
 # work as a slow starvation. (The lamps at 17:00 were rejected unmeasured:
 # Wren is on Silk Row at that hour, and the posting would open without her.)
 #
-# Version: v0.1.1 [2026-09-26]
+# Version: v0.2.0 [2026-09-27]
 
 version: 1
 
@@ -105,6 +112,8 @@ jobs:
       - { item_id: heel_of_bread, qty: 1, degrees: [crit_success, success, partial] }
     reputation:
       - { faction: honest_company, delta: 1, degrees: [crit_success, success] }
+    effects:
+      - { type: flag, flag: honest_wage_earned, degrees: [crit_success, success, partial] }
     demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
     when: { hour_between: [5, 13] }
     closed_text: >-
@@ -130,6 +139,8 @@ jobs:
       - { item_id: candle_ends, qty: 1, degrees: [crit_success] }
     reputation:
       - { faction: chandlers_guild, delta: 1, degrees: [crit_success, success] }
+    effects:
+      - { type: flag, flag: honest_wage_earned, degrees: [crit_success, success, partial] }
     demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
     when: { hour_between: [6, 13] }
     closed_text: >-
@@ -153,6 +164,8 @@ jobs:
     pay: { crit_success: 2.0, success: 1.0, partial: 1.0, failure: 0.0 }
     reputation:
       - { faction: market_stalls, delta: 1, degrees: [crit_success, success] }
+    effects:
+      - { type: flag, flag: honest_wage_earned, degrees: [crit_success, success, partial] }
     demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
     when: { hour_between: [8, 17] }
     closed_text: >-
@@ -177,6 +190,8 @@ jobs:
     pay: { crit_success: 2.0, success: 1.0, partial: 1.0, failure: 0.0 }
     reputation:
       - { faction: lantern_watch, delta: 1, degrees: [crit_success, success] }
+    effects:
+      - { type: flag, flag: honest_wage_earned, degrees: [crit_success, success, partial] }
     demand: { dormant: 1.0, stirring: 1.0, spreading: 1.0, consuming: 1.0 }
     when: { hour_between: [18, 19] }
     closed_text: >-

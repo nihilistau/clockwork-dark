@@ -47,13 +47,13 @@ cards:
     required: true
     tags: [menu, gm]
     title: "The Hourglass Casts Its Own Shadow"
+    # RUNTIME: `endings.recompute(state)` first. The eligible set is shown as
+    # equipped intents and the player may switch among ELIGIBLE ONES ONLY --
+    # `set_intent` enforces that, so route the switch through it.
     text: >-
       INTENT: the last inventory, and one free action. Somewhere, tenfold days
       have already rewritten a life that still thinks it might have the player
       back.
-      RUNTIME: `endings.recompute(state)` first. The eligible set is shown as
-      equipped intents and the player may switch among ELIGIBLE ONES ONLY --
-      `set_intent` enforces that, so route the switch through it.
       CONSTRAINT: exactly one free action, and each one spends something that
       cannot be recovered.
       MENU -- resolve at most one beat.
@@ -183,12 +183,15 @@ cards:
       MENU -- resolve exactly one beat.
     beats:
       - id: the_vale_claims_his_debt
+        # RUNTIME (moved out of the text in v0.17.0, AGENTS.md rule 1): the
+        # outcome is the thread's, not this beat's; no card effect touches a
+        # thread. The player settles `ashen_service_owed` with the `discharge`
+        # verb on any turn no card holds, and it breaks by itself when it
+        # falls due. Renegotiating it is NOT WIRED (docs/GOVERNANCE.md).
         text: >-
           Highest priority after consistency. He collects mid-ending,
           in front of whoever is there, and an E1 attempt with an unpaid service
-          may be hijacked toward E6a or E1b. Discharge, break or renegotiate
-          through the thread tool -- the outcome is the thread's, not this
-          beat's.
+          may be hijacked toward E6a or E1b.
         gate:
           when: { thread: { source: ashen_vale, status: active } }
           on_pass:
@@ -269,16 +272,17 @@ cards:
     required: true
     tags: [menu, setpiece, gm]
     title: "What You Say Before You Choose"
+    # CONSTRAINT (on the deck's order, not the prose): this card runs BEFORE
+    # F3. `endings.lock` refuses an id that is not eligible, so a declaration
+    # made after the lock would be a declaration that changed nothing -- and
+    # E5a asking for mercy the player never offered is exactly the dishonesty
+    # Day 8 exists to prevent.
     text: >-
       INTENT: five ending gates have no other author. `spare_sophia`,
       `remove_sophia`, `abandon_seat`, `ashen_victory` and
       `public_feast_humiliation` are read by `data/rules/endings.yaml` and are
       declared HERE, in the last minutes before the lock, out loud, in front of
       whoever is in the room.
-      CONSTRAINT: this card runs BEFORE F3. `endings.lock` refuses an id that is
-      not eligible, so a declaration made after the lock would be a declaration
-      that changed nothing -- and E5a asking for mercy the player never offered
-      is exactly the dishonesty Day 8 exists to prevent.
       MENU -- resolve at most one beat, and only where the crisis actually
       produced the question.
     beats:
@@ -366,15 +370,18 @@ cards:
     required: true
     tags: [sequence, setpiece, gm]
     title: "Choose. The Garden Will Grow Something From This Either Way."
+    # RUNTIME: the `ending_lock` effect below. It refuses an id that is not
+    # eligible and refuses a second lock on an already-locked save, which is
+    # what makes this beat the point of no return rather than a label on one.
+    # The lock receipt carries `forced` (engine/game/endings.py `lock`): true
+    # when the only thing in the eligible set was the fail-forward. The
+    # direction that follows from it is prose, so it is in the text below.
     text: >-
       INTENT: one fullscreen omen and one confirmation. Irreversible, and the
       interface should say so without apologising.
-      RUNTIME: the `ending_lock` effect below. It refuses an id that is not
-      eligible and refuses a second lock on an already-locked save, which is
-      what makes this beat the point of no return rather than a label on one.
-      Read `report.forced` from the receipt -- if the only thing in the eligible
-      set was the fail-forward, the player earned nothing and the finale should
-      know that even though it must not say so.
+      CONSTRAINT: if what locks is the fail-forward because nothing else was
+      left open, the player earned nothing, and the finale should know that
+      even though it must not say so.
     beats:
       - id: confirm_the_ending
         gate:
@@ -395,16 +402,16 @@ cards:
     required: true
     tags: [sequence, setpiece, gm]
     title: "Speak · Act · Seal"
+    # RUNTIME: the `ending_module` effect below. It reads
+    # `endings.declared()[<id>]["beats"]`, bounds them through the same clamps
+    # every other beat gets, and resolves each with `deck.resolve_beat` -- they
+    # are ordinary beats in the same grammar and there was never a reason for
+    # them to be a second one. It takes no id, because which three these are
+    # was decided by F3's lock. It runs once.
     text: >-
       INTENT: this card hands off to the locked ending's own module. Its three
       beats are authored in `data/rules/endings.yaml` under that variant's
       `beats:` key, in the same Speak/Act/Seal order for all twenty-three.
-      RUNTIME: the `ending_module` effect below. It reads
-      `endings.declared()[<id>]["beats"]`, bounds them through the same clamps
-      every other beat gets, and resolves each with `deck.resolve_beat` -- they
-      are ordinary beats in the same grammar and there was never a reason for
-      them to be a second one. It takes no id, because which three these are was
-      decided by F3's lock. It runs once.
       CONSTRAINT: Sophia owns her own monologues and her intimate seals; the GM owns world
       physics, the Vale, the roots and the mortal card.
     beats:
@@ -422,13 +429,13 @@ cards:
     required: true
     tags: [sequence, gm]
     title: "Two Cards, Always"
+    # RUNTIME: the prose is transcribed in `data/epilogues/epilogue_cards.yaml`,
+    # keyed by ending id. The time line is a template -- garden days and garden
+    # days times ten -- and the numbers come from state, never from the card.
     text: >-
       INTENT: Card M, the waking world; Card G, the Garden. Both, in the order
       `data/epilogues/epilogue_index.yaml` declares, followed by the echoes and
       then the time line.
-      RUNTIME: the prose is transcribed in `data/epilogues/epilogue_cards.yaml`,
-      keyed by ending id. The time line is a template -- garden days and garden
-      days times ten -- and the numbers come from state, never from the card.
       CONSTRAINT: past a hundred mortal days the hollow clause is injected into
       any E1 or E2 mortal card. Even this ending cannot give back the years the
       hourglass already ate. Epilogues are a summary, not a scene.
