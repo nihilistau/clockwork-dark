@@ -1,0 +1,694 @@
+{
+  "baker": {
+    "config": {
+      "policy": "baker",
+      "seed": 7,
+      "turns": 12,
+      "tick_hours": 2.0,
+      "evil_base_rate_per_day": 0.028
+    },
+    "summary": {
+      "turns_played": 12,
+      "day_reached": 3,
+      "hours_elapsed": 57,
+      "in_game_hours_per_turn": 4.08,
+      "final_evil_progress": 0.0304,
+      "final_evil_phase": "dormant",
+      "final_awareness": 0.0,
+      "final_arc": "quiet_life",
+      "deaths": 0,
+      "starvation_deaths": 0,
+      "errors": 0
+    },
+    "livelihood": {
+      "gold_earned": 7,
+      "gold_spent": 0,
+      "shifts_worked": 4,
+      "shifts_refused": 0,
+      "forage_attempts": 0,
+      "forage_productive": 0,
+      "forage_hit_rate": 0.0,
+      "items_foraged": 0,
+      "food_foraged": 0,
+      "food_per_forage": 0.0,
+      "items_sold": 0,
+      "carried_value_end": 8,
+      "actions": {
+        "travel": 4,
+        "work": 4,
+        "check": 2,
+        "eat": 1,
+        "flag": 1
+      }
+    },
+    "evil": {
+      "per_in_game_day": 0.0152,
+      "doom_resistance": {
+        "min": 0.0,
+        "p10": 0.0,
+        "median": 0.0,
+        "mean": 0.0,
+        "max": 0.0
+      },
+      "set_pieces_played": 0,
+      "set_pieces_won": 0,
+      "days_to_consuming_projected": 52.6,
+      "turns_to_consuming_projected": 316.0,
+      "first_day_in_phase": {
+        "dormant": 1,
+        "stirring": null,
+        "spreading": null,
+        "consuming": null
+      },
+      "curve": [
+        {
+          "day": 1,
+          "evil_progress": 0.0086,
+          "evil_phase": "dormant",
+          "turn": 4
+        },
+        {
+          "day": 2,
+          "evil_progress": 0.02309,
+          "evil_phase": "dormant",
+          "turn": 10
+        },
+        {
+          "day": 3,
+          "evil_progress": 0.0304,
+          "evil_phase": "dormant",
+          "turn": 12
+        }
+      ]
+    },
+    "stamina": {
+      "min": 42.0,
+      "p10": 42.0,
+      "median": 62.0,
+      "mean": 66.92,
+      "max": 95.0,
+      "turns_at_zero": 0,
+      "final_cap": 80
+    },
+    "hunger": {
+      "min": 6.0,
+      "p10": 6.0,
+      "median": 34.25,
+      "mean": 34.62,
+      "max": 64.5,
+      "turns_by_stage": {
+        "fed": 7,
+        "peckish": 4,
+        "hungry": 1
+      }
+    },
+    "gold": {
+      "min": 5.0,
+      "p10": 5.0,
+      "median": 14.0,
+      "mean": 11.67,
+      "max": 15.0,
+      "start": 5,
+      "end": 15,
+      "spent_on_food": 0,
+      "net": 10,
+      "per_day": 5.0
+    },
+    "skills": {
+      "craft": {
+        "attempts": 5,
+        "crit_success": 0,
+        "success": 1,
+        "partial": 2,
+        "failure": 2,
+        "success_rate": 0.2,
+        "partial_rate": 0.4
+      },
+      "persuasion": {
+        "attempts": 1,
+        "crit_success": 1,
+        "success": 0,
+        "partial": 0,
+        "failure": 0,
+        "success_rate": 1.0,
+        "partial_rate": 0.0
+      }
+    },
+    "encounters": {
+      "travel_legs": 4,
+      "danger_legs": 1,
+      "encounters": 0,
+      "per_leg": 0.0,
+      "per_danger_leg": 0.0,
+      "by_id": {}
+    },
+    "quests": {
+      "started": [
+        "lost_goat",
+        "bakery_apprentice"
+      ],
+      "completed": [],
+      "failed": [],
+      "arcs_unlocked": []
+    },
+    "errors": []
+  },
+  "cautious": {
+    "config": {
+      "policy": "cautious",
+      "seed": 7,
+      "turns": 12,
+      "tick_hours": 2.0,
+      "evil_base_rate_per_day": 0.028
+    },
+    "summary": {
+      "turns_played": 12,
+      "day_reached": 2,
+      "hours_elapsed": 34,
+      "in_game_hours_per_turn": 2.17,
+      "final_evil_progress": 0.01492,
+      "final_evil_phase": "dormant",
+      "final_awareness": 2.0,
+      "final_arc": "quiet_life",
+      "deaths": 0,
+      "starvation_deaths": 0,
+      "errors": 0
+    },
+    "livelihood": {
+      "gold_earned": 0,
+      "gold_spent": 0,
+      "shifts_worked": 0,
+      "shifts_refused": 0,
+      "forage_attempts": 0,
+      "forage_productive": 0,
+      "forage_hit_rate": 0.0,
+      "items_foraged": 0,
+      "food_foraged": 0,
+      "food_per_forage": 0.0,
+      "items_sold": 0,
+      "carried_value_end": 6,
+      "actions": {
+        "travel": 10,
+        "flag": 2
+      }
+    },
+    "evil": {
+      "per_in_game_day": 0.01492,
+      "doom_resistance": {
+        "min": 0.0,
+        "p10": 0.0,
+        "median": 0.0,
+        "mean": 0.0,
+        "max": 0.0
+      },
+      "set_pieces_played": 0,
+      "set_pieces_won": 0,
+      "days_to_consuming_projected": 53.6,
+      "turns_to_consuming_projected": 643.0,
+      "first_day_in_phase": {
+        "dormant": 1,
+        "stirring": null,
+        "spreading": null,
+        "consuming": null
+      },
+      "curve": [
+        {
+          "day": 1,
+          "evil_progress": 0.0089,
+          "evil_phase": "dormant",
+          "turn": 7
+        },
+        {
+          "day": 2,
+          "evil_progress": 0.01492,
+          "evil_phase": "dormant",
+          "turn": 12
+        }
+      ]
+    },
+    "stamina": {
+      "min": 86.0,
+      "p10": 86.0,
+      "median": 89.5,
+      "mean": 90.0,
+      "max": 95.0,
+      "turns_at_zero": 0,
+      "final_cap": 100
+    },
+    "hunger": {
+      "min": 6.0,
+      "p10": 6.0,
+      "median": 28.0,
+      "mean": 28.5,
+      "max": 52.0,
+      "turns_by_stage": {
+        "fed": 9,
+        "peckish": 3
+      }
+    },
+    "gold": {
+      "min": 5.0,
+      "p10": 5.0,
+      "median": 5.0,
+      "mean": 5.0,
+      "max": 5.0,
+      "start": 5,
+      "end": 5,
+      "spent_on_food": 0,
+      "net": 0,
+      "per_day": 0.0
+    },
+    "skills": {},
+    "encounters": {
+      "travel_legs": 10,
+      "danger_legs": 1,
+      "encounters": 0,
+      "per_leg": 0.0,
+      "per_danger_leg": 0.0,
+      "by_id": {}
+    },
+    "quests": {
+      "started": [
+        "lost_goat"
+      ],
+      "completed": [],
+      "failed": [],
+      "arcs_unlocked": []
+    },
+    "errors": []
+  },
+  "hero": {
+    "config": {
+      "policy": "hero",
+      "seed": 7,
+      "turns": 12,
+      "tick_hours": 2.0,
+      "evil_base_rate_per_day": 0.028
+    },
+    "summary": {
+      "turns_played": 12,
+      "day_reached": 2,
+      "hours_elapsed": 34,
+      "in_game_hours_per_turn": 2.17,
+      "final_evil_progress": 0.01429,
+      "final_evil_phase": "dormant",
+      "final_awareness": 5.0,
+      "final_arc": "quiet_life",
+      "deaths": 0,
+      "starvation_deaths": 0,
+      "errors": 0
+    },
+    "livelihood": {
+      "gold_earned": 0,
+      "gold_spent": 0,
+      "shifts_worked": 0,
+      "shifts_refused": 0,
+      "forage_attempts": 0,
+      "forage_productive": 0,
+      "forage_hit_rate": 0.0,
+      "items_foraged": 0,
+      "food_foraged": 0,
+      "food_per_forage": 0.0,
+      "items_sold": 0,
+      "carried_value_end": 6,
+      "actions": {
+        "travel": 10,
+        "flag": 2
+      }
+    },
+    "evil": {
+      "per_in_game_day": 0.01429,
+      "doom_resistance": {
+        "min": 0.0,
+        "p10": 0.0,
+        "median": 0.0,
+        "mean": 0.0,
+        "max": 0.0
+      },
+      "set_pieces_played": 0,
+      "set_pieces_won": 0,
+      "days_to_consuming_projected": 56.0,
+      "turns_to_consuming_projected": 672.0,
+      "first_day_in_phase": {
+        "dormant": 1,
+        "stirring": null,
+        "spreading": null,
+        "consuming": null
+      },
+      "curve": [
+        {
+          "day": 1,
+          "evil_progress": 0.00829,
+          "evil_phase": "dormant",
+          "turn": 7
+        },
+        {
+          "day": 2,
+          "evil_progress": 0.01429,
+          "evil_phase": "dormant",
+          "turn": 12
+        }
+      ]
+    },
+    "stamina": {
+      "min": 86.0,
+      "p10": 86.0,
+      "median": 89.5,
+      "mean": 90.0,
+      "max": 95.0,
+      "turns_at_zero": 0,
+      "final_cap": 100
+    },
+    "hunger": {
+      "min": 6.0,
+      "p10": 6.0,
+      "median": 28.0,
+      "mean": 28.5,
+      "max": 52.0,
+      "turns_by_stage": {
+        "fed": 9,
+        "peckish": 3
+      }
+    },
+    "gold": {
+      "min": 5.0,
+      "p10": 5.0,
+      "median": 5.0,
+      "mean": 5.0,
+      "max": 5.0,
+      "start": 5,
+      "end": 5,
+      "spent_on_food": 0,
+      "net": 0,
+      "per_day": 0.0
+    },
+    "skills": {},
+    "encounters": {
+      "travel_legs": 10,
+      "danger_legs": 1,
+      "encounters": 0,
+      "per_leg": 0.0,
+      "per_danger_leg": 0.0,
+      "by_id": {}
+    },
+    "quests": {
+      "started": [
+        "lost_goat"
+      ],
+      "completed": [],
+      "failed": [],
+      "arcs_unlocked": []
+    },
+    "errors": []
+  },
+  "pauper": {
+    "config": {
+      "policy": "pauper",
+      "seed": 7,
+      "turns": 12,
+      "tick_hours": 2.0,
+      "evil_base_rate_per_day": 0.028
+    },
+    "summary": {
+      "turns_played": 12,
+      "day_reached": 3,
+      "hours_elapsed": 52,
+      "in_game_hours_per_turn": 3.67,
+      "final_evil_progress": 0.02802,
+      "final_evil_phase": "dormant",
+      "final_awareness": 0.0,
+      "final_arc": "quiet_life",
+      "deaths": 0,
+      "starvation_deaths": 0,
+      "errors": 0
+    },
+    "livelihood": {
+      "gold_earned": 0,
+      "gold_spent": 0,
+      "shifts_worked": 0,
+      "shifts_refused": 0,
+      "forage_attempts": 10,
+      "forage_productive": 6,
+      "forage_hit_rate": 0.6,
+      "items_foraged": 20,
+      "food_foraged": 16,
+      "food_per_forage": 1.6,
+      "items_sold": 0,
+      "carried_value_end": 46,
+      "actions": {
+        "forage": 10,
+        "eat": 2
+      }
+    },
+    "evil": {
+      "per_in_game_day": 0.01401,
+      "doom_resistance": {
+        "min": 0.0,
+        "p10": 0.0,
+        "median": 0.0,
+        "mean": 0.0,
+        "max": 0.0
+      },
+      "set_pieces_played": 0,
+      "set_pieces_won": 0,
+      "days_to_consuming_projected": 57.1,
+      "turns_to_consuming_projected": 343.0,
+      "first_day_in_phase": {
+        "dormant": 1,
+        "stirring": null,
+        "spreading": null,
+        "consuming": null
+      },
+      "curve": [
+        {
+          "day": 1,
+          "evil_progress": 0.00756,
+          "evil_phase": "dormant",
+          "turn": 3
+        },
+        {
+          "day": 2,
+          "evil_progress": 0.02408,
+          "evil_phase": "dormant",
+          "turn": 10
+        },
+        {
+          "day": 3,
+          "evil_progress": 0.02802,
+          "evil_phase": "dormant",
+          "turn": 12
+        }
+      ]
+    },
+    "stamina": {
+      "min": 60.0,
+      "p10": 60.0,
+      "median": 76.5,
+      "mean": 77.5,
+      "max": 98.0,
+      "turns_at_zero": 0,
+      "final_cap": 100
+    },
+    "hunger": {
+      "min": 6.0,
+      "p10": 6.0,
+      "median": 22.25,
+      "mean": 21.83,
+      "max": 38.5,
+      "turns_by_stage": {
+        "fed": 12
+      }
+    },
+    "gold": {
+      "min": 5.0,
+      "p10": 5.0,
+      "median": 5.0,
+      "mean": 5.0,
+      "max": 5.0,
+      "start": 5,
+      "end": 5,
+      "spent_on_food": 0,
+      "net": 0,
+      "per_day": 0.0
+    },
+    "skills": {
+      "survival": {
+        "attempts": 10,
+        "crit_success": 1,
+        "success": 2,
+        "partial": 3,
+        "failure": 4,
+        "success_rate": 0.3,
+        "partial_rate": 0.3
+      }
+    },
+    "encounters": {
+      "travel_legs": 0,
+      "danger_legs": 0,
+      "encounters": 0,
+      "per_leg": 0.0,
+      "per_danger_leg": 0.0,
+      "by_id": {}
+    },
+    "quests": {
+      "started": [
+        "bakery_apprentice"
+      ],
+      "completed": [],
+      "failed": [],
+      "arcs_unlocked": []
+    },
+    "errors": []
+  },
+  "reckless": {
+    "config": {
+      "policy": "reckless",
+      "seed": 7,
+      "turns": 12,
+      "tick_hours": 2.0,
+      "evil_base_rate_per_day": 0.028
+    },
+    "summary": {
+      "turns_played": 12,
+      "day_reached": 3,
+      "hours_elapsed": 48,
+      "in_game_hours_per_turn": 3.33,
+      "final_evil_progress": 0.06899,
+      "final_evil_phase": "dormant",
+      "final_awareness": 20.0,
+      "final_arc": "march",
+      "deaths": 0,
+      "starvation_deaths": 0,
+      "errors": 0
+    },
+    "livelihood": {
+      "gold_earned": 0,
+      "gold_spent": 0,
+      "shifts_worked": 0,
+      "shifts_refused": 0,
+      "forage_attempts": 0,
+      "forage_productive": 0,
+      "forage_hit_rate": 0.0,
+      "items_foraged": 0,
+      "food_foraged": 0,
+      "food_per_forage": 0.0,
+      "items_sold": 0,
+      "carried_value_end": 3,
+      "actions": {
+        "flag": 6,
+        "travel": 4,
+        "approach": 1,
+        "eat": 1
+      }
+    },
+    "evil": {
+      "per_in_game_day": 0.03449,
+      "doom_resistance": {
+        "min": 0.0,
+        "p10": 0.0,
+        "median": 8.65,
+        "mean": 9.18,
+        "max": 17.1
+      },
+      "set_pieces_played": 0,
+      "set_pieces_won": 0,
+      "days_to_consuming_projected": 23.2,
+      "turns_to_consuming_projected": 139.0,
+      "first_day_in_phase": {
+        "dormant": 1,
+        "stirring": null,
+        "spreading": null,
+        "consuming": null
+      },
+      "curve": [
+        {
+          "day": 1,
+          "evil_progress": 0.02691,
+          "evil_phase": "dormant",
+          "turn": 4
+        },
+        {
+          "day": 2,
+          "evil_progress": 0.05905,
+          "evil_phase": "dormant",
+          "turn": 11
+        },
+        {
+          "day": 3,
+          "evil_progress": 0.06899,
+          "evil_phase": "dormant",
+          "turn": 12
+        }
+      ]
+    },
+    "stamina": {
+      "min": 29.0,
+      "p10": 29.0,
+      "median": 67.0,
+      "mean": 62.17,
+      "max": 95.0,
+      "turns_at_zero": 0,
+      "final_cap": 100
+    },
+    "hunger": {
+      "min": 6.0,
+      "p10": 6.0,
+      "median": 38.75,
+      "mean": 36.46,
+      "max": 60.0,
+      "turns_by_stage": {
+        "fed": 7,
+        "peckish": 4,
+        "hungry": 1
+      }
+    },
+    "gold": {
+      "min": 3.0,
+      "p10": 3.0,
+      "median": 4.0,
+      "mean": 4.0,
+      "max": 5.0,
+      "start": 5,
+      "end": 3,
+      "spent_on_food": 0,
+      "net": -2,
+      "per_day": -1.0
+    },
+    "skills": {
+      "survival": {
+        "attempts": 1,
+        "crit_success": 0,
+        "success": 0,
+        "partial": 1,
+        "failure": 0,
+        "success_rate": 0.0,
+        "partial_rate": 1.0
+      }
+    },
+    "encounters": {
+      "travel_legs": 4,
+      "danger_legs": 4,
+      "encounters": 2,
+      "per_leg": 0.5,
+      "per_danger_leg": 0.5,
+      "by_id": {
+        "cart_in_the_ditch": 1,
+        "road_toll_bandits": 1
+      }
+    },
+    "quests": {
+      "started": [
+        "militia_press",
+        "toll_roads",
+        "lost_goat",
+        "bakery_apprentice"
+      ],
+      "completed": [],
+      "failed": [],
+      "arcs_unlocked": [
+        "march"
+      ]
+    },
+    "errors": []
+  }
+}

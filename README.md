@@ -28,9 +28,10 @@ settles the result, and a model on your own machine writes the prose.
   generation, voice and ComfyUI are optional and **off by default**. The
   shipped art packs mean scenes have pictures without any of them.
 
-**Status:** **v0.17.0** is the current release. Six stories ship, and each
-can be played to an ending; HUE & CRY can now be finished eight ways. At
-v0.17.0 the suite stood at 3734 passing, 4 skipped, plus 144 client tests.
+**Status:** **v0.18.0** is the current release. Six stories ship, and each
+can be played to an ending; HUE & CRY can be finished eight ways, and since
+v0.18.0 burglary pays and `simulate.py --game hue-and-cry` measures its
+thief. At v0.18.0 the suite stood at 3776 passing, 4 skipped, plus 144 client tests.
 Those numbers are re-measured each release in [CLAUDE.md](CLAUDE.md), and
 [CHANGELOG.md](CHANGELOG.md) records every change from 0.4.0 on.
 
@@ -164,7 +165,10 @@ Magpie!", and the whole city agrees. Today it has:
   the secrets of four fixed premises (the Captain's Office, the Treasury,
   Vessaline House, Mother Gannet's) open **blackmail** threads, with teeth if
   left uncollected. The two fences stand **credit**; a welsher finds neither
-  will buy from them, and collectors on the streets.
+  will buy from them, and collectors on the streets. Since v0.18 the fences
+  pay about half a hot haul's worth, so **burglary pays**: measured over 14
+  days, a fencing burglar keeps 7 days fed and roofed where a purses-only
+  pickpocket keeps 4, and an honest porter, the safe road, 13.
 - **Acts I and II.** The barge opening's three choices are real (run, talk,
   or come quietly into an arrest). The Honest Company swears you in through
   an initiation deck, and the oath opens Act II. Every arrest ends in the
@@ -324,9 +328,10 @@ declared meters and clocks.
 - **The studio:** `launcher.py --studio` edits stories in the browser, with
   live validation and a review queue.
 - **Balance harnesses** that run headless, with no LLM: `scripts/simulate.py`
-  for the flagship, `scripts/simulate_decks.py` for deck stories, and one
-  per HUE & CRY system (law, jobs, agendas, scrounging, labour, streets, the
-  Hoard, the Acts).
+  for the flagship and (`--game hue-and-cry`) HUE & CRY's thief,
+  `scripts/simulate_decks.py` for deck stories, and one per HUE & CRY system
+  (law, jobs, agendas, scrounging, labour, streets, the Hoard, the Acts, the
+  endings).
 - `scripts/art_missing.py` and `scripts/generate_art.py` list missing plates
   and fill them ahead of time.
 
@@ -509,11 +514,12 @@ npm run build --prefix ui     # rebuild, then commit dist in the same change
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\simulate.py --policy all --turns 200 --seed 42   # flagship: baker, cautious, hero, pauper, reckless
+.\.venv\Scripts\python.exe scripts\simulate.py --game hue-and-cry   # HUE & CRY's thief, in one report (--policy thief|thieves|living|all|<endings policy>, --seeds, --days, --json)
 .\.venv\Scripts\python.exe scripts\simulate_law.py       # HUE & CRY: careful | reckless | briber
 .\.venv\Scripts\python.exe scripts\simulate_jobs.py      # blind | careful | greedy | greedy_bare
 .\.venv\Scripts\python.exe scripts\simulate_agendas.py   # idle | careful | reckless
 .\.venv\Scripts\python.exe scripts\simulate_scrounge.py  # scrounger | mornings
-.\.venv\Scripts\python.exe scripts\simulate_labour.py    # porter | dipper | careful | scrounger | careful_pell | careful_marrow (--bed, --no-credit)
+.\.venv\Scripts\python.exe scripts\simulate_labour.py    # porter | dipper | careful | scrounger | careful_pell | careful_marrow | careful_porter | burglar | burglar_pell | burglar_marrow (--bed, --no-credit)
 .\.venv\Scripts\python.exe scripts\simulate_streets.py   # wanderer: a street an hour, day and night (--collectors)
 .\.venv\Scripts\python.exe scripts\simulate_hoard.py     # hoarder: the anchors, the Hoard, the squeezes (--no-pass, --severity)
 .\.venv\Scripts\python.exe scripts\simulate_acts.py      # investigator: Acts I-II, the trail and the reveal (--opening, --gate)
@@ -523,10 +529,19 @@ npm run build --prefix ui     # rebuild, then commit dist in the same change
 The HUE & CRY harnesses run 40 seeds of in-game days each, and none of them
 writes a save. The law, jobs, agendas and acts harnesses take `--set KEY=VALUE`
 to try a number without editing the file, and every one takes `--json` for the
-raw table. `scripts/simulate_decks.py --game wicked-garden` walks a deck
+raw table. `scripts/simulate.py --game hue-and-cry` puts them in one place:
+it plays `scripts/simulate_endings.py`'s policies (`--policy thief`, the
+default, is its heister) and reports each one's endings, wanted bands and
+arrests, jobs carried out, clues, deaths and respawns, and gold, where the
+city's agendas met the thief (`collisions`; `--policy thieves` plays the five
+burglars they are measured over), with the days a thief keeps on its own coin from `scripts/simulate_labour.py`'s
+careful pickpocket; `--policy living` plays that harness's thieves who pay their own way instead
+(the fencing burglar, borrowing or not, and the careful pickpocket who takes a porter's shift when hungry).
+`scripts/simulate_decks.py --game wicked-garden` walks a deck
 story the same way: every ending, card and clock, over seeded runs.
 NEON CITY's and THE LONG CON's numbers are authored judgement and haven't been
-simulated; their READMEs say so.
+simulated; their READMEs say so, and `simulate.py --game` refuses them (and
+Dev Story) until their overhauls, v0.24.0-v0.26.0.
 
 </details>
 
@@ -542,7 +557,7 @@ fixed; details may change as each release lands.
 | v0.15.0 | **Guild economy** for HUE & CRY: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | **shipped** |
 | v0.16.0 | **Acts I and II** for HUE & CRY: the opening, the initiation and interrogation decks, the Magpie's trail, the reveal and the alibi | **shipped** |
 | v0.17.0 | **Act III and eight endings**: the Hanging Fair, the jailbreak, The Rope, per-ending tests | **shipped** |
-| v0.18.0 | **A thief policy** for `simulate.py`, which also measures welshing's cost for a burglar | planned |
+| v0.18.0 | **A thief policy** for `simulate.py`, agenda collisions and welshing's cost for a burglar measured, and the fences made to pay | **shipped** |
 | v0.19.0 | **Model-server agnostic**: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | planned |
 | v0.20.0 | **Linux as a first-class platform**, and a **hosted, web-served mode**: auth, per-user sessions and saves, a production server, Docker | planned |
 | v0.21.0 | **UI/UX overhaul**, together with HUE & CRY's screens: wanted poster, job panel, casing board, portraits | planned |

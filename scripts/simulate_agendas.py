@@ -345,6 +345,9 @@ def summarise(runs: list[Run], days: int) -> dict[str, Any]:
         "magpie_hits_min": min(r.magpie_hits for r in runs),
         "magpie_hits_max": max(r.magpie_hits for r in runs),
         "player_jobs": len(jobs),
+        # A share of the player's JOBS whose house an agenda had already
+        # robbed. Not scripts/simulate_endings.py's COLLISIONS (v0.18), which
+        # are per-RUN meetings of every kind between the agendas and the player.
         "collision_rate": round(sum(j.collided for j in jobs) / len(jobs), 3) if jobs else 0.0,
         "magpie_collision_rate": (round(sum(j.by_magpie for j in jobs) / len(jobs), 3)
                                   if jobs else 0.0),

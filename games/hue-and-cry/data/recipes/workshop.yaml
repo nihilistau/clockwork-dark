@@ -32,18 +32,35 @@
 #   cut_lamplighters_coat standard   3      4       0.70        5.1       -- (nobody)
 #   forge_hill_pass       hard       3      4       0.45        8.9       -- (nobody)
 #
+# and in the best crafter's hands (+2, skills.yaml's degrees note; since
+# v0.18 T3 fix round 2 the no-money-loop guard is held there, not at +0):
+# picks 6.63 each, pellets 2.14, a coat 4.11, a pass 6.67.
+#
 # So a set of picks from the bench costs under half of Marrow's 15 and four
 # hours his counter does not; against the v0.14 cost of living (CHANGELOG
 # [0.14.0]: a careful pickpocket keeps ~1.4 cr a day, a porter ~2.3) the 7.75
 # crowns saved are most of a week's keep, and the four hours are a sixth of
-# a day's bread (~0.3 cr) and a job not cased. And no recipe is a money loop:
-# the best any counter in the city pays for each thing made (Pell Hollis,
-# Marrow or Dock Mag) is below its coin each -- picks fetch 5, a pellet 1, a
-# coat 1, a pass 2. Haggled to the 20% cap on both sides (trade.py) the picks
-# cost 6.5 and fetch 6, still a loss; the tang is 7 rather than 6 for exactly
-# that reason. tests/test_hue_and_cry.py holds both claims, unhaggled.
+# a day's bread (~0.3 cr) and a job not cased. And no recipe is a money loop,
+# even in the best hands (+2) and even argued to the haggle cap on both sides
+# (trade.yaml `haggle.cap`, 20 points: inputs 20% cheaper, the thing made 20%
+# dearer). Unhaggled, the best any counter in the city pays (Pell Hollis,
+# Marrow or Dock Mag) is picks 4, a pellet 1, a coat 2, a pass 3; haggled,
+# picks 5, and the picks cost 5.92 a set haggled at +2 (the tang 6, the wire
+# 2). tests/test_hue_and_cry.py holds all three: unhaggled at +2, haggled to
+# the cap at +2, every recipe against every counter.
 #
-# Version: v0.1.0 [2026-09-26]
+# WHY THE PICKS' REGISTRY VALUE IS 6 (v0.18 T3 fix rounds 2-3). Once the
+# fences were made to pay (data/tables/trade.yaml), value 10 fetched 7 and
+# then value 9 fetched 8 haggled at Pell's -- a crown or two minted for every
+# four hours at the bench. The value is the honest lever: it prices only the
+# picks' own resale (no house holds a set, and Marrow's counter names its own
+# 15), so it leaves the fences' pay for a haul untouched. Raising the tang
+# barely helps -- a haggle rounds 7 and 8 alike to 6 -- and a tang dear
+# enough to close it (11) makes a bench set dearer than 60% of Marrow's 15,
+# no saving at all; lowering both fences' spreads enough (under 0.56) would
+# undo the fence pay.
+#
+# Version: v0.1.2 [2026-09-29]
 
 version: 1
 category: workshop

@@ -14,6 +14,334 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-09-29
+
+**HUE & CRY: the thief policy, and burglary pays**, the sixth of the v1.0
+stages. `scripts/simulate.py --game hue-and-cry` runs the story's own
+harnesses from the repo's balance entry point -- the heister by default,
+any of the endings harness's eleven policies, the five thieves the agenda
+collisions are measured over, or the living policies -- and every other
+route prints byte-for-byte what it printed before, pinned by golden copies.
+The agendas' collisions with the player are measured for the first time:
+the Magpie robs a house the player cased on 36% of runs, true night-time
+co-presence is rare (4.5%), and Ardane's net falls on a thief carrying hot
+goods on 84%. The two measurements earlier releases left for this one are
+made. The fencing burglar -- the first policy in any harness that lives on
+its hauls -- found that the fences paid a quarter of a haul's value, so a
+burglar lived no better than a purses-only pickpocket; **by the owner's
+decision burglary now pays**: the fences' spreads and cuts are raised
+(content, `data/tables/trade.yaml`) so a hot haul fetches 0.53 (Pell) and
+0.63 (Marrow) of its value, the burglar keeps 7.25 of 14 days against the
+careful pickpocket's 4.33, and the honest porter, at 13.05 and no deaths,
+stays the safe road. With that pay, welshing on a fence's credit costs a
+burglar more than it gains (fewer kept days, 0.7 more deaths a run, about
+30 crowns less fenced), which is where v0.15 said its cost would fall. The
+careful pickpocket still starves, all of it hunger, by the owner's v0.14
+decision -- measured and not tuned -- and a careful thief who takes a
+porter's shift when hungry keeps 11.9 days. Raising the fences' pay opened a
+lockpick money loop at the Porters' Hall bench; the picks' registry value
+drops to 6 and two guards now check every recipe against every counter,
+haggled to the cap. No engine code changed: the release is harnesses,
+measurements and HUE & CRY content.
+
+### Added
+
+- **`scripts/simulate.py --game hue-and-cry`: the thief policy** (v0.18 T1).
+  The dispatcher refused every graph story but the flagship; it now routes
+  HUE & CRY to the story's own harnesses and re-implements none of them.
+  Every policy is a class in `scripts/simulate_endings.py`, played through
+  its `play` over `--runs`/`--seeds` seeds from `--seed` (default 40 from 0,
+  that harness's own) for `--days` days (default: to the fair's last day +
+  2). `--policy thief`, the default, is `simulate_endings.THIEF_POLICY`, the
+  heister -- the one policy there that burgles for its own sake; the
+  investigators burgle to follow a trail, the loyalist for the Company, and
+  the reckless thieves only lift purses. `--policy all` runs all eleven, and
+  any one may be named; `--json` prints the raw report. One report per
+  policy: simulate_endings' own table (endings, lock days, the fair, arrests
+  and days served, the jailbreak, the heist, the barge, the trail) plus a
+  `thief` block read off each finished run -- the worst wanted band at the
+  end, jobs tried and carried out and the loot's value, clues, deaths and
+  respawns, crowns lifted from purses and the gold in hand. Kept days come from
+  `scripts/simulate_labour.py`, because the endings harness feeds its thief
+  and keeps every day by construction: a `living` block, that harness's
+  careful pickpocket paying for its own bread and bed over the same seeds
+  and days (agendas off, its own default). The harness seams are small and
+  default to what they did: `EndRun` gains the fields `_play` reads at the
+  end (`summarise` ignores them), `play(days=)` cuts the horizon, and
+  `simulate_labour.measure(first=)` starts the seeds elsewhere; every
+  earlier table is unchanged. Nothing is saved (every player is
+  `simulate_law.Thief`, whose session store is `_KEEPS_NOTHING`; tested
+  through the CLI). neon-city, the-long-con and dev-story are still
+  refused, and the refusal now names the overhaul that gives each a harness
+  (v0.24.0, v0.25.0, v0.26.0). With no `--game`, the flagship by name, or a
+  deck story, `simulate.py` prints byte-for-byte what it printed before:
+  `tests/test_simulate_thief.py` holds golden copies captured at the commit
+  before the route (a flagship `--policy all` and `cautious`, and the
+  Garden, JSON and prose), and replays `--game hue-and-cry` from its seed.
+  The flagship's `--policy` is checked after dispatch rather than by
+  argparse, so its `--help` text changed; its output did not. Measured, 40
+  seeds x 14 days (`simulate.py --game hue-and-cry`): the heister locks The
+  Legend on 20% of seeds (8 of 40, day 10, as simulate_endings' table),
+  carries out 2.4 of 3 jobs a run for 32.27 crowns of loot it never sells,
+  finds 0.57 clues, is never arrested and never dies, and ends `sought` 9,
+  `wanted` 15, `hunted` 16 with 2.48 crowns in hand; the careful pickpocket
+  keeps 31% of its days (fed 54%, roofed 64%) and dies 2.90 times a run,
+  95% of runs reaching 0 hp at least once (restated in T3 fix round 2 at
+  the fences' new pay; at T1 it was 30%, 53%, 2.92 and 97.5%) -- the
+  owner's v0.14 pressure, reported and
+  not tuned.
+- **Agenda collisions, measured** (v0.18 T2): where the Magpie, Captain
+  Ardane and Silas Crook meet the player, read from state with nothing new in
+  the engine -- the agenda pass's `hits` (stamped `agenda`, `hour`,
+  `deed_id` since v0.16), the custody log (`law.held_at`), the clocks' beat
+  flags, and the houses the player cased or opened a job on, which the
+  harness timestamps after every action because the engine keeps no hour for
+  either. `scripts/simulate_endings.py` defines seven kinds
+  (`COLLISIONS`) and reports them per policy (`summarise_collisions`);
+  `simulate.py --game hue-and-cry` prints them as a `collisions` block, and
+  `--policy thieves` plays the five they are measured over
+  (`THIEF_POLICIES`). No policy reads any of it. Not the same thing as
+  `scripts/simulate_agendas.py`'s `collision_rate` (a share of the player's
+  JOBS on a house an agenda had already robbed): these are per-run meetings
+  of every kind, and both harnesses say so. The kinds:
+  `magpie_on_your_house` -- the Magpie robs a house the player cased or
+  opened a job on, before or after (its day: when both had happened);
+  `same_night` -- co-presence: the player cased or opened a job on that
+  house in the night hours (20:00-05:00, the engine's own `night` daypart)
+  of the night the Magpie robbed it; `cased_the_same_day` -- the looser
+  span, any hour of the same noon-to-noon day; `robbed_while_held` -- a
+  Magpie robbery that filed a deed while the watch held the player, the
+  alibi's source; `net_on_a_marked_thief` -- Ardane's doubled watch or
+  sworn warrant stands while the player carries hot goods or is `sought` or
+  worse; `net_on_hot_goods` -- the same net while the player holds stolen
+  goods still hot, whatever the band; `split_on_a_sworn_thief` -- Silas
+  splits the Company while the player is sworn to it. Measured,
+  `simulate.py --game hue-and-cry --policy thieves --seeds 40 --days 14`
+  (agendas on; share of runs, mean first day):
+
+  | Collision | heister | investigator_a | investigator_b | investigator_c | loyalist | all 200 |
+  |---|---|---|---|---|---|---|
+  | Magpie on your house | 10% (d2.8) | 60% (d8.5) | 52% (d8.8) | 55% (d8.9) | 0% | 36% (d8.4) |
+  | same night (night hours) | 0% | 8% (d7.0) | 8% (d8.0) | 8% (d8.0) | 0% | 4.5% (d7.7) |
+  | cased the same day | 0% | 18% (d7.3) | 12% (d7.4) | 15% (d8.5) | 0% | 9% (d7.7) |
+  | robbed while held | 0% | 18% (d5.7) | 20% (d8.8) | 15% (d9.3) | 0% | 10.5% (d7.9) |
+  | Ardane's net on a marked thief | 100% (d8.3) | 92% (d8.0) | 90% (d8.3) | 90% (d8.3) | 85% (d7.9) | 92% (d8.2) |
+  | Ardane's net on hot goods | 92% (d8.1) | 92% (d8.1) | 88% (d8.5) | 85% (d8.6) | 62% (d7.1) | 84% (d8.1) |
+  | Silas's split on a sworn thief | 30% (d7) | 10% (d7) | 20% (d7) | 20% (d7) | 45% (d7) | 25% (d7) |
+
+  The Magpie was there first in 101 of the 122 house collisions: it robs
+  shining tier 2-4 houses, and the investigators' casing sweeps each
+  district's houses in id order (`simulate_acts.Investigator.next_to_case`),
+  so they walk into houses it has already emptied; the heister's small
+  houses and the loyalist's Silk Row job rarely or never cross it. True
+  co-presence is rare: half of the same-span meetings (9 of 18 runs) had
+  the player at the house in the night hours. A robbery while held comes
+  about three to a held run (0.53 a run over 17.5% of investigator_a's
+  runs). Ardane's net always meets a thief under the doubled watch (clock
+  6), never first under the warrant; the marked-thief kind is near certain
+  because the Magpie's own reports make nearly everyone `sought`, so the
+  hot-goods kind is the one that says what the player did -- 84% of runs,
+  the loyalist least (62%). Silas's split lands on day 7 whenever it lands (his
+  clock's own pace), so the sworn thief meets it before the fair. Replay:
+  the JSON of two runs is byte-identical. `tests/test_simulate_thief.py`
+  pins the definitions on hand-built records and these rates, loosely and
+  with floors as well as ceilings, over the first 8 seeds.
+- **The burglar's credit, and the careful pickpocket** (v0.18 T3): the two
+  measurements the owner's v0.14 and v0.15 decisions left for this release.
+  `scripts/simulate_labour.py` gains four policies, and
+  `simulate.py --game hue-and-cry --policy living` runs them beside the
+  honest porter and the careful pickpocket (`LIVING_POLICIES`, agendas off,
+  that harness's own default):
+  - `burglar`, the **fencing burglar** (`FencingBurglar`), the first policy
+    in any harness that turns loot into bread. It pays its own way like
+    every policy there. Each day it breakfasts on the quay and robs one
+    tier-1/2 house it has not tried: cased to two facts, waited on until
+    the casing board says nobody is home (never past 20:00), and burgled
+    simulate_jobs' careful way. It pays for no flashback that would leave
+    it short of a night's bed and the next day's bread. It sells the haul
+    to Pell Hollis when she opens and to Marrow at five, only to a fence
+    (an honest counter reports a hot offer), and buys lockpicks once it can
+    spare them.
+  - `burglar_pell` and `burglar_marrow`: the same burglar, taking that
+    fence's line when its purse is lean and **never repaying it**. This is
+    the welsher the v0.15 decision named.
+  - `careful_porter`: the careful pickpocket, plus a shift on Dock Mag's
+    gang on any morning it is still `hungry` after breakfast or holds less
+    than a night's bed and the next day's bread.
+
+  Every run now also logs how each death happened
+  (`simulate_law.cause_of_death`, read before the respawn): the clock's
+  hour is hunger, an encounter round the street, and held is custody
+  whoever asked; the terminal death is the fair, and a job stage or a card
+  are named for themselves. The report gains `death_causes`,
+  `deaths_by_day` and `first_death_day`. It also reads the hauls and the
+  loot still unsold at the end, kept days counted as DAYS
+  (`kept_days_per_run`, as v0.15's credit tables), and the endings open
+  when the run is over. The policies act on what a player sees (an AST
+  guard over the new classes). Nothing in those changes moved an earlier
+  policy's numbers; the fences' new pay (Changed, below) moved some, and
+  says which.
+
+  Measured with the fences' new pay, 40 seeds x 14 days, flophouse,
+  agendas off (`simulate.py --game hue-and-cry --policy living --seeds 40
+  --days 14`). The same policies before the fences were made to pay are
+  in brackets.
+
+  | policy | kept days of 14 | deaths / run | earned / day | fenced / run (loot taken) | loot unsold at the end | collectors met | end gold |
+  |---|---|---|---|---|---|---|---|
+  | porter (honest) | 13.05 | 0 | 2.35 cr | -- | -- | -- | 5.83 |
+  | careful (purses only) | 4.33 (4.20) | 2.90 (2.92) | 1.78 cr (1.54) | -- | -- | -- | 6.90 (3.80) |
+  | **careful_porter** | **11.88** (11.88) | **0.03** (0.03) | 2.54 cr (2.45) | -- | -- | -- | 5.78 (4.55) |
+  | **burglar** (never borrows) | **7.25** (4.75) | 0.70 (1.43) | 3.71 cr (1.39) | 51.7 (99.4) [19.3 (85.1)] | 3.0, 22.5% of runs (2.4, 15%) | -- | 13.32 (1.27) |
+  | **burglar_pell** (welshes) | **6.62** (5.42) | 1.43 (1.90) | 1.43 cr (0.55) | 19.7 (100.0) [7.6 (92.7)] | 61.7, 95% (59.6, 97.5%) | 2.05 (2.02) | 2.33 (0.03) |
+  | **burglar_marrow** (welshes) | **6.65** (5.33) | 1.40 (1.77) | 1.61 cr (0.57) | 22.4 (99.1) [7.8 (91.8)] | 57.1, 92.5% (58.3, 87.5%) | 1.70 (2.25) | 3.83 (0.05) |
+
+  `fenced / run` counts only what the counters paid for stolen units (fix
+  round 1; the earlier column counted every sale, which for these burglars
+  was the same thing).
+
+  **Burglary now beats pickpocketing; honest work stays the safe road.**
+  The fencing burglar keeps 7.25 of 14 days against the careful
+  pickpocket's 4.33, dies 0.7 times a run against 2.9, and earns 3.71 cr a
+  day against 1.78. It ends with 13.3 crowns, and 55% of runs buy
+  lockpicks. The honest porter still keeps the most days (13.05) and never
+  dies, on 2.35 cr a day. So burglary pays better and lives worse: it does
+  not make honest work pointless. The burglar's lost days are hunger: 28
+  deaths over 40 runs (fix round 2 logs each death's gold and place). 17 of
+  the 28 came with no coin in hand, and 17 came at 04:00-06:00 in its bed
+  in the Snuffs, before the quay's breakfast (24 of 28 in the Snuffs). The
+  11 that held coin held 1-12 crowns, 9 of them in that same pre-dawn bed:
+  its two carried meals (`STOCK`) were gone before first light, and no
+  counter was open. So it starves between hauls more often than with a
+  full purse -- the lean nights after a day with no job carried out.
+
+  **Welshing now costs a burglar more than it gains.** Paired by seed
+  against the burglar who never borrows, over 14 days:
+  - Kept days move -0.62 (Pell) and -0.60 (Marrow). Each is under 1.3
+    standard errors, so nothing is gained. Compare the purses-only
+    pickpocket, which still gains +3.1 and +1.2 over 10 days.
+  - Deaths rise +0.72 and +0.70 a run (5.5 and 4.4 standard errors).
+  - It ends 11.0 and 9.5 crowns poorer. Only one seed of 40 ends richer,
+    and that is Pell's.
+  - Every line struck breaks, and then neither counter buys. The fences
+    pay 19.7-22.4 crowns a run instead of 51.7, a loss of about 30 crowns
+    against an advance of 10 (Pell) or 5 (Marrow).
+  - The hauls after the break stay in its pockets: 57-62 crowns of
+    registry value at the end, in 92.5-95% of runs.
+  - The collectors find it about twice a run.
+
+  Over 10 days the advance still front-loads bread, and the welsher keeps
+  more days: +0.48 (6.28 against 5.80) and +0.40. By 14 days the shut-out
+  has cost more than the advance bought.
+
+  **The owner's v0.15 decision, restated with the numbers.** Welshing on a
+  fence's credit still nets a purses-only pickpocket kept days: +3.1 on
+  Pell's advance and +1.2 on Marrow's slate over 10 days. Those gains are
+  unchanged by the new fence pay (5.75 against 2.62, and 3.85 against
+  2.67). v0.15 said the real cost would fall on a thief who needs a fence,
+  and it does. Over two weeks, the fencing burglar who welshes keeps fewer
+  days, dies 0.7 more a run, and loses about three times the advance in
+  fence pay. The credit lines are unchanged.
+
+  **The careful pickpocket, broken down** (the owner's v0.14 pressure;
+  reported, not tuned). All its deaths are hunger: 2.90 a run, 2.92
+  before the new fence pay. None happened in the street, in the cells or
+  at the fair. They come at 05:00 in its bed and at 21:00, while it waits
+  in the Snuffs for the night's purse. Before the new pay, that split was
+  62 and 55 of 117. The first death falls on day 6.2 on average and never
+  before day 5. The fences' new pay reaches it only through the cheap
+  goods in its marks' purses. It earns 1.78 cr a day instead of 1.54, but
+  it banks the difference (6.9 crowns at the end) instead of eating it,
+  so it keeps 4.33 days instead of 4.20.
+
+  **A careful thief who adapts keeps fed.** On a hungry or lean morning it
+  takes a porter's shift (0.74 a day) and still lifts purses every run. It
+  keeps 11.9 of 14 days, 1.2 behind the honest porter, and dies once in 40
+  runs. So purses-only starvation is the pressure the owner chose, not a
+  wall: the living exists one shift away.
+
+  Replay: two `--policy living` JSON runs through the CLI are
+  byte-identical. `tests/test_simulate_thief.py` pins the headlines over
+  the first 8 seeds x 14 days (one module fixture, about 4 minutes)
+  and replays a welsher's run from its seed, field for field.
+
+### Changed
+
+- **HUE & CRY's fences are made to pay** (v0.18 T3 fix round 1, the
+  owner's decision; content, `data/tables/trade.yaml`). A fence prices a
+  stolen unit at value x her sell spread x her fence cut
+  (`engine/game/trade.py`, unchanged). The spreads were 0.55 (Pell) and 0.4
+  (Marrow), and the hot cuts 0.45 and 0.7. So a hot haul fetched 0.25 and
+  0.28 of its registry value, about 4 crowns for a 15-crown haul, though
+  `data/economy.yaml`'s lockpicks note priced it at "7 to 10 at a fence
+  once it is hot". That note read the cut as the whole price and left out
+  the spread. The fencing burglar measured the gap: it lived no better
+  than a purses-only pickpocket.
+
+  Neither lever alone reaches the range. At Marrow's 0.4 spread, even a
+  cut of 1.0 pays 0.4. At Pell's 0.45 cut, the spread would have to top
+  1.0, paying more than face for a clean thing. So the spread is the lever
+  that was wrong: a fence whose business is buying paid less for a clean
+  thing than an honest counter's 0.5. The cuts move only as far as keeps
+  each fence's shape.
+
+  | fence | spread (was) | cut hot / cool (was) | hot / cool of value (was) | a 15-cr haul hot |
+  |---|---|---|---|---|
+  | Pell Hollis | 0.75 (0.55) | 0.7 / 0.95 (0.45 / 0.8) | 0.53 / 0.71 (0.25 / 0.44) | ~7.9 |
+  | Marrow | 0.7 (0.4) | 0.9 / 0.92 (0.7 / 0.85) | 0.63 / 0.64 (0.28 / 0.34) | ~9.5 |
+
+  Pell is still the better buyer once a thing has cooled, and Marrow the
+  better for tonight's haul. Measured, the fencing burglar sells at 0.54 of
+  what it sells, and the picks are two good nights, as the note always
+  said. The note is corrected.
+
+  The spread is capped by the Porters' Hall bench, because a fence pays
+  the spread for a clean thing too, and the lockpicks' registry value
+  drops from 10 to 6 (`data/items/tools.yaml`) so the bench cannot mint
+  coin, even argued to the haggle cap. The fences now pay 4 for a set, 5
+  haggled; Dock Mag pays 3 either way. A set from bought makings costs 7.25
+  at +0 craft and 6.63 at +2, the story's best (skills.yaml's degrees
+  note), or 5.92 haggled.
+  - At a 0.8 spread Pell paid 8 for a set and the bench minted a crown
+    a set: `test_no_workshop_recipe_turns_bought_inputs_into_profit` caught
+    it, and so her spread is 0.75. That test is now held at +2 craft.
+  - `test_no_workshop_recipe_is_a_money_loop_haggled_to_the_cap` checks
+    every recipe against every counter at the haggle cap (20 points on
+    both sides) and +2. It failed at value 9, where a set haggled from the
+    bench for 5.92 sold to Pell for 8.
+  - The value is the lever because it prices only the picks' own resale.
+    No house holds a set, and Marrow's counter names its own 15, so the
+    fences' pay for a haul is untouched. A dearer tang barely helps: a
+    haggle rounds 7 and 8 alike to 6, and the 11 that would close it makes
+    a bench set cost more than 60% of Marrow's 15. Cutting the spreads
+    under 0.56 would undo the fence pay.
+  - Marrow still sells the picks for 15, so "two good nights" holds.
+  - The burglar keeps its picks and no house holds any, so no measured
+    number moved (re-run at 40 x 14 below).
+
+  What it moved, old against new, every harness re-run at its default:
+  - `simulate_jobs`, `simulate_hoard`, `simulate_endings` and
+    `simulate_scrounge` print byte-identical JSON: nothing their thieves
+    sell is priced by the new numbers (the jobs, hoard and endings thieves
+    keep what they carry out).
+  - `simulate_labour` over 10 days: the porter and the dipper are
+    identical. The scrounger earns 1.11 cr a day (was 1.10). The careful
+    pickpocket earns 1.76 (was 1.50) and keeps 2.67 days (was 2.55). Its
+    credit gains are unchanged: Pell +3.1 (5.75 against 2.62, was 5.65
+    against 2.50) and Marrow +1.2 (3.85 against 2.67, was 3.75 against
+    2.55).
+  - The burglars over 10 days: the non-borrower keeps 5.8 (was 4.1) and
+    the welshers 6.3 and 6.2 (were 5.4, 5.2).
+  - Every published v0.15 welshing statement about the pickpocket still
+    holds.
+- **`simulate.py` refuses flags a route does not read** (v0.18 T2): any
+  `--policy` on the deck walker (it has none), and `--days` outside
+  hue-and-cry (the flagship plays `--turns`, a deck story `--max-days`).
+  Both were silently ignored after T1; the golden no-drift outputs are
+  unchanged. The hue-and-cry prose report's header now says `(agendas on)`,
+  and a golden mismatch names its re-capture command and the CHANGELOG
+  obligation.
+
 ## [0.17.0] — 2026-09-28
 
 **HUE & CRY: Act III and the eight endings**, the fifth of the v1.0 stages,
@@ -4040,7 +4368,8 @@ plan → negotiate → govern → commit pipeline, quests, economy, survival,
 encounters, endings and epilogues, the React client with per-story plugins,
 and five shipped games.
 
-[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/nihilistau/clockwork-dark/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/nihilistau/clockwork-dark/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/nihilistau/clockwork-dark/compare/v0.15.0...v0.15.1

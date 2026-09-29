@@ -80,7 +80,7 @@ Usage:
     python scripts/simulate_law.py --break-out --policy reckless --set deeds.escape=4
     python scripts/simulate_law.py --json
 
-Version: v0.6.0 [2026-09-27]
+Version: v0.7.0 [2026-09-29] -- v0.18 T3: counting_deaths logs each death's cause (cause_of_death)
 """
 
 from __future__ import annotations
@@ -166,6 +166,33 @@ class Run:
 #: ``id(state)``; each ``Thief`` clears its own entry when it is made, so a
 #: recycled id never inherits a finished run's count.
 _DEATHS: dict[int, int] = {}
+#: Each of those deaths, read at the moment of it (v0.18 T3): the day and
+#: hour, and its cause (``cause_of_death``). Keyed and cleared as ``_DEATHS``.
+_DEATH_LOG: dict[int, list[dict[str, Any]]] = {}
+
+#: What ``cause_of_death`` names, by the module that asked for the death
+#: check (``encounter.check_death``'s callers, death.yaml's header): the
+#: clock's hour is hunger (starvation is the only hp the hour takes), an
+#: encounter round is the street (a Lantern's stop or a night street), a job
+#: stage the job, a card beat the card, a set piece the set piece.
+DEATH_CALLERS = {"clock": "hunger", "encounter": "street", "jobs": "job",
+                 "director": "card", "runner": "set_piece"}
+#: Every cause ``cause_of_death`` can name. `custody` wins over the caller
+#: (a thief who starves or is beaten in the cells died held); `fair` is the
+#: terminal death (The Rope, death.yaml `terminal`), which only the Hanging
+#: Fair has.
+DEATH_CAUSES = ("hunger", "street", "custody", "fair", "job", "card", "set_piece", "other")
+
+
+def cause_of_death(state: Any, caller_file: str) -> str:
+    """Why ``state`` is about to die: read BEFORE the death rules run (the
+    respawn moves the body and can release it), from the state and the
+    module that asked. A reading for the tables, never a choice."""
+    from engine.world import law
+
+    if law.declared() and law.in_custody(state):
+        return "custody"
+    return DEATH_CALLERS.get(Path(caller_file).stem, "other")
 
 
 @contextmanager
@@ -179,7 +206,10 @@ def counting_deaths() -> Iterator[None]:
     that samples hp between actions no longer sees the 0. Every caller
     reaches the rules through the module attribute (``encounter.check_death``
     -- the clock, a round, a job stage, a card), so the wrapper sees them
-    all. Nested use is a no-op.
+    all. Nested use is a no-op. Since v0.18 T3 each death is also logged
+    (``death_log``) with its day, hour, hunger, gold, place and cause
+    (``cause_of_death``), read from the state and the calling module before
+    the rules run.
     """
     from engine.game import encounter
 
@@ -189,9 +219,21 @@ def counting_deaths() -> Iterator[None]:
         return
 
     def counted(state: Any, *args: Any, **kwargs: Any) -> Any:
+        # Read before the rules run: only a death at the threshold is logged,
+        # so the reading costs nothing on the hours nobody dies.
+        before = None
+        if not state.ended and int(state.stats.hp) <= 0:
+            before = {"day": int(state.world_day), "hour": int(state.world_hour),
+                      "hunger": round(float(state.hunger), 1),
+                      "gold": int(state.stats.gold), "location": str(state.location_id),
+                      "cause": cause_of_death(state, sys._getframe(1).f_code.co_filename)}
         record = real(state, *args, **kwargs)
         if record and record.get("died"):
             _DEATHS[id(state)] = _DEATHS.get(id(state), 0) + 1
+            if before is not None:
+                if state.ended:
+                    before["cause"] = "fair"
+                _DEATH_LOG.setdefault(id(state), []).append(before)
         return record
 
     counted.counts_deaths = True  # type: ignore[attr-defined]
@@ -205,6 +247,13 @@ def counting_deaths() -> Iterator[None]:
 def deaths(state: Any) -> int:
     """How many times ``state`` died while ``counting_deaths`` was installed."""
     return _DEATHS.get(id(state), 0)
+
+
+def death_log(state: Any) -> list[dict[str, Any]]:
+    """Each of ``state``'s deaths while ``counting_deaths`` was installed:
+    ``{day, hour, hunger, gold, location, cause}``, in order (v0.18 T3; gold
+    and location since its fix round 2), read before the respawn."""
+    return list(_DEATH_LOG.get(id(state), []))
 
 
 @contextmanager
@@ -294,6 +343,7 @@ class Thief:
             seed=seed, llm_fn=lambda m, **k: "{}")
         self.state = self.session.engine.state
         _DEATHS.pop(id(self.state), None)
+        _DEATH_LOG.pop(id(self.state), None)
         self.run = Run(seed=seed, policy=policy)
         self.today: Optional[DayRow] = None
 

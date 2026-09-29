@@ -1,0 +1,552 @@
+{
+  "config": {
+    "game": "wicked-garden",
+    "runs": 2,
+    "seed": 5,
+    "max_days": 30,
+    "thread_rate": 0.35,
+    "decks": [
+      "day_00_prologue",
+      "day_01_guest",
+      "day_02_laws",
+      "day_03_heat",
+      "day_04_ashen",
+      "day_05_labyrinth",
+      "day_06_roots",
+      "day_07_reckoning",
+      "day_08_mirrors",
+      "day_09_finale",
+      "thorn_labyrinth"
+    ],
+    "declared_endings": 23,
+    "declared_epilogues": 23,
+    "fail_forward": "E4e"
+  },
+  "days": {
+    "min": 12.0,
+    "p10": 12.0,
+    "median": 12.0,
+    "mean": 12.0,
+    "max": 12.0
+  },
+  "steps": {
+    "min": 108.0,
+    "p10": 108.0,
+    "median": 109.0,
+    "mean": 109.0,
+    "max": 110.0
+  },
+  "passes": {
+    "min": 1.0,
+    "p10": 1.0,
+    "median": 1.0,
+    "mean": 1.0,
+    "max": 1.0
+  },
+  "endings": {
+    "locked": {
+      "E4e": 1,
+      "E6b": 1
+    },
+    "classes": {
+      "E4": 1,
+      "E6": 1
+    },
+    "fail_forward_runs": 1,
+    "forced_runs": 0,
+    "intent_sworn_runs": 2,
+    "eligible_size": {
+      "min": 2.0,
+      "p10": 2.0,
+      "median": 2.0,
+      "mean": 2.0,
+      "max": 2.0
+    },
+    "reachable": [
+      "E1b",
+      "E4e",
+      "E6b"
+    ],
+    "unreachable": [
+      "E1a",
+      "E1c",
+      "E1d",
+      "E2a",
+      "E2b",
+      "E2c",
+      "E3a",
+      "E3b",
+      "E3c",
+      "E4a",
+      "E4b",
+      "E4c",
+      "E4d",
+      "E5a",
+      "E5b",
+      "E5c",
+      "E6a",
+      "E6c",
+      "E6d",
+      "E6e"
+    ]
+  },
+  "epilogues": {
+    "rendered_runs": 2,
+    "locked_without_epilogue": [],
+    "endings_without_row": [],
+    "rows_without_ending": []
+  },
+  "clocks": {
+    "ashen_pressure": {
+      "beats": {
+        "ashen_pressure_full": {
+          "runs_fired": 0,
+          "fire_rate": 0.0,
+          "step": {
+            "min": 0.0,
+            "p10": 0.0,
+            "median": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      }
+    },
+    "briar_hunger": {
+      "beats": {
+        "briar_hunger_2": {
+          "runs_fired": 2,
+          "fire_rate": 1.0,
+          "step": {
+            "min": 80.0,
+            "p10": 80.0,
+            "median": 80.5,
+            "mean": 80.5,
+            "max": 81.0
+          }
+        },
+        "briar_hunger_4": {
+          "runs_fired": 0,
+          "fire_rate": 0.0,
+          "step": {
+            "min": 0.0,
+            "p10": 0.0,
+            "median": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        },
+        "briar_hunger_full": {
+          "runs_fired": 0,
+          "fire_rate": 0.0,
+          "step": {
+            "min": 0.0,
+            "p10": 0.0,
+            "median": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      }
+    },
+    "mortal_collapse": {
+      "beats": {
+        "mortal_collapse_full": {
+          "runs_fired": 2,
+          "fire_rate": 1.0,
+          "step": {
+            "min": 105.0,
+            "p10": 105.0,
+            "median": 106.0,
+            "mean": 106.0,
+            "max": 107.0
+          }
+        }
+      }
+    },
+    "sophia_break": {
+      "beats": {
+        "sophia_break_4": {
+          "runs_fired": 1,
+          "fire_rate": 0.5,
+          "step": {
+            "min": 86.0,
+            "p10": 86.0,
+            "median": 86.0,
+            "mean": 86.0,
+            "max": 86.0
+          }
+        },
+        "sophia_break_full": {
+          "runs_fired": 0,
+          "fire_rate": 0.0,
+          "step": {
+            "min": 0.0,
+            "p10": 0.0,
+            "median": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      }
+    }
+  },
+  "threads": {
+    "sealed": {
+      "min": 4.0,
+      "p10": 4.0,
+      "median": 5.5,
+      "mean": 5.5,
+      "max": 7.0
+    },
+    "discharged": 3,
+    "broken": 6,
+    "transformed": 0,
+    "active_at_end": 2
+  },
+  "cards": {
+    "day_00_prologue": {
+      "cards": 11,
+      "dealt": {
+        "P1_threshold_slip": 2,
+        "P2_gate_of_briars": 2,
+        "P3_sophia_appears": 2,
+        "P4_question_of_entry": 2,
+        "P6_first_law_time": 2,
+        "P7_guest_house_threshold": 2,
+        "P8_night_zero": 2,
+        "PX_first_bloomkin": 2,
+        "PX_shadow_arrives_late": 2,
+        "day0_toll": 2
+      },
+      "never_dealt": [
+        "PX_the_mortal_window"
+      ]
+    },
+    "day_01_guest": {
+      "cards": 15,
+      "dealt": {
+        "D1_01_waking": 2,
+        "D1_02_bloomkin_valet": 2,
+        "D1_03_wardrobe": 2,
+        "D1_04_court_audience": 2,
+        "D1_05_gift_of_soft_thorns": 2,
+        "D1_07_afternoon_fork": 2,
+        "D1_08_evening": 2,
+        "D1_09_night": 2,
+        "DX_honeyed_warning": 1,
+        "DX_memory_bee": 2,
+        "PX_cold_moth_at_the_window": 1,
+        "day1_toll": 2
+      },
+      "never_dealt": [
+        "DX_root_heartbeat",
+        "DX_thornwake_present",
+        "DX_wine_from_a_minor_lord"
+      ]
+    },
+    "day_02_laws": {
+      "cards": 14,
+      "dealt": {
+        "D2_01_waking_omens": 2,
+        "D2_02_sophia_releases_you": 2,
+        "D2_03_choose_a_teacher": 2,
+        "D2_04_cross_sting": 2,
+        "D2_05_law_practice": 2,
+        "D2_07_sophia_debrief": 2,
+        "D2_08_night": 2,
+        "D2_L_lior": 2,
+        "D2_T_thornwake": 2,
+        "DX_root_crypt_threshold": 1,
+        "DX_singing_thorn_gift": 1,
+        "DX_the_aviary_door": 2,
+        "day2_toll": 2
+      },
+      "never_dealt": [
+        "DX_lior_puddle"
+      ]
+    },
+    "day_03_heat": {
+      "cards": 12,
+      "dealt": {
+        "D3_01_morning_after": 2,
+        "D3_01b_mortal_letter": 2,
+        "D3_02_the_invitation": 2,
+        "D3_03_preparation": 2,
+        "D3_04_the_feast": 2,
+        "D3_05_ashen_vale": 2,
+        "D3_06_her_reaction": 2,
+        "D3_07_the_night": 2,
+        "D3_09_act_one_seal": 2,
+        "DX_court_board_unlocks": 2,
+        "DX_the_gold_fruit": 2
+      },
+      "never_dealt": [
+        "DX_mara_silhouette"
+      ]
+    },
+    "day_04_ashen": {
+      "cards": 13,
+      "dealt": {
+        "D4_01_frost_on_roses": 2,
+        "D4_01b_mortal_letter": 2,
+        "D4_02_sophia_morning": 2,
+        "D4_03_the_day_branch": 2,
+        "D4_04_the_winter_spindle": 2,
+        "D4_05_the_honest_cold": 2,
+        "D4_06_sophia_learns": 2,
+        "D4_08_night": 2,
+        "DX_court_trial": 1,
+        "DX_labyrinth_edge_chase": 1,
+        "DX_serve_at_the_throne": 1,
+        "DX_thornwake_freezes_it": 1,
+        "day4_toll": 2
+      },
+      "never_dealt": []
+    },
+    "day_05_labyrinth": {
+      "cards": 11,
+      "dealt": {
+        "D5_00_entry_bias": 2,
+        "D5_01_deal_the_interior": 2,
+        "D5_03_heart_trial_variants": 2,
+        "D5_04_pressure_or_shortcut": 2,
+        "D5_05_the_exit": 2,
+        "D5_06_night_aftermath": 2,
+        "DX_panic": 2,
+        "day5_toll": 2
+      },
+      "never_dealt": [
+        "DX_ashen_follow_up_moth",
+        "DX_lior_in_the_water",
+        "DX_the_lovers_ring"
+      ]
+    },
+    "day_06_roots": {
+      "cards": 12,
+      "dealt": {
+        "D6_01_descent": 2,
+        "D6_02_sap_gallery": 2,
+        "D6_03_elias": 2,
+        "D6_04_relic_choice": 2,
+        "D6_05_mother_briar": 2,
+        "D6_06_the_three_hungers": 2,
+        "D6_07_sophia_at_the_stairs": 2,
+        "D6_08_night": 2,
+        "DX_the_warm_empty_coffin": 2,
+        "DX_thornwake_escort": 1,
+        "day6_toll": 2
+      },
+      "never_dealt": [
+        "DX_rootlings"
+      ]
+    },
+    "day_07_reckoning": {
+      "cards": 12,
+      "dealt": {
+        "D7_01_waking_by_compass": 2,
+        "D7_02_court_emergency": 2,
+        "D7_04_faction_triage": 2,
+        "D7_05_resource_moment": 2,
+        "D7_06_sophia_private": 2,
+        "D7_07_night": 2,
+        "DX_cameo_elias": 1,
+        "DX_cameo_lior": 1,
+        "DX_night_market_ledger": 2,
+        "day7_toll": 2
+      },
+      "never_dealt": [
+        "DX_mara_speaks",
+        "DX_use_the_mortalslip"
+      ]
+    },
+    "day_08_mirrors": {
+      "cards": 14,
+      "dealt": {
+        "D8_01_summons": 2,
+        "D8_02_payment": 2,
+        "D8_03_mirror_of_endings": 2,
+        "D8_04_false_self": 2,
+        "D8_05_war_table": 2,
+        "D8_06_briar_threshold": 2,
+        "D8_06b_sophia_unmasked": 2,
+        "D8_06c_ashen_collects": 2,
+        "D8_07_night_before": 2,
+        "DX_the_gallery_of_silhouettes": 2,
+        "DX_thornwake_reserves_aid": 1,
+        "day8_toll": 2
+      },
+      "never_dealt": [
+        "DX_ashen_at_the_pool",
+        "DX_the_hundred_day_line"
+      ]
+    },
+    "day_09_finale": {
+      "cards": 13,
+      "dealt": {
+        "DX_look_back_at_the_gate": 2,
+        "F0_dawn": 2,
+        "F1_approach_vector": 2,
+        "F2_climax_collision": 2,
+        "F2b_declarations": 2,
+        "F3_point_of_no_return": 2,
+        "F4_ending_module": 2,
+        "F5_epilogue_dual": 2,
+        "F5b_the_empty_rooms": 2,
+        "F6_gallery_and_ng_plus": 2
+      },
+      "never_dealt": [
+        "DX_elias_at_the_end",
+        "DX_mara_at_the_membrane",
+        "DX_thornwake_at_the_end"
+      ]
+    },
+    "thorn_labyrinth": {
+      "cards": 9,
+      "dealt": {
+        "CB_feast_that_walks": 2,
+        "CD_law_circle": 2,
+        "L0_threshold": 2,
+        "L3_heart_trial": 2,
+        "L5_exit": 2
+      },
+      "never_dealt": [
+        "CA_gallery_of_almost_lovers",
+        "CC_winter_mouth",
+        "CE_name_well",
+        "CF_bloom_ambush"
+      ]
+    }
+  },
+  "orphans": [
+    "day_00_prologue:PX_the_mortal_window",
+    "day_01_guest:DX_root_heartbeat",
+    "day_01_guest:DX_thornwake_present",
+    "day_01_guest:DX_wine_from_a_minor_lord",
+    "day_02_laws:DX_lior_puddle",
+    "day_03_heat:DX_mara_silhouette",
+    "day_05_labyrinth:DX_ashen_follow_up_moth",
+    "day_05_labyrinth:DX_lior_in_the_water",
+    "day_05_labyrinth:DX_the_lovers_ring",
+    "day_06_roots:DX_rootlings",
+    "day_07_reckoning:DX_mara_speaks",
+    "day_07_reckoning:DX_use_the_mortalslip",
+    "day_08_mirrors:DX_ashen_at_the_pool",
+    "day_08_mirrors:DX_the_hundred_day_line",
+    "day_09_finale:DX_elias_at_the_end",
+    "day_09_finale:DX_mara_at_the_membrane",
+    "day_09_finale:DX_thornwake_at_the_end",
+    "thorn_labyrinth:CA_gallery_of_almost_lovers",
+    "thorn_labyrinth:CC_winter_mouth",
+    "thorn_labyrinth:CE_name_well",
+    "thorn_labyrinth:CF_bloom_ambush"
+  ],
+  "forced_scenes": {
+    "raised": {
+      "F5b_the_empty_rooms": 2
+    },
+    "pending_at_end": {}
+  },
+  "meters": {
+    "ashen_pressure": {
+      "min": 0.0,
+      "max": 4.0,
+      "end_mean": 3.5
+    },
+    "ashen_route": {
+      "min": 0.0,
+      "max": 1.0,
+      "end_mean": 0.5
+    },
+    "autonomy": {
+      "min": 59.0,
+      "max": 100.0,
+      "end_mean": 94.5
+    },
+    "briar_hunger": {
+      "min": 0.0,
+      "max": 3.0,
+      "end_mean": 2.5
+    },
+    "corruption": {
+      "min": 5.0,
+      "max": 66.0,
+      "end_mean": 65.0
+    },
+    "desire": {
+      "min": 10.0,
+      "max": 55.0,
+      "end_mean": 49.5
+    },
+    "equality_seed": {
+      "min": 0.0,
+      "max": 10.0,
+      "end_mean": 5.0
+    },
+    "favor": {
+      "min": 7.0,
+      "max": 86.0,
+      "end_mean": 38.0
+    },
+    "knowledge": {
+      "min": 0.0,
+      "max": 100.0,
+      "end_mean": 100.0
+    },
+    "labyrinth_lost": {
+      "min": 0.0,
+      "max": 2.0,
+      "end_mean": 1.5
+    },
+    "mortal_collapse": {
+      "min": 0.0,
+      "max": 5.0,
+      "end_mean": 5.0
+    },
+    "sophia_break": {
+      "min": 0.0,
+      "max": 4.0,
+      "end_mean": 3.0
+    },
+    "time_debt_mortal_days": {
+      "min": 0.0,
+      "max": 101.0,
+      "end_mean": 100.5
+    }
+  },
+  "errors": [],
+  "error_count": 0,
+  "acceptance": {
+    "endings_reachable": "3/23",
+    "endings_unreachable": [
+      "E1a",
+      "E1c",
+      "E1d",
+      "E2a",
+      "E2b",
+      "E2c",
+      "E3a",
+      "E3b",
+      "E3c",
+      "E4a",
+      "E4b",
+      "E4c",
+      "E4d",
+      "E5a",
+      "E5b",
+      "E5c",
+      "E6a",
+      "E6c",
+      "E6d",
+      "E6e"
+    ],
+    "orphan_cards": 21,
+    "clock_fire_rates": {
+      "ashen_pressure": 0.0,
+      "briar_hunger": 1.0,
+      "mortal_collapse": 1.0,
+      "sophia_break": 0.5
+    },
+    "epilogue_gaps": []
+  }
+}

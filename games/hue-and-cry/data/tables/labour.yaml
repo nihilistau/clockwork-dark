@@ -48,8 +48,17 @@
 #   policy     earned/day  food/day  bed/day  fed   roofed  kept  saved/day  min hp
 #   porter        2.38       1.21     0.97    99%    97%    97%    +0.20     12
 #   dipper        3.09       1.98     0.89    95%    89%    89%    +0.22      0
-#   careful       1.36       0.99     0.65    22%    67%     8%    -0.28      0
+#   careful       1.76       1.02     0.62    52%    62%    27%    +0.10      1
 #   scrounger     1.14       0.18     0.97    98%    97%    95%    +0.04     14
+#
+# The `careful` row is re-measured at v0.18 (the fences' new pay reaches it
+# through the cheap goods in its marks' purses; it was 1.36 earned, 8% kept,
+# -0.28 saved, min hp 0, before the fences paid and before death.yaml's
+# respawn): it still dies of hunger 1.88 times a run, all in the Snuffs, so
+# its min hp of 1 is a respawn, not a margin. The four policies v0.18 added
+# -- `burglar`, `burglar_pell`, `burglar_marrow` and `careful_porter` -- are
+# measured over 14 days, not 10, in CHANGELOG [0.18.0] ("The burglar's
+# credit, and the careful pickpocket").
 #
 # The porter works both shifts every day (quay 07:00-13:00, lamps
 # 18:00-21:00), averages 1.19 cr a shift plus Mag's heel of bread, and ends
@@ -64,9 +73,10 @@
 # on the first night: 1.02 a day saved against the flophouse's 0.05; 0.97
 # before; the difference is the supper that follows the oath on some
 # seeds). A reckless pickpocket lifts
-# ~3.5 cr a day and a careful job fetches 7-10 at a fence, so thieving pays
-# more; a careful pickpocket, on purses alone, keeps one day in twelve and
-# starves to 0 hp. The scrounger is a finding, not a target: at the
+# ~3.5 cr a day and, since v0.18 raised the fences' pay (trade.yaml), a
+# careful job fetches 7-10 at a fence (before it, about 4), so thieving pays
+# more; a careful pickpocket, on purses alone, keeps about one day in four
+# and starves. The scrounger is a finding, not a target: at the
 # flophouse's 1 cr its ~1.1 cr of sales covers a bed nearly every night (the
 # v0.14 scrounging entry said it never would -- that was not measured with a
 # bed; this is). Scrounging keeps you; it never gets you ahead.
@@ -84,7 +94,7 @@
 # work as a slow starvation. (The lamps at 17:00 were rejected unmeasured:
 # Wren is on Silk Row at that hour, and the posting would open without her.)
 #
-# Version: v0.2.0 [2026-09-27]
+# Version: v0.2.1 [2026-09-29]
 
 version: 1
 

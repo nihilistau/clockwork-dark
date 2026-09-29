@@ -1270,8 +1270,11 @@ suite fails when a new row has none. Without `paths.jobs`, security stays
 text.
 
 **Fences.** A trade profile with `fence: true` (optional `fence_cut: {hot,
-cool}`, default `0.5`/`0.8`) buys hot and cool goods at its own cut, clean
-goods at the ordinary price, never discounting a clean unit even at a fence.
+cool}`, default `0.5`/`0.8`) buys stolen units too: it prices one at value
+× its `spread.sell` × `fence_cut.hot` for a fresh or `named` piece, `.cool`
+for one aged past `hot_days` (`engine/game/trade.py`). Both numbers are the
+price -- the cut alone is not. It buys clean goods at the ordinary price
+(value × `spread.sell`), never discounting a clean unit even at a fence.
 An honest vendor (no `fence: true`) sells a mixed stack's clean and cool
 units normally and refuses only the hot ones, in its own voice. Both read
 `thievery.heat_split` per unit, never per item, so a mixed stack of clean and

@@ -1,0 +1,59 @@
+====================================================================
+game=wicked-garden  runs=2  seed=5  max_days=30  thread_rate=0.35
+====================================================================
+decks                ['day_00_prologue', 'day_01_guest', 'day_02_laws', 'day_03_heat', 'day_04_ashen', 'day_05_labyrinth', 'day_06_roots', 'day_07_reckoning', 'day_08_mirrors', 'day_09_finale', 'thorn_labyrinth']
+days                 {'min': 12.0, 'p10': 12.0, 'median': 12.0, 'mean': 12.0, 'max': 12.0}
+cards resolved       {'min': 108.0, 'p10': 108.0, 'median': 109.0, 'mean': 109.0, 'max': 110.0}  (passes {'min': 1.0, 'p10': 1.0, 'median': 1.0, 'mean': 1.0, 'max': 1.0})
+endings locked       {'E4e': 1, 'E6b': 1}
+  by class           {'E4': 1, 'E6': 1}
+  fail-forward runs  1  forced 0  intent sworn 2
+  eligible at finale {'min': 2.0, 'p10': 2.0, 'median': 2.0, 'mean': 2.0, 'max': 2.0}
+epilogues            rendered in 2 runs; locked without card []
+threads              sealed {'min': 4.0, 'p10': 4.0, 'median': 5.5, 'mean': 5.5, 'max': 7.0}  discharged 3  broken 6  transformed 0  live at end 2
+
+clock                beat                            fired  rate
+  ashen_pressure     ashen_pressure_full                0    0.0
+  briar_hunger       briar_hunger_2                     2    1.0
+  briar_hunger       briar_hunger_4                     0    0.0
+  briar_hunger       briar_hunger_full                  0    0.0
+  mortal_collapse    mortal_collapse_full               2    1.0
+  sophia_break       sophia_break_4                     1    0.5
+  sophia_break       sophia_break_full                  0    0.0
+
+deck                 cards  never dealt
+  day_00_prologue       11  ['PX_the_mortal_window']
+  day_01_guest          15  ['DX_root_heartbeat', 'DX_thornwake_present', 'DX_wine_from_a_minor_lord']
+  day_02_laws           14  ['DX_lior_puddle']
+  day_03_heat           12  ['DX_mara_silhouette']
+  day_04_ashen          13  -
+  day_05_labyrinth      11  ['DX_ashen_follow_up_moth', 'DX_lior_in_the_water', 'DX_the_lovers_ring']
+  day_06_roots          12  ['DX_rootlings']
+  day_07_reckoning      12  ['DX_mara_speaks', 'DX_use_the_mortalslip']
+  day_08_mirrors        14  ['DX_ashen_at_the_pool', 'DX_the_hundred_day_line']
+  day_09_finale         13  ['DX_elias_at_the_end', 'DX_mara_at_the_membrane', 'DX_thornwake_at_the_end']
+  thorn_labyrinth        9  ['CA_gallery_of_almost_lovers', 'CC_winter_mouth', 'CE_name_well', 'CF_bloom_ambush']
+
+meters (min..max, mean at end):
+  ashen_pressure                0.0 .. 4.0      end 3.5
+  ashen_route                   0.0 .. 1.0      end 0.5
+  autonomy                     59.0 .. 100.0    end 94.5
+  briar_hunger                  0.0 .. 3.0      end 2.5
+  corruption                    5.0 .. 66.0     end 65.0
+  desire                       10.0 .. 55.0     end 49.5
+  equality_seed                 0.0 .. 10.0     end 5.0
+  favor                         7.0 .. 86.0     end 38.0
+  knowledge                     0.0 .. 100.0    end 100.0
+  labyrinth_lost                0.0 .. 2.0      end 1.5
+  mortal_collapse               0.0 .. 5.0      end 5.0
+  sophia_break                  0.0 .. 4.0      end 3.0
+  time_debt_mortal_days         0.0 .. 101.0    end 100.5
+
+forced scenes raised {'F5b_the_empty_rooms': 2}
+  pending at end     {}
+
+--------------------------------------------------------------------
+acceptance:
+  endings reachable  3/23  (never: E1a, E1c, E1d, E2a, E2b, E2c, E3a, E3b, E3c, E4a, E4b, E4c, E4d, E5a, E5b, E5c, E6a, E6c, E6d, E6e)
+  orphan cards       21  (day_00_prologue:PX_the_mortal_window, day_01_guest:DX_root_heartbeat, day_01_guest:DX_thornwake_present, day_01_guest:DX_wine_from_a_minor_lord, day_02_laws:DX_lior_puddle, day_03_heat:DX_mara_silhouette, day_05_labyrinth:DX_ashen_follow_up_moth, day_05_labyrinth:DX_lior_in_the_water, day_05_labyrinth:DX_the_lovers_ring, day_06_roots:DX_rootlings, day_07_reckoning:DX_mara_speaks, day_07_reckoning:DX_use_the_mortalslip, day_08_mirrors:DX_ashen_at_the_pool, day_08_mirrors:DX_the_hundred_day_line, day_09_finale:DX_elias_at_the_end, day_09_finale:DX_mara_at_the_membrane, day_09_finale:DX_thornwake_at_the_end, thorn_labyrinth:CA_gallery_of_almost_lovers, thorn_labyrinth:CC_winter_mouth, thorn_labyrinth:CE_name_well, thorn_labyrinth:CF_bloom_ambush)
+  clock fire rates   ashen_pressure=0.0, briar_hunger=1.0, mortal_collapse=1.0, sophia_break=0.5
+  epilogue gaps      none

@@ -1,0 +1,24 @@
+====================================================================
+policy=cautious  seed=7  turns=12  tick_hours=2.0  rate=0.028/day
+====================================================================
+day reached          2 (34h, 2.17h/turn)
+evil                 0.01492 (dormant), 0.01492/day
+engagement           resistance {'min': 0.0, 'p10': 0.0, 'median': 0.0, 'mean': 0.0, 'max': 0.0}  set-pieces 0/0
+projected CONSUMING  day 53.6 (~643.0 turns)
+phase first seen     {'dormant': 1, 'stirring': None, 'spreading': None, 'consuming': None}
+awareness / arc      2.0 / quiet_life
+deaths / errors      0 (0 starvation) / 0
+
+stamina              {'min': 86.0, 'p10': 86.0, 'median': 89.5, 'mean': 90.0, 'max': 95.0, 'turns_at_zero': 0, 'final_cap': 100}
+hunger               {'min': 6.0, 'p10': 6.0, 'median': 28.0, 'mean': 28.5, 'max': 52.0, 'turns_by_stage': {'fed': 9, 'peckish': 3}}
+gold                 {'min': 5.0, 'p10': 5.0, 'median': 5.0, 'mean': 5.0, 'max': 5.0, 'start': 5, 'end': 5, 'spent_on_food': 0, 'net': 0, 'per_day': 0.0}
+livelihood           {'gold_earned': 0, 'gold_spent': 0, 'shifts_worked': 0, 'shifts_refused': 0, 'forage_attempts': 0, 'forage_productive': 0, 'forage_hit_rate': 0.0, 'items_foraged': 0, 'food_foraged': 0, 'food_per_forage': 0.0, 'items_sold': 0, 'carried_value_end': 6}
+turns spent on       {'travel': 10, 'flag': 2}
+encounters           {'travel_legs': 10, 'danger_legs': 1, 'encounters': 0, 'per_leg': 0.0, 'per_danger_leg': 0.0, 'by_id': {}}
+
+skill                attempts  success  partial
+
+quests started       ['lost_goat']
+quests completed     []
+quests failed        []
+arcs unlocked        []

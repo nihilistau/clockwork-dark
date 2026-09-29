@@ -130,6 +130,24 @@ WHAT IT REPORTS, per policy, over the seeds:
   law             arrests, days served, runs with a death (respawns)
   trail           runs unmasked / partnered, and the mean day
 
+SCRIPTS/SIMULATE.PY RUNS THESE (v0.18). ``simulate.py --game hue-and-cry``
+plays these same classes through ``play`` -- ``--policy thief`` is
+``THIEF_POLICY`` -- and reports this table beside what each run ended
+holding: its gold, worst wanted band, jobs carried out, clues and deaths
+(the ``EndRun`` fields read in ``_play``, which ``summarise`` ignores).
+``play``'s ``days`` is its ``--days``: the horizon cut to that many days.
+
+AGENDA COLLISIONS (v0.18 T2), ``summarise_collisions``: where the city's
+agendas met the player, per policy -- the share of runs, the count a run, the
+first day, and the policies each kind happened under. The kinds and their
+exact definitions are ``COLLISIONS``; the table reads them from state
+(``observe`` after every action, ``collide`` when the run is over): the
+agenda pass's ``hits``, the custody log (``law.held_at``), the clocks' beat
+flags, and the houses the player cased or opened a job on, which ``touch``
+timestamps because the engine keeps no hour for either. No policy reads any
+of it. ``THIEF_POLICIES`` are the policies it is measured over
+(``simulate.py --game hue-and-cry --policy thieves``).
+
 Usage:
     python scripts/simulate_endings.py                        # 40 seeds, every policy
     python scripts/simulate_endings.py --policy loyalist --seeds 10
@@ -137,7 +155,7 @@ Usage:
     python scripts/simulate_endings.py --fair-day 8          # try the fair two days earlier
     python scripts/simulate_endings.py --break-out none      # nobody breaks out
 
-Version: v0.1.2 [2026-09-28] -- fix round 2: the Hill's night from 20:00, the barge's `squeeze`
+Version: v0.3.0 [2026-09-28] -- v0.18 T2: agenda collisions (``COLLISIONS``)
 """
 
 from __future__ import annotations
@@ -168,6 +186,16 @@ OPENINGS = {"investigator_a": "a", "investigator_b": "b", "investigator_c": "c",
 #: Policies that burgle, and so are handed the lockpicks' price on day one.
 BURGLE = ("investigator_a", "investigator_b", "investigator_c", "lantern", "partner",
           "heister", "loyalist")
+#: ``scripts/simulate.py --game hue-and-cry --policy thief`` (v0.18): the
+#: policy that stands for "a thief" there. The heister, because it is the one
+#: policy here that lives by theft for its own sake -- small houses cased,
+#: flashbacks called, walked away from when roused, then the Everflame's heart
+#: at the fair -- where the investigators burgle to follow a trail, the
+#: loyalist for the Company, and the reckless thieves only lift purses. NO
+#: policy here sells its loot: the heister carries it to the end of the run
+#: (``loot_value`` in simulate.py's report is what it holds, not what a fence
+#: paid).
+THIEF_POLICY = "heister"
 #: The run's horizon: the morning after the fair's last day + this many days.
 DAYS_AFTER_THE_FAIR = 2
 #: The hour a day's night ends (Burglar.next_morning wakes at eight).
@@ -217,6 +245,51 @@ DECLINE = ("watch_it_shine", "keep_out_of_it", "not_yet", "leave_it", "let_it_li
 QUEST_DOORS = {"honest_after_all": "quest:the_evening_barge",
                "the_legend": "quest:the_heart_goes_home"}
 
+#: WHERE THE AGENDAS MEET THE PLAYER (v0.18 T2): each kind of collision, read
+#: from state by the table -- the agenda pass's ``hits`` (stamped ``agenda``,
+#: ``hour`` and, when the move filed one, ``deed_id``), the Law's custody log,
+#: the clocks' beat flags, and the houses the player cased or opened a job on
+#: (timestamped by ``observe``, since the engine keeps no hour for either).
+#: Nothing new in the engine; no policy reads any of it.
+#:
+#: NOT scripts/simulate_agendas.py's ``collision_rate``: that is a share of
+#: the PLAYER'S JOBS whose house an agenda had already robbed (a per-job
+#: rate, careful/reckless policies, agendas.yaml's table). These are per-RUN
+#: meetings of every kind, the Magpie's houses being only the first.
+MAGPIE = "the_magpie"
+COLLISIONS = {
+    "magpie_on_your_house": "the Magpie robs a house the player cased or opened a job on, "
+                            "before or after (one per house; day: when both had happened)",
+    "same_night": "the Magpie robs a house the player cased or opened a job on during the "
+                  "night hours (20:00-05:00, state.time_of_day) of that same night",
+    "cased_the_same_day": "the Magpie robs a house the player cased or opened a job on at any "
+                          "hour of the same noon-to-noon span (about half a day either side)",
+    "robbed_while_held": "a Magpie robbery that filed a deed falls while the watch holds the "
+                         "player (the alibi's source, agendas.alibi_deeds)",
+    "net_on_a_marked_thief": "Ardane's doubled watch or sworn warrant stands while the player "
+                             "carries hot goods or is `sought` or worse (any face, any ward)",
+    "net_on_hot_goods": "Ardane's doubled watch or sworn warrant stands while the player "
+                        "carries stolen goods still hot, whatever their band",
+    "split_on_a_sworn_thief": "Silas splits the Company (silas_splits_the_company) while the "
+                              "player is sworn to it (guild_initiated)",
+}
+#: The flags each clock beat sets (clocks.yaml): Ardane at 6 and at max, Silas at max.
+ARDANE_FLAGS = ("ardane_doubles_the_watch", "ardane_warrant_sworn")
+SILAS_SPLIT = "silas_splits_the_company"
+SWORN = "guild_initiated"
+#: The band ``net_on_a_marked_thief`` counts from.
+MARKED_BAND = "sought"
+#: Which night an hour belongs to: noon to noon, so a job at 22:00 and a
+#: robbery at 02:00 are one night (``cased_the_same_day`` is this span alone).
+NIGHT_STARTS = 12
+#: The night HOURS, for ``same_night``: the engine's own "night" daypart
+#: (``GameState.time_of_day``: from 20:00, until 05:00) -- the Magpie robs at
+#: 01:00-03:00, so a touch in these hours of that night is co-presence.
+NIGHT_FROM, NIGHT_UNTIL = 20, 5
+#: The policies whose runs the collisions are measured over (``--policy
+#: thieves`` in scripts/simulate.py): the ones that case and burgle houses.
+THIEF_POLICIES = ("heister", "investigator_a", "investigator_b", "investigator_c", "loyalist")
+
 
 class Over(Exception):
     """An ending locked: the run is over."""
@@ -246,6 +319,22 @@ class EndRun:
     unmasked_day: Optional[int] = None
     partnered_day: Optional[int] = None
     guild_standing_at_fair: Optional[int] = None
+    # Read once, when the run is over (``_play``), for scripts/simulate.py's
+    # thief report (v0.18); ``summarise`` does not read them.
+    gold: int = 0                    # crowns in hand at the end
+    income: int = 0                  # crowns lifted from purses
+    worst_band: str = ""             # the worst wanted band, any face, any ward
+    jobs_tried: int = 0              # burglaries opened (``Burglar.burgle``)
+    jobs_carried_out: int = 0        # of those, walked out of with the loot
+    loot_value: int = 0              # registry value of that loot
+    clues: int = 0                   # clues to the Magpie's trail carried out
+    # Where the city's agendas met the player (v0.18 T2, ``COLLISIONS``):
+    # how many times each kind happened, the day of the first, and the
+    # details its row splits by. Read by the table (``observe`` and ``_play``),
+    # never by a choice.
+    collisions: dict[str, int] = field(default_factory=dict)
+    collision_days: dict[str, int] = field(default_factory=dict)
+    collision_detail: dict[str, int] = field(default_factory=dict)
 
 
 def fair_days() -> tuple[int, int]:
@@ -293,6 +382,11 @@ class Ender(Investigator):
         self.first, self.last = fair_days()
         #: The last day the run is played (a sentence served past it is not).
         self.horizon = self.last + DAYS_AFTER_THE_FAIR
+        #: (premise, absolute hour, "case" | "job"): every time the player
+        #: learned a house or opened a job on it, read after each action.
+        self.touches: list[tuple[str, int, str]] = []
+        self._intel_seen: dict[str, int] = {}
+        self._job_seq = 0
 
     # -- the calendar a player reads ------------------------------------------
 
@@ -352,6 +446,8 @@ class Ender(Investigator):
             self.end.unmasked_day = day
         if self.end.partnered_day is None and self.state.flags.get("partners_with_the_magpie"):
             self.end.partnered_day = day
+        self.touch()
+        self.meet(day)
         locked = endings.locked(self.state)
         if locked != endings.NONE_ID:
             if locked != endings.fail_forward_id():
@@ -363,6 +459,98 @@ class Ender(Investigator):
                 self.end.door = (f"card:{self._door_card}" if self._door_card
                                  else QUEST_DOORS.get(locked, "death"))
             raise Over
+
+    def touch(self) -> None:
+        """The houses the player has cased or opened a job on since the last
+        action, with the hour: the engine keeps the intel and the job's seq,
+        but no hour for either (``collide`` reads these against the hits)."""
+        hour = int(self.state.world_clock_hours)
+        for premise_id, intel in (self.state.premise_intel or {}).items():
+            if len(intel or []) > self._intel_seen.get(premise_id, 0):
+                self._intel_seen[premise_id] = len(intel or [])
+                self.touches.append((str(premise_id), hour, "case"))
+        seq = int(self.state.jobs.get("seq") or 0)
+        if seq > self._job_seq:
+            self._job_seq = seq
+            job = self.state.jobs.get("active") or self.state.jobs.get("last") or {}
+            if job.get("premise"):
+                self.touches.append((str(job["premise"]), hour, "job"))
+
+    def meet(self, day: int) -> None:
+        """The collisions a moment decides (``COLLISIONS``), first day only:
+        Ardane's net standing over a marked thief, over one carrying hot
+        goods (whatever the band), and Silas's split landing on a sworn one."""
+        flags = self.state.flags
+        end = self.end
+        net = any(flags.get(f) for f in ARDANE_FLAGS)
+        if net and "net_on_hot_goods" not in end.collision_days and self.carries_hot_goods():
+            end.collisions["net_on_hot_goods"] = 1
+            end.collision_days["net_on_hot_goods"] = day
+        if net and "net_on_a_marked_thief" not in end.collision_days:
+            hot, marked = self.carries_hot_goods(), self.marked()
+            if hot or marked:
+                end.collisions["net_on_a_marked_thief"] = 1
+                end.collision_days["net_on_a_marked_thief"] = day
+                end.collision_detail["net_by_hot_goods"] = int(hot)
+                end.collision_detail["net_by_band"] = int(marked)
+                end.collision_detail["net_by_warrant"] = int(bool(flags.get(ARDANE_FLAGS[1])))
+        if ("split_on_a_sworn_thief" not in end.collision_days
+                and flags.get(SILAS_SPLIT) and flags.get(SWORN)):
+            end.collisions["split_on_a_sworn_thief"] = 1
+            end.collision_days["split_on_a_sworn_thief"] = day
+
+    def carries_hot_goods(self) -> bool:
+        from engine.world import thievery
+
+        return any(thievery.heat_split(self.state, str(item_id))["hot"]
+                   for item_id in self.state.provenance or {})
+
+    def marked(self) -> bool:
+        from engine.world import law
+
+        bands = list(law.load_spec()["wanted"]["bands"])
+        worst = simulate_law._worst_band(self.state, list(law.load_spec()["jurisdictions"]))
+        return bands.index(worst) >= bands.index(MARKED_BAND)
+
+    def collide(self) -> None:
+        """The collisions the run's record decides, once it is over: the
+        Magpie on a house the player touched (before or after), in the night
+        hours of the same night, in the same noon-to-noon span, and while
+        the watch held the player."""
+        from engine.world import law
+
+        end = self.end
+        first_touch: dict[str, int] = {}
+        for premise_id, hour, _kind in self.touches:
+            first_touch.setdefault(premise_id, hour)
+        spans = {(p, (h - NIGHT_STARTS) // 24) for p, h, _k in self.touches}
+        nights = {(p, (h - NIGHT_STARTS) // 24) for p, h, _k in self.touches
+                  if h % 24 >= NIGHT_FROM or h % 24 < NIGHT_UNTIL}
+        mine = [h for h in self.state.agendas.get("hits") or []
+                if str(h.get("agenda")) == MAGPIE and isinstance(h.get("hour"), int)
+                and not isinstance(h.get("hour"), bool)]
+
+        def note(kind: str, hour: int) -> None:
+            end.collisions[kind] = end.collisions.get(kind, 0) + 1
+            day = 1 + hour // 24
+            end.collision_days[kind] = min(end.collision_days.get(kind, day), day)
+
+        for hit in mine:
+            premise_id, hour = str(hit.get("premise")), int(hit["hour"])
+            if premise_id in first_touch:
+                touched = first_touch[premise_id]
+                note("magpie_on_your_house", max(hour, touched))
+                order = "magpie_first" if hour < touched else "player_first"
+                end.collision_detail[order] = end.collision_detail.get(order, 0) + 1
+            night = (premise_id, (hour - NIGHT_STARTS) // 24)
+            if night in nights:
+                note("same_night", hour)
+            if night in spans:
+                note("cased_the_same_day", hour)
+            # agendas._alibi_hits' reading: a hit joined to a deed, walked
+            # while the watch held the player (a logged stay or the live one).
+            if hit.get("deed_id") and law.held_at(self.state, hour):
+                note("robbed_while_held", hour)
 
     def wait_until(self, hour: int) -> None:
         super().wait_until(hour)
@@ -817,13 +1005,20 @@ CLASSES = {"investigator_a": Investigating, "investigator_b": Investigating,
            "reckless": Reckless, "runner": Runner}
 
 
-def play(seed: int, policy: str, opening: str = "") -> EndRun:
+def play(seed: int, policy: str, opening: str = "", days: Optional[int] = None) -> EndRun:
+    """One run. ``days`` cuts (or stretches) the horizon to that many days
+    (scripts/simulate.py's ``--days``); None plays to the fair's last day +
+    ``DAYS_AFTER_THE_FAIR``, as every table here does."""
     with simulate_law.counting_deaths():
-        return _play(seed, policy, opening or OPENINGS[policy])
+        return _play(seed, policy, opening or OPENINGS[policy], days)
 
 
-def _play(seed: int, policy: str, opening: str) -> EndRun:
+def _play(seed: int, policy: str, opening: str, days: Optional[int] = None) -> EndRun:
+    from engine.world import clues, jobs, law
+
     p = CLASSES[policy](seed, policy, opening)
+    if days is not None:
+        p.horizon = int(days)
     try:
         p.first_day()
         while True:
@@ -836,12 +1031,21 @@ def _play(seed: int, policy: str, opening: str) -> EndRun:
                 p.wait_until(7)   # a day with nothing to do: slept through
     except Over:
         pass
+    p.collide()
     end = p.end
     end.arrests = int(p.run.arrests)
     end.deaths = simulate_law.deaths(p.state)
     jail = p.run.break_out  # type: ignore[attr-defined]
     end.break_out_tries = int(jail.get("attempts", 0))
     end.escapes = int(jail.get("escapes", 0))
+    end.gold = int(p.state.stats.gold)
+    end.income = int(p.run.income)
+    end.worst_band = simulate_law._worst_band(p.state, list(law.load_spec()["jurisdictions"]))
+    carried = [j for j in p.run.jobs if j.outcome in jobs.CARRIED_OUT]
+    end.jobs_tried = sum(j.outcome != "refused" for j in p.run.jobs)
+    end.jobs_carried_out = len(carried)
+    end.loot_value = sum(j.loot_value for j in carried)
+    end.clues = len(clues.found(p.state))
     return end
 
 
@@ -936,6 +1140,54 @@ def reach(reports: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
                                               ""),
                           "policies": sorted(p for p, v in rates.items() if v)}
     return out
+
+
+def summarise_collisions(runs_by_policy: dict[str, list[EndRun]]) -> dict[str, Any]:
+    """Every kind in ``COLLISIONS``, per policy and over all of them: the share
+    of runs it happened in, how often a run, the mean first day (and every
+    first day seen), and the policies it happened under."""
+    policies: dict[str, dict[str, Any]] = {}
+    for policy, runs in runs_by_policy.items():
+        n = len(runs)
+        row: dict[str, Any] = {}
+        for kind in COLLISIONS:
+            days = [r.collision_days[kind] for r in runs if kind in r.collision_days]
+            row[kind] = {"runs": _share(len(days), n),
+                         "per_run": _mean([float(r.collisions.get(kind, 0)) for r in runs]),
+                         "first_day": _mean([float(d) for d in days]),
+                         "first_days": {str(d): days.count(d) for d in sorted(set(days))}}
+        row["detail"] = {k: sum(r.collision_detail.get(k, 0) for r in runs)
+                         for k in ("magpie_first", "player_first", "net_by_hot_goods",
+                                   "net_by_band", "net_by_warrant")}
+        policies[policy] = row
+    everyone = [r for runs in runs_by_policy.values() for r in runs]
+    kinds = {}
+    for kind, meaning in COLLISIONS.items():
+        days = [r.collision_days[kind] for r in everyone if kind in r.collision_days]
+        kinds[kind] = {"meaning": meaning,
+                       "runs": _share(len(days), len(everyone)),
+                       "per_run": _mean([float(r.collisions.get(kind, 0)) for r in everyone]),
+                       "first_day": _mean([float(d) for d in days]),
+                       "earliest_day": min(days, default=None),
+                       "policies": [p for p, row in policies.items() if row[kind]["runs"]]}
+    return {"runs": len(everyone), "kinds": kinds, "policies": policies}
+
+
+def render_collisions(block: dict[str, Any]) -> str:
+    names = list(block["policies"])
+    lines = [f"collisions -- where the agendas met the player ({block['runs']} runs, "
+             f"agendas on); share of runs (first day, mean)",
+             f"  {'':24}" + "".join(f"{p:>17}" for p in names) + f"{'all':>17}"]
+    for kind, row in block["kinds"].items():
+        cells = []
+        for p in names:
+            c = block["policies"][p][kind]
+            cells.append(f"{c['runs']:>9.0%} ({c['first_day'] if c['first_day'] else '-':>4})")
+        cells.append(f"{row['runs']:>9.0%} ({row['first_day'] if row['first_day'] else '-':>4})")
+        lines.append(f"  {kind:24}" + "".join(f"{c:>17}" for c in cells))
+    for p in names:
+        lines.append(f"  {p:24} {block['policies'][p]['detail']}")
+    return "\n".join(lines)
 
 
 def render(policy: str, r: dict[str, Any]) -> str:

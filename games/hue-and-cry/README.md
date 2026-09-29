@@ -46,14 +46,14 @@ is what is in it today:
 | Thirty-one premises a run -- eight generated types and four anchors (Vessaline House, the Margrave's Treasury, Mother Gannet's House, the Captain's Office) -- each with a household that keeps real hours, security by tier, loot and one secret | `data/premises/` |
 | Pockets: alertness and purse by role, six days of heat | `data/rules/thievery.yaml` |
 | Loot and purse goods, valued in crowns; crests and seals are `named` and stay hot | `data/items/goods.yaml` |
-| The two fences, Pell Hollis (Wickmarket) and Marrow (the Snuffs); money reads "12 cr" | `data/tables/trade.yaml`, `data/economy.yaml` |
+| The two fences, Pell Hollis (Wickmarket) and Marrow (the Snuffs); money reads "12 cr". Since v0.18 a fence pays about half a hot thing's worth -- 0.53 of its value at Pell's, 0.63 at Marrow's, so a 15-crown haul fetches 8 to 9.5 -- and Pell more once it has cooled (0.71); burglary pays | `data/tables/trade.yaml`, `data/economy.yaml` |
 | The Lantern Watch (v0.10): three watch-houses, wanted bands, guises (your face, the Magpie's mask, a porter's smock), arrest to the Lantern House | `data/rules/law.yaml` |
 | The Lantern's stop -- run, talk, bribe, surrender or fight -- opened by a patrol that knows your face, or by a fumbled run off the barge | `data/encounters/watch_stop.yaml` |
 | Dock Mag, the first honest vendor, selling porters' smocks; Marrow's Magpie mask | `data/economy.yaml`, `data/items/guises.yaml` |
 | Sergeant Brask's price: a bribe that loses your file -- offered only while the Wick's drawer holds something against you (v0.15) | `data/rules/threads.yaml` |
 | Jobs (v0.11): `burgle` a house and walk it stage by stage -- get there unseen, get in (door, window, roof or cellar), get past whoever is inside, open the strongroom, get clear -- with every house's security moving the odds, casing earning prep, three flashbacks to spend it on, and an alarm that brings the Watch; the Treasury has its own vault floor | `data/rules/jobs.yaml` |
 | The Magpie's trail (v0.16): every run hides eight clues in the city's generated houses -- four left by whoever the seed made the real Magpie, and two red herrings pointing at each of the other two suspects. A clue describes and never accuses (a twist of lamp-wick ends, a Company tally-chit with its mark cut anew, a crumb of violet sealing-wax) and is never a man's or a woman's thing, so one proves nothing; only the tally leans. Casing a clue house to the end says "something here doesn't belong"; the strongroom shows the clue whether you cased it or not, and a job carried out keeps it, raising your Evidence (a band word: none, faint, some, strong, utmost). Burglary is the investigation, and the front desk's accusation (below) is where it ends | `data/premises/clues.yaml`, `state.yaml` |
-| The burglar's kit, sold by Marrow: lockpicks and smoke pellets | `data/items/tools.yaml`, `data/economy.yaml` |
+| The burglar's kit, sold by Marrow: lockpicks (15 crowns; worth 6 to resell since v0.18, so no counter pays more than 5 for a set) and smoke pellets | `data/items/tools.yaml`, `data/economy.yaml` |
 | The Porters' Hall bench (v0.15): `craft` lockpicks, smoke pellets, a lamplighter's coat (a new guise) and a forged Margrave's Hill gate pass (a jobs tool on the Hill only) from makings sold by the two fences or found in the Snuffs' middens, open to anyone who pays for the bench time, sworn or not -- a set of picks for under half Marrow's price, and nothing that sells for more than its makings | `data/recipes/workshop.yaml`, `data/rules/jobs.yaml` |
 | The Magpie's Hoard (v0.15): six famous shines the ballad says the Magpie took and never fenced -- four in the anchors' strongrooms, two found by standing in secret places. Named, so hot for good: kept, not fenced, and an arrest takes them all back. Carry all six at once and the Honest Company thinks the better of you | `data/tables/collections.yaml`, `data/quests/the_magpies_hoard/` |
 | Blackmail (v0.15): a house's secret, cased and carried out of its job, is held -- and each anchor's is a squeeze on its owner (Lady Imelda, Mother Gannet, Captain Ardane, Steward Quill), struck at their door in their hours and collected there inside two days. Left uncollected, the squeezed party swears a `blackmail` report to the Watch (all but Mother Gannet) and their people turn on you | `data/rules/threads.yaml`, `data/premises/anchors/`, `data/rules/law.yaml` |
@@ -103,11 +103,19 @@ deferred" list carries the engine-side rows:
   gates. The Temple's good opinion is moved and read by nothing.
 - **A generated house's secret opens no thread.** It is held when carried out
   of a job; only the four anchors' secrets name a blackmail.
-- **A purses-only living still starves.** The careful pickpocket
-  (`scripts/simulate_labour.py`) reaches 0 hp on 95% of seeds in ten days,
-  about twice a run; since v0.17 it wakes on Old Nance's step and goes on,
-  but lifting alone is still below the cost of living. v0.18.0's thief
-  policy takes it up.
+- **A purses-only living still starves, on purpose.** The careful
+  pickpocket (`scripts/simulate_labour.py`) dies 2.90 times a run over 14
+  days, every time of hunger (v0.18 measured the causes). Since v0.17 it
+  wakes on Old Nance's step and goes on. The owner keeps this as pressure
+  (v0.14). A careful thief who takes a porter's shift when hungry keeps
+  11.9 of 14 days and dies once in 40 runs, so a living exists one shift
+  away.
+- **A burglar lives better than a pickpocket, and worse than a porter.**
+  Since v0.18 the fences pay about half a hot haul's worth
+  (`data/tables/trade.yaml`), so the fencing burglar keeps 7.25 of 14 days
+  (the pickpocket 4.33, the porter 13.05) and ends with 13 crowns. It still
+  dies 0.7 times a run, of hunger, mostly penniless and before dawn in its
+  Snuffs bed, on the lean nights between hauls.
 - **A quiet death at the fair.** Starving in the cells while the fair is on
   is The Rope, and that turn's prose gets no death receipt (a card's or a
   challenge step's death does), so the story goes straight to the ending's
@@ -136,20 +144,23 @@ save.
 | `scripts/simulate_jobs.py` | `blind`, `careful`, `greedy`, `greedy_bare` | `data/rules/jobs.yaml` (table in its header) |
 | `scripts/simulate_agendas.py` | `idle`, `careful`, `reckless` | `data/rules/agendas.yaml`, `data/rules/clocks.yaml` |
 | `scripts/simulate_scrounge.py` | `scrounger`, `mornings` | `data/tables/forage.yaml` (table in its header) |
-| `scripts/simulate_labour.py` | `porter`, `dipper`, `careful`, `scrounger`, `careful_pell`, `careful_marrow` (`--endings`: what the earned endings read, day by day) | `data/tables/labour.yaml` (table in its header), `data/rules/endings.yaml` |
+| `scripts/simulate_labour.py` | `porter`, `dipper`, `careful`, `scrounger`, `careful_pell`, `careful_marrow`, and since v0.18 `careful_porter` (a porter's shift when hungry), `burglar` (the fencing burglar: robs a house a day and lives on what the fences pay), `burglar_pell`, `burglar_marrow` (the same, welshing on that fence's line) (`--endings`: what the earned endings read, day by day) | `data/tables/labour.yaml` (table in its header), `data/rules/endings.yaml` |
 | `scripts/simulate_streets.py` | `wanderer` | `data/encounters/rules.yaml`, `data/encounters/streets.yaml` |
 | `scripts/simulate_hoard.py` | `hoarder` | `data/tables/collections.yaml`, the squeezes in `data/rules/threads.yaml` |
 | `scripts/simulate_acts.py` | `investigator` (`--opening a\|b\|c`; `--gate N` tries the desk's evidence bar) | `data/scenes/lantern_house_desk.yaml`, `false_witness` in `data/rules/law.yaml` (tables in their headers) |
 | `scripts/simulate_endings.py` | `investigator_a/b/c`, `lantern`, `partner`, `heister`, `loyalist`, `dapper`, `porter`, `reckless`, `runner` -- each plays for one ending, to two days past the fair (`--fair-day N` tries the fair on another day; `--break-out all\|none`) | the Hanging Fair's day (`data/world/schedules.yaml`), the eight endings' gates (`data/rules/endings.yaml`); the table is in the CHANGELOG |
+| `scripts/simulate.py --game hue-and-cry` | `thief` (the default: `simulate_endings`' `heister`), `thieves` (`heister`, `investigator_a/b/c`, `loyalist`: the agenda collisions' five), `living` (`simulate_labour`'s `porter`, `careful`, `careful_porter`, `burglar`, `burglar_pell`, `burglar_marrow` instead: kept days, deaths by cause and day, hauls and loot left unsold, credit and collectors), any `simulate_endings` policy, or `all`; `--seeds N` (from `--seed`, default 0), `--days N` | nothing of its own: one report over the harnesses above -- `simulate_endings`' table plus each policy's worst wanted band, jobs carried out, clues, deaths and respawns and gold; a `collisions` block (where the Magpie, Ardane and Silas met the player: `simulate_endings.COLLISIONS`, per run -- not `simulate_agendas`' per-job `collision_rate`. At 40 seeds x 14 days over `thieves`: the Magpie on a house you cased or burgled 36%, there with you that night 4.5%, the same day 9%, robbed while you are held 10.5%, Ardane's net over hot goods 84% or a marked thief 92%, Silas's split on a sworn thief 25%; full table in the CHANGELOG); and the days `simulate_labour`'s careful pickpocket keeps on its own coin. `--policy living` at 40 seeds x 14 days, kept days and deaths a run: porter 13.05 / 0, careful_porter 11.88 / 0.03, burglar 7.25 / 0.70, burglar_pell 6.62 / 1.43, burglar_marrow 6.65 / 1.40, careful 4.33 / 2.90 |
 
 The law, jobs, agendas and acts harnesses take `--set KEY=VALUE` to try a number
 without editing the file; every one takes `--json` for the raw table. The measured tables are in [the root
 CHANGELOG](../../CHANGELOG.md) under the release that set them (summarised in
 this story's [CHANGELOG.md](CHANGELOG.md)), and `tests/test_hue_and_cry.py`
 asserts the Law's floors, the jobs, scrounging and cost-of-living bounds,
-the investigator's, and every ending's reach by a policy that plays for it.
-`scripts/simulate.py`'s policies are flagship-owned; a thief policy for it is
-v0.18.0.
+the investigator's, and every ending's reach by a policy that plays for it;
+`tests/test_simulate_thief.py` the agenda collisions, the burglar's and the welshers' headlines and the careful pickpocket's.
+`scripts/simulate.py`'s own policies are flagship-owned; since v0.18.0
+`--game hue-and-cry` runs this story's harnesses instead, through the last
+row above.
 
 ## Tests
 

@@ -42,6 +42,31 @@ debt:
                   her yard in the Snuffs after the night's sale, on a day it
                   has business with her.
 
+AND FOUR MORE (v0.18 T3), the two questions the owner's v0.14 and v0.15
+decisions left open:
+
+  careful_porter  the careful pickpocket who takes a porter's shift when
+                  hungry: its day, plus Dock Mag's six hours on a morning
+                  it is still `hungry` after breakfast or holds less than a
+                  night's bed and the next day's bread (``CREDIT_WHEN_BELOW``).
+  burglar         the fencing burglar (``FencingBurglar``): one tier-1/2
+                  house a day, cased and waited on until empty, burgled the
+                  careful way, and the haul SOLD -- to Pell Hollis at eight
+                  the next morning, to Marrow at five -- to live on. It buys
+                  lockpicks once it can spare them. The only policy in any
+                  harness that turns loot into bread.
+  burglar_pell    the burglar, taking Pell's advance when its purse is lean
+                  and never repaying it -- a WELSHER, as the owner's v0.15
+                  decision named it: shut out of both fences once the line
+                  breaks, so its later hauls stay in its pockets
+                  (``loot_unsold``).
+  burglar_marrow  the same, on Marrow's slate.
+
+Every run also reads, since v0.18 T3, how each death happened
+(``simulate_law.cause_of_death``: hunger, the street, custody, the fair's
+terminal death, a job, a card) and on which day, and which endings the table
+held open when the run was over.
+
 ``--no-credit`` runs them as their own control: the same lean-purse days at
 her counter, the same bread bought there, and no line ever struck -- because
 a detour past a food counter feeds a careful pickpocket by itself (the plain
@@ -111,9 +136,24 @@ WHAT IT REPORTS, per policy, averaged over seeds:
   collectors_hp_lost  hp those meetings cost it, per run
   initiation_due_day  mean first day a played turn would have dealt the
                    initiation (v0.16); `initiated` the share sworn (bunk only)
+  kept_days_per_run  kept days counted as DAYS a run (v0.15's credit tables)
+  death_causes     deaths a run by cause; ``deaths_by_day`` all runs' deaths
+                   by the day they fell on; ``first_death_day`` (v0.18 T3);
+                   ``deaths_penniless`` the share with no coin in hand,
+                   ``death_gold_mean`` and ``death_places`` (fix round 2)
+  jobs_per_run     the burglars: houses opened, ``hauls_per_run`` carried
+                   out, ``loot_taken_per_run`` its registry value,
+                   ``fenced_per_run`` crowns the counters paid for stolen
+                   units (not every sale), and
+                   ``loot_unsold`` the stolen goods' value still carried at
+                   the end (``loot_unsold_items``, ``runs_with_loot_unsold``);
+                   ``kit_bought`` the share that bought lockpicks
+  endings_eligible the share of runs each ending was open at the end
+                   (``endings_locked`` any locked)
 
 Usage:
-    python scripts/simulate_labour.py                    # 40 seeds x 10 days, all four
+    python scripts/simulate_labour.py                    # 40 seeds x 10 days, every policy
+    python scripts/simulate_labour.py --policy burglar_pell --days 14   # v0.18 T3
     python scripts/simulate_labour.py --policy porter --bed bunk
     python scripts/simulate_labour.py --policy careful_pell
     python scripts/simulate_labour.py --policy careful_pell --no-credit   # its control
@@ -133,7 +173,7 @@ standing at Guildmaster's ``GUILD_STANDING``) and ``silas_won`` (Silas
 Crook's rise complete and not stood against). Guildmaster's number comes from
 ``--endings --policy porter --bed bunk --agendas``: a sworn porter, Silas on.
 
-Version: v0.5.0 [2026-09-28]
+Version: v0.6.0 [2026-09-29] -- v0.18 T3: the fencing burglar, the adaptive pickpocket, deaths by cause
 """
 
 from __future__ import annotations
@@ -153,10 +193,12 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from scripts import simulate_law, simulate_scrounge  # noqa: E402
+from scripts.simulate_jobs import Burglar  # noqa: E402
 from scripts.simulate_law import Thief, agendas_off  # noqa: E402
 from scripts.simulate_scrounge import Scrounger  # noqa: E402
 
-POLICIES = ("porter", "dipper", "careful", "scrounger", "careful_pell", "careful_marrow")
+POLICIES = ("porter", "dipper", "careful", "scrounger", "careful_pell", "careful_marrow",
+            "careful_porter", "burglar", "burglar_pell", "burglar_marrow")
 BEDS = {"flophouse": "sleep_flophouse", "bunk": "sleep_guild_bunk", "rough": "sleep_rough"}
 HOME = "the_snuffs"
 DOCKS = "tallow_docks"
@@ -182,6 +224,25 @@ CREDIT_WHEN_BELOW = 3
 #: The street scenes that come for a welsher (data/encounters/streets.yaml).
 COLLECTORS = ("pells_collectors", "marrows_lads",
               "pells_collectors_by_day", "marrows_lads_by_day")
+#: v0.18 T3. The adaptive careful thief takes a porter's shift on a morning
+#: its belly or its purse says it must: still `hungry` or worse after
+#: breakfast, or under the price of a night's bed and the next day's bread.
+HUNGRY = ("hungry", "starving")
+#: The fencing burglar's kit, never sold (data/rules/jobs.yaml `tools`), and
+#: the price of the picks at Marrow's (economy.yaml): it buys them once it
+#: holds that much over a night's bed and the next day's bread.
+KIT = ("lockpicks", "smoke_pellet")
+LOCKPICKS = "lockpicks"
+LOCKPICKS_PRICE = 15
+#: Marrow's yard opens at 17:00 (economy.yaml); the burglar sells there on
+#: its way to bed. Pell's counter opens at 08:00.
+MARROW_OPENS = 17
+PELL_OPENS = 8
+#: The last hour the burglar waits in a street for a house to empty before
+#: it gives the day up and goes to sell and sleep.
+JOB_LAST_HOUR = 20
+#: The longest the burglar waits without looking at its carried food.
+WAIT_STEP_HOURS = 3.0
 
 
 @dataclass
@@ -209,6 +270,24 @@ class Life:
     initiation_due_day: Optional[int] = None
     initiated_day: Optional[int] = None
     deaths: int = 0
+    #: v0.18 T3: each death as ``simulate_law.death_log`` read it, and what
+    #: the endings table read when the run was over (a reading, never a choice).
+    death_log: list[dict[str, Any]] = field(default_factory=list)
+    eligible_at_end: list[str] = field(default_factory=list)
+    locked: str = ""
+    #: The fencing burglar's (v0.18 T3): jobs opened and carried out, the
+    #: registry value carried out, and the stolen goods still held at the end
+    #: -- unsold because no counter would buy them (a welsher's) or because
+    #: the run ended first -- by registry value and by count.
+    jobs_tried: int = 0
+    jobs_carried_out: int = 0
+    loot_taken: int = 0
+    loot_unsold: int = 0
+    loot_unsold_items: int = 0
+    kit_bought_day: Optional[int] = None
+    #: Crowns the counters paid for STOLEN units only (a sale of a stack
+    #: that held a stolen unit); ``money["sell"]`` counts every sale.
+    fenced: int = 0
 
 
 class Living:
@@ -234,6 +313,19 @@ class Living:
         if not scene_at_start:
             self.patrol()  # type: ignore[attr-defined]
         return result if isinstance(result, dict) else {}
+
+    def answer_stop(self) -> None:
+        """Count the fences' collectors (streets.yaml), then answer as the policy does."""
+        from engine.game import encounter
+
+        met = encounter.active(self.state) and str(self.state.encounter.get("id")) in COLLECTORS
+        hp = int(self.state.stats.hp)
+        if met:
+            self.life.collectors_met += 1
+        super().answer_stop()  # type: ignore[misc]
+        if met:
+            self.life.collectors_hp += max(0, hp - int(self.state.stats.hp))
+            self.note()
 
     def note(self) -> None:
         stats = self.state.stats
@@ -277,6 +369,15 @@ class Living:
             self.act("eat", min(food, key=lambda i: (inventory.value_of(i), i)))
         self.note()
 
+    #: What this policy never sells (the careful thief's guise; the
+    #: burglar's kit too).
+    keep: tuple[str, ...] = KEEP
+
+    def sells_to(self, npc_id: str) -> bool:
+        """Whom it sells to: anyone the sell menu offers (the fencing burglar
+        narrows it to the fences)."""
+        return True
+
     def sell_goods(self) -> None:
         from engine.game import inventory
 
@@ -285,7 +386,8 @@ class Living:
             guard += 1
             targets = [t for t in self.legal_targets("sell")  # type: ignore[attr-defined]
                        if not inventory.has_tag(t.partition("/")[2], "food")
-                       and t.partition("/")[2] not in KEEP]
+                       and t.partition("/")[2] not in self.keep
+                       and self.sells_to(t.partition("/")[0])]
             if not targets:
                 return
             before = self.state.stats.gold
@@ -411,15 +513,24 @@ class Careful(Living, Thief):
         self.eat()
 
 
-class CarefulOnCredit(Careful):
-    """The careful pickpocket, with one fence's line of credit (``CREDIT``)."""
+class CreditLine:
+    """One fence's line of credit (``CREDIT``), for a policy that is ``Living``."""
 
     #: policy -> (thread template, where her counter is)
     CREDIT = {"careful_pell": ("pell_advance", MARKET),
-              "careful_marrow": ("marrow_slate", HOME)}
+              "careful_marrow": ("marrow_slate", HOME),
+              "burglar_pell": ("pell_advance", MARKET),
+              "burglar_marrow": ("marrow_slate", HOME)}
+    #: Whether it pays the debt back when it can. The careful pickpocket
+    #: tries (v0.15); the burglar on credit WELSHES (v0.18 T3, the ruling:
+    #: takes the line and never repays it), which is the cost it measures.
+    repays = True
+    state: Any
+    life: Life
+    act: Any
+    legal_targets: Any
 
-    def __init__(self, seed: int, bed: str, policy: str, strike: bool = True) -> None:
-        Careful.__init__(self, seed, bed)
+    def open_credit(self, policy: str, strike: bool) -> None:
         self.life.policy = policy
         self.template, self.counter = self.CREDIT[policy]
         #: False is the CONTROL (``--no-credit``): the same days, the same
@@ -427,27 +538,14 @@ class CarefulOnCredit(Careful):
         #: line struck -- so what credit itself buys is the difference.
         self.strike = strike
 
-    def answer_stop(self) -> None:
-        """Count the fences' collectors (streets.yaml), then answer as the careful thief does."""
-        from engine.game import encounter
-
-        met = encounter.active(self.state) and str(self.state.encounter.get("id")) in COLLECTORS
-        hp = int(self.state.stats.hp)
-        if met:
-            self.life.collectors_met += 1
-        super().answer_stop()
-        if met:
-            self.life.collectors_hp += max(0, hp - int(self.state.stats.hp))
-            self.note()
-
     def tend_credit(self) -> None:
-        """Repay the open line if it can, else strike one if the purse is low."""
+        """Repay the open line if it can (and repays), else strike one if the purse is low."""
         from engine.game import threads
 
         open_ = [t for t in threads.active(self.state) if t.get("template") == self.template]
         if open_:
             thread_id = str(open_[0]["id"])
-            if thread_id in self.legal_targets("discharge"):
+            if self.repays and thread_id in self.legal_targets("discharge"):
                 self.act("discharge", thread_id)
             return
         if (self.strike and int(self.state.stats.gold) < CREDIT_WHEN_BELOW
@@ -463,6 +561,22 @@ class CarefulOnCredit(Careful):
         welshed = ("welshed_on_pell", "welshed_on_marrow")
         return (int(self.state.stats.gold) < CREDIT_WHEN_BELOW
                 and not any(self.state.flags.get(f) for f in welshed))
+
+    def tally(self) -> None:
+        from engine.game import threads
+
+        mine = [t for t in self.state.threads if t.get("template") == self.template]
+        self.life.credit_struck = len(mine)
+        self.life.credit_repaid = sum(t.get("status") == threads.STATUS_DISCHARGED for t in mine)
+        self.life.credit_broken = sum(t.get("status") == threads.STATUS_BROKEN for t in mine)
+
+
+class CarefulOnCredit(CreditLine, Careful):
+    """The careful pickpocket, with one fence's line of credit (``CREDIT``)."""
+
+    def __init__(self, seed: int, bed: str, policy: str, strike: bool = True) -> None:
+        Careful.__init__(self, seed, bed)
+        self.open_credit(policy, strike)
 
     def day(self, played: int) -> None:
         if self.counter == MARKET and played > 1 and self.has_business():
@@ -488,13 +602,266 @@ class CarefulOnCredit(Careful):
             self.tend_credit()   # the yard, after the night's sale
             self.provision()
 
-    def tally(self) -> None:
-        from engine.game import threads
 
-        mine = [t for t in self.state.threads if t.get("template") == self.template]
-        self.life.credit_struck = len(mine)
-        self.life.credit_repaid = sum(t.get("status") == threads.STATUS_DISCHARGED for t in mine)
-        self.life.credit_broken = sum(t.get("status") == threads.STATUS_BROKEN for t in mine)
+class CarefulPorter(Careful):
+    """v0.18 T3: the careful pickpocket who takes a porter's shift when hungry.
+
+    The careful day, the same purse at 21:00 and the same sale to Marrow --
+    and on a morning its belly or its purse says it must (``needs_a_shift``),
+    a shift on Dock Mag's gang (``dock_portering``, 07:00, six hours) before
+    it walks on to the Snuffs. It is in the porter's smock from day one, so
+    the shift is its own guise's work.
+    """
+
+    def __init__(self, seed: int, bed: str) -> None:
+        Careful.__init__(self, seed, bed)
+        self.life.policy = "careful_porter"
+
+    def needs_a_shift(self) -> bool:
+        """Still `hungry` or worse after breakfast, or under a night's bed and
+        the next day's bread (``CREDIT_WHEN_BELOW``) -- both on the player's
+        own screen (the hunger stage, the purse)."""
+        from engine.game import survival
+
+        return (survival.hunger_stage(self.state) in HUNGRY
+                or int(self.state.stats.gold) < CREDIT_WHEN_BELOW)
+
+    def day(self, played: int) -> None:
+        if self.state.world_hour < WAKE_HOUR:
+            self.wait_until(WAKE_HOUR)
+        self.walk(DOCKS)
+        if played == 1:
+            self.act("buy", "npc_dock_mag/porters_smock")
+        self.provision()
+        if self.needs_a_shift():
+            self.work("dock_portering")
+            self.provision()
+        if played == 1:
+            # Careful's day one from here: the smock goes on in an empty
+            # Wickmarket at 23:00.
+            self.walk(simulate_law.BUSY_DISTRICT)
+            self.wait_until(simulate_law.CAREFUL_CHANGE_HOUR)
+            if "porter" in self.legal_targets("guise"):
+                self.act("guise", "porter")
+            return
+        simulate_law._careful_day(self, played)
+        self.sell_goods()
+        self.eat()
+
+
+class FencingBurglar(Living, Burglar):
+    """v0.18 T3: a burglar who lives on what the fences pay for its hauls.
+
+    No other policy sells a haul (simulate_jobs and simulate_endings feed
+    their thieves and keep the loot). This one pays its own way like every
+    policy here, and every day it:
+
+      * breakfasts on the quay (06:00);
+      * goes by Pell Hollis's counter in Wickmarket when she opens (08:00)
+        if it carries anything to sell -- sells it, and buys a biscuit;
+      * robs one house: a tier-1/2 house it has not tried (simulate_jobs'
+        ``_small``, spread by seed as its careful thief's are), in that
+        house's district, watched until it knows
+        ``simulate_jobs.CAREFUL_INTEL`` things about it, then waited on
+        until the casing board says nobody is home (``premises.empty_now``)
+        -- never past ``JOB_LAST_HOUR`` -- and burgled simulate_jobs'
+        careful way: the best way in the job shows, every useful flashback
+        it can pay for without going short (``legal_targets``), walked away
+        from the moment the house is roused;
+      * walks home to the Snuffs, waits for Marrow's yard (17:00), sells her
+        what it still carries, and buys lockpicks once it holds their price
+        and a day's living (``LOCKPICKS_PRICE``, ``CREDIT_WHEN_BELOW``).
+
+    It eats a carried meal whenever hunger reaches ``EAT_AT``, waits
+    included (``WAIT_STEP_HOURS``), and is never fed or rested by the
+    harness. It answers a stop as every thief here does (``run``), and a cell
+    by the fine or the days. What it acts on is what a player sees: the
+    city's houses as simulate_jobs' thieves pick them (``Burglar.candidates``:
+    every house in a public district, less the ones it robbed), what casing
+    has told it, the casing board's "go now", the job's own odds
+    (``jobs.band_for``), its purse and hunger, and the sell menu.
+    """
+
+    keep = KEEP + KIT
+
+    def sells_to(self, npc_id: str) -> bool:
+        """Only a fence (trade.yaml ``fence: true``): an honest counter
+        refuses a hot unit and reports the offer as a `fencing` deed, and
+        every trade profile says which it is."""
+        from engine.game import trade
+
+        return bool(trade.vendor(npc_id).get("fence"))
+
+    def __init__(self, seed: int, bed: str, policy: str = "burglar") -> None:
+        Burglar.__init__(self, seed, policy)
+        self.life = Life(seed=seed, policy=policy, bed=bed)
+        self.tried: set[str] = set()
+
+    def act(self, action: str, target: str = "") -> dict[str, Any]:
+        """``Living.act`` (the coin booked), then the turn-end observation
+        ``Burglar.act`` makes (a flashback reads ``visited``)."""
+        from engine.game.quests import QuestEngine
+
+        stolen_before = self.stolen_held()[1] if action == "sell" else 0
+        gold_before = int(self.state.stats.gold)
+        result = Living.act(self, action, target)
+        if action == "sell" and self.stolen_held()[1] < stolen_before:
+            self.life.fenced += int(self.state.stats.gold) - gold_before
+        QuestEngine.observe(self.state)
+        return result
+
+    def legal_targets(self, action: str) -> list[str]:
+        """The menu -- less any flashback whose coin (the bribed servant's five
+        crowns, jobs.yaml ``cost.gold``) would leave it under a night's bed and
+        the next day's bread: a thief living hand to mouth does not bribe a
+        servant with its supper."""
+        options = super().legal_targets(action)
+        if action != "flashback":
+            return options
+        from engine.world import jobs
+
+        purse = int(self.state.stats.gold)
+        flashbacks = jobs.spec()["flashbacks"]
+
+        def coin(kind: str) -> int:
+            return int(((flashbacks.get(kind) or {}).get("cost") or {}).get("gold") or 0)
+
+        return [k for k in options if not coin(k) or purse - coin(k) >= CREDIT_WHEN_BELOW]
+
+    # -- waiting: never fed, but it eats what it carries ----------------------
+
+    def wait_until(self, hour: int) -> None:
+        """``simulate_law.Thief.wait_until`` (not ``Burglar``'s, which feeds),
+        in steps of ``WAIT_STEP_HOURS`` with a carried meal eaten between."""
+        from engine.game.clock import advance_time
+
+        now = self.state.world_clock_hours
+        target = (int(now // 24) * 24) + hour
+        while target < now - 1e-9:
+            target += 24
+        while target - self.state.world_clock_hours > 1e-9:
+            advance_time(self.state, min(WAIT_STEP_HOURS,
+                                         target - self.state.world_clock_hours))
+            self.eat()
+
+    def linger(self, hours: float = 1.0) -> None:
+        super().linger(hours)
+        self.eat()
+
+    # -- the day ----------------------------------------------------------------
+
+    def stolen_held(self) -> tuple[int, int]:
+        """(registry value, units) of stolen goods carried, hot or cool."""
+        from engine.game.inventory import value_of
+        from engine.world import thievery
+
+        value = units = 0
+        for item_id in sorted(self.state.provenance or {}):
+            split = thievery.heat_split(self.state, item_id)
+            stolen = int(split["hot"]) + int(split["cool"])
+            units += stolen
+            value += stolen * int(value_of(item_id))
+        return value, units
+
+    def business_at(self, place: str) -> bool:
+        """Anything to do at the fence's counter at ``place`` (the credit
+        policies add their line)."""
+        return self.stolen_held()[1] > 0
+
+    def at_the_counter(self, place: str) -> None:
+        """At a fence's counter: sell what it carries (a credit policy tends
+        its line first)."""
+        self.sell_goods()
+
+    def day(self, played: int) -> None:
+        if self.state.world_hour < WAKE_HOUR:
+            self.wait_until(WAKE_HOUR)
+        self.walk(DOCKS)
+        self.provision()
+        if self.business_at(MARKET):
+            self.walk(MARKET)
+            if self.state.world_hour < PELL_OPENS:
+                self.wait_until(PELL_OPENS)
+            if self.state.location_id == MARKET:
+                self.at_the_counter(MARKET)
+                self.provision()
+        self.job()
+        self.walk(HOME)
+        if WAKE_HOUR <= self.state.world_hour < MARROW_OPENS:
+            self.wait_until(MARROW_OPENS)
+        if self.state.location_id == HOME:
+            self.at_the_counter(HOME)
+            self.buy_kit()
+        self.eat()
+
+    def job(self) -> None:
+        from engine.world import law, premises
+        from scripts.simulate_jobs import CAREFUL_INTEL, _pick, _small
+
+        options = [p for p in self.candidates(_small) if str(p["id"]) not in self.tried]
+        prem = _pick(options, self.life.seed, len(self.tried))
+        if prem is None:
+            return
+        premise_id = str(prem["id"])
+        self.tried.add(premise_id)
+        self.walk(str(prem["district"]))
+        if self.state.location_id != prem["district"]:
+            return
+        self.case_until(premise_id, CAREFUL_INTEL)
+
+        def still_there() -> bool:
+            return (not law.in_custody(self.state)
+                    and self.state.location_id == prem["district"])
+
+        while (still_there() and not premises.empty_now(self.state, premise_id)
+               and WAKE_HOUR <= self.state.world_hour < JOB_LAST_HOUR):
+            self.linger(1.0)
+        if not still_there() or not premises.empty_now(self.state, premise_id):
+            return
+        before = len(self.run.jobs)
+        row = self.burgle(prem, smart=True, walk_away=True)
+        if len(self.run.jobs) > before and row.outcome != "refused":
+            self.life.jobs_tried += 1
+            self.life.jobs_carried_out += int(row.loot_value > 0)
+            self.life.loot_taken += int(row.loot_value)
+
+    def buy_kit(self) -> None:
+        """Lockpicks at Marrow's, once it holds their price and a day's living."""
+        from engine.game.inventory import holds
+
+        wanted = f"npc_marrow/{LOCKPICKS}"
+        if (not holds(self.state, LOCKPICKS)
+                and int(self.state.stats.gold) >= LOCKPICKS_PRICE + CREDIT_WHEN_BELOW
+                and wanted in self.legal_targets("buy")):
+            self.act("buy", wanted)
+            if holds(self.state, LOCKPICKS) and self.life.kit_bought_day is None:
+                self.life.kit_bought_day = int(self.state.world_day)
+
+    def tally_loot(self) -> None:
+        self.life.loot_unsold, self.life.loot_unsold_items = self.stolen_held()
+
+
+class BurglarOnCredit(CreditLine, FencingBurglar):
+    """The fencing burglar with one fence's line: struck when its purse is
+    under ``CREDIT_WHEN_BELOW`` and she will stand it, and NEVER repaid
+    (``repays``) -- the welsher the owner's v0.15 decision named. Once the
+    line breaks neither fence buys (``refuses_to_buy``; the sell menu stops
+    offering them), and what it steals after that stays in its pockets."""
+
+    repays = False
+
+    def __init__(self, seed: int, bed: str, policy: str, strike: bool = True) -> None:
+        FencingBurglar.__init__(self, seed, bed, policy)
+        self.open_credit(policy, strike)
+
+    def business_at(self, place: str) -> bool:
+        return (FencingBurglar.business_at(self, place)
+                or (place == self.counter and self.has_business()))
+
+    def at_the_counter(self, place: str) -> None:
+        if place == self.counter and self.has_business():
+            self.tend_credit()
+        FencingBurglar.at_the_counter(self, place)
 
 
 class ScroungeLiving(Living, Scrounger):
@@ -512,7 +879,8 @@ class ScroungeLiving(Living, Scrounger):
 
 
 CLASSES = {"porter": Porter, "dipper": Dipper, "careful": Careful,
-           "scrounger": ScroungeLiving}
+           "scrounger": ScroungeLiving, "careful_porter": CarefulPorter,
+           "burglar": FencingBurglar}
 
 
 def play(seed: int, policy: str, days: int, bed: str = "flophouse",
@@ -523,8 +891,11 @@ def play(seed: int, policy: str, days: int, bed: str = "flophouse",
 
 def _play(seed: int, policy: str, days: int, bed: str, strike: bool,
           each_night: Optional[Any] = None) -> Life:
-    if policy in CarefulOnCredit.CREDIT:
+    person: Any
+    if policy.startswith("careful_") and policy in CreditLine.CREDIT:
         person = CarefulOnCredit(seed, bed, policy, strike)
+    elif policy in CreditLine.CREDIT:
+        person = BurglarOnCredit(seed, bed, policy, strike)
     else:
         person = CLASSES[policy](seed, bed)
     person.life.start_gold = int(person.state.stats.gold)
@@ -538,8 +909,12 @@ def _play(seed: int, policy: str, days: int, bed: str, strike: bool,
     person.life.end_gold = int(person.state.stats.gold)
     person.life.arrests = int(person.run.arrests)
     person.life.deaths = simulate_law.deaths(person.state)
-    if isinstance(person, CarefulOnCredit):
+    person.life.death_log = simulate_law.death_log(person.state)
+    _read_the_ending(person.state, person.life)
+    if isinstance(person, CreditLine):
         person.tally()
+    if isinstance(person, FencingBurglar):
+        person.tally_loot()
     return person.life
 
 
@@ -548,8 +923,15 @@ def _mean(values: list[float]) -> float:
 
 
 def measure(policy: str, seeds: int, days: int, bed: str = "flophouse",
-            strike: bool = True) -> dict[str, Any]:
-    lives = [play(seed, policy, days, bed, strike) for seed in range(seeds)]
+            strike: bool = True, first: int = 0) -> dict[str, Any]:
+    """``seeds`` runs, from seed ``first`` (scripts/simulate.py's ``--seed``; 0 here)."""
+    lives = [play(seed, policy, days, bed, strike) for seed in range(first, first + seeds)]
+    return summarise(lives, days, bed)
+
+
+def summarise(lives: list[Life], days: int, bed: str = "flophouse") -> dict[str, Any]:
+    """The table for ``lives`` (one policy's runs), as ``measure`` reports it."""
+    seeds = len(lives)
     earning = ("work", "lift", "sell")
 
     def per_day(life: Life, value: float) -> float:
@@ -559,15 +941,17 @@ def measure(policy: str, seeds: int, days: int, bed: str = "flophouse",
         "seeds": seeds,
         "days": days,
         "bed": bed,
-        "earned_per_day": _mean([per_day(l, sum(max(0, l.money[k]) for k in earning))
+        "earned_per_day": _mean([per_day(l, sum(max(0, l.money.get(k, 0)) for k in earning))
                                  for l in lives]),
         "wages_per_shift": _mean([l.wages / l.shifts for l in lives if l.shifts]),
         "shifts_per_day": _mean([per_day(l, l.shifts) for l in lives]),
-        "food_per_day": _mean([per_day(l, -l.money["buy"]) for l in lives]),
-        "bed_per_day": _mean([per_day(l, -l.money["rest"]) for l in lives]),
+        "food_per_day": _mean([per_day(l, -l.money.get("buy", 0)) for l in lives]),
+        "bed_per_day": _mean([per_day(l, -l.money.get("rest", 0)) for l in lives]),
         "fed_days": _mean([per_day(l, l.fed_days) for l in lives]),
         "bed_nights": _mean([per_day(l, l.bed_nights) for l in lives]),
         "kept_days": _mean([per_day(l, l.kept_days) for l in lives]),
+        # The same, counted in DAYS a run (v0.15's credit tables, v0.18 T3).
+        "kept_days_per_run": _mean([float(l.kept_days) for l in lives]),
         "saved_per_day": _mean([per_day(l, l.end_gold - l.start_gold) for l in lives]),
         "end_gold": _mean([float(l.end_gold) for l in lives]),
         "end_gold_min": min(l.end_gold for l in lives),
@@ -578,10 +962,13 @@ def measure(policy: str, seeds: int, days: int, bed: str = "flophouse",
         "runs_at_zero_hp": round(sum(l.min_hp <= 0 or l.deaths > 0 for l in lives)
                                  / len(lives), 3),
         "deaths_per_run": _mean([float(l.deaths) for l in lives]),
+        **_deaths(lives),
         "min_stamina": min(l.min_stamina for l in lives),
         "arrests_per_run": _mean([float(l.arrests) for l in lives]),
-        "fines_per_run": _mean([float(-l.money["pay_fine"]) for l in lives]),
+        "fines_per_run": _mean([float(-l.money.get("pay_fine", 0)) for l in lives]),
         **_credit(lives),
+        **_loot(lives),
+        **_endings_at_end(lives),
         "initiation_due_day": _mean([float(l.initiation_due_day) for l in lives
                                      if l.initiation_due_day is not None]),
         "initiation_never_due": round(sum(l.initiation_due_day is None for l in lives)
@@ -591,6 +978,72 @@ def measure(policy: str, seeds: int, days: int, bed: str = "flophouse",
                                     if l.initiated_day is not None])}
            if bed == "bunk" else {}),
     }
+
+
+def _deaths(lives: list[Life]) -> dict[str, Any]:
+    """v0.18 T3: the deaths by cause (``simulate_law.cause_of_death``), a run,
+    and by the day they fell on, counted over every run -- for a policy that
+    died at all."""
+    log = [d for l in lives for d in l.death_log]
+    if not log:
+        return {}
+    causes = {c: round(sum(d["cause"] == c for d in log) / len(lives), 2)
+              for c in simulate_law.DEATH_CAUSES if any(d["cause"] == c for d in log)}
+    return {
+        "death_causes": causes,
+        "deaths_by_day": {str(day): sum(d["day"] == day for d in log)
+                          for day in sorted({d["day"] for d in log})},
+        "first_death_day": _mean([float(l.death_log[0]["day"]) for l in lives if l.death_log]),
+        # Fix round 2: what it held and where it lay when it died.
+        "deaths_penniless": round(sum(d.get("gold", 0) == 0 for d in log) / len(log), 3),
+        "death_gold_mean": _mean([float(d.get("gold", 0)) for d in log]),
+        "death_places": {place: sum(d.get("location") == place for d in log)
+                         for place in sorted({str(d.get("location")) for d in log})},
+    }
+
+
+def _loot(lives: list[Life]) -> dict[str, Any]:
+    """v0.18 T3: the fencing burglar's hauls -- for a policy that robbed a house."""
+    if not any(l.jobs_tried for l in lives):
+        return {}
+    return {
+        "jobs_per_run": _mean([float(l.jobs_tried) for l in lives]),
+        "hauls_per_run": _mean([float(l.jobs_carried_out) for l in lives]),
+        "loot_taken_per_run": _mean([float(l.loot_taken) for l in lives]),
+        # What the counters paid for stolen units -- a sale that took a
+        # stolen unit out of its pockets -- not every sale (``Life.fenced``).
+        "fenced_per_run": _mean([float(l.fenced) for l in lives]),
+        "loot_unsold": _mean([float(l.loot_unsold) for l in lives]),
+        "loot_unsold_items": _mean([float(l.loot_unsold_items) for l in lives]),
+        "runs_with_loot_unsold": round(sum(l.loot_unsold_items > 0 for l in lives)
+                                       / len(lives), 3),
+        "kit_bought": round(sum(l.kit_bought_day is not None for l in lives) / len(lives), 3),
+    }
+
+
+def _endings_at_end(lives: list[Life]) -> dict[str, Any]:
+    """v0.18 T3: which endings the table held open when the run was over
+    (``endings.eligible``, the fail-forward aside), and any locked -- a
+    share of runs each. Read at the end, never by a choice."""
+    names = sorted({e for l in lives for e in l.eligible_at_end})
+    locked = sorted({l.locked for l in lives if l.locked})
+    return {
+        "endings_eligible": {e: round(sum(e in l.eligible_at_end for l in lives) / len(lives), 3)
+                             for e in names},
+        **({"endings_locked": {e: round(sum(l.locked == e for l in lives) / len(lives), 3)
+                               for e in locked}} if locked else {}),
+    }
+
+
+def _read_the_ending(state: Any, life: Life) -> None:
+    """The endings table at the end of a run (a reading, never a choice)."""
+    from engine.game import endings
+
+    fail_forward = endings.fail_forward_id()
+    life.eligible_at_end = sorted(e for e in endings.eligible(state).eligible
+                                  if e != fail_forward)
+    locked = str(endings.locked(state) or "")
+    life.locked = "" if locked == endings.NONE_ID else locked
 
 
 def _credit(lives: list[Life]) -> dict[str, float]:

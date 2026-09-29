@@ -2981,6 +2981,12 @@ WORKSHOP = {
 FENCES = ("npc_pell_hollis", "npc_marrow")
 #: Marrow's price for a set of picks (data/economy.yaml).
 MARROWS_PICKS = 15
+#: The best craft modifier in this story (data/rules/skills.yaml's degrees
+#: note: an archetype's 13 in its stat, +1, and its `skill_bonus`, +1). The
+#: no-money-loop guards are evaluated there (v0.18 T3 fix round 2): a guard
+#: at +0 alone let a +1 thief mint a crown on every set of picks once the
+#: fences were made to pay.
+BEST_CRAFT = 2
 
 
 def _workshop():
@@ -2989,14 +2995,38 @@ def _workshop():
     return _load_recipes()
 
 
-def _fence_price(item_id: str) -> int:
-    """The cheapest a fence sells it for, or 0 when no fence does."""
+def _fence_price_in(item_id: str, state=None) -> int:
+    """The cheapest a fence sells it for, or 0 when no fence does (in
+    ``state``, or a fresh city)."""
     from engine.game import trade
 
-    state = _city(11)
+    state = state if state is not None else _city(11)
     prices = [trade.quote(state, npc, item_id, side=trade.BUY) for npc in FENCES
               if item_id in trade.vendor(npc).get("sells", {})]
     return min((int(q["unit_price"]) for q in prices if q["ok"]), default=0)
+
+
+def _fence_price(item_id: str) -> int:
+    """The cheapest a fence sells it for in a fresh city, or 0."""
+    return _fence_price_in(item_id)
+
+
+#: Every counter a thing made at the bench could be sold across.
+COUNTERS = (*FENCES, "npc_dock_mag")
+
+
+def _haggled_city():
+    """A city where the thief has argued every counter to the haggle cap
+    today (trade.yaml `haggle.cap`, 20 points): its buying cheapest and its
+    selling dearest at once -- the best any argument can do on both sides."""
+    from engine.game import trade
+
+    state = _city(11)
+    cap = int((trade._cfg().get("haggle") or {}).get("cap", 20) or 0)
+    assert cap > 0
+    for npc in COUNTERS:
+        trade._record_haggle(state, npc, cap, 1)
+    return state
 
 
 def _scrounged() -> set[str]:
@@ -3006,12 +3036,16 @@ def _scrounged() -> set[str]:
             for pool in ("common", "uncommon") for row in table.get(pool) or []}
 
 
-def _per_attempt(recipe: dict, modifier: int = 0) -> dict:
+def _per_attempt(recipe: dict, modifier: int = 0, state=None) -> dict:
     """What one attempt yields on average: every d20 face through the story's
     own DC and degree table, at the recipe's band (a fed, rested thief at
-    `modifier`) -- exact, not sampled."""
+    `modifier`) -- exact, not sampled. Inputs and salvage at the fences'
+    prices in ``state`` (a fresh city, or ``_haggled_city``)."""
     from engine.game import checks
     from engine.skills.builtin.mechanics import _craft_yield
+
+    def _fence_price(item_id: str) -> int:
+        return _fence_price_in(item_id, state)
 
     rules = checks.load_skill_rules()
     _, dc = checks.difficulty_dc(str(recipe["band"]), rules)
@@ -3115,28 +3149,49 @@ def test_crafted_lockpicks_cost_less_coin_and_more_hours_than_marrows(hue) -> No
     measured = _per_attempt(recipe)
     assert measured["coin_per_unit"] < MARROWS_PICKS * 0.6, measured
     assert float(recipe["hours"]) >= 4
-    # And no money loop: a set made from bought wire costs more than any
-    # counter in the city pays for one.
+    # And no money loop: a set made from bought wire, by the best crafter the
+    # story has, costs more than any counter in the city pays for one.
     state = _city(11)
     paid = [trade.quote(state, npc, "lockpicks", side=trade.SELL)
             for npc in (*FENCES, "npc_dock_mag")]
     best = max(int(q["unit_price"]) for q in paid if q["ok"])
-    assert measured["coin_per_unit"] > best, (measured, best)
+    best_hands = _per_attempt(recipe, BEST_CRAFT)
+    assert best_hands["coin_per_unit"] > best, (best_hands, best)
 
 
 def test_no_workshop_recipe_turns_bought_inputs_into_profit(hue) -> None:
     """Anything a thief can make from a fence's stock sells for less than the
-    stock cost: the bench saves coin on a tool, it never mints it."""
+    stock cost: the bench saves coin on a tool, it never mints it -- even in
+    the best crafter's hands (``BEST_CRAFT``)."""
     from engine.game import trade
 
     state = _city(11)
     for rid, recipe in _workshop().items():
-        measured = _per_attempt(recipe)
+        measured = _per_attempt(recipe, BEST_CRAFT)
         item = str(recipe["output"]["id"])
         paid = [trade.quote(state, npc, item, side=trade.SELL)
                 for npc in (*FENCES, "npc_dock_mag")]
         best = max((int(q["unit_price"]) for q in paid if q["ok"]), default=0)
         assert measured["coin_per_unit"] > best, (rid, measured, best)
+
+
+def test_no_workshop_recipe_is_a_money_loop_haggled_to_the_cap(hue) -> None:
+    """v0.18 T3 fix round 3: the same guard with every counter argued to
+    the haggle cap on both sides -- inputs bought cheapest, the thing made
+    sold dearest -- in the best crafter's hands, for every recipe against
+    every counter. Once the fences were made to pay, a set of picks cost
+    5.9 haggled at +2 and fetched 8 at Pell's; the picks' registry value is
+    6 so that no argument turns the bench into a mint."""
+    from engine.game import trade
+
+    state = _haggled_city()
+    for rid, recipe in _workshop().items():
+        measured = _per_attempt(recipe, BEST_CRAFT, state)
+        item = str(recipe["output"]["id"])
+        for npc in COUNTERS:
+            q = trade.quote(state, npc, item, side=trade.SELL)
+            if q["ok"]:
+                assert measured["coin_per_unit"] > int(q["unit_price"]), (rid, npc, measured, q)
 
 
 def test_the_lamplighters_coat_is_a_face_the_watch_files(session) -> None:

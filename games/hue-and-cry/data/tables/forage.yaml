@@ -28,7 +28,8 @@
 #
 # (food is hunger taken off by what it found; a day's hunger is 48.) Against
 # Task 1's cost of living (a bread floor of ~2 cr a day, survival.yaml) and a
-# careful pickpocket's ~1.3 cr a day: twelve hours in the gutters, every day,
+# careful pickpocket's ~1.3 cr a day (1.76 since v0.18 made the fences pay,
+# data/tables/trade.yaml): twelve hours in the gutters, every day,
 # feeds a thief most of the way and earns under a crown -- a subsistence, never
 # a flophouse, a tool or a job. Picking pockets stays the only way to MONEY
 # (the pickpocket earns its day in an hour or two); scrounging is what keeps a
@@ -54,7 +55,7 @@
 # seeds (mean day 2.5), the Undercroft's grating on 97% (2.5), the churchyard
 # wall to the Old Bell Tower on 68% (3.4, the Green is every other day).
 #
-# Version: v0.1.1 [2026-09-26]
+# Version: v0.1.2 [2026-09-29]
 
 version: 1
 

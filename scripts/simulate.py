@@ -45,9 +45,55 @@ FLAGSHIP-OWNED by design: they walk Edgewood's location ids, buy from
 Edgewood's vendors, and drill flagship skills. ``--game`` activates the named
 story first and then dispatches by shape -- a deck-shaped story (``paths.decks``
 and no quests/encounters) goes to ``scripts/simulate_decks.py``, the flagship
-runs the policy harness exactly as before, and any OTHER graph story is refused
-with its reason: the policies would walk it into location ids it does not have.
-No ``--game`` means the flagship, byte-for-byte as it always did.
+runs the policy harness exactly as before, HUE & CRY runs its own harnesses
+(below), and any OTHER graph story is refused with its reason: the policies
+would walk it into location ids it does not have. neon-city, the-long-con and
+dev-story are refused that way, and the refusal names the roadmap overhaul
+(v0.24.0-v0.26.0) where each gets a harness. No ``--game`` -- or ``--game
+clockwork-dark``, or a deck story -- prints byte-for-byte what it printed
+before v0.18 (tests/test_simulate_thief.py holds golden copies).
+
+THE THIEF (v0.18): ``--game hue-and-cry``. HUE & CRY's policies already exist,
+each a class in ``scripts/simulate_endings.py``, so nothing is re-implemented
+here: ``_simulate_thief`` plays that harness's ``play`` over ``--runs`` seeds
+from ``--seed`` (default 40 from 0, the endings harness's own) for ``--days``
+days (default: to the fair's last day + 2). ``--policy thief`` (the default)
+is ``simulate_endings.THIEF_POLICY``, the heister: the policy that burgles for
+its own sake, a careful burglar until the fair and then the Everflame's
+heart. Its comment says why, and what no endings policy does: sell its loot.
+``--policy all`` runs all eleven; any one of them may be named. Each row is
+simulate_endings' own table (endings, locks, fair, law: arrests and days
+served, jailbreak, heist, barge, trail) plus a ``thief`` block: worst wanted
+band at the end, jobs tried and carried out and their loot, clues, deaths and
+respawns, purses and gold. KEPT DAYS come from ``scripts/simulate_labour.py``
+instead -- the endings harness feeds its thief, so it keeps every day by
+construction -- as a ``living`` block: that harness's careful pickpocket,
+paying for its own bread and bed over the same seeds and days. Every harness
+player is ``simulate_law.Thief``, whose session store keeps nothing
+(``_KEEPS_NOTHING``): no run lands in ``data/saves``.
+
+AGENDA COLLISIONS (v0.18 T2): a ``collisions`` block, over every policy the
+run played -- where the Magpie, Captain Ardane and Silas Crook met the
+player (``simulate_endings.COLLISIONS`` defines each kind): the share of runs,
+the count a run, the first day, the policies it happened under.
+``--policy thieves`` plays the five it is measured over
+(``simulate_endings.THIEF_POLICIES``). The prose header says ``(agendas on)``;
+the ``living`` block alone runs with them off.
+
+THE LIVING (v0.18 T3): ``--policy living`` plays scripts/simulate_labour.py's
+thieves who pay their own way instead (``LIVING_POLICIES``): the honest
+porter for scale, the careful pickpocket, the careful pickpocket who takes a
+porter's shift when hungry, and the fencing burglar -- never borrowing, and
+welshing on Pell's advance or on Marrow's slate. Kept days, coin, deaths by
+cause and day, hauls and the loot left unsold, the credit and collectors, and
+the endings open at the end; agendas off, that harness's own default.
+
+TWO FLAGS A ROUTE DOES NOT READ ARE REFUSED (v0.18 T2): ``--days`` outside
+hue-and-cry, and any ``--policy`` given to the deck walker, which has none.
+Every other flag a route does not read is still ignored in silence:
+``--turns``, ``--tick-hours``, ``--max-days`` and ``--thread-rate`` under
+hue-and-cry; ``--runs``/``--seeds``, ``--max-days`` and ``--thread-rate`` on
+the flagship; ``--turns`` and ``--tick-hours`` on the deck walker.
 
 Usage:
     python scripts/simulate.py --turns 200 --seed 42 --policy cautious
@@ -55,8 +101,12 @@ Usage:
     python scripts/simulate.py --policy pauper --turns 200   # can you live broke?
     python scripts/simulate.py --policy hero --turns 200     # does pushing back buy time?
     python scripts/simulate.py --game wicked-garden --runs 200   # the deck walker
+    python scripts/simulate.py --game hue-and-cry                # the thief, 40 seeds
+    python scripts/simulate.py --game hue-and-cry --policy all --seeds 10 --days 14 --json
+    python scripts/simulate.py --game hue-and-cry --policy thieves --seeds 40 --days 14
+    python scripts/simulate.py --game hue-and-cry --policy living --seeds 40 --days 14
 
-Version: v0.4.0 [2026-08-14]
+Version: v0.7.0 [2026-09-29] -- v0.18 T3: the living (the fencing burglar, the adaptive pickpocket)
 """
 
 from __future__ import annotations
@@ -1399,8 +1449,9 @@ def story_shape(manifest: Any) -> str:
 
     ``deck``: declares ``paths.decks`` and no quests or encounters -- the
     Garden shape, walked by ``scripts/simulate_decks.py``. ``graph``: declares
-    quests or encounters -- the flagship shape, run by the policies here.
-    Anything else is ``other`` and has no harness yet.
+    quests or encounters -- the flagship shape, run by the policies here (and
+    HUE & CRY's, run by its own harnesses; ``_dispatch_game`` routes by slug
+    within the shape). Anything else is ``other`` and has no harness yet.
     """
     paths = getattr(manifest, "paths", None) or {}
     if "decks" in paths and "quests" not in paths and "encounters" not in paths:
@@ -1424,14 +1475,27 @@ def _dispatch_game(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
     shape = story_shape(manifest)
 
     if shape == "deck":
+        # The deck walker has no policies and no --days (it walks --max-days):
+        # refused rather than silently ignored (v0.18 T2).
+        if args.policy is not None:
+            parser.error(
+                f"argument --policy: the deck walker (scripts/simulate_decks.py) has "
+                f"no policies; '{manifest.slug}' is deck-shaped -- drop --policy "
+                f"(--thread-rate sets how often it seals a bargain)"
+            )
+        if args.days is not None:
+            parser.error(
+                f"argument --days: hue-and-cry only; '{manifest.slug}' is deck-shaped "
+                f"-- use --max-days for its day budget"
+            )
         # The deck walker lives beside this script; imported by path so the
         # scripts directory needs no package machinery.
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import simulate_decks
 
         report = simulate_decks.simulate_deck_story(
-            runs=args.runs,
-            seed=args.seed,
+            runs=200 if args.runs is None else args.runs,
+            seed=42 if args.seed is None else args.seed,
             max_days=args.max_days,
             thread_rate=args.thread_rate,
         )
@@ -1441,15 +1505,236 @@ def _dispatch_game(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
             print(simulate_decks._render(report))
         return 0
 
+    if manifest.slug == THIEF_SLUG:
+        return _simulate_thief(args, parser)
+
     if manifest.slug != FLAGSHIP_SLUG:
+        overhaul = NO_HARNESS_YET.get(manifest.slug)
         parser.error(
             f"the scripted policies are flagship-owned -- they walk Edgewood's "
             f"location ids and vendors, which '{manifest.slug}' does not have. "
-            f"This harness can run '{FLAGSHIP_SLUG}' (graph) or any deck-shaped "
-            f"story (paths.decks, no quests/encounters); '{manifest.slug}' is "
-            f"{shape}-shaped and has no headless harness yet."
+            f"This harness can run '{FLAGSHIP_SLUG}' (graph), '{THIEF_SLUG}' "
+            f"(graph, through its own harnesses) or any deck-shaped story "
+            f"(paths.decks, no quests/encounters); '{manifest.slug}' is "
+            f"{shape}-shaped and has no headless harness yet"
+            + (f" -- its overhaul, {overhaul} on the roadmap, is where it gets one."
+               if overhaul else ".")
         )
     return None
+
+
+# ---------------------------------------------------------------------------
+# HUE & CRY: the thief (v0.18)
+# ---------------------------------------------------------------------------
+
+
+#: The graph story with harnesses of its own: scripts/simulate_endings.py's
+#: policies, scripts/simulate_labour.py's cost of living.
+THIEF_SLUG = "hue-and-cry"
+
+#: Graph stories with no harness, and the roadmap release that overhauls each
+#: (CLAUDE.md's in-flight table). The refusal names it rather than implying
+#: the harness is merely missing a flag.
+NO_HARNESS_YET = {"neon-city": "v0.24.0", "the-long-con": "v0.25.0", "dev-story": "v0.26.0"}
+
+#: The policy ``--policy thief`` names is ``simulate_endings.THIEF_POLICY``
+#: (the heister; its comment says why). The days a thief keeps on its own coin
+#: come from this simulate_labour policy -- see ``_simulate_thief``.
+LIVING_POLICY = "careful"
+
+#: ``--policy thieves``: every policy the agenda collisions are measured over
+#: (``simulate_endings.THIEF_POLICIES``: the heister, the three investigators
+#: and the loyalist -- the ones the collisions ruling names).
+THIEVES = "thieves"
+
+#: ``--policy living`` (v0.18 T3): the thieves who pay their own way, from
+#: scripts/simulate_labour.py -- see ``_simulate_living``.
+LIVING = "living"
+LIVING_POLICIES = ("porter", "careful", "careful_porter",
+                   "burglar", "burglar_pell", "burglar_marrow")
+
+#: ``--runs`` / ``--seed`` when HUE & CRY is named and they are not: the
+#: endings harness's own 40 seeds from 0, so the tables match its CHANGELOG's.
+THIEF_RUNS = 40
+THIEF_FIRST_SEED = 0
+
+
+def _thief_row(runs: list[Any]) -> dict[str, Any]:
+    """What a thief is measured by beyond simulate_endings' table, from the
+    fields its ``_play`` reads when a run is over."""
+    from engine.world import law
+
+    bands = list(law.load_spec()["wanted"]["bands"])
+
+    def mean(values: list[float]) -> Optional[float]:
+        return round(statistics.fmean(values), 2) if values else None
+
+    # A terminal death (The Rope by a death in the cells) is a death that did
+    # not respawn; every other death counted respawned (death.yaml).
+    terminal = [int(r.ending == "the_rope" and r.door == "death") for r in runs]
+    return {
+        "worst_band": {b: sum(r.worst_band == b for r in runs) for b in bands
+                       if any(r.worst_band == b for r in runs)},
+        "jobs_tried_per_run": mean([float(r.jobs_tried) for r in runs]),
+        "jobs_carried_out_per_run": mean([float(r.jobs_carried_out) for r in runs]),
+        "loot_value_per_run": mean([float(r.loot_value) for r in runs]),
+        "clues_per_run": mean([float(r.clues) for r in runs]),
+        "deaths_per_run": mean([float(r.deaths) for r in runs]),
+        "respawns_per_run": mean([float(max(0, r.deaths - t)) for r, t in zip(runs, terminal)]),
+        "income_per_run": mean([float(r.income) for r in runs]),
+        "end_gold": mean([float(r.gold) for r in runs]),
+        "end_gold_min": min((r.gold for r in runs), default=None),
+    }
+
+
+def _thief_span(args: argparse.Namespace,
+                parser: argparse.ArgumentParser) -> tuple[int, int, int]:
+    """The first seed, the seed count and the days a HUE & CRY run plays."""
+    from scripts import simulate_endings
+
+    if (args.runs is not None and args.runs < 1) or (args.days is not None and args.days < 1):
+        parser.error("--runs/--seeds and --days take a whole number from 1")
+    first = THIEF_FIRST_SEED if args.seed is None else int(args.seed)
+    count = THIEF_RUNS if args.runs is None else int(args.runs)
+    days = (int(args.days) if args.days is not None
+            else simulate_endings.fair_days()[1] + simulate_endings.DAYS_AFTER_THE_FAIR)
+    return first, count, days
+
+
+def _simulate_living(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """
+    ``--game hue-and-cry --policy living`` (v0.18 T3): the thieves who pay
+    their own way, from scripts/simulate_labour.py and nothing re-implemented
+    -- ``LIVING_POLICIES``: the honest porter for scale, the careful
+    pickpocket, the careful pickpocket who takes a porter's shift when hungry,
+    and the fencing burglar never borrowing, and welshing on Pell's advance
+    or Marrow's slate. Each is that harness's own ``measure`` (kept days,
+    coin, deaths by cause and by day, the hauls and the loot left unsold,
+    the credit and the collectors, the endings open at the end), over the
+    same seeds and days, with the agendas off (its own default).
+    """
+    import logging
+
+    from scripts import simulate_labour, simulate_law
+
+    first, count, days = _thief_span(args, parser)
+    quiet = logging.root.manager.disable
+    logging.disable(logging.WARNING)
+    try:
+        with simulate_law.agendas_off():
+            living = {p: simulate_labour.measure(p, count, days, first=first)
+                      for p in LIVING_POLICIES}
+    finally:
+        logging.disable(quiet)
+    payload = {
+        "config": {"game": THIEF_SLUG, "policy": LIVING,
+                   "seeds": [first, first + count - 1], "days": days, "agendas": "off"},
+        "living": living,
+    }
+    if args.json:
+        print(json.dumps(payload, indent=2))
+        return 0
+    print(f"{THIEF_SLUG}: seeds {first}-{first + count - 1}, {days} days, the living "
+          f"(scripts/simulate_labour.py, agendas off)\n\n"
+          + "\n\n".join(simulate_labour.render(p, r) for p, r in living.items()))
+    return 0
+
+
+def _simulate_thief(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """
+    ``--game hue-and-cry``: HUE & CRY's own harnesses, reused and not copied.
+
+    Every policy is a class in scripts/simulate_endings.py, played through its
+    ``play`` over the seeds (``--seed`` .. ``--seed + --runs - 1``), for
+    ``--days`` days or to its own horizon (the fair's last day + 2), with the
+    city's agendas on, exactly as that harness plays it. Each policy's row is
+    that harness's own ``summarise`` plus a ``thief`` block read off the
+    finished runs (``_thief_row``).
+
+    KEPT DAYS come from scripts/simulate_labour.py, because the endings
+    harness feeds and rests its thief every few hours (``Burglar.wait_until``)
+    and so keeps every day by construction. The ``living`` block is that
+    harness's careful pickpocket -- the one thief there who pays for its own
+    bread and bed -- over the same seeds and days, with its agendas off (its
+    own default). The owner's v0.14 ruling stands: its starving on purses
+    alone is deliberate pressure, reported here, not tuned.
+    """
+    import logging
+
+    from scripts import simulate_endings, simulate_labour, simulate_law
+
+    if args.policy == LIVING:
+        return _simulate_living(args, parser)
+    if args.policy in (None, "thief"):
+        names = [simulate_endings.THIEF_POLICY]
+    elif args.policy == THIEVES:
+        names = list(simulate_endings.THIEF_POLICIES)
+    elif args.policy == "all":
+        names = list(simulate_endings.POLICIES)
+    elif args.policy in simulate_endings.POLICIES:
+        names = [args.policy]
+    else:
+        parser.error(
+            f"argument --policy: '{args.policy}' is not a HUE & CRY policy; "
+            f"--game {THIEF_SLUG} plays scripts/simulate_endings.py's: thief "
+            f"(= {simulate_endings.THIEF_POLICY}), {THIEVES} "
+            f"(= {', '.join(simulate_endings.THIEF_POLICIES)}), "
+            f"{', '.join(simulate_endings.POLICIES)}, {LIVING} "
+            f"(= scripts/simulate_labour.py's {', '.join(LIVING_POLICIES)}), or all."
+        )
+
+    first, count, days = _thief_span(args, parser)
+    seeds = list(range(first, first + count))
+
+    # The harnesses' own quiet (simulate_endings.main), put back afterwards
+    # so an in-process caller keeps its logging.
+    quiet = logging.root.manager.disable
+    logging.disable(logging.WARNING)
+    try:
+        reports: dict[str, dict[str, Any]] = {}
+        played: dict[str, list[Any]] = {}
+        for name in names:
+            runs = [simulate_endings.play(seed, name, days=args.days) for seed in seeds]
+            played[name] = runs
+            reports[name] = {**simulate_endings.summarise(runs), "thief": _thief_row(runs)}
+        collisions = simulate_endings.summarise_collisions(played)
+        with simulate_law.agendas_off():
+            living = simulate_labour.measure(LIVING_POLICY, count, days, first=first)
+    finally:
+        logging.disable(quiet)
+
+    payload = {
+        "config": {"game": THIEF_SLUG, "policy": args.policy or "thief",
+                   "thief": simulate_endings.THIEF_POLICY,
+                   "seeds": [first, first + count - 1],   # the first and the last
+                   "days": days, "agendas": "on (living: off)"},
+        "policies": reports,
+        "reach": simulate_endings.reach(reports),
+        "collisions": collisions,
+        "living": {"policy": LIVING_POLICY, **living},
+    }
+    if args.json:
+        print(json.dumps(payload, indent=2))
+        return 0
+    blocks = []
+    for name, row in reports.items():
+        t = row["thief"]
+        blocks.append(
+            simulate_endings.render(name, row)
+            + f"\n  thief            worst band {t['worst_band']}; jobs tried/run "
+            f"{t['jobs_tried_per_run']}, carried out/run {t['jobs_carried_out_per_run']} "
+            f"(loot {t['loot_value_per_run']}); clues/run {t['clues_per_run']}; deaths/run "
+            f"{t['deaths_per_run']} (respawns {t['respawns_per_run']}); crowns lifted/run "
+            f"{t['income_per_run']}; gold at the end {t['end_gold']} (min {t['end_gold_min']})"
+        )
+    blocks.append(simulate_endings.render_reach(payload["reach"]))
+    blocks.append(simulate_endings.render_collisions(collisions))
+    blocks.append("living -- the days a thief keeps on its own coin "
+                  "(scripts/simulate_labour.py, agendas off)\n"
+                  + simulate_labour.render(LIVING_POLICY, living))
+    print(f"{THIEF_SLUG}: seeds {first}-{first + count - 1}, {days} days (agendas on)\n\n"
+          + "\n\n".join(blocks))
+    return 0
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -1459,26 +1744,43 @@ def main(argv: Optional[list[str]] = None) -> int:
             "Headless balance harness. Default: the flagship's five scripted "
             "policies. --game <slug> activates a story first and dispatches "
             "by shape: deck-shaped stories run scripts/simulate_decks.py; "
-            "graph stories other than the flagship are refused, because the "
-            "policies are flagship-owned."
+            "hue-and-cry runs its own harnesses (scripts/simulate_endings.py's "
+            "policies, --policy thief); other graph stories are refused, "
+            "because the flagship's policies are flagship-owned."
         )
     )
     parser.add_argument("--turns", type=int, default=200, help="Turns to play.")
-    parser.add_argument("--seed", type=int, default=42, help="World seed.")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="World seed (default 42); hue-and-cry: the first seed (default 0).",
+    )
     parser.add_argument(
         "--game",
         default="",
         help=(
             "Story slug to activate and simulate. Deck-shaped stories dispatch "
-            "to the deck walker; graph stories other than the flagship are "
-            "refused (the policies are flagship-owned). Default: the flagship."
+            "to the deck walker; hue-and-cry to its own harnesses; other graph "
+            "stories than the flagship are refused (the policies are "
+            "flagship-owned). Default: the flagship."
         ),
     )
     parser.add_argument(
         "--runs",
+        "--seeds",
+        dest="runs",
         type=int,
-        default=200,
-        help="Deck stories only: seeded runs to walk.",
+        default=None,
+        help="Deck stories: seeded runs to walk (default 200). hue-and-cry: "
+        "seeds per policy (default 40).",
+    )
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=None,
+        help="hue-and-cry only (refused elsewhere): days per run (default: to the "
+        "fair's last day + 2).",
     )
     parser.add_argument(
         "--max-days",
@@ -1494,9 +1796,16 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     parser.add_argument(
         "--policy",
-        default="cautious",
-        choices=[*sorted(POLICIES), "all"],
-        help="Scripted policy, or 'all' to run each in turn.",
+        default=None,
+        help=(
+            f"Scripted policy ({', '.join(sorted(POLICIES))}; default cautious), "
+            "or 'all' to run each in turn. hue-and-cry: 'thief' (the default), "
+            "'thieves' (the five the agenda collisions are measured over), "
+            "'living' (scripts/simulate_labour.py's thieves who pay their own "
+            "way: the fencing burglar, the adaptive pickpocket), "
+            "any of scripts/simulate_endings.py's policies, or 'all'. Deck "
+            "stories: refused (the deck walker has no policies)."
+        ),
     )
     parser.add_argument(
         "--tick-hours",
@@ -1514,6 +1823,20 @@ def main(argv: Optional[list[str]] = None) -> int:
         dispatched = _dispatch_game(args, parser)
         if dispatched is not None:
             return dispatched
+
+    # The flagship's defaults, resolved here rather than in argparse so that
+    # hue-and-cry can tell "not given" from "given" (it has its own).
+    if args.days is not None:
+        parser.error("argument --days: hue-and-cry only; the flagship plays --turns")
+    if args.seed is None:
+        args.seed = 42
+    if args.policy is None:
+        args.policy = "cautious"
+    if args.policy != "all" and args.policy not in POLICIES:
+        parser.error(
+            f"argument --policy: invalid choice: '{args.policy}' (choose from "
+            f"{', '.join(repr(p) for p in [*sorted(POLICIES), 'all'])})"
+        )
 
     names = sorted(POLICIES) if args.policy == "all" else [args.policy]
     reports = [

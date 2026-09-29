@@ -149,6 +149,18 @@
 # districts. They rarely find much on it.
 # It is never a living: 5.8 kept days in 20 against an honest porter's 18.4.
 # Credit carries a thief to a job; it does not replace one.
+# RE-MEASURED FOR A BURGLAR (v0.18 T3 fix round 1, after the fences were
+# made to pay -- data/tables/trade.yaml; `simulate.py --game hue-and-cry
+# --policy living`, 40 seeds x 14 days): a fencing burglar who takes either
+# line and welshes keeps FEWER days than one who never borrows (-0.62 Pell,
+# -0.60 Marrow, paired by seed, inside the noise), dies 0.7 more a run
+# (about 5 standard errors), ends 9.5-11 crowns poorer, and fences 19.7-22.4
+# crowns a run instead of 51.7, with 57-62 crowns of loot left unsold. Over
+# 10 days the advance still front-loads bread (+0.48, +0.40 kept); by 14 the
+# shut-out has cost more. The careful pickpocket's credit gain is unchanged
+# by the new fence pay: +3.1 (Pell) and +1.2 (Marrow) kept days over 10,
+# earning 1.76 cr a day now (its lifted goods sell better). The v0.15
+# decision's cost falls where it said. The lines are unchanged here.
 #
 # SECRECY. Lady Imelda is one of the three people the seed may make the
 # Magpie. Her squeeze turns on her BUTLER's memoir -- a scandal of her
@@ -156,7 +168,7 @@
 # or is not, the Magpie (asserted in tests/test_hue_and_cry.py). The
 # captain's squeeze names the Magpie only as the Watch's belief about YOU.
 #
-# Version: v0.6.0 [2026-09-26]
+# Version: v0.6.1 [2026-09-29]
 
 version: 1
 

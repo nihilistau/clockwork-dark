@@ -17,6 +17,100 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-09-29
+
+### Added
+
+- **`scripts/simulate.py --game hue-and-cry`** (v0.18 T1): this story's
+  harnesses in one report, from the repo's own balance entry point.
+  `--policy thief` (the default) is `simulate_endings`' heister, and any of
+  its eleven policies, or `all`, may be named; `--seeds`, `--days`, `--json`.
+  Each policy reports `simulate_endings`' table plus its worst wanted band,
+  jobs carried out, clues, deaths and respawns and gold, and the report
+  closes with the days `simulate_labour`'s careful pickpocket keeps on its
+  own coin. No policy is written twice, and nothing is saved. The README's
+  harness table has the row. At 40 seeds x 14 days: The Legend on 20%
+  (unchanged from the endings table), 2.4 jobs carried out a run, worst
+  band `hunted` on 16 seeds; the careful pickpocket keeps 31% of its days
+  and dies 2.90 times a run, 95% of runs at least once (restated at the
+  fences' new pay, v0.18 T3 fix round 2; it was 30% and 2.92 at T1; the
+  root CHANGELOG has the rest).
+- **Agenda collisions, measured** (v0.18 T2): where the Magpie, Ardane and
+  Silas meet the thief, read from state (`simulate_endings.COLLISIONS`;
+  `simulate.py --game hue-and-cry --policy thieves` prints the `collisions`
+  block). 40 seeds x 14 days, agendas on, share of runs (mean first day):
+
+  | Collision | heister | investigators (a/b/c) | loyalist | all |
+  |---|---|---|---|---|
+  | the Magpie robs a house you cased or burgled | 10% (d2.8) | 60/52/55% (d8.5-8.9) | 0% | 36% (d8.4) |
+  | ... while you were there that night (20:00-05:00) | 0% | 8/8/8% | 0% | 4.5% (d7.7) |
+  | ... within the same noon-to-noon day | 0% | 18/12/15% | 0% | 9% (d7.7) |
+  | a Magpie robbery while you are held (the alibi) | 0% | 18/20/15% | 0% | 10.5% (d7.9) |
+  | Ardane's doubled watch or warrant over a thief with hot goods or `sought`+ | 100% | 92/90/90% | 85% | 92% (d8.2) |
+  | ... over a thief with hot goods, whatever the band | 92% | 92/88/85% | 62% | 84% (d8.1) |
+  | Silas splits the Company under a sworn thief | 30% | 10/20/20% | 45% | 25% (d7) |
+
+  The Magpie was there first in 101 of 122 house collisions; true
+  co-presence is half the same-day figure; Ardane's net always meets the
+  thief under the doubled watch, never first under the warrant, and the
+  hot-goods row is the one the player's own thieving decides; Silas's split
+  always lands on day 7. The root CHANGELOG has the definitions.
+- **The burglar's credit, and the careful pickpocket, measured** (v0.18 T3;
+  `simulate.py --game hue-and-cry --policy living`, the root CHANGELOG has
+  the full table). `scripts/simulate_labour.py` gains:
+  - the fencing burglar, the first policy that sells its hauls to live on;
+  - the same burglar welshing on Pell's advance or on Marrow's slate;
+  - a careful pickpocket who takes a porter's shift when hungry.
+
+  Each death is now read for its cause. At 40 seeds x 14 days, with the
+  fences' new pay (below):
+  - **Burglary beats pickpocketing, and honest work stays the safe road.**
+    The burglar keeps 7.25 days against the careful pickpocket's 4.33, and
+    dies 0.7 times a run against 2.9. It earns 3.71 cr a day and ends with
+    13 crowns. The honest porter keeps 13.05 days and never dies.
+  - **Welshing now costs a burglar more than it gains.**
+    - Kept days: -0.62 (Pell) and -0.60 (Marrow) against never borrowing.
+    - Deaths: +0.7 a run.
+    - Coin: it ends 9.5-11 crowns poorer.
+    - Once the line breaks, neither fence buys. It fences 19.7-22.4 crowns
+      a run instead of 51.7, and ends with 57-62 crowns of loot it cannot
+      sell.
+    - Over 10 days the advance still buys a little bread (+0.4-0.5 kept).
+  - **The owner's v0.15 decision, restated.** Welshing still nets a
+    purses-only pickpocket kept days (+3.1 Pell, +1.2 Marrow over 10 days,
+    unchanged by the new pay). For a burglar, who needs a fence, it does
+    not. The credit is unchanged.
+  - **The careful pickpocket's deaths** (2.90 a run; the v0.14 pressure, not
+    tuned) are all hunger: at 05:00 in bed or at 21:00 waiting for the
+    night's purse, from day 5 on. None come in the street, the cells or at
+    the fair.
+  - **A careful thief who adapts keeps fed.** Taking a porter's shift when
+    hungry, it keeps 11.9 of 14 days (the porter 13.1) and dies once in 40
+    runs.
+
+### Changed
+
+- **The fences are made to pay** (v0.18 T3 fix round 1, the owner's
+  decision; `data/tables/trade.yaml`). Pell Hollis's spread goes from 0.55
+  to 0.75 and her cuts from 0.45/0.8 to 0.7/0.95. Marrow's spread goes from
+  0.4 to 0.7 and her cuts from 0.7/0.85 to 0.9/0.92.
+  - A hot haul now fetches 0.53 of its value at Pell's and 0.63 at
+    Marrow's, where it fetched 0.25 and 0.28. A 15-crown haul is about 8
+    and 9.5 crowns.
+  - That is the "7 to 10 at a fence once it is hot" that
+    `data/economy.yaml`'s lockpicks note always promised. The note had
+    left out the spread, and is corrected.
+  - Pell is still the better buyer once a thing has cooled (0.71 against
+    0.64), and Marrow the better for tonight's haul.
+  - Pell's spread stops at 0.75, and the lockpicks' registry value drops
+    from 10 to 6 (fix rounds 2-3), so the Porters' Hall bench cannot mint
+    coin, even argued to the haggle cap. In the best hands (+2 craft) a set
+    made from bought makings costs 6.63, or 5.92 haggled. No counter pays
+    more than 4 for one, or 5 haggled. Marrow still sells them for 15.
+  - Only the pickpocket's lifted goods and the burglar's hauls sell
+    differently. The jobs, hoard, endings and scrounge harnesses print
+    exactly what they printed before.
+
 ## [0.17.0] — 2026-09-28
 
 Act III and the eight endings, the fifth of the v1.0 stages: the story can

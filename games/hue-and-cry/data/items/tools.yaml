@@ -28,7 +28,7 @@ items:
       and they are not used up by any of them.
     tags: [tool]
     weight: 0.2
-    value: 10
+    value: 6
     stack: false
 
   - id: smoke_pellet

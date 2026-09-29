@@ -133,6 +133,7 @@ npm ci --prefix ui; npm test --prefix ui                # the client: plugins, r
 npm run build --prefix ui                               # rebuild the COMMITTED dist after any ui/src change
 .\.venv\Scripts\python.exe launcher.py --check          # local services and what each outage costs
 .\.venv\Scripts\python.exe scripts\simulate.py --policy all --turns 200
+.\.venv\Scripts\python.exe scripts\simulate.py --game hue-and-cry     # HUE & CRY's thief, over its own harnesses
 ```
 
 The build output is `content/scenes/clockwork/static/dist`, and it is

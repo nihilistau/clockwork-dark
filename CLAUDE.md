@@ -10,13 +10,15 @@ release to release.
 
 ## Status
 
-**v0.17.0** is the current release (CHANGELOG.md has every release since 0.4.0;
+**v0.18.0** is the current release (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
-**3734 passing, 4 skipped in 23m38s** (v0.17.0, measured in a checkout
+**3776 passing, 4 skipped in 32m31s** (v0.18.0, measured in a checkout
 holding the gitignored `Design_files/`, which runs the Design_files-only
-Garden test; a fresh worktree skips it, so 3733 pass and 5 skip there), no
-expected failures (measured 2026-09-28, v0.17.0 release; one skip is the
+Garden test; a fresh worktree skips it, so 3775 pass and 5 skip there; the
+time was taken with the client tests, the validator and doctor running
+beside it, and `tests/test_simulate_thief.py` adds about four minutes), no
+expected failures (measured 2026-09-29, v0.18.0 release; one skip is the
 stamina soft-lock test, which covers only stories with no rest verb and so
 skips HUE & CRY too), plus **144 client tests** under `ui/tests/`
 (`npm test --prefix ui`; `vitest` is a devDependency, so
@@ -45,8 +47,10 @@ accusation — and, since v0.17, Act III: the Hanging Fair on Gallows Green
 and `death.yaml` (hp 0 respawns in the Snuffs; dying held at the fair is The
 Rope), with all eight endings, each through its own door and each earned:
 Cleared, A Lantern, Honest After All, Partners, The Legend, Guildmaster, The
-Dapper's City and The Rope, the fail-forward. HUE & CRY is finishable; its
-screens, art and live play are still to come). Pick one with
+Dapper's City and The Rope, the fail-forward — and, since v0.18, burglary
+pays (the owner's decision: the fences pay about half a hot haul's value)
+and `scripts/simulate.py --game hue-and-cry` runs its thief policies.
+HUE & CRY is finishable; its screens, art and live play are still to come). Pick one with
 `launcher.py --game <slug>`.
 
 ## In flight
@@ -69,8 +73,8 @@ only once the last of them lands:
 | v0.15.0 | Guild economy: crafting, the Magpie's Hoard, blackmail and fence-credit threads, Brask's gate | **shipped** |
 | v0.16.0 | Acts I–II: arcs, the opening, initiation deck, interrogation deck, the Magpie's trail, the reveal and the alibi beat | **shipped** |
 | v0.17.0 | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | **shipped** |
-| v0.18.0 | `simulate.py`'s thief policy -- and re-measure welshing's cost for a burglar shut out of both fences (owner decision in v0.15; its gain over never borrowing shrank in v0.17, see CHANGELOG), and the careful pickpocket's ~1.9 deaths a run | next |
-| v0.19.0 | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | queued |
+| v0.18.0 | `simulate.py`'s thief policy, agenda collisions measured, welshing's cost for a fencing burglar and the careful pickpocket's deaths measured; the fences made to pay (owner decision) and the lockpick money loop closed | **shipped** |
+| v0.19.0 | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | next |
 | v0.20.0 | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker | queued |
 | v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | queued |
 | v0.22.0 | The Clockwork Dark overhaul | queued |
@@ -253,13 +257,46 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   on the flagship's phantom `quiet_life` arc, not the story's default arcs
   (`quests.seed_default_arcs` runs only in `procgen.new_game_state`).
   Judged harmless in v0.16 T1's review.
-- HUE & CRY's careful pickpocket still starves: it dies ~1.9 times a run and
-  reaches 0 hp on 95% of seeds in ten days, keeping 26% of days
-  (simulate_labour, 40 seeds, flophouse; the credit policies reach 0 on
-  52.5% (Pell) to 87.5% (Marrow)). Since v0.17 a death respawns in the Snuffs
-  (`data/rules/death.yaml`), so it no longer ends the run, but a purses-only
-  living is still below the cost of living. It is taken up with v0.18.0's
-  thief policy (hue CHANGELOG [0.17.0]).
+- HUE & CRY's careful pickpocket still starves, by the owner's v0.14
+  decision (deliberate pressure, not tuned). Measured in v0.18 T3 at 40
+  seeds x 14 days (`simulate.py --game hue-and-cry --policy living`): it
+  dies 2.90 times a run, and every death is hunger -- none in the street,
+  the cells or at the fair -- at 05:00 in bed or at 21:00 waiting for the
+  night's purse, first on day 6.2, never before day 5. It keeps 4.33 of 14
+  days. The fences' new pay (below) barely reaches it: its marks' goods
+  are cheap, and it banks the extra coin rather than eating it. A careful thief who takes a porter's shift when hungry
+  (`careful_porter`) keeps 11.9 (the honest porter 13.1) and dies once in
+  40 runs, so a living exists for one who adapts. Measured and kept.
+- Welshing on a fence's credit still nets a purses-only pickpocket kept
+  days: +3.1 on Pell's line and +1.2 on Marrow's over 10 days, unchanged
+  by the fences' new pay. The owner accepted that in v0.15 because the cost
+  falls on a burglar. v0.18 T3 measured it there, after the fences were
+  made to pay (v0.18 T3 fix round 1, `data/tables/trade.yaml`: a hot haul
+  now fetches about 0.53 of its value at Pell's and 0.63 at Marrow's, not
+  0.25 and 0.28). Over 14 days the fencing burglar who welshes:
+  - keeps fewer days (-0.62, -0.60);
+  - dies 0.7 more a run;
+  - ends 9.5-11 crowns poorer;
+  - fences about 30 crowns less, because neither fence buys again.
+
+  Over 10 days the advance still buys it +0.4-0.5 kept days. The credit is
+  unchanged (CHANGELOG [0.18.0]).
+- The fencing burglar still dies 0.7 times a run, all hunger, while
+  keeping 7.25 of 14 days (the careful pickpocket 4.33, the porter 13.05)
+  and ending with 13 crowns on average. Its death log (gold and place,
+  v0.18 T3 fix round 2) says why: 17 of its 28 deaths over 40 runs came
+  with no coin in hand, and 17 came at 04:00-06:00 in its Snuffs bed
+  before the quay's breakfast. The 11 with coin held 1-12 crowns, 9 of
+  them in that same pre-dawn bed, when its two carried meals (`STOCK`,
+  every labour policy's rule) were gone and no counter was open. So it
+  mostly starves on the lean nights between hauls. Recorded, no policy
+  changed.
+- A fence pays slightly more than an honest counter for a CLEAN thing:
+  Pell 0.75 and Marrow 0.7 of value, against Dock Mag's and the city's 0.5.
+  The engine has one sell spread per vendor and no separate clean rate,
+  and v0.18 T3 raised the fences' spreads so that stolen goods pay
+  (`data/tables/trade.yaml`). It is at most a crown more on a scrounged
+  find, and no policy exploits it.
 - A death in the cells during HUE & CRY's Hanging Fair is The Rope, whatever
   took hp to 0. The hanging itself has a scene since v0.17 T3 (the gallows
   deck, `data/scenes/the_gallows.yaml`, dealt at nine on the fair's last
