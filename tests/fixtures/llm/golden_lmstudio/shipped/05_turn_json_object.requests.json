@@ -1,0 +1,59 @@
+[
+  {
+    "method": "GET",
+    "url": "http://localhost:1234/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  },
+  {
+    "method": "POST",
+    "url": "http://localhost:1234/v1/chat/completions",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "max_tokens": 4400,
+      "messages": [
+        {
+          "content": "You narrate a golden-test story in the second person.",
+          "role": "system"
+        },
+        {
+          "content": "WORLD STATE: dusk at the forest clearing; the east path is open.",
+          "role": "system"
+        },
+        {
+          "content": "The wind turns. Something in the trees has noticed you.",
+          "role": "assistant"
+        },
+        {
+          "content": "I follow the path east.",
+          "role": "user"
+        }
+      ],
+      "model": "golden/narrator-26b",
+      "response_format": {
+        "json_schema": {
+          "name": "json_object",
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "strict": true
+        },
+        "type": "json_schema"
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.85,
+      "ttl": 900
+    }
+  }
+]

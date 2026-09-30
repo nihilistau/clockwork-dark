@@ -12,10 +12,10 @@ toward Edgewood", the model wrote them walking into the village, and the save
 afterwards read ``turn 1 | forest_clearing | 10.0h | stamina 100``. Nothing had
 moved, because the only channel that could move anything was unreachable:
 
-  1. ``engine/lmstudio/schemas.py::storyteller_turn_schema`` sets
+  1. ``engine/llm/schemas.py::storyteller_turn_schema`` sets
      ``additionalProperties: False`` and declares no ``tool_calls`` property,
      so with the grammar on a tool call is literally unsamplable.
-  2. Nothing sent a tool manifest -- ``engine/lmstudio/tools.py::build_manifest``
+  2. Nothing sent a tool manifest -- ``engine/llm/tools.py::build_manifest``
      lost its last production caller when ``turn_loop.py`` was retired.
   3. No prompt mentioned tool calls, and the flagship persona forbids the
      concept outright.

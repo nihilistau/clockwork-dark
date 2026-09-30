@@ -728,22 +728,24 @@ def _summarizer_fn() -> Optional[Callable[[list[dict[str, Any]]], str]]:
     truncated generation from a model that had nothing to say -- it just fell
     back to deterministic compression in silence.
 
-    Three things changed. It routes through ``engine.lmstudio.backend``, which
+    Three things changed. It routes through ``engine.llm.backend``, which
     sends ``reasoning: "off"`` on the native transport so the cap buys answer
     rather than deliberation. The cap comes from the profile instead of a
     hardcoded 400. And a starved response is logged and reported as empty on
     purpose, so the summarizer's own loud fallback fires.
 
-    Returns None when LM Studio is unreachable, which makes the summarizer fall
-    back to deterministic compression rather than freezing the memory.
+    Returns None when the model server is unreachable, which makes the
+    summarizer fall back to deterministic compression rather than freezing
+    the memory. "Reachable" is the configured provider's own health probe
+    (``LMStudioBackend.server_available``, v0.19.0): until then it was LM
+    Studio's route whatever the provider, so every other server read as down.
     """
     try:
-        from engine.lmstudio.backend import get_backend
-        from engine.lmstudio.client import get_lms_client
+        from engine.llm.backend import get_backend
 
-        if not get_lms_client().is_available():
-            return None
         backend = get_backend()
+        if not backend.server_available():
+            return None
 
         def _call(messages: list[dict[str, Any]]) -> str:
             response = backend.chat(

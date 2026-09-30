@@ -21,12 +21,17 @@ Write-Host "Running tests..."
 & $VenvPython -m pytest tests/ -q --tb=short
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+# The configured model server, read from the config the engine itself reads
+# (config/default.yaml under config/local.yaml), never written here.
+$ModelServer = & $VenvPython -c 'from engine.config import get_config; c = get_config(); print(c.get(''llm.provider''), ''expected at'', c.get(''llm.base_url''))'
+if ($LASTEXITCODE -ne 0 -or -not $ModelServer) { $ModelServer = "(could not read llm.provider from the config)" }
+
 Write-Host ""
 Write-Host "All green. Next steps:"
 Write-Host ""
 Write-Host "  Check the environment:   python scripts\doctor.py"
 Write-Host "  Check local services:    python launcher.py --check"
-Write-Host "                           (LM Studio expected at http://localhost:1234/v1)"
+Write-Host "                           (model server: $ModelServer)"
 Write-Host "  Seed lore (first run):   python scripts\seed_lore.py"
 Write-Host ""
 Write-Host "  List installed games:    python launcher.py --list-games"

@@ -1,0 +1,22 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 2+2? Answer with one number only."
+      }
+    ],
+    "max_tokens": 16,
+    "response_format": {
+      "type": "not_a_format"
+    }
+  },
+  "status": 400,
+  "json": {
+    "error": {
+      "code": 400,
+      "message": "response_format type must be one of \"text\" or \"json_object\", but got: not_a_format",
+      "type": "invalid_request_error"
+    }
+  }
+}

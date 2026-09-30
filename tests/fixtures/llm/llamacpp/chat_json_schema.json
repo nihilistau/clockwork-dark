@@ -1,0 +1,72 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with exactly {\"answer\": \"no\", \"note\": \"free\"}"
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 200,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "structured_output",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "yes"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "answer"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "status": 200,
+  "json": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"answer\": \"yes\"\n}\n"
+        }
+      }
+    ],
+    "created": 1790706336,
+    "model": "Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+    "system_fingerprint": "b7966-8872ad212",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 10,
+      "prompt_tokens": 25,
+      "total_tokens": 35
+    },
+    "id": "chatcmpl-Vk6KdoQMzmZPaZD863Ih3CrYAwm1U7RX",
+    "timings": {
+      "cache_n": 24,
+      "prompt_n": 1,
+      "prompt_ms": 28.259,
+      "prompt_per_token_ms": 28.259,
+      "prompt_per_second": 35.386956367882796,
+      "predicted_n": 10,
+      "predicted_ms": 155.747,
+      "predicted_per_token_ms": 15.574700000000002,
+      "predicted_per_second": 64.20669418993624
+    }
+  }
+}

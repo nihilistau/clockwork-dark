@@ -1,0 +1,6 @@
+
+LM Studio
+  [ ok ]  liveness                     /api/v1/models answers: 3 models, loaded: golden/narrator-26b, golden/utility-8b
+  [ ok ]  model (golden/narrator-26b)  resolved from the server's own list
+  [ ok ]  chat probe                   ok: 'ready' in 0ms
+  [ ok ]  native /api/v1/chat          available - reasoning can be turned off

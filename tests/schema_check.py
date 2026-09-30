@@ -6,7 +6,7 @@ Checks a canned model reply against the grammar the sampler actually enforces.
 
 WHY THIS EXISTS. Every mock Storyteller in this suite used to emit a
 ``tool_calls`` array. The live turn schema
-(``engine/lmstudio/schemas.py::storyteller_turn_schema``) sets
+(``engine/llm/schemas.py::storyteller_turn_schema``) sets
 ``additionalProperties: False`` and declares no such property, so with
 structured output on that key is unsamplable -- no real model had ever sent one
 or could. The suite was therefore green for months while exercising a channel

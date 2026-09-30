@@ -195,17 +195,24 @@ def _infer(
     if llm_fn is not None:
         return llm_fn(messages)
 
-    from engine.lmstudio.backend import get_backend
+    from engine.llm.backend import get_backend
 
-    return get_backend().chat(
+    backend = get_backend()
+    envelope = {"name": "agent_plan", "strict": True, "schema": schema}
+    # Finding 4: on LM Studio this is v0.18's grammar, sent whatever
+    # `llm.structured_output` says; on any other server it rides the ladder,
+    # in that server's wire form, and on rung 3 nothing goes on the wire and
+    # `plan_for`'s parse-failure path answers (a silent plan). Without the
+    # grammar the prompt carries the shape instead.
+    response_format = backend.caller_format(envelope)
+    if not backend.provider().v18_ladder:
+        messages = backend.with_format_block(messages, envelope)
+    return backend.chat(
         messages,
         profile=str(getattr(spec, "profile", "small") or "small"),
         max_tokens=MAX_TOKENS,
         label=f"plan:{spec.id}",
-        response_format={
-            "type": "json_schema",
-            "json_schema": {"name": "agent_plan", "strict": True, "schema": schema},
-        },
+        response_format=response_format,
     ).content
 
 

@@ -3,14 +3,32 @@ scene:
     port: 5573
     host: "0.0.0.0"
 
-lmstudio:
+# The model server. Called `lmstudio:` until v0.19.0; a `lmstudio:` block in
+# config/local.yaml (or any other layer) is still read, renamed to `llm:` as
+# that layer loads, with one WARNING naming the file -- and `ttl_seconds`
+# inside it is read as `keep_alive_seconds`. The Settings panel rewrites such a
+# block as `llm:` the first time it saves. That alias is removed in v0.21.0.
+llm:
+  # Which server answers: lmstudio | vllm | llamacpp | ollama | openai_compat
+  # (engine/llm/providers.py; docs/MODEL_SERVERS.md). Any other name
+  # refuses to load, listing the legal ones. Naming another server means
+  # setting `base_url` to its base too. Every one can narrate a game;
+  # docs/MODEL_SERVERS.md says which of its facts were verified live.
+  provider: lmstudio
   base_url: "http://localhost:1234/v1"
-  # Reads lmstudio.txt (gitignored), falling back to the LMSTUDIO_API_KEY
-  # environment variable. Leave the file absent and the variable unset only if
-  # LM Studio's "Require API key" toggle is off -- otherwise every request 401s
-  # and the Storyteller silently falls back to a canned line.
-  api_key: "${file:lmstudio.txt}"
-  # Prefer LM Studio's native POST /api/v1/chat over the OpenAI-compatible
+  # A fallback chain, tried left to right; the first non-empty value wins:
+  # llm_api_key.txt, then lmstudio.txt (both gitignored, first line, relative
+  # to the repo), then the CLOCKWORK_LLM_API_KEY and LMSTUDIO_API_KEY
+  # environment variables. The two LM Studio-named sources (`lmstudio?...`)
+  # are read ONLY while `provider` is lmstudio, so LM Studio's key never goes
+  # to another server; any other provider reads llm_api_key.txt and
+  # CLOCKWORK_LLM_API_KEY (or an llm.api_key set in config/local.yaml).
+  # Read each time the key is used, never logged. Leave them all empty only
+  # if the server needs no key (LM Studio: its "Require API key" toggle is
+  # off) -- otherwise every request 401s and the Storyteller silently falls
+  # back to a canned line.
+  api_key: "${file:llm_api_key.txt|lmstudio?file:lmstudio.txt|env:CLOCKWORK_LLM_API_KEY|lmstudio?env:LMSTUDIO_API_KEY}"
+  # LM Studio: prefer its native POST /api/v1/chat over the OpenAI-compatible
   # /v1/chat/completions. This is not a style preference: the native endpoint is
   # the ONLY one that can turn reasoning off. Measured on this machine with
   # nvidia/nemotron-3-nano-4b, asking for a three-word greeting --
@@ -21,11 +39,16 @@ lmstudio:
   #   /api/v1/chat         reasoning: "off" ............. 0 reasoning tokens
   # Every OpenAI-compat knob is ignored (reasoning_effort is lmstudio-bug-tracker
   # #988). Requests needing tools or response_format still go OpenAI-compat,
-  # because /api/v1/chat rejects both -- see engine/lmstudio/backend.py.
+  # because /api/v1/chat rejects both -- see engine/llm/backend.py.
   prefer_native: true
 
-  # Fallback window used only when model discovery fails. The real number comes
-  # from the bound model's loaded_context_length via the registry.
+  # Fallback window used when model discovery fails. The real number comes
+  # from the bound model's loaded context via the registry. Two more uses
+  # since v0.19.0: Ollama's `num_ctx` (the context the engine asks it to
+  # load, capped by the model's own window, sent on every /api/chat request)
+  # when no `declared_models` context names one, and the window of a generic
+  # OpenAI-compatible server's model
+  # that neither the server nor a declaration sizes.
   context_tokens: 8192
   # Floor for the output reserve. The real number is the largest profile's WIRE
   # CAP -- max_tokens + reasoning_budget -- because that is the whole generation
@@ -45,24 +68,69 @@ lmstudio:
   # nowhere near it.
   timeout_seconds: 300
 
-  # Idle seconds before LM Studio may evict a model. With 47 models installed
-  # and JIT loading on, an un-evicted model holds VRAM the next profile needs.
-  # Sent on the OpenAI-compatible path only; /api/v1/chat rejects the key.
-  ttl_seconds: 900
+  # Idle seconds before the server may evict a model (was `ttl_seconds`). With
+  # 47 models installed and JIT loading on, an un-evicted model holds VRAM the
+  # next profile needs. LM Studio: sent as `ttl` on the OpenAI-compatible path
+  # only; /api/v1/chat rejects the key. Ollama: sent as `keep_alive` on every
+  # /api/chat request. Other servers take no such key and are sent none.
+  # 0 means "send nothing": the server's own default applies (Ollama's is 5
+  # minutes). It does NOT mean "unload at once", which is what Ollama itself
+  # would read into `keep_alive: 0`.
+  keep_alive_seconds: 900
 
-  # auto | json_schema | json_object | off. `auto` probes the server once and
-  # caches the answer; small quantized models often ignore tools entirely, so
-  # the prose fallback stays in place until a probe proves otherwise.
+  # What a model can do, declared by id, for a server whose model list does
+  # not say (engine/llm/discovery.py::apply_declared):
+  #   "Qwen/Qwen3-8B": {context: 32768, tools: true,
+  #                     reasoning: ["off", "on"], reasoning_default: "on"}
+  # It fills only what the server left empty: a context the server served or
+  # loaded always wins (a declaration does beat a trained or advertised
+  # window), and LM Studio's capability list is never overridden. Ollama's
+  # `thinking` says only that a knob exists, so for a model that reports it a
+  # declared `reasoning` list NARROWS its options (it never grants a knob):
+  # e.g. ["low", "medium", "high"] for a gpt-oss-style model, which is then
+  # sent `think: "high"` for a `high` profile and no `think` for an `off` one.
+  # A declared id the server does not list is warned about and never bound.
+  # On vLLM, llama-server and Ollama, `reasoning` listing "off" is also what
+  # makes the reasoning-off patch TRUSTED, so an `off` request's cap drops its
+  # reasoning budget; undeclared, the patch is sent with the full cap and its
+  # answer read knowing a template may ignore it (measured: Qwen3-4B-Thinking-
+  # 2507, Ollama's qwen3:4b). Never declare "off" for such a model.
+  # `reasoning_off_trusted: false` (every server but LM Studio) marks the patch UNTRUSTED for
+  # that model: still sent, but the cap keeps the reasoning budget and a
+  # request that starves with it is never re-sent. Default: unset, no change.
+  # See docs/MODEL_SERVERS.md.
+  declared_models: {}
+
+  # A generic OpenAI-compatible server only (provider: openai_compat): the
+  # request-body keys that turn thinking off on it, merged into an `off`
+  # request, e.g. {chat_template_kwargs: {enable_thinking: false}}. Declaring
+  # it makes the patch trusted (the cap drops the reasoning budget) and makes
+  # it the starvation retry. Empty: the engine sends no reasoning control to
+  # such a server. The other rows carry their own patch.
+  reasoning_off_body: {}
+
+  # auto | json_schema | json_object | off -- the rungs of the structured-output
+  # ladder (docs/MODEL_SERVERS.md): the full schema, valid JSON of any shape,
+  # or no grammar at all, each in the server's own wire form. `auto` probes the
+  # server once per process and caches the answer. LM Studio: v0.18's probe; a
+  # no means no grammar. Every other server: the grammar must visibly beat the
+  # prompt, and a server that fails is tried on json_object before none.
+  # Without the full schema on the wire (json_object, off, a failed probe) the
+  # narration prompt carries the shape as text instead -- on LM Studio only
+  # under `off` -- and the reply is conformed to the schema: a choice whose
+  # intent the engine did not offer is dropped whole, never shown, never run.
   # NOTE: a json_schema grammar constrains the CONTENT channel only. Reasoning
   # runs ungrammared and uncapped, so structured output gives ZERO protection
-  # against a reasoning model eating the whole token budget. Only
-  # `reasoning: off` on the native transport does.
+  # against a reasoning model eating the whole token budget. Only turning
+  # reasoning off does: LM Studio's native transport, or a server's own
+  # reasoning-off patch.
   structured_output: auto
 
-  # Tool calling, over MCP. This is how the @skill registry becomes reachable
-  # by a model at all: LM Studio's native route takes an `integrations` list of
-  # MCP servers, connects to them itself, and runs the tool loop server-side.
-  # The server is engine/mcp/skills_server.py, in the game's own process.
+  # LM Studio: tool calling, over MCP. This is how the @skill registry becomes
+  # reachable by a model at all: LM Studio's native route takes an
+  # `integrations` list of MCP servers, connects to them itself, and runs the
+  # tool loop server-side. The server is engine/mcp/skills_server.py, in the
+  # game's own process.
   #
   # WHY THIS IS THE ONLY WAY IT WORKS. /api/v1/chat rejects OpenAI-style
   # `tools` AND `response_format` with 400 unrecognized_keys, but accepts
@@ -72,9 +140,8 @@ lmstudio:
   # the narration grammar cannot ride one call; the MCP layer is the half that
   # can also stay cheap.
   #
-  # OFF BY DEFAULT, like every other generation feature here. It opens a
-  # listening socket and it has no production caller yet -- the two-phase turn
-  # that uses it lands separately.
+  # OFF BY DEFAULT, like every other generation feature here: it opens a
+  # listening socket. Phase A (below) is its caller.
   mcp:
     enabled: false
     # Loopback on purpose. LM Studio runs on the same machine (rule 11), and
@@ -132,7 +199,7 @@ lmstudio:
     phase_a:
       # `utility` on purpose -- Phase A picks tools, it does not write prose,
       # and the narration lane must stay free for the text the player is
-      # watching appear. See lmstudio.lanes above.
+      # watching appear. See llm.lanes below.
       profile: "utility"
       # Small, because the OUTPUT is receipts. The tool calls themselves are
       # what cost tokens here; the model is told to answer "DONE" and anything
@@ -140,7 +207,7 @@ lmstudio:
       # prose nobody reads -- and with reasoning off, none of it is thinking.
       max_tokens: 400
 
-  # Concurrent requests per lane. LM Studio serves these in parallel. Narration
+  # Concurrent requests per lane. The server serves these in parallel. Narration
   # gets its own lane so the summarizer and the Assistant can no longer stall
   # the text the player is watching appear -- the old single global semaphore
   # made every utility call a narration stall and vice versa.
@@ -257,7 +324,7 @@ lmstudio:
     # OFF, so the token cap buys answer rather than deliberation. The budget is
     # not zero because "off" is a request the OpenAI-compatible route ignores,
     # and a schema-constrained utility call (scripts/author.py, the planner)
-    # has no choice but to ride that route -- see engine/lmstudio/client.py.
+    # has no choice but to ride that route -- see engine/llm/client.py.
     small:
       model: ""
       temperature: 0.6
@@ -378,18 +445,27 @@ stt:
 # ---------------------------------------------------------------------------
 stack:
   services:
-    lmstudio:
+    # The model server (`lmstudio:` until v0.19.0; that name is still read).
+    # While `llm.provider` is lmstudio the doctor and the launcher show it as
+    # `lmstudio`, as they always have. It is the one FAIL-level service: with
+    # it down there is no narration, and `launcher.py --check` exits 1.
+    llm:
       enabled: true
-      # Managed externally -- LM Studio is a desktop app with its own server
-      # toggle. The stack only health-checks it and tells you if it is down.
+      # Managed externally by default -- LM Studio is a desktop app with its
+      # own server toggle; the stack only health-checks it. To have
+      # `launcher.py --stack` start a llama-server or `vllm serve` instead,
+      # set manage: true with command/args/root like any other service
+      # (docs/MODEL_SERVERS.md shows a llama-server example).
       manage: false
-      # The LM Studio REST API's model list. NOT /v1/models: that is the
-      # OpenAI-compat shim, which LM Studio does not own and logs as
-      # "Unexpected endpoint or method ... Returning 200 anyway" -- one ERROR
-      # line in the user's server log for every doctor run and every
-      # `launcher.py --check`. engine/stack.py checks this one by the SHAPE of
-      # the body, because a 200 from this server proves nothing.
-      health_url: "http://localhost:1234/api/v1/models"
+      # Empty: ask the configured provider's own health probe, against
+      # llm.base_url (engine/llm/providers.py, `health`). For LM Studio
+      # that is the REST API's model list, /api/v1/models, checked by the
+      # SHAPE of the body -- a 200 from that server proves nothing, and
+      # /v1/models is a route it does not own and logs an ERROR for. vLLM:
+      # /health then its model list; llama-server: /health (503 while
+      # loading); Ollama: /api/version then /api/tags. A URL set here is
+      # probed as it is instead.
+      health_url: ""
 
     voxtral_tts:
       enabled: true

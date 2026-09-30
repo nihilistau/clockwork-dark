@@ -1,0 +1,22 @@
+[
+  {
+    "method": "POST",
+    "url": "http://localhost:1234/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {}
+  },
+  {
+    "method": "POST",
+    "url": "http://localhost:1234/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {}
+  }
+]

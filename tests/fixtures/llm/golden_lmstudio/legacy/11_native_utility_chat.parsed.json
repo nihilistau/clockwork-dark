@@ -1,0 +1,45 @@
+{
+  "result": {
+    "content": "It is late autumn.",
+    "response_id": "resp_golden_native",
+    "model": "golden/utility-8b",
+    "input_tokens": 120,
+    "output_tokens": 42,
+    "stats": {
+      "input_tokens": 120,
+      "total_output_tokens": 42,
+      "reasoning_output_tokens": 0,
+      "tokens_per_second": 41.5,
+      "time_to_first_token_seconds": 0.25
+    },
+    "tool_calls": [],
+    "finish_reason": "",
+    "reasoning_content": "",
+    "reasoning_tokens": 0,
+    "transport": "native"
+  },
+  "backend_calls": [
+    {
+      "call": "chat",
+      "response": {
+        "content": "It is late autumn.",
+        "response_id": "resp_golden_native",
+        "model": "golden/utility-8b",
+        "input_tokens": 120,
+        "output_tokens": 42,
+        "stats": {
+          "input_tokens": 120,
+          "total_output_tokens": 42,
+          "reasoning_output_tokens": 0,
+          "tokens_per_second": 41.5,
+          "time_to_first_token_seconds": 0.25
+        },
+        "tool_calls": [],
+        "finish_reason": "",
+        "reasoning_content": "",
+        "reasoning_tokens": 0,
+        "transport": "native"
+      }
+    }
+  ]
+}

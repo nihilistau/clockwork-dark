@@ -1,0 +1,7 @@
+{
+  "error": {
+    "message": "Loading model",
+    "type": "unavailable_error",
+    "code": 503
+  }
+}

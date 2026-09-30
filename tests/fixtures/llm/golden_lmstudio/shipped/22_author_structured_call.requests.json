@@ -1,0 +1,74 @@
+[
+  {
+    "method": "GET",
+    "url": "http://localhost:1234/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  },
+  {
+    "method": "POST",
+    "url": "http://localhost:1234/v1/chat/completions",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "max_tokens": 2200,
+      "messages": [
+        {
+          "content": "You draft item content for a golden test.",
+          "role": "system"
+        },
+        {
+          "content": "Draft 1 item for this story.\n\nBRIEF:\nA brass key.",
+          "role": "user"
+        }
+      ],
+      "model": "golden/utility-8b",
+      "response_format": {
+        "json_schema": {
+          "name": "item_draft",
+          "schema": {
+            "additionalProperties": false,
+            "properties": {
+              "items": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 1,
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "strict": true
+        },
+        "type": "json_schema"
+      },
+      "stream": false,
+      "temperature": 0.4,
+      "ttl": 900
+    }
+  }
+]

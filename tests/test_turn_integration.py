@@ -87,44 +87,54 @@ def test_no_streaming_without_an_emit_callback():
 
 # -- tool execution ------------------------------------------------------
 #
-# NOT THE PRODUCTION CHANNEL, and the tests below say so in their names now.
-# The live turn grammar forbids a `tool_calls` key outright
-# (engine/lmstudio/schemas.py: additionalProperties False, no such property),
-# so no model has ever sent one. What these cover is the DISPATCHER -- its
-# allowlist, its tolerance of malformed arguments -- which is real code reached
-# from `execute_intent` and from an injected llm_fn. The channel a player's
-# choice actually travels is the structured intent; see tests/test_turn_intent.py
-# and the note at the top of engine/game/intents.py.
+# THE DISPATCHER, NOT THE TURN. These used to hand a `tool_calls` array to a
+# whole `run_turn` through an injected llm_fn, and the turn executed it -- a
+# narration turn changing the world through the channel rule 1 forbids, live
+# under `structured_output: off` (spec finding 5). v0.19.0 deleted that call,
+# so no turn executes `tool_calls` on any config, and these call
+# `engine.agents.tool_dispatcher.execute_tool_calls` directly, with the same
+# arrays and the same assertions: its allowlist and its tolerance of malformed
+# arguments are real code, reached in production from
+# `engine/agents/assistant.py`. tests/test_narration_tool_calls.py pins that a
+# turn moves nobody. The channel a player's choice actually travels is the
+# structured intent; see tests/test_turn_intent.py and engine/game/intents.py.
 
 
 def test_the_dispatcher_executes_a_move_it_is_handed():
-    session = SessionStore().create(seed=42, llm_fn=_llm(
-        tool_calls=[{"name": "move_to", "args": {"location_id": "edgewood_square"}}]
-    ))
-    run_turn(session, "The player travels.")
+    from engine.agents.tool_dispatcher import execute_tool_calls
+
+    session = SessionStore().create(seed=42, llm_fn=_llm())
+    execute_tool_calls(
+        [{"name": "move_to", "args": {"location_id": "edgewood_square"}}],
+        session.engine,
+    )
     assert session.engine.state.location_id == "edgewood_square"
 
 
 def test_system_only_skill_is_refused_from_the_model():
-    """The unbounded world tick must not be reachable by narration."""
-    session = SessionStore().create(seed=42, llm_fn=_llm(
-        tool_calls=[{"name": "advance_world_tick", "args": {"days": 5000}}]
-    ))
+    """The unbounded world tick must not be reachable by a model's tool call."""
+    from engine.agents.tool_dispatcher import execute_tool_calls
+
+    session = SessionStore().create(seed=42, llm_fn=_llm())
     before = session.engine.state.world_day
-    payload = run_turn(session, "The player waits.")
-    receipt = payload["tool_receipts"][0]
+    receipts = execute_tool_calls(
+        [{"name": "advance_world_tick", "args": {"days": 5000}}], session.engine
+    )
+    receipt = receipts[0]
     assert receipt["success"] is False
     assert "not callable" in receipt["result"]["error"]
     assert session.engine.state.world_day == before
 
 
-def test_malformed_tool_args_do_not_break_the_turn():
-    session = SessionStore().create(seed=42, llm_fn=_llm(
-        tool_calls=[{"name": "move_to", "args": ["edgewood_square"]}]
-    ))
-    payload = run_turn(session, "The player travels.")
-    assert payload["narration"] == NARRATION
-    assert payload["tool_receipts"][0]["success"] is False
+def test_malformed_tool_args_are_a_failed_receipt():
+    """A list where an object belongs is a failed receipt, not a raise."""
+    from engine.agents.tool_dispatcher import execute_tool_calls
+
+    session = SessionStore().create(seed=42, llm_fn=_llm())
+    receipts = execute_tool_calls(
+        [{"name": "move_to", "args": ["edgewood_square"]}], session.engine
+    )
+    assert receipts[0]["success"] is False
 
 
 # -- socket contract -----------------------------------------------------

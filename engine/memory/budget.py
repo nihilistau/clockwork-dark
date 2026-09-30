@@ -85,7 +85,7 @@ class Budget:
         and the guess is unnecessary.
         """
         from engine.config import get_config
-        from engine.lmstudio.profiles import resolve_profile
+        from engine.llm.profiles import resolve_profile
 
         cfg = get_config()
         try:
@@ -94,10 +94,10 @@ class Budget:
             # Reserve the full generation ceiling -- content and reasoning
             # both -- plus a floor so a profile with a small cap still leaves
             # room for a reply.
-            reserve = max(int(mp.wire_cap()), int(cfg.get("lmstudio.reserve_output", 900)))
+            reserve = max(int(mp.wire_cap()), int(cfg.get("llm.reserve_output", 900)))
         except Exception:  # noqa: BLE001 -- offline dev falls back to config
-            context = int(cfg.get("lmstudio.context_tokens", 8192))
-            reserve = int(cfg.get("lmstudio.reserve_output", 900))
+            context = int(cfg.get("llm.context_tokens", 8192))
+            reserve = int(cfg.get("llm.reserve_output", 900))
 
         # Never let the reserve eat the whole window: a huge max_tokens against
         # a small context must still leave a usable prompt.

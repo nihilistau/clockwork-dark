@@ -24,8 +24,8 @@ import pytest
 
 from engine.game.engine import GameEngine
 from engine.game.state import GameState
-from engine.lmstudio.backend import LMStudioBackend
-from engine.lmstudio.native import NativeClient
+from engine.llm.backend import LMStudioBackend
+from engine.llm.lmstudio_native import NativeClient
 from engine.mcp import skills_server
 from engine.mcp.skills_server import (
     SkillsServer,
@@ -42,10 +42,19 @@ from engine.skills.registry import (
     SKILL_REGISTRY,
 )
 
-needs_fastmcp = pytest.mark.skipif(
+_skip_without_fastmcp = pytest.mark.skipif(
     not skills_server.available(),
     reason="the optional 'fastmcp' package is not installed",
 )
+
+
+def needs_fastmcp(test: Any) -> Any:
+    """
+    A test that stands the real server up: skipped without ``fastmcp``, and
+    marked ``mcp_server`` so the conftest guard lets it start one
+    (``_no_owner_lm_studio_files``; its ``mcp.json`` stays redirected).
+    """
+    return pytest.mark.mcp_server(_skip_without_fastmcp(test))
 
 
 def _free_port() -> int:
@@ -134,10 +143,10 @@ def test_the_input_schema_is_the_one_engine_lmstudio_tools_builds():
     One home for signature introspection, not two.
 
     A second walk over the same signatures is how a manifest drifts from the
-    code it describes -- the exact failure engine/lmstudio/tools.py exists to
+    code it describes -- the exact failure engine/llm/tools.py exists to
     prevent.
     """
-    from engine.lmstudio.tools import skill_to_openai_tool
+    from engine.llm.tools import skill_to_openai_tool
 
     load_skill_packs()
     rest = SKILL_REGISTRY.get("rest")
@@ -534,6 +543,7 @@ def test_tool_call_events_are_collected_into_the_response():
 # -- degrades cleanly ------------------------------------------------------
 
 
+@pytest.mark.mcp_server
 def test_the_server_declines_to_start_without_the_optional_package(
     monkeypatch: pytest.MonkeyPatch,
 ):

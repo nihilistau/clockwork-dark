@@ -1,0 +1,50 @@
+[
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:1235/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  },
+  {
+    "method": "POST",
+    "url": "http://127.0.0.1:1235/v1/chat/completions",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "max_tokens": 3400,
+      "messages": [
+        {
+          "content": "Reply with {\"ok\": true}",
+          "role": "user"
+        }
+      ],
+      "model": "golden/narrator-26b",
+      "response_format": {
+        "json_schema": {
+          "name": "probe",
+          "schema": {
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          "strict": true
+        },
+        "type": "json_schema"
+      },
+      "stream": false,
+      "temperature": 0.0
+    }
+  }
+]

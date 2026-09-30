@@ -7,15 +7,18 @@ GM agent — narrates what the engine already resolved, and passes the Evaluator
 It does not dispatch skills. A choice's ``intent`` is executed by
 ``tool_dispatcher.execute_intent`` BEFORE this agent writes, and Phase A
 (``engine/agents/mechanics.py``) runs the model's own lookups before the
-transaction opens; both arrive here as receipts. The turn grammar forbids a
-``tool_calls`` key, which is what makes a narration turn unable to change the
-world by a second route.
+transaction opens; both arrive here as receipts. A narration turn has no
+second route to change the world, on any rung of the structured-output
+ladder: the turn grammar forbids a ``tool_calls`` key, and since v0.19.0 a
+reply that carries one anyway (no grammar on the wire) is conformed to the
+schema -- the key dropped, as is any choice whose intent the engine did not
+offer -- and nothing here executes it.
 
 This is the ONLY production narration path, and until now it never sent a
-``response_format``: ``engine/lmstudio/schemas.py`` built a full turn schema
-that nothing on this path ever used, and the ``lmstudio.structured_output``
+``response_format``: ``engine/llm/schemas.py`` built a full turn schema
+that nothing on this path ever used, and the ``llm.structured_output``
 config key was read nowhere at all. ``_infer`` now goes through
-``engine.lmstudio.backend``, which applies the configured structured-output
+``engine.llm.backend``, which applies the configured structured-output
 mode, picks the transport that can serve the request, and reports a reasoning-
 starved generation as its own failure instead of as an empty string.
 
@@ -70,11 +73,10 @@ from engine.agents.stream_processor import (
     strip_trailing_debris,
     trim_to_sentence,
 )
-from engine.agents.tool_dispatcher import execute_tool_calls
 from engine.game.engine import GameEngine
 from engine.game.plot import PlotFormula
 from engine.game.state import GameState
-from engine.lmstudio.schemas import NARRATION_MAX_CHARS
+from engine.llm.schemas import CONFORMED_AWAY, NARRATION_MAX_CHARS, conform
 from engine.lore.interceptors import AwarenessGateInterceptor
 from engine.lore.manager import get_lore_manager
 from engine.media.pipeline import MediaPipeline
@@ -316,6 +318,72 @@ def salvage_narration(raw: str) -> str:
     return streamer.text
 
 
+#: The generic rows a turn falls back on: an envelope that did not parse, and
+#: `conform`'s top-up when fewer than two model-written choices survive. They
+#: carry no intent, so offering them promises nothing a mechanic must keep.
+_FALLBACK_CHOICES: tuple[dict[str, str], ...] = (
+    {"id": "a", "text": "Look around"},
+    {"id": "b", "text": "Continue"},
+)
+
+#: The keys `parse_storyteller_response` fills in for the engine, with the
+#: values it fills them with. None of them is in the turn schema, so a model
+#: that WRITES one (a non-default value) has written past the grammar.
+_PARSE_DEFAULTS: dict[str, Any] = {
+    "tool_calls": [],
+    "stat_changes": {},
+    "items_gained": [],
+    "items_lost": [],
+    "skill_check": None,
+    "tags_inline": "",
+}
+
+#: The parser's own markers about the reply, never the model's.
+_PARSE_MARKERS = frozenset({"parse_failed", "salvaged"})
+
+
+def _fallback_choices() -> list[dict[str, str]]:
+    return [dict(row) for row in _FALLBACK_CHOICES]
+
+
+def conform_turn(
+    parsed: dict[str, Any], schema: Optional[dict[str, Any]]
+) -> dict[str, Any]:
+    """
+    ``schemas.conform`` for a narration turn, around the parser's bookkeeping.
+
+    The parser fills keys the schema does not declare (``_PARSE_DEFAULTS``);
+    left at their defaults they are the engine's, not the model's, and pass
+    untouched. A model that wrote one -- a ``tool_calls`` array, a
+    ``stat_changes`` claim, its own ``tags_inline`` -- had it dropped by
+    ``conform``, and the default is put back. Every value ``conform`` took
+    off the top level is kept under ``CONFORMED_AWAY``: the turn never acts
+    on it, but the audits that exist to count a model's claims (governance
+    R003, the evaluator's skill-check gate) still see it. No schema (an injected
+    ``llm_fn``) means nothing was built to conform to, and nothing changes.
+    On rung 1 the grammar made every drop unsamplable, so the result equals
+    the input.
+    """
+    if not schema or not isinstance(parsed, dict):
+        return parsed
+    keep = set(_PARSE_MARKERS) | {
+        key for key, default in _PARSE_DEFAULTS.items() if parsed.get(key, default) == default
+    }
+    out = conform(parsed, schema, fallback=_FALLBACK_CHOICES, keep=keep)
+    if out is parsed:
+        return parsed
+    # Dropped from the turn, never from the audit: what the model claimed is
+    # kept aside, where governance R003 and the evaluator read it
+    # (`schemas.claimed`). Nothing ACTS on it -- the parser's default goes back.
+    away = {key: parsed[key] for key in parsed if key not in out}
+    for key, default in _PARSE_DEFAULTS.items():
+        if key in parsed and key not in out:
+            out[key] = json.loads(json.dumps(default))
+    if away:
+        out[CONFORMED_AWAY] = away
+    return out
+
+
 def parse_storyteller_response(raw: str) -> dict[str, Any]:
     """
     Extract the JSON turn object from Storyteller output.
@@ -378,10 +446,7 @@ def parse_storyteller_response(raw: str) -> dict[str, Any]:
             # a cut-short generation is exactly when one would happen. The
             # retry in run_turn is driven by `salvaged`, not by the evaluator
             # noticing the choices are dull.
-            "choices": [
-                {"id": "a", "text": "Look around"},
-                {"id": "b", "text": "Continue"},
-            ],
+            "choices": _fallback_choices(),
             "tool_calls": [],
             "ledger_delta": {},
             "stat_changes": {},
@@ -405,10 +470,7 @@ def parse_storyteller_response(raw: str) -> dict[str, Any]:
 
     return {
         "narration": narration,
-        "choices": [
-            {"id": "a", "text": "Look around"},
-            {"id": "b", "text": "Continue"},
-        ],
+        "choices": _fallback_choices(),
         "tool_calls": [],
         "ledger_delta": {},
         "stat_changes": {},
@@ -490,6 +552,9 @@ class StorytellerAgent:
         self.ledger: StoryLedger = ledger if ledger is not None else StoryLedger()
         self._lore_chunks: list[Any] = []
         self._llm_failed = False
+        # The turn schema the last `_infer` built, or None when none was (an
+        # injected `llm_fn`). `run_turn` conforms the reply to it.
+        self._turn_schema: Optional[dict[str, Any]] = None
         # Populated per turn from the last generation, for diagnostics and for
         # the UI's reasoning channel.
         self.last_reasoning: str = ""
@@ -530,8 +595,8 @@ class StorytellerAgent:
             return Generation(raw=raw, complete=True, finish_reason="stop")
 
         from engine.game.intents import legal_intents
-        from engine.lmstudio.backend import get_backend
-        from engine.lmstudio.schemas import storyteller_turn_schema
+        from engine.llm.backend import get_backend
+        from engine.llm.schemas import storyteller_turn_schema
         from engine.memory.context import present_npc_ids
 
         backend = self._client or get_backend()
@@ -543,6 +608,14 @@ class StorytellerAgent:
         # a road that has since closed.
         schema = storyteller_turn_schema(intents=legal_intents(self.engine.state))
         response_format = backend.structured_output(schema)
+        # What `run_turn` conforms the reply to: the schema built for THIS
+        # attempt, whatever rung carried it.
+        self._turn_schema = schema
+        # Rungs 2 and 3 carry no shape on the wire, so the prompt carries it
+        # (spec §4.2). On rung 1 the messages are untouched, byte for byte.
+        shaper = getattr(backend, "with_format_block", None)
+        if callable(shaper):
+            messages = shaper(messages, schema)
 
         self.last_reasoning = ""
 
@@ -655,15 +728,28 @@ class StorytellerAgent:
             # non-streaming, reasoning-off attempt rather than handing the
             # evaluator an empty string and calling it a bad narration.
             if result.starved_by_reasoning:
-                recovered = backend.chat(
-                    messages,
-                    profile="big",
-                    reasoning="off",
-                    response_format=response_format,
-                    label="storyteller:recover",
-                    retry_on_starvation=False,
-                )
-                if recovered.content.strip():
+                # Through the backend's §5.3 recovery: on LM Studio this is
+                # v0.18's reasoning-off call; on any other server it never
+                # re-sends the request that just starved.
+                recover = getattr(backend, "recover_starved", None)
+                if callable(recover):
+                    recovered = recover(
+                        messages,
+                        profile="big",
+                        response_format=response_format,
+                        starved=result,
+                        label="storyteller:recover",
+                    )
+                else:
+                    recovered = backend.chat(
+                        messages,
+                        profile="big",
+                        reasoning="off",
+                        response_format=response_format,
+                        label="storyteller:recover",
+                        retry_on_starvation=False,
+                    )
+                if recovered is not None and recovered.content.strip():
                     logger.info(
                         "[storyteller] Recovered narration with reasoning off "
                         "(operation=_infer, chars=%s)",
@@ -855,15 +941,14 @@ class StorytellerAgent:
         # here a Phase A receipt is exactly as durable as a resolved intent,
         # which is the rule the `resolved` list above already follows.
         #
-        # Returns [] when `lmstudio.mcp.enabled` is false (the default), when
+        # Returns [] when `llm.mcp.enabled` is false (the default), when
         # the server or LM Studio is unavailable, or when the model called
         # nothing -- so the turn below is untouched in every one of those cases.
         # See engine/agents/mechanics.py.
         from engine.agents.mechanics import run_mechanics_phase
 
         # The registry's agent id, not this story's narrator id: skill
-        # allowlists are declared against the ROLE ("storyteller"), which is why
-        # execute_tool_calls below takes the same default.
+        # allowlists are declared against the ROLE ("storyteller").
         resolved += run_mechanics_phase(self.engine, player_action)
 
         tool_receipts: list[dict[str, Any]] = list(resolved)
@@ -915,6 +1000,7 @@ class StorytellerAgent:
                 rejected_draft=rejected_draft,
                 agreed_block=agreed_block,
             )
+            self._turn_schema = None
             try:
                 # Only stream the first attempt: a retry would replay text the
                 # player has already watched appear. The retry's narration
@@ -931,11 +1017,15 @@ class StorytellerAgent:
                 self._llm_failed = True
 
             raw = generation.raw
-            parsed = parse_storyteller_response(raw)
-            tool_receipts = resolved + execute_tool_calls(
-                parsed.get("tool_calls", []),
-                self.engine,
-            )
+            parsed = conform_turn(parse_storyteller_response(raw), self._turn_schema)
+            # NARRATION EXECUTES NO `tool_calls`, on any rung (spec §4.4,
+            # finding 5). This line used to hand any `tool_calls` array the
+            # reply carried to `execute_tool_calls`: unsamplable under the
+            # grammar, but live under `structured_output: off` and every rung
+            # without one, so a narration turn could move the player by the
+            # very channel rule 1 forbids. The only receipts are the engine's
+            # own: the resolved intent and Phase A's.
+            tool_receipts = list(resolved)
 
             # Never hand the player a severed sentence, and never hand them the
             # machinery. A generation that was cut short gets its unfinished

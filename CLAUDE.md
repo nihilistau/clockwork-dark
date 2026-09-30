@@ -10,21 +10,22 @@ release to release.
 
 ## Status
 
-**v0.18.0** is the current release (CHANGELOG.md has every release since 0.4.0;
+**v0.19.0** is the current release (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
-**3776 passing, 4 skipped in 32m31s** (v0.18.0, measured in a checkout
+**4344 passing, 5 skipped in 33m21s** (v0.19.0, measured in a checkout
 holding the gitignored `Design_files/`, which runs the Design_files-only
-Garden test; a fresh worktree skips it, so 3775 pass and 5 skip there; the
-time was taken with the client tests, the validator and doctor running
-beside it, and `tests/test_simulate_thief.py` adds about four minutes), no
-expected failures (measured 2026-09-29, v0.18.0 release; one skip is the
+Garden test; a fresh worktree skips it, so 4343 pass and 6 skip there; the
+time was taken after the final-review fixes, the earlier 33m50s with the
+client tests, the doctor and `simulate.py` running beside it, and `tests/test_simulate_thief.py` adds about four minutes), no
+expected failures (measured 2026-09-30, v0.19.0 release; one skip is the
 stamina soft-lock test, which covers only stories with no rest verb and so
-skips HUE & CRY too), plus **144 client tests** under `ui/tests/`
-(`npm test --prefix ui`; `vitest` is a devDependency, so
-`npm install --prefix ui` once first). Re-measure and restate these at every
-release rather than trusting this line -- it has been stale before, in the
-very sentence that warned about it.
+skips HUE & CRY too, and one is `tests/test_llm_live.py`, skipped unless
+`CLOCKWORK_LIVE_LLM` names the configured model server), plus **145 client
+tests** under `ui/tests/` (`npm test --prefix ui`; `vitest` is a
+devDependency, so `npm install --prefix ui` once first). Re-measure and
+restate these at every release rather than trusting this line -- it has
+been stale before, in the very sentence that warned about it.
 
 Six stories ship, and every one can be played to an ending
 (`tests/test_finales.py`): `clockwork-dark` (the flagship), `wicked-garden`
@@ -53,6 +54,13 @@ and `scripts/simulate.py --game hue-and-cry` runs its thief policies.
 HUE & CRY is finishable; its screens, art and live play are still to come). Pick one with
 `launcher.py --game <slug>`.
 
+Since v0.19.0 the engine is model-server agnostic (`engine/llm/`, the
+`llm:` config block): LM Studio stays the default, and llama.cpp's
+`llama-server`, Ollama, vLLM and any other OpenAI-compatible server can
+narrate every story, each through its row of `engine/llm/providers.py`.
+Which of those facts were verified live, and how to run each server, is
+[docs/MODEL_SERVERS.md](docs/MODEL_SERVERS.md).
+
 ## In flight
 
 **HUE & CRY**, approved 2026-09-23, re-cut per feature after v0.9.0 shipped so
@@ -74,8 +82,8 @@ only once the last of them lands:
 | v0.16.0 | Acts I–II: arcs, the opening, initiation deck, interrogation deck, the Magpie's trail, the reveal and the alibi beat | **shipped** |
 | v0.17.0 | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | **shipped** |
 | v0.18.0 | `simulate.py`'s thief policy, agenda collisions measured, welshing's cost for a fencing burglar and the careful pickpocket's deaths measured; the fences made to pay (owner decision) and the lockpick money loop closed | **shipped** |
-| v0.19.0 | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | next |
-| v0.20.0 | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker | queued |
+| v0.19.0 | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | **shipped** |
+| v0.20.0 | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker | next |
 | v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | queued |
 | v0.22.0 | The Clockwork Dark overhaul | queued |
 | v0.23.0 | The Wicked Garden overhaul | queued |
@@ -336,6 +344,123 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   condition is false. Only the engine-only effects are reported there.
 - The Wicked Garden deals `day_09_finale` twice (pre-existing).
 - Survival's hunger/death is not cut-invariant (pre-existing).
+- The legacy `lmstudio:` alias is removed in v0.21.0: until then each config
+  layer's `lmstudio:` block (and `stack.services.lmstudio`) is read as
+  `llm:` with a WARNING, and a `lmstudio.*` read is answered from `llm.*`
+  (`engine/config.py::migrate_legacy_llm`, `_READ_ALIASES`).
+- The `engine.lmstudio` shim is removed in v0.21.0, with the config alias
+  above: since v0.19.0 the package is `engine/llm/` (`native.py` became
+  `lmstudio_native.py`), and `engine/lmstudio/__init__.py` only aliases
+  each old module path to the same `engine.llm` module object. Nothing in
+  the repo uses it (`tests/test_llm_package_shim.py`).
+- A Settings panel save rewrites `config/local.yaml` whole through
+  `yaml.safe_dump` and drops its comments (pre-existing;
+  `engine/api/settings.py::apply_settings`). Keeping them needs a
+  round-trip YAML parser. Since v0.19.0 a file that does not parse is
+  refused rather than overwritten.
+- Provider cells verified live: LM Studio's (the golden, recorded on
+  v0.18.0, and `tests/test_llm_live.py` re-run against it at the v0.19.0
+  release on `nvidia/nemotron-3-nano-4b`), llama-server's
+  (v0.19.0 T8, `llama.cpp server b7966`, the Windows Vulkan build) and
+  Ollama's (T8, `Ollama 0.34.4`, the portable Windows build), with their
+  fixtures `recorded` -- bar `mcp_integrations` on both and Ollama's
+  proxy pass-through `auth`, which no run had. Ollama's authored three-model
+  discovery server, a `format`-ignoring probe answer, a proxy's 401 and a
+  leading inline `<think>` stay `authored`: no live Ollama could give them
+  (`PROVENANCE.yaml` notes say why).
+- **vLLM live verification -- v0.20.0, Linux.** Its cells stay unverified
+  (`verified=""`, † in docs/MODEL_SERVERS.md) and its fixtures `authored`
+  (owner decision, 2026-09-29); a generic OpenAI-compatible server has no
+  one server to verify against.
+- Ollama's thinking models think BEFORE its `format` grammar binds (measured,
+  T8): `qwen3:4b` spent 4881 tokens on the probe's one-line question and
+  over 16,000 characters on a narration turn, starving the `big` profile's
+  4400-token cap; the turn is recovered by `think: false` on the same
+  `format`, which binds at once, so each such turn pays one wasted think.
+  llama-server binds the grammar from the first token instead. Recorded, not
+  tuned: `llm.profiles.big.reasoning: "off"` is the owner's lever
+  (docs/MODEL_SERVERS.md § Ollama).
+- `backend._retry_with_room` stands down on servers that report no
+  reasoning-token count: llama-server (`usage` has no
+  `completion_tokens_details`, b7966) and Ollama (`eval_count` is thinking
+  and answer together, 0.34.4), measured in T8. A request that starved with
+  the reasoning-off patch on stops after one request there: measured room
+  needs a count, and the patch is the whole net.
+- `llama-server --reasoning-format none` with a model whose template opens
+  `<think>` in the prompt (Qwen3-4B-Thinking-2507) sends the thinking with
+  no opening tag. A whole answer is split at the orphan `</think>`; a
+  STREAM is not (holding it would show the player nothing until it ended),
+  unless it carried an untrusted patch, so its thinking reaches the player.
+  Documented as a flag not to run (docs/MODEL_SERVERS.md § Inline
+  `<think>`); the default reasoning format splits it server-side.
+- `llm.mcp` (Phase A) is LM Studio-only: on any other provider
+  `llm.mcp.enabled` turns it OFF, with one ERROR and a doctor FAIL row
+  (`engine/agents/mechanics.py::mechanics_enabled`). No engine-side tool
+  loop exists (a GOVERNANCE NOT WIRED row), nor more than one model server
+  per process (another).
+- The golden's legacy scenario 23 differs from its v0.18 recording by one
+  URL, sanctioned (v0.19.0 T6): v0.18 health-checked a fixed
+  `localhost:1234` whatever `lmstudio.base_url` said, and the probe is now
+  derived from `llm.base_url` (`tests/test_llm_golden_lmstudio.py`,
+  `SANCTIONED_URL`). The shipped variant is byte-identical.
+- Ollama's gpt-oss-style models (`think: "low" | "medium" | "high"`,
+  ignoring `true`/`false`) are handled only when declared
+  (`llm.declared_models.<id>.reasoning`, docs/MODEL_SERVERS.md § Ollama).
+  **Not live-verified**: the owner declined the 14 GB `gpt-oss:20b`
+  download in v0.19.0 T8, so the effort strings and
+  `reasoning_off_trusted: false` stay as Ollama's docs describe them.
+- An UNTRUSTED reasoning-off patch keeps the full cap (spec §5.2): on vLLM,
+  llama-server and (since T8) Ollama, an `off` request for a model with no
+  `declared_models` `reasoning` listing `off` sends the patch
+  (`enable_thinking: false`, `think: false`) but still pays the reasoning
+  budget, so turns are slower than they need be on a template that honours
+  it, until the owner declares it. Chosen over starving every turn on one
+  that does not. Measured on both servers (T8): a template that ignores it
+  (Qwen3-4B-Thinking-2507, Ollama's own `qwen3:4b`) thinks anyway and the
+  thinking arrives inside the answer, closed by an orphan `</think>`; the
+  client moves it to the reasoning channel
+  (`client.InlineThinkSplitter(forced_open=True)`, both transports), reads
+  an unclosed answer cut at the cap as starved (unless the request carried
+  a grammar and it starts as JSON: with no grammar a cut answer, prose or
+  JSON, from a model that honoured the patch is lost, the accepted
+  trade-off, T9), and warns once per model. Such a stream is held until it is
+  decided only when the request carried no grammar (fix round 1): an
+  ungrammared `off` stream to an undeclared model -- rung 3 narration under
+  `reasoning: off` -- reaches the player all at once, not as it streams. A verified `reasoning_off` cell, or
+  Ollama's `thinking` capability, no longer makes the patch trusted.
+  Declaring `reasoning: ["on"]` for such a model is worse, not better
+  (measured on Ollama: the probe starves, rung 3), and the docs say so.
+- LM Studio gains the format block only under `structured_output: off`:
+  its `json_object` rung and the turn after a failed `auto` probe carry no
+  shape in the prompt, because the golden pins both requests to v0.18's
+  bytes (scenarios 05 and 08; `backend.format_block_due`). Every other
+  provider gets the block on rungs 2 and 3. The reply is conformed on
+  every rung, LM Studio's included.
+- A choice whose TEXT promises an action but whose reply carries no
+  `intent` survives on every rung, rung 1 included: `intent` is optional
+  in the turn schema, so "Follow the smoke toward Edgewood" can be offered
+  with no mechanic behind it, and picking it moves nobody and refuses
+  nothing -- the prose may then narrate a walk that did not happen.
+  Pre-existing (v0.3.0's intent design), not introduced by v0.19.0's
+  `conform`, which can only judge an intent that is there. A GOVERNANCE
+  NOT WIRED row names the gap.
+- llama-server's multi-model router mode (per-model `status` in
+  `/v1/models`, `/props?model=`) is not supported: discovery treats every
+  listed model as loaded and sizes them all from one `/props`
+  (`engine/llm/discovery.py`; docs/MODEL_SERVERS.md). One server per
+  model.
+- LM Studio passes inline `<think>` through untouched when its reasoning
+  split (the Developer setting that sends `reasoning_content`) is off, so an
+  ungrammared compat reply (a tools request, or the native route
+  unavailable) can carry the model's thinking -- and any `[IMAGE:]` tag
+  written in it -- into the prose. Pre-existing since v0.18. The `lmstudio`
+  row's `inline_think` stays `pass` (`engine/llm/providers.py`) because
+  stripping would change LM Studio's parsed responses, which the golden
+  pins; the owner's lever is LM Studio's reasoning-split setting
+  (docs/MODEL_SERVERS.md § Inline `<think>`).
+- HUE & CRY's choice list can briefly overlap the casing board in the
+  browser (seen in v0.19.0 T9's browser play). UI scope: v0.21.0's UI
+  overhaul.
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 

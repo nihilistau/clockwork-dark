@@ -33,7 +33,7 @@ import { createStore } from "./store.js";
 // narration turn on a reasoning model measures 106-205 seconds of wall clock
 // (config/default.yaml, profile `big` -- thinking is 1100-2600 tokens BEFORE
 // the first word of prose), and the generation call itself is capped at
-// `lmstudio.timeout_seconds`, which ships at 300. So the old window declared
+// `llm.timeout_seconds`, which ships at 300. So the old window declared
 // the world dead a full minute before the server would have reported a real
 // error with a real reason -- on turns that were still running. This is that
 // cap plus enough margin for the rest of a turn's work, and

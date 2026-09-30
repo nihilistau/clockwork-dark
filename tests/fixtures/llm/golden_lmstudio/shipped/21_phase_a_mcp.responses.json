@@ -1,0 +1,209 @@
+[
+  {
+    "status": 400,
+    "json": {
+      "error": {
+        "type": "invalid_request",
+        "message": "'input' is required",
+        "param": "input"
+      }
+    }
+  },
+  {
+    "status": 200,
+    "json": {
+      "models": [
+        {
+          "type": "llm",
+          "publisher": "golden",
+          "key": "golden/narrator-26b",
+          "display_name": "narrator-26b",
+          "architecture": "gemma4",
+          "quantization": {
+            "name": "Q4_K_M",
+            "bits_per_weight": 4.8
+          },
+          "size_bytes": 4000000000,
+          "params_string": "8B",
+          "loaded_instances": [
+            {
+              "id": "golden/narrator-26b",
+              "config": {
+                "context_length": 16384
+              }
+            }
+          ],
+          "max_context_length": 131072,
+          "format": "gguf",
+          "capabilities": {
+            "vision": false,
+            "trained_for_tool_use": true,
+            "reasoning": {
+              "allowed_options": [
+                "off",
+                "on"
+              ],
+              "default": "on"
+            }
+          }
+        },
+        {
+          "type": "llm",
+          "publisher": "golden",
+          "key": "golden/utility-8b",
+          "display_name": "utility-8b",
+          "architecture": "llama",
+          "quantization": {
+            "name": "Q4_K_M",
+            "bits_per_weight": 4.8
+          },
+          "size_bytes": 4000000000,
+          "params_string": "8B",
+          "loaded_instances": [
+            {
+              "id": "golden/utility-8b",
+              "config": {
+                "context_length": 8192
+              }
+            }
+          ],
+          "max_context_length": 32768,
+          "format": "gguf",
+          "capabilities": {
+            "vision": false,
+            "trained_for_tool_use": false,
+            "reasoning": {
+              "allowed_options": [
+                "off",
+                "on"
+              ],
+              "default": "off"
+            }
+          }
+        },
+        {
+          "type": "embedding",
+          "publisher": "golden",
+          "key": "golden/embedder",
+          "display_name": "embedder",
+          "architecture": "nomic-bert",
+          "quantization": {
+            "name": "F16",
+            "bits_per_weight": 16
+          },
+          "size_bytes": 270000000,
+          "params_string": "137M",
+          "loaded_instances": [],
+          "max_context_length": 2048,
+          "format": "gguf",
+          "capabilities": {}
+        }
+      ]
+    }
+  },
+  {
+    "status": 200,
+    "sse": [
+      {
+        "event": "chat.start",
+        "data": {
+          "type": "chat.start",
+          "model_instance_id": "golden/narrator-26b"
+        }
+      },
+      {
+        "event": "prompt_processing.start",
+        "data": {
+          "type": "prompt_processing.start"
+        }
+      },
+      {
+        "event": "prompt_processing.progress",
+        "data": {
+          "type": "prompt_processing.progress",
+          "progress": 1.0
+        }
+      },
+      {
+        "event": "prompt_processing.end",
+        "data": {
+          "type": "prompt_processing.end"
+        }
+      },
+      {
+        "event": "tool_call.start",
+        "data": {
+          "type": "tool_call.start",
+          "tool": "query_evil_state"
+        }
+      },
+      {
+        "event": "tool_call.name",
+        "data": {
+          "type": "tool_call.name",
+          "tool_name": "query_evil_state"
+        }
+      },
+      {
+        "event": "tool_call.arguments",
+        "data": {
+          "type": "tool_call.arguments",
+          "tool": "query_evil_state",
+          "arguments": {}
+        }
+      },
+      {
+        "event": "tool_call.success",
+        "data": {
+          "type": "tool_call.success",
+          "tool": "query_evil_state",
+          "arguments": {},
+          "output": "[{\"type\": \"text\", \"text\": \"{\\\"evil_progress\\\": 0.0, \\\"phase\\\": \\\"dormant\\\"}\"}]",
+          "tool_call_id": "call_golden_1"
+        }
+      },
+      {
+        "event": "message.start",
+        "data": {
+          "type": "message.start"
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "DONE"
+        }
+      },
+      {
+        "event": "message.end",
+        "data": {
+          "type": "message.end"
+        }
+      },
+      {
+        "event": "chat.end",
+        "data": {
+          "type": "chat.end",
+          "result": {
+            "model_instance_id": "golden/narrator-26b",
+            "output": [
+              {
+                "type": "message",
+                "content": "DONE"
+              }
+            ],
+            "stats": {
+              "input_tokens": 1204,
+              "total_output_tokens": 64,
+              "reasoning_output_tokens": 0,
+              "tokens_per_second": 41.5,
+              "time_to_first_token_seconds": 0.25
+            },
+            "response_id": "resp_golden_stream"
+          }
+        }
+      }
+    ]
+  }
+]

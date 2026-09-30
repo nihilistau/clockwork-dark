@@ -28,7 +28,7 @@ per-kind schema requires exactly what the loader needs to NOT drop the entry
 ``engine/game/encounter.py``), and enum-constrains what the validator would
 reject: skills and bands to the story's own vocabulary, quest arcs to
 ``arcs.yaml``, effect targets to the values ``state.yaml`` declares -- the
-same trick ``engine/lmstudio/schemas.py`` plays with per-turn npc ids.
+same trick ``engine/llm/schemas.py`` plays with per-turn npc ids.
 
 HOW VALIDATION SEES DRAFTS. ``validate_story`` takes a manifest, so the tool
 builds a SYNTHETIC one: drafts are staged into a temp directory merged with
@@ -45,14 +45,15 @@ draft's own YAML, and the corrected draft rewritten -- at most
 instead of arguing with the model forever.
 
 LOCAL-FIRST, OFFLINE-TESTABLE. Inference goes through the engine's own
-``engine/lmstudio/backend.py`` (structured output rides the OpenAI-compatible
-transport; the profile supplies model, lane and temperature defaults; the
+``engine/llm/backend.py`` (structured output rides the OpenAI-compatible
+transport, or on Ollama ``/api/chat``, where the client translates this tool's
+``response_format`` to ``format``; the profile supplies model, lane and temperature defaults; the
 ``small`` profile's utility lane for small kinds, ``big`` for the ones that
 need room). The backend is INJECTED -- ``Author(slug, backend=...)`` -- and
 every test supplies a fake, so a live LM Studio is a runtime nicety, never a
 test dependency. The schema is always sent: an authoring tool without a
 grammar is a tool that writes prose into YAML files, so this tool does not
-consult ``lmstudio.structured_output`` mode the way a turn does.
+consult ``llm.structured_output`` mode the way a turn does.
 
 THE TOOL NEVER TOUCHES ``engine/`` OR ANOTHER STORY'S TREE. It reads the
 registry read-only (``registry.get``; never ``activate``), writes only under
@@ -199,7 +200,7 @@ def _id_schema() -> dict[str, Any]:
 def _enum_or_string(values: set[str] | frozenset[str]) -> dict[str, Any]:
     """An enum when the vocabulary exists, a plain string when it does not.
 
-    The npc-ids trick from engine/lmstudio/schemas.py: an empty enum is
+    The npc-ids trick from engine/llm/schemas.py: an empty enum is
     unsatisfiable and would make the whole object impossible to sample."""
     ordered = sorted(v for v in values if v)
     return {"enum": ordered} if ordered else {"type": "string"}
@@ -332,7 +333,7 @@ def _card_schema(vocab: Vocabulary) -> dict[str, Any]:
     # fail: a `when` threshold or a `check` roll. The third branch has no
     # `on_fail` property at all, which under additionalProperties: False
     # makes the bad pairing ungrammatical rather than merely invalid. Same
-    # reasoning as the per-turn intent grammar (engine/lmstudio/schemas.py):
+    # reasoning as the per-turn intent grammar (engine/llm/schemas.py):
     # constrain the sampler, do not correct it afterwards.
     gate = {
         "anyOf": [
@@ -900,7 +901,7 @@ class Author:
     @property
     def backend(self) -> Any:
         if self._backend is None:
-            from engine.lmstudio.backend import get_backend
+            from engine.llm.backend import get_backend
 
             self._backend = get_backend()
         return self._backend

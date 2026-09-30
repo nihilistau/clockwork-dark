@@ -10,7 +10,7 @@ prefix caching on every single turn -- a real cost on local inference.
 What changed and why:
 
   - No output-format instructions. The JSON schema carries the contract now
-    (engine/lmstudio/schemas.py), so the model is not asked to describe its own
+    (engine/llm/schemas.py), so the model is not asked to describe its own
     output shape in prose.
   - No double generation. The old prompt demanded the narration twice: once as
     prose and again inside a JSON ``narration`` field. That roughly doubled

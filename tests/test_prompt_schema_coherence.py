@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 
 from engine.agents.prompts import _NEUTRAL_PERSONA
-from engine.lmstudio.schemas import (
+from engine.llm.schemas import (
     NARRATION_MAX_CHARS,
     NARRATION_MIN_CHARS,
     storyteller_turn_schema,

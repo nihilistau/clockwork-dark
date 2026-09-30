@@ -1,0 +1,11 @@
+[
+  {
+    "method": "GET",
+    "url": "http://localhost:1234/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  }
+]

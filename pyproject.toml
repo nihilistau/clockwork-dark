@@ -1,6 +1,6 @@
 [project]
 name = "clockwork-dark"
-version = "0.18.0"
+version = "0.19.0"
 description = "Local-first AI RPG — The Clockwork Dark"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,4 +23,5 @@ pythonpath = ["."]
 # both exist. See tests/conftest.py::_no_live_model_calls.
 markers = [
     "live: this test is ALLOWED to open a real connection to the model server, or to launch the Grok image CLI",
+    "mcp_server: this test is ALLOWED to start a real skills server; its mcp.json is still redirected into its temp directory",
 ]

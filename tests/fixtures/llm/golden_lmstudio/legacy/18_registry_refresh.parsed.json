@@ -1,0 +1,55 @@
+{
+  "result": [
+    {
+      "id": "golden/narrator-26b",
+      "type": "llm",
+      "arch": "gemma4",
+      "publisher": "golden",
+      "quantization": "Q4_K_M",
+      "state": "loaded",
+      "max_context_length": 131072,
+      "loaded_context_length": 16384,
+      "capabilities": [
+        "tool_use"
+      ],
+      "reasoning_default": "on",
+      "reasoning_configurable": true,
+      "reasoning_options": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "golden/utility-8b",
+      "type": "llm",
+      "arch": "llama",
+      "publisher": "golden",
+      "quantization": "Q4_K_M",
+      "state": "loaded",
+      "max_context_length": 32768,
+      "loaded_context_length": 8192,
+      "capabilities": [],
+      "reasoning_default": "off",
+      "reasoning_configurable": true,
+      "reasoning_options": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "golden/embedder",
+      "type": "embedding",
+      "arch": "nomic-bert",
+      "publisher": "golden",
+      "quantization": "F16",
+      "state": "not-loaded",
+      "max_context_length": 2048,
+      "loaded_context_length": 0,
+      "capabilities": [],
+      "reasoning_default": "",
+      "reasoning_configurable": false,
+      "reasoning_options": []
+    }
+  ],
+  "backend_calls": []
+}

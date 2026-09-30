@@ -1,0 +1,22 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 2+2? Answer with one number only."
+      }
+    ],
+    "max_tokens": 16
+  },
+  "status": 401,
+  "json": {
+    "error": {
+      "message": "Invalid API Key",
+      "type": "authentication_error",
+      "code": 401
+    }
+  },
+  "request_headers": {
+    "Authorization": "Bearer not-the-key"
+  }
+}

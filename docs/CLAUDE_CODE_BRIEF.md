@@ -67,7 +67,7 @@ After reading, tell the user: **"Onboarding complete. Awaiting orders."** — do
 | Narrative council + evaluator retry | Anubis | `src/framework/council.py`, `src/agents/evaluator.py` |
 | Dual-agent scene | CosySim | `content/scenes/realm/realm_scene.py` |
 | `@skill` + dice/trade | CosySim | `content/scenes/tavern/tavern_skills.py` |
-| SSE + StreamProcessor tags | CosySim | `engine/agents/stream_processor.py`, `engine/lmstudio/` |
+| SSE + StreamProcessor tags | CosySim | `engine/agents/stream_processor.py`, `engine/llm/` |
 | AgentGovernor + interceptors | CosySim | `engine/mcp/comms_framework.py` |
 | ComfyUI generator | Anubis | `src/agents/comfyui_generator.py` or CosySim `engine/mcp/tools/media.py` |
 | World tick | CosySim | `engine/world/world_sim.py` |
@@ -96,7 +96,10 @@ engine/
 │                  **CURRENT:** pipeline.py  planner.py  plan.py  negotiate.py
 │                  roster.py  knowledge.py  character.py — the multi-agent turn.
 │                  `turn_loop.py` is retired to `.bak`; it never ran.
-├── lmstudio/      schemas.py  tools.py  gate.py  speculative.py
+├── llm/           backend.py  client.py  lmstudio_native.py  ollama.py
+│                  providers.py  discovery.py  registry.py  profiles.py
+│                  routes.py  schemas.py  events.py  gate.py  tools.py
+│                  (`lmstudio/` until v0.19.0; a shim until v0.21.0)
 ├── skills/builtin/    mechanics.py  livelihood.py  items.py  assistant.py  quests.py
 └── stack.py       service supervision for launcher.py --stack/--check
 
@@ -205,7 +208,7 @@ Explicit port/adapt list. **Read source before writing target.**
 | Anubis `src/agents/evaluator.py` | `engine/agents/evaluator.py` | Rubric: tone, lore, length, no-hallucinated-mechanics |
 | Anubis `scripts/seed_lore.py` | `scripts/seed_lore.py` | Point at `games/clockwork-dark/data/lore/` |
 | Anubis ComfyUI agent | `engine/media/comfyui.py` | Add video workflow hook |
-| CosySim `engine/lmstudio/client.py` | `engine/lmstudio/client.py` | Direct port |
+| CosySim `engine/lmstudio/client.py` | `engine/llm/client.py` | Direct port |
 | CosySim `engine/agents/stream_processor.py` | `engine/agents/stream_processor.py` | Add `[CUTSCENE:id]` tag pattern |
 | CosySim `engine/mcp/scene_rules_engine.py` | `engine/mcp/scene_rules_engine.py` | Port |
 | CosySim `engine/mcp/comms_framework.py` | `engine/mcp/comms_framework.py` | Port AgentGovernor |
@@ -386,7 +389,7 @@ tests as a spec for a layer that was never wired, not as evidence of enforcement
 What actually enforces engine authority, in order of how much work it does:
 
 1. The output schema has no field for a mechanical change
-   (`engine/lmstudio/schemas.py`).
+   (`engine/llm/schemas.py`).
 2. The dispatcher's per-skill agent allowlist
    (`engine/agents/tool_dispatcher.py`).
 3. The engine owns the DC (`engine/game/checks.py`).
@@ -682,8 +685,11 @@ panel.
 > **CURRENT.** The skeleton below is a sketch; read `config/default.yaml`, which
 > is heavily commented with the measurements behind each default. Differences
 > that will bite you: the key is `world.evil_base_rate_per_day` (not
-> `evil_base_rate`); the API key resolves via `${file:lmstudio.txt}` falling back
-> to `$LMSTUDIO_API_KEY`; `comfyui.enabled`, `tts.enabled` and
+> `evil_base_rate`); the model server's block is `llm:` (`lmstudio:` below is
+> its name before v0.19.0, still read through an alias until v0.21.0), and its
+> API key resolves through a chain -- `llm_api_key.txt`, `lmstudio.txt`,
+> `$CLOCKWORK_LLM_API_KEY`, `$LMSTUDIO_API_KEY`, the two LM Studio-named ones
+> read only while `llm.provider` is `lmstudio`; `comfyui.enabled`, `tts.enabled` and
 > `media.live_generation` are all **false** by default and that is a measurement,
 > not a preference; there is a `stack:` block describing the local services
 > `launcher.py --stack` supervises. **Machine-specific paths belong in

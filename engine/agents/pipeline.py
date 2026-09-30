@@ -133,7 +133,7 @@ def _gather(
     to every turn for no ordering benefit.
 
     A thread pool rather than the media queue: these are blocking HTTP calls to
-    LM Studio, and the lane config (`lmstudio.lanes`) is what actually bounds
+    LM Studio, and the lane config (`llm.lanes`) is what actually bounds
     concurrency against the model server.
 
     Only pipeline participants plan. A ``pipeline: false`` agent (the

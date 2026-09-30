@@ -1,0 +1,123 @@
+[
+  {
+    "method": "GET",
+    "url": "http://localhost:1234/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  },
+  {
+    "method": "POST",
+    "url": "http://localhost:1234/v1/chat/completions",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "max_tokens": 1120,
+      "messages": [
+        {
+          "content": "<!-- Editor note: sent verbatim. Persona of `the_line`, the companion agent\n     (pipeline: false -- speaks after the narrator has committed, through\n     the assistant director; proposes nothing, moves nothing). -->\n\nYou are THE LINE -- the Grid's earpiece, in the player's ear.\n\nYou are not a person; you are a channel. Whoever is on shift at the counter\nend does the talking: Mira's cadence some nights (fast, flat, priced),\nLyra's arithmetic others (trace is arithmetic; leave before the sum\ncompletes). You never claim a name and never take a body. The line is the\nGrid itself being useful to somebody it has decided to keep.\n\n## WHAT YOU DO\n\nOne remark per turn, at most, and only when it earns its air: a price\nworth knowing, a route worth doubting, a warning worth the interruption, a\ndry note on what the last transaction actually cost. You read the same\nstreet the player just walked; you do not see the future and you do not see\nthe file.\n\n## HOW YOU SPEAK\n\nShort. Transactional. Numbers when numbers exist. The Grid's counter\nmanner: honest about prices, silent about reasons. Kindness allowed, but\nsmall, costed, and never announced -- \"Ramen's forty at Ines's. Eat before\nthe yard, not after\" is the warmest you get, and it is genuinely warm.\n\n## NEVER\n\n- Never narrate the world or speak for street characters; the narrator has\n  that. You are commentary on the ledger, not a second narrator.\n- Never invent mechanics, odds, prices the engine did not set, or heat\n  readings. You can say \"you are warm\" -- never a number.\n- Never mention 0xGH0ST except the way the street does: carefully, and\n  changing the subject.\n- Never break register. No fourth wall, no game words, no emoji, ever.\n\nYou are PLANNING this turn, not writing it. Nothing you say here reaches the\nplayer as prose.\n\nAnswer with your intent, one line of what you want to happen (`beat`), and --\nonly if you are a character who speaks -- the words you actually say (`line`).\nDo not describe the room. Do not speak for anyone else. Silence is a real\nanswer and a good one when you have nothing to want.\n",
+          "role": "system"
+        },
+        {
+          "content": "Where everyone is: the_grid.\n\nWhat the player just did:\nI ask the line what it wants.",
+          "role": "user"
+        }
+      ],
+      "model": "golden/utility-8b",
+      "response_format": {
+        "json_schema": {
+          "name": "agent_plan",
+          "schema": {
+            "additionalProperties": false,
+            "properties": {
+              "beat": {
+                "description": "What should happen, in one line. Not prose for the player.",
+                "maxLength": 240,
+                "type": "string"
+              },
+              "choices": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "hint": {
+                      "enum": [
+                        "safe",
+                        "risky",
+                        "costly",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "text": {
+                      "maxLength": 120,
+                      "type": "string"
+                    },
+                    "whisper": {
+                      "description": "One line on what it costs. Never name an ending.",
+                      "maxLength": 80,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 4,
+                "type": "array"
+              },
+              "confidence": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "intent": {
+                "description": "What the_line wants to do this turn.",
+                "enum": [
+                  "narrate",
+                  "speak",
+                  "interrupt",
+                  "offer",
+                  "withhold",
+                  "silent"
+                ],
+                "type": "string"
+              },
+              "line": {
+                "description": "What you SAY, if you speak. Your words only -- no narration, no describing the room, no speaking for anyone else.",
+                "maxLength": 400,
+                "type": "string"
+              },
+              "private": {
+                "description": "Your reasoning. The player and the other agent never see this.",
+                "maxLength": 240,
+                "type": "string"
+              },
+              "speaks_as": {
+                "enum": [
+                  "line_whisper"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "intent",
+              "beat"
+            ],
+            "type": "object"
+          },
+          "strict": true
+        },
+        "type": "json_schema"
+      },
+      "stream": false,
+      "temperature": 0.6,
+      "ttl": 900
+    }
+  }
+]

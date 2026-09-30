@@ -50,7 +50,7 @@ of them log at WARNING and return ``[]``, which leaves Phase B running exactly
 the turn it runs today. A turn must never fail because the optional half of it
 did.
 
-With ``lmstudio.mcp.enabled: false`` — the default — this module returns ``[]``
+With ``llm.mcp.enabled: false`` — the default — this module returns ``[]``
 before building anything at all, so the turn's payload is byte-identical to the
 one it sent before this file existed.
 
@@ -125,9 +125,44 @@ def resolve_engine(session_id: str) -> Any:
     return engine
 
 
+#: Whether this process has already said, once, that ``llm.mcp.enabled`` is
+#: set on a server with no MCP integrations (``mechanics_enabled``).
+_mcp_refusal_logged = False
+
+
 def mechanics_enabled() -> bool:
-    """Whether Phase A should run at all. One switch: ``lmstudio.mcp.enabled``."""
-    return bool(get_config().get("lmstudio.mcp.enabled", False))
+    """
+    Whether Phase A should run at all.
+
+    One switch, ``llm.mcp.enabled``, and one condition on it (spec §7): the
+    configured provider's row must have ``mcp_integrations`` -- LM Studio's
+    native ``integrations``, the only route that carries an MCP server. On any
+    other provider the switch is refused, not half-honoured: one ERROR per
+    process naming why, ``scripts/doctor.py`` shows a FAIL row, and the turn
+    is exactly the MCP-off turn (byte-identical, ``tests/test_llm_mcp_gate.py``).
+    There is no engine-side tool loop to fall back to (a docs/GOVERNANCE.md
+    NOT WIRED row).
+    """
+    global _mcp_refusal_logged
+    if not bool(get_config().get("llm.mcp.enabled", False)):
+        return False
+    from engine.llm.providers import get_provider
+
+    row = get_provider()
+    if row.mcp_integrations.value:
+        return True
+    if not _mcp_refusal_logged:
+        _mcp_refusal_logged = True
+        logger.error(
+            "[mechanics] llm.mcp.enabled is set, but %s has no MCP integrations "
+            "-- only LM Studio's native API carries an MCP server -- so Phase A "
+            "is off and every turn runs as it does with MCP off "
+            "(operation=mechanics_enabled, provider=%s). Mechanics still reach "
+            "the engine through intents.",
+            row.title,
+            row.name,
+        )
+    return False
 
 
 def _unwrap_mcp_content(payload: Any) -> Any:
@@ -268,7 +303,7 @@ def _run_mechanics_phase(
     on_event: Optional[Callable[[Any], None]],
 ) -> list[dict[str, Any]]:
     """The body of :func:`run_mechanics_phase`, minus the blanket guard."""
-    from engine.lmstudio.profiles import resolve_profile
+    from engine.llm.profiles import resolve_profile
     from engine.mcp.skills_server import get_skills_server
 
     session_id = register_engine(engine)
@@ -288,15 +323,19 @@ def _run_mechanics_phase(
         logger.warning(
             "[mechanics] Could not register this run with LM Studio, so Phase A "
             "is skipped (operation=run_mechanics_phase, session=%s). Set "
-            "lmstudio.mcp.mcp_json in config/local.yaml if mcp.json is elsewhere.",
+            "llm.mcp.mcp_json in config/local.yaml if mcp.json is elsewhere.",
             session_id,
         )
         return []
 
     if client is None:
-        from engine.lmstudio.native import NativeClient
+        from engine.llm.lmstudio_native import NativeClient
 
         client = NativeClient()
+        # LM Studio's native probe, on purpose, under any provider: this line
+        # is reached only when `mechanics_enabled()` is true, which means the
+        # provider row has `mcp_integrations` -- LM Studio's row alone -- and
+        # there the native route is the right question (spec §8).
         # `integrations` is read by the NATIVE route only, and it is also the
         # only route that honours reasoning: off. There is no compat fallback
         # here on purpose: one would silently drop the tools and spend two
@@ -310,8 +349,8 @@ def _run_mechanics_phase(
             return []
 
     cfg = get_config()
-    profile = resolve_profile(str(cfg.get("lmstudio.mcp.phase_a.profile", "utility")))
-    max_tokens = int(cfg.get("lmstudio.mcp.phase_a.max_tokens", 400))
+    profile = resolve_profile(str(cfg.get("llm.mcp.phase_a.profile", "utility")))
+    max_tokens = int(cfg.get("llm.mcp.phase_a.max_tokens", 400))
 
     events: list[Any] = []
 

@@ -32,7 +32,7 @@ nemotron's does not.
 
 ## Two fixes, in order
 
-1. **Automatic, no install.** `engine/lmstudio/backend.py` prefers LM Studio's
+1. **Automatic, no install.** `engine/llm/backend.py` prefers LM Studio's
    native `POST /api/v1/chat`, which honours `reasoning: "off"`. Utility
    profiles (`small`, `draft`) ship with `reasoning: "off"` in
    `config/default.yaml`. This already works on a stock install.
@@ -74,7 +74,7 @@ lmstudio:
 
 ## If you skip this
 
-Nothing breaks. `engine/lmstudio/registry.py` logs
+Nothing breaks. `engine/llm/registry.py` logs
 `Configured model not on server` and binds by capability instead, preferring a
 non-reasoning instruct model for the utility profiles. Only the tool-calling
 mechanics pass loses the protection.

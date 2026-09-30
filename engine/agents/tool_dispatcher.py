@@ -16,10 +16,12 @@ out of a model reply; ``execute_intent`` (added in v0.3.0) runs the structured
 intent the player's chosen option declared. Only the second one is reachable in
 real play -- the turn grammar forbids a ``tool_calls`` key outright, which is
 the defect ``engine/game/intents.py`` documents at length. ``execute_tool_calls``
-survives because ``StorytellerAgent`` and ``AssistantAgent`` still hand it any
-``tool_calls`` a reply parsed with the grammar OFF can carry, and because both
-paths producing the same receipt shape is what lets the narrator's MECHANICAL
-RESULTS block stay one format. (This said the negotiation pipeline drove it;
+survives because ``AssistantAgent`` still hands it any ``tool_calls`` its reply
+carries, and because both paths producing the same receipt shape is what lets
+the narrator's MECHANICAL RESULTS block stay one format. ``StorytellerAgent``
+handed it one too, until v0.19.0: live under ``structured_output: off``, that
+let a narration turn change the world by the channel rule 1 forbids, and the
+call is gone (spec finding 5). (This said the negotiation pipeline drove it;
 the pipeline never has.)
 
 Version: v0.3.1 [2026-09-23]

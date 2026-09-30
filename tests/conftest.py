@@ -6,7 +6,7 @@ import os
 import socket
 import sys
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, Optional
 
 import pytest
 import yaml
@@ -15,29 +15,65 @@ from engine.game.engine import GameEngine, set_active_engine
 from engine.game.state import GameState
 
 
+#: The port a URL that names none is dialled on.
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def _model_server_urls() -> list[str]:
+    """
+    Every URL that can mean "the model server" in this process, right now.
+
+    ``llm.base_url`` and the model server's health URL, read from the same
+    config the engine dials, so moving the server moves the guard with it --
+    and every provider's default base URL (``PROVIDERS``), so a test that
+    reaches a vLLM, llama-server or Ollama on its usual loopback port is
+    refused even while the config names LM Studio. Until v0.19.0 T3 only the
+    configured URL was guarded, and 8000, 8080 and 11434 were open.
+    """
+    urls: list[str] = []
+    try:
+        from engine.config import get_config
+
+        cfg = get_config()
+        urls += [str(cfg.get(key) or "") for key in ("llm.base_url", "stack.services.llm.health_url")]
+    except Exception:  # noqa: BLE001 -- a bad config must not break the guard
+        pass
+    try:
+        from engine.llm.providers import PROVIDERS
+
+        urls += [str(p.default_base_url.value or "") for p in PROVIDERS.values()]
+    except Exception:  # noqa: BLE001
+        pass
+    return [u for u in urls if u]
+
+
 def _model_endpoints() -> frozenset[tuple[str, int]]:
     """
     Every address that means "the model server", as ``(host, port)``.
 
-    Read from the same config the engine dials, so moving the server moves the
-    guard with it. All three loopback spellings are included because a client
-    may resolve ``localhost`` to any of them and a guard that only knew one
-    would be a guard with a hole in it.
+    COMPUTED AT CHECK TIME, never frozen at import: the guard asks this on
+    every resolve and connect, so a test that repoints ``llm.base_url`` (or a
+    provider added to the table) is guarded at once. The import-time snapshot
+    this replaced guarded only what the config said when collection began.
+
+    All three loopback spellings are included because a client may resolve
+    ``localhost`` to any of them and a guard that only knew one would be a
+    guard with a hole in it.
+
+    A URL with no port is guarded on its scheme's default. Until v0.19.0 such
+    a URL was skipped, so a hosted ``https://models.example/v1`` server was not
+    guarded at all; and two of the three keys read here then
+    (``lmstudio.native_url``, ``stack.health_url``) had never existed.
     """
     from urllib.parse import urlparse
 
-    from engine.config import get_config
-
     blocked: set[tuple[str, int]] = set()
-    for key in ("lmstudio.base_url", "lmstudio.native_url", "stack.health_url"):
+    for raw in _model_server_urls():
         try:
-            raw = str(get_config().get(key) or "")
-        except Exception:  # noqa: BLE001 -- a missing key must not break collection
+            parsed = urlparse(raw)
+            port = parsed.port or _DEFAULT_PORTS.get(parsed.scheme.lower())
+        except Exception:  # noqa: BLE001 -- a bad key must not break the guard
             continue
-        if not raw:
-            continue
-        parsed = urlparse(raw)
-        port = parsed.port
         if port is None:
             continue
         host = (parsed.hostname or "").lower()
@@ -48,8 +84,26 @@ def _model_endpoints() -> frozenset[tuple[str, int]]:
     return frozenset(blocked)
 
 
-#: Resolved once. Collection-time cost only, and the config is already loaded.
-MODEL_ENDPOINTS = _model_endpoints()
+#: The resolver the live-call guard wraps. Read at call time, so the guard's own
+#: tests can put a stub resolver UNDER the guard (``tests/test_conftest_guard.py``).
+_REAL_GETADDRINFO = socket.getaddrinfo
+
+#: The running test's recorded breaches, which ``_no_live_model_calls`` asserts
+#: empty at teardown. Module-level only so the guard's own tests can take back
+#: the one breach they provoke on purpose.
+_BREACHES: list[str] = []
+
+
+def _empty_model_list() -> dict[str, Any]:
+    """
+    What model discovery is answered with under the guard: the configured
+    provider's model list, empty, in that server's own shape -- so discovery
+    parses it and lands on the engine's no-models path for every provider,
+    rather than refusing LM Studio's shape as "not a vLLM list".
+    """
+    from engine.llm.providers import get_provider
+
+    return get_provider().empty_model_list()
 
 
 @pytest.fixture(autouse=True)
@@ -330,7 +384,7 @@ def _no_live_model_calls(request: Any) -> Iterator[None]:
     patch of ``_fetch`` or ``is_available`` still wins, and is undone before
     this guard is, since the ``monkeypatch`` fixture is set up after it.
     """
-    if request.node.get_closest_marker("live") or not MODEL_ENDPOINTS:
+    if request.node.get_closest_marker("live"):
         yield
         return
 
@@ -345,9 +399,9 @@ def _no_live_model_calls(request: Any) -> Iterator[None]:
     # running -- which is the same non-determinism the socket guard exists to
     # remove, arriving through a door the guard cannot tell apart from a bug.
     #
-    # Answering with an empty v1 payload puts every test on the engine's own
-    # no-models-available path, which it already handles (it logs and carries
-    # on). A test that wants real discovery patches `_fetch` itself, and its
+    # Answering with an empty model list (`_empty_model_list`, the provider's
+    # shape) puts every test on the engine's own no-models-available path,
+    # which it already handles (it logs and carries on). A test that wants real discovery patches `_fetch` itself, and its
     # patch wins because it is applied later.
     # ...unless the test is ABOUT discovery. `test_lmstudio_health.py` mocks
     # `httpx` and asserts on what the registry does with the answer, and this
@@ -356,10 +410,14 @@ def _no_live_model_calls(request: Any) -> Iterator[None]:
     # to it, so its mocks are still required to be complete.
     if not request.node.get_closest_marker("real_discovery"):
         try:
-            from engine.lmstudio.registry import ModelRegistry
+            from engine.llm.registry import ModelRegistry
 
+            # `body` is Ollama's POST /api/show; no show is asked of an empty list.
             guard.setattr(
-                ModelRegistry, "_fetch", lambda self, path: {"models": []}, raising=True
+                ModelRegistry,
+                "_fetch",
+                lambda self, path, body=None: _empty_model_list(),
+                raising=True,
             )
         except Exception as exc:  # noqa: BLE001 -- never block collection on this
             print(f"[conftest] could not pin model discovery: {exc}")
@@ -376,11 +434,20 @@ def _no_live_model_calls(request: Any) -> Iterator[None]:
     # machine with no LM Studio gets. A test that needs the native route
     # available patches this itself and wins, being applied later.
     try:
-        from engine.lmstudio.native import NativeClient
+        from engine.llm.lmstudio_native import NativeClient
 
         guard.setattr(NativeClient, "is_available", lambda self: False)
     except Exception as exc:  # noqa: BLE001
         print(f"[conftest] could not pin the native probe: {exc}")
+    # Ollama's probe (`/api/version`) is the same kind of door, through its
+    # own `httpx.Client` instance, and is pinned the same way (v0.19.0 T5;
+    # canary: tests/test_conftest_guard.py).
+    try:
+        from engine.llm.ollama import OllamaClient
+
+        guard.setattr(OllamaClient, "is_available", lambda self: False)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[conftest] could not pin the Ollama probe: {exc}")
 
     # The summarizer is its own model call on the "small" profile, fired when
     # the ledger evicts a turn -- so any test that runs enough turns reaches
@@ -402,29 +469,49 @@ def _no_live_model_calls(request: Any) -> Iterator[None]:
 
     real_connect = socket.socket.connect
     breaches: list[str] = []
+    global _BREACHES
+    _BREACHES = breaches
 
+    def refuse(host: Any, port: Any, how: str) -> None:
+        name = str(host).lower()
+        try:
+            number = int(port)
+        except (TypeError, ValueError):
+            number = -1
+        # Asked now, not at import: see `_model_endpoints`.
+        if (name, number) in _model_endpoints():
+            breaches.append(f"{name}:{number}")
+            raise AssertionError(
+                f"{request.node.nodeid} {how} the model server at {name}:{number}."
+            )
+
+    # BY NAME, BEFORE RESOLUTION. `socket.create_connection` -- which httpx's
+    # transport calls -- resolves the host first, so `connect` below only ever
+    # sees an IP address. A hosted `https://models.example/v1` is guarded as
+    # ("models.example", 443), and that tuple can only match here: checked at
+    # `connect` alone, the name was dead weight in the set and the server was
+    # reachable (v0.19.0 T2 review, finding 1).
+    def guarded_resolve(host: Any, port: Any, *args: Any, **kwargs: Any) -> Any:
+        if isinstance(host, (str, bytes)):
+            text = host.decode("ascii", "replace") if isinstance(host, bytes) else host
+            refuse(text, port, "resolved the address of")
+        return _REAL_GETADDRINFO(host, port, *args, **kwargs)
+
+    # And by address, for a literal IP that needs no resolving.
     def guarded(self: Any, address: Any) -> Any:
         # AF_UNIX addresses are plain strings and can never be the model
         # server; anything without a (host, port) shape is none of our business.
         if isinstance(address, tuple) and len(address) >= 2:
-            host = str(address[0]).lower()
-            try:
-                port = int(address[1])
-            except (TypeError, ValueError):
-                port = -1
-            if (host, port) in MODEL_ENDPOINTS:
-                breaches.append(f"{host}:{port}")
-                raise AssertionError(
-                    f"{request.node.nodeid} opened a real connection to the "
-                    f"model server at {host}:{port}."
-                )
+            refuse(address[0], address[1], "opened a real connection to")
         return real_connect(self, address)
 
+    guard.setattr(socket, "getaddrinfo", guarded_resolve)
     guard.setattr(socket.socket, "connect", guarded)
     try:
         yield
     finally:
         guard.undo()
+        _BREACHES = []
     assert not breaches, (
         f"{request.node.nodeid} tried to reach the real model server "
         f"({', '.join(sorted(set(breaches)))}). Tests must inject their own "
@@ -492,6 +579,176 @@ def _no_real_grok_cli(request: Any, monkeypatch: pytest.MonkeyPatch) -> Iterator
         f"{request.node.nodeid} tried to launch the real Grok CLI "
         f"({', '.join(sorted(set(calls)))}). Tests must stub the provider."
     )
+
+
+def _inside(path: Any, root: Path) -> bool:
+    """Whether ``path`` resolves under ``root``."""
+    try:
+        Path(path).resolve().relative_to(root)
+    except (ValueError, OSError):
+        return False
+    return True
+
+
+@pytest.fixture(autouse=True)
+def _no_owner_lm_studio_files(
+    request: Any, tmp_path_factory: pytest.TempPathFactory
+) -> Iterator[None]:
+    """
+    Keep every test off the owner's LM Studio ``mcp.json``, and off a real
+    skills server.
+
+    WHY THIS EXISTS. ``engine/mcp/skills_server.py`` edits LM Studio's own
+    ``mcp.json`` in place (``register_session``, ``unregister_sessions``, and
+    ``SkillsServer.start``'s prune of stale entries), taking a ``.bak-*``
+    beside it first. ``mcp_json_path`` finds that file under the owner's home.
+    Nothing in the suite redirected it: a test was safe only if it passed its
+    own ``path`` or stubbed the server. In v0.19.0 T6 a canary that forced
+    Phase A on started a real server, which registered a session in the
+    owner's real ``mcp.json`` and left backups beside it -- the file is not
+    ours, and it holds the owner's other MCP servers and their credentials.
+
+    Three things, for every test:
+
+    * ``mcp_json_path`` answers a path in this test's own temp directory
+      (a ``llm.mcp.mcp_json`` already under the temp root is kept);
+    * the two writers, ``backup_once`` and ``_write_json_atomic``, refuse any
+      target outside the temp root -- recorded AND raised (as an ``OSError``,
+      which the registration code turns into "tool calling is off"), because
+      Phase A forgives a raise on purpose, so the record is asserted at
+      teardown, where nothing is left to catch it (``_no_live_model_calls``'
+      reason);
+    * ``SkillsServer.start`` refuses -- recorded, and answering False, its own
+      "could not start" -- unless the test is marked
+      ``@pytest.mark.mcp_server``. A marked test's server still registers
+      only into the temp directory.
+
+    The record lives on ``request.node.lm_studio_breaches`` so the canary
+    (``tests/test_conftest_guard.py``) can take back the one it provokes. The
+    skills-server singleton and the MCP gate's once-per-process ERROR flag are
+    reset at teardown, so no test inherits another's.
+    """
+    from engine.agents import mechanics
+    from engine.mcp import skills_server
+
+    root = Path(tmp_path_factory.getbasetemp()).resolve()
+    breaches: list[str] = []
+    request.node.lm_studio_breaches = breaches
+    sandbox: list[Path] = []
+
+    real_backup = skills_server.backup_once
+    real_write = skills_server._write_json_atomic
+    real_start = skills_server.SkillsServer.start
+
+    def redirected() -> Optional[Path]:
+        from engine.config import get_config
+
+        declared = str(get_config().get("llm.mcp.mcp_json", "") or "")
+        if declared and _inside(Path(declared).expanduser(), root):
+            return Path(declared).expanduser()
+        if not sandbox:
+            sandbox.append(tmp_path_factory.mktemp("lm-studio") / "mcp.json")
+        return sandbox[0]
+
+    def refuse_outside(path: Any, what: str) -> None:
+        if not _inside(path, root):
+            breaches.append(f"{what} {path}")
+            raise PermissionError(
+                f"{request.node.nodeid} tried to {what} {path}, outside the test's "
+                "temp directory: the owner's LM Studio files are not the suite's"
+            )
+
+    def guarded_backup(path: Path) -> Any:
+        refuse_outside(path, "back up")
+        return real_backup(path)
+
+    def guarded_write(path: Path, document: Any) -> None:
+        refuse_outside(path, "write")
+        real_write(path, document)
+
+    def guarded_start(self: Any, *args: Any, **kwargs: Any) -> bool:
+        if not request.node.get_closest_marker("mcp_server"):
+            breaches.append("start a skills server")
+            return False
+        return real_start(self, *args, **kwargs)
+
+    guard = pytest.MonkeyPatch()
+    guard.setattr(skills_server, "mcp_json_path", redirected)
+    guard.setattr(skills_server, "backup_once", guarded_backup)
+    guard.setattr(skills_server, "_write_json_atomic", guarded_write)
+    guard.setattr(skills_server.SkillsServer, "start", guarded_start)
+    try:
+        yield
+    finally:
+        guard.undo()
+        skills_server._server = None
+        mechanics._mcp_refusal_logged = False
+    assert not breaches, (
+        f"{request.node.nodeid} reached for LM Studio's own files or a real "
+        f"skills server ({'; '.join(breaches)}). Pass a tmp_path, or mark the "
+        "test @pytest.mark.mcp_server if it must stand a server up."
+    )
+
+
+@pytest.fixture
+def llm_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Any]:
+    """
+    Name a model server through the REAL config layers, for a request test.
+
+    Yields ``configure(provider, **llm)``: it writes a temp ``local.yaml``
+    whose ``llm:`` block names ``provider``, its default base URL (or a
+    hosted one for a row with none), a fixed test key and ``llm``'s extra
+    keys, and drops every config-derived LLM singleton (registry, profiles,
+    backend, the compat client) so the next request is built from it.
+
+    Nothing here opens a socket: the requests themselves are answered by
+    ``tests/llm_wire.py``, and the guard stays up. The repo's own
+    ``config/local.yaml`` is never read or written -- ``_CONFIG_DIR`` points
+    at ``tmp_path``.
+    """
+    import engine.config as config
+    from engine.llm.client import reset_lms_client
+
+    root = Path(__file__).resolve().parents[1]
+    directory = tmp_path / "llm_config"
+    directory.mkdir()
+    real = {name: getattr(config, name) for name in ("_CONFIG_DIR", "_DEFAULT_PATH", "_overlay")}
+    for name in ("CLOCKWORK_ENV", "CLOCKWORK_LLM_API_KEY", "LMSTUDIO_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(config, "_CONFIG_DIR", directory)
+    monkeypatch.setattr(config, "_DEFAULT_PATH", root / "config" / "default.yaml")
+    monkeypatch.setattr(config, "_overlay", {})
+    # Restored at teardown too, as a second line: see the `finally` below.
+    monkeypatch.setattr(config, "_instance", None)
+
+    def configure(provider: str, **llm: Any) -> None:
+        from engine.llm.providers import PROVIDERS
+
+        block: dict[str, Any] = {
+            "provider": provider,
+            "api_key": "shaping-test-key",
+            "base_url": PROVIDERS[provider].default_base_url.value
+            or "https://models.example/v1",
+        }
+        block.update(llm)
+        (directory / "local.yaml").write_text(
+            yaml.safe_dump({"llm": block}), encoding="utf-8"
+        )
+        config.reset_config()
+        reset_lms_client()
+
+    try:
+        yield configure
+    finally:
+        # The REAL config is put back BEFORE the reset. `reset_config` runs
+        # every cache reloader (locations, governance, lanes, ...), and each
+        # reads the config: reset while `_CONFIG_DIR` still pointed here, they
+        # were all rebuilt from this test's local.yaml, and the singleton with
+        # them -- so the next test ran against this test's server.
+        for name, value in real.items():
+            setattr(config, name, value)
+        config.reset_config()
+        reset_lms_client()
 
 
 @pytest.fixture

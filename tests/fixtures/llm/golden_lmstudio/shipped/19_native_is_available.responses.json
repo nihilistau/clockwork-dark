@@ -1,0 +1,16 @@
+[
+  {
+    "status": 400,
+    "json": {
+      "error": {
+        "type": "invalid_request",
+        "message": "'input' is required",
+        "param": "input"
+      }
+    }
+  },
+  {
+    "status": 404,
+    "text": "Cannot POST /api/v1/chat"
+  }
+]

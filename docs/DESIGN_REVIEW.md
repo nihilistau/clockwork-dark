@@ -195,7 +195,7 @@ wounded by a paragraph they never saw. Now snapshotted and rolled back before
 the retry.
 
 ### F-11 · major · The JSON contract could not be parsed
-`engine/agents/storyteller.py`, `engine/lmstudio/schemas.py`
+`engine/agents/storyteller.py`, `engine/llm/schemas.py`
 
 The loose-parse fallback was `(\{[^{}]*"narration"[^{}]*\})`, whose `[^{}]*`
 forbids nested braces — but the mandated payload always contains
@@ -791,7 +791,7 @@ character who is not present" was unenforced, and a measured turn 0 in
 imported from the few-shot examples. The absent set is the same
 `present_npc_ids` call the turn schema's `npc_id` enum is built from, so no
 second notion of "present" exists. **The LM Studio routes are deliberate**
-(`engine/lmstudio/routes.py`): the model list is `GET /api/v1/models` and
+(`engine/llm/routes.py`): the model list is `GET /api/v1/models` and
 nothing else, validated by the SHAPE of the body, because this server answers
 routes it does not serve with 200 and an error blob — `/v1/models` was firing
 one `Unexpected endpoint or method` ERROR per doctor run.
@@ -927,7 +927,7 @@ reasoning off, tools, no grammar — and it runs BEFORE the `StateTransaction`
 opens in `storyteller.run_turn`, so a skill it resolves is not rolled back by an
 evaluator retry that LM Studio would never hear about. Its receipts reach Phase
 B through `prompts.receipts_block`, the block that has said "MECHANICAL RESULTS
--- AUTHORITATIVE" since it was written. Off by default (`lmstudio.mcp.enabled`),
+-- AUTHORITATIVE" since it was written. Off by default (`llm.mcp.enabled`),
 byte-identical to the old turn when off, and degrading to `[]` and a logged
 warning on every failure. Proven live by `scripts/two_phase_live_proof.py`: the
 model called `query_evil_state`, the receipt reached the prompt, and the

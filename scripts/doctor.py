@@ -18,9 +18,11 @@ so without this check the first sign of a typo in a story's meters is the game
 refusing to start with a traceback -- which is exactly the class of failure a
 doctor exists to find first.
 
-The LM Studio section asks TWO questions, because they have different answers:
-a liveness ping, and a real bounded completion. The ping used to be the whole
-check, and it passed on a server that refused every chat call.
+The model server's section (``LM Studio``, or ``Model server (<provider>)``
+since v0.19.0) asks TWO questions, because they have different answers: a
+liveness ping, and a real bounded completion. The ping used to be the whole
+check, and it passed on a server that refused every chat call. The model
+server is the one FAIL-level service, whatever its provider.
 
 Exit code 0 if nothing is broken, 1 if something is.
 
@@ -92,10 +94,19 @@ def check_python(report: Report) -> None:
 
 
 def check_services(report: Report) -> None:
-    from engine.stack import STATUS_DISABLED, STATUS_DOWN, STATUS_FAILED, StackManager
+    from engine.stack import (
+        MODEL_SERVER_NAMES,
+        STATUS_DISABLED,
+        STATUS_DOWN,
+        STATUS_FAILED,
+        StackManager,
+    )
 
     consequences = {
         "lmstudio": "no narration - the Storyteller falls back to a canned line",
+        # The model server under any other provider (v0.19.0).
+        "llm": "no narration - the model server is down, so the Storyteller "
+        "falls back to a canned line",
         "voxtral_tts": "no spoken narration (off by default anyway)",
         "voxtral_asr": (
             "no push-to-talk on the voxtral_http provider - switch "
@@ -109,8 +120,9 @@ def check_services(report: Report) -> None:
         if status.status == STATUS_DISABLED:
             report.add("Services", status.name, OK, "disabled in config")
         elif status.status in (STATUS_DOWN, STATUS_FAILED):
-            # Only LM Studio genuinely breaks the game; everything else degrades.
-            level = FAIL if status.name == "lmstudio" else WARN
+            # Only the model server genuinely breaks the game, whatever its
+            # provider; everything else degrades.
+            level = FAIL if status.name in MODEL_SERVER_NAMES else WARN
             report.add("Services", status.name, level,
                        f"{status.detail} -> {consequences.get(status.name, 'reduced features')}")
         else:
@@ -139,51 +151,229 @@ def check_llm(report: Report) -> None:
     ``Unexpected endpoint or method``, once per doctor run. It also could not
     fail: this server returns 200 for any unknown path under ``/v1``. It now
     asks ``GET /api/v1/models`` and validates the SHAPE of the body
-    (``engine/lmstudio/registry.probe_models``), which is the only part of the
+    (``engine/llm/registry.probe_models``), which is the only part of the
     answer that can distinguish a real LM Studio from a 200.
+
+    EVERY PROVIDER (v0.19.0, spec §8). The section is the configured model
+    server's: ``LM Studio`` for LM Studio (its rows byte for byte v0.18's,
+    pinned by ``tests/fixtures/llm/golden_lmstudio/doctor_llm.txt``), else
+    ``Model server (<provider>)``. The rows: liveness (the provider row's
+    health probe), the model bound, the chat probe, the transport (LM
+    Studio's native route; elsewhere the reasoning-off patch, trusted or not),
+    the grammar rung, inline ``<think>`` seen, any set key the provider
+    ignores, and MCP.
     """
-    from engine.lmstudio.registry import probe_models
+    from engine.llm.providers import get_provider
+
+    row = get_provider()
+    _check_llm_server(report, row)
+    _check_llm_keys(report, row)
+
+
+def _check_llm_server(report: Report, row: object) -> None:
+    """The rows that ask the server (``check_llm``)."""
+    section = row.section
 
     # 1. Liveness. Says nothing about whether a turn can be narrated.
-    alive, detail = probe_models(timeout=3.0)
-    report.add("LM Studio", "liveness", OK if alive else FAIL, detail)
+    alive, detail = row.health_probe(timeout=3.0)
+    report.add(section, "liveness", OK if alive else FAIL, detail)
     if not alive:
         return
 
     # 2. Can it actually complete anything? This is the question that matters.
-    from engine.lmstudio.backend import chat_probe
+    from engine.llm.backend import chat_probe
 
     probe = chat_probe(timeout=20.0)
     label = f"model ({probe['model']})"
     if not probe["bound"]:
-        report.add("LM Studio", label, FAIL,
+        report.add(section, label, FAIL,
                    "not confirmed against the server - discovery failed, so "
                    "every request names a model it has never heard of")
     else:
-        report.add("LM Studio", label, OK, "resolved from the server's own list")
+        report.add(section, label, OK, "resolved from the server's own list")
 
     status = str(probe["status"])
     level = OK if probe["ok"] else (WARN if status == "timeout" else FAIL)
-    report.add("LM Studio", "chat probe", level, f"{status}: {probe['detail']}")
+    report.add(section, "chat probe", level, f"{status}: {probe['detail']}")
 
-    # 3. The transport that carries narration. Tools and structured output can
-    # only go OpenAI-compat; only native can turn reasoning off.
-    try:
-        from engine.lmstudio.backend import get_backend
+    # 3. The transport that carries narration. On LM Studio, tools and
+    # structured output can only go OpenAI-compat; only native can turn
+    # reasoning off. Every other server has one route, and the question is
+    # whether that route can be told to stop thinking.
+    if row.chat_transport.value == "lmstudio_routed":
+        try:
+            from engine.llm.backend import get_backend
 
-        native = get_backend().native_available()
-    except Exception as exc:  # noqa: BLE001 -- diagnostics must not crash
-        report.add("LM Studio", "native /api/v1/chat", WARN, repr(exc))
+            native = get_backend().native_available()
+        except Exception as exc:  # noqa: BLE001 -- diagnostics must not crash
+            report.add(section, "native /api/v1/chat", WARN, repr(exc))
+        else:
+            report.add(
+                section,
+                "native /api/v1/chat",
+                OK if native else WARN,
+                "available - reasoning can be turned off"
+                if native
+                else "unavailable - reasoning cannot be disabled, so a thinking "
+                     "model can spend the whole token budget and return nothing",
+            )
     else:
-        report.add(
-            "LM Studio",
-            "native /api/v1/chat",
-            OK if native else WARN,
-            "available - reasoning can be turned off"
-            if native
-            else "unavailable - reasoning cannot be disabled, so a thinking "
-                 "model can spend the whole token budget and return nothing",
-        )
+        _reasoning_off_row(report, row, str(probe["model"]))
+
+    # 4. The grammar rung (spec §4.4). LM Studio's is v0.18's ladder, which
+    # its baseline does not show; every other server's was probed.
+    if not row.v18_ladder:
+        _grammar_row(report, row)
+
+    # 5. Thinking sent inside content (spec §4.5), seen in the probes above.
+    if row.inline_think.value == "strip":
+        from engine.llm.client import inline_think_seen
+
+        seen = inline_think_seen()
+        if seen:
+            fix = (
+                f"to stop it, {row.inline_think_fix}" if row.inline_think_fix
+                else "this server has no flag that stops it"
+            )
+            report.add(section, "inline <think>", WARN,
+                       f"seen in {seen} response(s): the server sends its "
+                       "thinking inside content. The engine moves it to the "
+                       f"reasoning channel before anything reads it; {fix}")
+        else:
+            report.add(section, "inline <think>", OK, "none seen in the probes")
+
+
+def _reasoning_off_row(report: Report, row: object, model: str) -> None:
+    """``reasoning off: <patch> (trusted | untrusted) | unavailable`` (§5.1)."""
+    import json
+
+    try:
+        from engine.llm.client import reasoning_patch
+        from engine.llm.discovery import REPORTS_CAPABILITIES
+        from engine.llm.registry import get_registry
+
+        patch = reasoning_patch(model, "off")
+        info = get_registry().cached(model)
+    except Exception as exc:  # noqa: BLE001 -- diagnostics must not crash
+        report.add(row.section, "reasoning off", WARN, repr(exc))
+        return
+    if patch is not None and patch.trusted:
+        report.add(row.section, "reasoning off", OK,
+                   f"{json.dumps(patch.body, sort_keys=True)} (trusted) - an `off` "
+                   "profile's cap spends nothing on thinking")
+    elif patch is not None:
+        report.add(row.section, "reasoning off", WARN,
+                   f"{json.dumps(patch.body, sort_keys=True)} (untrusted) - sent, "
+                   "but the cap keeps the reasoning budget, so turns are slower "
+                   f"than they need be; declare llm.declared_models.{model}.reasoning "
+                   "(docs/MODEL_SERVERS.md) once the model is seen to honour it")
+    elif (
+        info is not None
+        and str(getattr(info, "source", "")) in REPORTS_CAPABILITIES
+        and not info.reasoning_configurable
+    ):
+        report.add(row.section, "reasoning off", OK,
+                   "unavailable, and not needed - the server reports no thinking "
+                   "knob for this model")
+    else:
+        report.add(row.section, "reasoning off", WARN,
+                   "unavailable - nothing on this route turns thinking off, so a "
+                   "thinking model can spend its whole budget and return nothing. "
+                   "Declare llm.declared_models.<id>.reasoning, or "
+                   "llm.reasoning_off_body on a generic server (docs/MODEL_SERVERS.md)")
+
+
+def _grammar_row(report: Report, row: object) -> None:
+    """Which rung of the structured-output ladder turns go out on (§4.1)."""
+    try:
+        from engine.llm.backend import RUNG_OBJECT, RUNG_SCHEMA, get_backend
+
+        backend = get_backend()
+        rung = backend.structured_rung()
+        mode = backend.structured_mode()
+    except Exception as exc:  # noqa: BLE001 -- diagnostics must not crash
+        report.add(row.section, "grammar rung", WARN, repr(exc))
+        return
+    how = "probed" if mode == "auto" else "set"
+    if rung == RUNG_SCHEMA:
+        report.add(row.section, "grammar rung", OK,
+                   f"1: json_schema (llm.structured_output: {mode}, {how}) - the "
+                   "turn's shape is enforced by the server")
+    elif rung == RUNG_OBJECT:
+        report.add(row.section, "grammar rung", WARN,
+                   f"2: json_object (llm.structured_output: {mode}, {how}) - valid "
+                   "JSON is enforced, its shape only asked for in the prompt and "
+                   "conformed on arrival")
+    else:
+        report.add(row.section, "grammar rung", WARN,
+                   f"3: none (llm.structured_output: {mode}, {how}) - the shape is "
+                   "only asked for in the prompt and conformed on arrival")
+
+
+def _shipped_llm() -> dict:
+    """``config/default.yaml``'s own ``llm:`` block: what "set" is measured from."""
+    import yaml
+
+    import engine.config as config
+
+    try:
+        with config._DEFAULT_PATH.open(encoding="utf-8") as handle:
+            raw = yaml.safe_load(handle) or {}
+    except (OSError, yaml.YAMLError):
+        return {}
+    migrated, _ = config.migrate_legacy_llm(raw)
+    block = migrated.get("llm")
+    return block if isinstance(block, dict) else {}
+
+
+def _check_llm_keys(report: Report, row: object) -> None:
+    """
+    The config rows of ``check_llm``: each set key this provider ignores
+    (spec §2.1, one WARN each), and the MCP row (spec §7). Asked whether or
+    not the server is up -- they are about the config, not the server.
+    """
+    from engine.config import get_config
+
+    cfg = get_config()
+    llm = cfg.section("llm")
+    shipped = _shipped_llm()
+    section = row.section
+
+    def changed(key: str) -> bool:
+        return key in llm and llm.get(key) != shipped.get(key)
+
+    ignored: list[tuple[str, str]] = []
+    if row.chat_transport.value != "lmstudio_routed" and changed("prefer_native"):
+        ignored.append(("llm.prefer_native",
+                        "it has no native route to prefer (LM Studio's alone)"))
+    if row.keep_alive.value is None and changed("keep_alive_seconds"):
+        ignored.append(("llm.keep_alive_seconds",
+                        "it keeps a model loaded by its own settings"))
+    if row.reasoning_off.value and llm.get("reasoning_off_body"):
+        ignored.append(("llm.reasoning_off_body",
+                        "it has its own reasoning-off patch (openai_compat only)"))
+    if row.chat_transport.value == "lmstudio_routed":
+        declared = llm.get("declared_models") or {}
+        for model_id, entry in sorted(declared.items()) if isinstance(declared, dict) else ():
+            if isinstance(entry, dict) and "reasoning_off_trusted" in entry:
+                ignored.append((
+                    f"llm.declared_models.{model_id}.reasoning_off_trusted",
+                    "it sends no reasoning-off patch to trust: its compat route "
+                    "ignores every knob, and its native route asks the model's "
+                    "own reasoning list",
+                ))
+    for key, why in ignored:
+        report.add(section, "ignored key", WARN, f"{key} is set, but {row.title} ignores it: {why}")
+
+    if bool(cfg.get("llm.mcp.enabled", False)):
+        if row.mcp_integrations.value:
+            report.add(section, "mcp", OK,
+                       "llm.mcp.enabled - Phase A calls the engine's skills through "
+                       f"{row.title}'s native integrations")
+        else:
+            report.add(section, "mcp", FAIL,
+                       f"`llm.mcp.enabled` is set but {row.name} has no MCP "
+                       "integrations; Phase A is off")
 
 
 def check_voice(report: Report) -> None:
@@ -231,14 +421,30 @@ def check_voice(report: Report) -> None:
 def check_config(report: Report) -> None:
     from engine.config import get_config
 
+    from engine.config import legacy_llm_layers
+    from engine.llm.providers import get_provider
+    from engine.stack import _service_name
+
     cfg = get_config()
 
-    key = str(cfg.get("lmstudio.api_key", "") or "")
+    # A v0.18 `lmstudio:` block still in a layer (spec §2.2): read as `llm:`,
+    # and named here so it is renamed before the alias goes in v0.21.0.
+    for source, renamed in legacy_llm_layers():
+        report.add("Config", "legacy lmstudio: block", WARN,
+                   f"{source}: read as llm: ({'; '.join(renamed)}) - rename it "
+                   "there; the alias is removed in v0.21.0")
+
+    # The key's LENGTH only, never the key (rule 5). The row is named after
+    # the model server's service: `lmstudio key` on LM Studio, as it always
+    # was, `llm key` under any other provider.
+    row = get_provider()
+    label = f"{_service_name('llm')} key"
+    key = str(cfg.get("llm.api_key", "") or "")
     if key:
-        report.add("Config", "lmstudio key", OK, f"resolved ({len(key)} chars)")
+        report.add("Config", label, OK, f"resolved ({len(key)} chars)")
     else:
-        report.add("Config", "lmstudio key", WARN,
-                   "not set - fine only if LM Studio's 'Require API key' is off")
+        # The row's own words (identity data; LM Studio's are v0.18's).
+        report.add("Config", label, WARN, row.key_missing)
 
     # No literal defaults here any more. They were the flagship's four content
     # paths, so a story that had lost one of these keys was reported against

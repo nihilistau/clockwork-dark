@@ -120,7 +120,7 @@ def story(story_root):
 
 
 class FakeBackend:
-    """Stands in for engine.lmstudio.backend.LMStudioBackend.
+    """Stands in for engine.llm.backend.LMStudioBackend.
 
     Scripts are keyed by the response schema's name; a list is consumed one
     payload per call, holding on the last entry -- which is how the repair

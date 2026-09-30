@@ -284,7 +284,7 @@ function handleSocket(state, event, payload) {
       // A dead model used to produce the same canned sentence every turn with
       // no signal at all -- indistinguishable from a very boring game.
       const outage = payload.llm_unavailable
-        ? "The Storyteller is unreachable — check LM Studio is running and its API key is set."
+        ? "The Storyteller is unreachable — check the model server is running and its API key is set."
         : "";
       let next = { ...state, busy: false, error: outage };
 

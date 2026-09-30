@@ -41,7 +41,7 @@ validate that the paths point at files that exist.
 WHY ``settings:`` IS AN ALLOWLIST AND NOT A CONFIG MERGE. ``config_overlay()``
 returned ``{"paths": ...}`` and nothing else, deliberately -- a story that could
 merge arbitrary config could repoint ``paths.saves`` under another story's runs,
-rewrite ``lmstudio.api_key`` (which resolves a gitignored secret file), or set
+rewrite ``llm.api_key`` (which resolves a gitignored secret file), or set
 ``stack.services.*.command``, which is arbitrary code executed on the player's
 machine at launch. That ceiling is right about the danger and wrong about the
 need: a story genuinely cannot declare its own clock rate, its reveal thresholds
@@ -152,7 +152,7 @@ SETTING_ALLOWLIST: dict[str, str] = {
 # message naming the danger is worth more than a list of legal keys.
 SETTING_REFUSALS: tuple[tuple[str, str], ...] = (
     ("paths", "paths belong in the manifest's own 'paths:' block, not settings"),
-    # Covers `lmstudio.mcp.*` too, and that is a deliberate answer rather than
+    # Covers `llm.mcp.*` too, and that is a deliberate answer rather than
     # an accident of the prefix. The case FOR letting a story tune it is real:
     # `allowed_tools` looks like content, since a story with no trade and no
     # crafting might want those skills hidden from its narrator. The case
@@ -165,6 +165,9 @@ SETTING_REFUSALS: tuple[tuple[str, str], ...] = (
     # A story narrowing the same set from a second place would drift from it
     # silently, which is the bug the whole allowlist mechanism was built to
     # avoid. A story with no trade should ship no trade skills.
+    ("llm", "model endpoint, credentials and token budgets belong to the machine"),
+    # The same block under its name until v0.19.0, which a config layer still
+    # reads (engine/config.py's alias): a story may declare neither.
     ("lmstudio", "model endpoint, credentials and token budgets belong to the machine"),
     ("stack", "service roots and commands are code executed on the player's machine"),
     ("scene", "bind host and port belong to the machine"),

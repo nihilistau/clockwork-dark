@@ -1,0 +1,3 @@
+
+Local service stack:
+  [ ok ]  lmstudio  /api/v1/models answers: 3 models, loaded: golden/narrator-26b, golden/utility-8b

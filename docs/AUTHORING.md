@@ -123,8 +123,8 @@ the reason a story needs it. The membership test: does this number describe
 the STORY's shape, and would a wrong value cost the player nothing but a
 different game? Anything describing the MACHINE — endpoints, credentials,
 ports, service commands — is the player's, and the dangerous sections
-(`paths`, `lmstudio`, `stack`, `scene`, `game`, `comfyui`, `tts`, `stt`) are
-refused with a specific reason naming the danger.
+(`paths`, `llm` and its pre-v0.19 name `lmstudio`, `stack`, `scene`, `game`,
+`comfyui`, `tts`, `stt`) are refused with a specific reason naming the danger.
 
 What is on the list, by family:
 
@@ -2302,9 +2302,12 @@ appended into an existing deck), `encounter`, `rumor`, `lore`, `prompt`,
 `spoilers`. Each schema enum-constrains references to the story's **own**
 vocabulary — its locations, items, declared state values, skills, bands, arcs
 — so an id that resolves to nothing is unsampleable rather than merely
-discouraged. Inference rides the engine's own LM Studio backend; `--repair`
-and `--promote` never open a connection, so the review half of the loop works
-offline.
+discouraged. Inference rides the engine's own model backend -- whichever
+server `llm.provider` names ([MODEL_SERVERS.md](MODEL_SERVERS.md)), which
+always receives the draft's schema (as `format` on Ollama); `--repair` and
+`--promote` never open a connection, so the review half of the loop works
+offline. A story sets nothing provider-specific: which model server narrates
+it is the owner's config, never the story's.
 
 ```powershell
 # One kind, one brief (a file, or '-' for stdin):
@@ -2423,7 +2426,7 @@ prose that happens to mention a meter is fine and common, and only a text
 consisting of nothing else is unambiguously a receipt in the wrong slot.
 
 The shared lesson is the one the turn grammar already encodes
-(`engine/lmstudio/schemas.py`): **constrain the sampler, do not correct it
+(`engine/llm/schemas.py`): **constrain the sampler, do not correct it
 afterwards.** A flat object with a `type` enum and every other key optional
 will eventually be filled in with another kind's fields, and the engine's
 tolerance for unknown rows is exactly what makes that invisible.

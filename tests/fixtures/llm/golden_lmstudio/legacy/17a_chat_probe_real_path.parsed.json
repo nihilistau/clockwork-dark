@@ -1,0 +1,36 @@
+{
+  "result": {
+    "ok": true,
+    "status": "ok",
+    "detail": "'ready' in 0ms",
+    "model": "golden/narrator-26b",
+    "bound": true,
+    "transport": "native",
+    "latency_ms": 0.0,
+    "content": "ready"
+  },
+  "backend_calls": [
+    {
+      "call": "chat",
+      "response": {
+        "content": "ready",
+        "response_id": "resp_golden_native",
+        "model": "golden/narrator-26b",
+        "input_tokens": 120,
+        "output_tokens": 3,
+        "stats": {
+          "input_tokens": 120,
+          "total_output_tokens": 3,
+          "reasoning_output_tokens": 0,
+          "tokens_per_second": 41.5,
+          "time_to_first_token_seconds": 0.25
+        },
+        "tool_calls": [],
+        "finish_reason": "",
+        "reasoning_content": "",
+        "reasoning_tokens": 0,
+        "transport": "native"
+      }
+    }
+  ]
+}

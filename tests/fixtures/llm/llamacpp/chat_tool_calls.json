@@ -1,0 +1,81 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use the add tool to add 2 and 2."
+      }
+    ],
+    "max_tokens": 3000,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "add",
+          "description": "Add two numbers",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "number"
+              },
+              "b": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "status": 200,
+  "json": {
+    "choices": [
+      {
+        "finish_reason": "tool_calls",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "reasoning_content": "Okay, the user wants me to use the add tool to add 2 and 2. Let me check the tools provided.\n\nThe tool is called \"add\" and it takes two numbers, a and b. Both are required. The user specified 2 and 2, so I need to plug those into the function.\n\nI should create a JSON object with the name \"add\" and arguments {\"a\": 2, \"b\": 2}. Let me make sure the numbers are numbers, not strings. Yep, in JSON they should be numbers. \n\nWait, the example in the tools shows \"a\" and \"b\" as numbers. So the tool call should be correct. No other parameters needed. Just call add with a=2 and b=2.\n\nAlright, time to format the tool_call in the required XML tags. The function name is \"add\", arguments are {\"a\": 2, \"b\": 2}. Let me double-check the syntax for the JSON. No, it's a simple object. Should be okay.",
+          "tool_calls": [
+            {
+              "type": "function",
+              "function": {
+                "name": "add",
+                "arguments": "{\"a\":2,\"b\":2}"
+              },
+              "id": "xNx6xuDPuAWhcUUqRZPjaGG9LdgNm7XD"
+            }
+          ]
+        }
+      }
+    ],
+    "created": 1790707162,
+    "model": "Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+    "system_fingerprint": "b7966-8872ad212",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 241,
+      "prompt_tokens": 169,
+      "total_tokens": 410
+    },
+    "id": "chatcmpl-7Wi1o2oUJEFsHAr9MCkhcfINVGFYxEQF",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 169,
+      "prompt_ms": 108.18,
+      "prompt_per_token_ms": 0.6401183431952663,
+      "prompt_per_second": 1562.2111295988168,
+      "predicted_n": 241,
+      "predicted_ms": 2753.943,
+      "predicted_per_token_ms": 11.427149377593361,
+      "predicted_per_second": 87.51088893270484
+    }
+  }
+}

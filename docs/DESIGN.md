@@ -39,7 +39,7 @@ The game merges two proven architectures:
 
 | Pillar | Meaning |
 |--------|---------|
-| **Local-first** | LM Studio, ComfyUI/Grok, Voxtral TTS + ASR — no cloud dependency for core play, and every generative service off by default |
+| **Local-first** | A local model server (LM Studio by default; vLLM, llama-server, Ollama or any OpenAI-compatible one), ComfyUI/Grok, Voxtral TTS + ASR — no cloud dependency for core play, and every generative service off by default |
 | **Engine is truth** | LLMs narrate; they do not adjudicate mechanics |
 | **Agents have agency** | Storyteller and Assistant choose when to help, hinder, or stay silent |
 | **Player freedom is real** | Quiet life is a valid complete experience; the main plot does not require the player |
@@ -216,7 +216,7 @@ patience: float                  # 0-100: low → more aggressive world events
 ```
 
 **Output contract.** A **JSON Schema**, not a prose instruction — built per turn by
-`engine/lmstudio/schemas.py::storyteller_turn_schema` and sent as
+`engine/llm/schemas.py::storyteller_turn_schema` and sent as
 `response_format: {"type": "json_schema"}`.
 
 ```json
@@ -289,13 +289,21 @@ a player chose "Follow the smoke toward Edgewood", the model narrated the walk,
 and the save still read `forest_clearing` with the stamina untouched.
 `scripts/simulate.py` never noticed because it calls engine methods directly, and
 every mock LLM in the suite emitted a `tool_calls` key no real model could send.
-The dispatcher survives (`execute_tool_calls`) because the intent path and the
-negotiation pipeline share its receipt shape; the channel a player's choice
-travels is `intent`.
+The dispatcher survives (`execute_tool_calls`) for the Assistant, and because
+the intent path shares its receipt shape; the channel a player's choice travels
+is `intent`. **Narration executes no `tool_calls` on any config** (v0.19.0):
+until then `run_turn` handed any array a reply carried to the dispatcher, which
+the grammar made unsamplable but `structured_output: off` did not.
 
-`structured_output: auto` (config) probes the server once and caches the answer;
-small quantized models often ignore schemas entirely, so the brace-counting
-JSON scanner stays in place as the fallback.
+`structured_output` is a ladder (v0.19.0, docs/MODEL_SERVERS.md): the full
+schema, valid JSON of any shape, or no grammar, in the server's own wire form;
+`auto` probes once per process and caches the answer. Small quantized models
+often ignore schemas entirely, so the brace-counting JSON scanner stays in
+place as the fallback. Without the full schema on the wire the prompt carries
+it as a format block, and `schemas.conform` holds the reply to it: a choice
+whose intent the engine did not offer is dropped whole, so it is never offered
+and never run. Rule 1's second half -- an intent gone illegal by the time it
+runs is refused in the prose -- holds on every rung, at execution.
 
 **Quality gate:** Lightweight Evaluator (Anubis pattern) scores tone, lore fit,
 length, choice count, and — weighted heaviest — mechanical claims made without a
@@ -784,7 +792,7 @@ the permission. Enforced by `tests/test_ui_contract.py` and by `ui/tests/`.
 | Scene server | Flask + Socket.IO (`FlaskScene` pattern), `engine/scenes/default_{scene,state,api}.py` | CosySim skills/MCP/interceptors. The default scene is the ENGINE's: it served every story already (title, opening frames and content all follow the active manifest), so in v0.3.0 it moved out of `content/scenes/clockwork/`, which kept only the shared client asset tree and shims |
 | Client | Vite + React 18 in `ui/`, built into a committed `static/dist` | Real state management for a stateful game; committed build means no Node needed to play |
 | Client per story | A plugin at `ui/src/stories/<plugin>/`, chosen by the manifest's `ui.plugin` | Core alone is a playable client; a plugin fills slots. Four stories ship their own (`clockwork-dark`, `wicked-garden`, `neon-city`, `the-long-con`); `dev-story` and `hue-and-cry` use `_engine`, the engine's own default skin |
-| Inference | LM Studio `:1234`, SSE + `json_schema` structured output. Two sibling APIs, and the engine is deliberate about which: `POST /v1/chat/completions` (OpenAI-compat, the only route that takes tools and schemas), `POST /api/v1/chat` (native, the only one where `reasoning: "off"` is honoured) and `GET /api/v1/models` (the one model list, health check included — see `engine/lmstudio/routes.py`) | Local-first |
+| Inference | The **model backend** (`engine/llm/`), speaking the server `llm.provider` names (`engine/llm/providers.py`, [MODEL_SERVERS.md](MODEL_SERVERS.md)): LM Studio `:1234` by default, or vLLM, llama.cpp's `llama-server`, Ollama or any OpenAI-compatible server. Every one gets the strongest structured output it proves it enforces, its own reasoning-off patch and health check. On LM Studio the engine is deliberate about two sibling APIs: `POST /v1/chat/completions` (OpenAI-compat, the only route that takes tools and schemas), `POST /api/v1/chat` (native, the only one where `reasoning: "off"` is honoured) and `GET /api/v1/models` (the one model list — `engine/llm/routes.py`); Ollama is spoken on its native `/api/chat` | Local-first, server-agnostic |
 | Speculative | `draft` model 0.5B–1B → `big` 8B refine | Anubis + CosySim profiles |
 | Lore | SQLite FTS; Nexus KMS optional | Progressive enhancement |
 | Media | Shipped pack → cache → Grok/ComfyUI (off) → procedural SVG | Instant by default, generative by choice |
@@ -801,8 +809,8 @@ Narrative memory is engine-owned, not a chat transcript.
   running summary by a dedicated call on the `small` profile. Explicitly *not*
   the Storyteller's own callable: that one is prompted to produce game turns and
   answers a summarization request with narration JSON, which then became the
-  summary verbatim. Falls back to deterministic compression when LM Studio is
-  unreachable.
+  summary verbatim. Falls back to deterministic compression when the model
+  server is unreachable.
 - **Token budget** — `Budget.available` is `context_tokens − reserve_output`
   less a 15% safety margin. Blocks are evicted in a fixed order
   (`turns → lore → threads → summary`); persona and world state are never
@@ -858,7 +866,7 @@ flowchart LR
         SK[Skills Registry]
     end
     subgraph ext [External]
-        LMS[LM Studio]
+        LMS[Model backend: llm.provider]
         CU[ComfyUI]
         TTS[TTS]
     end
@@ -1084,7 +1092,7 @@ of it.
 - **Done when:** SceneRulesEngine R001–R005 tests pass; **not** Evaluator (that's PR5)
 
 ### PR4 — LMSClient + StreamProcessor ✅ (L)
-- **Files:** `engine/lmstudio/client.py`, `events.py`, `profiles.py`, `speculative.py`, `engine/agents/stream_processor.py`
+- **Files:** `engine/llm/client.py`, `events.py`, `profiles.py`, `speculative.py`, `engine/agents/stream_processor.py`
 - **Dependencies:** PR1
 - **Done when:** Mock SSE tests pass; `infer_processed()` extracts `[IMAGE:]`, `[CUTSCENE:]`, `[STAT:]`; speculative draft→refine fallback
 

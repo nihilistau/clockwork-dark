@@ -1,0 +1,69 @@
+[
+  {
+    "method": "GET",
+    "url": "http://localhost:1234/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  },
+  {
+    "method": "POST",
+    "url": "http://localhost:1234/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {}
+  },
+  {
+    "method": "POST",
+    "url": "http://localhost:1234/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "context_length": 16384,
+      "input": [
+        {
+          "content": "What season is it in the golden test?",
+          "type": "text"
+        }
+      ],
+      "max_output_tokens": 4400,
+      "model": "golden/narrator-26b",
+      "reasoning": "on",
+      "stream": false,
+      "system_prompt": "Answer in one short sentence.",
+      "temperature": 0.85
+    }
+  },
+  {
+    "method": "POST",
+    "url": "http://localhost:1234/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "context_length": 16384,
+      "input": [
+        {
+          "content": "What season is it in the golden test?",
+          "type": "text"
+        }
+      ],
+      "max_output_tokens": 1200,
+      "model": "golden/narrator-26b",
+      "reasoning": "off",
+      "stream": false,
+      "system_prompt": "Answer in one short sentence.",
+      "temperature": 0.85
+    }
+  }
+]

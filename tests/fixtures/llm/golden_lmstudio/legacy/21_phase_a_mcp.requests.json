@@ -1,0 +1,51 @@
+[
+  {
+    "method": "POST",
+    "url": "http://127.0.0.1:1235/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {}
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:1235/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  },
+  {
+    "method": "POST",
+    "url": "http://127.0.0.1:1235/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "context_length": 16384,
+      "input": [
+        {
+          "content": "I study the boot marks.",
+          "type": "text"
+        }
+      ],
+      "integrations": [
+        {
+          "id": "mcp/engine-skills-golden",
+          "type": "plugin"
+        }
+      ],
+      "max_output_tokens": 400,
+      "model": "golden/narrator-26b",
+      "reasoning": "off",
+      "stream": true,
+      "system_prompt": "You are the mechanics resolver for a text RPG. You do not narrate.\n\nYour only job is to decide which engine tools this player action requires, call\nthem, and stop. The engine owns every outcome: dice, movement, stamina, time,\ninventory, trade, quests. Never state a result you did not get back from a tool.\n\nPLAYER: Traveler\nPLACE: forest_clearing, day 1, day\n\nRULES\n- Call a tool for anything with a mechanical result. Read a value rather than\n  assuming it.\n- CALL NOTHING if the action needs nothing mechanical. Most turns are talk, and\n  an unnecessary roll is worse than no roll.\n- Do not write prose, scene description, or dialogue. Anything you write here is\n  discarded; only the tool results are kept.\n- When you are finished calling tools, reply with the single word DONE.\n",
+      "temperature": 0.0
+    }
+  }
+]

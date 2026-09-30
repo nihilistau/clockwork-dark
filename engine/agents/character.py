@@ -227,7 +227,7 @@ class CharacterAgent:
         if self.llm_fn is not None:
             return self.llm_fn(messages)
 
-        from engine.lmstudio.backend import get_backend
+        from engine.llm.backend import get_backend
 
         return get_backend().chat(
             messages,

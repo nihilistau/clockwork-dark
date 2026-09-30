@@ -1,0 +1,21 @@
+{
+  "request": {
+    "model": "phi3.1-mini-local:latest",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 2+2? Answer with one number only."
+      }
+    ],
+    "stream": false,
+    "options": {
+      "num_ctx": 8192,
+      "temperature": 0.0
+    },
+    "think": true
+  },
+  "status": 400,
+  "json": {
+    "error": "\"phi3.1-mini-local:latest\" does not support thinking"
+  }
+}

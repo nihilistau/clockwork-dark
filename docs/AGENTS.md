@@ -197,13 +197,21 @@ Phase A receipt is exactly as durable as a resolved player intent, which is the
 rule `run_turn` already followed. `tests/test_two_phase_turn.py` pins the order
 with a spy, and `scripts/two_phase_live_proof.py` re-checks it on the live path.
 
-**It is off by default and it degrades to silence.** `lmstudio.mcp.enabled` is
+**It is off by default and it degrades to silence.** `llm.mcp.enabled` is
 the only switch; with it false the turn's payload is byte-identical to the one
 that ran before Phase A existed, and a test asserts that against the turn with
 the call removed altogether. With it true, every failure — no `fastmcp`, no
 socket, no writable `mcp.json`, LM Studio down, a timeout, a model that calls
 nothing — logs at WARNING and returns `[]`, so Phase B runs the turn it runs
 today. A turn never fails because its optional half did.
+
+**It is LM Studio's alone (v0.19.0).** Only LM Studio's native `integrations`
+carries an MCP server, so `mechanics_enabled()` is also false whenever the
+configured provider's row lacks `mcp_integrations`: under vLLM, llama-server,
+Ollama or a generic server, `llm.mcp.enabled: true` logs one ERROR per process,
+the doctor shows a FAIL row, and the turn is the MCP-off turn
+(`tests/test_llm_mcp_gate.py`). There is no engine-side tool loop to fall back
+to — a NOT WIRED row in [GOVERNANCE.md](GOVERNANCE.md).
 
 **Ephemeral MCP does not work here, re-measured 2026-08-15.** Seven forms were
 tried against the live server and all seven came back
@@ -220,7 +228,7 @@ required, not preferred. See the table in `engine/mcp/skills_server.py`.
 
 | Thing | File | Status |
 |---|---|---|
-| Reasoning cost of structured plans | `engine/agents/pipeline.py` (the two plan calls), `engine/lmstudio/client.py` (the transport that cannot disable reasoning) | A JSON schema forces the OpenAI-compat transport, which cannot turn reasoning off. Two plan calls per turn pay that on hardware where reasoning is 800+ tokens. **Still unmeasured against a real model** — this is a cost that is not known, not a mechanism that is not called, and it is in this table so that the difference stays visible. |
+| Reasoning cost of structured plans | `engine/agents/pipeline.py` (the two plan calls), `engine/agents/planner.py::_infer`, `engine/llm/providers.py` (`grammar_and_reasoning_off_together`) | On **LM Studio** a JSON schema forces its OpenAI-compat route, which cannot turn reasoning off (the row's `grammar_and_reasoning_off_together: no`), so two plan calls per turn pay for thinking on hardware where reasoning is 800+ tokens. On every other row (vLLM, llama-server, Ollama, a generic server with a declared body) the reasoning-off patch rides beside the grammar -- when the plan's profile asks for `off`, and on the starvation retry -- but it stays untrusted, and the call keeps the full reasoning cap, until the owner declares the model's `reasoning` (`llm.declared_models`). **Still unmeasured against a real model** — this is a cost that is not known, not a mechanism that is not called, and it is in this table so that the difference stays visible. |
 
 Re-audited on 2026-08-15 against the tree. The remaining row is the odd kind:
 everything it names IS wired and running, and what is missing is a measurement.

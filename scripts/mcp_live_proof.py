@@ -57,9 +57,9 @@ if str(ROOT) not in sys.path:
 
 from engine.game.engine import GameEngine  # noqa: E402
 from engine.game.procgen import new_game_state  # noqa: E402
-from engine.lmstudio.events import LMSStreamEvent  # noqa: E402
-from engine.lmstudio.native import NativeClient  # noqa: E402
-from engine.lmstudio.profiles import resolve_profile  # noqa: E402
+from engine.llm.events import LMSStreamEvent  # noqa: E402
+from engine.llm.lmstudio_native import NativeClient  # noqa: E402
+from engine.llm.profiles import resolve_profile  # noqa: E402
 from engine.mcp import skills_server  # noqa: E402
 from engine.mcp.skills_server import (  # noqa: E402
     SkillsServer,
@@ -75,7 +75,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Prove the MCP tool layer against a live LM Studio")
     parser.add_argument("--skill", default="query_evil_state", choices=SAFE_SKILLS)
     parser.add_argument("--profile", default="utility", help="which lmstudio profile to ask")
-    parser.add_argument("--port", type=int, default=0, help="override lmstudio.mcp.port")
+    parser.add_argument("--port", type=int, default=0, help="override llm.mcp.port")
     parser.add_argument("--verbose", action="store_true", help="print every SSE event")
     parser.add_argument(
         "--ephemeral",
@@ -135,7 +135,7 @@ def main() -> int:
     if integration is None:
         print("FAIL: could not register with LM Studio's mcp.json.")
         print(f"      looked for {mcp_json_path() or '(no candidate found)'}")
-        print("      set lmstudio.mcp.mcp_json in config/local.yaml")
+        print("      set llm.mcp.mcp_json in config/local.yaml")
         return 2
 
     print(f"  model    {profile.model} (reasoning=off)")

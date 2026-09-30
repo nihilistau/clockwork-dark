@@ -1,0 +1,15 @@
+{
+  "result": [
+    {
+      "skill": "query_evil_state",
+      "args": {},
+      "result": {
+        "evil_progress": 0.0,
+        "phase": "dormant"
+      },
+      "success": true,
+      "phase": "mechanics"
+    }
+  ],
+  "backend_calls": []
+}

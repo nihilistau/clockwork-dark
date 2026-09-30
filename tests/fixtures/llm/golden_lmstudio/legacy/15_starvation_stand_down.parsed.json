@@ -1,0 +1,33 @@
+{
+  "result": {
+    "content": "",
+    "response_id": "chatcmpl-golden-1",
+    "model": "golden/utility-8b",
+    "input_tokens": 812,
+    "output_tokens": 1700,
+    "stats": {},
+    "tool_calls": [],
+    "finish_reason": "length",
+    "reasoning_content": "",
+    "reasoning_tokens": 0,
+    "transport": "openai"
+  },
+  "backend_calls": [
+    {
+      "call": "chat",
+      "response": {
+        "content": "",
+        "response_id": "chatcmpl-golden-1",
+        "model": "golden/utility-8b",
+        "input_tokens": 812,
+        "output_tokens": 1700,
+        "stats": {},
+        "tool_calls": [],
+        "finish_reason": "length",
+        "reasoning_content": "",
+        "reasoning_tokens": 0,
+        "transport": "openai"
+      }
+    }
+  ]
+}

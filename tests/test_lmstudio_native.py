@@ -2,7 +2,7 @@
 Native LM Studio transport, registry and backend routing.
 
 Everything here is mocked. The live-server evidence that motivated the module
-lives in engine/lmstudio/native.py's docstring; these tests pin the contract.
+lives in engine/llm/lmstudio_native.py's docstring; these tests pin the contract.
 """
 
 from __future__ import annotations
@@ -14,10 +14,10 @@ import pytest
 
 from engine.agents.stream_processor import StreamProcessor
 from engine.config import reset_config
-from engine.lmstudio.backend import LMStudioBackend
-from engine.lmstudio.events import LMSResponse
-from engine.lmstudio.native import NativeClient, messages_to_native
-from engine.lmstudio.registry import ModelInfo, ModelRegistry, ModelUnavailable
+from engine.llm.backend import LMStudioBackend
+from engine.llm.events import LMSResponse
+from engine.llm.lmstudio_native import NativeClient, messages_to_native
+from engine.llm.registry import ModelInfo, ModelRegistry, ModelUnavailable
 
 # -- request translation --------------------------------------------------
 
@@ -243,7 +243,7 @@ _MODELS = {
 
 
 def _registry() -> ModelRegistry:
-    from engine.lmstudio.registry import parse_models_payload
+    from engine.llm.registry import parse_models_payload
 
     registry = ModelRegistry(base_url="http://test.local/v1")
     registry._models = parse_models_payload(_MODELS)
@@ -532,7 +532,7 @@ def test_the_backend_hands_both_budgets_to_the_transport():
     backend._native_available = True
     backend.chat([{"role": "user", "content": "hi"}], profile="big")
 
-    from engine.lmstudio.profiles import resolve_profile
+    from engine.llm.profiles import resolve_profile
 
     assert seen["reasoning_budget"] == resolve_profile("big").reasoning_budget
     assert seen["max_tokens"] == resolve_profile("big").max_tokens
@@ -566,8 +566,8 @@ def test_the_backend_hands_both_budgets_to_the_transport():
 
 def _installed(capabilities: dict) -> None:
     """Make the process-wide registry hold one model with these capabilities."""
-    from engine.lmstudio import registry as registry_module
-    from engine.lmstudio.registry import ModelRegistry, parse_models_payload
+    from engine.llm import registry as registry_module
+    from engine.llm.registry import ModelRegistry, parse_models_payload
 
     registry = ModelRegistry(base_url="http://test.local/v1")
     registry._models = parse_models_payload(
@@ -589,7 +589,7 @@ def _installed(capabilities: dict) -> None:
 
 def _reasoning_sent(value: str, capabilities: dict, *, model: str = "probe-model"):
     """The `reasoning` key this payload would carry, or None when omitted."""
-    from engine.lmstudio.registry import reset_registry
+    from engine.llm.registry import reset_registry
 
     _installed(capabilities)
     try:
@@ -667,7 +667,7 @@ def test_an_unknown_model_is_unchanged():
     request is not going to succeed on any grounds -- and quietly changing what
     we send would make a network outage look like a capability decision.
     """
-    from engine.lmstudio.registry import reset_registry
+    from engine.llm.registry import reset_registry
 
     reset_registry()
     client = NativeClient(base_url="http://test.local/v1")
@@ -696,9 +696,9 @@ class _RecordingNative:
 
 
 def _retry(capabilities: dict, *, starved, cap: int = 320):
-    from engine.lmstudio.backend import LMStudioBackend
-    from engine.lmstudio.profiles import ModelProfile
-    from engine.lmstudio.registry import reset_registry
+    from engine.llm.backend import LMStudioBackend
+    from engine.llm.profiles import ModelProfile
+    from engine.llm.registry import reset_registry
 
     _installed(capabilities)
     try:

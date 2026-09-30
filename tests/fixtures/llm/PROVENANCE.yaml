@@ -1,0 +1,309 @@
+# Where each model-server fixture under tests/fixtures/llm/<provider>/ came from.
+#
+# origin: recorded -- a live server produced these bytes (server_version is the
+#                     version it reported).
+# origin: authored -- written by hand from the server's documentation (`source`,
+#                     the page the shape was taken from); server_version is the
+#                     version that documentation describes. Nothing was run.
+#
+# A fixture is `recorded` ONLY if a live server produced it. vLLM's are all
+# `authored` in v0.19.0 (live in v0.20.0, on Linux). llama-server's were
+# recorded live in v0.19.0 T8 by scripts/record_llm_fixtures.py, which writes
+# these rows: the server's own version, the model that answered (`model`), the
+# date, and a `note` when the recipe needed a server flag or a kind of model.
+# A recorded chat fixture holds the request that produced it under `request`;
+# /props' model_path is cut to the file name. Ollama's were recorded live in
+# T8 too (Ollama 0.34.4), all but those a live Ollama could not give: the
+# authored three-model server the discovery tests use, a server that ignores
+# `format`, a proxy's 401 and a leading inline <think>; each says why in its
+# `note`.
+# tests/test_llm_fixture_provenance.py fails for a fixture file with no row
+# here, and for a row whose file is gone.
+#
+# Not listed: tests/fixtures/llm/golden_lmstudio/, the LM Studio golden. It
+# pins v0.18.0's own requests and parses (tests/llm_golden.py says how it was
+# made) and is never re-recorded.
+
+files:
+  vllm/models.json:
+    provider: vllm
+    server_version: "vLLM 0.10"
+    origin: authored
+    source: https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
+  vllm/models_error.json:
+    provider: vllm
+    server_version: "vLLM 0.10"
+    origin: authored
+    source: https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
+  vllm/models_error_nested.json:
+    provider: vllm
+    server_version: "vLLM 0.10"
+    origin: authored
+    source: https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
+  vllm/chat_stream_inline_think.json:
+    provider: vllm
+    server_version: "vLLM 0.10"
+    origin: authored
+    source: https://docs.vllm.ai/en/latest/features/reasoning_outputs.html
+  llamacpp/models.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+  llamacpp/models_props.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+  llamacpp/models_error.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+  llamacpp/health.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+  llamacpp/health_loading.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+    note: "polled while the server loaded its model (--wait-for-load)"
+  llamacpp/chat.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+  llamacpp/chat_stream_thinking.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+  llamacpp/chat_json_schema.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+  llamacpp/chat_patch_ignored.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+    note: "a template that opens <think> whatever enable_thinking says"
+  llamacpp/error_400.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+  llamacpp/error_401.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+    note: "server started with --api-key; sent a wrong key"
+  llamacpp/chat_reasoning_off.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-0.6B-Q8_0.gguf"
+    recorded: "2026-09-30"
+    note: "a template that honours enable_thinking"
+  llamacpp/chat_stream_patch_ignored.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+    note: "a template that opens <think> whatever enable_thinking says"
+  llamacpp/chat_inline_think.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+    note: "server started with --reasoning-format none"
+  llamacpp/chat_json_object.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+  llamacpp/chat_tool_calls.json:
+    provider: llamacpp
+    server_version: "llama.cpp server b7966-8872ad212"
+    origin: recorded
+    model: "Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    recorded: "2026-09-30"
+  ollama/models_tags.json:
+    provider: ollama
+    server_version: "Ollama 0.12"
+    origin: authored
+    source: https://github.com/ollama/ollama/blob/main/docs/api.md
+    note: "a server holding a thinking model, a plain one and an embedding model; the live machine held two chat models (models_tags_live.json)"
+  ollama/models_show_qwen3.json:
+    provider: ollama
+    server_version: "Ollama 0.12"
+    origin: authored
+    source: https://github.com/ollama/ollama/blob/main/docs/api.md
+    note: "part of the authored three-model server; qwen3:4b live is models_show_thinker_live.json"
+  ollama/models_show_llama.json:
+    provider: ollama
+    server_version: "Ollama 0.12"
+    origin: authored
+    source: https://github.com/ollama/ollama/blob/main/docs/api.md
+    note: "part of the authored three-model server; a live plain model is models_show_plain_live.json"
+  ollama/models_show_nomic.json:
+    provider: ollama
+    server_version: "Ollama 0.12"
+    origin: authored
+    source: https://github.com/ollama/ollama/blob/main/docs/api.md
+    note: "part of the authored three-model server; no embedding model was installed live"
+  ollama/models_ps.json:
+    provider: ollama
+    server_version: "Ollama 0.12"
+    origin: authored
+    source: https://github.com/ollama/ollama/blob/main/docs/api.md
+    note: "part of the authored three-model server; live is models_ps_live.json"
+  ollama/models_error.json:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "every installed model"
+    recorded: "2026-09-30"
+  # The native /api/chat transport (v0.19.0 T5): answers, streams (NDJSON, one
+  # JSON object per line) and refusals. JSON chat answers are canned answers with
+  # their request; a stream is the NDJSON as sent, its request in the recipe.
+  ollama/chat.json:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "qwen3:4b"
+    recorded: "2026-09-30"
+  ollama/chat_tool_calls.json:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "qwen3:4b"
+    recorded: "2026-09-30"
+  ollama/chat_json_schema.json:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "qwen3:4b"
+    recorded: "2026-09-30"
+    note: "a format + think: true request (the pre-T8-fix probe shape; the probe now sends think: false)"
+  ollama/chat_probe_ignored.json:
+    provider: ollama
+    server_version: "Ollama 0.12"
+    origin: authored
+    source: https://github.com/ollama/ollama/blob/main/docs/api.md
+    note: "a server that ignores format; Ollama 0.34.4 enforced it, so this cannot be recorded from it"
+  ollama/chat_starved.json:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "qwen3:4b"
+    recorded: "2026-09-30"
+  ollama/chat_error_think.json:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "phi3.1-mini-local:latest"
+    recorded: "2026-09-30"
+    note: "think: true to a model /api/show lists no thinking for"
+  ollama/error_401.json:
+    provider: ollama
+    server_version: "Ollama 0.12"
+    origin: authored
+    source: https://github.com/ollama/ollama/blob/main/docs/faq.md
+    note: "Ollama has no key of its own; a 401 is a reverse proxy's"
+  ollama/version.json:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "every installed model"
+    recorded: "2026-09-30"
+  ollama/chat_stream_thinking.ndjson:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "qwen3:4b"
+    recorded: "2026-09-30"
+    note: "stream: true, think: true; the request is the recipe's"
+  ollama/chat_stream_inline_think.ndjson:
+    provider: ollama
+    server_version: "Ollama 0.12"
+    origin: authored
+    source: https://github.com/ollama/ollama/blob/main/docs/api.md
+    note: "a leading <think> in content; Ollama 0.34.4 split thinking into message.thinking itself"
+  ollama/chat_stream_starved.ndjson:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "qwen3:4b"
+    recorded: "2026-09-30"
+    note: "stream: true, think: true, num_predict 8; the request is the recipe's"
+  ollama/models_tags_live.json:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "every installed model"
+    recorded: "2026-09-30"
+  ollama/models_ps_live.json:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "every loaded model"
+    recorded: "2026-09-30"
+    note: "after a request that sent num_ctx 8192"
+  ollama/models_show_thinker_live.json:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "qwen3:4b"
+    recorded: "2026-09-30"
+    note: "license and modelfile dropped"
+  ollama/models_show_plain_live.json:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "phi3.1-mini-local:latest"
+    recorded: "2026-09-30"
+    note: "license and modelfile dropped; a GGUF imported by a Modelfile"
+  ollama/chat_think_ignored.json:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "qwen3:4b"
+    recorded: "2026-09-30"
+    note: "think: false to a model whose template opens <think> anyway"
+  ollama/chat_stream_think_ignored.ndjson:
+    provider: ollama
+    server_version: "Ollama 0.34.4"
+    origin: recorded
+    model: "qwen3:4b"
+    recorded: "2026-09-30"
+    note: "stream: true, think: false, to a model whose template opens <think> anyway; the request is the recipe's"
+  openai_compat/models.json:
+    provider: openai_compat
+    server_version: "OpenAI API v1"
+    origin: authored
+    source: https://platform.openai.com/docs/api-reference/models/list
+  openai_compat/models_error.json:
+    provider: openai_compat
+    server_version: "OpenAI API v1"
+    origin: authored
+    source: https://platform.openai.com/docs/api-reference/models/list

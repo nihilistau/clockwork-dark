@@ -1,0 +1,579 @@
+[
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:1235/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  },
+  {
+    "method": "POST",
+    "url": "http://127.0.0.1:1235/v1/chat/completions",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "max_tokens": 3400,
+      "messages": [
+        {
+          "content": "Reply with {\"ok\": true}",
+          "role": "user"
+        }
+      ],
+      "model": "golden/narrator-26b",
+      "response_format": {
+        "json_schema": {
+          "name": "probe",
+          "schema": {
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          "strict": true
+        },
+        "type": "json_schema"
+      },
+      "stream": false,
+      "temperature": 0.0
+    }
+  },
+  {
+    "method": "POST",
+    "url": "http://127.0.0.1:1235/v1/chat/completions",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "max_tokens": 4400,
+      "messages": [
+        {
+          "content": "You narrate a golden-test story in the second person.",
+          "role": "system"
+        },
+        {
+          "content": "WORLD STATE: dusk at the forest clearing; the east path is open.",
+          "role": "system"
+        },
+        {
+          "content": "The wind turns. Something in the trees has noticed you.",
+          "role": "assistant"
+        },
+        {
+          "content": "I follow the path east.",
+          "role": "user"
+        }
+      ],
+      "model": "golden/narrator-26b",
+      "response_format": {
+        "json_schema": {
+          "name": "storyteller_turn",
+          "schema": {
+            "additionalProperties": false,
+            "properties": {
+              "choices": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "hint": {
+                      "enum": [
+                        "safe",
+                        "risky",
+                        "costly",
+                        "unknown"
+                      ]
+                    },
+                    "id": {
+                      "enum": [
+                        "a",
+                        "b",
+                        "c",
+                        "d"
+                      ]
+                    },
+                    "intent": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "const": "travel"
+                            },
+                            "target": {
+                              "enum": [
+                                "deeper_forest",
+                                "edgewood_square",
+                                "herb_glen"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action",
+                            "target"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "const": "rest"
+                            },
+                            "target": {
+                              "enum": [
+                                "rest_short",
+                                "sleep_bed",
+                                "sleep_rough"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action",
+                            "target"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "const": "eat"
+                            },
+                            "target": {
+                              "enum": [
+                                "road_bread"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action",
+                            "target"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "const": "check"
+                            },
+                            "difficulty": {
+                              "enum": [
+                                "trivial",
+                                "easy",
+                                "standard",
+                                "hard",
+                                "severe",
+                                "legendary"
+                              ]
+                            },
+                            "target": {
+                              "enum": [
+                                "craft",
+                                "lore",
+                                "nerve",
+                                "persuasion",
+                                "stealth",
+                                "survival",
+                                "sympathy"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action",
+                            "target"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "const": "forage"
+                            },
+                            "target": {
+                              "enum": [
+                                "forage_4"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action",
+                            "target"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "text": {
+                      "maxLength": 100,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "text"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 4,
+                "minItems": 2,
+                "type": "array"
+              },
+              "ledger_delta": {
+                "additionalProperties": false,
+                "properties": {
+                  "facts": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "subject_id": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "maxLength": 140,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "text"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 3,
+                    "type": "array"
+                  },
+                  "names": {
+                    "type": "object"
+                  },
+                  "npc_disposition": {
+                    "type": "object"
+                  },
+                  "promises": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "due_day": {
+                          "type": "integer"
+                        },
+                        "from_id": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "maxLength": 140,
+                          "type": "string"
+                        },
+                        "to_id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "text"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 1,
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              },
+              "narration": {
+                "maxLength": 1800,
+                "minLength": 220,
+                "type": "string"
+              }
+            },
+            "required": [
+              "narration",
+              "choices"
+            ],
+            "type": "object"
+          },
+          "strict": true
+        },
+        "type": "json_schema"
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "ttl": 600
+    }
+  },
+  {
+    "method": "POST",
+    "url": "http://127.0.0.1:1235/v1/chat/completions",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "max_tokens": 4400,
+      "messages": [
+        {
+          "content": "You narrate a golden-test story in the second person.",
+          "role": "system"
+        },
+        {
+          "content": "WORLD STATE: dusk at the forest clearing; the east path is open.",
+          "role": "system"
+        },
+        {
+          "content": "The wind turns. Something in the trees has noticed you.",
+          "role": "assistant"
+        },
+        {
+          "content": "I follow the path east.",
+          "role": "user"
+        }
+      ],
+      "model": "golden/narrator-26b",
+      "response_format": {
+        "json_schema": {
+          "name": "storyteller_turn",
+          "schema": {
+            "additionalProperties": false,
+            "properties": {
+              "choices": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "hint": {
+                      "enum": [
+                        "safe",
+                        "risky",
+                        "costly",
+                        "unknown"
+                      ]
+                    },
+                    "id": {
+                      "enum": [
+                        "a",
+                        "b",
+                        "c",
+                        "d"
+                      ]
+                    },
+                    "intent": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "const": "travel"
+                            },
+                            "target": {
+                              "enum": [
+                                "deeper_forest",
+                                "edgewood_square",
+                                "herb_glen"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action",
+                            "target"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "const": "rest"
+                            },
+                            "target": {
+                              "enum": [
+                                "rest_short",
+                                "sleep_bed",
+                                "sleep_rough"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action",
+                            "target"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "const": "eat"
+                            },
+                            "target": {
+                              "enum": [
+                                "road_bread"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action",
+                            "target"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "const": "check"
+                            },
+                            "difficulty": {
+                              "enum": [
+                                "trivial",
+                                "easy",
+                                "standard",
+                                "hard",
+                                "severe",
+                                "legendary"
+                              ]
+                            },
+                            "target": {
+                              "enum": [
+                                "craft",
+                                "lore",
+                                "nerve",
+                                "persuasion",
+                                "stealth",
+                                "survival",
+                                "sympathy"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action",
+                            "target"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "const": "forage"
+                            },
+                            "target": {
+                              "enum": [
+                                "forage_4"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action",
+                            "target"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "text": {
+                      "maxLength": 100,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "text"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 4,
+                "minItems": 2,
+                "type": "array"
+              },
+              "ledger_delta": {
+                "additionalProperties": false,
+                "properties": {
+                  "facts": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "subject_id": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "maxLength": 140,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "text"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 3,
+                    "type": "array"
+                  },
+                  "names": {
+                    "type": "object"
+                  },
+                  "npc_disposition": {
+                    "type": "object"
+                  },
+                  "promises": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "due_day": {
+                          "type": "integer"
+                        },
+                        "from_id": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "maxLength": 140,
+                          "type": "string"
+                        },
+                        "to_id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "text"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 1,
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              },
+              "narration": {
+                "maxLength": 1800,
+                "minLength": 220,
+                "type": "string"
+              }
+            },
+            "required": [
+              "narration",
+              "choices"
+            ],
+            "type": "object"
+          },
+          "strict": true
+        },
+        "type": "json_schema"
+      },
+      "stream": false,
+      "temperature": 0.7,
+      "ttl": 600
+    }
+  }
+]

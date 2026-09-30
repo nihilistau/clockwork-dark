@@ -1,0 +1,37 @@
+{
+  "request": {
+    "model": "qwen3:4b",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 2+2? Answer with one number only."
+      }
+    ],
+    "stream": false,
+    "options": {
+      "num_ctx": 8192,
+      "temperature": 0.0,
+      "num_predict": 3000
+    },
+    "think": true
+  },
+  "status": 200,
+  "json": {
+    "model": "qwen3:4b",
+    "created_at": "2026-09-29T20:29:20.1663054Z",
+    "message": {
+      "role": "assistant",
+      "content": "4",
+      "thinking": "Okay, the user asked \"What is 2+2? Answer with one number only.\" Hmm, this seems straightforward but let me think carefully. \n\nFirst, I recall that 2 plus 2 is a basic arithmetic problem. In elementary math, 2 + 2 equals 4. The user specifically said to answer with \"one number only,\" so I shouldn't add any text or explanations. \n\nI wonder why they're asking this though. Maybe it's a test to see if I follow simple instructions? Or perhaps they're checking if I'll overcomplicate it. The phrasing \"answer with one number only\" suggests they want just the digit 4, no words. \n\nI should make sure there's no trick here. Is there any context where 2+2 isn't 4? Like in modular arithmetic? But the question doesn't specify any special context, so standard addition applies. \n\nAlso, the user said \"one number only\" - so I'll output just \"4\" without quotes or anything. No extra spaces. \n\n*Double-checking*: Yep, 2 + 2 = 4. Basic math. No ambiguity here. \n\nFinal answer should be 4. Keeping it simple as requested.\n"
+    },
+    "done": true,
+    "done_reason": "stop",
+    "total_duration": 2902573000,
+    "load_duration": 2564200,
+    "prompt_eval_count": 23,
+    "prompt_eval_cached_count": 22,
+    "prompt_eval_duration": 12588000,
+    "eval_count": 256,
+    "eval_duration": 2885124000
+  }
+}

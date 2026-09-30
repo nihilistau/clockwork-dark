@@ -31,7 +31,7 @@ DESIGN_REVIEW.md, then CLAUDE_CODE_BRIEF.md.
 8. **Prove with tests** — run `pytest` before declaring work complete. Expect fully green, no `xfail`.
 9. **Do not document a mechanism you did not wire.** Mark it **NOT WIRED** with its file. A design doc describing code that never runs is how this codebase got into trouble.
 10. **Run `scripts/simulate.py` before changing a balance constant.** Every number here was originally chosen against a clock that did not tick.
-11. **Windows-aware** — LM Studio at `http://localhost:1234/v1`; use `scripts/start.ps1` or `launcher.py --stack`.
+11. **Windows-aware, server-agnostic** — LM Studio at `http://localhost:1234/v1` is the default model server; vLLM, llama-server, Ollama and OpenAI-compatible servers are set by `llm.provider` (docs/MODEL_SERVERS.md). Use `scripts/start.ps1` or `launcher.py --stack`.
 12. **Never add a content-rating or "safety" layer.** One was built on
     2026-08-13 and removed on 2026-08-15 at the owner's instruction (release
     v0.3.0, 5207 deletions). Do not rebuild it in any form: no intensity
@@ -96,7 +96,10 @@ and none newer than `pyproject.toml`'s.
 guard is canary-checked by reintroducing the bug it guards. A test that
 activates a story is cleaned up by `tests/conftest.py::_no_story_outlives_its_test`;
 one that opens a connection to the model server fails unless marked
-`@pytest.mark.live` (`_no_live_model_calls`).
+`@pytest.mark.live` (`_no_live_model_calls`). LM Studio's `mcp.json` is
+redirected into every test's temp directory, a write outside it fails the
+test, and a real skills server starts only under `@pytest.mark.mcp_server`
+(`_no_owner_lm_studio_files`).
 
 **Time and randomness in new systems.** A new system advances on IN-GAME hours
 inside `clock.advance_time`, never on the background world tick, which is

@@ -9,14 +9,14 @@ import pytest
 
 from engine.agents.stream_processor import StreamProcessor
 from engine.config import reset_config
-from engine.lmstudio.client import (
+from engine.llm.client import (
     LMSClient,
     _ToolCallAccumulator,
     compat_cap,
     extract_reasoning,
     reset_lms_client,
 )
-from engine.lmstudio.profiles import resolve_profile, wire_cap
+from engine.llm.profiles import resolve_profile, wire_cap
 
 
 def _sse_lines(*chunks: str) -> bytes:
@@ -390,3 +390,87 @@ def test_compat_stream_sends_the_summed_ceiling():
         pass
     assert seen["max_tokens"] == 1700
     client.close()
+
+
+def test_a_config_reload_rebuilds_the_compat_client(tmp_path, monkeypatch):
+    """
+    The client reads its base URL and key once, when built. A config reload --
+    a Settings save, a game swap -- must drop it, or the next turn dials the
+    previous server with the previous key.
+    """
+    from pathlib import Path
+
+    import engine.config as config
+    from engine.llm.client import get_lms_client
+
+    repo = Path(__file__).resolve().parents[1]
+    monkeypatch.delenv("CLOCKWORK_ENV", raising=False)
+    monkeypatch.setattr(config, "_CONFIG_DIR", tmp_path)
+    monkeypatch.setattr(config, "_DEFAULT_PATH", repo / "config" / "default.yaml")
+    local = tmp_path / "local.yaml"
+    try:
+        local.write_text('llm: {base_url: "http://one.test:1/v1", api_key: "k-one"}\n')
+        reset_config()
+        reset_lms_client()
+        first = get_lms_client()
+        assert (first.base_url, first.api_key) == ("http://one.test:1/v1", "k-one")
+
+        local.write_text('llm: {base_url: "http://two.test:2/v1", api_key: "k-two"}\n')
+        reset_config()
+        second = get_lms_client()
+        assert (second.base_url, second.api_key) == ("http://two.test:2/v1", "k-two")
+    finally:
+        monkeypatch.undo()
+        reset_config()
+        reset_lms_client()
+
+
+def test_a_stream_in_flight_survives_a_config_reload():
+    """
+    A Settings save reloads the config on a Flask thread, mid-narration. The
+    reload drops the compat client; it must not CLOSE the one a turn is still
+    streaming through, or the turn dies and the player gets the canned line.
+    """
+    from engine.llm.client import get_lms_client
+
+    transport_closed = {"flag": False}
+
+    class ClosableTransport(httpx.BaseTransport):
+        """Serves the stream a line at a time and fails it once closed."""
+
+        def handle_request(self, request: httpx.Request) -> httpx.Response:
+            def body():
+                for chunk in ("Hel", "lo, ", "world"):
+                    if transport_closed["flag"]:
+                        raise httpx.ReadError("closed under the stream", request=request)
+                    payload = json.dumps({"choices": [{"delta": {"content": chunk}}]})
+                    yield f"data: {payload}\n\n".encode("utf-8")
+                yield b"data: [DONE]\n\n"
+
+            return httpx.Response(
+                200, headers={"content-type": "text/event-stream"}, content=body()
+            )
+
+        def close(self) -> None:
+            transport_closed["flag"] = True
+
+    reset_lms_client()
+    client = get_lms_client()
+    client._client = httpx.Client(transport=ClosableTransport())
+    try:
+        stream = client.chat_stream([{"role": "user", "content": "hi"}], model="m")
+        deltas = [next(stream)]
+        reset_config()  # the Settings save's reload, with the stream half read
+        assert get_lms_client() is not client
+        deltas += list(stream)
+        assert "".join(deltas) == "Hello, world"
+        assert transport_closed["flag"] is False
+
+        # Released, not leaked: once nothing holds the old client, its pool closes.
+        import gc
+
+        del stream, client
+        gc.collect()
+        assert transport_closed["flag"] is True
+    finally:
+        reset_lms_client()

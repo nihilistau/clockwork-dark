@@ -1,0 +1,13 @@
+{
+  "result": {
+    "ok": false,
+    "status": "http",
+    "detail": "HTTP 400: {\"error\": {\"type\": \"invalid_request\", \"message\": \"Model 'golden/narrator-26b' failed to load: insufficient memory\"}}",
+    "model": "golden/narrator-26b",
+    "bound": true,
+    "transport": "openai",
+    "latency_ms": 0.0,
+    "content": ""
+  },
+  "backend_calls": []
+}

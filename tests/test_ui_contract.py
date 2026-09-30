@@ -482,7 +482,7 @@ def test_the_watchdog_outlasts_the_servers_own_giving_up():
     assert match, "App.jsx no longer declares a watchdog"
     watchdog_seconds = int(match.group(1)) / 1000
 
-    server_seconds = float(get_config().get("lmstudio.timeout_seconds", 0))
+    server_seconds = float(get_config().get("llm.timeout_seconds", 0))
     assert server_seconds > 0, "the generation timeout is no longer configured"
     assert watchdog_seconds > server_seconds, (
         f"the client gives up at {watchdog_seconds}s, before the server does at "

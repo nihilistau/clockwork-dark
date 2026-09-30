@@ -1,0 +1,28 @@
+{
+  "result": {
+    "items": [
+      {
+        "id": "brass_key",
+        "name": "Brass Key"
+      }
+    ]
+  },
+  "backend_calls": [
+    {
+      "call": "chat",
+      "response": {
+        "content": "{\"items\": [{\"id\": \"brass_key\", \"name\": \"Brass Key\"}]}",
+        "response_id": "chatcmpl-golden-1",
+        "model": "golden/utility-8b",
+        "input_tokens": 812,
+        "output_tokens": 431,
+        "stats": {},
+        "tool_calls": [],
+        "finish_reason": "stop",
+        "reasoning_content": "",
+        "reasoning_tokens": 0,
+        "transport": "openai"
+      }
+    }
+  ]
+}

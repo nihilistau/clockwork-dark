@@ -1,0 +1,48 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 2+2? Answer with one number only."
+      }
+    ],
+    "max_tokens": 3000,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "status": 200,
+  "json": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "\n\nOkay, the user is asking what 2+2 is and wants a single number as the answer. Hmm, this seems straightforward but I should be careful. \n\nFirst, I recall basic arithmetic: 2 plus 2 equals 4. That's elementary math, so the answer has to be 4. \n\nWait, the user specified \"answer with one number only\" - that means no words, no explanations, just the number. They probably want this for a quick check or maybe testing if I follow instructions precisely. \n\nI wonder about the context... Is this a trick question? Like, could there be some alternative interpretations? In standard math, no - 2+2 is definitely 4. Maybe they're thinking of binary? But the question says \"2+2\" not \"10+10\" so decimal is implied. \n\nAlso, the user seems to be in a hurry or just testing simplicity. They didn't add any emotional cues, so I'll keep it neutral. \n\n*Double-checks*: Yep, 2+2=4. No exceptions here. \n\nFinal answer must be exactly \"4\" with no extra characters. Strictly following their \"one number only\" rule. \n\n...Though I'm slightly curious if they're trolling or if this is part of a larger test, but based on the query alone, I'll go with 4.\n</think>\n\n4"
+        }
+      }
+    ],
+    "created": 1790706340,
+    "model": "Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+    "system_fingerprint": "b7966-8872ad212",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 287,
+      "prompt_tokens": 24,
+      "total_tokens": 311
+    },
+    "id": "chatcmpl-DTdBv0URGiwnp3azAdhIU3yqUmncbLqd",
+    "timings": {
+      "cache_n": 23,
+      "prompt_n": 1,
+      "prompt_ms": 11.729,
+      "prompt_per_token_ms": 11.729,
+      "prompt_per_second": 85.2587603376247,
+      "predicted_n": 287,
+      "predicted_ms": 3322.036,
+      "predicted_per_token_ms": 11.575038327526133,
+      "predicted_per_second": 86.39280248618618
+    }
+  }
+}

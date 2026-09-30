@@ -31,7 +31,7 @@ from typing import Any, Optional
 import httpx
 
 from engine.config import get_config, project_root
-from engine.lmstudio.routes import MODELS_PATH
+from engine.llm.routes import MODELS_PATH, same_origin
 
 logger = logging.getLogger(__name__)
 
@@ -56,11 +56,20 @@ class ServiceSpec:
     health_url: str = ""
     startup_timeout_seconds: int = 300
     model: str = ""
+    #: The model server (``stack.services.llm``), set by ``load_specs`` and
+    #: never read from config. With no ``health_url`` it is checked by the
+    #: configured provider's own health probe (``probe_service``, spec §8).
+    model_server: bool = False
 
     @classmethod
     def from_config(cls, name: str, raw: dict[str, Any]) -> "ServiceSpec":
-        known = {f.name for f in cls.__dataclass_fields__.values()}
-        return cls(name=name, **{k: v for k, v in raw.items() if k in known and k != "name"})
+        known = {f.name for f in cls.__dataclass_fields__.values()} - {"name", "model_server"}
+        return cls(name=name, **{k: v for k, v in raw.items() if k in known})
+
+    @property
+    def checked(self) -> bool:
+        """Whether this service has a health check at all."""
+        return bool(self.health_url) or self.model_server
 
     def resolved_root(self) -> Optional[Path]:
         if not self.root:
@@ -109,24 +118,75 @@ class ServiceStatus:
         }
 
 
+def _service_name(key: str) -> str:
+    """
+    The name a service is shown and reported under.
+
+    The model server is declared as ``stack.services.llm`` since v0.19.0 (it
+    was ``lmstudio``). While ``llm.provider`` is LM Studio it keeps the name
+    ``lmstudio``, so the doctor's and the launcher's rows about it -- and the
+    FAIL level both give that name -- are what an LM Studio user always saw.
+    """
+    if key == "llm" and str(get_config().get("llm.provider") or "lmstudio") == "lmstudio":
+        return "lmstudio"
+    return key
+
+
+#: The names the model server's service is reported under: ``llm``, and
+#: ``lmstudio`` while the provider is LM Studio (``_service_name``). The one
+#: FAIL-level service in ``scripts/doctor.py`` and ``launcher.py --check``,
+#: whatever the provider: without it there is no narration.
+MODEL_SERVER_NAMES: frozenset[str] = frozenset({"llm", "lmstudio"})
+
+
 def load_specs() -> list[ServiceSpec]:
     """Read declared services from config."""
     services = get_config().section("stack.services")
-    return [
-        ServiceSpec.from_config(name, raw)
-        for name, raw in services.items()
-        if isinstance(raw, dict)
-    ]
+    specs = []
+    for name, raw in services.items():
+        if not isinstance(raw, dict):
+            continue
+        spec = ServiceSpec.from_config(_service_name(name), raw)
+        spec.model_server = name == "llm"
+        specs.append(spec)
+    return specs
+
+
+def probe_service(spec: ServiceSpec, *, timeout: float = 3.0) -> tuple[bool, str]:
+    """
+    Health-check one declared service.
+
+    Its ``health_url`` when it names one (``probe``). The model server with
+    an empty ``health_url`` -- the shipped default since v0.19.0 -- asks the
+    configured provider's own health probe against ``llm.base_url``
+    (``Provider.health_probe``, spec §8): LM Studio's ``/api/v1/models`` by
+    its shape (v0.18's request, for the shipped config), vLLM's ``/health``
+    and model list, llama-server's ``/health``, Ollama's ``/api/version`` and
+    ``/api/tags``, a generic server's list. It used to be a fixed
+    ``http://localhost:1234/api/v1/models``, so an LM Studio moved to another
+    port was health-checked on the wrong one.
+    """
+    if spec.health_url:
+        return probe(spec.health_url, timeout=timeout)
+    if spec.model_server:
+        from engine.llm.providers import get_provider
+
+        return get_provider().health_probe(timeout=timeout)
+    return False, "no health url"
 
 
 def probe(url: str, *, timeout: float = 3.0) -> tuple[bool, str]:
     """
     Health-check a URL.
 
-    Sends the configured LM Studio key when probing LM Studio, so a working
-    setup reports as working. Without it the check said "requires an API key"
-    even once the key was correctly configured, which is exactly the kind of
-    misleading status that sends you debugging a service that is fine.
+    Sends the configured model server's key when -- and only when -- the URL
+    is served by the configured model server: the same scheme, host and port
+    as ``llm.base_url`` (v0.19.0, finding 3). Without the key a working setup
+    reported "requires an API key" even once the key was correctly
+    configured, which is exactly the kind of misleading status that sends you
+    debugging a service that is fine. Until v0.19.0 the key went to any URL
+    containing ``1234`` or ``lmstudio``: never to a vLLM on 8000 that needed
+    one, and to anything else on a port that happened to be 1234.
 
     A bare 401 is NOT healthy. It used to be: "the process is up, it just wants
     credentials" is true and useless, because a server that refuses every
@@ -145,16 +205,20 @@ def probe(url: str, *, timeout: float = 3.0) -> tuple[bool, str]:
     if not url:
         return False, "no health url"
 
+    ours = same_origin(url)
     if url.endswith(MODELS_PATH):
         # The one question worth asking of LM Studio: does it list models, in
-        # the shape the v1 REST API returns them.
-        from engine.lmstudio.registry import probe_models
+        # the shape the v1 REST API returns them. The route is LM Studio's, so
+        # its answer is read as LM Studio's list whatever the provider.
+        from engine.llm.registry import probe_models
 
-        return probe_models(url, timeout=timeout)
+        return probe_models(
+            url, timeout=timeout, provider="lmstudio", api_key=None if ours else ""
+        )
 
     headers: dict[str, str] = {}
-    if "1234" in url or "lmstudio" in url.lower():
-        key = str(get_config().get("lmstudio.api_key", "") or "")
+    if ours:
+        key = str(get_config().get("llm.api_key", "") or "")
         if key:
             headers["Authorization"] = f"Bearer {key}"
 
@@ -164,10 +228,14 @@ def probe(url: str, *, timeout: float = 3.0) -> tuple[bool, str]:
         return False, type(exc).__name__
 
     if response.status_code == 401:
+        if ours:
+            from engine.llm.providers import get_provider
+            from engine.llm.registry import _refused_key_detail
+
+            return False, _refused_key_detail(get_provider())
         return False, (
-            "listening, but it refuses every request: the API key is missing or "
-            "wrong. Set lmstudio.api_key in config/local.yaml, or turn off "
-            "'Require API key' in LM Studio's server settings"
+            "listening, but it refuses every request: it wants a key this "
+            "health check does not send"
         )
     if response.status_code < 400:
         if _is_error_body(response):
@@ -201,7 +269,7 @@ class StackManager:
             if not spec.enabled:
                 results.append(ServiceStatus(spec.name, STATUS_DISABLED))
                 continue
-            if not spec.health_url:
+            if not spec.checked:
                 command = spec.resolved_command()
                 results.append(
                     ServiceStatus(
@@ -211,7 +279,7 @@ class StackManager:
                     )
                 )
                 continue
-            alive, detail = probe(spec.health_url)
+            alive, detail = probe_service(spec)
             results.append(
                 ServiceStatus(spec.name, STATUS_UP if alive else STATUS_DOWN, detail)
             )
@@ -224,8 +292,8 @@ class StackManager:
 
         # Never double-start. A warm service answering its health check is the
         # success case, not a port conflict waiting to happen.
-        if spec.health_url:
-            alive, detail = probe(spec.health_url)
+        if spec.checked:
+            alive, detail = probe_service(spec)
             if alive:
                 return ServiceStatus(spec.name, STATUS_UP, f"already running ({detail})")
 
@@ -237,9 +305,9 @@ class StackManager:
                 )
             return ServiceStatus(
                 spec.name,
-                STATUS_DOWN if spec.health_url else STATUS_UNMANAGED,
+                STATUS_DOWN if spec.checked else STATUS_UNMANAGED,
                 "not managed by the stack — start it yourself"
-                if spec.health_url
+                if spec.checked
                 else str(command or ""),
             )
 
@@ -282,14 +350,14 @@ class StackManager:
         process: subprocess.Popen[bytes],
     ) -> tuple[bool, str]:
         """Poll until the service answers, it dies, or we run out of patience."""
-        if not spec.health_url:
+        if not spec.checked:
             return True, "no health check"
 
         deadline = time.monotonic() + spec.startup_timeout_seconds
         while time.monotonic() < deadline:
             if process.poll() is not None:
                 return False, f"process exited with code {process.returncode}"
-            alive, detail = probe(spec.health_url, timeout=2.0)
+            alive, detail = probe_service(spec, timeout=2.0)
             if alive:
                 return True, detail
             time.sleep(1.0)

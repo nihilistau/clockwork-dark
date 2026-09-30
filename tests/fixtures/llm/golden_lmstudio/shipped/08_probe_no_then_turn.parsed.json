@@ -1,0 +1,212 @@
+{
+  "result": {
+    "generation": {
+      "raw": "The path east narrows between birches gone silver in the dusk. Somewhere ahead a clock is ticking. What do you do?",
+      "complete": true,
+      "finish_reason": "stop",
+      "output_tokens": 612,
+      "reasoning_tokens": 188,
+      "dropped_tail": ""
+    },
+    "streamed": [],
+    "last_reasoning": "The player follows the path east. I should keep the tone uneasy, offer a risky lead and a safe one, and not resolve the clock yet."
+  },
+  "backend_calls": [
+    {
+      "call": "chat_stream",
+      "response": {
+        "content": "The path east narrows between birches gone silver in the dusk. Somewhere ahead a clock is ticking. What do you do?",
+        "response_id": "",
+        "model": "golden/narrator-26b",
+        "input_tokens": 1204,
+        "output_tokens": 612,
+        "stats": {
+          "finish_reason": "stop",
+          "input_tokens": 1204,
+          "total_output_tokens": 612,
+          "reasoning_output_tokens": 188
+        },
+        "tool_calls": [],
+        "finish_reason": "stop",
+        "reasoning_content": "The player follows the path east. I should keep the tone uneasy, offer a risky lead and a safe one, and not resolve the clock yet.",
+        "reasoning_tokens": 188,
+        "transport": "openai"
+      },
+      "events": [
+        {
+          "event_type": "chat.start",
+          "content": "",
+          "tool_name": "",
+          "tool_arguments": {},
+          "tool_output": "",
+          "tool_call_id": "",
+          "response_id": "",
+          "model_instance_id": "golden/narrator-26b",
+          "stats": {},
+          "error": "",
+          "load_time_seconds": 0.0,
+          "progress": 0.0
+        },
+        {
+          "event_type": "reasoning.start",
+          "content": "",
+          "tool_name": "",
+          "tool_arguments": {},
+          "tool_output": "",
+          "tool_call_id": "",
+          "response_id": "",
+          "model_instance_id": "",
+          "stats": {},
+          "error": "",
+          "load_time_seconds": 0.0,
+          "progress": 0.0
+        },
+        {
+          "event_type": "reasoning.delta",
+          "content": "The player follows the path east. I should keep ",
+          "tool_name": "",
+          "tool_arguments": {},
+          "tool_output": "",
+          "tool_call_id": "",
+          "response_id": "",
+          "model_instance_id": "",
+          "stats": {},
+          "error": "",
+          "load_time_seconds": 0.0,
+          "progress": 0.0
+        },
+        {
+          "event_type": "reasoning.delta",
+          "content": "the tone uneasy, offer a risky lead and a safe o",
+          "tool_name": "",
+          "tool_arguments": {},
+          "tool_output": "",
+          "tool_call_id": "",
+          "response_id": "",
+          "model_instance_id": "",
+          "stats": {},
+          "error": "",
+          "load_time_seconds": 0.0,
+          "progress": 0.0
+        },
+        {
+          "event_type": "reasoning.delta",
+          "content": "ne, and not resolve the clock yet.",
+          "tool_name": "",
+          "tool_arguments": {},
+          "tool_output": "",
+          "tool_call_id": "",
+          "response_id": "",
+          "model_instance_id": "",
+          "stats": {},
+          "error": "",
+          "load_time_seconds": 0.0,
+          "progress": 0.0
+        },
+        {
+          "event_type": "reasoning.end",
+          "content": "",
+          "tool_name": "",
+          "tool_arguments": {},
+          "tool_output": "",
+          "tool_call_id": "",
+          "response_id": "",
+          "model_instance_id": "",
+          "stats": {},
+          "error": "",
+          "load_time_seconds": 0.0,
+          "progress": 0.0
+        },
+        {
+          "event_type": "message.start",
+          "content": "",
+          "tool_name": "",
+          "tool_arguments": {},
+          "tool_output": "",
+          "tool_call_id": "",
+          "response_id": "",
+          "model_instance_id": "",
+          "stats": {},
+          "error": "",
+          "load_time_seconds": 0.0,
+          "progress": 0.0
+        },
+        {
+          "event_type": "message.delta",
+          "content": "The path east narrows between birches go",
+          "tool_name": "",
+          "tool_arguments": {},
+          "tool_output": "",
+          "tool_call_id": "",
+          "response_id": "",
+          "model_instance_id": "",
+          "stats": {},
+          "error": "",
+          "load_time_seconds": 0.0,
+          "progress": 0.0
+        },
+        {
+          "event_type": "message.delta",
+          "content": "ne silver in the dusk. Somewhere ahead a",
+          "tool_name": "",
+          "tool_arguments": {},
+          "tool_output": "",
+          "tool_call_id": "",
+          "response_id": "",
+          "model_instance_id": "",
+          "stats": {},
+          "error": "",
+          "load_time_seconds": 0.0,
+          "progress": 0.0
+        },
+        {
+          "event_type": "message.delta",
+          "content": " clock is ticking. What do you do?",
+          "tool_name": "",
+          "tool_arguments": {},
+          "tool_output": "",
+          "tool_call_id": "",
+          "response_id": "",
+          "model_instance_id": "",
+          "stats": {},
+          "error": "",
+          "load_time_seconds": 0.0,
+          "progress": 0.0
+        },
+        {
+          "event_type": "message.end",
+          "content": "",
+          "tool_name": "",
+          "tool_arguments": {},
+          "tool_output": "",
+          "tool_call_id": "",
+          "response_id": "",
+          "model_instance_id": "",
+          "stats": {},
+          "error": "",
+          "load_time_seconds": 0.0,
+          "progress": 0.0
+        },
+        {
+          "event_type": "chat.end",
+          "content": "",
+          "tool_name": "",
+          "tool_arguments": {},
+          "tool_output": "",
+          "tool_call_id": "",
+          "response_id": "resp_<random>",
+          "model_instance_id": "",
+          "stats": {
+            "finish_reason": "stop",
+            "input_tokens": 1204,
+            "total_output_tokens": 612,
+            "reasoning_output_tokens": 188
+          },
+          "error": "",
+          "load_time_seconds": 0.0,
+          "progress": 0.0
+        }
+      ]
+    }
+  ]
+}

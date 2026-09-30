@@ -412,7 +412,11 @@ class StorytellerEvaluator:
         has_roll = bool(skill_names & ROLLING_SKILLS)
 
         claims_mechanics = bool(_MECHANICS_CLAIM.search(narration))
-        skill_check = parsed.get("skill_check")
+        # Through `claimed`: `conform` drops the key from a grammar-less turn
+        # and keeps it aside for this gate (engine/llm/schemas.py).
+        from engine.llm.schemas import claimed
+
+        skill_check = claimed(parsed, "skill_check")
         needs_roll = skill_check is not None and skill_check is not False
 
         if needs_roll and not has_roll:

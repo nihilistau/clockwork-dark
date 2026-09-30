@@ -453,7 +453,19 @@ class StoryLedger:
         to_id: str = "",
         due_day: Optional[int] = None,
         turn: int = 0,
-    ) -> Promise:
+    ) -> Optional[Promise]:
+        """
+        Record a promise, deduplicated. Returns None, recording nothing, for
+        empty or whitespace text: a promise of nothing is not one, and a
+        model's delta that carried no text used to leave a blank row owed.
+        """
+        if not str(text or "").strip():
+            logger.warning(
+                "[memory] Refused a promise with no text (operation=add_promise, "
+                "to_id=%s)",
+                to_id,
+            )
+            return None
         promise = Promise(
             id=fact_key(f"{from_id}->{to_id}:{text}"),
             text=text.strip()[:MAX_FACT_CHARS],
@@ -578,7 +590,31 @@ def apply_ledger_delta(
     if not isinstance(delta, dict):
         return accepted
 
-    for raw in (delta.get("facts") or [])[:MAX_FACTS_PER_TURN]:
+    # EVERY ENTRY IS TYPE-GUARDED. Without the grammar on the wire (a server
+    # on rung 2 or 3, LM Studio under `structured_output: off`) the model can
+    # send any shape: `"facts": [42]`, `"names": []`. This runs after the turn
+    # has committed, so a raise here cost the player the turn's payload. A
+    # malformed entry is skipped and logged; the rest are applied.
+    def _shaped(key: str, kind: type) -> Any:
+        value = delta.get(key)
+        if value is None or isinstance(value, kind):
+            return value or kind()
+        logger.warning(
+            "[memory] Ledger delta entry has the wrong shape; skipped "
+            "(operation=apply_ledger_delta, key=%s, got=%s)",
+            key,
+            type(value).__name__,
+        )
+        return kind()
+
+    for raw in _shaped("facts", list)[:MAX_FACTS_PER_TURN]:
+        if not isinstance(raw, (str, dict)):
+            logger.warning(
+                "[memory] Ledger fact is neither text nor an object; skipped "
+                "(operation=apply_ledger_delta, got=%r)",
+                raw,
+            )
+            continue
         text, subject = (raw, "") if isinstance(raw, str) else (
             str(raw.get("text", "")),
             str(raw.get("subject_id", "")),
@@ -596,31 +632,39 @@ def apply_ledger_delta(
         if fact is not None:
             accepted["facts"].append(fact.text)
 
-    for name, gloss in (delta.get("names") or {}).items():
+    for name, gloss in _shaped("names", dict).items():
         ledger.remember_name(str(name), str(gloss))
         accepted["names"].append(str(name))
 
-    for raw in (delta.get("promises") or [])[:1]:
+    for raw in _shaped("promises", list)[:1]:
         if not isinstance(raw, dict):
             continue
         to_id = str(raw.get("to_id", ""))
         if to_id and to_id not in known:
             continue
+        due_day = raw.get("due_day")
+        if due_day is not None:
+            try:
+                due_day = None if isinstance(due_day, bool) else int(due_day)
+            # OverflowError: `json.loads` reads `Infinity`, and int() of it raises.
+            except (TypeError, ValueError, OverflowError):
+                due_day = None
         promise = ledger.add_promise(
             str(raw.get("text", "")),
             from_id=str(raw.get("from_id", "player")),
             to_id=to_id,
-            due_day=raw.get("due_day"),
+            due_day=due_day,
             turn=turn,
         )
-        accepted["promises"].append(promise.text)
+        if promise is not None:
+            accepted["promises"].append(promise.text)
 
-    for npc_id, raw_delta in (delta.get("npc_disposition") or {}).items():
+    for npc_id, raw_delta in _shaped("npc_disposition", dict).items():
         if npc_id not in known:
             continue
         try:
             value = int(raw_delta)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             continue
         accepted["dispositions"][npc_id] = ledger.adjust_disposition(npc_id, value)
 

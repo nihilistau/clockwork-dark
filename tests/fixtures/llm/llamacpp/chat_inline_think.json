@@ -1,0 +1,45 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 2+2? Answer with one number only."
+      }
+    ],
+    "max_tokens": 3000
+  },
+  "status": 200,
+  "json": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Okay, the user is asking \"What is 2+2? Answer with one number only.\" Hmm, this seems straightforward but I should be careful. \n\nFirst, let's confirm the math: 2 plus 2 is definitely 4. That's basic arithmetic. The user specifically said \"answer with one number only\" so I shouldn't write anything else like \"4\" followed by text. \n\nI wonder why they're asking such a simple question though. Maybe they're testing if I'll overcomplicate it? Or perhaps it's a trick question? But no, 2+2 is unambiguously 4 in standard math. \n\nThe user seems to want a very minimal response - just the number. They might be in a hurry, or maybe they're programming something that requires strict input format. I should resist the urge to add any explanation since they said \"one number only\". \n\n*checks mental note* Yep, no context here that would change the answer. Even if it's binary (2+2=100), that's not what they asked. They want decimal. \n\nFinal decision: output \"4\" with nothing else. Strictly following their instruction. No extra spaces, no text. Just the number.\n</think>\n\n4"
+        }
+      }
+    ],
+    "created": 1790707152,
+    "model": "Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+    "system_fingerprint": "b7966-8872ad212",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 258,
+      "prompt_tokens": 23,
+      "total_tokens": 281
+    },
+    "id": "chatcmpl-18WVw8Vly5qF8WrVwanuHqrXTRmBgzgA",
+    "timings": {
+      "cache_n": 22,
+      "prompt_n": 1,
+      "prompt_ms": 183.823,
+      "prompt_per_token_ms": 183.823,
+      "prompt_per_second": 5.440015667245121,
+      "predicted_n": 258,
+      "predicted_ms": 2998.34,
+      "predicted_per_token_ms": 11.621472868217054,
+      "predicted_per_second": 86.0476130125336
+    }
+  }
+}

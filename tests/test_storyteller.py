@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 from engine.agents.storyteller import StorytellerAgent, parse_storyteller_response
 from engine.game.engine import GameEngine
 from engine.game.state import GameState
@@ -48,15 +46,11 @@ You move carefully; the forest does not give up its secrets easily.
 
 ```json
 {
-  "tool_calls": [
-    {"name": "resolve_skill_check", "args": {"skill": "stealth", "dc": 12, "modifier": 0}}
-  ],
   "narration": "You move carefully; the forest does not give up its secrets easily.",
   "choices": [
     {"id": "a", "text": "Press on"},
     {"id": "b", "text": "Hide"}
   ],
-  "skill_check": {"skill": "stealth", "dc_mod": 0},
   "tags_inline": ""
 }
 ```
@@ -85,6 +79,18 @@ def test_storyteller_good_turn():
 
 
 def test_storyteller_retries_on_hallucination():
+    """
+    A draft that claims a roll nothing rolled is retried, and the retry that
+    stops claiming it passes.
+
+    Until v0.19.0 the "fixed" draft here fixed itself by carrying a
+    ``tool_calls`` array asking for ``resolve_skill_check`` -- which the turn
+    then EXECUTED, so the narration rolled its own dice through the channel
+    rule 1 forbids (spec finding 5). Narration executes nothing now; a roll
+    reaches the prose only as a receipt the engine resolved (a choice's
+    intent, Phase A). So the honest fix is the one tested: the second draft
+    narrates without claiming a result, and no receipt appears from it.
+    """
     state = GameState(location_id="forest_clearing")
     engine = GameEngine(state)
     calls = {"n": 0}
@@ -100,56 +106,45 @@ def test_storyteller_retries_on_hallucination():
     assert calls["n"] == 2
     assert result.retries == 1
     assert result.evaluation.passed is True
-    assert any(r["skill"] == "resolve_skill_check" for r in result.tool_receipts)
+    assert result.tool_receipts == []
 
 
 def test_the_tool_dispatcher_executes_a_move_when_it_is_handed_one():
     """
     THE DISPATCHER, NOT THE TURN. Read the name carefully before trusting this.
 
-    This exercises ``execute_tool_calls`` (``storyteller.py``): given a reply
-    that already contains a ``tool_calls`` array, the move is applied. It says
-    NOTHING about whether a real turn can produce such a reply, and it was
-    called ``test_tool_calls_execute_move`` for most of the project's life,
-    which is how it got read as proof that a choice moves the player.
+    This exercises ``engine.agents.tool_dispatcher.execute_tool_calls``: given
+    a ``tool_calls`` array, the move is applied. It says NOTHING about whether
+    a turn runs such an array, and it was called ``test_tool_calls_execute_move``
+    for most of the project's life, which is how it got read as proof that a
+    choice moves the player.
 
-    It was not. Under the shipped ``structured_output: auto``
-    (``config/default.yaml``), the turn grammar sets
-    ``additionalProperties: False`` and declares no ``tool_calls`` property, so
-    the key is UNSAMPLABLE and this path never runs. A player picked "Follow
-    the smoke toward Edgewood", the narrator wrote the walk, and the save still
-    read ``forest_clearing`` -- with this test green the whole time.
-
-    The path is not dead, which is why the test stays: under
-    ``structured_output: off`` (the native transport, the only one that can
-    turn reasoning off) no grammar is sent and a fenced block like the one
-    below IS parseable. It is config-dependent, and
-    ``test_the_turn_grammar_forbids_tool_calls`` below pins that rule so the
-    two halves cannot drift apart.
+    It was not, and since v0.19.0 no turn does (spec finding 5). This test
+    used to drive the array through ``StorytellerAgent.run_turn``, which handed
+    any ``tool_calls`` a reply carried to the dispatcher: unsamplable under the
+    grammar, but live under ``structured_output: off`` -- a narration turn
+    changing the world through the channel rule 1 forbids. That call is
+    deleted, so the test calls the dispatcher directly, with the same array
+    and the same assertions, which is what its name always said it tested.
+    The dispatcher keeps its production caller, ``engine/agents/assistant.py``;
+    ``tests/test_narration_tool_calls.py`` pins that a turn moves nobody.
 
     What actually proves a choice moves the player is
     ``tests/test_turn_intent.py::test_a_travel_choice_actually_moves_the_player``
     and its per-story sibling, both of which drive a real ``run_turn`` and read
     the answer off ``GameState``.
     """
+    from engine.agents.tool_dispatcher import execute_tool_calls
+
     state = GameState(location_id="forest_clearing")
     state.stats.stamina = 50
     engine = GameEngine(state)
 
-    payload = {
-        "tool_calls": [{"name": "move_to", "args": {"location_id": "edgewood_square"}}],
-        "narration": "You follow the path to the village square.",
-        "choices": [{"id": "a", "text": "Look around"}],
-        "skill_check": None,
-    }
-
-    def llm(_messages):
-        return f"```json\n{json.dumps(payload)}\n```"
-
-    agent = StorytellerAgent(engine, llm_fn=llm)
-    result = agent.run_turn("Walk to the village.")
+    receipts = execute_tool_calls(
+        [{"name": "move_to", "args": {"location_id": "edgewood_square"}}], engine
+    )
     assert state.location_id == "edgewood_square"
-    assert result.tool_receipts[0]["success"] is True
+    assert receipts[0]["success"] is True
 
 
 def test_the_turn_grammar_forbids_tool_calls():
@@ -162,7 +157,7 @@ def test_the_turn_grammar_forbids_tool_calls():
     a claim in a docstring, so that adding the property back cannot silently
     resurrect a second way to change the world.
     """
-    from engine.lmstudio.schemas import storyteller_turn_schema
+    from engine.llm.schemas import storyteller_turn_schema
 
     schema = storyteller_turn_schema()["schema"]
     assert schema.get("additionalProperties") is False, (

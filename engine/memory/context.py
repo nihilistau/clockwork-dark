@@ -51,8 +51,8 @@ def default_budget() -> Budget:
         logger.debug("[memory] Profile budget unavailable, using config: %s", exc)
         cfg = get_config()
         return Budget(
-            context_tokens=int(cfg.get("lmstudio.context_tokens", 8192)),
-            reserve_output=int(cfg.get("lmstudio.reserve_output", 900)),
+            context_tokens=int(cfg.get("llm.context_tokens", 8192)),
+            reserve_output=int(cfg.get("llm.reserve_output", 900)),
         )
 
 

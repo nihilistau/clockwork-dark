@@ -19,9 +19,9 @@ import httpx
 import pytest
 
 from engine.config import reset_config
-from engine.lmstudio.backend import chat_probe
-from engine.lmstudio.profiles import ModelProfile
-from engine.lmstudio.registry import ModelRegistry, reset_registry
+from engine.llm.backend import chat_probe
+from engine.llm.profiles import ModelProfile
+from engine.llm.registry import ModelRegistry, reset_registry
 
 #: The tests that are ABOUT discovery carry `@pytest.mark.real_discovery`
 #: individually, so the conftest pin does not replace the code under test.
@@ -50,7 +50,7 @@ def _post(monkeypatch, response_or_error):
     IT USED TO PATCH ONLY ``httpx.post``. That was complete when ``chat_probe``
     posted directly; it stopped being complete when the probe was rewritten to
     run the real ``LMStudioBackend.chat`` path, because that path posts through
-    an ``httpx.Client`` INSTANCE (``engine/lmstudio/client.py``), which a
+    an ``httpx.Client`` INSTANCE (``engine/llm/client.py``), which a
     module-level patch never sees. Seven tests in this file then fell through
     to the actual LM Studio on this machine and passed against it -- in the
     file whose docstring opens "Everything here is mocked".
@@ -126,11 +126,16 @@ def test_the_configured_health_url_is_the_route_lm_studio_serves():
     The shipped ``health_url`` was ``/v1/models``, which put one
     ``Unexpected endpoint or method`` ERROR in the user's LM Studio log per
     doctor run and per ``launcher.py --check``.
-    """
-    from engine.config import get_config
-    from engine.lmstudio.routes import MODELS_PATH
 
-    url = str(get_config().get("stack.services.lmstudio.health_url", ""))
+    Since v0.19.0 T6 the shipped ``health_url`` is empty and the probe is
+    derived from ``llm.base_url`` by the provider row; on LM Studio that
+    derived route must still be the one LM Studio serves.
+    """
+    from engine.llm.providers import PROVIDERS
+    from engine.llm.routes import MODELS_PATH, route_url
+
+    assert tuple(PROVIDERS["lmstudio"].health.value) == (MODELS_PATH,)
+    url = route_url(PROVIDERS["lmstudio"].health.value[0])
     assert url.endswith(MODELS_PATH), url
 
 
@@ -138,7 +143,7 @@ def test_the_configured_health_url_is_the_route_lm_studio_serves():
 
 
 def test_a_working_server_probes_ok(monkeypatch):
-    monkeypatch.setattr("engine.lmstudio.backend.resolve_profile", lambda _p: _profile())
+    monkeypatch.setattr("engine.llm.backend.resolve_profile", lambda _p: _profile())
     _post(
         monkeypatch,
         _response(200, {"choices": [{"message": {"content": "ready"}}]}),
@@ -155,7 +160,7 @@ def test_a_400_reports_the_status_and_the_servers_own_words(monkeypatch):
     "Client error '400 Bad Request' for url ..." and nothing else, which is how
     a planner call could 400 on every turn and leave no diagnosable trace.
     """
-    monkeypatch.setattr("engine.lmstudio.backend.resolve_profile", lambda _p: _profile())
+    monkeypatch.setattr("engine.llm.backend.resolve_profile", lambda _p: _profile())
     _post(
         monkeypatch,
         _response(400, text='{"error": "Model \'local-model\' not found."}'),
@@ -168,7 +173,7 @@ def test_a_400_reports_the_status_and_the_servers_own_words(monkeypatch):
 
 
 def test_a_body_is_truncated_rather_than_dumped(monkeypatch):
-    monkeypatch.setattr("engine.lmstudio.backend.resolve_profile", lambda _p: _profile())
+    monkeypatch.setattr("engine.llm.backend.resolve_profile", lambda _p: _profile())
     _post(monkeypatch, _response(500, text="x" * 5000))
     detail = chat_probe()["detail"]
     assert len(detail) < 400
@@ -179,7 +184,7 @@ def test_a_timeout_is_its_own_status_and_names_the_likely_cause(monkeypatch):
     A cold JIT load of a 26B model legitimately outlasts a doctor's patience.
     Reporting that as "broken" would send somebody debugging a working server.
     """
-    monkeypatch.setattr("engine.lmstudio.backend.resolve_profile", lambda _p: _profile())
+    monkeypatch.setattr("engine.llm.backend.resolve_profile", lambda _p: _profile())
     _post(monkeypatch, httpx.ReadTimeout("too slow"))
     result = chat_probe(timeout=5.0)
     assert result["status"] == "timeout"
@@ -187,13 +192,13 @@ def test_a_timeout_is_its_own_status_and_names_the_likely_cause(monkeypatch):
 
 
 def test_an_unreachable_server_is_distinguished_from_a_refusing_one(monkeypatch):
-    monkeypatch.setattr("engine.lmstudio.backend.resolve_profile", lambda _p: _profile())
+    monkeypatch.setattr("engine.llm.backend.resolve_profile", lambda _p: _profile())
     _post(monkeypatch, httpx.ConnectError("no route"))
     assert chat_probe()["status"] == "unreachable"
 
 
 def test_a_200_with_no_content_is_the_starvation_bug_seen_from_outside(monkeypatch):
-    monkeypatch.setattr("engine.lmstudio.backend.resolve_profile", lambda _p: _profile())
+    monkeypatch.setattr("engine.llm.backend.resolve_profile", lambda _p: _profile())
     _post(monkeypatch, _response(200, {"choices": [{"message": {"content": ""}}]}))
     result = chat_probe()
     assert result["ok"] is False
@@ -208,7 +213,7 @@ def test_an_unbound_model_is_named_before_a_request_is_spent(monkeypatch):
     failed, so we asked for a model that does not exist".
     """
     monkeypatch.setattr(
-        "engine.lmstudio.backend.resolve_profile",
+        "engine.llm.backend.resolve_profile",
         lambda _p: _profile("local-model", bound=False),
     )
     _post(monkeypatch, _response(400, text="Model not found"))
@@ -302,7 +307,7 @@ def test_a_200_in_the_compat_shape_is_refused_rather_than_half_read(monkeypatch,
 
 @pytest.mark.real_discovery
 def test_a_200_carrying_an_error_body_is_not_a_model_list(monkeypatch):
-    from engine.lmstudio.registry import probe_models
+    from engine.llm.registry import probe_models
 
     _get(
         monkeypatch,
@@ -318,7 +323,7 @@ def test_a_200_carrying_an_error_body_is_not_a_model_list(monkeypatch):
 
 
 def test_a_healthy_probe_names_what_is_loaded(monkeypatch):
-    from engine.lmstudio.registry import probe_models
+    from engine.llm.registry import probe_models
 
     _get(
         monkeypatch,
@@ -374,14 +379,16 @@ def test_a_401_during_discovery_says_what_to_change(monkeypatch, caplog):
     )
     with caplog.at_level("ERROR"):
         assert ModelRegistry(base_url="http://x/v1").refresh() == []
-    assert "lmstudio.api_key" in caplog.text
+    # The key's name since v0.19.0; `lmstudio.api_key` still works, but it is
+    # not what a player setting one up today should be told to write.
+    assert "llm.api_key" in caplog.text
 
 
 # -- 4. the client stops swallowing the reason ----------------------------
 
 
 def test_a_refused_chat_logs_the_response_body(monkeypatch, caplog):
-    from engine.lmstudio.client import LMSClient
+    from engine.llm.client import LMSClient
 
     client = LMSClient(base_url="http://test.local/v1")
     client._client = httpx.Client(
@@ -409,8 +416,8 @@ def test_both_transports_read_the_configured_timeout():
     gave up on work the server was still doing, and there was no knob.
     """
     from engine.config import get_config
-    from engine.lmstudio.client import LMSClient
-    from engine.lmstudio.native import NativeClient
+    from engine.llm.client import LMSClient
+    from engine.llm.lmstudio_native import NativeClient
 
     expected = float(get_config().get("lmstudio.timeout_seconds", 300))
     assert expected >= 180

@@ -1,0 +1,3 @@
+# Model-server fixtures are compared byte for byte (the LM Studio golden, the
+# doctor baseline), so they keep LF on every checkout, autocrlf or not.
+tests/fixtures/llm/** text eol=lf

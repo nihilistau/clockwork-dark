@@ -172,10 +172,17 @@ RELOADERS: tuple[tuple[str, str], ...] = (
     # LM Studio: resolved model ids, transport capability probes and lane
     # semaphores are all derived from config. A game swap can rebind profiles,
     # so a stale backend would keep talking to the previous game's model policy.
-    ("engine.lmstudio.profiles", "reset_profiles"),
-    ("engine.lmstudio.registry", "reset_registry"),
-    ("engine.lmstudio.backend", "reset_backend"),
-    ("engine.lmstudio.gate", "reset_lanes"),
+    ("engine.llm.profiles", "reset_profiles"),
+    ("engine.llm.registry", "reset_registry"),
+    # The compat client reads its base URL, key and timeout once, when built.
+    # Kept across a reload it went on dialling the previous server with the
+    # previous key; before the backend, which is rebuilt around a fresh one.
+    # Released, not closed: a turn may still be streaming through the old one.
+    ("engine.llm.client", "release_lms_client"),
+    # Ollama's /api/chat client, for the same reason and in the same way.
+    ("engine.llm.ollama", "release_ollama_client"),
+    ("engine.llm.backend", "reset_backend"),
+    ("engine.llm.gate", "reset_lanes"),
     # Governance: the PRE chain is built from `comms.interceptors` and the
     # doom/set-piece tables from `paths.*`, so all four are config-derived and
     # a swap that kept them would run the previous game's rules and doom beats.

@@ -42,7 +42,7 @@ from content.scenes.clockwork.clockwork_state import (
 )
 from engine.game.intents import legal_intents
 from engine.game.state import GameState
-from engine.lmstudio.schemas import storyteller_turn_schema
+from engine.llm.schemas import storyteller_turn_schema
 from engine.persistence import reset_save_store
 from engine.persistence.saves import SaveStore
 

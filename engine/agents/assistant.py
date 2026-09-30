@@ -254,14 +254,14 @@ class AssistantAgent:
         if self.llm_fn is not None:
             return self.llm_fn(messages)
 
-        from engine.lmstudio.client import get_lms_client
-        from engine.lmstudio.profiles import resolve_profile
+        from engine.llm.client import get_lms_client
+        from engine.llm.profiles import resolve_profile
 
         # Through the backend, not the raw compat client. Measured on the live
         # server: 156 of this call's 200 tokens went to REASONING and the reply
         # was cut off mid-sentence. The backend routes a no-think transport for
         # utility profiles, so the whole budget reaches the actual line.
-        from engine.lmstudio.backend import get_backend
+        from engine.llm.backend import get_backend
 
         if self._client is not None:
             mp = resolve_profile("small")

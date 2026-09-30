@@ -1,0 +1,6 @@
+
+Services
+  [ ok ]  lmstudio     /api/v1/models answers: 3 models, loaded: golden/narrator-26b, golden/utility-8b
+  [warn]  voxtral_tts  ConnectError -> no spoken narration (off by default anyway)
+  [ ok ]  voxtral_asr  disabled in config
+  [ ok ]  comfyui      disabled in config

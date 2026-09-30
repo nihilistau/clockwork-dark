@@ -24,14 +24,18 @@ settles the result, and a model on your own machine writes the prose.
   mechanic called, does the narration hear about it, and does the prose agree
   with the receipt. An evaluator rejects success narrated over a failed check,
   and a refused move produces an engine-written refusal rather than silence.
-- **Local-first.** It runs against LM Studio on your own hardware. Image
+- **Local-first.** It runs against a model server on your own hardware --
+  LM Studio by default, or llama.cpp's `llama-server`, Ollama, vLLM or any
+  other OpenAI-compatible server. Image
   generation, voice and ComfyUI are optional and **off by default**. The
   shipped art packs mean scenes have pictures without any of them.
 
-**Status:** **v0.18.0** is the current release. Six stories ship, and each
-can be played to an ending; HUE & CRY can be finished eight ways, and since
-v0.18.0 burglary pays and `simulate.py --game hue-and-cry` measures its
-thief. At v0.18.0 the suite stood at 3776 passing, 4 skipped, plus 144 client tests.
+**Status:** **v0.19.0** is the current release. Six stories ship, and each
+can be played to an ending; HUE & CRY can be finished eight ways. Since
+v0.19.0 the engine is model-server agnostic: LM Studio stays the default,
+and llama-server, Ollama, vLLM and generic OpenAI-compatible servers narrate
+too ([docs/MODEL_SERVERS.md](docs/MODEL_SERVERS.md) says which facts about
+each were verified live). At v0.19.0 the suite stood at 4340 passing, 5 skipped, plus 145 client tests.
 Those numbers are re-measured each release in [CLAUDE.md](CLAUDE.md), and
 [CHANGELOG.md](CHANGELOG.md) records every change from 0.4.0 on.
 
@@ -301,6 +305,16 @@ declared meters and clocks.
 - **Structured output.** The Storyteller's turn is a per-turn JSON Schema
   (narration, 2 or more choices, voiced NPCs, ledger updates). When a small
   model ignores schemas, a brace-counting fallback parser keeps turns alive.
+- **Any model server.** One table (`engine/llm/providers.py`) says how each
+  server takes a grammar, turns thinking off, reports its models and answers
+  a health check: LM Studio, llama-server, Ollama (its native `/api/chat`, so
+  the context is set per request), vLLM and generic OpenAI-compatible
+  servers. The grammar is probed once and falls back a rung at a time, with
+  the schema sent as text when no grammar is on the wire; every reply is
+  conformed to what the engine offered; thinking a server leaves in the
+  answer is moved out before the player or the tag scanner sees it; a turn
+  starved by thinking is retried once, grammar kept. The doctor names the
+  server and what it found ([docs/MODEL_SERVERS.md](docs/MODEL_SERVERS.md)).
 - **Evaluator quality gate** with one retry. A rejected draft's side effects
   are rolled back first.
 - **Governance rules** audit every resolved turn.
@@ -370,8 +384,10 @@ authoritative. Quest evaluation, the ledger and autosave follow each turn.
 turn from what the engine will accept in the current state. The schema has one
 branch per verb, discriminated by a `const` action, so `{"action": "travel",
 "target": "persuasion"}` isn't valid grammar. A choice with no mechanical
-consequence declares no intent. The turn grammar forbids `tool_calls`; the
-choice itself is how a turn changes the world.
+consequence declares no intent. The turn grammar forbids `tool_calls`, and
+narration executes none on any config: a server with no grammar has its
+reply conformed to the turn's schema, dropping any choice whose intent the
+engine did not offer. The choice itself is how a turn changes the world.
 
 **Agents.** A story's `agents.yaml` is a roster: which voices each agent owns,
 what it may read, and what it may write (optionally only with a reason). With
@@ -409,7 +425,7 @@ Windows is the supported platform today.
 | | |
 |---|---|
 | **Python** | 3.11 or newer (developed and tested on 3.11.9) |
-| **LM Studio** | serving at `http://localhost:1234/v1` with a chat model loaded. Without it the game still runs, but the Storyteller falls back to a canned line and the UI says it can't reach it |
+| **A model server** | LM Studio by default, serving at `http://localhost:1234/v1` with a chat model loaded -- or llama-server, Ollama, vLLM or another OpenAI-compatible server (**Model server**, below). Without one the game still runs, but the Storyteller falls back to a canned line and the UI says it can't reach the model server |
 | **Node** | only to rebuild the client. The built UI is committed |
 | **GPU services** | all optional and all **off by default** (see below) |
 
@@ -430,12 +446,47 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-**LM Studio API key.** If LM Studio's "Require API key" toggle is on, put the
-key in `lmstudio.txt` at the repository root. The file is gitignored.
-`config/default.yaml` reads it through `${file:lmstudio.txt}` and falls back to
-the `LMSTUDIO_API_KEY` environment variable. If the toggle is on and neither is
-set, every request fails with a 401 and the Storyteller falls back to its
-canned line.
+**Model server.** LM Studio is the default, and needs nothing in
+`config/local.yaml`: start its server (Developer tab, port 1234) and load a
+model. If its "Require API key" toggle is on, put the key in
+`llm_api_key.txt` at the repository root (gitignored). `llm.api_key` tries, in
+order, `llm_api_key.txt`, `lmstudio.txt` (the name before v0.19.0, still read),
+and the `CLOCKWORK_LLM_API_KEY` and `LMSTUDIO_API_KEY` environment variables;
+the first one that holds a value wins. The two LM Studio-named sources,
+`lmstudio.txt` and `LMSTUDIO_API_KEY`, are read only while `llm.provider` is
+`lmstudio`, so LM Studio's key is never sent to another server. If the toggle is on and none is set,
+every request fails with a 401 and the Storyteller falls back to its canned
+line.
+
+Any other server is named in `config/local.yaml`:
+
+| Server | Start it | `config/local.yaml` |
+|---|---|---|
+| llama.cpp `llama-server` (run live, b7966) | `llama-server -m model.gguf --port 8080 -c 16384 --jinja` | `llm: {provider: llamacpp, base_url: "http://localhost:8080/v1", profiles: {big: {model: "model.gguf"}, small: {model: "model.gguf"}}}` |
+| Ollama (run live, 0.34.4) | `ollama serve` (the desktop app runs it for you; the portable build does not), then `ollama pull qwen3:4b` -- which thinks before every narration turn (MODEL_SERVERS § Ollama) | `llm: {provider: ollama, base_url: "http://localhost:11434", profiles: {big: {model: "qwen3:4b"}, small: {model: "qwen3:4b"}}}` |
+| vLLM (not live-verified until v0.20.0) | `vllm serve <model> --reasoning-parser <parser>` | `llm: {provider: vllm, base_url: "http://localhost:8000/v1"}` |
+| Any OpenAI-compatible server | per the server | `llm: {provider: openai_compat, base_url: "<its /v1 base>"}` |
+
+A key a server was started with (`--api-key`) goes in `llm_api_key.txt`, the
+`CLOCKWORK_LLM_API_KEY` environment variable, or `llm.api_key` in
+`config/local.yaml`; `lmstudio.txt` and `LMSTUDIO_API_KEY` are not read for
+any server but LM Studio.
+Every server gets the strongest structured output it proves it can enforce,
+and is health-checked on its own routes; the MCP tool loop (`llm.mcp`, off by
+default) stays LM Studio's alone. The flags each server needs, what the
+engine knows about it and what was measured live, turning reasoning off, and
+how to declare what a server does not report are in
+[docs/MODEL_SERVERS.md](docs/MODEL_SERVERS.md).
+
+**Your model settings** live under `llm:` in `config/local.yaml`. A
+`local.yaml` written before v0.19.0 says `lmstudio:` instead; it still works,
+read as `llm:` with one warning, and the Settings panel rewrites it as `llm:`
+the first time it saves. That alias is removed in v0.21.0.
+
+**The in-game Settings panel writes `config/local.yaml` too.** A save rewrites
+the whole file: every key in it is kept, but its comments are not. A
+`local.yaml` that does not parse is never overwritten; the panel says so and
+saves nothing until you fix it.
 
 **Machine-specific paths** go in `config/local.yaml`, which is gitignored and
 deep-merged over the defaults. Don't edit `config/default.yaml` for this.
@@ -455,6 +506,16 @@ stack:
 .\.venv\Scripts\python.exe -m pytest tests\ -q   # expect fully green, no xfail
 ```
 
+The doctor's model-server section is named after the configured server
+(`LM Studio`, or `Model server (vllm)` and so on) and asks it the way a turn
+does: is it up (on that server's own health routes), is the model bound, does
+a short completion come back, and -- off LM Studio -- whether reasoning can be
+turned off, which structured-output rung turns use, and whether the server
+puts its thinking inside the answer. The model server is the one service
+whose outage is a FAIL: `launcher.py --check` exits 1 when it is down. The
+rows are listed in
+[docs/MODEL_SERVERS.md § Health checks](docs/MODEL_SERVERS.md#health-checks-and-what-the-doctor-says).
+
 ### Play
 
 ```powershell
@@ -468,7 +529,7 @@ stack:
 | `launcher.py --game <slug>` | Play a specific story |
 | `launcher.py --list-games` | List installed stories, with any manifest problems |
 | `launcher.py --stack` | Start the managed local services, wait for health, then play |
-| `launcher.py --check` | Print the service status table and exit |
+| `launcher.py --check` | Print the service status table and exit (1 if the model server is down) |
 | `launcher.py --no-stack` | Skip the service check entirely |
 | `launcher.py --studio` | Serve the authoring studio alongside the game (`/?studio=1`) |
 | `launcher.py --port N --host H` | Override the port (default 5573, from `config/default.yaml`) and bind host |
@@ -558,7 +619,7 @@ fixed; details may change as each release lands.
 | v0.16.0 | **Acts I and II** for HUE & CRY: the opening, the initiation and interrogation decks, the Magpie's trail, the reveal and the alibi | **shipped** |
 | v0.17.0 | **Act III and eight endings**: the Hanging Fair, the jailbreak, The Rope, per-ending tests | **shipped** |
 | v0.18.0 | **A thief policy** for `simulate.py`, agenda collisions and welshing's cost for a burglar measured, and the fences made to pay | **shipped** |
-| v0.19.0 | **Model-server agnostic**: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | planned |
+| v0.19.0 | **Model-server agnostic**: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | **shipped** |
 | v0.20.0 | **Linux as a first-class platform**, and a **hosted, web-served mode**: auth, per-user sessions and saves, a production server, Docker | planned |
 | v0.21.0 | **UI/UX overhaul**, together with HUE & CRY's screens: wanted poster, job panel, casing board, portraits | planned |
 | v0.22.0 | **The Clockwork Dark overhaul** | planned |
@@ -573,8 +634,9 @@ story and characters, the engine systems apt to it, every ending reachable
 and tested, measured balance, reviews, UI screens and art. A large story may
 take two releases, which shifts the numbers after it.
 
-Until those land, the engine talks to LM Studio, Windows is the supported
-platform, and the game is a local single-player server. Known gaps are written
+Until those land, Windows is the supported platform (vLLM, a Linux server,
+is spoken but not yet verified live), and the game is a local single-player
+server. Known gaps are written
 down, not implied. They're in CLAUDE.md's "Deliberately deferred" list and the
 **NOT WIRED** tables in [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
 [docs/STATE.md](docs/STATE.md) and [docs/AGENTS.md](docs/AGENTS.md).
@@ -590,6 +652,7 @@ down, not implied. They're in CLAUDE.md's "Deliberately deferred" list and the
 | [docs/DESIGN.md](docs/DESIGN.md) | Architects | System design, story bible, mechanics, measured balance |
 | [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) | Anyone picking this up | What the overhaul found, what it fixed, what's still open |
 | [docs/AUTHORING.md](docs/AUTHORING.md) | Story authors | Writing a story under `games/<slug>/` without reading engine source |
+| [docs/MODEL_SERVERS.md](docs/MODEL_SERVERS.md) | Anyone running the game | The model servers the engine speaks, what it knows about each, model discovery and declared models |
 | [docs/AGENTS.md](docs/AGENTS.md) | Architects | The in-game agents: roster, plan, negotiate, commit |
 | [docs/GOVERNANCE.md](docs/GOVERNANCE.md), [docs/STATE.md](docs/STATE.md) | Architects | What is wired, and the NOT WIRED tables |
 | [docs/CLAUDE_CODE_BRIEF.md](docs/CLAUDE_CODE_BRIEF.md) | Coding agents | Build spec and golden rules; historical sections marked **CURRENT:** |

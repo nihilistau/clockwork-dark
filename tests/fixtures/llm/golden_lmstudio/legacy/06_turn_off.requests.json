@@ -1,0 +1,49 @@
+[
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:1235/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  },
+  {
+    "method": "POST",
+    "url": "http://127.0.0.1:1235/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {}
+  },
+  {
+    "method": "POST",
+    "url": "http://127.0.0.1:1235/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "context_length": 16384,
+      "input": [
+        {
+          "content": "[ASSISTANT]\nThe wind turns. Something in the trees has noticed you.",
+          "type": "text"
+        },
+        {
+          "content": "I follow the path east.",
+          "type": "text"
+        }
+      ],
+      "max_output_tokens": 4400,
+      "model": "golden/narrator-26b",
+      "reasoning": "on",
+      "stream": true,
+      "system_prompt": "You narrate a golden-test story in the second person.\n\nWORLD STATE: dusk at the forest clearing; the east path is open.",
+      "temperature": 0.7
+    }
+  }
+]

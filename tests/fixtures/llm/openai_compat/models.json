@@ -1,0 +1,17 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "qwen3-reasoning-r1-distill",
+      "object": "model",
+      "created": 1759104000,
+      "owned_by": "organization-owner"
+    },
+    {
+      "id": "house-narrator",
+      "object": "model",
+      "created": 1759104000,
+      "owned_by": "organization-owner"
+    }
+  ]
+}

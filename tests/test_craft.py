@@ -501,7 +501,7 @@ def test_the_craft_tables_agree() -> None:
 def _surface(state) -> tuple:
     from engine.agents import prompts
     from engine.game.intents import legal_intents
-    from engine.lmstudio.schemas import storyteller_turn_schema
+    from engine.llm.schemas import storyteller_turn_schema
 
     verbs = legal_intents(state)
     return (

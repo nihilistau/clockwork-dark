@@ -2,7 +2,7 @@
 Two-Phase Turn Live Proof
 =========================
 
-Run ONE real turn against the live LM Studio with ``lmstudio.mcp.enabled``
+Run ONE real turn against the live LM Studio with ``llm.mcp.enabled``
 true, and show the receipt travelling from Phase A into the narration.
 
     .\\.venv\\Scripts\\python.exe scripts\\two_phase_live_proof.py
@@ -67,7 +67,7 @@ def _enable_mcp() -> tuple[str, bool]:
     previous = LOCAL_CONFIG.read_text(encoding="utf-8") if existed else ""
 
     merged: dict[str, Any] = yaml.safe_load(previous) or {} if existed else {}
-    lms = merged.setdefault("lmstudio", {})
+    lms = merged.setdefault("llm", {})
     mcp = lms.setdefault("mcp", {})
     mcp["enabled"] = True
     mcp["allowed_tools"] = list(SAFE_SKILLS)
@@ -137,7 +137,7 @@ def _run(player_action: str, seed: int) -> int:
     from engine.game.engine import GameEngine
     from engine.game.procgen import new_game_state
 
-    assert get_config().get("lmstudio.mcp.enabled") is True, "the config layer did not take"
+    assert get_config().get("llm.mcp.enabled") is True, "the config layer did not take"
 
     state = new_game_state(player_name="Proof", seed=seed)
     engine = GameEngine(state)

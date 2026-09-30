@@ -1,0 +1,37 @@
+[
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:1235/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  },
+  {
+    "method": "POST",
+    "url": "http://127.0.0.1:1235/v1/chat/completions",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "max_tokens": 1700,
+      "messages": [
+        {
+          "content": "Answer in one short sentence.",
+          "role": "system"
+        },
+        {
+          "content": "What season is it in the golden test?",
+          "role": "user"
+        }
+      ],
+      "model": "golden/utility-8b",
+      "stream": false,
+      "temperature": 0.6,
+      "ttl": 600
+    }
+  }
+]

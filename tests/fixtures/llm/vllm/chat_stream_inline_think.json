@@ -1,0 +1,14 @@
+{
+  "status": 200,
+  "sse": [
+    {"data": {"id": "chatcmpl-think", "object": "chat.completion.chunk", "created": 1759104000, "model": "Qwen/Qwen3-8B", "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": null}]}},
+    {"data": {"id": "chatcmpl-think", "object": "chat.completion.chunk", "created": 1759104000, "model": "Qwen/Qwen3-8B", "choices": [{"index": 0, "delta": {"content": "<th"}, "finish_reason": null}]}},
+    {"data": {"id": "chatcmpl-think", "object": "chat.completion.chunk", "created": 1759104000, "model": "Qwen/Qwen3-8B", "choices": [{"index": 0, "delta": {"content": "ink>The player lit a lamp. Should I show it? [IMAGE: a lamp]"}, "finish_reason": null}]}},
+    {"data": {"id": "chatcmpl-think", "object": "chat.completion.chunk", "created": 1759104000, "model": "Qwen/Qwen3-8B", "choices": [{"index": 0, "delta": {"content": " -- no, keep it quiet.</th"}, "finish_reason": null}]}},
+    {"data": {"id": "chatcmpl-think", "object": "chat.completion.chunk", "created": 1759104000, "model": "Qwen/Qwen3-8B", "choices": [{"index": 0, "delta": {"content": "ink>\n\n{\"narration\": \"The path east narrows between birches, and somewhere ahead a clock ticks in the dark. The air smells of oil and cold iron, and the birch bark is scored with marks that look deliberate, as if someone counted the hours here. You keep walking, and the ticking keeps pace with you.\", "}, "finish_reason": null}]}},
+    {"data": {"id": "chatcmpl-think", "object": "chat.completion.chunk", "created": 1759104000, "model": "Qwen/Qwen3-8B", "choices": [{"index": 0, "delta": {"content": "\"choices\": [{\"id\": \"a\", \"text\": \"Follow the ticking\"}, {\"id\": \"b\", \"text\": \"Study the marks\"}]}"}, "finish_reason": null}]}},
+    {"data": {"id": "chatcmpl-think", "object": "chat.completion.chunk", "created": 1759104000, "model": "Qwen/Qwen3-8B", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]}},
+    {"data": {"id": "chatcmpl-think", "object": "chat.completion.chunk", "created": 1759104000, "model": "Qwen/Qwen3-8B", "choices": [], "usage": {"prompt_tokens": 812, "completion_tokens": 140, "total_tokens": 952}}},
+    {"data": "[DONE]"}
+  ]
+}

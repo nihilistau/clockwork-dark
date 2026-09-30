@@ -18,7 +18,7 @@
 #
 # Two things fix it. The engine's first choice is LM Studio's NATIVE endpoint,
 # POST /api/v1/chat with `reasoning: "off"`, which measures 0 reasoning tokens.
-# That is automatic and needs no install (see engine/lmstudio/backend.py).
+# That is automatic and needs no install (see engine/llm/backend.py).
 #
 # This file is the second fix, and the one that matters for requests the native
 # endpoint cannot serve -- tool calling and structured output, which /api/v1/chat
@@ -40,7 +40,7 @@
 #            small: {model: "nemotron-3-nano-4b-nothink"}
 #            draft: {model: "nemotron-3-nano-4b-nothink"}
 #
-# FALLBACK: if the variant is absent, engine/lmstudio/registry.py logs
+# FALLBACK: if the variant is absent, engine/llm/registry.py logs
 # "Configured model not on server" and binds by capability instead, preferring a
 # non-reasoning instruct model. Nothing breaks; the utility profiles just fall
 # back to `reasoning: "off"` on the native transport.

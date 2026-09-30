@@ -1,0 +1,7 @@
+{
+  "object": "error",
+  "message": "The server had an error while processing your request.",
+  "type": "InternalServerError",
+  "param": null,
+  "code": 500
+}

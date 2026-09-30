@@ -621,9 +621,12 @@ class RulesGovernor:
     @staticmethod
     def _check_stat_claims(engine: Any, ctx: TurnContext) -> None:
         """R003 -- stat deltas the model asserted without a tool receipt."""
+        from engine.llm.schemas import claimed
         from engine.telemetry import get_oracle
 
-        claims = ctx.parsed.get("stat_changes") or {}
+        # Through `claimed`: on a rung with no grammar `conform` drops the key
+        # from the turn, and keeps it aside for exactly this audit.
+        claims = claimed(ctx.parsed, "stat_changes") or {}
         if not isinstance(claims, dict) or not claims:
             return
 

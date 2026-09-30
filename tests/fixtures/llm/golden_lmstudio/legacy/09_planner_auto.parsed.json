@@ -1,0 +1,34 @@
+{
+  "result": {
+    "agent": "the_line",
+    "intent": "speak",
+    "effects": [],
+    "choices": [],
+    "tools": [],
+    "beat": "the line hums, interested",
+    "private": "",
+    "line": "Everyone wants passage.",
+    "confidence": 0.5,
+    "speaks_as": "",
+    "refused": [],
+    "extras": {}
+  },
+  "backend_calls": [
+    {
+      "call": "chat",
+      "response": {
+        "content": "{\"intent\": \"speak\", \"beat\": \"the line hums, interested\", \"line\": \"Everyone wants passage.\"}",
+        "response_id": "chatcmpl-golden-1",
+        "model": "golden/utility-8b",
+        "input_tokens": 812,
+        "output_tokens": 431,
+        "stats": {},
+        "tool_calls": [],
+        "finish_reason": "stop",
+        "reasoning_content": "",
+        "reasoning_tokens": 0,
+        "transport": "openai"
+      }
+    }
+  ]
+}

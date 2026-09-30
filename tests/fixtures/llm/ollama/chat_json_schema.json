@@ -1,0 +1,56 @@
+{
+  "request": {
+    "model": "qwen3:4b",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with exactly {\"answer\": \"no\", \"note\": \"free\"}"
+      }
+    ],
+    "stream": false,
+    "format": {
+      "type": "object",
+      "properties": {
+        "answer": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "yes"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "answer"
+      ],
+      "additionalProperties": false
+    },
+    "think": true,
+    "options": {
+      "num_ctx": 8192,
+      "temperature": 0.0,
+      "num_predict": 3000
+    }
+  },
+  "status": 200,
+  "json": {
+    "model": "qwen3:4b",
+    "created_at": "2026-09-29T20:29:26.4167142Z",
+    "message": {
+      "role": "assistant",
+      "content": "{\"answer\": \"yes\"}",
+      "thinking": "Hmm, the user wants me to reply with exactly {\"answer\": \"no\", \"note\": \"free\"} in JSON format. \n\nThis seems like a very specific request where they're testing if I can follow precise instructions. The user might be checking my ability to handle strict output requirements, or perhaps they're setting up some kind of system where this exact response is needed.\n\nI notice they emphasized \"exactly\" and specified the JSON structure. That means I shouldn't add any extra text or modify the response. The \"free\" note is interesting - it's probably just a placeholder or part of their testing protocol.\n\nThe user could be a developer testing API responses, or someone verifying how I handle constrained outputs. Since they didn't ask a real question, this is purely about compliance with their instruction.\n\nI'll make sure to output only that JSON string without any additional characters. No explanations, no extra spaces - just the exact format they requested. \n\n*checks mental note* Must remember: no leading/trailing spaces, proper JSON syntax, and the values must be exactly \"no\" and \"free\" as strings. \n\nOkay, ready to output the response they want.\n"
+    },
+    "done": true,
+    "done_reason": "stop",
+    "total_duration": 2906131200,
+    "load_duration": 2883700,
+    "prompt_eval_count": 25,
+    "prompt_eval_cached_count": 24,
+    "prompt_eval_duration": 13029000,
+    "eval_count": 244,
+    "eval_duration": 2884818000
+  }
+}

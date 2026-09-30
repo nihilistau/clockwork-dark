@@ -1,0 +1,7 @@
+{
+  "result": {
+    "ok": true,
+    "detail": "/api/v1/models answers: 3 models, loaded: golden/narrator-26b, golden/utility-8b"
+  },
+  "backend_calls": []
+}

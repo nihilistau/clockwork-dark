@@ -1,0 +1,64 @@
+{
+  "request": {
+    "model": "qwen3:4b",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather in Tallowmere? Use the tool."
+      }
+    ],
+    "stream": false,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "The weather in a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "city": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "think": false,
+    "options": {
+      "num_ctx": 8192,
+      "temperature": 0.0
+    }
+  },
+  "status": 200,
+  "json": {
+    "model": "qwen3:4b",
+    "created_at": "2026-09-29T20:29:29.8776848Z",
+    "message": {
+      "role": "assistant",
+      "content": "Okay, the user is asking for the weather in Tallowmere. Let me check the tools provided. There's a function called get_weather that takes a city as a string. Wait, but I need to make sure Tallowmere is a valid city. Hmm, I think Tallowmere might be a typo. Maybe they meant Tallow, or perhaps a place in another country. But the function requires the city name. Let me see. The function's parameters say city is a string. So I should call get_weather with city set to \"Tallowmere\". Even if it's a typo, the tool might handle it or return an error. The user said to use the tool, so I'll proceed with the given city name. Let me structure the tool call as per the instructions. The function name is get_weather, arguments should be {\"city\": \"Tallowmere\"}. I need to output that in the tool_call XML tags.\n</think>\n\n",
+      "tool_calls": [
+        {
+          "id": "call_rj01y61p",
+          "function": {
+            "index": 0,
+            "name": "get_weather",
+            "arguments": {
+              "city": "Tallowmere"
+            }
+          }
+        }
+      ]
+    },
+    "done": true,
+    "done_reason": "stop",
+    "total_duration": 2598999000,
+    "load_duration": 2684200,
+    "prompt_eval_count": 141,
+    "prompt_eval_cached_count": 1,
+    "prompt_eval_duration": 80109000,
+    "eval_count": 216,
+    "eval_duration": 2512893000
+  }
+}

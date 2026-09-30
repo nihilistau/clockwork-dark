@@ -53,7 +53,7 @@ from schema_check import validate
 from engine.game.intents import find_verb, legal_intents
 from engine.game.state import GameState
 from engine.games import registry
-from engine.lmstudio.schemas import storyteller_turn_schema
+from engine.llm.schemas import storyteller_turn_schema
 from engine.persistence import reset_save_store
 from engine.persistence.saves import SaveStore
 from engine.scenes.default_state import (

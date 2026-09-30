@@ -575,7 +575,7 @@ def seal(
 
     if ledger is not None and proposal.to_id:
         promise = ledger.add_promise(
-            proposal.terms or f"a bargain with {proposal.to_id}",
+            (proposal.terms or "").strip() or f"a bargain with {proposal.to_id}",
             to_id=proposal.to_id,
             due_day=due_day,
             turn=state.turn_number,

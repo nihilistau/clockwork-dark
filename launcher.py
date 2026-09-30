@@ -7,6 +7,7 @@ Scene launcher — optionally brings up the local service stack first.
     python launcher.py                  play; warn about anything down
     python launcher.py --stack          start managed services, then play
     python launcher.py --check          report service status and exit
+                                        (1 if the model server is down)
     python launcher.py --no-stack       skip the service check entirely
     python launcher.py --list-games     list installed games and exit
     python launcher.py --game <slug>    play a specific game
@@ -46,6 +47,19 @@ def _configure_logging(verbose: bool) -> None:
     logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
+def _model_server_down(statuses) -> bool:
+    """
+    Whether the model server is down: the one FAIL-level service, whatever
+    the provider (``stack.MODEL_SERVER_NAMES``). ``--check`` exits 1 on it.
+    """
+    from engine.stack import MODEL_SERVER_NAMES, STATUS_DOWN, STATUS_FAILED
+
+    return any(
+        s.name in MODEL_SERVER_NAMES and s.status in (STATUS_DOWN, STATUS_FAILED)
+        for s in statuses
+    )
+
+
 def _report(statuses) -> bool:
     """Print the status table. Returns True if nothing is outright broken."""
     from engine.stack import STATUS_DOWN, STATUS_FAILED, render_table
@@ -57,6 +71,9 @@ def _report(statuses) -> bool:
     # while narration was working.
     consequences = {
         "lmstudio": "no narration — the Storyteller falls back to a canned line",
+        # The model server under any other provider (v0.19.0).
+        "llm": "no narration — the model server is down, so the Storyteller "
+        "falls back to a canned line",
         "voxtral_tts": "no spoken narration (off by default anyway)",
         # Only bites when stt.provider is voxtral_http. The default provider is
         # faster-whisper, in this process, with no service to be down.
@@ -212,8 +229,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         from engine.stack import StackManager
 
-        _report(StackManager().status())
-        return 0
+        statuses = StackManager().status()
+        _report(statuses)
+        # Exit 1 only when the model server is down: every other service
+        # degrades a feature, and the game still runs without it.
+        return 1 if _model_server_down(statuses) else 0
 
     # THE STUDIO IS OPT-IN, and stays that way. It writes to `games/` on
     # request, which is exactly right for an authoring tool and exactly wrong

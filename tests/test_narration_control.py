@@ -40,7 +40,7 @@ from engine.agents.stream_processor import (
     strip_trailing_debris,
     trim_to_sentence,
 )
-from engine.lmstudio.events import LMSResponse
+from engine.llm.events import LMSResponse
 
 UI_SRC = Path(__file__).resolve().parent.parent / "ui" / "src"
 

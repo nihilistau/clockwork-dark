@@ -1,0 +1,5 @@
+{"model":"qwen3:8b","created_at":"2026-09-29T12:00:00.100Z","message":{"role":"assistant","content":"<thi"},"done":false}
+{"model":"qwen3:8b","created_at":"2026-09-29T12:00:00.200Z","message":{"role":"assistant","content":"nk>Perhaps [IMAGE:forest]."},"done":false}
+{"model":"qwen3:8b","created_at":"2026-09-29T12:00:00.300Z","message":{"role":"assistant","content":"</th"},"done":false}
+{"model":"qwen3:8b","created_at":"2026-09-29T12:00:00.400Z","message":{"role":"assistant","content":"ink>\n\nAutumn."},"done":false}
+{"model":"qwen3:8b","created_at":"2026-09-29T12:00:00.500Z","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","prompt_eval_count":26,"eval_count":40}

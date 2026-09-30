@@ -28,8 +28,8 @@ features were, and `v1.0.0` is tagged only once the last of them lands:
 | **v0.16.0** | Acts I--II: arcs, initiation deck, interrogation deck, the Magpie reveal, the alibi beat | Shipped |
 | **v0.17.0** | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | Shipped |
 | **v0.18.0** | `simulate.py`'s thief policy, which also re-measures welshing's cost for a burglar shut out of both fences (owner decision in v0.15) | Shipped -- with the agenda collisions measured, and the fences made to pay (owner decision) so burglary pays |
-| **v0.19.0** | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | Next -- platform, before v1.0.0's live play |
-| **v0.20.0** | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker | Platform |
+| **v0.19.0** | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | Shipped -- platform, before v1.0.0's live play: llama-server and Ollama verified live, vLLM left for v0.20.0's Linux |
+| **v0.20.0** | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker | Next -- platform |
 | **v0.21.0** | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | The overhaul and the story's screens share their surfaces, so they are built once |
 | **v0.22.0** | The Clockwork Dark overhaul | The other five stories get HUE & CRY's full treatment, after the UI overhaul so each is built on the new screens |
 | **v0.23.0** | The Wicked Garden overhaul | |

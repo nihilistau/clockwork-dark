@@ -1,0 +1,49 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "In one sentence, say what colour the sky is at dusk."
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 200,
+    "response_format": {
+      "type": "json_object"
+    }
+  },
+  "status": 200,
+  "json": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"input\": \"In one sentence, say what colour the sky is at dusk.\",\n  \"output\": \"The sky is a soft orange at dusk.\"\n}\n"
+        }
+      }
+    ],
+    "created": 1790707159,
+    "model": "Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+    "system_fingerprint": "b7966-8872ad212",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 35,
+      "prompt_tokens": 23,
+      "total_tokens": 58
+    },
+    "id": "chatcmpl-F2DeevVAvZ8eXbReMiMTrMxKr8NqCZ8g",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 23,
+      "prompt_ms": 63.213,
+      "prompt_per_token_ms": 2.7483913043478263,
+      "prompt_per_second": 363.8492082324838,
+      "predicted_n": 35,
+      "predicted_ms": 424.921,
+      "predicted_per_token_ms": 12.1406,
+      "predicted_per_second": 82.36825198095647
+    }
+  }
+}

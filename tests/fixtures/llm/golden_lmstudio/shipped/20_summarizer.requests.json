@@ -1,0 +1,54 @@
+[
+  {
+    "method": "GET",
+    "url": "http://localhost:1234/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  },
+  {
+    "method": "GET",
+    "url": "http://localhost:1234/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  },
+  {
+    "method": "POST",
+    "url": "http://localhost:1234/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {}
+  },
+  {
+    "method": "POST",
+    "url": "http://localhost:1234/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "context_length": 8192,
+      "input": [
+        {
+          "content": "CURRENT SUMMARY:\n(nothing yet)\n\nNEW EVENTS:\n[day 1, forest_clearing]\nThe traveller: I follow the path east.\nThe path east narrows between birches. A clock ticks ahead.",
+          "type": "text"
+        }
+      ],
+      "max_output_tokens": 900,
+      "model": "golden/utility-8b",
+      "reasoning": "off",
+      "stream": false,
+      "system_prompt": "You maintain the running memory of a dark-fantasy RPG session.\n\nRewrite the summary below so it also covers the new events. Rules:\n- At most 250 words. Prose, past tense, third person (\"the traveller\").\n- Keep EVERY proper noun: people, places, objects with names.\n- Keep every unresolved promise, debt, threat, and open question.\n- Keep what changed about the world, not what the weather was like.\n- Drop moment-to-moment detail. Compress old material harder than new.\n- Output only the summary. No preamble, no headings, no commentary.\n",
+      "temperature": 0.2
+    }
+  }
+]

@@ -196,6 +196,14 @@ describe("failure and recovery", () => {
     const state = reducer(started(), socket("turn_update", { llm_unavailable: true }));
     expect(state.error).toMatch(/unreachable/i);
   });
+
+  it("names the model server, not one brand of it", () => {
+    // v0.19.0 speaks to more than LM Studio; the outage line must not send a
+    // player on another server looking for an app they never installed.
+    const state = reducer(started(), socket("turn_update", { llm_unavailable: true }));
+    expect(state.error).toContain("the model server");
+    expect(state.error).not.toMatch(/LM Studio/);
+  });
 });
 
 describe("RESET", () => {

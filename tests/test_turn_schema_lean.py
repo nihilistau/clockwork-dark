@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from engine.lmstudio.schemas import storyteller_turn_schema
+from engine.llm.schemas import storyteller_turn_schema
 
 ROOT = Path(__file__).resolve().parent.parent
 

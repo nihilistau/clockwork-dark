@@ -1,0 +1,65 @@
+{
+  "parameters": "stop                           \"<|system|>\"\nstop                           \"</s>\"\nstop                           \"<|user|>\"\nstop                           \"<|assistant|>\"",
+  "template": "{{- range .Messages }}<|{{ .Role }}|>\n{{ .Content }}</s>\n{{ end }}<|assistant|>\n",
+  "details": {
+    "parent_model": "Phi-3.1-mini-128k-instruct-Q4_K_M.gguf",
+    "format": "gguf",
+    "family": "phi3",
+    "families": [
+      "phi3"
+    ],
+    "parameter_size": "3.8B",
+    "quantization_level": "Q4_K_M"
+  },
+  "model_info": {
+    "general.architecture": "phi3",
+    "general.basename": "Phi-3",
+    "general.file_type": 15,
+    "general.finetune": "128k-instruct",
+    "general.languages": [
+      "en"
+    ],
+    "general.license": "mit",
+    "general.license.link": "https://huggingface.co/microsoft/Phi-3-mini-128k-instruct/resolve/main/LICENSE",
+    "general.parameter_count": 3821079648,
+    "general.quantization_version": 2,
+    "general.size_label": "mini",
+    "general.tags": [
+      "nlp",
+      "code",
+      "text-generation"
+    ],
+    "general.type": "model",
+    "phi3.attention.head_count": 32,
+    "phi3.attention.head_count_kv": 32,
+    "phi3.attention.layer_norm_rms_epsilon": 1e-05,
+    "phi3.attention.sliding_window": 262144,
+    "phi3.block_count": 32,
+    "phi3.context_length": 131072,
+    "phi3.embedding_length": 3072,
+    "phi3.feed_forward_length": 8192,
+    "phi3.rope.dimension_count": 96,
+    "phi3.rope.freq_base": 10000,
+    "phi3.rope.scaling.attn_factor": 1.1902381,
+    "phi3.rope.scaling.original_context_length": 4096,
+    "quantize.imatrix.chunks_count": 151,
+    "quantize.imatrix.dataset": "/training_dir/calibration_datav3.txt",
+    "quantize.imatrix.entries_count": 128,
+    "quantize.imatrix.file": "/models_out/Phi-3.1-mini-128k-instruct-GGUF/Phi-3.1-mini-128k-instruct.imatrix",
+    "tokenizer.ggml.add_bos_token": false,
+    "tokenizer.ggml.add_eos_token": false,
+    "tokenizer.ggml.bos_token_id": 1,
+    "tokenizer.ggml.eos_token_id": 32000,
+    "tokenizer.ggml.model": "llama",
+    "tokenizer.ggml.padding_token_id": 32000,
+    "tokenizer.ggml.pre": "default",
+    "tokenizer.ggml.scores": [],
+    "tokenizer.ggml.token_type": [],
+    "tokenizer.ggml.tokens": [],
+    "tokenizer.ggml.unknown_token_id": 0
+  },
+  "capabilities": [
+    "completion"
+  ],
+  "modified_at": "2026-09-30T06:21:14.7799256+10:00"
+}

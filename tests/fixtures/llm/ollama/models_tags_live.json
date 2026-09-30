@@ -1,0 +1,50 @@
+{
+  "models": [
+    {
+      "name": "qwen3:4b",
+      "model": "qwen3:4b",
+      "modified_at": "2026-09-30T06:23:48.1164252+10:00",
+      "size": 2497293931,
+      "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+      "details": {
+        "parent_model": "",
+        "format": "gguf",
+        "family": "qwen3",
+        "families": [
+          "qwen3"
+        ],
+        "parameter_size": "4.0B",
+        "quantization_level": "Q4_K_M",
+        "context_length": 262144,
+        "embedding_length": 2560
+      },
+      "capabilities": [
+        "completion",
+        "tools",
+        "thinking"
+      ]
+    },
+    {
+      "name": "phi3.1-mini-local:latest",
+      "model": "phi3.1-mini-local:latest",
+      "modified_at": "2026-09-30T06:21:14.7799256+10:00",
+      "size": 2393232931,
+      "digest": "8790af7e3dd8e6606620003a8be5f4a1ee0f804553b38e17a075f8a53daac422",
+      "details": {
+        "parent_model": "Phi-3.1-mini-128k-instruct-Q4_K_M.gguf",
+        "format": "gguf",
+        "family": "phi3",
+        "families": [
+          "phi3"
+        ],
+        "parameter_size": "3.8B",
+        "quantization_level": "Q4_K_M",
+        "context_length": 131072,
+        "embedding_length": 3072
+      },
+      "capabilities": [
+        "completion"
+      ]
+    }
+  ]
+}

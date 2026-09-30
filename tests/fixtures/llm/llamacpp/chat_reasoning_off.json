@@ -1,0 +1,48 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 2+2? Answer with one number only."
+      }
+    ],
+    "max_tokens": 3000,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "status": 200,
+  "json": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "2 + 2 = 4"
+        }
+      }
+    ],
+    "created": 1790706417,
+    "model": "Qwen3-0.6B-Q8_0.gguf",
+    "system_fingerprint": "b7966-8872ad212",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 8,
+      "prompt_tokens": 25,
+      "total_tokens": 33
+    },
+    "id": "chatcmpl-AqVpGPrwhkwRJWMW5mnyXWCpXe08MIZa",
+    "timings": {
+      "cache_n": 24,
+      "prompt_n": 1,
+      "prompt_ms": 41.034,
+      "prompt_per_token_ms": 41.034,
+      "prompt_per_second": 24.370034605449142,
+      "predicted_n": 8,
+      "predicted_ms": 180.877,
+      "predicted_per_token_ms": 22.609625,
+      "predicted_per_second": 44.22895116570929
+    }
+  }
+}

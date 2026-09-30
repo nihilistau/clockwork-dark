@@ -1,0 +1,46 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 2+2? Answer with one number only."
+      }
+    ],
+    "max_tokens": 3000
+  },
+  "status": 200,
+  "json": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "4",
+          "reasoning_content": "Okay, the user is asking what 2+2 is and wants just the number as the answer. Hmm, this seems straightforward but let me think carefully. \n\nFirst, I recall that in basic arithmetic, 2 plus 2 equals 4. That's fundamental math. The user specifically said \"answer with one number only,\" so I shouldn't add any text or explanations. \n\nI wonder why they're asking such a simple question though. Maybe they're testing if I'll overcomplicate it? Or perhaps it's for a child learning math? The phrasing feels a bit odd—like they might be checking if I'll give a different answer for some reason. \n\nBut no, in standard math, it's definitely 4. I should stick to the request. No need to overthink it. Just output \"4\" as instructed. \n\n...Though part of me wants to add a tiny note about how this is basic math, but the user was very clear: \"one number only.\" Better follow instructions precisely. \n\n*Double-checks*: Yep, 2+2=4. No tricks here. Final answer is 4."
+        }
+      }
+    ],
+    "created": 1790706335,
+    "model": "Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
+    "system_fingerprint": "b7966-8872ad212",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 237,
+      "prompt_tokens": 23,
+      "total_tokens": 260
+    },
+    "id": "chatcmpl-PRfhLwLGHVtuh3FVt5iNKuXwlIozwQFH",
+    "timings": {
+      "cache_n": 22,
+      "prompt_n": 1,
+      "prompt_ms": 264.012,
+      "prompt_per_token_ms": 264.012,
+      "prompt_per_second": 3.787706619396088,
+      "predicted_n": 237,
+      "predicted_ms": 2817.954,
+      "predicted_per_token_ms": 11.890101265822786,
+      "predicted_per_second": 84.10357301787042
+    }
+  }
+}

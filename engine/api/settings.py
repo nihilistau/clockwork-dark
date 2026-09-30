@@ -17,7 +17,10 @@ written by any request, so a malicious or malformed body cannot repoint
 line. Every value is type-checked and clamped to its declared domain before
 it is written, and writes go to config/local.yaml -- gitignored, the layer
 the config manager already documents as machine-local, and one that
-engine/config.py ignores wholesale if it ever fails to parse.
+engine/config.py ignores wholesale if it ever fails to parse. A save rewrites
+that file whole, so it drops the file's comments (keeping them needs a
+round-trip YAML parser; CLAUDE.md "Deliberately deferred"), and it refuses to
+write over a file that does not parse.
 
 WHY THIS IS SHARED AND NOT STORY-OWNED. Every key here describes the MACHINE
 or the player's own taste -- endpoints, GPU budgets, whether a voice speaks.
@@ -44,7 +47,7 @@ from typing import Any
 
 from flask import Blueprint, jsonify, request
 
-from engine.config import get_config
+from engine.config import get_config, migrate_legacy_llm
 
 logger = logging.getLogger(__name__)
 
@@ -239,7 +242,7 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
     },
     # -- the model -------------------------------------------------------
     {
-        "key": "lmstudio.profiles.big.model",
+        "key": "llm.profiles.big.model",
         "label": "Narration model",
         "group": "The model",
         "type": "text",
@@ -248,7 +251,7 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
         "hint": "Empty means discover one by capability from LM Studio. Otherwise an exact model id.",
     },
     {
-        "key": "lmstudio.profiles.big.temperature",
+        "key": "llm.profiles.big.temperature",
         "label": "Narration temperature",
         "group": "The model",
         "type": "float",
@@ -258,7 +261,7 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
         "restart": False,
     },
     {
-        "key": "lmstudio.profiles.big.max_tokens",
+        "key": "llm.profiles.big.max_tokens",
         "label": "Room to answer",
         "group": "The model",
         "type": "int",
@@ -272,7 +275,7 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
         ),
     },
     {
-        "key": "lmstudio.profiles.big.reasoning_budget",
+        "key": "llm.profiles.big.reasoning_budget",
         "label": "Room to think",
         "group": "The model",
         "type": "int",
@@ -288,7 +291,7 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
         ),
     },
     {
-        "key": "lmstudio.profiles.big.reasoning",
+        "key": "llm.profiles.big.reasoning",
         "label": "Let it think out loud",
         "group": "The model",
         "type": "enum",
@@ -304,7 +307,7 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
         ),
     },
     {
-        "key": "lmstudio.context_tokens",
+        "key": "llm.context_tokens",
         "label": "Context window",
         "group": "The model",
         "type": "int",
@@ -314,11 +317,14 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
         "hint": "Fallback only — the real number comes from the loaded model.",
     },
     {
-        "key": "lmstudio.prefer_native",
+        "key": "llm.prefer_native",
         "label": "Use LM Studio's native endpoint",
         "group": "The model",
         "type": "bool",
         "restart": True,
+        # Listed only while `llm.provider` is one of these: no other server
+        # has LM Studio's native route for it to prefer.
+        "providers": ["lmstudio"],
         "hint": "The only transport that can actually turn reasoning off. Leave on unless it misbehaves.",
     },
 )
@@ -349,30 +355,58 @@ def _plant(root: dict[str, Any], dotted: str, value: Any) -> None:
     node[parts[-1]] = value
 
 
-def _local_overrides() -> dict[str, Any]:
-    """Whatever config/local.yaml currently holds, or {} if it is absent or bad."""
+def _read_local() -> tuple[dict[str, Any], str]:
+    """
+    What config/local.yaml holds, and why it could not be read ("" if it could).
+
+    An absent file holds nothing, which is not an error. A file that exists and
+    does not parse (or is not a mapping) is: its contents are the owner's
+    machine config, and a save that treated it as empty would replace it.
+    """
     import yaml
 
     from engine.config import project_root
 
     path = project_root() / _LOCAL_CONFIG
     if not path.is_file():
-        return {}
+        return {}, ""
     try:
         with path.open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle) or {}
-    except (OSError, yaml.YAMLError) as exc:
+            data = yaml.safe_load(handle)
+    # UnicodeDecodeError is a ValueError, not an OSError: a file that is not
+    # UTF-8 is as unreadable as one that does not parse, and is refused alike.
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
         logger.warning("[settings] local.yaml unreadable: %s", exc)
-        return {}
-    return data if isinstance(data, dict) else {}
+        return {}, f"{type(exc).__name__}: {exc}"
+    if data is None:
+        return {}, ""
+    if not isinstance(data, dict):
+        return {}, f"it holds a {type(data).__name__}, not a mapping of settings"
+    return data, ""
+
+
+def _local_overrides() -> dict[str, Any]:
+    """Whatever config/local.yaml currently holds, or {} if it is absent or bad."""
+    return _read_local()[0]
+
+
+def _listed(spec: dict[str, Any], provider: str) -> bool:
+    """Whether a row applies to the configured model server."""
+    providers = spec.get("providers")
+    return not providers or provider in providers
 
 
 def settings_view() -> dict[str, Any]:
     """Every player-settable knob, its live value, and whether it is overridden."""
     cfg = get_config()
-    overrides = _local_overrides()
+    # Read as the config layer reads it, legacy block and all, so a key an old
+    # `lmstudio:` block sets shows as overridden.
+    overrides, _ = migrate_legacy_llm(_local_overrides())
+    provider = str(cfg.get("llm.provider") or "lmstudio")
     rows: list[dict[str, Any]] = []
     for spec in SETTING_SPECS:
+        if not _listed(spec, provider):
+            continue
         row = dict(spec)
         row["value"] = cfg.get(spec["key"])
         row["overridden"] = _dig(overrides, spec["key"]) is not None
@@ -438,12 +472,46 @@ def apply_settings(changes: dict[str, Any], *, reset: bool = False) -> dict[str,
     written to a sibling temp path and moved into place, so a crash mid-write
     cannot leave a half-parsed config behind -- and even if one somehow did,
     engine/config.py logs and ignores an unparseable layer rather than dying.
+
+    A local.yaml that exists and does not parse is REFUSED, not overwritten:
+    the save rewrites the whole file, so treating it as empty would replace
+    the owner's machine config with the panel's few keys.
+
+    The rewrite drops the file's comments (``yaml.safe_dump``); the header it
+    writes says the panel owns its keys there.
     """
     import yaml
 
     from engine.config import project_root, reset_config
 
-    overrides = _local_overrides()
+    current, unreadable = _read_local()
+    if unreadable:
+        logger.error(
+            "[settings] Refusing to overwrite an unparseable %s (operation=apply_settings): %s",
+            _LOCAL_CONFIG,
+            unreadable,
+        )
+        return {
+            "ok": False,
+            "error": (
+                f"{_LOCAL_CONFIG} does not parse ({unreadable}). Nothing was "
+                "saved: saving would overwrite it. Fix it by hand, or move it "
+                "aside, and save again."
+            ),
+            "applied": {},
+            "rejected": {},
+        }
+
+    # A legacy `lmstudio:` block is rewritten as `llm:` by this save, by the
+    # config layer's own rule (the new block wins a key both set, nothing only
+    # the old one set is lost), so the first setting saved migrates the file.
+    overrides, moved = migrate_legacy_llm(current)
+    provider = str(get_config().get("llm.provider") or "lmstudio")
+    if moved:
+        logger.info(
+            "[settings] Legacy model-server config moved (operation=apply_settings, renamed=%s)",
+            "; ".join(moved),
+        )
     applied: dict[str, Any] = {}
     rejected: dict[str, str] = {}
     notes: dict[str, str] = {}
@@ -462,6 +530,12 @@ def apply_settings(changes: dict[str, Any], *, reset: bool = False) -> dict[str,
             spec = SETTINGS_BY_KEY.get(str(key))
             if spec is None:
                 rejected[str(key)] = "not a settable key"
+                continue
+            if not _listed(spec, provider):
+                rejected[str(key)] = (
+                    f"not settable for provider {provider}: only "
+                    f"{', '.join(spec['providers'])} reads it"
+                )
                 continue
             ok, value, note = _coerce_setting(spec, raw)
             if not ok:

@@ -1,0 +1,305 @@
+[
+  {
+    "status": 200,
+    "json": {
+      "models": [
+        {
+          "type": "llm",
+          "publisher": "golden",
+          "key": "golden/narrator-26b",
+          "display_name": "narrator-26b",
+          "architecture": "gemma4",
+          "quantization": {
+            "name": "Q4_K_M",
+            "bits_per_weight": 4.8
+          },
+          "size_bytes": 4000000000,
+          "params_string": "8B",
+          "loaded_instances": [
+            {
+              "id": "golden/narrator-26b",
+              "config": {
+                "context_length": 16384
+              }
+            }
+          ],
+          "max_context_length": 131072,
+          "format": "gguf",
+          "capabilities": {
+            "vision": false,
+            "trained_for_tool_use": true,
+            "reasoning": {
+              "allowed_options": [
+                "off",
+                "on"
+              ],
+              "default": "on"
+            }
+          }
+        },
+        {
+          "type": "llm",
+          "publisher": "golden",
+          "key": "golden/utility-8b",
+          "display_name": "utility-8b",
+          "architecture": "llama",
+          "quantization": {
+            "name": "Q4_K_M",
+            "bits_per_weight": 4.8
+          },
+          "size_bytes": 4000000000,
+          "params_string": "8B",
+          "loaded_instances": [
+            {
+              "id": "golden/utility-8b",
+              "config": {
+                "context_length": 8192
+              }
+            }
+          ],
+          "max_context_length": 32768,
+          "format": "gguf",
+          "capabilities": {
+            "vision": false,
+            "trained_for_tool_use": false,
+            "reasoning": {
+              "allowed_options": [
+                "off",
+                "on"
+              ],
+              "default": "off"
+            }
+          }
+        },
+        {
+          "type": "embedding",
+          "publisher": "golden",
+          "key": "golden/embedder",
+          "display_name": "embedder",
+          "architecture": "nomic-bert",
+          "quantization": {
+            "name": "F16",
+            "bits_per_weight": 16
+          },
+          "size_bytes": 270000000,
+          "params_string": "137M",
+          "loaded_instances": [],
+          "max_context_length": 2048,
+          "format": "gguf",
+          "capabilities": {}
+        }
+      ]
+    }
+  },
+  {
+    "status": 400,
+    "json": {
+      "error": {
+        "type": "invalid_request",
+        "message": "'input' is required",
+        "param": "input"
+      }
+    }
+  },
+  {
+    "status": 200,
+    "sse": [
+      {
+        "event": "chat.start",
+        "data": {
+          "type": "chat.start",
+          "model_instance_id": "golden/narrator-26b"
+        }
+      },
+      {
+        "event": "prompt_processing.start",
+        "data": {
+          "type": "prompt_processing.start"
+        }
+      },
+      {
+        "event": "prompt_processing.progress",
+        "data": {
+          "type": "prompt_processing.progress",
+          "progress": 1.0
+        }
+      },
+      {
+        "event": "prompt_processing.end",
+        "data": {
+          "type": "prompt_processing.end"
+        }
+      },
+      {
+        "event": "reasoning.start",
+        "data": {
+          "type": "reasoning.start"
+        }
+      },
+      {
+        "event": "reasoning.delta",
+        "data": {
+          "type": "reasoning.delta",
+          "content": "The player follows the path east. I should keep "
+        }
+      },
+      {
+        "event": "reasoning.delta",
+        "data": {
+          "type": "reasoning.delta",
+          "content": "the tone uneasy, offer a risky lead and a safe o"
+        }
+      },
+      {
+        "event": "reasoning.delta",
+        "data": {
+          "type": "reasoning.delta",
+          "content": "ne, and not resolve the clock yet."
+        }
+      },
+      {
+        "event": "reasoning.end",
+        "data": {
+          "type": "reasoning.end"
+        }
+      },
+      {
+        "event": "message.start",
+        "data": {
+          "type": "message.start"
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "{\"narration\": \"The path east narrows bet"
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "ween birches gone silver in the dusk. So"
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "mewhere ahead a clock is ticking where n"
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "o clock should be, slow and patient, and"
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": " the moss underfoot carries the marks of"
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": " boots that came this way and did not co"
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "me back. The trees lean in to listen.\", "
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "\"choices\": [{\"id\": \"a\", \"text\": \"Follow "
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "the ticking\", \"hint\": \"risky\"}, {\"id\": \""
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "b\", \"text\": \"Study the boot marks\", \"hin"
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "t\": \"safe\"}, {\"id\": \"c\", \"text\": \"Turn b"
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "ack to the clearing\", \"hint\": \"unknown\"}"
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "], \"ledger_delta\": {\"facts\": [{\"text\": \""
+        }
+      },
+      {
+        "event": "message.delta",
+        "data": {
+          "type": "message.delta",
+          "content": "A clock ticks in the eastern wood.\"}]}}"
+        }
+      },
+      {
+        "event": "message.end",
+        "data": {
+          "type": "message.end"
+        }
+      },
+      {
+        "event": "chat.end",
+        "data": {
+          "type": "chat.end",
+          "result": {
+            "model_instance_id": "golden/narrator-26b",
+            "output": [
+              {
+                "type": "reasoning",
+                "content": "The player follows the path east. I should keep the tone uneasy, offer a risky lead and a safe one, and not resolve the clock yet."
+              },
+              {
+                "type": "message",
+                "content": "{\"narration\": \"The path east narrows between birches gone silver in the dusk. Somewhere ahead a clock is ticking where no clock should be, slow and patient, and the moss underfoot carries the marks of boots that came this way and did not come back. The trees lean in to listen.\", \"choices\": [{\"id\": \"a\", \"text\": \"Follow the ticking\", \"hint\": \"risky\"}, {\"id\": \"b\", \"text\": \"Study the boot marks\", \"hint\": \"safe\"}, {\"id\": \"c\", \"text\": \"Turn back to the clearing\", \"hint\": \"unknown\"}], \"ledger_delta\": {\"facts\": [{\"text\": \"A clock ticks in the eastern wood.\"}]}}"
+              }
+            ],
+            "stats": {
+              "input_tokens": 1204,
+              "total_output_tokens": 640,
+              "reasoning_output_tokens": 210,
+              "tokens_per_second": 41.5,
+              "time_to_first_token_seconds": 0.25
+            },
+            "response_id": "resp_golden_stream"
+          }
+        }
+      }
+    ]
+  }
+]

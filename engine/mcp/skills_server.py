@@ -6,7 +6,7 @@ The transport that finally lets a model CALL the ``@skill`` registry.
 
 WHY THIS EXISTS
 ---------------
-``engine/lmstudio/tools.py`` has built OpenAI tool definitions from the registry
+``engine/llm/tools.py`` has built OpenAI tool definitions from the registry
 by introspection since v0.2.0, and since ``turn_loop.py`` was retired in bdb69c5
 nothing has called it. Nothing anywhere passes ``tools=``. The registry — every
 dice roll, every move, every trade — has been unreachable by any model.
@@ -41,7 +41,7 @@ Every skill here resolves its state through ``get_active_engine()``, a
 engine to resolve at all. That is why the server runs on a daemon thread inside
 the game's own process: LM Studio reaches it over a real socket (it runs the
 tool loop itself — see the ``tool_call.*`` events in
-``engine/lmstudio/events.py``), and the handler that answers is standing next to
+``engine/llm/events.py``), and the handler that answers is standing next to
 the engine.
 
 HOW LM STUDIO IS POINTED AT IT, AND THE ONE THING THAT DOES NOT WORK
@@ -161,7 +161,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from engine.config import get_config
-from engine.lmstudio.tools import skill_to_openai_tool
+from engine.llm.tools import skill_to_openai_tool
 from engine.skills.registry import AGENT_STORYTELLER, SKILL_REGISTRY, SkillDef
 
 logger = logging.getLogger(__name__)
@@ -220,7 +220,7 @@ def skill_input_schema(skill_def: SkillDef) -> dict[str, Any]:
     """
     The MCP ``inputSchema`` for one skill.
 
-    Deliberately a thin peel off ``engine/lmstudio/tools.skill_to_openai_tool``
+    Deliberately a thin peel off ``engine/llm/tools.skill_to_openai_tool``
     rather than a second walk over the signature. Two schema generators over one
     registry is how a manifest drifts from the code it describes, which is the
     exact failure that module was written to prevent.
@@ -310,7 +310,7 @@ def build_server(resolve_engine: EngineResolver, *, name: str = "") -> Any:
         ) from exc
 
     cfg = get_config()
-    label = name or str(cfg.get("lmstudio.mcp.server_label", "game-skills"))
+    label = name or str(cfg.get("llm.mcp.server_label", "game-skills"))
     load_skill_packs()
 
     class SkillTool(Tool):  # type: ignore[misc]
@@ -456,10 +456,10 @@ class SkillsServer:
         path: Optional[str] = None,
     ) -> None:
         cfg = get_config()
-        self.host = host or str(cfg.get("lmstudio.mcp.host", "127.0.0.1"))
-        self.port = int(port if port is not None else cfg.get("lmstudio.mcp.port", 8770))
-        self.path = path or str(cfg.get("lmstudio.mcp.path", "/mcp/sse"))
-        self.label = str(cfg.get("lmstudio.mcp.server_label", "game-skills"))
+        self.host = host or str(cfg.get("llm.mcp.host", "127.0.0.1"))
+        self.port = int(port if port is not None else cfg.get("llm.mcp.port", 8770))
+        self.path = path or str(cfg.get("llm.mcp.path", "/mcp/sse"))
+        self.label = str(cfg.get("llm.mcp.server_label", "game-skills"))
         self._resolve_engine = resolve_engine
         self._thread: Optional[threading.Thread] = None
         self._server: Optional[Any] = None
@@ -561,14 +561,14 @@ class SkillsServer:
             agent: Caller identity, checked against each skill's allowlist on
                 both list and call.
             allowed_tools: Narrow further than the agent allowlist already does.
-                Defaults to ``lmstudio.mcp.allowed_tools``; empty means "every
+                Defaults to ``llm.mcp.allowed_tools``; empty means "every
                 skill this agent may call".
 
         Returns:
             The integration dict, or None when registration was not possible —
             which means no tool calling for this request, never a broken turn.
         """
-        mode = str(get_config().get("lmstudio.mcp.integration", "plugin")).lower()
+        mode = str(get_config().get("llm.mcp.integration", "plugin")).lower()
         if mode == "ephemeral":
             return mcp_integration(
                 self.url,
@@ -588,7 +588,7 @@ class SkillsServer:
             self._registered.add(session_id)
         payload = plugin_integration(entry)
         if allowed_tools is None:
-            declared = get_config().get("lmstudio.mcp.allowed_tools", []) or []
+            declared = get_config().get("llm.mcp.allowed_tools", []) or []
             allowed_tools = [str(t) for t in declared]
         if allowed_tools:
             payload["allowed_tools"] = list(allowed_tools)
@@ -630,13 +630,13 @@ def mcp_integration(
     ephemeral integration whose URL resolves to a non-public address, and this
     one is on loopback by design. Kept because it is correct for a server on a
     public address, and so that a future LM Studio which lifts the restriction
-    needs no new code — set ``lmstudio.mcp.integration: ephemeral`` and it is
+    needs no new code — set ``llm.mcp.integration: ephemeral`` and it is
     already wired.
     """
     if not session_id:
         raise ValueError("an MCP integration must name a session")
     if allowed_tools is None:
-        declared = get_config().get("lmstudio.mcp.allowed_tools", []) or []
+        declared = get_config().get("llm.mcp.allowed_tools", []) or []
         allowed_tools = [str(t) for t in declared]
 
     separator = "&" if "?" in server_url else "?"
@@ -670,14 +670,14 @@ def mcp_json_path() -> Optional[Path]:
     """
     Where LM Studio keeps ``mcp.json``.
 
-    Config first (``lmstudio.mcp.mcp_json``), then the known locations. Not a
+    Config first (``llm.mcp.mcp_json``), then the known locations. Not a
     literal: rule 5, and the directory moved once already between LM Studio
     builds (``~/.lmstudio`` and ``~/.cache/lm-studio`` both exist in the wild).
 
     Returns None when no candidate exists, which means "no local tool calling"
     rather than "crash".
     """
-    declared = str(get_config().get("lmstudio.mcp.mcp_json", "") or "")
+    declared = str(get_config().get("llm.mcp.mcp_json", "") or "")
     if declared:
         return Path(declared).expanduser()
     home = Path.home()
@@ -777,7 +777,7 @@ def register_session(
 
     It watches the file and reloads asynchronously. ``settle_seconds`` is the
     pause after writing that closes that race
-    (``lmstudio.mcp.register_settle_seconds``). It is affordable because this
+    (``llm.mcp.register_settle_seconds``). It is affordable because this
     is called ONCE per run, when the session is created, rather than on every
     turn — put it in a turn's critical path and it becomes a stall the player
     feels.
@@ -794,7 +794,7 @@ def register_session(
     if target is None:
         logger.warning(
             "[mcp] No LM Studio mcp.json found, so this server cannot be "
-            "registered (operation=register_session). Set lmstudio.mcp.mcp_json "
+            "registered (operation=register_session). Set llm.mcp.mcp_json "
             "in config/local.yaml. Tool calling is off; the game is unaffected."
         )
         return None
@@ -831,7 +831,7 @@ def register_session(
         return None
 
     settle = (
-        float(get_config().get("lmstudio.mcp.register_settle_seconds", 1.5))
+        float(get_config().get("llm.mcp.register_settle_seconds", 1.5))
         if settle_seconds is None
         else float(settle_seconds)
     )
@@ -920,15 +920,19 @@ def get_skills_server(
     """
     The process's skills server, started on first use.
 
-    Returns None when ``lmstudio.mcp.enabled`` is false, when ``fastmcp`` is
-    absent, or when no resolver has ever been supplied — all three of which mean
-    "no tool calling", never "no game".
+    Returns None when ``llm.mcp.enabled`` is false or the configured model
+    server has no MCP integrations (``mechanics.mechanics_enabled``: only LM
+    Studio's row does, v0.19.0), when ``fastmcp`` is absent, or when no
+    resolver has ever been supplied — all of which mean "no tool calling",
+    never "no game". The server's own settings are ``llm.mcp.*``.
     """
     global _server
     with _server_lock:
         if _server is not None:
             return _server
-        if not bool(get_config().get("lmstudio.mcp.enabled", False)):
+        from engine.agents.mechanics import mechanics_enabled
+
+        if not mechanics_enabled():
             return None
         if resolve_engine is None:
             return None

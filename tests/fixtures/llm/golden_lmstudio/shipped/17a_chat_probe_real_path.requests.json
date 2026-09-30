@@ -1,0 +1,44 @@
+[
+  {
+    "method": "GET",
+    "url": "http://localhost:1234/api/v1/models",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key"
+    },
+    "text": ""
+  },
+  {
+    "method": "POST",
+    "url": "http://localhost:1234/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {}
+  },
+  {
+    "method": "POST",
+    "url": "http://localhost:1234/api/v1/chat",
+    "headers": {
+      "accept": "*/*",
+      "authorization": "Bearer golden-test-key",
+      "content-type": "application/json"
+    },
+    "json": {
+      "context_length": 16384,
+      "input": [
+        {
+          "content": "Reply with the single word: ready",
+          "type": "text"
+        }
+      ],
+      "max_output_tokens": 3400,
+      "model": "golden/narrator-26b",
+      "reasoning": "on",
+      "stream": false,
+      "temperature": 0.0
+    }
+  }
+]

@@ -437,12 +437,11 @@ def test_a_tests_own_monkeypatch_undo_keeps_the_live_model_guard(monkeypatch) ->
     guard for the rest of that test. It holds its own now."""
     import socket
 
-    from engine.lmstudio.native import NativeClient
-    from engine.lmstudio.registry import ModelRegistry
-    from tests.conftest import MODEL_ENDPOINTS
+    from engine.llm.lmstudio_native import NativeClient
+    from engine.llm.registry import ModelRegistry
 
-    if not MODEL_ENDPOINTS:
-        pytest.skip("no model endpoint configured, so no guard is installed")
+    # Every provider's default URL is guarded (tests/conftest.py), so the
+    # guard is always installed: there is no "no endpoint configured" case.
     monkeypatch.undo()
     assert socket.socket.connect.__name__ == "guarded"
     assert NativeClient.is_available.__name__ == "<lambda>"

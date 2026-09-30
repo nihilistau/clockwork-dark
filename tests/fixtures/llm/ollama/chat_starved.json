@@ -1,0 +1,37 @@
+{
+  "request": {
+    "model": "qwen3:4b",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 2+2? Answer with one number only."
+      }
+    ],
+    "stream": false,
+    "options": {
+      "num_ctx": 8192,
+      "temperature": 0.0,
+      "num_predict": 8
+    },
+    "think": true
+  },
+  "status": 200,
+  "json": {
+    "model": "qwen3:4b",
+    "created_at": "2026-09-29T20:29:26.7797Z",
+    "message": {
+      "role": "assistant",
+      "content": "",
+      "thinking": "Okay, the user asked \"What is"
+    },
+    "done": true,
+    "done_reason": "length",
+    "total_duration": 131799400,
+    "load_duration": 4140900,
+    "prompt_eval_count": 23,
+    "prompt_eval_cached_count": 3,
+    "prompt_eval_duration": 24425000,
+    "eval_count": 8,
+    "eval_duration": 81752000
+  }
+}
