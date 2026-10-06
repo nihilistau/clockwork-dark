@@ -31,7 +31,7 @@
   nothing.
 #}
 <body>
-  <div id="root"></div>
+  <div id="root"></div>{% if hosting %}<div style="position:fixed;top:.4rem;right:.6rem;z-index:1000;font:13px Georgia,serif;display:flex;gap:.6rem;align-items:center"><a href="/account" style="color:#c9a86a">Account</a><form method="post" action="/logout" style="margin:0"><input type="hidden" name="csrf" value="{{ hosting.csrf }}" /><button type="submit" style="font:inherit;color:#e4dcca;background:#16140f;border:1px solid #3a3326;padding:.15rem .5rem;cursor:pointer">Log out</button></form></div>{% endif %}
 
   <noscript>
     <p style="color:#e4dcca;background:#080b0b;font-family:Georgia,serif;padding:2rem">

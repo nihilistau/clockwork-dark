@@ -63,24 +63,24 @@ def load_factions() -> dict[str, Any]:
         Parsed document, or an empty dict when the file is absent.
     """
     global _FACTION_CACHE
-    if _FACTION_CACHE is not None:
-        return _FACTION_CACHE
+    cached = _FACTION_CACHE  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
 
     path = _factions_path()
     if path is None:
         logger.debug("[reputation] Story declares no factions (operation=load_factions)")
-        _FACTION_CACHE = {}
-        return _FACTION_CACHE
-    if not path.exists():
+        factions: dict[str, Any] = {}
+    elif not path.exists():
         logger.warning(
             "[reputation] Factions missing (operation=load_factions, path=%s)", path
         )
-        _FACTION_CACHE = {}
-        return _FACTION_CACHE
-
-    with path.open(encoding="utf-8") as fh:
-        _FACTION_CACHE = yaml.safe_load(fh) or {}
-    return _FACTION_CACHE
+        factions = {}
+    else:
+        with path.open(encoding="utf-8") as fh:
+            factions = yaml.safe_load(fh) or {}
+    _FACTION_CACHE = factions
+    return factions
 
 
 def reset_faction_cache() -> None:

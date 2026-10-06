@@ -37,24 +37,21 @@ _TEMPLATE_CACHE: Optional[dict[str, Any]] = None
 def load_comfyui_templates() -> dict[str, Any]:
     """Load ComfyUI prompt templates."""
     global _TEMPLATE_CACHE
-    if _TEMPLATE_CACHE is not None:
-        return _TEMPLATE_CACHE
+    cached = _TEMPLATE_CACHE  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
 
     rel = str(get_config().get("paths.comfyui_templates", "") or "").strip()
-    if not rel:
+    path = _ROOT / rel if rel else None
+    if path is None or not path.exists():
         # A story with no image-prompt templates generates from the caller's
         # tag alone. It must not borrow another story's visual language.
-        _TEMPLATE_CACHE = {}
-        return _TEMPLATE_CACHE
-
-    path = _ROOT / rel
-    if not path.exists():
-        _TEMPLATE_CACHE = {}
-        return _TEMPLATE_CACHE
-
-    with path.open(encoding="utf-8") as fh:
-        _TEMPLATE_CACHE = yaml.safe_load(fh) or {}
-    return _TEMPLATE_CACHE
+        templates: dict[str, Any] = {}
+    else:
+        with path.open(encoding="utf-8") as fh:
+            templates = yaml.safe_load(fh) or {}
+    _TEMPLATE_CACHE = templates
+    return templates
 
 
 def build_image_prompt(

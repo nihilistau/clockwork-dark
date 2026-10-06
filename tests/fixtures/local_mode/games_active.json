@@ -1,0 +1,56 @@
+{
+  "json": {
+    "active": "clockwork-dark",
+    "manifest": {
+      "archetypes": [
+        "wayfarer",
+        "hearthkeeper",
+        "tinker_apprentice"
+      ],
+      "blurb": "A frontier village at the edge of a forest, and something patient and brass working its way outward from the Wound. Become a hero or become a baker -- the evil ticks either way.",
+      "engine_requires": ">=0.2.0",
+      "entry_location": "forest_clearing",
+      "id": "clockwork-dark",
+      "paths": {
+        "art_manifest": "games/clockwork-dark/data/art/manifest.yaml",
+        "art_root": "content/scenes/clockwork/static/art",
+        "art_subjects": "games/clockwork-dark/data/art/subjects.yaml",
+        "assistant_hints": "games/clockwork-dark/data/assistant/hints.yaml",
+        "challenges": "games/clockwork-dark/data/challenges",
+        "comfyui_templates": "games/clockwork-dark/data/procgen_templates/comfyui.yaml",
+        "doom_effects": "games/clockwork-dark/data/rules/doom_effects.yaml",
+        "economy": "games/clockwork-dark/data/economy.yaml",
+        "encounters": "games/clockwork-dark/data/encounters",
+        "endings": "games/clockwork-dark/data/rules/endings.yaml",
+        "epilogues": "games/clockwork-dark/data/epilogues",
+        "factions": "games/clockwork-dark/data/world/factions.yaml",
+        "items": "games/clockwork-dark/data/items",
+        "locations": "games/clockwork-dark/data/world/locations.yaml",
+        "lore": "games/clockwork-dark/data/lore",
+        "lore_db": "games/clockwork-dark/data/lore/lore.db",
+        "npc_schedules": "games/clockwork-dark/data/world/npc_schedules.yaml",
+        "procgen_templates": "games/clockwork-dark/data/procgen_templates/edgewood.yaml",
+        "quests": "games/clockwork-dark/data/quests",
+        "recipes": "games/clockwork-dark/data/recipes",
+        "rules": "games/clockwork-dark/data/rules",
+        "saves": "data/saves",
+        "tables": "games/clockwork-dark/data/tables",
+        "world_rumors": "games/clockwork-dark/data/world/rumors.yaml",
+        "world_schedules": "games/clockwork-dark/data/world/schedules.yaml"
+      },
+      "scene": {
+        "blueprint": "engine.scenes.default_api:story_blueprint",
+        "module": "engine.scenes.default_scene",
+        "name": "clockwork"
+      },
+      "slug": "clockwork-dark",
+      "title": "The Clockwork Dark",
+      "ui": {
+        "plugin": "clockwork-dark"
+      },
+      "ui_plugin": "clockwork-dark",
+      "version": "0.2.0"
+    }
+  },
+  "status": 200
+}

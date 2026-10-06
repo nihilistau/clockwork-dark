@@ -365,7 +365,7 @@ def _turn_on(llm_server: Any, mode: str) -> Any:
     from engine.game.engine import GameEngine
     from engine.game.procgen import new_game_state
 
-    model = "Qwen/Qwen3-8B"
+    model = "Qwen/Qwen3-1.7B"
     llm_server(
         "vllm",
         structured_output=mode,
@@ -496,7 +496,7 @@ def test_a_malformed_ledger_delta_does_not_break_a_rung_3_turn(
     reset_save_store()
     store = SaveStore(root=tmp_path / "saves")
     monkeypatch.setattr("engine.scenes.default_state.get_save_store", lambda: store)
-    model = "Qwen/Qwen3-8B"
+    model = "Qwen/Qwen3-1.7B"
     llm_server(
         "vllm",
         structured_output="off",

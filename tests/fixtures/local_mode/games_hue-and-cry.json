@@ -1,0 +1,69 @@
+{
+  "json": {
+    "active": false,
+    "archetypes": [
+      "cutpurse",
+      "silver_tongue",
+      "bruiser"
+    ],
+    "blurb": "Tallowmere burns candles for the whole coast and keeps a holy fire on the hill. You came for honest work. The Watch has decided you are the Magpie, the thieves' guild has decided the same, and a one-eyed jackdaw has decided you are his.",
+    "engine_requires": ">=0.2.0",
+    "entry_location": "tallow_docks",
+    "id": "hue-and-cry",
+    "paths": {
+      "agendas": "games/hue-and-cry/data/rules/agendas.yaml",
+      "art_manifest": "games/hue-and-cry/data/art/manifest.yaml",
+      "art_root": "games/hue-and-cry/data/art/plates",
+      "art_subjects": "games/hue-and-cry/data/art/subjects.yaml",
+      "challenges": "games/hue-and-cry/data/challenges",
+      "clocks": "games/hue-and-cry/data/rules/clocks.yaml",
+      "decks": "games/hue-and-cry/data/scenes",
+      "economy": "games/hue-and-cry/data/economy.yaml",
+      "encounters": "games/hue-and-cry/data/encounters",
+      "endings": "games/hue-and-cry/data/rules/endings.yaml",
+      "epilogues": "games/hue-and-cry/data/epilogues",
+      "factions": "games/hue-and-cry/data/world/factions.yaml",
+      "items": "games/hue-and-cry/data/items",
+      "jobs": "games/hue-and-cry/data/rules/jobs.yaml",
+      "law": "games/hue-and-cry/data/rules/law.yaml",
+      "locations": "games/hue-and-cry/data/world/locations.yaml",
+      "lore": "games/hue-and-cry/data/lore",
+      "lore_db": "games/hue-and-cry/data/lore/lore.db",
+      "npc_schedules": "games/hue-and-cry/data/world/npc_schedules.yaml",
+      "premises": "games/hue-and-cry/data/premises",
+      "procgen_templates": "games/hue-and-cry/data/procgen_templates/tallowmere.yaml",
+      "prompts": "games/hue-and-cry/prompts",
+      "quests": "games/hue-and-cry/data/quests",
+      "recipes": "games/hue-and-cry/data/recipes",
+      "rules": "games/hue-and-cry/data/rules",
+      "saves": "data/saves",
+      "tables": "games/hue-and-cry/data/tables",
+      "thievery": "games/hue-and-cry/data/rules/thievery.yaml",
+      "threads": "games/hue-and-cry/data/rules/threads.yaml",
+      "world_schedules": "games/hue-and-cry/data/world/schedules.yaml"
+    },
+    "playable": true,
+    "problems": [],
+    "scene": {
+      "blueprint": "engine.scenes.default_api:story_blueprint",
+      "module": "engine.scenes.default_scene",
+      "name": "clockwork"
+    },
+    "settings": {
+      "governance.directives": [
+        "StorytellerMind"
+      ],
+      "world.evil_base_rate_per_day": 0.0,
+      "world.tick_hours": 1.0,
+      "world.tick_max_hours": 4.0
+    },
+    "slug": "hue-and-cry",
+    "title": "Hue & Cry",
+    "ui": {
+      "plugin": "_engine"
+    },
+    "ui_plugin": "_engine",
+    "version": "0.1.0"
+  },
+  "status": 200
+}

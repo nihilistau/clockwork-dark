@@ -25,11 +25,13 @@ from pathlib import Path
 from typing import Any, Optional, Protocol
 
 from engine.games import registry
+from engine.persistence import storage
 
 logger = logging.getLogger(__name__)
 
-MEDIA_DIR = Path("data/media")
-IMAGE_DIR = MEDIA_DIR / "images"
+# The image cache is `storage.image_dir()` (`<storage root>/media/images`),
+# read on every call: since v0.20.0 it is anchored at the repository, not the
+# working directory, and a `CLOCKWORK_DATA_DIR` set after import still counts.
 
 
 @dataclass
@@ -115,8 +117,9 @@ def cached_image(request: ImageRequest) -> Optional[ImageResult]:
     game and one that pauses for minutes. Both backends are far too slow to
     regenerate anything.
     """
+    images = storage.image_dir()
     for suffix in (".png", ".jpg", ".jpeg", ".webp"):
-        path = IMAGE_DIR / f"{request.cache_key()}{suffix}"
+        path = images / f"{request.cache_key()}{suffix}"
         if path.exists() and path.stat().st_size > 0:
             return ImageResult(
                 url=f"/api/media/images/{path.name}",
@@ -128,8 +131,9 @@ def cached_image(request: ImageRequest) -> Optional[ImageResult]:
 
 
 def target_path(request: ImageRequest, suffix: str = ".png") -> Path:
-    IMAGE_DIR.mkdir(parents=True, exist_ok=True)
-    return IMAGE_DIR / f"{request.cache_key()}{suffix}"
+    images = storage.image_dir()
+    images.mkdir(parents=True, exist_ok=True)
+    return images / f"{request.cache_key()}{suffix}"
 
 
 def url_for(path: Path) -> str:

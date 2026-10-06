@@ -92,6 +92,7 @@ from engine.llm.lmstudio_native import NativeClient
 from engine.llm.ollama import OllamaClient, get_ollama_client
 from engine.llm.profiles import ModelProfile, resolve_profile
 from engine.llm.providers import Provider, get_provider
+from engine.locks import renew_after_fork
 
 logger = logging.getLogger(__name__)
 
@@ -1317,6 +1318,7 @@ LLMBackend = LMStudioBackend
 
 _backend: Optional[LMStudioBackend] = None
 _backend_lock = threading.Lock()
+renew_after_fork(globals(), _backend_lock=threading.Lock)
 
 
 def get_backend() -> LMStudioBackend:

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>Choose a story</title>
+  <link rel="stylesheet" href="/static/hosting/hosting.css" />
+</head>
+<body>
+  <main>
+    <h1>Choose a story</h1>
+    {% if message %}<p class="message">{{ message }}</p>{% endif %}
+    {% if stories %}
+    <ul class="stories">
+      {% for story in stories %}
+      <li>
+        <form method="post" action="/stories/{{ story.slug }}">
+          <input type="hidden" name="csrf" value="{{ csrf }}" />
+          <button type="submit">{{ story.title }}{% if story.slug == chosen %} <span class="chosen">(playing)</span>{% endif %}</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="note">One story at a time in this browser: choosing another moves every tab of it there.</p>
+    {% else %}
+    <p class="message">No story is running just now. Try again in a moment.</p>
+    {% endif %}
+    <nav>
+      <a href="/account">Account</a>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{ csrf }}" />
+        <button type="submit" class="link">Log out</button>
+      </form>
+    </nav>
+  </main>
+</body>
+</html>

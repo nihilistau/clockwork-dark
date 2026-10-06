@@ -32,6 +32,16 @@ Edgewood's bread prices. The repair is why this rule gets stated first.)
 .\.venv\Scripts\python.exe launcher.py --game my-story
 ```
 
+On Linux (every command in this guide has the same shape: `.venv/bin/python`
+for `.\.venv\Scripts\python.exe`, and `/` for `\`):
+
+```sh
+.venv/bin/python scripts/new_story.py my-story --template minimal --title "My Story"
+.venv/bin/python scripts/validate_content.py --game my-story --strict
+.venv/bin/python -m pytest tests/test_story_content_integrity.py -q
+.venv/bin/python launcher.py --game my-story
+```
+
 A fresh scaffold validates with zero errors and zero advisories, is discovered
 by the picker, and is swept by every per-story test — the suite parametrises
 over `registry.discover()`, not over a hardcoded list, so your story gets the
@@ -50,8 +60,9 @@ Then change one thing. The scaffold's own `README.md` carries a
 3. Re-run `validate_content.py --game my-story --strict` and reload.
 
 The scaffolder refuses to overwrite an existing `games/<slug>/`, refuses bad
-slugs (`SLUG_RE`: lowercase letters, digits, hyphens — the slug becomes a
-directory name, a save namespace and a URL segment), and copies files rather
+slugs (`is_valid_slug`: lowercase letters, digits, hyphens, and no Windows
+device name such as `con` or `nul` — the slug becomes a directory name, a save
+namespace and a URL segment, on every platform), and copies files rather
 than generating YAML, so every teaching comment in the template survives into
 your tree. **Do not duplicate those comments here or anywhere: the template
 files are the reference for their own keys.**
@@ -85,11 +96,20 @@ about.
 ### 2.1 The `paths.*` vocabulary
 
 `config/default.yaml`'s `paths:` block is the engine's complete inventory of
-content systems — 30 keys, every one declared and empty except `saves`. A key
-listed there is a thing a story MAY ship; a key a story declares that is not
-listed is a line nothing validates. Validation requires every declared path to
-**exist** — except `saves` and `lore_db` (`OUTPUT_PATH_KEYS`), which the
-engine writes rather than reads and which are checked on their parent.
+content systems — 34 keys, every one declared and empty. A key listed there is
+a thing a story MAY ship; a key a story declares that is not listed is a line
+nothing validates. Validation requires every declared path to **exist** —
+except `lore_db` (`OUTPUT_PATH_KEYS`), which the engine writes rather than
+reads and which is checked on its parent.
+
+**`paths.saves` is not a story key** (since v0.20.0). Saves are the engine's:
+they live under `storage.root` (`config/default.yaml`, `data` by default, or
+`CLOCKWORK_DATA_DIR`), at `<root>/saves/<slug>/`, and the store appends the
+slug for you. A manifest that still declares `saves:` plays, but the key is
+ignored (`config_overlay` drops it) and `scripts/validate_content.py` and the
+doctor give it an advisory — which also says the VALUE is ignored when it is
+not `data/saves`. Delete the line. The owner moves saves with `storage.root`
+in `config/local.yaml`, never a story.
 
 | Group | Keys | Read by |
 |---|---|---|
@@ -99,12 +119,10 @@ engine writes rather than reads and which are checked on their parent.
 | What the player is told | `lore`, `lore_db`, `assistant_hints`, `prompts` | RAG lore, the companion, the narrator persona |
 | Pictures | `art_subjects`, `art_manifest`, `art_root`, `comfyui_templates` | `engine/media/**`; `art_root` is served at `/story-art/` by `engine/api/art.py`, never via `/static` |
 | Structural systems | `clocks`, `threads`, `endings`, `decks`, `challenge_bounds`, `epilogues` | §3.3–3.6 |
-| Output | `saves` | the save store appends the slug: runs land in `data/saves/<slug>/` |
 
-Two path habits worth adopting from the shipped manifests: restate `saves:
-"data/saves"` so the save root is visible in the file, and write a comment
-block naming what you deliberately do NOT declare — `games/dev-story/game.yaml`
-is the model.
+A path habit worth adopting from the shipped manifests: write a comment block
+naming what you deliberately do NOT declare — `games/dev-story/game.yaml` is
+the model.
 
 ### 2.2 Fixed filenames inside `paths.rules`
 
@@ -193,6 +211,10 @@ honour it, so check what your story actually affords before declaring it:
 
 ```powershell
 .\.venv\Scripts\python.exe -c "from engine.games import registry; registry.activate('my-story'); from engine.game.procgen import new_game_state; from engine.game.intents import legal_intents; s=new_game_state(seed=1); print([(v.action, list(v.targets)) for v in legal_intents(s)])"
+```
+
+```sh
+.venv/bin/python -c "from engine.games import registry; registry.activate('my-story'); from engine.game.procgen import new_game_state; from engine.game.intents import legal_intents; s=new_game_state(seed=1); print([(v.action, list(v.targets)) for v in legal_intents(s)])"
 ```
 
 `tests/test_turn_intent_per_game.py` holds all of this against **every**
@@ -2253,6 +2275,10 @@ rule 6). Leave it out and the story has neither. Models:
 # then open  http://localhost:5610/?studio=1
 ```
 
+```sh
+.venv/bin/python launcher.py --game dev-story --studio --port 5610
+```
+
 `dev-story` is the bench — rewrite it while the server is running. Any other
 slug works; the studio lists every story under `games/`.
 Everything below can be done from a terminal, and the studio is the same work
@@ -2322,6 +2348,14 @@ it is the owner's config, never the story's.
 # Move validated drafts into the live tree:
 .\.venv\Scripts\python.exe scripts\author.py --game my-story --promote        # all kinds
 .\.venv\Scripts\python.exe scripts\author.py --game my-story --promote item   # one kind
+```
+
+```sh
+.venv/bin/python scripts/author.py --game my-story --draft item --brief brief.txt --count 3
+.venv/bin/python scripts/author.py --game my-story --from-bible BIBLE.md
+.venv/bin/python scripts/author.py --game my-story --repair
+.venv/bin/python scripts/author.py --game my-story --promote
+.venv/bin/python scripts/author.py --game my-story --promote item
 ```
 
 `--from-bible` first asks the model for a plan — and the plan schema is shaped
@@ -2464,6 +2498,11 @@ Four tools, in the order that finds problems cheapest.
 .\.venv\Scripts\python.exe scripts\validate_content.py --game all --strict
 ```
 
+```sh
+.venv/bin/python scripts/validate_content.py --game my-story --strict
+.venv/bin/python scripts/validate_content.py --game all --strict
+```
+
 Cross-checks every id reference in the story's tree against the thing it
 names, through the manifest, without activating anything. Every finding names
 the file and the offending id. `--strict` promotes advisories to failures;
@@ -2480,6 +2519,11 @@ section, and `tests/test_story_content_integrity.py` — one home,
 ```powershell
 .\.venv\Scripts\python.exe scripts\simulate.py --game my-deck-story --runs 200          # deck shape -> the walker
 .\.venv\Scripts\python.exe scripts\simulate.py --policy all --turns 200                 # the flagship's policy harness
+```
+
+```sh
+.venv/bin/python scripts/simulate.py --game my-deck-story --runs 200
+.venv/bin/python scripts/simulate.py --policy all --turns 200
 ```
 
 **Graph stories:** the five policies (`baker`, `cautious`, `hero`, `pauper`,
@@ -2533,6 +2577,10 @@ counts under-report reachability; use `--runs 200` before believing a
 .\.venv\Scripts\python.exe scripts\doctor.py
 ```
 
+```sh
+.venv/bin/python scripts/doctor.py
+```
+
 Environment, services, and a Games section that reports every discovered
 story against the path vocabulary — "declares every content path it reads" is
 the line yours should get.
@@ -2542,6 +2590,11 @@ the line yours should get.
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests\test_story_content_integrity.py -q   # every discovered story
 .\.venv\Scripts\python.exe -m pytest tests\ -q                                  # everything
+```
+
+```sh
+.venv/bin/python -m pytest tests/test_story_content_integrity.py -q
+.venv/bin/python -m pytest tests/ -q
 ```
 
 The per-story tests parametrise over discovery, so your story is swept the

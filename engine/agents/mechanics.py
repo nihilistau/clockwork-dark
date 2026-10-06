@@ -75,6 +75,7 @@ import threading
 from typing import Any, Callable, Optional
 
 from engine.config import get_config
+from engine.locks import renew_after_fork
 from engine.skills.registry import AGENT_STORYTELLER
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,7 @@ logger = logging.getLogger(__name__)
 #: ``session_id -> GameEngine``, for tool calls arriving over the socket.
 _ENGINES: dict[str, Any] = {}
 _ENGINES_LOCK = threading.Lock()
+renew_after_fork(globals(), _ENGINES_LOCK=threading.Lock)
 
 
 def register_engine(engine: Any) -> str:
@@ -294,6 +296,31 @@ def run_mechanics_phase(
         return []
 
 
+#: The skill name of the receipt that says a turn ran without tools.
+TOOLS_UNAVAILABLE = "tools_unavailable"
+
+
+def tools_unavailable_receipt() -> dict[str, Any]:
+    """
+    The engine's receipt for a turn whose tools were still starting (T9 fix
+    round 1): a FAILED receipt, so ``receipts_block`` tells the narrator in
+    so many words that no tool ran this turn and nothing was looked up or
+    rolled by one, and the narration cannot report a tool result.
+    """
+    return {
+        "skill": TOOLS_UNAVAILABLE,
+        "args": {},
+        "result": {
+            "error": (
+                "the engine's tools were still starting, so no tool ran this turn "
+                "and nothing was looked up or rolled by one; report no tool result"
+            )
+        },
+        "success": False,
+        "phase": "mechanics",
+    }
+
+
 def _run_mechanics_phase(
     engine: Any,
     player_action: str,
@@ -304,11 +331,31 @@ def _run_mechanics_phase(
 ) -> list[dict[str, Any]]:
     """The body of :func:`run_mechanics_phase`, minus the blanket guard."""
     from engine.llm.profiles import resolve_profile
-    from engine.mcp.skills_server import get_skills_server
+    from engine.mcp.skills_server import (
+        NO_SERVER_STARTING,
+        forget_reason,
+        get_skills_server,
+        last_reason,
+    )
 
     session_id = register_engine(engine)
 
+    forget_reason()
     server = get_skills_server(resolve_engine)
+    # Why none, as decided under the server's lock in that same call.
+    if server is None and last_reason() == NO_SERVER_STARTING:
+        # Single flight (v0.20.0): another caller is starting the server and
+        # this turn does not wait for it. Said plainly, in the log and in an
+        # engine-authored receipt the narration reads (T9 fix round 1), so
+        # nothing reads this turn as one whose tools ran. The next turn finds
+        # the server up.
+        logger.warning(
+            "[mechanics] A skills server start is in flight, so this turn plays "
+            "without tools: Phase A is skipped (operation=run_mechanics_phase, "
+            "session=%s).",
+            session_id,
+        )
+        return [tools_unavailable_receipt()]
     if server is None:
         logger.warning(
             "[mechanics] No skills server, so Phase A is skipped "
@@ -417,10 +464,12 @@ def _run_mechanics_phase(
 
 
 __all__ = [
+    "TOOLS_UNAVAILABLE",
     "mechanics_enabled",
     "mechanics_messages",
     "register_engine",
     "release_engine",
     "resolve_engine",
     "run_mechanics_phase",
+    "tools_unavailable_receipt",
 ]

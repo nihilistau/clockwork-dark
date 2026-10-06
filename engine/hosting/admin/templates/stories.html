@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Stories{% endblock %}
+{% block head %}<script src="/admin/static/admin.js" defer></script>{% endblock %}
+{% block content %}
+<h1>Stories</h1>
+<section data-refresh="/admin/api/stories.json">
+  <h2>Now</h2>
+  <table>
+    <thead><tr><th>Story</th><th>State</th><th>Crash restarts</th><th>Live sessions</th><th>Last operation</th><th>Its progress</th></tr></thead>
+    <tbody data-list="stories" data-columns="slug state restarts sessions op op_status">
+      {% for row in data.stories %}
+      <tr><td>{{ row.slug }}</td><td data-state="{{ row.state }}">{{ row.state }}</td><td>{{ row.restarts }}</td><td>{{ row.sessions }}</td><td>{{ row.op }}</td><td>{{ row.op_status }}</td></tr>
+      {% else %}
+      <tr><td colspan="6">No story answered.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<section>
+  <h2>Every story</h2>
+  <table>
+    <thead>
+      <tr><th>Story</th><th>State</th><th>Pid</th><th>Port</th><th>Up (s)</th><th>Crash restarts</th><th>Last exit</th><th>Held down</th><th>Live sessions</th><th>Last operation</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+    {% for error in data.errors %}
+      <tr class="error"><td colspan="11">{{ error }}</td></tr>
+    {% endfor %}
+    {% for row in data.stories %}
+      <tr>
+        <td>{{ row.slug }}</td>
+        <td data-state="{{ row.state }}">{{ row.state }}</td>
+        <td>{{ row.pid or "" }}</td>
+        <td>{{ row.port or "" }}</td>
+        <td>{{ row.uptime or "" }}</td>
+        <td>{{ row.restarts }}</td>
+        <td>{% if row.last_exit != "" %}code {{ row.last_exit }}, {{ row.last_exit_at }}{% endif %}</td>
+        <td>{{ row.held_down_at }}</td>
+        <td>{{ row.sessions }}</td>
+        <td>{% if row.op_id %}{{ row.op }} ({{ row.op_id }}, by {{ row.op_by }}): {{ row.op_status }}{% if row.op_reason %} -- {{ row.op_reason }}{% endif %}{% endif %}</td>
+        <td class="actions">
+          {% for action in ("start", "stop", "restart") %}
+          <form method="post" action="/admin/stories/{{ action }}" class="inline">
+            <input type="hidden" name="csrf" value="{{ csrf }}" />
+            <input type="hidden" name="slug" value="{{ row.slug }}" />
+            <button type="submit"{% if action == "stop" %} class="danger"{% endif %}>{{ action|capitalize }}</button>
+          </form>
+          {% endfor %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">Stop and restart drain first: the story's new turns wait, the turns already running finish, and the waiting ones are answered busy (they never started, so nothing is lost). If turns are still running after the drain time, nothing is stopped and the operation shows refused. A stop lasts until the next start or the next start of the whole server. A restart clears a hold-down, and is never counted as a crash. Which stories exist is <code>hosting.stories</code> in the configuration.</p>
+</section>
+{% endblock %}

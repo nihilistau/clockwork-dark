@@ -1,0 +1,84 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with exactly {\"answer\": \"no\", \"note\": \"free\"}"
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 200,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "structured_output",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "yes"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "answer"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "status": 200,
+  "json": {
+    "id": "chatcmpl-a2d93ec245e7c67a",
+    "object": "chat.completion",
+    "created": 1791255370,
+    "model": "Qwen/Qwen3-1.7B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"answer\": \"yes\"}",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.31.0-4205c95d",
+    "usage": {
+      "prompt_tokens": 27,
+      "total_tokens": 34,
+      "completion_tokens": 7,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null,
+    "ec_transfer_params": null,
+    "metrics": null
+  }
+}

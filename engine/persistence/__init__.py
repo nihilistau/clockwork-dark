@@ -13,6 +13,7 @@ from engine.persistence.saves import (
     SaveSummary,
     get_save_store,
     reset_save_store,
+    save_store_for,
     saves_root,
     summary_values,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "read_json",
     "register_story_migration",
     "reset_save_store",
+    "save_store_for",
     "saves_root",
     "story_migrations",
     "summary_values",

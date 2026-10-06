@@ -289,6 +289,70 @@ def test_a_failed_transcription_is_still_200(monkeypatch):
     assert response.get_json()["stt"]["success"] is False
 
 
+@pytest.mark.parametrize(
+    "result",
+    [
+        {"success": True, "transcript": "open the door", "source": "live", "provider": "stub"},
+        {"success": False, "transcript": "", "source": "stub", "provider": "stub", "message": "503"},
+        {"success": True, "transcript": "   ", "source": "live", "provider": "stub"},
+    ],
+    ids=["heard", "failed", "silent"],
+)
+def test_one_push_to_talk_is_one_transcription(monkeypatch, result):
+    """
+    v0.20.0 T8 fix round 1: the route transcribes, and the Assistant was
+    handed ``transcript=""`` for a failed or silent clip -- which it read as
+    "not transcribed yet" and sent the same bytes to the STT server again,
+    through its own client (twice the timeout for a dead server, and a second
+    answer that could disagree with the one the client was shown).
+    """
+    from flask import Flask
+
+    from engine.api.voice import voice_blueprint
+    from engine.session import SessionStore
+
+    calls: list[str] = []
+
+    def counting(where: str):
+        def transcribe(audio, **_kw):
+            calls.append(where)
+            return dict(result)
+
+        return transcribe
+
+    monkeypatch.setattr("engine.media.stt.transcribe_audio", counting("route"))
+    monkeypatch.setattr("engine.agents.assistant.transcribe_audio", counting("assistant"))
+    store = SessionStore()
+    session = store.create(seed=42, llm_fn=lambda _m: "The door is only a door.")
+    app = Flask(__name__)
+    app.register_blueprint(voice_blueprint(store))
+    response = app.test_client().post(
+        "/api/voice/transcribe",
+        data={"session_id": session.session_id, "audio": (io.BytesIO(b"fake wav"), "speech.webm")},
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 200
+    assert calls == ["route"]
+
+
+def test_a_caller_that_did_not_transcribe_still_gets_one(monkeypatch):
+    """``transcript`` None (the default) still transcribes, once."""
+    from engine.agents.assistant import AssistantAgent
+    from engine.game.engine import GameEngine
+    from engine.game.state import GameState
+
+    calls: list[str] = []
+
+    class Counting:
+        def transcribe(self, audio_bytes, **_kw):
+            calls.append("assistant")
+            return {"success": True, "transcript": "hello", "source": "stub"}
+
+    agent = AssistantAgent(GameEngine(GameState()), llm_fn=lambda _m: "", stt_client=Counting())
+    assert agent.process_voice_input(b"\x00").transcript == "hello"
+    assert calls == ["assistant"]
+
+
 # -- 5. the settings panel -------------------------------------------------
 
 

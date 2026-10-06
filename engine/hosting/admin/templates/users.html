@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<h1>Users</h1>
+<section>
+  <h2>Make an account</h2>
+  <form method="post" action="/admin/users" class="row">
+    <input type="hidden" name="csrf" value="{{ csrf }}" />
+    <label for="new-name">Name (2-32 of a-z, 0-9, _ and -)</label>
+    <input id="new-name" name="name" required minlength="2" maxlength="32" pattern="[a-z0-9_\-]{2,32}" autocomplete="off" />
+    <button type="submit">Make it, with a one-time password</button>
+  </form>
+  <p class="note">The new account's password is generated and shown once, on the next page. Its owner chooses their own at first login.</p>
+</section>
+<section>
+  <h2>Every account</h2>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Id</th><th>Created</th><th>Role</th><th>State</th><th>Live sessions</th><th>Last login</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>{{ row.name }}{% if row.is_self %} (you){% endif %}</td>
+        <td><code>{{ row.id }}</code></td>
+        <td>{{ row.created }}</td>
+        <td>{% if row.admin %}admin{% else %}player{% endif %}</td>
+        <td>
+          {% if row.disabled %}disabled{% else %}enabled{% endif %}{% if row.must_change %}, must change password{% endif %}
+        </td>
+        <td>{{ row.live }}</td>
+        <td>{{ row.last_login }}</td>
+        <td class="actions">
+          <form method="post" action="/admin/users/{{ row.id }}/reset" class="inline">
+            <input type="hidden" name="csrf" value="{{ csrf }}" />
+            <button type="submit">Reset password</button>
+          </form>
+          {% if row.disabled %}
+          <form method="post" action="/admin/users/{{ row.id }}/enable" class="inline">
+            <input type="hidden" name="csrf" value="{{ csrf }}" />
+            <button type="submit">Enable</button>
+          </form>
+          {% elif not row.is_self %}
+          <form method="post" action="/admin/users/{{ row.id }}/disable" class="inline">
+            <input type="hidden" name="csrf" value="{{ csrf }}" />
+            <button type="submit">Disable</button>
+          </form>
+          {% endif %}
+          {% if row.admin %}{% if not row.is_self %}
+          <form method="post" action="/admin/users/{{ row.id }}/revoke-admin" class="inline">
+            <input type="hidden" name="csrf" value="{{ csrf }}" />
+            <button type="submit">Revoke admin</button>
+          </form>
+          {% endif %}{% else %}
+          <form method="post" action="/admin/users/{{ row.id }}/grant-admin" class="inline">
+            <input type="hidden" name="csrf" value="{{ csrf }}" />
+            <button type="submit">Make admin</button>
+          </form>
+          {% endif %}
+          {% if not row.is_self %}
+          <details>
+            <summary>Delete</summary>
+            <form method="post" action="/admin/users/{{ row.id }}/delete">
+              <input type="hidden" name="csrf" value="{{ csrf }}" />
+              <label><input type="radio" name="mode" value="keep" checked /> keep its saves on disk</label>
+              <label><input type="radio" name="mode" value="purge" /> delete its saves too</label>
+              <label for="confirm-{{ row.id }}">Type {{ row.name }} to confirm</label>
+              <input id="confirm-{{ row.id }}" name="confirm" autocomplete="off" required />
+              <button type="submit" class="danger">Delete {{ row.name }}</button>
+            </form>
+          </details>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="8">No accounts.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">Last login: the last successful one kept in the metrics (<code>hosting.observability.retention_days</code>), UTC; "?" when the metrics could not be read.</p>
+  {% if not live_complete %}<p class="note">Live sessions: "?" when the stories could not be asked; otherwise counted from the first page of the Sessions list.</p>{% endif %}
+  <p class="note">Disabling or deleting an account ends its live sessions in every story (a session whose turn is running finishes it first; its next request is refused).</p>
+  <p class="note">An admin cannot revoke, disable or delete their own account here, and the last enabled admin cannot be demoted, disabled or deleted: use <code>python scripts/users.py</code> on the server.</p>
+</section>
+{% endblock %}

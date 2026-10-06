@@ -1,0 +1,61 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "In one sentence, say what colour the sky is at dusk."
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 200,
+    "response_format": {
+      "type": "json_object"
+    },
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "status": 200,
+  "json": {
+    "id": "chatcmpl-a47c13732c115a05",
+    "object": "chat.completion",
+    "created": 1791255375,
+    "model": "Qwen/Qwen3-1.7B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{ \"answer\": \"The sky is typically a deep blue or purple at dusk.\" }",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.31.0-4205c95d",
+    "usage": {
+      "prompt_tokens": 25,
+      "total_tokens": 44,
+      "completion_tokens": 19,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null,
+    "ec_transfer_params": null,
+    "metrics": null
+  }
+}

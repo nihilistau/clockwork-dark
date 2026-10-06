@@ -51,11 +51,12 @@ from engine.games.caches import registered_caches, reset_all_caches
 from engine.games.manifest import (
     MANIFEST_FILENAME,
     OUTPUT_PATH_KEYS,
-    SLUG_RE,
     GameManifest,
     ManifestError,
+    is_valid_slug,
     satisfies,
 )
+from engine.locks import renew_after_fork
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +67,11 @@ GAME_ENV_VAR = "CLOCKWORK_GAME"
 # Activation mutates process-global config and a dozen module caches. The scene
 # server is threaded, so a second activation racing the first would interleave
 # "config repointed" with "caches still warm" -- exactly the stale-content bug
-# this package exists to prevent.
+# this package exists to prevent. Second in the engine's lock order
+# (engine/locks.py): activation holds it across set_overlay and the whole
+# cache-reset walk, whose locks all come after it.
 _lock = threading.RLock()
+renew_after_fork(globals(), _lock=threading.RLock)
 
 _active: Optional[GameManifest] = None
 
@@ -115,7 +119,7 @@ def discover() -> dict[str, GameManifest]:
         path = child / MANIFEST_FILENAME
         if not path.is_file():
             continue
-        if not SLUG_RE.match(child.name):
+        if not is_valid_slug(child.name):
             logger.warning(
                 "[games] Skipping game with an unusable slug "
                 "(operation=discover, slug=%s)",
@@ -136,7 +140,15 @@ def discover() -> dict[str, GameManifest]:
 
 
 def get(slug: str) -> Optional[GameManifest]:
-    """Load one manifest by slug, or None if there is no such game."""
+    """
+    Load one manifest by slug, or None if there is no such game.
+
+    A slug that is not one (``is_valid_slug``) is no game: on Windows
+    ``C:\\...\\games\\x`` joined as an absolute path, so ``/api/games/<slug>``
+    read any directory's ``game.yaml`` (v0.20.0 T2, review finding 4).
+    """
+    if not is_valid_slug(slug):
+        return None
     path = games_root() / str(slug) / MANIFEST_FILENAME
     if not path.is_file():
         return None
@@ -168,7 +180,7 @@ def validate(manifest: GameManifest) -> list[str]:
     """
     problems: list[str] = []
 
-    if not SLUG_RE.match(manifest.slug):
+    if not is_valid_slug(manifest.slug):
         problems.append(f"slug {manifest.slug!r} is not a usable directory name")
 
     if not manifest.title.strip():
@@ -183,7 +195,11 @@ def validate(manifest: GameManifest) -> list[str]:
     if not manifest.paths:
         problems.append("declares no paths, so it cannot differ from the engine defaults")
 
-    for key, value in sorted(manifest.paths.items()):
+    # A retired key (`saves`, v0.20.0) is not checked at all: the engine reads
+    # nothing from it, and refusing it here would make a story that still
+    # declares it unplayable. It gets an advisory instead
+    # (`engine/games/validation.py`, the doctor).
+    for key, value in sorted(manifest.live_paths().items()):
         if not str(value).strip():
             problems.append(f"paths.{key} is empty")
             continue
@@ -363,9 +379,13 @@ def active() -> GameManifest:
     Raises:
         ActivationError: Nothing is active and the default game will not load.
     """
-    if _active is None:
-        return activate()
-    return _active
+    manifest = _active
+    if manifest is not None:
+        return manifest
+    # Double-checked (v0.20.0): two first callers used to activate twice, the
+    # second re-running the whole cache reset under the first's feet.
+    with _lock:
+        return _active if _active is not None else activate()
 
 
 def peek() -> Optional[GameManifest]:

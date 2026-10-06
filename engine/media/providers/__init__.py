@@ -16,8 +16,8 @@ import threading
 from typing import Callable, Optional
 
 from engine.config import get_config
+from engine.locks import renew_after_fork
 from engine.media.providers.base import (
-    IMAGE_DIR,
     ImageProvider,
     ImageRequest,
     ImageResult,
@@ -163,25 +163,35 @@ class ImageWorker:
 
 
 _worker: Optional[ImageWorker] = None
+#: Guards building ``_worker`` (v0.20.0): two first callers used to build two
+#: workers, each starting its own thread on its first job.
+_worker_lock = threading.Lock()
+renew_after_fork(globals(), _worker_lock=threading.Lock)
 
 
 def get_image_worker() -> ImageWorker:
+    """The process-wide image worker (double-checked: no lock once built)."""
     global _worker
-    if _worker is None:
-        _worker = ImageWorker()
-    return _worker
+    worker = _worker
+    if worker is not None:
+        return worker
+    with _worker_lock:
+        if _worker is None:
+            _worker = ImageWorker()
+        return _worker
 
 
 def reset_image_worker() -> None:
-    """Tests only."""
+    """Tests only. The reference is swapped under the lock; the old worker is
+    stopped (and its thread joined) after the lock is released."""
     global _worker
-    if _worker is not None:
-        _worker.stop()
-    _worker = None
+    with _worker_lock:
+        old, _worker = _worker, None
+    if old is not None:
+        old.stop()
 
 
 __all__ = [
-    "IMAGE_DIR",
     "ImageRequest",
     "ImageResult",
     "ImageWorker",

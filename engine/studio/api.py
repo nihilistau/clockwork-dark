@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -49,6 +50,9 @@ from typing import Any
 import yaml
 from flask import Blueprint, jsonify, request
 
+from engine.games.manifest import is_valid_slug
+from engine.names import is_portable_name
+
 logger = logging.getLogger(__name__)
 
 BLUEPRINT_NAME = "studio"
@@ -56,6 +60,9 @@ BLUEPRINT_NAME = "studio"
 #: Repo root. The studio only ever touches `games/` beneath it.
 ROOT = Path(__file__).resolve().parents[2]
 GAMES = ROOT / "games"
+
+#: A drive-lettered path (`C:`, `c:x`, `C:/...`), refused on every platform.
+_DRIVE_RE = re.compile(r"^[A-Za-z]:")
 
 #: Extensions the editor will open. A studio that will hand back any file is a
 #: file browser for the whole machine; these are the ones a story is made of.
@@ -91,11 +98,28 @@ def _safe_path(slug: str, relative: str) -> Path:
     rather than string matching, because `games/x/../../engine` is not a
     substring anyone greps for.
     """
-    if not slug or "/" in slug or "\\" in slug or slug.startswith("."):
+    # The engine's one slug allowlist, not a blocklist of separators: `D:`
+    # passed `/`, `\` and a leading `.`, and resolved onto another drive
+    # (v0.20.0 T2, review finding 2).
+    if not is_valid_slug(slug):
         raise ValueError(f"bad slug: {slug!r}")
     base = (GAMES / slug).resolve()
     if not base.is_dir():
         raise ValueError(f"no such story: {slug!r}")
+    # By spelling, on EVERY platform (v0.20.0, spec §3.4): on POSIX
+    # `C:/Windows/system.ini` is a relative path inside the story and `a\b` a
+    # file name, and on Windows `C:x` is drive-relative and `a\b` nested, so
+    # `resolve()` let each through somewhere. A story file named like that is
+    # one the other platform cannot check out.
+    if "\\" in (relative or "") or _DRIVE_RE.match(relative or ""):
+        raise ValueError("path uses a backslash or a drive letter")
+    # Every component a portable name, the slug's own rule (`engine.names`;
+    # v0.20.0 T2 re-review, N2): Windows strips a trailing dot or space, so
+    # `game.yaml.` WROTE game.yaml, and a device name (`con.yaml`) opens the
+    # console. `..` and `.` end in a dot, so they are refused here too.
+    for part in (relative or "").split("/"):
+        if part and not is_portable_name(part):
+            raise ValueError(f"not a portable file name: {part!r}")
     target = (base / (relative or "")).resolve()
     if not target.is_relative_to(base):
         raise ValueError("path escapes the story directory")

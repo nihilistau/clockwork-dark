@@ -1,0 +1,89 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use the add tool to add 2 and 2."
+      }
+    ],
+    "max_tokens": 3000,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "add",
+          "description": "Add two numbers",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "number"
+              },
+              "b": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "status": 200,
+  "json": {
+    "id": "chatcmpl-98e2432c4f457e6d",
+    "object": "chat.completion",
+    "created": 1791255307,
+    "model": "Qwen/Qwen3-1.7B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": null,
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [
+            {
+              "id": "chatcmpl-tool-95b129a3cc7feb25",
+              "type": "function",
+              "function": {
+                "name": "add",
+                "arguments": "{\"a\": 2, \"b\": 2}"
+              }
+            }
+          ],
+          "reasoning": "\nOkay, the user wants me to use the add tool to add 2 and 2. Let me check the tools provided. There's an add function that takes two numbers, a and b. The required parameters are both numbers. So I need to call add with a=2 and b=2. The function should return 4. I should make sure the JSON is correctly formatted with the arguments as a JSON object. Let me structure the tool call accordingly.\n"
+        },
+        "logprobs": null,
+        "finish_reason": "tool_calls",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.31.0-4205c95d",
+    "usage": {
+      "prompt_tokens": 167,
+      "total_tokens": 290,
+      "completion_tokens": 123,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 95
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null,
+    "ec_transfer_params": null,
+    "metrics": null
+  }
+}

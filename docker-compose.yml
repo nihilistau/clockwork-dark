@@ -1,0 +1,114 @@
+# The Clockwork Dark, hosted (v0.20.0 T18, spec §8.2; docs/HOSTING.md § Docker Compose).
+#
+#     docker compose up -d game
+#     docker compose exec game python scripts/users.py add <name> --admin
+#
+# One container serves every story named in hosting.stories (in
+# /data/config.yaml, on the volume): the supervisor starts the front door on
+# 5573 and a worker per story on the container's loopback. Which stories run
+# is that key, never an environment variable: the supervisor sets
+# CLOCKWORK_GAME for each worker itself.
+#
+# Secrets reach the container only through the environment of the shell that
+# runs compose (passed through below by NAME, never written here) or as files
+# on /data. With CLOCKWORK_SECRET_KEY unset, the cookie key is generated once
+# into /data/hosting/secret_key. `docker compose config` prints those
+# passed-through values in full: do not run it with them in the environment.
+#
+# tests/test_deploy_files.py holds this file to its shape.
+
+services:
+  game:
+    build: .
+    image: clockwork-dark:latest
+    # Built here, never pulled: `docker compose pull` or `up --pull always`
+    # would otherwise ask Docker Hub for a clockwork-dark image.
+    pull_policy: build
+    ports:
+      # The front door, and nothing else, on THIS HOST'S LOOPBACK: put your
+      # TLS reverse proxy in front of it (docs/HOSTING.md § Reverse proxy).
+      # A port published on every interface bypasses ufw/firewalld, carries
+      # passwords in plain HTTP, and lets a client that reaches it around the
+      # proxy forge X-Forwarded-For under hosting.trusted_proxies. To publish
+      # wider -- a proxy on another host, a LAN trial -- change this to
+      # "5573:5573" yourself. Never change scene.clockwork.host instead: inside
+      # the container the front door must listen on every interface.
+      - "127.0.0.1:5573:5573"
+    volumes:
+      - clockwork-data:/data
+    environment:
+      # Passed through from the shell when set; absent otherwise.
+      - CLOCKWORK_SECRET_KEY
+      - CLOCKWORK_LLM_API_KEY
+    extra_hosts:
+      # Docker Engine on Linux needs this to name the host; Docker Desktop
+      # provides host.docker.internal already. A model server bound to the
+      # host's loopback is NOT reachable this way on Linux (docs/HOSTING.md
+      # § Reaching a model server from a container).
+      - "host.docker.internal:host-gateway"
+    # Docker's init (tini) is PID 1: it reaps any gunicorn worker orphaned by a
+    # crash, and forwards the stop signal to the supervisor.
+    init: true
+    # Above hosting.supervisor.shutdown_seconds (180 by default): a `docker
+    # compose stop` sends SIGTERM, the supervisor drains every story's turns
+    # and stops its children, and only after this grace does Docker SIGKILL.
+    # Compose's own default, 10 s, would cut every drain short. Raise both
+    # together.
+    stop_grace_period: 210s
+    restart: unless-stopped
+    # Nothing in the container needs a privilege: uid 10001, port 5573. The
+    # root filesystem is read-only; what the game writes goes to /data, and
+    # scratch (gunicorn's heartbeat files, SQLite's temp files) to /tmp.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  # A vLLM server beside the game, on the GPU (spec §8.2, §10). Not started
+  # by `docker compose up -d game`, nor by a bare `up`: only with
+  # `--profile vllm`. The tag, model and command line are the ones v0.20.0
+  # Task 19 ran live (vLLM 0.31.0 on an RTX 2060, docs/MODEL_SERVERS.md §
+  # vLLM); `--dtype half` is what a Turing card needs, and a newer card may
+  # drop it. The first start downloads the model into the hf-cache volume.
+  vllm:
+    profiles: ["vllm"]
+    image: "vllm/vllm-openai:v0.31.0@sha256:c1c9f6fd5c109ba7f0546a59f5b2f15fb87f64c77782e90a27b648b42a8e67c3"
+    ipc: host
+    environment:
+      - HF_TOKEN
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # The game reaches it at http://vllm:8000/v1 (set on the admin panel's
+    # Model server page, or llm.base_url in /data/config.yaml). Not published.
+    # VLLM_GPU_MEMORY_UTILIZATION is the operator's: just under free / total
+    # from `nvidia-smi --query-gpu=memory.free,memory.total --format=csv`,
+    # read with nothing else on the card. Measured in T19: 11137 of 12288 MiB
+    # free, so 0.90 (the default here).
+    command:
+      - "--model"
+      - "Qwen/Qwen3-1.7B"
+      - "--dtype"
+      - "half"
+      - "--enforce-eager"
+      - "--max-model-len"
+      - "16384"
+      - "--gpu-memory-utilization"
+      - "${VLLM_GPU_MEMORY_UTILIZATION:-0.90}"
+      - "--reasoning-parser"
+      - "qwen3"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "hermes"
+
+volumes:
+  clockwork-data:
+  hf-cache:

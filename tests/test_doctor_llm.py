@@ -218,6 +218,68 @@ def test_reasoning_off_trusted_is_ignored_on_lm_studio_and_says_so(llm_server: A
     )
 
 
+def _chain(tmp_path: Path) -> str:
+    """The shipped key chain, its two files moved under ``tmp_path``."""
+    general = (tmp_path / "llm_api_key.txt").as_posix()
+    lm = (tmp_path / "lmstudio.txt").as_posix()
+    return (
+        f"${{file:{general}|lmstudio?file:{lm}|env:CLOCKWORK_LLM_API_KEY"
+        "|lmstudio?env:LMSTUDIO_API_KEY}"
+    )
+
+
+def test_n4_a_skipped_key_file_that_holds_a_key_is_a_warning(
+    llm_server: Any, tmp_path: Path
+) -> None:
+    """
+    v0.20.0 T2 (spec §2.3, N4): LM Studio's key file is skipped off LM Studio,
+    by design; the doctor now says it was, naming the source and never the
+    value or its length.
+    """
+    secret = "lm-studio-secret-key"
+    (tmp_path / "lmstudio.txt").write_text(secret + "\n", encoding="utf-8")
+    llm_server("vllm", api_key=_chain(tmp_path))
+    report, _ = _rows([{"raise": "ConnectError", "message": "down"}])
+    rows = [row for row in report.rows if row[1] == "skipped key"]
+    lm = (tmp_path / "lmstudio.txt").as_posix()
+    general = (tmp_path / "llm_api_key.txt").as_posix()
+    assert rows == [(
+        "Model server (vllm)", "skipped key", DOCTOR.WARN,
+        f"`{lm}` holds a key, but `llm.provider` is `vllm`: it is LM Studio's and "
+        f"is not sent. Put this server's key in `{general}` or `CLOCKWORK_LLM_API_KEY`.",
+    )]
+    rendered = report.render()
+    assert secret not in rendered and str(len(secret)) not in rendered
+
+
+def test_n4_a_skipped_variable_that_is_set_is_a_warning(
+    llm_server: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    llm_server("vllm", api_key=_chain(tmp_path))
+    monkeypatch.setenv("LMSTUDIO_API_KEY", "env-secret")
+    report, _ = _rows([{"raise": "ConnectError", "message": "down"}])
+    (row,) = [row for row in report.rows if row[1] == "skipped key"]
+    assert row[2] == DOCTOR.WARN
+    assert row[3].startswith(
+        "`LMSTUDIO_API_KEY` is set, but `llm.provider` is `vllm`: it is LM Studio's"
+    )
+    assert "env-secret" not in report.render()
+
+
+def test_n4_nothing_is_skipped_on_lm_studio_or_when_the_source_is_empty(
+    llm_server: Any, tmp_path: Path
+) -> None:
+    (tmp_path / "lmstudio.txt").write_text("a-key\n", encoding="utf-8")
+    llm_server("lmstudio", api_key=_chain(tmp_path))
+    report, _ = _rows([{"raise": "ConnectError", "message": "down"}])
+    assert not [row for row in report.rows if row[1] == "skipped key"]
+
+    (tmp_path / "lmstudio.txt").write_text("\n", encoding="utf-8")
+    llm_server("vllm", api_key=_chain(tmp_path))
+    report, _ = _rows([{"raise": "ConnectError", "message": "down"}])
+    assert not [row for row in report.rows if row[1] == "skipped key"]
+
+
 def test_a_shipped_value_is_not_reported_as_set(llm_server: Any) -> None:
     """The defaults are no one's choice: only a changed key is 'set'."""
     _configure(llm_server, "ollama")

@@ -1,0 +1,52 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 2+2? Answer with one number only."
+      }
+    ],
+    "max_tokens": 3000
+  },
+  "status": 200,
+  "json": {
+    "id": "chatcmpl-a83afa2c0a67776b",
+    "object": "chat.completion",
+    "created": 1791255546,
+    "model": "Qwen/Qwen3-1.7B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "<think>\nOkay, so the user is asking \"What is 2+2? Answer with one number only.\" Let me think. Well, 2 plus 2 is straightforward. I remember that in basic arithmetic, adding two numbers together. So 2 plus 2 equals 4. But wait, maybe they want me to check if there's any trick here? Like, is there any context where 2+2 could have a different answer? Hmm. But in standard math, 2+2 is definitely 4. I don't think there's any special case here. The user just wants the answer, so it should be 4. Let me make sure I'm not missing anything. No, I think that's it. The answer is 4.\n</think>\n\n4",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.31.0-4205c95d",
+    "usage": {
+      "prompt_tokens": 21,
+      "total_tokens": 182,
+      "completion_tokens": 161,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null,
+    "ec_transfer_params": null,
+    "metrics": null
+  }
+}

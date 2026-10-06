@@ -35,17 +35,19 @@ import queue
 import re
 import threading
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Callable, Optional
 
 import httpx
 
 from engine.config import get_config
+from engine.locks import renew_after_fork
 from engine.media.queue import MediaJob, get_media_queue
+from engine.persistence import storage
 
 logger = logging.getLogger(__name__)
 
-AUDIO_DIR = Path("data/media/tts")
+# Synthesized audio lives in `storage.audio_dir()` (`<storage root>/media/tts`),
+# read on every call and anchored at the repository since v0.20.0.
 
 # Voxtral's own limit. Exceeding it is a 400, not a slow response.
 SERVER_MAX_CHARS = 400
@@ -55,8 +57,9 @@ _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 def write_audio(payload: bytes, text: str, *, suffix: str = ".wav") -> str:
     """Persist audio under its content hash and return the fetch URL."""
-    AUDIO_DIR.mkdir(parents=True, exist_ok=True)
-    path = AUDIO_DIR / f"{cache_key(text)}{suffix}"
+    audio = storage.audio_dir()
+    audio.mkdir(parents=True, exist_ok=True)
+    path = audio / f"{cache_key(text)}{suffix}"
     if not path.exists():
         path.write_bytes(payload)
     return f"/api/audio/{path.name}"
@@ -68,7 +71,7 @@ def cache_key(text: str, voice: str = "") -> str:
 
 def cached_url(text: str, voice: str = "") -> Optional[str]:
     """Return the URL for previously synthesized audio, if we have it."""
-    path = AUDIO_DIR / f"{cache_key(text)}.wav"
+    path = storage.audio_dir() / f"{cache_key(text)}.wav"
     return f"/api/audio/{path.name}" if path.exists() else None
 
 
@@ -331,23 +334,34 @@ class SpeechWorker:
 
 
 _worker: Optional[SpeechWorker] = None
+#: Guards building and starting ``_worker`` (v0.20.0): two first callers used
+#: to start two speech threads.
+_worker_lock = threading.Lock()
+renew_after_fork(globals(), _worker_lock=threading.Lock)
 
 
 def get_speech_worker() -> SpeechWorker:
-    """Process-wide speech worker."""
+    """Process-wide speech worker (double-checked: no lock once built)."""
     global _worker
-    if _worker is None:
-        _worker = SpeechWorker()
-        _worker.start()
-    return _worker
+    worker = _worker
+    if worker is not None:
+        return worker
+    with _worker_lock:
+        if _worker is None:
+            built = SpeechWorker()
+            built.start()
+            _worker = built
+        return _worker
 
 
 def reset_speech_worker() -> None:
-    """Stop and drop the worker. Tests only."""
+    """Stop and drop the worker. Tests only. The reference is swapped under
+    the lock; the old worker is stopped (its thread joined) after it."""
     global _worker
-    if _worker is not None:
-        _worker.stop()
-    _worker = None
+    with _worker_lock:
+        old, _worker = _worker, None
+    if old is not None:
+        old.stop()
 
 
 def tts_enabled() -> bool:

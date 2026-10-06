@@ -9,6 +9,10 @@ evil ticks either way, and the quiet life counts as a complete game.
 .\.venv\Scripts\python.exe launcher.py --game clockwork-dark
 ```
 
+```sh
+.venv/bin/python launcher.py --game clockwork-dark   # Linux
+```
+
 It is the engine's default story (`game.default` in `config/default.yaml`), so
 a bare `launcher.py` plays it too. What changed, release by release:
 [CHANGELOG.md](CHANGELOG.md). The design and the story bible are in
@@ -59,6 +63,10 @@ and `scripts/generate_art.py` (the default plan is this story's) fills it.
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\simulate.py --policy all --turns 200 --seed 42
+```
+
+```sh
+.venv/bin/python scripts/simulate.py --policy all --turns 200 --seed 42   # Linux
 ```
 
 Run it before changing a balance constant (AGENTS.md rule 10).

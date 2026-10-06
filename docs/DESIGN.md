@@ -796,7 +796,8 @@ the permission. Enforced by `tests/test_ui_contract.py` and by `ui/tests/`.
 | Speculative | `draft` model 0.5B–1B → `big` 8B refine | Anubis + CosySim profiles |
 | Lore | SQLite FTS; Nexus KMS optional | Progressive enhancement |
 | Media | Shipped pack → cache → Grok/ComfyUI (off) → procedural SVG | Instant by default, generative by choice |
-| Persistence | Atomic JSON saves, backup recovery, forward migration chain | Simple, inspectable, and survivable |
+| Persistence | Atomic JSON saves, backup recovery, forward migration chain, under one storage root (`storage.root`, `CLOCKWORK_DATA_DIR`) | Simple, inspectable, and survivable |
+| Hosted mode (opt-in, v0.20.0) | `engine/hosting/`: operator-made accounts, Flask's signed cookie, one `before_request` gate and one socket wrapper; a supervisor, a worker per story and a front door; an admin panel; gunicorn and Docker. Off by default and then never imported ([Hosted mode](#hosted-mode), [HOSTING.md](HOSTING.md)) | A small group can play one machine's stories in a browser; local play pays nothing for it |
 
 ### Memory & Context (`engine/memory/`)
 
@@ -928,6 +929,179 @@ What actually runs, in the order a turn hits it:
 4. REQUIRED skills dispatched before JSON epilogue merge
 5. Evaluator scores final packaged turn
 ```
+
+### Hosted mode
+
+`hosting.enabled` (default false) turns one game server into a small
+multi-player one. Local mode never imports `engine/hosting/`:
+`FlaskScene.__init__` imports it inside its hosted branch only, and
+`tests/test_local_mode_golden.py` proves a local run loads none of it.
+
+```
+             browser (the flagship's client, unchanged)
+                 |  clockwork_session cookie: {uid, epoch}
+   +-------------v------------------------------------------------+
+   | ForwardedHeaders  ProxyFix(trusted_proxies), or X-Forwarded-* |
+   |                   deleted (and warned about once)             |
+   | HostGuard         Host allowlist + hosting.public_origin's    |
+   | engineio          /socket.io/: same origin (or public_origin) |
+   | Flask             before_request gate (engine/hosting/gate):  |
+   |                     Origin check, account re-read, open list  |
+   |   /login /logout /account   (engine/hosting/auth, blueprint)  |
+   |   the engine's routes, the story's blueprint, the scene's     |
+   +---------------------------------------------------------------+
+        |                                    |
+   <root>/hosting/users.json           <root>/hosting/secret_key
+   (engine/hosting/accounts: the one   (O_CREAT|O_EXCL, 32+ chars,
+    writer, under an OS file lock)       0600)
+```
+
+`install(scene)` runs before any route exists: it validates the closed
+`hosting:` schema, refuses what hosted mode does not run (the studio,
+`llm.mcp.enabled`), warms every cache (`warm_all_caches()` and the process's
+lazy singletons), sets the cookie, mounts the login blueprint and registers
+the gate. One hook covers every HTTP route, a story's and any added later;
+`tests/test_hosting_gate.py` walks the URL map to prove it. The settings
+panel's `POST` and `/api/metrics` read `hosting.enabled` themselves and
+refuse. Socket.IO has its own single door: every handler is registered
+through `FlaskScene.on`, which in hosted mode wraps it in the socket guard
+(`engine/hosting/sockets.py`: no connect without a login, the account re-read
+on every event, the owner set for the body; a revoked login's sockets are
+closed at once, by the accounts store's revocation listener and by a check
+of the room's sockets before each emit to it), and
+`tests/test_hosting_sockets.py` fails on any handler registered around it.
+The owner is a `ContextVar` in the session package
+(`engine/session/store.py::current_owner`), set by the gate and the guard;
+`SessionStore.require`, `create` and `resume` and the save routes read it,
+so another account's session or save is answered as a missing one, and an
+unset owner in hosted mode is refused. Errors a player sees are generic with
+a reference, the exception logged under it (`engine/hosting/errors.py`).
+The players share one model server fairly (v0.20.0 T9, spec §5.3-§5.4):
+hosted lanes are FIFO (`engine/llm/gate.py::FifoSemaphore`); `run_guarded`
+admits a turn to the narration lane (`gate.admit_turn`) before `run_turn`
+runs a mechanic, so a busy server refuses the turn untouched rather than
+narrating stock prose over a turn that advanced, and every narration call
+inside an admitted turn re-enters its ticket (carried into the pipeline's
+planner threads); the utility lane degrades as any utility failure does. An
+account has one live run (`SessionStore` releases the other, through the
+same teardown, holding its turn lock so the old engine can never autosave,
+and a release hook closes its room); the idle sweep is on, run on a
+disconnect and on `require` at most once a minute; and an actions bucket
+and the input caps (`engine/hosting/limits.py`) apply on both doors
+(docs/HOSTING.md § Limits).
+
+The box above is ONE worker. Around it, a hosted instance is three kinds of
+process on one host (v0.20.0, spec §14.1):
+
+```
+              players' browsers (and the operator's)
+                           |  scene.clockwork.port, behind the operator's TLS proxy
+                 +---------v----------+
+                 |     front door     |  login, story picker, the admin panel;
+                 +--+--------------+--+  proxies HTTP, relays WebSockets to a worker
+         127.0.0.1:<os-picked>   127.0.0.1:<os-picked>
+          +--------v-------+   +--------v-------+
+          | worker: story A|...| worker: story B|  the box above, one story each
+          +--------+-------+   +--------+-------+
+                   |  the bus (127.0.0.1, a token per child start)
+          +--------v------------------v--------+
+          | supervisor: children, health,      |  python -m engine.hosting.supervisor
+          | restarts, operations, logs, the    |  (engine/hosting/supervisor/)
+          | model server's one queue           |
+          +------------------------------------+
+```
+
+The supervisor serves no HTTP and runs no turn. It starts one worker per
+`hosting.stories` slug (under gunicorn on POSIX when it is installed, `-c
+deploy/gunicorn.conf.py engine.hosting.wsgi:app`, else `python -m
+engine.hosting.boot --role worker`; built from `sys.executable`, each in a
+process group of its own), health-checks
+each over the bus and over HTTP (a failed bus check restarts, a failed HTTP
+check only marks the story `degraded`), restarts a crashed child with
+backoff and holds a crash loop down, runs start, stop and restart as
+operations one at a time on its own thread (a stop drains first: the story
+takes no new turn and the stop waits for its admitted turns, bounded, both
+through the queue below), captures every child's log, and on a signal
+drains and stops everything within a bound. It also holds the model
+server's lanes for every worker, one queue for every story
+(`engine/hosting/supervisor/queue.py`, spec §14.4): each worker's gate takes
+its tickets over the bus (`engine/hosting/lanes_remote.py::RemoteLanes`, the
+gate's lane backend), grants go to the first eligible waiter in arrival
+order, a connection's tickets die with it, an account holds one narration
+ticket across stories, and a pause stops new turns but never an admitted
+one's utility calls. Each worker ends every admitted turn by
+`hosting.turn_deadline_seconds` (its model calls refused or cut, the turn
+ending through the model-failure path), so the supervisor's
+`max_hold_seconds` is only a backstop: a ticket held past it is reclaimed,
+and its worker restarted only if it does not acknowledge. The bus (`engine/hosting/bus.py`)
+is one loopback TCP connection per child: JSON lines capped at 64 KiB, a
+single-use token per child start that the child reads from its environment
+and deletes, a closed op table that says which role may call each op, and a
+lifeline -- a child whose link drops exits. Why processes and not one process
+with several stories: the active story is process-wide, and every content
+cache is keyed by it. Local mode never starts the supervisor or imports any
+of this.
+
+The front door also serves **the admin panel** (`engine/hosting/admin/`,
+server-rendered, no build step): a path-keyed guard (login, the admin role,
+a re-auth, CSRF, Origin, its own rate) in front of Users, Sessions, Saves,
+Stories, the Model server, the Queue, Metrics, Errors and Audit. Its
+numbers come from the supervisor over the bus (a session list fanned out to
+every worker, the queue's snapshot, story operations, the model apply that
+writes the admin config layer and restarts the workers one at a time), and
+everything it shows is metadata: **metrics** are a closed six-kind schema
+(`engine/hosting/metrics_schema.py`) the supervisor alone keeps in SQLite
+(`engine/hosting/supervisor/metrics.py`), sent by the children on a bounded,
+never-blocking queue; the **audit log** (`engine/hosting/audit.py`) is
+written first, before any change it records. No prompt, narration, choice,
+typed text, player name or save content reaches any of it (spec §14.10,
+`tests/test_admin_no_play_text.py`): it observes the service and moderates
+nothing (AGENTS.md rule 12).
+
+**Storage** has one root (`engine/persistence/storage.py`):
+`CLOCKWORK_DATA_DIR`, else `storage.root` (default `data`, taken against the
+repository, never the working directory). Under it are `saves/<slug>/` (the
+local player), `media/` (generated images and audio, one shared cache),
+and, hosted, `hosting/` (`users.json`, the cookie key, the admin layer,
+logs, metrics, the audit log) and `users/<id>/saves/<slug>/` (each
+account's own store, which `GameSession.saves` carries). A story no longer
+names where its saves go.
+
+### Many sessions, one process
+
+One process serves many sessions, each turn on its own thread (hosted mode,
+v0.20.0, runs one per story on gunicorn's threads; local play already shares
+one between tabs). The active engine is a `ContextVar` and each session has its
+own turn lock, so a turn never resolves against another player's state; what
+remained was module-level state, and every piece of it now carries one of eight
+verdicts in `tests/fixtures/module_state.yaml`. **Per context**: a per-call flag
+is a `threading.local` (`clock._guard`, `inventory._evaluating_collections`) or
+a `ContextVar` (`validation._RUN_DOCS`), set and cleared inside the call.
+**Locked**: `get_config` builds under an `RLock`, double-checked so a built
+config costs one read; the grammar's first load, the Oracle, the legacy save
+migration, the save-store cache and every lazy getter (each double-checked
+under its own lock). Every named lock has a place in ONE total order, written
+in `engine/locks.py` (warming's lock first, the config lock last): a thread
+holding one takes only a later one, so `reset_config` drops the instance under
+the config lock and walks the cache resets after, and `tests/lock_order.py`
+fails any test that takes a lock out of order. Five per-object locks are
+leaves (nothing is taken under them), a turn lock is only ever taken
+non-blocking, and a lane semaphore is taken holding no other lock. Every
+module lock is renewed in a forked child. A loader of a cache that a reset
+nulls without a lock reads it once into a local and returns the local
+(`tests/test_cache_reset_race.py`). **Warmed**: every per-story cache has a loader in
+`engine/games/caches.py::WARMERS`, the grammar first, and `warm_all_caches()`
+runs them all under its own lock so nothing is left for two first readers to
+build at once (hosted mode's startup, `engine.hosting.install`, calls it
+before serving, and hosted mode refuses the Settings save and the studio,
+which reset caches). The other five
+say why nothing is needed: `log_once`, `registration` (filled at import),
+`constant`, `shared_by_design` (the session store, the save stores, the model
+server's gate, the media workers) and `not_served_hosted` (MCP, the studio).
+`tests/test_module_state_inventory.py` re-runs an AST scan of `engine/` and
+fails on any global, class-level container, instance, `lru_cache`, thread or
+pool it finds unclassified;
+`tests/test_thread_safety.py` forces each fixed race with a barrier.
 
 ---
 

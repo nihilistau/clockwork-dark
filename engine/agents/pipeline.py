@@ -149,8 +149,14 @@ def _gather(
     if len(specs) == 1:
         return dict([_one(specs[0])])
 
+    # A hosted turn holds its narration ticket from admission on (spec §5.3),
+    # and a pool thread copies no ContextVar: carried, a planner on the
+    # narration lane shares the turn's ticket instead of queueing behind it
+    # for the whole queue wait. Local mode holds nothing: `_one` unchanged.
+    from engine.llm.gate import carrying_held_lane
+
     with ThreadPoolExecutor(max_workers=len(specs)) as pool:
-        return dict(pool.map(_one, specs))
+        return dict(pool.map(carrying_held_lane(_one), specs))
 
 
 def _govern_commit(

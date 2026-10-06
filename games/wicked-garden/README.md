@@ -8,6 +8,10 @@ not. Please her, match her, escape her, or be consumed.
 .\.venv\Scripts\python.exe launcher.py --game wicked-garden
 ```
 
+```sh
+.venv/bin/python launcher.py --game wicked-garden   # Linux
+```
+
 The deck exemplar: no hp, no hunger, no dice rolls against a skill, no
 vendors and no travel costs worth planning around. It exists to show the
 engine is not one game with the nouns swapped. What changed, release by
@@ -61,6 +65,10 @@ every ending, card and clock, over seeded runs.
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\simulate_decks.py --game wicked-garden --runs 200
+```
+
+```sh
+.venv/bin/python scripts/simulate_decks.py --game wicked-garden --runs 200   # Linux
 ```
 
 `tests/test_wicked_garden_scenes.py` and `tests/test_simulate_decks.py` hold

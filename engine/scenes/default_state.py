@@ -51,6 +51,10 @@ from engine.world.world_sim import WorldSim
 
 logger = logging.getLogger(__name__)
 
+#: What the player of a turn that ran but was not saved is told (hosted:
+#: their account was closed during it; v0.20.0 T15 fix round 2, N4).
+TURN_NOT_SAVED = "This turn was not saved: your account was closed by the server's operator."
+
 def _character_agent(session: GameSession) -> Any:
     """
     The active story's character agent, built once per session.
@@ -878,10 +882,23 @@ def _autosave(session: GameSession, player_action: str, narration: str) -> None:
 
     Never raises: a disk problem must cost the player the save, not the turn
     they just played.
+
+    Into the SESSION's store (``GameSession.saves``, v0.20.0 spec §4.4): the
+    one it was created or resumed from, which is its owner's. A session built
+    by hand, outside ``SessionStore``, has none and gets the local player's.
     """
     state = session.engine.state
+    if getattr(session, "ending", False):
+        # Hosted (v0.20.0 T15 fix round 1, I1): the account was disabled or
+        # deleted during this turn. Nothing is written for it, so a purge of
+        # its folder is not undone by the turn that was still running.
+        logger.info(
+            "[default_state] Not saved: the session is ending (operation=_autosave, id=%s)",
+            getattr(session, "session_id", ""),
+        )
+        return
     try:
-        store = get_save_store()
+        store = session.saves if session.saves is not None else get_save_store()
         session.save_id = store.save(
             state,
             save_id=session.save_id or None,
@@ -1368,6 +1385,13 @@ def run_turn(
 
     _record_memory(session, player_action, storyteller_result)
     _autosave(session, player_action, storyteller_result.narration)
+    if getattr(session, "ending", False):
+        # Hosted (v0.20.0 T15 fix round 2, N4; rule 1): the turn ran but was
+        # not saved, because the account was closed during it. The player is
+        # told, in the engine's words, inside the narration the client shows
+        # (no client change this release) and as ``notice``.
+        turn_payload["notice"] = TURN_NOT_SAVED
+        turn_payload["narration"] = f"{turn_payload.get('narration') or ''}\n\n{TURN_NOT_SAVED}".strip()
 
     if emit_callback:
         # streamed=True tells the client the narration text already arrived via

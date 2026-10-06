@@ -142,6 +142,7 @@ def test_agent_ids_are_the_only_clockwork_identifiers_left() -> None:
         "engine/agents/assistant.py",  # AGENT_ID -- S4 removes
         "engine/agents/storyteller.py",  # AGENT_ID -- S4 removes
         "engine/config.py",  # CLOCKWORK_ENV -- the project's env-var prefix
+        "engine/persistence/storage.py",  # CLOCKWORK_DATA_DIR -- the same prefix (v0.20.0)
         "engine/game/engine.py",  # ContextVar name -- S4 renames
         "engine/games/registry.py",  # DEFAULT_SLUG + CLOCKWORK_GAME env var
         "engine/media/providers/comfy.py",  # ComfyUI output prefix -- S4
@@ -153,6 +154,23 @@ def test_agent_ids_are_the_only_clockwork_identifiers_left() -> None:
         # Both are deliberate compat identities documented in the module; the
         # day the asset home and config key are renamed, this row goes too.
         "engine/scenes/default_scene.py",
+        # Hosted mode (v0.20.0 T7): CLOCKWORK_STUDIO, the project's env-var
+        # prefix, and the login cookie's name, clockwork_session, which spec
+        # §6.2 fixes (one name at every door of an instance).
+        "engine/hosting/__init__.py",
+        "engine/hosting/auth.py",
+        # The bus and the supervisor (v0.20.0 T10): CLOCKWORK_BUS_ADDR,
+        # CLOCKWORK_BUS_TOKEN, CLOCKWORK_BUS_ROLE, CLOCKWORK_PROXY_TOKEN and
+        # CLOCKWORK_GAME, the project's env-var prefix (spec §14.2).
+        "engine/hosting/boot.py",
+        "engine/hosting/bus.py",
+        "engine/hosting/supervisor/process.py",
+        # The front door's proxy token header (v0.20.0 T12, spec §14.5):
+        # X-Clockwork-Proxy, the project's header prefix.
+        "engine/hosting/gate.py",
+        # ...and the front door names the bus variables it refuses without
+        # (CLOCKWORK_BUS_ADDR, CLOCKWORK_BUS_TOKEN), as boot.py does.
+        "engine/hosting/frontdoor/__init__.py",
         # The builtin skill pack was renamed to "core"; the five skills/builtin
         # rows that stood here are gone and must not return.
     }

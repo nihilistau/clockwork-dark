@@ -1,0 +1,35 @@
+{
+  "json": {
+    "saves": [
+      {
+        "archetype": "cutpurse",
+        "evil_phase": "dormant",
+        "location_id": "tallow_docks",
+        "player_name": "Traveler",
+        "save_id": "<save-5>",
+        "save_version": 2,
+        "slot": "1",
+        "thumbnail": "",
+        "turn_number": 4,
+        "updated_at": "<time>",
+        "world_day": 1,
+        "world_hour": 9
+      },
+      {
+        "archetype": "cutpurse",
+        "evil_phase": "dormant",
+        "location_id": "tallow_docks",
+        "player_name": "Traveler",
+        "save_id": "<save-4>",
+        "save_version": 2,
+        "slot": "auto",
+        "thumbnail": "",
+        "turn_number": 4,
+        "updated_at": "<time>",
+        "world_day": 1,
+        "world_hour": 9
+      }
+    ]
+  },
+  "status": 200
+}

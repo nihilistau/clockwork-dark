@@ -46,6 +46,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Optional, Union
@@ -392,26 +393,31 @@ def canon_flags(dictionary: Optional[dict[str, Any]], clocks_doc: Any = None) ->
 #: flagship's validation went from 2.7s to 4.7s). Scoped to one run, so an
 #: edited file is always read fresh by the next. Callers treat the documents
 #: as read-only (none mutates a parsed document).
-_RUN_DOCS: Optional[dict[str, Any]] = None
+#:
+#: A ``ContextVar`` (v0.20.0): as a module global, two overlapping runs on two
+#: threads shared one dict and restored each other's, and the later
+#: ``finally`` left the earlier run's documents installed for good.
+_RUN_DOCS: ContextVar[Optional[dict[str, Any]]] = ContextVar("validation_run_docs", default=None)
 
 
 def _read_yaml(path: Path) -> Any:
     """Parse one YAML file, returning None on any failure (reported upstream).
 
     Memoised for the length of one validator run (``_RUN_DOCS``)."""
+    docs = _RUN_DOCS.get()
     key = ""
-    if _RUN_DOCS is not None:
+    if docs is not None:
         try:
             key = str(path.resolve())
         except OSError:
             key = str(path)
-        if key in _RUN_DOCS:
-            return _RUN_DOCS[key]
+        if key in docs:
+            return docs[key]
     try:
         with path.open(encoding="utf-8") as fh:
             doc = yaml.safe_load(fh)
-        if _RUN_DOCS is not None:
-            _RUN_DOCS[key] = doc
+        if docs is not None:
+            docs[key] = doc
         return doc
     except (OSError, yaml.YAMLError) as exc:
         logger.error(
@@ -613,17 +619,17 @@ class StoryValidator:
 
     def run(self) -> list[Issue]:
         """Run every applicable check, in dependency order."""
-        global _RUN_DOCS
-        outer = _RUN_DOCS
-        _RUN_DOCS = {} if outer is None else outer
+        outer = _RUN_DOCS.get()
+        token = _RUN_DOCS.set({} if outer is None else outer)
         try:
             return self._run()
         finally:
-            _RUN_DOCS = outer
+            _RUN_DOCS.reset(token)
 
     def _run(self) -> list[Issue]:
         self._build_registries()
 
+        self.check_retired_paths()
         self.check_state_schema()
         self.check_locations()
         self.check_items()
@@ -692,6 +698,18 @@ class StoryValidator:
                 )
                 self.declared_clocks = {str(k) for k in (data.get("clocks") or {})}
                 self.schema_loaded = True
+
+    # -- the manifest --------------------------------------------------------
+
+    def check_retired_paths(self) -> None:
+        """
+        An ADVISORY for a ``paths:`` key the engine no longer reads from a
+        story (``manifest.RETIRED_PATH_KEYS``: ``saves``, since v0.20.0). Not
+        an error, and not a ``registry.validate`` problem: the story still
+        plays, and the key moves nothing.
+        """
+        for key, note in self.manifest.retired_paths():
+            self._add("game.yaml", f"paths.{key}", note, severity="warning")
 
     # -- state -------------------------------------------------------------
 

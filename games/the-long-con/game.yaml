@@ -95,7 +95,6 @@ paths:
   # shape of the thing: what the answer cost you to get.
   endings: "games/the-long-con/data/rules/endings.yaml"
   epilogues: "games/the-long-con/data/epilogues"
-  saves: "data/saves"
 
 entry:
   # Must exist in data/world/locations.yaml.

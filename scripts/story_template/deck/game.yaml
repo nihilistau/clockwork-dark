@@ -71,7 +71,6 @@ paths:
   threads: "games/{{slug}}/data/rules/threads.yaml"
   endings: "games/{{slug}}/data/rules/endings.yaml"
   epilogues: "games/{{slug}}/data/epilogues"
-  saves: "data/saves"
 
 entry:
   # Must exist in data/world/locations.yaml. Starting OUTSIDE the house is

@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from pathlib import Path
 
 from engine.game.rng import stable_rng
-from engine.media.providers.base import ImageRequest, ImageResult, IMAGE_DIR, url_for
+from engine.media.providers.base import ImageRequest, ImageResult, url_for
+from engine.persistence import storage
 
 logger = logging.getLogger(__name__)
 
@@ -138,8 +138,9 @@ class ProceduralProvider:
         return True
 
     def generate(self, request: ImageRequest) -> ImageResult:
-        IMAGE_DIR.mkdir(parents=True, exist_ok=True)
-        path = IMAGE_DIR / f"{request.cache_key()}.svg"
+        images = storage.image_dir()
+        images.mkdir(parents=True, exist_ok=True)
+        path = images / f"{request.cache_key()}.svg"
 
         if request.kind == "portrait":
             svg = portrait_svg(request.subject_id, evil_phase=request.evil_phase)

@@ -692,7 +692,10 @@ panel.
 > read only while `llm.provider` is `lmstudio`; `comfyui.enabled`, `tts.enabled` and
 > `media.live_generation` are all **false** by default and that is a measurement,
 > not a preference; there is a `stack:` block describing the local services
-> `launcher.py --stack` supervises. **Machine-specific paths belong in
+> `launcher.py --stack` supervises; `scene.clockwork.host` is `127.0.0.1` since
+> v0.20.0 (local mode has no login; LAN play is `host: "0.0.0.0"` in
+> `config/local.yaml`, which the doctor and the launcher warn about).
+> **Machine-specific paths belong in
 > `config/local.yaml`, which deep-merges over the default and is gitignored** —
 > do not edit `config/default.yaml` to point at your own directories.
 
@@ -700,7 +703,7 @@ panel.
 scene:
   clockwork:
     port: 5573
-    host: "0.0.0.0"
+    host: "127.0.0.1"
 
 lmstudio:
   base_url: "http://localhost:1234/v1"

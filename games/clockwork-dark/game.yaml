@@ -74,11 +74,10 @@ ui:
 # tooling code named the root location, keeping the flagship's files in a
 # privileged spot only preserved the illusion that they were the engine's.
 #
-# `saves` is the exception and points at the repo root on purpose: saves are a
-# runtime OUTPUT the engine owns (data/saves/<slug>/ is gitignored), not story
-# content, and every story shares that default.
+# There is no `saves` key: saves are a runtime OUTPUT the engine owns, under
+# storage.root (data/saves/<slug>/ by default, gitignored), not story content
+# (v0.20.0).
 paths:
-  saves: "data/saves"
   lore: "games/clockwork-dark/data/lore"
   lore_db: "games/clockwork-dark/data/lore/lore.db"
   economy: "games/clockwork-dark/data/economy.yaml"

@@ -58,6 +58,7 @@ import httpx
 
 from engine.config import get_config
 from engine.llm.routes import compat_base, route_url
+from engine.locks import renew_after_fork
 
 logger = logging.getLogger(__name__)
 
@@ -369,6 +370,17 @@ def _refused_key_message(row: Any) -> str:
     )
 
 
+class _Flight(threading.Event):
+    """
+    One discovery in progress (``ModelRegistry.models``): set when it has
+    answered; ``error`` is what the leader's refresh raised, if it raised.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.error: Optional[BaseException] = None
+
+
 class ModelRegistry:
     """Caches the server's model list and answers binding questions."""
 
@@ -392,6 +404,9 @@ class ModelRegistry:
         self.timeout = timeout
         self._models: Optional[list[ModelInfo]] = None
         self._lock = threading.Lock()
+        #: The discovery running now, for ``models``' single flight; None
+        #: when none is.
+        self._flight: Optional[_Flight] = None
 
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
@@ -474,10 +489,44 @@ class ModelRegistry:
         return models
 
     def models(self, *, refresh: bool = False) -> list[ModelInfo]:
-        """Cached model list, querying once on first use."""
-        if refresh or self._models is None:
+        """
+        Cached model list, querying once on first use.
+
+        SINGLE FLIGHT (v0.20.0 T9). Concurrent callers on a cold cache (two
+        planners, two players' first turns) share ONE discovery: the first
+        refreshes, the others wait for its answer instead of each sending
+        their own requests to a model server every player shares. The lock
+        (a leaf) is held only to read the cache and claim the flight, never
+        across the network; a caller that finds a flight running waits on
+        its ``_Flight`` holding nothing. ``refresh=True`` joins a flight
+        already running (its answer is as fresh) or starts one.
+        """
+        with self._lock:
+            cached = self._models
+            if not refresh and cached is not None:
+                return list(cached)
+            flight = self._flight
+            leading = flight is None
+            if leading:
+                flight = self._flight = _Flight()
+        if not leading:
+            flight.wait()
+            if flight.error is not None:
+                # The leader's discovery failed: each follower fails the same
+                # way, never answering "no models" for "server down" (fix
+                # round 1).
+                raise flight.error
+            with self._lock:
+                return list(self._models or [])
+        try:
             return self.refresh()
-        return list(self._models)
+        except BaseException as exc:
+            flight.error = exc
+            raise
+        finally:
+            with self._lock:
+                self._flight = None
+            flight.set()
 
     def loaded(self) -> list[ModelInfo]:
         """Chat models currently resident in VRAM."""
@@ -606,6 +655,7 @@ class ModelRegistry:
 
 _registry: Optional[ModelRegistry] = None
 _registry_lock = threading.Lock()
+renew_after_fork(globals(), _registry_lock=threading.Lock)
 
 
 def get_registry() -> ModelRegistry:

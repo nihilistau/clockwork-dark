@@ -1,6 +1,6 @@
 [project]
 name = "clockwork-dark"
-version = "0.19.0"
+version = "0.20.0"
 description = "Local-first AI RPG — The Clockwork Dark"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -15,6 +15,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-cov>=5.0"]
+# The production server for hosted mode on Linux (v0.20.0 T13; spec §7.1);
+# the image installs requirements-server.txt instead.
+server = ["gunicorn>=23"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -24,4 +27,5 @@ pythonpath = ["."]
 markers = [
     "live: this test is ALLOWED to open a real connection to the model server, or to launch the Grok image CLI",
     "mcp_server: this test is ALLOWED to start a real skills server; its mcp.json is still redirected into its temp directory",
+    "default_storage_root: this test does not get the conftest's per-test CLOCKWORK_DATA_DIR; the audit hook on the real saves/, users/ and hosting/ still applies",
 ]

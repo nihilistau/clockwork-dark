@@ -240,11 +240,12 @@ def due(state: GameState, *, ledger: Any = None) -> tuple[str, str, str]:
         if deck_id:
             return deck_id, card_id, "forced"
         global _WARNED_FORCED
-        if _WARNED_FORCED is None:
-            _WARNED_FORCED = set()
-        if scene_id in _WARNED_FORCED:
+        warned = _WARNED_FORCED  # read once: a reset nulls it without a lock
+        if warned is None:
+            warned = _WARNED_FORCED = set()
+        if scene_id in warned:
             continue
-        _WARNED_FORCED.add(scene_id)
+        warned.add(scene_id)
         logger.warning(
             "[director] Forced scene names neither a deck nor a card "
             "(operation=due, scene=%s). The clock's promise cannot be kept.",

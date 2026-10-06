@@ -1,0 +1,142 @@
+# The Clockwork Dark -- continuous integration (v0.20.0, spec §3.8).
+#
+# Linux only, on purpose: the owner's workstation is Windows and the suite is
+# run there at every release, so a windows-latest job would double a long run
+# to prove what is already proven by hand.
+#
+# No secrets, and no model server: the suite's own guards
+# (tests/conftest.py: _no_live_model_calls, and the child-process sandbox that
+# points every subprocess at the discard port) keep every test off one, and
+# none exists on the runner. tests/test_llm_live.py skips at module level
+# unless CLOCKWORK_LIVE_LLM is set, which nothing here sets.
+#
+# A pull request from a release/** branch to main runs twice (once for the
+# push, once for the pull request). Accepted: the two answer different
+# questions (the branch, and the merge result).
+#
+# Action majors and Node were chosen on 2026-10-01 from the actions' release
+# pages: checkout, setup-python and setup-node v7 (the node24 action
+# runtime), and Node 24, the active LTS -- the Node the committed dist was
+# built with on the owner's machine (v24.13.0); T4 measured Node 20 on Linux
+# producing the same bytes.
+#
+# The Docker `image` job (v0.20.0 T18) builds the image and never pushes it:
+# no registry login, no tag but a local one. tests/test_ci_workflow.py holds
+# this file to its shape.
+
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "release/**"
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same ref cancels the run still going: with a 150-minute
+# budget, repeated pushes would otherwise queue whole runs.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite:
+    name: pytest (Python 3.11)
+    runs-on: ubuntu-latest
+    # Budgeted for a 2-vCPU runner: the owner's 12-thread desktop takes about
+    # 41 minutes, a Linux container about 26.
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history: test_the_committed_build_is_not_behind_its_source
+          # (tests/test_ui_contract.py) compares commits, not mtimes.
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-server.txt
+            constraints.txt
+      - name: Install
+        # pip itself is the runner's (not pinned, not upgraded: constraints.txt
+        # pins what the suite imports, never the installer). The server
+        # requirements add gunicorn (v0.20.0 T13), so the hosted-mode tests'
+        # supervisor runs the front door and every worker under it here, the
+        # WebSocket relay included -- the server a deployment runs.
+        run: |
+          python -m pip install -r requirements.txt -c constraints.txt
+          python -m pip install -r requirements-server.txt -c constraints.txt
+      - name: Test suite
+        run: python -m pytest tests -q
+
+  client:
+    name: client (Node 24)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install
+        run: npm ci --prefix ui
+      - name: Client tests
+        run: npm test --prefix ui
+      - name: Build
+        run: npm run build --prefix ui
+      - name: The committed build is current
+        # The build is committed (the game plays with no node installed), so a
+        # clean Linux build must reproduce it byte for byte: Vite's output was
+        # measured identical across Windows and Linux in v0.20.0 T4 once
+        # ui/index.html is read with LF line endings (.gitattributes).
+        run: |
+          git diff --exit-code -- content/scenes/clockwork/static/dist
+          test -z "$(git status --porcelain -- content/scenes/clockwork/static/dist)"
+
+  image:
+    name: Docker image (build and health)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        # Local only: the image is tagged on the runner and never pushed.
+        run: docker build -t clockwork-dark:ci .
+      - name: Start
+        # A throwaway cookie key, made on the runner for this run alone (no
+        # repository secret exists or is read). The default config serves
+        # the flagship; no model server is reachable, which the health route
+        # does not need.
+        run: |
+          key="$(openssl rand -hex 32)"
+          docker run -d --name clockwork-ci --init -p 127.0.0.1:5573:5573 \
+            -e CLOCKWORK_SECRET_KEY="$key" clockwork-dark:ci
+      - name: GET /api/health
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:5573/api/health; then exit 0; fi
+            sleep 3
+          done
+          docker logs clockwork-ci
+          exit 1
+      - name: Stop within the grace, drained, exit 0
+        # The supervisor must drain and stop everything itself: exit code 0,
+        # its "Shut down" line, and nothing it had to terminate or kill.
+        run: |
+          docker stop --time 210 clockwork-ci
+          docker logs clockwork-ci > shutdown.log 2>&1
+          tail -n 40 shutdown.log
+          test "$(docker inspect -f '{{.State.ExitCode}}' clockwork-ci)" = "0"
+          grep -q "Shut down (operation=shutdown)" shutdown.log
+          if grep -E "did not drain|Terminating |Killing " shutdown.log; then exit 1; fi
+      - name: Remove the container
+        if: always()
+        run: docker rm -f clockwork-ci || true

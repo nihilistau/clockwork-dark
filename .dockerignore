@@ -1,0 +1,46 @@
+# What `docker build .` never sends to the builder (v0.20.0 T18, spec §8.1).
+# tests/test_deploy_files.py parses this file: every secret and runtime path
+# below must stay excluded. The Dockerfile also COPYs only what the image
+# runs, by name, so this list is the second of two fences, not the only one.
+
+# History, tooling and working notes.
+.git
+.github
+.gitattributes
+.gitignore
+.claude
+.remember
+.superpowers
+.pytest_cache
+**/__pycache__
+**/*.pyc
+*.log
+
+# Environments and the client's toolchain (the built client is committed
+# under content/scenes/clockwork/static/dist and copied with content/).
+.venv
+venv
+**/node_modules
+ui/
+
+# The suite, the docs and the design sources: not run in the image.
+tests/
+docs/
+Design_files/
+models/
+
+# Runtime data: the image's /data is a volume, never a layer.
+data/
+games/*/data/lore/*.db
+
+# Secrets: reach a container only through its environment or files on /data.
+config/local.yaml
+config/secrets.yaml
+llm_api_key.txt
+lmstudio.txt
+*.key
+**/*.key
+*.token
+**/*.token
+.env*
+**/.env*

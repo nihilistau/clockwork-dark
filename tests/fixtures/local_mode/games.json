@@ -1,0 +1,341 @@
+{
+  "json": {
+    "active": "clockwork-dark",
+    "default": "clockwork-dark",
+    "games": [
+      {
+        "active": false,
+        "archetypes": [
+          "human"
+        ],
+        "blurb": "A scratch story for testing scenes, characters, world agents and interactions. One bedroom, one narrator, three placeholder buttons. Edit anything in games/dev-story/ and reload.",
+        "engine_requires": ">=0.2.0",
+        "entry_location": "test_bedroom",
+        "id": "dev-story",
+        "paths": {
+          "art_manifest": "games/dev-story/data/art/manifest.yaml",
+          "art_root": "games/dev-story/data/art/plates",
+          "art_subjects": "games/dev-story/data/art/subjects.yaml",
+          "clocks": "games/dev-story/data/rules/clocks.yaml",
+          "decks": "games/dev-story/data/scenes",
+          "endings": "games/dev-story/data/rules/endings.yaml",
+          "epilogues": "games/dev-story/data/epilogues",
+          "factions": "games/dev-story/data/world/factions.yaml",
+          "items": "games/dev-story/data/items",
+          "locations": "games/dev-story/data/world/locations.yaml",
+          "npc_schedules": "games/dev-story/data/world/npc_schedules.yaml",
+          "prompts": "games/dev-story/prompts",
+          "quests": "games/dev-story/data/quests",
+          "rules": "games/dev-story/data/rules",
+          "saves": "data/saves",
+          "threads": "games/dev-story/data/rules/threads.yaml",
+          "world_rumors": "games/dev-story/data/world/rumors.yaml",
+          "world_schedules": "games/dev-story/data/world/schedules.yaml"
+        },
+        "playable": true,
+        "problems": [],
+        "scene": {
+          "blueprint": "engine.scenes.default_api:story_blueprint",
+          "module": "engine.scenes.default_scene",
+          "name": "clockwork"
+        },
+        "settings": {
+          "governance.directives": [
+            "StorytellerMind"
+          ],
+          "world.evil_base_rate_per_day": 0.0,
+          "world.tick_hours": 0.0,
+          "world.tick_max_hours": 0.0
+        },
+        "slug": "dev-story",
+        "title": "Dev Story",
+        "ui": {
+          "plugin": "_engine"
+        },
+        "ui_plugin": "_engine",
+        "version": "0.3.0"
+      },
+      {
+        "active": false,
+        "archetypes": [
+          "cutpurse",
+          "silver_tongue",
+          "bruiser"
+        ],
+        "blurb": "Tallowmere burns candles for the whole coast and keeps a holy fire on the hill. You came for honest work. The Watch has decided you are the Magpie, the thieves' guild has decided the same, and a one-eyed jackdaw has decided you are his.",
+        "engine_requires": ">=0.2.0",
+        "entry_location": "tallow_docks",
+        "id": "hue-and-cry",
+        "paths": {
+          "agendas": "games/hue-and-cry/data/rules/agendas.yaml",
+          "art_manifest": "games/hue-and-cry/data/art/manifest.yaml",
+          "art_root": "games/hue-and-cry/data/art/plates",
+          "art_subjects": "games/hue-and-cry/data/art/subjects.yaml",
+          "challenges": "games/hue-and-cry/data/challenges",
+          "clocks": "games/hue-and-cry/data/rules/clocks.yaml",
+          "decks": "games/hue-and-cry/data/scenes",
+          "economy": "games/hue-and-cry/data/economy.yaml",
+          "encounters": "games/hue-and-cry/data/encounters",
+          "endings": "games/hue-and-cry/data/rules/endings.yaml",
+          "epilogues": "games/hue-and-cry/data/epilogues",
+          "factions": "games/hue-and-cry/data/world/factions.yaml",
+          "items": "games/hue-and-cry/data/items",
+          "jobs": "games/hue-and-cry/data/rules/jobs.yaml",
+          "law": "games/hue-and-cry/data/rules/law.yaml",
+          "locations": "games/hue-and-cry/data/world/locations.yaml",
+          "lore": "games/hue-and-cry/data/lore",
+          "lore_db": "games/hue-and-cry/data/lore/lore.db",
+          "npc_schedules": "games/hue-and-cry/data/world/npc_schedules.yaml",
+          "premises": "games/hue-and-cry/data/premises",
+          "procgen_templates": "games/hue-and-cry/data/procgen_templates/tallowmere.yaml",
+          "prompts": "games/hue-and-cry/prompts",
+          "quests": "games/hue-and-cry/data/quests",
+          "recipes": "games/hue-and-cry/data/recipes",
+          "rules": "games/hue-and-cry/data/rules",
+          "saves": "data/saves",
+          "tables": "games/hue-and-cry/data/tables",
+          "thievery": "games/hue-and-cry/data/rules/thievery.yaml",
+          "threads": "games/hue-and-cry/data/rules/threads.yaml",
+          "world_schedules": "games/hue-and-cry/data/world/schedules.yaml"
+        },
+        "playable": true,
+        "problems": [],
+        "scene": {
+          "blueprint": "engine.scenes.default_api:story_blueprint",
+          "module": "engine.scenes.default_scene",
+          "name": "clockwork"
+        },
+        "settings": {
+          "governance.directives": [
+            "StorytellerMind"
+          ],
+          "world.evil_base_rate_per_day": 0.0,
+          "world.tick_hours": 1.0,
+          "world.tick_max_hours": 4.0
+        },
+        "slug": "hue-and-cry",
+        "title": "Hue & Cry",
+        "ui": {
+          "plugin": "_engine"
+        },
+        "ui_plugin": "_engine",
+        "version": "0.1.0"
+      },
+      {
+        "active": false,
+        "archetypes": [
+          "runner",
+          "ex_corpo",
+          "wirehead"
+        ],
+        "blurb": "Somebody sold you forty seconds of your own death. It came with a timestamp, twenty-one days out, and a header stamp nobody will read twice. The thing that filed it sits below the Shadow zone, behind a checkpoint that refuses anyone the city is looking for. Cross the Sprawl. Argue with the gate. Decide who holds the pen.",
+        "engine_requires": ">=0.2.0",
+        "entry_location": "the_grid",
+        "id": "neon-city",
+        "paths": {
+          "art_manifest": "games/neon-city/data/art/manifest.yaml",
+          "art_root": "games/neon-city/data/art/plates",
+          "art_subjects": "games/neon-city/data/art/subjects.yaml",
+          "clocks": "games/neon-city/data/rules/clocks.yaml",
+          "economy": "games/neon-city/data/economy.yaml",
+          "encounters": "games/neon-city/data/encounters",
+          "endings": "games/neon-city/data/rules/endings.yaml",
+          "epilogues": "games/neon-city/data/epilogues",
+          "factions": "games/neon-city/data/world/factions.yaml",
+          "items": "games/neon-city/data/items",
+          "locations": "games/neon-city/data/world/locations.yaml",
+          "lore": "games/neon-city/data/lore",
+          "lore_db": "games/neon-city/data/lore/lore.db",
+          "npc_schedules": "games/neon-city/data/world/npc_schedules.yaml",
+          "prompts": "games/neon-city/prompts",
+          "quests": "games/neon-city/data/quests",
+          "rules": "games/neon-city/data/rules",
+          "saves": "data/saves",
+          "tables": "games/neon-city/data/tables",
+          "threads": "games/neon-city/data/rules/threads.yaml",
+          "world_rumors": "games/neon-city/data/world/rumors.yaml",
+          "world_schedules": "games/neon-city/data/world/schedules.yaml"
+        },
+        "playable": true,
+        "problems": [],
+        "scene": {
+          "blueprint": "engine.scenes.default_api:story_blueprint",
+          "module": "engine.scenes.default_scene",
+          "name": "clockwork"
+        },
+        "settings": {
+          "governance.directives": [
+            "StorytellerMind"
+          ],
+          "world.evil_base_rate_per_day": 0.0,
+          "world.tick_hours": 1.0,
+          "world.tick_max_hours": 4.0
+        },
+        "slug": "neon-city",
+        "title": "NEON CITY: THE CROSSING",
+        "ui": {
+          "plugin": "neon-city"
+        },
+        "ui_plugin": "neon-city",
+        "version": "0.1.0"
+      },
+      {
+        "active": true,
+        "archetypes": [
+          "wayfarer",
+          "hearthkeeper",
+          "tinker_apprentice"
+        ],
+        "blurb": "A frontier village at the edge of a forest, and something patient and brass working its way outward from the Wound. Become a hero or become a baker -- the evil ticks either way.",
+        "engine_requires": ">=0.2.0",
+        "entry_location": "forest_clearing",
+        "id": "clockwork-dark",
+        "paths": {
+          "art_manifest": "games/clockwork-dark/data/art/manifest.yaml",
+          "art_root": "content/scenes/clockwork/static/art",
+          "art_subjects": "games/clockwork-dark/data/art/subjects.yaml",
+          "assistant_hints": "games/clockwork-dark/data/assistant/hints.yaml",
+          "challenges": "games/clockwork-dark/data/challenges",
+          "comfyui_templates": "games/clockwork-dark/data/procgen_templates/comfyui.yaml",
+          "doom_effects": "games/clockwork-dark/data/rules/doom_effects.yaml",
+          "economy": "games/clockwork-dark/data/economy.yaml",
+          "encounters": "games/clockwork-dark/data/encounters",
+          "endings": "games/clockwork-dark/data/rules/endings.yaml",
+          "epilogues": "games/clockwork-dark/data/epilogues",
+          "factions": "games/clockwork-dark/data/world/factions.yaml",
+          "items": "games/clockwork-dark/data/items",
+          "locations": "games/clockwork-dark/data/world/locations.yaml",
+          "lore": "games/clockwork-dark/data/lore",
+          "lore_db": "games/clockwork-dark/data/lore/lore.db",
+          "npc_schedules": "games/clockwork-dark/data/world/npc_schedules.yaml",
+          "procgen_templates": "games/clockwork-dark/data/procgen_templates/edgewood.yaml",
+          "quests": "games/clockwork-dark/data/quests",
+          "recipes": "games/clockwork-dark/data/recipes",
+          "rules": "games/clockwork-dark/data/rules",
+          "saves": "data/saves",
+          "tables": "games/clockwork-dark/data/tables",
+          "world_rumors": "games/clockwork-dark/data/world/rumors.yaml",
+          "world_schedules": "games/clockwork-dark/data/world/schedules.yaml"
+        },
+        "playable": true,
+        "problems": [],
+        "scene": {
+          "blueprint": "engine.scenes.default_api:story_blueprint",
+          "module": "engine.scenes.default_scene",
+          "name": "clockwork"
+        },
+        "slug": "clockwork-dark",
+        "title": "The Clockwork Dark",
+        "ui": {
+          "plugin": "clockwork-dark"
+        },
+        "ui_plugin": "clockwork-dark",
+        "version": "0.2.0"
+      },
+      {
+        "active": false,
+        "archetypes": [
+          "gumshoe",
+          "fixer"
+        ],
+        "blurb": "Your brother's name is still on the glass. A woman with a good coat and a bad story wants you to find a man who is already dead, the bulls want you to stop looking, and the city keeps books on everybody.",
+        "engine_requires": ">=0.2.0",
+        "entry_location": "the_office",
+        "id": "the-long-con",
+        "paths": {
+          "clocks": "games/the-long-con/data/rules/clocks.yaml",
+          "decks": "games/the-long-con/data/scenes",
+          "economy": "games/the-long-con/data/economy.yaml",
+          "encounters": "games/the-long-con/data/encounters",
+          "endings": "games/the-long-con/data/rules/endings.yaml",
+          "epilogues": "games/the-long-con/data/epilogues",
+          "items": "games/the-long-con/data/items",
+          "locations": "games/the-long-con/data/world/locations.yaml",
+          "npc_schedules": "games/the-long-con/data/world/npc_schedules.yaml",
+          "prompts": "games/the-long-con/prompts",
+          "quests": "games/the-long-con/data/quests",
+          "rules": "games/the-long-con/data/rules",
+          "saves": "data/saves",
+          "tables": "games/the-long-con/data/tables"
+        },
+        "playable": true,
+        "problems": [],
+        "scene": {
+          "blueprint": "engine.scenes.default_api:story_blueprint",
+          "module": "engine.scenes.default_scene",
+          "name": "clockwork"
+        },
+        "settings": {
+          "governance.directives": [
+            "StorytellerMind"
+          ],
+          "world.evil_base_rate_per_day": 0.0,
+          "world.tick_hours": 1.0,
+          "world.tick_max_hours": 4.0
+        },
+        "slug": "the-long-con",
+        "title": "THE LONG CON",
+        "ui": {
+          "plugin": "the-long-con"
+        },
+        "ui_plugin": "the-long-con",
+        "version": "0.1.0"
+      },
+      {
+        "active": false,
+        "archetypes": [
+          "human"
+        ],
+        "blurb": "A garden between worlds, and the High Fae who has decided she wants you. One day here is ten days at home, and the toll is charged whether you spend it well or not. Please her, match her, escape her, or be consumed.",
+        "engine_requires": ">=0.2.0",
+        "entry_location": "mortal_threshold",
+        "id": "wicked-garden",
+        "paths": {
+          "art_manifest": "games/wicked-garden/data/art/manifest.yaml",
+          "art_root": "games/wicked-garden/data/art/plates",
+          "art_subjects": "games/wicked-garden/data/art/subjects.yaml",
+          "clocks": "games/wicked-garden/data/rules/clocks.yaml",
+          "decks": "games/wicked-garden/data/scenes",
+          "endings": "games/wicked-garden/data/rules/endings.yaml",
+          "epilogues": "games/wicked-garden/data/epilogues",
+          "factions": "games/wicked-garden/data/world/factions.yaml",
+          "items": "games/wicked-garden/data/items",
+          "locations": "games/wicked-garden/data/world/locations.yaml",
+          "lore": "games/wicked-garden/data/lore",
+          "lore_db": "games/wicked-garden/data/lore/lore.db",
+          "npc_schedules": "games/wicked-garden/data/world/npc_schedules.yaml",
+          "prompts": "games/wicked-garden/prompts",
+          "rules": "games/wicked-garden/data/rules",
+          "saves": "data/saves",
+          "tables": "games/wicked-garden/data/tables",
+          "threads": "games/wicked-garden/data/rules/threads.yaml",
+          "world_rumors": "games/wicked-garden/data/world/rumors.yaml",
+          "world_schedules": "games/wicked-garden/data/world/schedules.yaml"
+        },
+        "playable": true,
+        "problems": [],
+        "scene": {
+          "blueprint": "engine.scenes.default_api:story_blueprint",
+          "module": "engine.scenes.default_scene",
+          "name": "clockwork"
+        },
+        "settings": {
+          "governance.directives": [
+            "StorytellerMind"
+          ],
+          "world.evil_base_rate_per_day": 0.0,
+          "world.tick_hours": 0.0,
+          "world.tick_max_hours": 0.0
+        },
+        "slug": "wicked-garden",
+        "title": "The Wicked Garden",
+        "ui": {
+          "plugin": "wicked-garden"
+        },
+        "ui_plugin": "wicked-garden",
+        "version": "0.1.0"
+      }
+    ]
+  },
+  "status": 200
+}

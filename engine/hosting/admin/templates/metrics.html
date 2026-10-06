@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Metrics{% endblock %}
+{% block content %}
+<h1>Metrics</h1>
+<p class="note">How the service ran over the last {{ data.window_hours }} hours: timings, waits and counts. Nothing of what was played is recorded, so nothing of it can be shown here. Times are UTC.</p>
+{% for error in data.errors %}<p class="message" role="status">The metrics could not be read ({{ error }}).</p>{% endfor %}
+<section>
+  <h2>Turn duration, per story and hour</h2>
+  <table>
+    <thead><tr><th>Hour</th><th>Story</th><th>Turns</th><th>p50 (ms)</th><th>p95 (ms)</th></tr></thead>
+    <tbody>
+      {% for row in data.durations %}
+      <tr><td>{{ row.hour }}</td><td>{{ row.story }}</td><td>{{ row.turns }}</td><td>{{ row.p50_ms }}</td><td>{{ row.p95_ms }}</td></tr>
+      {% else %}
+      <tr><td colspan="5">No turn yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<section>
+  <h2>Waits</h2>
+  <table>
+    <thead><tr><th>Wait</th><th>Count</th><th>p50 (ms)</th><th>p95 (ms)</th><th>Held p50 (ms)</th><th>Held p95 (ms)</th></tr></thead>
+    <tbody>
+      {% for row in data.waits %}
+      <tr><td>{% if row.source == "admission" %}admission (a turn's wait for its place){% else %}lane: {{ row.source }}{% endif %}</td><td>{{ row.count }}</td><td>{{ row.p50_ms }}</td><td>{{ row.p95_ms }}</td><td>{% if row.source != "admission" %}{{ row.hold_p50_ms }}{% endif %}</td><td>{% if row.source != "admission" %}{{ row.hold_p95_ms }}{% endif %}</td></tr>
+      {% else %}
+      <tr><td colspan="6">No wait yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<section>
+  <h2>Turns by outcome, per story and hour</h2>
+  <table>
+    <thead><tr><th>Hour</th><th>Story</th><th>Ok</th><th>Busy</th><th>Error</th><th>Over a cap</th><th>Over the rate</th></tr></thead>
+    <tbody>
+      {% for row in data.outcomes %}
+      <tr><td>{{ row.hour }}</td><td>{{ row.story }}</td><td>{{ row.ok }}</td><td>{{ row.busy }}</td><td>{{ row.error }}</td><td>{{ row.refused_cap }}</td><td>{{ row.refused_rate }}</td></tr>
+      {% else %}
+      <tr><td colspan="7">No turn yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<section>
+  <h2>Refused, per hour</h2>
+  <table>
+    <thead><tr><th>Hour</th><th>What</th><th>Story</th><th>Outcome</th><th>Count</th></tr></thead>
+    <tbody>
+      {% for row in data.refusals %}
+      <tr><td>{{ row.hour }}</td><td>{% if row.kind == "login" %}login{% else %}action{% endif %}</td><td>{{ row.story }}</td><td>{{ row.outcome }}</td><td>{{ row.count }}</td></tr>
+      {% else %}
+      <tr><td colspan="5">Nothing refused.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">Failed, limited and disabled logins, and actions over a cap or the rate, are counted per minute (with no account), not kept one by one.</p>
+</section>
+<section>
+  <h2>Usage, per account and day</h2>
+  <table>
+    <thead><tr><th>Day</th><th>Account</th><th>Name</th><th>Turns</th><th>Sessions</th><th>Active days</th></tr></thead>
+    <tbody>
+      {% for row in data.usage %}
+      <tr><td>{{ row.day }}</td><td><code>{{ row.account }}</code></td><td>{{ row.name }}</td><td>{{ row.turns }}</td><td>{{ row.sessions }}</td><td>{{ row.active_days }}</td></tr>
+      {% else %}
+      <tr><td colspan="6">Nobody yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <nav class="pages">
+    {% if data.page > 1 %}<a href="/admin/metrics?page={{ data.page - 1 }}">Newer</a>{% endif %}
+    {% if data.more %}<a href="/admin/metrics?page={{ data.page + 1 }}">Older</a>{% endif %}
+  </nav>
+  <p class="note">Sessions counts runs started or resumed. This table covers the last {{ data.usage_days }} days; active days are the days in it with any turn or session. Each account's last login is on the Users page.</p>
+</section>
+<section>
+  <h2>The storyteller's checks, per story</h2>
+  <table>
+    <thead><tr><th>Story</th><th>Turns</th><th>Rule violations</th><th>By rule</th><th>Unclaimed stat changes</th><th>Largest</th><th>Companion spoke</th><th>Gifts</th><th>Average turn (ms)</th><th>Challenges</th></tr></thead>
+    <tbody>
+      {% for row in data.oracle %}
+      {% if row.error %}
+      <tr class="error"><td>{{ row.story }}</td><td colspan="9">not answered ({{ row.error }})</td></tr>
+      {% else %}
+      <tr>
+        <td>{{ row.story }}</td>
+        <td>{{ row.oracle.turns }}</td>
+        <td>{{ row.oracle.violations_total }} ({{ row.oracle.violation_rate }} a turn)</td>
+        <td>{% for rule, count in row.oracle.violations_by_rule.items() %}<code>{{ rule }}</code> {{ count }}{% if not loop.last %}, {% endif %}{% endfor %}{% if row.oracle.violations_other_rules %} other {{ row.oracle.violations_other_rules }}{% endif %}</td>
+        <td>{{ row.oracle.unearned_claims_count }}</td>
+        <td>{{ row.oracle.unearned_claims_largest_delta }}</td>
+        <td>{{ row.oracle.assistant_intervention_rate }} a turn</td>
+        <td>{{ row.oracle.gifts }}</td>
+        <td>{{ row.oracle.avg_latency_ms }}</td>
+        <td>{% for kind, count in row.oracle.challenges_started.items() %}{{ kind }} {{ count }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+      </tr>
+      {% endif %}
+      {% else %}
+      <tr><td colspan="10">No story.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">Each story's own counts since its worker started: the engine's rule checks on the model's turns (a stat change the model claimed without the engine making it is counted, never named), and how often the companion spoke. These are what local mode's <code>/api/metrics</code> shows; hosted mode answers that route 404.</p>
+</section>
+{% endblock %}

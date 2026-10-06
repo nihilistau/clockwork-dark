@@ -62,8 +62,9 @@ def doom_enabled() -> bool:
     Never activates anything -- this is asked mid-turn.
     """
     global _DOOM_DECLARED
-    if _DOOM_DECLARED is not None:
-        return _DOOM_DECLARED
+    cached = _DOOM_DECLARED  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
 
     manifest = None
     try:
@@ -80,14 +81,15 @@ def doom_enabled() -> bool:
             declares_rate = declared_rate is not None and float(declared_rate) > 0.0
         except (TypeError, ValueError):
             declares_rate = False
-        _DOOM_DECLARED = declares_effects or declares_rate
+        declared = declares_effects or declares_rate
     else:
         try:
             rate = float(get_config().get("world.evil_base_rate_per_day", 0.0) or 0.0)
         except (TypeError, ValueError):
             rate = 0.0
-        _DOOM_DECLARED = rate > 0.0
-    return _DOOM_DECLARED
+        declared = rate > 0.0
+    _DOOM_DECLARED = declared
+    return declared
 
 
 def reset_doom_capability() -> None:

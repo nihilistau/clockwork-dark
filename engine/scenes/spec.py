@@ -68,7 +68,10 @@ DEFAULT_STORY_BLUEPRINT = "engine.scenes.default_api:story_blueprint"
 # Last-resort port. The real home is ``scene.<name>.port`` in config; this is
 # only what answers when config has no entry for the scene at all.
 DEFAULT_SCENE_PORT = 5573
-DEFAULT_SCENE_HOST = "0.0.0.0"
+# Loopback, like ``config/default.yaml``'s ``scene.clockwork.host`` (v0.20.0):
+# local mode has no login, so it is reachable only from this machine unless
+# the owner binds another address in config/local.yaml.
+DEFAULT_SCENE_HOST = "127.0.0.1"
 
 # module.path or module.path:factory -- nothing else.
 _TARGET_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
@@ -103,6 +106,48 @@ def scene_host(name: str = DEFAULT_SCENE_NAME, default: str = DEFAULT_SCENE_HOST
     return str(get_config().get(f"scene.{name}.host", default) or default)
 
 
+def is_loopback(host: str) -> bool:
+    """``localhost``, or an address in 127.0.0.0/8 or ``::1`` (brackets allowed)."""
+    import ipaddress
+
+    text = str(host or "").strip().strip("[]")
+    if text.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(text).is_loopback
+    except ValueError:
+        return False
+
+
+def is_wildcard(host: str) -> bool:
+    """``0.0.0.0``, ``::`` or empty: a bind on every interface."""
+    import ipaddress
+
+    text = str(host or "").strip().strip("[]")
+    if not text:
+        return True
+    try:
+        return ipaddress.ip_address(text).is_unspecified
+    except ValueError:
+        return False
+
+
+def exposure_warning(host: str, port: int) -> str:
+    """
+    What binding ``host`` exposes, or "" on a loopback address.
+
+    ONE SENTENCE, two readers: the doctor's ``hosting`` row and the launcher
+    (``--host`` or ``scene.clockwork.host``), so whoever binds the LAN hears
+    the same thing (v0.20.0; local mode has no login).
+    """
+    if is_loopback(host):
+        return ""
+    return (
+        f"anyone who can reach port {port} can play, load and delete runs, "
+        "with no login; bind 127.0.0.1, or turn on hosting (docs/HOSTING.md)"
+    )
+
+
 @dataclass(frozen=True)
 class SceneSpec:
     """
@@ -132,9 +177,10 @@ class SceneSpec:
 def _valid_target(target: str) -> bool:
     """True when ``target`` is a plain dotted import path, optionally ``:attr``."""
     module, _, attr = str(target).partition(":")
-    if not _TARGET_RE.match(module):
+    # fullmatch: the pattern's `$` also matches before a trailing newline.
+    if not _TARGET_RE.fullmatch(module):
         return False
-    return not attr or bool(_TARGET_RE.match(attr))
+    return not attr or bool(_TARGET_RE.fullmatch(attr))
 
 
 def resolve_scene(manifest: Any = None) -> SceneSpec:

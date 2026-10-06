@@ -67,27 +67,32 @@ def _templates_path() -> Optional[Path]:
 
 
 def load_templates() -> dict[str, Any]:
-    """Load and cache the running story's procgen templates."""
+    """
+    Load and cache the running story's procgen templates.
+
+    The cache is read once and the answer returned from a local: a config
+    reset nulls ``_TEMPLATE_CACHE`` without a lock, so a second read could
+    see None (``tests/test_cache_reset_race.py``).
+    """
     global _TEMPLATE_CACHE
-    if _TEMPLATE_CACHE is not None:
-        return _TEMPLATE_CACHE
+    cached = _TEMPLATE_CACHE
+    if cached is not None:
+        return cached
 
     path = _templates_path()
     if path is None:
         logger.debug("[procgen] Story declares no templates (operation=load_templates)")
-        _TEMPLATE_CACHE = {}
-        return _TEMPLATE_CACHE
-
-    if not path.exists():
+        templates: dict[str, Any] = {}
+    elif not path.exists():
         logger.warning(
             "[procgen] Templates missing (operation=load_templates, path=%s)", path
         )
-        _TEMPLATE_CACHE = {}
-        return _TEMPLATE_CACHE
-
-    with path.open(encoding="utf-8") as fh:
-        _TEMPLATE_CACHE = yaml.safe_load(fh) or {}
-    return _TEMPLATE_CACHE
+        templates = {}
+    else:
+        with path.open(encoding="utf-8") as fh:
+            templates = yaml.safe_load(fh) or {}
+    _TEMPLATE_CACHE = templates
+    return templates
 
 
 def _pick_unique(rng: random.Random, pool: list[Any], count: int) -> list[Any]:

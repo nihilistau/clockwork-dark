@@ -92,9 +92,8 @@ paths:
   # fixed filename -- they do not get their own path keys.
   rules: "games/{{slug}}/data/rules"
   items: "games/{{slug}}/data/items"
-  # The save root. The store appends the slug, so runs land in
-  # data/saves/{{slug}}/. Validated on its PARENT (it may not exist yet).
-  saves: "data/saves"
+  # No `saves:` key: saves are the engine's, under storage.root, so runs land
+  # in data/saves/{{slug}}/ by default without the story saying so.
 
 entry:
   # Where a new run starts. Must exist in data/world/locations.yaml -- rename

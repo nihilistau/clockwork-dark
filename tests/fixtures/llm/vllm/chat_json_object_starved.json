@@ -1,0 +1,58 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "In one sentence, say what colour the sky is at dusk."
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 200,
+    "response_format": {
+      "type": "json_object"
+    }
+  },
+  "status": 200,
+  "json": {
+    "id": "chatcmpl-98a3282cc9b16aa4",
+    "object": "chat.completion",
+    "created": 1791255376,
+    "model": "Qwen/Qwen3-1.7B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": null,
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "reasoning": "\nOkay, the user wants a one-sentence answer about the color of the sky at dusk. Let me think. At dusk, the sky usually turns orange or pink. But I should be precise. The exact color can vary, but the general consensus is that it's a warm, reddish hue. I need to make sure the sentence is clear and concise. Maybe start with \"At dusk, the sky turns...\" and then mention the color. Oh, and maybe add that it's a transition from day to night. Let me check if there's a standard phrase. I think \"the sky turns orange\" is common, but \"reddish\" might be more accurate. Wait, sometimes it's described as \"pale pink\" or \"deep red.\" Hmm. The user might want a general answer. So, \"At dusk, the sky turns a warm, reddish hue.\" That should work. Let me make sure it's one sentence and within the limit. Yeah,"
+        },
+        "logprobs": null,
+        "finish_reason": "length",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.31.0-4205c95d",
+    "usage": {
+      "prompt_tokens": 21,
+      "total_tokens": 221,
+      "completion_tokens": 200,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 199
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null,
+    "ec_transfer_params": null,
+    "metrics": null
+  }
+}

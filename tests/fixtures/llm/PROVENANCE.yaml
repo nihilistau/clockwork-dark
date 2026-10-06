@@ -6,8 +6,10 @@
 #                     the page the shape was taken from); server_version is the
 #                     version that documentation describes. Nothing was run.
 #
-# A fixture is `recorded` ONLY if a live server produced it. vLLM's are all
-# `authored` in v0.19.0 (live in v0.20.0, on Linux). llama-server's were
+# A fixture is `recorded` ONLY if a live server produced it. vLLM's were
+# `authored` in v0.19.0 and recorded live in v0.20.0 T19 (vLLM 0.31.0, its
+# Docker image, Qwen/Qwen3-1.7B), all but the three a live vLLM could not
+# give, each with a `note` saying why. llama-server's were
 # recorded live in v0.19.0 T8 by scripts/record_llm_fixtures.py, which writes
 # these rows: the server's own version, the model that answered (`model`), the
 # date, and a `note` when the recipe needed a server flag or a kind of model.
@@ -27,24 +29,129 @@
 files:
   vllm/models.json:
     provider: vllm
-    server_version: "vLLM 0.10"
-    origin: authored
-    source: https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
   vllm/models_error.json:
     provider: vllm
     server_version: "vLLM 0.10"
     origin: authored
     source: https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
+    note: "a 200 carrying an error body on the list: vLLM 0.31.0 never answered /models with a 200 error body, so this is authored; its own errors are nested (error_404.json)"
   vllm/models_error_nested.json:
     provider: vllm
     server_version: "vLLM 0.10"
     origin: authored
     source: https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
+    note: "a 200 carrying an error body on the list: vLLM 0.31.0 never answered /models with a 200 error body, so this is authored; this nested shape is the one it sends (error_404.json)"
   vllm/chat_stream_inline_think.json:
     provider: vllm
     server_version: "vLLM 0.10"
     origin: authored
     source: https://docs.vllm.ai/en/latest/features/reasoning_outputs.html
+    note: "an [IMAGE:] tag inside the thinking, which no live run wrote; the live inline stream is chat_stream_inline_think_live.json"
+  vllm/version.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "every served model"
+    recorded: "2026-10-06"
+  vllm/health.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+    note: "a canned answer: /health's body is empty"
+  vllm/error_404.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+    note: "a model the server does not serve"
+  vllm/chat.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+  vllm/chat_stream_thinking.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+  vllm/chat_json_schema.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+    note: "the constraint_won probe as the engine sends it, the patch on"
+  vllm/chat_reasoning_off.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+    note: "a template that honours enable_thinking"
+  vllm/chat_tool_calls.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+    note: "server started with --enable-auto-tool-choice --tool-call-parser hermes"
+  vllm/error_400.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+  vllm/chat_json_schema_thinking.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+    note: "the probe's grammar with thinking on: it thinks, then answers in the grammar"
+  vllm/chat_json_object.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+    note: "the json_object probe as the engine sends it, the patch on"
+  vllm/chat_json_object_starved.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+    note: "the json_object probe with thinking on, at its 200-token cap"
+  vllm/error_401.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+    note: "server started with --api-key; sent a wrong key"
+  vllm/chat_inline_think_live.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+    note: "server started without --reasoning-parser"
+  vllm/chat_stream_inline_think_live.json:
+    provider: vllm
+    server_version: "vLLM 0.31.0"
+    origin: recorded
+    model: "Qwen/Qwen3-1.7B"
+    recorded: "2026-10-06"
+    note: "server started without --reasoning-parser"
   llamacpp/models.json:
     provider: llamacpp
     server_version: "llama.cpp server b7966-8872ad212"

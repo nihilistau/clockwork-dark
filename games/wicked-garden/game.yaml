@@ -179,9 +179,6 @@ paths:
   # cards per ending class later without an engine change.
   epilogues: "games/wicked-garden/data/epilogues"
 
-  # Saves are namespaced per story by the store; this is the root it uses.
-  saves: "data/saves"
-
 entry:
   # The mortal side of the threshold, not the Gate.
   #

@@ -49,7 +49,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from engine.games.manifest import SLUG_RE  # noqa: E402
+from engine.games.manifest import is_valid_slug  # noqa: E402
 
 TEMPLATES_ROOT = pathlib.Path(__file__).resolve().parent / "story_template"
 
@@ -84,7 +84,7 @@ def scaffold(
     Copy one template into ``<games_root>/<slug>/`` with tokens rewritten.
 
     Args:
-        slug: Directory name and story id. Must satisfy the same ``SLUG_RE``
+        slug: Directory name and story id. Must pass the same ``is_valid_slug``
             the registry enforces, because it becomes a config value, a save
             namespace and a URL segment.
         template: One of ``available_templates()``.
@@ -102,10 +102,11 @@ def scaffold(
             All of them before a single file is written -- a partial scaffold
             is worse than none.
     """
-    if not SLUG_RE.match(slug or ""):
+    if not is_valid_slug(slug or ""):
         raise ValueError(
             f"slug {slug!r} is not usable: lowercase letters, digits and "
-            "hyphens, starting with a letter or digit (2-64 chars)"
+            "hyphens, starting with a letter or digit (2-64 chars), and not "
+            "a Windows device name (con, nul, com1...)"
         )
 
     source = TEMPLATES_ROOT / template
@@ -171,11 +172,14 @@ def main(argv: list[str] | None = None) -> int:
     print()
     print("Next steps:")
     print(f"  1. Read {destination / 'README.md'} -- every file says why it exists.")
-    print("  2. Check it is sound:")
+    print("  2. Check it is sound (Windows, then Linux):")
     print("       .\\.venv\\Scripts\\python.exe scripts\\doctor.py")
     print("       .\\.venv\\Scripts\\python.exe -m pytest tests\\ -q")
+    print("       .venv/bin/python scripts/doctor.py")
+    print("       .venv/bin/python -m pytest tests/ -q")
     print("  3. Play it:")
     print(f"       .\\.venv\\Scripts\\python.exe launcher.py --game {args.slug}")
+    print(f"       .venv/bin/python launcher.py --game {args.slug}")
     print()
     print(
         "The full worked example is games/dev-story/ -- the templates are "

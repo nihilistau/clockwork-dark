@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Audit{% endblock %}
+{% block content %}
+<h1>Audit log</h1>
+<form method="get" action="/admin/audit" class="row">
+  <label for="action">Action</label>
+  <select id="action" name="action">
+    <option value="">every action</option>
+    {% for name in actions %}<option value="{{ name }}"{% if name == action %} selected{% endif %}>{{ name }}</option>{% endfor %}
+  </select>
+  <label for="actor">Actor (an account id, cli or supervisor)</label>
+  <input id="actor" name="actor" value="{{ actor }}" maxlength="64" />
+  <button type="submit">Filter</button>
+</form>
+<table>
+  <thead>
+    <tr><th>When (UTC)</th><th>Actor</th><th>Address</th><th>Action</th><th>Target</th><th>Detail</th><th>Result</th><th>Ref</th></tr>
+  </thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <td>{{ row.when }}</td>
+      <td>{{ row.actor_name }} <code>{{ row.actor }}</code></td>
+      <td>{{ row.address }}</td>
+      <td>{{ row.action }}</td>
+      <td><code>{{ row.target }}</code></td>
+      <td>{% for key, value in row.detail.items() %}{{ key }}: {{ value }}{% if not loop.last %}; {% endif %}{% endfor %}</td>
+      <td>{{ row.result }}</td>
+      <td><code>{{ row.ref }}</code></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="8">No rows{% if action or actor %} match{% endif %}.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if unsearched %}<p class="message" role="status">Older rows not searched: this view reads only the newest part of the log. Read older rows in the files themselves.</p>{% endif %}
+<nav class="pages">
+  {% if number > 1 %}<a href="/admin/audit?page={{ number - 1 }}&amp;action={{ action | urlencode }}&amp;actor={{ actor | urlencode }}">Newer</a>{% endif %}
+  <span>Page {{ number }}</span>
+  {% if more %}<a href="/admin/audit?page={{ number + 1 }}&amp;action={{ action | urlencode }}&amp;actor={{ actor | urlencode }}">Older</a>{% endif %}
+</nav>
+<p class="note">This page reads back at most 5000 rows. The log rotates by size and keeps a set number of older files (<code>&lt;storage.root&gt;/hosting/audit.jsonl.1</code> and on); copy them elsewhere to keep more (docs/HOSTING.md).</p>
+{% endblock %}

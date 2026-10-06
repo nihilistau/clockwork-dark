@@ -29,13 +29,13 @@ features were, and `v1.0.0` is tagged only once the last of them lands:
 | **v0.17.0** | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | Shipped |
 | **v0.18.0** | `simulate.py`'s thief policy, which also re-measures welshing's cost for a burglar shut out of both fences (owner decision in v0.15) | Shipped -- with the agenda collisions measured, and the fences made to pay (owner decision) so burglary pays |
 | **v0.19.0** | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | Shipped -- platform, before v1.0.0's live play: llama-server and Ollama verified live, vLLM left for v0.20.0's Linux |
-| **v0.20.0** | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker | Next -- platform |
+| **v0.20.0** | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker | Shipped -- platform: Linux, hosted mode (the supervisor, front door and admin panel), gunicorn and Docker; vLLM verified live |
 | **v0.21.0** | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | The overhaul and the story's screens share their surfaces, so they are built once |
-| **v0.22.0** | The Clockwork Dark overhaul | The other five stories get HUE & CRY's full treatment, after the UI overhaul so each is built on the new screens |
-| **v0.23.0** | The Wicked Garden overhaul | |
-| **v0.24.0** | NEON CITY overhaul | |
-| **v0.25.0** | THE LONG CON overhaul | |
-| **v0.26.0** | Dev Story overhaul | |
+| **v0.22.0** | A new story: a dating simulation played through a phone of apps (owner's brief, docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | Re-cut by the owner on 2026-09-30 |
+| **v0.23.0** | The Clockwork Dark overhaul | The other stories get HUE & CRY's full treatment, after the UI overhaul so each is built on the new screens |
+| **v0.24.0** | The Wicked Garden overhaul | |
+| **v0.25.0** | NEON CITY overhaul | |
+| **v0.26.0** | THE LONG CON overhaul | |
 | **v1.0.0** | All six stories finished, each with its art and live play -- HUE & CRY's (§6) being its art pack (~55 Grok plates) and live play | Tagged only once this lands |
 
 Re-cut a third time (owner, 2026-09-26, during v0.15.0): two platform
@@ -55,6 +55,11 @@ art -- one story a release: The Clockwork Dark (v0.22.0), The Wicked Garden
 numbers. v1.0.0 now means all six stories finished, with art and live play
 for each, not HUE & CRY alone. The owner does not need to approve each
 overhaul's design: its spec is written, reviewed and built.
+
+Re-cut a fifth time (owner, 2026-09-30, during v0.20.0): v0.22.0 is a new
+story, a dating simulation, and the overhauls move up one, to
+v0.23.0-v0.26.0. Dev Story leaves the overhaul list: it was only ever the
+engine's test bench, not a story.
 
 Every feature is **generic**: a story that does not declare its `paths.*` key
 pays nothing and its turns stay byte-identical, asserted by test the way

@@ -1,0 +1,358 @@
+{
+  "after_request": {},
+  "app_config": {
+    "DEBUG": false,
+    "MAX_CONTENT_LENGTH": null,
+    "MAX_FORM_MEMORY_SIZE": 500000,
+    "MAX_FORM_PARTS": 1000,
+    "PERMANENT_SESSION_LIFETIME": {
+      "timedelta_seconds": 2678400.0
+    },
+    "PREFERRED_URL_SCHEME": "http",
+    "PROPAGATE_EXCEPTIONS": null,
+    "SECRET_KEY is set": false,
+    "SERVER_NAME": null,
+    "SESSION_COOKIE_DOMAIN": null,
+    "SESSION_COOKIE_HTTPONLY": true,
+    "SESSION_COOKIE_NAME": "session",
+    "SESSION_COOKIE_PARTITIONED": false,
+    "SESSION_COOKIE_PATH": null,
+    "SESSION_COOKIE_SAMESITE": null,
+    "SESSION_COOKIE_SECURE": false,
+    "SESSION_REFRESH_EACH_REQUEST": true,
+    "TESTING": false,
+    "TRUSTED_HOSTS": null
+  },
+  "before_request": {},
+  "response_headers": {
+    "/": [
+      [
+        "Content-Type",
+        "text/html; charset=utf-8"
+      ]
+    ],
+    "/api/health": [
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Content-Length",
+        "36"
+      ]
+    ]
+  },
+  "run_kwargs": {
+    "allow_unsafe_werkzeug": true,
+    "debug": false,
+    "host": "0.0.0.0",
+    "port": 5573
+  },
+  "socketio": {
+    "async_mode": "threading",
+    "cors_allowed_origins": "*",
+    "engineio": {
+      "allow_upgrades": true,
+      "async_mode": "threading",
+      "compression_threshold": 1024,
+      "cookie": null,
+      "cors_allowed_origins": "*",
+      "cors_credentials": true,
+      "http_compression": true,
+      "max_http_buffer_size": 1000000,
+      "ping_interval": 25,
+      "ping_interval_grace_period": 0,
+      "ping_timeout": 20,
+      "transports": [
+        "polling",
+        "websocket"
+      ]
+    },
+    "server_options": {
+      "async_mode": "threading",
+      "cors_allowed_origins": "*"
+    }
+  },
+  "socketio_handlers": {
+    "/": [
+      "connect",
+      "join_session",
+      "player_choice",
+      "resume"
+    ]
+  },
+  "url_map": [
+    [
+      "/",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "index"
+    ],
+    [
+      "/api/archetypes",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "archetypes.api_archetypes"
+    ],
+    [
+      "/api/art",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "art.api_art"
+    ],
+    [
+      "/api/audio/<path:name>",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "media.api_audio"
+    ],
+    [
+      "/api/clues",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "default_story.api_clues"
+    ],
+    [
+      "/api/codex/places",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "default_story.api_codex_places"
+    ],
+    [
+      "/api/codex/souls",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "default_story.api_codex_souls"
+    ],
+    [
+      "/api/codex/things",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "default_story.api_codex_things"
+    ],
+    [
+      "/api/game/choice",
+      [
+        "OPTIONS",
+        "POST"
+      ],
+      "api_choice"
+    ],
+    [
+      "/api/game/new",
+      [
+        "OPTIONS",
+        "POST"
+      ],
+      "api_new_game"
+    ],
+    [
+      "/api/game/state",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "api_get_state"
+    ],
+    [
+      "/api/games",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "games.list_games"
+    ],
+    [
+      "/api/games/<slug>",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "games.one_game"
+    ],
+    [
+      "/api/games/active",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "games.active_game"
+    ],
+    [
+      "/api/health",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "health"
+    ],
+    [
+      "/api/items",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "default_story.api_items"
+    ],
+    [
+      "/api/media/<path:name>",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "media.api_media"
+    ],
+    [
+      "/api/metrics",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "metrics.api_metrics"
+    ],
+    [
+      "/api/notices",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "default_story.api_notices"
+    ],
+    [
+      "/api/quests",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "default_story.api_quests"
+    ],
+    [
+      "/api/recipes",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "default_story.api_recipes"
+    ],
+    [
+      "/api/saves",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "saves.api_list_saves"
+    ],
+    [
+      "/api/saves",
+      [
+        "OPTIONS",
+        "POST"
+      ],
+      "saves.api_write_save"
+    ],
+    [
+      "/api/saves/<save_id>",
+      [
+        "DELETE",
+        "OPTIONS"
+      ],
+      "saves.api_delete_save"
+    ],
+    [
+      "/api/saves/<save_id>/load",
+      [
+        "OPTIONS",
+        "POST"
+      ],
+      "saves.api_load_save"
+    ],
+    [
+      "/api/settings",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "settings.api_get_settings"
+    ],
+    [
+      "/api/settings",
+      [
+        "OPTIONS",
+        "POST"
+      ],
+      "settings.api_put_settings"
+    ],
+    [
+      "/api/trade",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "default_story.api_trade"
+    ],
+    [
+      "/api/voice/transcribe",
+      [
+        "OPTIONS",
+        "POST"
+      ],
+      "voice.api_transcribe"
+    ],
+    [
+      "/static/<path:filename>",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "static"
+    ],
+    [
+      "/story-art/<path:name>",
+      [
+        "GET",
+        "HEAD",
+        "OPTIONS"
+      ],
+      "art.story_art"
+    ]
+  ]
+}

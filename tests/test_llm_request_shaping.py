@@ -43,7 +43,7 @@ FIXTURES = REPO / "tests" / "fixtures" / "llm"
 
 #: Each compat row's discovery answers (in request order) and its model id.
 SERVERS: dict[str, tuple[list[str], str]] = {
-    "vllm": (["vllm/models.json"], "Qwen/Qwen3-8B"),
+    "vllm": (["vllm/models.json"], "Qwen/Qwen3-1.7B"),
     "llamacpp": (
         ["llamacpp/models.json", "llamacpp/models_props.json"],
         "Qwen3-4B-Thinking-2507-Q4_K_M.gguf",
@@ -399,7 +399,7 @@ def test_a_starved_request_without_the_patch_retries_with_it_and_keeps_the_gramm
 
 def test_a_trusted_retry_spends_the_whole_cap_on_the_answer(llm_server: Any) -> None:
     configure(
-        llm_server, "vllm", declared_models={"Qwen/Qwen3-8B": {"reasoning": ["off", "on"]}}
+        llm_server, "vllm", declared_models={"Qwen/Qwen3-1.7B": {"reasoning": ["off", "on"]}}
     )
     answers = discovery("vllm") + [chat_answer("", **STARVED), chat_answer("Autumn.")]
     with wire(answers, exhaust=True) as seam:
@@ -442,7 +442,7 @@ def test_a_starved_request_that_carried_a_trusted_patch_advises_the_untrusted_ma
 ) -> None:
     """A declared (trusted) patch that did not take: the cap dropped the budget, so the mark helps."""
     configure(
-        llm_server, "vllm", declared_models={"Qwen/Qwen3-8B": {"reasoning": ["off", "on"]}}
+        llm_server, "vllm", declared_models={"Qwen/Qwen3-1.7B": {"reasoning": ["off", "on"]}}
     )
     with caplog.at_level(logging.ERROR), wire(
         discovery("vllm") + [chat_answer("", **STARVED)], exhaust=True

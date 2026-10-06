@@ -204,10 +204,11 @@ def load_death_rules() -> dict[str, Any]:
         # Once per path: this runs after every encounter round, and a story
         # that ships no death.yaml would otherwise log it on every one.
         global _WARNED_DEATH
-        if _WARNED_DEATH is None:
-            _WARNED_DEATH = set()
-        if str(path) not in _WARNED_DEATH:
-            _WARNED_DEATH.add(str(path))
+        warned = _WARNED_DEATH  # read once: a reset nulls it without a lock
+        if warned is None:
+            warned = _WARNED_DEATH = set()
+        if str(path) not in warned:
+            warned.add(str(path))
             logger.warning(
                 "[encounter] Death rules missing (operation=load_death_rules, path=%s)", path
             )

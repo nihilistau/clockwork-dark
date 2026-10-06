@@ -34,7 +34,8 @@ every item -- and nothing else: no flagship ids, no evil-phase doubling.
 nothing. ``--missing`` (the default) skips a plate the story's manifest already
 resolves -- the same test the serving chain uses (``shipped.lookup``), and the
 same one ``scripts/art_missing.py`` briefs from, through ``plan_plates``.
-Generation lands in the disposable cache (``data/media/images``); ``--promote``
+Generation lands in the disposable cache (``<storage.root>/media/images``,
+``data/media/images`` by default); ``--promote``
 then copies each cached plate under the story's ``paths.art_root`` (JPEG, at
 the story's declared ``formats:`` size) and writes it into ``paths.art_manifest``
 in the shape ``lookup`` reads: ``locations.<id>.times.<daypart>``,
@@ -797,7 +798,9 @@ def main(argv: list[str] | None = None) -> int:
           f"{len(gaps)} missing")
     if args.dry_run:
         # The flagship's generation target is the cache; --promote moves items on.
-        from engine.media.providers.base import IMAGE_DIR as cache  # noqa: PLC0415
+        from engine.persistence.storage import image_dir  # noqa: PLC0415
+
+        cache = image_dir()
 
         for request in gaps:
             print(f"  plan: {request.kind:9} {request.subject_id:22} {request.time_of_day:5} "

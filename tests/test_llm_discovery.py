@@ -126,9 +126,9 @@ def test_vllm_reads_max_model_len_as_the_served_context(server: Any) -> None:
     assert [r["url"] for r in seam.requests] == ["http://localhost:8000/v1/models"]
     assert seam.requests[0]["headers"]["authorization"] == "Bearer discovery-test-key"
     (model,) = models
-    assert model.id == "Qwen/Qwen3-8B"
+    assert model.id == "Qwen/Qwen3-1.7B"
     assert model.source == "openai_models"
-    assert model.usable_context == 32768
+    assert model.usable_context == 16384
     assert model.is_loaded and model.is_chat_model
     # Nothing in /v1/models says what it can do, and nothing guesses.
     assert not model.supports_tools
@@ -338,10 +338,10 @@ def test_a_declaration_fills_what_the_server_left_empty(server: Any) -> None:
 
 
 def test_a_served_context_beats_a_declared_one(server: Any) -> None:
-    server("vllm", declared_models={"Qwen/Qwen3-8B": {"context": 4096, "tools": True}})
+    server("vllm", declared_models={"Qwen/Qwen3-1.7B": {"context": 4096, "tools": True}})
     with wire([_ok(_fixture("vllm/models.json"))], exhaust=True):
         (model,) = ModelRegistry().refresh()
-    assert model.usable_context == 32768  # max_model_len, not the declaration
+    assert model.usable_context == 16384  # max_model_len, not the declaration
     assert model.supports_tools  # the list said nothing about tools, so this fills
 
 
@@ -369,10 +369,10 @@ def test_a_declared_id_the_server_does_not_list_is_warned_and_never_bound(
     registry = ModelRegistry()
     with caplog.at_level(logging.WARNING), wire([_ok(_fixture("vllm/models.json"))], exhaust=True):
         models = registry.refresh()
-    assert [m.id for m in models] == ["Qwen/Qwen3-8B"]
+    assert [m.id for m in models] == ["Qwen/Qwen3-1.7B"]
     assert "ghost/model" in caplog.text and "not on the server" in caplog.text
     binding = registry.bind("big", prefer=("ghost/model",))
-    assert binding.model.id == "Qwen/Qwen3-8B"
+    assert binding.model.id == "Qwen/Qwen3-1.7B"
     with pytest.raises(ModelUnavailable):
         registry.bind("big", prefer=("ghost/model",), require_tools=True)
 
@@ -616,8 +616,8 @@ def test_a_bound_vllm_profile_budgets_on_the_served_context(server: Any) -> None
     with wire([_ok(_fixture("vllm/models.json"))]):
         profile = resolve_profile("big", refresh=True)
     assert profile.bound is True
-    assert profile.model == "Qwen/Qwen3-8B"
-    assert profile.context_tokens == 32768
+    assert profile.model == "Qwen/Qwen3-1.7B"
+    assert profile.context_tokens == 16384
     assert profile.is_reasoning_model is False
 
 
@@ -632,7 +632,7 @@ def test_probe_models_asks_the_providers_own_list(server: Any) -> None:
     assert seam.requests[0]["url"] == "http://localhost:8000/v1/models"
     # The URL that answered, not the relative "/models": the list hangs off a
     # configurable base, so a doctor row has to say which one (T3 re-review N4).
-    assert detail == "http://localhost:8000/v1/models answers: 1 models, loaded: Qwen/Qwen3-8B"
+    assert detail == "http://localhost:8000/v1/models answers: 1 models, loaded: Qwen/Qwen3-1.7B"
 
 
 def test_probe_models_refuses_lm_studios_body_on_ollama(server: Any) -> None:

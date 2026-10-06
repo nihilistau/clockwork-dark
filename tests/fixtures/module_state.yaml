@@ -1,0 +1,369 @@
+# The engine's process-wide state, every site classified (v0.20.0, spec §5.2).
+#
+# tests/test_module_state_inventory.py re-runs the scan in
+# tests/module_state_scan.py over engine/ and asserts its site ids EQUAL the
+# keys below, so a new module global, @lru_cache function or
+# threading.Thread( site fails the suite until someone classifies it here --
+# which is the moment to ask whether it races when many sessions share one
+# process on threads. The scan is the source; spec §5.2's table is its summary.
+#
+# Site ids: `module.NAME` (a module-level name, a class instance included),
+# `module.Class.ATTR` (a container in a class body), `module.func()` (an
+# lru_cache function), `module.qualname#Thread` (a Thread( call site; also
+# #Timer, #ThreadPoolExecutor, #ProcessPoolExecutor) and
+# `module.Class#ThreadSubclass`.
+#
+# Every lock object here is also in engine/locks.py's LOCK ORDER and
+# registered with renew_after_fork (tests/test_thread_safety.py checks both).
+#
+# Verdicts:
+#   per_context        per thread (threading.local) or per context (ContextVar),
+#                      set and cleared inside one call
+#   locked             built or changed only under a lock (a lock object itself
+#                      is `locked` too); a lazy getter is double-checked, so a
+#                      built one costs a read and no lock
+#   warmed             built once by `loader` (an engine.games.caches.WARMERS
+#                      entry, or a list of them) before hosted mode serves,
+#                      then only read;
+#                      `reset` names its RELOADERS entry when it is not a
+#                      NULLED_ATTRIBUTES / LRU_CACHES row, or `never`
+#   log_once           a warn-once memory or diagnostic count: a race costs a
+#                      duplicate log line or one lost increment
+#   registration       filled while modules import (serialised per module),
+#                      read after
+#   constant           never written after the module runs
+#   shared_by_design   one per process is the point
+#   not_served_hosted  reached only by what hosted mode refuses or never mounts
+#
+# `loader` may also name what builds a `locked` object that the registry
+# resets (get_rules_engine): every WARMERS entry is some row's loader.
+
+sites:
+  # -- engine.agents ------------------------------------------------------
+  engine.agents.assistant.FORM_VOICE_STYLES: {verdict: constant}
+  engine.agents.assistant._INTENT_BRIEFS: {verdict: constant}
+  engine.agents.governance._DEFAULT_CHAINS: {verdict: constant}
+  engine.agents.governance._GOVERNANCE: {verdict: warmed, loader: engine.agents.governance.get_governance, reset: engine.agents.governance.reset_governance}
+  engine.agents.governance._REGISTRY: {verdict: registration}
+  engine.agents.governance.EvilPhaseTone._TONE: {verdict: constant, note: "a class-level literal table, only read"}
+  engine.agents.pipeline._gather#ThreadPoolExecutor: {verdict: per_context, note: "per turn by design and bounded: one pool per turn, max_workers = the story's pipeline agents, joined (the with block) before _gather returns; its workers get no copy of the caller's ContextVars but one: the turn's held lane (engine.llm.gate.carrying_held_lane, v0.20.0 T9), set and reset around each plan"}
+  engine.agents.json_stream._ESCAPES: {verdict: constant}
+  engine.agents.mechanics._ENGINES: {verdict: not_served_hosted, note: "MCP mechanics, refused in hosted mode; locked already (_ENGINES_LOCK)"}
+  engine.agents.mechanics._ENGINES_LOCK: {verdict: locked}
+  engine.agents.mechanics._mcp_refusal_logged: {verdict: log_once}
+  engine.agents.prompts._DAY_WORDS: {verdict: constant}
+  engine.agents.prompts._DEGREE_WORDS: {verdict: constant}
+  engine.agents.prompts._HOURS_WORDS: {verdict: constant}
+  engine.agents.prompts._JOB_CLOSE_LINES: {verdict: constant}
+  engine.agents.prompts._JOB_HELD_WORDS: {verdict: constant}
+  engine.agents.prompts._JOB_STAGE_WORDS: {verdict: constant}
+  engine.agents.prompts._JOB_THROUGH_WORDS: {verdict: constant}
+  engine.agents.prompts._SUMMARISERS: {verdict: registration}
+  engine.agents.prompts._WARNED_SLUGS: {verdict: log_once}
+  engine.agents.prompts._read_prompt(): {verdict: warmed, loader: [engine.agents.prompts.storyteller_persona, engine.agents.prompts.storyteller_examples, engine.agents.prompts.assistant_persona]}
+  engine.agents.storyteller._PARSE_DEFAULTS: {verdict: constant}
+
+  # -- engine.api ---------------------------------------------------------
+  engine.api.settings.SETTINGS_BY_KEY: {verdict: constant}
+
+  # -- engine.challenges --------------------------------------------------
+  engine.challenges.runner._PRESENTERS: {verdict: registration}
+  engine.challenges.set_pieces._CACHE: {verdict: warmed, loader: engine.challenges.set_pieces.load_set_pieces, reset: engine.challenges.set_pieces.reset_set_piece_cache}
+  engine.challenges.spec.EFFECT_CEILINGS: {verdict: constant}
+  engine.challenges.spec._read_bounds(): {verdict: warmed, loader: engine.challenges.spec.load_bounds}
+
+  # -- engine.config ------------------------------------------------------
+  engine.config._LEGACY_LLM_KEYS: {verdict: constant}
+  engine.config._SANDBOX_WARNED: {verdict: log_once}
+  engine.config._config_lock: {verdict: locked}
+  engine.config._external_layers: {verdict: locked, note: "rebuilt with the instance, under _config_lock"}
+  engine.config._admin_layer: {verdict: locked, note: "v0.20.0 T14: the admin layer's (path, keys), rebuilt with the instance under _config_lock (one reference swap); read by admin_layer() after get_config"}
+  engine.config._instance: {verdict: locked, note: "double-checked build under _config_lock; dropped under it by reset_config"}
+  engine.config._instance_pid: {verdict: locked}
+  engine.config._legacy_layers: {verdict: locked, note: "rebuilt with the instance, under _config_lock"}
+  engine.config._overlay: {verdict: shared_by_design, note: "the active story's paths; one story per process; swapped under _config_lock"}
+  engine.config._story_paths_by_slug: {verdict: locked, note: "a miss filled under _config_lock; never cleared"}
+
+  # -- engine.content -----------------------------------------------------
+  engine.content.deck._read_deck(): {verdict: warmed, loader: engine.games.caches._warm_decks}
+  engine.content.director._WARNED_FORCED: {verdict: log_once}
+
+  # -- engine.game --------------------------------------------------------
+  engine.game._LAZY: {verdict: registration}
+  engine.game.checks._read_yaml(): {verdict: warmed, loader: [engine.game.checks.load_skill_rules, engine.game.checks.load_archetypes]}
+  engine.game.clock._guard: {verdict: per_context}
+  engine.game.dice._UNSEEDED: {verdict: shared_by_design, note: "a random.Random for a caller with no world stream (not replayable by definition); its methods are atomic under the GIL"}
+  engine.game.clocks._read_table(): {verdict: warmed, loader: engine.game.clocks.load_clocks}
+  engine.game.economy._read_rules(): {verdict: warmed, loader: engine.game.economy.load_rules}
+  engine.game.effects._KINDS: {verdict: registration}
+  engine.game.encounter._WARNED_DEATH: {verdict: log_once}
+  engine.game.encounter._death_guard: {verdict: per_context}
+  engine.game.encounter._read_death(): {verdict: warmed, loader: engine.game.encounter.load_death_rules}
+  engine.game.encounter._read_dir(): {verdict: warmed, loader: engine.game.encounter.load_encounters}
+  engine.game.encounter._terminal_lock_guard: {verdict: per_context}
+  engine.game.endings._CLOSENESS: {verdict: constant, note: "a frozen ValueSpec"}
+  engine.game.endings._read_table(): {verdict: warmed, loader: engine.game.endings.load_rules}
+  engine.game.engine._active_engine: {verdict: per_context}
+  engine.game.epilogue.DEFAULT_ORDER: {verdict: constant}
+  engine.game.epilogue._read(): {verdict: warmed, loader: [engine.game.epilogue.load_index, engine.game.epilogue.load_cards]}
+  engine.game.evil_ticker.PHASE_THRESHOLDS: {verdict: constant}
+  engine.game.evil_ticker._DOOM_DECLARED: {verdict: warmed, loader: engine.game.evil_ticker.doom_enabled}
+  engine.game.foraging._read_rules(): {verdict: warmed, loader: engine.game.foraging.load_rules}
+  engine.game.intents.REFUSAL_KEY_FOR_ACTION: {verdict: constant}
+  engine.game.intents.SKILL_FOR_ACTION: {verdict: constant}
+  engine.game.inventory._evaluating_collections: {verdict: per_context, note: "a module bool until v0.20.0: one player's payout skipped another's"}
+  engine.game.inventory._read_collections(): {verdict: warmed, loader: engine.game.inventory.load_collections}
+  engine.game.inventory._read_items(): {verdict: warmed, loader: engine.game.inventory.load_items}
+  engine.game.inventory._read_quest_locks(): {verdict: warmed, loader: engine.game.inventory.quest_locks}
+  engine.game.inventory._read_recipe_refs(): {verdict: warmed, loader: engine.game.inventory.recipe_refs}
+  engine.game.locations.CANONICAL_LOCATION_IDS: {verdict: warmed, loader: engine.games.caches._warm_story_tables, reset: engine.game.locations.reload_locations}
+  engine.game.locations.CANON_IDS: {verdict: warmed, loader: engine.games.caches._warm_story_tables, reset: engine.game.locations.reload_locations}
+  engine.game.locations.LOCATION_IDS: {verdict: warmed, loader: engine.games.caches._warm_story_tables, reset: engine.game.locations.reload_locations}
+  engine.game.locations._EDGE_DEFAULTS: {verdict: constant}
+  engine.game.procgen._TEMPLATE_CACHE: {verdict: warmed, loader: engine.game.procgen.load_templates}
+  engine.game.quests.CONTEXT_FREE_FORBIDS: {verdict: constant}
+  engine.game.quests.PHASE_ORDER: {verdict: constant}
+  engine.game.quests._ARC_CACHE: {verdict: warmed, loader: engine.game.quests.load_arcs}
+  engine.game.quests._PREDICATES: {verdict: registration, note: "filled by the grammar imports, under _grammar_lock"}
+  engine.game.quests._QUEST_CACHE: {verdict: warmed, loader: engine.game.quests.load_quests}
+  engine.game.quests._grammar_loaded: {verdict: locked, loader: engine.game.quests._ensure_grammar, note: "set after the import loop, under _grammar_lock; warmed first"}
+  engine.game.quests._grammar_loading: {verdict: locked}
+  engine.game.quests._grammar_lock: {verdict: locked}
+  engine.game.reputation._FACTION_CACHE: {verdict: warmed, loader: engine.game.reputation.load_factions}
+  engine.game.survival._read_rules(): {verdict: warmed, loader: engine.game.survival.load_rules}
+  engine.game.threads._read_table(): {verdict: warmed, loader: engine.game.threads.load_rules}
+  engine.game.trade.DEFAULT_FENCE_CUT: {verdict: constant}
+  engine.game.trade._read_economy(): {verdict: warmed, loader: engine.game.trade.load_economy}
+  engine.game.trade._read_rules(): {verdict: warmed, loader: engine.game.trade.load_rules}
+
+  # -- engine.games -------------------------------------------------------
+  engine.games.caches._warm_lock: {verdict: locked, note: "first in the lock order (engine/locks.py)"}
+  engine.games.manifest.RETIRED_PATH_KEYS: {verdict: constant}
+  engine.games.manifest.SETTING_ALLOWLIST: {verdict: constant}
+  engine.games.manifest._KNOWN_KEYS: {verdict: constant}
+  engine.games.registry._active: {verdict: locked, note: "set under _lock (an RLock); one story per process"}
+  engine.games.registry._lock: {verdict: locked}
+  engine.games.validation._RUN_DOCS: {verdict: per_context, note: "a ContextVar since v0.20.0; the doctor, validate_content.py and the studio only"}
+
+  # -- engine.hosting (v0.20.0 T7; imported only in hosted mode) ----------
+  engine.hosting.auth._PAGES: {verdict: shared_by_design, note: "the login pages' own Jinja Environment, built at import; Jinja's template cache is thread-safe"}
+  engine.hosting.config.SCHEMA: {verdict: constant}
+  engine.hosting.gate.CROSS_SITE: {verdict: constant, note: "a response body, never mutated (jsonify copies it)"}
+  engine.hosting.gate.LOGIN_REQUIRED: {verdict: constant, note: "a response body, never mutated (jsonify copies it)"}
+  engine.hosting.gate.OPEN: {verdict: constant}
+  engine.hosting.gate._FORWARDED_WARNED: {verdict: log_once, note: "the X-Forwarded-For WARNING, once per process; a race logs it twice"}
+  engine.hosting.sockets.LOGIN_REQUIRED: {verdict: constant, note: "an emitted payload, never mutated (the guard emits a copy)"}
+  # The bus and the supervisor (v0.20.0 T10, spec §14.2-§14.3).
+  engine.hosting.bus.OPS: {verdict: constant, note: "the closed op table, built at import, only read"}
+  engine.hosting.bus._ACTOR: {verdict: constant, note: "a frozen Arg row of OPS"}
+  engine.hosting.bus._SLUG: {verdict: constant, note: "a frozen Arg row of OPS"}
+  engine.hosting.bus._ACTOR_NAME: {verdict: constant, note: "v0.20.0 T15: a frozen Arg row of OPS (the story ops' acting admin)"}
+  engine.hosting.bus._ADDRESS: {verdict: constant, note: "v0.20.0 T15: a frozen Arg row of OPS"}
+  engine.hosting.bus._REF: {verdict: constant, note: "v0.20.0 T15: a frozen Arg row of OPS (the started audit row's ref)"}
+  engine.hosting.bus._SESSION_ID: {verdict: constant, note: "v0.20.0 T15: a frozen Arg row of OPS"}
+  engine.hosting.bus._ACCOUNT: {verdict: constant, note: "v0.20.0 T15: a frozen Arg row of OPS"}
+  engine.hosting.bus._PAGE: {verdict: constant, note: "v0.20.0 T15: the sessions ops' argument schema (limit, offset), a dict of frozen Arg rows built at import and only read"}
+  engine.hosting.bus._STORY_OP: {verdict: constant, note: "v0.20.0 T15: the story ops' argument schema, a dict of frozen Arg rows built at import and only read"}
+  engine.hosting.supervisor.server.Supervisor.__init__#ThreadPoolExecutor3: {verdict: shared_by_design, note: "v0.20.0 T15, the supervisor process only: the fan-out pool (4) answering the panel's deferred sessions.list/end/end_owner off the selector thread; each request asks every serving worker at once (BusServer.request_all, one FANOUT_SECONDS deadline for all; T15 fix round 1) holding no lock (the serving list read under Supervisor._lock, released before any request); shut down by Supervisor.close"}
+  engine.hosting.bus.BusServer.start#Thread: {verdict: shared_by_design, note: "the supervisor's ONE selector thread: reads every child's connection, answers hello and the quick ops itself and never blocks (non-blocking sockets); its state is under BusServer._lock, a leaf; joined by close()"}
+  engine.hosting.bus.BusClient.connect#Thread: {verdict: shared_by_design, note: "a child's one bus reader: replies resolve their waiters, requests go to the pool; its end (the link closed) is the lifeline, one ERROR and an exit. It also runs a request's on_late with a reply its caller gave up on (v0.20.0 T11): RemoteLanes._late sends lane.release without waiting and counts it in RemoteLanes.abandoned_grants, an int written only on this thread"}
+  engine.hosting.supervisor.queue.LaneQueue.start#Thread: {verdict: shared_by_design, note: "the supervisor process only (v0.20.0 T11): the queue's ONE deadline thread -- answers waiters busy at their deadline and reclaims a ticket held past max_hold_seconds (T11 fix round 1), then calls on_reclaim, which takes Supervisor._lock and hands the acknowledgement request to the health pool, with the queue's lock released; waits on the queue's condition, a leaf, woken by every change; joined by LaneQueue.close"}
+  engine.hosting.bus.BusClient.connect#ThreadPoolExecutor: {verdict: shared_by_design, note: "a child's four-thread pool for the supervisor's requests (health, drain, shutdown); a handler reads the session store under its own leaf lock"}
+  engine.hosting.supervisor.logs.LogHub.capture#Thread: {verdict: shared_by_design, note: "the supervisor process only: one per child start, reads that child's merged output into its own RotatingLog (a leaf) and the echo (echo_lock, a leaf); ends at the child's EOF and is joined after its stop"}
+  engine.hosting.supervisor.ops.Operations.__init__#Thread: {verdict: shared_by_design, note: "the supervisor's ONE operations thread: runs start, stop and restart one at a time; the table under Operations._lock, a leaf"}
+  engine.hosting.supervisor.server.Supervisor.__init__#ThreadPoolExecutor: {verdict: shared_by_design, note: "the supervisor's health pool (8): one check per child at a time (Child.checking), results applied under Supervisor._lock"}
+  engine.hosting._bus_client: {verdict: shared_by_design, note: "the bus client the boot runner made from the environment at its first step (take_bus_environment, T10 fix round 1); set once on the main thread before anything serves, taken (set back to None) by connect_bus inside install"}
+  engine.hosting.bus.BusClient.connect#ThreadPoolExecutor2: {verdict: shared_by_design, note: "a child's one-thread pool for the supervisor's health requests alone (T10 fix round 1), so a request pool busy with drains cannot fail a bus health check"}
+  engine.hosting.supervisor.logs.LogHub.__init__#Thread: {verdict: shared_by_design, note: "the supervisor process only: the one echo thread, draining a bounded queue to stdout; a full queue drops (and counts) lines instead of blocking any caller (T10 fix round 1)"}
+  engine.hosting.supervisor.server.Supervisor.__init__#ThreadPoolExecutor2: {verdict: shared_by_design, note: "the supervisor's reaper pool (4): stops what is left of a crashed child and applies the restart policy under Supervisor._lock, so the main thread never waits on a dying process (T10 fix round 1)"}
+  engine.hosting.supervisor.process.DEFAULT_WSGI: {verdict: constant, note: "v0.20.0 T13: the WSGI module each role serves under gunicorn, only read"}
+  engine.hosting.supervisor.server.Supervisor.shutdown#ThreadPoolExecutor: {verdict: per_context, note: "one shutdown's pool, one thread per running child, bounded by shutdown_seconds and shut down before shutdown returns"}
+  # -- metrics and errors (v0.20.0 T17, spec §14.10) --------------------------
+  engine.hosting.metrics_schema.KINDS: {verdict: constant, note: "the closed metrics schema, pinned by tests/test_metrics_schema.py; only read"}
+  engine.hosting.metrics_schema._TS: {verdict: constant, note: "a frozen Field row of KINDS"}
+  engine.hosting.metrics_schema._MS: {verdict: constant, note: "a frozen Field row of KINDS"}
+  engine.hosting.metrics_schema._STORY: {verdict: constant, note: "a frozen Field row of KINDS"}
+  engine.hosting.metrics_schema._ACCOUNT_OR_NONE: {verdict: constant, note: "a frozen Field row of KINDS"}
+  engine.hosting.supervisor.queue._OUTCOME_OF: {verdict: constant, note: "a refusal's lane metric outcome, only read"}
+  engine.hosting.supervisor.metrics.REFUSALS: {verdict: constant, note: "T17 fix round 1: the refusals counted per minute, kind -> outcomes; only read"}
+  engine.hosting.metrics_emit._queue: {verdict: shared_by_design, note: "a supervised child's ONE bounded metric queue (a queue.Queue, thread-safe; its internal lock is the library's, never held across anything of ours): made by enable() on the main thread at boot.prepare_child, before any request; None in every other process (emit is then a no-op); emit put_nowaits and drops when full, never blocking a turn"}
+  engine.hosting.metrics_emit._sender: {verdict: shared_by_design, note: "the child's one metric sender thread, set by attach() once, on the boot thread, after the bus connects; None until then"}
+  engine.hosting.metrics_emit.attach#Thread: {verdict: shared_by_design, note: "a supervised child's ONE metric sender: takes events off the bounded queue and sends each as a `metric` notification (BusClient.notify, its leaf lock for one sendall); a failed send is counted in dropped; daemon, ends on a None or with the process"}
+  engine.hosting.metrics_emit.dropped: {verdict: log_once, note: "a diagnostic count of metrics dropped (a full queue, a failed send), incremented without a lock: a race loses one count"}
+  engine.hosting.metrics_emit._handler: {verdict: shared_by_design, note: "the ERROR handler's install flag (the handler attach() put on the root logger, once, on the boot thread); logging's own handler lock serialises its emit"}
+  engine.hosting.supervisor.metrics.MetricsStore.open#Thread: {verdict: shared_by_design, note: "the supervisor process only: the metrics store's ONE writer thread, draining a bounded queue.Queue into SQLite in batches and pruning hourly; the connection under MetricsStore._db_lock and the counters under _counts_lock, both leaves; record() never waits on either across I/O (validate, then put_nowait); joined by MetricsStore.close"}
+  engine.scenes.default_scene.turn_metric: {verdict: shared_by_design, note: "v0.20.0 T17: the hosted turn-metric HOOK, None by default (local mode never sets it, and this module never imports engine.hosting); engine.hosting.install sets it once, under the supervisor, before anything is served; run_guarded reads it once per turn into a local"}
+  # The front door (v0.20.0 T12, spec §14.5). Its live state is NOT
+  # module-level, so the scan has no site for it: the FrontDoor on the app
+  # (app.extensions["hosting_frontdoor"]) holds the pooled httpx.Client
+  # (Proxy.client: httpx's pool is thread-safe; one per front door process,
+  # closed with it) and the story table (StoryTable: replaced whole under its
+  # own lock, a leaf, by stories.changed on the bus pool, and read under it by
+  # every request thread; a copy is handed out, never the dict). The rows
+  # below are its module-level constants.
+  engine.hosting.frontdoor.gate.OPEN: {verdict: constant}
+  engine.hosting.frontdoor.gate.PASSWORD_CHANGE_REQUIRED: {verdict: constant, note: "v0.20.0 T14: a response body, never mutated (jsonify and json.dumps copy it)"}
+  # -- engine.hosting.admin and the audit log (v0.20.0 T14; the front door only) --
+  # The panel's per-process state (the admin actions bucket, the re-auth
+  # interval) lives on the front door's app (app.extensions["hosting_admin"],
+  # an AdminState); its bucket's lock is a leaf (engine/locks.py). The audit
+  # log's lock is an operating-system lock on audit.jsonl.lock, taken per
+  # append through its own handle: no module state.
+  engine.hosting.admin.guard.FORBIDDEN: {verdict: constant, note: "the one fixed refusal body, never mutated (jsonify copies it)"}
+  engine.hosting.admin.guard.FORM_REFUSED: {verdict: constant, note: "a response body, never mutated (jsonify copies it)"}
+  engine.hosting.admin.guard.REAUTH_REQUIRED: {verdict: constant, note: "a response body, never mutated (jsonify copies it)"}
+  engine.hosting.admin.guard.HEADERS: {verdict: constant, note: "the five response headers, only read"}
+  engine.hosting.admin.pages._PAGES: {verdict: shared_by_design, note: "the admin pages' own Jinja Environment, built at import; Jinja's template cache is thread-safe"}
+  engine.hosting.audit.CLI_ACTOR: {verdict: constant, note: "a frozen dataclass, the command line's actor"}
+  engine.hosting.supervisor.process.AuditWriter.submit#Thread: {verdict: shared_by_design, note: "T14 fix round 1 (M6), the supervisor process only: ONE audit writer thread per Supervisor, started by the first submission, draining a bounded queue.Queue of row writes so a bus handler never waits on the audit lock; its start under AuditWriter._lock, a leaf; joined by Supervisor.close"}
+  engine.hosting.audit.SUPERVISOR_ACTOR: {verdict: constant, note: "a frozen dataclass, the supervisor's actor"}
+  engine.hosting.frontdoor.proxy.METHODS: {verdict: constant, note: "the catch-all's methods, passed to add_url_rule once"}
+  engine.hosting.frontdoor.proxy.NO_STORY: {verdict: constant, note: "a response body, never mutated (jsonify copies it)"}
+  engine.hosting.frontdoor.proxy.TIMED_OUT: {verdict: constant, note: "a response body, never mutated (jsonify copies it)"}
+  engine.hosting.frontdoor.proxy.UNAVAILABLE: {verdict: constant, note: "a response body, never mutated (jsonify copies it)"}
+  engine.hosting.frontdoor.stories.UNAVAILABLE_TEXT: {verdict: constant}
+  engine.hosting.frontdoor.stories._PAGES: {verdict: shared_by_design, note: "the front door pages' own Jinja Environment, built at import; Jinja's template cache is thread-safe"}
+  # The WebSocket relay (v0.20.0 T13). Its live state is on the FrontDoor
+  # too (FrontDoor.relay: an active count under its own leaf lock;
+  # FrontDoor.holds: limits.LongHolds, a leaf), nothing module-level but these.
+  engine.hosting.frontdoor.ws_relay.BAD_UPGRADE: {verdict: constant, note: "a response body, never mutated (json.dumps reads it)"}
+  engine.hosting.frontdoor.ws_relay.WORKER_REFUSED: {verdict: constant, note: "a response body, never mutated (json.dumps reads it)"}
+  engine.hosting.frontdoor.ws_relay.WebSocketRelay._relay#Thread: {verdict: per_context, note: "one per relayed WebSocket: carries the worker's messages to the client while the handler thread carries the client's to the worker; shares only that connection's two simple-websocket ends and a done Event; whichever side ends first closes the other, and the handler joins it (RELAY_JOIN_SECONDS) before the WSGI call ends. Daemon, so a stuck one never holds a process open; simple-websocket's own reader threads (one per end) are the library's"}
+  engine.hosting.limits._ReadWatchdog.__init__#Timer: {verdict: per_context, note: "v0.20.0 T13: one daemon Timer per HTTP turn's body read, only where the server's input has no read1 (gunicorn); at hosting.body_read_seconds it shuts THAT request's socket's read side (the write side stays open for the 408); cancelled and joined when the body is in"}
+
+  # -- engine.llm ---------------------------------------------------------
+  engine.llm.backend.CONSTRAINT_PROBE_SCHEMA: {verdict: constant}
+  engine.llm.backend._MODE_RUNGS: {verdict: constant}
+  engine.llm.backend._backend: {verdict: locked}
+  engine.llm.backend._backend_lock: {verdict: locked}
+  engine.llm.client._client_instance: {verdict: locked}
+  engine.llm.client._client_lock: {verdict: locked}
+  engine.llm.client._inline_think_seen: {verdict: log_once, note: "a diagnostic count only the doctor reads"}
+  engine.llm.client._patch_ignored_warned: {verdict: log_once}
+  engine.llm.client.cut_at_deadline.__enter__#Timer: {verdict: per_context, note: "v0.20.0 T12: one daemon Timer per streamed model call inside an admitted hosted turn (never in local mode, where time_left() is None); at the turn's deadline it shuts (on Windows also closes) the socket that call's stream STARTED on, taken at __enter__. Fix round 1 (M1): the cut runs under the instance's own leaf lock and only while `done` is unset, and __exit__ sets `done` under that lock before the stream returns its connection to httpx's shared pool, so a cut can never reach a pooled connection another call has taken"}
+  engine.llm.discovery.LIST_NAMES: {verdict: constant}
+  engine.llm.discovery.LIST_PATHS: {verdict: constant}
+  engine.llm.gate._DEFAULT_LANES: {verdict: constant}
+  engine.llm.gate._held_lane: {verdict: per_context, note: "the lane an admitted turn holds (spec §5.3): set by admit_turn and reset by its release, in the turn's own context; carried into a pipeline worker only by carrying_held_lane, which resets it"}
+  engine.llm.gate._backend: {verdict: shared_by_design, note: "the lane backend (v0.20.0 T11): None, or a supervised worker's RemoteLanes, set ONCE by install() before anything is served and only read after (each acquisition reads it once); one per process is the point -- every lane ticket the worker takes is the supervisor's. Tests reset it (reset_lane_backend; conftest fails a test that leaks one). Replaces T10's _admissions_paused Event (the drain's pause is the supervisor queue's now)"}
+  engine.llm.gate._lanes: {verdict: locked}
+  engine.llm.gate._lanes_lock: {verdict: locked}
+  engine.llm.gate._limits: {verdict: locked}
+  engine.llm.lmstudio_native._ROLE_LABELS: {verdict: constant}
+  engine.llm.ollama._client_instance: {verdict: locked}
+  engine.llm.ollama._client_lock: {verdict: locked}
+  engine.llm.profiles._PROFILE_DEFAULTS: {verdict: constant}
+  engine.llm.profiles._cache: {verdict: locked}
+  engine.llm.profiles._cache_config: {verdict: locked}
+  engine.llm.profiles._cache_lock: {verdict: locked}
+  engine.llm.providers.PROVIDERS: {verdict: constant}
+  engine.llm.providers._LIVENESS_SHAPES: {verdict: constant}
+  engine.llm.providers._THINKING_OFF: {verdict: constant}
+  engine.llm.registry.DENYLIST: {verdict: constant}
+  engine.llm.registry._registry: {verdict: locked}
+  engine.llm.registry._registry_lock: {verdict: locked}
+  engine.llm.routes._DEFAULT_PORTS: {verdict: constant}
+  engine.llm.schemas.ASSISTANT_TURN_SCHEMA: {verdict: constant}
+  engine.llm.schemas.CHOICE_HINTS: {verdict: constant}
+  engine.llm.schemas._LEDGER_SHAPES: {verdict: constant}
+  engine.llm.schemas._TYPES: {verdict: constant}
+  engine.llm.tools._JSON_TYPES: {verdict: constant}
+  engine.lmstudio._OLD_NAMES: {verdict: constant}
+
+  # -- engine.locks -------------------------------------------------------
+  engine.locks.RENEWED_AFTER_FORK: {verdict: registration, note: "appended as each module's locks register at import"}
+
+  # -- engine.lore --------------------------------------------------------
+  engine.lore.interceptors._compile_terms(): {verdict: warmed, loader: engine.lore.interceptors.spoiler_terms}
+  engine.lore.interceptors._engine_terms(): {verdict: warmed, loader: engine.lore.interceptors.spoiler_terms, reset: never, note: "the engine's own constant table, compiled once"}
+  engine.lore.manager._manager: {verdict: locked, note: "double-checked; the manager locks its own writes"}
+  engine.lore.manager._manager_lock: {verdict: locked}
+
+  # -- engine.mcp ---------------------------------------------------------
+  engine.mcp.scene_rules_engine._rules_instance: {verdict: locked, loader: engine.mcp.scene_rules_engine.get_rules_engine, note: "built and dropped (reset_rules_engine, a RELOADER) under _rules_lock"}
+  engine.mcp.scene_rules_engine._rules_lock: {verdict: locked}
+  engine.mcp.skills_server.SkillsServer.start#Thread: {verdict: not_served_hosted}
+  engine.mcp.skills_server._backed_up: {verdict: not_served_hosted}
+  engine.mcp.skills_server._failed_at: {verdict: not_served_hosted, note: "under _server_lock: the last failed start, for the retry backoff"}
+  engine.mcp.skills_server._generation: {verdict: not_served_hosted, note: "under _server_lock: bumped by a reset, so a start that outlives one is not published"}
+  engine.mcp.skills_server._starting: {verdict: not_served_hosted, note: "under _server_lock: single flight, the start itself runs outside the lock"}
+  engine.mcp.skills_server._server: {verdict: not_served_hosted}
+  engine.mcp.skills_server._server_lock: {verdict: not_served_hosted}
+  engine.mcp.skills_server._last: {verdict: per_context, note: "a threading.local: why this thread's last get_skills_server had no server, set by that call and read right after it (T9 fix round 1)"}
+
+  # -- engine.media -------------------------------------------------------
+  engine.media.art.load_subjects(): {verdict: warmed, loader: engine.media.art.load_subjects}
+  engine.media.comfyui._TEMPLATE_CACHE: {verdict: warmed, loader: engine.media.comfyui.load_comfyui_templates}
+  engine.media.providers.ImageWorker.start#Thread: {verdict: shared_by_design, note: "one image worker per process; jobs queue, outputs are a shared cache"}
+  engine.media.providers._worker: {verdict: locked}
+  engine.media.providers._worker_lock: {verdict: locked}
+  engine.media.providers.procedural.GARMENTS: {verdict: constant}
+  engine.media.providers.procedural.HEADS: {verdict: constant}
+  engine.media.providers.procedural.HEADWEAR: {verdict: constant}
+  engine.media.providers.shipped.art_root(): {verdict: warmed, loader: engine.media.providers.shipped.art_root}
+  engine.media.providers.shipped.load_manifest(): {verdict: warmed, loader: engine.media.providers.shipped.load_manifest}
+  engine.media.queue._queue: {verdict: locked}
+  engine.media.queue._queue_lock: {verdict: locked}
+  engine.media.stt._PROVIDER_ALIASES: {verdict: constant}
+  engine.media.stt._provider: {verdict: locked}
+  engine.media.stt._provider_config: {verdict: locked}
+  engine.media.stt._provider_lock: {verdict: locked}
+  engine.media.stt_whisper._models: {verdict: locked}
+  engine.media.stt_whisper._models_lock: {verdict: locked}
+  engine.media.tts.SpeechWorker.start#Thread: {verdict: shared_by_design, note: "one speech worker per process, started under _worker_lock"}
+  engine.media.tts._worker: {verdict: locked}
+  engine.media.tts._worker_lock: {verdict: locked}
+
+  # -- engine.persistence -------------------------------------------------
+  engine.persistence.migrations.ENGINE_MIGRATIONS: {verdict: registration}
+  engine.persistence.migrations.STORY_MIGRATIONS: {verdict: registration}
+  engine.persistence.saves._index_locks: {verdict: locked, note: "one index RLock per save folder (weak values), read and filled under _index_locks_lock; emptied after a fork, with _stores"}
+  engine.persistence.saves._index_locks_lock: {verdict: locked}
+  engine.persistence.saves._migrated: {verdict: locked, note: "checked, migrated, then recorded under _migrated_lock"}
+  engine.persistence.saves._migrated_lock: {verdict: locked}
+  engine.persistence.saves._stores: {verdict: locked, note: "one SaveStore per (owner, story), built under _stores_lock"}
+  engine.persistence.saves._stores_lock: {verdict: locked}
+  engine.persistence.storage._WARNED_ALIAS: {verdict: log_once}
+
+  # -- engine.scenes ------------------------------------------------------
+  engine.scenes.default_scene.SCENE_METADATA: {verdict: constant}
+  engine.scenes.default_scene._scene: {verdict: shared_by_design, note: "the one app, built once by create_app before serving"}
+  engine.scenes.default_scene._store: {verdict: locked, note: "the SessionStore: shared by design, built under _store_lock"}
+  engine.scenes.default_scene._store_lock: {verdict: locked}
+
+  # -- engine.session -----------------------------------------------------
+  engine.session.store.current_owner: {verdict: per_context, note: "the request's owner (v0.20.0 T8): set by the HTTP gate and the socket guard, reset by teardown_request and the guard's finally"}
+
+  # -- engine.skills ------------------------------------------------------
+  engine.skills.builtin.assistant._FALLBACK_HINT: {verdict: warmed, loader: engine.games.caches._warm_story_tables, reset: engine.skills.builtin.assistant.reload_hints}
+  engine.skills.registry.SKILL_REGISTRY: {verdict: registration, note: "filled by @skill as the skill modules import, read after"}
+  engine.skills.builtin.mechanics._RECIPE_CACHE: {verdict: warmed, loader: engine.skills.builtin.mechanics._load_recipes}
+
+  # -- engine.state -------------------------------------------------------
+  engine.state._EXPORTS: {verdict: registration}
+  engine.state.active._roster: {verdict: warmed, loader: engine.state.active.active_roster, reset: engine.state.active.reset_schema}
+  engine.state.active._schema: {verdict: warmed, loader: engine.state.active.active_schema, reset: engine.state.active.reset_schema}
+
+  # -- engine.studio ------------------------------------------------------
+  engine.studio.api.EDITABLE: {verdict: constant}
+
+  # -- engine.telemetry ---------------------------------------------------
+  engine.telemetry.oracle._oracle: {verdict: locked, note: "double-checked; the Oracle locks every record_*, metrics and recent"}
+  engine.telemetry.oracle._oracle_lock: {verdict: locked}
+
+  # -- engine.world -------------------------------------------------------
+  engine.world._LAZY: {verdict: registration}
+  engine.world.agendas.SELECTOR_KEYS: {verdict: constant}
+  engine.world.agendas._SPEC_CACHE: {verdict: warmed, loader: engine.world.agendas.spec}
+  engine.world.clues._SPEC_CACHE: {verdict: warmed, loader: engine.world.clues.spec}
+  engine.world.jobs._SPEC_CACHE: {verdict: warmed, loader: engine.world.jobs.spec}
+  engine.world.jobs._STAGE_LABELS: {verdict: constant}
+  engine.world.jobs._WARNED_ARREST: {verdict: log_once}
+  engine.world.law._SPEC_CACHE: {verdict: warmed, loader: engine.world.law.load_spec}
+  engine.world.law._WARNED_ENCOUNTERS: {verdict: log_once}
+  engine.world.npc_sim._SCHEDULE_CACHE: {verdict: warmed, loader: engine.world.npc_sim.load_npc_schedules}
+  engine.world.premises._SPEC_CACHE: {verdict: warmed, loader: engine.world.premises._load}
+  engine.world.schedules._RUMOR_CACHE: {verdict: warmed, loader: engine.world.schedules.load_rumors}
+  engine.world.schedules._SCHEDULE_CACHE: {verdict: warmed, loader: engine.world.schedules.load_schedules}
+  engine.world.thievery._SPEC_CACHE: {verdict: warmed, loader: engine.world.thievery.load_spec}
+  engine.world.world_effects._EFFECTS_CACHE: {verdict: warmed, loader: engine.world.world_effects.load_doom_effects, reset: engine.world.world_effects.reset_doom_effects_cache}

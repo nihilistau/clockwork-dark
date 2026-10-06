@@ -17,9 +17,10 @@ what models a server has. It is written by hand, and
 > doctor and `launcher.py --check`
 > ([below](#health-checks-and-what-the-doctor-says)). The MCP tool loop
 > (`llm.mcp`) stays LM Studio's alone ([below](#mcp-lm-studio-only)).
-> **Played live:** LM Studio, [`llama-server`](#llama-server) and
-> [Ollama](#ollama). **Not live-verified: vLLM** (v0.20.0, on Linux), and a
-> generic OpenAI-compatible server, which is whatever the owner points it at.
+> **Played live:** LM Studio, [`llama-server`](#llama-server),
+> [Ollama](#ollama) and, since v0.20.0, [vLLM](#vllm) (its Linux Docker
+> image). **Not live-verified:** a generic OpenAI-compatible server, which
+> is whatever the owner points it at.
 
 ## The matrix
 
@@ -39,26 +40,29 @@ holds under).
   **Ollama 0.34.4** (the portable Windows build, run in v0.19.0 with the
   library's `qwen3:4b` and a Phi-3.1-mini GGUF imported by a Modelfile), all
   but `mcp_integrations` and `auth`'s pass-through to a reverse proxy, which
-  no run had.
+  no run had. vLLM's are verified against **vLLM 0.31.0** (the
+  `vllm/vllm-openai:v0.31.0` image on Docker Desktop's WSL2 backend, an
+  RTX 2060, run in v0.20.0 with Qwen/Qwen3-1.7B; its fixtures are recorded
+  from it), all but `mcp_integrations`.
 - **†** -- **unverified**: taken from the server's own documentation, not yet
-  seen on a live server. vLLM's cells stay unverified until v0.20.0 (Linux).
+  seen on a live server.
 
 | Field | lmstudio | vllm | llamacpp | ollama | openai_compat |
 |---|---|---|---|---|---|
-| `chat_transport` | `lmstudio_routed`; native `/api/v1/chat` when possible, compat for grammar and tools (v0.18's rule) ✓ | `compat` † | `compat` ✓ | `ollama_native`; POST `/api/chat` ✓ | `compat` † |
-| `structured_output` | `json_schema`, `json_schema_permissive`; `response_format` on compat; LM Studio rejects `json_object`, so it goes as a permissive `json_schema` ✓ | `json_schema`, `json_object`; `response_format`; guided decoding † | `json_schema`, `json_object`; `response_format`; the server converts the schema to GBNF ✓ | `ollama_format_schema`, `ollama_format_json`; `format: <schema>` and `format: json` on `/api/chat` ✓ | `json_schema`, `json_object`; `response_format`; probed: json_schema, then json_object, then none † |
-| `probe` | `lmstudio_v18`; the {ok: boolean} probe, byte-identical ✓ | `constraint_won` † | `constraint_won` ✓ | `constraint_won` ✓ | `constraint_won` † |
-| `reasoning_off` | `{"reasoning": "off"}`; native only, where the registry says the model accepts it; compat ignores every knob ✓ | `{"chat_template_kwargs": {"enable_thinking": false}}`; on the same request as the grammar † | `{"chat_template_kwargs": {"enable_thinking": false}}`; needs `--jinja`; whether the template honours it is the model's ✓ | `{"think": false}`; only where `/api/show` lists thinking; trusted only once declared ✓ | none; unless `llm.reasoning_off_body` declares a body patch † |
-| `grammar_and_reasoning_off_together` | `no`; the root cause of the two-minute turn ✓ | `yes` † | `yes` ✓ | `yes` ✓ | `if_declared`; only once `llm.reasoning_off_body` declares a patch † |
-| `inline_think` | `pass`; the server splits reasoning out itself ✓ | `strip`; unless served with `--reasoning-parser` † | `strip`; unless `--reasoning-format` is not none ✓ | `strip` ✓ | `strip` † |
-| `discovery` | `lmstudio_v1`; GET `/api/v1/models`, shape-checked ✓ | `openai_models`; GET base_url`/models` and its max_model_len † | `llamacpp_props`; GET base_url`/models`, then GET `/props` for n_ctx ✓ | `ollama_show`; GET `/api/tags`, POST `/api/show` per model, GET `/api/ps` ✓ | `openai_models`; GET base_url`/models` ids, and max_model_len if reported; capabilities declared † |
-| `keep_alive` | `ttl`; seconds, on compat only ✓ | none † | none ✓ | `keep_alive`; seconds ✓ | none † |
-| `context_control` | `server`; context_length on native ✓ | `server`; `--max-model-len` † | `server`; `-c` ✓ | `per_request`; options.num_ctx ✓ | `server` † |
-| `auth` | `bearer`; optional ✓ | `bearer`; optional, `--api-key` † | `bearer`; optional, `--api-key` ✓ | `bearer`; none locally; passed through if set, for a reverse proxy † | `bearer`; optional † |
-| `inline_tools` | yes; compat tools= ✓ | yes; tools=, needs `--enable-auto-tool-choice` † | yes; tools=, needs `--jinja` ✓ | yes; tools on `/api/chat` ✓ | yes; tools= † |
+| `chat_transport` | `lmstudio_routed`; native `/api/v1/chat` when possible, compat for grammar and tools (v0.18's rule) ✓ | `compat` ✓ | `compat` ✓ | `ollama_native`; POST `/api/chat` ✓ | `compat` † |
+| `structured_output` | `json_schema`, `json_schema_permissive`; `response_format` on compat; LM Studio rejects `json_object`, so it goes as a permissive `json_schema` ✓ | `json_schema`, `json_object`; response_format; with `--reasoning-parser` the grammar binds after the thinking ✓ | `json_schema`, `json_object`; `response_format`; the server converts the schema to GBNF ✓ | `ollama_format_schema`, `ollama_format_json`; `format: <schema>` and `format: json` on `/api/chat` ✓ | `json_schema`, `json_object`; `response_format`; probed: json_schema, then json_object, then none † |
+| `probe` | `lmstudio_v18`; the {ok: boolean} probe, byte-identical ✓ | `constraint_won` ✓ | `constraint_won` ✓ | `constraint_won` ✓ | `constraint_won` † |
+| `reasoning_off` | `{"reasoning": "off"}`; native only, where the registry says the model accepts it; compat ignores every knob ✓ | `{"chat_template_kwargs": {"enable_thinking": false}}`; on the same request as the grammar; whether the template honours it is the model's ✓ | `{"chat_template_kwargs": {"enable_thinking": false}}`; needs `--jinja`; whether the template honours it is the model's ✓ | `{"think": false}`; only where `/api/show` lists thinking; trusted only once declared ✓ | none; unless `llm.reasoning_off_body` declares a body patch † |
+| `grammar_and_reasoning_off_together` | `no`; the root cause of the two-minute turn ✓ | `yes` ✓ | `yes` ✓ | `yes` ✓ | `if_declared`; only once `llm.reasoning_off_body` declares a patch † |
+| `inline_think` | `pass`; the server splits reasoning out itself ✓ | `strip`; unless served with `--reasoning-parser` ✓ | `strip`; unless `--reasoning-format` is not none ✓ | `strip` ✓ | `strip` † |
+| `discovery` | `lmstudio_v1`; GET `/api/v1/models`, shape-checked ✓ | `openai_models`; GET base_url`/models` and its `max_model_len` ✓ | `llamacpp_props`; GET base_url`/models`, then GET `/props` for n_ctx ✓ | `ollama_show`; GET `/api/tags`, POST `/api/show` per model, GET `/api/ps` ✓ | `openai_models`; GET base_url`/models` ids, and max_model_len if reported; capabilities declared † |
+| `keep_alive` | `ttl`; seconds, on compat only ✓ | none ✓ | none ✓ | `keep_alive`; seconds ✓ | none † |
+| `context_control` | `server`; context_length on native ✓ | `server`; `--max-model-len` ✓ | `server`; `-c` ✓ | `per_request`; options.num_ctx ✓ | `server` † |
+| `auth` | `bearer`; optional ✓ | `bearer`; optional, `--api-key` ✓ | `bearer`; optional, `--api-key` ✓ | `bearer`; none locally; passed through if set, for a reverse proxy † | `bearer`; optional † |
+| `inline_tools` | yes; compat tools= ✓ | yes; tools=, needs `--enable-auto-tool-choice` and a `--tool-call-parser` ✓ | yes; tools=, needs `--jinja` ✓ | yes; tools on `/api/chat` ✓ | yes; tools= † |
 | `mcp_integrations` | yes; native integrations, the mcp.json plugin ✓ | no † | no † | no † | no † |
-| `health` | `/api/v1/models`; shape-checked ✓ | `/health`, `/models`; the list under base_url, shape-checked † | `/health`; {"status": "ok"}; 503 while loading ✓ | `/api/version`, `/api/tags`; the list shape-checked ✓ | `/models`; the list under base_url, shape-checked † |
-| `default_base_url` | `http://localhost:1234/v1` ✓ | `http://localhost:8000/v1` † | `http://localhost:8080/v1` ✓ | `http://localhost:11434`; no /v1 ✓ | none; must be set † |
+| `health` | `/api/v1/models`; shape-checked ✓ | `/health`, `/models`; `/health` answers 200, empty; nothing listens while loading; the list shape-checked ✓ | `/health`; {"status": "ok"}; 503 while loading ✓ | `/api/version`, `/api/tags`; the list shape-checked ✓ | `/models`; the list under base_url, shape-checked † |
+| `default_base_url` | `http://localhost:1234/v1` ✓ | `http://localhost:8000/v1` ✓ | `http://localhost:8080/v1` ✓ | `http://localhost:11434`; no /v1 ✓ | none; must be set † |
 
 `llm.base_url` is the server's OpenAI-style base -- for every shipped default
 the URL that ends in `/v1` -- except Ollama's, which has none. The OpenAI model
@@ -270,6 +274,9 @@ rung 3, and a starved narration turn had no patch left to recover with.
 **The patch with a grammar beside it binds the grammar from the first
 token**, even on a template that ignores it (measured on both servers), which
 is why the probe asks for `off` and why a starved grammared turn recovers.
+On vLLM (0.31.0, `--reasoning-parser`) the patch is what makes it so: with
+thinking on, vLLM lets the model think first and binds the grammar to the
+answer after ([vLLM](#vllm)).
 
 **The starvation retry.** A reply that spent the whole cap thinking (finish
 `length`, empty content) is retried once:
@@ -283,9 +290,12 @@ is why the probe asks for `off` and why a starved grammared turn recovers.
 The streamed narration recovers by the same table (`backend.recover_starved`),
 so a stream that starved with the patch on, or on a generic server with no
 declared body, is never sent again as it was.
-These servers rarely report a reasoning-token count, so a request that
-starved with the patch already on usually stands down at once, after one
-request. The log says which case it was, and only then what to do:
+llama-server and Ollama report no reasoning-token count, so there a request
+that starved with the patch already on stands down at once, after one
+request. vLLM does report one (`completion_tokens_details.reasoning_tokens`,
+measured on 0.31.0 with `--reasoning-parser`; without the parser it sends
+no `completion_tokens_details`), so on vLLM measured room is available. The
+log says which case it was, and only then what to do:
 
 - **the patch was sent, untrusted (an undeclared model), and the model
   thought anyway**: the cap already kept the reasoning budget, so raise
@@ -314,7 +324,11 @@ The servers' own split is cleaner (and gives the player the reasoning panel
 as it streams):
 
 - **vLLM:** `vllm serve <model> --reasoning-parser <parser>` (`qwen3`,
-  `deepseek_r1`, ... per the model family).
+  `deepseek_r1`, ... per the model family). Measured on 0.31.0 without it:
+  Qwen3-1.7B's thinking arrives as a leading `<think>…</think>` span, whole
+  and streamed (`vllm/chat_inline_think_live.json`,
+  `chat_stream_inline_think_live.json`), the engine moves it, and the
+  doctor's `inline <think>` row WARNs naming the flag.
 - **llama-server:** leave `--reasoning-format` at its default, which splits
   it (measured on b7966 with `--jinja`), or name any value but `none`.
 
@@ -338,6 +352,121 @@ golden pins (a CLAUDE.md deferred row).
 
 `ttl` (LM Studio's keep-alive) is sent to LM Studio only; Ollama gets its
 own `keep_alive`, the same `llm.keep_alive_seconds`.
+
+## vLLM
+
+(The compose file's `vllm` service passes `HF_TOKEN` through by name for gated
+models. `docker compose config` prints it: never run that with it set,
+docs/HOSTING.md § Docker Compose.)
+
+vLLM is spoken on its OpenAI-compatible route. Run live in v0.20.0 against
+**vLLM 0.31.0** -- the `vllm/vllm-openai:v0.31.0` image
+(`sha256:c1c9f6fd5c10…`), on Docker Desktop's WSL2 backend with the GPU
+handed to the container, on an RTX 2060 (12 GB, Turing, sm_75) -- with
+**Qwen/Qwen3-1.7B**: the ✓ cells above, the recorded fixtures under
+`tests/fixtures/llm/vllm/`, and `tests/test_llm_live.py`, all six green.
+vLLM is a Linux server; on Windows run it in Docker, as here:
+
+```sh
+docker run -d --name vllm --gpus all --ipc=host -p 127.0.0.1:8000:8000 \
+  -v /path/to/hf-cache:/root/.cache/huggingface \
+  vllm/vllm-openai:v0.31.0 --model Qwen/Qwen3-1.7B \
+  --dtype half --enforce-eager --max-model-len 16384 \
+  --gpu-memory-utilization 0.90 --reasoning-parser qwen3 \
+  --enable-auto-tool-choice --tool-call-parser hermes
+```
+
+```yaml
+# config/local.yaml
+llm:
+  provider: vllm
+  base_url: "http://127.0.0.1:8000/v1"
+  profiles:
+    big: {model: "Qwen/Qwen3-1.7B"}       # the id /v1/models lists: the Hugging Face repo
+    small: {model: "Qwen/Qwen3-1.7B"}
+  declared_models:
+    "Qwen/Qwen3-1.7B": {tools: true, reasoning: ["off", "on"], reasoning_default: "on"}
+```
+
+- **`--reasoning-parser <parser>`**: thinking in its own channel (vLLM
+  0.31.0 names it `reasoning` in the message and the stream's deltas, not
+  `reasoning_content`; the client reads both). Without it the thinking
+  arrives inline ([Inline `<think>`](#inline-think)).
+- **`--max-model-len`** is the context the engine budgets against (the
+  list's `max_model_len`).
+- **`--enable-auto-tool-choice --tool-call-parser <parser>`** (`hermes` for
+  Qwen3) for `tools=`; a narration turn sends none.
+- **`--api-key <key>`** (or `VLLM_API_KEY`) makes the `/v1` routes refuse
+  another key, or none, with a 401 whose body is `{"error":
+  "Unauthorized"}` (a string, not an object; `error_401.json`); `/health`
+  still answers without one.
+- **The utilization is measured, not chosen.** vLLM refuses to start when
+  free GPU memory is below `--gpu-memory-utilization` x total, and the card
+  is shared with the desktop (and LM Studio, which must hold no model
+  during the run). Read
+  `nvidia-smi --query-gpu=memory.free,memory.total --format=csv` just
+  before starting and set the flag just under free / total, two decimals,
+  rounded down: 11137 of 12288 MiB free gave **0.90** (with 1.7B: 3.2 GiB
+  of weights, 7.2 GiB of KV cache).
+
+**Turing (sm_75), measured on 0.31.0.** The newest release runs on it, so
+no older tag was needed: the **V1** engine (V2 model runner), FlashAttention
+2 refused ("FA2 is only supported on devices with compute capability >= 8",
+logged as an ERROR and harmless), and the **TRITON_ATTN** backend chosen
+from `TRITON_ATTN` and `FLEX_ATTENTION`; FlashInfer's sampler falls back
+too. `--dtype half` is required (no bfloat16 on sm_75; the checkpoint is
+cast). `--enforce-eager` skips CUDA graphs and `torch.compile`. Qwen3-4B
+was not run (its download was declined); 1.7B fit with room to spare.
+
+What was measured:
+
+- **The patch is honoured, and trusted once declared.** Qwen3-1.7B (the
+  original hybrid checkpoint, not a Thinking-2507 build) answers
+  `enable_thinking: false` with no thinking and `reasoning_tokens: 0`
+  (`chat_reasoning_off.json`), so the declaration above makes the doctor's
+  `reasoning off` row OK, `(trusted)`.
+- **With `--reasoning-parser`, the grammar binds AFTER the thinking**,
+  unlike llama-server: under a `json_schema` with thinking on, the model
+  thinks into the reasoning channel and then answers inside the schema
+  (`chat_json_schema_thinking.json`). So a probe sent with thinking on
+  starves at its 200-token cap (`chat_json_object_starved.json`); the
+  engine's probes send the patch (`off`) and pass at once
+  (`chat_json_schema.json`, `chat_json_object.json`: rung 1, probed). With
+  the patch beside the grammar there is no thinking at all.
+- **A reasoning-token count is reported** (`usage.completion_tokens_details.reasoning_tokens`,
+  with the parser), so the starvation retry can measure room. The forced
+  starvation in the live test starved on `on` and recovered on the patched
+  retry.
+- **`/health` answers 200 with an empty body**, and while the model loads
+  nothing listens at all (measured: about 70 s of refused connections with
+  the weights cached), so the health check reads unreachable, never
+  `loading`; `GET /version` answers `{"version": "0.31.0"}`.
+- **A model the server does not serve** is a 404 with an OpenAI-style
+  nested error, `{"error": {"message": "The model ... does not exist.",
+  "type": "NotFoundError", ...}}` (`error_404.json`); an unknown
+  `response_format` is a 400 listing pydantic's validation errors
+  (`error_400.json`).
+- **The first start downloads the weights** into the bind-mounted
+  Hugging Face cache (about 3.8 GB for Qwen3-1.7B, 24 minutes here through
+  Docker Desktop's mount); later starts take about 70 s.
+- **A small model can loop on whitespace under the grammar.** vLLM's
+  structured outputs allow any whitespace between JSON tokens
+  (`disable_any_whitespace=False`, its default). Once in six live
+  narration turns -- without `--reasoning-parser`, HUE & CRY's longer
+  prompt -- Qwen3-1.7B wrote its narration and then newlines until the
+  4400-token cap; the engine salvaged the narration and offered the
+  fallback choices. A larger model, or
+  `--structured-outputs-config '{"disable_any_whitespace": true}'`, is the
+  operator's lever; the engine leaves it to the server.
+- **The choices carried no intents** on these turns: a 1.7B model offered
+  plain choices, which the schema allows (the CLAUDE.md row on choices
+  without an intent).
+
+**From a container.** The compose file's `vllm` profile
+([docs/HOSTING.md](HOSTING.md#docker-compose)) runs this image beside the
+game, reached at `http://vllm:8000/v1`. That path -- the game container
+narrating through the compose network -- was not run in v0.20.0 (not in the
+run's consent); the server itself is the one verified here.
 
 ## llama-server
 
@@ -554,7 +683,7 @@ not own with 200 and an error body -- so each route is read by its shape:
 | Provider | Asked | Up when |
 |---|---|---|
 | `lmstudio` | `GET /api/v1/models` | LM Studio's list, with a model in it (v0.18's request, byte for byte) |
-| `vllm` | `GET /health`, then `GET` base_url`/models` | `/health` answers 200 without an error; the OpenAI list has a model |
+| `vllm` | `GET /health`, then `GET` base_url`/models` | `/health` answers 200 without an error (vLLM 0.31.0: an empty body, and no key needed); the OpenAI list has a model. While the model loads nothing listens on the port, so the check reads as unreachable, not `loading` |
 | `llamacpp` | `GET /health` | `{"status": "ok"}`. A **503** is a server still loading its model: down, and the detail says `loading` |
 | `ollama` | `GET /api/version`, then `GET /api/tags` | `{"version": ...}`; the tag list has a model |
 | `openai_compat` | `GET` base_url`/models` | the OpenAI list, with a model in it |
@@ -594,8 +723,11 @@ stack:
       startup_timeout_seconds: 600
 ```
 
-The stack stops what it started when the game exits. (Linux service
-management is v0.20.0.)
+The stack stops what it started when the game exits. On Linux name the
+binary without `.exe` (`command: "llama-server"`); since v0.20.0 a command
+the config names resolves as `shutil.which` resolves one -- on Windows with
+each `PATHEXT` suffix -- so a `.exe`-less name works on both (docs/HOSTING.md
+§ Linux).
 
 **The doctor** (`scripts/doctor.py`) gives the model server its own section:
 `LM Studio` for LM Studio -- its rows exactly v0.18's -- and `Model server
@@ -644,6 +776,20 @@ an owner who keeps LM Studio's key in `lmstudio.txt` and switches to another
 server (a remote `openai_compat` host, say) never sends it there. The key
 is sent as a bearer token to the configured server, never logged, never put in
 a URL. A server started without a key needs none of them.
+
+Since v0.20.0 the scope is read exactly. An alternative is scoped when it
+holds a `?` and the text before the first one holds no `:`, so a file
+alternative whose path holds a `?` (`file:/srv/keys/what?.txt`, legal on
+POSIX) is read whole: `file:` and `env:` put their `:` first, and no variable
+name holds a `?`. A scope is compared with the provider names ignoring case
+(`LMStudio?…` is LM Studio's). A scope that names no provider (`lmstuido?…`,
+`lm-studio?…`, `openai-compat?…`) stops the config from loading, naming the
+key and the scope, as an unknown `llm.provider` does; and `llm.provider`
+itself cannot be a `${…}` reference. The in-game Settings panel refuses any
+`${…}` value, and never writes a file the config would refuse.
+When a scoped source is skipped but holds a key (the file is not empty, or the
+variable is set), the doctor says so in a `skipped key` WARN under the model
+server's section, naming the source and never the value.
 
 ## Moving from `lmstudio:`
 

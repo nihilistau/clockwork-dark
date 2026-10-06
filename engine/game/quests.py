@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Optional
@@ -51,6 +52,7 @@ import yaml
 from engine.config import get_config
 from engine.game.effects import apply_effects
 from engine.game.state import GameState
+from engine.locks import renew_after_fork
 
 logger = logging.getLogger(__name__)
 
@@ -203,22 +205,25 @@ def load_arcs() -> dict[str, dict[str, Any]]:
         raising, because content is loaded at runtime.
     """
     global _ARC_CACHE
-    if _ARC_CACHE is not None:
-        return _ARC_CACHE
+    cached = _ARC_CACHE  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
 
     root = quests_root()
     if root is None:
         logger.debug("[quests] Story declares no quests (operation=load_arcs)")
-        _ARC_CACHE = {}
-        return _ARC_CACHE
+        empty: dict[str, dict[str, Any]] = {}
+        _ARC_CACHE = empty
+        return empty
 
     path = root / "arcs.yaml"
     if not path.exists():
         logger.warning(
             "[quests] Arc content missing (operation=load_arcs, path=%s)", path
         )
-        _ARC_CACHE = {}
-        return _ARC_CACHE
+        missing: dict[str, dict[str, Any]] = {}
+        _ARC_CACHE = missing
+        return missing
 
     with path.open(encoding="utf-8") as fh:
         doc = yaml.safe_load(fh) or {}
@@ -236,7 +241,7 @@ def load_arcs() -> dict[str, dict[str, Any]]:
 
     _ARC_CACHE = resolved
     logger.info("[quests] Arcs loaded (operation=load_arcs, count=%s)", len(resolved))
-    return _ARC_CACHE
+    return resolved
 
 
 def default_arcs() -> list[str]:
@@ -326,21 +331,22 @@ def load_quests() -> dict[str, dict[str, Any]]:
         ``os.listdir`` order is not.
     """
     global _QUEST_CACHE
-    if _QUEST_CACHE is not None:
-        return _QUEST_CACHE
+    cached = _QUEST_CACHE  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
 
     root = quests_root()
     found: dict[str, dict[str, Any]] = {}
     if root is None:
         logger.debug("[quests] Story declares no quests (operation=load_quests)")
-        _QUEST_CACHE = {}
-        return _QUEST_CACHE
+        _QUEST_CACHE = found
+        return found
     if not root.exists():
         logger.warning(
             "[quests] Quest content missing (operation=load_quests, path=%s)", root
         )
-        _QUEST_CACHE = {}
-        return _QUEST_CACHE
+        _QUEST_CACHE = found
+        return found
 
     for path in sorted(root.glob("*/*.yaml")):
         try:
@@ -358,7 +364,7 @@ def load_quests() -> dict[str, dict[str, Any]]:
             continue
 
         quest_id = str(doc.get("id", "") or "")
-        if not _QUEST_ID_RE.match(quest_id):
+        if not _QUEST_ID_RE.fullmatch(quest_id):
             logger.warning(
                 "[quests] Quest rejected for bad id (operation=load_quests, "
                 "path=%s, id=%r)",
@@ -385,7 +391,7 @@ def load_quests() -> dict[str, dict[str, Any]]:
     logger.info(
         "[quests] Quests loaded (operation=load_quests, count=%s)", len(ordered)
     )
-    return _QUEST_CACHE
+    return ordered
 
 
 def _with_closed_sets(text: str, receipts: list[dict[str, Any]]) -> str:
@@ -802,7 +808,17 @@ _GRAMMAR_MODULES = (
     "engine.world.clues",  # clues_favour
 )
 
+#: True once the import loop below has RUN (a failed import included: it is
+#: recorded, not retried). Set after the loop, under ``_grammar_lock``, and read
+#: without it on the hot path: once True it never changes.
 _grammar_loaded = False
+#: True while the lock holder is inside the loop. A module global, read only
+#: under ``_grammar_lock``, so only that holder can ever see it True: a grammar
+#: module that asks a condition at import time re-enters and returns rather
+#: than importing again.
+_grammar_loading = False
+_grammar_lock = threading.RLock()
+renew_after_fork(globals(), _grammar_lock=threading.RLock)
 
 
 def _ensure_grammar() -> None:
@@ -826,23 +842,37 @@ def _ensure_grammar() -> None:
     Called from ``evaluate_condition`` because that is where the failure
     surfaces. Import cycles are not a risk: each of these imports ``quests``
     lazily inside its own ``_register()``.
+
+    THE SAME BUG, BY CONCURRENCY (v0.20.0): the flag used to be set BEFORE the
+    imports, so a second thread in the first turns after boot saw it True with
+    the predicates still missing, and read them unmet. The loop now runs under
+    a lock and the flag is set after it; a second caller waits, then sees every
+    predicate. The hot path (already loaded) takes no lock.
     """
-    global _grammar_loaded
+    global _grammar_loaded, _grammar_loading
     if _grammar_loaded:
         return
-    _grammar_loaded = True  # set first: a failed import must not retry per call
-    import importlib
+    with _grammar_lock:
+        if _grammar_loaded or _grammar_loading:
+            return
+        _grammar_loading = True
+        import importlib
 
-    for name in _GRAMMAR_MODULES:
         try:
-            importlib.import_module(name)
-        except ImportError as exc:  # noqa: PERF203 -- a trimmed build is allowed
-            logger.warning(
-                "[quests] Predicate module unavailable (operation=_ensure_grammar, "
-                "module=%s): %s",
-                name,
-                exc,
-            )
+            for name in _GRAMMAR_MODULES:
+                try:
+                    importlib.import_module(name)
+                except ImportError as exc:  # noqa: PERF203 -- a trimmed build is allowed
+                    logger.warning(
+                        "[quests] Predicate module unavailable (operation=_ensure_grammar, "
+                        "module=%s): %s",
+                        name,
+                        exc,
+                    )
+        finally:
+            # Recorded whatever happened: a failed import must not retry per call.
+            _grammar_loaded = True
+            _grammar_loading = False
 
 
 def predicate_names() -> list[str]:

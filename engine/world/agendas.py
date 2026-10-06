@@ -658,12 +658,14 @@ def spec() -> dict[str, Any]:
             fault in the contract above.
     """
     global _SPEC_CACHE
-    if _SPEC_CACHE is not None:
-        return _SPEC_CACHE
+    cached = _SPEC_CACHE  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
     path = _agendas_path()
     if path is None:
-        _SPEC_CACHE = {}
-        return _SPEC_CACHE
+        empty: dict[str, Any] = {}
+        _SPEC_CACHE = empty
+        return empty
     if not path.is_file():
         raise ValueError(f"agendas: declared file {path} does not exist")
     try:
@@ -691,8 +693,9 @@ def spec() -> dict[str, Any]:
     }
     roles = _load_roles(path, doc, ctx)
     ctx["candidate_names"] = _candidate_names(roles)
-    _SPEC_CACHE = {"roles": roles, "agendas": _load_agendas(path, doc, roles, ctx)}
-    return _SPEC_CACHE
+    loaded = {"roles": roles, "agendas": _load_agendas(path, doc, roles, ctx)}
+    _SPEC_CACHE = loaded
+    return loaded
 
 
 def move_keys() -> set[str]:

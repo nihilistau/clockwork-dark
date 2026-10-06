@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block head %}<script src="/admin/static/admin.js" defer></script>{% endblock %}
+{% block content %}
+<h1>Overview</h1>
+<section data-refresh="/admin/api/overview.json">
+  <h2>Stories</h2>
+  <table>
+    <thead><tr><th>Story</th><th>State</th></tr></thead>
+    <tbody data-list="stories">
+      {% for story in data.stories %}
+      <tr><td>{{ story.slug }}</td><td data-state="{{ story.state }}">{{ story.state }}</td></tr>
+      {% else %}
+      <tr><td colspan="2">No story is configured.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <h2>Accounts</h2>
+  <dl>
+    <dt>Accounts</dt><dd data-field="accounts">{{ data.accounts }}</dd>
+    <dt>Enabled admins</dt><dd data-field="admins">{{ data.admins }}</dd>
+    <dt>Disabled</dt><dd data-field="disabled">{{ data.disabled }}</dd>
+  </dl>
+</section>
+<p class="note">This page refreshes itself every few seconds when scripts are on; reload it otherwise.</p>
+{% endblock %}

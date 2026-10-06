@@ -81,7 +81,10 @@ def live_server(engine: GameEngine) -> Iterator[SkillsServer]:
 
     server = SkillsServer(resolve_engine=resolve, port=_free_port())
     assert server.start(), "the skills server did not come up"
-    yield server
+    try:
+        yield server
+    finally:
+        server.stop()  # T9 fix round 1: no test leaves a server listening
 
 
 def _headers(session: str = "run-1", agent: str = AGENT_STORYTELLER) -> dict[str, str]:
@@ -538,6 +541,46 @@ def test_tool_call_events_are_collected_into_the_response():
     assert [c.name for c in response.tool_calls] == ["query_quests"]
     assert response.reasoning_tokens == 0
     client.close()
+
+
+@needs_fastmcp
+def test_stop_closes_the_port_and_ends_the_thread() -> None:
+    """
+    v0.20.0 T9: a server can be stopped. A start a reset discarded
+    (``get_skills_server``) is stopped rather than left listening, unowned,
+    for the life of the process. Fails on 844bf5f, which had no ``stop``.
+    """
+    server = SkillsServer(resolve_engine=lambda _sid: None, port=_free_port())
+    assert server.start(), "the skills server did not come up"
+    assert server.is_listening()
+    server.stop()
+    assert not server.is_listening(), "the port is still open after stop()"
+    assert server._thread is None or not server._thread.is_alive()
+    server.stop()  # idempotent
+
+
+@needs_fastmcp
+def test_a_start_that_timed_out_is_stopped_and_never_listens() -> None:
+    """
+    T9 fix round 1 (M5): ``start`` gave up waiting (here, at once) while its
+    thread was still coming up. ``stop`` then ends it whether the server had
+    begun serving or not, so it never listens unowned.
+    """
+    server = SkillsServer(resolve_engine=lambda _sid: None, port=_free_port())
+    assert server.start(wait_seconds=0) is False
+    server.stop()
+    assert server._thread is None, "the start's thread outlived stop()"
+    assert not server.is_listening()
+
+
+def test_the_uvicorn_config_mirrors_fastmcps_run() -> None:
+    """M6: the requirement bounds fastmcp to the 3.2 series this mirrors."""
+    from tests.test_constraints import REPO
+
+    text = (REPO / "requirements.txt").read_text(encoding="utf-8")
+    assert "fastmcp>=3.2.4,<3.3" in text
+    source = (REPO / "engine" / "mcp" / "skills_server.py").read_text(encoding="utf-8")
+    assert 'ws="websockets-sansio"' in source
 
 
 # -- degrades cleanly ------------------------------------------------------

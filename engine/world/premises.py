@@ -350,12 +350,14 @@ def _load_anchor(path: Path, items: Any, locations: Any) -> dict[str, Any]:
 def _load() -> dict[str, Any]:
     """Parse and validate the declared directory once per activation."""
     global _SPEC_CACHE
-    if _SPEC_CACHE is not None:
-        return _SPEC_CACHE
+    cached = _SPEC_CACHE  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
     root = _premises_dir()
     if root is None:
-        _SPEC_CACHE = {"districts": {}, "pools": {}, "types": {}, "anchors": {}}
-        return _SPEC_CACHE
+        empty: dict[str, Any] = {"districts": {}, "pools": {}, "types": {}, "anchors": {}}
+        _SPEC_CACHE = empty
+        return empty
     if not root.is_dir():
         # Declared and absent is a broken install, not "no premises": the
         # story promised a city full of houses and would ship an empty one.
@@ -426,8 +428,9 @@ def _load() -> dict[str, Any]:
         if not (pools.get("given") and pools.get("surname")):
             raise _fail(names_path, "households need the `given` and `surname` pools")
 
-    _SPEC_CACHE = {"districts": districts, "pools": pools, "types": types, "anchors": anchors}
-    return _SPEC_CACHE
+    loaded = {"districts": districts, "pools": pools, "types": types, "anchors": anchors}
+    _SPEC_CACHE = loaded
+    return loaded
 
 
 # ---------------------------------------------------------------------------

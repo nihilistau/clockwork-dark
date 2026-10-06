@@ -98,7 +98,7 @@ def test_the_non_streamed_helper_keeps_any_reasoning_the_server_split() -> None:
 
 
 def _vllm(llm_server: Any) -> None:
-    model = "Qwen/Qwen3-8B"
+    model = "Qwen/Qwen3-1.7B"
     llm_server(
         "vllm",
         structured_output="off",
@@ -309,6 +309,78 @@ def test_reasoning_format_none_sends_the_thinking_with_no_opening_tag_and_it_is_
     assert result.content == "4"
     assert "</think>" not in result.content and result.reasoning_content
     assert inline_think_seen() == 1
+
+
+# -- vLLM, recorded live (vLLM 0.31.0, v0.20.0 T19) -----------------------------------
+#
+# Without --reasoning-parser, Qwen3-1.7B's thinking arrives as a LEADING
+# <think>...</think> span (the case §4.5 was written for), whole and streamed.
+# With the parser it arrives in a channel vLLM 0.31.0 names `reasoning`, not
+# `reasoning_content`.
+
+VLLM = REPO / "tests" / "fixtures" / "llm" / "vllm"
+
+
+def _vllm_recorded(name: str) -> dict[str, Any]:
+    return json.loads((VLLM / name).read_text(encoding="utf-8"))
+
+
+def _vllm_live(llm_server: Any) -> None:
+    model = "Qwen/Qwen3-1.7B"
+    llm_server(
+        "vllm",
+        structured_output="off",
+        profiles={"big": {"model": model}, "small": {"model": model}},
+    )
+
+
+def test_vllm_s_recorded_inline_span_is_split_whole_and_streamed(llm_server: Any) -> None:
+    from engine.llm.client import inline_think_seen
+
+    _vllm_live(llm_server)
+    whole = _vllm_recorded("chat_inline_think_live.json")
+    assert whole["json"]["choices"][0]["message"]["content"].startswith("<think>")  # as recorded
+    with wire(discovery("vllm") + [whole], exhaust=True):
+        result = _backend().chat(MESSAGES, profile="big", retry_on_starvation=False)
+    assert result.content == "4"
+    assert result.reasoning_content.startswith("\nOkay") and "</think>" not in result.reasoning_content
+    assert inline_think_seen() == 1
+
+    deltas: list[str] = []
+    reasoning: list[str] = []
+    # Discovery was asked once, above; the bound model is cached.
+    with wire([_vllm_recorded("chat_stream_inline_think_live.json")], exhaust=True):
+        yielded = list(_backend().chat_stream(
+            MESSAGES, profile="big", on_delta=deltas.append, on_reasoning=reasoning.append
+        ))
+    assert "".join(yielded) == "".join(deltas) == "4"
+    assert "think>" not in "".join(reasoning) and "".join(reasoning).strip()
+
+
+def test_vllm_s_recorded_reasoning_channel_is_read_as_reasoning(llm_server: Any) -> None:
+    """vLLM 0.31.0 sends `reasoning`, not `reasoning_content`, whole and in deltas."""
+    _vllm_live(llm_server)
+    whole = _vllm_recorded("chat.json")
+    assert "reasoning_content" not in whole["json"]["choices"][0]["message"]  # as recorded
+    with wire(discovery("vllm") + [whole], exhaust=True):
+        result = _backend().chat(MESSAGES, profile="big", retry_on_starvation=False)
+    assert result.content.strip() == "4"
+    assert result.reasoning_content.strip() and result.reasoning_tokens > 0
+    reasoning: list[str] = []
+    streamed = _vllm_recorded("chat_stream_thinking.json")
+    sent = "".join(
+        frame["data"]["choices"][0]["delta"].get("reasoning", "")
+        for frame in streamed["sse"]
+        if isinstance(frame["data"], dict) and frame["data"].get("choices")
+    )
+    assert sent.strip() and "reasoning_content" not in json.dumps(streamed["sse"])  # as recorded
+    with wire([streamed], exhaust=True):
+        yielded = list(_backend().chat_stream(MESSAGES, profile="big", on_reasoning=reasoning.append))
+    assert "".join(yielded).strip() == "4"
+    # Every reasoning delta reaches the reasoning channel, in order, and none
+    # of it the answer (T20, from T19's review: the stream half had asserted
+    # only "non-empty").
+    assert "".join(reasoning) == sent
 
 
 # -- fix round 1 ---------------------------------------------------------------------

@@ -70,7 +70,42 @@ def test_a_path_cannot_escape_the_story(relative: str) -> None:
         _safe_path(BENCH, relative)
 
 
-@pytest.mark.parametrize("slug", ["", "..", "../clockwork-dark", "a/b", ".hidden", "no-such-story"])
+@pytest.mark.parametrize("relative", ["C:/Windows/system.ini", "C:x", "c:game.yaml", "a\\b", "items\\x.yaml"])
+def test_a_backslash_or_drive_is_refused_on_every_platform(relative: str) -> None:
+    """
+    v0.20.0 T2 (spec §3.4, survey finding 10). On POSIX `C:/Windows/system.ini`
+    is a relative path INSIDE the story and `a\\b` a file name, so the
+    `resolve()` check alone let them through there; on Windows `C:x` is
+    drive-relative and `a\\b` a nested path, both resolving inside. A story
+    file named that way cannot be checked out on the other platform, so they
+    are refused everywhere, by their spelling.
+    """
+    with pytest.raises(ValueError):
+        _safe_path(BENCH, relative)
+
+
+@pytest.mark.parametrize(
+    "relative",
+    ["game.yaml.", "game.yaml ", "con.yaml", "NUL", "data/aux/x.yaml",
+     "data/world/locations.yaml.", "data/rules./x.yaml", "./game.yaml"],
+)
+def test_every_component_is_a_portable_name(relative: str) -> None:
+    """
+    v0.20.0 T2 re-review, N2: the FILE path, not only the slug, obeys the
+    portable-name rule (``engine.names``). Windows strips a trailing dot or
+    space, so ``game.yaml.`` resolved inside the story and wrote game.yaml;
+    a device name opens a device, not a file.
+    """
+    with pytest.raises(ValueError, match="portable"):
+        _safe_path(BENCH, relative)
+
+
+@pytest.mark.parametrize(
+    "slug",
+    ["", "..", "../clockwork-dark", "a/b", ".hidden", "no-such-story",
+     # v0.20.0 T2 fix round 1 (review finding 2): a drive is not a slug.
+     "C:", "c:", "D:", "C:.", "dev-story\n", "con"],
+)
 def test_a_bad_slug_is_refused(slug: str) -> None:
     with pytest.raises(ValueError):
         _safe_path(slug, "game.yaml")

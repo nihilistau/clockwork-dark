@@ -409,8 +409,9 @@ def _load_recipes() -> dict[str, Any]:
         )
     except OSError:
         key = ()  # a file vanished mid-glob: parse, and do not memoize
-    if key and _RECIPE_CACHE is not None and _RECIPE_CACHE[0] == key:
-        return dict(_RECIPE_CACHE[1])
+    cached = _RECIPE_CACHE  # read once: a reset nulls it without a lock
+    if key and cached is not None and cached[0] == key:
+        return dict(cached[1])
 
     recipes: dict[str, Any] = {}
     for path in paths:

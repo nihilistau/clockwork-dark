@@ -1,0 +1,912 @@
+{
+  "events": [
+    {
+      "args": [
+        {
+          "session_id": "<session-2>",
+          "text": "The player follows the path east. I should keep ",
+          "turn": 1
+        }
+      ],
+      "name": "reasoning_delta",
+      "namespace": "/"
+    },
+    {
+      "args": [
+        {
+          "session_id": "<session-2>",
+          "text": "the tone uneasy, offer a risky lead and a safe o",
+          "turn": 1
+        }
+      ],
+      "name": "reasoning_delta",
+      "namespace": "/"
+    },
+    {
+      "args": [
+        {
+          "session_id": "<session-2>",
+          "text": "ne, and not resolve the clock yet.",
+          "turn": 1
+        }
+      ],
+      "name": "reasoning_delta",
+      "namespace": "/"
+    },
+    {
+      "args": [
+        {
+          "session_id": "<session-2>",
+          "text": "The path east narrows between birches gone silver in the dusk.",
+          "turn": 1
+        }
+      ],
+      "name": "narration_delta",
+      "namespace": "/"
+    },
+    {
+      "args": [
+        {
+          "session_id": "<session-2>",
+          "text": " Somewhere ahead a clock is ticking where no clock should be, slow and patient,",
+          "turn": 1
+        }
+      ],
+      "name": "narration_delta",
+      "namespace": "/"
+    },
+    {
+      "args": [
+        {
+          "session_id": "<session-2>",
+          "text": " and the moss underfoot carries the marks of boots that came this way and did not come back. The trees lean in to listen.",
+          "turn": 1
+        }
+      ],
+      "name": "narration_delta",
+      "namespace": "/"
+    },
+    {
+      "args": [
+        {
+          "assistant": {
+            "decision": {
+              "appear": false,
+              "gift_item": null,
+              "intent": "silent",
+              "reason": "indifferent",
+              "reliability": 1.0,
+              "reliable": true,
+              "score": 0.4
+            },
+            "form": "cat",
+            "gift": null,
+            "help_probability": 0.4,
+            "hint_tier": 1,
+            "intent": "silent",
+            "patience": 80.0,
+            "portrait": "/static/art/souls/cat-assistant.jpg",
+            "reflection_unlocked": false,
+            "reliable": true,
+            "spoke": false,
+            "text": "",
+            "tool_receipts": [],
+            "transcript": "",
+            "trust": 20.0,
+            "unveiled": false,
+            "voice_style": "chime"
+          },
+          "choices": [
+            {
+              "hint": "risky",
+              "id": "a",
+              "text": "Follow the ticking"
+            },
+            {
+              "hint": "safe",
+              "id": "b",
+              "text": "Study the boot marks"
+            },
+            {
+              "hint": "unknown",
+              "id": "c",
+              "text": "Turn back to the clearing"
+            }
+          ],
+          "evaluation": {
+            "cast": 1.0,
+            "choices": 1.0,
+            "continuity": 1.0,
+            "flag": false,
+            "length": 1.0,
+            "lore": 0.8,
+            "no_hallucinated_mechanics": 1.0,
+            "notes": [],
+            "overall": 0.932,
+            "passed": true,
+            "tone": 0.75,
+            "valid_json": 1.0
+          },
+          "finish_reason": "stop",
+          "governance": [],
+          "intent": {
+            "action": "travel",
+            "target": "edgewood_square"
+          },
+          "intent_resolved": true,
+          "llm_unavailable": false,
+          "media": {
+            "blocked_cutscenes": [],
+            "cutscenes": [],
+            "images": [
+              {
+                "cache_key": "432dc1512af0e7e3",
+                "error": "",
+                "job_id": "<job-1>",
+                "kind": "image",
+                "payload": {
+                  "evil_phase": "dormant",
+                  "image_tag": "edgewood_square_day",
+                  "location_id": "edgewood_square_day",
+                  "time_of_day": "dawn"
+                },
+                "prompt": "edgewood_square_day, oil-painted fantasy illustration, grounded realism, muted earth palette, soft atmospheric lighting, detailed textures, frontier village aesthetic, no modern elements, no text, no watermark",
+                "status": "cached",
+                "url": "/static/art/scenes/noticeboard.jpg"
+              }
+            ],
+            "tts_jobs": []
+          },
+          "narration": "The path east narrows between birches gone silver in the dusk. Somewhere ahead a clock is ticking where no clock should be, slow and patient, and the moss underfoot carries the marks of boots that came this way and did not come back. The trees lean in to listen.",
+          "narration_complete": true,
+          "save_id": "<save-3>",
+          "session_id": "<session-2>",
+          "state": {
+            "active_arc": "quiet_life",
+            "archetype": "wayfarer",
+            "carry": {
+              "limit": 25.0,
+              "overloaded": false,
+              "weight": 0.8
+            },
+            "challenge": {},
+            "encounter": {},
+            "ended": false,
+            "endings": {
+              "fail_forward": "the_dark_keeps_its_hours",
+              "forced": true,
+              "gallery": [
+                {
+                  "closeness": "faint",
+                  "gate": "any: [{'quest_completed': 'bakery_apprentice'}, {'quest_completed': 'winter_stores'}, {'quest_completed': 'neighbours_ro and flag: nf_hearth_book_closed",
+                  "id": "the_hearth_holds",
+                  "lock_reason": "Nobody in Edgewood would miss you yet, and that is the whole of what this ending is made of. You have not said you are staying. Not out loud, not to yourself.",
+                  "tier": "locked",
+                  "title": "The Hearth Holds"
+                },
+                {
+                  "closeness": "none",
+                  "gate": "min_awareness: 30 and any: [{'quest_completed': 'childs_drawing'}, {'quest_completed': 'not_right'}, {'quest_completed': 'rumour_made_true'},  and any: [{'flag': 'nf_hearth_book_closed'}, {'quest_completed': 'the_last_quiet_thing'}]",
+                  "id": "the_long_witness",
+                  "lock_reason": "You have not seen anything you could not explain to yourself by breakfast. The wrong things have been in front of you for weeks. You have not once looked twice. Knowing is not this. Staying with what you know is this, and you have not chosen it.",
+                  "tier": "locked",
+                  "title": "The Long Witness"
+                },
+                {
+                  "closeness": "none",
+                  "gate": "arc_unlocked: march and reputation: {'faction': 'militia', 'min': 20} and any: [{'quest_completed': 'militia_press'}, {'quest_completed': 'conscription_list'}, {'quest_completed': 'toll_roads'}, and flag: nf_hearth_book_closed",
+                  "id": "the_counted_march",
+                  "lock_reason": "The road inward has soldiers on it, and you have not once stood where they could count you. Sera's ledger has your name in the column for strangers. Strangers are not mustered out; they are moved on. You have watched the arithmetic being done with people. Watching is not a discharge. The sergeant cannot strike a name that has not said it is done.",
+                  "tier": "locked",
+                  "title": "The Counted March"
+                },
+                {
+                  "closeness": "none",
+                  "gate": "quest_completed: naming_the_wound and quest_completed: what_edgewood_keeps",
+                  "id": "the_named_wound",
+                  "lock_reason": "It is still eleven separate wrong things to you. It has a shape, and you have not paid what looking at it costs. Edgewood does not know what you know, and what it does not know it cannot choose about.",
+                  "tier": "locked",
+                  "title": "The Named Wound"
+                },
+                {
+                  "closeness": "none",
+                  "gate": "quest_completed: the_sacrifice and flag: nf_sacrifice_paid",
+                  "id": "the_price_asked",
+                  "lock_reason": "Sympathy takes a like for a like, and you have not put anything on the table. It is still in your hands. Everything is negotiable until your hand comes off it.",
+                  "tier": "locked",
+                  "title": "The Price Asked"
+                },
+                {
+                  "closeness": "none",
+                  "gate": "flag: nf_ninth_taken and has_item: {'id': 'ninth_pin', 'qty': 1} and quest_completed: the_heartland_road",
+                  "id": "the_pin_and_the_join",
+                  "lock_reason": "The ninth pin is still on Ilya's felt, and he has never once said it is not for sale. You had it, and you spent it, or you left it somewhere a pin like that should never be left. You do not know where it goes. It goes where the two ends of the road were made to meet.",
+                  "tier": "locked",
+                  "title": "The Pin and the Join"
+                },
+                {
+                  "closeness": "none",
+                  "gate": "value: {'name': 'evil_progress', 'min': 1.0}",
+                  "id": "the_stopped_wheel",
+                  "lock_reason": "The world is still turning. This is not that ending, yet.",
+                  "tier": "locked",
+                  "title": "The Stopped Wheel"
+                },
+                {
+                  "closeness": "none",
+                  "id": "the_dark_keeps_its_hours",
+                  "tier": "unlocked",
+                  "title": "The Dark Keeps Its Hours"
+                }
+              ],
+              "intent": "none",
+              "locked": "none",
+              "settled": false
+            },
+            "evil_phase": "dormant",
+            "hunger": 6.0,
+            "hunger_stage": "fed",
+            "inventory": [
+              {
+                "id": "road_bread",
+                "name": "Stale road bread",
+                "qty": 2,
+                "tags": [
+                  "food"
+                ]
+              },
+              {
+                "id": "walking_staff",
+                "name": "Walking staff",
+                "qty": 1,
+                "tags": [
+                  "tool"
+                ]
+              }
+            ],
+            "location_id": "edgewood_square",
+            "location_name": "Edgewood Square",
+            "meters": {
+              "agility": {
+                "kind": "meter",
+                "label": "Agility",
+                "max": 18.0,
+                "min": 3.0,
+                "name": "agility",
+                "value": 11.0
+              },
+              "craft": {
+                "kind": "meter",
+                "label": "Craft",
+                "min": 0.0,
+                "name": "craft",
+                "value": 8.0
+              },
+              "focus": {
+                "kind": "meter",
+                "label": "Focus",
+                "max": 10.0,
+                "min": 0.0,
+                "name": "focus",
+                "value": 10.0
+              },
+              "gold": {
+                "kind": "meter",
+                "label": "Coin",
+                "min": 0.0,
+                "name": "gold",
+                "value": 5.0
+              },
+              "grit": {
+                "kind": "meter",
+                "label": "Grit",
+                "max": 18.0,
+                "min": 3.0,
+                "name": "grit",
+                "value": 11.0
+              },
+              "hp": {
+                "kind": "meter",
+                "label": "Health",
+                "max": 20.0,
+                "min": 0.0,
+                "name": "hp",
+                "value": 20.0
+              },
+              "hunger": {
+                "kind": "meter",
+                "label": "Hunger",
+                "max": 100.0,
+                "min": 0.0,
+                "name": "hunger",
+                "value": 6.0
+              },
+              "presence": {
+                "kind": "meter",
+                "label": "Presence",
+                "max": 18.0,
+                "min": 3.0,
+                "name": "presence",
+                "value": 10.0
+              },
+              "stamina": {
+                "kind": "meter",
+                "label": "Stamina",
+                "max": 100.0,
+                "min": 0.0,
+                "name": "stamina",
+                "value": 95.0
+              },
+              "wits": {
+                "kind": "meter",
+                "label": "Wits",
+                "max": 18.0,
+                "min": 3.0,
+                "name": "wits",
+                "value": 10.0
+              }
+            },
+            "player_name": "Traveler",
+            "quests": {
+              "_meta": {
+                "events_seen": {},
+                "visited": [
+                  "edgewood_square"
+                ]
+              }
+            },
+            "reputations": {},
+            "scene": {},
+            "session_id": "<session-2>",
+            "stamina_cap": 100,
+            "stats": {
+              "agility": 11,
+              "craft": 8,
+              "focus": 10,
+              "gold": 5,
+              "grit": 11,
+              "hp": 20,
+              "max_focus": 10,
+              "max_hp": 20,
+              "max_stamina": 100,
+              "presence": 10,
+              "stamina": 95,
+              "wits": 10
+            },
+            "time_of_day": "day",
+            "turn_number": 1,
+            "world_day": 1,
+            "world_hour": 11,
+            "wounds": []
+          },
+          "streamed": true,
+          "tool_receipts": [
+            {
+              "args": {
+                "location_id": "edgewood_square"
+              },
+              "intent": {
+                "action": "travel",
+                "target": "edgewood_square"
+              },
+              "result": {
+                "awareness_delta": 0.0,
+                "encounter": {},
+                "from_id": "forest_clearing",
+                "hours": 1,
+                "message": "Arrived at edgewood_square.",
+                "overloaded": false,
+                "stamina_cost": 5,
+                "success": true,
+                "to_id": "edgewood_square"
+              },
+              "skill": "move_to",
+              "success": true,
+              "type": "move"
+            }
+          ]
+        }
+      ],
+      "name": "turn_update",
+      "namespace": "/"
+    },
+    {
+      "args": [
+        {
+          "form": "cat",
+          "kind": "assistant",
+          "url": "/static/art/souls/cat-assistant.jpg"
+        }
+      ],
+      "name": "portrait_ready",
+      "namespace": "/"
+    },
+    {
+      "args": [
+        {
+          "location_id": "edgewood_square_day",
+          "url": "/static/art/scenes/noticeboard.jpg"
+        }
+      ],
+      "name": "image_ready",
+      "namespace": "/"
+    }
+  ],
+  "new_game": {
+    "json": {
+      "opening": {
+        "assistant": {
+          "decision": {},
+          "form": "cat",
+          "gift": null,
+          "help_probability": 0.4,
+          "hint_tier": 0,
+          "intent": "silent",
+          "patience": 80.0,
+          "portrait": "/static/art/souls/cat-assistant.jpg",
+          "reflection_unlocked": false,
+          "reliable": true,
+          "spoke": false,
+          "text": "",
+          "tool_receipts": [],
+          "transcript": "",
+          "trust": 20.0,
+          "unveiled": false,
+          "voice_style": ""
+        },
+        "choices": [
+          {
+            "id": "a",
+            "intent": {
+              "action": "travel",
+              "target": "edgewood_square"
+            },
+            "intent_label": "Edgewood Square, 1h",
+            "text": "Follow the smoke toward Edgewood"
+          },
+          {
+            "id": "b",
+            "text": "Search the clearing for supplies"
+          },
+          {
+            "id": "c",
+            "text": "Listen — something watches without moving"
+          }
+        ],
+        "frame": "opening",
+        "narration": "You wake beneath birch trees at the forest's edge. Mist clings to the ferns; somewhere ahead, hearth smoke threads the grey.",
+        "scene_image": "/static/art/scenes/wheatfield-forest-edge.jpg",
+        "state": {
+          "active_arc": "quiet_life",
+          "archetype": "wayfarer",
+          "carry": {
+            "limit": 25.0,
+            "overloaded": false,
+            "weight": 0.8
+          },
+          "challenge": {},
+          "encounter": {},
+          "ended": false,
+          "endings": {
+            "fail_forward": "the_dark_keeps_its_hours",
+            "forced": true,
+            "gallery": [
+              {
+                "closeness": "faint",
+                "gate": "any: [{'quest_completed': 'bakery_apprentice'}, {'quest_completed': 'winter_stores'}, {'quest_completed': 'neighbours_ro and flag: nf_hearth_book_closed",
+                "id": "the_hearth_holds",
+                "lock_reason": "Nobody in Edgewood would miss you yet, and that is the whole of what this ending is made of. You have not said you are staying. Not out loud, not to yourself.",
+                "tier": "locked",
+                "title": "The Hearth Holds"
+              },
+              {
+                "closeness": "none",
+                "gate": "min_awareness: 30 and any: [{'quest_completed': 'childs_drawing'}, {'quest_completed': 'not_right'}, {'quest_completed': 'rumour_made_true'},  and any: [{'flag': 'nf_hearth_book_closed'}, {'quest_completed': 'the_last_quiet_thing'}]",
+                "id": "the_long_witness",
+                "lock_reason": "You have not seen anything you could not explain to yourself by breakfast. The wrong things have been in front of you for weeks. You have not once looked twice. Knowing is not this. Staying with what you know is this, and you have not chosen it.",
+                "tier": "locked",
+                "title": "The Long Witness"
+              },
+              {
+                "closeness": "none",
+                "gate": "arc_unlocked: march and reputation: {'faction': 'militia', 'min': 20} and any: [{'quest_completed': 'militia_press'}, {'quest_completed': 'conscription_list'}, {'quest_completed': 'toll_roads'}, and flag: nf_hearth_book_closed",
+                "id": "the_counted_march",
+                "lock_reason": "The road inward has soldiers on it, and you have not once stood where they could count you. Sera's ledger has your name in the column for strangers. Strangers are not mustered out; they are moved on. You have watched the arithmetic being done with people. Watching is not a discharge. The sergeant cannot strike a name that has not said it is done.",
+                "tier": "locked",
+                "title": "The Counted March"
+              },
+              {
+                "closeness": "none",
+                "gate": "quest_completed: naming_the_wound and quest_completed: what_edgewood_keeps",
+                "id": "the_named_wound",
+                "lock_reason": "It is still eleven separate wrong things to you. It has a shape, and you have not paid what looking at it costs. Edgewood does not know what you know, and what it does not know it cannot choose about.",
+                "tier": "locked",
+                "title": "The Named Wound"
+              },
+              {
+                "closeness": "none",
+                "gate": "quest_completed: the_sacrifice and flag: nf_sacrifice_paid",
+                "id": "the_price_asked",
+                "lock_reason": "Sympathy takes a like for a like, and you have not put anything on the table. It is still in your hands. Everything is negotiable until your hand comes off it.",
+                "tier": "locked",
+                "title": "The Price Asked"
+              },
+              {
+                "closeness": "none",
+                "gate": "flag: nf_ninth_taken and has_item: {'id': 'ninth_pin', 'qty': 1} and quest_completed: the_heartland_road",
+                "id": "the_pin_and_the_join",
+                "lock_reason": "The ninth pin is still on Ilya's felt, and he has never once said it is not for sale. You had it, and you spent it, or you left it somewhere a pin like that should never be left. You do not know where it goes. It goes where the two ends of the road were made to meet.",
+                "tier": "locked",
+                "title": "The Pin and the Join"
+              },
+              {
+                "closeness": "none",
+                "gate": "value: {'name': 'evil_progress', 'min': 1.0}",
+                "id": "the_stopped_wheel",
+                "lock_reason": "The world is still turning. This is not that ending, yet.",
+                "tier": "locked",
+                "title": "The Stopped Wheel"
+              },
+              {
+                "closeness": "none",
+                "id": "the_dark_keeps_its_hours",
+                "tier": "unlocked",
+                "title": "The Dark Keeps Its Hours"
+              }
+            ],
+            "intent": "none",
+            "locked": "none",
+            "settled": false
+          },
+          "evil_phase": "dormant",
+          "hunger": 0.0,
+          "hunger_stage": "fed",
+          "inventory": [
+            {
+              "id": "road_bread",
+              "name": "Stale road bread",
+              "qty": 2,
+              "tags": [
+                "food"
+              ]
+            },
+            {
+              "id": "walking_staff",
+              "name": "Walking staff",
+              "qty": 1,
+              "tags": [
+                "tool"
+              ]
+            }
+          ],
+          "location_id": "forest_clearing",
+          "location_name": "Forest Clearing",
+          "meters": {
+            "agility": {
+              "kind": "meter",
+              "label": "Agility",
+              "max": 18.0,
+              "min": 3.0,
+              "name": "agility",
+              "value": 11.0
+            },
+            "craft": {
+              "kind": "meter",
+              "label": "Craft",
+              "min": 0.0,
+              "name": "craft",
+              "value": 8.0
+            },
+            "focus": {
+              "kind": "meter",
+              "label": "Focus",
+              "max": 10.0,
+              "min": 0.0,
+              "name": "focus",
+              "value": 10.0
+            },
+            "gold": {
+              "kind": "meter",
+              "label": "Coin",
+              "min": 0.0,
+              "name": "gold",
+              "value": 5.0
+            },
+            "grit": {
+              "kind": "meter",
+              "label": "Grit",
+              "max": 18.0,
+              "min": 3.0,
+              "name": "grit",
+              "value": 11.0
+            },
+            "hp": {
+              "kind": "meter",
+              "label": "Health",
+              "max": 20.0,
+              "min": 0.0,
+              "name": "hp",
+              "value": 20.0
+            },
+            "hunger": {
+              "kind": "meter",
+              "label": "Hunger",
+              "max": 100.0,
+              "min": 0.0,
+              "name": "hunger",
+              "value": 0.0
+            },
+            "presence": {
+              "kind": "meter",
+              "label": "Presence",
+              "max": 18.0,
+              "min": 3.0,
+              "name": "presence",
+              "value": 10.0
+            },
+            "stamina": {
+              "kind": "meter",
+              "label": "Stamina",
+              "max": 100.0,
+              "min": 0.0,
+              "name": "stamina",
+              "value": 100.0
+            },
+            "wits": {
+              "kind": "meter",
+              "label": "Wits",
+              "max": 18.0,
+              "min": 3.0,
+              "name": "wits",
+              "value": 10.0
+            }
+          },
+          "player_name": "Traveler",
+          "quests": {},
+          "reputations": {},
+          "scene": {},
+          "session_id": "<session-2>",
+          "stamina_cap": 100,
+          "stats": {
+            "agility": 11,
+            "craft": 8,
+            "focus": 10,
+            "gold": 5,
+            "grit": 11,
+            "hp": 20,
+            "max_focus": 10,
+            "max_hp": 20,
+            "max_stamina": 100,
+            "presence": 10,
+            "stamina": 100,
+            "wits": 10
+          },
+          "time_of_day": "day",
+          "turn_number": 0,
+          "world_day": 1,
+          "world_hour": 8,
+          "wounds": []
+        }
+      },
+      "save_id": "<save-3>",
+      "session_id": "<session-2>",
+      "state": {
+        "active_arc": "quiet_life",
+        "archetype": "wayfarer",
+        "carry": {
+          "limit": 25.0,
+          "overloaded": false,
+          "weight": 0.8
+        },
+        "challenge": {},
+        "encounter": {},
+        "ended": false,
+        "endings": {
+          "fail_forward": "the_dark_keeps_its_hours",
+          "forced": true,
+          "gallery": [
+            {
+              "closeness": "faint",
+              "gate": "any: [{'quest_completed': 'bakery_apprentice'}, {'quest_completed': 'winter_stores'}, {'quest_completed': 'neighbours_ro and flag: nf_hearth_book_closed",
+              "id": "the_hearth_holds",
+              "lock_reason": "Nobody in Edgewood would miss you yet, and that is the whole of what this ending is made of. You have not said you are staying. Not out loud, not to yourself.",
+              "tier": "locked",
+              "title": "The Hearth Holds"
+            },
+            {
+              "closeness": "none",
+              "gate": "min_awareness: 30 and any: [{'quest_completed': 'childs_drawing'}, {'quest_completed': 'not_right'}, {'quest_completed': 'rumour_made_true'},  and any: [{'flag': 'nf_hearth_book_closed'}, {'quest_completed': 'the_last_quiet_thing'}]",
+              "id": "the_long_witness",
+              "lock_reason": "You have not seen anything you could not explain to yourself by breakfast. The wrong things have been in front of you for weeks. You have not once looked twice. Knowing is not this. Staying with what you know is this, and you have not chosen it.",
+              "tier": "locked",
+              "title": "The Long Witness"
+            },
+            {
+              "closeness": "none",
+              "gate": "arc_unlocked: march and reputation: {'faction': 'militia', 'min': 20} and any: [{'quest_completed': 'militia_press'}, {'quest_completed': 'conscription_list'}, {'quest_completed': 'toll_roads'}, and flag: nf_hearth_book_closed",
+              "id": "the_counted_march",
+              "lock_reason": "The road inward has soldiers on it, and you have not once stood where they could count you. Sera's ledger has your name in the column for strangers. Strangers are not mustered out; they are moved on. You have watched the arithmetic being done with people. Watching is not a discharge. The sergeant cannot strike a name that has not said it is done.",
+              "tier": "locked",
+              "title": "The Counted March"
+            },
+            {
+              "closeness": "none",
+              "gate": "quest_completed: naming_the_wound and quest_completed: what_edgewood_keeps",
+              "id": "the_named_wound",
+              "lock_reason": "It is still eleven separate wrong things to you. It has a shape, and you have not paid what looking at it costs. Edgewood does not know what you know, and what it does not know it cannot choose about.",
+              "tier": "locked",
+              "title": "The Named Wound"
+            },
+            {
+              "closeness": "none",
+              "gate": "quest_completed: the_sacrifice and flag: nf_sacrifice_paid",
+              "id": "the_price_asked",
+              "lock_reason": "Sympathy takes a like for a like, and you have not put anything on the table. It is still in your hands. Everything is negotiable until your hand comes off it.",
+              "tier": "locked",
+              "title": "The Price Asked"
+            },
+            {
+              "closeness": "none",
+              "gate": "flag: nf_ninth_taken and has_item: {'id': 'ninth_pin', 'qty': 1} and quest_completed: the_heartland_road",
+              "id": "the_pin_and_the_join",
+              "lock_reason": "The ninth pin is still on Ilya's felt, and he has never once said it is not for sale. You had it, and you spent it, or you left it somewhere a pin like that should never be left. You do not know where it goes. It goes where the two ends of the road were made to meet.",
+              "tier": "locked",
+              "title": "The Pin and the Join"
+            },
+            {
+              "closeness": "none",
+              "gate": "value: {'name': 'evil_progress', 'min': 1.0}",
+              "id": "the_stopped_wheel",
+              "lock_reason": "The world is still turning. This is not that ending, yet.",
+              "tier": "locked",
+              "title": "The Stopped Wheel"
+            },
+            {
+              "closeness": "none",
+              "id": "the_dark_keeps_its_hours",
+              "tier": "unlocked",
+              "title": "The Dark Keeps Its Hours"
+            }
+          ],
+          "intent": "none",
+          "locked": "none",
+          "settled": false
+        },
+        "evil_phase": "dormant",
+        "hunger": 0.0,
+        "hunger_stage": "fed",
+        "inventory": [
+          {
+            "id": "road_bread",
+            "name": "Stale road bread",
+            "qty": 2,
+            "tags": [
+              "food"
+            ]
+          },
+          {
+            "id": "walking_staff",
+            "name": "Walking staff",
+            "qty": 1,
+            "tags": [
+              "tool"
+            ]
+          }
+        ],
+        "location_id": "forest_clearing",
+        "location_name": "Forest Clearing",
+        "meters": {
+          "agility": {
+            "kind": "meter",
+            "label": "Agility",
+            "max": 18.0,
+            "min": 3.0,
+            "name": "agility",
+            "value": 11.0
+          },
+          "craft": {
+            "kind": "meter",
+            "label": "Craft",
+            "min": 0.0,
+            "name": "craft",
+            "value": 8.0
+          },
+          "focus": {
+            "kind": "meter",
+            "label": "Focus",
+            "max": 10.0,
+            "min": 0.0,
+            "name": "focus",
+            "value": 10.0
+          },
+          "gold": {
+            "kind": "meter",
+            "label": "Coin",
+            "min": 0.0,
+            "name": "gold",
+            "value": 5.0
+          },
+          "grit": {
+            "kind": "meter",
+            "label": "Grit",
+            "max": 18.0,
+            "min": 3.0,
+            "name": "grit",
+            "value": 11.0
+          },
+          "hp": {
+            "kind": "meter",
+            "label": "Health",
+            "max": 20.0,
+            "min": 0.0,
+            "name": "hp",
+            "value": 20.0
+          },
+          "hunger": {
+            "kind": "meter",
+            "label": "Hunger",
+            "max": 100.0,
+            "min": 0.0,
+            "name": "hunger",
+            "value": 0.0
+          },
+          "presence": {
+            "kind": "meter",
+            "label": "Presence",
+            "max": 18.0,
+            "min": 3.0,
+            "name": "presence",
+            "value": 10.0
+          },
+          "stamina": {
+            "kind": "meter",
+            "label": "Stamina",
+            "max": 100.0,
+            "min": 0.0,
+            "name": "stamina",
+            "value": 100.0
+          },
+          "wits": {
+            "kind": "meter",
+            "label": "Wits",
+            "max": 18.0,
+            "min": 3.0,
+            "name": "wits",
+            "value": 10.0
+          }
+        },
+        "player_name": "Traveler",
+        "quests": {},
+        "reputations": {},
+        "scene": {},
+        "session_id": "<session-2>",
+        "stamina_cap": 100,
+        "stats": {
+          "agility": 11,
+          "craft": 8,
+          "focus": 10,
+          "gold": 5,
+          "grit": 11,
+          "hp": 20,
+          "max_focus": 10,
+          "max_hp": 20,
+          "max_stamina": 100,
+          "presence": 10,
+          "stamina": 100,
+          "wits": 10
+        },
+        "time_of_day": "day",
+        "turn_number": 0,
+        "world_day": 1,
+        "world_hour": 8,
+        "wounds": []
+      }
+    },
+    "status": 200
+  },
+  "requests": [
+    "GET http://localhost:1234/api/v1/models",
+    "POST http://localhost:1234/v1/chat/completions",
+    "POST http://localhost:1234/v1/chat/completions"
+  ]
+}

@@ -51,12 +51,13 @@ def _run(argv: list[str]) -> tuple[int, str]:
 
 @pytest.fixture
 def cache_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """The disposable generation cache, moved off the repo's data/media."""
-    from engine.media.providers import base
-
-    images = tmp_path / "cache" / "images"
-    monkeypatch.setattr(base, "IMAGE_DIR", images)
-    return images
+    """
+    The disposable generation cache, moved off the repo's data/media through
+    the production seam: the storage root (v0.20.0; this patched
+    ``base.IMAGE_DIR``, a constant that no longer exists).
+    """
+    monkeypatch.setenv("CLOCKWORK_DATA_DIR", str(tmp_path))
+    return tmp_path / "media" / "images"
 
 
 @pytest.fixture

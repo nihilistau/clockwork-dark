@@ -8,6 +8,8 @@ through ``integrations`` with reasoning OFF, and report what actually happened.
     .\\.venv\\Scripts\\python.exe scripts\\mcp_live_proof.py
     .\\.venv\\Scripts\\python.exe scripts\\mcp_live_proof.py --skill query_quests
 
+    .venv/bin/python scripts/mcp_live_proof.py      # Linux
+
 WHY A SCRIPT AND NOT A TEST. Everything it touches is a service on this
 machine: LM Studio must be running, a model must be loadable, and LM Studio's
 own MCP client must be able to reach a socket in THIS process. A test that

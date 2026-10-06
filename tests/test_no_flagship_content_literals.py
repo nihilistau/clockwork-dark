@@ -9,8 +9,13 @@ silently inherited by any story that omitted a key. The content now lives at
 through ``paths.*`` on the active manifest, and the ONLY repo-root ``data/``
 paths the engine may name are its own runtime outputs, which never moved:
 
-    data/saves    the save store        (``paths.saves``, engine-owned output)
-    data/media    the generated-media disk cache
+    data/saves    the save store        (under ``storage.root``, engine-owned output)
+    data/media    the generated-media disk cache (likewise)
+
+Since v0.20.0 both hang off one storage root (``engine/persistence/storage.py``,
+``storage.root: "data"``), so the media modules name no literal at all; the
+manifest names ``data/saves`` once, as the value every shipped story used to
+restate for the retired ``paths.saves`` (its advisory compares against it).
 
 A new quoted ``data/...`` literal anywhere else in ``engine/`` is this bug
 being reintroduced. It belongs in a manifest, not in Python.
@@ -40,10 +45,9 @@ _DATA_COMPONENT_JOIN = re.compile(r"""["']data["']\s*/""")
 # job to declare. Keep this list SMALL; a new entry needs the same argument
 # these have (an engine-owned OUTPUT, not story content).
 _ALLOWED: dict[str, frozenset[str]] = {
-    "engine/persistence/saves.py": frozenset({"data/saves"}),
-    "engine/api/media.py": frozenset({"data/media"}),
-    "engine/media/tts.py": frozenset({"data/media/tts"}),
-    "engine/media/providers/base.py": frozenset({"data/media"}),
+    # `LEGACY_SAVES_VALUE`: what the retired `paths.saves` advisory compares a
+    # manifest's value with (v0.20.0).
+    "engine/games/manifest.py": frozenset({"data/saves"}),
 }
 _ALLOWED_PREFIXES = ("data/saves", "data/media", "data/cache", "data/telemetry")
 

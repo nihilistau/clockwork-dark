@@ -10,9 +10,12 @@ Version: v0.1.0 [2026-06-20]
 from __future__ import annotations
 
 import hashlib
+import threading
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Optional
+
+from engine.locks import renew_after_fork
 
 
 @dataclass
@@ -102,18 +105,26 @@ class MediaQueue:
 
 
 _queue: Optional[MediaQueue] = None
+#: Guards building ``_queue`` (v0.20.0): two first callers share one queue.
+_queue_lock = threading.Lock()
+renew_after_fork(globals(), _queue_lock=threading.Lock)
 
 
 def get_media_queue() -> MediaQueue:
-    """Return singleton media queue."""
+    """Return singleton media queue (double-checked: no lock once built)."""
     global _queue
-    if _queue is None:
-        _queue = MediaQueue()
-    return _queue
+    queue = _queue
+    if queue is not None:
+        return queue
+    with _queue_lock:
+        if _queue is None:
+            _queue = MediaQueue()
+        return _queue
 
 
 def reset_media_queue() -> MediaQueue:
     """Reset queue — for tests."""
     global _queue
-    _queue = MediaQueue()
-    return _queue
+    with _queue_lock:
+        _queue = MediaQueue()
+        return _queue

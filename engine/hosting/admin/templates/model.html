@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Model server{% endblock %}
+{% block head %}<script src="/admin/static/admin.js" defer></script>{% endblock %}
+{% block content %}
+<h1>Model server</h1>
+{% if health.error %}<p class="message" role="status">The supervisor did not answer ({{ health.error }}).</p>{% endif %}
+<section data-refresh="/admin/api/health.json">
+  <h2>Health</h2>
+  <dl>
+    <dt>Provider</dt><dd data-field="provider">{{ health.provider }}</dd>
+    <dt>Base URL</dt><dd><code data-field="base_url">{{ health.base_url }}</code></dd>
+    <dt>Status</dt><dd data-field="status">{% if health.ok is defined %}{{ "ok" if health.ok else "down" }}{% endif %}</dd>
+    <dt>Detail</dt><dd data-field="detail">{{ health.detail }}</dd>
+    <dt>Latency (ms)</dt><dd data-field="latency_ms">{{ health.latency_ms }}</dd>
+    <dt>API key</dt><dd data-field="key">{{ key }}</dd>
+    <dt>Checked</dt><dd>{{ checked }}</dd>
+  </dl>
+  <p class="note">Checked by the supervisor at most every 10 seconds. The API key is shown only as set or not, and where from; setting one here is not possible: it goes in the environment or a key file.</p>
+</section>
+<section>
+  <h2>Models</h2>
+  {% if models.error %}<p class="note">The model list could not be read ({{ models.error }}).</p>{% endif %}
+  <table>
+    <thead><tr><th>Model</th><th>Loaded</th><th>Context</th><th>Capabilities</th></tr></thead>
+    <tbody>
+      {% for model in models.models %}
+      <tr><td><code>{{ model.id }}</code></td><td>{{ "yes" if model.loaded else "no" }}</td><td>{{ model.context }}</td><td>{{ model.capabilities|join(", ") }}</td></tr>
+      {% else %}
+      <tr><td colspan="4">No model listed.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <h2>Declared models (<code>llm.declared_models</code>)</h2>
+  <table>
+    <thead><tr><th>Model</th><th>Declared</th></tr></thead>
+    <tbody>
+      {% for model in health.declared or [] %}
+      <tr><td><code>{{ model.id }}</code></td><td>{{ model.fields|join(", ") }}</td></tr>
+      {% else %}
+      <tr><td colspan="2">None declared.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<section>
+  <h2>Settings</h2>
+  {% if op.op_id %}
+  <p>Last change: {{ op.op_id }}, by {{ op.actor }}: <strong>{{ op.status }}</strong>{% if op.reason %} -- {{ op.reason }}{% endif %}
+    ({% for s in op.steps %}{{ s.status }}{% if not loop.last %}, {% endif %}{% endfor %})</p>
+  {% endif %}
+  <form method="post" action="/admin/model" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}" />
+    <input type="hidden" name="version" value="{{ version }}" />
+    <table>
+      <thead><tr><th>Key</th><th>Value</th><th></th></tr></thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td><label for="f-{{ loop.index }}"><code>{{ row.key }}</code></label></td>
+          <td>
+          {% if row.key == "llm.provider" %}
+            <select id="f-{{ loop.index }}" name="{{ row.key }}"{% if row.locked %} disabled{% endif %}>
+              {% for name in providers %}<option value="{{ name }}"{% if name == row.value %} selected{% endif %}>{{ name }}</option>{% endfor %}
+            </select>
+          {% elif row.key == "llm.prefer_native" %}
+            <select id="f-{{ loop.index }}" name="{{ row.key }}"{% if row.locked %} disabled{% endif %}>
+              {% for name in ("true", "false") %}<option value="{{ name }}"{% if name == row.value %} selected{% endif %}>{{ name }}</option>{% endfor %}
+            </select>
+          {% elif row.key == "llm.profiles.big.reasoning" %}
+            <select id="f-{{ loop.index }}" name="{{ row.key }}"{% if row.locked %} disabled{% endif %}>
+              {% for name in ("on", "off") %}<option value="{{ name }}"{% if name == row.value %} selected{% endif %}>{{ name }}</option>{% endfor %}
+            </select>
+          {% else %}
+            <input id="f-{{ loop.index }}" name="{{ row.key }}" value="{{ row.value }}"{% if row.locked %} disabled{% endif %} />
+          {% endif %}
+          </td>
+          <td>{% if row.locked %}<span class="locked">locked: set in <code>{{ row.locked }}</code></span>{% else %}<input type="hidden" name="was:{{ row.key }}" value="{{ row.value }}" />{% endif %}
+          {% if row.key == "llm.base_url" and not row.locked %}<span class="note">Any host you name here is reached by the supervisor and every story. {% if key_set %}The API key goes to a new host only if you tick "send the API key to this host" below; moving the base URL back to the host the key was last sent to restores the key.{% endif %}</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <label><input type="checkbox" name="apply_anyway" value="1" /> Apply anyway, even if the new model server does not answer</label>
+    <label><input type="checkbox" name="send_key" value="1" /> Send the API key to this host, if the base URL moves to another host (scheme, host or port)</label>
+    <button type="submit" class="danger">Apply</button>
+  </form>
+  <p class="note">An apply never changes a running story in place. The supervisor first checks that a new server answers (unless "apply anyway" is ticked), then pauses every story's new turns and waits for the running ones to finish (if they outlast the drain time, nothing is changed), then writes its admin layer and restarts each story's worker in turn, one story at a time; a turn queued but not started is answered busy. Players must reload their page once their story is back: the game's page does not reconnect on its own after a server restart until the v0.21.0 client. If a worker will not start under the new settings, the previous settings are restored and the workers restarted again. A model server that is down after the apply is not rolled back: watch the health row above. A key set in the operator's configuration file is locked here: change it there.</p>
+</section>
+{% endblock %}

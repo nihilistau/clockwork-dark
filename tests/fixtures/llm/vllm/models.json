@@ -2,18 +2,18 @@
   "object": "list",
   "data": [
     {
-      "id": "Qwen/Qwen3-8B",
+      "id": "Qwen/Qwen3-1.7B",
       "object": "model",
-      "created": 1759104000,
+      "created": 1791255279,
       "owned_by": "vllm",
-      "root": "Qwen/Qwen3-8B",
+      "root": "Qwen/Qwen3-1.7B",
       "parent": null,
-      "max_model_len": 32768,
+      "max_model_len": 16384,
       "permission": [
         {
-          "id": "modelperm-0a1b2c3d4e5f",
+          "id": "modelperm-9b3ef81cea2bc612",
           "object": "model_permission",
-          "created": 1759104000,
+          "created": 1791255279,
           "allow_create_engine": false,
           "allow_sampling": true,
           "allow_logprobs": true,

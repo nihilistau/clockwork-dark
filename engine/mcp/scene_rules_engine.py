@@ -12,13 +12,19 @@ Version: v0.1.0 [2026-06-20]
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from engine.game.locations import LOCATION_IDS, can_travel
 from engine.game.state import GameState
+from engine.locks import renew_after_fork
 
 _rules_instance: Optional["SceneRulesEngine"] = None
+#: Guards building ``_rules_instance`` and, since T6 fix round 2, dropping it
+#: (``reset_rules_engine``, a config reset's RELOADER).
+_rules_lock = threading.Lock()
+renew_after_fork(globals(), _rules_lock=threading.Lock)
 
 
 @dataclass
@@ -155,8 +161,22 @@ class SceneRulesEngine:
 
 
 def get_rules_engine() -> SceneRulesEngine:
-    """Singleton rules engine."""
+    """Singleton rules engine (double-checked: no lock once built)."""
     global _rules_instance
-    if _rules_instance is None:
-        _rules_instance = SceneRulesEngine()
-    return _rules_instance
+    rules = _rules_instance
+    if rules is not None:
+        return rules
+    with _rules_lock:
+        rules = _rules_instance
+        if rules is None:
+            rules = SceneRulesEngine()
+            _rules_instance = rules
+        return rules
+
+
+def reset_rules_engine() -> None:
+    """Drop the singleton, under its lock: a config reset
+    (``engine/games/caches.py`` RELOADERS)."""
+    global _rules_instance
+    with _rules_lock:
+        _rules_instance = None

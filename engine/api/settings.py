@@ -13,7 +13,7 @@ shipped four localStorage toggles, none of which reached the engine.
 
 The whitelist below is the entire contract. A key not named here cannot be
 written by any request, so a malicious or malformed body cannot repoint
-`paths.saves`, disable the evil ticker's clamp, or inject a service command
+`storage.root` (where saves and media are written), disable the evil ticker's clamp, or inject a service command
 line. Every value is type-checked and clamped to its declared domain before
 it is written, and writes go to config/local.yaml -- gitignored, the layer
 the config manager already documents as machine-local, and one that
@@ -47,11 +47,14 @@ from typing import Any
 
 from flask import Blueprint, jsonify, request
 
-from engine.config import get_config, migrate_legacy_llm
+from engine.config import get_config, hosting_enabled, migrate_legacy_llm
 
 logger = logging.getLogger(__name__)
 
 BLUEPRINT_NAME = "settings"
+
+#: What hosted mode answers ``POST /api/settings`` (spec §6.7).
+HOSTED_REFUSAL = "Set by the server's operator."
 
 # type: bool | int | float | enum | text
 SETTING_SPECS: tuple[dict[str, Any], ...] = (
@@ -365,8 +368,12 @@ def _read_local() -> tuple[dict[str, Any], str]:
     """
     import yaml
 
-    from engine.config import project_root
+    from engine.config import child_sandbox, project_root
 
+    if child_sandbox() is not None:
+        # A child of the test suite never reads the owner's hand-kept file,
+        # as get_config does not (engine.config.child_sandbox).
+        return {}, ""
     path = project_root() / _LOCAL_CONFIG
     if not path.is_file():
         return {}, ""
@@ -420,6 +427,13 @@ def settings_view() -> dict[str, Any]:
     }
 
 
+#: The refusal for a ``${...}`` value (v0.20.0 T2 fix round 1).
+TEMPLATE_REFUSAL = (
+    "a ${...} reference cannot be set from the Settings panel; write it in "
+    "config/local.yaml by hand"
+)
+
+
 def _coerce_setting(spec: dict[str, Any], raw: Any) -> tuple[bool, Any, str]:
     """
     Validate one value against its spec.
@@ -430,6 +444,12 @@ def _coerce_setting(spec: dict[str, Any], raw: Any) -> tuple[bool, Any, str]:
     nearest legal one, not to hand back an error the player cannot act on.
     """
     kind = spec["type"]
+    # A ${...} reference is a secrets-chain template, which the config checks
+    # when it loads (engine/config.py::check_scopes): one written from here
+    # could leave every later load refusing until the file is hand-edited.
+    # Refused first, in words that say where such a value belongs.
+    if isinstance(raw, str) and "${" in raw:
+        return False, None, TEMPLATE_REFUSAL
     try:
         if kind == "bool":
             if isinstance(raw, str):
@@ -463,6 +483,20 @@ def _coerce_setting(spec: dict[str, Any], raw: Any) -> tuple[bool, Any, str]:
     return False, None, "unknown setting type"
 
 
+def validate_setting(key: str, raw: Any) -> tuple[bool, Any, str]:
+    """
+    One value for the row ``key`` (a ``SETTINGS_BY_KEY`` key), validated by
+    that row exactly as a Settings save validates it: ``(accepted, value,
+    note)``, a number out of range clamped with a note. The admin panel's
+    model server rows reuse it (v0.20.0 T16, spec §14.9), so a key both
+    panels edit has ONE rule.
+
+    Raises:
+        KeyError: ``key`` is not a row here.
+    """
+    return _coerce_setting(SETTINGS_BY_KEY[key], raw)
+
+
 def apply_settings(changes: dict[str, Any], *, reset: bool = False) -> dict[str, Any]:
     """
     Merge validated changes into config/local.yaml and reload the config.
@@ -482,7 +516,14 @@ def apply_settings(changes: dict[str, Any], *, reset: bool = False) -> dict[str,
     """
     import yaml
 
-    from engine.config import project_root, reset_config
+    from engine.config import (
+        TEST_SANDBOX_ENV,
+        check_scopes,
+        child_sandbox,
+        external_config_keys,
+        project_root,
+        reset_config,
+    )
 
     current, unreadable = _read_local()
     if unreadable:
@@ -546,6 +587,36 @@ def apply_settings(changes: dict[str, Any], *, reset: bool = False) -> dict[str,
             if note:
                 notes[str(key)] = note
 
+    # The second line behind TEMPLATE_REFUSAL: the tree about to be written
+    # is checked as the config will check it, so the panel can never write a
+    # file that makes the next load refuse (engine-authored, nothing written).
+    try:
+        check_scopes(overrides)
+    except ValueError as exc:
+        logger.error("[settings] Refusing to write a config that would not load: %s", exc)
+        return {
+            "ok": False,
+            "error": f"Nothing was saved: {exc}",
+            "applied": {},
+            "rejected": rejected,
+        }
+
+    if child_sandbox() is not None:
+        # A child of the test suite never writes the owner's config/local.yaml
+        # (engine.config.child_sandbox; no deployment sets its marker).
+        logger.warning(
+            "[settings] Refused to write %s in a child of the test suite "
+            "(operation=apply_settings, marker=%s)",
+            _LOCAL_CONFIG,
+            TEST_SANDBOX_ENV,
+        )
+        return {
+            "ok": False,
+            "error": f"Nothing was saved: {_LOCAL_CONFIG} is not written in the test sandbox",
+            "applied": {},
+            "rejected": rejected,
+        }
+
     path = project_root() / _LOCAL_CONFIG
     temp = path.with_suffix(".yaml.tmp")
     try:
@@ -578,12 +649,19 @@ def apply_settings(changes: dict[str, Any], *, reset: bool = False) -> dict[str,
         "[settings] Settings written (operation=apply_settings, keys=%s)",
         sorted(applied) or "reset",
     )
+    # A key the operator's CLOCKWORK_CONFIG file also sets outranks
+    # local.yaml, so this save "succeeded" and changed nothing: say which
+    # (v0.20.0, spec §2.1). Present only when non-empty, so with no external
+    # file the answer is exactly what it was.
+    external = set(external_config_keys())
+    shadowed = sorted(key for key in applied if key in external)
     return {
         "ok": True,
         "applied": applied,
         "rejected": rejected,
         "notes": notes,
         "restart_needed": restart_needed,
+        **({"shadowed": shadowed} if shadowed else {}),
         **settings_view(),
     }
 
@@ -594,7 +672,17 @@ def settings_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
 
     @blueprint.get("/api/settings")
     def api_get_settings() -> Any:
-        """Player-settable engine config: spec, live value, override state."""
+        """
+        Player-settable engine config: spec, live value, override state.
+
+        Hosted mode adds ``writable: false``: the panel can show the values,
+        and the operator's config sets them (spec §6.7).
+        """
+        if hosting_enabled():
+            # Without `config_path`: a path on the operator's machine is not
+            # a player's business (spec §6.6, v0.20.0 T8).
+            view = {k: v for k, v in settings_view().items() if k != "config_path"}
+            return jsonify({**view, "writable": False})
         return jsonify(settings_view())
 
     @blueprint.post("/api/settings")
@@ -605,7 +693,13 @@ def settings_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
         Not a game mutation: nothing here touches a GameState. Unknown keys
         are refused and numbers are clamped to their declared domain, so no
         body a client can send makes a run unplayable.
+
+        REFUSED IN HOSTED MODE (403, spec §6.7): it rewrites the machine's
+        config and resets every content cache under other players' turns,
+        and its keys describe the operator's machine, not a player's game.
         """
+        if hosting_enabled():
+            return jsonify({"ok": False, "error": HOSTED_REFUSAL}), 403
         body = request.get_json(silent=True) or {}
         result = apply_settings(
             body.get("changes") or {},
@@ -618,9 +712,11 @@ def settings_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
 
 __all__ = [
     "BLUEPRINT_NAME",
+    "HOSTED_REFUSAL",
     "SETTINGS_BY_KEY",
     "SETTING_SPECS",
     "apply_settings",
     "settings_blueprint",
     "settings_view",
+    "validate_setting",
 ]

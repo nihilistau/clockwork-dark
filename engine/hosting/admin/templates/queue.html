@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Queue{% endblock %}
+{% block head %}<script src="/admin/static/admin.js" defer></script>{% endblock %}
+{% block content %}
+<h1>Queue</h1>
+<p class="note">The model server's lanes, shared by every story. Who holds a slot and who waits are accounts, by id and name; nothing of what they play is shown.</p>
+{% if data.error %}<p class="message" role="status">The queue could not be read ({{ data.error }}).</p>{% endif %}
+<section data-refresh="/admin/api/queue.json">
+  <h2>Lanes</h2>
+  <table>
+    <thead><tr><th>Lane</th><th>Limit</th><th>Paused</th><th>Held</th><th>Waiting</th></tr></thead>
+    <tbody data-list="lanes" data-columns="lane limit paused held waiting">
+      {% for lane in data.lanes %}
+      <tr><td>{{ lane.lane }}</td><td>{{ lane.limit }}</td><td>{{ lane.paused }}</td><td>{{ lane.held }}</td><td>{{ lane.waiting }}</td></tr>
+      {% else %}
+      <tr><td colspan="5">No lane.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <h2>Holding a slot</h2>
+  <table>
+    <thead><tr><th>Lane</th><th>#</th><th>Story</th><th>Account</th><th>Name</th><th>Held (s)</th></tr></thead>
+    <tbody data-list="holders" data-columns="lane position story account name seconds">
+      {% for row in data.holders %}
+      <tr><td>{{ row.lane }}</td><td>{{ row.position }}</td><td>{{ row.story }}</td><td><code>{{ row.account }}</code></td><td>{{ row.name }}</td><td>{{ row.seconds }}</td></tr>
+      {% else %}
+      <tr><td colspan="6">Nobody.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <h2>Waiting, in order</h2>
+  <table>
+    <thead><tr><th>Lane</th><th>#</th><th>Story</th><th>Account</th><th>Name</th><th>Waiting (s)</th></tr></thead>
+    <tbody data-list="waiters" data-columns="lane position story account name seconds">
+      {% for row in data.waiters %}
+      <tr><td>{{ row.lane }}</td><td>{{ row.position }}</td><td>{{ row.story }}</td><td><code>{{ row.account }}</code></td><td>{{ row.name }}</td><td>{{ row.seconds }}</td></tr>
+      {% else %}
+      <tr><td colspan="6">Nobody.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<section>
+  <h2>Recent waits (the last {{ window }} hour)</h2>
+  {% if waits.error %}<p class="message" role="status">The recent waits could not be read ({{ waits.error }}).</p>{% endif %}
+  <table>
+    <thead><tr><th>Wait</th><th>Count</th><th>p50 (ms)</th><th>p95 (ms)</th><th>Held p50 (ms)</th><th>Held p95 (ms)</th></tr></thead>
+    <tbody>
+      {% for row in waits.rows %}
+      <tr><td>{% if row.source == "admission" %}admission (a turn's wait for its place){% else %}lane: {{ row.source }}{% endif %}</td><td>{{ row.count }}</td><td>{{ row.p50_ms }}</td><td>{{ row.p95_ms }}</td><td>{% if row.source != "admission" %}{{ row.hold_p50_ms }}{% endif %}</td><td>{% if row.source != "admission" %}{{ row.hold_p95_ms }}{% endif %}</td></tr>
+      {% else %}
+      <tr><td colspan="6">No wait recorded.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">More, by story and hour, on the <a href="/admin/metrics">Metrics</a> page.</p>
+</section>
+<section>
+  <h2>Paused</h2>
+  <p>{% if data.paused_stories %}New turns paused for: {{ data.paused_stories|join(", ") }}.{% else %}No story is paused on its own.{% endif %}
+  {% if data.closing_stories %} Stopping: {{ data.closing_stories|join(", ") }}.{% endif %}</p>
+  <p class="note">A lane shows paused while a model settings change drains every story; a story is paused on its own while it drains for a stop or a restart. A paused story's turns already running finish; its new ones wait.</p>
+</section>
+{% endblock %}

@@ -98,8 +98,8 @@ settings:
 # ---------------------------------------------------------------------------
 # paths: -- deep-merged over config/default.yaml's `paths:` block.
 #
-# ONLY WHAT THIS STORY SHIPS IS DECLARED. Seven keys, and each one is here
-# because leaving it off would point the engine at Edgewood:
+# ONLY WHAT THIS STORY SHIPS IS DECLARED: seventeen keys. Six of them are
+# here because leaving them off would point the engine at Edgewood:
 #
 #   locations     default data/world/locations.yaml -- Edgewood's map, and
 #                 `test_bedroom` is not in it, so entry would resolve to None
@@ -113,10 +113,9 @@ settings:
 #                 to the procedural silhouette
 #   art_manifest  default data/art/manifest.yaml -- Edgewood's id map
 #   art_subjects  default data/art/subjects.yaml -- Edgewood's prompts
-#   saves         restated rather than inherited so the save root is visible
-#                 here; the store appends the slug, so runs land in
-#                 data/saves/dev-story/. Validated on its PARENT (it is in
-#                 OUTPUT_PATH_KEYS), which is why it may not exist yet.
+#
+# No `saves`: since v0.20.0 saves are the engine's, under storage.root, so runs
+# land in data/saves/dev-story/ by default without the story saying so.
 #
 # ---------------------------------------------------------------------------
 # WHAT THIS STORY SHIPS NONE OF, WHICH IS ALMOST EVERYTHING
@@ -183,7 +182,6 @@ paths:
   art_root: "games/dev-story/data/art/plates"
   art_manifest: "games/dev-story/data/art/manifest.yaml"
   art_subjects: "games/dev-story/data/art/subjects.yaml"
-  saves: "data/saves"
 
 entry:
   # The one room in the world. See data/world/locations.yaml.

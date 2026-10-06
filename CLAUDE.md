@@ -10,23 +10,95 @@ release to release.
 
 ## Status
 
-**v0.19.0** is the current release (CHANGELOG.md has every release since 0.4.0;
+**v0.20.0** is the current release (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
-**4344 passing, 5 skipped in 33m21s** (v0.19.0, measured in a checkout
-holding the gitignored `Design_files/`, which runs the Design_files-only
-Garden test; a fresh worktree skips it, so 4343 pass and 6 skip there; the
-time was taken after the final-review fixes, the earlier 33m50s with the
-client tests, the doctor and `simulate.py` running beside it, and `tests/test_simulate_thief.py` adds about four minutes), no
-expected failures (measured 2026-09-30, v0.19.0 release; one skip is the
-stamina soft-lock test, which covers only stories with no rest verb and so
-skips HUE & CRY too, and one is `tests/test_llm_live.py`, skipped unless
-`CLOCKWORK_LIVE_LLM` names the configured model server), plus **145 client
-tests** under `ui/tests/` (`npm test --prefix ui`; `vitest` is a
+**Windows: 5782 passed, 24 skipped in 52m31s** (v0.20.0, measured
+2026-10-06 at the release, in a checkout holding the gitignored
+`Design_files/`, which runs the Design_files-only Garden test; a fresh
+worktree skips it too), no expected failures. The 24 skips: `tests/test_llm_live.py`
+(unless `CLOCKWORK_LIVE_LLM` names the configured model server); the ten
+tests of `tests/test_docker_smoke.py` (opt-in, `CLOCKWORK_DOCKER_SMOKE=1` and
+a built image); the stamina soft-lock test's three stories (it covers only
+stories with no rest verb); THE LONG CON's word-limit check;
+`tests/test_constraints.py`'s installed-version check for `faster-whisper`
+and `gunicorn` (neither installed on Windows); six POSIX-only tests (file
+modes in accounts, login and metrics, two exact-name command lookups, POSIX
+process groups); and one bus test skipped by design (a reply to nothing
+after `hello`). `tests/test_simulate_thief.py` alone takes about four
+minutes. Plus **145
+client tests** under `ui/tests/` (`npm test --prefix ui`; `vitest` is a
 devDependency, so `npm install --prefix ui` once first). Re-measure and
 restate these at every release rather than trusting this line -- it has
 been stale before, in the very sentence that warned about it.
 
+**Linux** (measured mid-release, not re-run at the release: T20 started no
+container): in `python:3.11-slim-bookworm` (pinned by digest, docs/HOSTING.md
+§ Linux) on a clone in a container volume, installed with `-c
+constraints.txt`, **4641 passed, 8 skipped, 0 failed in 25m43s** (T4,
+2026-09-30; the skips the owner's set, the Design_files-only Garden test and
+two Windows-only `PATHEXT` tests); and under **gunicorn 23.0.0** the hosted
+test files, **178 passed, 2 skipped** (T13, 2026-10-05), every real front
+door and worker started as `-m gunicorn -c deploy/gunicorn.conf.py
+<wsgi>:app`. The container's Node build matches the committed `dist` whole
+(`ui/index.html` and its built copy are LF by `.gitattributes`). **CI**
+(`.github/workflows/ci.yml`: `suite`, `client` and `image` on
+`ubuntu-latest`) has never run: it runs once pushed, which waits for the
+owner.
+
+**Docker** (T18, 2026-10-06): `docker build -t clockwork-dark .` built a
+327 MB image (110 MB of it the committed art) from the pinned base;
+`tests/test_docker_smoke.py` (the real compose file, two stories, a stub
+model server inside the container) **10 passed in 72 s**: uid 10001 under
+tini, a read-only root with no capability, no secret in the image, every
+child under gunicorn, two accounts each playing a streamed turn through the
+front door's WebSocket relay without reaching each other's run, the admin
+panel seeing both, a killed gunicorn master's orphan reaped, and `docker
+compose stop` draining a turn in flight to its player and exiting 0.
+`host.docker.internal` reached a server on the Windows host's loopback
+(Docker Desktop, engine 29.8.1). No live model was called.
+
+**vLLM** (T19, 2026-10-06): `vllm/vllm-openai:v0.31.0` under Docker
+Desktop on the RTX 2060 (sm_75: the V1 engine, TRITON_ATTN, `--dtype
+half`), Qwen/Qwen3-1.7B (Qwen3-4B's download declined),
+`--gpu-memory-utilization 0.90` measured from `nvidia-smi`.
+`tests/test_llm_live.py` with `CLOCKWORK_LIVE_LLM=vllm`: 6 of 6 with
+`--reasoning-parser qwen3`; without it 5 of 6, the HUE & CRY turn looping on
+whitespace under the grammar to the cap once, then 2 of 2 on a re-run. The
+`vllm` row is verified against **vLLM 0.31.0** (bar `mcp_integrations`),
+its fixtures recorded. Not run: the game container narrating through
+`http://vllm:8000/v1`.
+
+**Hosted mode** (v0.20.0; docs/HOSTING.md): `hosting.enabled` (off by
+default, and then `engine/hosting/` is never imported) turns the game into a
+small group's server. Operator-made accounts (`scripts/users.py`; the first
+admin with `add <name> --admin`), a signed-cookie login, one HTTP gate and
+one socket wrapper (`FlaskScene.on`) on every route and event, every run and
+save owned by an account (another's id answers as a missing one), generic
+errors with a logged reference, and the §6.7 refusals (the studio,
+`llm.mcp.enabled`, the Settings save). **The supervisor** (`python -m
+engine.hosting.supervisor`, or `launcher.py` with hosting on) runs a worker
+process per `hosting.stories` slug and the front door, over a loopback bus
+with a single-use token per child start: health checks, crash restarts with
+backoff and a hold-down, drained start/stop/restart operations, per-process
+logs, a bounded shutdown that stops the front door last. **One model-server
+queue for every story** (`engine/hosting/supervisor/queue.py`): FIFO, a turn
+admitted before any mechanic runs (busy = refused untouched), one live run
+and one narration ticket per account, a wall-clock deadline per turn, a
+reclaim backstop. **The front door** (`engine/hosting/frontdoor/`): one port,
+one login, the story picker, HTTP proxied and the game's WebSocket relayed
+to the chosen worker, the cookie's one writer, forwarded headers trusted by
+the proxy token alone, long holds and turn slots capped so logins always
+have threads. **gunicorn** on POSIX (`deploy/gunicorn.conf.py`, one
+`gthread` worker), the development server elsewhere. **The admin panel**
+(`/admin`, `engine/hosting/admin/`): Users, Sessions, Saves, Stories, Model
+server (a drained, rolled-back apply to the admin layer), Queue, Metrics,
+Errors and Audit, behind a role, a re-auth and CSRF; metadata only, never
+play text (`tests/test_admin_no_play_text.py`); every change written first
+to the audit log (`engine/hosting/audit.py`). **Metrics** in a closed
+schema (`engine/hosting/metrics_schema.py`), kept by the supervisor in
+SQLite. **Docker**: `Dockerfile`, `config/docker.yaml`, `docker-compose.yml`
+(published on the host's loopback, a `vllm` profile).
 Six stories ship, and every one can be played to an ending
 (`tests/test_finales.py`): `clockwork-dark` (the flagship), `wicked-garden`
 (the deck exemplar), `neon-city` (NEON CITY: THE CROSSING), `the-long-con` (THE
@@ -83,14 +155,14 @@ only once the last of them lands:
 | v0.17.0 | Act III + eight endings: the Hanging Fair event and fair-day deck, the jailbreak, The Rope via `death.yaml`, per-ending tests | **shipped** |
 | v0.18.0 | `simulate.py`'s thief policy, agenda collisions measured, welshing's cost for a fencing burglar and the careful pickpocket's deaths measured; the fences made to pay (owner decision) and the lockpick money loop closed | **shipped** |
 | v0.19.0 | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | **shipped** |
-| v0.20.0 | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker | next |
-| v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | queued |
-| v0.22.0 | The Clockwork Dark overhaul | queued |
-| v0.23.0 | The Wicked Garden overhaul | queued |
-| v0.24.0 | NEON CITY overhaul | queued |
-| v0.25.0 | THE LONG CON overhaul | queued |
-| v0.26.0 | Dev Story overhaul | queued |
-| v1.0.0 | All six stories finished, each with its art and live play -- `hue-and-cry`'s being a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, a ~55-plate Grok art pack -- tagged only once this lands | queued |
+| v0.20.0 | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker -- with the supervisor and front door, the admin panel and its audit log, metrics, and vLLM run live | **shipped** |
+| v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | next |
+| v0.22.0 | A new story: a dating simulation played through a phone of apps (dating apps, texts, instant messages, voice and video messages, two-player games), a populated cast the engine runs, no endgame (owner's brief: docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | queued |
+| v0.23.0 | The Clockwork Dark overhaul | queued |
+| v0.24.0 | The Wicked Garden overhaul | queued |
+| v0.25.0 | NEON CITY overhaul | queued |
+| v0.26.0 | THE LONG CON overhaul | queued |
+| v1.0.0 | Every story finished, each with its art and live play -- `hue-and-cry`'s being a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, a ~55-plate Grok art pack -- tagged only once this lands. `dev-story` is the engine's test bench, not a story, and is not overhauled | queued |
 
 Re-cut once more by the owner on 2026-09-26: the platform releases (v0.19.0
 backends, v0.20.0 Linux and hosting) land before v1.0.0, and the UI/UX
@@ -99,13 +171,20 @@ v0.21.0, so the shared surfaces are built once, as engine panels.
 
 Re-cut again by the owner on 2026-09-26 (during v0.16.0): after the UI/UX
 overhaul, each of the other five stories gets the full HUE & CRY treatment,
-one a release (v0.22.0–v0.26.0): a design spec, its story and characters,
+one a release (now v0.23.0–v0.26.0, Dev Story excepted): a design spec, its story and characters,
 the engine systems apt to it, every ending reachable and tested, measured
 balance, reviews, UI screens and art. A large story may take two minors,
 which shifts the later numbers. v1.0.0 now means all six stories finished,
 with art and live play for each. The owner does not approve each
 overhaul's design: write the spec, have it reviewed (opus), build it, and
 keep going.
+
+Re-cut again by the owner on 2026-09-30 (during v0.20.0): v0.22.0 is a
+new story, a dating simulation, and the overhauls move up one, to
+v0.23.0-v0.26.0. Dev Story leaves the overhaul list: it was only ever a
+testing ground, not a story. The new story's brief is the owner's own,
+kept verbatim in docs/superpowers/briefs/2026-09-30-dating-sim-brief.md;
+its design follows the same rule (spec, opus review, build).
 
 **The README is kept current at every release through v1.0.0** (owner
 instruction, 2026-09-26): status, features and roadmap each release; new
@@ -134,7 +213,7 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 - The Garden's bargains work only as written: `bargain` strikes, `discharge`
   settles, falling due breaks. Its renegotiations, the knife's cut, the gift
   auto-thread (`accept_gift`) and two undeclared templates (`briar_witness`,
-  `three_nights_or_truths`) are NOT WIRED (docs/GOVERNANCE.md); the v0.23.0
+  `three_nights_or_truths`) are NOT WIRED (docs/GOVERNANCE.md); the v0.24.0
   Wicked Garden overhaul takes them up.
 - `mortal_threshold`, the Garden's entry location, has no plate on purpose (it
   hosts the ten-card prologue), so a new player sees no scene art until the
@@ -348,6 +427,22 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   layer's `lmstudio:` block (and `stack.services.lmstudio`) is read as
   `llm:` with a WARNING, and a `lmstudio.*` read is answered from `llm.*`
   (`engine/config.py::migrate_legacy_llm`, `_READ_ALIASES`).
+- The legacy `paths.saves` config alias is removed in v0.21.0, with the
+  `lmstudio:` alias: until then a `paths.saves` in `config/local.yaml`,
+  `CLOCKWORK_CONFIG` or an environment layer is read as the exact local save
+  base, with one WARNING and a doctor `legacy paths.saves` WARN row naming
+  the file (`engine/persistence/storage.py::local_saves_base`). A story
+  manifest's `paths.saves` is ignored already (v0.20.0), with an advisory.
+- Two tabs can drive one local session (spec finding 7, recorded, not fixed
+  in local mode): `session_id` is persisted in the save, so a second `resume`
+  of the same save rebuilds a session under the SAME id and replaces the
+  `_sessions` entry (`engine/session/store.py::_build`); a turn already in
+  flight on the old engine can then autosave over the new session's state,
+  and both tabs sit in the room and drive the new engine. Returning the live
+  session instead would change the frame a reconnecting local player gets.
+  Hosted mode closes it per account: one live run per account, the other
+  released holding its turn lock so the old engine never autosaves over a
+  resume (`SessionStore`, spec §5.4).
 - The `engine.lmstudio` shim is removed in v0.21.0, with the config alias
   above: since v0.19.0 the package is `engine/llm/` (`native.py` became
   `lmstudio_native.py`), and `engine/lmstudio/__init__.py` only aliases
@@ -368,10 +463,22 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   discovery server, a `format`-ignoring probe answer, a proxy's 401 and a
   leading inline `<think>` stay `authored`: no live Ollama could give them
   (`PROVENANCE.yaml` notes say why).
-- **vLLM live verification -- v0.20.0, Linux.** Its cells stay unverified
-  (`verified=""`, † in docs/MODEL_SERVERS.md) and its fixtures `authored`
-  (owner decision, 2026-09-29); a generic OpenAI-compatible server has no
+- vLLM was verified live in v0.20.0 T19 on ONE card and ONE small model:
+  vLLM 0.31.0's Docker image on an RTX 2060 (sm_75) with Qwen/Qwen3-1.7B.
+  Not run: Qwen3-4B (declined), a newer GPU, a bare-metal Linux `pip`
+  install, `mcp_integrations`, and the game container narrating through the
+  compose network (`http://vllm:8000/v1`). Three fixtures stay `authored`,
+  each with a `PROVENANCE.yaml` note (a 200 error body on the list, the
+  `[IMAGE:]`-in-thinking stream). A generic OpenAI-compatible server has no
   one server to verify against.
+- vLLM's structured outputs allow any whitespace between JSON tokens
+  (`disable_any_whitespace=False`, its default): once in six live narration
+  turns Qwen3-1.7B wrote its narration and then newlines to the 4400-token
+  cap (T19, HUE & CRY, no `--reasoning-parser`); the engine salvaged the
+  narration and offered the fallback choices. Recorded, not tuned: the
+  lever is the server's (`--structured-outputs-config
+  '{"disable_any_whitespace": true}'`) or a larger model
+  (docs/MODEL_SERVERS.md § vLLM).
 - Ollama's thinking models think BEFORE its `format` grammar binds (measured,
   T8): `qwen3:4b` spent 4881 tokens on the probe's one-line question and
   over 16,000 characters on a narration turn, starving the `big` profile's
@@ -461,6 +568,134 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 - HUE & CRY's choice list can briefly overlap the casing board in the
   browser (seen in v0.19.0 T9's browser play). UI scope: v0.21.0's UI
   overhaul.
+- Local mode's Socket.IO still RECORDS `cors_allowed_origins="*"`
+  (`engine/scenes/flask_scene.py`), but no longer honours it for another
+  site: the guard in front of it (`engine/scenes/host_guard.py`, v0.20.0)
+  refuses a DNS-rebinding page's Host, and any request on the Socket.IO path
+  or WebSocket upgrade, whatever its method, whose `Origin` (or, with no
+  `Origin`, its `Referer`, as JSONP polling sends) names another host -- the
+  polling handshake, its POSTs and the upgrade, on the path read off the
+  constructed server -- as well as any other state-changing request whose
+  `Origin` or `Referer` does. So cross-site WebSocket hijacking by a page
+  the local player visits is refused, and the loopback bind keeps everyone
+  else out. What is left is only the recorded `"*"` value itself: setting
+  it to same-origin changes the local-mode golden's recorded
+  `cors_allowed_origins`, so it waits for a sanctioned change (hosted mode
+  sets its own: same-origin, or `[hosting.public_origin]`). The guard
+  compares hosts, not ports, so a page on loopback at another port counts as
+  the same site (documented in the module).
+- CI runs the suite as ONE job, not sharded (spec §3.8): sharding needs
+  `pytest-xdist` or `pytest-split`, and the suite has never run in parallel
+  workers -- it has process-wide singletons, story activation and temp-dir
+  guards, and the session's child sandbox and storage snapshot are
+  per-process. The sandbox marker is one of the things xdist-safe has to
+  solve: xdist's workers are children of the controller, inherit its
+  `CLOCKWORK_TEST_SANDBOX`, and so would refuse to start
+  (`tests/conftest.py::refuse_an_inherited_marker`) or, if let through, run
+  their whole sessions sandboxed and fail the goldens. Making it xdist-safe
+  is its own work. The job's time on a
+  2-vCPU runner is unmeasured until the owner pushes (the budget is 150
+  minutes).
+- The CI workflow (`.github/workflows/ci.yml`, v0.20.0 T5) has never run:
+  a workflow runs only once pushed, and nothing is pushed without the
+  owner's word. It is held to its shape by `tests/test_ci_workflow.py`
+  (parsed, not run; no `actionlint` on this machine). Its client job's
+  `git diff --exit-code` on `dist` rests on T4's measurement (24 of 25
+  files identical from `node:20-bookworm-slim`, `index.html` differing by
+  line endings only) and T5's LF rebuild of that one file, not on a run.
+  Its `image` job (T18) rests on the same build run here by hand (the
+  smoke test above), on Docker Desktop, not on an `ubuntu-latest` runner.
+  The README carries no CI badge until it has run.
+- `engine/hosting/boot.py::stop_master`'s re-parented branch (never signal
+  a master whose worker was re-parented) is unit-tested but was not reached
+  under real gunicorn: in T18's smoke test a SIGKILLed master's worker was
+  ended both times by gunicorn's own parent check ("Parent changed,
+  shutting down"), once even when frozen until the supervisor had restarted
+  the story. No process was signalled in the dead master's name either way.
+- "The front door last" holds for a shutdown the supervisor runs (a
+  signal, Ctrl+C, a fatal error in `__main__`): a supervisor killed outright
+  (SIGKILL, a crash past `__main__`) takes the front door and every worker
+  down at once through the bus lifeline, with no order. And a worker that
+  overruns its stop by up to a second eats into the front door's 10 s
+  reserve (`engine/hosting/supervisor/server.py::shutdown`), shortening only
+  the door's graceful stop, never past `shutdown_seconds`. Accepted (T18
+  re-review).
+- **The LM Studio skills server's own uvicorn (v0.20.0 T9) is not
+  live-verified with a model loaded.** `llm.mcp` now starts its own
+  `uvicorn.Server` over fastmcp's SSE app so `SkillsServer.stop` can end it;
+  the suite covers start, stop and the `mcp.json` entries against the temp
+  root, but at the release (2026-10-06) LM Studio was not running and no
+  model was loaded (the check never loads one), so no flagship turn has
+  called a tool through it. The check, when a model is already loaded:
+  `llm.mcp.enabled` in a temporary config layer only, one flagship turn
+  using a tool, the owner's `mcp.json` byte-identical to its pre-run copy,
+  the server stopped cleanly.
+- The Docker image is 327 MB, 110 MB of it the committed art under
+  `content/`, which every story's container carries whether or not it
+  serves that story. Measured, left.
+- The session snapshot of the owner's storage
+  (`tests/conftest.py::_real_storage_is_untouched`) cannot tell the suite
+  from two other writers: the owner's own game left running (an autosave, a
+  generated plate), and LM Studio itself rewriting its `mcp.json` when the
+  owner edits its servers. Either fails the session's last test; the message
+  says so and lists each change's size and mtime before and after. It also
+  proves only "net unchanged": a file made and removed within the session
+  leaves no trace (the in-process audit hook covers "never touched").
+- The child sandbox's residual gap (`tests/conftest.py::pytest_configure`,
+  `engine/config.py::child_sandbox`): a child started by a route that
+  bypasses the `Popen` wrapper (`os.execve`, `os.spawnve`, `posix_spawn`,
+  `_winapi.CreateProcess`, ctypes) AND with an explicit environment that
+  drops the marker is not sandboxed. Every other route inherits the marker
+  (it lives in the suite's own `os.environ` from the top of the conftest)
+  or has it re-injected by the wrapper whatever its `env=`. The AST scan
+  (`tests/test_subprocess_sandbox.py`) bans the `os.*` spellings of those
+  routes in first-party code but does not see `getattr(os, ...)`, which
+  matters only together with a dropped marker (a `getattr(os, "system")`
+  child still inherits it).
+- A sandboxed child's `llm.base_url` is the discard port
+  unless the SANDBOX LAYER's own `llm.base_url` is loopback on the port the
+  test registered (`tests/conftest.py::sandbox_model_stub(port)`, which
+  sets both, via `CLOCKWORK_TEST_MODEL_STUB_PORT`;
+  `engine/config.py::_sandbox_model_url`). A supervisor child reaches its
+  stub model server that way, not through a `CLOCKWORK_CONFIG` of the
+  test's own, whose `llm.base_url` is always overridden (spec §3.5's
+  CURRENT note).
+- CI runs its `client` job on Node 24 (the active LTS; the owner's
+  `dist` builds are Node 24.13.0), and T4 measured Node 20 on Linux against
+  the same `dist`; Node 24 on Linux has not been measured until the
+  workflow first runs. The action majors (checkout, setup-python,
+  setup-node v7) were read off their release pages on 2026-10-01 and are
+  kept (the T5 controller's ruling); that v7 runs on node24 is inferred.
+  The first push verifies both: a v7 that does not exist fails the first
+  run at its checkout step.
+- `scripts/start.ps1` was not given `start.sh`'s dangling-`.venv`-link
+  refusal (v0.20.0 T5): PowerShell's `Test-Path` on a broken link was not
+  measured here, so the Windows twin is unchanged.
+- The owner's Windows `.venv` carries a stale `fastmcp` 3.4.7 /
+  `fastmcp-slim` 3.4.7 record beside the `fastmcp` 3.2.4 whose files are
+  installed (and which imports). `constraints.txt` pins 3.2.4 and leaves
+  `fastmcp-slim` out; the record itself is left alone, because uninstalling
+  `fastmcp-slim` would delete files the two share. A fresh `.venv` installed
+  with `-c constraints.txt` has no such record.
+- `engine/games/caches.py::warm_all_caches()` (v0.20.0 T6) is called by
+  hosted mode's startup (`engine.hosting.install`, T7) and never in local
+  mode. (The loaders a config reset raced -- every `NULLED_ATTRIBUTES` site
+  -- read their cache once into a local since T6 fix round 2, pinned by
+  `tests/test_cache_reset_race.py`; a store a reset drops shares its save
+  folder's one index lock with its replacement since T8,
+  `saves.index_lock_for`.)
+- Hosted mode: the client does not reconnect after a SERVER-side socket
+  disconnect (`ui/src/core/socket.js` only dispatches `DISCONNECTED`), so a
+  password change, which closes every socket of the account at once (T8
+  fix round 1), also closes the player's own game tab, which must be
+  reloaded (docs/HOSTING.md § Ownership and errors); so does a model
+  settings apply, which restarts every story's worker (v0.20.0 T16,
+  docs/HOSTING.md § The admin panel, Model server). No UI change lands in
+  v0.20.0; the v0.21.0 UI overhaul takes it up.
+- Hosted mode's `GET /api/settings` omits `config_path` (a path on the
+  operator's machine, T8), and the unchanged Settings screen
+  (`ui/src/core/screens/Settings.jsx`) renders an empty `<code>` where it
+  stood. The v0.21.0 UI overhaul hides that row when `writable` is false.
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 

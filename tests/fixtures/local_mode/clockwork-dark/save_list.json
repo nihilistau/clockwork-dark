@@ -1,0 +1,35 @@
+{
+  "json": {
+    "saves": [
+      {
+        "archetype": "wayfarer",
+        "evil_phase": "dormant",
+        "location_id": "edgewood_square",
+        "player_name": "Traveler",
+        "save_id": "<save-2>",
+        "save_version": 2,
+        "slot": "1",
+        "thumbnail": "",
+        "turn_number": 4,
+        "updated_at": "<time>",
+        "world_day": 1,
+        "world_hour": 11
+      },
+      {
+        "archetype": "wayfarer",
+        "evil_phase": "dormant",
+        "location_id": "edgewood_square",
+        "player_name": "Traveler",
+        "save_id": "<save-1>",
+        "save_version": 2,
+        "slot": "auto",
+        "thumbnail": "",
+        "turn_number": 4,
+        "updated_at": "<time>",
+        "world_day": 1,
+        "world_hour": 11
+      }
+    ]
+  },
+  "status": 200
+}

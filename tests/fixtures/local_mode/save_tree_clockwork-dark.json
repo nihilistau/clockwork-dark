@@ -1,0 +1,1015 @@
+{
+  "<save-1>/memory.json": {
+    "facts": [],
+    "names": {},
+    "open_threads": [],
+    "promises": [],
+    "relations": {
+      "npc_odran": {
+        "debts": [],
+        "disposition": 0,
+        "first_met_day": 1,
+        "kind": "npc",
+        "known_facts": [],
+        "last_seen_day": 1,
+        "last_seen_location": "edgewood_square",
+        "met": true,
+        "notes": [],
+        "npc_id": "npc_odran",
+        "owed": [],
+        "tags": [],
+        "trust": 0
+      },
+      "npc_villager_1": {
+        "debts": [],
+        "disposition": 0,
+        "first_met_day": 1,
+        "kind": "npc",
+        "known_facts": [],
+        "last_seen_day": 1,
+        "last_seen_location": "edgewood_square",
+        "met": true,
+        "notes": [],
+        "npc_id": "npc_villager_1",
+        "owed": [],
+        "tags": [],
+        "trust": 0
+      },
+      "npc_villager_2": {
+        "debts": [],
+        "disposition": 0,
+        "first_met_day": 1,
+        "kind": "npc",
+        "known_facts": [],
+        "last_seen_day": 1,
+        "last_seen_location": "edgewood_square",
+        "met": true,
+        "notes": [],
+        "npc_id": "npc_villager_2",
+        "owed": [],
+        "tags": [],
+        "trust": 0
+      },
+      "npc_villager_3": {
+        "debts": [],
+        "disposition": 0,
+        "first_met_day": 1,
+        "kind": "npc",
+        "known_facts": [],
+        "last_seen_day": 1,
+        "last_seen_location": "edgewood_square",
+        "met": true,
+        "notes": [],
+        "npc_id": "npc_villager_3",
+        "owed": [],
+        "tags": [],
+        "trust": 0
+      }
+    },
+    "summary": "",
+    "summary_through_turn": 0,
+    "turn_buffer": [
+      {
+        "day": 1,
+        "location_id": "edgewood_square",
+        "narration": "The lamps gutter and steady. Nothing in the street moves that was not moving before.",
+        "outcomes": [],
+        "player_action": "The player chooses: Follow the smoke toward Edgewood",
+        "turn": 1
+      },
+      {
+        "day": 1,
+        "location_id": "edgewood_square",
+        "narration": "The lamps gutter and steady. Nothing in the street moves that was not moving before.",
+        "outcomes": [],
+        "player_action": "The player chooses: Wait and watch the street",
+        "turn": 2
+      },
+      {
+        "day": 1,
+        "location_id": "edgewood_square",
+        "narration": "The lamps gutter and steady. Nothing in the street moves that was not moving before.",
+        "outcomes": [],
+        "player_action": "The player chooses: Wait and watch the street",
+        "turn": 3
+      },
+      {
+        "day": 1,
+        "location_id": "edgewood_square",
+        "narration": "The lamps gutter and steady. Nothing in the street moves that was not moving before.",
+        "outcomes": [],
+        "player_action": "The player chooses: Wait and watch the street",
+        "turn": 4
+      }
+    ]
+  },
+  "<save-1>/memory.json.bak": {
+    "facts": [],
+    "names": {},
+    "open_threads": [],
+    "promises": [],
+    "relations": {
+      "npc_odran": {
+        "debts": [],
+        "disposition": 0,
+        "first_met_day": 1,
+        "kind": "npc",
+        "known_facts": [],
+        "last_seen_day": 1,
+        "last_seen_location": "edgewood_square",
+        "met": true,
+        "notes": [],
+        "npc_id": "npc_odran",
+        "owed": [],
+        "tags": [],
+        "trust": 0
+      },
+      "npc_villager_1": {
+        "debts": [],
+        "disposition": 0,
+        "first_met_day": 1,
+        "kind": "npc",
+        "known_facts": [],
+        "last_seen_day": 1,
+        "last_seen_location": "edgewood_square",
+        "met": true,
+        "notes": [],
+        "npc_id": "npc_villager_1",
+        "owed": [],
+        "tags": [],
+        "trust": 0
+      },
+      "npc_villager_2": {
+        "debts": [],
+        "disposition": 0,
+        "first_met_day": 1,
+        "kind": "npc",
+        "known_facts": [],
+        "last_seen_day": 1,
+        "last_seen_location": "edgewood_square",
+        "met": true,
+        "notes": [],
+        "npc_id": "npc_villager_2",
+        "owed": [],
+        "tags": [],
+        "trust": 0
+      },
+      "npc_villager_3": {
+        "debts": [],
+        "disposition": 0,
+        "first_met_day": 1,
+        "kind": "npc",
+        "known_facts": [],
+        "last_seen_day": 1,
+        "last_seen_location": "edgewood_square",
+        "met": true,
+        "notes": [],
+        "npc_id": "npc_villager_3",
+        "owed": [],
+        "tags": [],
+        "trust": 0
+      }
+    },
+    "summary": "",
+    "summary_through_turn": 0,
+    "turn_buffer": [
+      {
+        "day": 1,
+        "location_id": "edgewood_square",
+        "narration": "The lamps gutter and steady. Nothing in the street moves that was not moving before.",
+        "outcomes": [],
+        "player_action": "The player chooses: Follow the smoke toward Edgewood",
+        "turn": 1
+      },
+      {
+        "day": 1,
+        "location_id": "edgewood_square",
+        "narration": "The lamps gutter and steady. Nothing in the street moves that was not moving before.",
+        "outcomes": [],
+        "player_action": "The player chooses: Wait and watch the street",
+        "turn": 2
+      },
+      {
+        "day": 1,
+        "location_id": "edgewood_square",
+        "narration": "The lamps gutter and steady. Nothing in the street moves that was not moving before.",
+        "outcomes": [],
+        "player_action": "The player chooses: Wait and watch the street",
+        "turn": 3
+      }
+    ]
+  },
+  "<save-1>/save.json": {
+    "engine_version": "0.2.0",
+    "game": "clockwork-dark",
+    "save_id": "<save-1>",
+    "save_version": 2,
+    "slot": "auto",
+    "state": {
+      "active_arc": "quiet_life",
+      "active_effects": [],
+      "agendas": {},
+      "archetype": "wayfarer",
+      "arcs_unlocked": [
+        "quiet_life"
+      ],
+      "assistant_mind": {
+        "appearance_schedule": "hidden",
+        "current_form": "cat",
+        "help_probability": 0.4,
+        "intervention_willingness": 0.3,
+        "patience": 80.0,
+        "trust_level": 20.0
+      },
+      "awareness": 0.0,
+      "challenge": {},
+      "clocks": {},
+      "doom_resistance": 0.0,
+      "encounter": {},
+      "ended": false,
+      "evil_phase": "dormant",
+      "evil_progress": 0.00188995884,
+      "flags": {},
+      "hunger": 6.0,
+      "inventory": [
+        {
+          "id": "road_bread",
+          "name": "Stale road bread",
+          "qty": 2,
+          "tags": [
+            "food"
+          ]
+        },
+        {
+          "id": "walking_staff",
+          "name": "Walking staff",
+          "qty": 1,
+          "tags": [
+            "tool"
+          ]
+        }
+      ],
+      "jobs": {},
+      "last_cutscene_phase": "",
+      "last_sim_tick_at": "<time>",
+      "law": {},
+      "location_id": "edgewood_square",
+      "media_cache": {
+        "432dc1512af0e7e3": "/static/placeholders/edgewood_square_day.png"
+      },
+      "media_cutscenes_shown": [],
+      "meters": {},
+      "moved": [],
+      "player_name": "Traveler",
+      "plot_involvement": 12.0377991768,
+      "premise_intel": {},
+      "procgen": {
+        "bakery_job_day": 3,
+        "buildings": [
+          {
+            "canon": true,
+            "id": "building_bakery",
+            "location_id": "edgewood_bakery",
+            "name": "Hearth Bakery",
+            "type": "bakery"
+          },
+          {
+            "canon": true,
+            "id": "building_communal_oven",
+            "location_id": "edgewood_square",
+            "name": "Communal Stone Oven",
+            "type": "oven"
+          },
+          {
+            "canon": true,
+            "id": "building_shrine",
+            "location_id": "edgewood_square",
+            "name": "Shrine of Unnamed Saints",
+            "type": "shrine"
+          },
+          {
+            "canon": true,
+            "id": "building_well",
+            "location_id": "edgewood_square",
+            "name": "Square Well",
+            "type": "well"
+          },
+          {
+            "canon": true,
+            "id": "building_notice_board",
+            "location_id": "edgewood_square",
+            "name": "Notice Board",
+            "type": "civic"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_1",
+            "location_id": "edgewood_square",
+            "name": "Joiner's Yard",
+            "type": "carpenter"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_2",
+            "location_id": "edgewood_square",
+            "name": "Road Stables",
+            "type": "stable"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_3",
+            "location_id": "edgewood_square",
+            "name": "Old Smithy",
+            "type": "smithy"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_4",
+            "location_id": "edgewood_square",
+            "name": "East Granary",
+            "type": "granary"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_5",
+            "location_id": "edgewood_square",
+            "name": "Smokehouse",
+            "type": "smokehouse"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_6",
+            "location_id": "edgewood_square",
+            "name": "Ropewalk",
+            "type": "rope"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_7",
+            "location_id": "edgewood_square",
+            "name": "Deep Cellar",
+            "type": "root_cellar"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_8",
+            "location_id": "edgewood_square",
+            "name": "Weaver's Loft",
+            "type": "weaver"
+          }
+        ],
+        "festival": {
+          "day_offset": 28,
+          "name": "Founder's Ash",
+          "season": "summer"
+        },
+        "forest": {
+          "barrow_dungeon": {
+            "dc": 16,
+            "id": "barrow_dungeon",
+            "location_id": "forest_clearing",
+            "name": "Barrow of the First Warden",
+            "optional": true
+          },
+          "forage_nodes": [
+            {
+              "dc": 12,
+              "id": "forage_1",
+              "location_id": "forest_clearing",
+              "resource": "berry"
+            },
+            {
+              "dc": 7,
+              "id": "forage_2",
+              "location_id": "forest_clearing",
+              "resource": "herb"
+            },
+            {
+              "dc": 11,
+              "id": "forage_3",
+              "location_id": "forest_clearing",
+              "resource": "herb"
+            },
+            {
+              "dc": 12,
+              "id": "forage_4",
+              "location_id": "forest_clearing",
+              "resource": "berry"
+            },
+            {
+              "dc": 13,
+              "id": "forage_5",
+              "location_id": "forest_clearing",
+              "resource": "game_trail"
+            },
+            {
+              "dc": 7,
+              "id": "forage_6",
+              "location_id": "forest_clearing",
+              "resource": "mushroom"
+            }
+          ],
+          "hidden_paths": [
+            {
+              "dc": 16,
+              "id": "hidden_path_1",
+              "label": "mossy shortcut",
+              "leads_to": "old_barrows"
+            },
+            {
+              "dc": 14,
+              "id": "hidden_path_2",
+              "label": "dry creek bed",
+              "leads_to": "herb_glen"
+            }
+          ]
+        },
+        "npcs": [
+          {
+            "canon": true,
+            "id": "npc_maris",
+            "location_id": "edgewood_bakery",
+            "name": "Maris Hearth",
+            "role": "baker",
+            "traits": [
+              "warm",
+              "watchful",
+              "maternal"
+            ]
+          },
+          {
+            "canon": true,
+            "id": "npc_odran",
+            "location_id": "edgewood_square",
+            "name": "Odran Cartwright",
+            "role": "caravan_master",
+            "traits": [
+              "weathered",
+              "gossiping",
+              "cautious"
+            ]
+          },
+          {
+            "canon": true,
+            "id": "npc_ilya",
+            "location_id": "tinker_caravan",
+            "name": "Ilya of the Nine Pins",
+            "role": "tinker",
+            "traits": [
+              "clever",
+              "evasive",
+              "charming"
+            ]
+          },
+          {
+            "canon": true,
+            "id": "npc_sera",
+            "location_id": "millhaven_gate",
+            "name": "Sergeant Sera Venn",
+            "role": "militia",
+            "traits": [
+              "stern",
+              "conflicted",
+              "dutiful"
+            ]
+          },
+          {
+            "canon": true,
+            "id": "npc_brindle",
+            "location_id": "edgewood_square",
+            "name": "Brindle",
+            "role": "cat",
+            "traits": [
+              "silent",
+              "knowing",
+              "feline"
+            ]
+          },
+          {
+            "canon": false,
+            "id": "npc_villager_1",
+            "location_id": "edgewood_square",
+            "name": "Fen Briar",
+            "role": "fence_mender",
+            "traits": [
+              "stubborn",
+              "pious"
+            ]
+          },
+          {
+            "canon": false,
+            "id": "npc_villager_2",
+            "location_id": "edgewood_square",
+            "name": "Isla Kettle",
+            "role": "fence_mender",
+            "traits": [
+              "suspicious",
+              "dreamy"
+            ]
+          },
+          {
+            "canon": false,
+            "id": "npc_villager_3",
+            "location_id": "edgewood_square",
+            "name": "Ewan Ivers",
+            "role": "fence_mender",
+            "traits": [
+              "stubborn",
+              "restless"
+            ]
+          }
+        ],
+        "premises": [],
+        "seed": 20260930,
+        "shrine_mural": "the Marches road winding into a wound of light"
+      },
+      "provenance": {},
+      "quests": {
+        "_meta": {
+          "events_seen": {},
+          "visited": [
+            "edgewood_square"
+          ]
+        }
+      },
+      "reputations": {},
+      "rng_counters": {
+        "assistant": 4,
+        "encounter": 1,
+        "gossip": 1,
+        "schedule.caravan": 1,
+        "schedule.militia": 1,
+        "schedule.tinker": 1
+      },
+      "rng_seed": 20260930,
+      "rumors": [],
+      "save_version": 2,
+      "scene": {},
+      "session_id": "<session-1>",
+      "stats": {
+        "agility": 11,
+        "craft": 8,
+        "focus": 10,
+        "gold": 5,
+        "grit": 11,
+        "hp": 20,
+        "max_focus": 10,
+        "max_hp": 20,
+        "max_stamina": 100,
+        "presence": 10,
+        "stamina": 95,
+        "wits": 10
+      },
+      "story_pressure": 15.32645942376,
+      "story_pressure_prev": 6.01764,
+      "storyteller_mind": {
+        "appearance_schedule": "hidden",
+        "current_form": "cat",
+        "help_probability": 0.4,
+        "intervention_willingness": 0.3,
+        "patience": 76.0,
+        "trust_level": 20.0
+      },
+      "threads": [],
+      "tracks": {},
+      "turn_number": 4,
+      "world_clock_hours": 11.0,
+      "world_events": [],
+      "wounds": []
+    },
+    "updated_at": "<time>"
+  },
+  "<save-1>/save.json.bak": {
+    "engine_version": "0.2.0",
+    "game": "clockwork-dark",
+    "save_id": "<save-1>",
+    "save_version": 2,
+    "slot": "auto",
+    "state": {
+      "active_arc": "quiet_life",
+      "active_effects": [],
+      "agendas": {},
+      "archetype": "wayfarer",
+      "arcs_unlocked": [
+        "quiet_life"
+      ],
+      "assistant_mind": {
+        "appearance_schedule": "hidden",
+        "current_form": "cat",
+        "help_probability": 0.4,
+        "intervention_willingness": 0.3,
+        "patience": 80.0,
+        "trust_level": 20.0
+      },
+      "awareness": 0.0,
+      "challenge": {},
+      "clocks": {},
+      "doom_resistance": 0.0,
+      "encounter": {},
+      "ended": false,
+      "evil_phase": "dormant",
+      "evil_progress": 0.00188995884,
+      "flags": {},
+      "hunger": 6.0,
+      "inventory": [
+        {
+          "id": "road_bread",
+          "name": "Stale road bread",
+          "qty": 2,
+          "tags": [
+            "food"
+          ]
+        },
+        {
+          "id": "walking_staff",
+          "name": "Walking staff",
+          "qty": 1,
+          "tags": [
+            "tool"
+          ]
+        }
+      ],
+      "jobs": {},
+      "last_cutscene_phase": "",
+      "last_sim_tick_at": "<time>",
+      "law": {},
+      "location_id": "edgewood_square",
+      "media_cache": {
+        "432dc1512af0e7e3": "/static/placeholders/edgewood_square_day.png"
+      },
+      "media_cutscenes_shown": [],
+      "meters": {},
+      "moved": [],
+      "player_name": "Traveler",
+      "plot_involvement": 12.0377991768,
+      "premise_intel": {},
+      "procgen": {
+        "bakery_job_day": 3,
+        "buildings": [
+          {
+            "canon": true,
+            "id": "building_bakery",
+            "location_id": "edgewood_bakery",
+            "name": "Hearth Bakery",
+            "type": "bakery"
+          },
+          {
+            "canon": true,
+            "id": "building_communal_oven",
+            "location_id": "edgewood_square",
+            "name": "Communal Stone Oven",
+            "type": "oven"
+          },
+          {
+            "canon": true,
+            "id": "building_shrine",
+            "location_id": "edgewood_square",
+            "name": "Shrine of Unnamed Saints",
+            "type": "shrine"
+          },
+          {
+            "canon": true,
+            "id": "building_well",
+            "location_id": "edgewood_square",
+            "name": "Square Well",
+            "type": "well"
+          },
+          {
+            "canon": true,
+            "id": "building_notice_board",
+            "location_id": "edgewood_square",
+            "name": "Notice Board",
+            "type": "civic"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_1",
+            "location_id": "edgewood_square",
+            "name": "Joiner's Yard",
+            "type": "carpenter"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_2",
+            "location_id": "edgewood_square",
+            "name": "Road Stables",
+            "type": "stable"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_3",
+            "location_id": "edgewood_square",
+            "name": "Old Smithy",
+            "type": "smithy"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_4",
+            "location_id": "edgewood_square",
+            "name": "East Granary",
+            "type": "granary"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_5",
+            "location_id": "edgewood_square",
+            "name": "Smokehouse",
+            "type": "smokehouse"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_6",
+            "location_id": "edgewood_square",
+            "name": "Ropewalk",
+            "type": "rope"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_7",
+            "location_id": "edgewood_square",
+            "name": "Deep Cellar",
+            "type": "root_cellar"
+          },
+          {
+            "canon": false,
+            "id": "building_proc_8",
+            "location_id": "edgewood_square",
+            "name": "Weaver's Loft",
+            "type": "weaver"
+          }
+        ],
+        "festival": {
+          "day_offset": 28,
+          "name": "Founder's Ash",
+          "season": "summer"
+        },
+        "forest": {
+          "barrow_dungeon": {
+            "dc": 16,
+            "id": "barrow_dungeon",
+            "location_id": "forest_clearing",
+            "name": "Barrow of the First Warden",
+            "optional": true
+          },
+          "forage_nodes": [
+            {
+              "dc": 12,
+              "id": "forage_1",
+              "location_id": "forest_clearing",
+              "resource": "berry"
+            },
+            {
+              "dc": 7,
+              "id": "forage_2",
+              "location_id": "forest_clearing",
+              "resource": "herb"
+            },
+            {
+              "dc": 11,
+              "id": "forage_3",
+              "location_id": "forest_clearing",
+              "resource": "herb"
+            },
+            {
+              "dc": 12,
+              "id": "forage_4",
+              "location_id": "forest_clearing",
+              "resource": "berry"
+            },
+            {
+              "dc": 13,
+              "id": "forage_5",
+              "location_id": "forest_clearing",
+              "resource": "game_trail"
+            },
+            {
+              "dc": 7,
+              "id": "forage_6",
+              "location_id": "forest_clearing",
+              "resource": "mushroom"
+            }
+          ],
+          "hidden_paths": [
+            {
+              "dc": 16,
+              "id": "hidden_path_1",
+              "label": "mossy shortcut",
+              "leads_to": "old_barrows"
+            },
+            {
+              "dc": 14,
+              "id": "hidden_path_2",
+              "label": "dry creek bed",
+              "leads_to": "herb_glen"
+            }
+          ]
+        },
+        "npcs": [
+          {
+            "canon": true,
+            "id": "npc_maris",
+            "location_id": "edgewood_bakery",
+            "name": "Maris Hearth",
+            "role": "baker",
+            "traits": [
+              "warm",
+              "watchful",
+              "maternal"
+            ]
+          },
+          {
+            "canon": true,
+            "id": "npc_odran",
+            "location_id": "edgewood_square",
+            "name": "Odran Cartwright",
+            "role": "caravan_master",
+            "traits": [
+              "weathered",
+              "gossiping",
+              "cautious"
+            ]
+          },
+          {
+            "canon": true,
+            "id": "npc_ilya",
+            "location_id": "tinker_caravan",
+            "name": "Ilya of the Nine Pins",
+            "role": "tinker",
+            "traits": [
+              "clever",
+              "evasive",
+              "charming"
+            ]
+          },
+          {
+            "canon": true,
+            "id": "npc_sera",
+            "location_id": "millhaven_gate",
+            "name": "Sergeant Sera Venn",
+            "role": "militia",
+            "traits": [
+              "stern",
+              "conflicted",
+              "dutiful"
+            ]
+          },
+          {
+            "canon": true,
+            "id": "npc_brindle",
+            "location_id": "edgewood_square",
+            "name": "Brindle",
+            "role": "cat",
+            "traits": [
+              "silent",
+              "knowing",
+              "feline"
+            ]
+          },
+          {
+            "canon": false,
+            "id": "npc_villager_1",
+            "location_id": "edgewood_square",
+            "name": "Fen Briar",
+            "role": "fence_mender",
+            "traits": [
+              "stubborn",
+              "pious"
+            ]
+          },
+          {
+            "canon": false,
+            "id": "npc_villager_2",
+            "location_id": "edgewood_square",
+            "name": "Isla Kettle",
+            "role": "fence_mender",
+            "traits": [
+              "suspicious",
+              "dreamy"
+            ]
+          },
+          {
+            "canon": false,
+            "id": "npc_villager_3",
+            "location_id": "edgewood_square",
+            "name": "Ewan Ivers",
+            "role": "fence_mender",
+            "traits": [
+              "stubborn",
+              "restless"
+            ]
+          }
+        ],
+        "premises": [],
+        "seed": 20260930,
+        "shrine_mural": "the Marches road winding into a wound of light"
+      },
+      "provenance": {},
+      "quests": {
+        "_meta": {
+          "events_seen": {},
+          "visited": [
+            "edgewood_square"
+          ]
+        }
+      },
+      "reputations": {},
+      "rng_counters": {
+        "assistant": 3,
+        "encounter": 1,
+        "gossip": 1,
+        "schedule.caravan": 1,
+        "schedule.militia": 1,
+        "schedule.tinker": 1
+      },
+      "rng_seed": 20260930,
+      "rumors": [],
+      "save_version": 2,
+      "scene": {},
+      "session_id": "<session-1>",
+      "stats": {
+        "agility": 11,
+        "craft": 8,
+        "focus": 10,
+        "gold": 5,
+        "grit": 11,
+        "hp": 20,
+        "max_focus": 10,
+        "max_hp": 20,
+        "max_stamina": 100,
+        "presence": 10,
+        "stamina": 95,
+        "wits": 10
+      },
+      "story_pressure": 15.026459423759999,
+      "story_pressure_prev": 6.01764,
+      "storyteller_mind": {
+        "appearance_schedule": "hidden",
+        "current_form": "cat",
+        "help_probability": 0.4,
+        "intervention_willingness": 0.3,
+        "patience": 77.0,
+        "trust_level": 20.0
+      },
+      "threads": [],
+      "tracks": {},
+      "turn_number": 3,
+      "world_clock_hours": 11.0,
+      "world_events": [],
+      "wounds": []
+    },
+    "updated_at": "<time>"
+  },
+  "<save-1>/transcript.jsonl": [
+    {
+      "action": "The player chooses: Follow the smoke toward Edgewood",
+      "day": 1,
+      "hour": 11,
+      "location": "edgewood_square",
+      "narration": "The lamps gutter and steady. Nothing in the street moves that was not moving before.",
+      "turn": 1
+    },
+    {
+      "action": "The player chooses: Wait and watch the street",
+      "day": 1,
+      "hour": 11,
+      "location": "edgewood_square",
+      "narration": "The lamps gutter and steady. Nothing in the street moves that was not moving before.",
+      "turn": 2
+    },
+    {
+      "action": "The player chooses: Wait and watch the street",
+      "day": 1,
+      "hour": 11,
+      "location": "edgewood_square",
+      "narration": "The lamps gutter and steady. Nothing in the street moves that was not moving before.",
+      "turn": 3
+    },
+    {
+      "action": "The player chooses: Wait and watch the street",
+      "day": 1,
+      "hour": 11,
+      "location": "edgewood_square",
+      "narration": "The lamps gutter and steady. Nothing in the street moves that was not moving before.",
+      "turn": 4
+    }
+  ],
+  "index.json": {
+    "saves": [
+      {
+        "archetype": "wayfarer",
+        "created_at": "<time>",
+        "evil_phase": "dormant",
+        "location_id": "edgewood_square",
+        "player_name": "Traveler",
+        "save_id": "<save-1>",
+        "save_version": 2,
+        "slot": "auto",
+        "thumbnail": "",
+        "turn_number": 4,
+        "updated_at": "<time>",
+        "world_day": 1,
+        "world_hour": 11
+      }
+    ]
+  }
+}

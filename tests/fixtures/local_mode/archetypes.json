@@ -1,0 +1,25 @@
+{
+  "json": {
+    "archetypes": [
+      {
+        "blurb": "Cloak, staff, road boots. You have slept under more hedges than roofs.",
+        "id": "wayfarer",
+        "name": "Wayfarer",
+        "note": "stealth · survival"
+      },
+      {
+        "blurb": "Apron, rolled sleeves, flour to the elbow. You feed people. That is not nothing.",
+        "id": "hearthkeeper",
+        "name": "Hearthkeeper",
+        "note": "craft · persuasion"
+      },
+      {
+        "blurb": "Tool belt, brass pins, chalk stains. You know what gears sound like when they are wrong.",
+        "id": "tinker_apprentice",
+        "name": "Tinker-apprentice",
+        "note": "craft · lore"
+      }
+    ]
+  },
+  "status": 200
+}

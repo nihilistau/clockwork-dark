@@ -494,12 +494,14 @@ def spec() -> dict[str, Any]:
             fault in the contract above.
     """
     global _SPEC_CACHE
-    if _SPEC_CACHE is not None:
-        return _SPEC_CACHE
+    cached = _SPEC_CACHE  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
     path = _jobs_path()
     if path is None:
-        _SPEC_CACHE = {}
-        return _SPEC_CACHE
+        empty: dict[str, Any] = {}
+        _SPEC_CACHE = empty
+        return empty
     if not path.is_file():
         # Declared and absent is a broken install: the story promised jobs.
         raise ValueError(f"jobs: declared file {path} does not exist")
@@ -547,7 +549,7 @@ def spec() -> dict[str, Any]:
         for aid, a in anchors.items() for s in a["stages"]
     }
 
-    _SPEC_CACHE = {
+    loaded = {
         "stages": stages,
         "tier_band": tier_band,
         "entries": entries,
@@ -565,7 +567,8 @@ def spec() -> dict[str, Any]:
         "flashbacks": _load_flashbacks(path, doc, stage_ids),
         "anchors": anchors,
     }
-    return _SPEC_CACHE
+    _SPEC_CACHE = loaded
+    return loaded
 
 
 # ---------------------------------------------------------------------------
@@ -1645,10 +1648,11 @@ def tick(state: GameState, hours: float) -> None:
     if law.declared():
         encounter_id = str((law.load_spec().get("arrest") or {}).get("encounter") or "")
         if encounter_id and encounter.get_definition(encounter_id) is None:
-            if _WARNED_ARREST is None:
-                _WARNED_ARREST = set()
-            if encounter_id not in _WARNED_ARREST:
-                _WARNED_ARREST.add(encounter_id)
+            warned = _WARNED_ARREST  # read once: a reset nulls it without a lock
+            if warned is None:
+                warned = _WARNED_ARREST = set()
+            if encounter_id not in warned:
+                warned.add(encounter_id)
                 logger.warning(
                     "[jobs] arrest.encounter names no loaded encounter "
                     "(operation=tick, id=%s). A raised alarm brings nobody.",

@@ -196,7 +196,6 @@ paths:
   art_subjects: "games/hue-and-cry/data/art/subjects.yaml"
   art_manifest: "games/hue-and-cry/data/art/manifest.yaml"
   art_root: "games/hue-and-cry/data/art/plates"
-  saves: "data/saves"
 
 entry:
   location_id: tallow_docks

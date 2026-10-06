@@ -1,0 +1,22 @@
+-c constraints.txt
+# What a hosted server installs (v0.20.0 T13, spec §7.1, §8.1): the core of
+# requirements.txt plus gunicorn, the production server the supervisor runs
+# the front door and every story's worker under on Linux. WITHOUT
+# faster-whisper (speech-to-text is off on a server unless the image is built
+# with it) and fastmcp (hosted mode refuses llm.mcp.enabled), and without the
+# test runner.
+#
+#     pip install -r requirements-server.txt -c constraints.txt
+#
+# The `-c` line above makes the pins apply even when this file is installed
+# alone; tests/test_constraints.py holds every name here to a pin.
+pyyaml>=6.0
+httpx>=0.27.0
+flask>=3.0.0
+flask-socketio>=5.3.0
+python-socketio>=5.11.0
+pillow>=12.0
+
+# The production server (Linux and other POSIX systems; it does not run on
+# Windows, where the supervisor uses Werkzeug instead).
+gunicorn>=23

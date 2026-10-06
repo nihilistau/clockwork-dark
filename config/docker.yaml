@@ -1,0 +1,71 @@
+# The Docker image's environment layer (v0.20.0 T18, spec §8.1).
+#
+# Read only under CLOCKWORK_ENV=docker, which the image sets: it sits above
+# config/default.yaml and below everything an operator writes. Everything the
+# operator changes goes in /data/config.yaml (CLOCKWORK_CONFIG, on the data
+# volume), never here, so the image's /app stays what was built.
+#
+# One exception (spec §14.9): each llm.* key the admin panel edits is set in
+# ONE place. A key set in /data/config.yaml is locked in the panel (the
+# operator's file wins, and the panel refuses rather than shadow it), so an
+# operator who means to use the Model server page leaves those keys out of
+# their file. The llm.base_url below ranks below the panel's layer and is
+# only its starting value.
+#
+# Hosting is on here and cannot be turned off in the image: a container exists
+# to publish a port, and an image that served a published port with no login
+# would be an open game. gunicorn refuses local mode (engine/hosting/wsgi.py)
+# and so does the supervisor. Local single-player is launcher.py, outside a
+# container.
+
+scene:
+  clockwork:
+    # Every interface of the CONTAINER: the published port reaches the front
+    # door. Workers stay on the container's loopback (spec §14.3).
+    host: "0.0.0.0"
+
+hosting:
+  enabled: true
+
+session:
+  # A run nobody has touched in 30 minutes is released (spec §5.4): a server
+  # keeps no idle engine in memory for ever.
+  idle_ttl_minutes: 30
+
+llm:
+  # LM Studio on the Docker host. Docker Desktop provides the name; on Docker
+  # Engine on Linux, docker-compose.yml maps it to the host gateway, which a
+  # loopback-bound server does not answer (docs/HOSTING.md § Reaching a model
+  # server from a container).
+  base_url: "http://host.docker.internal:1234/v1"
+
+stt:
+  # Push-to-talk. The image has no faster-whisper (unless built with
+  # WITH_WHISPER=1), and the engine has no "off" provider, so it is the HTTP
+  # provider with nothing listening: every press answers an empty
+  # transcript, quietly, and no model is ever downloaded. An operator with a
+  # transcription server sets stt.base_url in /data/config.yaml; one who
+  # built WITH_WHISPER=1 sets stt.provider: faster_whisper there.
+  provider: "voxtral_http"
+
+stack:
+  # No service is started from inside the container, and none but the model
+  # server is expected: their shipped URLs are localhost (TTS on 8123, ComfyUI
+  # on 8188), which inside the container points at nothing. An operator who
+  # runs one sets its URL and enables it in /data/config.yaml.
+  services:
+    llm:
+      enabled: true
+      manage: false
+    voxtral_tts:
+      enabled: false
+      manage: false
+    voxtral_asr:
+      enabled: false
+      manage: false
+    comfyui:
+      enabled: false
+      manage: false
+    grok:
+      enabled: false
+      manage: false

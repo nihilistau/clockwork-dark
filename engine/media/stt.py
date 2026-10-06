@@ -41,6 +41,7 @@ from typing import Any, Optional, Protocol
 import httpx
 
 from engine.config import get_config
+from engine.locks import renew_after_fork
 
 logger = logging.getLogger(__name__)
 
@@ -209,6 +210,7 @@ def build_provider(name: Optional[str] = None) -> STTProvider:
 _provider: Optional[STTProvider] = None
 _provider_config: Any = None
 _provider_lock = threading.Lock()
+renew_after_fork(globals(), _provider_lock=threading.Lock)
 
 
 def get_stt_provider() -> STTProvider:

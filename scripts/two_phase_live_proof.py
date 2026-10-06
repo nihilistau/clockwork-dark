@@ -6,6 +6,7 @@ Run ONE real turn against the live LM Studio with ``llm.mcp.enabled``
 true, and show the receipt travelling from Phase A into the narration.
 
     .\\.venv\\Scripts\\python.exe scripts\\two_phase_live_proof.py
+    .venv/bin/python scripts/two_phase_live_proof.py      # Linux
 
 WHY A SCRIPT AND NOT A TEST, again. Same reason as
 ``scripts/mcp_live_proof.py``: this needs LM Studio running, a loadable model,

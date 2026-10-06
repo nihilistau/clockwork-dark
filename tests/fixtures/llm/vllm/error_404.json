@@ -1,0 +1,21 @@
+{
+  "request": {
+    "model": "no-such-model",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 2+2? Answer with one number only."
+      }
+    ],
+    "max_tokens": 16
+  },
+  "status": 404,
+  "json": {
+    "error": {
+      "message": "The model `no-such-model` does not exist.",
+      "type": "NotFoundError",
+      "param": "model",
+      "code": 404
+    }
+  }
+}

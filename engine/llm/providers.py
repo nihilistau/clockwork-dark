@@ -21,8 +21,8 @@ carries ``verified=""``, and the document flags it as unverified. LM Studio's
 row is v0.18's behaviour, measured live through v0.18 and pinned request by
 request by the golden (``tests/test_llm_golden_lmstudio.py``). llama-server's
 and Ollama's were measured live in v0.19.0 (``_LLAMACPP``, ``_OLLAMA``), bar
-the cells those constants' comments name. vLLM's cells stay unverified until
-v0.20.0 (Linux); the generic server's have no one server to be verified on.
+the cells those constants' comments name, and vLLM's in v0.20.0 (``_VLLM``,
+in its Linux image). The generic server's have no one server to be verified on.
 
 WHAT READS WHICH CELL:
 
@@ -431,6 +431,12 @@ _LLAMACPP = "llama.cpp server b7966"
 #: `auth`'s pass-through (no proxy was run) and `mcp_integrations` stay
 #: unverified.
 _OLLAMA = "Ollama 0.34.4"
+#: vLLM, run live in v0.20.0 T19: the `vllm/vllm-openai:v0.31.0` image under
+#: Docker Desktop's WSL2 backend, the GPU an RTX 2060 (sm_75: the V1 engine,
+#: the TRITON_ATTN backend, `--dtype half`), Qwen/Qwen3-1.7B. The fixtures
+#: under tests/fixtures/llm/vllm/ and tests/test_llm_live.py.
+#: `mcp_integrations` stays unverified: nothing there was measured.
+_VLLM = "vLLM 0.31.0"
 
 _COMPAT_JSON = ("json_schema", "json_object")
 _THINKING_OFF = {"chat_template_kwargs": {"enable_thinking": False}}
@@ -492,24 +498,36 @@ PROVIDERS: dict[str, Provider] = {
         title="vLLM",
         key_hint=_KEY_HINT,
         key_missing=_key_missing("vLLM"),
-        chat_transport=Cell("compat"),
-        structured_output=Cell(_COMPAT_JSON, "response_format; guided decoding"),
-        probe=Cell("constraint_won"),
-        reasoning_off=Cell(_THINKING_OFF, "on the same request as the grammar"),
-        grammar_and_reasoning_off_together=Cell("yes"),
-        inline_think=Cell("strip", "unless served with --reasoning-parser"),
-        discovery=Cell(
-            "openai_models", f"GET base_url{OPENAI_MODELS_PATH} and its max_model_len"
+        chat_transport=Cell("compat", "", _VLLM),
+        structured_output=Cell(
+            _COMPAT_JSON,
+            "response_format; with --reasoning-parser the grammar binds after the thinking",
+            _VLLM,
         ),
-        keep_alive=Cell(None),
-        context_control=Cell("server", "--max-model-len"),
-        auth=Cell("bearer", "optional, --api-key"),
-        inline_tools=Cell(True, "tools=, needs --enable-auto-tool-choice"),
+        probe=Cell("constraint_won", "", _VLLM),
+        reasoning_off=Cell(
+            _THINKING_OFF,
+            "on the same request as the grammar; whether the template honours it is the model's",
+            _VLLM,
+        ),
+        grammar_and_reasoning_off_together=Cell("yes", "", _VLLM),
+        inline_think=Cell("strip", "unless served with --reasoning-parser", _VLLM),
+        discovery=Cell(
+            "openai_models", f"GET base_url{OPENAI_MODELS_PATH} and its max_model_len", _VLLM
+        ),
+        keep_alive=Cell(None, "", _VLLM),
+        context_control=Cell("server", "--max-model-len", _VLLM),
+        auth=Cell("bearer", "optional, --api-key", _VLLM),
+        inline_tools=Cell(
+            True, "tools=, needs --enable-auto-tool-choice and a --tool-call-parser", _VLLM
+        ),
         mcp_integrations=Cell(False),
         health=Cell(
-            (HEALTH_PATH, OPENAI_MODELS_PATH), "the list under base_url, shape-checked"
+            (HEALTH_PATH, OPENAI_MODELS_PATH),
+            "/health answers 200, empty; nothing listens while loading; the list shape-checked",
+            _VLLM,
         ),
-        default_base_url=Cell("http://localhost:8000/v1"),
+        default_base_url=Cell("http://localhost:8000/v1", "", _VLLM),
         inline_think_fix=(
             "start vLLM with --reasoning-parser <parser> (qwen3, deepseek_r1, ... "
             "per the model family)"

@@ -215,11 +215,13 @@ def _fresh_flag(path: Path, raw: Any) -> str:
 def spec() -> dict[str, Any]:
     """The parsed, validated file; empty for a story that lays no trail."""
     global _SPEC_CACHE
-    if _SPEC_CACHE is not None:
-        return _SPEC_CACHE
+    cached = _SPEC_CACHE  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
     path = _path()
-    _SPEC_CACHE = _parse(path) if path is not None else {}
-    return _SPEC_CACHE
+    loaded = _parse(path) if path is not None else {}
+    _SPEC_CACHE = loaded
+    return loaded
 
 
 # ---------------------------------------------------------------------------

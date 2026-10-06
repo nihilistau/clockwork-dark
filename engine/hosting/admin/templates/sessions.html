@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Sessions{% endblock %}
+{% block head %}<script src="/admin/static/admin.js" defer></script>{% endblock %}
+{% block content %}
+<h1>Sessions</h1>
+<section data-refresh="/admin/api/sessions.json">
+  <h2>Live now</h2>
+  <dl>
+    <dt>Live sessions</dt><dd data-field="total">{{ data.total }}</dd>
+  </dl>
+  <table>
+    <thead><tr><th>Story</th><th>Live sessions</th></tr></thead>
+    <tbody data-list="stories" data-columns="slug sessions">
+      {% for slug, count in data.stories|dictsort %}
+      <tr><td>{{ slug }}</td><td>{{ count }}</td></tr>
+      {% else %}
+      <tr><td colspan="2">No story answered.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<section>
+  <h2>Every live session</h2>
+  <table>
+    <thead>
+      <tr><th>Story</th><th>Owner</th><th>Session</th><th>Save</th><th>Created</th><th>Last activity</th><th>Turns</th><th>Turn running</th><th>Sockets</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for error in data.errors %}
+      <tr class="error"><td>{{ error.story or "every story" }}</td><td colspan="9">The sessions list could not be read ({{ error.error }}).</td></tr>
+    {% endfor %}
+    {% for row in data.rows %}
+      <tr>
+        <td>{{ row.story }}</td>
+        <td>{{ row.owner_name }}</td>
+        <td><code>{{ row.ref }}</code></td>
+        <td><code>{{ row.save_ref }}</code></td>
+        <td>{{ row.created_text }}</td>
+        <td>{{ row.last_activity_text }}</td>
+        <td>{{ row.turns }}</td>
+        <td>{% if row.turn_running %}yes{% else %}no{% endif %}</td>
+        <td>{{ row.sockets }}</td>
+        <td class="actions">
+          <form method="post" action="/admin/sessions/end" class="inline">
+            <input type="hidden" name="csrf" value="{{ csrf }}" />
+            <input type="hidden" name="slug" value="{{ row.story }}" />
+            <input type="hidden" name="session_id" value="{{ row.session_id }}" />
+            <button type="submit">End session</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      {% if not data.errors %}<tr><td colspan="10">No live session.</td></tr>{% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+  <nav class="pages">
+    {% if number > 1 %}<a href="/admin/sessions?page={{ number - 1 }}">Previous page</a>{% endif %}
+    {% if data.more %}<a href="/admin/sessions?page={{ number + 1 }}">Next page</a>{% endif %}
+  </nav>
+  <p class="note">A save is shown by a short reference (a hash of its id), the same here and on the Saves page. Ending a session releases it: the player's tab goes quiet and their run stays on disk, autosaved every turn; a reload resumes it. A session whose turn is running cannot be ended until the turn is over. This page shows no play: no player name, place or text.</p>
+</section>
+{% endblock %}

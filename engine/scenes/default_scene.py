@@ -29,20 +29,30 @@ and defaulting to the engine's. A story ships its own screens by naming its
 own factory; it ships none by naming ``blueprint: ""``. See
 ``engine/scenes/spec.py``.
 
-Version: v0.1.0 [2026-08-13]
+HOSTED METRICS (v0.20.0 T17): ``turn_metric`` is a hook ``engine.hosting``
+sets under the supervisor, None by default; this module never imports
+``engine.hosting`` for it.
+
+Version: v0.2.0 [2026-10-06]
 """
 
 from __future__ import annotations
 
+import itertools
 import logging
+import threading
+import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from flask import Blueprint, jsonify, render_template, request
 from flask_socketio import emit, join_room
 
 from engine.api import shared_blueprints
+from engine.config import hosting_enabled
+from engine.locks import renew_after_fork
 from engine.persistence import MigrationError
+from engine.persistence.saves import InvalidSaveId, missing_save_message
 from engine.scenes.default_state import (
     SessionStore,
     resolve_authored_choice,
@@ -50,6 +60,7 @@ from engine.scenes.default_state import (
     resolve_player_intent,
     run_turn,
 )
+from engine.session.store import OTHER_WINDOW_BUSY, SavesFull, SessionBusy
 from engine.scenes.flask_scene import FlaskScene
 from engine.scenes.spec import (
     DEFAULT_SCENE_NAME,
@@ -113,21 +124,93 @@ def scene_metadata() -> dict[str, Any]:
     return {**SCENE_METADATA, "display_name": manifest.title}
 
 _store: Optional[SessionStore] = None
+#: Guards building ``_store`` (v0.20.0): two first requests on two threads
+#: must not each make a store and lose the other's sessions.
+_store_lock = threading.Lock()
+renew_after_fork(globals(), _store_lock=threading.Lock)
 _scene: Optional["DefaultScene"] = None
 
 
 def get_store() -> SessionStore:
+    """The process's session store (double-checked: no lock once built)."""
     global _store
-    if _store is None:
-        _store = SessionStore()
-    return _store
+    store = _store
+    if store is not None:
+        return store
+    with _store_lock:
+        if _store is None:
+            _store = SessionStore()
+        return _store
 
 
 def reset_store() -> SessionStore:
     """Clear sessions — for tests."""
     global _store
-    _store = SessionStore()
-    return _store
+    with _store_lock:
+        _store = SessionStore()
+        return _store
+
+
+#: What a hosted turn that could not get the model server in time is told
+#: (spec §5.3). ``busy``: the client keeps its state and the player retries.
+STORYTELLER_BUSY = "The storyteller is busy with other players. Try again in a moment."
+
+#: What a hosted turn whose player left while it waited is answered (to
+#: nobody, in practice): it was skipped, unrun (T9 fix round 1).
+PLAYER_GONE = "The turn was not played: the player left while it waited."
+
+
+#: Hosted under the supervisor (v0.20.0 T17, spec §14.10): one turn's metric,
+#: ``turn_metric(account, admit_wait_ms, duration_ms, outcome)`` -- numbers,
+#: an account id and an outcome (``ok``, ``busy``, ``error``), never the
+#: turn's text. A HOOK that ``engine.hosting.install`` sets (to
+#: ``engine.hosting.metrics_emit.hook_turn``), None by default, so this module
+#: never imports ``engine.hosting`` and local mode records nothing.
+turn_metric: Optional[Callable[[str, float, float, str], None]] = None
+
+
+def _report_turn(session: Any, admit_ms: float, run_ms: float, outcome: str) -> None:
+    """Hand one turn's numbers to ``turn_metric``, if set. Never raises."""
+    hook = turn_metric
+    if hook is None:
+        return
+    try:
+        hook(str(getattr(session, "owner", "") or ""), admit_ms, run_ms, outcome)
+    except Exception:  # noqa: BLE001 -- a metric must never fail a turn
+        logger.warning("[default_scene] A turn metric was not recorded (operation=run_guarded)")
+
+
+def _turn_deadline_seconds() -> Optional[float]:
+    """
+    ``hosting.turn_deadline_seconds`` (hosted): an admitted turn's wall-clock
+    budget (T11 fix round 1). Read once per turn; None if it cannot be read,
+    which leaves the turn as T9 ran it (bounded by the supervisor's reclaim).
+    """
+    try:
+        from engine.config import get_config
+
+        value = get_config().get("hosting.turn_deadline_seconds", None)
+        return float(value) if value is not None else None
+    except Exception:  # noqa: BLE001 -- config must never stop a turn
+        return None
+
+
+def _still_present(present: Any) -> bool:
+    """``present()``, where a check that fails counts as still there (never skip on doubt)."""
+    try:
+        return bool(present())
+    except Exception:  # noqa: BLE001 -- a broken check must not drop a turn
+        logger.exception("[default_scene] Presence check failed (operation=run_guarded)")
+        return True
+
+
+def _socket_presence(socketio: Any, sid: str, namespace: str = "/") -> Any:
+    """``() -> bool``: whether socket ``sid`` is still connected."""
+
+    def present() -> bool:
+        return bool(socketio.server.manager.is_connected(sid, namespace))
+
+    return present
 
 
 def run_guarded(
@@ -137,6 +220,8 @@ def run_guarded(
     *,
     authored: Optional[dict[str, Any]] = None,
     emit_callback: Optional[Any] = None,
+    present: Optional[Any] = None,
+    cancel: Optional[Any] = None,
 ) -> tuple[Optional[dict[str, Any]], str, bool]:
     """
     Run one turn under the session lock.
@@ -156,16 +241,98 @@ def run_guarded(
         authored: The chosen option's authored consequences
             (``resolve_authored_choice``), or None.
         emit_callback: Socket emitter, or None for the HTTP path.
+        present: Hosted only: ``() -> bool``, whether the player is still
+            there (the socket turn's connection). Asked once the turn is
+            admitted; False skips the turn, unrun. None (the HTTP path, where
+            a client that went away cannot be seen) never skips.
+        cancel: Hosted only: an ``engine.llm.gate.CancelToken`` that calls
+            the admission wait off (the socket turn's disconnect); a called
+            off turn is answered as skipped, unrun.
 
     Returns:
         ``(payload, error, busy)``. Exactly one of ``payload`` and ``error`` is
         meaningful. ``busy`` marks CONTENTION rather than failure -- a turn is
         already running and this one never started, so the caller must report it
         without tearing down the running turn's UI.
+
+    HOSTED MODE ADMITS THE TURN FIRST (v0.20.0, spec §5.3). Under the session
+    lock, and before ``run_turn`` runs a single mechanic, the turn waits for a
+    narration ticket (``engine.llm.gate.admit_turn``, up to
+    ``hosting.queue_wait_seconds``) behind the other players. One that does not
+    get one is refused as busy, ``STORYTELLER_BUSY``, with nothing changed:
+    not the state, not the save, not the transcript. One that does narrates on
+    its own ticket, so it can no longer reach the storyteller's
+    ``fallback_narration`` through a busy gate. Local mode takes no ticket.
+    The ticket is taken for the session's owner: under the supervisor an
+    account holds one narration ticket at a time across every story, and a
+    turn refused for that is told "A turn is still running in your other
+    window." (``OTHER_WINDOW_BUSY``, busy as well). An admitted turn runs
+    against ``hosting.turn_deadline_seconds`` (T11 fix round 1): past it no
+    model call starts and the one running is cut, so a slow model ends the
+    turn through the storyteller's own failure path (its engine-authored
+    fallback narration) and the ticket is given back on time.
+
+    Under the supervisor (v0.20.0 T17) each turn's admission wait, run time
+    and outcome (``ok``, ``busy``, ``error``) go to the ``turn_metric`` hook,
+    numbers and the account id only.
     """
     if not session.lock.acquire(blocking=False):
+        _report_turn(session, 0.0, 0.0, "busy")
         return None, "A turn is already in progress.", True
+    # Hosted (v0.20.0 T17): the admission wait and the run, for turn_metric.
+    began = time.monotonic()
+    admit_ms = 0.0
     try:
+        if hosting_enabled():
+            from engine.llm.gate import CANCELLED, OTHER_WINDOW, InferenceBusy, admit_turn
+
+            try:
+                admission = admit_turn(
+                    label="turn",
+                    account=str(getattr(session, "owner", "") or ""),
+                    deadline_seconds=_turn_deadline_seconds(),
+                    cancel=cancel,
+                )
+            except InferenceBusy as exc:
+                _report_turn(session, (time.monotonic() - began) * 1000.0, 0.0, "busy")
+                reason = getattr(exc, "reason", "")
+                logger.warning(
+                    "[default_scene] Turn refused before it ran (operation=run_guarded, "
+                    "id=%s, reason=%s): %s",
+                    getattr(session, "session_id", "") or "",
+                    reason,
+                    exc,
+                )
+                if reason == OTHER_WINDOW:
+                    # The account's turn in another story's window holds or
+                    # awaits its one narration ticket (spec §5.4, §14.4).
+                    return None, OTHER_WINDOW_BUSY, True
+                if reason == CANCELLED:
+                    # Its socket went while it waited (T11 fix round 1).
+                    return None, PLAYER_GONE, True
+                return None, STORYTELLER_BUSY, True
+            admitted = time.monotonic()
+            admit_ms = (admitted - began) * 1000.0
+            if present is not None and not _still_present(present):
+                # The player left while the turn waited in line (T9 fix round
+                # 1): nobody is there to read it, so it is not run, and the
+                # slot goes straight to the next player. Nothing has changed.
+                admission.release()
+                logger.info(
+                    "[default_scene] Turn skipped: its player left while it waited "
+                    "(operation=run_guarded, id=%s)",
+                    getattr(session, "session_id", "") or "",
+                )
+                _report_turn(session, admit_ms, 0.0, "busy")
+                return None, PLAYER_GONE, True
+            try:
+                payload = run_turn(
+                    session, action, intent=intent, authored=authored, emit_callback=emit_callback
+                )
+            finally:
+                admission.release()
+            _report_turn(session, admit_ms, (time.monotonic() - admitted) * 1000.0, "ok")
+            return payload, "", False
         payload = run_turn(
             session, action, intent=intent, authored=authored, emit_callback=emit_callback
         )
@@ -175,6 +342,17 @@ def run_guarded(
         # emitted, and the client's busy flag never cleared: every button
         # disabled forever with no message on screen. The HTTP path had the
         # matching failure -- a Flask HTML 500 body returned to a JSON client.
+        if hosting_enabled():
+            # Hosted (spec §6.6): the exception names internals (the model
+            # server's URL, a path) shown to every player, so the client gets
+            # a reference and the log gets the exception under it.
+            from engine.hosting.errors import TURN_FAILED, public_error
+
+            text, _ref = public_error(
+                exc, TURN_FAILED, where="run_guarded", id=getattr(session, "session_id", "")
+            )
+            _report_turn(session, admit_ms, max(0.0, (time.monotonic() - began) * 1000.0 - admit_ms), "error")
+            return None, text, False
         logger.exception(
             "[default_scene] Turn failed (operation=run_guarded, id=%s)",
             getattr(session, "session_id", "") or "",
@@ -182,6 +360,11 @@ def run_guarded(
         return None, f"The turn could not be completed: {exc}", False
     finally:
         session.lock.release()
+        # Hosted (v0.20.0 T15 fix round 1): an admin ended this session's
+        # account during the turn; it is released now the turn is over.
+        after = getattr(session, "end_after_turn", None)
+        if after is not None:
+            after()
 
 
 class DefaultScene(FlaskScene):
@@ -190,12 +373,47 @@ class DefaultScene(FlaskScene):
     def __init__(self, *, testing: bool = False, llm_fn: Any = None) -> None:
         self.llm_fn = llm_fn
         self.store = get_store()
+        #: Hosted only: each socket turn still waiting for admission, by
+        #: ``(sid, event number)`` -- per EVENT, not per socket (v0.20.0 T12,
+        #: T11's N1): a double-clicked turn is two events on one sid, and
+        #: both are called off when the socket goes (``cancel_waiting_turn``).
+        #: Its own lock, a leaf (``_waiting_lock``).
+        self._waiting_turns: dict[tuple[str, int], Any] = {}
+        self._waiting_lock = threading.Lock()
+        self._waiting_ids = itertools.count(1)
         super().__init__(
             name=SCENE_NAME,
             static_folder=_SCENE_DIR / "static",
             template_folder=_SCENE_DIR / "templates",
             testing=testing,
         )
+
+    def cancel_waiting_turn(self, sid: str) -> bool:
+        """
+        Hosted: socket ``sid`` is gone, so its turn still waiting for a slot
+        is called off at once -- under the supervisor its place in the queue
+        and its account claim go with it, and nobody is told "a turn is still
+        running in your other window" for a turn nobody will read. True when
+        there was one.
+        """
+        with self._waiting_lock:
+            keys = [key for key in self._waiting_turns if key[0] == sid]
+            tokens = [self._waiting_turns.pop(key) for key in keys]
+        for token in tokens:
+            token.cancel()
+        return bool(tokens)
+
+    def _wait_begins(self, sid: str, token: Any) -> tuple[str, int]:
+        """Record one socket event's waiting turn; the key ``_wait_ends`` takes."""
+        with self._waiting_lock:
+            key = (sid, next(self._waiting_ids))
+            self._waiting_turns[key] = token
+        return key
+
+    def _wait_ends(self, key: tuple[str, int]) -> None:
+        """That event's turn is admitted, refused or done: forget it (and only it)."""
+        with self._waiting_lock:
+            self._waiting_turns.pop(key, None)
 
     def blueprints(self) -> list[Blueprint]:
         """
@@ -235,11 +453,14 @@ class DefaultScene(FlaskScene):
 
     def register(self) -> None:
         app = self.app
-        socketio = self.socketio
 
         @app.get("/")
         def index() -> str:
-            return render_template("clockwork.html", scene=scene_metadata())
+            # `template_extras` is {} in local mode, so the page is unchanged;
+            # hosted mode adds the logout form's block (spec §6.3).
+            return render_template(
+                "clockwork.html", scene=scene_metadata(), **self.template_extras
+            )
 
         @app.post("/api/game/new")
         def api_new_game() -> Any:
@@ -248,12 +469,17 @@ class DefaultScene(FlaskScene):
             # the session store, which asks the active story's manifest. This
             # route hardcoding "wayfarer" was one of three independent copies
             # of the flagship's answer, and it beat the manifest every time.
-            session = self.store.create(
-                player_name=str(body.get("player_name", "Traveler")),
-                archetype=str(body.get("archetype") or "") or None,
-                seed=body.get("seed"),
-                llm_fn=self.llm_fn,
-            )
+            try:
+                session = self.store.create(
+                    player_name=str(body.get("player_name", "Traveler")),
+                    archetype=str(body.get("archetype") or "") or None,
+                    seed=body.get("seed"),
+                    llm_fn=self.llm_fn,
+                )
+            except (SessionBusy, SavesFull) as exc:
+                # Hosted: this account's other run is mid-turn (spec §5.4),
+                # or its saves in this story are at the cap (T9 fix round 1).
+                return jsonify({"error": str(exc)}), 409
             payload = {
                 "session_id": session.session_id,
                 "save_id": session.save_id,
@@ -302,30 +528,34 @@ class DefaultScene(FlaskScene):
                 return jsonify({"error": error}), 500
             return jsonify(turn)
 
-        @socketio.on("connect")
+        @self.on("connect")
         def on_connect() -> None:
             logger.debug("[default_scene] Client connected (operation=connect)")
 
-        @socketio.on("join_session")
+        @self.on("join_session")
         def on_join(data: dict[str, Any]) -> None:
             session_id = str(data.get("session_id", ""))
             if session_id:
-                join_room(session_id)
+                # Found FIRST, joined second (v0.20.0): joining before the
+                # check let any socket sit in any room -- one for a session
+                # not yet created included -- and receive its stream.
                 try:
                     session = self.store.require(session_id)
-                    emit(
-                        "game_started",
-                        {
-                            "session_id": session_id,
-                            "save_id": session.save_id,
-                            "state": session.engine.state.to_client_dict(),
-                            "opening": session.last_turn,
-                        },
-                    )
                 except KeyError:
                     emit("error", {"message": "session not found"})
+                    return
+                join_room(session_id)
+                emit(
+                    "game_started",
+                    {
+                        "session_id": session_id,
+                        "save_id": session.save_id,
+                        "state": session.engine.state.to_client_dict(),
+                        "opening": session.last_turn,
+                    },
+                )
 
-        @socketio.on("player_choice")
+        @self.on("player_choice")
         def on_player_choice(data: dict[str, Any]) -> None:
             session_id = str(data.get("session_id", ""))
             try:
@@ -335,6 +565,12 @@ class DefaultScene(FlaskScene):
                 return
 
             def _emit(event: str, payload: dict[str, Any]) -> None:
+                # Hosted: every socket in the room is re-checked first, so one
+                # whose login was revoked (a password change, a disable) is
+                # disconnected before it can receive this (v0.20.0 T8).
+                room_check = self._room_check
+                if room_check is not None:
+                    room_check(session_id)
                 emit(event, payload, room=session_id)
 
             choice_id = str(data.get("choice_id", ""))
@@ -349,9 +585,31 @@ class DefaultScene(FlaskScene):
             )
             # One turn at a time per session. The client also guards, but a
             # double-click or a reconnect race must not reach the engine.
-            _, error, busy = run_guarded(
-                session, action, intent, authored=authored, emit_callback=_emit
-            )
+            # Hosted: a turn that waited in the queue is skipped if this
+            # socket has gone by the time it is admitted (T9 fix round 1).
+            sid = str(getattr(request, "sid", "") or "")
+            present = cancel = waiting = None
+            if self._socket_guard is not None:
+                from engine.llm.gate import CancelToken
+
+                present = _socket_presence(self.socketio, sid)
+                # Called off by this socket's disconnect (T11 fix round 1),
+                # keyed per event so a second one cannot drop it (T12).
+                cancel = CancelToken()
+                waiting = self._wait_begins(sid, cancel)
+            try:
+                _, error, busy = run_guarded(
+                    session,
+                    action,
+                    intent,
+                    authored=authored,
+                    emit_callback=_emit,
+                    present=present,
+                    cancel=cancel,
+                )
+            finally:
+                if waiting is not None:
+                    self._wait_ends(waiting)
             if error:
                 # `busy` is the difference between "your keypress did nothing"
                 # and "the turn died". The client tears down the in-flight
@@ -360,7 +618,7 @@ class DefaultScene(FlaskScene):
                 # Flagged, the reducer keeps the stream and shows the message.
                 emit("turn_error", {"message": error, "busy": busy})
 
-        @socketio.on("resume")
+        @self.on("resume")
         def on_resume(data: dict[str, Any]) -> None:
             """Rehydrate a run from its save after a reconnect."""
             save_id = str(data.get("save_id", ""))
@@ -369,8 +627,34 @@ class DefaultScene(FlaskScene):
                 return
             try:
                 session = self.store.resume(save_id, llm_fn=self.llm_fn)
-            except (FileNotFoundError, MigrationError) as exc:
+            except SessionBusy as exc:
+                # Hosted (spec §5.4): this account's other run is mid-turn.
                 emit("resume_failed", {"message": str(exc)})
+                return
+            except MigrationError as exc:
+                # Kept in hosted mode too (spec §6.6): it is about the save's
+                # version, and tells the player why their run will not load.
+                emit("resume_failed", {"message": str(exc)})
+                return
+            except FileNotFoundError as exc:
+                # Hosted: the missing save's own words, never an OS error's
+                # text (which can name a path).
+                message = missing_save_message(save_id) if hosting_enabled() else str(exc)
+                emit("resume_failed", {"message": message})
+                return
+            except InvalidSaveId:
+                # An id the store refuses (a path, not a name) or a save whose
+                # session id is one: answered in the missing save's words.
+                emit("resume_failed", {"message": missing_save_message(save_id)})
+                return
+            except ValueError:
+                # A save that is there and will not load: logged, and never
+                # answered as missing (the run is in the player's menu).
+                logger.exception(
+                    "[default_scene] Save could not be loaded (operation=resume, id=%s)",
+                    save_id,
+                )
+                emit("resume_failed", {"message": f"Save could not be read: {save_id}"})
                 return
             join_room(session.session_id)
             emit(

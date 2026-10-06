@@ -1,0 +1,14 @@
+{
+  "bare": {
+    "json": {
+      "url": ""
+    },
+    "status": 200
+  },
+  "edgewood_bakery": {
+    "json": {
+      "url": "/static/art/scenes/bakery.jpg"
+    },
+    "status": 200
+  }
+}

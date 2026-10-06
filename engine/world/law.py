@@ -273,12 +273,14 @@ def load_spec() -> dict[str, Any]:
             fault in the contract above.
     """
     global _SPEC_CACHE
-    if _SPEC_CACHE is not None:
-        return _SPEC_CACHE
+    cached = _SPEC_CACHE  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
     path = _law_path()
     if path is None:
-        _SPEC_CACHE = {}
-        return _SPEC_CACHE
+        empty: dict[str, Any] = {}
+        _SPEC_CACHE = empty
+        return empty
     if not path.is_file():
         # Declared and absent is a broken install: the story promised a watch.
         raise ValueError(f"law: declared file {path} does not exist")
@@ -408,7 +410,7 @@ def load_spec() -> dict[str, Any]:
         if kind not in deeds:
             raise _fail(path, f"arrest names unknown deed `{kind}`")
 
-    _SPEC_CACHE = {
+    loaded = {
         "roles": [str(r) for r in roles],
         "reporters": reporters,
         "jurisdictions": jurisdictions,
@@ -424,7 +426,8 @@ def load_spec() -> dict[str, Any]:
         "labels": labels,
         "clarity_words": _load_clarity_words(path, doc),
     }
-    return _SPEC_CACHE
+    _SPEC_CACHE = loaded
+    return loaded
 
 
 # ---------------------------------------------------------------------------
@@ -1680,10 +1683,11 @@ def patrol(state: GameState) -> Optional[dict[str, Any]]:
     if not encounter_id:
         return None  # a Law with no arrest block keeps files and stops nobody
     if encounter.get_definition(encounter_id) is None:
-        if _WARNED_ENCOUNTERS is None:
-            _WARNED_ENCOUNTERS = set()
-        if encounter_id not in _WARNED_ENCOUNTERS:
-            _WARNED_ENCOUNTERS.add(encounter_id)
+        warned = _WARNED_ENCOUNTERS  # read once: a reset nulls it without a lock
+        if warned is None:
+            warned = _WARNED_ENCOUNTERS = set()
+        if encounter_id not in warned:
+            warned.add(encounter_id)
             logger.warning(
                 "[law] arrest.encounter names no loaded encounter "
                 "(operation=patrol, id=%s). The watch cannot stop anyone.",

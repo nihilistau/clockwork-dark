@@ -1,7 +1,12 @@
 scene:
   clockwork:
     port: 5573
-    host: "0.0.0.0"
+    # Loopback by default (v0.20.0): only this machine can reach the game,
+    # which has no login in local mode. For LAN play, put
+    #   scene: {clockwork: {host: "0.0.0.0"}}
+    # in config/local.yaml (the doctor then WARNs: anyone on the network can
+    # play, load and delete runs). To share it with accounts, use hosted mode.
+    host: "127.0.0.1"
 
 # The model server. Called `lmstudio:` until v0.19.0; a `lmstudio:` block in
 # config/local.yaml (or any other layer) is still read, renamed to `llm:` as
@@ -187,6 +192,11 @@ llm:
     # run, not once per turn; put it in a turn's critical path and it is a
     # stall the player feels.
     register_settle_seconds: 1.5
+    # After a failed start (no fastmcp, the port never came up), how long the
+    # engine waits before trying again. A start can block for up to ten
+    # seconds; retried on every turn it would stall every player's turn in
+    # turn. Tool calling is off in between; the game plays on.
+    start_retry_seconds: 60
     # Narrower than the agent allowlist, when a caller wants it. EMPTY means
     # "every skill this agent may call", which is already filtered by
     # SkillDef.agents on both list and call -- so the system-only world tick is
@@ -395,7 +405,7 @@ tts:
   # because the queue is the accept loop.
   timeout_seconds: 120
   voice: "neutral_male"
-  # HARD server limit: tts-server.exe rejects anything longer with HTTP 400.
+  # HARD server limit: tts-server rejects anything longer with HTTP 400.
   # Long input on this build does not degrade, it blows up -- a 20s paragraph
   # was measured at 47 minutes and 11.9/12 GB VRAM. Narration is split on
   # sentence boundaries and queued.
@@ -472,7 +482,10 @@ stack:
       manage: true
       # Your checkout of voxtral-mini-realtime-rs. Set in config/local.yaml.
       root: ""
-      command: "target/release/tts-server.exe"
+      # No ".exe": on Windows the stack tries each PATHEXT suffix, so this
+      # finds tts-server.exe on Windows and the Linux build's tts-server
+      # (engine/stack.py::ServiceSpec.resolved_command).
+      command: "target/release/tts-server"
       args:
         - "--gguf"
         - "models/voxtral-tts-q4.gguf"
@@ -497,7 +510,7 @@ stack:
       manage: false
       # Your checkout of voxtral-mini-realtime-rs. Set in config/local.yaml.
       root: ""
-      command: "target/release/voxtral.exe"
+      command: "target/release/voxtral"
       model: "models/voxtral-q4.gguf"
 
     comfyui:
@@ -514,6 +527,118 @@ stack:
       manage: false  # invoked per image request
       # Absolute path, or just "grok" if it is on PATH.
       command: "grok"
+
+storage:
+  # Where the engine writes what it makes at run time: saves, generated
+  # media, and (hosted) accounts. Relative to the repo; CLOCKWORK_DATA_DIR
+  # beats it. The default is the layout every release has used.
+  #
+  # From it (engine/persistence/storage.py): saves in <root>/saves/<slug>/,
+  # generated images in <root>/media/images/, narration audio in
+  # <root>/media/tts/. A relative root is taken against the repository, never
+  # the working directory, so the launcher may be run from anywhere.
+  root: "data"
+
+# Hosted mode (v0.20.0; docs/HOSTING.md): a small group plays the operator's
+# stories in a browser, each with an account the operator made
+# (scripts/users.py). OFF by default, and off means local single-player
+# exactly as before: engine/hosting/ is never even imported.
+#
+# A CLOSED SCHEMA (engine/hosting/config.py): an unknown key, a wrong type or
+# a value out of range stops the server at startup, naming the key. It holds
+# the service's own knobs and nothing else. Later v0.20.0 tasks add the
+# admin panel's and the metrics' keys, each with its reader.
+hosting:
+  enabled: false                 # the whole mode; false = local single-player, unchanged
+  public_origin: ""              # e.g. "https://play.example.org"; "" = same-origin only
+  trusted_proxies: 0             # reverse proxies in front (ProxyFix); 0 = none
+  cookie_secure: true            # false only for a plain-HTTP LAN trial
+  session_days: 14               # a login lasts this long after its last change
+  # The login cookie's signing key, at least 32 characters (a shorter one
+  # stops startup). Empty = a 32-byte key generated once into
+  # <storage.root>/hosting/secret_key (mode 0600 on POSIX).
+  secret_key: "${env:CLOCKWORK_SECRET_KEY}"
+  max_concurrent_logins: 4       # password checks hashed at once; the rest wait, then get "busy"
+  # The longest a turn waits in line for the shared model server's narration
+  # slot before it is refused as busy, untouched (and any other model call's
+  # wait for its lane); local mode waits 180 s and does not queue in order.
+  queue_wait_seconds: 600
+  # The longest a utility call (the companion, the summarizer, an agent's
+  # plan, a voice reply) waits for its lane; past it the call is skipped and
+  # the turn goes on without it, so nobody's turn holds the narration slot
+  # waiting on someone else's utility work.
+  utility_wait_seconds: 5
+  # An admitted turn's wall-clock budget, from admission, its utility calls
+  # included. Past it no model call starts and the one running is cut, so
+  # the turn ends through the model-failure path (the story's fallback
+  # narration, the companion silent) and gives its place back. 900 s: the
+  # narration profile's whole answer budget (4400 tokens) at 5 tokens a
+  # second, the pace of a large model on a modest card, is about 880 s, so a
+  # slow but working model still finishes a turn; a turn that needs more
+  # than fifteen minutes is better ended than left holding everyone's place.
+  turn_deadline_seconds: 900
+  # How long a request that may run a turn (a new game, a choice, a voice
+  # upload) has to send its WHOLE body; past it the request is answered 408.
+  # It is read in full before it may take one of the process's turn slots,
+  # so a client that trickles a body holds a thread this long at most, and
+  # never a slot. Generous for a 16 MB upload on a slow line.
+  body_read_seconds: 30
+  threads: 32                    # each process's thread pool; HTTP turns in flight at once: threads - 4
+  # One account's open game connections at once (a WebSocket per tab, or a
+  # long-poll): past it one more is refused 429 at the front door and refused
+  # at a worker's connect, so one player cannot take every connection the
+  # front door keeps open (threads - 4 of them) from everyone else.
+  max_connections_per_account: 4
+  max_upload_mb: 16              # the largest request body (the voice upload); larger is refused 413
+  max_input_chars: 1000          # any text a player sends (a typed action, a save label, a transcript), in characters; longer is refused, never cut
+  max_saves_per_story: 50        # runs and saves an account keeps in one story; past it a new one is refused until one is deleted
+  rate_limits:
+    actions_per_minute: 12       # per account: new game, choice, resume, save, transcribe; a rest counts like any
+    logins_per_minute: 5         # per address (an IPv6 /64 counts as one); half that per (address, name)
+    logins_per_minute_all: 60    # shared by every address with a failed login in the last minute
+    admin_actions_per_minute: 30 # per admin: every POST to the admin panel (/admin), and each error lookup; past it refused 429
+  # The admin panel (/admin on the front door; docs/HOSTING.md § The admin
+  # panel). An admin's account is made with `python scripts/users.py add
+  # <name> --admin`; its edits to the model server persist in
+  # <storage.root>/hosting/admin.yaml, which only hosted mode reads.
+  admin:
+    reauth_minutes: 15           # the panel asks for the admin's password again after this
+  # The supervisor (python -m engine.hosting.supervisor; docs/HOSTING.md
+  # § Orchestration) runs one worker process per story named here, in this
+  # order. Each slug must be an installed story that validates; an empty
+  # list, or a slug that fails, stops the supervisor at startup naming it.
+  stories: ["clockwork-dark"]
+  supervisor:
+    health_interval_seconds: 10  # how often each child is asked over the bus and at GET /api/health
+    health_failures: 3           # consecutive failed bus health checks before a restart (a failed HTTP check only marks it degraded)
+    boot_seconds: 120            # from spawn to `ready`; a child slower than this is restarted
+    hello_seconds: 2             # a new bus connection's time to say hello (a child says it at once); then it is closed
+    max_restarts: 5              # crash restarts within restart_window_minutes; one more holds the story down
+    restart_window_minutes: 10
+    # How long a stop, a restart or the shutdown waits for turns in flight;
+    # one that runs out leaves the story running. 120 s, not 60: a streamed
+    # turn on a reasoning model regularly runs past a minute.
+    drain_seconds: 120
+    stop_seconds: 30             # how long a child gets to exit after a drain before it is terminated, then killed
+    # The whole shutdown, drains included: every story drained and stopped,
+    # then the front door (so a drained turn still reaches its player); at
+    # least drain_seconds + stop_seconds + 7 (the terminate grace, 5 s, and
+    # the kill's wait, 2 s) + 10 (the front door's stop), checked at startup,
+    # and below the container's stop grace (docker-compose.yml, 210 s).
+    shutdown_seconds: 180
+    # A backstop: a lane ticket held longer than this is taken back (the
+    # next player gets the place) and its worker told; a worker that does
+    # not answer within seconds is hung and is restarted. A reclaim is never
+    # a crash. At least turn_deadline_seconds + 120 (checked at startup):
+    # every healthy turn has ended by then.
+    max_hold_seconds: 1200
+  observability:
+    log_max_mb: 20               # each process's log file under <storage.root>/hosting/logs/, then rotated
+    log_keep: 5                  # rotated files kept per process
+    audit_max_mb: 20             # <storage.root>/hosting/audit.jsonl, then rotated (audit.jsonl.1, .2 ...)
+    audit_keep: 10               # rotated audit files kept; the oldest beyond this is deleted
+    retention_days: 30           # metrics rows (<storage.root>/hosting/metrics.sqlite3) older than this are pruned hourly
+    metrics_max_mb: 512          # the metrics file's cap; past it the oldest rows are deleted first
 
 # Saves on disk.
 saves:
@@ -642,8 +767,9 @@ game:
 # ---------------------------------------------------------------------------
 # Paths.
 #
-# ONLY THE ENGINE'S OWN OUTPUT DIRECTORY HAS A VALUE HERE. Every content key is
-# declared and EMPTY, and that is the repair of a defect this file shipped with:
+# NO KEY HAS A VALUE HERE. Every content key is declared and EMPTY (the
+# engine's own outputs live under `storage:` since v0.20.0), and that is the
+# repair of a defect this file shipped with:
 # it used to name The Clockwork Dark's own files -- `data/quests`,
 # `data/economy.yaml`, `data/world/locations.yaml`,
 # `content/scenes/clockwork/static/art` -- as the ENGINE's defaults. A story
@@ -673,10 +799,10 @@ game:
 # it is now the behaviour of every key here.
 # ---------------------------------------------------------------------------
 paths:
-  # THE ONE ENGINE-OWNED PATH. Names no story's content: the active slug is
-  # appended at runtime, so a run is written to data/saves/<slug>/. See
-  # engine/persistence/saves.py.
-  saves: "data/saves"
+  # No `saves:` here any more (v0.20.0): saves are the engine's, and live
+  # under storage.root (the `storage:` block above). A `paths.saves` in
+  # config/local.yaml or CLOCKWORK_CONFIG is still read as the exact save base,
+  # with a WARNING, until v0.21.0; a story manifest's is ignored.
 
   # -- the world ------------------------------------------------------------
   locations: ""

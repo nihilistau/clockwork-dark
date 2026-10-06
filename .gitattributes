@@ -1,3 +1,18 @@
 # Model-server fixtures are compared byte for byte (the LM Studio golden, the
 # doctor baseline), so they keep LF on every checkout, autocrlf or not.
+# So is the local-mode golden (v0.20.0).
 tests/fixtures/llm/** text eol=lf
+tests/fixtures/local_mode/** text eol=lf
+# POSIX shell scripts: sh reads a CR as part of the line, so they are LF in
+# every working tree, a Windows checkout with autocrlf included (v0.20.0).
+*.sh text eol=lf
+# The image's build files likewise (v0.20.0 T18): a RUN line continued with
+# a backslash must not end in a CR, whichever checkout the build is run from.
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+# The client's HTML entry is copied into the build by Vite as it reads it, so
+# a CRLF checkout of it made the committed dist/index.html differ from a
+# Linux build (CRLF, and one \r\r\n line). LF in every working tree, and the
+# built copy stored LF, so CI's dist diff compares like with like (v0.20.0).
+ui/index.html text eol=lf
+content/scenes/clockwork/static/dist/index.html text eol=lf

@@ -32,8 +32,10 @@ Version: v0.5.0 [2026-08-13]
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -67,10 +69,95 @@ class Report:
         return "\n".join(out)
 
 
+#: Where the case probe runs by default: the checkout itself, because that is
+#: the filesystem whose case matters (a Docker Desktop bind mount of NTFS is
+#: case-insensitive inside a Linux container whose /tmp is not).
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+#: The first Windows 11 build. Windows 11 still answers "10" to
+#: ``platform.release()`` on the Pythons this project supports.
+WINDOWS_11_BUILD = 22000
+
+
+def case_sensitive_filesystem(directory: Optional[Path] = None) -> Optional[bool]:
+    """
+    Whether the filesystem holding ``directory`` (the repository root by
+    default) tells ``CaseProbe`` from ``caseprobe``. A temporary directory is
+    made there (``.clockwork-case-probe-*``), a mixed-case file is written in
+    it and looked up by its lower-cased name, and the directory is removed
+    again whatever happens. None when the probe cannot be made (an unwritable
+    or missing directory).
+    """
+    import tempfile
+
+    base = REPO_ROOT if directory is None else directory
+    try:
+        with tempfile.TemporaryDirectory(prefix=".clockwork-case-probe-", dir=base) as tmp:
+            probe = Path(tmp) / "CaseProbe"
+            probe.write_bytes(b"")
+            return not (Path(tmp) / "caseprobe").exists()
+    except OSError:
+        return None
+
+
+def os_release() -> str:
+    """The system and its release as a person would name it: ``Windows 11
+    (build 26200)`` where ``platform.release()`` says ``10``, else
+    ``platform.system()`` and ``platform.release()``."""
+    import platform
+
+    system = platform.system()
+    if system == "Windows" and hasattr(sys, "getwindowsversion"):
+        build = sys.getwindowsversion().build
+        release = platform.release()
+        if release == "10" and build >= WINDOWS_11_BUILD:
+            release = "11"
+        return f"Windows {release} (build {build})"
+    return f"{system} {platform.release()}"
+
+
+def platform_detail(directory: Optional[Path] = None) -> str:
+    """The ``platform`` row: the system, its release, and whether filenames
+    differ by case in the checkout (``directory``, the repository root by
+    default). Informational -- both answers are supported (AGENTS.md rule 11),
+    which is why the row is always OK.
+
+    A READ-ONLY CHECKOUT (a container image's ``/app``, a read-only mount)
+    cannot hold the probe's directory, so the default probe falls back to the
+    storage root (``engine/persistence/storage.py::data_root``), which the
+    engine must be able to write anyway, and the row says which was probed
+    (v0.20.0 T5; it said "unknown" there before)."""
+    sensitive = case_sensitive_filesystem(directory)
+    where = "the checkout"
+    if sensitive is None and directory is None:
+        fallback = _storage_root()
+        if fallback is not None:
+            sensitive = case_sensitive_filesystem(fallback)
+            if sensitive is not None:
+                where = f"the storage root {fallback} (the checkout could not be probed)"
+    if sensitive is None:
+        tried = "the checkout" if directory is not None else "the checkout and the storage root"
+        case = f"filesystem case unknown (probe under {tried} failed)"
+    else:
+        case = f"{'case-sensitive' if sensitive else 'case-insensitive'} filesystem under {where}"
+    return f"{os_release()}, {case}"
+
+
+def _storage_root() -> Optional[Path]:
+    """The storage root the engine resolves, or None if it cannot be read."""
+    try:
+        from engine.persistence.storage import data_root
+
+        return data_root()
+    except Exception:  # noqa: BLE001 -- the platform row must never fail the doctor
+        return None
+
+
 def check_python(report: Report) -> None:
     version = sys.version_info
     status = OK if version >= (3, 11) else FAIL
     report.add("Runtime", "python", status, f"{version.major}.{version.minor}.{version.micro}")
+    report.add("Runtime", "platform", OK, platform_detail())
 
     for module in ("flask", "flask_socketio", "httpx", "yaml"):
         try:
@@ -365,6 +452,8 @@ def _check_llm_keys(report: Report, row: object) -> None:
     for key, why in ignored:
         report.add(section, "ignored key", WARN, f"{key} is set, but {row.title} ignores it: {why}")
 
+    _skipped_key_rows(report, row, cfg)
+
     if bool(cfg.get("llm.mcp.enabled", False)):
         if row.mcp_integrations.value:
             report.add(section, "mcp", OK,
@@ -374,6 +463,52 @@ def _check_llm_keys(report: Report, row: object) -> None:
             report.add(section, "mcp", FAIL,
                        f"`llm.mcp.enabled` is set but {row.name} has no MCP "
                        "integrations; Phase A is off")
+
+
+def _key_source(alternative: str) -> tuple[str, str]:
+    """
+    A chain alternative as ``(its name as written, "holds a key" | "is set")``:
+    ``engine.config.key_source_name``, shared with the admin panel's key row
+    since v0.20.0 T16 (moved there; the rows here are unchanged).
+    """
+    from engine.config import key_source_name
+
+    return key_source_name(alternative)
+
+
+def _skipped_key_rows(report: Report, row: object, cfg: object) -> None:
+    """
+    N4 (spec §2.3): one WARN per scoped key source that was SKIPPED but would
+    have produced a value -- its file exists and is not empty, or its
+    variable is set. Skipping is the design (LM Studio's key is never sent to
+    another server); saying so is the fix, since the owner otherwise sees only
+    a 401. The source is named, never the value or its length (rule 5).
+    """
+    from engine.config import ConfigManager, scope_matches, scoped_alternatives
+    from engine.llm.providers import PROVIDERS
+
+    raw = cfg._raw("llm.api_key")
+    if not (isinstance(raw, str) and raw.startswith("${") and raw.endswith("}")):
+        return
+    pairs = scoped_alternatives(raw[2:-1])
+
+    def ours(scope: object) -> bool:
+        return scope is None or scope_matches(str(scope), row.name)
+
+    usable = [f"`{_key_source(alternative)[0]}`" for scope, alternative in pairs if ours(scope)]
+    advice = " or ".join(usable) if usable else "`llm.api_key`"
+    for scope, alternative in pairs:
+        if ours(scope):
+            continue
+        if not ConfigManager._expand_one(alternative, None):
+            continue
+        name, verb = _key_source(alternative)
+        owner = next(
+            (row_.title for key, row_ in PROVIDERS.items() if scope_matches(scope, key)), scope
+        )
+        report.add(row.section, "skipped key", WARN,
+                   f"`{name}` {verb}, but `llm.provider` is `{row.name}`: it is "
+                   f"{owner}'s and is not sent. Put this server's key in {advice}.")
 
 
 def check_voice(report: Report) -> None:
@@ -418,14 +553,417 @@ def check_voice(report: Report) -> None:
                    if not alive else f"{base}: {detail}")
 
 
+def _hosting_row(report: Report, cfg: object) -> None:
+    """
+    Who can reach the game (spec §3.6). Local mode has no login, and binds
+    loopback by default since v0.20.0 (the owner's decision); LAN play is one
+    line in config/local.yaml, and this row then says what that exposes, in
+    the launcher's own words (``engine.scenes.spec.exposure_warning``).
+    """
+    from engine.scenes.spec import DEFAULT_SCENE_NAME, exposure_warning, scene_host, scene_port
+
+    host = scene_host(DEFAULT_SCENE_NAME)
+    if bool(cfg.get("hosting.enabled", False)):  # type: ignore[attr-defined]
+        from engine.scenes.spec import is_loopback
+
+        if os.environ.get("CLOCKWORK_ENV", "").strip() == "docker" and is_loopback(host):
+            # In the image (T18 fix round 1, I1): the published port reaches
+            # the container's interface, never its loopback.
+            report.add("Config", "hosting", WARN,
+                       f"the front door binds the container's loopback ({host}): the published port "
+                       "reaches nothing. Remove scene.clockwork.host from /data/config.yaml; "
+                       "publish 127.0.0.1:5573:5573 instead (docs/HOSTING.md § Docker)")
+            return
+        # Hosted (v0.20.0 T18): every request needs a login, so a LAN bind
+        # is the point, not an exposure; the rows below say how it is set up.
+        report.add("Config", "hosting", OK,
+                   f"hosted: the front door on {host}:{scene_port(DEFAULT_SCENE_NAME)}, "
+                   "every request behind a login")
+        return
+    warning = exposure_warning(host, scene_port(DEFAULT_SCENE_NAME))
+    if not warning:
+        report.add("Config", "hosting", OK, f"local single-player on {host}")
+    else:
+        report.add("Config", "hosting", WARN, warning)
+
+
+#: Where a reader of the lanes row is told to look for its number (spec §5.3).
+LANES_HINT = (
+    "set narration to the requests your model server really runs at once "
+    "(LM Studio: its parallel-requests setting; vLLM: batches natively, 4 is a sane start; "
+    "llama-server: --parallel; Ollama: OLLAMA_NUM_PARALLEL) - the rest queue in order"
+)
+
+#: The production server row's words on Windows (spec §7.4).
+WINDOWS_SERVER_WARNING = (
+    "gunicorn does not run on Windows: use Docker, or accept the development server for a trial"
+)
+
+
+def _on_windows() -> bool:
+    """Whether this is Windows, where gunicorn cannot run (its own seam, for the tests)."""
+    return os.name == "nt"
+
+
+def _hosted_rows(report: Report, cfg: object) -> None:
+    """
+    Hosted mode only (spec §7.4, v0.20.0 T18): how the service is set up.
+
+    - ``hosting block``: the closed ``hosting:`` schema, as the instance reads
+      it (a FAIL names the key, and the rows that need it are skipped);
+    - ``secret key``: where the login cookie's key comes from -- the
+      environment, a config file, or the generated file -- never the value;
+    - ``cookie_secure`` (WARN when false), ``public_origin`` and
+      ``trusted_proxies``, shown;
+    - ``refusals``: a FAIL for each §6.7 startup refusal that would fire (the
+      studio, ``llm.mcp.enabled``); the Settings panel's POST is a 403, said;
+    - ``production server``: WARN on Windows, where gunicorn does not run;
+      on POSIX, whether gunicorn is installed;
+    - ``llm.lanes``: shown, with the sizing hint.
+
+    Read and probed, never served: the doctor asks no live process anything.
+    """
+    if not bool(cfg.get("hosting.enabled", False)):  # type: ignore[attr-defined]
+        return
+    from engine.hosting import refuse_unsupported
+    from engine.hosting.auth import SECRET_KEY_FILE
+    from engine.hosting.config import HostingConfigError, load
+    from engine.persistence.storage import hosting_dir
+
+    try:
+        settings = load(cfg)
+    except HostingConfigError as exc:
+        report.add("Config", "hosting block", FAIL, str(exc))
+        settings = None
+    else:
+        report.add("Config", "hosting block", OK, "the hosting: block validates")
+
+    if settings is not None:
+        if settings.secret_key:
+            kind, name = cfg.secret_source("hosting.secret_key")  # type: ignore[attr-defined]
+            where = {"environment": f"the environment ({name})", "file": f"the file {name}",
+                     "config": f"a config file ({name})"}.get(kind, "the config")
+            report.add("Config", "secret key", OK, f"from {where}")
+        else:
+            path = hosting_dir() / SECRET_KEY_FILE
+            state = "present" if path.is_file() else "made at the first start"
+            report.add("Config", "secret key", OK, f"generated: {path} ({state})")
+
+        if settings.cookie_secure:
+            report.add("Config", "cookie_secure", OK, "true: the login cookie travels over HTTPS only")
+        else:
+            report.add("Config", "cookie_secure", WARN,
+                       "false: the login cookie is sent over plain HTTP - for a LAN trial only; "
+                       "behind TLS set it true")
+        report.add("Config", "public_origin", OK,
+                   settings.public_origin or '"" - same-origin only')
+        proxies = int(settings.trusted_proxies)
+        report.add("Config", "trusted_proxies", OK,
+                   f"{proxies} - forwarded headers are ignored" if proxies == 0
+                   else f"{proxies} - the client address and scheme are read from the last "
+                        f"{proxies} proxy hop(s)")
+
+    try:
+        refuse_unsupported(cfg)
+    except HostingConfigError as exc:
+        report.add("Config", "refusals", FAIL, f"hosted mode will not start: {exc}")
+    else:
+        report.add("Config", "refusals", OK,
+                   "the studio and the skills server are off; the Settings panel is read-only "
+                   "(POST /api/settings answers 403)")
+
+    if _on_windows():
+        report.add("Config", "production server", WARN, WINDOWS_SERVER_WARNING)
+    else:
+        from engine.hosting.supervisor.process import gunicorn_runs_here
+
+        if gunicorn_runs_here():
+            report.add("Config", "production server", OK,
+                       "gunicorn: one gthread worker per process (deploy/gunicorn.conf.py)")
+        else:
+            report.add("Config", "production server", WARN,
+                       "gunicorn is not installed (pip install -r requirements-server.txt "
+                       "-c constraints.txt): the supervisor serves with the development server")
+
+    from engine.llm.gate import lane_limits
+
+    lanes = lane_limits(cfg.get("llm.lanes", {}) or {})  # type: ignore[attr-defined]
+    shown = ", ".join(f"{name} {count}" for name, count in sorted(lanes.items()))
+    report.add("Config", "llm.lanes", OK, f"{shown} - {LANES_HINT}")
+
+
+def _stories_rows(report: Report, cfg: object) -> None:
+    """
+    Hosted mode only (spec §7.4): ``hosting.stories``, one worker process per
+    slug under the supervisor. Each slug is shown; a slug the registry does not
+    know or that does not validate is a FAIL, and so is an empty list -- the
+    supervisor refuses to start on either, naming the key. Nothing is
+    activated, and the live supervisor is not asked.
+    """
+    if not bool(cfg.get("hosting.enabled", False)):  # type: ignore[attr-defined]
+        return
+    from engine.hosting.config import story_problems
+
+    raw = cfg.get("hosting.stories", None)  # type: ignore[attr-defined]
+    slugs = [str(s) for s in raw] if isinstance(raw, list) else []
+    problems = story_problems(slugs)
+    for slug, why in problems:
+        report.add("Config", "hosting.stories", FAIL,
+                   f"{slug!r} {why}" if slug else why)
+    if not problems:
+        report.add("Config", "hosting.stories", OK,
+                   f"{', '.join(slugs)} - one worker process each")
+
+
+def _admin_rows(report: Report, cfg: object) -> None:
+    """
+    Hosted mode only (spec §7.4, v0.20.0 T14): the admins, and the admin layer.
+
+    - ``admins``: how many enabled admins ``users.json`` holds (read, never
+      written); WARN at zero, when nobody can open the panel.
+    - ``admin layer``: ``<storage.root>/hosting/admin.yaml``, read exactly as
+      ``get_config`` reads it -- whenever hosting is on, with no variable --
+      so this is the layer the instance runs. Its path and the dotted keys it
+      sets (keys, never values); a WARN per key ``CLOCKWORK_CONFIG`` also
+      sets, which overrides the panel's edit. A key outside the panel's
+      allowlist stops ``get_config`` itself, and ``check_config`` reports
+      that as this row's FAIL.
+    """
+    if not bool(cfg.get("hosting.enabled", False)):  # type: ignore[attr-defined]
+        return
+    from engine.config import admin_layer, external_config_layers
+    from engine.hosting.accounts import AccountsFileError, AccountStore
+    from engine.persistence.storage import hosting_dir
+
+    try:
+        accounts = AccountStore(hosting_dir()).all()
+    except AccountsFileError as exc:
+        report.add("Config", "accounts", FAIL, str(exc))
+        report.add("Config", "admins", FAIL, str(exc))
+    else:
+        # Spec §7.4 (v0.20.0 T18): with no account, nobody can log in.
+        enabled = [a for a in accounts if not a.disabled]
+        if enabled:
+            report.add("Config", "accounts", OK,
+                       f"{len(enabled)} enabled of {len(accounts)}")
+        else:
+            report.add("Config", "accounts", FAIL,
+                       "nobody can log in: python scripts/users.py add <name>")
+        admins = [a for a in accounts if a.admin and not a.disabled]
+        if admins:
+            report.add("Config", "admins", OK, f"{len(admins)} enabled admin(s)")
+        else:
+            report.add("Config", "admins", WARN,
+                       "none - the admin panel is unreachable: python scripts/users.py admin <name> on")
+
+    layer = admin_layer()
+    if layer is None:
+        report.add("Config", "admin layer", OK,
+                   f"{hosting_dir() / 'admin.yaml'}: none yet (the admin panel writes it)")
+        return
+    path, keys = layer
+    report.add("Config", "admin layer", OK, f"{path}: sets {', '.join(keys) or 'nothing'}")
+    for source, external in external_config_layers():
+        for key in sorted(set(keys) & set(external)):
+            report.add("Config", "admin layer", WARN,
+                       f"the panel's edit of {key} is overridden by {source}")
+
+
+#: Below this many threads per process, the ``hosting.threads`` row WARNs.
+MIN_HOSTED_THREADS = 8
+
+
+def _threads_row(report: Report, cfg: object) -> None:
+    """
+    Hosted mode only (spec §6.9, §7.4, restated for the front door in v0.20.0
+    T12): ``hosting.threads`` is every process's pool, the front door's and
+    each worker's. Each open WebSocket pins a thread in the front door (its
+    relay) AND one in its story's worker, so the front door -- which carries
+    EVERY story's sockets -- runs out first: about ``(threads - reserve) / 2``
+    players with two tabs each, across all the stories together, with the
+    reserve (``limits.RESERVED_THREADS``) kept for HTTP: since v0.20.0 T13 the
+    front door counts every relayed WebSocket, polling ``GET`` and HTTP turn
+    against ``threads - reserve`` (``limits.LongHolds``) and refuses the next
+    at once, so the reserve is real, and every worker is held to it through
+    the front door. WARN below ``MIN_HOSTED_THREADS``.
+    """
+    if not bool(cfg.get("hosting.enabled", False)):  # type: ignore[attr-defined]
+        return
+    from engine.hosting.limits import RESERVED_THREADS
+
+    try:
+        threads = int(cfg.get("hosting.threads", 0))  # type: ignore[attr-defined]
+    except (TypeError, ValueError):
+        return  # the block's own validation names it
+    raw = cfg.get("hosting.stories", None)  # type: ignore[attr-defined]
+    count = len(raw) if isinstance(raw, list) else 0
+    holds = max(1, threads - RESERVED_THREADS)
+    players = max(0, (threads - RESERVED_THREADS) // 2)
+    try:
+        per_account = int(cfg.get("hosting.max_connections_per_account", 0))  # type: ignore[attr-defined]
+    except (TypeError, ValueError):
+        per_account = 0
+    detail = (
+        f"{threads} per process; the front door carries every story's WebSockets "
+        f"(each pins a thread there and one in its worker), so about {players} players "
+        f"with two tabs each across all {count} stories; open WebSockets, polls and "
+        f"HTTP turns together hold at most {holds} (one more is refused at once), "
+        f"at most {per_account} of them one account's, leaving {RESERVED_THREADS} "
+        "threads for HTTP"
+    )
+    if threads < MIN_HOSTED_THREADS:
+        report.add("Config", "hosting.threads", WARN,
+                   f"{detail} - below {MIN_HOSTED_THREADS}, a few open tabs fill the front door")
+    else:
+        report.add("Config", "hosting.threads", OK, detail)
+
+
+def _metrics_row(report: Report, cfg: object) -> None:
+    """
+    Hosted mode only (spec §7.4, v0.20.0 T17): the supervisor's metrics store,
+    ``<storage.root>/hosting/metrics.sqlite3`` -- its path and whether it can
+    be written (the file, or the directory that will hold it), and the
+    retention window. Read and probed, never opened: the doctor asks the
+    store nothing.
+    """
+    if not bool(cfg.get("hosting.enabled", False)):  # type: ignore[attr-defined]
+        return
+    from engine.hosting.supervisor.metrics import FILE_NAME
+    from engine.persistence.storage import hosting_dir
+
+    path = hosting_dir() / FILE_NAME
+    days = cfg.get("hosting.observability.retention_days", None)  # type: ignore[attr-defined]
+    cap = cfg.get("hosting.observability.metrics_max_mb", None)  # type: ignore[attr-defined]
+    ok, detail = _writable(path.parent)
+    if ok and path.exists() and not os.access(path, os.W_OK):
+        ok, detail = False, "the file is read-only"
+    state = f"{path.stat().st_size} bytes" if path.is_file() else "not made yet (the supervisor makes it)"
+    # Metrics are best effort (T17 fix round 1, I2): a store that will not
+    # open is moved aside and made again, and the supervisor starts without
+    # metrics if even that fails -- so a problem here is a WARN, never a FAIL.
+    broken = _metrics_broken(path) if path.exists() else ""
+    if broken:
+        report.add("Config", "metrics store", WARN,
+                   f"{path}: {broken} - the supervisor moves it aside (.bad-<time>) and starts a new one")
+    elif ok:
+        report.add("Config", "metrics store", OK,
+                   f"{path}: {state}, {detail}; rows kept {days} days, at most {cap} MB")
+    else:
+        report.add("Config", "metrics store", WARN,
+                   f"{path}: {detail} - the supervisor will run without metrics")
+
+
+def _metrics_broken(path: Path) -> str:
+    """Why the metrics store at ``path`` will not open (read-only ``quick_check``), or ""."""
+    import sqlite3
+
+    try:
+        db = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    except sqlite3.Error as exc:
+        return f"it will not open ({type(exc).__name__})"
+    from engine.hosting.supervisor.metrics import QUICK_CHECK_MAX_BYTES
+
+    try:
+        if path.stat().st_size > QUICK_CHECK_MAX_BYTES:
+            # Too large to read whole (v0.20.0 T18): its header and schema only.
+            db.execute("SELECT COUNT(*) FROM sqlite_master").fetchone()
+            return ""
+        found = db.execute("PRAGMA quick_check(1)").fetchone()
+        if not found or str(found[0]).lower() != "ok":
+            return "it fails its integrity check"
+    except sqlite3.Error as exc:
+        return f"it will not open ({type(exc).__name__})"
+    finally:
+        db.close()
+    return ""
+
+
+def _writable(directory: Path) -> tuple[bool, str]:
+    """
+    Whether this process can create a file in ``directory``, or in the nearest
+    ancestor that exists (the engine creates the rest on first write).
+
+    PROVED BY DOING IT: a temp file is created there and removed at once
+    (``tempfile.TemporaryFile``, which deletes itself on close). ``os.access``
+    was the first answer, and on Windows it reads only the read-only
+    attribute and ignores ACLs, so it said "writable" of a directory the user
+    could not write to (T3 fix round 1). The file lives for the length of the
+    probe and nothing else is written.
+    """
+    import tempfile
+
+    probe = directory
+    while not probe.exists() and probe.parent != probe:
+        probe = probe.parent
+    if not probe.is_dir():
+        return False, f"{probe} is not a directory"
+    try:
+        with tempfile.TemporaryFile(dir=probe, prefix=".doctor-probe-"):
+            pass
+    except OSError as exc:
+        return False, f"cannot write in {probe}: {exc.strerror or exc}"
+    return True, "writable" if probe == directory else f"will be created (in {probe})"
+
+
+#: The Docker image's user and group (the Dockerfile's ``USER``).
+IMAGE_UID = 10001
+
+
+def _storage_rows(report: Report) -> None:
+    """
+    Where the engine writes (spec §3.6, §4.1): the resolved storage root and
+    whether it is writable, and the legacy ``paths.saves`` alias, named with
+    its file so it is moved before v0.21.0 removes it.
+    """
+    from engine.persistence import storage
+
+    root = storage.data_root()
+    ok, detail = _writable(root)
+    if not ok and os.environ.get("CLOCKWORK_ENV", "").strip() == "docker":
+        # In the image (spec §7.4, §8.1, v0.20.0 T18): the likely cause and its fix.
+        detail += (
+            f" - the image runs as uid {IMAGE_UID}; a host directory bind-mounted on {root} is "
+            f"owned by root until you run: sudo chown -R {IMAGE_UID}:{IMAGE_UID} <the host directory> "
+            "(docs/HOSTING.md, /data ownership; a named volume needs nothing)"
+        )
+    report.add("Config", "storage", OK if ok else FAIL, f"{root}: {detail}")
+
+    alias = storage.legacy_saves_alias()
+    if alias is not None:
+        source, value = alias
+        report.add("Config", "legacy paths.saves", WARN,
+                   f"{source}: paths.saves {value!r} is read as the save base - "
+                   f"move it to storage.root; the alias is removed in "
+                   f"{storage.LEGACY_REMOVED_IN}")
+
+
 def check_config(report: Report) -> None:
     from engine.config import get_config
 
-    from engine.config import legacy_llm_layers
+    from engine.config import external_config_layers, legacy_llm_layers
     from engine.llm.providers import get_provider
     from engine.stack import _service_name
 
-    cfg = get_config()
+    try:
+        cfg = get_config()
+    except ValueError as exc:
+        # The admin layer (v0.20.0 T14) is checked as it is read: a key
+        # outside the panel's allowlist, or a file that does not parse, stops
+        # get_config, and the instance with it. Its message names the file
+        # and the key, never a value.
+        if "the admin layer" not in str(exc):
+            raise
+        report.add("Config", "admin layer", FAIL, str(exc))
+        return
+
+    # A stray test-suite marker (T5 re-review, N4): this process then runs as
+    # a child of a test suite -- local.yaml ignored, no model server, nothing
+    # saved -- so every other row below would describe the wrong machine.
+    from engine.config import TEST_SANDBOX_ENV, stray_sandbox_message
+
+    stray = stray_sandbox_message()
+    if stray is not None:
+        report.add("Config", TEST_SANDBOX_ENV, FAIL, stray)
 
     # A v0.18 `lmstudio:` block still in a layer (spec §2.2): read as `llm:`,
     # and named here so it is renamed before the alias goes in v0.21.0.
@@ -445,6 +983,22 @@ def check_config(report: Report) -> None:
     else:
         # The row's own words (identity data; LM Studio's are v0.18's).
         report.add("Config", label, WARN, row.key_missing)
+
+    _hosting_row(report, cfg)
+    _hosted_rows(report, cfg)
+    _stories_rows(report, cfg)
+    _threads_row(report, cfg)
+    _admin_rows(report, cfg)
+    _metrics_row(report, cfg)
+    _storage_rows(report)
+
+    # An operator's file outside the repo (spec §2.1): it outranks
+    # config/local.yaml, so a Settings save of a key it sets changes nothing.
+    # Named here with its keys -- never a value (rule 5).
+    for source, keys in external_config_layers():
+        report.add("Config", "CLOCKWORK_CONFIG", OK,
+                   f"{source}: sets {', '.join(keys) or 'nothing'} - these outrank "
+                   "config/local.yaml, so the Settings panel cannot change them")
 
     # No literal defaults here any more. They were the flagship's four content
     # paths, so a story that had lost one of these keys was reported against
@@ -499,6 +1053,12 @@ def check_games(report: Report) -> None:
             # print four lines, not "invalid".
             for problem in row["problems"]:
                 report.add("Games", label, FAIL, problem)
+
+    # A retired `paths:` key still declared (v0.20.0: `saves`): an advisory,
+    # never a FAIL -- the story plays, and the key moves nothing.
+    for slug, manifest in sorted(manifests.items()):
+        for _key, note in manifest.retired_paths():
+            report.add("Games", slug, WARN, note)
 
     report.add("Games", "cache registry", OK,
                f"{len(registered_caches())} caches invalidated on activation")
@@ -578,7 +1138,17 @@ def check_inherited_content(report: Report) -> None:
     # Only keys whose default resolves to a file that EXISTS and is not itself
     # story-scoped or a runtime output directory. Those are the ones where an
     # omission means "read the flagship" rather than "read nothing".
-    owned = {"games/", "data/saves", "data/cache", "data/media", "data/telemetry"}
+    # The engine's run-time outputs: the storage root's saves and media
+    # (v0.20.0, `engine/persistence/storage.py`), as the repo-relative
+    # prefix a default would spell them with, and the two caches beside it.
+    from engine.persistence import storage
+
+    data = storage.data_root()
+    try:
+        data_rel = data.relative_to(root).as_posix()
+    except ValueError:
+        data_rel = "data"  # a root outside the repo: no default names it
+    owned = {"games/", f"{data_rel}/saves", f"{data_rel}/media", "data/cache", "data/telemetry"}
     flagship = {
         key
         for key, value in defaults.items()

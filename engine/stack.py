@@ -21,6 +21,7 @@ Version: v0.2.0 [2026-08-07]
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import subprocess
 import time
@@ -78,21 +79,82 @@ class ServiceSpec:
         return path if path.is_absolute() else project_root() / path
 
     def resolved_command(self) -> Optional[Path]:
-        """Absolute path to the executable, or None if it cannot be found."""
+        """
+        Absolute path to the executable, or None if it cannot be found.
+
+        The shipped commands carry no ``.exe`` (``target/release/tts-server``),
+        so one config serves Windows and Linux. A path the config names (an
+        absolute one, or one under ``root``) is resolved the way
+        ``shutil.which`` already resolves a PATH name: on Windows, the name as
+        written and then the name plus each ``PATHEXT`` suffix, so the Windows
+        build's ``tts-server.exe`` is found as before, and an owner's command
+        that still says ``.exe`` is found unchanged.
+
+        Only a regular file counts, and off Windows only one with its exec
+        bit set, so a directory or an unbuilt source file reads as "not
+        found" rather than failing later at ``Popen``.
+
+        The order is: an absolute ``command``; then ``command`` under
+        ``root``; then ``shutil.which(command)``. That last step is the
+        pre-v0.20.0 fallback and keeps its behaviour: a bare name
+        (``python``) is looked up on PATH, but a command that holds a
+        separator (``target/release/tts-server``, the shipped value while
+        ``root`` is ``""``) is taken RELATIVE TO THE PROCESS'S WORKING
+        DIRECTORY, not the repository or ``root``, because that is how
+        ``shutil.which`` treats a path with a directory part. So with no
+        ``root`` set, a shipped voxtral command is found only if the launcher
+        was started from the directory that holds ``target/``.
+        """
         if not self.command:
             return None
         candidate = Path(self.command)
         if candidate.is_absolute():
-            return candidate if candidate.exists() else None
+            return _existing_executable(candidate)
 
         root = self.resolved_root()
         if root is not None:
-            local = root / candidate
-            if local.exists():
+            local = _existing_executable(root / candidate)
+            if local is not None:
                 return local
 
         found = shutil.which(self.command)
         return Path(found) if found else None
+
+
+def _runnable(path: Path) -> bool:
+    """A regular file, and off Windows one the process may execute. Windows
+    has no exec bit: there the suffix decides, as it does for the OS."""
+    if not path.is_file():
+        return False
+    return os.name == "nt" or os.access(path, os.X_OK)
+
+
+def _existing_executable(path: Path) -> Optional[Path]:
+    """
+    ``path`` if it is a runnable file, else (on Windows only) ``path`` plus
+    the first ``PATHEXT`` suffix that is, else None. Elsewhere a name is taken
+    exactly as written: Linux has no implied extension.
+
+    The suffixes are tried in ``PATHEXT``'s own order (by default ``.COM``,
+    ``.EXE``, ``.BAT``, ``.CMD``, ...), the order Windows itself and
+    ``shutil.which`` use, so the stack finds what typing the name at a prompt
+    in that directory would run. That means a ``tts-server.com`` or
+    ``tts-server.bat`` beside ``tts-server.exe`` in ``root`` wins over the
+    ``.exe``: ``root`` is the owner's own build directory, and whatever they
+    put there is what they would run by hand. Naming the ``.exe`` in
+    ``command`` pins it.
+    """
+    if _runnable(path):
+        return path
+    if os.name != "nt":
+        return None
+    for suffix in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(os.pathsep):
+        if not suffix:
+            continue
+        with_suffix = path.with_name(path.name + suffix.lower())
+        if _runnable(with_suffix):
+            return with_suffix
+    return None
 
 
 @dataclass

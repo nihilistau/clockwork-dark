@@ -1,0 +1,16 @@
+
+Game: The Clockwork Dark  (games/clockwork-dark, v0.2.0)
+
+Local service stack:
+  [ ok ]  lmstudio     golden: up
+  [down]  voxtral_tts  golden: down
+  [ -- ]  voxtral_asr  
+  [ -- ]  comfyui      
+  [FAIL]  grok         command not found: grok
+
+  The game still runs. What you lose:
+    voxtral_tts  no spoken narration (off by default anyway)
+    grok         no live image generation — the shipped art pack still works
+
+--- exit 0
+--- stack calls []

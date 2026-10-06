@@ -6,6 +6,8 @@ Metrics HTTP API
 
 Process-wide and unpersisted; these are numbers about this run of the server,
 not about a save. The telemetry oracle is engine machinery every story shares.
+In hosted mode (v0.20.0) the route answers 404, always: they are numbers about
+every player's turns.
 
 Wire it into a scene with one line in its ``register()``::
 
@@ -20,7 +22,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, abort, jsonify
+
+from engine.config import hosting_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +50,10 @@ def metrics_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
         """
         from engine.telemetry import get_oracle
 
+        # Hosted mode: 404, always (spec §6.7). These are process-wide numbers
+        # about every player's turns; there is no key that publishes them.
+        if hosting_enabled():
+            abort(404)
         oracle = get_oracle()
         return jsonify({"metrics": oracle.metrics(), "recent": oracle.recent(20)})
 

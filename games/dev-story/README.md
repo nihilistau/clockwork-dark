@@ -9,6 +9,10 @@ content answering first.
 .\.venv\Scripts\python.exe launcher.py --game dev-story --port 5599
 ```
 
+```sh
+.venv/bin/python launcher.py --game dev-story --port 5599   # Linux
+```
+
 This story ships. It used to be gitignored; it is committed now because it is
 the full worked example the story templates (`scripts/story_template/`) are
 distilled from, and because it puts a row under every per-story test that
@@ -99,6 +103,10 @@ That is the useful state, because the prompts are written:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\art_missing.py --game dev-story
+```
+
+```sh
+.venv/bin/python scripts/art_missing.py --game dev-story   # Linux
 ```
 
 writes `data/art/MISSING-PLATES.md` — every gap, with a ready-to-paste prompt in

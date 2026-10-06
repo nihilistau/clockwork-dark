@@ -26,7 +26,15 @@ scene (engine/scenes/default_scene.py) explicitly; a story that declares
 nothing gets the same default. The module used to be hardcoded here, which
 meant a second story could ship its own content and never its own screens.
 
-Version: v0.5.0 [2026-08-08]
+HOSTED MODE (`hosting.enabled`, docs/HOSTING.md) runs the supervisor in the
+foreground (`python -m engine.hosting.supervisor`'s own `main`, v0.20.0 T12,
+spec §7.2): a worker per `hosting.stories` slug and the front door on
+`scene.clockwork.host`/`port`, each under the development server, after the
+WARNING below -- the same shape as a deployment. `--check` then adds one row:
+the front door's `GET /api/health` and where the instance's logs are. With
+hosting off nothing here imports `engine.hosting`, and both are v0.19.0's.
+
+Version: v0.6.0 [2026-10-05]
 """
 
 from __future__ import annotations
@@ -34,6 +42,12 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+
+#: What the launcher says before it serves hosted mode (spec §7.2).
+HOSTED_DEV_SERVER_WARNING = (
+    "hosted mode under the development server: for a real deployment run "
+    "`python -m engine.hosting.supervisor` on Linux, or the Docker image"
+)
 
 
 def _configure_logging(verbose: bool) -> None:
@@ -89,6 +103,46 @@ def _report(statuses) -> bool:
             print(f"    {status.name:<12} {consequences.get(status.name, 'reduced features')}")
         print()
     return not broken
+
+
+def _frontdoor_health(url: str) -> tuple[bool, str]:
+    """``GET`` the front door's health URL (no system proxy for loopback): up, and what it said."""
+    import httpx
+
+    try:
+        with httpx.Client(trust_env=False, timeout=3.0) as client:
+            response = client.get(url)
+    except httpx.HTTPError as exc:
+        return False, type(exc).__name__
+    return response.status_code == 200, f"HTTP {response.status_code}"
+
+
+def _hosted_report() -> None:
+    """
+    Hosted mode's ``--check`` row (spec §7.4): the front door's ``GET
+    /api/health`` at ``scene.clockwork.host``/``port`` (loopback when it binds
+    every interface), and the path of the instance's logs.
+    """
+    from engine.persistence.storage import hosting_dir
+    from engine.scenes.spec import DEFAULT_SCENE_NAME, is_wildcard, scene_host, scene_port
+
+    host = scene_host(DEFAULT_SCENE_NAME)
+    target = "127.0.0.1" if is_wildcard(host) else host
+    if ":" in target and not target.startswith("["):
+        target = f"[{target}]"
+    url = f"http://{target}:{scene_port(DEFAULT_SCENE_NAME)}/api/health"
+    alive, detail = _frontdoor_health(url)
+    print("\nHosted mode (python -m engine.hosting.supervisor):")
+    print(f"  front door  {'up' if alive else 'down':<5} {url} ({detail})")
+    print(f"  logs        {hosting_dir() / 'logs'}")
+
+
+def _run_supervisor() -> int:
+    """Hosted mode: the supervisor's own ``main``, in this process, in the foreground."""
+    import importlib
+
+    module = importlib.import_module("engine.hosting.supervisor.__main__")
+    return int(module.main([]))
 
 
 def _list_games() -> int:
@@ -227,10 +281,21 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.check:
+        from engine.config import TEST_SANDBOX_ENV, stray_sandbox_message
         from engine.stack import StackManager
 
         statuses = StackManager().status()
         _report(statuses)
+        from engine.config import hosting_enabled
+
+        if hosting_enabled():
+            _hosted_report()
+        # A stray test-suite marker (T5 re-review, N4): every service is off
+        # in this process whatever the table says, so it is a FAIL of its own.
+        stray = stray_sandbox_message()
+        if stray is not None:
+            print(f"\n  FAIL  {TEST_SANDBOX_ENV}: {stray}\n")
+            return 1
         # Exit 1 only when the model server is down: every other service
         # degrades a feature, and the game still runs without it.
         return 1 if _model_server_down(statuses) else 0
@@ -241,6 +306,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.studio:
         import os
 
+        from engine.config import hosting_enabled
+
+        if hosting_enabled():
+            # Spec §6.7, said here and at once (T12 fix round 1): every
+            # worker would inherit the flag, refuse to start and crash-loop
+            # until held down, with the reason only in the children's logs.
+            print(
+                "\n  Hosted mode refused to start: --studio: the studio writes to games/ and "
+                "resets every cache under other players' turns; it does not run in hosted "
+                "mode (start without --studio, or set hosting.enabled: false)\n",
+                file=sys.stderr,
+            )
+            return 1
         os.environ["CLOCKWORK_STUDIO"] = "1"
         print("\n  Studio enabled — open  /?studio=1  to edit stories.\n")
 
@@ -263,6 +341,24 @@ def main(argv: list[str] | None = None) -> int:
         # launching never silently spawns a multi-gigabyte model load.
         _report(manager.start_all() if args.stack else manager.status())
 
+    from engine.config import hosting_enabled
+
+    if hosting_enabled():
+        # HOSTED MODE (spec §7.2): the supervisor, in the foreground, with a
+        # development server for the front door and each worker -- the shape
+        # of a deployment. It answers its own refusals (exit 1, naming the key).
+        print(f"\n  WARNING: {HOSTED_DEV_SERVER_WARNING}\n")
+        if args.host or args.port:
+            print(
+                "  --host and --port are not used in hosted mode: the front door binds "
+                "scene.clockwork.host and scene.clockwork.port.\n"
+            )
+        try:
+            return _run_supervisor()
+        finally:
+            if manager is not None:
+                manager.stop_all()
+
     # The active game names its scene module, defaulting to Clockwork's. The
     # import happens AFTER activation for the reason in the module docstring:
     # a scene import warms content caches, so the game has to be chosen first.
@@ -277,6 +373,17 @@ def main(argv: list[str] | None = None) -> int:
     except (ImportError, AttributeError) as exc:
         print(f"\nScene {spec.module!r} will not load: {exc}\n", file=sys.stderr)
         return 1
+
+    # Local mode has no login: a bind other than loopback (`--host`, or
+    # `scene.<name>.host` in config/local.yaml) is said here, in the doctor's
+    # own words, before anything listens (v0.20.0).
+    from engine.scenes.spec import exposure_warning, scene_host, scene_port
+
+    warning = exposure_warning(
+        args.host or scene_host(spec.name), args.port or scene_port(spec.name)
+    )
+    if warning:
+        print(f"\n  WARNING: bound to {args.host or scene_host(spec.name)} - {warning}\n")
 
     try:
         run_scene(host=args.host, port=args.port)

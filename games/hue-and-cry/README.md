@@ -9,6 +9,10 @@ stakes -- wry and affectionate, and the gallows are real.
 .\.venv\Scripts\python.exe launcher.py --game hue-and-cry
 ```
 
+```sh
+.venv/bin/python launcher.py --game hue-and-cry   # Linux
+```
+
 Design: `docs/superpowers/specs/2026-09-23-hue-and-cry-design.md` §6.
 What changed, release by release: [CHANGELOG.md](CHANGELOG.md).
 
@@ -166,6 +170,10 @@ row above.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests\test_hue_and_cry.py -q
+```
+
+```sh
+.venv/bin/python -m pytest tests/test_hue_and_cry.py -q   # Linux
 ```
 
 `tests/test_hue_and_cry.py` holds the story's shape and its measured bounds;

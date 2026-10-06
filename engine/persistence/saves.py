@@ -45,9 +45,12 @@ Version: v0.4.0 [2026-08-08]
 from __future__ import annotations
 
 import logging
+import os
+import re
 import threading
 import time
 import uuid
+import weakref
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
@@ -60,12 +63,72 @@ from engine.game.state import CURRENT_SAVE_VERSION, GameState
 # envelope imports it rather than repeating the string. tests/test_games.py
 # asserts the two agree, which this import makes true by construction.
 from engine.games import ENGINE_VERSION  # noqa: F401  (re-exported)
+from engine.locks import renew_after_fork
+from engine.names import is_portable_name
 from engine.persistence.atomic import append_jsonl, read_json, write_json_atomic
 from engine.persistence.migrations import MigrationError, migrate
+from engine.persistence import storage
 
 logger = logging.getLogger(__name__)
 
 AUTOSAVE_SLOT = "auto"
+
+#: What a save id -- and a loaded save's ``session_id`` -- may be: a NAME,
+#: never a path (v0.20.0, spec §4.3). ``_dir`` used to be ``root / save_id``
+#: with every door passing its id straight through, so ``..``, ``.``, an
+#: absolute path and, on Windows, ``..\\..\\x`` and ``C:\\x`` (which Flask's
+#: router hands over from ``..%5c..%5cx`` and ``C:%5cx``) all reached outside
+#: the store: a ``DELETE`` unlinked every plain file in the directory it named.
+#: Every minted id (``uuid4().hex[:12]``) matches.
+SAVE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def missing_save_message(save_id: str) -> str:
+    """The words for a save that is not there, or whose id is not ours."""
+    return f"No readable save: {save_id}"
+
+
+class InvalidSaveId(ValueError):
+    """
+    A save id (or a loaded save's session id) that is not a name we allow.
+
+    ITS OWN CLASS so the doors can answer exactly this as a missing save and
+    nothing else: a save that is there and will not load (a corrupt envelope,
+    a bad enum in its state) raises some other ``ValueError``, which is an
+    error the owner's log must name, never a silent "not found".
+    """
+
+
+class SaveRoomFull(RuntimeError):
+    """
+    A save that would add a row to an index already at its ``max_rows``
+    (hosted mode's ``hosting.max_saves_per_story``, v0.20.0 T15): refused,
+    nothing written. The session package answers it as ``SavesFull``.
+    """
+
+    def __init__(self, limit: int) -> None:
+        super().__init__(f"the index holds {int(limit)} rows")
+        self.limit = int(limit)
+
+
+def check_save_id(save_id: Any, *, what: str = "save id") -> str:
+    """
+    ``save_id``, if it is a name ``SAVE_ID_RE`` allows and a portable one
+    (``engine.names``: no Windows device name such as ``NUL`` or ``con``, on
+    every OS, so a save tree means the same thing everywhere).
+
+    Raises:
+        InvalidSaveId: Anything else. The doors answer it as a missing save,
+            so an id that is not ours looks exactly like one that does not
+            exist.
+    """
+    if (
+        not isinstance(save_id, str)
+        or not SAVE_ID_RE.fullmatch(save_id)
+        or not is_portable_name(save_id)
+    ):
+        raise InvalidSaveId(f"not a {what}: {save_id!r}")
+    return save_id
 
 
 @dataclass
@@ -200,12 +263,23 @@ def summary_values(state: GameState) -> dict[str, Any]:
 # Legacy migration runs at most once per process. The check is two stat calls,
 # but saves_root() is called on every store construction and a filesystem walk
 # per call would be absurd.
+#
+# Checked, migrated and then recorded under ``_migrated_lock`` (v0.20.0): it was
+# added BEFORE the migration ran, so a second thread's first store for the
+# same story went on while the first was still moving the files.
 _migrated: set[str] = set()
+_migrated_lock = threading.Lock()
+renew_after_fork(globals(), _migrated_lock=threading.Lock)
 
 
 def saves_base() -> Path:
-    """The un-namespaced save directory, straight from ``paths.saves``."""
-    return Path(get_config().get("paths.saves", "data/saves"))
+    """
+    The local player's un-namespaced save directory: ``<storage root>/saves``
+    (``engine/persistence/storage.py``; v0.20.0), anchored at the repository,
+    never the working directory. THE one seam every owner-``""`` save root is
+    built from, and the one ``tests/conftest.py`` redirects.
+    """
+    return storage.saves_dir("", None)
 
 
 def _migrate_legacy(base: Path, slug: str) -> None:
@@ -270,7 +344,7 @@ def saves_root(slug: Optional[str] = None) -> Path:
         slug: Game slug, or None for the active game.
 
     Returns:
-        ``<paths.saves>/<slug>``. The legacy flat layout is folded into the
+        ``<saves_base()>/<slug>``. The legacy flat layout is folded into the
         active game's namespace the first time this is called for it.
     """
     base = saves_base()
@@ -283,18 +357,68 @@ def saves_root(slug: Optional[str] = None) -> Path:
         slug = active_slug()
 
     if slug not in _migrated:
-        _migrated.add(slug)
-        try:
-            _migrate_legacy(base, slug)
-        except OSError as exc:  # noqa: PERF203 -- diagnostics beat a crash here
-            logger.warning(
-                "[persistence] Legacy save migration failed "
-                "(operation=saves_root, slug=%s): %s",
-                slug,
-                exc,
-            )
+        with _migrated_lock:
+            if slug not in _migrated:
+                try:
+                    _migrate_legacy(base, slug)
+                except OSError as exc:  # noqa: PERF203 -- diagnostics beat a crash here
+                    logger.warning(
+                        "[persistence] Legacy save migration failed "
+                        "(operation=saves_root, slug=%s): %s",
+                        slug,
+                        exc,
+                    )
+                finally:
+                    # Recorded whatever happened: a failure is not retried.
+                    _migrated.add(slug)
 
     return base / slug
+
+
+#: Every save folder's index lock, keyed by the folder's resolved path, case
+#: folded (v0.20.0 T8). Every ``SaveStore`` for one folder shares its lock,
+#: whichever cache built it and whenever: a store a config reset dropped and
+#: its replacement included, and two owner ids differing only in case on a
+#: case-insensitive file system. Weak values: a lock lives exactly as long as
+#: some store holds it, so the registry holds only live folders. Read and
+#: filled under ``_index_locks_lock`` (engine/locks.py's order).
+#:
+#: AFTER A FORK the registry is emptied along with its lock, and the cached
+#: stores (``_stores``) are dropped with it (fix round 1): a folder's RLock
+#: that another thread of the parent held at fork would be held forever in
+#: the child, so the child builds its stores, and their locks, afresh.
+_index_locks: "weakref.WeakValueDictionary[str, Any]" = weakref.WeakValueDictionary()
+_index_locks_lock = threading.Lock()
+renew_after_fork(
+    globals(),
+    _index_locks_lock=threading.Lock,
+    _index_locks=weakref.WeakValueDictionary,
+    _stores=lambda: None,
+)
+
+
+def _folder_key(root: Path) -> str:
+    """``root`` as the registry keys it: absolute, resolved, case folded."""
+    try:
+        resolved = Path(root).resolve()
+    except OSError:
+        resolved = Path(os.path.abspath(root))
+    return os.path.normcase(str(resolved)).casefold()
+
+
+def index_lock_for(root: Path) -> Any:
+    """
+    The one index lock of the save folder ``root`` (an ``RLock``), made on
+    first use. Folding case can only make two folders SHARE a lock on a
+    case-sensitive file system, which costs a wait, never a lost write.
+    """
+    key = _folder_key(root)
+    with _index_locks_lock:
+        lock = _index_locks.get(key)
+        if lock is None:
+            lock = threading.RLock()
+            _index_locks[key] = lock
+        return lock
 
 
 class SaveStore:
@@ -322,18 +446,57 @@ class SaveStore:
             slug = slug or self.root.name
         self.slug = str(slug)
         # The index is read-modify-written on every autosave, and this store is
-        # a PROCESS-WIDE singleton (`get_save_store`) shared by every session
+        # shared, one per (owner, slug) (`save_store_for`), by every session
         # under threading-mode Socket.IO. Two sessions autosaving in the same
         # window both loaded the index before either wrote it, so the second
         # write dropped the first's entry: the `save.json` survived on disk and
         # the run vanished from the load menu forever. Reentrant because
         # `compact()` calls the same guarded helpers.
-        self._lock = threading.RLock()
+        #
+        # ONE LOCK PER FOLDER, not per store (v0.20.0 T8): a config reset
+        # drops the cached stores while a turn may still be saving through
+        # the old one, and its replacement for the same folder must take the
+        # SAME lock, or two writers race one `index.json` (on Windows the
+        # second `os.replace` fails and that autosave is lost).
+        self._lock = index_lock_for(self.root)
 
     # -- paths -----------------------------------------------------------
 
     def _dir(self, save_id: str) -> Path:
-        return self.root / save_id
+        """
+        The run's directory. THE ONE DOOR every method that names a save goes
+        through (``save``, ``load``, ``exists``, ``delete``,
+        ``append_transcript``), so an id outside ``SAVE_ID_RE`` is refused
+        here, with ``InvalidSaveId``, before any path is built from it.
+        """
+        directory = self.root / check_save_id(save_id)
+        # Case (review finding 5): on Windows `abc` and `ABC` are ONE
+        # directory, so a second id differing only in case would read, share
+        # and delete the first run's files. `resolve()` returns the name as it
+        # is on disk there, so a directory found under another case is the
+        # other run's, and the id is refused -- on every OS, so a save tree
+        # means the same thing wherever it is copied.
+        if directory.exists() and directory.resolve().name != save_id:
+            raise InvalidSaveId(f"differs only in case from an existing save: {save_id!r}")
+        return directory
+
+    def _case_twin(self, save_id: str, index: dict[str, Any]) -> Optional[str]:
+        """
+        An existing save id that differs from ``save_id`` only in case, for a
+        NEW id on a case-sensitive filesystem (where ``_dir`` sees nothing):
+        from the index, then the directories on disk.
+        """
+        folded = save_id.casefold()
+        names = set(index)
+        try:
+            with os.scandir(self.root) as entries:
+                names.update(e.name for e in entries if e.is_dir())
+        except OSError:
+            pass
+        for name in names:
+            if name != save_id and name.casefold() == folded:
+                return name
+        return None
 
     def _index_path(self) -> Path:
         return self.root / "index.json"
@@ -352,7 +515,7 @@ class SaveStore:
             return 200
 
     def _write_index(
-        self, entries: dict[str, dict[str, Any]], *, keep_backup: bool = False
+        self, entries: dict[str, dict[str, Any]], *, limit: int, keep_backup: bool = False
     ) -> None:
         """
         Persist the index, newest first, bounded.
@@ -368,11 +531,14 @@ class SaveStore:
         deliberately named would delete their run from the only place they can
         see it. An autosave is by definition the one the engine will replace
         anyway.
+
+        ``limit`` is ``_index_limit()``, read by the caller BEFORE it takes
+        ``self._lock``: the index lock is a leaf (engine/locks.py), and its
+        holder takes no other lock, the config's included.
         """
         ordered = sorted(
             entries.values(), key=lambda e: e.get("updated_at", 0.0), reverse=True
         )
-        limit = self._index_limit()
         if len(ordered) > limit:
             keep: list[dict[str, Any]] = []
             autos: list[dict[str, Any]] = []
@@ -422,13 +588,27 @@ class SaveStore:
         Returns:
             How many entries the index holds afterwards.
         """
+        limit = self._index_limit()
         with self._lock:
             rebuilt: dict[str, dict[str, Any]] = {}
             for directory in sorted(p for p in self.root.iterdir() if p.is_dir()):
-                envelope = read_json(directory / "save.json")
-                if not isinstance(envelope, dict):
+                # A directory no door could name (`foo.bak`, a copy made by
+                # hand) would be a load-menu row that answers "not found".
+                save_id = ""
+                try:
+                    check_save_id(directory.name)
+                    envelope = read_json(directory / "save.json")
+                    if not isinstance(envelope, dict):
+                        continue
+                    save_id = check_save_id(str(envelope.get("save_id") or directory.name))
+                except InvalidSaveId:
+                    logger.warning(
+                        "[persistence] Reindex skipped a directory whose name is "
+                        "not a save id (operation=reindex, name=%.80r, id=%.80r)",
+                        directory.name,
+                        save_id,
+                    )
                     continue
-                save_id = str(envelope.get("save_id") or directory.name)
                 raw_state = envelope.get("state")
                 if not isinstance(raw_state, dict):
                     continue
@@ -449,7 +629,7 @@ class SaveStore:
                 rebuilt[save_id]["created_at"] = float(
                     envelope.get("created_at") or row["updated_at"]
                 )
-            self._write_index(rebuilt, keep_backup=True)
+            self._write_index(rebuilt, limit=limit, keep_backup=True)
             total = len(self._load_index())
         logger.info(
             "[persistence] Reindexed (operation=reindex, found=%d, indexed=%d)",
@@ -470,10 +650,11 @@ class SaveStore:
         Returns:
             How many entries were dropped.
         """
+        limit = self._index_limit()
         with self._lock:
             index = self._load_index()
             before = len(index)
-            self._write_index(index, keep_backup=True)
+            self._write_index(index, limit=limit, keep_backup=True)
             after = len(self._load_index())
         logger.info(
             "[persistence] Compacted (operation=compact, before=%d, after=%d)",
@@ -502,6 +683,7 @@ class SaveStore:
         save_id: Optional[str] = None,
         slot: str = AUTOSAVE_SLOT,
         memory: Optional[dict[str, Any]] = None,
+        max_rows: Optional[int] = None,
     ) -> str:
         """
         Persist a run. Returns the save_id.
@@ -511,9 +693,30 @@ class SaveStore:
             save_id: Reuse an existing save, or None to mint one.
             slot: "auto" or a manual slot label.
             memory: Optional StoryLedger payload, written alongside.
+            max_rows: Hosted mode's ``hosting.max_saves_per_story`` (v0.20.0
+                T15, from T9's review): a save that would ADD a row to an
+                index already holding this many is refused. The count and
+                the write are ONE step under the folder's index lock, so two
+                saves at once cannot both pass the count at the cap less one
+                and both write. None (local mode): never limited.
+
+        Raises:
+            SaveRoomFull: ``max_rows`` given, and no room for a new row
+                (nothing is written).
         """
+        chosen = bool(save_id)
         save_id = save_id or uuid.uuid4().hex[:12]
         directory = self._dir(save_id)
+        if chosen and not directory.exists():
+            # A new run under an id the CALLER chose: it must not be another's
+            # in another case (see `_dir`, which covers an id whose directory
+            # already exists). A minted id is lowercase hex and never is.
+            with self._lock:
+                twin = self._case_twin(save_id, self._load_index())
+            if twin is not None:
+                raise InvalidSaveId(
+                    f"differs only in case from an existing save: {save_id!r}"
+                )
         now = time.time()
 
         envelope = {
@@ -529,32 +732,47 @@ class SaveStore:
             "updated_at": now,
             "state": state.to_save_dict(),
         }
-        write_json_atomic(directory / "save.json", envelope)
 
-        if memory is not None:
-            write_json_atomic(directory / "memory.json", memory)
+        # Built before the lock: summary_values and the index bound read the
+        # story's schema and config, and the index lock is a leaf.
+        summary = SaveSummary(
+            save_id=save_id,
+            slot=slot,
+            player_name=state.player_name,
+            archetype=getattr(state, "archetype", "") or "",
+            world_day=state.world_day,
+            world_hour=state.world_hour,
+            location_id=state.location_id,
+            evil_phase=(
+                getattr(getattr(state, "evil_phase", None), "value", "") or ""
+            ),
+            turn_number=state.turn_number,
+            updated_at=now,
+            values=summary_values(state),
+        ).to_dict()
+        limit = self._index_limit()
 
-        # Read-modify-write under the lock: see SaveStore.__init__.
+        def write_files() -> None:
+            write_json_atomic(directory / "save.json", envelope)
+            if memory is not None:
+                write_json_atomic(directory / "memory.json", memory)
+
+        if max_rows is None:
+            write_files()
+        # Read-modify-write under the lock: see SaveStore.__init__. With a
+        # cap, the count and every write are under it too (the files are
+        # written only once the count has room), so no second save can count
+        # between this one's count and its row.
         with self._lock:
             index = self._load_index()
+            if max_rows is not None:
+                if save_id not in index and len(index) >= int(max_rows):
+                    raise SaveRoomFull(int(max_rows))
+                write_files()
             created = index.get(save_id, {}).get("created_at", now)
-            index[save_id] = SaveSummary(
-                save_id=save_id,
-                slot=slot,
-                player_name=state.player_name,
-                archetype=getattr(state, "archetype", "") or "",
-                world_day=state.world_day,
-                world_hour=state.world_hour,
-                location_id=state.location_id,
-                evil_phase=(
-                    getattr(getattr(state, "evil_phase", None), "value", "") or ""
-                ),
-                turn_number=state.turn_number,
-                updated_at=now,
-                values=summary_values(state),
-            ).to_dict()
+            index[save_id] = summary
             index[save_id]["created_at"] = created
-            self._write_index(index)
+            self._write_index(index, limit=limit)
 
         logger.info(
             "[persistence] Saved (operation=save, id=%s, slot=%s, day=%s, turn=%s)",
@@ -580,13 +798,34 @@ class SaveStore:
 
         Raises:
             FileNotFoundError: No such save.
+            InvalidSaveId: ``save_id`` is not a name ``SAVE_ID_RE`` allows, or
+                the save's own ``session_id`` is not (below).
             MigrationError: Save is from a newer build or unmigratable.
         """
         envelope = read_json(self._dir(save_id) / "save.json")
         if not isinstance(envelope, dict) or "state" not in envelope:
-            raise FileNotFoundError(f"No readable save: {save_id}")
+            raise FileNotFoundError(missing_save_message(save_id))
 
         raw_state = dict(envelope["state"])
+        # The session id is persisted in the save and becomes the socket's
+        # room when the run is resumed, so a hand-edited save must not smuggle
+        # a path or another run's room in: held to the save id's own pattern.
+        # A save written before session ids existed has none, and gets a fresh
+        # one from GameState's default.
+        if "session_id" in raw_state:
+            try:
+                check_save_id(raw_state["session_id"], what="session id")
+            except InvalidSaveId:
+                # Logged: a save that IS there is being refused, and the
+                # player is told only that it is missing. The id is repr'd
+                # and bounded -- it came out of a file anyone could edit.
+                logger.warning(
+                    "[persistence] Save refused: its session id is not a name "
+                    "(operation=load, id=%s, session id=%.80r)",
+                    save_id,
+                    raw_state["session_id"],
+                )
+                raise
         raw_state.setdefault("save_version", envelope.get("save_version", 1))
         # The save says which story it is; a save written before the envelope
         # carried that falls back to the namespace it was found in, which is
@@ -619,10 +858,11 @@ class SaveStore:
             directory.rmdir()
             removed = True
 
+        limit = self._index_limit()
         with self._lock:
             index = self._load_index()
             if index.pop(save_id, None) is not None:
-                self._write_index(index)
+                self._write_index(index, limit=limit)
                 removed = True
 
         if removed:
@@ -630,31 +870,101 @@ class SaveStore:
         return removed
 
 
-_store: Optional[SaveStore] = None
+#: One store per ``(owner, slug)``, built on first use (v0.20.0, spec §4.4).
+#: Each save FOLDER has its own index lock (``index_lock_for``), so two
+#: owners' autosaves never wait on each other and never share an
+#: ``index.json``, and two stores over one folder share one lock. Nulled with every config
+#: reset (``engine/games/caches.py``): a store's root embeds the storage root
+#: and the slug. A store is built under ``_stores_lock`` (double-checked: a
+#: built one is a dict read), so two first callers share one index lock.
+_stores: Optional[dict[tuple[str, str], SaveStore]] = None
+_stores_lock = threading.Lock()
+renew_after_fork(globals(), _stores_lock=threading.Lock)
+
+
+def save_store_for(owner: str = "", slug: Optional[str] = None) -> SaveStore:
+    """
+    The save store for ``owner``'s runs of ``slug`` (None: the active story).
+
+    Owner ``""`` is the local player: ``saves_root(slug)``, whose first use
+    folds a pre-namespacing flat ``data/saves/`` into the story's namespace.
+    Any other owner is an account, under ``storage.saves_dir(owner, slug)``,
+    and NEVER runs that migration: it exists only for the owner's old flat
+    directory, and an account's directory never had one.
+
+    Raises:
+        InvalidSaveId: ``owner`` is not a name (``check_save_id``'s rule).
+        ValueError: ``slug`` is not a valid story slug.
+    """
+    global _stores
+    from engine.games.manifest import is_valid_slug
+    from engine.games.registry import active_slug
+
+    if owner:
+        # Case-normalised BEFORE it reaches a path or the cache key (v0.20.0
+        # T8): on a case-insensitive file system `u_ABC...` and `u_abc...`
+        # are one folder, and two stores over it would hold two index locks.
+        # Account ids are lower case (`engine/hosting/accounts.ID_RE`).
+        owner = check_save_id(owner, what="owner").lower()
+    chosen = str(slug) if slug else active_slug()
+    if not is_valid_slug(chosen):
+        raise ValueError(f"not a story slug: {chosen!r}")
+    key = (owner, chosen)
+    stores = _stores
+    store = stores.get(key) if stores is not None else None
+    if store is not None:
+        return store
+    with _stores_lock:
+        # One dict, read once: a config reset nulls ``_stores`` without this
+        # lock (engine/games/caches.py), so re-reading the global after the
+        # build could find None. A store built across a reset lands in the
+        # dropped dict and is still returned; the next call builds afresh.
+        stores = _stores
+        if stores is None:
+            stores = _stores = {}
+        store = stores.get(key)
+        if store is None:
+            if owner:
+                store = SaveStore(root=storage.saves_dir(owner, chosen), slug=chosen)
+            else:
+                store = SaveStore(slug=chosen)
+            stores[key] = store
+        return store
 
 
 def get_save_store() -> SaveStore:
-    """Process-wide save store."""
-    global _store
-    if _store is None:
-        _store = SaveStore()
-    return _store
+    """The store for owner ``""`` and the active story: the local player's."""
+    return save_store_for("", None)
+
+
+def cached_save_stores() -> list[SaveStore]:
+    """Every store built since the last reset (the conftest's teardown check)."""
+    stores = _stores
+    return list((stores or {}).values())
 
 
 def reset_save_store() -> None:
-    """Drop the cached store. Tests only."""
-    global _store
-    _store = None
+    """Drop every cached store. Config resets and tests."""
+    global _stores
+    _stores = None
 
 
 __all__ = [
     "AUTOSAVE_SLOT",
     "ENGINE_VERSION",
+    "InvalidSaveId",
     "MigrationError",
+    "SAVE_ID_RE",
+    "SaveRoomFull",
     "SaveStore",
     "SaveSummary",
+    "cached_save_stores",
+    "check_save_id",
     "get_save_store",
+    "index_lock_for",
+    "missing_save_message",
     "reset_save_store",
+    "save_store_for",
     "saves_base",
     "saves_root",
     "summary_values",

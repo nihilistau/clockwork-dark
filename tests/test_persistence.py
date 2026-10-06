@@ -420,6 +420,64 @@ def test_the_saves_guard_sees_a_write_into_the_real_directory(attempt: str) -> N
     assert not missing.parent.exists()
 
 
+def test_every_test_gets_a_temp_storage_root() -> None:
+    """
+    v0.20.0 T3 fix round 1: an account's saves, hosted mode's files and media
+    hang off ``storage.data_root()``, which the ``saves_base`` redirect never
+    reached. The autouse guard points ``CLOCKWORK_DATA_DIR`` at a per-test temp
+    directory, so ``save_store_for("x", ...)`` is disposable by default.
+    """
+    import os
+    from pathlib import Path
+
+    from engine.persistence import saves, storage
+    from tests.conftest import _under_real_saves
+
+    root = Path(os.environ["CLOCKWORK_DATA_DIR"])
+    assert storage.data_root() == root
+    store = saves.save_store_for("canary-owner", "clockwork-dark")
+    assert root in store.root.parents
+    assert not _under_real_saves(store.root)
+
+
+@pytest.mark.parametrize("where", ["users", "hosting"])
+def test_the_guard_sees_an_account_or_hosting_write_under_the_real_root(
+    where: str, monkeypatch
+) -> None:
+    """
+    The canary for the widened guard: with ``CLOCKWORK_DATA_DIR`` removed, an
+    account's save (or a hosting file) aims at the REAL storage root's
+    ``users/`` (``hosting/``), and the audit hook records it -- which fails the
+    test at teardown. Each attempt names a path whose PARENT does not exist
+    (a bare ``os.mkdir`` and ``open``, never ``mkdir(parents=True)``), so the
+    OS refuses it after the audit event fired and nothing lands under the
+    repository's ``data/``.
+    """
+    import os
+
+    from engine.persistence import storage
+    from tests.conftest import _REAL_DATA_ROOT, REAL_SAVES_WRITES, _under_real_saves
+
+    monkeypatch.delenv("CLOCKWORK_DATA_DIR")
+    assert storage.data_root() == _REAL_DATA_ROOT
+    target = _REAL_DATA_ROOT / where
+    assert not target.exists(), f"{target} exists; the canary must aim at a missing directory"
+    try:
+        if where == "users":
+            account = storage.saves_dir("canary-owner", "clockwork-dark")
+            assert _under_real_saves(account)
+            with pytest.raises(OSError):
+                os.mkdir(account)  # what the store's first save does, minus parents=True
+        else:
+            with pytest.raises(OSError):
+                open(storage.hosting_dir() / "users.json", "w", encoding="utf-8")  # noqa: SIM115
+        assert REAL_SAVES_WRITES, f"a write under the real {where}/ went unseen"
+        assert all(f"{os.sep}{where}{os.sep}" in path for _, path in REAL_SAVES_WRITES), REAL_SAVES_WRITES
+    finally:
+        REAL_SAVES_WRITES.clear()
+    assert not target.exists()
+
+
 def test_a_tests_own_monkeypatch_undo_keeps_the_saves_redirect(monkeypatch) -> None:
     """`monkeypatch.undo()` mid-test undid the shared redirect with the test's
     own patches (test_forced_and_repeatable_decks); the guard holds its own."""

@@ -10,6 +10,8 @@ files land.
     .\\.venv\\Scripts\\python.exe scripts\\art_missing.py --game wicked-garden
     .\\.venv\\Scripts\\python.exe scripts\\art_missing.py --game dev-story
 
+    .venv/bin/python scripts/art_missing.py --game wicked-garden     # Linux
+
 WHY THIS TAKES A SLUG. It used to `activate("wicked-garden")` and hardcode that
 story's directory -- written for one story on the day that story needed it,
 which is the same shape as every other flagship-shaped default this repo has

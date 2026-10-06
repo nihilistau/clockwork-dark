@@ -8,6 +8,10 @@ photograph nine days before it was taken.
 .\.venv\Scripts\python.exe launcher.py --game the-long-con
 ```
 
+```sh
+.venv/bin/python launcher.py --game the-long-con   # Linux
+```
+
 What changed, release by release: [CHANGELOG.md](CHANGELOG.md).
 
 ## The shape: a graph city with a deck in the middle of it

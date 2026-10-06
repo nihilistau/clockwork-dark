@@ -84,6 +84,8 @@ from engine.llm.events import (
     LMSStreamEvent,
     ToolCall,
 )
+from engine.llm.client import cut_at_deadline, stop_if_turn_expired
+from engine.llm.gate import call_timeout
 from engine.llm.profiles import wire_cap
 from engine.llm.routes import CHAT_PATH, rest_root
 
@@ -381,7 +383,7 @@ class NativeClient:
         cap = int(payload["max_output_tokens"])
         t0 = time.perf_counter()
         response = self._client.post(
-            f"{self.root}{CHAT_PATH}", json=payload, timeout=self.timeout
+            f"{self.root}{CHAT_PATH}", json=payload, timeout=call_timeout(self.timeout)
         )
         if response.status_code >= 400:
             # The status alone says nothing. `unrecognized_keys` naming the key
@@ -460,8 +462,8 @@ class NativeClient:
 
         try:
             with self._client.stream(
-                "POST", f"{self.root}{CHAT_PATH}", json=payload, timeout=self.timeout
-            ) as response:
+                "POST", f"{self.root}{CHAT_PATH}", json=payload, timeout=call_timeout(self.timeout)
+            ) as response, cut_at_deadline(response) as deadline_cut:
                 response.raise_for_status()
                 for etype, data in _iter_sse(response):
                     if etype not in NATIVE_EVENT_TYPES:
@@ -516,6 +518,8 @@ class NativeClient:
                     # iterating still saw the event.
                     if etype == "message.delta" and delta:
                         yield delta
+                # The body is read: give the connection up to the pool uncut.
+                deadline_cut.finish()
         except httpx.HTTPError as exc:
             logger.error(
                 "[native] Stream failed (operation=chat_stream, model=%s): %s",
@@ -558,6 +562,7 @@ def _iter_sse(response: httpx.Response) -> Generator[tuple[str, dict[str, Any]],
     """
     current = ""
     for raw_line in response.iter_lines():
+        stop_if_turn_expired()
         line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
         if not line:
             continue

@@ -63,6 +63,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
 import uuid
 import weakref
@@ -73,19 +74,27 @@ import httpx
 from engine.config import get_config
 from engine.llm.client import (
     InlineThinkSplitter,
+    cut_at_deadline,
     parse_tool_calls,
     patched_cap,
     reasoning_patch,
+    stop_if_turn_expired,
     strip_inline_think,
     warn_patch_ignored,
 )
 from engine.llm.events import LMSResponse, LMSStreamEvent
+from engine.llm.gate import call_timeout
 from engine.llm.providers import get_provider
 from engine.llm.routes import OLLAMA_CHAT_PATH, route_url
+from engine.locks import renew_after_fork
 
 logger = logging.getLogger(__name__)
 
 _client_instance: Optional["OllamaClient"] = None
+#: Guards building and dropping ``_client_instance`` (v0.20.0): a release
+#: during a build waits for it and drops what it built (engine/locks.py: #14).
+_client_lock = threading.Lock()
+renew_after_fork(globals(), _client_lock=threading.Lock)
 
 
 class UnsupportedResponseFormat(ValueError):
@@ -384,7 +393,7 @@ class OllamaClient:
         )
         t0 = time.perf_counter()
         try:
-            response = self._client.post(self.chat_url, json=payload, timeout=self.timeout)
+            response = self._client.post(self.chat_url, json=payload, timeout=call_timeout(self.timeout))
             self._raise_for_status(response, "chat", model, label)
             data = response.json()
         except httpx.HTTPError as exc:
@@ -525,8 +534,8 @@ class OllamaClient:
 
         try:
             with self._client.stream(
-                "POST", self.chat_url, json=payload, timeout=self.timeout
-            ) as response:
+                "POST", self.chat_url, json=payload, timeout=call_timeout(self.timeout)
+            ) as response, cut_at_deadline(response) as deadline_cut:
                 if response.status_code >= 400:
                     response.read()
                 self._raise_for_status(response, "chat_stream", model, label)
@@ -561,6 +570,8 @@ class OllamaClient:
                     if data.get("done"):
                         final = data
                         break
+                # The body is read: give the connection up to the pool uncut.
+                deadline_cut.finish()
                 if splitter is not None:
                     cut = final.get("done_reason") == "length" or not final.get("done")
                     for channel, piece in splitter.flush(truncated=cut):
@@ -621,6 +632,7 @@ class OllamaClient:
 def _iter_ndjson(response: httpx.Response) -> Generator[dict[str, Any], None, None]:
     """One JSON object per line; a line that is not one is skipped, not fatal."""
     for raw_line in response.iter_lines():
+        stop_if_turn_expired()
         line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
         if not line.strip():
             continue
@@ -677,11 +689,15 @@ def _log_outcome(
 
 
 def get_ollama_client() -> OllamaClient:
-    """Singleton Ollama client, built from the config in force."""
+    """Singleton Ollama client, built from the config in force (double-checked)."""
     global _client_instance
-    if _client_instance is None:
-        _client_instance = OllamaClient()
-    return _client_instance
+    client = _client_instance
+    if client is not None:
+        return client
+    with _client_lock:
+        if _client_instance is None:
+            _client_instance = OllamaClient()
+        return _client_instance
 
 
 def release_ollama_client() -> None:
@@ -693,8 +709,8 @@ def release_ollama_client() -> None:
     once nothing holds it.
     """
     global _client_instance
-    old = _client_instance
-    _client_instance = None
+    with _client_lock:
+        old, _client_instance = _client_instance, None
     if old is not None:
         weakref.finalize(old, old._client.close)
 

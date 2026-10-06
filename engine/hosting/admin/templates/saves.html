@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Saves{% endblock %}
+{% block content %}
+<h1>Saves</h1>
+<p class="note">Each account's saves in each story, read from the save indexes: a short reference (a hash of the save's id, never the id, which a player may have chosen), whether it is an autosave or a manual save, its turn, when it was written, its save format and its size on disk. Never a save's contents, its label or anything a player wrote. Removing an account's saves is a delete with purge, on the Users page.</p>
+{% for account in data.accounts %}
+<section>
+  <h2>{{ account.name }} <code>{{ account.id }}</code></h2>
+  <table>
+    <thead><tr><th>Story</th><th>Save</th><th>Kind</th><th>Turn</th><th>Written</th><th>Format</th><th>Bytes</th></tr></thead>
+    <tbody>
+    {% for story in account.stories %}
+      {% for row in story.rows %}
+      <tr>
+        <td>{{ story.slug }}</td>
+        <td><code>{{ row.save_ref }}</code></td>
+        <td>{{ row.kind }}</td>
+        <td>{{ row.turn_number }}</td>
+        <td>{{ row.updated_text }}</td>
+        <td>{{ row.save_version }}</td>
+        <td>{{ row.size }}</td>
+      </tr>
+      {% else %}
+      <tr><td>{{ story.slug }}</td><td colspan="6">No saves.</td></tr>
+      {% endfor %}
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% else %}
+<p>No accounts.</p>
+{% endfor %}
+<nav class="pages">
+  {% if number > 1 %}<a href="/admin/saves?page={{ number - 1 }}">Previous page</a>{% endif %}
+  {% if data.more %}<a href="/admin/saves?page={{ number + 1 }}">Next page</a>{% endif %}
+</nav>
+{% endblock %}

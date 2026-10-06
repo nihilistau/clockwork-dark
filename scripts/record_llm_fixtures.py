@@ -11,6 +11,9 @@ server's own version, the model that answered and the date (spec §9.3).
     .\\.venv\\Scripts\\python.exe scripts\\record_llm_fixtures.py --provider llamacpp ^
         --config C:\\somewhere\\llamacpp.yaml --only chat_patch_ignored
 
+    .venv/bin/python scripts/record_llm_fixtures.py --provider llamacpp \\
+        --config ~/somewhere/llamacpp.yaml --only chat_patch_ignored   # Linux
+
 WHY A SCRIPT AND NOT A TEST. It needs a model server on this machine, a model
 loaded in it, and -- for some shapes -- a particular KIND of model: a
 reasoning model whose template honours ``enable_thinking`` for
@@ -25,7 +28,10 @@ itself (the tests load it as one). A chat answer is written as a canned answer
 for ``tests/llm_wire.py`` -- ``{"status", "json"}`` or ``{"status", "sse"}`` --
 with the request that produced it under ``request``, so the fixture says what
 was asked. Nothing machine-specific is kept: ``/props``' ``model_path`` is
-reduced to the model's file name, and no key is ever written.
+reduced to the model's file name, and no key is ever written: ``error_401``
+sends the dummy ``Bearer not-the-key`` on purpose, never the operator's real
+``--api-key`` (``llm.api_key``), and ``_write`` replaces any copy of that real
+key a server might echo with ``<redacted>`` before a byte reaches a fixture.
 
 CONFIG. ``--config`` names a YAML file read as the ``config/local.yaml`` layer
 for this run only (the repo's own ``config/local.yaml`` is never read then,
@@ -38,11 +44,16 @@ its multi-model discovery fixtures (``models_tags.json``, ``models_ps.json``,
 the documentation's, kept, and the live list is recorded beside them as
 ``*_live.json``.
 
-vLLM is not recorded in v0.19.0 (owner decision, 2026-09-29: live in v0.20.0
-on Linux), LM Studio's golden is never re-recorded, and a generic server has
-no fixtures of its own to re-record.
+``--provider vllm`` (v0.20.0 T19) shares llama-server's chat recipes and adds
+its own around them (``_vllm_recipes``); the split recipes need a server
+started with ``--reasoning-parser``, the ``*_inline_think_live`` ones a
+server started without it, and ``error_401`` one started with ``--api-key``,
+so a full set takes two runs, each with ``--only``.
 
-Version: v0.1.0 [2026-09-30]
+LM Studio's golden is never re-recorded, and a generic server has no fixtures
+of its own to re-record.
+
+Version: v0.2.1 [2026-10-06]
 """
 
 from __future__ import annotations
@@ -74,7 +85,8 @@ ROOMY = 3000
 from engine.llm.providers import PROVIDERS  # noqa: E402
 
 #: The reasoning-off patch the llamacpp row sends, read from the row itself so
-#: a change to it cannot silently diverge from what is recorded.
+#: a change to it cannot silently diverge from what is recorded. vLLM's row
+#: sends the same body (its recipes read their own row's).
 THINKING_OFF: dict[str, Any] = dict(PROVIDERS["llamacpp"].reasoning_off.value)
 
 
@@ -108,6 +120,8 @@ class Server:
         self.base = compat_base()
         self.root = rest_root()
         key = str(cfg.get("llm.api_key", "") or "")
+        #: The real key, kept only so ``_write`` can scrub it from a fixture.
+        self.api_key = key
         self.headers = {"Authorization": f"Bearer {key}"} if key else {}
         self.timeout = float(cfg.get("llm.timeout_seconds", 300) or 300)
 
@@ -158,6 +172,10 @@ def _message(answer: dict[str, Any]) -> dict[str, Any]:
 
 
 def _llamacpp_recipes(server: Server) -> dict[str, Callable[[], Any]]:
+    """
+    llama-server's recipes. Most of them are the OpenAI-compatible route's,
+    and ``_vllm_recipes`` reuses those (``COMPAT_RECIPES``).
+    """
     from engine.llm.backend import (
         CONSTRAINT_PROBE_PROMPT,
         CONSTRAINT_PROBE_SCHEMA,
@@ -200,8 +218,10 @@ def _llamacpp_recipes(server: Server) -> dict[str, Callable[[], Any]]:
             (f["data"].get("choices") or [{}])[0].get("delta") or {}
             for f in answer.get("sse", []) if isinstance(f["data"], dict)
         ]
-        if not any(d.get("reasoning_content") for d in deltas):
-            raise Refused("the stream carried no reasoning_content: load a reasoning model")
+        # llama-server names the channel reasoning_content; recent vLLM names
+        # it reasoning (engine/llm/client.py::extract_reasoning reads both).
+        if not any(d.get("reasoning_content") or d.get("reasoning") for d in deltas):
+            raise Refused("the stream carried no reasoning channel: load a reasoning model")
         return answer
 
     def chat_json_schema() -> Any:
@@ -339,6 +359,154 @@ def _llamacpp_recipes(server: Server) -> dict[str, Callable[[], Any]]:
         "error_400.json": error_400,
         "error_401.json": error_401,
     }
+
+
+# -- vLLM --------------------------------------------------------------------------
+#
+# vLLM serves the same OpenAI-compatible chat route llama-server does, so its
+# chat recipes are llama-server's (COMPAT_RECIPES), sent with vLLM's own row's
+# patch (the same body). What differs is around the route: the version is
+# GET /version, /health answers 200 with an EMPTY body (written as a canned
+# answer, {"status", "text"}), there is no /props, and the thinking channel
+# needs --reasoning-parser: a server started with it records the split
+# recipes, one started without it the inline ones (``*_live``, beside the
+# authored ``chat_stream_inline_think.json`` the tests' [IMAGE:] case needs).
+
+#: llama-server's recipes vLLM shares: the OpenAI-compatible chat route.
+COMPAT_RECIPES = (
+    "models.json",
+    "chat.json",
+    "chat_stream_thinking.json",
+    "chat_json_schema.json",
+    "chat_reasoning_off.json",
+    "chat_json_object.json",
+    "chat_tool_calls.json",
+    "error_400.json",
+    "error_401.json",
+)
+
+
+def _vllm_version(server: Server) -> tuple[str, str]:
+    """``(server_version, model)`` from ``/version`` and the model list."""
+    version = server.get(f"{server.root}/version").json().get("version", "unknown")
+    listed = server.get(f"{server.base}/models").json().get("data") or [{}]
+    return f"vLLM {version}", str(listed[0].get("id") or "")
+
+
+def _vllm_recipes(server: Server) -> dict[str, Callable[[], Any]]:
+    if dict(PROVIDERS["vllm"].reasoning_off.value) != THINKING_OFF:
+        raise SystemExit("vLLM's reasoning-off patch is not llama-server's: give it its own recipes")
+    shared = _llamacpp_recipes(server)
+
+    def version() -> Any:
+        return server.get(f"{server.root}/version").json()
+
+    def health() -> Any:
+        response = server.get(f"{server.root}/health")
+        if response.status_code != 200:
+            raise Refused(f"/health answered {response.status_code}, not 200")
+        return {"status": response.status_code, "text": response.text}
+
+    def error_404() -> Any:
+        # A model the server does not serve: vLLM's error body, as it sends one.
+        answer = server.chat({"model": "no-such-model", "messages": QUESTION, "max_tokens": 16})
+        if answer["status"] != 404:
+            raise Refused(f"an unserved model answered {answer['status']}, not 404")
+        return answer
+
+    def chat_inline_think() -> Any:
+        # Needs a server started WITHOUT --reasoning-parser.
+        answer = server.chat({"messages": QUESTION, "max_tokens": ROOMY})
+        message = _message(answer)
+        if message.get("reasoning_content") or message.get("reasoning") or (
+            "</think>" not in str(message.get("content") or "")
+        ):
+            raise Refused("the server split the reasoning out itself: start it without --reasoning-parser")
+        return answer
+
+    def chat_stream_inline_think() -> Any:
+        answer = server.chat({
+            "messages": QUESTION, "max_tokens": ROOMY, "stream": True,
+            "stream_options": {"include_usage": True},
+        })
+        content = "".join(
+            str(((f["data"].get("choices") or [{}])[0].get("delta") or {}).get("content") or "")
+            for f in answer.get("sse", []) if isinstance(f["data"], dict)
+        )
+        if "</think>" not in content:
+            raise Refused("no </think> in the streamed content: start it without --reasoning-parser")
+        return answer
+
+    from engine.llm.backend import (
+        CONSTRAINT_PROBE_PROMPT,
+        CONSTRAINT_PROBE_SCHEMA,
+        OBJECT_PROBE_PROMPT,
+        _response_format,
+    )
+
+    def probe(prompt: str, response_format: dict[str, Any], *, off: bool) -> dict[str, Any]:
+        # The probes as backend._probe_request sends them: reasoning off
+        # (v0.19.0 T8), so the patch rides with the grammar.
+        return server.chat({
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.0,
+            "max_tokens": 200,
+            "response_format": response_format,
+            **(THINKING_OFF if off else {}),
+        })
+
+    def chat_json_schema() -> Any:
+        answer = probe(CONSTRAINT_PROBE_PROMPT, _response_format(dict(CONSTRAINT_PROBE_SCHEMA)), off=True)
+        if json.loads(str(_message(answer).get("content") or "null")) != {"answer": "yes"}:
+            raise Refused("the grammar did not beat the prompt")
+        return answer
+
+    def chat_json_schema_thinking() -> Any:
+        # The same grammar, thinking ON and room for it: vLLM lets the model
+        # think first and binds the grammar to the answer after it.
+        answer = server.chat({
+            "messages": [{"role": "user", "content": CONSTRAINT_PROBE_PROMPT}],
+            "temperature": 0.0,
+            "max_tokens": ROOMY,
+            "response_format": _response_format(dict(CONSTRAINT_PROBE_SCHEMA)),
+        })
+        message = _message(answer)
+        if not (message.get("reasoning") or message.get("reasoning_content")):
+            raise Refused("no reasoning: this recipe needs a reasoning model, thinking on")
+        return answer
+
+    def chat_json_object() -> Any:
+        answer = probe(OBJECT_PROBE_PROMPT, {"type": "json_object"}, off=True)
+        try:
+            parsed = json.loads(str(_message(answer).get("content") or "").strip())
+        except ValueError:
+            parsed = None
+        if not isinstance(parsed, dict):
+            raise Refused("the json_object answer is not a JSON object")
+        return answer
+
+    def chat_json_object_starved() -> Any:
+        # The json_object probe with thinking ON at the probe's 200 tokens:
+        # the cap is spent thinking before the grammar is reached.
+        answer = probe(OBJECT_PROBE_PROMPT, {"type": "json_object"}, off=False)
+        choice = ((answer.get("json") or {}).get("choices") or [{}])[0]
+        if choice.get("finish_reason") != "length" or _message(answer).get("content"):
+            raise Refused("the probe was not starved by its thinking")
+        return answer
+
+    recipes: dict[str, Callable[[], Any]] = {name: shared[name] for name in COMPAT_RECIPES}
+    recipes.update({
+        "chat_json_schema.json": chat_json_schema,
+        "chat_json_schema_thinking.json": chat_json_schema_thinking,
+        "chat_json_object.json": chat_json_object,
+        "chat_json_object_starved.json": chat_json_object_starved,
+        "version.json": version,
+        "health.json": health,
+        "error_404.json": error_404,
+        "chat_inline_think_live.json": chat_inline_think,
+        "chat_stream_inline_think_live.json": chat_stream_inline_think,
+    })
+    return recipes
 
 
 # -- Ollama ------------------------------------------------------------------------
@@ -584,11 +752,28 @@ def _record_loading(server: Server, seconds: float) -> Optional[Any]:
 # -- provenance --------------------------------------------------------------------
 
 
-def _write(path: Path, value: Any) -> None:
-    """JSON, or -- for an NDJSON stream -- the text as the server sent it."""
+#: What a scrubbed secret is written as.
+REDACTED = "<redacted>"
+
+
+def _scrub(text: str, secrets: tuple[str, ...]) -> str:
+    """``text`` with every non-empty secret in ``secrets`` replaced by ``REDACTED``."""
+    for secret in secrets:
+        if secret:
+            text = text.replace(secret, REDACTED)
+    return text
+
+
+def _write(path: Path, value: Any, secrets: tuple[str, ...] = ()) -> None:
+    """
+    JSON, or -- for an NDJSON stream -- the text as the server sent it, with
+    each of ``secrets`` (the operator's real API key) scrubbed out first: a
+    fixture is committed, and a server that echoed the key back would
+    otherwise put it in git.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     text = value if isinstance(value, str) else json.dumps(value, indent=2, ensure_ascii=False) + "\n"
-    path.write_text(text, encoding="utf-8", newline="\n")
+    path.write_text(_scrub(text, secrets), encoding="utf-8", newline="\n")
 
 
 #: What a recipe needed of the server beyond ``--jinja`` and a model, written
@@ -615,6 +800,21 @@ NOTES: dict[str, str] = {
         "the request is the recipe's"
     ),
     "chat_stream_starved.ndjson": "stream: true, think: true, num_predict 8; the request is the recipe's",
+    "chat_inline_think_live.json": "server started without --reasoning-parser",
+    "chat_stream_inline_think_live.json": "server started without --reasoning-parser",
+    "health.json": "a canned answer: /health's body is empty",
+    "error_404.json": "a model the server does not serve",
+}
+#: Notes that differ by provider (the same file name, another server's recipe).
+PROVIDER_NOTES: dict[str, dict[str, str]] = {
+    "vllm": {
+        "error_401.json": "server started with --api-key; sent a wrong key",
+        "chat_tool_calls.json": "server started with --enable-auto-tool-choice --tool-call-parser hermes",
+        "chat_json_schema.json": "the constraint_won probe as the engine sends it, the patch on",
+        "chat_json_object.json": "the json_object probe as the engine sends it, the patch on",
+        "chat_json_schema_thinking.json": "the probe's grammar with thinking on: it thinks, then answers in the grammar",
+        "chat_json_object_starved.json": "the json_object probe with thinking on, at its 200-token cap",
+    },
 }
 
 #: Ollama recipes answered by its plain (no-``thinking``) model, and by the
@@ -634,7 +834,9 @@ def _row_lines(key: str, provider: str, version: str, model: str, today: str) ->
         f"    model: {json.dumps(model)}",
         f"    recorded: \"{today}\"",
     ]
-    note = NOTES.get(key.split("/", 1)[1])
+    name = key.split("/", 1)[1]
+    provider_notes = PROVIDER_NOTES.get(provider, {})
+    note = provider_notes[name] if name in provider_notes else NOTES.get(name)
     if note:
         lines.append(f"    note: {json.dumps(note)}")
     return lines
@@ -679,7 +881,7 @@ def _update_provenance(provider: str, written: dict[str, str], version: str) -> 
 
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[1])
-    parser.add_argument("--provider", required=True, choices=["llamacpp", "ollama"])
+    parser.add_argument("--provider", required=True, choices=["llamacpp", "ollama", "vllm"])
     parser.add_argument("--config", help="a YAML file read as the local config layer")
     parser.add_argument("--only", help="comma-separated fixture names (without .json)")
     parser.add_argument(
@@ -717,7 +919,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         if loading is None:
             print("health_loading.json: no 503 seen (was the model already loaded?)")
         else:
-            _write(directory / "health_loading.json", loading)
+            _write(directory / "health_loading.json", loading, (server.api_key,))
             written["health_loading.json"] = ""
             deadline = time.monotonic() + 600
             while time.monotonic() < deadline and server.get(f"{server.root}/health").status_code != 200:
@@ -731,6 +933,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         models.update({n: plain for n in OLLAMA_PLAIN_RECIPES})
         models.update({n: "every installed model" for n in OLLAMA_SERVER_RECIPES})
         models.update({n: "every loaded model" for n in OLLAMA_LOADED_RECIPES})
+    elif args.provider == "vllm":
+        version, model = _vllm_version(server)
+        recipes = _vllm_recipes(server)
+        models = {name: model for name in recipes}
+        models["version.json"] = "every served model"
     else:
         version, model = _llamacpp_version(server)
         recipes = _llamacpp_recipes(server)
@@ -762,7 +969,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             print(f"{name}: NOT written -- {exc}")
             failed += 1
             continue
-        _write(directory / name, value)
+        _write(directory / name, value, (server.api_key,))
         written[name] = models[name]
         print(f"{name}: recorded ({models[name]})")
     if "health_loading.json" in written:

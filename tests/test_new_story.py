@@ -62,11 +62,12 @@ def story_root(tmp_path, monkeypatch):
     """
     A temp repo root the registry believes in.
 
-    ``games/`` for the scaffold, ``data/`` because every template declares
-    ``paths.saves: data/saves`` and validation checks an output path's PARENT.
+    ``games/`` for the scaffold, and nothing else: until v0.20.0 every template
+    declared ``paths.saves: data/saves``, whose PARENT validation checked, so
+    this made ``data/`` too. Saves are the engine's now (``storage.root``),
+    and a scaffold that validates without ``data/`` is the proof.
     """
     (tmp_path / "games").mkdir()
-    (tmp_path / "data").mkdir()
     monkeypatch.setattr("engine.games.manifest.project_root", lambda: tmp_path)
     monkeypatch.setattr("engine.games.registry.project_root", lambda: tmp_path)
     return tmp_path
@@ -154,6 +155,20 @@ def test_a_scaffolded_story_is_discovered_and_validates_clean(story_root, templa
     slug = f"probe-{template}"
     assert slug in found, f"discover() cannot see the scaffolded {template} story"
     assert registry.validate(found[slug]) == []
+
+
+@pytest.mark.parametrize("template", TEMPLATES)
+def test_a_scaffolded_story_declares_no_saves_path(story_root, template):
+    """
+    v0.20.0 (spec §4.2): saves are the engine's, so no template declares
+    ``paths.saves`` -- or every scaffolded story would be born with the
+    retired-key advisory.
+    """
+    _scaffold(story_root, template)
+    manifest = registry.get(f"probe-{template}")
+    assert manifest is not None
+    assert "saves" not in manifest.paths
+    assert manifest.retired_paths() == []
 
 
 @pytest.mark.parametrize("template", TEMPLATES)

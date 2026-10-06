@@ -221,12 +221,15 @@ def test_only_what_was_run_live_is_verified() -> None:
     Spec §1.2: documentation facts are unverified until a live run. LM Studio
     is the golden's; llama-server and Ollama were run live in v0.19.0 T8,
     every cell but what nothing measured (``mcp_integrations``, and Ollama's
-    proxy pass-through ``auth``); vLLM waits for v0.20.0, and a generic server
-    has no one server to verify against.
+    proxy pass-through ``auth``); vLLM was run live in v0.20.0 T19 (its Linux
+    image, on the RTX 2060), every cell but ``mcp_integrations``; a generic
+    server has no one server to verify against.
     """
-    for name in ("vllm", "openai_compat"):
-        verified = [f for f, c in PROVIDERS[name].cells().items() if c.verified]
-        assert not verified, f"{name} cells claim verification: {verified}"
+    verified = [f for f, c in PROVIDERS["openai_compat"].cells().items() if c.verified]
+    assert not verified, f"openai_compat cells claim verification: {verified}"
+    vllm = PROVIDERS["vllm"].cells()
+    assert {f for f, c in vllm.items() if not c.verified} == {"mcp_integrations"}
+    assert {c.verified for c in vllm.values()} == {"", "vLLM 0.31.0"}
     llamacpp = PROVIDERS["llamacpp"].cells()
     assert {f for f, c in llamacpp.items() if not c.verified} == {"mcp_integrations"}
     assert {c.verified for c in llamacpp.values()} == {"", "llama.cpp server b7966"}

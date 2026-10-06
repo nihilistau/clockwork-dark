@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Errors{% endblock %}
+{% block content %}
+<h1>Errors</h1>
+<p class="note">Each failure by reference, newest first. A player who saw "ref 3fa9c2e1" is found here by that reference; the full traceback is in that process's log file on this server's disk (<code>&lt;storage root&gt;/hosting/logs/&lt;process&gt;.log</code>, search it for the reference). The log text is never shown here. Times are UTC.</p>
+{% for error in data.errors %}<p class="message" role="status">The errors could not be read ({{ error }}).</p>{% endfor %}
+<section>
+  <h2>Find a reference</h2>
+  <form method="get" action="/admin/errors/find" class="row">
+    <label for="ref">Reference</label>
+    <input id="ref" name="ref" maxlength="8" pattern="[0-9a-fA-F]{8}" autocomplete="off" value="{{ data.ref }}" />
+    <button type="submit">Find</button>
+  </form>
+  {% if data.looked %}<p class="message" role="status">{{ data.looked|capitalize }}.</p>{% endif %}
+</section>
+<section>
+  <h2>{% if data.ref %}The error with reference <code>{{ data.ref }}</code>{% else %}Recent errors{% endif %}</h2>
+  <table>
+    <thead><tr><th>When</th><th>Process</th><th>Reference</th><th>Exception</th><th>Logger</th></tr></thead>
+    <tbody>
+      {% for row in data.errors_rows %}
+      <tr><td>{{ row.when }}</td><td>{{ row.process }}</td><td>{% if row.ref %}<code>{{ row.ref }}</code>{% endif %}</td><td>{% if row.exc_class %}<code>{{ row.exc_class }}</code>{% endif %}</td><td><code>{{ row.logger }}</code></td></tr>
+      {% else %}
+      <tr><td colspan="5">No error.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <nav class="pages">
+    {% if data.page > 1 %}<a href="/admin/errors?page={{ data.page - 1 }}">Newer</a>{% endif %}
+    {% if data.more %}<a href="/admin/errors?page={{ data.page + 1 }}">Older</a>{% endif %}
+  </nav>
+  <p class="note">A row with a reference is a failure a player was told about. A row without one is an error the process logged on its own (its logger's name and the exception's class only).</p>
+</section>
+<section>
+  <h2>Metrics not kept</h2>
+  <p>Rejected: {{ data.rejected }}. Dropped by the store: {{ data.dropped }} (its queue full), {{ data.dropped_rate }} (a process past its rate), {{ data.dropped_size }} (not written: the size cap or a failed write).</p>
+  {% if data.children %}
+  <table>
+    <thead><tr><th>Process</th><th>Dropped before sending</th></tr></thead>
+    <tbody>
+      {% for row in data.children %}<tr><td>{{ row.process }}</td><td>{{ row.dropped }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  <p class="note">Since the server started (each process's own count since it started, as its last health check said). A metric is rejected when it does not fit the closed metrics schema (it is never kept as text), and dropped rather than wait: a process whose queue is full or whose link is gone, a process sending faster than the supervisor takes, or a store at its size cap that could not make room.</p>
+</section>
+<section>
+  <h2>Processes</h2>
+  <table>
+    <thead><tr><th>When</th><th>Process</th><th>Event</th><th>Exit code</th></tr></thead>
+    <tbody>
+      {% for row in data.processes %}
+      <tr><td>{{ row.when }}</td><td>{{ row.process }}</td><td>{{ row.event }}</td><td>{% if row.exit_code is not none %}{{ row.exit_code }}{% endif %}</td></tr>
+      {% else %}
+      <tr><td colspan="4">No event.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

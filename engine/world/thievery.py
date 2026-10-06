@@ -120,12 +120,14 @@ def load_spec() -> dict[str, Any]:
             unknown item, or a malformed row.
     """
     global _SPEC_CACHE
-    if _SPEC_CACHE is not None:
-        return _SPEC_CACHE
+    cached = _SPEC_CACHE  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
     path = _thievery_path()
     if path is None:
-        _SPEC_CACHE = {"alertness": {}, "purses": {}, "hot_days": 0}
-        return _SPEC_CACHE
+        empty: dict[str, Any] = {"alertness": {}, "purses": {}, "hot_days": 0}
+        _SPEC_CACHE = empty
+        return empty
     if not path.is_file():
         # Declared and absent is a broken install: the story promised pockets.
         raise ValueError(f"thievery: declared file {path} does not exist")
@@ -167,8 +169,9 @@ def load_spec() -> dict[str, Any]:
     if hot_days < 0:
         raise _fail(path, "`hot_days` must not be negative")
 
-    _SPEC_CACHE = {"alertness": alertness, "purses": purses, "hot_days": hot_days}
-    return _SPEC_CACHE
+    loaded = {"alertness": alertness, "purses": purses, "hot_days": hot_days}
+    _SPEC_CACHE = loaded
+    return loaded
 
 
 def alertness_for(role: str) -> str:

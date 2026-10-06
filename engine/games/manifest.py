@@ -40,7 +40,7 @@ validate that the paths point at files that exist.
 
 WHY ``settings:`` IS AN ALLOWLIST AND NOT A CONFIG MERGE. ``config_overlay()``
 returned ``{"paths": ...}`` and nothing else, deliberately -- a story that could
-merge arbitrary config could repoint ``paths.saves`` under another story's runs,
+merge arbitrary config could repoint ``storage.root`` under another story's runs,
 rewrite ``llm.api_key`` (which resolves a gitignored secret file), or set
 ``stack.services.*.command``, which is arbitrary code executed on the player's
 machine at launch. That ceiling is right about the danger and wrong about the
@@ -67,6 +67,7 @@ from typing import Any, Optional
 import yaml
 
 from engine.config import project_root
+from engine.names import is_portable_name
 
 logger = logging.getLogger(__name__)
 
@@ -75,17 +76,46 @@ MANIFEST_FILENAME = "game.yaml"
 # Path keys the engine WRITES rather than reads.
 #
 # Validation demands that every declared path exists, which is right for
-# content and wrong for these two: the save directory is created on first save
-# and the lore index is built by scripts/seed_lore.py. Requiring them to exist
-# would mean a freshly cloned game cannot be activated until someone has
-# already played it. Their PARENT directory is checked instead, which still
-# catches the failure that matters -- a path pointing into a directory that
-# does not exist.
-OUTPUT_PATH_KEYS = frozenset({"saves", "lore_db"})
+# content and wrong for this one: the lore index is built by
+# scripts/seed_lore.py. Requiring it to exist would mean a freshly cloned game
+# cannot be activated until someone has run the seeder. Its PARENT directory is
+# checked instead, which still catches the failure that matters -- a path
+# pointing into a directory that does not exist.
+OUTPUT_PATH_KEYS = frozenset({"lore_db"})
+
+# Path keys a manifest no longer sets, each with what replaced it (v0.20.0,
+# spec §4.2). `saves` was restated by every shipped manifest, and the overlay
+# made it outrank every config layer, so config/local.yaml could not move
+# saves. Saves are the engine's: they live under `storage.root`. A manifest
+# that still declares one is not a `registry.validate` problem (that would
+# make the story unplayable): `config_overlay` drops it, and
+# `engine/games/validation.py` and the doctor give it an advisory.
+RETIRED_PATH_KEYS: dict[str, str] = {
+    "saves": "saves are the engine's and live under storage.root "
+    "(<root>/saves/<slug>/; config/default.yaml)",
+}
+
+#: The value every shipped manifest used to restate for ``paths.saves``: the
+#: advisory says the key is ignored, and adds that the VALUE is when it differs.
+LEGACY_SAVES_VALUE = "data/saves"
 
 # Slugs become directory names, config values, save-directory names and URL
 # path segments. Keep them boring.
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
+
+
+def is_valid_slug(slug: object) -> bool:
+    """
+    THE slug check: every door that turns a slug into a path asks this one
+    (v0.20.0; ``registry.get`` and discovery, ``validate``, the studio's
+    ``_safe_path``, ``scripts/new_story.py``).
+
+    ``SLUG_RE`` by ``fullmatch`` -- its ``$`` also matches before a trailing
+    newline, so ``.match`` let ``"abc\\n"`` through -- and a portable name
+    (``engine.names``: no Windows device name such as ``con``), so a story's
+    directory can be checked out on every platform.
+    """
+    return isinstance(slug, str) and bool(SLUG_RE.fullmatch(slug)) and is_portable_name(slug)
 
 # Config keys a story may declare under ``settings:``, each with WHY it is on
 # the list. Dotted, and matched on the whole key -- a value nested any deeper
@@ -152,6 +182,14 @@ SETTING_ALLOWLIST: dict[str, str] = {
 # message naming the danger is worth more than a list of legal keys.
 SETTING_REFUSALS: tuple[tuple[str, str], ...] = (
     ("paths", "paths belong in the manifest's own 'paths:' block, not settings"),
+    # Where the engine writes saves and media (v0.20.0, spec §4.1): the
+    # machine's, like every other entry here. A story that could set it could
+    # write another story's runs, or the player's disk anywhere.
+    ("storage", "where the engine writes saves and media belongs to the machine"),
+    # Hosted mode (v0.20.0, spec §6.9): who may log in, the cookie's key and
+    # the limits are the operator's. A story that could set them could turn
+    # the login off or read every account's key.
+    ("hosting", "hosted mode's accounts, cookie and limits belong to the operator"),
     # Covers `llm.mcp.*` too, and that is a deliberate answer rather than
     # an accident of the prefix. The case FOR letting a story tune it is real:
     # `allowed_tools` looks like content, since a story with no trade and no
@@ -460,11 +498,44 @@ class GameManifest:
             if key not in SETTING_ALLOWLIST
         }
 
+    def live_paths(self) -> dict[str, str]:
+        """``paths`` without the retired keys: what the engine reads from them."""
+        return {k: v for k, v in self.paths.items() if k not in RETIRED_PATH_KEYS}
+
+    def retired_paths(self) -> list[tuple[str, str]]:
+        """
+        ``(key, advisory)`` per retired key this manifest still declares
+        (v0.20.0).
+
+        Said in words an author can act on: the key is ignored, and when its
+        value is not the one every shipped story restated, that the value is
+        ignored too (saves live under ``storage.root``).
+        """
+        notes: list[tuple[str, str]] = []
+        for key in sorted(self.paths):
+            if key not in RETIRED_PATH_KEYS:
+                continue
+            value = str(self.paths[key]).strip()
+            note = (
+                f"paths.{key} is no longer a story key and is ignored: "
+                f"{RETIRED_PATH_KEYS[key]}; remove it from game.yaml"
+            )
+            if key == "saves" and value.rstrip("/") != LEGACY_SAVES_VALUE:
+                note += (
+                    f" (its value {value!r} is ignored: saves do not go there; "
+                    "set storage.root in config/local.yaml to move them)"
+                )
+            notes.append((key, note))
+        return notes
+
     def config_overlay(self) -> dict[str, Any]:
         """
         The config layer this manifest installs.
 
-        ``paths`` merges exactly as it always has. ``settings`` merges only the
+        ``paths`` merges exactly as it always has, less the retired keys
+        (``RETIRED_PATH_KEYS``: ``saves``, since v0.20.0), so a manifest that
+        still declares one can no longer outrank config/local.yaml with it.
+        ``settings`` merges only the
         allowlisted keys -- a refused key never reaches the config even if
         validation was somehow skipped, because the filter lives here rather
         than in the caller.
@@ -474,7 +545,7 @@ class GameManifest:
         them two homes and let a stale ``config/local.yaml`` silently move a
         game's starting location.
         """
-        overlay: dict[str, Any] = {"paths": dict(self.paths)}
+        overlay: dict[str, Any] = {"paths": self.live_paths()}
         for dotted, value in self.allowed_settings().items():
             _nest(overlay, dotted, value)
         return overlay
@@ -605,8 +676,10 @@ def load(path: Path) -> GameManifest:
 
 
 __all__ = [
+    "LEGACY_SAVES_VALUE",
     "MANIFEST_FILENAME",
     "OUTPUT_PATH_KEYS",
+    "RETIRED_PATH_KEYS",
     "SETTING_ALLOWLIST",
     "SETTING_REFUSALS",
     "SLUG_RE",
@@ -614,6 +687,7 @@ __all__ = [
     "ManifestError",
     "flatten_settings",
     "from_dict",
+    "is_valid_slug",
     "load",
     "parse_version",
     "refusal_reason",

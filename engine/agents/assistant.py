@@ -476,7 +476,7 @@ class AssistantAgent:
         audio_bytes: bytes,
         *,
         scene_context: str = "",
-        transcript: str = "",
+        transcript: Optional[str] = None,
     ) -> AssistantTurnResult:
         """
         STT → Assistant (not Storyteller).
@@ -487,16 +487,18 @@ class AssistantAgent:
             transcript: Pre-computed transcript. Pass this when the caller has
                 already transcribed the audio -- the route used to transcribe
                 and then call in here, which transcribed the same bytes a
-                second time.
+                second time. ANY string, ``""`` included, means "already
+                transcribed": an empty one (a failed or silent clip) is not
+                sent to the STT server again (v0.20.0 T8 fix round 1). None
+                transcribes here.
 
         Returns:
             AssistantTurnResult after forced agency speak attempt.
         """
-        if transcript.strip():
-            transcript = transcript.strip()
-        else:
+        if transcript is None:
             stt = transcribe_audio(audio_bytes, client=self._stt)
-            transcript = str(stt.get("transcript") or "").strip()
+            transcript = str(stt.get("transcript") or "")
+        transcript = transcript.strip()
         if not transcript:
             state = self.engine.state
             hint_tier = compute_hint_tier(

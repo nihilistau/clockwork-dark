@@ -1,0 +1,4243 @@
+{
+  "/api/clues?session_id": {
+    "json": {
+      "clues": []
+    },
+    "status": 200
+  },
+  "/api/codex/places": {
+    "json": {
+      "places": [
+        {
+          "discovered": true,
+          "here": false,
+          "id": "tallow_docks",
+          "image": "",
+          "name": "Tallow Docks",
+          "points": [],
+          "ring": 0,
+          "roads": [
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "The Snuffs",
+              "to": "the_snuffs"
+            },
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "The Lantern House",
+              "to": "lantern_house"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "The Undercroft",
+              "to": "the_undercroft"
+            }
+          ]
+        },
+        {
+          "discovered": true,
+          "here": false,
+          "id": "wickmarket",
+          "image": "",
+          "name": "Wickmarket",
+          "points": [],
+          "ring": 1,
+          "roads": [
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "Tallow Docks",
+              "to": "tallow_docks"
+            },
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "The Snuffs",
+              "to": "the_snuffs"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Silk Row",
+              "to": "silk_row"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Chandlers' Rise",
+              "to": "chandlers_rise"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "The Lantern House",
+              "to": "lantern_house"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Gallows Green",
+              "to": "gallows_green"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "The Rooftop Road",
+              "to": "rooftop_road"
+            }
+          ]
+        },
+        {
+          "discovered": true,
+          "here": false,
+          "id": "the_snuffs",
+          "image": "",
+          "name": "The Snuffs",
+          "points": [],
+          "ring": 1,
+          "roads": [
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "Tallow Docks",
+              "to": "tallow_docks"
+            },
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "Gallows Green",
+              "to": "gallows_green"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "The Undercroft",
+              "to": "the_undercroft"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "The Rooftop Road",
+              "to": "rooftop_road"
+            }
+          ]
+        },
+        {
+          "discovered": true,
+          "here": false,
+          "id": "silk_row",
+          "image": "",
+          "name": "Silk Row",
+          "points": [],
+          "ring": 2,
+          "roads": [
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 2,
+              "hours": 1,
+              "name": "Chandlers' Rise",
+              "to": "chandlers_rise"
+            },
+            {
+              "danger_dc": 2,
+              "hours": 1,
+              "name": "Margrave's Hill",
+              "to": "margraves_hill"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "The Rooftop Road",
+              "to": "rooftop_road"
+            }
+          ]
+        },
+        {
+          "discovered": true,
+          "here": false,
+          "id": "chandlers_rise",
+          "image": "",
+          "name": "Chandlers' Rise",
+          "points": [],
+          "ring": 2,
+          "roads": [
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 2,
+              "hours": 1,
+              "name": "Silk Row",
+              "to": "silk_row"
+            },
+            {
+              "danger_dc": 2,
+              "hours": 1,
+              "name": "Margrave's Hill",
+              "to": "margraves_hill"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "Old Bell Tower",
+              "to": "old_bell_tower"
+            }
+          ]
+        },
+        {
+          "discovered": true,
+          "here": false,
+          "id": "lantern_house",
+          "image": "",
+          "name": "The Lantern House",
+          "points": [],
+          "ring": 1,
+          "roads": [
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "Tallow Docks",
+              "to": "tallow_docks"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Gallows Green",
+              "to": "gallows_green"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "The Undercroft",
+              "to": "the_undercroft"
+            }
+          ]
+        },
+        {
+          "discovered": true,
+          "here": false,
+          "id": "margraves_hill",
+          "image": "",
+          "name": "Margrave's Hill",
+          "points": [],
+          "ring": 4,
+          "roads": [
+            {
+              "danger_dc": 2,
+              "hours": 1,
+              "name": "Silk Row",
+              "to": "silk_row"
+            },
+            {
+              "danger_dc": 2,
+              "hours": 1,
+              "name": "Chandlers' Rise",
+              "to": "chandlers_rise"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 2,
+              "name": "The Undercroft",
+              "to": "the_undercroft"
+            }
+          ]
+        },
+        {
+          "discovered": true,
+          "here": false,
+          "id": "gallows_green",
+          "image": "",
+          "name": "Gallows Green",
+          "points": [],
+          "ring": 2,
+          "roads": [
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "The Snuffs",
+              "to": "the_snuffs"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "The Lantern House",
+              "to": "lantern_house"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "Old Bell Tower",
+              "to": "old_bell_tower"
+            }
+          ]
+        },
+        {
+          "discovered": true,
+          "here": false,
+          "id": "the_undercroft",
+          "image": "",
+          "name": "The Undercroft",
+          "points": [],
+          "ring": 3,
+          "roads": [
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "Tallow Docks",
+              "to": "tallow_docks"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "The Snuffs",
+              "to": "the_snuffs"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "The Lantern House",
+              "to": "lantern_house"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 2,
+              "name": "Margrave's Hill",
+              "to": "margraves_hill"
+            }
+          ]
+        },
+        {
+          "discovered": true,
+          "here": false,
+          "id": "rooftop_road",
+          "image": "",
+          "name": "The Rooftop Road",
+          "points": [],
+          "ring": 3,
+          "roads": [
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "The Snuffs",
+              "to": "the_snuffs"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "Silk Row",
+              "to": "silk_row"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "Old Bell Tower",
+              "to": "old_bell_tower"
+            }
+          ]
+        },
+        {
+          "discovered": true,
+          "here": false,
+          "id": "old_bell_tower",
+          "image": "",
+          "name": "Old Bell Tower",
+          "points": [],
+          "ring": 3,
+          "roads": [
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "Chandlers' Rise",
+              "to": "chandlers_rise"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "Gallows Green",
+              "to": "gallows_green"
+            },
+            {
+              "danger_dc": 0,
+              "hours": 1,
+              "name": "The Rooftop Road",
+              "to": "rooftop_road"
+            }
+          ]
+        }
+      ]
+    },
+    "status": 200
+  },
+  "/api/codex/places?session_id": {
+    "json": {
+      "places": [
+        {
+          "discovered": true,
+          "here": true,
+          "id": "tallow_docks",
+          "image": "",
+          "name": "Tallow Docks",
+          "points": [
+            {
+              "kind": "objective",
+              "label": "The Evening Barge — Be on Tallow Docks in the evening, and get aboard the barge."
+            },
+            {
+              "kind": "vendor",
+              "label": "Dock Mag"
+            }
+          ],
+          "ring": 0,
+          "roads": [
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "The Snuffs",
+              "to": "the_snuffs"
+            },
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "The Lantern House",
+              "to": "lantern_house"
+            }
+          ]
+        },
+        {
+          "discovered": false,
+          "here": false,
+          "id": "wickmarket",
+          "image": "",
+          "name": "Wickmarket",
+          "points": [
+            {
+              "kind": "vendor",
+              "label": "Pell Hollis"
+            }
+          ],
+          "ring": 1,
+          "roads": [
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "Tallow Docks",
+              "to": "tallow_docks"
+            },
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "The Snuffs",
+              "to": "the_snuffs"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Silk Row",
+              "to": "silk_row"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Chandlers' Rise",
+              "to": "chandlers_rise"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "The Lantern House",
+              "to": "lantern_house"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Gallows Green",
+              "to": "gallows_green"
+            }
+          ]
+        },
+        {
+          "discovered": false,
+          "here": false,
+          "id": "the_snuffs",
+          "image": "",
+          "name": "The Snuffs",
+          "points": [
+            {
+              "kind": "vendor",
+              "label": "Marrow"
+            }
+          ],
+          "ring": 1,
+          "roads": [
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "Tallow Docks",
+              "to": "tallow_docks"
+            },
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "Gallows Green",
+              "to": "gallows_green"
+            }
+          ]
+        },
+        {
+          "discovered": false,
+          "here": false,
+          "id": "silk_row",
+          "image": "",
+          "name": "Silk Row",
+          "points": [],
+          "ring": 2,
+          "roads": [
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 2,
+              "hours": 1,
+              "name": "Chandlers' Rise",
+              "to": "chandlers_rise"
+            },
+            {
+              "danger_dc": 2,
+              "hours": 1,
+              "name": "Margrave's Hill",
+              "to": "margraves_hill"
+            }
+          ]
+        },
+        {
+          "discovered": false,
+          "here": false,
+          "id": "chandlers_rise",
+          "image": "",
+          "name": "Chandlers' Rise",
+          "points": [],
+          "ring": 2,
+          "roads": [
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 2,
+              "hours": 1,
+              "name": "Silk Row",
+              "to": "silk_row"
+            },
+            {
+              "danger_dc": 2,
+              "hours": 1,
+              "name": "Margrave's Hill",
+              "to": "margraves_hill"
+            }
+          ]
+        },
+        {
+          "discovered": false,
+          "here": false,
+          "id": "lantern_house",
+          "image": "",
+          "name": "The Lantern House",
+          "points": [],
+          "ring": 1,
+          "roads": [
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "Tallow Docks",
+              "to": "tallow_docks"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Gallows Green",
+              "to": "gallows_green"
+            }
+          ]
+        },
+        {
+          "discovered": false,
+          "here": false,
+          "id": "margraves_hill",
+          "image": "",
+          "name": "Margrave's Hill",
+          "points": [],
+          "ring": 4,
+          "roads": [
+            {
+              "danger_dc": 2,
+              "hours": 1,
+              "name": "Silk Row",
+              "to": "silk_row"
+            },
+            {
+              "danger_dc": 2,
+              "hours": 1,
+              "name": "Chandlers' Rise",
+              "to": "chandlers_rise"
+            }
+          ]
+        },
+        {
+          "discovered": false,
+          "here": false,
+          "id": "gallows_green",
+          "image": "",
+          "name": "Gallows Green",
+          "points": [],
+          "ring": 2,
+          "roads": [
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "Wickmarket",
+              "to": "wickmarket"
+            },
+            {
+              "danger_dc": 6,
+              "hours": 1,
+              "name": "The Snuffs",
+              "to": "the_snuffs"
+            },
+            {
+              "danger_dc": 4,
+              "hours": 1,
+              "name": "The Lantern House",
+              "to": "lantern_house"
+            }
+          ]
+        }
+      ]
+    },
+    "status": 200
+  },
+  "/api/codex/souls": {
+    "json": {
+      "forms": [],
+      "souls": []
+    },
+    "status": 200
+  },
+  "/api/codex/souls?session_id": {
+    "json": {
+      "forms": [],
+      "souls": [
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_chandlers_rise_1_chandler",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "chandler",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_chandlers_rise_1_apprentice",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "apprentice",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_chandlers_rise_2_chandler",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "chandler",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_chandlers_rise_2_apprentice",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "apprentice",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_chandlers_rise_3_chandler",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "chandler",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_chandlers_rise_3_apprentice",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "apprentice",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_chandlers_rise_4_chandler",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "chandler",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_chandlers_rise_4_apprentice",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "apprentice",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_gallows_green_1_priest",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "priest",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_gallows_green_1_novice",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "novice",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_gallows_green_1_sexton",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "sexton",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_gallows_green_2_landlord",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "landlord",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_gallows_green_2_potboy",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "potboy",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_gallows_green_2_cook",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "cook",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_gallows_green_3_merchant",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "merchant",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_gallows_green_3_householder",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "householder",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_gallows_green_3_maid",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "maid",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_captains_office_clerk",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "clerk",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_lantern_house_1_landlord",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "landlord",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_lantern_house_1_potboy",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "potboy",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_lantern_house_1_cook",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "cook",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_lantern_house_2_merchant",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "merchant",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_lantern_house_2_householder",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "householder",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_lantern_house_2_maid",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "maid",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_margraves_treasury_treasury_guard",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "treasury guard",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_margraves_treasury_treasury_guard_2",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "treasury guard",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_margraves_treasury_mint_master",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "mint master",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_margraves_hill_1_chamberlain",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "chamberlain",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_margraves_hill_1_palace_guard",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "palace guard",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_margraves_hill_1_palace_guard_2",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "palace guard",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_margraves_hill_1_chambermaid",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "chambermaid",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_margraves_hill_2_master",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "master",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_margraves_hill_2_housekeeper",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "housekeeper",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_margraves_hill_2_cook",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "cook",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_margraves_hill_2_footman",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "footman",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_vessaline_manor_butler",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "butler",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_vessaline_manor_maid",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "maid",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_1_merchant",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "merchant",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_1_householder",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "householder",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_1_maid",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "maid",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_2_merchant",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "merchant",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_2_householder",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "householder",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_2_maid",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "maid",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_3_factor",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "factor",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_3_clerk",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "clerk",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_4_factor",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "factor",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_4_clerk",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "clerk",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_5_merchant",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "merchant",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_5_householder",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "householder",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_silk_row_5_maid",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "maid",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_tallow_docks_1_warehouseman",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "warehouseman",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_tallow_docks_1_porter",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "porter",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_tallow_docks_2_landlord",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "landlord",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_tallow_docks_2_potboy",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "potboy",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_tallow_docks_2_cook",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "cook",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_tallow_docks_3_factor",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "factor",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_tallow_docks_3_clerk",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "clerk",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_tallow_docks_4_factor",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "factor",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_tallow_docks_4_clerk",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "clerk",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_gannets_house_company_keeper",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "company keeper",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_gannets_house_company_keeper_2",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "company keeper",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_the_snuffs_1_chandler",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "chandler",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_the_snuffs_1_apprentice",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "apprentice",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_the_snuffs_2_landlord",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "landlord",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_the_snuffs_2_potboy",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "potboy",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_the_snuffs_2_cook",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "cook",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_the_snuffs_3_landlord",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "landlord",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_the_snuffs_3_potboy",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "potboy",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_the_snuffs_3_cook",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "cook",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_wickmarket_1_landlord",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "landlord",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_wickmarket_1_potboy",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "potboy",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_wickmarket_1_cook",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "cook",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_wickmarket_2_chandler",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "chandler",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_wickmarket_2_apprentice",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "apprentice",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_wickmarket_3_landlord",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "landlord",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_wickmarket_3_potboy",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "potboy",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_wickmarket_3_cook",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "cook",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_wickmarket_4_chandler",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "chandler",
+          "traits": []
+        },
+        {
+          "canon": false,
+          "disposition": 0,
+          "first_met_day": 0,
+          "id": "gen_wickmarket_4_apprentice",
+          "met": false,
+          "name": "Someone",
+          "place": "",
+          "portrait": "",
+          "role": "apprentice",
+          "traits": []
+        }
+      ]
+    },
+    "status": 200
+  },
+  "/api/codex/things": {
+    "json": {
+      "things": []
+    },
+    "status": 200
+  },
+  "/api/codex/things?session_id": {
+    "json": {
+      "things": []
+    },
+    "status": 200
+  },
+  "/api/items": {
+    "json": {
+      "carried_count": 0,
+      "carried_weight": 0,
+      "gold": 0,
+      "items": [
+        {
+          "carried": 0,
+          "description": "A canvas bag of coppers and the odd silver crown, heavy enough to knock a man down, which is how the landlord usually carries it upstairs.",
+          "id": "bag_of_takings",
+          "image": "",
+          "name": "Bag of Takings",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods"
+          ],
+          "value": 18,
+          "vendor": "",
+          "weight": 2.0
+        },
+        {
+          "carried": 0,
+          "description": "A hank of stiff wire off a broken crate-binding or a birdcage nobody wanted. Straightened, filed and bent again it makes a rake and a tension bar; left as it is, it makes a mess of your fingers.",
+          "id": "bent_wire",
+          "image": "",
+          "name": "Bent Wire",
+          "price": 2,
+          "stack": true,
+          "tags": [
+            "goods",
+            "metal"
+          ],
+          "value": 1,
+          "vendor": "Marrow",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Sea-green, off a ship from the south, the colour every lady on Silk Row wore last season and will pretend not to want this one.",
+          "id": "bolt_of_silk",
+          "image": "",
+          "name": "Bolt of Silk",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods"
+          ],
+          "value": 24,
+          "vendor": "",
+          "weight": 3.0
+        },
+        {
+          "carried": 0,
+          "description": "Dark, sweet and cut with something. Behind every bar in the low town, and under most of the bars in the high one.",
+          "id": "harbour_rum",
+          "image": "",
+          "name": "Bottle of Harbour Rum",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "drink"
+          ],
+          "value": 5,
+          "vendor": "",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "A Watch evidence box of rings, buckles and teaspoons taken off every suspected Magpie in two years. None of them was the Magpie.",
+          "id": "confiscated_shinies",
+          "image": "",
+          "name": "Box of Confiscated Shinies",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 40,
+          "vendor": "",
+          "weight": 2.0
+        },
+        {
+          "carried": 0,
+          "description": "Six white candles that burn without smoke or smell, packed in straw. The Temple uses them for miracles and the Margrave for dinner.",
+          "id": "spermaceti_candles",
+          "image": "",
+          "name": "Box of Spermaceti Candles",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "candle"
+          ],
+          "value": 16,
+          "vendor": "",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "Off somebody's good coat. Worth nearly nothing, which has never once stopped a jackdaw.",
+          "id": "brass_button",
+          "image": "",
+          "name": "Brass Button",
+          "price": 1,
+          "stack": true,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 1,
+          "vendor": "Pell Hollis",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "A little bell on a long handle. In Tallowmere, where every room burns twenty candles, a household's most-used tool.",
+          "id": "brass_snuffer",
+          "image": "",
+          "name": "Brass Candle-Snuffer",
+          "price": 6,
+          "stack": true,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 4,
+          "vendor": "Pell Hollis",
+          "weight": 0.3
+        },
+        {
+          "carried": 0,
+          "description": "Rolled off a barrow in Wickmarket and under a stall, where the stallholder decided it was not worth bending down for. It is, just.",
+          "id": "bruised_apple",
+          "image": "",
+          "name": "Bruised Apple",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "food"
+          ],
+          "value": 1,
+          "vendor": "",
+          "weight": 0.2
+        },
+        {
+          "carried": 0,
+          "description": "A dozen honey-coloured tapers tied with a wick. Real beeswax, or so the label insists; they smell faintly of mutton.",
+          "id": "beeswax_tapers",
+          "image": "",
+          "name": "Bundle of Beeswax Tapers",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "candle"
+          ],
+          "value": 3,
+          "vendor": "",
+          "weight": 0.5
+        },
+        {
+          "carried": 0,
+          "description": "Somebody's old shirt, somebody else's sail, a stocking with no partner. The rag-and-bone trade pays for them by the bundle, and a porter will always take one for his shoulder.",
+          "id": "rag_bundle",
+          "image": "",
+          "name": "Bundle of Rags",
+          "price": 1,
+          "stack": true,
+          "tags": [
+            "goods"
+          ],
+          "value": 1,
+          "vendor": "Marrow",
+          "weight": 0.4
+        },
+        {
+          "carried": 0,
+          "description": "Green, fragrant, and boiled down from a whole hillside of berries. The chandlers of the Rise would sell their mothers for a steady supply.",
+          "id": "bayberry_wax",
+          "image": "",
+          "name": "Cake of Bayberry Wax",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "candle"
+          ],
+          "value": 12,
+          "vendor": "",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "A twist of rag full of stubs and drips, swept off tenement stairs and temple steps. The Snuffs are named for people who buy these; a chandler will melt them down and never ask where.",
+          "id": "candle_ends",
+          "image": "",
+          "name": "Candle Ends",
+          "price": 1,
+          "stack": true,
+          "tags": [
+            "goods",
+            "candle"
+          ],
+          "value": 1,
+          "vendor": "Pell Hollis",
+          "weight": 0.2
+        },
+        {
+          "carried": 0,
+          "description": "Brass, three draws, engraved \"Capt. Ardane, for the Lamplit Bridge\". She takes it up to the Lantern House roof at first light, before the desk, and looks at the whole city through it for exactly five minutes.",
+          "id": "captains_spyglass",
+          "image": "",
+          "name": "Captain's Spyglass",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 45,
+          "vendor": "",
+          "weight": 0.8
+        },
+        {
+          "carried": 0,
+          "description": "Three gross of tapers stencilled for a port you have never heard of. Heavy, awkward, and impossible to explain at two in the morning.",
+          "id": "crate_of_tapers",
+          "image": "",
+          "name": "Crate of Export Tapers",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "candle"
+          ],
+          "value": 14,
+          "vendor": "",
+          "weight": 12.0
+        },
+        {
+          "carried": 0,
+          "description": "A dinner plate of solid gold with the Margrave's flame engraved in the rim. The Margrave has two hundred. The steward knows where all of them are.",
+          "id": "crested_gold_plate",
+          "image": "",
+          "name": "Crested Gold Plate",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 140,
+          "vendor": "",
+          "weight": 1.5
+        },
+        {
+          "carried": 0,
+          "description": "A whole river eel coiled in hot-water pastry, wrapped in yesterday's broadsheet. The porters' breakfast on Tallow Docks since before the Everflame was lit.",
+          "id": "eel_pie",
+          "image": "",
+          "name": "Eel Pie",
+          "price": 2,
+          "stack": true,
+          "tags": [
+            "food"
+          ],
+          "value": 2,
+          "vendor": "Dock Mag",
+          "weight": 0.3
+        },
+        {
+          "carried": 0,
+          "description": "Nine stones on a rope of gold, painted into three generations of family portraits. Unsellable in Tallowmere and famous in every port that isn't.",
+          "id": "emerald_necklace",
+          "image": "",
+          "name": "Emerald Necklace",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named"
+          ],
+          "value": 220,
+          "vendor": "",
+          "weight": 0.2
+        },
+        {
+          "carried": 0,
+          "description": "A crystal from the great lantern's second rank, cut to throw the holy fire across the hill. There is exactly one of these loose in the world: it was recorded as shattered in a storm eleven years ago, and it is in the Treasury.",
+          "id": "everflame_prism",
+          "image": "",
+          "name": "Everflame Prism",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named"
+          ],
+          "value": 180,
+          "vendor": "",
+          "weight": 0.8
+        },
+        {
+          "carried": 0,
+          "description": "The hard, narrow end of a locksmith's file that snapped at the handle. Useless for filing. Ground thin and bent right, it is the backbone of a set of picks, which is why a rag-and-bone yard keeps a jar of them.",
+          "id": "file_tang",
+          "image": "",
+          "name": "File Tang",
+          "price": 7,
+          "stack": true,
+          "tags": [
+            "goods",
+            "metal"
+          ],
+          "value": 3,
+          "vendor": "Marrow",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Scented lamp oil blessed for the night vigil. The blessing does nothing to the price a lamplighter will pay for it.",
+          "id": "vigil_oil",
+          "image": "",
+          "name": "Flask of Vigil Oil",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods"
+          ],
+          "value": 6,
+          "vendor": "",
+          "weight": 0.5
+        },
+        {
+          "carried": 0,
+          "description": "A vellum pass for the gate at the top of Margrave's Hill, in a good clerk's hand, with a wax seal pressed from somebody's thumbed-over copy of the real one. Shown at a Hill door it gets you a nod instead of a question. Anywhere else in Tallowmere it is a bit of calfskin with ideas above its station.",
+          "id": "forged_pass",
+          "image": "",
+          "name": "Forged Hill Pass",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "tool",
+            "paper"
+          ],
+          "value": 4,
+          "vendor": "",
+          "weight": 0.02
+        },
+        {
+          "carried": 0,
+          "description": "Seven branches of gilded brass, dripping wax and ambition. Lit, it makes a dining room look richer than the family is.",
+          "id": "gilt_candelabrum",
+          "image": "",
+          "name": "Gilt Candelabrum",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 55,
+          "vendor": "",
+          "weight": 4.0
+        },
+        {
+          "carried": 0,
+          "description": "Keeps good time and better company. The inside of the case is engraved \"for thirty years' faithful service\", with a name.",
+          "id": "gold_pocket_watch",
+          "image": "",
+          "name": "Gold Pocket Watch",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 70,
+          "vendor": "",
+          "weight": 0.2
+        },
+        {
+          "carried": 0,
+          "description": "The end of yesterday's loaf, with a scrape of dripping if Mag likes the look of you. A crown buys it and it is worth about that.",
+          "id": "heel_of_bread",
+          "image": "",
+          "name": "Heel of Bread",
+          "price": 1,
+          "stack": true,
+          "tags": [
+            "food"
+          ],
+          "value": 1,
+          "vendor": "Dock Mag",
+          "weight": 0.2
+        },
+        {
+          "carried": 0,
+          "description": "The customs house has never met this keg, and the keg would prefer to keep it that way. The stencil says TALLOW.",
+          "id": "keg_of_brandy",
+          "image": "",
+          "name": "Keg of Untaxed Brandy",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "drink"
+          ],
+          "value": 20,
+          "vendor": "",
+          "weight": 10.0
+        },
+        {
+          "carried": 0,
+          "description": "Long, dark, oilcloth at the shoulders against the drip, with a row of brass buttons and a ladder-hook sewn at the hip. Every street in the city has a lamplighter at dusk and dawn, and a witness remembers the coat and the ladder long before any face under the brim.",
+          "id": "lamplighters_coat",
+          "image": "",
+          "name": "Lamplighter's Coat",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "clothing",
+            "disguise"
+          ],
+          "value": 3,
+          "vendor": "",
+          "weight": 1.2
+        },
+        {
+          "carried": 0,
+          "description": "A brass lamp on a pin, number stamped on the back. Somewhere a watchman is patting his coat and going pale.",
+          "id": "lantern_badge",
+          "image": "",
+          "name": "Lantern's Badge",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 8,
+          "vendor": "",
+          "weight": 0.1
+        },
+        {
+          "carried": 0,
+          "description": "Drawn on a southern bank, payable to a named party, sealed twice. Worth exactly what it says -- to the person whose name is on it.",
+          "id": "letter_of_credit",
+          "image": "",
+          "name": "Letter of Credit",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "paper",
+            "named"
+          ],
+          "value": 60,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Bone, yellowed, and inclined to come up sixes when the house is rolling. Worth three crowns to a stranger and a fortune to a sharper.",
+          "id": "loaded_dice",
+          "image": "",
+          "name": "Loaded Dice",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods"
+          ],
+          "value": 3,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "A roll of oiled leather holding eleven picks, two tension bars and a bent hairpin somebody has kept for luck. Filed by a locksmith in the Snuffs who swears he only ever made them for people locked out of their own houses. They help at a door, a cellar hatch and a strongroom lock, and they are not used up by any of them.",
+          "id": "lockpicks",
+          "image": "",
+          "name": "Lockpicks",
+          "price": 15,
+          "stack": false,
+          "tags": [
+            "tool"
+          ],
+          "value": 6,
+          "vendor": "Marrow",
+          "weight": 0.2
+        },
+        {
+          "carried": 0,
+          "description": "A black silk half-mask with a white bar across the brow and a short lacquered beak, the kind sold to children at the Hanging Fair. This one is better made than a fair-day copy has any business being. Wearing it in Tallowmere is either a joke or a confession, and the Watch has never had much of a sense of humour.",
+          "id": "magpie_mask",
+          "image": "",
+          "name": "Magpie Mask",
+          "price": 12,
+          "stack": false,
+          "tags": [
+            "clothing",
+            "disguise",
+            "shiny"
+          ],
+          "value": 8,
+          "vendor": "Marrow",
+          "weight": 0.1
+        },
+        {
+          "carried": 0,
+          "description": "The Worshipful Company's arms in silver-gilt -- a taper crossed with a dipping frame -- and one master's own mark beneath. Every master chandler holds one. With it, anyone could certify anything as beeswax.",
+          "id": "chandlers_guild_seal",
+          "image": "",
+          "name": "Master Chandler's Seal",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 120,
+          "vendor": "",
+          "weight": 0.4
+        },
+        {
+          "carried": 0,
+          "description": "Heavy gold, a house mark cut deep enough to seal a contract. Every clerk on the waterfront knows whose it is, which is the entire point of it.",
+          "id": "merchants_signet",
+          "image": "",
+          "name": "Merchant's Signet Ring",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 85,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "A brick of Tallowmere gold stamped with the mint mark and the year. Heavier than it looks, hotter than it feels.",
+          "id": "gold_ingot",
+          "image": "",
+          "name": "Mint Ingot",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 260,
+          "vendor": "",
+          "weight": 2.0
+        },
+        {
+          "carried": 0,
+          "description": "A stub from Hollis's Sundries: one item, pledged, redeemable by the bearer. What the item is, the ticket declines to say.",
+          "id": "pawn_ticket",
+          "image": "",
+          "name": "Pawn Ticket",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "paper"
+          ],
+          "value": 1,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "A pair of drops, perfectly matched, on gold wires. Small enough to lose in a pocket and valuable enough to lose a hand over.",
+          "id": "pearl_earrings",
+          "image": "",
+          "name": "Pearl Earrings",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny"
+          ],
+          "value": 70,
+          "vendor": "",
+          "weight": 0.02
+        },
+        {
+          "carried": 0,
+          "description": "A matched pair, polished to look like silver from across a room. Every honest house has them on the mantel.",
+          "id": "pewter_candlesticks",
+          "image": "",
+          "name": "Pewter Candlesticks",
+          "price": 11,
+          "stack": true,
+          "tags": [
+            "goods",
+            "metal"
+          ],
+          "value": 8,
+          "vendor": "Pell Hollis",
+          "weight": 1.5
+        },
+        {
+          "carried": 0,
+          "description": "A pair, dented by a hundred arguments, with a tavern's mark scratched under each handle.",
+          "id": "pewter_tankards",
+          "image": "",
+          "name": "Pewter Tankards",
+          "price": 7,
+          "stack": true,
+          "tags": [
+            "goods",
+            "metal"
+          ],
+          "value": 6,
+          "vendor": "Marrow",
+          "weight": 1.5
+        },
+        {
+          "carried": 0,
+          "description": "Brown sacking, patched at both shoulders where the crates ride, with the Honest Company's knot stitched over the heart. Put it on and you are one of forty people carrying something on the quay, and nobody has ever once asked a porter what is in the crate.",
+          "id": "porters_smock",
+          "image": "",
+          "name": "Porter's Smock",
+          "price": 4,
+          "stack": false,
+          "tags": [
+            "clothing",
+            "disguise"
+          ],
+          "value": 3,
+          "vendor": "Dock Mag",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "A painted face the size of a thumbnail in a gold frame. Somebody's dead husband, or somebody's living lover; either way, somebody's.",
+          "id": "portrait_miniature",
+          "image": "",
+          "name": "Portrait Miniature",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named"
+          ],
+          "value": 45,
+          "vendor": "",
+          "weight": 0.1
+        },
+        {
+          "carried": 0,
+          "description": "A little gold lantern holding a coal said to have been lit from the Everflame itself. Every parish of the Temple keeps one for its own procession, engraved with the parish's saint. Missed instantly.",
+          "id": "reliquary_lamp",
+          "image": "",
+          "name": "Reliquary Lamp",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 110,
+          "vendor": "",
+          "weight": 1.2
+        },
+        {
+          "carried": 0,
+          "description": "A stone like a drop of evening sea, set in silver and worn at the throat of anybody who wants the Rise to know about their shipping interests.",
+          "id": "sapphire_brooch",
+          "image": "",
+          "name": "Sapphire Brooch",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny"
+          ],
+          "value": 150,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Three pages, violet ink, a pressed bayberry leaf, and a signature that somebody on Silk Row would pay good money never to see again.",
+          "id": "love_letter",
+          "image": "",
+          "name": "Scented Love Letter",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "paper",
+            "named"
+          ],
+          "value": 2,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Twelve apostle spoons in a baize roll, one short, as every set in the city has been one short since the Magpie started.",
+          "id": "silver_spoons",
+          "image": "",
+          "name": "Set of Silver Spoons",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 22,
+          "vendor": "",
+          "weight": 0.8
+        },
+        {
+          "carried": 0,
+          "description": "Hard tack off a barge's stores, stamped with a chandler's mark and nearly as durable as a candle. Keeps forever. Tastes like it.",
+          "id": "ship_biscuit",
+          "image": "",
+          "name": "Ship's Biscuit",
+          "price": 1,
+          "stack": true,
+          "tags": [
+            "food"
+          ],
+          "value": 1,
+          "vendor": "Pell Hollis",
+          "weight": 0.1
+        },
+        {
+          "carried": 0,
+          "description": "Chased with lilies on the back. Whoever looks into it looks, briefly, like somebody who could afford it.",
+          "id": "silver_hand_mirror",
+          "image": "",
+          "name": "Silver Hand Mirror",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 50,
+          "vendor": "",
+          "weight": 0.6
+        },
+        {
+          "carried": 0,
+          "description": "Chased with flames around the rim and \"GIVE AS THE FIRE GIVES\" around the boss. The Temple's inventory numbers it; the Temple counts.",
+          "id": "silver_offering_plate",
+          "image": "",
+          "name": "Silver Offering Plate",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 40,
+          "vendor": "",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "Engraved with the Margrave's flame, the lead worn to a stub. The steward writes everything down; this is what he writes it down with.",
+          "id": "silver_pencil",
+          "image": "",
+          "name": "Silver Propelling Pencil",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 12,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Engine-turned lid, a pinch of rappee still in the corner. Every merchant on Silk Row carries one so as to be seen offering it.",
+          "id": "silver_snuffbox",
+          "image": "",
+          "name": "Silver Snuffbox",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 30,
+          "vendor": "",
+          "weight": 0.1
+        },
+        {
+          "carried": 0,
+          "description": "A seamstress's one good thing, worn smooth on the inside. Pricks the conscience more than the finger.",
+          "id": "silver_thimble",
+          "image": "",
+          "name": "Silver Thimble",
+          "price": 7,
+          "stack": true,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 5,
+          "vendor": "Pell Hollis",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "A twist of waxed paper around saltpetre, tallow and something that smells of the vats, with a wick as long as a fingernail. Pinch, drop, walk away: for thirty heartbeats a Tallowmere street is a fog bank with a coughing Lantern in it. One use, which is one more than most plans get.",
+          "id": "smoke_pellet",
+          "image": "",
+          "name": "Smoke Pellet",
+          "price": 4,
+          "stack": true,
+          "tags": [
+            "tool",
+            "consumable"
+          ],
+          "value": 2,
+          "vendor": "Marrow",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Two handles, silver-gilt, a taper crossed with a dipping frame on the bowl. The Worshipful Company of Chandlers drank from it at every feast for a century, until the one it went missing from. Nobody ever sold it: it came up in a porter's eel-net off the quay stairs a year later, not a dent in it, and the Honest Company has declined to mention it since.",
+          "id": "chandlers_loving_cup",
+          "image": "",
+          "name": "The Chandlers' Loving Cup",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 80,
+          "vendor": "",
+          "weight": 1.2
+        },
+        {
+          "carried": 0,
+          "description": "A single flawless prism the size of two fists, cut so that it seems to hold a flame of its own even in a dark pocket. Worth more than Silk Row put together, and the one object in Tallowmere that everyone agrees nobody could possibly steal. No fence will so much as look at it.",
+          "id": "everflame_heart",
+          "image": "",
+          "name": "The Everflame's Heart",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named",
+            "relic"
+          ],
+          "value": 5000,
+          "vendor": "",
+          "weight": 2.0
+        },
+        {
+          "carried": 0,
+          "description": "Heavy gold links, every tenth one a little anchor, and the city's arms on the badge. The harbourmaster hung it on his bedpost one night and woke without it, and has worn a ribbon to every sailing since, which the docks have never let him forget.",
+          "id": "harbourmasters_chain",
+          "image": "",
+          "name": "The Harbourmaster's Chain",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 150,
+          "vendor": "",
+          "weight": 0.6
+        },
+        {
+          "carried": 0,
+          "description": "A brass hand holding a brass lamp, off the Lantern House's own front door, taken in the Magpie's first spring. It came back three weeks later in a velvet bag on the Lantern House steps, polished, with a black feather through the ring. The Watch has not dared hang it up again.",
+          "id": "lantern_house_knocker",
+          "image": "",
+          "name": "The Lantern House Knocker",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 40,
+          "vendor": "",
+          "weight": 1.5
+        },
+        {
+          "carried": 0,
+          "description": "Hardened steel, cut in reverse with the Margrave's face and the flame. It strikes crowns. In the wrong hands it strikes a great many of them.",
+          "id": "minting_die",
+          "image": "",
+          "name": "The Margrave's Minting Die",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "metal",
+            "named"
+          ],
+          "value": 200,
+          "vendor": "",
+          "weight": 3.0
+        },
+        {
+          "carried": 0,
+          "description": "A gilt salt-cellar shaped like a swan, from the Margrave's own place at the high table, lifted at the Midwinter feast with forty guests watching the Everflame. The ballad says the Magpie has it still. The ballad has not asked the steward.",
+          "id": "swan_salt",
+          "image": "",
+          "name": "The Margrave's Swan Salt",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 200,
+          "vendor": "",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "Cloth of gold sewn with seed pearls, a flame worked in garnets up the front: the bishop's second-best mitre, lifted off its stand in the Temple vestry between one vigil and the next. The Temple has had a new one made and preaches that the old one will come home when the thief repents.",
+          "id": "mitre_of_saint_wick",
+          "image": "",
+          "name": "The Mitre of Saint Wick",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named"
+          ],
+          "value": 120,
+          "vendor": "",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "Tortoiseshell and gold, with a nightingale in small diamonds perched on the spine. Taken from a dressing table in Vessaline House the Magpie's first winter, and found by a Lantern in a gutter on Silk Row a month later, not a stone missing. Returned with the Watch's compliments, and locked away with the family's jewels ever since.",
+          "id": "nightingale_comb",
+          "image": "",
+          "name": "The Nightingale Comb",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named"
+          ],
+          "value": 160,
+          "vendor": "",
+          "weight": 0.1
+        },
+        {
+          "carried": 0,
+          "description": "A japanned tin box with the Honest Company's charter pasted in the lid, full of dues saved against a hard winter. Robbing it is not a crime in the Snuffs. It is a much more serious thing than that.",
+          "id": "strike_fund_box",
+          "image": "",
+          "name": "The Porters' Strike Fund",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "named"
+          ],
+          "value": 90,
+          "vendor": "",
+          "weight": 3.0
+        },
+        {
+          "carried": 0,
+          "description": "Chandelier earrings of old-cut diamonds, three drops apiece, every one of them a small fire. Lady Imelda wears them to the Margrave's table and nowhere else.",
+          "id": "vessaline_girandoles",
+          "image": "",
+          "name": "The Vessaline Girandoles",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named"
+          ],
+          "value": 280,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "White crust scraped off a midden wall into a twist of paper. The pork-curers pay for it by the pound; a pellet-roller pays for it by the pinch, and asks for it quietly.",
+          "id": "saltpetre",
+          "image": "",
+          "name": "Twist of Saltpetre",
+          "price": 2,
+          "stack": true,
+          "tags": [
+            "goods"
+          ],
+          "value": 1,
+          "vendor": "Pell Hollis",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "A clean scrap of calfskin from a stationer's trimmings, about the size of a hand. Hollis sells them for luggage labels. They take ink, and a seal, exactly as well as the Margrave's own.",
+          "id": "vellum_offcut",
+          "image": "",
+          "name": "Vellum Offcut",
+          "price": 3,
+          "stack": true,
+          "tags": [
+            "goods",
+            "paper"
+          ],
+          "value": 2,
+          "vendor": "Pell Hollis",
+          "weight": 0.02
+        }
+      ],
+      "location_id": "",
+      "tags": [
+        "candle",
+        "clothing",
+        "consumable",
+        "disguise",
+        "drink",
+        "food",
+        "goods",
+        "metal",
+        "named",
+        "paper",
+        "relic",
+        "shiny",
+        "tool"
+      ]
+    },
+    "status": 200
+  },
+  "/api/items?session_id": {
+    "json": {
+      "carried_count": 0,
+      "carried_weight": 0,
+      "gold": 5,
+      "items": [
+        {
+          "carried": 0,
+          "description": "A canvas bag of coppers and the odd silver crown, heavy enough to knock a man down, which is how the landlord usually carries it upstairs.",
+          "id": "bag_of_takings",
+          "image": "",
+          "name": "Bag of Takings",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods"
+          ],
+          "value": 18,
+          "vendor": "",
+          "weight": 2.0
+        },
+        {
+          "carried": 0,
+          "description": "A hank of stiff wire off a broken crate-binding or a birdcage nobody wanted. Straightened, filed and bent again it makes a rake and a tension bar; left as it is, it makes a mess of your fingers.",
+          "id": "bent_wire",
+          "image": "",
+          "name": "Bent Wire",
+          "price": 2,
+          "stack": true,
+          "tags": [
+            "goods",
+            "metal"
+          ],
+          "value": 1,
+          "vendor": "Marrow",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Sea-green, off a ship from the south, the colour every lady on Silk Row wore last season and will pretend not to want this one.",
+          "id": "bolt_of_silk",
+          "image": "",
+          "name": "Bolt of Silk",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods"
+          ],
+          "value": 24,
+          "vendor": "",
+          "weight": 3.0
+        },
+        {
+          "carried": 0,
+          "description": "Dark, sweet and cut with something. Behind every bar in the low town, and under most of the bars in the high one.",
+          "id": "harbour_rum",
+          "image": "",
+          "name": "Bottle of Harbour Rum",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "drink"
+          ],
+          "value": 5,
+          "vendor": "",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "A Watch evidence box of rings, buckles and teaspoons taken off every suspected Magpie in two years. None of them was the Magpie.",
+          "id": "confiscated_shinies",
+          "image": "",
+          "name": "Box of Confiscated Shinies",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 40,
+          "vendor": "",
+          "weight": 2.0
+        },
+        {
+          "carried": 0,
+          "description": "Six white candles that burn without smoke or smell, packed in straw. The Temple uses them for miracles and the Margrave for dinner.",
+          "id": "spermaceti_candles",
+          "image": "",
+          "name": "Box of Spermaceti Candles",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "candle"
+          ],
+          "value": 16,
+          "vendor": "",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "Off somebody's good coat. Worth nearly nothing, which has never once stopped a jackdaw.",
+          "id": "brass_button",
+          "image": "",
+          "name": "Brass Button",
+          "price": 1,
+          "stack": true,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 1,
+          "vendor": "Pell Hollis",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "A little bell on a long handle. In Tallowmere, where every room burns twenty candles, a household's most-used tool.",
+          "id": "brass_snuffer",
+          "image": "",
+          "name": "Brass Candle-Snuffer",
+          "price": 6,
+          "stack": true,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 4,
+          "vendor": "Pell Hollis",
+          "weight": 0.3
+        },
+        {
+          "carried": 0,
+          "description": "Rolled off a barrow in Wickmarket and under a stall, where the stallholder decided it was not worth bending down for. It is, just.",
+          "id": "bruised_apple",
+          "image": "",
+          "name": "Bruised Apple",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "food"
+          ],
+          "value": 1,
+          "vendor": "",
+          "weight": 0.2
+        },
+        {
+          "carried": 0,
+          "description": "A dozen honey-coloured tapers tied with a wick. Real beeswax, or so the label insists; they smell faintly of mutton.",
+          "id": "beeswax_tapers",
+          "image": "",
+          "name": "Bundle of Beeswax Tapers",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "candle"
+          ],
+          "value": 3,
+          "vendor": "",
+          "weight": 0.5
+        },
+        {
+          "carried": 0,
+          "description": "Somebody's old shirt, somebody else's sail, a stocking with no partner. The rag-and-bone trade pays for them by the bundle, and a porter will always take one for his shoulder.",
+          "id": "rag_bundle",
+          "image": "",
+          "name": "Bundle of Rags",
+          "price": 1,
+          "stack": true,
+          "tags": [
+            "goods"
+          ],
+          "value": 1,
+          "vendor": "Marrow",
+          "weight": 0.4
+        },
+        {
+          "carried": 0,
+          "description": "Green, fragrant, and boiled down from a whole hillside of berries. The chandlers of the Rise would sell their mothers for a steady supply.",
+          "id": "bayberry_wax",
+          "image": "",
+          "name": "Cake of Bayberry Wax",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "candle"
+          ],
+          "value": 12,
+          "vendor": "",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "A twist of rag full of stubs and drips, swept off tenement stairs and temple steps. The Snuffs are named for people who buy these; a chandler will melt them down and never ask where.",
+          "id": "candle_ends",
+          "image": "",
+          "name": "Candle Ends",
+          "price": 1,
+          "stack": true,
+          "tags": [
+            "goods",
+            "candle"
+          ],
+          "value": 1,
+          "vendor": "Pell Hollis",
+          "weight": 0.2
+        },
+        {
+          "carried": 0,
+          "description": "Brass, three draws, engraved \"Capt. Ardane, for the Lamplit Bridge\". She takes it up to the Lantern House roof at first light, before the desk, and looks at the whole city through it for exactly five minutes.",
+          "id": "captains_spyglass",
+          "image": "",
+          "name": "Captain's Spyglass",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 45,
+          "vendor": "",
+          "weight": 0.8
+        },
+        {
+          "carried": 0,
+          "description": "Three gross of tapers stencilled for a port you have never heard of. Heavy, awkward, and impossible to explain at two in the morning.",
+          "id": "crate_of_tapers",
+          "image": "",
+          "name": "Crate of Export Tapers",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "candle"
+          ],
+          "value": 14,
+          "vendor": "",
+          "weight": 12.0
+        },
+        {
+          "carried": 0,
+          "description": "A dinner plate of solid gold with the Margrave's flame engraved in the rim. The Margrave has two hundred. The steward knows where all of them are.",
+          "id": "crested_gold_plate",
+          "image": "",
+          "name": "Crested Gold Plate",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 140,
+          "vendor": "",
+          "weight": 1.5
+        },
+        {
+          "carried": 0,
+          "description": "A whole river eel coiled in hot-water pastry, wrapped in yesterday's broadsheet. The porters' breakfast on Tallow Docks since before the Everflame was lit.",
+          "id": "eel_pie",
+          "image": "",
+          "name": "Eel Pie",
+          "price": 2,
+          "stack": true,
+          "tags": [
+            "food"
+          ],
+          "value": 2,
+          "vendor": "Dock Mag",
+          "weight": 0.3
+        },
+        {
+          "carried": 0,
+          "description": "Nine stones on a rope of gold, painted into three generations of family portraits. Unsellable in Tallowmere and famous in every port that isn't.",
+          "id": "emerald_necklace",
+          "image": "",
+          "name": "Emerald Necklace",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named"
+          ],
+          "value": 220,
+          "vendor": "",
+          "weight": 0.2
+        },
+        {
+          "carried": 0,
+          "description": "A crystal from the great lantern's second rank, cut to throw the holy fire across the hill. There is exactly one of these loose in the world: it was recorded as shattered in a storm eleven years ago, and it is in the Treasury.",
+          "id": "everflame_prism",
+          "image": "",
+          "name": "Everflame Prism",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named"
+          ],
+          "value": 180,
+          "vendor": "",
+          "weight": 0.8
+        },
+        {
+          "carried": 0,
+          "description": "The hard, narrow end of a locksmith's file that snapped at the handle. Useless for filing. Ground thin and bent right, it is the backbone of a set of picks, which is why a rag-and-bone yard keeps a jar of them.",
+          "id": "file_tang",
+          "image": "",
+          "name": "File Tang",
+          "price": 7,
+          "stack": true,
+          "tags": [
+            "goods",
+            "metal"
+          ],
+          "value": 3,
+          "vendor": "Marrow",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Scented lamp oil blessed for the night vigil. The blessing does nothing to the price a lamplighter will pay for it.",
+          "id": "vigil_oil",
+          "image": "",
+          "name": "Flask of Vigil Oil",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods"
+          ],
+          "value": 6,
+          "vendor": "",
+          "weight": 0.5
+        },
+        {
+          "carried": 0,
+          "description": "A vellum pass for the gate at the top of Margrave's Hill, in a good clerk's hand, with a wax seal pressed from somebody's thumbed-over copy of the real one. Shown at a Hill door it gets you a nod instead of a question. Anywhere else in Tallowmere it is a bit of calfskin with ideas above its station.",
+          "id": "forged_pass",
+          "image": "",
+          "name": "Forged Hill Pass",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "tool",
+            "paper"
+          ],
+          "value": 4,
+          "vendor": "",
+          "weight": 0.02
+        },
+        {
+          "carried": 0,
+          "description": "Seven branches of gilded brass, dripping wax and ambition. Lit, it makes a dining room look richer than the family is.",
+          "id": "gilt_candelabrum",
+          "image": "",
+          "name": "Gilt Candelabrum",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 55,
+          "vendor": "",
+          "weight": 4.0
+        },
+        {
+          "carried": 0,
+          "description": "Keeps good time and better company. The inside of the case is engraved \"for thirty years' faithful service\", with a name.",
+          "id": "gold_pocket_watch",
+          "image": "",
+          "name": "Gold Pocket Watch",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 70,
+          "vendor": "",
+          "weight": 0.2
+        },
+        {
+          "carried": 0,
+          "description": "The end of yesterday's loaf, with a scrape of dripping if Mag likes the look of you. A crown buys it and it is worth about that.",
+          "id": "heel_of_bread",
+          "image": "",
+          "name": "Heel of Bread",
+          "price": 1,
+          "stack": true,
+          "tags": [
+            "food"
+          ],
+          "value": 1,
+          "vendor": "Dock Mag",
+          "weight": 0.2
+        },
+        {
+          "carried": 0,
+          "description": "The customs house has never met this keg, and the keg would prefer to keep it that way. The stencil says TALLOW.",
+          "id": "keg_of_brandy",
+          "image": "",
+          "name": "Keg of Untaxed Brandy",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "drink"
+          ],
+          "value": 20,
+          "vendor": "",
+          "weight": 10.0
+        },
+        {
+          "carried": 0,
+          "description": "Long, dark, oilcloth at the shoulders against the drip, with a row of brass buttons and a ladder-hook sewn at the hip. Every street in the city has a lamplighter at dusk and dawn, and a witness remembers the coat and the ladder long before any face under the brim.",
+          "id": "lamplighters_coat",
+          "image": "",
+          "name": "Lamplighter's Coat",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "clothing",
+            "disguise"
+          ],
+          "value": 3,
+          "vendor": "",
+          "weight": 1.2
+        },
+        {
+          "carried": 0,
+          "description": "A brass lamp on a pin, number stamped on the back. Somewhere a watchman is patting his coat and going pale.",
+          "id": "lantern_badge",
+          "image": "",
+          "name": "Lantern's Badge",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 8,
+          "vendor": "",
+          "weight": 0.1
+        },
+        {
+          "carried": 0,
+          "description": "Drawn on a southern bank, payable to a named party, sealed twice. Worth exactly what it says -- to the person whose name is on it.",
+          "id": "letter_of_credit",
+          "image": "",
+          "name": "Letter of Credit",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "paper",
+            "named"
+          ],
+          "value": 60,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Bone, yellowed, and inclined to come up sixes when the house is rolling. Worth three crowns to a stranger and a fortune to a sharper.",
+          "id": "loaded_dice",
+          "image": "",
+          "name": "Loaded Dice",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods"
+          ],
+          "value": 3,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "A roll of oiled leather holding eleven picks, two tension bars and a bent hairpin somebody has kept for luck. Filed by a locksmith in the Snuffs who swears he only ever made them for people locked out of their own houses. They help at a door, a cellar hatch and a strongroom lock, and they are not used up by any of them.",
+          "id": "lockpicks",
+          "image": "",
+          "name": "Lockpicks",
+          "price": 15,
+          "stack": false,
+          "tags": [
+            "tool"
+          ],
+          "value": 6,
+          "vendor": "Marrow",
+          "weight": 0.2
+        },
+        {
+          "carried": 0,
+          "description": "A black silk half-mask with a white bar across the brow and a short lacquered beak, the kind sold to children at the Hanging Fair. This one is better made than a fair-day copy has any business being. Wearing it in Tallowmere is either a joke or a confession, and the Watch has never had much of a sense of humour.",
+          "id": "magpie_mask",
+          "image": "",
+          "name": "Magpie Mask",
+          "price": 12,
+          "stack": false,
+          "tags": [
+            "clothing",
+            "disguise",
+            "shiny"
+          ],
+          "value": 8,
+          "vendor": "Marrow",
+          "weight": 0.1
+        },
+        {
+          "carried": 0,
+          "description": "The Worshipful Company's arms in silver-gilt -- a taper crossed with a dipping frame -- and one master's own mark beneath. Every master chandler holds one. With it, anyone could certify anything as beeswax.",
+          "id": "chandlers_guild_seal",
+          "image": "",
+          "name": "Master Chandler's Seal",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 120,
+          "vendor": "",
+          "weight": 0.4
+        },
+        {
+          "carried": 0,
+          "description": "Heavy gold, a house mark cut deep enough to seal a contract. Every clerk on the waterfront knows whose it is, which is the entire point of it.",
+          "id": "merchants_signet",
+          "image": "",
+          "name": "Merchant's Signet Ring",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 85,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "A brick of Tallowmere gold stamped with the mint mark and the year. Heavier than it looks, hotter than it feels.",
+          "id": "gold_ingot",
+          "image": "",
+          "name": "Mint Ingot",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 260,
+          "vendor": "",
+          "weight": 2.0
+        },
+        {
+          "carried": 0,
+          "description": "A stub from Hollis's Sundries: one item, pledged, redeemable by the bearer. What the item is, the ticket declines to say.",
+          "id": "pawn_ticket",
+          "image": "",
+          "name": "Pawn Ticket",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "paper"
+          ],
+          "value": 1,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "A pair of drops, perfectly matched, on gold wires. Small enough to lose in a pocket and valuable enough to lose a hand over.",
+          "id": "pearl_earrings",
+          "image": "",
+          "name": "Pearl Earrings",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny"
+          ],
+          "value": 70,
+          "vendor": "",
+          "weight": 0.02
+        },
+        {
+          "carried": 0,
+          "description": "A matched pair, polished to look like silver from across a room. Every honest house has them on the mantel.",
+          "id": "pewter_candlesticks",
+          "image": "",
+          "name": "Pewter Candlesticks",
+          "price": 11,
+          "stack": true,
+          "tags": [
+            "goods",
+            "metal"
+          ],
+          "value": 8,
+          "vendor": "Pell Hollis",
+          "weight": 1.5
+        },
+        {
+          "carried": 0,
+          "description": "A pair, dented by a hundred arguments, with a tavern's mark scratched under each handle.",
+          "id": "pewter_tankards",
+          "image": "",
+          "name": "Pewter Tankards",
+          "price": 7,
+          "stack": true,
+          "tags": [
+            "goods",
+            "metal"
+          ],
+          "value": 6,
+          "vendor": "Marrow",
+          "weight": 1.5
+        },
+        {
+          "carried": 0,
+          "description": "Brown sacking, patched at both shoulders where the crates ride, with the Honest Company's knot stitched over the heart. Put it on and you are one of forty people carrying something on the quay, and nobody has ever once asked a porter what is in the crate.",
+          "id": "porters_smock",
+          "image": "",
+          "name": "Porter's Smock",
+          "price": 4,
+          "stack": false,
+          "tags": [
+            "clothing",
+            "disguise"
+          ],
+          "value": 3,
+          "vendor": "Dock Mag",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "A painted face the size of a thumbnail in a gold frame. Somebody's dead husband, or somebody's living lover; either way, somebody's.",
+          "id": "portrait_miniature",
+          "image": "",
+          "name": "Portrait Miniature",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named"
+          ],
+          "value": 45,
+          "vendor": "",
+          "weight": 0.1
+        },
+        {
+          "carried": 0,
+          "description": "A little gold lantern holding a coal said to have been lit from the Everflame itself. Every parish of the Temple keeps one for its own procession, engraved with the parish's saint. Missed instantly.",
+          "id": "reliquary_lamp",
+          "image": "",
+          "name": "Reliquary Lamp",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 110,
+          "vendor": "",
+          "weight": 1.2
+        },
+        {
+          "carried": 0,
+          "description": "A stone like a drop of evening sea, set in silver and worn at the throat of anybody who wants the Rise to know about their shipping interests.",
+          "id": "sapphire_brooch",
+          "image": "",
+          "name": "Sapphire Brooch",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny"
+          ],
+          "value": 150,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Three pages, violet ink, a pressed bayberry leaf, and a signature that somebody on Silk Row would pay good money never to see again.",
+          "id": "love_letter",
+          "image": "",
+          "name": "Scented Love Letter",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "paper",
+            "named"
+          ],
+          "value": 2,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Twelve apostle spoons in a baize roll, one short, as every set in the city has been one short since the Magpie started.",
+          "id": "silver_spoons",
+          "image": "",
+          "name": "Set of Silver Spoons",
+          "price": 0,
+          "stack": true,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 22,
+          "vendor": "",
+          "weight": 0.8
+        },
+        {
+          "carried": 0,
+          "description": "Hard tack off a barge's stores, stamped with a chandler's mark and nearly as durable as a candle. Keeps forever. Tastes like it.",
+          "id": "ship_biscuit",
+          "image": "",
+          "name": "Ship's Biscuit",
+          "price": 1,
+          "stack": true,
+          "tags": [
+            "food"
+          ],
+          "value": 1,
+          "vendor": "Pell Hollis",
+          "weight": 0.1
+        },
+        {
+          "carried": 0,
+          "description": "Chased with lilies on the back. Whoever looks into it looks, briefly, like somebody who could afford it.",
+          "id": "silver_hand_mirror",
+          "image": "",
+          "name": "Silver Hand Mirror",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 50,
+          "vendor": "",
+          "weight": 0.6
+        },
+        {
+          "carried": 0,
+          "description": "Chased with flames around the rim and \"GIVE AS THE FIRE GIVES\" around the boss. The Temple's inventory numbers it; the Temple counts.",
+          "id": "silver_offering_plate",
+          "image": "",
+          "name": "Silver Offering Plate",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 40,
+          "vendor": "",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "Engraved with the Margrave's flame, the lead worn to a stub. The steward writes everything down; this is what he writes it down with.",
+          "id": "silver_pencil",
+          "image": "",
+          "name": "Silver Propelling Pencil",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 12,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Engine-turned lid, a pinch of rappee still in the corner. Every merchant on Silk Row carries one so as to be seen offering it.",
+          "id": "silver_snuffbox",
+          "image": "",
+          "name": "Silver Snuffbox",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 30,
+          "vendor": "",
+          "weight": 0.1
+        },
+        {
+          "carried": 0,
+          "description": "A seamstress's one good thing, worn smooth on the inside. Pricks the conscience more than the finger.",
+          "id": "silver_thimble",
+          "image": "",
+          "name": "Silver Thimble",
+          "price": 7,
+          "stack": true,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal"
+          ],
+          "value": 5,
+          "vendor": "Pell Hollis",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "A twist of waxed paper around saltpetre, tallow and something that smells of the vats, with a wick as long as a fingernail. Pinch, drop, walk away: for thirty heartbeats a Tallowmere street is a fog bank with a coughing Lantern in it. One use, which is one more than most plans get.",
+          "id": "smoke_pellet",
+          "image": "",
+          "name": "Smoke Pellet",
+          "price": 4,
+          "stack": true,
+          "tags": [
+            "tool",
+            "consumable"
+          ],
+          "value": 2,
+          "vendor": "Marrow",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "Two handles, silver-gilt, a taper crossed with a dipping frame on the bowl. The Worshipful Company of Chandlers drank from it at every feast for a century, until the one it went missing from. Nobody ever sold it: it came up in a porter's eel-net off the quay stairs a year later, not a dent in it, and the Honest Company has declined to mention it since.",
+          "id": "chandlers_loving_cup",
+          "image": "",
+          "name": "The Chandlers' Loving Cup",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 80,
+          "vendor": "",
+          "weight": 1.2
+        },
+        {
+          "carried": 0,
+          "description": "A single flawless prism the size of two fists, cut so that it seems to hold a flame of its own even in a dark pocket. Worth more than Silk Row put together, and the one object in Tallowmere that everyone agrees nobody could possibly steal. No fence will so much as look at it.",
+          "id": "everflame_heart",
+          "image": "",
+          "name": "The Everflame's Heart",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named",
+            "relic"
+          ],
+          "value": 5000,
+          "vendor": "",
+          "weight": 2.0
+        },
+        {
+          "carried": 0,
+          "description": "Heavy gold links, every tenth one a little anchor, and the city's arms on the badge. The harbourmaster hung it on his bedpost one night and woke without it, and has worn a ribbon to every sailing since, which the docks have never let him forget.",
+          "id": "harbourmasters_chain",
+          "image": "",
+          "name": "The Harbourmaster's Chain",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 150,
+          "vendor": "",
+          "weight": 0.6
+        },
+        {
+          "carried": 0,
+          "description": "A brass hand holding a brass lamp, off the Lantern House's own front door, taken in the Magpie's first spring. It came back three weeks later in a velvet bag on the Lantern House steps, polished, with a black feather through the ring. The Watch has not dared hang it up again.",
+          "id": "lantern_house_knocker",
+          "image": "",
+          "name": "The Lantern House Knocker",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 40,
+          "vendor": "",
+          "weight": 1.5
+        },
+        {
+          "carried": 0,
+          "description": "Hardened steel, cut in reverse with the Margrave's face and the flame. It strikes crowns. In the wrong hands it strikes a great many of them.",
+          "id": "minting_die",
+          "image": "",
+          "name": "The Margrave's Minting Die",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "metal",
+            "named"
+          ],
+          "value": 200,
+          "vendor": "",
+          "weight": 3.0
+        },
+        {
+          "carried": 0,
+          "description": "A gilt salt-cellar shaped like a swan, from the Margrave's own place at the high table, lifted at the Midwinter feast with forty guests watching the Everflame. The ballad says the Magpie has it still. The ballad has not asked the steward.",
+          "id": "swan_salt",
+          "image": "",
+          "name": "The Margrave's Swan Salt",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "metal",
+            "named"
+          ],
+          "value": 200,
+          "vendor": "",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "Cloth of gold sewn with seed pearls, a flame worked in garnets up the front: the bishop's second-best mitre, lifted off its stand in the Temple vestry between one vigil and the next. The Temple has had a new one made and preaches that the old one will come home when the thief repents.",
+          "id": "mitre_of_saint_wick",
+          "image": "",
+          "name": "The Mitre of Saint Wick",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named"
+          ],
+          "value": 120,
+          "vendor": "",
+          "weight": 1.0
+        },
+        {
+          "carried": 0,
+          "description": "Tortoiseshell and gold, with a nightingale in small diamonds perched on the spine. Taken from a dressing table in Vessaline House the Magpie's first winter, and found by a Lantern in a gutter on Silk Row a month later, not a stone missing. Returned with the Watch's compliments, and locked away with the family's jewels ever since.",
+          "id": "nightingale_comb",
+          "image": "",
+          "name": "The Nightingale Comb",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named"
+          ],
+          "value": 160,
+          "vendor": "",
+          "weight": 0.1
+        },
+        {
+          "carried": 0,
+          "description": "A japanned tin box with the Honest Company's charter pasted in the lid, full of dues saved against a hard winter. Robbing it is not a crime in the Snuffs. It is a much more serious thing than that.",
+          "id": "strike_fund_box",
+          "image": "",
+          "name": "The Porters' Strike Fund",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "named"
+          ],
+          "value": 90,
+          "vendor": "",
+          "weight": 3.0
+        },
+        {
+          "carried": 0,
+          "description": "Chandelier earrings of old-cut diamonds, three drops apiece, every one of them a small fire. Lady Imelda wears them to the Margrave's table and nowhere else.",
+          "id": "vessaline_girandoles",
+          "image": "",
+          "name": "The Vessaline Girandoles",
+          "price": 0,
+          "stack": false,
+          "tags": [
+            "goods",
+            "shiny",
+            "named"
+          ],
+          "value": 280,
+          "vendor": "",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "White crust scraped off a midden wall into a twist of paper. The pork-curers pay for it by the pound; a pellet-roller pays for it by the pinch, and asks for it quietly.",
+          "id": "saltpetre",
+          "image": "",
+          "name": "Twist of Saltpetre",
+          "price": 2,
+          "stack": true,
+          "tags": [
+            "goods"
+          ],
+          "value": 1,
+          "vendor": "Pell Hollis",
+          "weight": 0.05
+        },
+        {
+          "carried": 0,
+          "description": "A clean scrap of calfskin from a stationer's trimmings, about the size of a hand. Hollis sells them for luggage labels. They take ink, and a seal, exactly as well as the Margrave's own.",
+          "id": "vellum_offcut",
+          "image": "",
+          "name": "Vellum Offcut",
+          "price": 3,
+          "stack": true,
+          "tags": [
+            "goods",
+            "paper"
+          ],
+          "value": 2,
+          "vendor": "Pell Hollis",
+          "weight": 0.02
+        }
+      ],
+      "location_id": "tallow_docks",
+      "tags": [
+        "candle",
+        "clothing",
+        "consumable",
+        "disguise",
+        "drink",
+        "food",
+        "goods",
+        "metal",
+        "named",
+        "paper",
+        "relic",
+        "shiny",
+        "tool"
+      ]
+    },
+    "status": 200
+  },
+  "/api/notices?session_id": {
+    "json": {
+      "configured": true,
+      "elsewhere": [
+        {
+          "hiring": true,
+          "id": "candle_dipping",
+          "location_id": "chandlers_rise",
+          "name": "Dip candles at Marsh & Daughters",
+          "open_now": true
+        },
+        {
+          "hiring": true,
+          "id": "lamplighting",
+          "location_id": "wickmarket",
+          "name": "Go round the lamps with Wren",
+          "open_now": false
+        },
+        {
+          "hiring": true,
+          "id": "market_errands",
+          "location_id": "wickmarket",
+          "name": "Run errands for the Wickmarket stalls",
+          "open_now": true
+        }
+      ],
+      "location_id": "tallow_docks",
+      "location_name": "Tallow Docks",
+      "notices": [
+        {
+          "blurb": "Crates of tallow off the barges, crates of candles on, and Dock Mag on her upturned crate shouting the tally in a voice that carries to the far bank. She pays by the shift, feeds her gang off the basket, and does not ask who you are, only whether you can lift.",
+          "difficulty": "easy",
+          "expected_wage": 2,
+          "faction": "",
+          "hours": 6.0,
+          "id": "dock_portering",
+          "in_kind": [
+            {
+              "item_id": "heel_of_bread",
+              "name": "Heel of Bread",
+              "qty": 1
+            }
+          ],
+          "location_id": "tallow_docks",
+          "name": "Carry for Dock Mag's gang",
+          "skill": "nerve",
+          "stamina_cost": 25,
+          "wage_breakdown": {
+            "base_wage": 2,
+            "demand": 1.0,
+            "phase": "dormant",
+            "standing": 1.0,
+            "standing_label": ""
+          }
+        }
+      ],
+      "phase": "dormant",
+      "shifts_per_day": 2,
+      "shifts_worked_today": 0
+    },
+    "status": 200
+  },
+  "/api/quests?session_id": {
+    "json": {
+      "active_arc": "hue_and_cry",
+      "active_arc_blurb": "Fresh off the morning barge and already cried as the Magpie, you have a watch that believes it and a thieves' guild that believes it too.",
+      "active_arc_title": "Hue and Cry",
+      "arcs_unlocked": [
+        {
+          "blurb": "The evening barge leaves Tallow Docks every day at dusk. Anyone can be on it. Being on it with your name still your own is the hard part.",
+          "id": "the_way_out",
+          "title": "The Way Out"
+        },
+        {
+          "blurb": "Fresh off the morning barge and already cried as the Magpie, you have a watch that believes it and a thieves' guild that believes it too.",
+          "id": "hue_and_cry",
+          "title": "Hue and Cry"
+        }
+      ],
+      "objectives": [
+        "The Evening Barge - Be on Tallow Docks in the evening, and get aboard the barge. (Not yet: the bargemaster takes his fare only in coin that was earned, and you have not yet earned an honest wage in Tallowmere -- not one day's pay for one day's work, on the quay, at the vats, in the market or on the lamps)"
+      ],
+      "quests": [
+        {
+          "arc": "the_way_out",
+          "arc_title": "The Way Out",
+          "id": "the_evening_barge",
+          "objective": "Be on Tallow Docks in the evening, and get aboard the barge.",
+          "stage_count": 1,
+          "stage_id": "aboard",
+          "stage_index": 0,
+          "started_day": 1,
+          "status": "active",
+          "summary": "A flat-bottomed barge leaves the far end of Tallow Docks every evening for the coast towns. The fare is small, the bargemaster asks no questions, and the Watch stands at the gangplank to ask them for him.",
+          "title": "The Evening Barge"
+        }
+      ]
+    },
+    "status": 200
+  },
+  "/api/recipes": {
+    "json": {
+      "categories": [
+        "workshop"
+      ],
+      "location_id": "",
+      "recipes": [
+        {
+          "band": "standard",
+          "category": "workshop",
+          "has_inputs": false,
+          "has_tools": true,
+          "here": false,
+          "hours": 3.0,
+          "id": "cut_lamplighters_coat",
+          "inputs": [
+            {
+              "have": 0,
+              "id": "rag_bundle",
+              "image": "",
+              "name": "Bundle of Rags",
+              "qty": 2
+            },
+            {
+              "have": 0,
+              "id": "brass_button",
+              "image": "",
+              "name": "Brass Button",
+              "qty": 2
+            }
+          ],
+          "makeable": false,
+          "name": "Cut a lamplighter's coat",
+          "output": {
+            "id": "lamplighters_coat",
+            "image": "",
+            "name": "Lamplighter's Coat",
+            "qty": 1
+          },
+          "skill": "craft",
+          "station": "the_snuffs",
+          "tools": []
+        },
+        {
+          "band": "easy",
+          "category": "workshop",
+          "has_inputs": false,
+          "has_tools": true,
+          "here": false,
+          "hours": 4.0,
+          "id": "file_lockpicks",
+          "inputs": [
+            {
+              "have": 0,
+              "id": "bent_wire",
+              "image": "",
+              "name": "Bent Wire",
+              "qty": 1
+            },
+            {
+              "have": 0,
+              "id": "file_tang",
+              "image": "",
+              "name": "File Tang",
+              "qty": 1
+            }
+          ],
+          "makeable": false,
+          "name": "File a set of lockpicks",
+          "output": {
+            "id": "lockpicks",
+            "image": "",
+            "name": "Lockpicks",
+            "qty": 1
+          },
+          "skill": "craft",
+          "station": "the_snuffs",
+          "tools": []
+        },
+        {
+          "band": "hard",
+          "category": "workshop",
+          "has_inputs": false,
+          "has_tools": true,
+          "here": false,
+          "hours": 3.0,
+          "id": "forge_hill_pass",
+          "inputs": [
+            {
+              "have": 0,
+              "id": "vellum_offcut",
+              "image": "",
+              "name": "Vellum Offcut",
+              "qty": 1
+            },
+            {
+              "have": 0,
+              "id": "candle_ends",
+              "image": "",
+              "name": "Candle Ends",
+              "qty": 1
+            }
+          ],
+          "makeable": false,
+          "name": "Forge a Hill gate pass",
+          "output": {
+            "id": "forged_pass",
+            "image": "",
+            "name": "Forged Hill Pass",
+            "qty": 1
+          },
+          "skill": "craft",
+          "station": "the_snuffs",
+          "tools": []
+        },
+        {
+          "band": "standard",
+          "category": "workshop",
+          "has_inputs": false,
+          "has_tools": true,
+          "here": false,
+          "hours": 2.0,
+          "id": "roll_smoke_pellets",
+          "inputs": [
+            {
+              "have": 0,
+              "id": "candle_ends",
+              "image": "",
+              "name": "Candle Ends",
+              "qty": 1
+            },
+            {
+              "have": 0,
+              "id": "saltpetre",
+              "image": "",
+              "name": "Twist of Saltpetre",
+              "qty": 1
+            }
+          ],
+          "makeable": false,
+          "name": "Roll smoke pellets",
+          "output": {
+            "id": "smoke_pellet",
+            "image": "",
+            "name": "Smoke Pellet",
+            "qty": 2
+          },
+          "skill": "craft",
+          "station": "the_snuffs",
+          "tools": []
+        }
+      ]
+    },
+    "status": 200
+  },
+  "/api/recipes?session_id": {
+    "json": {
+      "categories": [
+        "workshop"
+      ],
+      "location_id": "tallow_docks",
+      "recipes": [
+        {
+          "band": "standard",
+          "category": "workshop",
+          "has_inputs": false,
+          "has_tools": true,
+          "here": false,
+          "hours": 3.0,
+          "id": "cut_lamplighters_coat",
+          "inputs": [
+            {
+              "have": 0,
+              "id": "rag_bundle",
+              "image": "",
+              "name": "Bundle of Rags",
+              "qty": 2
+            },
+            {
+              "have": 0,
+              "id": "brass_button",
+              "image": "",
+              "name": "Brass Button",
+              "qty": 2
+            }
+          ],
+          "makeable": false,
+          "name": "Cut a lamplighter's coat",
+          "output": {
+            "id": "lamplighters_coat",
+            "image": "",
+            "name": "Lamplighter's Coat",
+            "qty": 1
+          },
+          "skill": "craft",
+          "station": "the_snuffs",
+          "tools": []
+        },
+        {
+          "band": "easy",
+          "category": "workshop",
+          "has_inputs": false,
+          "has_tools": true,
+          "here": false,
+          "hours": 4.0,
+          "id": "file_lockpicks",
+          "inputs": [
+            {
+              "have": 0,
+              "id": "bent_wire",
+              "image": "",
+              "name": "Bent Wire",
+              "qty": 1
+            },
+            {
+              "have": 0,
+              "id": "file_tang",
+              "image": "",
+              "name": "File Tang",
+              "qty": 1
+            }
+          ],
+          "makeable": false,
+          "name": "File a set of lockpicks",
+          "output": {
+            "id": "lockpicks",
+            "image": "",
+            "name": "Lockpicks",
+            "qty": 1
+          },
+          "skill": "craft",
+          "station": "the_snuffs",
+          "tools": []
+        },
+        {
+          "band": "hard",
+          "category": "workshop",
+          "has_inputs": false,
+          "has_tools": true,
+          "here": false,
+          "hours": 3.0,
+          "id": "forge_hill_pass",
+          "inputs": [
+            {
+              "have": 0,
+              "id": "vellum_offcut",
+              "image": "",
+              "name": "Vellum Offcut",
+              "qty": 1
+            },
+            {
+              "have": 0,
+              "id": "candle_ends",
+              "image": "",
+              "name": "Candle Ends",
+              "qty": 1
+            }
+          ],
+          "makeable": false,
+          "name": "Forge a Hill gate pass",
+          "output": {
+            "id": "forged_pass",
+            "image": "",
+            "name": "Forged Hill Pass",
+            "qty": 1
+          },
+          "skill": "craft",
+          "station": "the_snuffs",
+          "tools": []
+        },
+        {
+          "band": "standard",
+          "category": "workshop",
+          "has_inputs": false,
+          "has_tools": true,
+          "here": false,
+          "hours": 2.0,
+          "id": "roll_smoke_pellets",
+          "inputs": [
+            {
+              "have": 0,
+              "id": "candle_ends",
+              "image": "",
+              "name": "Candle Ends",
+              "qty": 1
+            },
+            {
+              "have": 0,
+              "id": "saltpetre",
+              "image": "",
+              "name": "Twist of Saltpetre",
+              "qty": 1
+            }
+          ],
+          "makeable": false,
+          "name": "Roll smoke pellets",
+          "output": {
+            "id": "smoke_pellet",
+            "image": "",
+            "name": "Smoke Pellet",
+            "qty": 2
+          },
+          "skill": "craft",
+          "station": "the_snuffs",
+          "tools": []
+        }
+      ]
+    },
+    "status": 200
+  },
+  "/api/trade?session_id": {
+    "json": {
+      "gold": 5,
+      "location": "tallow_docks",
+      "vendors": []
+    },
+    "status": 200
+  }
+}

@@ -10,6 +10,8 @@ Draft story content as VALID YAML, with the model on a leash:
     .\\.venv\\Scripts\\python.exe scripts\\author.py --game my-story --repair
     .\\.venv\\Scripts\\python.exe scripts\\author.py --game my-story --promote all
 
+    .venv/bin/python scripts/author.py --game my-story --draft item --brief brief.txt   # Linux
+
 THE CONTRACT. Everything the model produces is (1) sampled under a JSON schema
 derived from what the LOADERS accept, (2) converted to the loader's YAML shape
 by this tool, never by the model, (3) validated by the SHARED backbone

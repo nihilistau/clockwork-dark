@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Confirm it is you{% endblock %}
+{% block content %}
+<h1>Confirm it is you</h1>
+<p>The admin panel asks for your password again every so often.</p>
+<form method="post" action="/admin/reauth" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}" />
+  <input type="hidden" name="next" value="{{ next }}" />
+  <label for="password">Password for {{ admin.name }}</label>
+  <input id="password" name="password" type="password" autocomplete="current-password" required />
+  <button type="submit">Go on</button>
+</form>
+{% endblock %}

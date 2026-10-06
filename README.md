@@ -28,16 +28,21 @@ settles the result, and a model on your own machine writes the prose.
   LM Studio by default, or llama.cpp's `llama-server`, Ollama, vLLM or any
   other OpenAI-compatible server. Image
   generation, voice and ComfyUI are optional and **off by default**. The
-  shipped art packs mean scenes have pictures without any of them.
+  shipped art packs mean scenes have pictures without any of them. Serving
+  it to other people, with accounts, is opt-in (hosted mode).
 
-**Status:** **v0.19.0** is the current release. Six stories ship, and each
-can be played to an ending; HUE & CRY can be finished eight ways. Since
-v0.19.0 the engine is model-server agnostic: LM Studio stays the default,
-and llama-server, Ollama, vLLM and generic OpenAI-compatible servers narrate
-too ([docs/MODEL_SERVERS.md](docs/MODEL_SERVERS.md) says which facts about
-each were verified live). At v0.19.0 the suite stood at 4340 passing, 5 skipped, plus 145 client tests.
-Those numbers are re-measured each release in [CLAUDE.md](CLAUDE.md), and
-[CHANGELOG.md](CHANGELOG.md) records every change from 0.4.0 on.
+**Status:** **v0.20.0** is the current release. Six stories ship, and each
+can be played to an ending; HUE & CRY can be finished eight ways. The engine
+is model-server agnostic: LM Studio stays the default, and llama-server,
+Ollama, vLLM and generic OpenAI-compatible servers narrate too
+([docs/MODEL_SERVERS.md](docs/MODEL_SERVERS.md) says which facts about each
+were verified live; vLLM was, in v0.20.0). Since v0.20.0 **Linux** is a
+first-class platform beside Windows, and an opt-in **hosted mode** serves
+your stories to a small group with accounts, an admin panel and a Docker
+image ([docs/HOSTING.md](docs/HOSTING.md)). At v0.20.0 the suite stood at
+5782 passing, 24 skipped on Windows, plus 145 client tests. Those numbers are re-measured each
+release in [CLAUDE.md](CLAUDE.md), and [CHANGELOG.md](CHANGELOG.md) records
+every change from 0.4.0 on.
 
 ---
 
@@ -351,6 +356,41 @@ declared meters and clocks.
 
 </details>
 
+<details>
+<summary><b>Platforms and hosting</b></summary>
+
+- **Windows and Linux.** Every script has a PowerShell and a POSIX way in
+  (`scripts/start.ps1`, `scripts/start.sh`), the content's paths are checked
+  for case and separators on every platform, one `constraints.txt` pins the
+  versions the suite was proven green on, and the suite runs green in a
+  Linux container. CI (GitHub Actions on Ubuntu) runs the suite, the client
+  and the Docker build.
+- **Local single-player by default**, on `127.0.0.1` with no login. One line
+  opens it to your LAN.
+- **Hosted mode** (opt-in, `hosting.enabled`): accounts you make
+  (`scripts/users.py`), a login on every route and socket event, every run
+  and save owned by one account, one live run per player, and one model
+  server shared fairly -- one first-come queue for every story, a turn
+  admitted before anything in it runs, limits on actions, input and
+  connections.
+- **A supervisor and a front door.** One worker process per story, health
+  checks, crash restarts, drained start/stop/restart; players reach one
+  port, log in once and pick a story, and the front door proxies HTTP and
+  relays the game's WebSocket to it. On Linux every process runs under
+  gunicorn.
+- **An admin panel** at `/admin`: users (one-time passwords, roles,
+  disable, delete), live sessions, saves (metadata only), stories, the
+  model server's settings (applied by draining and restarting each story,
+  rolled back on failure), the queue, metrics and errors. It shows how the
+  service runs and never what was played, and every change is written
+  first to an audit log.
+- **Docker.** One image, one container, every story you list, as a
+  non-root user with its data on a `/data` volume and no secret baked in;
+  Compose publishes it on the host's loopback for a TLS proxy to front, and
+  can run a vLLM server beside it.
+
+</details>
+
 ---
 
 ## How the engine works
@@ -407,7 +447,13 @@ HUE & CRY and Dev Story use `_engine`. The build is committed, so playing
 needs no Node.
 
 **Saves** are atomic JSON with backup recovery and a forward migration chain.
-They are namespaced per story under `data/saves/<slug>/`.
+They are namespaced per story under `data/saves/<slug>/`: the engine writes
+everything it makes at run time (saves, generated images, narration audio)
+under one storage root, `storage.root` in `config/default.yaml` (`data`,
+taken against the repository, not the working directory), which
+`config/local.yaml` or the `CLOCKWORK_DATA_DIR` environment variable can move.
+A story no longer declares `paths.saves`; one still set in `config/local.yaml`
+is read, with a warning, until v0.21.0.
 
 The full design is in [docs/DESIGN.md](docs/DESIGN.md) (mechanics,
 architecture, anti-hallucination rules) and
@@ -418,7 +464,10 @@ fixed).
 
 ## Getting started
 
-Windows is the supported platform today.
+Windows and Linux are both supported (since v0.20.0): every command below has
+a PowerShell spelling and a POSIX `sh` one, and the suite is run on Linux in a
+`python:3.11-slim-bookworm` container ([docs/HOSTING.md § Linux](docs/HOSTING.md#linux)).
+Other POSIX systems, macOS included, should work but are untested.
 
 ### Requirements
 
@@ -431,20 +480,40 @@ Windows is the supported platform today.
 
 ### Setup
 
+Windows (PowerShell):
+
 ```powershell
 git clone https://github.com/nihilistau/clockwork-dark.git
 cd clockwork-dark
 .\scripts\start.ps1
 ```
 
-`scripts/start.ps1` creates `.venv` if it's missing, installs
-`requirements.txt`, and runs the test suite. It doesn't start the game;
-picking a story is your call. To do the same steps by hand:
+Linux (POSIX `sh`):
+
+```sh
+git clone https://github.com/nihilistau/clockwork-dark.git
+cd clockwork-dark
+./scripts/start.sh
+```
+
+Each start script creates `.venv` if it's missing (`start.sh` wants
+`python3.11`, or a `python3` that is 3.11 or newer), installs
+`requirements.txt` under `constraints.txt`, and runs the test suite. It
+doesn't start the game; picking a story is your call. To do the same steps by
+hand:
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -c constraints.txt
 ```
+
+```sh
+python3.11 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt -c constraints.txt
+```
+
+`requirements.txt` says which versions the code supports; `constraints.txt`
+pins the ones the suite was proven green on, so install with both.
 
 **Model server.** LM Studio is the default, and needs nothing in
 `config/local.yaml`: start its server (Developer tab, port 1234) and load a
@@ -464,7 +533,7 @@ Any other server is named in `config/local.yaml`:
 |---|---|---|
 | llama.cpp `llama-server` (run live, b7966) | `llama-server -m model.gguf --port 8080 -c 16384 --jinja` | `llm: {provider: llamacpp, base_url: "http://localhost:8080/v1", profiles: {big: {model: "model.gguf"}, small: {model: "model.gguf"}}}` |
 | Ollama (run live, 0.34.4) | `ollama serve` (the desktop app runs it for you; the portable build does not), then `ollama pull qwen3:4b` -- which thinks before every narration turn (MODEL_SERVERS § Ollama) | `llm: {provider: ollama, base_url: "http://localhost:11434", profiles: {big: {model: "qwen3:4b"}, small: {model: "qwen3:4b"}}}` |
-| vLLM (not live-verified until v0.20.0) | `vllm serve <model> --reasoning-parser <parser>` | `llm: {provider: vllm, base_url: "http://localhost:8000/v1"}` |
+| vLLM (run live, 0.31.0, its Docker image) | `vllm serve <model> --reasoning-parser <parser>`, or on Windows the `vllm/vllm-openai` image (`--dtype half` on a Turing card; MODEL_SERVERS § vLLM) | `llm: {provider: vllm, base_url: "http://localhost:8000/v1", profiles: {big: {model: "Qwen/Qwen3-1.7B"}, small: {model: "Qwen/Qwen3-1.7B"}}}` |
 | Any OpenAI-compatible server | per the server | `llm: {provider: openai_compat, base_url: "<its /v1 base>"}` |
 
 A key a server was started with (`--api-key`) goes in `llm_api_key.txt`, the
@@ -491,6 +560,13 @@ saves nothing until you fix it.
 **Machine-specific paths** go in `config/local.yaml`, which is gitignored and
 deep-merged over the defaults. Don't edit `config/default.yaml` for this.
 
+**A config file outside the repo** can be named in the `CLOCKWORK_CONFIG`
+environment variable (several, joined by `;` on Windows or `:` elsewhere,
+the last winning). It merges over `config/local.yaml`, so the Settings panel
+cannot change a key it sets: a save says which keys it shadowed, and the
+doctor lists the file's keys (never their values). A named file that is
+missing or does not parse stops the game from starting, naming the file.
+
 ```yaml
 stack:
   services:
@@ -506,6 +582,12 @@ stack:
 .\.venv\Scripts\python.exe -m pytest tests\ -q   # expect fully green, no xfail
 ```
 
+```sh
+.venv/bin/python scripts/doctor.py
+.venv/bin/python launcher.py --check
+.venv/bin/python -m pytest tests/ -q
+```
+
 The doctor's model-server section is named after the configured server
 (`LM Studio`, or `Model server (vllm)` and so on) and asks it the way a turn
 does: is it up (on that server's own health routes), is the model bound, does
@@ -516,10 +598,23 @@ whose outage is a FAIL: `launcher.py --check` exits 1 when it is down. The
 rows are listed in
 [docs/MODEL_SERVERS.md § Health checks](docs/MODEL_SERVERS.md#health-checks-and-what-the-doctor-says).
 
+The suite never talks to a model server and never touches your
+`config/local.yaml`, saves or LM Studio `mcp.json`, in child processes as
+well as its own: every script it runs gets a sandbox config pointing at the
+discard port and a temp directory. The same suite, the client's tests and
+build, and the Docker image's build and health check run in CI on Linux (`.github/workflows/ci.yml`, GitHub Actions,
+no secrets needed); the workflow has not run yet, so there is no status
+badge here until it has.
+
 ### Play
 
 ```powershell
 .\.venv\Scripts\python.exe launcher.py --game clockwork-dark
+# open http://localhost:5573
+```
+
+```sh
+.venv/bin/python launcher.py --game clockwork-dark
 # open http://localhost:5573
 ```
 
@@ -536,6 +631,31 @@ rows are listed in
 
 The story is chosen by `--game`, then the `CLOCKWORK_GAME` environment
 variable, then `game.default` in `config/default.yaml`.
+
+**The game listens on this machine only** (`127.0.0.1`) by default, since
+v0.20.0: local mode has no login, so anyone who could reach it could play,
+load and delete your runs. To play from another device on your network, put
+one line in `config/local.yaml`:
+
+```yaml
+scene: {clockwork: {host: "0.0.0.0"}}
+```
+
+(or start it with `launcher.py --host 0.0.0.0`). The launcher and
+`scripts/doctor.py` then warn that the game is reachable with no login. To
+share it with other people, with accounts, use hosted mode (**Host it for
+others**, below).
+
+The game also answers only to the names it is served under: `localhost`,
+`127.0.0.1`, `[::1]` and the host it binds (on a `0.0.0.0` bind, any IP
+address and this machine's name). A request for any other Host gets a 400, so
+a web page that points its own domain at your machine (DNS rebinding) cannot
+drive the game. And a page on another site cannot change anything either: a
+POST (or any other request that is not GET, HEAD or OPTIONS) whose `Origin`
+or `Referer` names another site gets a 403, and so does any request to
+`/socket.io/` or WebSocket upgrade whose `Origin` does. "Another site" means
+another HOST: a page on `localhost` or `127.0.0.1` at a different port (a
+local dev server, say) counts as the same site, as it does for the browser.
 
 <details>
 <summary><b>Optional local services</b> (all off by default, each for a measured reason)</summary>
@@ -561,15 +681,22 @@ from the shipped packs, encounters, quests and saves.
 .\.venv\Scripts\python.exe scripts\generate_art.py    # pre-generate art for gaps in the shipped pack
 ```
 
+```sh
+.venv/bin/python scripts/seed_lore.py
+.venv/bin/python scripts/generate_art.py
+```
+
 **The client** is Vite + React 18 in `ui/`, built into
 `content/scenes/clockwork/static/dist`. That output is **committed on purpose**,
 and the suite fails if it falls behind its source.
 
-```powershell
+```sh
 npm ci --prefix ui
 npm test --prefix ui          # the client tests: plugins, reducer, veiled rule
 npm run build --prefix ui     # rebuild, then commit dist in the same change
 ```
+
+These three are the same in PowerShell and `sh`.
 
 **Balance.** Headless, no LLM. Run these before changing a balance constant.
 
@@ -587,6 +714,22 @@ npm run build --prefix ui     # rebuild, then commit dist in the same change
 .\.venv\Scripts\python.exe scripts\simulate_endings.py   # eleven policies to the ending each run locks (--fair-day, --break-out)
 ```
 
+```sh
+.venv/bin/python scripts/simulate.py --policy all --turns 200 --seed 42
+.venv/bin/python scripts/simulate.py --game hue-and-cry
+.venv/bin/python scripts/simulate_law.py
+.venv/bin/python scripts/simulate_jobs.py
+.venv/bin/python scripts/simulate_agendas.py
+.venv/bin/python scripts/simulate_scrounge.py
+.venv/bin/python scripts/simulate_labour.py
+.venv/bin/python scripts/simulate_streets.py
+.venv/bin/python scripts/simulate_hoard.py
+.venv/bin/python scripts/simulate_acts.py
+.venv/bin/python scripts/simulate_endings.py
+```
+
+(The same flags as the PowerShell lines above.)
+
 The HUE & CRY harnesses run 40 seeds of in-game days each, and none of them
 writes a save. The law, jobs, agendas and acts harnesses take `--set KEY=VALUE`
 to try a number without editing the file, and every one takes `--json` for the
@@ -602,9 +745,54 @@ careful pickpocket; `--policy living` plays that harness's thieves who pay their
 story the same way: every ending, card and clock, over seeded runs.
 NEON CITY's and THE LONG CON's numbers are authored judgement and haven't been
 simulated; their READMEs say so, and `simulate.py --game` refuses them (and
-Dev Story) until their overhauls, v0.24.0-v0.26.0.
+Dev Story, the engine's test bench) until their overhauls, v0.25.0-v0.26.0.
 
 </details>
+
+### Host it for others
+
+Hosted mode (since v0.20.0, off by default) serves your stories to a small
+group you make accounts for. The quickest way is Docker, on the machine that
+runs the model server:
+
+```sh
+docker build -t clockwork-dark .
+docker compose up -d game
+docker compose exec game python scripts/users.py add <you> --admin
+```
+
+Then open `http://localhost:5573` and log in; the panel is at `/admin`. Which
+stories run is `hosting.stories` in `/data/config.yaml` inside the volume.
+Compose publishes the port on the host's loopback only: for anyone else,
+put a TLS reverse proxy in front (Caddy and nginx examples in
+docs/HOSTING.md). The container reaches a model server on the host at
+`host.docker.internal`; the cookie key and an API key come from the
+environment or `/data`, never the image.
+
+Without Docker, turn it on in `config/local.yaml` (or a file named by
+`CLOCKWORK_CONFIG`), make the first admin, and start the supervisor:
+
+```yaml
+hosting:
+  enabled: true
+  stories: ["clockwork-dark", "hue-and-cry"]
+```
+
+```sh
+.venv/bin/python -m pip install -r requirements-server.txt -c constraints.txt   # gunicorn, Linux
+.venv/bin/python scripts/users.py add <you> --admin
+.venv/bin/python launcher.py          # with hosting on, this runs the supervisor
+```
+
+The supervisor starts a worker per story and the front door on port 5573;
+on Linux each runs under gunicorn, on Windows on the development server (a
+trial, and the doctor says so). `scripts/users.py` makes, resets, disables
+and removes accounts (and `adopt` moves your local runs into one), or an
+admin does it in the panel. Hosted mode turns off what one player's machine
+should not share: the Settings panel's save, the studio and the LM Studio
+skills server. Everything else -- accounts, the reverse proxy, sizing the
+model server's lanes, systemd, `/data` ownership, upgrading, and what the
+operator can and cannot see -- is [docs/HOSTING.md](docs/HOSTING.md).
 
 ---
 
@@ -620,23 +808,23 @@ fixed; details may change as each release lands.
 | v0.17.0 | **Act III and eight endings**: the Hanging Fair, the jailbreak, The Rope, per-ending tests | **shipped** |
 | v0.18.0 | **A thief policy** for `simulate.py`, agenda collisions and welshing's cost for a burglar measured, and the fences made to pay | **shipped** |
 | v0.19.0 | **Model-server agnostic**: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | **shipped** |
-| v0.20.0 | **Linux as a first-class platform**, and a **hosted, web-served mode**: auth, per-user sessions and saves, a production server, Docker | planned |
+| v0.20.0 | **Linux as a first-class platform**, and a **hosted, web-served mode**: accounts and a login, per-account runs and saves, one model-server queue, a supervisor and front door, an admin panel, gunicorn, Docker; vLLM run live | **shipped** |
 | v0.21.0 | **UI/UX overhaul**, together with HUE & CRY's screens: wanted poster, job panel, casing board, portraits | planned |
-| v0.22.0 | **The Clockwork Dark overhaul** | planned |
-| v0.23.0 | **The Wicked Garden overhaul** | planned |
-| v0.24.0 | **NEON CITY overhaul** | planned |
-| v0.25.0 | **THE LONG CON overhaul** | planned |
-| v0.26.0 | **Dev Story overhaul** | planned |
-| v1.0.0 | **All six stories finished**, each with its art and live play | planned |
+| v0.22.0 | **A new story: a dating simulation** played through a phone of apps -- dating apps, texts, voice and video messages, two-player games -- with a cast the engine runs and no endgame | planned |
+| v0.23.0 | **The Clockwork Dark overhaul** | planned |
+| v0.24.0 | **The Wicked Garden overhaul** | planned |
+| v0.25.0 | **NEON CITY overhaul** | planned |
+| v0.26.0 | **THE LONG CON overhaul** | planned |
+| v1.0.0 | **Every story finished**, each with its art and live play (Dev Story stays the engine's test bench) | planned |
 
 Each overhaul gives a story HUE & CRY's full treatment: a design spec, its
 story and characters, the engine systems apt to it, every ending reachable
 and tested, measured balance, reviews, UI screens and art. A large story may
 take two releases, which shifts the numbers after it.
 
-Until those land, Windows is the supported platform (vLLM, a Linux server,
-is spoken but not yet verified live), and the game is a local single-player
-server. Known gaps are written
+Windows and Linux are both supported platforms. The game is a local
+single-player server by default, and hosted mode serves it to a group with
+accounts. Known gaps are written
 down, not implied. They're in CLAUDE.md's "Deliberately deferred" list and the
 **NOT WIRED** tables in [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
 [docs/STATE.md](docs/STATE.md) and [docs/AGENTS.md](docs/AGENTS.md).
@@ -653,6 +841,7 @@ down, not implied. They're in CLAUDE.md's "Deliberately deferred" list and the
 | [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) | Anyone picking this up | What the overhaul found, what it fixed, what's still open |
 | [docs/AUTHORING.md](docs/AUTHORING.md) | Story authors | Writing a story under `games/<slug>/` without reading engine source |
 | [docs/MODEL_SERVERS.md](docs/MODEL_SERVERS.md) | Anyone running the game | The model servers the engine speaks, what it knows about each, model discovery and declared models |
+| [docs/HOSTING.md](docs/HOSTING.md) | Anyone running it on Linux, or for others | Linux as a platform (the start script, each optional service, the suite in a container); what hosted mode is and is not, and upgrading; its accounts and login (`scripts/users.py`), ownership, one live run per player, sharing the model server, the limits; the supervisor, its workers and the front door, the reverse proxy, gunicorn and systemd; the admin panel page by page, metrics, errors and the audit log, and what the operator can read; the Docker image and Compose; the config layers and the doctor's hosted rows; what hosted mode turns off |
 | [docs/AGENTS.md](docs/AGENTS.md) | Architects | The in-game agents: roster, plan, negotiate, commit |
 | [docs/GOVERNANCE.md](docs/GOVERNANCE.md), [docs/STATE.md](docs/STATE.md) | Architects | What is wired, and the NOT WIRED tables |
 | [docs/CLAUDE_CODE_BRIEF.md](docs/CLAUDE_CODE_BRIEF.md) | Coding agents | Build spec and golden rules; historical sections marked **CURRENT:** |

@@ -28,14 +28,16 @@ from typing import Any
 
 from flask import Blueprint, jsonify, send_file
 
+from engine.persistence import storage
+
 logger = logging.getLogger(__name__)
 
 BLUEPRINT_NAME = "media"
 
-# Where the image providers write. Relative to the process working directory,
-# exactly as it was in the scene module -- not a config key, because moving it
-# to one would be a behaviour change dressed up as a refactor.
-MEDIA_DIR = Path("data/media")
+# Where the image providers write is `engine.persistence.storage.media_dir()`,
+# read per request: `<storage root>/media`, anchored at the repository since
+# v0.20.0 (it was a cwd-relative `MEDIA_DIR` constant, so a launcher started
+# from another directory served media that did not exist there).
 
 
 def send_generated(root: Path, name: str) -> Any:
@@ -63,16 +65,14 @@ def media_blueprint(name: str = BLUEPRINT_NAME) -> Blueprint:
     @blueprint.get("/api/audio/<path:name>")
     def api_audio(name: str) -> Any:
         """Serve synthesized narration. Generated audio never lives in static/."""
-        from engine.media.tts import AUDIO_DIR
-
-        return send_generated(AUDIO_DIR, name)
+        return send_generated(storage.audio_dir(), name)
 
     @blueprint.get("/api/media/<path:name>")
     def api_media(name: str) -> Any:
         """Serve generated stills and portraits."""
-        return send_generated(MEDIA_DIR, name)
+        return send_generated(storage.media_dir(), name)
 
     return blueprint
 
 
-__all__ = ["BLUEPRINT_NAME", "MEDIA_DIR", "media_blueprint", "send_generated"]
+__all__ = ["BLUEPRINT_NAME", "media_blueprint", "send_generated"]

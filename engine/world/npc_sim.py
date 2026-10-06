@@ -128,28 +128,28 @@ def load_npc_schedules() -> dict[str, Any]:
         rather than raising in the middle of a turn.
     """
     global _SCHEDULE_CACHE
-    if _SCHEDULE_CACHE is not None:
-        return _SCHEDULE_CACHE
+    cached = _SCHEDULE_CACHE  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
 
     path = _schedules_path()
     if path is None:
         logger.debug(
             "[npc_sim] Story declares no routines (operation=load_npc_schedules)"
         )
-        _SCHEDULE_CACHE = {}
-        return _SCHEDULE_CACHE
-    if not path.exists():
+        routines: dict[str, Any] = {}
+    elif not path.exists():
         logger.warning(
             "[npc_sim] Routines missing, falling back to procgen homes "
             "(operation=load_npc_schedules, path=%s)",
             path,
         )
-        _SCHEDULE_CACHE = {}
-        return _SCHEDULE_CACHE
-
-    with path.open(encoding="utf-8") as fh:
-        _SCHEDULE_CACHE = yaml.safe_load(fh) or {}
-    return _SCHEDULE_CACHE
+        routines = {}
+    else:
+        with path.open(encoding="utf-8") as fh:
+            routines = yaml.safe_load(fh) or {}
+    _SCHEDULE_CACHE = routines
+    return routines
 
 
 def reset_schedule_cache() -> None:

@@ -1,0 +1,33 @@
+{
+  "failure": {
+    "json": {
+      "assistant": null,
+      "stt": {
+        "message": "the transcription service answered 503",
+        "provider": "golden_stub",
+        "raw": {
+          "error": {
+            "code": 503,
+            "message": "model is loading"
+          }
+        },
+        "source": "stub",
+        "success": false,
+        "transcript": ""
+      }
+    },
+    "status": 200
+  },
+  "transcript": {
+    "json": {
+      "assistant": null,
+      "stt": {
+        "provider": "golden_stub",
+        "source": "live",
+        "success": true,
+        "transcript": "look about you"
+      }
+    },
+    "status": 200
+  }
+}

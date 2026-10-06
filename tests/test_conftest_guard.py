@@ -120,6 +120,68 @@ def test_a_guarded_host_name_is_refused_whatever_it_resolves_to(
         listener.close()
 
 
+@pytest.mark.parametrize(
+    "how",
+    ["getaddrinfo", "create_connection", "gethostbyname", "connect_literal_ip"],
+)
+def test_any_host_off_this_machine_is_refused(monkeypatch: pytest.MonkeyPatch, how: str) -> None:
+    """
+    The canary for the default-deny guard (v0.20.0 T8 fix round 1): a fake
+    non-loopback name, and a literal non-loopback address, are refused and
+    recorded for the teardown assertion. The resolver UNDER the guard is a
+    stub that records, so a broken guard would show here as a lookup it let
+    through -- never as a real query leaving the machine.
+    """
+    import socket
+
+    import conftest
+
+    let_through: list[Any] = []
+
+    def recording(host: Any, *args: Any, **kwargs: Any) -> Any:
+        let_through.append(host)
+        raise OSError("the stub resolver answers nothing")
+
+    monkeypatch.setattr(conftest, "_REAL_GETADDRINFO", recording)
+    # Every branch has a stub beneath it (T8 fix round 2): gethostbyname's
+    # and connect's real calls are read at call time too.
+    monkeypatch.setattr(conftest, "_REAL_GETHOSTBYNAME", recording)
+    monkeypatch.setattr(conftest, "_REAL_CONNECT", lambda _sock, address: recording(address))
+    breaches = conftest._BREACHES
+    before = len(breaches)
+    try:
+        with pytest.raises(AssertionError, match="not loopback"):
+            if how == "getaddrinfo":
+                socket.getaddrinfo("stt-canary.invalid", 5051)
+            elif how == "create_connection":
+                socket.create_connection(("stt-canary.invalid", 5051), timeout=1)
+            elif how == "gethostbyname":
+                socket.gethostbyname("stt-canary.invalid")
+            else:
+                probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                try:
+                    probe.connect(("192.0.2.1", 9))  # TEST-NET-1: never routed
+                finally:
+                    probe.close()
+        assert len(breaches) == before + 1
+        assert let_through == []
+    finally:
+        del breaches[before:]
+
+
+def test_loopback_is_still_allowed() -> None:
+    import socket
+
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    try:
+        with socket.create_connection(("localhost", listener.getsockname()[1]), timeout=2):
+            pass
+    finally:
+        listener.close()
+
+
 def test_discovery_is_answered_with_an_empty_model_list() -> None:
     """
     The discovery pin is in force for an ordinary test, and answers the

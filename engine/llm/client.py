@@ -34,6 +34,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import threading
 import time
 import uuid
 import weakref
@@ -43,13 +45,20 @@ import httpx
 
 from engine.config import get_config
 from engine.llm.events import LMSResponse, LMSStreamEvent, ToolCall
+from engine.llm.gate import call_timeout, time_left, turn_expired
 from engine.llm.profiles import ModelProfile, resolve_profile, wire_cap
 from engine.llm.providers import ReasoningPatch, get_provider
 from engine.llm.routes import compat_base
+from engine.locks import renew_after_fork
 
 logger = logging.getLogger(__name__)
 
 _client_instance: Optional["LMSClient"] = None
+#: Guards building and dropping ``_client_instance`` (v0.20.0), so a release
+#: during a build waits for it and drops what it built, rather than leaving a
+#: client built from the old config in place (engine/locks.py: #13).
+_client_lock = threading.Lock()
+renew_after_fork(globals(), _client_lock=threading.Lock)
 
 
 def compat_cap(max_tokens: int, reasoning_budget: int) -> int:
@@ -479,6 +488,114 @@ class _ToolCallAccumulator:
         return bool(self._slots)
 
 
+def stop_if_turn_expired() -> None:
+    """
+    Stop a model call whose hosted turn's time is up (v0.20.0 T11 fix round
+    1): its deadline passed, or the supervisor reclaimed its ticket
+    (``engine.llm.gate.turn_expired``). Raised as a read timeout, so the call
+    fails through each client's own ``httpx.HTTPError`` path and the caller's
+    model-failure handling (the storyteller's fallback narration). Never
+    raises outside an admitted hosted turn.
+
+    Raises:
+        httpx.ReadTimeout: the turn may make no more model calls.
+    """
+    reason = turn_expired()
+    if reason:
+        raise httpx.ReadTimeout(f"the turn's time is up ({reason})")
+
+
+class cut_at_deadline:  # noqa: N801 -- used as a context manager, like contextlib's
+    """
+    A streamed model call's response, CUT at its hosted turn's deadline
+    (v0.20.0 T12, T11's N2). ``stop_if_turn_expired`` is asked between a
+    stream's chunks, so a stream that stalls without a byte would run on
+    until its read timeout -- up to ``llm.timeout_seconds`` past the
+    deadline. A timer set to the time left shuts the response's socket at
+    the deadline, and the read fails through the client's own
+    ``httpx.HTTPError`` path, the model-failure path. Outside an admitted
+    hosted turn (``time_left()`` is None: local mode, always) it does nothing
+    at all.
+
+    BOUND TO ITS OWN CONNECTION (fix round 1, M1). The socket is taken when
+    the stream starts, never when the timer fires, and the cut happens only
+    under ``_lock`` while ``done`` is unset; ``finish`` -- called by each
+    client the moment its read loop ends, the body read (fix round 2), and
+    by ``__exit__`` in any case -- sets ``done`` under the same lock before
+    the connection can go back to httpx's pool. So a cut either finishes before the stream ends or never
+    happens: it can never reach a pooled connection another call has since
+    taken. The socket is ``shutdown`` (which wakes a blocked read on POSIX);
+    on Windows, where measured only a close wakes it, it is also closed --
+    under the same lock, on the connection still this call's.
+    """
+
+    def __init__(self, response: httpx.Response) -> None:
+        self.response = response
+        self.timer: Optional[threading.Timer] = None
+        self.cut = False
+        self.done = False
+        self._lock = threading.Lock()
+        self._sock: Any = None
+
+    @staticmethod
+    def _socket_of(response: Any) -> Any:
+        stream = getattr(response, "extensions", {}).get("network_stream")
+        if stream is None:
+            return None
+        try:
+            return stream.get_extra_info("socket")
+        except Exception:  # noqa: BLE001 -- a stream without one cannot be cut this way
+            return None
+
+    def __enter__(self) -> "cut_at_deadline":
+        left = time_left()
+        if left is not None:
+            self._sock = self._socket_of(self.response)
+            self.timer = threading.Timer(max(0.0, left), self._cut)
+            self.timer.daemon = True
+            self.timer.start()
+        return self
+
+    def finish(self) -> None:
+        """
+        The stream's body is read (fix round 2, N3): give up the cut NOW,
+        before anything the caller does after it. httpx returns an exhausted
+        response's connection to its pool, where another call may take it
+        while this generator is still suspended at a later yield.
+        """
+        with self._lock:
+            self.done = True
+        if self.timer is not None:
+            self.timer.cancel()
+
+    def __exit__(self, *_exc: Any) -> None:
+        self.finish()
+
+    def _cut(self) -> None:
+        """Shut (and on Windows close) THIS call's socket, unless the stream has already ended."""
+        with self._lock:
+            if self.done:
+                return
+            self.cut = True
+            sock = self._sock
+            if sock is not None:
+                import socket as socket_module
+
+                try:
+                    sock.shutdown(socket_module.SHUT_RDWR)
+                except OSError:
+                    pass
+                if os.name == "nt":
+                    try:
+                        sock.close()
+                    except OSError:
+                        pass
+        logger.warning(
+            "[LMSClient] The turn's deadline passed mid-stream: the model call is cut "
+            "(operation=chat_stream, reason=deadline)"
+        )
+
+
 def _raise_for_status(
     response: httpx.Response,
     operation: str,
@@ -662,7 +779,7 @@ class LMSClient:
             response = self._client.post(
                 f"{self.base_url}/chat/completions",
                 json=payload,
-                timeout=self.timeout,
+                timeout=call_timeout(self.timeout),
             )
             _raise_for_status(response, "chat", resolved, payload)
             data = response.json()
@@ -826,12 +943,13 @@ class LMSClient:
                 "POST",
                 f"{self.base_url}/chat/completions",
                 json=payload,
-                timeout=self.timeout,
-            ) as response:
+                timeout=call_timeout(self.timeout),
+            ) as response, cut_at_deadline(response) as deadline_cut:
                 if response.status_code >= 400:
                     response.read()
                 _raise_for_status(response, "chat_stream", resolved, payload)
                 for raw_line in response.iter_lines():
+                    stop_if_turn_expired()
                     line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
                     if not line or not line.startswith("data:"):
                         continue
@@ -871,6 +989,9 @@ class LMSClient:
                             _reason(text)
                         else:
                             yield _content(text)
+                # The body is read: the connection may go back to httpx's
+                # pool now, so the cut gives it up before any later yield.
+                deadline_cut.finish()
                 if splitter is not None:
                     for channel, text in splitter.flush(truncated=finish_reason == "length"):
                         if channel == "reasoning":
@@ -1032,11 +1153,15 @@ def _log_outcome(
 
 
 def get_lms_client() -> LMSClient:
-    """Singleton LMS client."""
+    """Singleton LMS client (double-checked: no lock once built)."""
     global _client_instance
-    if _client_instance is None:
-        _client_instance = LMSClient()
-    return _client_instance
+    client = _client_instance
+    if client is not None:
+        return client
+    with _client_lock:
+        if _client_instance is None:
+            _client_instance = LMSClient()
+        return _client_instance
 
 
 def reset_lms_client() -> None:
@@ -1044,9 +1169,10 @@ def reset_lms_client() -> None:
     global _client_instance, _inline_think_seen
     _inline_think_seen = 0
     _patch_ignored_warned.clear()
-    if _client_instance is not None:
-        _client_instance.close()
-    _client_instance = None
+    with _client_lock:
+        old, _client_instance = _client_instance, None
+    if old is not None:
+        old.close()
 
 
 def release_lms_client() -> None:
@@ -1060,8 +1186,8 @@ def release_lms_client() -> None:
     is when the last call using it has returned.
     """
     global _client_instance
-    old = _client_instance
-    _client_instance = None
+    with _client_lock:
+        old, _client_instance = _client_instance, None
     if old is not None:
         # Bound to the httpx client, not to `old`, so it never keeps `old` alive.
         weakref.finalize(old, old._client.close)

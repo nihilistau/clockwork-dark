@@ -63,28 +63,28 @@ class SimEvent:
 
 
 def load_schedules() -> dict[str, Any]:
-    """Load schedule config from YAML."""
+    """Load schedule config from YAML (the cache read once: a reset nulls it
+    without a lock, so the answer is returned from a local)."""
     global _SCHEDULE_CACHE
-    if _SCHEDULE_CACHE is not None:
-        return _SCHEDULE_CACHE
+    cached = _SCHEDULE_CACHE
+    if cached is not None:
+        return cached
 
     rel = str(get_config().get("paths.world_schedules", "") or "").strip()
-    if not rel:
+    path = _ROOT / rel if rel else None
+    if path is None:
         logger.debug("[schedules] Story declares no schedules (operation=load_schedules)")
-        _SCHEDULE_CACHE = {}
-        return _SCHEDULE_CACHE
-
-    path = _ROOT / rel
-    if not path.exists():
+        schedules: dict[str, Any] = {}
+    elif not path.exists():
         logger.warning(
             "[schedules] Config missing (operation=load_schedules, path=%s)", path
         )
-        _SCHEDULE_CACHE = {}
-        return _SCHEDULE_CACHE
-
-    with path.open(encoding="utf-8") as fh:
-        _SCHEDULE_CACHE = yaml.safe_load(fh) or {}
-    return _SCHEDULE_CACHE
+        schedules = {}
+    else:
+        with path.open(encoding="utf-8") as fh:
+            schedules = yaml.safe_load(fh) or {}
+    _SCHEDULE_CACHE = schedules
+    return schedules
 
 
 def _rumors_path() -> Optional[Path]:
@@ -107,26 +107,26 @@ def load_rumors() -> dict[str, Any]:
         schedules.yaml, so an old checkout keeps working.
     """
     global _RUMOR_CACHE
-    if _RUMOR_CACHE is not None:
-        return _RUMOR_CACHE
+    cached = _RUMOR_CACHE  # read once: a reset nulls it without a lock
+    if cached is not None:
+        return cached
 
     path = _rumors_path()
     if path is None:
         logger.debug("[schedules] Story declares no rumours (operation=load_rumors)")
-        _RUMOR_CACHE = {}
-        return _RUMOR_CACHE
-    if not path.exists():
+        rumors: dict[str, Any] = {}
+    elif not path.exists():
         logger.info(
             "[schedules] Tiered rumours absent, using flat list "
             "(operation=load_rumors, path=%s)",
             path,
         )
-        _RUMOR_CACHE = {}
-        return _RUMOR_CACHE
-
-    with path.open(encoding="utf-8") as fh:
-        _RUMOR_CACHE = yaml.safe_load(fh) or {}
-    return _RUMOR_CACHE
+        rumors = {}
+    else:
+        with path.open(encoding="utf-8") as fh:
+            rumors = yaml.safe_load(fh) or {}
+    _RUMOR_CACHE = rumors
+    return rumors
 
 
 def reset_rumor_cache() -> None:

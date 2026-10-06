@@ -1,0 +1,37 @@
+/* The admin panel (/admin): the front door's colours, plain tables and
+   forms. Served under the panel's Content-Security-Policy (style-src 'self'):
+   no page carries an inline style. */
+body { margin: 0; background: #080b0b; color: #e4dcca; font-family: Georgia, "Times New Roman", serif; }
+header { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: .8rem 1.4rem;
+         border-bottom: 1px solid #3a3326; background: #0f1312; }
+header .brand { font-size: 1.1rem; letter-spacing: .06em; color: #c9a86a; }
+header nav { display: flex; gap: 1rem; flex: 1; }
+header .who { color: #b9ad94; }
+main { max-width: 72rem; margin: 0 auto; padding: 1.4rem; }
+h1 { margin: 0 0 1rem; font-size: 1.4rem; font-weight: normal; letter-spacing: .04em; }
+h2 { margin: 1.4rem 0 .6rem; font-size: 1.05rem; font-weight: normal; color: #b9ad94; }
+a { color: #c9a86a; }
+a[aria-current="page"] { text-decoration: none; border-bottom: 1px solid #c9a86a; }
+table { width: 100%; border-collapse: collapse; margin: .4rem 0 1rem; }
+th, td { text-align: left; vertical-align: top; padding: .45rem .5rem; border-bottom: 1px solid #262119; }
+th { color: #b9ad94; font-weight: normal; }
+code { font-family: Consolas, "Courier New", monospace; font-size: .9em; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; }
+dt { color: #b9ad94; }
+dd { margin: 0; }
+form.inline { display: inline; margin: 0; }
+form.row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+form.stack { display: flex; flex-direction: column; gap: .5rem; max-width: 24rem; }
+input, select { padding: .4rem .5rem; font: inherit; background: #080b0b; color: #e4dcca; border: 1px solid #3a3326; }
+button { padding: .35rem .8rem; font: inherit; cursor: pointer; background: #2a2418; color: #e4dcca;
+         border: 1px solid #c9a86a; }
+button.link { padding: 0; border: 0; background: none; color: #c9a86a; text-decoration: underline; }
+button.danger { border-color: #b4553f; }
+td.actions form, td.actions details { margin: 0 .3rem .3rem 0; }
+details form { display: flex; flex-direction: column; gap: .35rem; margin-top: .4rem; }
+.message { margin: 0 0 1rem; padding: .6rem .7rem; border-left: 3px solid #c9a86a; background: #16140f; }
+.note { font-size: .85rem; color: #b9ad94; }
+.secret { font-size: 1.4rem; padding: .8rem; border: 1px dashed #c9a86a; display: inline-block; }
+nav.pages { display: flex; gap: 1rem; }
+tr.error td { color: #e08a74; }
+.locked { color: #b9ad94; font-size: .85rem; }

@@ -53,6 +53,7 @@ from typing import Any, Optional
 
 from engine.config import get_config
 from engine.llm.registry import ModelInfo, ModelUnavailable, get_registry
+from engine.locks import renew_after_fork
 
 logger = logging.getLogger(__name__)
 
@@ -176,6 +177,7 @@ _PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
 
 _cache: dict[str, ModelProfile] = {}
 _cache_lock = threading.Lock()
+renew_after_fork(globals(), _cache_lock=threading.Lock)
 # The ConfigManager the cache was built against. Held by reference, not by id():
 # keeping the object alive means a later config cannot land on a recycled id and
 # silently pass the identity check.

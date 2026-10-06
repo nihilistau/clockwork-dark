@@ -1,0 +1,318 @@
+{
+  "json": {
+    "config_path": "config/local.yaml",
+    "groups": [
+      "Pace",
+      "Voice",
+      "Pictures",
+      "The companion",
+      "The model"
+    ],
+    "settings": [
+      {
+        "group": "Pace",
+        "hint": "The difficulty slider. 0.006 reaches CONSUMING near day 130; 0.012 does it in half that; below 0.003 the world is still quiet at day 40 and the premise evaporates.",
+        "key": "world.evil_base_rate_per_day",
+        "label": "How fast the dark spreads",
+        "marks": {
+          "0.003": "Slow",
+          "0.006": "Measured",
+          "0.012": "Hunted"
+        },
+        "max": 0.02,
+        "min": 0.001,
+        "overridden": false,
+        "restart": false,
+        "step": 0.001,
+        "type": "float",
+        "value": 0.028
+      },
+      {
+        "group": "Pace",
+        "hint": "Real seconds between world simulation ticks.",
+        "key": "world.tick_interval_seconds",
+        "label": "Background tick",
+        "max": 600,
+        "min": 15,
+        "overridden": false,
+        "restart": true,
+        "type": "int",
+        "value": 60
+      },
+      {
+        "group": "Voice",
+        "hint": "Off by default on measurement, not taste: this machine synthesizes about 21x slower than realtime, so a full paragraph costs minutes.",
+        "key": "tts.enabled",
+        "label": "Speak the narration",
+        "overridden": false,
+        "restart": false,
+        "type": "bool",
+        "value": false
+      },
+      {
+        "group": "Voice",
+        "hint": "Its lines are one to three sentences — the only speech worth waiting for.",
+        "key": "tts.assistant_enabled",
+        "label": "Speak the Assistant",
+        "overridden": false,
+        "restart": false,
+        "type": "bool",
+        "value": false
+      },
+      {
+        "group": "Voice",
+        "hint": "Whatever your Voxtral build ships. An unknown name falls back to text.",
+        "key": "tts.voice",
+        "label": "Voice",
+        "options": [
+          "neutral_male",
+          "neutral_female",
+          "warm_female",
+          "old_male"
+        ],
+        "overridden": false,
+        "restart": false,
+        "type": "enum",
+        "value": "neutral_male"
+      },
+      {
+        "group": "Voice",
+        "hint": "Higher is better and much slower. 3 is the measured floor that still sounds human.",
+        "key": "tts.euler_steps",
+        "label": "Synthesis quality",
+        "max": 12,
+        "min": 1,
+        "overridden": false,
+        "restart": false,
+        "type": "int",
+        "value": 3
+      },
+      {
+        "group": "Voice",
+        "hint": "faster_whisper runs in the game's own process and needs no server. voxtral_http posts to an OpenAI-compatible transcription endpoint, which nothing on the default stack serves.",
+        "key": "stt.provider",
+        "label": "Push-to-talk backend",
+        "options": [
+          "faster_whisper",
+          "voxtral_http"
+        ],
+        "overridden": false,
+        "restart": false,
+        "type": "enum",
+        "value": "faster_whisper"
+      },
+      {
+        "group": "Voice",
+        "hint": "A faster-whisper size (tiny/base/small/medium/large-v3), a distil model, or a HuggingFace id. The first use downloads it.",
+        "key": "stt.whisper.model",
+        "label": "Whisper model",
+        "maxlength": 120,
+        "overridden": false,
+        "restart": false,
+        "type": "text",
+        "value": "distil-small.en"
+      },
+      {
+        "group": "Voice",
+        "hint": "auto takes the GPU when CTranslate2 can see one. CPU runs int8, which is the only quantisation fast enough to feel live there.",
+        "key": "stt.whisper.device",
+        "label": "Whisper device",
+        "options": [
+          "auto",
+          "cuda",
+          "cpu"
+        ],
+        "overridden": false,
+        "restart": false,
+        "type": "enum",
+        "value": "auto"
+      },
+      {
+        "group": "Pictures",
+        "hint": "Off, the shipped art pack answers instantly. On, a turn waits for the provider — minutes on Grok, seconds on ComfyUI.",
+        "key": "media.live_generation",
+        "label": "Generate pictures during play",
+        "overridden": false,
+        "restart": false,
+        "type": "bool",
+        "value": false
+      },
+      {
+        "group": "Pictures",
+        "hint": "Only consulted when live generation is on.",
+        "key": "media.image_provider",
+        "label": "Picture provider",
+        "options": [
+          "grokbuild",
+          "comfyui",
+          "procedural"
+        ],
+        "overridden": false,
+        "restart": false,
+        "type": "enum",
+        "value": "grokbuild"
+      },
+      {
+        "group": "Pictures",
+        "hint": "One cutscene per evil phase, or as many as the story asks for.",
+        "key": "media.cutscene_budget",
+        "label": "Cutscene budget",
+        "options": [
+          "phase_shift_only",
+          "unlimited"
+        ],
+        "overridden": false,
+        "restart": true,
+        "type": "enum",
+        "value": "phase_shift_only"
+      },
+      {
+        "group": "Pictures",
+        "hint": "Seconds before a cutscene will let you out of it. 0 means immediately.",
+        "key": "media.cutscene_skip_after_seconds",
+        "label": "Skippable after",
+        "max": 60,
+        "min": 0,
+        "overridden": false,
+        "restart": false,
+        "type": "int",
+        "value": 5
+      },
+      {
+        "group": "The companion",
+        "hint": "Below this the Assistant answers in weather and omens.",
+        "key": "awareness.reveal_threshold",
+        "label": "Awareness before it will speak plainly",
+        "max": 100,
+        "min": 0,
+        "overridden": false,
+        "restart": false,
+        "type": "int",
+        "value": 20
+      },
+      {
+        "group": "The companion",
+        "hint": "The fifth form is gated: it cannot appear until you have seen enough.",
+        "key": "awareness.reflection_form_min",
+        "label": "Awareness before the reflection",
+        "max": 100,
+        "min": 0,
+        "overridden": false,
+        "restart": false,
+        "type": "int",
+        "value": 40
+      },
+      {
+        "group": "The companion",
+        "hint": "Lore above this awareness is withheld from the prompt entirely.",
+        "key": "awareness.spoiler_gate_threshold",
+        "label": "Lore spoiler gate",
+        "max": 100,
+        "min": 0,
+        "overridden": false,
+        "restart": false,
+        "type": "int",
+        "value": 15
+      },
+      {
+        "group": "The companion",
+        "hint": "Tokens per line. It is a presence, not a chat window.",
+        "key": "assistant.max_tokens",
+        "label": "How much it may say",
+        "max": 600,
+        "min": 60,
+        "overridden": false,
+        "restart": false,
+        "type": "int",
+        "value": 200
+      },
+      {
+        "group": "The model",
+        "hint": "Empty means discover one by capability from LM Studio. Otherwise an exact model id.",
+        "key": "llm.profiles.big.model",
+        "label": "Narration model",
+        "maxlength": 180,
+        "overridden": false,
+        "restart": true,
+        "type": "text",
+        "value": ""
+      },
+      {
+        "group": "The model",
+        "key": "llm.profiles.big.temperature",
+        "label": "Narration temperature",
+        "max": 2.0,
+        "min": 0.0,
+        "overridden": false,
+        "restart": false,
+        "step": 0.05,
+        "type": "float",
+        "value": 0.85
+      },
+      {
+        "group": "The model",
+        "hint": "Tokens the narration itself may spend. Thinking is paid for separately below, so this floor is never eaten by deliberation. A full turn — prose, three choices, mood — measured 172 tokens.",
+        "key": "llm.profiles.big.max_tokens",
+        "label": "Room to answer",
+        "max": 8000,
+        "min": 512,
+        "overridden": false,
+        "restart": false,
+        "type": "int",
+        "value": 1200
+      },
+      {
+        "group": "The model",
+        "hint": "Extra tokens granted for reasoning, ON TOP of the answer's. A thinking model needs room to think as well as room to speak; give it one budget for both and the thought eats the sentence. Measured here at 1753–2997 tokens of thinking per turn, so 3200 covers it. Ignored entirely when thinking is off.",
+        "key": "llm.profiles.big.reasoning_budget",
+        "label": "Room to think",
+        "max": 8000,
+        "min": 0,
+        "overridden": false,
+        "restart": false,
+        "type": "int",
+        "value": 3200
+      },
+      {
+        "group": "The model",
+        "hint": "On feeds the live reasoning panel, and thinking is most of the turn: 106–189 seconds measured here, against 17–21 with it truly off. Turning it off may change nothing — a narration turn is schema-constrained, and that route ignores this setting. Only switching structured output off frees it, and that costs the authored choices and live streaming.",
+        "key": "llm.profiles.big.reasoning",
+        "label": "Let it think out loud",
+        "options": [
+          "on",
+          "off"
+        ],
+        "overridden": false,
+        "restart": false,
+        "type": "enum",
+        "value": "on"
+      },
+      {
+        "group": "The model",
+        "hint": "Fallback only — the real number comes from the loaded model.",
+        "key": "llm.context_tokens",
+        "label": "Context window",
+        "max": 131072,
+        "min": 2048,
+        "overridden": false,
+        "restart": true,
+        "type": "int",
+        "value": 8192
+      },
+      {
+        "group": "The model",
+        "hint": "The only transport that can actually turn reasoning off. Leave on unless it misbehaves.",
+        "key": "llm.prefer_native",
+        "label": "Use LM Studio's native endpoint",
+        "overridden": false,
+        "providers": [
+          "lmstudio"
+        ],
+        "restart": true,
+        "type": "bool",
+        "value": true
+      }
+    ]
+  },
+  "status": 200
+}

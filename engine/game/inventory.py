@@ -49,6 +49,7 @@ Version: v0.2.0 [2026-08-08]
 from __future__ import annotations
 
 import logging
+import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Optional
@@ -619,7 +620,12 @@ def collection_status(state: GameState) -> list[dict[str, Any]]:
 #: Re-entrancy guard. A collection reward that grants an item would otherwise
 #: re-enter this function from inside effects.apply_effect and, with two sets
 #: that feed each other, recurse. One level is all any payout needs.
-_evaluating_collections = False
+#:
+#: PER THREAD (v0.20.0): it was a module bool, so while one player's payout
+#: ran every other session's completed set read as re-entry and got ``[]`` --
+#: a payout skipped for that turn, silently. Like ``clock._guard``, it is set
+#: and cleared inside one call, so a reused thread never inherits it.
+_evaluating_collections = threading.local()
 
 
 def evaluate_collections(state: GameState, ledger: Optional[Any] = None) -> list[dict[str, Any]]:
@@ -635,11 +641,10 @@ def evaluate_collections(state: GameState, ledger: Optional[Any] = None) -> list
     the caller has one (a quest hook does); without one they are dropped, as
     every ``ledger_fact`` is outside a turn.
     """
-    global _evaluating_collections
-    if _evaluating_collections:
+    if getattr(_evaluating_collections, "active", False):
         return []
     completed = []
-    _evaluating_collections = True
+    _evaluating_collections.active = True
     try:
         for row in collection_status(state):
             if not row["complete"] or row["claimed"]:
@@ -666,7 +671,7 @@ def evaluate_collections(state: GameState, ledger: Optional[Any] = None) -> list
                 }
             )
     finally:
-        _evaluating_collections = False
+        _evaluating_collections.active = False
     return completed
 
 

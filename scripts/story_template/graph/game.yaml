@@ -81,7 +81,6 @@ paths:
   # The livelihood tables: forage, labour, trade spreads, boons and
   # complications on natural 20s and 1s.
   tables: "games/{{slug}}/data/tables"
-  saves: "data/saves"
 
 entry:
   # Must exist in data/world/locations.yaml.

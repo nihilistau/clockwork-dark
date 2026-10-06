@@ -160,8 +160,9 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from engine.config import get_config
+from engine.config import TEST_SANDBOX_ENV, child_sandbox, get_config
 from engine.llm.tools import skill_to_openai_tool
+from engine.locks import renew_after_fork
 from engine.skills.registry import AGENT_STORYTELLER, SKILL_REGISTRY, SkillDef
 
 logger = logging.getLogger(__name__)
@@ -463,6 +464,10 @@ class SkillsServer:
         self._resolve_engine = resolve_engine
         self._thread: Optional[threading.Thread] = None
         self._server: Optional[Any] = None
+        #: The running uvicorn server, kept so ``stop`` can end it.
+        self._uvicorn: Optional[Any] = None
+        #: Set by ``stop``; a server thread that comes up after it does not serve.
+        self._stopping = False
         self._registered: set[str] = set()
 
     @property
@@ -503,17 +508,42 @@ class SkillsServer:
             logger.error("[mcp] Could not build the skills server (operation=start): %s", exc)
             return False
 
+        self._stopping = False
+
         def _run() -> None:
             try:
                 # SSE, on its own port. This is the combination CosySim proves
                 # against a live LM Studio; see the module docstring.
-                self._server.run(  # type: ignore[union-attr]
-                    transport="sse",
+                #
+                # What ``FastMCP.run(transport="sse", ...)`` does, with the
+                # uvicorn server kept (v0.20.0 T9) so ``stop`` can end it:
+                # fastmcp's own run holds it in a local. The SSE app's lifespan
+                # enters the server's own lifespan, as fastmcp's run does.
+                import asyncio
+
+                import fastmcp
+                import uvicorn
+
+                app = self._server.http_app(path=self.path, transport="sse")  # type: ignore[union-attr]
+                # fastmcp 3.2.4's run_http_async's config, exactly (requirements
+                # pin fastmcp to 3.2.x): `ws` included, so uvicorn never imports
+                # websockets' deprecated legacy module for `ws="auto"`.
+                config = uvicorn.Config(
+                    app,
                     host=self.host,
                     port=self.port,
-                    path=self.path,
-                    show_banner=False,
+                    timeout_graceful_shutdown=2,
+                    lifespan="on",
+                    ws="websockets-sansio",
+                    log_level=str(fastmcp.settings.log_level).lower(),
                 )
+                server = uvicorn.Server(config)
+                # Published BEFORE the stop flag is read, and `stop` sets the
+                # flag before it reads this: one of the two always sees the other.
+                self._uvicorn = server
+                if self._stopping:
+                    return
+                asyncio.run(server.serve())
             except Exception as exc:  # noqa: BLE001
                 logger.error("[mcp] Skills server stopped (operation=run): %s", exc)
 
@@ -539,6 +569,37 @@ class SkillsServer:
             "[mcp] Skills server never came up (operation=start, url=%s)", self.url
         )
         return False
+
+    def stop(self, *, wait_seconds: float = 10.0) -> None:
+        """
+        End the server: its ``mcp.json`` entries dropped, its uvicorn told to
+        exit, and its thread joined (up to ``wait_seconds``). Idempotent;
+        never raises. A start that a reset discarded is stopped here, so it
+        does not listen, unowned, for the life of the process (v0.20.0 T9), and
+        so is one whose start timed out (fix round 1): its thread may still
+        come up later, and sees the stop flag.
+        """
+        self._stopping = True
+        try:
+            self.release()
+        except Exception as exc:  # noqa: BLE001 -- the game outranks the tool layer
+            logger.warning("[mcp] Could not drop this server's mcp.json entries: %s", exc)
+        server = self._uvicorn
+        if server is not None:
+            server.should_exit = True
+        thread = self._thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(wait_seconds)
+            if thread.is_alive():
+                logger.warning(
+                    "[mcp] Skills server did not stop within %ss (operation=stop, url=%s)",
+                    wait_seconds,
+                    self.url,
+                )
+                return
+        self._thread = None
+        self._uvicorn = None
+        logger.info("[mcp] Skills server stopped (operation=stop, url=%s)", self.url)
 
     def integration(
         self,
@@ -697,6 +758,39 @@ def _entry_name(session_id: str) -> str:
 #: Set once per process, so a run leaves ONE backup rather than one per turn.
 _backed_up: set[Path] = set()
 
+# ``TEST_SANDBOX_ENV`` (``CLOCKWORK_TEST_SANDBOX``, from ``engine.config``) is
+# the test suite's child-process sandbox marker (v0.20.0, spec §3.5): the
+# conftest writes it into its own environment, naming its pid and the sandbox
+# layer, so every process it starts inherits it (``child_sandbox``). NO
+# DEPLOYMENT SETS IT: unset, which is every real run -- or in the suite's own
+# process -- the two writers below behave exactly as they always have.
+
+
+def _outside_test_sandbox(path: Path, operation: str) -> bool:
+    """
+    Whether ``path`` must be refused because a test sandbox is in force and
+    the path is not inside it. Logs the refusal as a WARNING.
+
+    Defence in depth for the suite's child processes: the sandbox config
+    layer already points ``llm.mcp.mcp_json`` into the temp root, but a
+    child that rebuilt its config from scratch (or passed its own ``path``)
+    would otherwise reach the owner's real LM Studio ``mcp.json``, which is
+    not ours and holds their other servers' credentials. A marker that names
+    no sandbox root refuses every target (``engine.config.child_sandbox``).
+    """
+    sandbox = child_sandbox()
+    if sandbox is None or sandbox.contains(path):
+        return False
+    logger.warning(
+        "[mcp] Refused to touch a file outside the test sandbox "
+        "(operation=%s, path=%s, sandbox=%s, marker=%s)",
+        operation,
+        path,
+        sandbox.root,
+        TEST_SANDBOX_ENV,
+    )
+    return True
+
 
 def backup_once(path: Path) -> Optional[Path]:
     """
@@ -713,8 +807,12 @@ def backup_once(path: Path) -> Optional[Path]:
         None when there was nothing to copy or the copy failed. A failed backup
         is logged and does NOT stop the write: the file's own atomic rename is
         what protects it from corruption, and refusing to register would cost
-        tool calling for a belt-and-braces measure.
+        tool calling for a belt-and-braces measure. None, too, in a child of
+        the test suite (``child_sandbox``; no deployment sets its marker) for
+        a path outside the sandbox root, refused and logged.
     """
+    if _outside_test_sandbox(path, "backup_once"):
+        return None
     if path in _backed_up or not path.exists():
         return None
     stamp = time.strftime("%Y%m%dT%H%M%S")
@@ -746,7 +844,17 @@ def _write_json_atomic(path: Path, document: dict[str, Any]) -> None:
     LM Studio a half-written file and the player's other servers gone with it.
     ``os.replace`` is atomic on Windows and POSIX alike, which is the same
     reason ``engine/api/settings.py`` writes ``config/local.yaml`` this way.
+
+    In a child of the test suite (``child_sandbox``; no deployment sets its
+    marker), a target outside the sandbox root -- every target, when the
+    marker names none -- is refused with a WARNING and a ``PermissionError``,
+    which the callers report as "could not register".
+
+    Raises:
+        PermissionError: The target is outside the test sandbox.
     """
+    if _outside_test_sandbox(path, "_write_json_atomic"):
+        raise PermissionError(f"{path} is outside the test sandbox ({TEST_SANDBOX_ENV})")
     temp = path.with_name(f"{path.name}.tmp")
     temp.write_text(json.dumps(document, indent=2), encoding="utf-8")
     os.replace(temp, path)
@@ -900,6 +1008,30 @@ def unregister_sessions(
 
 _server: Optional[SkillsServer] = None
 _server_lock = threading.Lock()
+renew_after_fork(globals(), _server_lock=threading.Lock)
+
+#: Single flight (v0.20.0 T6 fix round 2): True while one thread is starting
+#: the server OUTSIDE ``_server_lock``. A start polls its port for up to ten
+#: seconds; held under the lock, it queued every player's turn behind it.
+_starting = False
+#: ``time.monotonic()`` of the last failed start, or None: no retry until
+#: ``llm.mcp.start_retry_seconds`` have passed (it was retried every turn).
+_failed_at: Optional[float] = None
+#: Bumped by every reset, so a start that finishes after one is not published.
+_generation = 0
+
+#: When ``llm.mcp.start_retry_seconds`` is unset or not a number.
+DEFAULT_START_RETRY_SECONDS = 60.0
+
+
+def _start_retry_seconds() -> float:
+    try:
+        return max(
+            0.0,
+            float(get_config().get("llm.mcp.start_retry_seconds", DEFAULT_START_RETRY_SECONDS)),
+        )
+    except (TypeError, ValueError):
+        return DEFAULT_START_RETRY_SECONDS
 
 
 def active_server() -> Optional[SkillsServer]:
@@ -925,29 +1057,120 @@ def get_skills_server(
     Studio's row does, v0.19.0), when ``fastmcp`` is absent, or when no
     resolver has ever been supplied — all of which mean "no tool calling",
     never "no game". The server's own settings are ``llm.mcp.*``.
+
+    SINGLE FLIGHT (v0.20.0). One caller starts the server, outside the lock;
+    every other caller meanwhile gets None ("not ready": this turn runs
+    without tools) at once rather than waiting out the start. A failed start
+    is remembered: no caller tries again until ``llm.mcp.start_retry_seconds``
+    have passed. A reset during a start keeps that start from being published,
+    and stops it (v0.20.0 T9), so it does not listen unowned; so is a start
+    that timed out (fix round 1). A turn that met a start in flight says it
+    played without tools (``last_reason``, ``engine/agents/mechanics.py``).
     """
-    global _server
+    server, reason = skills_server_status(resolve_engine)
+    _last.reason = reason
+    return server
+
+
+#: Why this thread's last ``get_skills_server`` answered None (T9 fix round 1):
+#: decided under the lock in the same step, read by the caller right after.
+_last = threading.local()
+
+
+def last_reason() -> str:
+    """Why this thread's last ``get_skills_server`` call had no server ("" if it had one, or none was made)."""
+    return str(getattr(_last, "reason", "") or "")
+
+
+def forget_reason() -> None:
+    """Clear ``last_reason`` before a call, so a stubbed getter reads as no reason."""
+    _last.reason = ""
+
+
+#: ``skills_server_status``'s reasons for having no server.
+NO_SERVER_STARTING = "starting"
+NO_SERVER_UNAVAILABLE = "unavailable"
+
+
+def skills_server_status(
+    resolve_engine: Optional[EngineResolver] = None,
+) -> tuple[Optional[SkillsServer], str]:
+    """
+    ``get_skills_server``, with WHY there is none: ``(server, "")``,
+    ``(None, NO_SERVER_STARTING)`` when another caller's start is in flight
+    (decided under the lock, in the same step that found no server; T9 fix
+    round 1), or ``(None, NO_SERVER_UNAVAILABLE)`` for every other reason.
+    """
+    global _server, _starting, _failed_at
     with _server_lock:
-        if _server is not None:
-            return _server
+        server = _server
+        if server is not None:
+            return server, ""
+        if _starting:
+            return None, NO_SERVER_STARTING
         from engine.agents.mechanics import mechanics_enabled
 
         if not mechanics_enabled():
-            return None
+            return None, NO_SERVER_UNAVAILABLE
         if resolve_engine is None:
-            return None
-        server = SkillsServer(resolve_engine=resolve_engine)
-        if not server.start():
-            return None
-        _server = server
-        return _server
+            return None, NO_SERVER_UNAVAILABLE
+        failed_at = _failed_at
+        if failed_at is not None and time.monotonic() - failed_at < _start_retry_seconds():
+            return None, NO_SERVER_UNAVAILABLE
+        _starting = True
+        generation = _generation
+
+    started: Optional[SkillsServer] = None
+    try:
+        candidate = SkillsServer(resolve_engine=resolve_engine)
+        if candidate.start():
+            started = candidate
+        else:
+            # A start that timed out may still come up later; stopped now, it
+            # never listens unowned (T9 fix round 1).
+            try:
+                candidate.stop(wait_seconds=2.0)
+            except Exception as exc:  # noqa: BLE001 -- the game outranks the tool layer
+                logger.warning("[mcp] Could not stop a failed skills server start: %s", exc)
+    finally:
+        with _server_lock:
+            _starting = False
+            if generation == _generation:
+                if started is not None:
+                    _server = started
+                    _failed_at = None
+                else:
+                    _failed_at = time.monotonic()
+    if started is not None and generation != _generation:
+        # Nobody owns it now, so nobody would ever stop it: its port and its
+        # thread would outlive the reset that discarded it (v0.20.0 T9).
+        logger.info(
+            "[mcp] A start that outlived a reset is not published; stopping it "
+            "(operation=get_skills_server)"
+        )
+        try:
+            started.stop()
+        except Exception as exc:  # noqa: BLE001 -- the game outranks the tool layer
+            logger.warning("[mcp] Could not stop a discarded skills server: %s", exc)
+        return None, NO_SERVER_UNAVAILABLE
+    if started is None:
+        return None, NO_SERVER_UNAVAILABLE
+    return started, ""
+
+
+def start_in_flight() -> bool:
+    """Whether a skills-server start is running now (a caller meanwhile plays without tools)."""
+    with _server_lock:
+        return bool(_starting)
 
 
 def reset_skills_server() -> None:
-    """Drop the singleton. Tests, and config reloads."""
-    global _server
+    """Drop the singleton and any remembered failure. Tests, and config reloads."""
+    global _server, _failed_at, _generation
     with _server_lock:
         _server = None
+        _failed_at = None
+        _generation += 1
 
 
 __all__ = [
@@ -967,7 +1190,13 @@ __all__ = [
     "plugin_integration",
     "register_session",
     "reset_skills_server",
+    "NO_SERVER_STARTING",
+    "NO_SERVER_UNAVAILABLE",
+    "forget_reason",
+    "last_reason",
     "skill_input_schema",
+    "skills_server_status",
+    "start_in_flight",
     "tool_definitions",
     "unregister_sessions",
 ]

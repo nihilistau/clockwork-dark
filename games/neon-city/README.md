@@ -14,6 +14,10 @@ against it. What changed, release by release: [CHANGELOG.md](CHANGELOG.md).
 .\.venv\Scripts\python.exe launcher.py --game neon-city
 ```
 
+```sh
+.venv/bin/python launcher.py --game neon-city   # Linux
+```
+
 ## The shape
 
 Graph story, flagship-shaped, with the deck half's structural systems wired

@@ -1,0 +1,23 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 2+2? Answer with one number only."
+      }
+    ],
+    "max_tokens": 16,
+    "response_format": {
+      "type": "not_a_format"
+    }
+  },
+  "status": 400,
+  "json": {
+    "error": {
+      "message": "6 validation errors:\n  {'type': 'literal_error', 'loc': 'body.response_format.type', 'msg': \"Input should be 'text', 'json_object' or 'json_schema'\", 'input': 'not_a_format', 'ctx': {'expected': \"'text', 'json_object' or 'json_schema'\"}}\n  {'type': 'literal_error', 'loc': 'body.response_format.type', 'msg': \"Input should be 'structural_tag'\", 'input': 'not_a_format', 'ctx': {'expected': \"'structural_tag'\"}}\n  {'type': 'missing', 'loc': 'body.response_format.format', 'msg': 'Field required', 'input': '<dict of 1 items>'}\n  {'type': 'literal_error', 'loc': 'body.response_format.type', 'msg': \"Input should be 'structural_tag'\", 'input': 'not_a_format', 'ctx': {'expected': \"'structural_tag'\"}}\n  {'type': 'missing', 'loc': 'body.response_format.structures', 'msg': 'Field required', 'input': '<dict of 1 items>'}\n  {'type': 'missing', 'loc': 'body.response_format.triggers', 'msg': 'Field required', 'input': '<dict of 1 items>'}",
+      "type": "Bad Request",
+      "param": "body.response_format.type",
+      "code": 400
+    }
+  }
+}

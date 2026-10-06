@@ -35,6 +35,15 @@ npm-debug.log*
 data/saves/
 data/cache/
 data/telemetry/
+# Hosted mode's runtime files (storage.root defaults to data/): the cookie key
+# (`secret_key`, no .key suffix), users.json's password hashes, the audit log,
+# metrics and logs. Never commit these; this repository is public.
+data/hosting/
+# Hosted mode's per-account saves (data/users/<id>/saves/).
+data/users/
+# The agent-workflow workspace (review diffs, progress notes, scratch config
+# that may carry a live API key).
+.superpowers/
 # Every story builds its own lore index on first run, inside its own tree.
 # (The flagship's used to sit at the repo root's data/lore/ until its content
 # moved under games/clockwork-dark/data/; this one pattern now covers every
@@ -98,3 +107,7 @@ Design_files/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# scripts/doctor.py's case probe (removed after each run; ignored in case a
+# run is killed mid-probe)
+.clockwork-case-probe-*/

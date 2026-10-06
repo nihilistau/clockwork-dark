@@ -109,7 +109,6 @@ paths:
   art_subjects: "games/neon-city/data/art/subjects.yaml"
   art_manifest: "games/neon-city/data/art/manifest.yaml"
   art_root: "games/neon-city/data/art/plates"
-  saves: "data/saves"
 
 entry:
   # The Grid: the underground market where Mira slides the shard across the

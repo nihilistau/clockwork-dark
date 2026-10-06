@@ -19,11 +19,15 @@ from pathlib import Path
 from typing import Optional
 
 from engine.config import get_config
+from engine.locks import renew_after_fork
 
 logger = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).resolve().parents[2]
 _manager: Optional["LoreManager"] = None
+#: Guards building ``_manager`` (v0.20.0): two first callers open one index.
+_manager_lock = threading.Lock()
+renew_after_fork(globals(), _manager_lock=threading.Lock)
 
 _SECTION_SPLIT = re.compile(r"(?=^##\s+)", re.MULTILINE)
 
@@ -335,11 +339,15 @@ class LoreManager:
 
 
 def get_lore_manager(*, db_path: Optional[Path] = None) -> LoreManager:
-    """Return singleton LoreManager."""
+    """Return singleton LoreManager (double-checked: no lock once built)."""
     global _manager
-    if _manager is None or (db_path and _manager.db_path != db_path):
-        _manager = LoreManager(db_path=db_path)
-    return _manager
+    manager = _manager
+    if manager is not None and not (db_path and manager.db_path != db_path):
+        return manager
+    with _manager_lock:
+        if _manager is None or (db_path and _manager.db_path != db_path):
+            _manager = LoreManager(db_path=db_path)
+        return _manager
 
 
 def reset_lore_manager(db_path: Optional[Path] = None) -> LoreManager:

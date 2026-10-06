@@ -1,0 +1,426 @@
+{
+  "json": {
+    "opening": {
+      "assistant": {
+        "decision": {},
+        "form": "cat",
+        "gift": null,
+        "help_probability": 0.4,
+        "hint_tier": 0,
+        "intent": "silent",
+        "patience": 80.0,
+        "portrait": "",
+        "reflection_unlocked": false,
+        "reliable": true,
+        "spoke": false,
+        "text": "",
+        "tool_receipts": [],
+        "transcript": "",
+        "trust": 20.0,
+        "unveiled": false,
+        "voice_style": ""
+      },
+      "choices": [
+        {
+          "id": "a",
+          "intent": {
+            "action": "check",
+            "difficulty": "standard",
+            "target": "stealth"
+          },
+          "intent_label": "stealth check (standard)",
+          "text": "Duck the lamp and lose yourself in the crowd"
+        },
+        {
+          "id": "b",
+          "intent": {
+            "action": "check",
+            "difficulty": "hard",
+            "target": "persuasion"
+          },
+          "intent_label": "persuasion check (hard)",
+          "text": "Raise your empty hands and explain, calmly, that he is wrong"
+        },
+        {
+          "id": "c",
+          "intent_label": "arrest · The Lantern House",
+          "text": "Hold out your wrists and go quietly"
+        }
+      ],
+      "frame": "opening",
+      "narration": "The morning barge noses into Tallow Docks through a fog that smells of mutton fat and bayberry, and the whole quay is candles: crates of them, carts of them, a chandler's boy asleep on a pallet of beeswax tapers with his mouth open. High on the hill the Everflame burns in the Margrave's palace, pale in the daylight, which is the only time anyone here says it looks small. You step onto the boards with everything you own in one bag. A jackdaw you did not bring lands on your shoulder, looks at the brass button on your coat with its one good eye, and settles in like a lodger. Across the quay, a young Lantern of the Watch lowers his lamp, goes the colour of tallow, and fills his lungs. \"THE MAGPIE!\" he bellows, pointing at you with his whole arm. \"Stop -- it's the MAGPIE!\" Every head on the docks turns. The sergeant behind him puts down his pastry.",
+      "scene_image": "/api/media/images/f499a156b41cb920.svg",
+      "state": {
+        "active_arc": "hue_and_cry",
+        "archetype": "cutpurse",
+        "carry": {
+          "limit": 25.0,
+          "overloaded": false,
+          "weight": 0.0
+        },
+        "challenge": {},
+        "encounter": {},
+        "ended": false,
+        "endings": {
+          "fail_forward": "the_rope",
+          "forced": true,
+          "gallery": [
+            {
+              "closeness": "none",
+              "gate": "flag: magpie_unmasked",
+              "id": "cleared",
+              "lock_reason": "The Watch still takes you for the Magpie. Only the right name, laid on the captain's desk, will change its mind.",
+              "tease": "The Watch takes the right thief at last, and says your name out loud with the word 'not' in front of the other one.",
+              "tier": "locked",
+              "title": "Cleared"
+            },
+            {
+              "closeness": "none",
+              "gate": "flag: magpie_unmasked and reputation: {'faction': 'lantern_watch', 'min': 5}",
+              "id": "a_lantern",
+              "lock_reason": "The captain has no badge for anyone the Watch still takes for the Magpie. The Watch does not know you yet as one of its own -- not the way the lamps know the people who light them.",
+              "tease": "The captain who hunted you across the city holds out a badge.",
+              "tier": "locked",
+              "title": "A Lantern"
+            },
+            {
+              "closeness": "none",
+              "gate": "flag: honest_wage_earned",
+              "id": "honest_after_all",
+              "lock_reason": "You have not earned an honest wage in Tallowmere yet -- not one day's pay for one day's work.",
+              "tease": "The evening barge, a clean name, and a pocket of coin that nobody else ever owned.",
+              "tier": "locked",
+              "title": "Honest After All"
+            },
+            {
+              "closeness": "none",
+              "gate": "flag: partners_with_the_magpie",
+              "id": "partners",
+              "lock_reason": "You have not found the Magpie out and asked to be let in -- not face to face, with the trail to show for it.",
+              "tease": "You found the real Magpie, and instead of shouting it to the Watch you asked for half.",
+              "tier": "locked",
+              "title": "Partners"
+            },
+            {
+              "closeness": "none",
+              "gate": "has_item: everflame_heart",
+              "id": "the_legend",
+              "lock_reason": "The Everflame's heart is not under your coat: still on the palace steps, or back in the household's hands.",
+              "tease": "The heart of the Everflame, off the palace steps in front of the whole city, and home before the Watch has finished shouting.",
+              "tier": "locked",
+              "title": "The Legend"
+            },
+            {
+              "closeness": "none",
+              "gate": "flag: guild_initiated and reputation: {'faction': 'honest_company', 'min': 5} and any: [{'thread': {'template': 'gannet_silk_row', 'status': 'discharged'}}, {'secret_held': {'premise': 'prem_gannets_hou and event_seen: hanging_fair",
+              "id": "guildmaster",
+              "lock_reason": "You have not sworn the Honest Company's oath at the long table. The Porters' Hall does not think enough of you yet to follow you anywhere. Mother Gannet has not taken your measure: no job of hers done and paid, and nothing of hers you know that she would rather you did not. Mother Gannet names nobody to the chair before the Hanging Fair: the whole Company goes up to the Green together first, as it has every year of her thirty, and she has always said she will know by then.",
+              "tease": "Mother Gannet puts her knitting in your hands, and the Honest Company is yours to keep honest.",
+              "tier": "locked",
+              "title": "Guildmaster"
+            },
+            {
+              "closeness": "none",
+              "gate": "flag: silas_splits_the_company and flag: guild_initiated",
+              "id": "the_dappers_city",
+              "lock_reason": "Silas Crook has not pulled enough of the young porters his way -- not yet. You never swore the Company's oath, so the Company's quarrel is not yours to lose.",
+              "tease": "Plum ribbons in every buttonhole in the Snuffs, and a seat at the Dapper's right hand, which is the hand he watches.",
+              "tier": "locked",
+              "title": "The Dapper's City"
+            },
+            {
+              "closeness": "none",
+              "id": "the_rope",
+              "tease": "Taken at the fair, hanged at the fair, which the ballad-sellers find very good for business.",
+              "tier": "unlocked",
+              "title": "The Rope"
+            }
+          ],
+          "intent": "none",
+          "locked": "none",
+          "settled": false
+        },
+        "evil_phase": "dormant",
+        "hunger": 0.0,
+        "hunger_stage": "fed",
+        "inventory": [],
+        "job": {
+          "active": null,
+          "prep": "none"
+        },
+        "law": {
+          "clarity": "nothing",
+          "custody": null,
+          "guise_label": "your own face",
+          "wanted": {
+            "the Quay": "unknown",
+            "the Wick wards": "unknown",
+            "up the Rise": "unknown"
+          }
+        },
+        "location_id": "tallow_docks",
+        "location_name": "Tallow Docks",
+        "meters": {
+          "evidence": {
+            "band": "none",
+            "kind": "meter",
+            "label": "Evidence",
+            "name": "evidence"
+          }
+        },
+        "player_name": "Traveler",
+        "premises": [
+          {
+            "empty_now": false,
+            "id": "prem_tallow_docks_1",
+            "known": [],
+            "name": "Ashdown's Wax Loft",
+            "of": 5,
+            "type_label": "warehouse"
+          },
+          {
+            "empty_now": false,
+            "id": "prem_tallow_docks_2",
+            "known": [],
+            "name": "The Sleeping Lamplighter",
+            "of": 5,
+            "type_label": "tavern"
+          },
+          {
+            "empty_now": false,
+            "id": "prem_tallow_docks_3",
+            "known": [],
+            "name": "the Tallow Exchange office at Number 38, Dipping Row",
+            "of": 5,
+            "type_label": "counting-house"
+          },
+          {
+            "empty_now": false,
+            "id": "prem_tallow_docks_4",
+            "known": [],
+            "name": "Smallwick Brothers, Bankers",
+            "of": 5,
+            "type_label": "counting-house"
+          }
+        ],
+        "quests": {
+          "_meta": {
+            "events_seen": {},
+            "visited": []
+          }
+        },
+        "reputations": {},
+        "scene": {},
+        "session_id": "<session-3>",
+        "stamina_cap": 100,
+        "stats": {
+          "agility": 13,
+          "craft": 10,
+          "focus": 10,
+          "gold": 5,
+          "grit": 9,
+          "hp": 20,
+          "max_focus": 10,
+          "max_hp": 20,
+          "max_stamina": 100,
+          "presence": 10,
+          "stamina": 100,
+          "wits": 11
+        },
+        "threads": [],
+        "time_of_day": "day",
+        "turn_number": 0,
+        "world_day": 1,
+        "world_hour": 8,
+        "wounds": []
+      }
+    },
+    "save_id": "<save-4>",
+    "session_id": "<session-3>",
+    "state": {
+      "active_arc": "hue_and_cry",
+      "archetype": "cutpurse",
+      "carry": {
+        "limit": 25.0,
+        "overloaded": false,
+        "weight": 0.0
+      },
+      "challenge": {},
+      "encounter": {},
+      "ended": false,
+      "endings": {
+        "fail_forward": "the_rope",
+        "forced": true,
+        "gallery": [
+          {
+            "closeness": "none",
+            "gate": "flag: magpie_unmasked",
+            "id": "cleared",
+            "lock_reason": "The Watch still takes you for the Magpie. Only the right name, laid on the captain's desk, will change its mind.",
+            "tease": "The Watch takes the right thief at last, and says your name out loud with the word 'not' in front of the other one.",
+            "tier": "locked",
+            "title": "Cleared"
+          },
+          {
+            "closeness": "none",
+            "gate": "flag: magpie_unmasked and reputation: {'faction': 'lantern_watch', 'min': 5}",
+            "id": "a_lantern",
+            "lock_reason": "The captain has no badge for anyone the Watch still takes for the Magpie. The Watch does not know you yet as one of its own -- not the way the lamps know the people who light them.",
+            "tease": "The captain who hunted you across the city holds out a badge.",
+            "tier": "locked",
+            "title": "A Lantern"
+          },
+          {
+            "closeness": "none",
+            "gate": "flag: honest_wage_earned",
+            "id": "honest_after_all",
+            "lock_reason": "You have not earned an honest wage in Tallowmere yet -- not one day's pay for one day's work.",
+            "tease": "The evening barge, a clean name, and a pocket of coin that nobody else ever owned.",
+            "tier": "locked",
+            "title": "Honest After All"
+          },
+          {
+            "closeness": "none",
+            "gate": "flag: partners_with_the_magpie",
+            "id": "partners",
+            "lock_reason": "You have not found the Magpie out and asked to be let in -- not face to face, with the trail to show for it.",
+            "tease": "You found the real Magpie, and instead of shouting it to the Watch you asked for half.",
+            "tier": "locked",
+            "title": "Partners"
+          },
+          {
+            "closeness": "none",
+            "gate": "has_item: everflame_heart",
+            "id": "the_legend",
+            "lock_reason": "The Everflame's heart is not under your coat: still on the palace steps, or back in the household's hands.",
+            "tease": "The heart of the Everflame, off the palace steps in front of the whole city, and home before the Watch has finished shouting.",
+            "tier": "locked",
+            "title": "The Legend"
+          },
+          {
+            "closeness": "none",
+            "gate": "flag: guild_initiated and reputation: {'faction': 'honest_company', 'min': 5} and any: [{'thread': {'template': 'gannet_silk_row', 'status': 'discharged'}}, {'secret_held': {'premise': 'prem_gannets_hou and event_seen: hanging_fair",
+            "id": "guildmaster",
+            "lock_reason": "You have not sworn the Honest Company's oath at the long table. The Porters' Hall does not think enough of you yet to follow you anywhere. Mother Gannet has not taken your measure: no job of hers done and paid, and nothing of hers you know that she would rather you did not. Mother Gannet names nobody to the chair before the Hanging Fair: the whole Company goes up to the Green together first, as it has every year of her thirty, and she has always said she will know by then.",
+            "tease": "Mother Gannet puts her knitting in your hands, and the Honest Company is yours to keep honest.",
+            "tier": "locked",
+            "title": "Guildmaster"
+          },
+          {
+            "closeness": "none",
+            "gate": "flag: silas_splits_the_company and flag: guild_initiated",
+            "id": "the_dappers_city",
+            "lock_reason": "Silas Crook has not pulled enough of the young porters his way -- not yet. You never swore the Company's oath, so the Company's quarrel is not yours to lose.",
+            "tease": "Plum ribbons in every buttonhole in the Snuffs, and a seat at the Dapper's right hand, which is the hand he watches.",
+            "tier": "locked",
+            "title": "The Dapper's City"
+          },
+          {
+            "closeness": "none",
+            "id": "the_rope",
+            "tease": "Taken at the fair, hanged at the fair, which the ballad-sellers find very good for business.",
+            "tier": "unlocked",
+            "title": "The Rope"
+          }
+        ],
+        "intent": "none",
+        "locked": "none",
+        "settled": false
+      },
+      "evil_phase": "dormant",
+      "hunger": 0.0,
+      "hunger_stage": "fed",
+      "inventory": [],
+      "job": {
+        "active": null,
+        "prep": "none"
+      },
+      "law": {
+        "clarity": "nothing",
+        "custody": null,
+        "guise_label": "your own face",
+        "wanted": {
+          "the Quay": "unknown",
+          "the Wick wards": "unknown",
+          "up the Rise": "unknown"
+        }
+      },
+      "location_id": "tallow_docks",
+      "location_name": "Tallow Docks",
+      "meters": {
+        "evidence": {
+          "band": "none",
+          "kind": "meter",
+          "label": "Evidence",
+          "name": "evidence"
+        }
+      },
+      "player_name": "Traveler",
+      "premises": [
+        {
+          "empty_now": false,
+          "id": "prem_tallow_docks_1",
+          "known": [],
+          "name": "Ashdown's Wax Loft",
+          "of": 5,
+          "type_label": "warehouse"
+        },
+        {
+          "empty_now": false,
+          "id": "prem_tallow_docks_2",
+          "known": [],
+          "name": "The Sleeping Lamplighter",
+          "of": 5,
+          "type_label": "tavern"
+        },
+        {
+          "empty_now": false,
+          "id": "prem_tallow_docks_3",
+          "known": [],
+          "name": "the Tallow Exchange office at Number 38, Dipping Row",
+          "of": 5,
+          "type_label": "counting-house"
+        },
+        {
+          "empty_now": false,
+          "id": "prem_tallow_docks_4",
+          "known": [],
+          "name": "Smallwick Brothers, Bankers",
+          "of": 5,
+          "type_label": "counting-house"
+        }
+      ],
+      "quests": {
+        "_meta": {
+          "events_seen": {},
+          "visited": []
+        }
+      },
+      "reputations": {},
+      "scene": {},
+      "session_id": "<session-3>",
+      "stamina_cap": 100,
+      "stats": {
+        "agility": 13,
+        "craft": 10,
+        "focus": 10,
+        "gold": 5,
+        "grit": 9,
+        "hp": 20,
+        "max_focus": 10,
+        "max_hp": 20,
+        "max_stamina": 100,
+        "presence": 10,
+        "stamina": 100,
+        "wits": 11
+      },
+      "threads": [],
+      "time_of_day": "day",
+      "turn_number": 0,
+      "world_day": 1,
+      "world_hour": 8,
+      "wounds": []
+    }
+  },
+  "status": 200
+}

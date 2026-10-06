@@ -31,7 +31,15 @@ DESIGN_REVIEW.md, then CLAUDE_CODE_BRIEF.md.
 8. **Prove with tests** — run `pytest` before declaring work complete. Expect fully green, no `xfail`.
 9. **Do not document a mechanism you did not wire.** Mark it **NOT WIRED** with its file. A design doc describing code that never runs is how this codebase got into trouble.
 10. **Run `scripts/simulate.py` before changing a balance constant.** Every number here was originally chosen against a clock that did not tick.
-11. **Windows-aware, server-agnostic** — LM Studio at `http://localhost:1234/v1` is the default model server; vLLM, llama-server, Ollama and OpenAI-compatible servers are set by `llm.provider` (docs/MODEL_SERVERS.md). Use `scripts/start.ps1` or `launcher.py --stack`.
+11. **Platform-neutral, server-agnostic.** Windows and Linux are both
+    supported: no code assumes a path separator, a drive letter, a
+    case-insensitive filesystem or an `.exe`, and every script has a
+    PowerShell and a POSIX way in (`scripts/start.ps1`, `scripts/start.sh`).
+    LM Studio at `http://localhost:1234/v1` is the default model server;
+    vLLM, llama-server, Ollama and OpenAI-compatible servers are set by
+    `llm.provider` (docs/MODEL_SERVERS.md). Local single-player is the
+    default; hosted mode (`hosting.enabled`, docs/HOSTING.md) is opt-in.
+    Use `scripts/start.ps1` / `scripts/start.sh` or `launcher.py --stack`.
 12. **Never add a content-rating or "safety" layer.** One was built on
     2026-08-13 and removed on 2026-08-15 at the owner's instruction (release
     v0.3.0, 5207 deletions). Do not rebuild it in any form: no intensity
@@ -95,11 +103,52 @@ and none newer than `pyproject.toml`'s.
 **Tests.** A fix ships with a test that FAILED against the code before it, and a
 guard is canary-checked by reintroducing the bug it guards. A test that
 activates a story is cleaned up by `tests/conftest.py::_no_story_outlives_its_test`;
-one that opens a connection to the model server fails unless marked
-`@pytest.mark.live` (`_no_live_model_calls`). LM Studio's `mcp.json` is
+one that opens a connection to the model server, or resolves or connects to
+any host that is not loopback, fails unless marked `@pytest.mark.live`
+(`_no_live_model_calls`, default-deny: stub the client instead). LM Studio's `mcp.json` is
 redirected into every test's temp directory, a write outside it fails the
 test, and a real skills server starts only under `@pytest.mark.mcp_server`
-(`_no_owner_lm_studio_files`).
+(`_no_owner_lm_studio_files`). A child process is sandboxed too
+(`tests/conftest.py::pytest_configure`): every process the suite starts, by
+any route, inherits the `CLOCKWORK_TEST_SANDBOX` marker, under which the
+engine never reads or writes `config/local.yaml`, reaches no model server
+(but a loopback stub the test registered with `sandbox_model_stub`) or other
+service, and writes `mcp.json` only in the temp root (a marker the suite did
+not set stops it at conftest import), and a `subprocess` child's
+`CLOCKWORK_CONFIG` also ends in the sandbox layer (`CLOCKWORK_CONFIG` itself
+is never exported in-process); the owner's real storage, `local.yaml` and
+`mcp.json` are compared at session end (`_real_storage_is_untouched`). **A
+canary that removes or weakens a guard runs only after every path that guard
+protects -- the home directory (LM Studio's `mcp.json`), `_CONFIG_DIR`
+(`config/local.yaml`), the storage root and the model endpoints -- is
+redirected into the test's temp directory, in that process and its
+children**, with the owner's `mcp.json` checked before and after: a
+wrapper-removal canary without that wrote the owner's real `mcp.json` in
+v0.20.0 T5. An in-process hosted-mode test builds its app through
+`tests/hosted_app.py`: hosting is turned on by a `local.yaml` layer in a temp
+`_CONFIG_DIR` (never the owner's file) and `CLOCKWORK_DATA_DIR` points at
+`tmp_path`, so `users.json`, its lock and the cookie key exist nowhere else.
+A test never counts, waits for or signals a process by a bare pid: the OS
+reuses pids, so a child is its pid AND its creation time
+(`tests/process_identity.py`, over `engine/hosting/process_identity.py`,
+reported by every probe), and only a verified child is ever terminated --
+engine code included (`engine/hosting/boot.py::stop_master`).
+
+**Module state is classified.** One process serves many sessions on threads
+(hosted mode), so a new module-level global or class instance, class-level
+container, `lru_cache` function, or thread, timer or pool site in `engine/` is
+classified in `tests/fixtures/module_state.yaml` in the same change -- per
+context, locked, warmed (with its `WARMERS` loader in
+`engine/games/caches.py`), or one of the verdicts that say why nothing is
+needed (docs/DESIGN.md § Many sessions, one process).
+`tests/test_module_state_inventory.py` fails until it is. A lazy getter is
+double-checked under its own lock; a per-call flag is a `threading.local` or a
+`ContextVar`, never a module bool. A new module lock takes its place in
+`engine/locks.py`'s one lock order (and `tests/lock_order.py`'s copy) and is
+registered with `renew_after_fork`; a thread holding a lock takes only a later
+one, and a new per-object lock is a leaf (nothing taken under it). A cache in
+`caches.py`'s `NULLED_ATTRIBUTES` is read once into a local and returned from
+the local (`tests/test_cache_reset_race.py`): a reset nulls it with no lock.
 
 **Time and randomness in new systems.** A new system advances on IN-GAME hours
 inside `clock.advance_time`, never on the background world tick, which is
@@ -129,7 +178,10 @@ asserted by test for every optional system.
 
 ## Verify a checkout
 
+Windows (PowerShell):
+
 ```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -c constraints.txt
 .\.venv\Scripts\python.exe scripts\doctor.py            # environment, config, content
 .\.venv\Scripts\python.exe -m pytest tests\ -q          # fully green, no xfail; time in CLAUDE.md
 npm ci --prefix ui; npm test --prefix ui                # the client: plugins, reducer, veiled rule
@@ -137,7 +189,31 @@ npm run build --prefix ui                               # rebuild the COMMITTED 
 .\.venv\Scripts\python.exe launcher.py --check          # local services and what each outage costs
 .\.venv\Scripts\python.exe scripts\simulate.py --policy all --turns 200
 .\.venv\Scripts\python.exe scripts\simulate.py --game hue-and-cry     # HUE & CRY's thief, over its own harnesses
+docker build -t clockwork-dark .                         # the hosted image (Docker; docs/HOSTING.md § Docker)
 ```
+
+Linux (POSIX `sh`; other POSIX systems, macOS included, should work but are untested):
+
+```sh
+.venv/bin/python -m pip install -r requirements.txt -c constraints.txt
+.venv/bin/python scripts/doctor.py
+.venv/bin/python -m pytest tests/ -q
+npm ci --prefix ui && npm test --prefix ui
+npm run build --prefix ui
+.venv/bin/python launcher.py --check
+.venv/bin/python scripts/simulate.py --policy all --turns 200
+.venv/bin/python scripts/simulate.py --game hue-and-cry
+docker build -t clockwork-dark .
+```
+
+The image build needs Docker and fetches the server's pinned wheels from
+PyPI; `CLOCKWORK_DOCKER_SMOKE=1 pytest tests/test_docker_smoke.py -s` then
+runs it end to end with a stub model server (docs/HOSTING.md § Docker,
+Checking it).
+
+`scripts/start.ps1` and `scripts/start.sh` do the install and the suite in
+one step. Install with `-c constraints.txt` always: it pins the versions the
+suite was proven green on (re-pinning is a CHANGELOG'd edit).
 
 The build output is `content/scenes/clockwork/static/dist`, and it is
 **committed** so the game plays with no node installed. Change `ui/src` without

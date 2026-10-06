@@ -51,6 +51,7 @@ import threading
 from typing import Any, Optional
 
 from engine.config import get_config
+from engine.locks import renew_after_fork
 from engine.media.stt import PROVIDER_FASTER_WHISPER, empty_result
 
 logger = logging.getLogger(__name__)
@@ -66,6 +67,7 @@ INSTALL_HINT = (
 # sessions in one process share one set of weights.
 _models: dict[tuple[str, str, str], Any] = {}
 _models_lock = threading.Lock()
+renew_after_fork(globals(), _models_lock=threading.Lock)
 
 
 def reset_whisper_models() -> None:

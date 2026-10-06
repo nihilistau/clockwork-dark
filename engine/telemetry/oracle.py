@@ -23,9 +23,12 @@ Version: v0.1.0 [2026-08-08]
 from __future__ import annotations
 
 import logging
+import threading
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Optional
+
+from engine.locks import renew_after_fork
 
 logger = logging.getLogger(__name__)
 
@@ -101,11 +104,15 @@ class Oracle:
     """
     Turn metrics with a recent-turn ring buffer.
 
-    Not thread-safe by design. The turn loop is serial per session, and a lock
-    around a counter would cost more than the number is worth.
+    Thread-safe (v0.20.0): one lock, taken by every ``record_*``, ``metrics``
+    and ``recent``. It used to say "not thread-safe by design, the turn loop
+    is serial per session" -- true per session, but every session's turn
+    thread folds into this one process-wide instance, and a read-modify-write
+    of a counter from two threads can lose an update.
     """
 
     def __init__(self, *, ring: int = DEFAULT_RING) -> None:
+        self._lock = threading.Lock()
         self._ring: deque[TurnRecord] = deque(maxlen=ring)
         self._turns = 0
         self._violation_turns = 0
@@ -149,10 +156,26 @@ class Oracle:
         rule_ids = [
             str(v.get("rule_id", "")) for v in governance if isinstance(v, dict)
         ]
+        with self._lock:
+            return self._fold(data, rule_ids, len(governance), assistant, challenge,
+                              latency_ms=latency_ms, evil_progress=evil_progress)
+
+    def _fold(
+        self,
+        data: dict[str, Any],
+        rule_ids: list[str],
+        violations: int,
+        assistant: dict[str, Any],
+        challenge: dict[str, Any],
+        *,
+        latency_ms: float,
+        evil_progress: float,
+    ) -> TurnRecord:
+        """``record_turn``'s update, under ``self._lock``."""
         record = TurnRecord(
             turn=self._turns + 1,
             latency_ms=float(latency_ms),
-            violations=len(governance),
+            violations=violations,
             rule_ids=rule_ids,
             assistant_spoke=bool(assistant.get("spoke", False)),
             assistant_intent=str(assistant.get("intent", "silent")),
@@ -197,17 +220,19 @@ class Oracle:
             amount = int(delta)
         except (TypeError, ValueError):
             amount = 0
-        claim = self._unearned.get(name)
-        if claim is None:
-            claim = UnearnedClaim(stat=name)
-            self._unearned[name] = claim
-        claim.record(amount)
+        with self._lock:
+            claim = self._unearned.get(name)
+            if claim is None:
+                claim = UnearnedClaim(stat=name)
+                self._unearned[name] = claim
+            claim.record(amount)
+            seen = claim.count
         logger.debug(
             "[telemetry] Unearned claim recorded "
             "(operation=record_unearned_claim, stat=%s, delta=%+d, seen=%d)",
             name,
             amount,
-            claim.count,
+            seen,
         )
 
     # -- reading ---------------------------------------------------------
@@ -218,6 +243,11 @@ class Oracle:
         # the denominator rather than the whole block keeps the key set stable,
         # which matters because a metrics endpoint with conditional keys is one
         # a dashboard cannot render.
+        with self._lock:
+            return self._metrics()
+
+    def _metrics(self) -> dict[str, Any]:
+        """``metrics``' snapshot, under ``self._lock``."""
         turns = self._turns or 1
         return {
             "turns": self._turns,
@@ -240,18 +270,27 @@ class Oracle:
     def recent(self, count: int = 20) -> list[dict[str, Any]]:
         """The last ``count`` turn records, oldest first."""
         limit = max(0, int(count))
-        return [r.to_dict() for r in list(self._ring)[-limit:]] if limit else []
+        if not limit:
+            return []
+        with self._lock:
+            return [r.to_dict() for r in list(self._ring)[-limit:]]
 
 
 _oracle: Optional[Oracle] = None
+_oracle_lock = threading.Lock()
+renew_after_fork(globals(), _oracle_lock=threading.Lock)
 
 
 def get_oracle() -> Oracle:
-    """Process-wide Oracle."""
+    """Process-wide Oracle, built once (double-checked: no lock once built)."""
     global _oracle
-    if _oracle is None:
-        _oracle = Oracle()
-    return _oracle
+    oracle = _oracle
+    if oracle is not None:
+        return oracle
+    with _oracle_lock:
+        if _oracle is None:
+            _oracle = Oracle()
+        return _oracle
 
 
 def reset_oracle() -> None:

@@ -1,0 +1,81 @@
+{
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with exactly {\"answer\": \"no\", \"note\": \"free\"}"
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 3000,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "structured_output",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "yes"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "answer"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "status": 200,
+  "json": {
+    "id": "chatcmpl-bf8480050a90c47d",
+    "object": "chat.completion",
+    "created": 1791255371,
+    "model": "Qwen/Qwen3-1.7B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{ \"answer\": \"yes\" }",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "reasoning": "\nOkay, the user wants me to reply with exactly {\"answer\": \"no\", \"note\": \"free\"}. Let me make sure I understand the requirements.\n\nFirst, the answer should be \"no\" and the note should be \"free\". The note \"free\" probably indicates that the response is free from certain constraints or that it's a free response. I need to ensure that the JSON structure is correct and that there are no additional fields or errors. Let me check the syntax again. The answer is a string, and the note is another string. The keys are \"answer\" and \"note\". No commas after the last value. Yep, that's right. So the JSON should be {\"answer\": \"no\", \"note\": \"free\"}. I think that's all. No other information needed here.\n"
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.31.0-4205c95d",
+    "usage": {
+      "prompt_tokens": 23,
+      "total_tokens": 200,
+      "completion_tokens": 177,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 166
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null,
+    "ec_transfer_params": null,
+    "metrics": null
+  }
+}

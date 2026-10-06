@@ -20,7 +20,7 @@ this file is:
       engine.game.procgen           _TEMPLATE_CACHE
       engine.world.schedules        _SCHEDULE_CACHE
       engine.media.comfyui          _TEMPLATE_CACHE
-      engine.mcp.scene_rules_engine _rules_instance
+      engine.mcp.scene_rules_engine _rules_instance (reset_rules_engine since v0.20.0)
 
     found missing, wired here
       engine.world.schedules        _RUMOR_CACHE
@@ -31,7 +31,7 @@ this file is:
       engine.skills.builtin.assistant  HINTS_BY_TIER, LORE_SNIPPETS
       engine.media.art              load_subjects (lru_cache)
       engine.media.providers.shipped   load_manifest, art_root (lru_cache)
-      engine.persistence.saves      _store (its root embeds the game slug)
+      engine.persistence.saves      _stores (each root embeds the game slug)
       engine.lore.manager           _manager (its db path is a config path)
 
     self-invalidating, cleared anyway for determinism
@@ -54,17 +54,32 @@ cache to invalidate, and force-importing the whole content tree on every
 ``reset_config()`` would make the test suite pay for a dozen YAML parses it
 never asked for.
 
-Version: v0.1.1 [2026-08-09]
+WARMING IS THE OTHER DIRECTION (v0.20.0). ``WARMERS`` names the loader that
+builds each cache, and ``warm_all_caches()`` calls them all, importing as it
+goes, so a process serving many sessions on threads has nothing left to build
+lazily (spec §5.2). ``tests/test_cache_warming.py`` checks it calls every one
+and leaves every ``warmed`` row of ``tests/fixtures/module_state.yaml`` built.
+
+Version: v0.2.0 [2026-10-01]
 """
 
 from __future__ import annotations
 
+import importlib
 import logging
 import sys
+import threading
 from types import ModuleType
 from typing import Any, Optional
 
+from engine.locks import renew_after_fork
+
 logger = logging.getLogger(__name__)
+
+#: Held by ``warm_all_caches`` while its loaders run: first in the engine's
+#: lock order (engine/locks.py), so a loader may take any lock after it.
+_warm_lock = threading.Lock()
+renew_after_fork(globals(), _warm_lock=threading.Lock)
 
 # (module, attribute) pairs set back to None.
 #
@@ -105,7 +120,6 @@ NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
     # Warn-once memory for a story's missing death rules; per story.
     ("engine.game.encounter", "_WARNED_DEATH"),
     ("engine.media.comfyui", "_TEMPLATE_CACHE"),
-    ("engine.mcp.scene_rules_engine", "_rules_instance"),
     ("engine.game.quests", "_ARC_CACHE"),
     ("engine.game.quests", "_QUEST_CACHE"),
     ("engine.game.reputation", "_FACTION_CACHE"),
@@ -114,7 +128,11 @@ NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
     ("engine.skills.builtin.mechanics", "_RECIPE_CACHE"),
     # Warn-once memory for forced scenes nothing can answer; per story.
     ("engine.content.director", "_WARNED_FORCED"),
-    ("engine.persistence.saves", "_store"),
+    # One save store per (owner, slug); each root embeds the storage root and
+    # the game slug (v0.20.0: was the single `_store`).
+    ("engine.persistence.saves", "_stores"),
+    # Warn-once memory for the legacy `paths.saves` config alias (v0.20.0).
+    ("engine.persistence.storage", "_WARNED_ALIAS"),
 )
 
 # (module, attribute) pairs whose attribute is an ``lru_cache``-wrapped
@@ -156,6 +174,15 @@ LRU_CACHES: tuple[tuple[str, str], ...] = (
     ("engine.game.endings", "_read_table"),
     ("engine.content.deck", "_read_deck"),
     ("engine.challenges.spec", "_read_bounds"),
+    # v0.20.0 (the module-state inventory, spec §5.2): the rest of the
+    # per-story lru_cache loaders, mtime-keyed like the entries above --
+    # collections, the quest-lock and recipe-reference scans, the epilogue
+    # cards and index, and the story's spoiler table.
+    ("engine.game.inventory", "_read_collections"),
+    ("engine.game.inventory", "_read_quest_locks"),
+    ("engine.game.inventory", "_read_recipe_refs"),
+    ("engine.game.epilogue", "_read"),
+    ("engine.lore.interceptors", "_compile_terms"),
     # The words the model actually reads: storyteller.md, examples.json and
     # assistant.md from the active story's prompt directory. Mtime-keyed and
     # so self-healing, listed for the same reason as the entries above.
@@ -168,6 +195,9 @@ LRU_CACHES: tuple[tuple[str, str], ...] = (
 # (see RE_EXPORTS below).
 RELOADERS: tuple[tuple[str, str], ...] = (
     ("engine.game.locations", "reload_locations"),
+    # The rules engine singleton, dropped under its own lock (v0.20.0 T6 fix
+    # round 2; it was a NULLED_ATTRIBUTES row, nulled with no lock).
+    ("engine.mcp.scene_rules_engine", "reset_rules_engine"),
     ("engine.skills.builtin.assistant", "reload_hints"),
     # LM Studio: resolved model ids, transport capability probes and lane
     # semaphores are all derived from config. A game swap can rebind profiles,
@@ -217,6 +247,133 @@ RE_EXPORTS: tuple[tuple[str, str, str, str], ...] = (
         "LOCATION_IDS",
     ),
 )
+
+
+# (module, attribute) pairs called with no arguments to BUILD a cache: the
+# loader for every entry above that holds per-story content (v0.20.0, spec
+# §5.2's "warmed, then read-only"). ``warm_all_caches`` calls each once, in
+# this order, under ``_warm_lock``, before hosted mode serves a request -- so
+# no two first readers race to build one, and no reader sees a container
+# another thread is still filling. Nothing resets them while serving: every
+# path that would is refused in hosted mode. The grammar is first: loaded
+# here, the first turn's condition never takes the grammar lock.
+#
+# Not here, on purpose: the warn-once flags (``_WARNED_*``), which are not
+# caches; the save stores (one per owner, built on first use under their own
+# lock); and the model server's objects (profiles, registry, client, backend,
+# lanes) and the Oracle, which hosted mode's startup builds itself (spec §5.2)
+# because building them can reach the model server.
+#
+# A WARMER MUST NOT take the backend's, the LLM registry's, the profiles' or
+# the lanes' locks: they belong to the model server's objects above, not to a
+# story's content. Any other lock is allowed -- ``_warm_lock`` is first in the
+# engine's lock order (engine/locks.py) -- and the order checker in
+# tests/test_thread_safety.py runs warming to hold every warmer to it.
+#
+# A cache with no zero-argument public loader is warmed by a small function
+# in this module (``_warm_*``), named here like any other.
+WARMERS: tuple[tuple[str, str], ...] = (
+    ("engine.game.quests", "_ensure_grammar"),
+    ("engine.state.active", "active_schema"),
+    ("engine.state.active", "active_roster"),
+    ("engine.games.caches", "_warm_story_tables"),
+    ("engine.game.procgen", "load_templates"),
+    ("engine.game.evil_ticker", "doom_enabled"),
+    ("engine.world.schedules", "load_schedules"),
+    ("engine.world.schedules", "load_rumors"),
+    ("engine.world.npc_sim", "load_npc_schedules"),
+    ("engine.world.premises", "_load"),
+    ("engine.world.thievery", "load_spec"),
+    ("engine.world.law", "load_spec"),
+    ("engine.world.jobs", "spec"),
+    ("engine.world.agendas", "spec"),
+    ("engine.world.clues", "spec"),
+    ("engine.media.comfyui", "load_comfyui_templates"),
+    ("engine.mcp.scene_rules_engine", "get_rules_engine"),
+    ("engine.game.quests", "load_arcs"),
+    ("engine.game.quests", "load_quests"),
+    ("engine.game.reputation", "load_factions"),
+    ("engine.skills.builtin.mechanics", "_load_recipes"),
+    ("engine.media.art", "load_subjects"),
+    ("engine.media.providers.shipped", "load_manifest"),
+    ("engine.media.providers.shipped", "art_root"),
+    ("engine.game.checks", "load_skill_rules"),
+    ("engine.game.checks", "load_archetypes"),
+    ("engine.game.survival", "load_rules"),
+    ("engine.game.encounter", "load_encounters"),
+    ("engine.game.encounter", "load_death_rules"),
+    ("engine.game.inventory", "load_items"),
+    ("engine.game.inventory", "load_collections"),
+    ("engine.game.inventory", "quest_locks"),
+    ("engine.game.inventory", "recipe_refs"),
+    ("engine.game.foraging", "load_rules"),
+    ("engine.game.economy", "load_rules"),
+    ("engine.game.trade", "load_rules"),
+    ("engine.game.trade", "load_economy"),
+    ("engine.game.clocks", "load_clocks"),
+    ("engine.game.threads", "load_rules"),
+    ("engine.game.endings", "load_rules"),
+    ("engine.games.caches", "_warm_decks"),
+    ("engine.challenges.spec", "load_bounds"),
+    ("engine.agents.prompts", "storyteller_persona"),
+    ("engine.agents.prompts", "storyteller_examples"),
+    ("engine.agents.prompts", "assistant_persona"),
+    ("engine.game.epilogue", "load_index"),
+    ("engine.game.epilogue", "load_cards"),
+    ("engine.lore.interceptors", "spoiler_terms"),
+    ("engine.world.world_effects", "load_doom_effects"),
+    ("engine.challenges.set_pieces", "load_set_pieces"),
+    ("engine.agents.governance", "get_governance"),
+)
+
+
+def _warm_story_tables() -> None:
+    """
+    The tables a module fills as it imports and a reset reloads IN PLACE
+    (``locations.LOCATIONS`` and its id sets, the assistant's hints): warm
+    once imported, so warming them is importing them.
+    """
+    importlib.import_module("engine.game.locations")
+    importlib.import_module("engine.skills.builtin.assistant")
+
+
+def _warm_decks() -> None:
+    """Every deck the running story ships (``deck._read_deck``, one per file)."""
+    from engine.content import deck
+
+    for deck_id in deck.deck_ids():
+        deck.load_deck(deck_id)
+
+
+def warm_all_caches() -> list[str]:
+    """
+    Build every per-story cache once, before hosted mode serves (spec §5.2).
+
+    Each ``WARMERS`` entry is imported and called, in order, under
+    ``_warm_lock`` (the OUTERMOST lock in engine/locks.py, so a loader may
+    take any other), after the config is built and the running story's
+    manifest paths are read (``story_paths``, whose first read for a slug
+    takes the config lock). Not under the config lock: that one is innermost,
+    and loaders take locks after it. UNLIKE ``reset_all_caches`` this
+    imports: its point is to leave nothing to be built lazily by the first two
+    players at once. A loader that raises is not stepped over -- a story whose
+    content does not load should not start serving.
+
+    Returns:
+        ``"module.attr"`` for each loader called, in order.
+    """
+    from engine.config import get_config, story_paths
+
+    called: list[str] = []
+    with _warm_lock:
+        get_config()
+        story_paths()
+        for module_name, attr in WARMERS:
+            module = importlib.import_module(module_name)
+            getattr(module, attr)()
+            called.append(f"{module_name}.{attr}")
+    logger.info("[games] Content caches warmed (operation=warm_all_caches, loaders=%d)", len(called))
+    return called
 
 
 def _loaded(module_name: str) -> Optional[ModuleType]:
@@ -323,6 +480,8 @@ __all__ = [
     "NULLED_ATTRIBUTES",
     "RELOADERS",
     "RE_EXPORTS",
+    "WARMERS",
     "registered_caches",
     "reset_all_caches",
+    "warm_all_caches",
 ]
