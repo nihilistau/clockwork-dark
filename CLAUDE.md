@@ -10,7 +10,7 @@ release to release.
 
 ## Status
 
-**v0.20.1** is the current release (CHANGELOG.md has every release since 0.4.0;
+**v0.20.2** is the current release (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
 **Windows: 5782 passed, 24 skipped in 52m31s** (v0.20.0, measured
@@ -47,7 +47,11 @@ door and worker started as `-m gunicorn -c deploy/gunicorn.conf.py
 2026-10-06): `client` passed on Node 24 in 20 s; the suite took 40m01s,
 **5790 passed, 22 skipped, 1 failed** (a drain-window timing margin in
 `tests/test_admin_model.py`); `image` built but its container refused CI's
-own random hex cookie key. Both fixed in v0.20.1.
+own random hex cookie key, fixed in v0.20.1. v0.20.1's run passed `image`
+and `client`; its suite failed the same drain test on Linux alone, a test
+that read gunicorn's refused respawn as the restarted worker (fixed in
+v0.20.2, reproduced and re-run in `python:3.11-slim-bookworm` under gunicorn
+23.0.0: `tests/test_admin_model.py` 32 passed).
 
 **Docker** (T18, 2026-10-06): `docker build -t clockwork-dark .` built a
 327 MB image (110 MB of it the committed art) from the pinned base;
@@ -600,7 +604,7 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   its first run (the budget is 150).
 - The CI workflow (`.github/workflows/ci.yml`) is held to its shape by
   `tests/test_ci_workflow.py` (parsed; no `actionlint` on this machine).
-  Its first fully green run is v0.20.1's push; the README carries no CI
+  Its first fully green run is expected on v0.20.2's push; the README carries no CI
   badge until a run is green.
 - `engine/hosting/boot.py::stop_master`'s re-parented branch (never signal
   a master whose worker was re-parented) is unit-tested but was not reached

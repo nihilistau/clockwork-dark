@@ -847,12 +847,18 @@ def test_a_worker_restarted_for_another_reason_during_the_drain_boots_under_the_
         op_id, _took = _apply(admin, {"llm.profiles.big.temperature": "0.75"})
         instance.until(lambda: instance.op(op_id)["status"] == "draining", 15, "draining")
         instance.kill_child(f"worker-{B}")
-        reborn = instance.until(
-            lambda: (lambda ident: ident if ident != killed else None)(instance.own_identity(f"worker-{B}")),
-            DRAIN_SECONDS,
-            "worker-B restarted after its crash",
-        )
-        booted = instance.until(lambda: _llm_of(instance, B, reborn.pid), DRAIN_SECONDS, "its llm report")
+        # The NEWEST probe that is not the killed one AND has built (its llm
+        # report), not merely the first new identity (v0.20.2): under
+        # gunicorn the kill ends gunicorn's WORKER, its master forks a
+        # replacement at once, and that replacement writes its identity, has
+        # its reused bus token refused (single-use tokens), and halts the
+        # master -- it never builds. The supervisor then starts the story
+        # again with a fresh token, and THAT probe is the one booted.
+        def booted_since_the_kill() -> Optional[dict[str, Any]]:
+            reborn = instance.own_identity(f"worker-{B}")
+            return None if reborn == killed else _llm_of(instance, B, reborn.pid)
+
+        booted = instance.until(booted_since_the_kill, DRAIN_SECONDS, "worker-B rebuilt after its crash")
         assert instance.op(op_id)["status"] == "draining", "the drain ended before the crash restart was seen"
         assert booted["llm.profiles.big.temperature"] == 0.55, "a worker booted during the drain read the new file"
         held.release()

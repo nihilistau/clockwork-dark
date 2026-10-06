@@ -14,6 +14,22 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.20.2] — 2026-10-06
+
+**A test that read gunicorn's refused respawn as the restarted worker
+(test only, no engine change).**
+`tests/test_admin_model.py::test_a_worker_restarted_for_another_reason_during_the_drain_boots_under_the_old_file`
+failed on Linux CI every run ("its llm report", last: None) and passed on
+Windows. Under gunicorn the kill ends gunicorn's WORKER; its master forks a
+replacement at once, which writes its probe identity, has its reused bus
+token refused (single-use tokens) and halts the master, exactly as
+docs/HOSTING.md § Restarts under gunicorn describes; the supervisor then
+restarts the story with a fresh token, and that worker booted under the old
+file within about two seconds (reproduced in `python:3.11-slim-bookworm`
+under gunicorn 23.0.0). The test waited for the llm report of the FIRST new
+identity, the refused respawn, which never builds. It now waits for the
+newest identity since the kill to have built. The production path was right.
+
 ## [0.20.1] — 2026-10-06
 
 **A pasted random hex cookie key is accepted.** v0.20.0's first CI run
