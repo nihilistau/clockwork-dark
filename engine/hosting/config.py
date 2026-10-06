@@ -31,6 +31,7 @@ Version: v0.5.0 [2026-10-06]
 
 from __future__ import annotations
 
+import string
 from dataclasses import dataclass
 from typing import Any, Mapping
 from urllib.parse import urlsplit
@@ -143,6 +144,13 @@ MIN_SECRET_KEY_CHARS = 32
 #: The fewest different characters an operator's cookie key may use (T7 fix
 #: round 2): 32 characters of one repeated word is a guessable key.
 MIN_SECRET_KEY_DISTINCT = 16
+
+#: A pasted random hex key (``openssl rand -hex 32``) has only sixteen digits
+#: to draw on and misses one about one time in four, so a hex key at least
+#: ``MIN_HEX_KEY_CHARS`` long needs only ``MIN_HEX_KEY_DISTINCT`` (v0.20.1:
+#: the first CI run refused its own such key).
+MIN_HEX_KEY_CHARS = 64
+MIN_HEX_KEY_DISTINCT = 10
 
 #: The nested sections of the block (a key under them is in ``SCHEMA``).
 SECTIONS = frozenset({"rate_limits", "admin", "supervisor", "observability"})
@@ -277,10 +285,11 @@ def check_secret_key(key: str, *, source: str, configured: bool = True) -> str:
     """
     ``key``, or ``HostingConfigError`` naming ``hosting.secret_key`` when it is
     set and shorter than ``MIN_SECRET_KEY_CHARS``, or (a ``configured`` key,
-    one an operator typed or pasted) made of fewer than
-    ``MIN_SECRET_KEY_DISTINCT`` different characters (``"a" * 32``,
-    ``"changeme" * 4``). ``""`` means "generate one" and passes. ``source``
-    says where the key came from.
+    one an operator typed or pasted) that is one shorter pattern repeated
+    (``"changeme" * 4``) or made of fewer than ``MIN_SECRET_KEY_DISTINCT``
+    different characters -- ``MIN_HEX_KEY_DISTINCT`` for a hex key of at least
+    ``MIN_HEX_KEY_CHARS``, as ``openssl rand -hex 32`` prints. ``""`` means
+    "generate one" and passes. ``source`` says where the key came from.
 
     The engine's own generated key (``configured=False``: the key file) is
     checked for length only. It is 64 hex digits from ``secrets``, and a
@@ -299,11 +308,23 @@ def check_secret_key(key: str, *, source: str, configured: bool = True) -> str:
             f"the cookie key from {source} is {len(key)} characters; it must be at least "
             f"{MIN_SECRET_KEY_CHARS} (a short key lets anyone forge a login). {generator}",
         )
-    if configured and len(set(key)) < MIN_SECRET_KEY_DISTINCT:
+    if not configured:
+        return key
+    if (key + key).find(key, 1) < len(key):
         raise HostingConfigError(
             f"{BLOCK}.secret_key",
-            f"the cookie key from {source} uses only {len(set(key))} different characters; "
-            f"it needs at least {MIN_SECRET_KEY_DISTINCT} (a repeated word can be guessed). "
+            f"the cookie key from {source} is one shorter pattern repeated "
+            f"(a repeated word can be guessed). {generator}",
+        )
+    distinct = len(set(key))
+    floor = MIN_SECRET_KEY_DISTINCT
+    if len(key) >= MIN_HEX_KEY_CHARS and all(c in string.hexdigits for c in key):
+        floor = MIN_HEX_KEY_DISTINCT
+    if distinct < floor:
+        raise HostingConfigError(
+            f"{BLOCK}.secret_key",
+            f"the cookie key from {source} uses only {distinct} different characters; "
+            f"it needs at least {floor} (a repeated word can be guessed). "
             f"{generator}",
         )
     return key
@@ -464,6 +485,8 @@ __all__ = [
     "TERMINATE_GRACE_SECONDS",
     "SECTIONS",
     "MIN_SECRET_KEY_CHARS",
+    "MIN_HEX_KEY_CHARS",
+    "MIN_HEX_KEY_DISTINCT",
     "MIN_SECRET_KEY_DISTINCT",
     "check_public_origin",
     "check_secret_key",

@@ -60,8 +60,10 @@ from tests.hosting_instance import SCRIPTED_WORKER, HostingInstance, choose, hos
 A = "clockwork-dark"
 B = "dev-story"
 JOIN = 60.0
-#: Long enough for a killed worker to restart inside one drain (the crash test).
-DRAIN_SECONDS = 15
+#: Long enough for a killed worker to restart AND boot inside one drain (the
+#: crash test). 15 was enough here but not on CI's two-vCPU runner, where the
+#: reborn worker's boot report missed it (v0.20.1).
+DRAIN_SECONDS = 45
 SENTINEL = "sk-t16-sentinel-" + secrets.token_hex(8)
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "llm"
 

@@ -14,6 +14,29 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.20.1] — 2026-10-06
+
+**A pasted random hex cookie key is accepted.** v0.20.0's first CI run
+refused its own throwaway key: `hosting.secret_key` had to use at least 16
+different characters, and a random 64-digit hex key (`openssl rand -hex 32`)
+misses one of the sixteen digits about one time in four, so the image job's
+container stopped at startup ("uses only 15 different characters"). An
+operator pasting that common command hit the same refusal at random. Now a
+hex key of 64 digits or more needs 10 different characters, every other key
+still 16, and any configured key that is one shorter pattern repeated
+(`"0123456789abcdef" * 4`, which the old count let through) is refused
+(`engine/hosting/config.py::check_secret_key`, `tests/test_hosting_config.py`).
+20,000 keys from `secrets.token_hex(32)` all pass. docs/HOSTING.md states the
+rule.
+
+**CI's first run, otherwise.** The client job passed on Node 24 and the
+`v7` actions exist. The suite ran in 40 minutes on `ubuntu-latest`: 5790
+passed, 22 skipped and one failed, a timing margin. In
+`tests/test_admin_model.py` a worker killed during a model apply's drain
+must restart and report its boot inside that drain, and the module's 15 s
+drain was too short on the two-vCPU runner; it is 45 s now (one refused-drain
+test waits it out, about 30 s longer).
+
 ## [0.20.0] — 2026-10-06
 
 **Linux, and a hosted mode**, the second of the two platform releases before

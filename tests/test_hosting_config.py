@@ -215,7 +215,7 @@ def test_a_long_secret_key_is_accepted_and_empty_means_generate() -> None:
     key = secrets.token_urlsafe(32)
     assert validate(_block(), secret_key=key).secret_key == key
     # Exactly 16 different characters is enough.
-    assert validate(_block(), secret_key="0123456789abcdef" * 2).secret_key
+    assert validate(_block(), secret_key="0123456789abcdef" + "fedcba9876543210").secret_key
 
 
 @pytest.mark.parametrize("key", ["a" * 32, "changeme" * 4, "0123456789abcde" * 3])
@@ -223,7 +223,34 @@ def test_a_repetitive_secret_key_is_refused(key: str) -> None:
     with pytest.raises(HostingConfigError) as caught:
         validate(_block(), secret_key=key)
     assert caught.value.key == "hosting.secret_key"
-    assert "different characters" in str(caught.value)
+    assert "repeated" in str(caught.value)
+
+
+def test_a_pasted_random_hex_key_missing_a_digit_is_accepted() -> None:
+    """``openssl rand -hex 32`` misses one of the sixteen digits about one
+    time in four (v0.20.0's first CI run refused its own such key)."""
+    key = "f3a9c1e07b5d2846" + "93e1c7a05fd2b864" + "1d7e3a9c5b0f8246" + "c0a7e93d51b2f864"
+    key = key.replace("f", "e")  # 64 hex digits, 15 different, no period
+    assert len(key) == 64 and len(set(key)) == 15
+    assert validate(_block(), secret_key=key).secret_key == key
+    assert validate(_block(), secret_key=key.upper()).secret_key == key.upper()
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "0123456789abcde" * 5,  # hex, 75 long, but one pattern repeated
+        "0123456789" * 7,  # hex, 70 long, 10 different, repeated
+        "0123456789abcdef" * 4,  # 16 different, but repeated
+        "abcdefghijklmnopqrstuvwx" * 2,  # 24 different, repeated
+        "1a2b3c4d" * 9,  # hex, too few different characters
+    ],
+)
+def test_a_repeated_pattern_key_is_refused(key: str) -> None:
+    with pytest.raises(HostingConfigError) as caught:
+        validate(_block(), secret_key=key)
+    assert caught.value.key == "hosting.secret_key"
+    assert key not in str(caught.value)
 
 
 def test_a_generated_key_file_is_checked_for_length_only() -> None:

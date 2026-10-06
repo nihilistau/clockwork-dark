@@ -10,7 +10,7 @@ release to release.
 
 ## Status
 
-**v0.20.0** is the current release (CHANGELOG.md has every release since 0.4.0;
+**v0.20.1** is the current release (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
 **Windows: 5782 passed, 24 skipped in 52m31s** (v0.20.0, measured
@@ -43,8 +43,11 @@ door and worker started as `-m gunicorn -c deploy/gunicorn.conf.py
 <wsgi>:app`. The container's Node build matches the committed `dist` whole
 (`ui/index.html` and its built copy are LF by `.gitattributes`). **CI**
 (`.github/workflows/ci.yml`: `suite`, `client` and `image` on
-`ubuntu-latest`) has never run: it runs once pushed, which waits for the
-owner.
+`ubuntu-latest`) first ran on the v0.20.0 push (run 37420365350,
+2026-10-06): `client` passed on Node 24 in 20 s; the suite took 40m01s,
+**5790 passed, 22 skipped, 1 failed** (a drain-window timing margin in
+`tests/test_admin_model.py`); `image` built but its container refused CI's
+own random hex cookie key. Both fixed in v0.20.1.
 
 **Docker** (T18, 2026-10-06): `docker build -t clockwork-dark .` built a
 327 MB image (110 MB of it the committed art) from the pinned base;
@@ -593,19 +596,12 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   `CLOCKWORK_TEST_SANDBOX`, and so would refuse to start
   (`tests/conftest.py::refuse_an_inherited_marker`) or, if let through, run
   their whole sessions sandboxed and fail the goldens. Making it xdist-safe
-  is its own work. The job's time on a
-  2-vCPU runner is unmeasured until the owner pushes (the budget is 150
-  minutes).
-- The CI workflow (`.github/workflows/ci.yml`, v0.20.0 T5) has never run:
-  a workflow runs only once pushed, and nothing is pushed without the
-  owner's word. It is held to its shape by `tests/test_ci_workflow.py`
-  (parsed, not run; no `actionlint` on this machine). Its client job's
-  `git diff --exit-code` on `dist` rests on T4's measurement (24 of 25
-  files identical from `node:20-bookworm-slim`, `index.html` differing by
-  line endings only) and T5's LF rebuild of that one file, not on a run.
-  Its `image` job (T18) rests on the same build run here by hand (the
-  smoke test above), on Docker Desktop, not on an `ubuntu-latest` runner.
-  The README carries no CI badge until it has run.
+  is its own work. The job took 40 minutes on the 2-vCPU runner at
+  its first run (the budget is 150).
+- The CI workflow (`.github/workflows/ci.yml`) is held to its shape by
+  `tests/test_ci_workflow.py` (parsed; no `actionlint` on this machine).
+  Its first fully green run is v0.20.1's push; the README carries no CI
+  badge until a run is green.
 - `engine/hosting/boot.py::stop_master`'s re-parented branch (never signal
   a master whose worker was re-parented) is unit-tested but was not reached
   under real gunicorn: in T18's smoke test a SIGKILLed master's worker was
@@ -660,14 +656,6 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   stub model server that way, not through a `CLOCKWORK_CONFIG` of the
   test's own, whose `llm.base_url` is always overridden (spec §3.5's
   CURRENT note).
-- CI runs its `client` job on Node 24 (the active LTS; the owner's
-  `dist` builds are Node 24.13.0), and T4 measured Node 20 on Linux against
-  the same `dist`; Node 24 on Linux has not been measured until the
-  workflow first runs. The action majors (checkout, setup-python,
-  setup-node v7) were read off their release pages on 2026-10-01 and are
-  kept (the T5 controller's ruling); that v7 runs on node24 is inferred.
-  The first push verifies both: a v7 that does not exist fails the first
-  run at its checkout step.
 - `scripts/start.ps1` was not given `start.sh`'s dangling-`.venv`-link
   refusal (v0.20.0 T5): PowerShell's `Test-Path` on a broken link was not
   measured here, so the Windows twin is unchanged.

@@ -354,8 +354,10 @@ The login is Flask's signed cookie, `clockwork_session` (`HttpOnly`,
 `SameSite=Lax`, `Secure` unless `hosting.cookie_secure: false`), valid for
 `hosting.session_days` (14) after the last login or password change. It is
 signed with `hosting.secret_key` (`CLOCKWORK_SECRET_KEY` by default), which
-must be at least 32 characters and use at least 16 different characters (a
-shorter or repetitive key, such as `changeme` four times, stops startup:
+must be at least 32 characters, must not be one shorter pattern repeated, and
+must use at least 16 different characters, or 10 for a hex key of 64 digits or
+more, as `openssl rand -hex 32` prints (a shorter or repetitive key, such as
+`changeme` four times, stops startup:
 anyone holding one captured cookie could find a weak key offline and forge a
 login for any account). Make one with `python -c "import secrets;
 print(secrets.token_urlsafe(32))"`. Left empty, a 32-byte key is generated once
