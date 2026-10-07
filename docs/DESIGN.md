@@ -757,19 +757,50 @@ story, which is what makes a story with no plugin at all a playable client.
 ┌─────────────────────────────────────────────────────────────┐
 │  Mark  Location                        HeaderBadge  Day·Time │  ← chrome
 ├──────────────┬──────────────────────────────┬───────────────┤
-│              │  Stage                        │               │
-│  Aside       │  Narrative log (streamed)     │  Ledger       │
-│              │  Reasoning panel              │               │
-│              │  Choices / compose + mic      │               │
+│              │  stage   Stage / scene plate  │               │
+│              │  frame   a live deck's line   │               │
+│  Aside       │  log     Narrative (streamed) │  Ledger       │
+│              │  think   Reasoning panel      │               │
+│              │  shelf   bounded panels       │               │
+│              │  choices                      │               │
+│              │  compose + mic                │               │
 ├──────────────┴──────────────────────────────┴───────────────┤
 │  Day·Time   status   [story overlays]  [mute][saves][⚙][⏸]  │  ← chrome
 └─────────────────────────────────────────────────────────────┘
    Toast floats over the whole play screen.
 ```
 
-Defaults with no plugin: no Aside (the column collapses), no Stage, no Toast,
-and `Ledger` falls back to the generic sheet drawn from the story's declared
-meters. The flagship puts its companion, its scene still / encounter panel, its
+The centre column is a grid of NAMED areas (v0.21.0, `ui/src/styles/index.css`
+`.scene__col--main`): every area has a fixed wrapper in a fixed order
+(`Play.jsx`), so what renders in one can never move another's row. The stage
+and the log take the two flexible rows (`--row-visual`, `--row-log`: 60/40 by
+default, 40/60 on the engine's skin); the shelf is capped (`--shelf-max`, 32vh,
+16vh under 900px) and scrolls inside itself, so no panel paints over the
+choices; the choice list is capped by `--choices-max` (34vh, 26vh under 900px).
+Empty areas cost nothing: `row-gap: 0`, and a margin only between non-empty
+areas. With no Stage the stage track is 0 (`data-stage="off"`).
+
+**Engine panels and the five regions** (v0.21.0). The shared surfaces of the
+play screen -- the wanted poster, the job panel, the casing board, the people
+here, the encounter's approaches, the roll card, the negotiation panel -- are
+engine panels (`ui/src/core/panels/`), drawn in five regions: the **header
+chips** (the wanted poster's chip), the **stage area** (the people strip),
+the **shelf** (the job, the encounter, the negotiation), the **ledger panels**
+(a list under the sheet column's Ledger: the poster, the casing board) and the
+**toast** (the roll card). A story turns them on in its manifest
+(`ui.panels`), each in its default region or one it allows; a plugin that
+draws one itself names it in `ownsPanels`. The rule that keeps the column
+from breaking is that a child is placed BY NAME, into its area's wrapper,
+never by its position among the column's children, so an empty or extra panel
+cannot move another's row. The registry
+(`ui/src/core/panels/registry.js`) is held equal to the manifest's
+`UI_PANELS` by `tests/test_ui_panels_manifest.py`; the schema is
+[AUTHORING.md](AUTHORING.md) section 2.5.
+
+Defaults with no plugin: no Aside (the column collapses), no Stage (unless the
+plugin sets `defaultStage`, for core's scene plate -- the engine's own plugin
+does), no Toast, and `Ledger` falls back to the generic sheet drawn from the
+story's declared meters. The flagship puts its companion, its scene still / encounter panel, its
 hand-built character sheet and its dice rail into those slots; NEON CITY puts a
 district plate and contact strip into `Stage` and a heat ladder into `Ledger`.
 The contract, slot by slot, is the header comment of `ui/src/core/story.js`.
@@ -791,7 +822,7 @@ the permission. Enforced by `tests/test_ui_contract.py` and by `ui/tests/`.
 | Runtime | Python 3.13 | Matches both parent repos |
 | Scene server | Flask + Socket.IO (`FlaskScene` pattern), `engine/scenes/default_{scene,state,api}.py` | CosySim skills/MCP/interceptors. The default scene is the ENGINE's: it served every story already (title, opening frames and content all follow the active manifest), so in v0.3.0 it moved out of `content/scenes/clockwork/`, which kept only the shared client asset tree and shims |
 | Client | Vite + React 18 in `ui/`, built into a committed `static/dist` | Real state management for a stateful game; committed build means no Node needed to play |
-| Client per story | A plugin at `ui/src/stories/<plugin>/`, chosen by the manifest's `ui.plugin` | Core alone is a playable client; a plugin fills slots. Four stories ship their own (`clockwork-dark`, `wicked-garden`, `neon-city`, `the-long-con`); `dev-story` and `hue-and-cry` use `_engine`, the engine's own default skin |
+| Client per story | A plugin at `ui/src/stories/<plugin>/`, chosen by the manifest's `ui.plugin` | Core alone is a playable client; a plugin fills slots. Five stories ship their own (`clockwork-dark`, `wicked-garden`, `neon-city`, `the-long-con`, and `hue-and-cry`, a skin over the engine's panels since v0.21.0); `dev-story` uses `_engine`, the engine's own default skin |
 | Inference | The **model backend** (`engine/llm/`), speaking the server `llm.provider` names (`engine/llm/providers.py`, [MODEL_SERVERS.md](MODEL_SERVERS.md)): LM Studio `:1234` by default, or vLLM, llama.cpp's `llama-server`, Ollama or any OpenAI-compatible server. Every one gets the strongest structured output it proves it enforces, its own reasoning-off patch and health check. On LM Studio the engine is deliberate about two sibling APIs: `POST /v1/chat/completions` (OpenAI-compat, the only route that takes tools and schemas), `POST /api/v1/chat` (native, the only one where `reasoning: "off"` is honoured) and `GET /api/v1/models` (the one model list — `engine/llm/routes.py`); Ollama is spoken on its native `/api/chat` | Local-first, server-agnostic |
 | Speculative | `draft` model 0.5B–1B → `big` 8B refine | Anubis + CosySim profiles |
 | Lore | SQLite FTS; Nexus KMS optional | Progressive enhancement |

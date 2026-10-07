@@ -5,7 +5,7 @@ The two-phase turn: mechanics resolve, then narration reports.
 model and NOTHING called it -- a NOT WIRED row in docs/AGENTS.md. These tests
 hold the wiring that closes it, and the four properties it has to keep:
 
-* with ``lmstudio.mcp.enabled`` false -- the default -- the turn is byte-identical
+* with ``llm.mcp.enabled`` false -- the default -- the turn is byte-identical
   to the one that ran before Phase A existed
 * with it on, the receipts reach ``receipts_block`` and appear in Phase B's prompt
 * Phase A runs BEFORE ``StateTransaction`` opens, or an evaluator retry rolls
@@ -152,7 +152,7 @@ def test_phase_a_is_off_by_default(engine: GameEngine) -> None:
     """
     The shipped config runs today's turn, and Phase A never builds anything.
 
-    ``lmstudio.mcp.enabled`` is the single switch. If this ever returns receipts
+    ``llm.mcp.enabled`` is the single switch. If this ever returns receipts
     on a default checkout, a listening socket and an mcp.json write have been
     turned on for everyone who pulls.
     """

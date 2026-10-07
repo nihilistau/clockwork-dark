@@ -14,9 +14,10 @@
  *
  * WHAT IT DOES NOT DO, on purpose:
  *
- *   - No `Ledger`, `Stage`, `Aside` or `Toast`. Core's defaults are complete
- *     and correct; overriding them here would make this a fifth aesthetic
- *     rather than the absence of one.
+ *   - No `Ledger`, `Aside` or `Toast`. Core's defaults are complete and
+ *     correct; overriding them here would make this a fifth aesthetic rather
+ *     than the absence of one. (No `Stage` either: `defaultStage` asks for
+ *     core's own scene plate, which is not a look of this plugin's.)
  *   - No `title` or `documentTitle`. The running story's own name comes from
  *     the catalogue, and hardcoding one here would put "The Engine" in the
  *     browser tab of every undressed story — exactly the bug this replaces.
@@ -45,6 +46,9 @@ export default {
   bodyData: () => ({ storySkin: "engine" }),
 
   Wordmark,
+
+  // Core's scene plate (spec §3.3): an undressed story still sees where it is.
+  defaultStage: true,
 
   // Two cards, and they describe the ENGINE's contract rather than any
   // fiction: what a turn is, and that the world keeps moving. A story with its

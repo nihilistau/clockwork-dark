@@ -4,8 +4,7 @@ Model-server inference: every provider row, one package.
 Named after LM Studio (package ``lmstudio``) until v0.19.0, when the engine
 learned to speak vLLM, the llama.cpp server, Ollama and any OpenAI-compatible
 server beside it (``providers.py``; docs/MODEL_SERVERS.md). The old package
-stays, beside this one, as an identity shim until v0.21.0: every old dotted
-path is the same module object as its new one. ``native`` became
+was an identity shim through v0.20.x and is removed in v0.21.0. ``native`` became
 ``lmstudio_native``, since other servers have native routes too. The ``LMS``
 prefix on ``LMSClient``, ``LMSResponse`` and ``LMSStreamEvent``, and the name
 ``LMStudioBackend`` (also exported as ``backend.LLMBackend``), are historical;

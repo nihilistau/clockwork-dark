@@ -31,6 +31,8 @@
  */
 import React from "react";
 
+import { matchedChoiceIds } from "@core/panels/approaches.js";
+
 import { FileChip } from "./parts/Ladder.jsx";
 import { HexMark, PaperIcon, RoadsIcon, Wordmark } from "./parts/Marks.jsx";
 import Ledger from "./parts/Ledger.jsx";
@@ -110,15 +112,16 @@ export default {
 
   Ledger,
   Stage,
+  // Its Stage draws the encounter's approaches (spec §2.3), so core's
+  // encounter panel stands down.
+  ownsPanels: ["encounter"],
 
-  // The Stage draws the engine's legal approaches when an encounter is live, so
-  // the narrator's own choices would put two parallel action sets on screen
-  // when the engine will only honour one. An encounter with an EMPTY approach
-  // list still needs the narrator's choices, or the runner has no move at all.
-  hideChoices: (state) => {
-    const encounter = state.world?.encounter || {};
-    return Object.keys(encounter).length > 0 && (encounter.approaches || []).length > 0;
-  },
+  // The Stage draws the engine's legal approaches when an encounter is live,
+  // each pressing the narrator's choice that carries its intent. Only the
+  // choices its approach buttons press are hidden (spec §2.3): any other
+  // narrator choice stays, and when the narrator offered no approach nothing
+  // is hidden, so the runner always has a move.
+  hideChoices: (state) => matchedChoiceIds(state.world?.encounter, state.choices),
 
   /**
    * Two overlays, both gated on the payload key that feeds them.

@@ -367,7 +367,8 @@ def test_the_client_follows_the_declaration_not_the_directory() -> None:
     text = (UI_SRC / "core" / "story.js").read_text(encoding="utf-8")
     assert "ui_plugin" in text, "the client never reads the declaration"
     assert "BY_SLUG" not in text, "still keyed off the slug"
-    assert re.search(r"loadStory\(\s*plugin\s*\|\|\s*slug\s*,\s*slug\s*,\s*title\s*\)", text)
+    # v0.21.0 T7: a fourth argument carries the story's `ui.panels`.
+    assert re.search(r"loadStory\(\s*plugin\s*\|\|\s*slug\s*,\s*slug\s*,\s*title\s*[,)]", text)
 
 
 def test_a_borrowed_plugin_lends_its_look_and_not_its_voice() -> None:
@@ -395,7 +396,9 @@ def test_a_borrowed_plugin_lends_its_look_and_not_its_voice() -> None:
     assert re.search(r"const\s+engine\s*=\s*found\.slug\s*===\s*ENGINE_PLUGIN", text)
     assert re.search(r"const\s+borrowed\s*=\s*!engine\s*&&", text)
     block = text.split("const naming")[1].split("return {")[0]
-    for slot in ("title", "documentTitle", "Wordmark", "StartIntro", "beginLabel", "onboarding"):
+    # `saveMeta` (v0.21.0, plan decision 17): a borrowed skin printing the
+    # flagship's "the pattern is quiet" on another story's saves is F7 itself.
+    for slot in ("title", "documentTitle", "Wordmark", "StartIntro", "beginLabel", "onboarding", "saveMeta"):
         assert slot in block, f"{slot} survives a borrowed plugin"
     # The story's own plugin is untouched: the whole override is gated on it.
     assert "borrowed" in text.split("const naming")[1].split("\n")[0]

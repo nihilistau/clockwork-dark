@@ -10,11 +10,15 @@ release to release.
 
 ## Status
 
-**v0.20.2** is the current release (CHANGELOG.md has every release since 0.4.0;
+**v0.21.0** is the current release (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
-**Windows: 5782 passed, 24 skipped in 52m31s** (v0.20.0, measured
-2026-10-06 at the release, in a checkout holding the gitignored
+**Windows: 5977 passed, 24 skipped in 54m48s** (v0.21.0, measured
+2026-10-07 at the release; one more test failed in that run,
+`tests/test_screenshot_runs.py::test_serve_refuses_a_port_that_already_answers`,
+a loopback stall of this machine that passes alone, and one test errored on
+a port clash fixed before the release, `tests/conftest.py::hold_guarded_ports`;
+in a checkout holding the gitignored
 `Design_files/`, which runs the Design_files-only Garden test; a fresh
 worktree skips it too), no expected failures. The 24 skips: `tests/test_llm_live.py`
 (unless `CLOCKWORK_LIVE_LLM` names the configured model server); the ten
@@ -26,7 +30,7 @@ and `gunicorn` (neither installed on Windows); six POSIX-only tests (file
 modes in accounts, login and metrics, two exact-name command lookups, POSIX
 process groups); and one bus test skipped by design (a reply to nothing
 after `hello`). `tests/test_simulate_thief.py` alone takes about four
-minutes. Plus **145
+minutes. Plus **462
 client tests** under `ui/tests/` (`npm test --prefix ui`; `vitest` is a
 devDependency, so `npm install --prefix ui` once first). Re-measure and
 restate these at every release rather than trusting this line -- it has
@@ -51,7 +55,9 @@ own random hex cookie key, fixed in v0.20.1. v0.20.1's run passed `image`
 and `client`; its suite failed the same drain test on Linux alone, a test
 that read gunicorn's refused respawn as the restarted worker (fixed in
 v0.20.2, reproduced and re-run in `python:3.11-slim-bookworm` under gunicorn
-23.0.0: `tests/test_admin_model.py` 32 passed).
+23.0.0: `tests/test_admin_model.py` 32 passed). **v0.20.2's run (37429512117,
+2026-10-06) was fully green**: `image` 33 s, `client` 19 s, the suite 40m22s.
+The README carries the workflow's badge.
 
 **Docker** (T18, 2026-10-06): `docker build -t clockwork-dark .` built a
 327 MB image (110 MB of it the committed art) from the pinned base;
@@ -163,8 +169,8 @@ only once the last of them lands:
 | v0.18.0 | `simulate.py`'s thief policy, agenda collisions measured, welshing's cost for a fencing burglar and the careful pickpocket's deaths measured; the fences made to pay (owner decision) and the lockpick money loop closed | **shipped** |
 | v0.19.0 | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | **shipped** |
 | v0.20.0 | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker -- with the supervisor and front door, the admin panel and its audit log, metrics, and vLLM run live | **shipped** |
-| v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | next |
-| v0.22.0 | A new story: a dating simulation played through a phone of apps (dating apps, texts, instant messages, voice and video messages, two-player games), a populated cast the engine runs, no endgame (owner's brief: docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | queued |
+| v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | **shipped** |
+| v0.22.0 | A new story: a dating simulation played through a phone of apps (dating apps, texts, instant messages, voice and video messages, two-player games), a populated cast the engine runs, no endgame (owner's brief: docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | next |
 | v0.23.0 | The Clockwork Dark overhaul | queued |
 | v0.24.0 | The Wicked Garden overhaul | queued |
 | v0.25.0 | NEON CITY overhaul | queued |
@@ -195,7 +201,7 @@ its design follows the same rule (spec, opus review, build).
 
 **The README is kept current at every release through v1.0.0** (owner
 instruction, 2026-09-26): status, features and roadmap each release; new
-screenshots after v0.21.0's UI overhaul; the backends (v0.19.0) and hosting
+screenshots at v0.21.0's release (its T16); the backends (v0.19.0) and hosting
 (v0.20.0) documented when they land.
 
 Every change updates the docs it makes stale: the story's CHANGELOG/README,
@@ -256,13 +262,6 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   investigators, locked on 27-29 of 40); the levers, should the reveal need
   to come sooner, are the hint's place in casing (`premises._ordered_ids`)
   and the trail's density (`clues.yaml` `trail`/`herrings`).
-- The wanted-poster UI: the payload exists (`to_client_dict`'s `law` key,
-  `clarity` included) and the narrator already speaks it in prose; no plugin
-  renders it until v0.21.0's UI overhaul.
-- The job panel UI: the payload exists (`to_client_dict`'s `job` key — house,
-  stage, alarm, prep) and `prompts.job_block` already speaks the same facts
-  in prose; no plugin renders it until v0.21.0's UI overhaul, same as the
-  wanted-poster above.
 - Hired hands (spec §4): explicitly optional there and not built. A job is
   walked solo, start to getaway.
 - An engine quirk a job's own measurement ran into and left alone
@@ -430,16 +429,6 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   condition is false. Only the engine-only effects are reported there.
 - The Wicked Garden deals `day_09_finale` twice (pre-existing).
 - Survival's hunger/death is not cut-invariant (pre-existing).
-- The legacy `lmstudio:` alias is removed in v0.21.0: until then each config
-  layer's `lmstudio:` block (and `stack.services.lmstudio`) is read as
-  `llm:` with a WARNING, and a `lmstudio.*` read is answered from `llm.*`
-  (`engine/config.py::migrate_legacy_llm`, `_READ_ALIASES`).
-- The legacy `paths.saves` config alias is removed in v0.21.0, with the
-  `lmstudio:` alias: until then a `paths.saves` in `config/local.yaml`,
-  `CLOCKWORK_CONFIG` or an environment layer is read as the exact local save
-  base, with one WARNING and a doctor `legacy paths.saves` WARN row naming
-  the file (`engine/persistence/storage.py::local_saves_base`). A story
-  manifest's `paths.saves` is ignored already (v0.20.0), with an advisory.
 - Two tabs can drive one local session (spec finding 7, recorded, not fixed
   in local mode): `session_id` is persisted in the save, so a second `resume`
   of the same save rebuilds a session under the SAME id and replaces the
@@ -450,11 +439,6 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   Hosted mode closes it per account: one live run per account, the other
   released holding its turn lock so the old engine never autosaves over a
   resume (`SessionStore`, spec §5.4).
-- The `engine.lmstudio` shim is removed in v0.21.0, with the config alias
-  above: since v0.19.0 the package is `engine/llm/` (`native.py` became
-  `lmstudio_native.py`), and `engine/lmstudio/__init__.py` only aliases
-  each old module path to the same `engine.llm` module object. Nothing in
-  the repo uses it (`tests/test_llm_package_shim.py`).
 - A Settings panel save rewrites `config/local.yaml` whole through
   `yaml.safe_dump` and drops its comments (pre-existing;
   `engine/api/settings.py::apply_settings`). Keeping them needs a
@@ -572,9 +556,6 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   stripping would change LM Studio's parsed responses, which the golden
   pins; the owner's lever is LM Studio's reasoning-split setting
   (docs/MODEL_SERVERS.md § Inline `<think>`).
-- HUE & CRY's choice list can briefly overlap the casing board in the
-  browser (seen in v0.19.0 T9's browser play). UI scope: v0.21.0's UI
-  overhaul.
 - Local mode's Socket.IO still RECORDS `cors_allowed_origins="*"`
   (`engine/scenes/flask_scene.py`), but no longer honours it for another
   site: the guard in front of it (`engine/scenes/host_guard.py`, v0.20.0)
@@ -603,9 +584,10 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   is its own work. The job took 40 minutes on the 2-vCPU runner at
   its first run (the budget is 150).
 - The CI workflow (`.github/workflows/ci.yml`) is held to its shape by
-  `tests/test_ci_workflow.py` (parsed; no `actionlint` on this machine).
-  Its first fully green run is expected on v0.20.2's push; the README carries no CI
-  badge until a run is green.
+  `tests/test_ci_workflow.py` (parsed; no `actionlint` on this machine), and
+  has run: green on v0.20.2 (above). Node 24 on Linux is therefore measured
+  (`client`, 19 s). A run on a later push is the check for anything this
+  release changed, `ui/` included.
 - `engine/hosting/boot.py::stop_master`'s re-parented branch (never signal
   a master whose worker was re-parented) is unit-tested but was not reached
   under real gunicorn: in T18's smoke test a SIGKILLed master's worker was
@@ -676,18 +658,39 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   `tests/test_cache_reset_race.py`; a store a reset drops shares its save
   folder's one index lock with its replacement since T8,
   `saves.index_lock_for`.)
-- Hosted mode: the client does not reconnect after a SERVER-side socket
-  disconnect (`ui/src/core/socket.js` only dispatches `DISCONNECTED`), so a
-  password change, which closes every socket of the account at once (T8
-  fix round 1), also closes the player's own game tab, which must be
-  reloaded (docs/HOSTING.md § Ownership and errors); so does a model
-  settings apply, which restarts every story's worker (v0.20.0 T16,
-  docs/HOSTING.md § The admin panel, Model server). No UI change lands in
-  v0.20.0; the v0.21.0 UI overhaul takes it up.
-- Hosted mode's `GET /api/settings` omits `config_path` (a path on the
-  operator's machine, T8), and the unchanged Settings screen
-  (`ui/src/core/screens/Settings.jsx`) renders an empty `<code>` where it
-  stood. The v0.21.0 UI overhaul hides that row when `writable` is false.
+- Turn payload opening choices may label a present NPC the player has not met
+  (an intent's label or `npc_id`). The opening's prose introduces those
+  present, and withholding the label would move the turn goldens (controller
+  ruling, v0.21.0).
+- The summarizer model's input (`engine/memory/summarizer.py::_render_turns`)
+  still sends `[day N, <location_id>]`, so a model may echo an id into the
+  recap. Unchanged because it would move the LM Studio golden (controller
+  ruling, v0.21.0; the fallback summary no longer prints ids).
+- THE LONG CON has no stage, so on desktop the roll card's one line covers
+  one log line for its 6 s (v0.21.0; Dev Story's engine skin has a stage, and
+  its card sits on the plate, re-measured in the final fix wave).
+- The flagship's and NEON CITY's overlays (barter, item use, crafting, posted
+  work, a thread's paper) send the player's words as typed text, which carries
+  no intent, so no skill runs from them and the prose can tell of a trade the
+  save never made (a GOVERNANCE NOT WIRED row names the five files). The
+  overlay-to-intent path is the v0.23.0 (flagship) and v0.25.0 (NEON CITY)
+  overhauls' work, not a fix (v0.21.0 final review, controller ruling).
+- Under 640px tall, with the people strip in the stage, the scene plate gives
+  way to the strip entirely (HUE & CRY at 900x600 and 844x390), so the log
+  keeps three lines and the choices two rows (v0.21.0 final fix wave).
+- At 844x390, scrolled to the choices, the roll card covers the job panel's
+  chevron for its 6 s (no clicks are taken there; v0.21.0).
+- Under 900px the shelf is drawn above the log while the log comes first in
+  reading order (visual and DOM order differ; v0.21.0).
+- Core's panels print a few words of their own ("Wanted", "Held", "Casing",
+  "Prep") and a story of another register cannot rename them: a label
+  override is not built (`ui/src/core/panels/`; docs/GOVERNANCE.md).
+- Not drawn or told, v0.21.0, each a docs/GOVERNANCE.md row: the companion
+  in the people strip (`PeopleStrip.jsx`), which jurisdiction the poster
+  stands in (`_law_block`), the prose of a turn finished across a server
+  restart, a story switched in another tab then a reconnect, a player's
+  place in the queue, and the flagship's and NEON CITY's encounter look
+  (theirs to restyle in v0.23.0 and v0.25.0).
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 
@@ -716,6 +719,14 @@ The one-line index, because each is a mistake worth not repeating:
 ## Machine notes (this workstation)
 
 - The default pytest temp directory is unreadable here (WinError 5, environmental).
-  Pass `--basetemp="C:/Users/Knack/AppData/Local/Temp/claude/ptmp"`.
+  Pass `--basetemp="C:/Users/Knack/AppData/Local/Temp/claude/ptmp"`; parallel
+  runs each pass their own (`ptmp-<agent>`), because pytest wipes its basetemp
+  at start.
+- Loopback TCP connects here sometimes stall: in a plain Python loop of
+  3000 listen/connect/accept pairs (2026-10-07, nothing else running), 13
+  were never accepted and many more arrived 1-16 s late, in bursts. Every
+  hosted test's socket wait is bounded (the bus's wake pair since
+  v0.21.0), so a stall fails a test rather than hanging the run; a lone
+  connect timeout in the hosted files is worth one re-run before a hunt.
 - Heredocs and `python -c` strings lose backticks to shell command
   substitution; write commit messages and patch scripts to a file first.

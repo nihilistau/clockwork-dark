@@ -57,6 +57,7 @@ from engine.scenes.default_state import (
     SessionStore,
     resolve_authored_choice,
     resolve_player_action,
+    stale_choice,
     resolve_player_intent,
     run_turn,
 )
@@ -507,6 +508,12 @@ class DefaultScene(FlaskScene):
                 return jsonify({"error": "session not found"}), 404
 
             choice_id = str(body.get("choice_id", ""))
+            # An id the frame no longer offers (a "Try again" into a resumed
+            # frame) is refused before any turn runs: nothing would resolve
+            # it, and the narrator would be handed a move nobody made.
+            stale = stale_choice(session, choice_id, body.get("custom_text"))
+            if stale:
+                return jsonify({"error": stale, "stale_choice": True}), 409
             action = resolve_player_action(
                 session, choice_id, body.get("custom_text")
             )
@@ -545,6 +552,13 @@ class DefaultScene(FlaskScene):
                     emit("error", {"message": "session not found"})
                     return
                 join_room(session_id)
+                # v0.21.0 (spec §6.2, S6): a rejoining client learns whether
+                # `opening` is the PREVIOUS turn while another is still
+                # running. Every answer carries it. Read BEFORE `opening`: a
+                # turn ending between the two reads then answers "fresh
+                # opening, still running" (the client's re-join recovers),
+                # never "stale opening, idle" (controls live over an old turn).
+                running = session.lock.locked()
                 emit(
                     "game_started",
                     {
@@ -552,6 +566,7 @@ class DefaultScene(FlaskScene):
                         "save_id": session.save_id,
                         "state": session.engine.state.to_client_dict(),
                         "opening": session.last_turn,
+                        "turn_running": running,
                     },
                 )
 
@@ -574,6 +589,12 @@ class DefaultScene(FlaskScene):
                 emit(event, payload, room=session_id)
 
             choice_id = str(data.get("choice_id", ""))
+            # Refused before any turn runs, the frame left as it was
+            # (`stale_choice`): `busy: false`, so the client re-enables.
+            stale = stale_choice(session, choice_id, data.get("custom_text"))
+            if stale:
+                emit("turn_error", {"message": stale, "busy": False, "stale_choice": True})
+                return
             action = resolve_player_action(
                 session, choice_id, data.get("custom_text")
             )

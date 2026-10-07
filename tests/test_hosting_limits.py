@@ -432,7 +432,9 @@ def test_a_trickled_body_is_cut_at_the_deadline_without_read1() -> None:
     listener = socket.create_server(("127.0.0.1", 0))
     port = listener.getsockname()[1]
     client = socket.create_connection(("127.0.0.1", port), timeout=10)
+    listener.settimeout(10)  # bounded: a loopback connect can fail to arrive (v0.21.0)
     server, _addr = listener.accept()
+    server.settimeout(10)
     listener.close()
     stop = threading.Event()
 
@@ -469,7 +471,9 @@ def test_a_body_that_arrives_in_time_is_read_whole_without_read1() -> None:
 
     listener = socket.create_server(("127.0.0.1", 0))
     client = socket.create_connection(listener.getsockname()[:2], timeout=10)
+    listener.settimeout(10)  # bounded: a loopback connect can fail to arrive (v0.21.0)
     server, _addr = listener.accept()
+    server.settimeout(10)
     listener.close()
     try:
         client.sendall(b'{"choice_id": "a"}')

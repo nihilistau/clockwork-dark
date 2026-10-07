@@ -117,7 +117,17 @@ service, and writes `mcp.json` only in the temp root (a marker the suite did
 not set stops it at conftest import), and a `subprocess` child's
 `CLOCKWORK_CONFIG` also ends in the sandbox layer (`CLOCKWORK_CONFIG` itself
 is never exported in-process); the owner's real storage, `local.yaml` and
-`mcp.json` are compared at session end (`_real_storage_is_untouched`). **A
+`mcp.json` are compared at session end (`_real_storage_is_untouched`). The
+storage root is a temp directory everywhere -- except in a test marked
+`default_storage_root` (`tests/test_local_mode_golden.py`) or a canary that
+deletes the variable, which the audit hook still watches: per test
+(`_no_test_writes_real_saves`) and, for a module-, class- or session-scoped
+fixture set up before that, the session's own (`pytest_configure`); a
+`--basetemp` that resolves under the real storage root is refused at
+start-up (`pytest.UsageError`); an
+audit hook records any write this process aims at the real root's
+`saves/`, `users/`, `hosting/` or `media/`, failing that test, or the next
+test's setup when it happened outside one. **A
 canary that removes or weakens a guard runs only after every path that guard
 protects -- the home directory (LM Studio's `mcp.json`), `_CONFIG_DIR`
 (`config/local.yaml`), the storage root and the model endpoints -- is
@@ -170,6 +180,25 @@ by convention. Unwired work is a row in a NOT WIRED table naming its file
 **The client.** `ui/src` builds into the COMMITTED
 `content/scenes/clockwork/static/dist`; rebuild and commit it in the same
 change (see "Verify a checkout").
+
+Shared play-screen surfaces (the wanted poster, the job panel, the casing
+board, the people strip, the encounter's approaches, the roll card, the
+negotiation panel) are **engine panels enabled by data**: a story lists them
+in its manifest's `ui.panels`, and a plugin that draws one itself names it in
+`ownsPanels`. A new panel joins `engine/games/manifest.py::UI_PANELS` and
+`ui/src/core/panels/registry.js` together, which
+`tests/test_ui_panels_manifest.py` holds equal. A layout change is gated by
+`npm run layout-check --prefix ui`, which probes the play screen at four sizes
+(1366x768, 900x600, 390x844 and the landscape phone 844x390) and fails on a
+panel over the choices or an unreachable control; it expects
+`scripts/screenshot_runs.py --serve <slug> --exit-with-parent` running as a
+background task (never a bare `&`) and drives the installed Chrome
+(`playwright-core` downloads no browser). The README's captures come from the
+same pair: `scripts/screenshot_runs.py` makes the runs with no model, and
+`ui/tools/screenshots.mjs` (`npm run screenshots --prefix ui`) photographs
+them. When several agents run the suite at once, give each its own
+`--basetemp` directory (`ptmp-<agent>`): pytest wipes its basetemp at start,
+so two runs sharing one delete each other's temp trees.
 
 **Story content** lives under `games/<slug>/` and is written against
 docs/AUTHORING.md, not against engine source. A story that does not declare a

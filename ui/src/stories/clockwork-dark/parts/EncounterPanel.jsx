@@ -12,8 +12,9 @@
  *    inventory before it ships). We render exactly what is in the list and
  *    never synthesize an option — an invented approach is one the engine will
  *    refuse, which reads to the player as the game lying.
- *  - Taking an approach is an ordinary turn. We send the approach's own text
- *    as a custom action; the Storyteller calls `encounter_approach` itself.
+ *  - Taking an approach presses the narrator's choice that carries its intent
+ *    (`offered`, spec §2.3); one not offered this turn is drawn and not
+ *    pressable.
  */
 import React from "react";
 import useArtUrl from "@core/hooks/useArtUrl.js";
@@ -55,7 +56,7 @@ function Resolve({ threat }) {
   );
 }
 
-function Approach({ approach, busy, onTake }) {
+function Approach({ approach, busy, offered, onTake }) {
   const difficulty = DIFFICULTY_LABEL[approach.difficulty] || approach.difficulty;
   const cost = Number(approach.cost_gold) || 0;
 
@@ -63,8 +64,12 @@ function Approach({ approach, busy, onTake }) {
     <button
       type="button"
       className="approach"
-      disabled={busy}
-      onClick={() => onTake(approach)}
+      // aria-disabled, never `disabled`, while a turn runs: a disabled button
+      // throws its focus to <body> mid-turn (spec §8.2, F9).
+      aria-disabled={busy || !offered ? "true" : undefined}
+      onClick={() => {
+        if (offered && !busy) onTake(approach);
+      }}
     >
       <span className="approach__text">{approach.text}</span>
       <span className="approach__meta">
@@ -79,12 +84,13 @@ function Approach({ approach, busy, onTake }) {
           </>
         )}
         {cost > 0 && <span className="approach__tag approach__tag--cost">{cost} gold</span>}
+        {!offered && <span className="approach__tag">not offered this turn</span>}
       </span>
     </button>
   );
 }
 
-export default function EncounterPanel({ encounter, world, phase, sceneImage, busy, onTake }) {
+export default function EncounterPanel({ encounter, world, phase, sceneImage, busy, offered = new Map(), onTake }) {
   const artUrl = useArtUrl(encounter.art, encounter.art_kind || "enemy");
   const threat = encounter.threat || {};
   const log = encounter.log || [];
@@ -142,7 +148,7 @@ export default function EncounterPanel({ encounter, world, phase, sceneImage, bu
 
       <div className="encounter__approaches" role="group" aria-label="Approaches">
         {approaches.map((approach) => (
-          <Approach key={approach.id} approach={approach} busy={busy} onTake={onTake} />
+          <Approach key={approach.id} approach={approach} busy={busy} offered={offered.has(approach.id)} onTake={onTake} />
         ))}
         {approaches.length === 0 && (
           <p className="encounter__none">

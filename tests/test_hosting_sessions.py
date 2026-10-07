@@ -149,11 +149,16 @@ def test_the_old_tab_leaves_the_room_and_hears_nothing_after(hosted: Hosted) -> 
 
     new_tab = _socket(hosted, client)
     new_tab.emit("resume", {"save_id": opened["save_id"]})
-    assert [e["name"] for e in new_tab.get_received()] == ["game_resumed"]
-    new_tab.emit("player_choice", {"session_id": opened["session_id"], "choice_id": "a"})
+    resumed = new_tab.get_received()
+    assert [e["name"] for e in resumed] == ["game_resumed"]
+    # Press a choice the RESUMED frame offers (its ids are `resume_*`): since
+    # v0.21.0 an id the frame does not hold is refused as stale.
+    offered = resumed[0]["args"][0]["opening"]["choices"][0]["id"]
+    new_tab.emit("player_choice", {"session_id": opened["session_id"], "choice_id": offered})
     heard = [e["name"] for e in new_tab.get_received()]
     assert "turn_update" in heard
-    assert old_tab.get_received() == [], "the released tab still hears the run"
+    # v0.21.0 (spec §6.5): told why, once, and then nothing more of the run.
+    assert [(e["name"], e["args"][0]["reason"]) for e in old_tab.get_received()] == [("session_ended", "elsewhere")]
     old_tab.disconnect()
     new_tab.disconnect()
 

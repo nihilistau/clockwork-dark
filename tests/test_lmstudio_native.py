@@ -411,7 +411,7 @@ def test_structured_output_off_returns_nothing():
     """`off` frees the request to use the native transport."""
     from engine.config import set_overlay
 
-    set_overlay({"lmstudio": {"structured_output": "off"}})
+    set_overlay({"llm": {"structured_output": "off"}})
     try:
         backend, _, _ = _backend()
         assert backend.structured_output({"type": "object"}) is None
@@ -426,7 +426,7 @@ def test_json_object_mode_is_emitted_as_a_permissive_schema():
     """
     from engine.config import set_overlay
 
-    set_overlay({"lmstudio": {"structured_output": "json_object"}})
+    set_overlay({"llm": {"structured_output": "json_object"}})
     try:
         backend, _, _ = _backend()
         emitted = backend.structured_output({"type": "object"})
@@ -440,7 +440,7 @@ def test_structured_output_json_schema_mode_wraps_the_schema():
     """The envelope the ONLY production narration path never once sent."""
     from engine.config import set_overlay
 
-    set_overlay({"lmstudio": {"structured_output": "json_schema"}})
+    set_overlay({"llm": {"structured_output": "json_schema"}})
     try:
         backend, _, _ = _backend()
         wrapped = backend.structured_output({"type": "object"})

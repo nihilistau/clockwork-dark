@@ -95,7 +95,7 @@ function slotsCoreReads() {
 
 const ALLOWED = slotsCoreReads();
 
-/** The three plugin directories that ship, from the same glob core uses. */
+/** The plugin directories that ship, from the same glob core uses. */
 const NAMES = Object.keys(PLUGINS)
   .map((path) => path.replace("../src/stories/", "").replace("/index.jsx", ""))
   .sort();
@@ -103,7 +103,7 @@ const NAMES = Object.keys(PLUGINS)
 const isComponent = (value) => typeof value === "function";
 
 describe("the plugin directory", () => {
-  it("ships the four story plugins plus the engine's own", () => {
+  it("ships the five story plugins plus the engine's own", () => {
     // Not a count: the names. A plugin appearing with no story pointing at it
     // is a chunk in the committed dist/ that nothing can ever load, and one
     // disappearing is a story that silently falls back to something else.
@@ -115,6 +115,7 @@ describe("the plugin directory", () => {
     expect(NAMES).toEqual([
       "_engine",
       "clockwork-dark",
+      "hue-and-cry",
       "neon-city",
       "the-long-con",
       "wicked-garden",
@@ -190,10 +191,16 @@ describe.each(NAMES)("plugin: %s", (name) => {
     if (plugin.initialState != null) {
       expect(plugin.initialState).toBeTypeOf("object");
     }
+    // Any truthy value would turn on core's scene plate, so a typo'd
+    // `defaultStage: "yes"` or a component meant for `Stage` must fail here.
+    if (plugin.defaultStage != null) {
+      expect(plugin.defaultStage, `${name}.defaultStage is not a boolean`).toBeTypeOf("boolean");
+    }
     for (const list of ["overlays", "onboarding"]) {
       if (plugin[list] == null) continue;
       expect(Array.isArray(plugin[list]), `${name}.${list} is not an array`).toBe(true);
     }
+    if (plugin.ownsPanels != null) expect(Array.isArray(plugin.ownsPanels)).toBe(true);
   });
 
   it("declares well-formed overlays with unique shortcut keys", async () => {
@@ -304,6 +311,52 @@ describe.each(NAMES)("plugin: %s", (name) => {
     expect(() =>
       plugin.reduce(plugin.initialState ?? {}, { type: "SOCKET" }, { world: null, meters: {} })
     ).not.toThrow();
+  });
+});
+
+describe("the panel seam (v0.21.0)", () => {
+  it("no plugin exports panelDeclaration: it is the manifest's, set by core", async () => {
+    for (const name of NAMES) {
+      const plugin = (await PLUGINS[`../src/stories/${name}/index.jsx`]()).default;
+      expect(Object.keys(plugin), name).not.toContain("panelDeclaration");
+    }
+  });
+
+  it("ownsPanels names registry panels, and defaultStage is a boolean", async () => {
+    const { PANELS } = await import("../src/core/panels/registry.js");
+    const known = new Set(PANELS.map((p) => p.id));
+    for (const name of NAMES) {
+      const plugin = (await PLUGINS[`../src/stories/${name}/index.jsx`]()).default;
+      if (plugin.ownsPanels != null) {
+        expect(Array.isArray(plugin.ownsPanels), name).toBe(true);
+        for (const id of plugin.ownsPanels) expect(known.has(id), `${name}: ${id}`).toBe(true);
+      }
+      if (plugin.defaultStage != null) expect(plugin.defaultStage, name).toBeTypeOf("boolean");
+    }
+  });
+
+  it("HUE & CRY's plugin is a skin: no component slot, no ownsPanels, core's plate", async () => {
+    const plugin = (await PLUGINS["../src/stories/hue-and-cry/index.jsx"]()).default;
+    for (const slot of ["Stage", "Ledger", "Aside", "Toast", "Mark", "HeaderBadge", "MenuBanner", "Ending", "Wrap"]) {
+      expect(plugin[slot], slot).toBeUndefined();
+    }
+    expect(plugin.ownsPanels).toBeUndefined();
+    expect(plugin.defaultStage).toBe(true);
+    expect(plugin.bodyData({})).toEqual({ storySkin: "hue-and-cry" });
+  });
+
+  it("a borrowed plugin keeps ownsPanels and defaultStage; the declaration is the story's", async () => {
+    const { loadStory } = await import("../src/core/story.js");
+    const borrowed = await loadStory("clockwork-dark", "a-borrower", "A Borrower", ["casing"]);
+    expect(borrowed.ownsPanels).toEqual(["rolls", "encounter"]);
+    expect(borrowed.panelDeclaration).toEqual(["casing"]);
+    // A naming slot (plan decision 17): the flagship's save line is its own.
+    expect(borrowed.saveMeta).toBeNull();
+    const own = await loadStory("clockwork-dark", "clockwork-dark", "The Clockwork Dark");
+    expect(own.saveMeta({ evil_phase: "dormant" })).toBe("the pattern is quiet");
+    const engine = await loadStory("_engine", "dev-story", "Dev Story");
+    expect(engine.defaultStage).toBe(true);
+    expect(engine.panelDeclaration).toBeUndefined();
   });
 });
 

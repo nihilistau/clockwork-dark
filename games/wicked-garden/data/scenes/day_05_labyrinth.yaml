@@ -103,6 +103,7 @@ cards:
               - { type: value, name: autonomy, delta: 2 }
 
       - id: enter_empty_handed
+        label: "Enter empty-handed"
         text: >-
           Wild deck, higher risk, and the briars do not know what to make of
           you. The existing `thorn_labyrinth` spine rewards this at its own
@@ -206,6 +207,7 @@ cards:
               - { type: value, name: favor, delta: -15 }
 
       - id: cold_mirror_accept_the_frost_crown
+        label: "Accept the frost crown"
         text: >-
           Variant C. Black ice showing the player crowned in frost beside a
           Sophia-shaped absence. Accepting takes `ashen_route` to 3 -- DEEP
@@ -234,6 +236,7 @@ cards:
               - { type: value, name: ashen_pressure, delta: 1 }
 
       - id: cold_mirror_show_it_her_mark
+        label: "Show the mirror her mark"
         text: >-
           Variant C, hybrid. Hold up the collar, or the ring, or the petal. It
           hurts in a way that is instructive. Sets `refused_winter_self`.

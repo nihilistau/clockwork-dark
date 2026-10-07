@@ -321,23 +321,6 @@ def test_a_missing_key_is_said_in_the_rows_own_words(
     assert PROVIDERS[provider].key_missing == text
 
 
-def test_a_legacy_block_is_a_warning_naming_the_file(llm_server: Any) -> None:
-    import engine.config as config
-
-    llm_server("lmstudio")
-    local = config._CONFIG_DIR / "local.yaml"
-    data = yaml.safe_load(local.read_text(encoding="utf-8"))
-    data["lmstudio"] = data.pop("llm")
-    local.write_text(yaml.safe_dump(data), encoding="utf-8")
-    config.reset_config()
-    report = DOCTOR.Report()
-    DOCTOR.check_config(report)
-    (row,) = [r for r in report.rows if r[1] == "legacy lmstudio: block"]
-    assert row[2] == DOCTOR.WARN
-    assert str(local) in row[3] and "lmstudio: -> llm:" in row[3]
-    assert [r[1] for r in report.rows if r[1].endswith(" key")] == ["lmstudio key"]
-
-
 def test_the_services_row_is_fail_level_for_every_provider(
     llm_server: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -45,6 +45,7 @@ Version: v0.2.0 [2026-09-27]
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Optional
 
 from engine.content import deck as deck_module
@@ -158,6 +159,63 @@ def options(state: GameState) -> list[dict[str, str]]:
             return rows
 
     return [{"id": "resolve", "text": card.title or "Go on"}]
+
+
+#: An inline code span in authored text (`` `resisted_call` ``): a flag or id
+#: name written for the author and the narrator, never for the player.
+_CODE_SPAN = re.compile(r"`[^`]*`")
+#: A sentence boundary: end punctuation, then space, then a capital or a quote.
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[\"'*A-Z])")
+
+
+def player_label(beat: dict[str, Any], *, fallback: str = "") -> str:
+    """
+    The words a player reads for a menu beat: its chip, its hint line.
+
+    A beat's ``text`` does two jobs. It is the narrator's direction --
+    ``prompts._scene_block`` prints it under "render it, do not replace it" --
+    and authors write notes into it ("Sets `resisted_call`, which is the only
+    thing..."). Shown to the player as a choice, those notes are design
+    documentation on a button. So the player gets:
+
+    1. the beat's authored ``label``, when it has one; otherwise
+    2. the first sentence of its text, with every backticked span removed.
+
+    ``fallback`` (the card's title, say) when both come back empty. The
+    narrator's prompt and the intent enum keep the full text (``options``);
+    this is display only. ``StoryValidator.check_beat_labels`` advises on a
+    menu beat whose text carries a note and that has no ``label``.
+    """
+    authored = " ".join(str(beat.get("label") or "").split())
+    if authored:
+        return authored
+    text = _CODE_SPAN.sub("", str(beat.get("text") or ""))
+    text = " ".join(text.split())
+    first = _SENTENCE_END.split(text, maxsplit=1)[0].strip() if text else ""
+    # A removed span can leave "Sets , which..." or "after ." behind.
+    first = re.sub(r"\s+([,.;:!?])", r"\1", first).strip(" ,;:-")
+    return first or fallback
+
+
+def player_options(state: GameState) -> dict[str, str]:
+    """
+    Beat id -> the player's label (``player_label``), for the dealt card.
+
+    The same rows ``options`` offers, so a chip and the enum name the same
+    beats; a ``sequence`` card's single "go on" keeps its card title.
+    """
+    card = current_card(state)
+    if card is None:
+        return {}
+    if deck_module.MENU_TAG in card.tags and card.beats:
+        out = {
+            str(beat.get("id") or ""): player_label(beat, fallback=card.title or "")
+            for beat in card.beats
+            if str(beat.get("id") or "")
+        }
+        if out:
+            return out
+    return {"resolve": card.title or "Go on"}
 
 
 # ---------------------------------------------------------------------------

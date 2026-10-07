@@ -52,6 +52,7 @@ cards:
       MENU -- resolve exactly the beat the player chose.
     beats:
       - id: watch_the_mortal_window
+        label: "Watch the mortal window"
         text: >-
           Piled mail, a dead plant, ten days of dust. Sets `looked_home_d1`,
           which is the flag Day 3's letter and Day 7's mortal leak read to know
@@ -80,6 +81,7 @@ cards:
               - { type: value, name: autonomy, delta: -1 }
 
       - id: search_the_room
+        label: "Search the room"
         text: >-
           The reliquary tutorial. A pressed court schedule from a previous
           guest, in handwriting that stops mid-word. First pickup, first `use:`
@@ -261,6 +263,7 @@ cards:
           text: "The distance between insult and invitation."
 
       - id: refuse_cleanly_aftermath
+        label: "Weigh what refusing bought"
         text: >-
           Resolve immediately after `refuse_cleanly`. What refusal actually
           bought: standing that is yours, and a court that now expects you to
@@ -406,6 +409,7 @@ cards:
               - { type: value, name: desire, delta: 2 }
 
       - id: ask_how_to_leave_someday
+        label: "Ask how you might leave, someday"
         text: >-
           With her leave. With older law. With a cruelty she has not decided to
           allow. Sets `asked_exit_d1` -- the earliest door-shaped flag in the
@@ -417,6 +421,7 @@ cards:
           text: "Whether it was phrased as curiosity or as an exit."
 
       - id: ask_how_to_leave_someday_mark
+        label: "Keep her answer"
         text: "Resolve with `ask_how_to_leave_someday`. The fact, separated from the reaction."
         gate:
           on_pass:
@@ -637,6 +642,7 @@ cards:
               - { type: value, name: autonomy, delta: 4 }
 
       - id: refuse_and_fumble_the_law
+        label: "Refuse, without the words for it"
         text: >-
           The same refusal, from someone who does not have the words yet.
           Resolve this instead of the beat above when the law is out of reach:

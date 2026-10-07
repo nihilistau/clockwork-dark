@@ -15,7 +15,6 @@ test writes under the repository's ``data/``.
 from __future__ import annotations
 
 import ast
-import logging
 import os
 from pathlib import Path
 from typing import Any, Iterator
@@ -40,7 +39,6 @@ def layers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     monkeypatch.setattr(config, "_DEFAULT_PATH", REPO / "config" / "default.yaml")
     monkeypatch.setattr(config, "_overlay", {})
     monkeypatch.setattr(config, "_instance", None)
-    monkeypatch.setattr(storage, "_WARNED_ALIAS", None)
     yield directory
     config._instance = None
 
@@ -183,49 +181,7 @@ def test_the_scan_sees_a_constant() -> None:
     assert _names(ast.parse(source)) == _RETIRED
 
 
-def test_the_legacy_paths_saves_alias_warns_once_naming_its_file(
-    layers: Path, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """
-    A ``paths.saves`` in config/local.yaml is the EXACT local save base for one
-    release (nothing appended), with ONE WARNING naming the file.
-    """
-    local = _yaml(layers / "local.yaml", {"paths": {"saves": str(tmp_path / "old-saves")}})
-    with caplog.at_level(logging.WARNING, logger="engine.persistence.storage"):
-        assert storage.saves_dir("", None) == tmp_path / "old-saves"
-        assert storage.saves_dir("", "neon-city") == tmp_path / "old-saves" / "neon-city"
-        assert storage.local_saves_base() == tmp_path / "old-saves"
-    warnings = [r for r in caplog.records if r.name == "engine.persistence.storage"]
-    assert len(warnings) == 1, [r.getMessage() for r in warnings]
-    message = warnings[0].getMessage()
-    assert str(local) in message and "v0.21.0" in message and "storage.root" in message
-    assert storage.legacy_saves_alias() == (str(local), str(tmp_path / "old-saves"))
-    # An account's saves are never moved by it.
-    assert storage.saves_dir("u1", "neon-city") == (
-        config.project_root() / "data" / "users" / "u1" / "saves" / "neon-city"
-    )
-
-
-def test_the_alias_from_clockwork_config_names_that_file(
-    layers: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _yaml(layers / "local.yaml", {"paths": {"saves": "from-local"}})
-    external = tmp_path / "operator.yaml"
-    external.write_text(yaml.safe_dump({"paths": {"saves": "from-operator"}}), encoding="utf-8")
-    monkeypatch.setenv("CLOCKWORK_CONFIG", str(external))
-    config._instance = None
-    assert storage.legacy_saves_alias() == (str(external), "from-operator")
-    assert storage.local_saves_base() == config.project_root() / "from-operator"
-
-
-def test_no_alias_no_warning(layers: Path, caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="engine.persistence.storage"):
-        assert storage.legacy_saves_alias() is None
-        storage.saves_dir("", "clockwork-dark")
-    assert not [r for r in caplog.records if r.name == "engine.persistence.storage"]
-
-
-def test_the_doctor_reports_the_root_and_the_alias(
+def test_the_doctor_reports_the_root(
     layers: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import importlib.util
@@ -245,7 +201,6 @@ def test_the_doctor_reports_the_root_and_the_alias(
     (row,) = [r for r in report.rows if r[1] == "storage"]
     assert row[2] == doctor.OK and row[3] == f"{root}: writable"
     assert list(root.iterdir()) == [], "the probe file was left behind"
-    assert not [r for r in report.rows if r[1] == "legacy paths.saves"]
 
     # A root that cannot be written: the probe's own failure is the answer.
     import tempfile
@@ -259,10 +214,3 @@ def test_the_doctor_reports_the_root_and_the_alias(
         doctor._storage_rows(report)
     (row,) = [r for r in report.rows if r[1] == "storage"]
     assert row[2] == doctor.FAIL and "Access is denied" in row[3]
-
-    local = _yaml(layers / "local.yaml", {"paths": {"saves": "somewhere"}})
-    report = doctor.Report()
-    doctor._storage_rows(report)
-    (alias,) = [r for r in report.rows if r[1] == "legacy paths.saves"]
-    assert alias[2] == doctor.WARN
-    assert str(local) in alias[3] and "v0.21.0" in alias[3]

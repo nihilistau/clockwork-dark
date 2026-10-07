@@ -110,7 +110,7 @@ function GamePicker() {
  * are plugin slots now (`Wordmark`, `StartIntro`); with no plugin the screen
  * falls back to the catalogue's own title, which the server already knows.
  */
-export default function Start({ onBegin, busy, onOpenSaves, story = {} }) {
+export default function Start({ onBegin, busy, onOpenSaves, story = {}, error = "" }) {
   const Wordmark = story.Wordmark || null;
   const Intro = story.StartIntro || null;
   const [name, setName] = useState("");
@@ -217,6 +217,10 @@ export default function Start({ onBegin, busy, onOpenSaves, story = {} }) {
           />
           <span className="field__hint">Same seed, same world.</span>
         </label>
+
+        {/* A run that would not open (resume_failed, Review 27) or would not
+            begin says why here, where the player is sent. */}
+        {error && <p className="overlay__error" role="alert">{error}</p>}
 
         <button type="submit" className="btn btn--lg" disabled={busy}>
           {busy ? "Waking…" : story.beginLabel || "Begin"}

@@ -14,6 +14,661 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-10-07
+
+### Added
+
+- The client's engine panels have one framework (spec §2): a registry
+  (`ui/src/core/panels/registry.js`, kept equal to `UI_PANELS` by
+  `tests/test_ui_panels_manifest.py`, read as text), a resolver
+  (`resolve.js`: the manifest's `ui.panels`, carried as
+  `story.panelDeclaration`, or the data-gated defaults, minus the plugin's
+  new `ownsPanels`) and five regions on the play screen: header chips, the
+  stage, the shelf, a ledger list under the sheet column's Ledger, and the
+  toast layer. Core's `Panel` shell is a `<section aria-labelledby>` with an
+  `<h2>` (F11) and an optional disclosure; `useMedia`, `scaleIndex` and
+  `Marks` are the shared parts the later panels use. The flagship declares
+  `ownsPanels: ["rolls", "encounter"]`, NEON CITY `["encounter"]`; a
+  borrowed plugin keeps its claim, and no plugin can set the declaration.
+  `negotiation` and `casing` are the first two drawn: the negotiation panel
+  in the shelf, its heading an `<h2>` and its toggle 44px; the casing board
+  in the ledger region (the Sheet tab on a narrow screen), headed "Casing —
+  n houses here · k empty now · Prep: word", each house a disclosure row
+  that starts open only when the house is empty now. With ledger panels
+  under it the sheet column scrolls rather than crushing the Ledger's card.
+  AUTHORING §2.5 documents `ownsPanels`.
+- `ui.panels` in `game.yaml`: which engine panels a story draws
+  (`wanted`, `job`, `casing`, `negotiation`, `rolls`, `people`, `encounter`),
+  each in its default region or one it allows. Omitted, a story gets the
+  data-gated defaults and its catalogue row is unchanged. A malformed
+  declaration is a problem at activation and an error in
+  `validate_content.py`; a panel whose system the story does not declare is
+  an advisory there and in the doctor (`UI_PANELS`, `UI_PANEL_SYSTEMS`,
+  `ui_panel_problems`, `GameManifest.panel_declaration`). AUTHORING §2.5.
+- The `law` and `job` payload blocks carry `scales`: the display order of
+  their words, low to high (a story with a Law or jobs only). The local-mode
+  golden sanctions it (S3).
+- `GET /api/people?session_id=`: who is at the player's place, for the people
+  strip -- the prompt's own list (`merge_npcs_at_location`), crowds dropped,
+  generated household people capped as PEOPLE HERE caps them (`more` counts
+  the rest). A row carries no NPC id (an opaque `key` instead); `name` and
+  `portrait` only once the player has met that person; `role_label` and
+  `activity` pass the awareness spoiler gate. Session-required and owned like
+  every session route (hosted: another account's id answers as a missing
+  one, 404); any failure inside answers an empty list, never a 500. The
+  local-mode golden sanctions the one new route row (S4).
+- `join_session`'s `game_started` carries `turn_running`: whether a turn is
+  still being played, so a rejoining client knows `opening` is the previous
+  turn (read before `opening`, so it never marks a stale opening idle). The
+  local-mode golden sanctions it in both recorded joins (S6).
+- The wanted poster and its header chip (`ui/src/core/panels/WantedPoster.jsx`,
+  v0.21.0): `world.law` drawn as a collapsible panel headed "Wanted" -- the
+  face worn, a sketch whose layers fill in with the clarity word's place in
+  its scale, each jurisdiction's band word with marks lit to its place, and a
+  "Held" stamp with the fine or the days (as words) while in custody -- and
+  a chip in the header (`sought · a description`, hidden while nobody is
+  looking) that opens it. The scale lights marks and picks layers and is
+  never printed; `veiled.test.js` now scans `src/core/panels/` for
+  arithmetic on a band, anchored on `scaleIndex(` (its arithmetic arm is built
+  with `String.raw`; a first cut with single backslashes matched nothing). A
+  story with `paths.law` draws it by default; `ui.panels` can move it to the
+  shelf or leave it out. The chip opens a collapsed poster (a `panel:open`
+  event the collapsible `Panel` listens for) and switches a phone to the Sheet
+  tab only when the poster is in the ledger; on a screen under 560px it shows
+  only the band word (the label names all). The chip names where the worst band
+  is ("the Quay: wanted", the payload's own district label), shows the clarity
+  word only above its lowest, and reads core's "Held" while the thief is held.
+  The header's chips sit outside the "World clock" group: only the ring
+  and the day now carry that label.
+- The job panel (`ui/src/core/panels/JobPanel.jsx`): `world.job` drawn in
+  the shelf while a job is open -- headed "The job — <house>", the stages as
+  a stepper (`aria-current="step"` on the current one, earlier ones done),
+  the alarm and the prep each as a word with marks lit to its place in
+  `scales` ("raised", the alarm's last word, in the danger token). Collapsed
+  by default on a narrow screen. No figure, percentage or width is made from
+  a band (`veiled.test.js`; the job panel's own test renders every band).
+- The people strip (`ui/src/core/panels/PeopleStrip.jsx`, `fetchPeople` in
+  `api.js`): `GET /api/people` drawn under the scene plate (or as a column in
+  the ledger) for a story that declares `people` in `ui.panels` -- a met
+  person's portrait (alt: their name) or initial, a stranger a silhouette and
+  a role, the activity on one line, "+n more". Refetched when the place, the
+  hour or the turn moves; a failed fetch draws nothing. Keyed on the route's
+  opaque `key` only, and drawn only for the session it was fetched for. On a
+  short screen (landscape phone) it keeps one line.
+  The people strip takes its own room: with the strip
+  in the stage, the stage track's floor is the plate's 12vh plus the strip's
+  row (`--stage-floor`, `--people-strip`), so a job open in the shelf no
+  longer squeezes the scene plate under the strip (it measured ~30px at
+  1366x768 and 5px at 844x390; now 94 and 49). The room comes out of the
+  shelf, which scrolls.
+- The roll card (`ui/src/core/panels/RollCard.jsx`): the turn's
+  `dice_result` as a toast in the top-right corner of the main column's
+  stage and log rows (a `.toast-area` laid over those rows only, so it never
+  covers the choices or the compose box, and it takes no pointer events) --
+  skill and difficulty, "d20 n",
+  the modifiers (with the dice-breakdown preference on), "= total vs dc" and
+  the degree word -- in a polite `role="status"` region, for six seconds or
+  until the next turn, once per roll however often the panel remounts. On a
+  short screen it lays the degree beside the figures. Every story that does
+  not draw rolls itself
+  (`ownsPanels: ["rolls"]`, the flagship) now shows its rolls.
+  It is one line on a screen 800px tall or less, so it sits in
+  the stage rather than over the newest narration; on a
+  screen 560px tall or less it is pinned to the viewport at the top-right of
+  the column's view, so a player scrolled down to the choices still sees it
+ . The layout gate's `--roll` probe now also fails a card that is not
+  wholly in view (at rest and with the column scrolled to its end,
+  photographed `...-roll-scrolled.png`) or that covers the log while the
+  stage could hold it, and every probe fails a scene plate squeezed under
+  the people strip.
+- The core encounter panel (`ui/src/core/panels/EncounterPanel.jsx`, v0.21.0
+  spec §4.5), the `encounter` row of the panel registry: for a story that
+  declares it in `ui.panels`, the shelf shows a live encounter's terms -- the
+  threat and its resolve ("resolve 2 of 3"), the round ("round 1 of 3": the
+  payload's `round` is 0-based), the intro on the first round -- and one
+  button per approach with its skill and difficulty words, "no roll", or its
+  cost. A button presses the narrator's choice that carries that approach's
+  `encounter` intent (`ui/src/core/panels/approaches.js::matchApproaches`); an
+  approach the narrator did not offer this turn is drawn, `aria-disabled`,
+  and says "not offered this turn". The play screen hides exactly the matched
+  choices (`matchedChoiceIds`): any other narrator choice stays, and nothing
+  is hidden when nothing matched. When every choice matched, the choice row
+  goes and the approaches take keys 1-9 (`useDigitKeys`, now the choice row's
+  binding too, so two lists never bind one key); on a narrow screen the panel
+  then never folds. A plugin's `hideChoices` may now return a list of choice
+  ids as well as `true` or nothing (`ui/src/core/story.js`). While they hold
+  the digits, the pressable approaches wear the choice row's number badge
+  (and `aria-keyshortcuts`), counted over the pressable ones. Core's panels
+  are no longer handed `onCustom`. When the panel holds the only moves, the
+  shelf takes the choice row's room (`data-moves="shelf"`); under 900px it
+  sits above the log with a floor of one button (`--shelf-moves-floor`), the
+  intro clamped to two lines and, at 500px tall and under, the intro and the
+  stage giving way, so the first approach is on screen at rest on a phone
+  (the layout probe's `firstApproachVisible` gates it at every size). A shelf
+  panel never shrinks to fit the shelf (`.shelf > * { flex-shrink: 0 }`):
+  beside a tall panel the collapsed negotiation was crushed to 2px, its
+  toggle unreachable. `ui/tests/encounter-panel.test.jsx`;
+  `tests/test_ui_contract.py` checks that the panel reads only keys a
+  recorded `watch_stop` sends.
+- Core's scene plate (`ui/src/core/parts/ScenePlate.jsx`): a plugin that sets
+  `defaultStage: true` and has no `Stage` of its own gets the place's plate
+  (`state.sceneImage`, its alt the place name; with no image, the frame's wash
+  and the name) at the top of the play column. The engine's own plugin sets
+  it, so `dev-story` and `hue-and-cry` now see where they are; their split is
+  40/60 (`_engine`'s `--row-visual: 4fr; --row-log: 6fr`), not the flagship's
+  painted 60/40. A plugin with neither keeps a stage-less column
+  (`data-stage="off"`, THE LONG CON).
+- HUE & CRY's own skin (spec §9): `ui/src/stories/hue-and-cry/`, a plugin
+  that fills no component slot and owns no panel -- a theme (its palette
+  under `body[data-story-skin="hue-and-cry"]`, on `check-styles.mjs`'s
+  palette list and in the contrast test), a wordmark, a begin label, three
+  onboarding cards and `defaultStage` -- so every panel it shows is the
+  engine's, worn in a real story's tokens. `games/hue-and-cry/game.yaml`
+  declares `ui.panels: [wanted, casing, job, people, encounter, negotiation,
+  rolls]`, the first story to declare any, which brings the people strip
+  and core's encounter panel to it. `dist` gains `hue-and-cry.js` and
+  `hue-and-cry.css`. The local-mode golden sanctions the catalogue row's
+  `ui` and `ui_plugin` in `games.json` and `games_hue-and-cry.json` (S5).
+- The game page reconnects on its own (v0.21.0 spec §6, `ui/src/core/link.js`).
+  It used to read "Reconnecting…" forever after the server closed its socket
+  or refused its connect (Socket.IO retries neither), and it resumed the save
+  on every connect, rebuilding a run that might still be live. It now keeps
+  one connection state and says it in a banner under the header on every
+  screen ("Connection lost.", "The server is not answering.", "Reconnected —
+  picking up your run…", "Your move is still being played…", "Opening your
+  run…"), with **Try now**, **Resume** or **Try again** where a press helps,
+  and a countdown (`aria-hidden`) only for a retry the page scheduled itself.
+  On a reconnect it re-joins its run first (`join_session`, re-sent at 8, 16
+  and 30 s) and resumes the save only on the join's exact "session not
+  found"; a turn still running on the server keeps the controls off until it
+  lands (`turn_running`, with a re-join every 15 s), a turn that finished
+  meanwhile is picked up once from `last_turn` (its ending included), and a
+  move the server dropped unanswered offers **Try again**, never re-sent on
+  its own. Hosted: an ended login (a probe of `/api/games/active` answering
+  401, 409, or 403 "password change required") goes to `/` once, and twice in
+  a minute stops with **Sign in again**; at the account's connection cap
+  the front door, whose 429 on the WebSocket upgrade the browser cannot
+  read, answers that probe 429 with the cap's words, and the banner shows
+  them (`engine/hosting/frontdoor/proxy.py::Proxy.at_connection_cap`); a
+  stopped story shows the front door's "story unavailable". **Try now**
+  works mid-backoff (it closes the Socket.IO Manager first), a resume after
+  a server restart neither repeats the narration the log ends on nor loses
+  the move in flight (**Try again**, sent to the new session, and never a
+  move that was already answered), and a late second answer to a re-join
+  changes nothing on screen (if it says a turn is running on an idle page,
+  the page re-joins and the fresh answer decides). On a screen
+  500px tall or less the choice list's floor is one wrapped chip. Every control (chips, approaches,
+  the compose box, Send, and `send` itself) is live only when the link is
+  live and no turn is running (`store.js::controlsLive`), so a press can no
+  longer be buffered for a socket that is down. `resume_failed`'s message
+  now reaches the start screen. `ui/tests/connection.test.js` (one case per
+  transition, 1-40), `ui/tests/store.test.js`.
+- Hosted mode tells a released tab why (v0.21.0 spec §6.5). The server keeps
+  one live run per account, and a release used to close the run's Socket.IO
+  room with no word, so the tab simply went quiet. `SessionStore._release`
+  now passes a reason to the release hook (`on_release(session_id, reason)`,
+  `engine/session/store.py`'s `RELEASED_ELSEWHERE`, `RELEASED_ENDED`,
+  `RELEASED_IDLE`), and hosted mode's hook emits `session_ended {"reason",
+  "session_id"}` to the run's room before closing it
+  (`engine/hosting/__init__.py`). The page that held the run says "This run
+  is open in another window." with **Play here** (`elsewhere`: a new game or
+  a load in another window), or "This session was ended. Your run is saved."
+  with **Resume** (`ended`, an admin's end; `idle`, the idle sweep), and
+  never resumes on its own (that would release the other window, whose own
+  resume would release this one). Begin and Load first leave the tab's run
+  (`link.leaving`, transition 31), so the event about the run they release is
+  ignored there (30), and join their new run (`link.join`, 32), which goes
+  live on its own answer whatever the banner said (a join the socket could
+  not send is sent on the reconnect). Play here and Resume resume THIS
+  tab's save (App's `saveRef`, from `state.saveId`; the shared
+  `localStorage` id is only the first load's fallback, since the tab that
+  released this one has just written its own there), and pressed while the
+  socket is down they connect, check the login and resume on the connect. A
+  Begin or Load the server refuses (the save cap, the other window's turn)
+  keeps the tab's run (`link.stay`); one lost to a network error keeps the
+  drop. Begin or Load during a rejoin stops it, so the old run's miss never
+  resumes the old save over the new run. The room's sockets are re-checked
+  (`_room_check`) before they hear it. Local mode sets no hook and emits
+  nothing. `tests/test_ui_contract.py` now scans `engine/hosting/`
+  for socket events (skipping `metrics_emit.py`, whose `emit` is a metric);
+  `tests/test_hosting_sessions_ended.py`; transitions 29-32 in
+  `ui/tests/connection.test.js`.
+- The layout gate (`npm run layout-check --prefix ui`, `ui/tools/layout-check.mjs`, `ui/tools/layout-probe.js`) probes every story at 1366x768, 900x600, 390x844 and 844x390 and fails on:
+  - `layout-check.mjs` gates the shelf's panels: each heading must come on
+    screen inside the shelf and the column's view (scrolled to if need be;
+    `atRest` reports whether it already was, and a needed scroll is
+    photographed as `...-shelf.png`; `shelfHeadingVisible` in
+    `layout-probe.js`). `probeLayout` fails a roll card whose box meets a chip
+    or the compose box, or lies outside the main column. Two tool-only
+    overrides, acting on the probe's own browser context and nothing else:
+    `--panels '<json>'` answers the story's `ui.panels` (to photograph a panel
+    before its story declares it; PNGs and JSON suffixed `-declared`), and
+    `--roll <recorded socket fixture>` delivers a recorded `dice_result` over
+    the page's own WebSocket, then probes and photographs the card
+    (`...-roll.png`).
+  - The layout gate also fails a control inside a scroller shorter than the
+    control (a crushed scroller scrolls to nothing), and checks that every
+    ledger panel's heading scrolls into view (through the Sheet tab where the
+    tab bar shows), photographing that tab as `...-sheet.png`. The shelf
+    keeps a 44px floor when it holds a panel, so on a landscape phone the
+    current move's panel is never crushed to 0.
+  - `probeHeader` in the layout gate (`ui/tools/layout-probe.js`, run by
+    `layout-check.mjs` at every size): the top bar must not scroll sideways, paint
+    past its edge, wrap the place name, the chip or the clock, overlap them, or
+    show a ring that is not round; it reports the bar's slack (`gap`) and whether
+    the place name is ellipsized.
+- Screenshot tooling (spec §11):
+  - `scripts/screenshot_runs.py --root <fresh
+    dir>` builds every story's README runs at one seed and name with no model:
+    each reply is the story's own `entry.fallback_narration`, each move one
+    the turn's own intent enum offered (a move it does not offer stops the
+    script, naming it), every run saved under that root and listed in
+    `runs.json`. It refuses unless `CLOCKWORK_DATA_DIR` names that fresh
+    root, and pins its config to `<root>/config/local.yaml`, so
+    `config/local.yaml` is never read: the discard model URL with no key, and
+    the MCP bridge, ComfyUI, TTS, STT, managed services and live image
+    generation off, as the test sandbox holds a child, and the wall-clock
+    world tick out of reach. It refuses while `CLOCKWORK_CONFIG` is set, whose
+    files would layer above the pin. `--serve <slug> [--port N]` serves the
+    story over those saves. `npm run screenshots --prefix ui`
+    (`ui/tools/screenshots.mjs`, thirteen captures) photographs them through
+    the browser already installed (Chrome by default, `--channel` or
+    `--executable-path` for another), on the new devDependency
+    `playwright-core` 1.48.2, which ships and downloads no browser. Its two `package.json` keys
+    are bundle-neutral to the committed-build guard (`BUNDLE_NEUTRAL`).
+  - `scripts/screenshot_runs.py` has an `("offer", action)` step, a run's last:
+    the last reply offers the move on every legal target, nothing presses it,
+    and the build stops unless every legal target reached the turn's choices.
+    The save stands in that state. The capture and the layout gate open a save
+    by resuming it, and a resume in an open encounter offers its approaches as
+    intent choices, so the approach buttons are pressable on screen.
+    The flagship's `encounter` run ends on it, and HUE & CRY has an `encounter`
+    run: the panels run's job walked on its first approach until the watch
+    takes the thief (at seed 1021, on its eighth stage), which begins the Law's
+    `watch_stop`, its approaches offered as `encounter` intents.
+  - `screenshot_runs.py`: HUE & CRY's `wanted` run (the Quay names the thief, then
+    the Lantern House: the poster's lit bands and the chip beside the longest
+    place name) and `held` run (the stamp), each by engine-offered intents only;
+    `--serve` refuses a port that already answers (werkzeug's `SO_REUSEADDR` let a
+    second server share a Windows port and a stale one answer), notes its own pid
+    and creation time in `<root>/serve-<port>.json`, and takes `--exit-with-parent`.
+
+### Changed
+
+- Deck beats take an optional `label:` (at most 120 characters): the
+  player's words for a menu beat, beside the narrator's `text`
+  (docs/AUTHORING.md, the story template's deck).
+- The four plate-heavy README captures are JPEG (quality 85;
+  `ui/tools/screenshots.mjs`): the title screen went from 1.06 MB to 153 KB.
+- The pace slider's hint says what its sweep table says: at 0.028 the
+  median run only just reached SPREADING (S10's hint constant follows).
+- The overlays' comments no longer claim the engine resolves their actions:
+  barter, item use, crafting, posted work and NEON CITY's paper send typed
+  text, which runs no skill (a GOVERNANCE NOT WIRED row; the v0.23.0 and
+  v0.25.0 overhauls).
+- The choice list fades its bottom edge while rows lie below its fold
+  (`data-more`, set by `ChoiceRow`), and on a short viewport a swipe on the
+  chips chains to the column (`overscroll-behavior-y: auto` under
+  `max-height: 560px`).
+- The LM Studio golden's harness input (`tests/llm_golden.py`'s variants and
+  scenario layers) is written as `llm:` (spec §1.3): the `legacy` variant
+  keeps its name and recordings and now holds the v0.18 block renamed
+  (`keep_alive_seconds`). Every recording replays byte for byte.
+- Settings in hosted mode (v0.21.0 spec §7): when `GET /api/settings`
+  answers `writable: false`, the engine fields are shown read-only, Apply
+  and "Reset to defaults" are not offered, and the footnote reads "These are
+  set by the operator of this server." (it used to render an empty `<code>`
+  where the omitted `config_path` stood). The client preferences stay
+  editable. Local mode's success line now names the file the server wrote
+  (`config_path`), not a hardcoded `config/local.yaml`.
+  `ui/tests/settings.test.jsx`.
+- The save browser is per story (spec §8.1, F7): core no longer prints the
+  flagship's "the pattern is quiet" on every story's saves. A plugin's new
+  optional `saveMeta(save) -> string | null` says a row's own line (the
+  flagship's says the pattern; stripped when a plugin is borrowed, like the
+  other naming slots, `ui/src/core/story.js`). A save's declared columns
+  (`save.values`) are drawn, a public one as "label value", a veiled one as
+  "label: band word", never a number. The archetype and the place are named
+  (`/api/archetypes`, `/api/codex/places`, read once when the browser opens),
+  falling back to the id. `ui/tests/saves.test.jsx`.
+- Focus is kept through a turn and restored when it lands (spec §8.2,
+  F9): the choice chips, the flagship's and NEON CITY's approach buttons
+  and the compose box are `aria-disabled` (the box also `readOnly`) while
+  the controls are off, with a press that does nothing, instead of
+  `disabled`, which threw a keyboard player's focus to the page at every
+  press. When the turn lands its new chips replace the pressed one, and
+  focus goes to the first of them if it was in the row (never taken from
+  the compose box, a panel or an overlay, nor while the screen is
+  blocked). An off control is dimmed through its colour and its contents,
+  never `opacity` on itself, so its focus ring keeps its contrast (it
+  measured 2.5:1 dimmed); an approach not offered this turn is now dimmed
+  too. Send keeps `disabled`. The plugins'
+  approaches read the slot's `controlsOff` (`controlsLive`), so they are off
+  while the link is down as well as while a turn runs, and so are an
+  overlay's act buttons (core hands overlays `busy` from `controlsLive`).
+  On a touch screen the compose placeholder drops its key hints ("press /
+  … Esc", F10). Settings' read-only engine fields now look it (dimmed,
+  `not-allowed`), and a save row says "1 turn", not "1 turns".
+- The pace slider holds the value the game ships with. Its row
+  (`world.evil_base_rate_per_day`, `engine/api/settings.py`) kept the range
+  (max 0.02), marks and hint written for the old 0.006 default when the
+  default went to 0.028 (measured with `scripts/simulate.py` when it was
+  set): the thumb sat pinned at its end and a touch wrote 0.02. The range
+  is 0.001-0.05, the marks are the measured rates (0.006 Dormant, 0.020
+  Stirring, 0.028 Spreading: where the median 200-turn run ended) and the
+  hint states only that measurement (it claimed day counts nothing
+  measured). The balance constant is unchanged. A configured value outside
+  a numeric row's range widens that row's view (`_fit_range`). The
+  local-mode golden's `settings.json` moves under S10.
+  `tests/test_settings_pace.py`.
+- Contrast is measured (spec §8.3, `ui/tests/contrast.test.js`): every
+  text pair core draws, in every theme and every flagship phase and NEON
+  CITY district, is held to WCAG 2.1 (4.5:1, 3:1 for the panel marks and
+  the focus ring on the scene; the chip's lifted face runs `color-mix`,
+  mixed premultiplied as CSS does),
+  resolving `var()` chains and `color-mix()` as the files hold them. Three
+  tokens were lifted, each recorded in its story's CHANGELOG: the engine
+  skin's `--text-danger` (#c46a5c, 4.48:1 on the card, to #c56a5c), THE
+  LONG CON's `--text-danger` (#b6564a, 3.56:1, to #d16355) and the
+  flagship's consuming-phase `--accent-brass` (#5a6f3a, 2.90:1 as a panel
+  mark, to #5c723b). Core's own tokens pass unchanged.
+- A panel's quieter text reads a new core token, `--panel-muted` (derived
+  from `--text-muted`, so every theme that sets no panel tokens draws as
+  before), and the casing board's house name reads `--panel-ink` and its
+  "empty now" `--panel-mark`: they read the scene's `--text-*` tokens, which
+  on a parchment panel (HUE & CRY's) measured about 2:1 and left the casing
+  board's house names nearly invisible. The contrast test holds
+  `--panel-muted` on `--panel-paper` to 4.5:1, and a test fails any core
+  rule on panel paper that colours its text with a `--text-*` token.
+  Focus inside a panel reads `--panel-focus` (derived from `--focus-ring`):
+  core's ring measured 2.04:1 on that parchment, and the contrast test now
+  holds `--panel-focus` on `--panel-paper` to 3:1 in every theme. A panel's
+  row rules read `--panel-rule` (derived from `--line-soft`).
+
+### Removed
+
+- **The `lmstudio:` and `stack.services.lmstudio` config aliases** (read as
+  `llm:` and `stack.services.llm`, with a WARNING, since v0.19.0;
+  `engine/config.py`). A `lmstudio.*` key read is no longer answered from
+  `llm.*`.
+- **The `paths.saves` config alias** (read as the exact local save base,
+  with a WARNING and a doctor `legacy paths.saves` WARN row, in v0.20.x;
+  `engine/persistence/storage.py`). A story manifest's `paths.saves` is
+  still ignored with an advisory, as since v0.20.0.
+- **The `engine.lmstudio` package**, the shim that aliased each old module
+  path to its `engine.llm` module since v0.19.0. Import `engine.llm`.
+
+### Upgrading
+
+An operator layer -- `config/local.yaml`, `config/<CLOCKWORK_ENV>.yaml`, a
+`CLOCKWORK_CONFIG` file, or hosted mode's admin layer -- that still holds one
+of these keys is now **refused at config load** (`LegacyConfigError`), with a
+one-line message naming the file, the old key and the fix:
+
+- `lmstudio:` -- the block was renamed `llm:` in v0.19.0: rename the block;
+  `ttl_seconds` inside it is now `keep_alive_seconds`.
+- `stack.services.lmstudio` -- renamed `stack.services.llm` in v0.19.0:
+  rename it.
+- `paths.saves` -- saves live under `storage.root` as `<root>/saves`: set
+  `storage.root` (or `CLOCKWORK_DATA_DIR`) to the folder that holds your
+  `saves` folder, or move the saves there.
+
+`launcher.py` prints the message and exits 2; `scripts/doctor.py` reports a
+`Config` FAIL row per key (`legacy lmstudio`, `legacy stack.services.lmstudio`,
+`legacy paths.saves`) and still runs to the end; the hosted supervisor refuses
+to start (exit 1); and the test suite stops at collection (exit 2) with the same
+message. Every finding of every layer read is reported at once.
+
+### Fixed
+
+- The hosted test files could hang the suite on Windows: the supervisor's
+  bus (`engine/hosting/bus.py`) made its selector's wake pair with
+  `socket.socketpair()`, which Windows emulates over loopback TCP and waits
+  for in `accept()` with no bound. On the owner's workstation a loopback
+  connect sometimes never reaches its listener (13 of 3000 in a plain loop,
+  measured; many more 1-16 s late), so a `BusServer()` waited forever. It
+  uses `bus.wake_pair()` now: each attempt bounded (`WAKE_PAIR_SECONDS`,
+  `WAKE_PAIR_ATTEMPTS`), only its own peer accepted, an `OSError` when none
+  arrives; POSIX keeps the AF_UNIX `socketpair()`. The test sockets that
+  accepted or read with no bound (`test_hosting_limits.py`'s listeners, a
+  child's first line in `test_hosting_accounts.py`) are bounded too.
+  `test_hosting_bus.py`'s canary fails, rather than hangs, with the stdlib
+  call put back.
+- The whole client was unmounted and mounted again on every render of
+  `App` for a story with no `Wrap` (every story but the Garden): the
+  default `Wrap` was an arrow made inside `App`, so each render handed
+  React a new component type. The pressed chip lost its focus as the turn
+  began, and the compose box lost its typed text at any socket event. It
+  is one module-level component now (`ui/src/core/App.jsx::PassThrough`).
+  An open overlay (the pack, the journal, the notice board) now keeps its
+  tab and contents through a turn instead of re-fetching at every render.
+  Found by a browser focus check; `ui/tests/connection.test.js` ("the
+  pressed chip keeps focus through the turn, in the whole App") failed
+  before it.
+- A save resumed while an encounter is open offered no approach: the
+  resumed frame was always take stock, two roads (refused while the scene
+  is open) and wait, so every approach read "not offered this turn" until
+  an ordinary turn passed. While a scene owns the turn (an encounter, a
+  dealt card, a set-piece, a job) or the watch holds the player,
+  `default_state.resume_opening` now offers exactly the legal intents
+  (`intents.legal_intents`, the turn builder's own source): an open
+  encounter's approaches come back as `encounter` choices in their authored
+  words, a job keeps `abort`, and a save reloaded in a cell offers `serve`
+  (and `pay_fine` when the purse covers it) where it offered two roads the
+  cell refuses. A verb with no target is one choice, worded as every chip
+  words it (`describe_intent`); a puzzle step, whose answer is typed,
+  offers none.
+- No raw engine id reaches a choice. `intents.describe_intent` worded a verb
+  with no target by its id, so a turn's chip -- and the resumed frame --
+  read "abort", "serve" or "pay_fine"; such verbs are now worded from one
+  engine table, `intents.ENGINE_CHOICE_WORDS` ("Abandon the job", "Serve
+  your time", "Pay the fine"), which also holds the resume's "Take stock of
+  where you are" and "Wait, and listen". And `intents._set_piece` read a
+  piece-level `title` the challenge files never carry, so a set-piece was
+  labelled by its id ("lantern_house_break"); it now reads the authored
+  title on the piece's `challenge:` ("The Ring on the Nail"). `tests/test_resume_open_encounter.py`: every shipped
+  encounter of every story that has any, and one resume per gate (job,
+  card, set-piece, encounter, custody). The local-mode golden's
+  HUE & CRY resume, recorded during an open `watch_stop`, moves under S9
+  (spec §1.2): its two roads become the four approaches.
+- Rule 1: an agent's choice could push the narrator's intent-bearing choice
+  out of the list. `pipeline.merge_choices` always gave the agent's
+  reserved slot the narrator's last choice, and an agent choice (which can
+  carry no intent) offering the "fight" approach's own words displaced the
+  narrator's `encounter -> fight` -- the chip stayed and ran nothing. Now an
+  agent choice never displaces one that carries an intent: it is dropped
+  when its words duplicate a narrator choice, or near-duplicate an
+  intent-bearing one (its words inside that choice's; that choice's inside
+  its own with at most one word added; or its words exactly the intent
+  target's), and the reserved slot comes from the last intent-less narrator
+  choice; a list whose every choice carries an intent takes no agent choice.
+  A companion's warning that names the action ("Not that door.", "Talk to
+  the guard" beside "Talk") is not a duplicate and survives.
+  `tests/test_agent_pipeline.py`.
+- Rule 1: the flagship's and NEON CITY's encounter approach buttons resolved
+  nothing. They sent the approach's text as typed text (`onCustom`), and typed
+  text carries no intent (`default_state.resolve_player_intent`), so the
+  engine ran no `encounter_approach` before narration; the approach happened
+  only if the model reached for it some other way. Each button now presses
+  the narrator's choice whose intent is `{action: "encounter", target: <the
+  approach>}` (`onChoose`), so the engine resolves it first and the turn's
+  receipt shows `encounter_approach`; an approach the narrator did not offer
+  this turn reads "not offered this turn" and cannot be pressed. Their
+  `hideChoices` hides only those matched choices, where it hid every choice
+  while an encounter had approaches. `tests/test_ui_contract.py` now bans,
+  outside comments, any `onCustom` under `ui/src/stories/` and
+  `ui/src/core/panels/` (an allowlist names any line a real free-text
+  feature needs; none does), and any `player_choice`, `custom_text` or
+  `.emit(` outside `core/App.jsx` and `core/socket.js`.
+- The shelf's grid track is `auto`, not `minmax(0, auto)`: the fixed 0 base
+  ignored the shelf's 44px floor, so on a landscape phone (844x390) the track
+  was crushed to 0 and the job panel's heading painted over the choices (the
+  layout gate caught it). With an `auto` base the column scrolls instead.
+  The flagship's two encounter templates take the same `auto` (no visible
+  change: its shelf is empty).
+- A choice chip's hint keeps only the cost when the place's own name holds a
+  comma: `default_state._trim_echo` took the name to end at the FIRST comma,
+  so THE LONG CON's road to "Vance & Vance, Investigations" read
+  "-> Investigations, 1h" instead of "-> 1h". The name is now the longest
+  comma-bounded head the choice text says (`tests/test_travel_hint_comma.py`,
+  every story's travel labels).
+- The play screen's main column is a grid of NAMED areas (stage, frame, log,
+  think, shelf, choices, compose), each in a fixed wrapper, not rows handed to
+  its first two children whatever they were. On the engine's skin the log had
+  taken the picture's row and an optional panel the log's, so HUE & CRY's
+  casing board could land in a fixed 7rem row and paint over the choices; it
+  now sits in the shelf, capped (`--shelf-max`: 32vh, 16vh under 900px) and
+  scrolling inside itself. A live deck's or challenge's line has its own row
+  instead of taking the log's. The choice list's cap is a token
+  (`--choices-max`: 34vh, 26vh under 900px). Empty areas cost nothing
+  (`row-gap: 0`, a margin only between non-empty areas), and the choice list
+  keeps its one-chip floor, so on a short screen the column scrolls rather
+  than the chips painting over the compose box. The flagship's narrow
+  encounter still grows the column instead of being clipped, so its
+  approaches stay reachable. Checked in a browser on every story at 1366x768,
+  900x600, 390x844 and 844x390, including a flagship encounter, with the new
+  gate (`npm run layout-check --prefix ui`, `ui/tools/layout-check.mjs`),
+  and again with the casing board in the ledger region. A live negotiation
+  is still unchecked in a browser: no model was reached.
+- The suite no longer rewrites the owner's `data/media/images/` (test only,
+  no engine change: `storage.image_dir()` reads the root on every call). A
+  module-scoped fixture is set up before the per-test `CLOCKWORK_DATA_DIR`
+  redirect, and ran with no storage root of its own: HUE & CRY's
+  `measured_law` built twenty sessions on the real root, and each opening's
+  procedural scene image rewrote `tallow_docks`'s SVG, seen only by the
+  session-end snapshot. `pytest_configure` now sets `CLOCKWORK_DATA_DIR` for
+  the whole session to the sandbox layer's root; the audit hook watches the
+  real root's `media/` too; a write it records outside any test fails the
+  next test's setup (or the session) instead of being cleared unseen; and a
+  test's `from tests.conftest import` no longer clears the environment again
+  (`tests/conftest.py`, `tests/test_persistence.py`).
+- A resumed run's "PREVIOUSLY" recap no longer repeats itself or prints
+  location ids. With no summarizer model the running summary was folded by
+  `summarizer._fallback_summary` as "On day 1 at tallow_docks, <the turn's
+  first sentence>." once per evicted turn, so a run whose turns opened on the
+  same ambient line (every fallback-narrated turn) recapped that line once per
+  turn, under the raw id. An entry now reads "On day 1, at The Lantern House:
+  <sentence>." in the story's own place name; a sentence already summarised
+  moves to its newest entry instead of being added again; only the newest six
+  entries are kept (`MAX_RECAP_ENTRIES`), and the word cap drops whole
+  entries, oldest first, never half of one. Only a candidate naming a place
+  of the story (a known name, or for the old form a known id or snake_case
+  token) is read as an entry, so a model-written summary saying "On day 2 at
+  dawn, ..." is kept byte for byte. The recap shows the summary through
+  `summarizer.tidy_summary`, which repairs a pre-fix save's summary on load,
+  and its heading reads "PREVIOUSLY:" so it no longer runs into the text when
+  the client collapses the newline (`tests/test_resume_recap.py`, every story).
+- A card beat's author notes no longer reach the player. A beat's `text` is
+  the narrator's direction and the intent enum's label, and it was also the
+  chip on a resumed card and the hint under every card chip ("Sets
+  `resisted_call`, which is the only thing..."): 41 menu beats carried
+  such notes. The player now reads the beat's new `label:` key, else the
+  first sentence of its text with code spans removed
+  (`director.player_label`, `intents.player_label`); the narrator's prompt
+  and the enum keep the full text. A menu beat whose text holds a note and
+  no `label:` draws a validator advisory (`validate_content.py`,
+  `doctor.py`); the Wicked Garden's and Dev Story's such beats carry labels
+  (`tests/test_player_labels.py`, every story's decks).
+- A dealt card's header shows the card's title, not the deck id ("day 00
+  prologue"); a challenge without a title shows no id. The client's scene
+  block is now the deck id, cursor, count and the card's title: the dealt
+  hand's card ids (a beat's or an outcome's name, in the Garden and HUE &
+  CRY) no longer reach the browser, where a hosted player could read the
+  cards to come.
+- A resume in a cell offers the beds by their story labels ("A pallet at Old
+  Nance's", "The plank bench in the cells"), not "sleep flophouse"; the
+  hint under a narrated rest chip reads the same label.
+- "Try again" after a server restart no longer re-sends a choice the resumed
+  frame does not hold. The engine ran no mechanic for it and narrated "The
+  player chooses option 3" -- a move nobody made. The server now refuses a
+  choice id the frame does not offer, before any turn runs (HTTP 409, or a
+  `turn_error` with `busy: false` and `stale_choice`); the client re-offers
+  the dropped move only when the frame still holds its intent (matched by
+  intent, under the frame's own id) and otherwise says the move is no longer
+  on offer and focuses the choices (`tests/test_stale_choice.py`,
+  `ui/tests/store.test.js`).
+- The resume recap no longer repeats the narration printed under it (an
+  entry the narration holds is left out), and a summary's sentence is no
+  longer cut at "Dr." or "1.5".
+- Places, speakers and degrees are named, not id'd: the Wicked Garden's and
+  NEON CITY's plate captions, the flagship's scene caption, alt text and
+  sheet ("Place"), the flagship's notice board (posted elsewhere), an
+  epilogue echo's speaker (the engine's new `speaker_name`) and the roll
+  card's degree ("Critical success", not "crit success").
+- The empty left column is gone: a story with no companion column (HUE &
+  CRY, Dev Story, THE LONG CON, NEON CITY) gives its ~270px back to the play
+  column at desktop widths (`data-aside="off"` was set and read by nothing).
+- The narration log keeps three lines on a short window. Under 820px tall
+  its floor is 8rem (its padding 12px), the job panel starts collapsed, and
+  beside the people strip the shelf's cap is 20vh; under 640px tall the
+  scene plate gives way to the strip. Measured on HUE & CRY with the strip
+  and a job: 1366x768, the log 100px -> 163px; 900x600, the log 116px and
+  both rows of choices shown (one before). The layout gate fails a log under
+  its floor (`logFloor`) and prints `logStarved` and `choicesHidden`
+  advisories.
+- The phone's Scene/Sheet tab labels were painted under the scene's
+  atmosphere layer and read dim; the tab bar is lifted above it.
+- The flagship's Begin button is on screen at 1366x768 and 1024x768 (it sat
+  43px below the fold): the start card tightens under 820px tall, and the
+  gate checks every story's start screen at 1366x768.
+- The archetype descriptions on the start screen wrap inside the card. Under
+  820px tall they were set to one line, and the fieldset grew to that line
+  (a fieldset's minimum width is its min-content), so on every story but the
+  flagship the archetypes ran off the card and the window at 1366x768 and
+  900x600 (HUE & CRY's were 1048px wide in a 518px card). The fieldset may
+  now shrink (`min-inline-size: 0`) and the descriptions wrap; NEON CITY
+  widens its own card on a short, wide window to keep "Take the shard" on
+  screen. The layout gate checks every start screen at 1366x768, 900x600
+  and 390x844: nothing past the window's sides or the card's, nothing cut
+  by a clip.
+- On a portrait phone (390x844) with the people strip and a job, the log
+  had 138px -- three lines under a first one cut at its top -- while the
+  stage took 6fr (plate 166px, strip 50px), and the strip's third card was
+  cut at its edge. Under 600px wide, with the strip in the stage, the split
+  is 4fr/6fr (the log 201px, four whole lines; the plate on its 12vh
+  floor), and the strip's cards are each half its width and snap, two
+  whole cards in view and the rest a swipe away. The layout gate fails a
+  log showing under three whole lines, or a first line cut over three or
+  fewer (`logLines`), and a people strip past the window or cutting a card
+  (`people`). The README's `neon-city-title.png` and `hue-and-cry-phone.png`
+  are retaken.
+- Smaller client fixes: a casing row opens when its house empties later, and
+  an opened row with nothing learned says so; the negotiation toggle names
+  its body (`aria-controls`); focus stays on a chip that survived its turn;
+  this tab's own missed join is forgotten, so a later reconnect does not
+  resume the old save; a Begin or Load whose request never reached the
+  server keeps this tab's run; two same-named traders' tabs are numbered,
+  and a vendor opening a sentence is capitalised.
+- Test-suite health: a `--basetemp` under the real storage root is a usage
+  error; the drain-refusal admin test passes run alone; the panel registry
+  is read without its comments; each screenshot run is checked for its
+  archetype, and the exit-with-parent test no longer races its stand-in.
+
+### Security
+
+- The codex no longer identifies people the player has not met (hosted
+  mode serves it to every account). `GET /api/codex/souls` sent every
+  soul's NPC id -- the flagship's ids are names (`npc_maris`), HUE & CRY's
+  lay out each household -- and, with no session, called every canon NPC
+  met (name, traits, portrait); its role was ungated. Now an unmet soul's
+  `id` is an opaque per-response key (`s0`...), nobody is met without a
+  run, and the role passes the awareness spoiler gate. `GET
+  /api/codex/things`' `from` named every vendor from its id ("Maris"); an
+  unmet vendor is now "the <role>". The local-mode golden sanctions it
+  (S7).
+- The same rule (one helper, `known_as`) now names vendors everywhere else
+  a route did: the map's vendor points (`/api/codex/places`, a full name at
+  every place), the pack's `vendor` (`/api/items`, the title-cased id) and
+  the barter screen (`/api/trade`), whose unmet vendor gets an opaque
+  `npc_id` (`v0`...), "the <role>" and `known: false` -- standing at a
+  counter is not meeting, as the ledger meets the people present only when
+  a turn ends. The local-mode golden sanctions it (S8).
+- No authored activity names its own person (the people strip shows a
+  stranger's activity): NEON CITY's Frankie and Rho lines are rewritten,
+  and `tests/test_activity_names_nobody.py` holds every story's schedule
+  and every generated household's routine to it, with a short justified
+  allowlist (HUE & CRY's shop signs).
+
 ## [0.20.2] — 2026-10-06
 
 **A test that read gunicorn's refused respawn as the restarted worker

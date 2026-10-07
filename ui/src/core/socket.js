@@ -37,6 +37,8 @@ export const INBOUND = [
   "narration_audio",
   "cutscene_start",
   "turn_error",
+  // Hosted: this tab's run was released elsewhere, ended, or put away idle (spec §6.5).
+  "session_ended",
   "error",
 ];
 
@@ -81,17 +83,19 @@ export function connect(dispatch) {
   const socket = io({ transports: ["websocket", "polling"] });
 
   socket.on("connect", () => dispatch({ type: "CONNECTED" }));
-  socket.on("disconnect", () => {
+  socket.on("disconnect", (reason) => {
     // Drop the queues, do not flush them: the reducer clears `streamingId` on
     // disconnect, so anything released here would land in a closed entry. A
     // held word fragment would also keep the animation-frame loop spinning
     // forever waiting for a chunk from a socket that is gone.
     clearQueues();
-    dispatch({ type: "DISCONNECTED" });
+    dispatch({ type: "DISCONNECTED", reason });
   });
-  socket.on("connect_error", (err) => {
+  socket.on("connect_error", () => {
+    // Socket.IO's own words ("xhr poll error") once per retry used to land in
+    // the footer and close the stream (F3). The connection's state machine
+    // (core/link.js) says what is happening now; this only drops the queues.
     clearQueues();
-    dispatch({ type: "ERROR", message: err?.message || "Connection failed" });
   });
 
   // Token deltas are coalesced into one dispatch per animation frame. A local

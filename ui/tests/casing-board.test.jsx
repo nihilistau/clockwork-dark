@@ -16,7 +16,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import CasingBoard from "../src/core/parts/CasingBoard.jsx";
+import CasingBoard from "../src/core/panels/CasingBoard.jsx";
 
 const HOUSE = {
   id: "prem_edgewood_square_1",
@@ -89,5 +89,77 @@ describe("the casing board", () => {
     const names = host.textContent;
     expect(names.indexOf("Harrowgate")).toBeLessThan(names.indexOf("mill house"));
     expect(names).toMatch(/0 of 4 known/);
+  });
+});
+
+describe("the casing board, v0.21.0 (spec §4.3)", () => {
+  const EMPTY = { ...HOUSE, id: "prem_2", name: "the mill house", empty_now: true, known: ["a back gate"] };
+
+  it("is a section labelled by an h2 (F11)", () => {
+    draw([HOUSE]);
+    const section = host.querySelector("section");
+    const heading = host.querySelector("h2");
+    expect(heading).not.toBeNull();
+    expect(section.getAttribute("aria-labelledby")).toBe(heading.id);
+  });
+
+  it("heads itself with the counts, and prep only when the job block is there", () => {
+    // `toContain`, not `toBe`: the board is a collapsible panel (spec §2.5),
+    // so its h2 holds the disclosure button and its chevron too.
+    draw([HOUSE, EMPTY]);
+    expect(host.querySelector("h2").textContent).toContain("Casing — 2 houses here · 1 empty now");
+    expect(host.querySelector("h2").textContent).not.toContain("Prep");
+    React.act(() => root.render(<CasingBoard premises={[HOUSE]} prep="a little" />));
+    expect(host.querySelector("h2").textContent).toContain("Casing — 1 house here · Prep: a little");
+    expect(host.querySelector("h2 button[aria-expanded='true']")).not.toBeNull();
+  });
+
+  it("opens a house that is empty now and keeps the others closed", () => {
+    draw([HOUSE, EMPTY]);
+    const [closed, open] = host.querySelectorAll(".casing__head");
+    expect(closed.getAttribute("aria-expanded")).toBe("false");
+    expect(open.getAttribute("aria-expanded")).toBe("true");
+    expect(document.getElementById(closed.getAttribute("aria-controls")).hidden).toBe(true);
+    React.act(() => closed.click());
+    expect(closed.getAttribute("aria-expanded")).toBe("true");
+    expect(document.getElementById(closed.getAttribute("aria-controls")).hidden).toBe(false);
+  });
+});
+
+describe("final fix wave (T7 reviews 2, 6, 8)", () => {
+  it("opens a row when its house empties later, and only on that edge", () => {
+    draw([HOUSE]);
+    const body = () => host.querySelector(".casing__known");
+    expect(body().hidden).toBe(true);
+    draw([{ ...HOUSE, empty_now: true }]);
+    expect(body().hidden).toBe(false);
+    // Closed by the player while it stays empty: stays closed.
+    React.act(() => host.querySelector(".casing__head").click());
+    expect(body().hidden).toBe(true);
+    draw([{ ...HOUSE, empty_now: true, known: [...HOUSE.known] }]);
+    expect(body().hidden).toBe(true);
+  });
+
+  it("an opened house with nothing learned says so", () => {
+    draw([{ ...HOUSE, known: [], empty_now: true }]);
+    expect(host.querySelector(".casing__known").textContent).toBe("Nothing learned yet.");
+  });
+
+  it("the registry's casing and negotiation adapters render from a store-shaped state", async () => {
+    const { PANELS } = await import("../src/core/panels/registry.js");
+    const Casing = PANELS.find((panel) => panel.id === "casing").Component;
+    React.act(() =>
+      root.render(<Casing state={{ premises: [HOUSE], world: { job: { prep: "good" } } }} region="ledger" />)
+    );
+    expect(host.textContent).toContain("Prep: good");
+    expect(host.textContent).toContain("the Harrowgate townhouse");
+
+    const Negotiation = PANELS.find((panel) => panel.id === "negotiation").Component;
+    const negotiation = { ran: true, lead: "gm", resolutions: [], beats: [] };
+    React.act(() => root.render(<Negotiation state={{ negotiation }} region="shelf" />));
+    expect(host.textContent).toMatch(/gm led, uncontested/);
+    const toggle = host.querySelector(".negotiation__toggle");
+    expect(toggle.getAttribute("aria-controls")).toBe(host.querySelector(".negotiation__body").id);
+    expect(host.querySelector(".negotiation__body").hidden).toBe(true);
   });
 });

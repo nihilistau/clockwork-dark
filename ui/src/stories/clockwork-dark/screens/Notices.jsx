@@ -3,12 +3,17 @@
  *
  * Server half has been live at GET /api/notices since the board was wired.
  * This is the missing client: what is posted here, what is posted elsewhere
- * (a reason to travel), and a button that takes a shift as an ordinary turn.
- * The engine's `work` skill is the only writer of gold and hours.
+ * (a reason to travel), and a button that takes a shift.
+ *
+ * NOT WIRED (docs/GOVERNANCE.md, v0.21.0 final review finding 9): "Take the
+ * work" sends the player's words as TYPED TEXT (`onAct`), which carries no
+ * intent, so no `work` skill runs from it -- only the narrator reads it.
+ * The intent path for overlays is the v0.23.0 flagship overhaul's.
  */
 import React, { useEffect, useState } from "react";
 import Modal from "@core/parts/Modal.jsx";
-import { fetchNotices } from "@core/api.js";
+import { fetchNotices, fetchPlaces } from "@core/api.js";
+import { prettyPlace } from "@core/parts/Chrome.jsx";
 
 function Notice({ row, busy, onTake }) {
   const wage = Number(row.expected_wage) || 0;
@@ -39,6 +44,24 @@ function Notice({ row, busy, onTake }) {
 export default function Notices({ sessionId, busy, onAct, onClose }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  // A place's name, never its id: the atlas names the places this run knows
+  // (final review finding 4); the rest fall back to a readable id.
+  const [names, setNames] = useState({});
+
+  useEffect(() => {
+    let live = true;
+    fetchPlaces(sessionId)
+      .then((next) => {
+        if (!live) return;
+        const map = {};
+        for (const place of next?.places || []) if (place?.id && place.name) map[place.id] = place.name;
+        setNames(map);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [sessionId]);
 
   useEffect(() => {
     if (!sessionId) {
@@ -96,7 +119,7 @@ export default function Notices({ sessionId, busy, onAct, onClose }) {
                   <li key={row.id} className="notice notice--away">
                     <span className="notice__title">{row.name}</span>
                     <span className="notice__meta">
-                      {String(row.location_id || "").replace(/_/g, " ")}
+                      {names[row.location_id] || prettyPlace(row.location_id || "")}
                       {row.hiring === false ? " · not hiring" : ""}
                     </span>
                   </li>

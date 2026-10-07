@@ -702,6 +702,170 @@ def test_duplicate_choices_are_offered_once(garden: GameState) -> None:
     assert [c["text"] for c in merged] == ["Refuse"]
 
 
+def _agent_result(*texts: str) -> pipeline_module.PipelineResult:
+    from engine.agents.negotiate import NegotiatedTurn
+    from engine.agents.plan import ProposedChoice
+
+    turn = NegotiatedTurn()
+    turn.choices = [ProposedChoice(text=text, source="pip") for text in texts]
+    return pipeline_module.PipelineResult(ran=True, turn=turn)
+
+
+def _fight(text: str = "Draw your knife and fight") -> dict[str, Any]:
+    return {"text": text, "intent": {"action": "encounter", "target": "fight"}}
+
+
+def test_an_agent_choice_never_displaces_an_intent_bearing_one() -> None:
+    """
+    Rule 1. Four narrator choices, every one carrying an intent: an agent's
+    intent-less choice gets no slot, because the slot it would take runs a
+    mechanic and its own would run nothing.
+    """
+    narrated = [
+        {"text": "Talk your way past", "intent": {"action": "encounter", "target": "talk"}},
+        {"text": "Slip a coin across", "intent": {"action": "encounter", "target": "bribe"}},
+        {"text": "Bolt for the alley", "intent": {"action": "encounter", "target": "run"}},
+        _fight(),
+    ]
+    merged = pipeline_module.merge_choices(_agent_result("Not that door."), narrated)
+    assert [row["text"] for row in merged] == [row["text"] for row in narrated]
+    assert all(row.get("intent") for row in merged)
+
+
+def test_the_reserved_slot_is_taken_from_an_intent_less_choice() -> None:
+    """The agent's slot comes from the last narrator choice with no intent."""
+    narrated = [
+        {"text": "Talk your way past", "intent": {"action": "encounter", "target": "talk"}},
+        {"text": "Look the watchman over"},
+        {"text": "Bolt for the alley", "intent": {"action": "encounter", "target": "run"}},
+        _fight(),
+    ]
+    merged = pipeline_module.merge_choices(_agent_result("Not that door."), narrated)
+    assert [row["text"] for row in merged] == [
+        "Talk your way past",
+        "Bolt for the alley",
+        "Draw your knife and fight",
+        "Not that door.",
+    ]
+    assert [row["id"] for row in merged] == ["a", "b", "c", "d"]
+
+
+@pytest.mark.parametrize(
+    "agent_text",
+    [
+        "Draw your knife and fight!",  # the same words, punctuated
+        "Fight",                       # names the intent's target
+        "Draw your knife",             # words inside the intent-bearing one
+        "draw your knife and fight him",  # contains the intent-bearing one
+    ],
+)
+def test_an_agent_choice_shadowing_an_intent_bearing_one_is_dropped(agent_text: str) -> None:
+    """With room to spare, a look-alike chip that runs nothing is still not offered."""
+    narrated = [{"text": "Look the watchman over"}, _fight()]
+    merged = pipeline_module.merge_choices(_agent_result(agent_text), narrated)
+    assert [row["text"] for row in merged] == ["Look the watchman over", "Draw your knife and fight"]
+    assert merged[1]["intent"] == {"action": "encounter", "target": "fight"}
+
+
+@pytest.mark.parametrize(
+    ("agent_text", "narrator_row"),
+    [
+        ("Not that door.", {"text": "Open the door", "intent": {"action": "card", "target": "door"}}),
+        ("Don't pay him a penny", {"text": "Pay the toll", "intent": {"action": "encounter", "target": "pay"}}),
+        (
+            "Avoid the Lantern House tonight",
+            {"text": "Set out for the Lantern House", "intent": {"action": "travel", "target": "lantern_house"}},
+        ),
+        ("Don't fight him", {"text": "Fight", "intent": {"action": "encounter", "target": "fight"}}),
+        ("Look for another way out", {"text": "Look", "intent": {"action": "encounter", "target": "look"}}),
+        ("Ask Pip what she saw", {"text": "Ask", "intent": {"action": "encounter", "target": "ask"}}),
+        ("Talk to the guard", {"text": "Talk", "intent": {"action": "encounter", "target": "talk"}}),
+    ],
+)
+def test_a_companions_warning_naming_the_action_survives(
+    agent_text: str, narrator_row: dict[str, Any]
+) -> None:
+    """
+    Fix round 1. A warning names the action it warns against, so naming a
+    word of an intent-bearing choice, or its target, is not a duplicate:
+    only the narrowed rule (target words exactly; the agent's words inside the
+    choice's; the choice's inside the agent's with at most one word added)
+    drops anything.
+    """
+    narrated = [{"text": "Look the watchman over"}, narrator_row]
+    merged = pipeline_module.merge_choices(_agent_result(agent_text), narrated)
+    assert [row["text"] for row in merged] == ["Look the watchman over", narrator_row["text"], agent_text]
+    assert merged[1]["intent"] == narrator_row["intent"]
+
+
+@pytest.mark.parametrize(
+    ("agent_text", "narrator_row"),
+    [
+        ("Talk", {"text": "Explain yourself", "intent": {"action": "encounter", "target": "talk"}}),
+        ("Lantern House", {"text": "Walk on", "intent": {"action": "travel", "target": "lantern_house"}}),
+        ("Pay the toll!", {"text": "Pay the toll", "intent": {"action": "encounter", "target": "pay"}}),
+        ("Fight him", {"text": "Fight", "intent": {"action": "encounter", "target": "fight"}}),
+    ],
+)
+def test_true_duplicates_of_an_intent_bearing_choice_are_still_dropped(
+    agent_text: str, narrator_row: dict[str, Any]
+) -> None:
+    """The other side of the narrowed rule: these still shadow the narrator's intent."""
+    narrated = [{"text": "Look the watchman over"}, narrator_row]
+    merged = pipeline_module.merge_choices(_agent_result(agent_text), narrated)
+    assert [row["text"] for row in merged] == ["Look the watchman over", narrator_row["text"]]
+
+
+def test_an_unrelated_agent_choice_still_reaches_the_player() -> None:
+    """The control: the rule only bites on intent-bearing look-alikes."""
+    narrated = [{"text": "Look the watchman over"}, _fight()]
+    merged = pipeline_module.merge_choices(_agent_result("Not that door."), narrated)
+    assert [row["text"] for row in merged] == [
+        "Look the watchman over",
+        "Draw your knife and fight",
+        "Not that door.",
+    ]
+
+
+def test_the_pipelines_fight_choice_keeps_the_narrators_intent(garden: GameState) -> None:
+    """
+    The live check, through ``run_pipeline``: an agent offered the fight
+    approach's words with no intent, and the old merge's reserved last slot
+    pushed out the narrator's intent-bearing "fight". The chip stayed on screen
+    and pressing it ran no approach.
+    """
+    result = pipeline_module.run_pipeline(
+        garden,
+        "square up to the watchman",
+        roster=_roster(),
+        llm_fn=_speaks(
+            {
+                "SOPHIA": {
+                    "intent": "speak",
+                    "beat": "she urges violence",
+                    "choices": [{"text": "Fight"}],
+                },
+            }
+        ),
+    )
+    assert result.ran
+    assert [c.text for c in result.turn.choices] == ["Fight"], "the agent offered nothing"
+    narrated = [
+        {"text": "Explain yourself"},
+        {"text": "Say nothing"},
+        {"text": "Bolt for the alley", "intent": {"action": "encounter", "target": "run"}},
+        {"text": "Fight", "intent": {"action": "encounter", "target": "fight"}},
+    ]
+    merged = pipeline_module.merge_choices(result, narrated)
+    fights = [row for row in merged if row["text"].casefold() == "fight"]
+    assert len(fights) == 1, merged
+    assert fights[0].get("intent") == {"action": "encounter", "target": "fight"}, merged
+    assert [row.get("intent") for row in merged if row.get("intent")] == [
+        {"action": "encounter", "target": "run"},
+        {"action": "encounter", "target": "fight"},
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Robustness
 # ---------------------------------------------------------------------------

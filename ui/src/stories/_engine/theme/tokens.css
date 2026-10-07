@@ -28,7 +28,7 @@
   /* ---- text: warm enough to read for an hour ---- */
   --text-narration: #ded9d1;
   --text-muted: #8d8a85;
-  --text-danger: #c46a5c;
+  --text-danger: #c56a5c; /* was #c46a5c: 4.48:1 on the card, under 4.5:1 (v0.21.0) */
 
   /* ---- lines ---- */
   --line-ink: #060607;
@@ -41,4 +41,10 @@
          opinion. Gold would read as the flagship, wine as the Garden,
          cyan as NEON CITY. ---- */
   --accent-brass: #9a9287;
+
+  /* ---- the main column's split ----
+     An undressed story is text-first and its plate usually procedural:
+     40/60, not the flagship's painted 60/40 (spec §3.3). */
+  --row-visual: 4fr;
+  --row-log: 6fr;
 }

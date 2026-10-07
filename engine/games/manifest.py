@@ -99,6 +99,87 @@ RETIRED_PATH_KEYS: dict[str, str] = {
 #: advisory says the key is ignored, and adds that the VALUE is when it differs.
 LEGACY_SAVES_VALUE = "data/saves"
 
+#: The engine panels a story may declare in ``ui.panels`` (v0.21.0, spec
+#: §2.2): ``{id: (default region, regions it may be drawn in, gate)}``.
+#: ``data`` panels are on by default and render only when their payload key
+#: is present -- which only a story declaring the system sends -- and
+#: ``declared`` ones only when listed. The client's registry
+#: (``ui/src/core/panels/registry.js``) holds the same table, in the same
+#: order; ``tests/test_ui_panels_manifest.py`` reads it as text and fails when
+#: the two disagree, so a new panel joins both together.
+UI_PANELS: dict[str, tuple[str, tuple[str, ...], str]] = {
+    "wanted": ("ledger", ("ledger", "shelf"), "data"),
+    "job": ("shelf", ("shelf", "ledger"), "data"),
+    "casing": ("ledger", ("ledger", "shelf"), "data"),
+    "negotiation": ("shelf", ("shelf",), "data"),
+    "rolls": ("toast", ("toast",), "data"),
+    "people": ("stage", ("stage", "ledger"), "declared"),
+    "encounter": ("shelf", ("shelf",), "declared"),
+}
+
+#: The ``paths.*`` key whose system feeds a panel. Listing the panel in a
+#: story that declares no such path is an advisory: it will never render.
+UI_PANEL_SYSTEMS: dict[str, str] = {
+    "wanted": "law",
+    "job": "jobs",
+    "casing": "premises",
+    "encounter": "encounters",
+}
+
+
+def ui_panel_problems(manifest: "GameManifest") -> tuple[list[str], list[str]]:
+    """
+    ``(errors, advisories)`` for a manifest's ``ui.panels`` (spec §2.2).
+
+    Errors (a ``registry.validate`` problem: activation fails): a non-list
+    ``panels``; an entry that is neither a string nor a mapping; a mapping
+    with a key other than ``id``/``region``; an unknown or duplicate id; a
+    region the panel is not drawn for. Advisories: a data-gated panel (or
+    ``encounter``) whose system the story does not declare.
+    """
+    block = manifest.extras.get("ui")
+    if not isinstance(block, dict) or "panels" not in block:
+        return [], []
+    raw = block["panels"]
+    legal = ", ".join(UI_PANELS)
+    if not isinstance(raw, list):
+        return [f"ui.panels must be a list of panel ids (legal: {legal})"], []
+    errors: list[str] = []
+    advisories: list[str] = []
+    seen: set[str] = set()
+    for index, entry in enumerate(raw):
+        where = f"ui.panels[{index}]"
+        if isinstance(entry, str):
+            panel_id, region = entry, None
+        elif isinstance(entry, dict):
+            extra = sorted(str(key) for key in entry if key not in ("id", "region"))
+            if extra:
+                errors.append(f"{where} has a key other than id/region: {', '.join(extra)}")
+                continue
+            panel_id, region = entry.get("id"), entry.get("region")
+        else:
+            errors.append(f"{where} is neither a panel id nor an {{id, region}} mapping")
+            continue
+        if not isinstance(panel_id, str) or panel_id not in UI_PANELS:
+            errors.append(f"{where}: {panel_id!r} is not an engine panel (legal: {legal})")
+            continue
+        if panel_id in seen:
+            errors.append(f"{where}: {panel_id!r} is listed twice")
+            continue
+        seen.add(panel_id)
+        allowed = UI_PANELS[panel_id][1]
+        if region is not None and region not in allowed:
+            errors.append(
+                f"{where}: {panel_id} cannot be drawn in region {region!r} "
+                f"(it may be: {', '.join(allowed)})"
+            )
+        system = UI_PANEL_SYSTEMS.get(panel_id)
+        if system and not str(manifest.paths.get(system) or "").strip():
+            advisories.append(
+                f"ui.panels lists {panel_id}, but the story declares no paths.{system}: it will never render"
+            )
+    return errors, advisories
+
 # Slugs become directory names, config values, save-directory names and URL
 # path segments. Keep them boring.
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
@@ -204,8 +285,9 @@ SETTING_REFUSALS: tuple[tuple[str, str], ...] = (
     # silently, which is the bug the whole allowlist mechanism was built to
     # avoid. A story with no trade should ship no trade skills.
     ("llm", "model endpoint, credentials and token budgets belong to the machine"),
-    # The same block under its name until v0.19.0, which a config layer still
-    # reads (engine/config.py's alias): a story may declare neither.
+    # Its name until v0.19.0: refused here too, so a story can set the block
+    # under neither name (an operator layer holding it is refused at config
+    # load: engine/config.py LEGACY_REFUSALS).
     ("lmstudio", "model endpoint, credentials and token budgets belong to the machine"),
     ("stack", "service roots and commands are code executed on the player's machine"),
     ("scene", "bind host and port belong to the machine"),
@@ -434,6 +516,15 @@ class GameManifest:
         if isinstance(block, dict):
             return str(block.get("plugin") or "").strip()
         return ""
+
+    @property
+    def panel_declaration(self) -> Optional[list[Any]]:
+        """``ui.panels`` as written (spec §2.2), or None when omitted. The client reads it raw from the catalogue's ``ui``."""
+        block = self.extras.get("ui")
+        if isinstance(block, dict) and "panels" in block:
+            raw = block["panels"]
+            return list(raw) if isinstance(raw, list) else raw
+        return None
 
     @property
     def state_schema_path(self) -> Optional[Path]:
@@ -683,6 +774,8 @@ __all__ = [
     "SETTING_ALLOWLIST",
     "SETTING_REFUSALS",
     "SLUG_RE",
+    "UI_PANELS",
+    "UI_PANEL_SYSTEMS",
     "GameManifest",
     "ManifestError",
     "flatten_settings",
@@ -692,4 +785,5 @@ __all__ = [
     "parse_version",
     "refusal_reason",
     "satisfies",
+    "ui_panel_problems",
 ]

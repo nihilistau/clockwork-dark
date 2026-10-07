@@ -30,13 +30,9 @@ value into the importer, so a ``CLOCKWORK_DATA_DIR`` set later (a test's
 ``monkeypatch.setenv``, a hosted deployment's environment) never reached them.
 They are deleted, not aliased; ``tests/test_storage_root.py`` scans for them.
 
-THE ONE-RELEASE ALIAS. ``paths.saves`` left the story manifests in v0.20.0
-(spec §4.2; ``config_overlay`` drops it). A ``paths.saves`` still set in a
-config layer the owner writes -- ``config/local.yaml``, ``CLOCKWORK_CONFIG``,
-an environment layer -- is read as the EXACT local save base (no ``saves/``
-appended), with one WARNING naming the file, until v0.21.0 removes it with the
-``lmstudio:`` alias. It moves the owner-``""`` saves only: an account's saves
-always live under the root.
+A ``paths.saves`` in an operator layer was read as the save base, with a
+WARNING, through v0.20.x; since v0.21.0 it is refused at config load
+(``engine.config.LegacyConfigError``).
 
 Version: v0.20.0 [2026-09-30]
 """
@@ -59,15 +55,6 @@ DATA_DIR_ENV = "CLOCKWORK_DATA_DIR"
 #: release has used.
 DEFAULT_ROOT = "data"
 
-#: The legacy key the alias reads, and the release that removes it.
-LEGACY_SAVES_KEY = "paths.saves"
-LEGACY_REMOVED_IN = "v0.21.0"
-
-#: Warn-once memory for the legacy alias, per ``(source, value)``. Nulled by
-#: ``engine/games/caches.py`` with every config reset, so a test (or an owner
-#: who fixes the file and reloads) sees it again.
-_WARNED_ALIAS: Optional[set[tuple[str, str]]] = None
-
 
 def _anchored(raw: str) -> Path:
     """``raw`` as a path, a relative one taken against ``project_root()``."""
@@ -87,64 +74,9 @@ def data_root() -> Path:
     return _anchored(raw or DEFAULT_ROOT)
 
 
-def legacy_saves_alias() -> Optional[tuple[str, str]]:
-    """
-    ``(source file, value)`` of a ``paths.saves`` still set in a config layer,
-    or None.
-
-    Read as the layers hold it (``ConfigManager._raw``), never through
-    ``get``: ``get("paths.*")`` falls back to the running story's manifest, and
-    a manifest's ``paths.saves`` is exactly what no longer moves anything.
-    The source is the highest layer that sets it, in merge order: the
-    ``CLOCKWORK_CONFIG`` files, then ``config/local.yaml``, then the
-    ``CLOCKWORK_ENV`` layer, then ``config/default.yaml``.
-    """
-    from engine import config as config_module
-
-    value = str(get_config()._raw(LEGACY_SAVES_KEY, "") or "").strip()
-    if not value:
-        return None
-    for source, keys in reversed(config_module.external_config_layers()):
-        if LEGACY_SAVES_KEY in keys:
-            return source, value
-    candidates = [config_module._CONFIG_DIR / "local.yaml"]
-    env = os.environ.get("CLOCKWORK_ENV", "").strip()
-    if env:
-        candidates.append(config_module._CONFIG_DIR / f"{env}.yaml")
-    candidates.append(config_module._DEFAULT_PATH)
-    for path in candidates:
-        layer = config_module._load_yaml(path)
-        paths = layer.get("paths") if isinstance(layer, dict) else None
-        if isinstance(paths, dict) and str(paths.get("saves") or "").strip():
-            return str(path), value
-    return "a config layer", value
-
-
 def local_saves_base() -> Path:
-    """
-    The owner-``""`` save base: ``<root>/saves``, or the legacy alias's value
-    (exact, anchored at ``project_root()``) with one WARNING naming its file.
-    """
-    global _WARNED_ALIAS
-    alias = legacy_saves_alias()
-    if alias is None:
-        return data_root() / "saves"
-    source, value = alias
-    warned = _WARNED_ALIAS  # read once: a reset nulls it without a lock
-    if warned is None:
-        warned = _WARNED_ALIAS = set()
-    if alias not in warned:
-        warned.add(alias)
-        logger.warning(
-            "[storage] %s is set in %s and is read as the save base until %s; "
-            "move it to storage.root (or CLOCKWORK_DATA_DIR), which saves live "
-            "under as <root>/saves (operation=local_saves_base, value=%s)",
-            LEGACY_SAVES_KEY,
-            source,
-            LEGACY_REMOVED_IN,
-            value,
-        )
-    return _anchored(value)
+    """The owner-``""`` save base: ``<root>/saves``."""
+    return data_root() / "saves"
 
 
 def saves_dir(owner: str = "", slug: Optional[str] = None) -> Path:
@@ -152,7 +84,7 @@ def saves_dir(owner: str = "", slug: Optional[str] = None) -> Path:
     Where ``owner``'s saves for ``slug`` live; the owner's save base when
     ``slug`` is None.
 
-    Owner ``""`` is the local player: ``<root>/saves`` (or the legacy alias).
+    Owner ``""`` is the local player: ``<root>/saves``.
     Any other owner is an account: ``<root>/users/<owner>/saves``. The caller
     checks the owner and the slug are names (``save_store_for`` does).
     """
@@ -183,13 +115,10 @@ def hosting_dir() -> Path:
 __all__ = [
     "DATA_DIR_ENV",
     "DEFAULT_ROOT",
-    "LEGACY_REMOVED_IN",
-    "LEGACY_SAVES_KEY",
     "audio_dir",
     "data_root",
     "hosting_dir",
     "image_dir",
-    "legacy_saves_alias",
     "local_saves_base",
     "media_dir",
     "saves_dir",

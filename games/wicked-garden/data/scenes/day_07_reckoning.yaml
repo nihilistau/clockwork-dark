@@ -231,6 +231,7 @@ cards:
               - { type: value, name: knowledge, delta: 3 }
 
       - id: seek_the_law
+        label: "Seek the law of leaving"
         text: >-
           THE LEAVE-LAW FRAGMENT. The conditions under which the Gate opens
           without her, said once, slowly, by somebody who has watched people
@@ -253,6 +254,7 @@ cards:
               - { type: value, name: knowledge, delta: 3 }
 
       - id: swear_to_the_seat_not_the_woman
+        label: "Swear to the Seat, not the woman"
         text: >-
           RARE, and the only source of `thornwake_squire_offered`, which is
           E6c's whole gate. He offers temporary protection under Seat law and
@@ -526,6 +528,7 @@ cards:
               - { type: value, name: sophia_break, delta: 1 }
 
       - id: the_mirror_dream
+        label: "Dream in mirrors"
         text: "Always. Silhouettes with the player's outline, none of them agreeing on a posture."
         gate:
           on_pass:

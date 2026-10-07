@@ -107,6 +107,11 @@ cards:
               - { type: value, name: composure, delta: -2 }
 
       - id: ask_who_is_missing
+        # `label` is the PLAYER's chip; `text` is the narrator's direction and
+        # may carry notes like the flag name below. Without a label the chip
+        # is the text's first sentence, code spans removed, and the validator
+        # advises on a menu beat whose text holds a note (AUTHORING.md §decks).
+        label: "Ask who is missing from the wall"
         text: >-
           There is a brighter rectangle on the wallpaper where a frame used
           to hang. Asking about it sets `asked_the_wrong_question` -- the

@@ -12,6 +12,8 @@ The engine's default story screens, as one Blueprint.
     GET /api/recipes           the recipe book
     GET /api/trade             who will barter, and at what price
     GET /api/notices           the notice board: contracts posted here
+    GET /api/clues             the clue board: what the player has worked out
+    GET /api/people            who is here (names and faces only once met)
 
 MOVED FROM ``content/scenes/clockwork/clockwork_api.py`` in v0.3.0. Every
 route here resolves through ``paths.*`` on the active manifest (the loaders
@@ -33,8 +35,9 @@ ships no screens at all by naming ``blueprint: ""``.
 
 Every route here is a GET that mutates nothing. ``session_id`` is optional
 except where a payload is meaningless without one: without a session the codex
-degrades to "show everything" rather than 404ing, so the screens are still
-browsable from a menu.
+degrades to the story's whole catalogue rather than 404ing, so the screens are
+still browsable from a menu -- but never to a cast list: with no run nobody is
+met, so a soul shows its role and place only (v0.21.0).
 
 The view-model builders are deliberately pure functions of a (possibly absent)
 GameState so they can be unit-tested without a Flask request.
@@ -357,11 +360,67 @@ def map_points(state: Any, ledger: Any = None) -> dict[str, list[dict[str, Any]]
             for npc_id in trade.vendors_at(place_id):
                 listing = trade.browse(state, npc_id)
                 if listing.get("ok"):
-                    add(place_id, "vendor", str(listing.get("vendor") or npc_id))
+                    # Named only once met (`known_as`): the label was the
+                    # vendor's full name at every place, met or not.
+                    add(place_id, "vendor", known_as(npc_id, state, ledger)[0])
     except Exception as exc:  # noqa: BLE001 -- a story with no economy
         logger.debug("[api] No vendor points for the map: %s", exc)
 
     return points
+
+
+def _gated(text: str, state: Any) -> str:
+    """
+    ``text`` through the awareness spoiler gate, as ``people_here`` gates.
+    With no session the player has learned nothing: awareness 0.
+    """
+    if not text:
+        return ""
+    from engine.lore.interceptors import AwarenessGateInterceptor
+
+    awareness = float(getattr(state, "awareness", 0.0) or 0.0) if state is not None else 0.0
+    return AwarenessGateInterceptor().gate(text, awareness, state)
+
+
+def _person_role(npc_id: str, state: Any) -> str:
+    """
+    What a stranger can see of a person: their role, from the schedule, the
+    run's procgen cast, or (no session) the story's canon templates.
+    """
+    from engine.world import npc_sim
+
+    row = (npc_sim.load_npc_schedules().get("npcs") or {}).get(npc_id) or {}
+    role = str(row.get("role") or "") if isinstance(row, dict) else ""
+    if not role and state is not None:
+        role = str((state.procgen.npc_by_id(npc_id) or {}).get("role") or "")
+    if not role:
+        from engine.game.procgen import load_templates
+
+        for npc in load_templates().get("canon_npcs", []) or []:
+            if isinstance(npc, dict) and str(npc.get("id") or "") == npc_id:
+                role = str(npc.get("role") or "")
+                break
+    return role.replace("_", " ")
+
+
+def known_as(npc_id: str, state: Any, ledger: Any = None) -> tuple[str, bool]:
+    """
+    How a client-facing route names a person: ``(label, met)``.
+
+    THE ONE RULE (v0.21.0 T3 fix rounds 1-2), for every route that names a
+    vendor or a soul outside the prose: a person the ledger says the player
+    has MET is their ``display_name``; anyone else is "the <role>" (the role
+    through the awareness spoiler gate), or "a trader" with no role. The
+    codex's things, the map's vendor points, the pack's ``vendor`` and the
+    barter screen all read it; each used to name every vendor from its id.
+    """
+    from engine.world import npc_sim
+
+    relations = getattr(ledger, "relations", {}) or {}
+    if getattr(relations.get(npc_id), "met", False):
+        return npc_sim.display_name(npc_id, state), True
+    role = _gated(_person_role(npc_id, state), state)
+    return (f"the {role}" if role else "a trader"), False
 
 
 def codex_souls(state: Any, ledger: Any = None) -> dict[str, Any]:
@@ -369,7 +428,12 @@ def codex_souls(state: Any, ledger: Any = None) -> dict[str, Any]:
     The Souls. Villagers met, plus the Assistant's five canonical forms.
 
     An unmet NPC is listed by role and place only. Naming everyone up front
-    would hand the player a cast list the fiction has not introduced.
+    would hand the player a cast list the fiction has not introduced -- and
+    so would the NPC id (the flagship's ids ARE names, ``npc_maris``; HUE &
+    CRY's lay out each household), so an unmet soul's ``id`` is an opaque
+    per-response key (``s0``...), the pattern of ``people_here``'s ``key``.
+    The client reads it only as a React key and a tint seed. The role passes
+    the awareness spoiler gate, met or not (v0.21.0 T3 fix round 1).
     """
     from engine.game.locations import LOCATIONS
 
@@ -377,7 +441,10 @@ def codex_souls(state: Any, ledger: Any = None) -> dict[str, Any]:
     npcs = list(getattr(getattr(state, "procgen", None), "npcs", []) or [])
     if not npcs:
         # No session: fall back to the canon cast from the procgen templates so
-        # the codex is still worth opening from a menu.
+        # the codex is still worth opening from a menu -- by role and place
+        # only. Nobody is met without a run (this once called every canon
+        # NPC met, which handed a menu, or any hosted account with no run,
+        # the cast list by name and portrait).
         from engine.game.procgen import load_templates
 
         npcs = list(load_templates().get("canon_npcs", []) or [])
@@ -386,13 +453,13 @@ def codex_souls(state: Any, ledger: Any = None) -> dict[str, Any]:
     for npc in npcs:
         npc_id = str(npc.get("id") or "")
         relation = relations.get(npc_id)
-        met = bool(state is None or getattr(relation, "met", False))
+        met = bool(getattr(relation, "met", False))
         place_id = str(npc.get("location_id") or "")
         souls.append(
             {
-                "id": npc_id,
+                "id": npc_id if met else f"s{len(souls)}",
                 "name": str(npc.get("name") or npc_id) if met else "Someone",
-                "role": str(npc.get("role") or "villager").replace("_", " "),
+                "role": _gated(str(npc.get("role") or "villager").replace("_", " "), state),
                 "place": str((LOCATIONS.get(place_id) or {}).get("name") or place_id),
                 "traits": [str(t) for t in (npc.get("traits") or [])] if met else [],
                 "canon": bool(npc.get("canon")),
@@ -419,12 +486,19 @@ def codex_souls(state: Any, ledger: Any = None) -> dict[str, Any]:
     return {"souls": souls, "forms": forms}
 
 
-def codex_things(state: Any) -> list[dict[str, Any]]:
+def codex_things(state: Any, ledger: Any = None) -> list[dict[str, Any]]:
     """
     The Things. Everything the art pack knows about, priced where a vendor
     trades in it, and marked when the player is carrying one.
+
+    ``from`` names a vendor the player has MET (``display_name``) and says
+    "the <role>" of one they have not: it read the vendor's id, title-cased
+    ("Maris"), for everyone (v0.21.0 T3 fix round 1).
     """
     from engine.media.providers.shipped import load_manifest
+
+    def seller(vendor_id: str) -> str:
+        return known_as(vendor_id, state, ledger)[0]
 
     prices: dict[str, dict[str, Any]] = {}
     economy = _load_economy()
@@ -436,7 +510,7 @@ def codex_things(state: Any) -> list[dict[str, Any]]:
                     {
                         "name": str(row.get("name") or item_id),
                         "price": int(row.get("price", 0)),
-                        "from": str(vendor_id).replace("npc_", "").title(),
+                        "from": seller(str(vendor_id)),
                     },
                 )
 
@@ -572,7 +646,7 @@ def _load_recipe_registry() -> dict[str, dict[str, Any]]:
 
 
 def _economy_prices() -> dict[str, dict[str, Any]]:
-    """item id -> {price, vendor} from data/economy.yaml, first vendor wins."""
+    """item id -> {price, vendor_id} from data/economy.yaml, first vendor wins."""
     import yaml
 
     prices: dict[str, dict[str, Any]] = {}
@@ -592,13 +666,15 @@ def _economy_prices() -> dict[str, dict[str, Any]]:
                     str(item_id),
                     {
                         "price": int((row or {}).get("price", 0)),
-                        "vendor": str(vendor_id).replace("npc_", "").replace("_", " ").title(),
+                        # The id, never shown: `item_catalog` names it
+                        # through `known_as`.
+                        "vendor_id": str(vendor_id),
                     },
                 )
     return prices
 
 
-def item_catalog(state: Any) -> dict[str, Any]:
+def item_catalog(state: Any, ledger: Any = None) -> dict[str, Any]:
     """
     The pack: every registry item, with the player's carried count folded in.
 
@@ -606,9 +682,18 @@ def item_catalog(state: Any) -> dict[str, Any]:
     list of names -- picture, prose, tags, weight, value, and where it can be
     sold. Read-only: nothing here moves an item. Item movement is a turn, and
     the engine's own skills are the only writers.
+
+    ``vendor`` names the trader through ``known_as`` (met: their name; else
+    "the <role>"); it was the title-cased vendor id, met or not.
     """
     registry = _load_item_registry()
     prices = _economy_prices()
+    labels: dict[str, str] = {}
+
+    def vendor_label(vendor_id: str) -> str:
+        if vendor_id and vendor_id not in labels:
+            labels[vendor_id] = known_as(vendor_id, state, ledger)[0]
+        return labels.get(vendor_id, "")
     carried: dict[str, int] = {}
     if state is not None:
         for entry in getattr(state, "inventory", None) or []:
@@ -629,7 +714,7 @@ def item_catalog(state: Any) -> dict[str, Any]:
             "image": shipped_art_url(str(row.get("art") or item_id), "item"),
             "carried": int(carried.get(item_id, 0)),
             "price": int(price.get("price", 0)),
-            "vendor": str(price.get("vendor") or ""),
+            "vendor": vendor_label(str(price.get("vendor_id") or "")),
         }
 
     items = [_row(item_id, row) for item_id, row in registry.items()]
@@ -778,12 +863,20 @@ def notice_board(state: Any) -> dict[str, Any]:
     }
 
 
-def trade_offer(state: Any) -> dict[str, Any]:
+def trade_offer(state: Any, ledger: Any = None) -> dict[str, Any]:
     """
     Who will barter with the player right now, and at what price.
 
     Presentation only: nothing here moves an item or a coin. The engine's
     `trade` skill is the single writer, and it runs inside a turn.
+
+    STANDING AT THE COUNTER IS NOT MEETING. The ledger meets everyone present
+    only at the END of a turn (``default_state``: "Anyone present has now
+    been met"), so a vendor at the place a run opens on -- the flagship's
+    Odran in Edgewood Square, recorded -- is a stranger until the first turn
+    is played. So a vendor is named through ``known_as`` like everywhere
+    else: ``name`` is "the <role>" and ``npc_id`` an opaque ``v<index>``
+    until met, and ``known`` says which (the client's "<first name> nods").
     """
     from engine.game.procgen import npcs_at_location
 
@@ -798,11 +891,13 @@ def trade_offer(state: Any) -> dict[str, Any]:
         row = economy.get(npc_id)
         if not row:
             continue
+        label, met = known_as(npc_id, state, ledger)
         vendors.append(
             {
-                "npc_id": npc_id,
-                "name": str(npc.get("name") or npc_id),
-                "role": str(npc.get("role") or "").replace("_", " "),
+                "npc_id": npc_id if met else f"v{len(vendors)}",
+                "name": label,
+                "known": met,
+                "role": _gated(str(npc.get("role") or "").replace("_", " "), state),
                 "sells": [
                     {
                         "id": str(item_id),
@@ -835,6 +930,81 @@ def trade_offer(state: Any) -> dict[str, Any]:
     }
 
 
+#: One row of ``GET /api/people``, and nothing else (spec §4.4). No NPC id:
+#: HUE & CRY's ids ARE names, and a shipped portrait URL is a file name, so
+#: either would hand over the name the strip withholds from a stranger.
+#: ``key`` is an opaque per-response index, used only as a React key.
+PERSON_KEYS: tuple[str, ...] = ("key", "known", "name", "role_label", "activity", "portrait")
+
+
+def people_here(state: Any, ledger: Any = None) -> dict[str, Any]:
+    """
+    Who is at the player's place, for the people strip.
+
+    THE SAME LIST AS THE PROMPT'S. ``merge_npcs_at_location`` is the call
+    ``present_npc_ids`` and the turn schema use (two notions of "present"
+    would be worse than none); crowds are dropped by the prose gate's own
+    rule (``cast._is_crowd``); generated household people are listed up to
+    ``prompts.MAX_GENERATED_PRESENT`` and the rest counted in ``more`` --
+    the PEOPLE HERE rule, so the strip and the prompt agree.
+
+    WHAT A STRANGER SHOWS. ``name`` and ``portrait`` only once the ledger says
+    they have met (the codex's rule), else ``""`` with ``known: false``.
+    ``role_label`` and ``activity`` pass the awareness spoiler gate; a name is
+    never masked (masking a name everywhere points at its owner).
+
+    Returns:
+        ``{"people": [row, ...], "more": int}``, each row exactly ``PERSON_KEYS``.
+    """
+    from engine.agents.cast import _is_crowd
+    from engine.agents.prompts import MAX_GENERATED_PRESENT
+    from engine.lore.interceptors import AwarenessGateInterceptor
+    from engine.world import npc_sim
+    from engine.world.world_sim import merge_npcs_at_location
+
+    relations = getattr(ledger, "relations", {}) or {}
+    gate = AwarenessGateInterceptor()
+    awareness = float(getattr(state, "awareness", 0.0) or 0.0)
+
+    def gated(text: str) -> str:
+        return gate.gate(text, awareness, state) if text else ""
+
+    rows: list[dict[str, Any]] = []
+    generated = more = 0
+    for npc in merge_npcs_at_location(state, state.location_id):
+        npc_id = str(npc.get("id") or "")
+        if not npc_id or _is_crowd(npc_id):
+            continue
+        if npc.get("premise") and not npc_sim.is_scheduled(npc_id):
+            if generated >= MAX_GENERATED_PRESENT:
+                more += 1
+                continue
+            generated += 1
+        met = bool(getattr(relations.get(npc_id), "met", False))
+        # Presence's `name` falls back to the raw id for a person no table
+        # names; `display_name` never answers an id.
+        authored = str(npc.get("name") or "")
+        name = authored if authored and authored != npc_id else npc_sim.display_name(npc_id, state)
+        # Built THROUGH the constant, so the row and PERSON_KEYS cannot drift.
+        rows.append(
+            dict(
+                zip(
+                    PERSON_KEYS,
+                    (
+                        f"p{len(rows)}",
+                        met,
+                        name if met else "",
+                        gated(str(npc.get("role") or "").replace("_", " ")),
+                        gated(str(npc.get("activity") or "")),
+                        shipped_art_url(npc_id, "portrait") if met else "",
+                    ),
+                    strict=True,
+                )
+            )
+        )
+    return {"people": rows, "more": more}
+
+
 # ---------------------------------------------------------------------------
 # the blueprint
 # ---------------------------------------------------------------------------
@@ -850,7 +1020,8 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
         name: Blueprint name, in case a host app already has one.
 
     Returns:
-        An unregistered Blueprint carrying the seven story screens.
+        An unregistered Blueprint carrying the default story screens (the
+        routes in this module's docstring).
     """
     blueprint = Blueprint(name, __name__)
 
@@ -894,7 +1065,14 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
     @blueprint.get("/api/codex/things")
     def api_codex_things() -> Any:
         session = _optional_session(request.args.get("session_id", ""))
-        return jsonify({"things": codex_things(session.engine.state if session else None)})
+        return jsonify(
+            {
+                "things": codex_things(
+                    session.engine.state if session else None,
+                    session.ledger if session else None,
+                )
+            }
+        )
 
     @blueprint.get("/api/items")
     def api_items() -> Any:
@@ -907,7 +1085,12 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
         the title screen.
         """
         session = _optional_session(request.args.get("session_id", ""))
-        return jsonify(item_catalog(session.engine.state if session else None))
+        return jsonify(
+            item_catalog(
+                session.engine.state if session else None,
+                session.ledger if session else None,
+            )
+        )
 
     @blueprint.get("/api/recipes")
     def api_recipes() -> Any:
@@ -927,7 +1110,7 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
             session = store.require(request.args.get("session_id", ""))
         except KeyError:
             return jsonify({"error": "session not found"}), 404
-        return jsonify(trade_offer(session.engine.state))
+        return jsonify(trade_offer(session.engine.state, session.ledger))
 
     @blueprint.get("/api/notices")
     def api_notices() -> Any:
@@ -959,17 +1142,37 @@ def story_blueprint(store: SessionStore, name: str = BLUEPRINT_NAME) -> Blueprin
             return jsonify({"error": "session not found"}), 404
         return jsonify({"clues": clue_board(session.engine.state, session.ledger)})
 
+    @blueprint.get("/api/people")
+    def api_people() -> Any:
+        """
+        Who is here (spec §4.4). Session-required, like the clue board. Read
+        off the turn lock, as every GET here is, so a mid-turn read can meet
+        a half-moved world: any failure is logged and answered as nobody
+        (the ``_carry_block`` convention), never a 500.
+        """
+        try:
+            session = store.require(request.args.get("session_id", ""))
+        except KeyError:
+            return jsonify({"error": "session not found"}), 404
+        try:
+            return jsonify(people_here(session.engine.state, session.ledger))
+        except Exception:  # noqa: BLE001 -- see docstring
+            logger.exception("[api] People here failed (operation=api_people)")
+            return jsonify({"people": [], "more": 0})
+
     return blueprint
 
 
 __all__ = [
     "BLUEPRINT_NAME",
+    "PERSON_KEYS",
     "clue_board",
     "codex_places",
     "codex_souls",
     "codex_things",
     "item_catalog",
     "notice_board",
+    "people_here",
     "quest_journal",
     "recipe_book",
     "story_blueprint",

@@ -106,7 +106,7 @@ export default function Sheet({ world, sessionId, onOpenPack }) {
 
       <div className="sheet__lines">
         <Line label="Gold" value={stats.gold ?? 0} />
-        <Line label="Place" value={prettyPlace(world.location_id || "—")} />
+        <Line label="Place" value={world.location_name || prettyPlace(world.location_id || "—")} />
       </div>
 
       {wounds.length > 0 && (

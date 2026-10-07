@@ -144,6 +144,7 @@ cards:
               - { type: value, name: desire, delta: -2 }
 
       - id: how_do_i_leave
+        label: "Ask him how you leave"
         text: >-
           THE TRIAD, and the single most valuable sentence in Act II: with her
           bored, with law older than her mouth, with the root's bargain, or with
@@ -350,6 +351,7 @@ cards:
               - { type: value, name: desire, delta: -5 }
 
       - id: feed_her_ambition
+        label: "Speak a goal aloud"
         text: >-
           Speak a goal aloud: the door, the peerage, the Seat, or her. Sets
           `ambition_declared`, which is one of E5's four gates and cannot be
@@ -476,6 +478,7 @@ cards:
               - { type: value, name: favor, delta: -6 }
 
       - id: she_is_not_at_the_stairs
+        label: "She is not at the stairs"
         text: >-
           WINTER. Only where the player left with Ashen rather than climbing
           back to her. Sets the sixth compass value, and the Day 7 omen for it

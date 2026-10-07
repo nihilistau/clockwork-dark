@@ -9,7 +9,7 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Iterable, Iterator, Mapping, Optional
+from typing import Any, Callable, Iterable, Iterator, Mapping, Optional
 
 import pytest
 import yaml
@@ -44,6 +44,33 @@ def refuse_an_inherited_marker(environ: Mapping[str, str], pid: int) -> None:
 # writable, the discard port. pytest_configure upgrades it to <pid>;<layer>.
 refuse_an_inherited_marker(os.environ, os.getpid())
 os.environ[_SANDBOX_ENV] = os.environ.get(_SANDBOX_ENV) or str(os.getpid())
+
+
+def _exit_on_legacy_config(resolve: Callable[[], Any]) -> Any:
+    """
+    ``resolve()``, or a clean stop when the owner's own config holds a name
+    v0.21.0 refuses (spec §10.1 item 14). This runs at IMPORT, so a raise
+    would abort collection with a traceback; the owner reads the fix instead.
+    Not ``pytest.exit``: raised during conftest import, pytest wraps it (exit
+    4 and a traceback), so the message goes to stderr and SystemExit(2) ends
+    the run.
+    """
+    from engine.config import LegacyConfigError
+
+    try:
+        return resolve()
+    except LegacyConfigError as exc:
+        print(f"The test suite cannot start: {exc}", file=sys.stderr, flush=True)
+        raise SystemExit(2) from None
+
+
+# SECOND, before any engine import that builds the config: importing
+# engine.game.engine loads the locations, which calls get_config(), so a name
+# v0.21.0 refuses would otherwise end collection with a traceback (exit 4)
+# rather than the message and exit 2. Importing engine.config loads nothing.
+from engine.config import get_config as _get_config  # noqa: E402
+
+_exit_on_legacy_config(_get_config)
 
 from engine.game.engine import GameEngine, set_active_engine  # noqa: E402
 from engine.game.state import GameState  # noqa: E402
@@ -249,7 +276,7 @@ def _content_caches_are_per_test() -> Iterator[None]:
 
     SCOPED TO THE MANIFEST-DERIVED MEMOS, not to ``reset_all_caches()``. The
     full reset also runs the RELOADERS, which include
-    ``lmstudio.profiles/registry/backend/gate`` -- those are derived from CONFIG
+    ``llm.profiles/registry/backend/gate`` -- those are derived from CONFIG
     rather than from the manifest, they cannot be poisoned this way, and
     clearing them per test forces model re-resolution on every single one. That
     version took the suite from 3m40s to 6m35s and broke two prompt-budget
@@ -284,8 +311,7 @@ def _resolve_real_storage() -> tuple[Path, Path]:
     The owner's REAL storage root and local save directory, resolved once at
     import with ``CLOCKWORK_DATA_DIR`` removed for the call: the config's
     ``storage.root`` (``data`` by default, anchored at the repository), and
-    its ``saves/`` or the owner's legacy ``paths.saves`` alias. Whatever the
-    shell exported, these are the directories a test must never write.
+    its ``saves/``. Whatever the shell exported, these are the directories a test must never write.
     """
     from engine.persistence import storage
 
@@ -297,7 +323,7 @@ def _resolve_real_storage() -> tuple[Path, Path]:
             os.environ[_DATA_DIR_ENV] = exported
 
 
-_REAL_DATA_ROOT, _REAL_SAVES_DIR = _resolve_real_storage()
+_REAL_DATA_ROOT, _REAL_SAVES_DIR = _exit_on_legacy_config(_resolve_real_storage)
 
 
 def _resolve_real_mcp_json_dir() -> Optional[Path]:
@@ -331,13 +357,28 @@ _REAL_LOCAL_YAML: frozenset[str] = frozenset(
 #: ``engine/mcp/skills_server.py`` and ``engine/api/settings.py``.
 _CONFIG_ENV = "CLOCKWORK_CONFIG"
 
+#: Whether the FIRST copy of this file has read and cleared the inherited
+#: environment, and what it read (kept on ``sys`` for ``_SHARED_KEY``'s
+#: reason). A test's ``from tests.conftest import ...`` loads a second copy,
+#: whose import used to clear the environment again: since v0.21.0 that
+#: would pop the session's own ``CLOCKWORK_DATA_DIR`` (``pytest_configure``)
+#: and read it back as one "the owner's shell exported".
+_INHERITED_KEY = "_clockwork_dark_inherited_environment"
+_FIRST_COPY = getattr(sys, _INHERITED_KEY, None) is None
+if _FIRST_COPY:
+    setattr(
+        sys,
+        _INHERITED_KEY,
+        (
+            Path(os.environ[_DATA_DIR_ENV]).expanduser().resolve()
+            if os.environ.get(_DATA_DIR_ENV, "").strip()
+            else None,
+        ),
+    )
+
 #: A storage root the owner's shell exported, kept so the session snapshot
 #: (``_real_storage_is_untouched``) watches it as well as the default one.
-_EXPORTED_DATA_ROOT: Optional[Path] = (
-    Path(os.environ[_DATA_DIR_ENV]).expanduser().resolve()
-    if os.environ.get(_DATA_DIR_ENV, "").strip()
-    else None
-)
+_EXPORTED_DATA_ROOT: Optional[Path] = getattr(sys, _INHERITED_KEY)[0]
 
 
 def _clear_inherited_environment() -> None:
@@ -365,7 +406,8 @@ def _clear_inherited_environment() -> None:
         reset_config()
 
 
-_clear_inherited_environment()
+if _FIRST_COPY:
+    _clear_inherited_environment()
 
 
 def _real_saves_dir() -> Path:
@@ -374,13 +416,22 @@ def _real_saves_dir() -> Path:
 
 
 #: The owner's real run-time data, as normalized prefixes, resolved once: the
-#: local saves, every account's saves (``users/``) and hosted mode's accounts
-#: and cookie key (``hosting/``), all under the real storage root (v0.20.0 T3
-#: fix round 1: the guard watched only ``saves/``, and an account's store is
-#: built on ``data_root()``, not on the redirected ``saves_base``).
+#: local saves, every account's saves (``users/``), hosted mode's accounts
+#: and cookie key (``hosting/``) and the generated media (``media/``: images
+#: and narration audio), all under the real storage root (v0.20.0 T3 fix
+#: round 1: the guard watched only ``saves/``, and an account's store is
+#: built on ``data_root()``, not on the redirected ``saves_base``; v0.21.0:
+#: ``media/`` was left to the session-end snapshot, so a procedural scene
+#: image written there by a module-scoped fixture was seen only as an error
+#: on the session's last test, naming no test).
 _REAL_PREFIXES: tuple[str, ...] = tuple(
     os.path.normcase(os.path.abspath(p)) + os.sep
-    for p in (_REAL_SAVES_DIR, _REAL_DATA_ROOT / "users", _REAL_DATA_ROOT / "hosting")
+    for p in (
+        _REAL_SAVES_DIR,
+        _REAL_DATA_ROOT / "users",
+        _REAL_DATA_ROOT / "hosting",
+        _REAL_DATA_ROOT / "media",
+    )
 )
 
 #: Writes THIS process attempted under the real save directory, as
@@ -663,6 +714,25 @@ def _owner_config_tree() -> dict[str, Any]:
 _REAL_POPEN_INIT = getattr(subprocess.Popen.__init__, "__wrapped__", subprocess.Popen.__init__)
 
 
+def refuse_a_basetemp_under(config: Any, data_root: Path) -> None:
+    """
+    ``pytest.UsageError`` when ``--basetemp`` resolves at or under
+    ``data_root`` (the owner's real storage root). pytest wipes its basetemp
+    at start, so one pointed there would delete the owner's data and then
+    hold every test's temp tree in it (v0.21.0 data-leak review M2).
+    """
+    given = getattr(getattr(config, "option", None), "basetemp", None)
+    if not given:
+        return
+    base = Path(given).expanduser().resolve()
+    root = Path(data_root).expanduser().resolve()
+    if base == root or root in base.parents:
+        raise pytest.UsageError(
+            f"--basetemp {base} is inside the real storage root {root}; "
+            "pass a directory outside it (pytest wipes its basetemp at start)"
+        )
+
+
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config: pytest.Config) -> None:
     """
@@ -704,6 +774,10 @@ def pytest_configure(config: pytest.Config) -> None:
     ``tests/test_subprocess_sandbox.py`` pins that, and starts children by
     every route above.
     """
+    # A --basetemp under the owner's storage root is refused BEFORE pytest
+    # resolves it: resolving it wipes it (data-leak review M2), and every
+    # test's temp tree would then be the owner's data.
+    refuse_a_basetemp_under(config, _REAL_DATA_ROOT)
     factory = getattr(config, "_tmp_path_factory", None)
     if factory is None:  # pragma: no cover -- the tmp_path plugin is always on
         factory = pytest.TempPathFactory.from_config(config, _ispytest=True)
@@ -736,10 +810,67 @@ def pytest_configure(config: pytest.Config) -> None:
     sandboxed_init.__wrapped__ = _REAL_POPEN_INIT  # type: ignore[attr-defined]
     patch = pytest.MonkeyPatch()
     patch.setattr(subprocess.Popen, "__init__", sandboxed_init)
+    # THE SESSION'S STORAGE ROOT (v0.21.0). `_no_test_writes_real_saves`
+    # points `CLOCKWORK_DATA_DIR` at a per-test directory, but only for a
+    # test: a module-, class- or session-scoped fixture is set up BEFORE it,
+    # and ran with no variable at all -- so the real root. HUE & CRY's
+    # `measured_law` built twenty sessions there, and each opening's
+    # procedural scene image (`ProceduralProvider.generate`, through
+    # `storage.image_dir()`) rewrote the owner's `data/media/images/`. Every
+    # moment outside a test's own redirect now resolves to the sandbox
+    # layer's root, the one every child process already uses.
+    patch.setenv(_DATA_DIR_ENV, str(root / "data"))
     config._clockwork_sandbox_patch = patch  # type: ignore[attr-defined]
+    config._clockwork_held_ports = hold_guarded_ports()  # type: ignore[attr-defined]
+
+
+def guarded_loopback_ports() -> list[int]:
+    """The loopback ports the model guard refuses: every provider's default
+    port (``engine.llm.providers.PROVIDERS``), never a hardcoded list."""
+    from urllib.parse import urlsplit
+
+    ports: set[int] = set()
+    try:
+        from engine.llm.providers import PROVIDERS
+
+        for provider in PROVIDERS.values():
+            url = urlsplit(str(provider.default_base_url.value or ""))
+            if url.hostname in ("localhost", "127.0.0.1", "::1") and url.port:
+                ports.add(url.port)
+    except Exception:  # noqa: BLE001 -- a bad table must not break the session
+        pass
+    return sorted(ports)
+
+
+def hold_guarded_ports() -> list[Any]:
+    """
+    Bind every guarded loopback port that is free, for the whole session.
+
+    BUG THIS CLOSES (v0.21.0): this machine hands out ephemeral ports from
+    1024 (`netsh int ipv4 show dynamicport tcp`), so a test's own throwaway
+    server was once given 8080 -- llama-server's default -- and the model
+    guard failed it for "reaching the model server". Holding the guarded
+    ports means the OS can never give one to a test. A port already in use
+    (a real model server the owner is running) is skipped: the OS cannot
+    hand that one out either.
+    """
+    import socket as _socket
+
+    held = []
+    for port in guarded_loopback_ports():
+        sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+        try:
+            sock.bind(("127.0.0.1", port))
+        except OSError:
+            sock.close()
+            continue
+        held.append(sock)
+    return held
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:
+    for sock in getattr(config, "_clockwork_held_ports", []):
+        sock.close()
     patch = getattr(config, "_clockwork_sandbox_patch", None)
     if patch is not None:
         patch.undo()
@@ -843,8 +974,7 @@ def _real_storage_roots() -> list[SnapshotRoot]:
     """
     The owner's real run-time folders: under the real storage root (and one
     the owner's shell exported) ``saves/``, ``users/``, ``hosting/`` and
-    ``media/`` (whose ``tts/`` is the audio); the real local save base, which
-    the legacy ``paths.saves`` alias can put elsewhere; every ``mcp.json*``
+    ``media/`` (whose ``tts/`` is the audio); the real local save base; every ``mcp.json*``
     beside the owner's LM Studio ``mcp.json`` (the file, and its backups),
     under the home directory as it is NOW and the owner's declared
     ``llm.mcp.mcp_json``; and ``config/local.yaml`` (and its ``.tmp``).
@@ -898,14 +1028,21 @@ def _real_storage_is_untouched() -> Iterator[list[SnapshotRoot]]:
 
     WHY, BESIDE THE AUDIT HOOK. ``_saves_audit_hook`` sees only THIS process,
     and only ``open``/``mkdir``/``rename``/``remove``: not sqlite, not
-    ``os.link``/``symlink``/``truncate``, not a child process, and not the
-    real ``media/`` folder (controller note N3, v0.20.0 T5). A snapshot of
+    ``os.link``/``symlink``/``truncate``, and not a child process
+    (controller note N3, v0.20.0 T5; ``media/`` joined the hook in v0.21.0). A snapshot of
     names, sizes and mtimes (and hashes of the small owner files), compared
     at session end, catches every one of those that leaves a net change,
     whatever wrote it. It is reported as an error on the session's last test.
     """
     roots, before = getattr(sys, _SNAPSHOT_KEY)
     yield roots
+    # A write the audit hook recorded after the last test's teardown (a
+    # module fixture's teardown, a thread) has no next test to report it.
+    outside = list(REAL_SAVES_WRITES)
+    REAL_SAVES_WRITES.clear()
+    assert not outside, (
+        f"a write under the owner's real storage root happened after the last test: {outside[:5]}"
+    )
     assert_storage_unchanged(before, roots)
 
 
@@ -958,12 +1095,27 @@ def _no_test_writes_real_saves(
     are built on ``storage.data_root()``, not on ``saves_base``, so the
     redirect above never reached them. ``CLOCKWORK_DATA_DIR`` is set to a
     per-test temp directory as well, and the audit hook watches the REAL
-    root's ``saves/``, ``users/`` and ``hosting/``. A test that pins the
+    root's ``saves/``, ``users/``, ``hosting/`` and ``media/``. A test that pins the
     DEFAULT root (the local-mode golden's ``save_base.json``) opts out of the
     variable with ``@pytest.mark.default_storage_root``; the hook still
     watches it.
     """
     from engine.persistence import saves
+
+    # A write recorded since the last test's teardown happened OUTSIDE any
+    # test's redirect: in a module-, class- or session-scoped fixture this
+    # test set up first (they come before a function-scoped autouse
+    # fixture), at collection, or on a thread between tests. It used to be
+    # cleared here unseen (v0.21.0: `measured_law`'s scene images).
+    outside = list(REAL_SAVES_WRITES)
+    REAL_SAVES_WRITES.clear()
+    if outside:
+        pytest.fail(
+            "a write under the owner's real storage root happened outside any "
+            "test's redirect (a module/class/session fixture this test set up, "
+            f"collection, or a thread between tests): {outside[:5]}",
+            pytrace=False,
+        )
 
     real = _real_saves_dir()
     base = tmp_path_factory.mktemp("saves")
@@ -974,7 +1126,6 @@ def _no_test_writes_real_saves(
     else:
         redirect.delenv(_DATA_DIR_ENV, raising=False)
     saves.reset_save_store()
-    REAL_SAVES_WRITES.clear()
     roots: list[Path] = []
     try:
         yield

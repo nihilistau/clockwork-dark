@@ -12,6 +12,52 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-10-07
+
+### Changed
+
+- The contact strip's approach buttons are `aria-disabled` while a turn runs
+  or the connection is down (they read core's `controlsOff`), not
+  `disabled`, so a focused one keeps focus; one not offered this turn takes
+  the same dimmed look (it kept the live colour before).
+- The contact strip's approach buttons now resolve through their intent:
+  each presses the narrator's choice that carries it, so the engine takes the
+  approach before the turn is narrated (it used to send the approach's words
+  as typed text, which resolved nothing). An approach not offered this turn
+  says so and cannot be pressed, and only the choices the buttons press are
+  hidden: any other choice stays on screen. The strip's look is otherwise
+  unchanged.
+- Rolls are now shown: core's roll card (v0.21.0) draws each check's roll
+  in the top-right corner of the scene and the log, never over the choices
+  or the compose box, for six seconds or until the next turn -- skill, die,
+  modifiers (with the dice-breakdown preference), total against the bar and
+  the degree.
+- The negotiation panel is an engine panel in the shelf now, bounded with
+  the rest of the current move (`--shelf-max`) instead of growing the main
+  column; its heading is an `<h2>` and its toggle a 44px target.
+- Its plugin declares `ownsPanels: ["encounter"]`: its stage draws the
+  encounter's approaches, so core's encounter panel stands down.
+
+### Fixed
+
+- The plate's caption names the place, not its id, and the empty left
+  column is gone at desktop widths (v0.21.0 final fix wave).
+- The title screen's archetypes (Runner, Ex-Corpo, Wirehead) no longer run
+  off the card at 1366x768: core lets their descriptions wrap, and the
+  theme widens the start card to 800px on a short window at least 1000px
+  wide, so each takes two lines and "Take the shard" stays on screen.
+- The paper's comment no longer says the engine renegotiates or cuts a
+  thread from it: its buttons send typed text, which runs no skill. Recorded
+  as NOT WIRED (docs/GOVERNANCE.md); the intent path is the v0.25.0
+  overhaul's.
+
+- Two activities named their own person, and v0.21.0's people strip shows
+  an unmet person's activity: Frankie DeLuca's daytime one at Club Noir
+  ("gone up to wherever Frankie goes") now reads "gone up to wherever he
+  goes by day", and Rho's absence from the Velvet Pit ("nobody saw Rho
+  leave") reads "nobody saw them leave".
+  `tests/test_activity_names_nobody.py` holds every story to it.
+
 ## [0.20.0] — 2026-10-06
 
 - `saves:` removed from `game.yaml`; the engine owns where saves go (`storage.root`, v0.20.0), and runs still land in `data/saves/neon-city/`. No content change.

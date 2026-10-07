@@ -41,13 +41,14 @@ Version: v0.1.0 [2026-08-08]
 
 from __future__ import annotations
 
+import copy
 import logging
 from pathlib import Path
 from typing import Any
 
 from flask import Blueprint, jsonify, request
 
-from engine.config import get_config, hosting_enabled, migrate_legacy_llm
+from engine.config import get_config, hosting_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -64,16 +65,26 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
         "label": "How fast the dark spreads",
         "group": "Pace",
         "type": "float",
+        # The range holds the shipped default (0.028, config/default.yaml) with
+        # room above the sweep's top row (0.032). It was 0.001-0.02 with marks
+        # and a hint written for the old 0.006 default, so the slider sat
+        # pinned at its end and a touch wrote 0.02 (v0.21.0 T13 fix round 1).
         "min": 0.001,
-        "max": 0.02,
+        "max": 0.05,
         "step": 0.001,
         "restart": False,
+        # Only what was measured: config/default.yaml's sweep when 0.028 was
+        # chosen (080831c; scripts/simulate.py, 200 turns, seed 42). The old
+        # hint's day counts were not measured against the engine that runs.
         "hint": (
-            "The difficulty slider. 0.006 reaches CONSUMING near day 130; "
-            "0.012 does it in half that; below 0.003 the world is still quiet "
-            "at day 40 and the premise evaporates."
+            "The base rate of the doom clock, per in-game day. When the shipped "
+            "0.028 was chosen (scripts/simulate.py, 200 turns, seed 42), the "
+            "median run ended DORMANT at 0.006 and STIRRING at 0.020, and at 0.028 "
+            "it only just reached SPREADING (the baker's run, just); at 0.032 a "
+            "reckless player's world reached CONSUMING."
         ),
-        "marks": {"0.003": "Slow", "0.006": "Measured", "0.012": "Hunted"},
+        # Where that sweep's median 200-turn run ended, at each rate.
+        "marks": {"0.006": "Dormant", "0.020": "Stirring", "0.028": "Spreading"},
     },
     {
         "key": "world.tick_interval_seconds",
@@ -403,19 +414,33 @@ def _listed(spec: dict[str, Any], provider: str) -> bool:
     return not providers or provider in providers
 
 
+def _fit_range(row: dict[str, Any], value: Any) -> dict[str, Any]:
+    """
+    ``row`` with its live ``value``, its ``min``/``max`` widened to hold that
+    value if a config layer set one outside them (a story's manifest, or a
+    hand-edited ``local.yaml``): a slider whose thumb is pinned at its end
+    while the number beside it says otherwise shows neither truly. A save
+    still clamps to the row's declared range, with its note.
+    """
+    row["value"] = value
+    if row.get("type") in ("int", "float") and isinstance(value, (int, float)) and not isinstance(value, bool):
+        if row.get("min") is not None and value < row["min"]:
+            row["min"] = value
+        if row.get("max") is not None and value > row["max"]:
+            row["max"] = value
+    return row
+
+
 def settings_view() -> dict[str, Any]:
     """Every player-settable knob, its live value, and whether it is overridden."""
     cfg = get_config()
-    # Read as the config layer reads it, legacy block and all, so a key an old
-    # `lmstudio:` block sets shows as overridden.
-    overrides, _ = migrate_legacy_llm(_local_overrides())
+    overrides = _local_overrides()
     provider = str(cfg.get("llm.provider") or "lmstudio")
     rows: list[dict[str, Any]] = []
     for spec in SETTING_SPECS:
         if not _listed(spec, provider):
             continue
-        row = dict(spec)
-        row["value"] = cfg.get(spec["key"])
+        row = _fit_range(dict(spec), cfg.get(spec["key"]))
         row["overridden"] = _dig(overrides, spec["key"]) is not None
         rows.append(row)
     return {
@@ -543,16 +568,8 @@ def apply_settings(changes: dict[str, Any], *, reset: bool = False) -> dict[str,
             "rejected": {},
         }
 
-    # A legacy `lmstudio:` block is rewritten as `llm:` by this save, by the
-    # config layer's own rule (the new block wins a key both set, nothing only
-    # the old one set is lost), so the first setting saved migrates the file.
-    overrides, moved = migrate_legacy_llm(current)
+    overrides = copy.deepcopy(current) if isinstance(current, dict) else {}
     provider = str(get_config().get("llm.provider") or "lmstudio")
-    if moved:
-        logger.info(
-            "[settings] Legacy model-server config moved (operation=apply_settings, renamed=%s)",
-            "; ".join(moved),
-        )
     applied: dict[str, Any] = {}
     rejected: dict[str, str] = {}
     notes: dict[str, str] = {}

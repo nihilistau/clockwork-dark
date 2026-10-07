@@ -55,6 +55,7 @@ from engine.games.manifest import (
     ManifestError,
     is_valid_slug,
     satisfies,
+    ui_panel_problems,
 )
 from engine.locks import renew_after_fork
 
@@ -249,6 +250,8 @@ def validate(manifest: GameManifest) -> list[str]:
     raw_summary = manifest.extras.get("save_summary")
     if raw_summary is not None and not isinstance(raw_summary, (list, tuple, str)):
         problems.append("save_summary must be a list of declared value names")
+
+    problems.extend(ui_panel_problems(manifest)[0])
 
     if problems:
         logger.warning(

@@ -64,7 +64,7 @@ function Toggle({ label, hint, checked, onChange }) {
 }
 
 /** One engine setting, rendered from its server-declared spec. */
-function EngineField({ spec, value, onChange }) {
+function EngineField({ spec, value, onChange, readOnly = false }) {
   const id = `set-${spec.key.replace(/\./g, "-")}`;
   const control = () => {
     if (spec.type === "bool") {
@@ -73,6 +73,7 @@ function EngineField({ spec, value, onChange }) {
           id={id}
           type="checkbox"
           checked={Boolean(value)}
+          disabled={readOnly}
           onChange={(e) => onChange(spec.key, e.target.checked)}
         />
       );
@@ -83,6 +84,7 @@ function EngineField({ spec, value, onChange }) {
           id={id}
           className="field__input field__input--short"
           value={String(value ?? "")}
+          disabled={readOnly}
           onChange={(e) => onChange(spec.key, e.target.value)}
         >
           {spec.options.map((option) => (
@@ -101,6 +103,7 @@ function EngineField({ spec, value, onChange }) {
           value={String(value ?? "")}
           maxLength={spec.maxlength || 120}
           placeholder="discover automatically"
+          disabled={readOnly}
           onChange={(e) => onChange(spec.key, e.target.value)}
         />
       );
@@ -117,6 +120,7 @@ function EngineField({ spec, value, onChange }) {
           max={spec.max}
           step={spec.step || (spec.type === "int" ? 1 : 0.01)}
           value={Number(value ?? spec.min)}
+          disabled={readOnly}
           onChange={(e) => onChange(spec.key, Number(e.target.value))}
         />
         <output htmlFor={id}>{value}</output>
@@ -169,6 +173,9 @@ export default function Settings({ prefs, onChange, onClose }) {
     };
   }, []);
 
+  // `writable: false` is hosted mode's shape (engine/api/settings.py); absent
+  // is local mode's, so the local fixture is untouched (spec §7).
+  const writable = spec?.writable !== false;
   const rows = spec?.settings || [];
   const value = (row) => (row.key in draft ? draft[row.key] : row.value);
   const dirty = Object.keys(draft).length > 0;
@@ -188,7 +195,7 @@ export default function Settings({ prefs, onChange, onClose }) {
       const restart = result.restart_needed || [];
       setStatus(
         [
-          "written to config/local.yaml",
+          `written to ${result.config_path || spec?.config_path || "the config"}`,
           notes.length ? notes.join("; ") : "",
           restart.length
             ? `${restart.length} setting${restart.length > 1 ? "s take" : " takes"} effect after a restart`
@@ -222,12 +229,17 @@ export default function Settings({ prefs, onChange, onClose }) {
       footer={
         <>
           <span className="settings__status">{status}</span>
-          <button type="button" className="btn btn--ghost btn--sm" onClick={revert}>
-            Reset to defaults
-          </button>
-          <button type="button" className="btn" disabled={!dirty} onClick={commit}>
-            {dirty ? `Apply ${Object.keys(draft).length}` : "Applied"}
-          </button>
+          {/* Hosted mode refuses a write (§6.7), so it is not offered. */}
+          {writable && (
+            <>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={revert}>
+                Reset to defaults
+              </button>
+              <button type="button" className="btn" disabled={!dirty} onClick={commit}>
+                {dirty ? `Apply ${Object.keys(draft).length}` : "Applied"}
+              </button>
+            </>
+          )}
           <button type="button" className="btn btn--lg" onClick={onClose}>
             Back to the world
           </button>
@@ -285,18 +297,25 @@ export default function Settings({ prefs, onChange, onClose }) {
           {rows
             .filter((row) => row.group === group)
             .map((row) => (
-              <EngineField key={row.key} spec={row} value={value(row)} onChange={edit} />
+              <EngineField key={row.key} spec={row} value={value(row)} onChange={edit} readOnly={!writable} />
             ))}
         </fieldset>
       ))}
 
       {spec && (
         <p className="setting__hint settings__footnote">
-          These are written to <code>{spec.config_path}</code>, which is gitignored and
-          layered over the shipped defaults. Only the keys listed here can be written, and
-          every number is clamped to its range, so nothing you can set from this panel can
-          make a run unplayable. Run <code>python scripts/doctor.py</code> to see what is
-          actually running on this machine.
+          {writable ? (
+            <>
+              These are written to {spec.config_path ? <code>{spec.config_path}</code> : "the local config"}, which
+              is gitignored and layered over the shipped defaults. Only the keys listed here can be written, and every
+              number is clamped to its range, so nothing you can set from this panel can make a run unplayable. Run{" "}
+              <code>python scripts/doctor.py</code> to see what is actually running on this machine.
+            </>
+          ) : (
+            // Hosted mode: the path is on the operator's machine and is not
+            // sent (engine/api/settings.py), and the doctor is theirs to run.
+            "These are set by the operator of this server."
+          )}
         </p>
       )}
     </Modal>

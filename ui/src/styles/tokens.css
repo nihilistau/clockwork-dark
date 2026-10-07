@@ -91,4 +91,26 @@
   --state-hover-fill: rgba(201, 168, 106, 0.09);
   --state-active-fill: rgba(201, 168, 106, 0.16);
   --state-select-fill: rgba(201, 168, 106, 0.14);
+
+  /* ---- engine panels (v0.21.0) ----
+     The poster, the job, the casing board. Neutral here; a skin re-points
+     them (HUE & CRY: parchment and ink). Derived, so an older theme that
+     sets none still reads. */
+  --panel-paper: var(--surface-card);
+  --panel-ink: var(--text-body);
+  /* The quieter line on a panel (a summary, a done stage, a house's type),
+     on --panel-paper. Every panel's muted text reads this, never
+     --text-muted, which a skin sets for the dark scene (T14: on HUE & CRY's
+     parchment --text-muted measured about 2:1). */
+  --panel-muted: var(--text-muted);
+  /* The focus ring inside a panel: drawn 2px outside the control, so on
+     --panel-paper, not the scene (T14 review 1: core's ring was 2.04:1 on
+     HUE & CRY's parchment). */
+  --panel-focus: var(--focus-ring);
+  /* The hairline between a panel's rows (a casing house, a person, the roll
+     card's edge): --line-soft is drawn for the dark scene and vanishes on a
+     light paper. */
+  --panel-rule: var(--line-soft);
+  --panel-mark: var(--accent-brass);
+  --panel-danger: var(--text-danger);
 }

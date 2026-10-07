@@ -103,6 +103,7 @@ cards:
               - { type: value, name: favor, delta: -3 }
 
       - id: she_let_you_go
+        label: "She lets you go"
         text: "Always. Resolve after whichever branch ran."
         gate:
           on_pass:
@@ -398,6 +399,7 @@ cards:
               - { type: value, name: autonomy, delta: 3 }
 
       - id: sleep_unwarded
+        label: "Sleep unwarded"
         text: >-
           Frost on roses, in a dream that does not belong to her. Sets
           `dream_ashen` -- the first Ashen contact of any kind, and the reason
@@ -444,6 +446,7 @@ cards:
               - { type: value, name: desire, delta: 2 }
 
       - id: the_crack
+        label: "Catch the crack in her"
         text: >-
           RARE. Only if the player used iron today or stood in the crypt. She is
           softer or colder by the agent's read of her pride-wound, and if softer

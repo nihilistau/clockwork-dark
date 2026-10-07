@@ -83,6 +83,9 @@ MAX_BEATS = 12
 #: before the narrator read them). An outcome's text is capped the same way
 #: through ``spec.clamp_outcome(authored=True)``.
 MAX_TEXT = spec_module.MAX_AUTHORED_TEXT
+#: A menu beat's authored ``label`` (the chip the player reads): a line, not a
+#: paragraph.
+MAX_LABEL = 120
 
 #: Flag prefix recording that a ``once: true`` card has been dealt on this save.
 DRAWN_FLAG_PREFIX = "deck_drawn_"
@@ -240,6 +243,14 @@ def bound_beats(raw: Any, deck_id: str, card_id: str) -> list[dict[str, Any]]:
             "id": str(raw_beat.get("id") or f"{card_id}_{index}"),
             "text": _text(raw_beat.get("text"), adjustments=adjustments, what="beat text"),
         }
+        # The PLAYER's words for a menu beat (``director.player_label``): the
+        # beat's ``text`` is the narrator's direction and may carry author
+        # notes, so a beat that needs a cleaner chip says so here. Kept only
+        # when authored, so a beat without one is the dict it always was.
+        label = _text(raw_beat.get("label"), limit=MAX_LABEL, adjustments=adjustments,
+                      what="beat label")
+        if label:
+            beat["label"] = label
         if "gate" in raw_beat and isinstance(raw_beat["gate"], dict):
             beat["gate"] = _bound_gate(raw_beat["gate"], adjustments)
         if "band" in raw_beat and isinstance(raw_beat["band"], dict):

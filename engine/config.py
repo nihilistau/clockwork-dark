@@ -22,9 +22,9 @@ Layers, later wins, deep-merged:
                             missing or unparsable one is an error (v0.20.0)
     <game overlay>          the active game manifest's ``paths:`` block
 
-Each layer's legacy ``lmstudio:`` block is renamed ``llm:`` before it merges,
-and a legacy key read is answered from its new name: see
-``migrate_legacy_llm`` (v0.19.0; the alias goes in v0.21.0).
+An operator layer holding a name removed in v0.21.0 (``lmstudio:``,
+``stack.services.lmstudio``, ``paths.saves``) is refused at load: see
+``LegacyConfigError``.
 
 Deep merge matters for the stack section: overriding one service's ``root``
 should not delete every other service, which a shallow update would do.
@@ -111,120 +111,79 @@ _MISSING = object()
 #: swap goes through the overlay, which is read ahead of this.
 _story_paths_by_slug: dict[str, dict[str, str]] = {}
 
-# -- the model server's block, and its v0.18 name ---------------------------
-#
-# ``llm:`` was ``lmstudio:`` until v0.19.0, and an owner's config/local.yaml
-# still says so. The rename is applied to each LAYER before it merges
-# (``migrate_legacy_llm``), not as a fallback read: the shipped default carries
-# ``llm.base_url``, so "try ``llm.``, else ``lmstudio.``" would let the default
-# beat the owner's own ``lmstudio.base_url``. Removed in v0.21.0.
+# -- the model server's block, and the names v0.21.0 refuses ----------------
 
 #: The model server's block.
 LLM_BLOCK = "llm"
-#: Its name until v0.19.0, in a config layer and under ``stack.services``.
-LEGACY_LLM_BLOCK = "lmstudio"
-#: Keys renamed inside a legacy block as it moves.
-_LEGACY_LLM_KEYS: dict[str, str] = {"ttl_seconds": "keep_alive_seconds"}
-#: Dotted reads of an old name, answered from the new one. Most specific first.
-_READ_ALIASES: tuple[tuple[str, str], ...] = (
-    ("lmstudio.ttl_seconds", "llm.keep_alive_seconds"),
-    ("stack.services.lmstudio", "stack.services.llm"),
-    ("lmstudio", "llm"),
+
+
+class ConfigError(ValueError):
+    """
+    A config the engine refuses to load (v0.21.0). A ``ValueError``, so every
+    caller that already stops on a bad layer -- the launcher, the doctor, the
+    supervisor's preflight -- stops on this too.
+    """
+
+
+class LegacyConfigError(ConfigError):
+    """
+    An operator layer holds a key no longer read (spec §10.2): ``lmstudio:``
+    (``llm:`` since v0.19.0), ``stack.services.lmstudio``
+    (``stack.services.llm``) or ``paths.saves`` (``storage.root`` since
+    v0.20.0). Raised by ``get_config`` with EVERY finding of the layers it
+    read, so the doctor lists each as a row and an operator fixes them in one
+    pass.
+
+    Attributes:
+        findings: ``(file, dotted key, message)`` per refused key, in layer order.
+    """
+
+    def __init__(self, findings: list[tuple[str, str, str]]) -> None:
+        self.findings = list(findings)
+        super().__init__("\n".join(message for _, _, message in self.findings))
+
+
+#: The keys an operator layer may no longer hold, each with its one-line
+#: refusal (``{file}`` is the layer's path). Refused, never ignored: an
+#: ignored ``lmstudio:`` block points the game at the shipped default server,
+#: and an ignored ``paths.saves`` hides every save in the old folder.
+LEGACY_REFUSALS: tuple[tuple[str, str], ...] = (
+    (
+        "lmstudio",
+        '{file}: the "lmstudio:" block was renamed "llm:" in v0.19.0 and is no longer read '
+        '(v0.21.0). Rename the block; "ttl_seconds" inside it is now "keep_alive_seconds".',
+    ),
+    (
+        "stack.services.lmstudio",
+        '{file}: "stack.services.lmstudio" was renamed "stack.services.llm" in v0.19.0 and '
+        "is no longer read (v0.21.0).",
+    ),
+    (
+        "paths.saves",
+        '{file}: "paths.saves" is no longer read (v0.21.0). Saves live under storage.root as '
+        "<root>/saves: set storage.root (or CLOCKWORK_DATA_DIR) to the folder that holds your "
+        "saves folder, or move the saves there.",
+    ),
 )
 
 
-def _read_alias(path: str) -> str:
-    """A legacy dotted key, as its ``llm`` name; any other key unchanged."""
-    for old, new in _READ_ALIASES:
-        if path == old or path.startswith(old + "."):
-            return new + path[len(old):]
-    return path
-
-
-def _moved_under(legacy: Any, current: Any) -> Any:
-    """A legacy block merged UNDER the current one: the current wins a shared key."""
-    if not isinstance(legacy, dict):
-        return current
-    if not isinstance(current, dict):
-        return legacy if current is None else current
-    return deep_merge(legacy, current)
-
-
-def migrate_legacy_llm(layer: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+def legacy_findings(layer: Any, source: str) -> list[tuple[str, str, str]]:
     """
-    Rename one config layer's legacy model-server blocks to their ``llm`` names.
-
-    ``lmstudio:`` becomes ``llm:`` (its ``ttl_seconds`` becoming
-    ``keep_alive_seconds``) and ``stack.services.lmstudio`` becomes
-    ``stack.services.llm``. A layer holding both the old and the new block has
-    the old one deep-merged UNDER the new: the new wins a key both set, and a
-    key only the old one sets is kept, never dropped.
-
-    Used by ``get_config`` on every layer and by the Settings panel when it
-    rewrites config/local.yaml, so both apply one rule.
-
-    Args:
-        layer: One parsed layer. Not modified.
-
-    Returns:
-        The migrated copy, and a description of each rename made (empty when
-        the layer held nothing legacy).
+    ``(source, dotted key, message)`` for each ``LEGACY_REFUSALS`` key that
+    ``layer`` holds (present at all, whatever its value), in table order.
     """
+    found: list[tuple[str, str, str]] = []
     if not isinstance(layer, dict):
-        return layer, []
-    out = copy.deepcopy(layer)
-    renamed: list[str] = []
-
-    if LEGACY_LLM_BLOCK in out:
-        legacy = out.pop(LEGACY_LLM_BLOCK)
-        if isinstance(legacy, dict):
-            moved = {k: v for k, v in legacy.items() if k not in _LEGACY_LLM_KEYS}
-            for old, new in _LEGACY_LLM_KEYS.items():
-                if old in legacy and new not in legacy:
-                    moved[new] = legacy[old]
-            legacy = moved
-        merged = _moved_under(legacy, out.get(LLM_BLOCK))
-        if merged is not None:
-            out[LLM_BLOCK] = merged
-        renamed.append(f"{LEGACY_LLM_BLOCK}: -> {LLM_BLOCK}:")
-
-    stack = out.get("stack")
-    services = stack.get("services") if isinstance(stack, dict) else None
-    if isinstance(services, dict) and LEGACY_LLM_BLOCK in services:
-        legacy = services.pop(LEGACY_LLM_BLOCK)
-        merged = _moved_under(legacy, services.get(LLM_BLOCK))
-        if merged is not None:
-            services[LLM_BLOCK] = merged
-        renamed.append(f"stack.services.{LEGACY_LLM_BLOCK} -> stack.services.{LLM_BLOCK}")
-
-    return out, renamed
-
-
-#: The layers the current config was aliased from: ``(source, renames)``, one
-#: per layer that still said ``lmstudio:``. Rebuilt with the singleton; read
-#: by ``scripts/doctor.py``'s ``legacy lmstudio: block`` row (spec §2.2).
-_legacy_layers: list[tuple[str, list[str]]] = []
-
-
-def legacy_llm_layers() -> list[tuple[str, list[str]]]:
-    """Each config layer read under its legacy name, as ``(source, renames)``."""
-    get_config()
-    return [(source, list(renamed)) for source, renamed in _legacy_layers]
-
-
-def _aliased(layer: dict[str, Any], source: str) -> dict[str, Any]:
-    """``migrate_legacy_llm``, with the one WARNING per aliased layer."""
-    migrated, renamed = migrate_legacy_llm(layer)
-    if renamed:
-        _legacy_layers.append((source, list(renamed)))
-        logger.warning(
-            "[config] Legacy model-server config read under its new name "
-            "(operation=get_config, file=%s, renamed=%s). Rename it there: the "
-            "lmstudio alias is removed in v0.21.0.",
-            source,
-            "; ".join(renamed),
-        )
-    return migrated
+        return found
+    for dotted, template in LEGACY_REFUSALS:
+        node: Any = layer
+        for part in dotted.split("."):
+            if not isinstance(node, dict) or part not in node:
+                break
+            node = node[part]
+        else:
+            found.append((source, dotted, template.format(file=source)))
+    return found
 
 
 def _check_provider(data: dict[str, Any]) -> None:
@@ -440,12 +399,7 @@ class ConfigManager:
         keys empty on purpose, so an empty one is answered from the running
         story's manifest instead. See ``_story_path`` for what that costs the
         caller's ``default``.
-
-        A legacy ``lmstudio.*`` key (and ``stack.services.lmstudio.*``) is
-        answered from its ``llm`` name, so an owner's script that still asks
-        for the old one keeps working: see ``_READ_ALIASES``.
         """
-        path = _read_alias(path)
         node: Any = self._data
         found: Any = _MISSING
         for part in path.split("."):
@@ -597,11 +551,10 @@ class ConfigManager:
     def _raw(self, path: str, default: Any = None) -> Any:
         """
         The value at a dotted path as the layers hold it: a plain walk, with
-        the legacy read alias, and no ``${...}`` expansion and no ``paths.*``
-        fallback.
+        no ``${...}`` expansion and no ``paths.*`` fallback.
         """
         node: Any = self._data
-        for part in _read_alias(path).split("."):
+        for part in path.split("."):
             if not isinstance(node, dict) or part not in node:
                 return default
             node = node[part]
@@ -666,7 +619,7 @@ class ConfigManager:
         return candidate if candidate.is_absolute() else (_ROOT / candidate)
 
     def as_dict(self) -> dict[str, Any]:
-        """The merged tree, migrated: an ``llm`` block and never a ``lmstudio`` one."""
+        """The merged tree."""
         return copy.deepcopy(self._data)
 
 
@@ -865,8 +818,8 @@ def _force_sandbox(data: dict[str, Any], sandbox_layer: dict[str, Any]) -> None:
             if isinstance(spec, dict):
                 spec["manage"] = False
 
-#: Each external file the current config merged, with the dotted keys it set
-#: (after the legacy alias). Rebuilt with the singleton.
+#: Each external file the current config merged, with the dotted keys it set.
+#: Rebuilt with the singleton.
 _external_layers: list[tuple[str, list[str]]] = []
 
 
@@ -933,8 +886,7 @@ def external_config_layers() -> list[tuple[str, list[str]]]:
 
 def external_config_keys() -> list[str]:
     """
-    Every dotted key the ``CLOCKWORK_CONFIG`` files set, sorted, taken AFTER
-    the legacy alias (a file's ``lmstudio.base_url`` is ``llm.base_url``).
+    Every dotted key the ``CLOCKWORK_CONFIG`` files set, sorted.
     These outrank ``config/local.yaml``, so the Settings panel cannot change
     them: it names them in its answer (``shadowed``), and the doctor lists
     them. Keys only -- never a value.
@@ -1011,7 +963,10 @@ def _load_admin_layer(path: Path) -> dict[str, Any]:
         return {}
     if not isinstance(raw, dict):
         raise ValueError(f"the admin layer {path} is not a mapping of config keys")
-    layer = _aliased(raw, str(path))
+    found = legacy_findings(raw, str(path))
+    if found:
+        raise LegacyConfigError(found)
+    layer = raw
     for key, value in _leaves(layer):
         if isinstance(value, dict):
             continue  # an empty section sets nothing
@@ -1082,8 +1037,7 @@ def admin_layer() -> Optional[tuple[str, list[str]]]:
 
 def admin_layer_keys() -> list[str]:
     """
-    Every dotted key the admin layer sets, sorted, taken after the legacy
-    alias; [] when hosting is off or there is no file. Keys only, never a
+    Every dotted key the admin layer sets, sorted; [] when hosting is off or there is no file. Keys only, never a
     value (the doctor's rows, the Model server page's).
     """
     found = admin_layer()
@@ -1094,11 +1048,13 @@ def get_config() -> ConfigManager:
     """
     Return singleton ConfigManager, loading layers on first use.
 
-    Each layer has its legacy ``lmstudio:`` blocks renamed BEFORE it merges
-    (``migrate_legacy_llm``), so precedence survives the rename. The merged
-    tree's secrets-chain scopes and ``llm.provider`` are checked last.
+    An operator layer holding a refused name raises ``LegacyConfigError``
+    naming it. The merged tree's secrets-chain scopes and ``llm.provider``
+    are checked last.
 
     Raises:
+        LegacyConfigError: an operator layer holds lmstudio:,
+            stack.services.lmstudio or paths.saves.
         ValueError: ``llm.provider`` names a server this build does not speak
             or is a ``${...}`` reference; a ``${...}`` alternative is scoped
             to a name that is no provider; or a ``CLOCKWORK_CONFIG`` file is
@@ -1123,15 +1079,16 @@ def _build_config() -> ConfigManager:
     if _instance is None:
         _instance_pid = os.getpid()
         sandbox = child_sandbox()
-        _legacy_layers.clear()
-        data = _aliased(_load_yaml(_DEFAULT_PATH), str(_DEFAULT_PATH))
+        refused: list[tuple[str, str, str]] = []
+        data = _load_yaml(_DEFAULT_PATH)
 
         env = os.environ.get("CLOCKWORK_ENV", "").strip()
         if env:
             env_path = _CONFIG_DIR / f"{env}.yaml"
             overlay = _load_yaml(env_path)
             if overlay:
-                data = deep_merge(data, _aliased(overlay, str(env_path)))
+                refused += legacy_findings(overlay, str(env_path))
+                data = deep_merge(data, overlay)
                 logger.info("[config] Environment layer applied (operation=get_config, env=%s)", env)
 
         local_path = _CONFIG_DIR / "local.yaml"
@@ -1145,7 +1102,8 @@ def _build_config() -> ConfigManager:
                 local_path,
             )
         if local:
-            data = deep_merge(data, _aliased(local, str(local_path)))
+            refused += legacy_findings(local, str(local_path))
+            data = deep_merge(data, local)
             logger.info("[config] Local overrides applied (operation=get_config)")
 
         _external_layers.clear()
@@ -1161,9 +1119,12 @@ def _build_config() -> ConfigManager:
         sandbox_layer_data: dict[str, Any] = {}
         external_data: list[dict[str, Any]] = []
         for external_path in externals:
-            layer = _aliased(_load_external(external_path), str(external_path))
+            layer = _load_external(external_path)
             if sandbox is not None and sandbox.layer is not None and external_path == sandbox.layer:
                 sandbox_layer_data = layer
+            else:
+                # The suite's own sandbox layer is not an operator's.
+                refused += legacy_findings(layer, str(external_path))
             _external_layers.append(
                 (str(external_path), sorted(key for key, _ in _leaves(layer)))
             )
@@ -1175,7 +1136,16 @@ def _build_config() -> ConfigManager:
                 external_path,
                 len(_external_layers[-1][1]),
             )
-        overlay_data = _aliased(_overlay, "the game overlay") if _overlay else {}
+        # A story's overlay never carries a refused name: config_overlay drops
+        # paths.saves and SETTING_REFUSALS refuses lmstudio.
+        overlay_data = copy.deepcopy(_overlay) if _overlay else {}
+
+        if refused:
+            # Every operator layer read so far, at once (spec §10.2): the
+            # admin layer below is read only when hosting is on, and raises
+            # its own findings from _load_admin_layer. A file read twice
+            # (CLOCKWORK_ENV=local) is reported once.
+            raise LegacyConfigError(list(dict.fromkeys(refused)))
 
         def above_local(base: dict[str, Any]) -> dict[str, Any]:
             merged = base

@@ -186,6 +186,7 @@ cards:
       MENU -- resolve exactly one beat.
     beats:
       - id: kiss_the_false_self
+        label: "Kiss the false self"
         text: >-
           The single largest autonomy loss available in Act III, and it feels
           like relief. Sets `false_self_kissed`.
@@ -254,6 +255,7 @@ cards:
               - { type: value, name: favor, delta: 4 }
 
       - id: the_almost_thrall_conversation
+        label: "Talk about belonging to her"
         text: >-
           Consent-gated throughout, and the gate is meta rather than in-fiction.
           Sets `thrall_consent` only if the player says yes to the thing itself
@@ -522,6 +524,7 @@ cards:
               - { type: value, name: desire, delta: 4 }
 
       - id: the_asking_night
+        label: "Ask her, awake, in your own words"
         # WHY IT IS NOT ON D8_05: `thrall_consent` used to have exactly one
         # author, `the_almost_thrall_conversation`, which is a beat of the war
         # table -- and so is `plan_public_leverage`, the only author of

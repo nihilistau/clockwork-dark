@@ -19,8 +19,11 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
+
+from test_jobs_narration import plain  # noqa: F401 -- the fixture
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "content" / "scenes" / "clockwork" / "static" / "dist"
@@ -35,9 +38,30 @@ DIST_PATH = "content/scenes/clockwork/static/dist"
 BUILD_INPUTS = ("ui/src", "ui/vite.config.js", "ui/package.json", "ui/index.html")
 
 
-def _version_bump_only(path: str, since: str) -> bool:
+#: package.json keys that never reach the bundle: the release's version,
+#: and the screenshot tool (v0.21.0 T5) -- a script entry and a devDependency
+#: no source file imports. Any OTHER change is judged.
+BUNDLE_NEUTRAL: tuple[tuple[str, ...], ...] = (
+    ("version",),
+    ("scripts", "screenshots"),
+    ("devDependencies", "playwright-core"),
+)
+
+
+def _without(tree: Any, paths: tuple[tuple[str, ...], ...]) -> Any:
+    tree = json.loads(json.dumps(tree))
+    for path in paths:
+        node = tree
+        for key in path[:-1]:
+            node = node.get(key, {}) if isinstance(node, dict) else {}
+        if isinstance(node, dict):
+            node.pop(path[-1], None)
+    return tree
+
+
+def _bundle_neutral_only(path: str, since: str) -> bool:
     """
-    Whether `package.json`'s only change since `since` is its own version.
+    Whether `package.json`'s only changes since `since` are BUNDLE_NEUTRAL keys.
 
     THE FALSE POSITIVE THIS REMOVES. `package.json` earns its place in
     BUILD_INPUTS because a DEPENDENCY bump changes the bundle without touching
@@ -47,6 +71,12 @@ def _version_bump_only(path: str, since: str) -> bool:
     produces byte-identical output, so dist is never dirty, never committed, and
     the file stays permanently "ahead". A guard that cannot be satisfied is one
     somebody deletes.
+
+    The screenshot tool (v0.21.0 T5) is the same case: `playwright-core` is a
+    devDependency only `ui/tools/screenshots.mjs` imports, run by the
+    `screenshots` script, and neither reaches the bundle -- a rebuild after
+    adding them is byte-identical, so dist could never be committed "after"
+    them. Exactly those two keys are ignored, not a whole section.
 
     Everything else in the file is still judged, so adding or upgrading a
     dependency fails exactly as it did before.
@@ -58,9 +88,7 @@ def _version_bump_only(path: str, since: str) -> bool:
         after = json.loads((ROOT / path).read_text(encoding="utf-8"))
     except (ValueError, OSError):
         return False
-    before.pop("version", None)
-    after.pop("version", None)
-    return before == after
+    return _without(before, BUNDLE_NEUTRAL) == _without(after, BUNDLE_NEUTRAL)
 
 pytestmark = pytest.mark.skipif(
     not DIST.exists(), reason="UI not built — run `cd ui && npm run build`"
@@ -71,6 +99,18 @@ def test_build_output_exists():
     """dist/ is committed so the game plays without node installed."""
     assert (DIST / "app.js").exists()
     assert (DIST / "index.css").exists()
+
+
+def test_a_tool_only_dependency_is_bundle_neutral() -> None:
+    """The screenshot tool's two keys are ignored; a bundled dependency is not."""
+    base = {"version": "0.21.0", "dependencies": {"react": "^18.3.1"}, "devDependencies": {"vite": "^5.4.11"}, "scripts": {"build": "vite build"}}
+    tool = json.loads(json.dumps(base))
+    tool["devDependencies"]["playwright-core"] = "1.48.2"
+    tool["scripts"]["screenshots"] = "node tools/screenshots.mjs"
+    assert _without(base, BUNDLE_NEUTRAL) == _without(tool, BUNDLE_NEUTRAL)
+    bundled = json.loads(json.dumps(tool))
+    bundled["dependencies"]["socket.io-client"] = "^4.8.3"
+    assert _without(base, BUNDLE_NEUTRAL) != _without(bundled, BUNDLE_NEUTRAL)
 
 
 def test_template_points_at_the_built_assets():
@@ -199,7 +239,7 @@ def test_the_committed_build_is_not_behind_its_source():
 
     changed = _git("diff", "--name-only", dist_commit, "HEAD", "--", *BUILD_INPUTS)
     behind = sorted(line for line in changed.splitlines() if line.strip())
-    behind = [p for p in behind if not _version_bump_only(p, dist_commit)]
+    behind = [p for p in behind if not _bundle_neutral_only(p, dist_commit)]
 
     assert not behind, (
         f"the committed UI build is {len(behind)} source file(s) behind -- none of "
@@ -213,25 +253,36 @@ def test_the_committed_build_is_not_behind_its_source():
 # -- socket contract -----------------------------------------------------
 
 
-def _server_events(pattern: str) -> set[str]:
+#: An emit to a socket, not a metric: `metrics_emit.emit("turn" | "login" | ...)`
+#: records metrics and is not a socket event (plan decision 5).
+_SOCKET_EMIT = r'(?<!metrics_emit\.)emit(?:_callback)?\(\s*"([a-z_]+)"'
+
+
+def _server_events(pattern: str = _SOCKET_EMIT) -> set[str]:
     """
     Event names the server passes to an emit call.
 
-    Scans engine/scenes/ as well as content/: the default scene and its turn
-    (the source of every emit) moved to engine/scenes/default_scene.py and
-    default_state.py, while a story-owned scene package would still live under
-    content/.
+    Scans engine/scenes/ and content/ (the default scene and its turn), and
+    engine/hosting/ since v0.21.0 (`session_ended`, Review 8). The metrics
+    module is skipped: its `emit` is a metric.
     """
     found: set[str] = set()
-    for tree in (ROOT / "content", ROOT / "engine" / "scenes"):
+    for tree in (ROOT / "content", ROOT / "engine" / "scenes", ROOT / "engine" / "hosting"):
         for path in tree.rglob("*.py"):
-            text = path.read_text(encoding="utf-8")
-            found |= set(re.findall(pattern, text))
+            if path.name == "metrics_emit.py":
+                continue
+            found |= set(re.findall(pattern, path.read_text(encoding="utf-8")))
     return found
 
 
+def test_the_hosting_tree_is_scanned_and_its_metrics_are_not_events():
+    emitted = _server_events()
+    assert "session_ended" in emitted
+    assert not {"login", "session", "turn"} & emitted
+
+
 def test_every_emitted_event_has_a_client_listener():
-    emitted = _server_events(r'emit(?:_callback)?\(\s*"([a-z_]+)"')
+    emitted = _server_events()
     listened = set(
         re.findall(
             r'"([a-z_]+)"',
@@ -247,7 +298,7 @@ def test_client_does_not_listen_for_events_nobody_sends():
     inbound = set(
         re.findall(r'"([a-z_]+)"', text.split("export const INBOUND")[1].split("]")[0])
     )
-    emitted = _server_events(r'emit(?:_callback)?\(\s*"([a-z_]+)"')
+    emitted = _server_events()
     # These are socket.io's own lifecycle events, plus ones landing in later
     # phases; anything else listening into the void is a mistake.
     allowed_unsent = {"error", "portrait_ready", "narration_audio"}
@@ -500,7 +551,9 @@ def test_a_failed_turn_can_be_retried_without_retyping():
     """
     app = (UI_SRC / "core" / "App.jsx").read_text(encoding="utf-8")
     assert "again.current" in app, "App.jsx holds no way to repeat the last move"
-    assert 'emit("")' in app, "the retry re-echoes the player's line into the log"
+    # `emit("", id)` since the final fix wave: the retry also names the id it
+    # sends (a recovered frame's own, matched by intent), still with no echo.
+    assert re.search(r'emit\(""[,)]', app), "the retry re-echoes the player's line into the log"
 
     chrome = (UI_SRC / "core" / "parts" / "Chrome.jsx").read_text(encoding="utf-8")
     assert "onRetry" in chrome, "the footer offers no way to act on an error"
@@ -566,3 +619,182 @@ def test_the_choice_chip_reads_an_intent_label_the_server_writes():
     assert server.count("_label_intents(") >= 4, (
         "intent labelling is missing from one of turn / opening / resume"
     )
+
+
+# ---------------------------------------------------------------------------
+# The core panels read only keys their producers send (v0.21.0, spec §12)
+# ---------------------------------------------------------------------------
+
+PANELS_SRC = UI_SRC / "core" / "panels"
+
+
+def _reads(text: str, name: str) -> set[str]:
+    return set(re.findall(rf"\b{name}\.([a-z_]+)", text))
+
+
+def test_the_poster_reads_only_keys_the_law_block_sends(tmp_path: Path) -> None:
+    import yaml
+
+    from engine.config import set_overlay
+    from engine.game.state import GameState
+    from test_law import SPEC as LAW_SPEC
+
+    path = tmp_path / "law.yaml"
+    path.write_text(yaml.safe_dump(LAW_SPEC), encoding="utf-8")
+    set_overlay({"paths": {"law": str(path)}})
+    try:
+        state = GameState(rng_seed=3, location_id="edgewood_square")
+        state.law["custody"] = {"fine": 5, "days": 1}
+        law = state.to_client_dict()["law"]
+    finally:
+        set_overlay(None)
+    text = (PANELS_SRC / "WantedPoster.jsx").read_text(encoding="utf-8")
+    for name, served in (("law", set(law)), ("custody", set(law["custody"])), ("scales", set(law["scales"]))):
+        read = _reads(text, name)
+        assert read, f"WantedPoster reads nothing off `{name}`: the scan matched nothing"
+        assert read <= served, f"WantedPoster reads `{name}` keys the payload never sends: {sorted(read - served)}"
+
+
+def test_the_job_panel_reads_only_keys_the_job_block_sends(plain: Path) -> None:
+    from test_jobs_narration import _open, _world
+
+    state = _world()
+    _open(state)
+    job = state.to_client_dict()["job"]
+    text = (PANELS_SRC / "JobPanel.jsx").read_text(encoding="utf-8")
+    for name, served in (("job", set(job)), ("active", set(job["active"])), ("scales", set(job["scales"]))):
+        read = _reads(text, name)
+        assert read, f"JobPanel reads nothing off `{name}`"
+        assert read <= served, f"JobPanel reads `{name}` keys the payload never sends: {sorted(read - served)}"
+
+
+def test_the_people_strip_reads_only_the_routes_keys() -> None:
+    from engine.scenes.default_api import PERSON_KEYS
+
+    read = _reads((PANELS_SRC / "PeopleStrip.jsx").read_text(encoding="utf-8"), "person")
+    assert read and read <= set(PERSON_KEYS), sorted(read - set(PERSON_KEYS))
+
+
+def test_the_roll_card_reads_only_keys_the_dice_result_sends() -> None:
+    recorded = json.loads((ROOT / "tests" / "fixtures" / "local_mode" / "hue-and-cry" / "socket_stream_turn.json").read_text(encoding="utf-8"))
+
+    def events(node: Any) -> list[dict[str, Any]]:
+        if isinstance(node, dict):
+            found = [node] if node.get("name") == "dice_result" else []
+            return found + [e for value in node.values() for e in events(value)]
+        if isinstance(node, list):
+            return [e for value in node for e in events(value)]
+        return []
+
+    (dice,) = events(recorded)[:1]
+    served = set(dice["args"][0]) | {"at"}  # `at` is the reducer's own stamp
+    read = _reads((PANELS_SRC / "RollCard.jsx").read_text(encoding="utf-8"), "roll")
+    assert read and read <= served, sorted(read - served)
+    modifier_read = _reads((PANELS_SRC / "RollCard.jsx").read_text(encoding="utf-8"), "modifier")
+    assert modifier_read <= {"label", "delta"}
+
+
+def _strip_js_comments(text: str) -> str:
+    """
+    JS/JSX source with its `//` and `/* */` comments blanked (newlines kept,
+    so line numbers hold). String and template literals are skipped over, so
+    a `//` inside "http://..." is not taken for a comment. Good enough for a
+    guard: a regex literal holding `//` would be over-stripped, and none does.
+    """
+    out: list[str] = []
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch in "\"'`":
+            j = i + 1
+            while j < n and text[j] != ch:
+                j += 2 if text[j] == "\\" else 1
+            out.append(text[i : j + 1])
+            i = j + 1
+        elif text.startswith("//", i):
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            i = j
+        elif text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            out.append("\n" * text.count("\n", i, j))
+            i = j
+        else:
+            out.append(ch)
+            i += 1
+    return "".join(out)
+
+
+def _code_lines(path: Path) -> list[tuple[int, str]]:
+    return list(enumerate(_strip_js_comments(path.read_text(encoding="utf-8")).splitlines(), 1))
+
+
+def _ui_files(*roots: Path) -> list[Path]:
+    return sorted(p for root in roots for p in root.rglob("*") if p.suffix in (".js", ".jsx"))
+
+
+#: `onCustom` uses a plugin or a core panel may make, as {"path:line": why}.
+#: Empty: none needs typed text. A real free-text feature adds exactly its line.
+ON_CUSTOM_ALLOWED: dict[str, str] = {}
+
+#: The only files that may speak the socket's choice protocol. `link.js` is
+#: the connection's state machine (v0.21.0 T11): it emits `join_session` and
+#: `resume`, never `player_choice`, each behind `socket.connected`.
+SOCKET_FILES = {"ui/src/core/App.jsx", "ui/src/core/socket.js", "ui/src/core/link.js"}
+
+
+def test_no_plugin_or_core_panel_uses_typed_text() -> None:
+    """
+    Rule 1 (spec §2.3, Review 1; T10 fix round 1): typed text carries no
+    intent by definition (`default_state.resolve_player_intent`), so a move
+    sent through `onCustom` resolves nothing. Structural, not a phrase match:
+    after comments are stripped, no `onCustom` identifier appears anywhere
+    under `ui/src/stories/` or `ui/src/core/panels/` -- a call, a prop, an
+    alias or a split line alike -- unless `ON_CUSTOM_ALLOWED` names its line.
+    """
+    offenders = []
+    for path in _ui_files(UI_SRC / "stories", UI_SRC / "core" / "panels"):
+        rel = path.relative_to(ROOT).as_posix()
+        for number, line in _code_lines(path):
+            if re.search(r"\bonCustom\b", line) and f"{rel}:{number}" not in ON_CUSTOM_ALLOWED:
+                offenders.append(f"{rel}:{number}: {line.strip()}")
+    assert not offenders, "typed text reachable from a plugin or core panel:\n" + "\n".join(offenders)
+
+
+def test_only_the_app_and_socket_speak_the_choice_protocol() -> None:
+    """
+    `player_choice`, `custom_text` and `.emit(` appear (outside comments) only
+    in `core/App.jsx` and `core/socket.js`: no plugin or panel builds its own
+    choice frame, with or without typed text.
+    """
+    offenders = []
+    for path in _ui_files(UI_SRC):
+        rel = path.relative_to(ROOT).as_posix()
+        if rel in SOCKET_FILES:
+            continue
+        for number, line in _code_lines(path):
+            if re.search(r"player_choice|custom_text|\.emit\s*\(", line):
+                offenders.append(f"{rel}:{number}: {line.strip()}")
+    assert not offenders, "the choice protocol spoken outside App/socket:\n" + "\n".join(offenders)
+
+
+def test_the_comment_stripper_keeps_code_and_strings() -> None:
+    text = 'a("http://x"); // onCustom(t)\n/* onCustom\n */ b(`//y`, onCustom)'
+    stripped = _strip_js_comments(text)
+    assert stripped.count("onCustom") == 1 and "http://x" in stripped and "`//y`" in stripped
+    assert stripped.count("\n") == text.count("\n")
+
+
+def test_the_encounter_panel_reads_only_keys_the_encounter_sends() -> None:
+    recorded = json.loads((ROOT / "tests" / "fixtures" / "local_mode" / "hue-and-cry" / "state.json").read_text(encoding="utf-8"))
+    encounter = recorded["json"]["state"]["encounter"]
+    text = (PANELS_SRC / "EncounterPanel.jsx").read_text(encoding="utf-8")
+    for name, served in (
+        ("encounter", set(encounter)),
+        ("approach", set(encounter["approaches"][0])),
+        ("threat", set(encounter["threat"])),
+    ):
+        read = _reads(text, name)
+        assert read, f"EncounterPanel reads nothing off `{name}`"
+        assert read <= served, f"EncounterPanel reads `{name}` keys the payload never sends: {sorted(read - served)}"

@@ -110,6 +110,12 @@ OTHER_WINDOW_BUSY = "A turn is still running in your other window."
 #: What an admin ending a session whose turn is running is told (spec §14.8).
 TURN_RUNNING = "a turn is running; try again in a moment"
 
+#: Why a live run was released (v0.21.0, spec §6.5), passed to ``on_release``
+#: and, in hosted mode, to the run's room as ``session_ended``'s ``reason``.
+RELEASED_ELSEWHERE = "elsewhere"  # one live run per account: opened elsewhere
+RELEASED_ENDED = "ended"  # an admin's end, or ``delete``
+RELEASED_IDLE = "idle"  # the idle sweep
+
 #: A ``describe`` row's keys, exactly (v0.20.0 T15): metadata, never play text.
 DESCRIBE_KEYS = ("owner", "session_id", "save_id", "created", "last_activity", "turns", "turn_running")
 
@@ -417,12 +423,14 @@ class SessionStore:
         self._opening: OpeningBuilder = opening or _blank_opening
         self._resume_opening: ResumeBuilder = resume_opening or _blank_resume
         self._save_store: Callable[[], Any] = save_store or get_save_store
-        #: Called with a session id each time a live run is released
-        #: (``delete``, the sweep, one-session-per-account), after it is gone
-        #: from the store. Hosted mode sets it to close the run's Socket.IO
-        #: room (``engine.hosting.install``), so an old tab stops hearing it;
+        #: Called with a session id and the reason (``RELEASED_*``) each time
+        #: a live run is released (``delete``, an admin's ``end``, the sweep,
+        #: one-session-per-account), after it is gone from the store. Hosted
+        #: mode sets it to tell the run's Socket.IO room why
+        #: (``session_ended``, v0.21.0) and close it
+        #: (``engine.hosting.install``), so an old tab stops hearing it;
         #: None in local mode.
-        self.on_release: Optional[Callable[[str], None]] = None
+        self.on_release: Optional[Callable[[str, str], None]] = None
         #: When the idle sweep last ran (monotonic), for the hosted sweep on
         #: ``require`` at most once per ``SWEEP_INTERVAL_SECONDS``.
         self._last_sweep = time.monotonic()
@@ -558,7 +566,7 @@ class SessionStore:
             # good, so a request that found it before the release is refused
             # as busy and the old engine never autosaves over this one (a
             # resume of the same save rebuilds the same id: finding 7).
-            self._release(other.session_id)
+            self._release(other.session_id, RELEASED_ELSEWHERE)
             self._event("released", other.owner)
 
         # Swept here rather than per turn, and rather than on a timer thread:
@@ -761,7 +769,7 @@ class SessionStore:
             self._sessions.pop(session_id, None)
             self._seen.pop(session_id, None)
         logger.info("[session] Ended by an admin (operation=end, id=%s)", session_id)
-        self._release(session_id)
+        self._release(session_id, RELEASED_ENDED)
         self._event("ended_by_admin", session.owner)
 
     def end_owner(self, owner: str) -> tuple[int, int]:
@@ -915,7 +923,7 @@ class SessionStore:
                 "[session] Releasing idle session (operation=sweep_idle, id=%s)",
                 session_id,
             )
-            self._release(session_id)
+            self._release(session_id, RELEASED_IDLE)
             self._event("swept", owner)
         return stale
 
@@ -974,18 +982,19 @@ class SessionStore:
         that has already forgotten this id, is not a reason to fail the caller
         that is trying to clean up.
 
-        Then the release hook (``on_release``), which hosted mode sets to
-        close the run's Socket.IO room.
+        Then the release hook (``on_release``, reason ``ended``), which
+        hosted mode sets to tell the run's room and close it.
         """
         with self._guard:
             self._sessions.pop(session_id, None)
             self._seen.pop(session_id, None)
-        self._release(session_id)
+        self._release(session_id, RELEASED_ENDED)
 
-    def _release(self, session_id: str) -> None:
+    def _release(self, session_id: str, reason: str) -> None:
         """
         Everything ``delete`` does after the store has forgotten the run: the
-        engine and skills registries, then the release hook. Never raises.
+        engine and skills registries, then the release hook, given ``reason``
+        (one of the ``RELEASED_*`` constants). Never raises.
         """
         try:
             from engine.agents.mechanics import release_engine
@@ -1006,7 +1015,7 @@ class SessionStore:
         hook = self.on_release
         if hook is not None:
             try:
-                hook(session_id)
+                hook(session_id, reason)
             except Exception as exc:  # noqa: BLE001 -- see docstring
                 logger.warning(
                     "[session] Release hook failed (operation=_release, id=%s): %s",

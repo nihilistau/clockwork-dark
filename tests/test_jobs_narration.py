@@ -277,7 +277,17 @@ def test_flagship_payload_has_no_job_key() -> None:
 def test_payload_job_key_present_and_prep_stable_when_idle(plain: Path) -> None:
     state = _world()
     payload = state.to_client_dict()
-    assert payload["job"] == {"active": None, "prep": "none"}
+    assert payload["job"] == {
+        "active": None,
+        "prep": "none",
+        # v0.21.0 (spec §4.2): the display order of both meters' words, low
+        # to high, at the top level beside `prep` -- one place, never inside
+        # `active`. `alarm` ends with the engine's own "raised".
+        "scales": {
+            "prep": ["none", "a little", "some", "plenty"],
+            "alarm": ["quiet", "uneasy", "stirring", "roused", "raised"],
+        },
+    }
 
 
 def test_payload_job_active_shape_when_open(plain: Path) -> None:
@@ -298,6 +308,16 @@ def test_payload_job_active_shape_when_open(plain: Path) -> None:
     # Finding 3 of the T4 review: `prep` lives ONLY at the top level, never
     # duplicated inside `active` -- one meter, one place to read it.
     assert "prep" not in active
+
+
+def test_payload_job_words_are_in_their_scales(plain: Path) -> None:
+    state = _world()
+    _open(state)
+    job = state.to_client_dict()["job"]
+    assert job["active"]["alarm"] in job["scales"]["alarm"]
+    assert job["prep"] in job["scales"]["prep"]
+    assert job["scales"]["alarm"][-1] == jobs.RAISED
+    assert "scales" not in job["active"]
 
 
 def test_a_story_without_jobs_has_no_job_payload_or_block(tmp_path: Path) -> None:

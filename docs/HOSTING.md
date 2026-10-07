@@ -203,10 +203,11 @@ debt rather than a choice):
 - **TLS in the engine** (your proxy terminates it), **two-factor login**,
   **editing a secret in the panel**, and **a published image** (it is built
   locally and in CI, never pushed).
-- **New UI.** v0.20.0 changes nothing under `ui/src`: the login, account,
-  picker and admin pages are server-rendered. A player's place in the
-  queue, a reconnect after the server closes the socket, and telling a
-  player why their session ended are v0.21.0's.
+- **New UI for the server's own pages.** The login, account, picker and
+  admin pages are server-rendered. A player's place in the queue is not
+  shown (docs/GOVERNANCE.md). Since v0.21.0 the game page reconnects on its
+  own after the server closes its socket or goes away (§ When the
+  connection drops).
 
 **What the operator can read, and what the panel shows.** It is your
 server: every save, transcript and log file under `storage.root` is
@@ -229,13 +230,19 @@ again; the data under `storage.root` (`/data` in the image) carries over.
   (`data/saves/<slug>/`, the default `storage.root`). To make them an
   account's, run `python scripts/users.py adopt <name>` (optionally
   `--game <slug>`) with the game stopped (§ Making accounts).
-- **`paths.saves`** in `config/local.yaml` or a `CLOCKWORK_CONFIG` file is
-  still read in v0.20.0, with a WARNING; it is removed in v0.21.0. Move the
-  folder under `storage.root` (or set `storage.root`/`CLOCKWORK_DATA_DIR`)
-  and delete the key. A story's `game.yaml` that still declares `saves:`
-  plays, with an advisory: delete the line.
-- **The `lmstudio:` config block** and `engine.lmstudio` are still read in
-  v0.20.0 and removed in v0.21.0: rename the block `llm:`.
+- **`paths.saves`** in `config/local.yaml`, an environment layer, a
+  `CLOCKWORK_CONFIG` file or the admin layer is refused at startup since
+  v0.21.0: `"paths.saves" is no longer read (v0.21.0). Saves live under
+  storage.root as <root>/saves: set storage.root (or CLOCKWORK_DATA_DIR) to
+  the folder that holds your saves folder, or move the saves there.` A
+  story's `game.yaml` that still declares `saves:` plays, with an advisory:
+  delete the line.
+- **The `lmstudio:` config block** is refused at startup since v0.21.0: `the
+  "lmstudio:" block was renamed "llm:" in v0.19.0 and is no longer read
+  (v0.21.0). Rename the block; "ttl_seconds" inside it is now
+  "keep_alive_seconds".` Likewise `stack.services.lmstudio` (renamed
+  `stack.services.llm`). The supervisor refuses to start, naming the file;
+  the `engine.lmstudio` import path is gone (use `engine.llm`).
 - **Local mode now binds `127.0.0.1`.** To keep LAN play, set
   `scene: {clockwork: {host: "0.0.0.0"}}` in `config/local.yaml` (README §
   Play), or serve the group through hosted mode.
@@ -463,9 +470,11 @@ connection in a run's room is also checked against `users.json` before each
 piece of a turn is sent, and a stale one is closed before it receives it.
 (Without the supervisor, a single hosted process hears its own `/account`
 page directly.) (The player who changed their own
-password has their game connections closed too: the game page shows it is
-disconnected, and reloading it reconnects with the new login and resumes the
-run.) One residual: the check and the send are two steps, so a change
+password has their game connections closed too: the game page's banner
+says "Your login has ended. Taking you to sign in…" and takes them to `/`
+once, where they log in again and the page resumes the run. Another tab of
+the same account does the same; a page that is sent back to sign in twice in
+a minute stops and offers "Sign in again" instead of looping.) One residual: the check and the send are two steps, so a change
 another process makes in the instant between them lets exactly one piece of
 the turn (one fragment of narration) through before the next check closes the
 connection. A test walks every registered
@@ -522,19 +531,71 @@ out of the run's channel before the new tab joins). If that other run's turn
 is still being narrated, the new request is refused with 409, "A turn is
 still running in your other window." -- wait for it, or play on in that
 window. Loading the save the live run came from rebuilds the same run, and
-the released copy can never save over it. The old tab is not told why it
-went quiet (the page has nowhere to say so until v0.21.0's UI); reloading it
-takes the run back.
+the released copy can never save over it. The old tab is told why (since
+v0.21.0, § When the connection drops): "This run is open in another
+window." with **Play here**, which takes the run back -- and releases it
+from the other window in turn.
 
 A run nobody touches is released after `session.idle_ttl_minutes` (60 by
 default; hosted mode always sweeps, whatever `session.idle_sweep_enabled`
 says). The sweep runs when a game connection closes (whatever `disconnect`
 handler a story adds), at most once a minute on any request, and when a run
 is started; it never releases a run whose turn
-is in progress. A player who comes back is resumed from the autosave by the
-page's reconnect, as after a server restart. Each server therefore holds at
+is in progress. The page that held it says "This session was ended. Your
+run is saved." with **Resume**, which reopens it from the autosave. Each server therefore holds at
 most one run per player in memory, and each player has at most one turn in
 flight, which is what makes the queue below fair.
+
+### When the connection drops
+
+The game page (v0.21.0, `ui/src/core/link.js`) keeps one connection state
+and says it in a banner under the header; the controls are off in every
+state but a live one with no turn running, so a press never reaches a
+socket that is down.
+
+- **The server or the network went away** (a restart, a story restarted
+  from the admin panel, a blip): "Connection lost.", with **Try now**. After
+  five failed attempts, "The server is not answering."; while the front door
+  answers 503 for that story the banner adds its words, "(story
+  unavailable)". When the connection is back the page **rejoins** its run
+  ("Reconnected — picking up your run…"). If the run's worker kept it, the
+  page picks up where it was, including a turn that finished meanwhile; if
+  a turn is still being narrated, "Your move is still being played…" until
+  it lands. If the worker was restarted, the join misses and the page
+  resumes the run from its autosave ("Opening your run…"); the prose of a
+  turn that finished during the restart is not recovered, its effects are
+  (docs/GOVERNANCE.md).
+- **The login ended** (a password change, a disable, a removal, an expired
+  cookie): the page checks `/api/games/active`, says "Your login has ended.
+  Taking you to sign in…" and goes to `/` once. A page sent back twice in a
+  minute stops there and offers **Sign in again**.
+- **Too many windows** (`hosting.max_connections_per_account`): the front
+  door refuses the extra WebSocket with an HTTP 429 the browser cannot
+  read, so the page learns why from its login check instead:
+  `/api/games/active` answers 429 with the cap's words while the account
+  holds its cap, and the banner shows them (as "Connection lost. (…)" on a
+  page with a run to rejoin). The page keeps retrying until a window is
+  closed, and never navigates.
+
+- **The run was released by the server** (v0.21.0, spec §6.5): before it
+  closes a released run's channel the server tells it
+  `session_ended {"reason", "session_id"}`, and the tab that held the run
+  says why. `elsewhere` -- the same account began or loaded a run in
+  another window (one live run per player) -- reads "This run is open in
+  another window." with **Play here**; `ended` (an admin's **End session**)
+  and `idle` (the idle sweep) read "This session was ended. Your run is
+  saved." with **Resume**. Either button resumes the run from its autosave.
+  Nothing happens by itself after it: an automatic resume would release
+  the other window, whose own would release this one. A tab that pressed
+  Begin or Load has already left its old run, so the event about that run
+  is ignored there, and the new run goes live on its own answer. A story
+  stopped or restarted by the operator sends no such event (the worker
+  just goes away): its players see the connection banner above. Local
+  mode never sends it.
+
+The page never resumes a run that may still be live (only the join's exact
+"session not found" resumes), so a reconnect cannot release the account's
+run in another window. Local mode behaves the same, minus the login.
 
 ### Sharing the model server
 
@@ -581,11 +642,14 @@ one queue for every story).
 
 A turn whose player is gone when its place comes up (the game connection
 closed while it waited) is not played; nothing changes and the place passes
-on at once. A turn sent over plain HTTP whose browser gave up cannot be seen
+on at once. When that player's page reconnects (§ When the connection
+drops), it sees its move was never answered and offers **Try again**; it
+never re-sends the move on its own. A turn sent over plain HTTP whose browser gave up cannot be seen
 to have gone, and is played when its place comes up.
 
 A player is not shown their place in the queue yet: the game can measure it
-and the page has nowhere to show it until v0.21.0 (docs/GOVERNANCE.md).
+and nothing tells the player yet: it needs a per-waiter event across the
+supervisor's bus, which v0.21.0 left for a later release (docs/GOVERNANCE.md).
 
 Under the supervisor these lanes are one queue for every story (§ Model
 server: one queue for every story).
@@ -886,8 +950,12 @@ same Engine.IO session and counts as one connection with it toward
 `max_connections_per_account`. Every other poll or WebSocket counts on its
 own, even one naming a session already held (the game's Socket.IO server
 does not refuse several polls of one session at once, so they could
-otherwise take every place). A story that refuses a
-connection past that cap says why, in words the game page shows. Because the browser only ever
+otherwise take every place). The refused WebSocket's 429 is a body the
+browser cannot read, so while an account holds its cap the front door also
+answers the game page's login check, `GET /api/games/active`, 429 with the
+same words, and the page shows them (§ When the connection drops). A story
+that refuses a connection past that cap says why, in words the game page
+shows. Because the browser only ever
 talks HTTP to the front door, nothing it sends after a refused upgrade can
 reach a story unchecked.
 
@@ -1352,8 +1420,10 @@ message on the supervisor's link (64 KiB), is shown as an error row, and the
 rest of the page is served.
 
 **End session** releases a run, exactly as the idle sweep does: the
-player's tab goes quiet (nothing tells it why yet -- docs/GOVERNANCE.md),
-and their run stays on disk, autosaved every turn, so a reload resumes it.
+player's tab is told (`session_ended`, reason `ended`) and reads "This
+session was ended. Your run is saved." with **Resume** (§ When the
+connection drops), and their run stays on disk, autosaved every turn, so
+Resume reopens it.
 A session whose turn is running **cannot be ended** ("a turn is running;
 try again in a moment"): a turn is never cut mid-flight. Each end is
 audited (`session.end`, the session's id as the target).
@@ -1484,12 +1554,13 @@ once with an operation id, and the page follows it:
    `hosting.stories` order, and its story's turns resume once it is ready.
 
 For players: their story goes away and comes back, one story at a time, and
-they must **reload their page** once it is back -- the game's page does not
-reconnect on its own after the server closes it until the v0.21.0 client
-(CLAUDE.md's deferred rows: the client does not reconnect after a
-server-side disconnect). A turn waiting in the queue when its worker
-restarts is answered busy (it never started, so nothing is lost), and each
-run is rebuilt from its autosave when the reloaded page resumes it. This is
+their page waits for it with no reload: its banner reads "Connection lost.",
+then "The server is not answering." with the front door's own words for a
+story that is down, "(story unavailable)", and once the worker is back the
+page rejoins, finds its run gone with the old process, and resumes it from
+its autosave ("Opening your run…"; § When the connection drops). A turn
+waiting in the queue when its worker restarts is answered busy (it never
+started, so nothing is lost). This is
 the only way a model setting changes under live players,
 which is why the game's own Settings panel stays refused in hosted mode
 (§ What hosted mode turns off). A worker that crashes during the drain

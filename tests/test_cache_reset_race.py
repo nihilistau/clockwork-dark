@@ -225,7 +225,6 @@ WARN_ONCE = [
     ("engine.world.jobs", "_WARNED_ARREST"),
     ("engine.game.encounter", "_WARNED_DEATH"),
     ("engine.content.director", "_WARNED_FORCED"),
-    ("engine.persistence.storage", "_WARNED_ALIAS"),
 ]
 
 
@@ -252,11 +251,3 @@ def test_a_reset_mid_warning_does_not_raise_for_missing_death_rules(monkeypatch,
     monkeypatch.setattr(encounter, "_WARNED_DEATH", None)
     assert _run_with_reset_after_each_store(encounter.load_death_rules, encounter, "_WARNED_DEATH") == {}
 
-
-def test_a_reset_mid_warning_does_not_raise_for_the_saves_alias(monkeypatch, tmp_path):
-    """Fails on b2b1b86, as above, for the legacy ``paths.saves`` warning."""
-    from engine.persistence import storage
-
-    monkeypatch.setattr(storage, "legacy_saves_alias", lambda: ("local.yaml", str(tmp_path)))
-    monkeypatch.setattr(storage, "_WARNED_ALIAS", None)
-    assert _run_with_reset_after_each_store(storage.local_saves_base, storage, "_WARNED_ALIAS") is not None

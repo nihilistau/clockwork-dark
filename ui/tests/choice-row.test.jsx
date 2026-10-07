@@ -100,3 +100,109 @@ describe("ChoiceRow keyboard shortcuts", () => {
     expect(onChoose).not.toHaveBeenCalled();
   });
 });
+
+describe("the choice list's scroll cue (v0.21.0 T7, T6 review issue A)", () => {
+  it("marks the list while rows lie below its fold, and clears it at the end", () => {
+    draw({});
+    const list = host.querySelector(".choices");
+    // jsdom has no layout: give the list a 44px window onto 120px of chips.
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 44 });
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 120 });
+    React.act(() => list.dispatchEvent(new window.Event("scroll")));
+    expect(list.dataset.more).toBe("true");
+
+    list.scrollTop = 76;
+    React.act(() => list.dispatchEvent(new window.Event("scroll")));
+    expect(list.dataset.more).toBeUndefined();
+  });
+});
+
+describe("focus through a turn (F9)", () => {
+  it("a busy row's buttons are aria-disabled, not disabled, so focus stays", () => {
+    const onChoose = vi.fn();
+    React.act(() => root.render(<ChoiceRow choices={CHOICES} busy onChoose={onChoose} />));
+    const chip = host.querySelector(".chip");
+    expect(chip.disabled).toBe(false);
+    expect(chip.getAttribute("aria-disabled")).toBe("true");
+    chip.focus();
+    React.act(() => chip.click());
+    expect(onChoose).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(chip);
+  });
+});
+
+describe("focus after the turn (F9, T13 fix round 1)", () => {
+  const NEXT = [
+    { id: "c", text: "Cross the square" },
+    { id: "d", text: "Knock at the bakery" },
+  ];
+
+  it("lands on the first new chip when the pressed one is replaced", () => {
+    const onChoose = vi.fn();
+    React.act(() => root.render(<ChoiceRow choices={CHOICES} busy={false} onChoose={onChoose} />));
+    const pressed = [...host.querySelectorAll(".chip")][1];
+    pressed.focus();
+    React.act(() => root.render(<ChoiceRow choices={CHOICES} busy onChoose={onChoose} />));
+    expect(document.activeElement).toBe(pressed);
+    React.act(() => root.render(<ChoiceRow choices={NEXT} busy={false} onChoose={onChoose} />));
+    expect(pressed.isConnected).toBe(false);
+    expect(document.activeElement).toBe(host.querySelector(".chip"));
+    expect(document.activeElement.textContent).toContain("Cross the square");
+  });
+
+  it("never takes focus the player moved out of the row during the turn", () => {
+    const box = document.createElement("input");
+    document.body.appendChild(box);
+    try {
+      React.act(() => root.render(<ChoiceRow choices={CHOICES} busy={false} onChoose={() => {}} />));
+      host.querySelector(".chip").focus();
+      React.act(() => root.render(<ChoiceRow choices={CHOICES} busy onChoose={() => {}} />));
+      box.focus();
+      React.act(() => root.render(<ChoiceRow choices={NEXT} busy={false} onChoose={() => {}} />));
+      expect(document.activeElement).toBe(box);
+    } finally {
+      box.remove();
+    }
+  });
+
+  it("moves nothing while the screen is blocked, nor when focus was never in the row", () => {
+    React.act(() => root.render(<ChoiceRow choices={CHOICES} busy={false} onChoose={() => {}} />));
+    host.querySelector(".chip").focus();
+    React.act(() => root.render(<ChoiceRow choices={CHOICES} busy onChoose={() => {}} />));
+    React.act(() => root.render(<ChoiceRow choices={NEXT} busy={false} blocked onChoose={() => {}} />));
+    expect(document.activeElement).toBe(document.body);
+
+    React.act(() => root.render(<ChoiceRow choices={CHOICES} busy onChoose={() => {}} />));
+    React.act(() => root.render(<ChoiceRow choices={NEXT} busy={false} onChoose={() => {}} />));
+    expect(document.activeElement).toBe(document.body);
+  });
+});
+
+describe("final fix wave: focus that stayed, and the choose-again signal", () => {
+  it("keeps focus on the pressed chip when the new choices keep its id (T13 re-review nit)", () => {
+    React.act(() => root.render(<ChoiceRow choices={CHOICES} busy={false} onChoose={() => {}} />));
+    const pressed = [...host.querySelectorAll(".chip")][1];
+    pressed.focus();
+    React.act(() => root.render(<ChoiceRow choices={CHOICES} busy onChoose={() => {}} />));
+    React.act(() => root.render(<ChoiceRow choices={[...CHOICES]} busy={false} onChoose={() => {}} />));
+    expect(pressed.isConnected).toBe(true);
+    expect(document.activeElement).toBe(pressed);
+  });
+
+  it("a bumped focusSignal puts focus on the first chip, unless the player put it elsewhere", () => {
+    React.act(() => root.render(<ChoiceRow choices={CHOICES} busy={false} onChoose={() => {}} focusSignal={0} />));
+    expect(document.activeElement).toBe(document.body);
+    React.act(() => root.render(<ChoiceRow choices={CHOICES} busy={false} onChoose={() => {}} focusSignal={1} />));
+    expect(document.activeElement).toBe(host.querySelector(".chip"));
+
+    const box = document.createElement("input");
+    document.body.appendChild(box);
+    try {
+      box.focus();
+      React.act(() => root.render(<ChoiceRow choices={CHOICES} busy={false} onChoose={() => {}} focusSignal={2} />));
+      expect(document.activeElement).toBe(box);
+    } finally {
+      box.remove();
+    }
+  });
+});

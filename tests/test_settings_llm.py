@@ -1,10 +1,10 @@
 """
-The Settings panel writes ``llm.*``, and migrates a legacy block when it saves.
+The Settings panel writes ``llm.*``.
 
 ``engine/api/settings.py`` rewrites ``config/local.yaml`` whole. Since v0.19.0
-its model rows are ``llm.*`` keys, and a save moves the file's ``lmstudio:``
-block to ``llm:`` by the alias's own merge rule (spec §2.2), so the first
-setting a player saves migrates the file, keeping every value in it.
+its model rows are ``llm.*`` keys. A file still holding the old ``lmstudio:``
+block is refused at config load since v0.21.0 (``LegacyConfigError``), so no
+running process can hold one for the panel to save over.
 
 ``_LOCAL_CONFIG`` and the config directory are both pointed at ``tmp_path``:
 nothing here writes the real ``config/local.yaml``.
@@ -38,25 +38,8 @@ def local_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path
     config._instance = None
 
 
-def _write(path: Path, data: dict[str, Any]) -> None:
-    path.write_text(yaml.safe_dump(data, sort_keys=True), encoding="utf-8")
-
-
 def _read(path: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-
-
-LEGACY = {
-    "lmstudio": {
-        "base_url": "http://10.1.2.3:1234/v1",
-        "api_key": "${file:somewhere/key.txt}",
-        "ttl_seconds": 700,
-        "profiles": {"big": {"temperature": 0.4, "model": "my/model"}},
-        "mcp": {"enabled": True, "port": 8999},
-    },
-    "stack": {"services": {"lmstudio": {"enabled": False}, "comfyui": {"root": "C:/comfy"}}},
-    "tts": {"enabled": True},
-}
 
 
 def test_every_model_row_is_an_llm_key() -> None:
@@ -64,68 +47,6 @@ def test_every_model_row_is_an_llm_key() -> None:
     assert model_rows
     assert all(key.startswith("llm.") for key in model_rows), model_rows
     assert not [s["key"] for s in settings.SETTING_SPECS if s["key"].startswith("lmstudio")]
-
-
-def test_a_save_migrates_the_legacy_block_keeping_every_value(local_yaml: Path) -> None:
-    _write(local_yaml, LEGACY)
-    result = settings.apply_settings({"llm.profiles.big.max_tokens": 1500})
-    assert result["ok"], result
-
-    written = _read(local_yaml)
-    assert "lmstudio" not in written
-    assert written["llm"] == {
-        "base_url": "http://10.1.2.3:1234/v1",
-        "api_key": "${file:somewhere/key.txt}",
-        "keep_alive_seconds": 700,
-        "profiles": {"big": {"temperature": 0.4, "model": "my/model", "max_tokens": 1500}},
-        "mcp": {"enabled": True, "port": 8999},
-    }
-    assert written["stack"]["services"] == {"llm": {"enabled": False}, "comfyui": {"root": "C:/comfy"}}
-    assert written["tts"] == {"enabled": True}
-
-    # And the reloaded config reads it with no alias left to apply.
-    cfg = config.get_config()
-    assert cfg.get("llm.profiles.big.max_tokens") == 1500
-    assert cfg.get("llm.keep_alive_seconds") == 700
-
-
-def test_a_save_merges_both_blocks_with_llm_winning(local_yaml: Path) -> None:
-    _write(
-        local_yaml,
-        {
-            "llm": {"base_url": "http://new:1/v1"},
-            "lmstudio": {"base_url": "http://old:2/v1", "timeout_seconds": 41},
-        },
-    )
-    assert settings.apply_settings({"llm.context_tokens": 16384})["ok"]
-    written = _read(local_yaml)
-    assert "lmstudio" not in written
-    assert written["llm"] == {
-        "base_url": "http://new:1/v1",
-        "timeout_seconds": 41,
-        "context_tokens": 16384,
-    }
-
-
-def test_a_reset_migrates_and_removes_only_the_panels_keys(local_yaml: Path) -> None:
-    _write(local_yaml, LEGACY)
-    assert settings.apply_settings({}, reset=True)["ok"]
-    written = _read(local_yaml)
-    assert "lmstudio" not in written
-    # `profiles.big.model` and `temperature` are the panel's own rows; the rest is the machine's.
-    assert written["llm"]["profiles"] == {"big": {}}
-    assert written["llm"]["base_url"] == "http://10.1.2.3:1234/v1"
-    assert written["llm"]["mcp"] == {"enabled": True, "port": 8999}
-
-
-def test_a_legacy_override_shows_as_overridden(local_yaml: Path) -> None:
-    _write(local_yaml, LEGACY)
-    rows = {row["key"]: row for row in settings.settings_view()["settings"]}
-    assert rows["llm.profiles.big.temperature"]["overridden"] is True
-    assert rows["llm.profiles.big.temperature"]["value"] == 0.4
-    assert rows["llm.profiles.big.reasoning"]["overridden"] is False
-    # Viewing never writes.
-    assert _read(local_yaml) == LEGACY
 
 
 def test_prefer_native_is_listed_only_for_lm_studio(

@@ -13,9 +13,13 @@
  * UI entirely.
  *
  * NOTHING HERE MUTATES STATE. Every action composes a sentence and sends it as
- * an ordinary turn (`player_choice` with custom_text), so the engine stays the
- * only writer of inventory, gold and the clock. A button that quietly POSTed
- * an item away would be a second, unaudited writer.
+ * an ordinary turn (`player_choice` with custom_text): no second, unaudited
+ * writer of inventory, gold or the clock.
+ *
+ * NOT WIRED (docs/GOVERNANCE.md, v0.21.0 final review finding 9): typed text
+ * carries no intent, so using an item or crafting here runs no skill -- only
+ * the narrator reads the sentence (outside LM Studio's `llm.mcp` mode). The
+ * intent path for overlays is the v0.23.0 flagship overhaul's.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@core/parts/Modal.jsx";
@@ -141,7 +145,7 @@ function Detail({ item, busy, onAct }) {
         </div>
       ) : (
         <p className="packdetail__note">
-          You are not carrying this. {item.vendor ? `${item.vendor} deals in it.` : ""}
+          You are not carrying this. {item.vendor ? `${sentenceCase(item.vendor)} deals in it.` : ""}
         </p>
       )}
     </div>
@@ -225,6 +229,12 @@ function Recipe({ recipe, busy, onAct }) {
       </div>
     </article>
   );
+}
+
+/** "the baker" opening a sentence reads "The baker" (T3 re-review R4). */
+export function sentenceCase(text) {
+  const words = String(text || "");
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 export default function Inventory({ sessionId, busy, onAct, onClose }) {

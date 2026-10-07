@@ -18,9 +18,11 @@
  * flavours of "close it", they are the last act's actual fork. The three
  * buttons below are named for that distinction rather than for the verbs.
  *
- * EVERY MOVE IS AN ORDINARY TURN. The client says what the runner does and the
- * engine resolves it; `threads.renegotiate` and `threads.cut` are reached by
- * playing the turn, never by posting at a route.
+ * EVERY MOVE IS AN ORDINARY TURN, never a post at a route -- but NOT WIRED
+ * (docs/GOVERNANCE.md, v0.21.0 final review finding 9): the turn is the
+ * runner's TYPED words, which carry no intent, so `threads.renegotiate` and
+ * `threads.cut` do not run from it; only the narrator reads it. The intent
+ * path for overlays is the v0.25.0 NEON CITY overhaul's.
  *
  * THE VEILED RULE IS NOT IN PLAY HERE. Nothing on this screen is a meter. The
  * one number is `due_day`, a calendar date the story states out loud when the

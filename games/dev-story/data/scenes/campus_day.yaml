@@ -134,6 +134,7 @@ cards:
               - { type: value, name: popularity, delta: -2 }
 
       - id: repeat_what_you_heard
+        label: "Pass on what you were told"
         text: >-
           You pass on the thing you were told. Sets `told_someone`, which is what
           data/rules/clocks.yaml watches -- this is the beat that starts the

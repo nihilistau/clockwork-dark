@@ -171,6 +171,111 @@ def test_an_oversize_or_malformed_inbound_frame_closes_the_connection(server: Bu
         sock.close()
 
 
+# -- the selector's wake pair (v0.21.0: a suite that hung) ------------------------------
+#
+# On Windows ``socket.socketpair()`` is emulated over loopback TCP and waits in
+# ``accept()`` with no bound. On the owner's workstation a loopback connect
+# sometimes never reaches the listener (13 of 3000 in a plain loop, measured),
+# so ``BusServer()`` -- the ``server`` fixture's first step -- hung the whole
+# run. ``wake_pair`` bounds each attempt and accepts only its own peer.
+
+
+@pytest.fixture
+def loopback_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The Windows path on every platform: no AF_UNIX socketpair."""
+    monkeypatch.delattr(socket, "AF_UNIX", raising=False)
+
+
+def _connects_go_to(monkeypatch: pytest.MonkeyPatch, hole: tuple[str, int]) -> None:
+    """Every ``connect`` lands on ``hole`` instead: the caller's listener never sees it."""
+    real = socket.socket.connect
+    monkeypatch.setattr(socket.socket, "connect", lambda self, address: real(self, hole))
+
+
+def _a_stranger_connects_first(monkeypatch: pytest.MonkeyPatch) -> list[socket.socket]:
+    """
+    Before each ``connect``, a stranger connects to the same address (so the
+    listener's first connection is not the caller's). Returns the strangers.
+    """
+    real = socket.socket.connect
+    strangers: list[socket.socket] = []
+
+    def connect(self: socket.socket, address: Any) -> Any:
+        stranger = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        stranger.settimeout(JOIN)
+        strangers.append(stranger)
+        real(stranger, address)
+        return real(self, address)
+
+    monkeypatch.setattr(socket.socket, "connect", connect)
+    return strangers
+
+
+def test_the_wake_pair_is_connected_both_ways(loopback_only: None) -> None:
+    left, right = bus.wake_pair(timeout=JOIN, attempts=1)
+    try:
+        left.settimeout(JOIN)
+        right.settimeout(JOIN)
+        right.sendall(b"\0")
+        assert left.recv(1) == b"\0"
+        left.sendall(b"\1")
+        assert right.recv(1) == b"\1"
+    finally:
+        left.close()
+        right.close()
+
+
+def test_a_wake_pair_never_takes_a_stranger(monkeypatch: pytest.MonkeyPatch, loopback_only: None) -> None:
+    """The listener's first connection is another peer's: it is closed, and the pair is ours."""
+    strangers = _a_stranger_connects_first(monkeypatch)
+    left, right = bus.wake_pair(timeout=JOIN, attempts=1)
+    monkeypatch.undo()
+    try:
+        assert len(strangers) == 1
+        assert left.getpeername()[1] == right.getsockname()[1], "a stranger was wired into the pair"
+        assert _closed(strangers[0]), "the stranger's connection was kept open"
+    finally:
+        left.close()
+        right.close()
+        for stranger in strangers:
+            stranger.close()
+
+
+def test_a_wake_connection_that_never_arrives_fails_the_server_instead_of_hanging(
+    monkeypatch: pytest.MonkeyPatch, loopback_only: None
+) -> None:
+    """
+    The hang, reproduced: the pair's own connect lands in a listener nobody
+    accepts on, so the pair's listener never sees it. ``BusServer()`` must
+    raise within its bound. Built on a thread joined with a bound, so a
+    constructor that waits forever (the stdlib socketpair: the canary) FAILS
+    this test rather than hanging the run.
+    """
+    hole = socket.create_server(("127.0.0.1", 0))  # listens, never accepts
+    try:
+        _connects_go_to(monkeypatch, hole.getsockname()[:2])
+        monkeypatch.setattr(bus, "WAKE_PAIR_SECONDS", 0.3)
+        monkeypatch.setattr(bus, "WAKE_PAIR_ATTEMPTS", 2)
+        outcome: list[Any] = []
+
+        def build() -> None:
+            try:
+                outcome.append(BusServer())
+            except BaseException as exc:  # noqa: BLE001 -- the outcome is the assertion
+                outcome.append(exc)
+
+        thread = threading.Thread(target=build, name="wake-pair-canary", daemon=True)
+        thread.start()
+        thread.join(JOIN)
+        assert not thread.is_alive(), "BusServer() waited for its wake connection with no bound"
+        (result,) = outcome
+        if isinstance(result, BusServer):
+            result.close()
+        assert isinstance(result, OSError), f"BusServer() did not refuse a wake pair it never got: {result!r}"
+    finally:
+        hole.close()
+
+
 def test_arguments_that_are_not_an_object_are_bad_args(server: BusServer) -> None:
     record = server.mint("worker", story="clockwork-dark")
     sock = _raw(server)
@@ -554,7 +659,7 @@ def test_request_all_checks_every_call_before_it_registers_any() -> None:
     pending on the connection. On 9098e90 the first call's entry stayed.
     """
     server = BusServer()
-    left, right = socket.socketpair()
+    left, right = bus.wake_pair()  # bounded: the stdlib's Windows socketpair is not
     try:
         conn = bus.Connection(1, left, time.monotonic() + 60)
         with pytest.raises(BusError) as caught:

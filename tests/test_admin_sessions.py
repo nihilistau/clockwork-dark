@@ -197,7 +197,7 @@ def test_an_ended_session_is_gone_in_the_same_step_as_its_check(monkeypatch: pyt
             seen.append(type(exc).__name__)
 
     monkeypatch.setattr(store, "delete", lambda session_id: (second_end(), SessionStore.delete(store, session_id)))
-    monkeypatch.setattr(store, "_release", lambda session_id: second_end())
+    monkeypatch.setattr(store, "_release", lambda session_id, reason: second_end())
     store.end("s1")
     assert seen == ["missing"] and "s1" not in store._sessions
 
@@ -364,6 +364,9 @@ def test_ending_a_session_releases_it_closes_its_room_and_is_audited(
         )
         # POST-redirect-GET (fix round 1, M6): the note shows once on the page.
         assert ended.status_code == 303 and ended.headers["location"] == "/admin/sessions", ended.text[:500]
+        # v0.21.0 (spec §6.5): through the front door, the tab is told why.
+        told = poll.until(lambda e: e.get("name") == "session_ended")
+        assert told["args"][0] == {"reason": "ended", "session_id": session_id}
         assert "Ended session" in admin.get("/admin/sessions").text
         assert "Ended session" not in admin.get("/admin/sessions").text
         assert session_id not in _ids(instance)

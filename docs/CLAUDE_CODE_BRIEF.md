@@ -99,7 +99,7 @@ engine/
 ├── llm/           backend.py  client.py  lmstudio_native.py  ollama.py
 │                  providers.py  discovery.py  registry.py  profiles.py
 │                  routes.py  schemas.py  events.py  gate.py  tools.py
-│                  (`lmstudio/` until v0.19.0; a shim until v0.21.0)
+│                  (`lmstudio/` until v0.19.0; its shim removed in v0.21.0)
 ├── skills/builtin/    mechanics.py  livelihood.py  items.py  assistant.py  quests.py
 └── stack.py       service supervision for launcher.py --stack/--check
 
@@ -686,7 +686,7 @@ panel.
 > is heavily commented with the measurements behind each default. Differences
 > that will bite you: the key is `world.evil_base_rate_per_day` (not
 > `evil_base_rate`); the model server's block is `llm:` (`lmstudio:` below is
-> its name before v0.19.0, still read through an alias until v0.21.0), and its
+> its name before v0.19.0, refused at load since v0.21.0), and its
 > API key resolves through a chain -- `llm_api_key.txt`, `lmstudio.txt`,
 > `$CLOCKWORK_LLM_API_KEY`, `$LMSTUDIO_API_KEY`, the two LM Studio-named ones
 > read only while `llm.provider` is `lmstudio`; `comfyui.enabled`, `tts.enabled` and

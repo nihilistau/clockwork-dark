@@ -265,6 +265,15 @@ def main(argv: list[str] | None = None) -> int:
 
     _configure_logging(args.verbose)
 
+    from engine.config import LegacyConfigError, get_config
+
+    try:
+        get_config()
+    except LegacyConfigError as exc:
+        # Exit 2: a configuration error, distinct from --check's 1 (spec §10.2).
+        print(f"\n{exc}\n", file=sys.stderr)
+        return 2
+
     if args.list:
         # Port read from config rather than printed as a literal. It had four
         # homes -- this line, SCENE_METADATA, FlaskScene.run's default and

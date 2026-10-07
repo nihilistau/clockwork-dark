@@ -131,8 +131,6 @@ NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
     # One save store per (owner, slug); each root embeds the storage root and
     # the game slug (v0.20.0: was the single `_store`).
     ("engine.persistence.saves", "_stores"),
-    # Warn-once memory for the legacy `paths.saves` config alias (v0.20.0).
-    ("engine.persistence.storage", "_WARNED_ALIAS"),
 )
 
 # (module, attribute) pairs whose attribute is an ``lru_cache``-wrapped

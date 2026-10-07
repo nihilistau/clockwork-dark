@@ -117,6 +117,18 @@
   color: var(--nc-accent);
 }
 
+/* ---------- the start card on a short, wide window ----------
+   The three archetype descriptions run to three lines each in core's 560px
+   card, and with the intro that put "Take the shard" 74px under the fold at
+   1366x768 once core let them wrap (v0.21.0). A short window that is wide
+   enough gets a wider card instead: two lines each, the button on screen
+   (`probeStart`). Core's own 100% cap still holds the card inside the window. */
+@media (max-height: 819.98px) and (min-width: 1000px) {
+  .start__card {
+    width: min(800px, 100%);
+  }
+}
+
 /* ---------- the ledger ---------- */
 
 .nc-ledger {
@@ -471,7 +483,7 @@
     background var(--dur-fast) var(--ease-quiet);
 }
 
-.nc-approach:hover:not(:disabled) {
+.nc-approach:hover:not([aria-disabled="true"]) {
   border-color: var(--nc-accent);
   background: var(--state-hover-fill);
 }
@@ -481,7 +493,9 @@
   outline-offset: 2px;
 }
 
-.nc-approach:disabled {
+/* Off -- a turn running, the link down, or not offered this turn -- is
+   `aria-disabled`, never `disabled` (v0.21.0, spec §8.2). */
+.nc-approach[aria-disabled="true"] {
   color: var(--text-disabled);
   cursor: not-allowed;
 }

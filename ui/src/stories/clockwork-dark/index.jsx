@@ -13,6 +13,8 @@
  */
 import React from "react";
 
+import { matchApproaches, matchedChoiceIds } from "@core/panels/approaches.js";
+
 import AssistantColumn from "./parts/AssistantColumn.jsx";
 import DiceToast from "./parts/DiceToast.jsx";
 import EncounterPanel from "./parts/EncounterPanel.jsx";
@@ -85,6 +87,10 @@ function reduce(slice, action, next) {
   return { phase, formHistory };
 }
 
+// The save browser's line for this story (core prints none of its own since
+// v0.21.0 -- it used to print "the pattern is …" on every story's saves, F7).
+const PHASE_WORD = { dormant: "quiet", stirring: "stirring", spreading: "spreading", consuming: "consuming" };
+
 const Wordmark = () => (
   <h1 className="start__wordmark">
     The Clockwork <span>Dark</span>
@@ -108,6 +114,7 @@ export default {
   asideLabel: "Companion",
   onboardingTitle: "Before you begin",
   onboardingFinishLabel: "Step into the trees",
+  saveMeta: (save) => (save.evil_phase ? `the pattern is ${PHASE_WORD[save.evil_phase] || save.evil_phase}` : null),
 
   // Vite turns this into its own CSS chunk, fetched only when this story is the
   // active one. It loads AFTER core's sheet, so its rules win ties -- which is
@@ -148,23 +155,30 @@ export default {
    * The top of the centre column.
    *
    * When `world.encounter` is non-empty the encounter takes the scene still's
-   * place, and its engine-authored approaches replace the Storyteller's choices
-   * (see `hideChoices`). Both lists on screen at once would offer the player two
-   * parallel action sets, only one of which the engine will honour.
+   * place. Each approach button presses the narrator's choice that carries its
+   * `encounter` intent (see `hideChoices`, which hides exactly those choices).
    */
-  Stage: ({ state, onCustom }) => {
+  Stage: ({ state, onChoose, controlsOff }) => {
     const encounter = state.world?.encounter || {};
     if (Object.keys(encounter).length > 0) {
+      const offered = matchApproaches(encounter, state.choices);
       return (
         <EncounterPanel
           encounter={encounter}
           world={state.world}
           phase={state.story.phase}
           sceneImage={state.sceneImage}
-          busy={state.busy}
-          // An approach is an ordinary turn: its own text goes over as a
-          // custom action and the Storyteller calls encounter_approach.
-          onTake={(approach) => onCustom(approach.text)}
+          // The link's answer as well as the turn's (spec §6.3, T13): a press
+          // while offline would reach nothing.
+          busy={controlsOff}
+          offered={offered}
+          // An approach is pressed as the narrator's intent-bearing choice
+          // (spec §2.3, rule 1): the engine runs encounter_approach before
+          // narration. One the narrator did not offer is not pressable.
+          onTake={(approach) => {
+            const choice = offered.get(approach.id);
+            if (choice) onChoose(choice);
+          }}
         />
       );
     }
@@ -185,12 +199,14 @@ export default {
     <DiceToast dice={state.dice} showBreakdown={showDiceBreakdown} />
   ),
 
-  // An encounter with an EMPTY approach list still needs the narrator's
-  // choices, or the player has no move at all.
-  hideChoices: (state) => {
-    const encounter = state.world?.encounter || {};
-    return Object.keys(encounter).length > 0 && (encounter.approaches || []).length > 0;
-  },
+  // Its DiceToast and EncounterPanel draw these two systems (spec §2.3), so
+  // core's own rolls and encounter panels stand down.
+  ownsPanels: ["rolls", "encounter"],
+
+  // Only the choices its approach buttons press (spec §2.3): any other
+  // narrator choice stays, and an encounter whose approaches the narrator did
+  // not offer hides nothing, so the player always has a move.
+  hideChoices: (state) => matchedChoiceIds(state.world?.encounter, state.choices),
 
   overlays: [
     { id: "pack", key: "i", label: "The pack", Icon: PackIcon, Component: Inventory },

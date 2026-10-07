@@ -8,11 +8,9 @@ scene:
     # play, load and delete runs). To share it with accounts, use hosted mode.
     host: "127.0.0.1"
 
-# The model server. Called `lmstudio:` until v0.19.0; a `lmstudio:` block in
-# config/local.yaml (or any other layer) is still read, renamed to `llm:` as
-# that layer loads, with one WARNING naming the file -- and `ttl_seconds`
-# inside it is read as `keep_alive_seconds`. The Settings panel rewrites such a
-# block as `llm:` the first time it saves. That alias is removed in v0.21.0.
+# The model server. Called `lmstudio:` until v0.19.0; a layer still holding
+# that name is refused at load since v0.21.0 (the error names the file and the
+# fix).
 llm:
   # Which server answers: lmstudio | vllm | llamacpp | ollama | openai_compat
   # (engine/llm/providers.py; docs/MODEL_SERVERS.md). Any other name
@@ -455,7 +453,7 @@ stt:
 # ---------------------------------------------------------------------------
 stack:
   services:
-    # The model server (`lmstudio:` until v0.19.0; that name is still read).
+    # The model server (`lmstudio:` until v0.19.0; that name is refused since v0.21.0).
     # While `llm.provider` is lmstudio the doctor and the launcher show it as
     # `lmstudio`, as they always have. It is the one FAIL-level service: with
     # it down there is no narration, and `launcher.py --check` exits 1.
@@ -799,10 +797,10 @@ game:
 # it is now the behaviour of every key here.
 # ---------------------------------------------------------------------------
 paths:
-  # No `saves:` here any more (v0.20.0): saves are the engine's, and live
-  # under storage.root (the `storage:` block above). A `paths.saves` in
-  # config/local.yaml or CLOCKWORK_CONFIG is still read as the exact save base,
-  # with a WARNING, until v0.21.0; a story manifest's is ignored.
+  # No `saves:` here (v0.20.0): saves live under storage.root (the `storage:`
+  # block above). A `paths.saves` in config/local.yaml or CLOCKWORK_CONFIG is
+  # refused at load since v0.21.0; a story manifest's is ignored, with an
+  # advisory.
 
   # -- the world ------------------------------------------------------------
   locations: ""

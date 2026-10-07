@@ -80,7 +80,7 @@ npcs:
     routine:
       - { hours: [16, 17, 18, 19, 20, 21, 22, 23, 0, 1], location: velvet_pit, activity: "at the back table with the cloth spread, buying what nobody will admit losing" }
       - { hours: [2, 3], location: velvet_pit, activity: "folding the cloth, which is the only visible sign the day has ended" }
-      - { hours: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], location: velvet_pit, activity: "not here; nobody saw Rho leave and nobody ever has", available: false }
+      - { hours: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], location: velvet_pit, activity: "not here; nobody saw them leave and nobody ever has", available: false }
 
   dita_halvorsen:
     name: "Dita Halvorsen"
@@ -99,7 +99,7 @@ npcs:
     routine:
       - { hours: [19, 20, 21, 22, 23, 0, 1, 2, 3], location: club_noir, activity: "dealing cards and secrets in equal measure at the back tables, hair slicked, count running" }
       - { hours: [4, 5], location: club_noir, activity: "settling the night's information debts over one drink he never finishes" }
-      - { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15], location: club_noir, activity: "gone up to wherever Frankie goes; the tables sleep", available: false }
+      - { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15], location: club_noir, activity: "gone up to wherever he goes by day; the tables sleep", available: false }
       - { hours: [16, 17, 18], location: neon_strip, activity: "walking the Strip slow, being seen, collecting what being seen collects" }
 
   ines_barbosa:

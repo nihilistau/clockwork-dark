@@ -521,11 +521,49 @@ class GameState:
             # Same rule for an authored scene: the card in front of them and how
             # far through the hand they are. Empty for every story that declares
             # no decks.
-            "scene": dict(self.scene),
+            "scene": self._scene_block(),
             "quests": dict(self.quests),
             "active_arc": self.active_arc,
             "turn_number": self.turn_number,
             "ended": self.ended,
+        }
+
+    def _scene_block(self) -> dict[str, Any]:
+        """
+        The open hand as the player may see it: where they are in it and the
+        card in front of them -- never the cards still to come.
+
+        ``state.scene`` holds the dealt hand's card ids (``director.begin``),
+        and a Wicked Garden or HUE & CRY id names its beat or its outcome
+        ("the interrogation's ...confess"), so the raw dict in a hosted
+        player's devtools was a spoiler. The client reads only the cursor, the
+        count and the card's title (``ui/src/core/parts/BeatFrame.jsx``).
+        ``{}`` while no scene is open, as before.
+        """
+        scene = self.scene or {}
+        if not scene:
+            return {}
+        card_ids = scene.get("card_ids") or []
+        cursor = int(scene.get("cursor") or 0)
+        title = ""
+        try:
+            # Read, not `director.current_card`: that one skips a card gone
+            # from the deck by moving the cursor, and a payload never writes.
+            from engine.content import deck as deck_module
+
+            deck = deck_module.load_deck(str(scene.get("deck_id") or ""))
+            if deck is not None and isinstance(card_ids, list) and cursor < len(card_ids):
+                wanted = str(card_ids[cursor])
+                title = next((str(c.title or "") for c in deck.cards if c.id == wanted), "")
+        except Exception as exc:  # noqa: BLE001 -- a title must never cost the payload
+            import logging
+
+            logging.getLogger(__name__).debug("[state] No card title: %s", exc)
+        return {
+            "deck_id": str(scene.get("deck_id") or ""),
+            "cursor": cursor,
+            "count": len(card_ids) if isinstance(card_ids, list) else 0,
+            "card_title": title,
         }
 
     def _carry_block(self) -> dict[str, Any]:
@@ -685,8 +723,11 @@ class GameState:
         the flagship's payload -- and every other Law-less story's -- stays
         byte-identical. Keyed by JURISDICTION LABEL, never the raw id (an id
         is not prose, and this reaches the player's screen): a wanted-poster
-        reads the docks, not `dockside`. Nothing here renders yet -- the wanted-poster UI chrome is
-        the v1.0 hue-and-cry plugin's job; this is only the data it will read.
+        reads the docks, not `dockside`. Drawn by the client's wanted poster
+        (``ui/src/core/panels/WantedPoster.jsx``, v0.21.0). ``scales`` orders
+        the words low to high (the story's bands, and its ``clarity_words`` or
+        ``law.DEFAULT_CLARITY_WORDS``), so the poster can light marks with no
+        number crossing the wire.
 
         Never raises: a broken Law file must cost the sheet a panel, not the
         turn the player is mid-way through, same as every other optional
@@ -709,6 +750,16 @@ class GameState:
                 self, guise, law_module.jurisdiction_at(self.location_id)
             )
             held = law_module.custody(self)
+            spec = law_module.load_spec()
+            # Display order, low to high (spec §4.1): the poster lights marks
+            # and picks a sketch layer by a word's place in its scale. Never a
+            # threshold or a precision -- only the words, already public.
+            scales = {
+                "wanted": [str(b) for b in ((spec.get("wanted") or {}).get("bands") or [])],
+                "clarity": [
+                    str(w) for w in (spec.get("clarity_words") or law_module.DEFAULT_CLARITY_WORDS)
+                ],
+            }
             custody: Optional[dict[str, Any]] = None
             if held:
                 fine = int(held.get("fine") or 0)
@@ -728,6 +779,7 @@ class GameState:
                     "wanted": wanted,
                     "clarity": clarity,
                     "custody": custody,
+                    "scales": scales,
                 }
             }
         except Exception:  # noqa: BLE001 -- see docstring
@@ -746,9 +798,9 @@ class GameState:
         to be open, nor read two copies of the one meter that could drift
         apart. ``active`` is ``None`` between jobs; its ``stages`` and
         ``stage_label`` are words (``jobs.stage_words``), never a stage id,
-        and ``alarm`` is a band word, never a number. The job panel UI is NOT
-        WIRED (docs/GOVERNANCE.md) -- this is only the data it will read,
-        exactly as the Law's own wanted-poster payload was before it.
+        and ``alarm`` is a band word, never a number. Drawn by the client's job
+        panel (``ui/src/core/panels/JobPanel.jsx``, v0.21.0); ``scales`` orders
+        ``prep``'s and ``alarm``'s words, low to high.
 
         Never raises: a broken jobs file must cost the sheet a panel, not the
         turn the player is mid-way through, same as every other optional
@@ -774,7 +826,16 @@ class GameState:
                     "at": int(active_job.get("at") or 0),
                     "alarm": jobs_module.alarm_band(self),
                 }
-            return {"job": {"active": active, "prep": jobs_module.prep_band(self)}}
+            jobs_spec = jobs_module.spec()
+            # Display order, low to high (spec §4.2), beside `prep` and only
+            # there. The alarm's last word is the engine's own RAISED.
+            scales = {
+                "prep": [str(b) for b in jobs_spec["prep"]["bands"]],
+                "alarm": [*(str(b) for b in jobs_spec["alarm"]["bands"]), jobs_module.RAISED],
+            }
+            return {
+                "job": {"active": active, "prep": jobs_module.prep_band(self), "scales": scales}
+            }
         except Exception:  # noqa: BLE001 -- see docstring
             return {}
 

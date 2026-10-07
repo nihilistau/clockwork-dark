@@ -36,6 +36,7 @@ const PALETTES = new Set([
   // colour may be spelled.
   "stories/_engine/theme/tokens.css",
   "stories/the-long-con/theme/tokens.css",
+  "stories/hue-and-cry/theme/tokens.css",
 ]);
 
 function walk(dir, out = []) {

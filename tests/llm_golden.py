@@ -20,9 +20,9 @@ every machine:
     ``LMSTUDIO_API_KEY`` and ``CLOCKWORK_ENV`` are deleted from the
     environment. The key is therefore ``golden-test-key`` everywhere, whether
     or not a machine holds a ``lmstudio.txt``. ``set_overlay`` is not used.
-    Two variants: ``shipped`` (the key alone) and ``legacy`` (a v0.18-shaped
-    ``lmstudio:`` block: a moved ``base_url``, a big-profile temperature and a
-    ``ttl_seconds``).
+    Two variants: ``shipped`` (the key alone) and ``legacy`` (the v0.18-shaped
+    block, renamed ``llm:`` in v0.21.0: a moved ``base_url``, a big-profile
+    temperature and a ``keep_alive_seconds``).
   * THE WIRE, through ``tests/llm_wire.py``: every request is captured and
     answered from the scenario's canned list. Nothing opens a socket.
   * THE NATIVE PROBE. ``NativeClient.is_available`` is set per scenario: the
@@ -107,15 +107,19 @@ def engine_headers(request: dict[str, Any]) -> dict[str, Any]:
 ENV_KEYS = ("CLOCKWORK_LLM_API_KEY", "LMSTUDIO_API_KEY", "CLOCKWORK_ENV")
 
 #: The temp ``config/local.yaml`` of each variant, before a scenario's extras.
+#: Both are ``llm:`` layers since v0.21.0 (spec §1.3): the ``lmstudio:``
+#: alias they were written in is refused now. ``legacy`` keeps its NAME --
+#: its recordings live under ``golden_lmstudio/legacy/`` and
+#: ``SANCTIONED_URL`` keys on it -- and its input is the v0.18 block renamed
+#: (``ttl_seconds`` is ``keep_alive_seconds``).
 VARIANTS: dict[str, dict[str, Any]] = {
-    "shipped": {"lmstudio": {"api_key": API_KEY}},
-    # A v0.18-shaped `lmstudio:` block, as an owner's local.yaml holds one.
+    "shipped": {"llm": {"api_key": API_KEY}},
     "legacy": {
-        "lmstudio": {
+        "llm": {
             "api_key": API_KEY,
             "base_url": "http://127.0.0.1:1235/v1",
             "profiles": {"big": {"temperature": 0.7}},
-            "ttl_seconds": 600,
+            "keep_alive_seconds": 600,
         }
     },
 }
@@ -641,7 +645,7 @@ class Scenario:
 
 
 def _structured(mode: str) -> dict[str, Any]:
-    return {"lmstudio": {"structured_output": mode}}
+    return {"llm": {"structured_output": mode}}
 
 
 def _storyteller(seed: int) -> Callable[[], Any]:
@@ -1107,7 +1111,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         _phase_a_run,
         prepare=_phase_a_prepare,
         story="clockwork-dark",
-        config={"lmstudio": {"mcp": {"enabled": True}}},
+        config={"llm": {"mcp": {"enabled": True}}},
         native=True,
     ),
     Scenario(

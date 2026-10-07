@@ -50,20 +50,15 @@ def test_a_remote_https_base_url_is_guarded_on_443(local: Any) -> None:
     assert ("models.example", 443) in blocked
 
 
-def test_a_portless_url_is_guarded_whichever_block_names_it(local: Any) -> None:
+def test_a_portless_url_is_guarded(local: Any) -> None:
     """The port hole on its own: v0.18 read this key, and still skipped it."""
-    blocked = local({"lmstudio": {"base_url": "https://models.example/v1"}})
+    blocked = local({"llm": {"base_url": "https://models.example/v1"}})
     assert ("models.example", 443) in blocked
 
 
 def test_a_plain_http_url_without_a_port_is_guarded_on_80(local: Any) -> None:
     blocked = local({"llm": {"base_url": "http://gpu-box.lan/v1"}})
     assert ("gpu-box.lan", 80) in blocked
-
-
-def test_a_legacy_block_moves_the_guard_with_it(local: Any) -> None:
-    blocked = local({"lmstudio": {"base_url": "http://10.0.0.9:5555/v1"}})
-    assert ("10.0.0.9", 5555) in blocked
 
 
 def test_the_health_url_is_guarded_too(local: Any) -> None:
@@ -384,3 +379,26 @@ def test_an_unmarked_test_cannot_start_a_skills_server(
     seen = list(breaches)
     breaches.clear()  # provoked on purpose
     assert seen == ["start a skills server"]
+
+
+def test_the_session_holds_every_guarded_loopback_port(pytestconfig: pytest.Config) -> None:
+    """A throwaway server can never be handed a model server's default port
+    (this machine's ephemeral range starts at 1024; one test got 8080 and the
+    guard failed it, v0.21.0). Each guarded port is held by the session, or
+    in use by something else -- either way the OS cannot assign it."""
+    import socket
+
+    from tests.conftest import guarded_loopback_ports
+
+    ports = guarded_loopback_ports()
+    assert {8000, 8080, 11434} <= set(ports), ports  # vLLM, llama-server, Ollama
+    held = {sock.getsockname()[1] for sock in getattr(pytestconfig, "_clockwork_held_ports", [])}
+    for port in ports:
+        if port in held:
+            continue
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            with pytest.raises(OSError):
+                probe.bind(("127.0.0.1", port))
+        finally:
+            probe.close()

@@ -389,7 +389,7 @@ def test_the_ephemeral_form_is_not_what_a_loopback_server_is_reached_by(
 
 
 class _config:
-    """Minimal get_config stand-in for the lmstudio.mcp keys."""
+    """Minimal get_config stand-in for the llm.mcp keys."""
 
     def __init__(self, overrides: dict[str, Any]) -> None:
         self._overrides = overrides

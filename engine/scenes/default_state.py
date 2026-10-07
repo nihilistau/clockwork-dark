@@ -408,17 +408,41 @@ def _trim_echo(label: str, text: str) -> str:
     kept, because the cost is the part no choice text states. A label with no
     cost half disappears entirely; a label whose name the text does not mention
     survives whole.
+
+    The NAME is the longest comma-bounded head the text says, not the part
+    before the first comma: a place may hold a comma of its own (THE LONG
+    CON's "Vance & Vance, Investigations, 1h" was read as "Vance & Vance" and
+    left the chip saying "Investigations, 1h"). So the whole label is tried
+    first, then each head from the last comma back.
+
+    Left alone (T6 re-review D, final review 37): a choice that names the
+    place by a shorter form is matched only on comma-bounded heads. "Set out
+    for Vance & Vance" beside "Vance & Vance, Investigations, 1h" matches the
+    head "Vance & Vance" and leaves "Investigations, 1h"; "Go to the Gate"
+    beside "The Gate of Briars, 1h" matches no head and keeps the label
+    whole. Harmless either way -- the chip still shows the hours.
     """
     label = label.strip()
     if not label or not text:
         return label
-    name, _, rest = label.partition(",")
-    if name.strip().casefold() not in text.casefold():
-        return label
-    return rest.strip()
+    said = text.casefold()
+    if label.casefold() in said:
+        return ""
+    cut = len(label)
+    while (cut := label.rfind(",", 0, cut)) > 0:
+        if label[:cut].strip().casefold() in said:
+            return label[cut + 1:].strip()
+    return label
 
 
-def _recap(state: GameState, ledger: StoryLedger) -> str:
+def _engine_words() -> dict[str, str]:
+    """The engine's one table of choice words (``intents.ENGINE_CHOICE_WORDS``)."""
+    from engine.game.intents import ENGINE_CHOICE_WORDS
+
+    return ENGINE_CHOICE_WORDS
+
+
+def _recap(state: GameState, ledger: StoryLedger, *, shown: str = "") -> str:
     """
     "Previously..." — what a player returning after a week needs to be told.
 
@@ -435,10 +459,20 @@ def _recap(state: GameState, ledger: StoryLedger) -> str:
     sentence they stopped reading.
 
     Empty for a run with nothing behind it. A brand-new save has no previously.
+
+    The summary is shown through ``summarizer.tidy_summary``: its deterministic
+    entries name places, say each sentence once and keep the newest few, so a
+    save written before v0.21.0 (one "On day 1 at tallow_docks, ..." per turn)
+    reads cleanly too. The heading carries its own colon because the client
+    sets narration as one paragraph: the newline after it collapses to a space.
+    ``shown`` is the narration printed under the recap: an entry repeating it
+    is left out (``tidy_summary``), so the last line is not said twice.
     """
+    from engine.memory.summarizer import tidy_summary
+
     lines: list[str] = []
 
-    summary = str(getattr(ledger, "summary", "") or "").strip()
+    summary = tidy_summary(str(getattr(ledger, "summary", "") or ""), shown=shown).strip()
     if summary:
         lines.append(summary)
 
@@ -456,7 +490,7 @@ def _recap(state: GameState, ledger: StoryLedger) -> str:
 
     where = state.location_name or str(state.location_id or "").replace("_", " ")
     lines.append(f"You left off on day {state.world_day}, at {where}.")
-    return "PREVIOUSLY\n" + "\n".join(lines)
+    return "PREVIOUSLY:\n" + "\n".join(lines)
 
 
 def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
@@ -474,7 +508,10 @@ def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
     Storyteller's output for a turn that has already been consumed. So they are
     rebuilt from the engine instead -- take stock, the roads actually leaving
     this location, and waiting -- which is grounded in real world state rather
-    than invented, and each one runs as an ordinary turn.
+    than invented, and each one runs as an ordinary turn. While a scene owns
+    the turn (an open encounter, a dealt card, a set-piece, a job), or the
+    watch holds the player, the roads give way to the legal intents
+    (``_scene_resume_choices``).
     """
     narration = ""
     buffer = list(getattr(ledger, "turn_buffer", []) or [])
@@ -486,13 +523,18 @@ def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
             "while you were away, and neither has anything else."
         )
 
-    recap = _recap(state, ledger)
+    recap = _recap(state, ledger, shown=narration)
     if recap:
         narration = f"{recap}\n\n{narration}"
 
     choices: list[dict[str, Any]] = [
-        {"id": "resume_look", "text": "Take stock of where you are"},
+        {"id": "resume_look", "text": _engine_words()["look"]},
     ]
+    scene_choices = _scene_resume_choices(state)
+    if scene_choices is not None:
+        choices.extend(scene_choices)
+        choices.append({"id": "resume_wait", "text": _engine_words()["wait"]})
+        return _resume_payload(state, narration, choices)
     try:
         from engine.game.locations import LOCATIONS, is_known
 
@@ -516,8 +558,100 @@ def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
             )
     except Exception as exc:  # noqa: BLE001 — a missing road must not cost the resume
         logger.debug("[default_state] No roads for resume choices: %s", exc)
-    choices.append({"id": "resume_wait", "text": "Wait, and listen"})
+    choices.append({"id": "resume_wait", "text": _engine_words()["wait"]})
+    return _resume_payload(state, narration, choices)
 
+
+def _scene_resume_choices(state: GameState) -> Optional[list[dict[str, Any]]]:
+    """
+    The resumed frame's intent-bearing choices while a scene owns the turn,
+    or while the watch holds the player.
+
+    ``None`` otherwise (the ordinary resume: its roads). Otherwise exactly the
+    verbs ``intents.legal_intents`` offers -- the SAME source the turn builder
+    hands the narrator -- so an open encounter's approaches come back as
+    ``encounter`` intents, a job keeps its ``abort``, a cell offers
+    ``pay_fine`` and ``serve``, and nothing the engine would refuse (a road
+    out of the scene, or out of the cell) is offered.
+
+    BUGS THIS FIXES: a save resumed mid-encounter was offered take stock, two
+    roads and wait. The roads were refused while the scene was open and none
+    was an approach, so every approach on the encounter panel read "not
+    offered this turn" until an ordinary turn had passed. A save resumed in a
+    cell took the same road branch (custody is not a scene: ``_travel``
+    simply offers nothing while held), so it offered two refused roads and
+    neither way out.
+
+    Each target is one choice in its catalogue label (the story's data). A
+    verb that takes no target (``abort``, ``pay_fine``, ``serve``) is one
+    choice, worded by ``intents.describe_intent`` -- the label every chip
+    reads, from the engine's one table ``intents.ENGINE_CHOICE_WORDS`` --
+    and never by its raw id; one with no words there is left out. Two kinds are
+    left out, neither able to strand the player: a ``challenge`` with no
+    options is a puzzle whose target is the player's typed answer (there is
+    no enum to offer, and the compose box stays), and a verb with ``extra``
+    fields (``check``'s band) needs a value the resume cannot choose -- only
+    the ordinary branch builds ``check``, so it is reachable here only in a
+    cell, where ``serve`` always is.
+
+    Take stock and wait carry no intent: they run as an ordinary narrated
+    turn, nothing is refused, and the scene or the cell stays as it was.
+    """
+    try:
+        from engine.game import intents as intents_module
+        from engine.world import law
+
+        if not (intents_module.scene_owns_turn(state) or law.in_custody(state)):
+            return None
+        verbs = intents_module.legal_intents(state)
+    except Exception as exc:  # noqa: BLE001 -- a resume must never be lost
+        logger.debug("[default_state] No scene verbs for resume choices: %s", exc)
+        return None
+    out: list[dict[str, Any]] = []
+    for verb in verbs:
+        if verb.extra:
+            continue
+        if not verb.options:
+            if verb.action == "challenge":
+                continue
+            words = intents_module.describe_intent(state, {"action": verb.action})
+            if not words:
+                # Never the raw id: a no-target verb the engine has no words
+                # for is left to the narrator, as a puzzle is.
+                logger.warning(
+                    "[default_state] No words for a no-target verb (operation=resume, action=%s)",
+                    verb.action,
+                )
+                continue
+            out.append(
+                {
+                    "id": f"resume_{verb.action}",
+                    "text": words,
+                    "intent": {"action": verb.action},
+                }
+            )
+            continue
+        for target, label in verb.options:
+            # The player's words, not the catalogue's: a card beat's text is
+            # the narrator's direction and may carry author notes, and a rest
+            # entry's catalogue label is its id (``intents.player_label``).
+            words = intents_module.player_label(state, verb.action, str(target))
+            # A chip opens like a sentence: "A pallet at Old Nance's".
+            words = words[:1].upper() + words[1:]
+            out.append(
+                {
+                    "id": f"resume_{verb.action}_{target}",
+                    "text": str(words or label or target),
+                    "intent": {"action": verb.action, "target": str(target)},
+                }
+            )
+    return out
+
+
+def _resume_payload(
+    state: GameState, narration: str, choices: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """The resumed frame around its narration and choices."""
     return {
         "narration": narration,
         # Every path that hands the client options labels them; a resumed run
@@ -597,6 +731,44 @@ def _chosen(session: GameSession, choice_id: str) -> dict[str, Any]:
         if isinstance(choice, dict) and choice.get("id") == choice_id:
             return choice
     return {}
+
+
+#: What a pressed choice that the current frame no longer offers is told.
+STALE_CHOICE = "That choice is no longer on offer. Choose again."
+
+
+def stale_choice(
+    session: GameSession,
+    choice_id: str,
+    custom_text: Optional[str] = None,
+) -> str:
+    """
+    The refusal for a choice id this session's frame does not hold, or "".
+
+    BUG THIS CLOSES (v0.21.0): after a server restart the client's "Try
+    again" re-sent the dropped turn's chip id into a RESUMED frame whose
+    choices are ``resume_*``. Nothing matched it, so no intent ran and the
+    narrator was handed "The player chooses option 3" -- a move nobody made,
+    narrated over a mechanic that never ran (rule 1, the third audit
+    question). An id that is not on offer is now refused before any turn
+    runs, as a ``turn_error`` (HTTP 409), and the frame stays as it was.
+
+    Typed text is never stale (it carries no id the frame must hold), and
+    neither is ``custom``, the id a typed line rides on.
+
+    A press while a turn holds the session lock is not judged here: the
+    running turn may already have swapped in its new frame (``run_turn``)
+    before its ``turn_update`` reaches the page, so an old-frame press would
+    read as stale and re-enable the controls mid-turn. The turn guard answers
+    it ``busy`` instead, as before (v0.21.0 final fix-wave re-review, N1).
+    """
+    if session.lock.locked():
+        return ""
+    if custom_text and str(custom_text).strip():
+        return ""
+    if choice_id in ("", "custom"):
+        return ""
+    return "" if _chosen(session, choice_id) else STALE_CHOICE
 
 
 def resolve_player_action(
@@ -1481,6 +1653,7 @@ __all__ = [
     "nominal_tick_hours",
     "opening",
     "resolve_player_action",
+    "stale_choice",
     "resolve_authored_choice",
     "resolve_player_intent",
     "resume_opening",

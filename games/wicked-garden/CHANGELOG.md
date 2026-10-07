@@ -12,6 +12,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-10-07
+
+### Changed
+
+- Rolls are now shown: core's roll card (v0.21.0) draws each check's roll
+  in the top-right corner of the scene and the log (never over the choices
+  or the compose box), beside the omen sting, for six seconds or until the
+  next turn -- skill, die,
+  modifiers (with the dice-breakdown preference), total against the bar and
+  the degree.
+- The negotiation panel is an engine panel in the shelf now, bounded with
+  the rest of the current move (`--shelf-max`) instead of growing the main
+  column; its heading is an `<h2>` and its toggle a 44px target.
+
+### Fixed
+
+- 44 menu beats carry a `label:`, the player's words for the choice: their
+  text holds author notes the narrator reads ("Sets `resisted_call`, which
+  is the only thing on this day..."), and the resumed card's chips and the
+  hint under every card chip showed them (v0.21.0 final fix wave). The
+  narrator's text is unchanged.
+- A dealt card's header reads "Card 3 of 10 · <the card's title>", not the
+  deck id ("day 00 prologue"); the plate's caption names the place ("The
+  Gate of Briars"), not its id; an epilogue echo is shown under the
+  speaker's name, and the epilogue's accessible name is its title.
+- A resumed run's recap no longer repeats the line printed under it.
+
 ## [0.20.0] — 2026-10-06
 
 - `saves:` removed from `game.yaml`; the engine owns where saves go (`storage.root`, v0.20.0), and runs still land in `data/saves/wicked-garden/`. No content change.

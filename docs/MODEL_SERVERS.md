@@ -747,8 +747,9 @@ each `PATHEXT` suffix -- so a `.exe`-less name works on both (docs/HOSTING.md
 
 Under `Services` the model server is FAIL when down, named `lmstudio` on LM
 Studio and `llm` otherwise; under `Config` its key row (`lmstudio key` or `llm
-key`) shows the key's length, never the key, and a layer still holding a
-`lmstudio:` block gets a `legacy lmstudio: block` WARN naming the file.
+key`) shows the key's length, never the key. For a layer still holding a
+`lmstudio:` block the doctor reports a `Config` FAIL row naming the file
+(`legacy lmstudio`), and the game refuses to start (v0.21.0).
 
 ## MCP: LM Studio only
 
@@ -793,7 +794,9 @@ server's section, naming the source and never the value.
 
 ## Moving from `lmstudio:`
 
-A `config/local.yaml` written before v0.19.0 says `lmstudio:`; it is read as
-`llm:` (its `ttl_seconds` as `keep_alive_seconds`), with one warning naming the
-file, and the in-game Settings panel rewrites it as `llm:` the first time it
-saves. The alias is removed in v0.21.0.
+A `config/local.yaml` written before v0.19.0 says `lmstudio:`. It was read as
+`llm:`, with a warning, through v0.20.x; since v0.21.0 the game refuses to
+start with it (`LegacyConfigError`), naming the file and the fix: rename the
+block `llm:`, and its `ttl_seconds` `keep_alive_seconds`. A
+`stack.services.lmstudio` block is refused the same way (rename it
+`stack.services.llm`).

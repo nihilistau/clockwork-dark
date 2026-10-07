@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { createStore, initialState, reducer } from "../src/core/store.js";
+import { createStore, initialState, reducer, retryTarget } from "../src/core/store.js";
 
 /** A turn payload with only what the case under test needs. */
 const socket = (event, payload = {}) => ({ type: "SOCKET", event, payload });
@@ -434,5 +434,194 @@ describe("a negotiated turn", () => {
       socket("turn_update", { narration: "Quiet.", choices: [], state: {} })
     );
     expect(second.negotiation).toBeNull();
+  });
+});
+
+describe("a rejoin (spec §6.6)", () => {
+  const rejoining = (over = {}) => ({ ...started(), link: "rejoining", ...over });
+  const join = (payload) => socket("game_started", { session_id: "s1", state: { location_id: "the_grid" }, ...payload });
+
+  it("appends the last turn's narration once, and not again", () => {
+    let state = rejoining();
+    state = reducer(state, join({ turn_running: false, opening: { narration: "Neon hum.", choices: [{ id: "b", text: "Go" }], quest_events: [{ text: "A job, done." }] } }));
+    expect(state.log.map((e) => e.text)).toEqual(["Rain on wet asphalt.", "Neon hum.", "A job, done."]);
+    expect(state.choices).toEqual([{ id: "b", text: "Go" }]);
+    state = reducer({ ...state, link: "rejoining" }, join({ turn_running: false, opening: { narration: "Neon hum.", quest_events: [{ text: "A job, done." }] } }));
+    expect(state.log).toHaveLength(3);
+  });
+
+  it("keeps busy while the server says a turn is still running", () => {
+    expect(reducer(rejoining(), join({ turn_running: true, opening: {} })).busy).toBe(true);
+    expect(reducer(rejoining({ busy: true }), join({ turn_running: false, opening: {} })).busy).toBe(false);
+  });
+
+  it("reads an ending the turn locked while the socket was down, and keeps it", () => {
+    const ending = { ending_id: "the_rope", title: "The Rope" };
+    const state = reducer(rejoining(), join({ turn_running: false, opening: { ending } }));
+    expect(state.ending).toEqual(ending);
+    expect(reducer({ ...state, link: "rejoining" }, join({ turn_running: false, opening: {} })).ending).toEqual(ending);
+  });
+
+  it("offers Try again for a move the server dropped unanswered", () => {
+    let state = reducer(rejoining(), { type: "SUBMIT", text: "Run" });
+    state = reducer({ ...state, link: "rejoining" }, join({ turn_running: false, opening: { narration: "Rain on wet asphalt." } }));
+    state = reducer(state, { type: "LINK", link: "live", banner: null, checkUnanswered: true });
+    expect(state.banner).toMatchObject({ kind: "unanswered", action: "again" });
+  });
+
+  it("does not offer it when the move was answered", () => {
+    let state = reducer(rejoining(), { type: "SUBMIT", text: "Run" });
+    state = reducer({ ...state, link: "rejoining" }, join({ turn_running: false, opening: { narration: "You run." } }));
+    state = reducer(state, { type: "LINK", link: "live", banner: null, checkUnanswered: true });
+    expect(state.banner).toBeNull();
+  });
+
+  it("ignores the join's own miss while rejoining (the link resumes)", () => {
+    const state = reducer(rejoining(), socket("error", { message: "session not found" }));
+    expect(state.error).toBe("");
+    // Anywhere else it is an error like any other.
+    expect(reducer(started(), socket("error", { message: "session not found" })).error).toBe("session not found");
+  });
+
+  it("LINK sets connected from the state", () => {
+    expect(reducer(initialState, { type: "LINK", link: "retrying", banner: null }).connected).toBe(false);
+    expect(reducer(initialState, { type: "LINK", link: "refused", banner: null }).connected).toBe(false);
+    expect(reducer(initialState, { type: "LINK", link: "live", banner: null }).connected).toBe(true);
+  });
+
+  it("BANNER_DISMISS clears the banner and RESET keeps the link", () => {
+    const shown = reducer(initialState, { type: "LINK", link: "retrying", banner: { kind: "retrying" } });
+    expect(reducer(shown, { type: "BANNER_DISMISS" }).banner).toBeNull();
+    const reset = reducer(shown, { type: "RESET" });
+    expect(reset.link).toBe("retrying");
+    expect(reset.banner).toEqual({ kind: "retrying" });
+  });
+});
+
+describe("resume_failed (Review 27)", () => {
+  it("keeps its message for the start screen", () => {
+    const state = reducer(started(), socket("resume_failed", { message: "That save is gone." }));
+    expect(state.screen).toBe("start");
+    expect(state.error).toBe("That save is gone.");
+    expect(state.busy).toBe(false);
+  });
+});
+
+describe("fix round 1 (T11 review)", () => {
+  it("a resume does not re-append the narration the log already ends on (review 1)", () => {
+    let state = started();
+    state = reducer(state, socket("game_resumed", { session_id: "s2", opening: { narration: "Rain on wet asphalt." } }));
+    expect(state.log.map((e) => e.text)).toEqual(["Rain on wet asphalt."]);
+    state = reducer(state, socket("game_resumed", { session_id: "s3", opening: { narration: "The bell again." } }));
+    expect(state.log.map((e) => e.text)).toEqual(["Rain on wet asphalt.", "The bell again."]);
+  });
+
+  it("a recovery's resume offers Try again for the move it lost (review 2)", () => {
+    let state = { ...reducer(started(), { type: "SUBMIT", text: "Run" }), link: "resuming" };
+    state = reducer(state, socket("game_resumed", { session_id: "s2", opening: { narration: "The bell counts the hour." } }));
+    expect(state.sessionId).toBe("s2");
+    expect(state.log.at(-1).text).toBe("The bell counts the hour."); // the echo is no longer last...
+    state = reducer(state, { type: "LINK", link: "live", banner: null, checkUnanswered: true });
+    expect(state.banner).toMatchObject({ kind: "unanswered", action: "again" }); // ...and it is still offered
+    expect(state.pendingAgain).toBe(false);
+  });
+
+  it("a resume with nothing lost offers nothing", () => {
+    let state = { ...started(), link: "resuming" };
+    state = reducer(state, socket("game_resumed", { session_id: "s2", opening: { narration: "The bell." } }));
+    state = reducer(state, { type: "LINK", link: "live", banner: null, checkUnanswered: true });
+    expect(state.banner).toBeNull();
+  });
+
+  it("a late second answer to the join never clears a turn in flight (review 4)", () => {
+    const join = (payload) => socket("game_started", { session_id: "s1", state: { location_id: "the_grid" }, ...payload });
+    // The first answer goes live...
+    let state = reducer({ ...started(), link: "rejoining" }, join({ turn_running: false, opening: { narration: "Neon hum.", choices: [{ id: "b", text: "Go" }] } }));
+    state = reducer(state, { type: "LINK", link: "live", banner: null });
+    // ...the player presses a move...
+    state = reducer(state, { type: "SUBMIT", text: "Go" });
+    const before = state.log.length;
+    // ...and the join timer's second answer arrives.
+    state = reducer(state, join({ turn_running: false, opening: { narration: "Neon hum.", choices: [{ id: "b", text: "Go" }] } }));
+    expect(state.busy).toBe(true);
+    expect(state.log).toHaveLength(before);
+    expect(state.screen).toBe("scene");
+  });
+});
+
+describe("fix round 2 (T11 re-review R1): a late join answer changes nothing", () => {
+  const join = (payload) => socket("game_started", { session_id: "s1", state: { location_id: "the_grid" }, ...payload });
+
+  it("(a) a late answer saying a turn runs, after the turn finished, never freezes an idle page", () => {
+    // Live and idle: the move's turn_update has already arrived.
+    let state = { ...reducer(started(), { type: "SUBMIT", text: "Run" }), link: "live" };
+    state = reducer(state, socket("turn_update", { narration: "You run.", choices: [{ id: "b", text: "Stop" }] }));
+    expect(state.busy).toBe(false);
+    const late = reducer(state, join({ turn_running: true, opening: { narration: "Rain on wet asphalt." } }));
+    expect(late.busy).toBe(false);
+    expect(late).toBe(state); // nothing at all: the link re-joins if it must
+  });
+
+  it("(b) a late answer during a streaming move appends nothing under the stream", () => {
+    let state = { ...reducer(started(), { type: "SUBMIT", text: "Run" }), link: "live" };
+    state = reducer(state, socket("narration_delta", { text: "You run" }));
+    const before = state.log.map((e) => e.text);
+    const late = reducer(state, join({ turn_running: false, opening: { narration: "Neon hum.", quest_events: [{ text: "A job." }] } }));
+    expect(late.log.map((e) => e.text)).toEqual(before);
+    expect(late.streamingId).toBe(state.streamingId);
+    expect(late.busy).toBe(true);
+  });
+});
+
+describe("Try again after a recovery is matched by intent (final review 8)", () => {
+  const chip = (over = {}) => ({ choiceId: "c3", custom: "", intent: { action: "travel", target: "wickmarket" }, ...over });
+  const resumed = (choices) => {
+    let state = { ...reducer(started(), { type: "SUBMIT", text: "Go to the market", move: chip() }), link: "resuming" };
+    state = reducer(state, socket("game_resumed", { session_id: "s2", opening: { narration: "The bell.", choices } }));
+    return reducer(state, { type: "LINK", link: "live", banner: null, checkUnanswered: true });
+  };
+
+  it("a restart's resume_* frame without the move offers no Try again, says so, and focuses the row", () => {
+    const state = resumed([{ id: "resume_look", text: "Take stock" }, { id: "resume_wait", text: "Wait" }]);
+    expect(state.banner).toMatchObject({ kind: "unanswered_lost", action: null });
+    expect(state.banner.text).toMatch(/no longer on offer/);
+    expect(state.againId).toBe("");
+    expect(state.choiceFocus).toBe(1);
+  });
+
+  it("a resumed frame holding the same intent under a new id re-offers it with that id", () => {
+    const state = resumed([
+      { id: "resume_look", text: "Take stock" },
+      { id: "resume_go_wickmarket", text: "Set out for Wickmarket", intent: { action: "travel", target: "wickmarket" } },
+    ]);
+    expect(state.banner).toMatchObject({ kind: "unanswered", action: "again" });
+    expect(state.againId).toBe("resume_go_wickmarket");
+  });
+
+  it("retryTarget: typed text and a held chip resend as they were; an intent-less chip not held is lost", () => {
+    expect(retryTarget({ choiceId: "custom", custom: "I wait", intent: null }, [])).toBe("");
+    expect(retryTarget(chip(), [{ id: "c3", intent: { action: "travel", target: "wickmarket" } }])).toBe("");
+    expect(retryTarget(chip({ intent: null }), [{ id: "c3" }])).toBe("");
+    expect(retryTarget(chip({ intent: null }), [{ id: "resume_look" }])).toBeNull();
+    expect(retryTarget(chip(), [{ id: "c3", intent: { action: "travel", target: "elsewhere" } }])).toBeNull();
+  });
+
+  it("a fresh press clears the matched id; a retry keeps the move it retries", () => {
+    let state = resumed([{ id: "x", intent: { action: "travel", target: "wickmarket" } }]);
+    expect(state.againId).toBe("x");
+    const retried = reducer(state, { type: "SUBMIT", text: "" });
+    expect(retried.againId).toBe("x");
+    expect(retried.move.choiceId).toBe("c3");
+    const fresh = reducer(state, { type: "SUBMIT", text: "Wait", move: { choiceId: "y", custom: "", intent: null } });
+    expect(fresh.againId).toBe("");
+  });
+
+  it("the server's stale-choice refusal offers nothing to retry and focuses the row", () => {
+    let state = reducer(started(), { type: "SUBMIT", text: "Go", move: chip() });
+    state = reducer(state, socket("turn_error", { message: "That choice is no longer on offer. Choose again.", busy: false, stale_choice: true }));
+    expect(state.busy).toBe(false);
+    expect(state.errorFinal).toBe(true);
+    expect(state.choiceFocus).toBe(1);
+    expect(reducer(state, { type: "SUBMIT", text: "Wait" }).errorFinal).toBe(false);
   });
 });

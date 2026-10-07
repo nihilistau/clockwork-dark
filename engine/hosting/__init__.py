@@ -180,8 +180,9 @@ def configure_app(app: Any, settings: HostingSettings, key: str) -> None:
 def install_sessions(scene: Any) -> None:
     """
     Spec §5.4, for ``scene``'s session store (a scene without one is left
-    alone): the release hook closes a released run's Socket.IO room, so an
-    old tab stops hearing the run before a new socket joins it; and a
+    alone): the release hook closes a released run's Socket.IO room, after
+    telling it why (``session_ended``, v0.21.0 spec §6.5), so an old tab
+    stops hearing the run before a new socket joins it; and a
     socket's ``disconnect`` runs the idle sweep. The sweep is the socket
     door's own after-disconnect step (``SocketDoor.after_disconnect``), run
     by the guard after whatever ``disconnect`` body is registered, so a
@@ -194,8 +195,19 @@ def install_sessions(scene: Any) -> None:
     if store is None:
         return
 
-    def close_room(session_id: str) -> None:
-        scene.socketio.close_room(session_id)
+    def close_room(session_id: str, reason: str) -> None:
+        # v0.21.0 (spec §6.5): the room hears WHY before it closes, with the
+        # run's id, so a tab that has already left this run (it pressed Begin
+        # or Load) ignores it. Closed whatever the emit did. Like every room
+        # emit, the room's sockets are re-checked first, so one whose login
+        # was revoked is dropped before it hears anything.
+        try:
+            room_check = getattr(scene, "_room_check", None)
+            if room_check is not None:
+                room_check(session_id)
+            scene.socketio.emit("session_ended", {"reason": reason, "session_id": session_id}, to=session_id)
+        finally:
+            scene.socketio.close_room(session_id)
 
     store.on_release = close_room
     door = getattr(scene, "_socket_door", None)

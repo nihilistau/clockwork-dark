@@ -112,7 +112,7 @@ function SlidersIcon() {
   );
 }
 
-export function Header({ world, title, mark, badge }) {
+export function Header({ world, title, mark, badge, chips = null }) {
   const day = world?.world_day ?? 1;
   const part = DAYPART[world?.time_of_day] || "Day";
 
@@ -132,15 +132,22 @@ export function Header({ world, title, mark, badge }) {
             || "A story"}
         </h1>
       </div>
-      <div className="chrome__right" aria-label="World clock">
+      <div className="chrome__right">
         {/* A story's badge lives here rather than in its own `.chromebar` row.
             That row cost a full band of vertical space on a screen where the
             scene column had 567px of 768 to work with -- and the art is the
             thing the player asked to be bigger. Same information, no band. */}
+        {/* Engine panels' header chips (the wanted poster's), before the
+            story's badge (v0.21.0, spec §2.1). */}
+        {chips}
         {badge}
-        <span className="ring" aria-hidden="true" />
-        <span className="clock">
-          Day {day} · {part}
+        {/* Only the clock pair is the "World clock": the chips and the badge
+            beside it are not (v0.21.0 T7 review). */}
+        <span className="chrome__clock" role="group" aria-label="World clock">
+          <span className="ring" aria-hidden="true" />
+          <span className="clock">
+            Day {day} · {part}
+          </span>
         </span>
       </div>
     </header>
@@ -154,7 +161,25 @@ export function Header({ world, title, mark, badge }) {
  * the four client controls, which is a complete and honest footer -- there is
  * simply nothing story-specific to open.
  */
-export function Footer({ world, connected, error, onRetry, canRetry = true,
+// The footer's status words, one per connection state (core/link.js). The
+// banner says what is happening and what to press; this is the at-rest word.
+const LINK_WORDS = {
+  live: "Connected",
+  connecting: "Connecting…",
+  rejoining: "Rejoining…",
+  awaiting: "Your move is still being played",
+  resuming: "Opening your run…",
+  resume_refused: "Run not opened",
+  refused: "Connection refused",
+  retrying: "Reconnecting…",
+  offline: "Server not answering",
+  signed_out: "Signed out",
+  auth_stuck: "Signed out",
+  elsewhere: "Open in another window",
+  ended: "Session ended",
+};
+
+export function Footer({ world, connected, link = "", error, onRetry, canRetry = true,
                          overlays = [], onOpenOverlay,
                          onOpenSaves, onOpenSettings, onOpenMenu,
                          muted, onToggleMute }) {
@@ -187,8 +212,8 @@ export function Footer({ world, connected, error, onRetry, canRetry = true,
             )}
           </span>
         ) : (
-          <span className={`status ${connected ? "" : "status--warn"}`} role="status">
-            {connected ? "Connected" : "Reconnecting…"}
+          <span className={`status ${(link ? link === "live" : connected) ? "" : "status--warn"}`} role="status">
+            {LINK_WORDS[link] || (connected ? "Connected" : "Not connected")}
           </span>
         )}
         {/* The icons are decorative; every button keeps its real label because

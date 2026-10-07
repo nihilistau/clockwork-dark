@@ -4,16 +4,16 @@
  * `save_version: 1` and a full from_dict round trip existed from PR2 with no
  * writer, no reader and no UI. Runs died with the process.
  */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Modal from "../parts/Modal.jsx";
 import { prettyPlace } from "../parts/Chrome.jsx";
+import { fetchArchetypes, fetchPlaces } from "../api.js";
 
-const PHASE_WORD = {
-  dormant: "quiet",
-  stirring: "stirring",
-  spreading: "spreading",
-  consuming: "consuming",
-};
+/** A story-declared column: a public value with its number, a veiled one as its word (the veiled rule). */
+function column(entry) {
+  if (!entry || typeof entry !== "object") return "";
+  return "band" in entry ? `${entry.label}: ${entry.band}` : `${entry.label} ${entry.value}`;
+}
 
 function when(updatedAt) {
   if (!updatedAt) return "";
@@ -24,7 +24,33 @@ function when(updatedAt) {
   return new Date(updatedAt * 1000).toLocaleDateString();
 }
 
-export default function Saves({ saves, error, onLoad, onDelete, onClose, onNew }) {
+/**
+ * Core prints no story's fiction on a row (v0.21.0, F7): it used to say "the
+ * pattern is quiet" -- the flagship's evil phase -- on every story's saves.
+ * A story says its own line through its plugin's `saveMeta`, and its declared
+ * save columns arrive as `save.values`.
+ */
+export default function Saves({ saves, error, story = {}, onLoad, onDelete, onClose, onNew }) {
+  // Names, not ids (F7): read once when the browser opens; each falls back.
+  // Only a save's own place is ever printed.
+  const [names, setNames] = useState({ archetypes: {}, places: {} });
+  useEffect(() => {
+    let live = true;
+    Promise.all([
+      fetchArchetypes().catch(() => []),
+      fetchPlaces().then((data) => data?.places || []).catch(() => []),
+    ]).then(([archetypes, places]) => {
+      if (!live) return;
+      setNames({
+        archetypes: Object.fromEntries(archetypes.map((row) => [row.id, row.name])),
+        places: Object.fromEntries(places.map((row) => [row.id, row.name])),
+      });
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
   // Which row is asking "really?". One at a time: two rows both mid-confirm is
   // two live danger buttons, and the wrong one is one mis-click away.
   //
@@ -68,12 +94,20 @@ export default function Saves({ saves, error, onLoad, onDelete, onClose, onNew }
             <div className="saverow__main">
               <span className="saverow__name">{save.player_name}</span>
               <span className="saverow__meta">
-                {save.archetype} · day {save.world_day} · {prettyPlace(save.location_id)}
+                {[names.archetypes[save.archetype] || save.archetype, `day ${save.world_day}`, names.places[save.location_id] || prettyPlace(save.location_id)]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
               <span className="saverow__meta">
-                {save.turn_number} turns · the pattern is{" "}
-                {PHASE_WORD[save.evil_phase] || save.evil_phase} · {when(save.updated_at)}
+                {[`${save.turn_number} turn${save.turn_number === 1 ? "" : "s"}`, story.saveMeta ? story.saveMeta(save) : null, when(save.updated_at)]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
+              {save.values && Object.keys(save.values).length > 0 && (
+                <span className="saverow__values">
+                  {Object.values(save.values).map(column).filter(Boolean).join(" · ")}
+                </span>
+              )}
             </div>
             <div className="saverow__actions">
               <button type="button" className="btn btn--sm" onClick={() => onLoad(save)}>

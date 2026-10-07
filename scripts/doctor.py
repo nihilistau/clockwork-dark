@@ -408,8 +408,7 @@ def _shipped_llm() -> dict:
             raw = yaml.safe_load(handle) or {}
     except (OSError, yaml.YAMLError):
         return {}
-    migrated, _ = config.migrate_legacy_llm(raw)
-    block = migrated.get("llm")
+    block = raw.get("llm") if isinstance(raw, dict) else None
     return block if isinstance(block, dict) else {}
 
 
@@ -912,8 +911,7 @@ IMAGE_UID = 10001
 def _storage_rows(report: Report) -> None:
     """
     Where the engine writes (spec §3.6, §4.1): the resolved storage root and
-    whether it is writable, and the legacy ``paths.saves`` alias, named with
-    its file so it is moved before v0.21.0 removes it.
+    whether it is writable.
     """
     from engine.persistence import storage
 
@@ -928,24 +926,23 @@ def _storage_rows(report: Report) -> None:
         )
     report.add("Config", "storage", OK if ok else FAIL, f"{root}: {detail}")
 
-    alias = storage.legacy_saves_alias()
-    if alias is not None:
-        source, value = alias
-        report.add("Config", "legacy paths.saves", WARN,
-                   f"{source}: paths.saves {value!r} is read as the save base - "
-                   f"move it to storage.root; the alias is removed in "
-                   f"{storage.LEGACY_REMOVED_IN}")
-
 
 def check_config(report: Report) -> None:
     from engine.config import get_config
 
-    from engine.config import external_config_layers, legacy_llm_layers
+    from engine.config import LegacyConfigError, external_config_layers
     from engine.llm.providers import get_provider
     from engine.stack import _service_name
 
     try:
         cfg = get_config()
+    except LegacyConfigError as exc:
+        # A name v0.21.0 no longer reads (spec §10.2): one FAIL per finding,
+        # in the words the launcher prints, and nothing else in this section
+        # (no config was built to describe).
+        for _source, key, message in exc.findings:
+            report.add("Config", f"legacy {key}", FAIL, message)
+        return
     except ValueError as exc:
         # The admin layer (v0.20.0 T14) is checked as it is read: a key
         # outside the panel's allowlist, or a file that does not parse, stops
@@ -964,13 +961,6 @@ def check_config(report: Report) -> None:
     stray = stray_sandbox_message()
     if stray is not None:
         report.add("Config", TEST_SANDBOX_ENV, FAIL, stray)
-
-    # A v0.18 `lmstudio:` block still in a layer (spec §2.2): read as `llm:`,
-    # and named here so it is renamed before the alias goes in v0.21.0.
-    for source, renamed in legacy_llm_layers():
-        report.add("Config", "legacy lmstudio: block", WARN,
-                   f"{source}: read as llm: ({'; '.join(renamed)}) - rename it "
-                   "there; the alias is removed in v0.21.0")
 
     # The key's LENGTH only, never the key (rule 5). The row is named after
     # the model server's service: `lmstudio key` on LM Studio, as it always
@@ -1058,6 +1048,14 @@ def check_games(report: Report) -> None:
     # never a FAIL -- the story plays, and the key moves nothing.
     for slug, manifest in sorted(manifests.items()):
         for _key, note in manifest.retired_paths():
+            report.add("Games", slug, WARN, note)
+
+    # `ui.panels` (v0.21.0): a panel that will never render is an advisory;
+    # its errors are already in the catalogue's problems above.
+    from engine.games.manifest import ui_panel_problems
+
+    for slug, manifest in sorted(manifests.items()):
+        for note in ui_panel_problems(manifest)[1]:
             report.add("Games", slug, WARN, note)
 
     report.add("Games", "cache registry", OK,
@@ -1304,6 +1302,8 @@ def check_ui(report: Report) -> None:
 
 
 def check_saves(report: Report) -> None:
+    from engine.config import LegacyConfigError
+
     try:
         from engine.persistence import get_save_store
 
@@ -1313,6 +1313,8 @@ def check_saves(report: Report) -> None:
             newest = saves[0]
             report.add("Saves", "newest", OK,
                        f"{newest.player_name}, day {newest.world_day}, turn {newest.turn_number}")
+    except LegacyConfigError:
+        raise  # main reports it as "not run", as for every other check
     except Exception as exc:  # noqa: BLE001 — diagnostics must not crash
         report.add("Saves", "store", WARN, str(exc))
 
@@ -1321,6 +1323,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="The Clockwork Dark — health check")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args(argv)
+
+    from engine.config import LegacyConfigError
 
     if not args.verbose:
         import logging
@@ -1344,6 +1348,11 @@ def main(argv: list[str] | None = None) -> int:
     ):
         try:
             check(report)
+        except LegacyConfigError:
+            # The Config section already names every refused key; a check that
+            # needs a config says it did not run rather than printing a repr.
+            report.add("Errors", check.__name__, FAIL,
+                       "not run: the config does not load (see Config above)")
         except Exception as exc:  # noqa: BLE001 — one bad check must not hide the rest
             report.add("Errors", check.__name__, FAIL, repr(exc))
 

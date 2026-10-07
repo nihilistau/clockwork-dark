@@ -58,7 +58,6 @@ def layers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     monkeypatch.setattr(config, "_DEFAULT_PATH", REPO / "config" / "default.yaml")
     monkeypatch.setattr(config, "_overlay", {})
     monkeypatch.setattr(config, "_instance", None)
-    monkeypatch.setattr(storage, "_WARNED_ALIAS", None)
     yield directory
     config._instance = None
 
@@ -150,8 +149,8 @@ def test_the_doctor_gives_the_advisory(layers: Path, tmp_path: Path, monkeypatch
 def test_it_cannot_move_saves(layers: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """
     Fails on e7fdd26, where the activated manifest's ``paths.saves`` was the
-    top config layer and outranked ``config/local.yaml``: the owner's own
-    ``paths.saves`` (the one-release alias) and ``storage.root`` decide, the
+    top config layer and outranked ``config/local.yaml``: ``storage.root``
+    decides (an owner's ``paths.saves`` is refused since v0.21.0), the
     manifest never does.
     """
     manifest_saves = str(tmp_path / "from-the-manifest")
@@ -163,13 +162,12 @@ def test_it_cannot_move_saves(layers: Path, tmp_path: Path, monkeypatch: pytest.
         assert "saves" not in cfg.section("paths")
         assert storage.local_saves_base() == config.project_root() / "data" / "saves"
 
-        owner_saves = str(tmp_path / "from-local-yaml")
         (layers / "local.yaml").write_text(
-            yaml.safe_dump({"paths": {"saves": owner_saves}}), encoding="utf-8"
+            yaml.safe_dump({"paths": {"saves": str(tmp_path / "from-local-yaml")}}), encoding="utf-8"
         )
         config._instance = None
-        assert config.get_config().get("paths.saves") == owner_saves
-        assert storage.local_saves_base() == Path(owner_saves)
+        with pytest.raises(config.LegacyConfigError):
+            config.get_config()
     finally:
         registry.deactivate()
 

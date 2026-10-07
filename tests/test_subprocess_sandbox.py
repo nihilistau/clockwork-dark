@@ -165,7 +165,7 @@ def _shipped_base_url() -> str:
 
     value = ""
     for path in (config._DEFAULT_PATH, config._CONFIG_DIR / "local.yaml"):
-        migrated, _ = config.migrate_legacy_llm(config._load_yaml(path))
+        migrated = config._load_yaml(path)
         block = migrated.get("llm") if isinstance(migrated, dict) else None
         if isinstance(block, dict) and block.get("base_url"):
             value = str(block["base_url"])

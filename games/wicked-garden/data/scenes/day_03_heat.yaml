@@ -126,6 +126,7 @@ cards:
           text: "How clever the terms actually were."
 
       - id: refuse_the_feast
+        label: "Refuse the feast"
         text: >-
           A real refusal with a real cost. She holds a private supper instead,
           and the rival still enters -- by moth, later, and colder for having
@@ -178,6 +179,7 @@ cards:
               - { type: value, name: favor, delta: 4 }
 
       - id: set_a_boundary_she_honours
+        label: "Name a limit"
         text: >-
           RARE and load-bearing. The player names a limit; she stops, without
           sulking and without making it a scene. This is the first
@@ -203,6 +205,7 @@ cards:
               - { type: value, name: autonomy, delta: -12 }
 
       - id: hide_the_iron
+        label: "Hide iron under the silk"
         text: >-
           A pin of mortal iron under living silk, at a feast full of things that
           can smell it. Sets `armed_with_iron` and the risk is real.
@@ -261,6 +264,7 @@ cards:
               - { type: value, name: favor, delta: 4 }
 
       - id: course_three_toast_to_doors
+        label: "Toast to doors"
         text: >-
           Four words, said into her toast. Somebody at the cold end of the table
           smiles. Sets `toasted_doors_d3`, which Day 7 remembers when deciding
@@ -299,6 +303,7 @@ cards:
               - { type: value, name: autonomy, delta: -3 }
 
       - id: hear_him_out
+        label: "Hear him out"
         text: >-
           Step aside with him for the length of one course. Sets
           `heard_ashen_offer` and moves `ashen_route` to 1 -- AWARE, which is
@@ -366,6 +371,7 @@ cards:
               - { type: value, name: favor, delta: -2 }
 
       - id: the_silver_moth_clasp
+        label: "The silver moth clasp"
         text: >-
           He leaves it regardless, unless iron drove him off. A signal and a
           tracker in one object, and he does not pretend otherwise. Opening the
@@ -403,6 +409,7 @@ cards:
               - { type: value, name: autonomy, delta: -4 }
 
       - id: confess_every_word
+        label: "Confess every word"
         text: >-
           Repeat the offer back to her in full, including the parts that were
           tempting. Sets `told_sophia_ashen_full`, and she remembers it on Day 4
@@ -434,6 +441,7 @@ cards:
               - { type: value, name: desire, delta: 5 }
 
       - id: she_respects_the_spine
+        label: "Hold your line, without cruelty"
         text: >-
           RARE. Available where the player defied her or held a line and did it
           without cruelty. She says nothing about it and the court notices that
@@ -467,6 +475,7 @@ cards:
       MENU -- resolve exactly one beat.
     beats:
       - id: the_soft_peak
+        label: "Let the night be soft"
         text: >-
           Sets `night3_intimate_soft`. The largest coupled favour/desire move in
           Act I, and the largest autonomy cost that is not a collar.
@@ -494,6 +503,7 @@ cards:
               - { type: value, name: autonomy, delta: -14 }
 
       - id: the_argument_instead
+        label: "Have the fight instead"
         text: >-
           Invite her and then have the fight that was underneath the evening.
           Sets `night3_invite_argument`. This is a real branch, not a failure of
@@ -507,6 +517,7 @@ cards:
               - { type: value, name: sophia_break, delta: 1 }
 
       - id: not_tonight
+        label: "Not tonight"
         text: >-
           Gently, or not. She may leave a cruel soft line about how patient
           winter is not. Sets `refused_night3`.
@@ -517,6 +528,7 @@ cards:
           text: "Whether the refusal was kind, and whether she was in a state to notice."
 
       - id: not_tonight_mark
+        label: "Let it stand"
         text: "Resolve with `not_tonight`. The fact, separate from her mood."
         gate:
           on_pass:

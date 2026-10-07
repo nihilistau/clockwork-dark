@@ -73,14 +73,12 @@ sites:
   engine.challenges.spec._read_bounds(): {verdict: warmed, loader: engine.challenges.spec.load_bounds}
 
   # -- engine.config ------------------------------------------------------
-  engine.config._LEGACY_LLM_KEYS: {verdict: constant}
   engine.config._SANDBOX_WARNED: {verdict: log_once}
   engine.config._config_lock: {verdict: locked}
   engine.config._external_layers: {verdict: locked, note: "rebuilt with the instance, under _config_lock"}
   engine.config._admin_layer: {verdict: locked, note: "v0.20.0 T14: the admin layer's (path, keys), rebuilt with the instance under _config_lock (one reference swap); read by admin_layer() after get_config"}
   engine.config._instance: {verdict: locked, note: "double-checked build under _config_lock; dropped under it by reset_config"}
   engine.config._instance_pid: {verdict: locked}
-  engine.config._legacy_layers: {verdict: locked, note: "rebuilt with the instance, under _config_lock"}
   engine.config._overlay: {verdict: shared_by_design, note: "the active story's paths; one story per process; swapped under _config_lock"}
   engine.config._story_paths_by_slug: {verdict: locked, note: "a miss filled under _config_lock; never cleared"}
 
@@ -109,6 +107,7 @@ sites:
   engine.game.evil_ticker.PHASE_THRESHOLDS: {verdict: constant}
   engine.game.evil_ticker._DOOM_DECLARED: {verdict: warmed, loader: engine.game.evil_ticker.doom_enabled}
   engine.game.foraging._read_rules(): {verdict: warmed, loader: engine.game.foraging.load_rules}
+  engine.game.intents.ENGINE_CHOICE_WORDS: {verdict: constant}
   engine.game.intents.REFUSAL_KEY_FOR_ACTION: {verdict: constant}
   engine.game.intents.SKILL_FOR_ACTION: {verdict: constant}
   engine.game.inventory._evaluating_collections: {verdict: per_context, note: "a module bool until v0.20.0: one player's payout skipped another's"}
@@ -140,6 +139,8 @@ sites:
   engine.games.caches._warm_lock: {verdict: locked, note: "first in the lock order (engine/locks.py)"}
   engine.games.manifest.RETIRED_PATH_KEYS: {verdict: constant}
   engine.games.manifest.SETTING_ALLOWLIST: {verdict: constant}
+  engine.games.manifest.UI_PANELS: {verdict: constant}
+  engine.games.manifest.UI_PANEL_SYSTEMS: {verdict: constant}
   engine.games.manifest._KNOWN_KEYS: {verdict: constant}
   engine.games.registry._active: {verdict: locked, note: "set under _lock (an RLock); one story per process"}
   engine.games.registry._lock: {verdict: locked}
@@ -268,7 +269,6 @@ sites:
   engine.llm.schemas._LEDGER_SHAPES: {verdict: constant}
   engine.llm.schemas._TYPES: {verdict: constant}
   engine.llm.tools._JSON_TYPES: {verdict: constant}
-  engine.lmstudio._OLD_NAMES: {verdict: constant}
 
   # -- engine.locks -------------------------------------------------------
   engine.locks.RENEWED_AFTER_FORK: {verdict: registration, note: "appended as each module's locks register at import"}
@@ -323,7 +323,6 @@ sites:
   engine.persistence.saves._migrated_lock: {verdict: locked}
   engine.persistence.saves._stores: {verdict: locked, note: "one SaveStore per (owner, story), built under _stores_lock"}
   engine.persistence.saves._stores_lock: {verdict: locked}
-  engine.persistence.storage._WARNED_ALIAS: {verdict: log_once}
 
   # -- engine.scenes ------------------------------------------------------
   engine.scenes.default_scene.SCENE_METADATA: {verdict: constant}

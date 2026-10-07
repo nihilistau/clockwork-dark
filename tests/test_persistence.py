@@ -478,6 +478,101 @@ def test_the_guard_sees_an_account_or_hosting_write_under_the_real_root(
     assert not target.exists()
 
 
+def test_the_guard_sees_a_media_write_under_the_real_root(monkeypatch) -> None:
+    """
+    v0.21.0: generated media (``storage.image_dir()``, ``audio_dir()``) was
+    watched only by the session-end snapshot, so a procedural scene image
+    rewritten in the owner's ``data/media/images/`` surfaced as an error on
+    the session's LAST test, naming no culprit. The audit hook watches
+    ``media/`` now. The attempt aims at a directory that does not exist, so
+    the OS refuses it after the audit event fired and nothing lands there.
+    """
+    import os
+
+    from engine.persistence import storage
+    from tests.conftest import _REAL_DATA_ROOT, REAL_SAVES_WRITES, _under_real_saves
+
+    monkeypatch.delenv("CLOCKWORK_DATA_DIR", raising=False)
+    assert storage.media_dir() == _REAL_DATA_ROOT / "media"
+    missing = storage.image_dir() / "no-such-dir-7c1e"
+    assert not missing.exists(), f"{missing} exists; the canary must aim at a missing directory"
+    try:
+        assert _under_real_saves(missing / "x.svg")
+        with pytest.raises(OSError):
+            open(missing / "x.svg", "w", encoding="utf-8")  # noqa: SIM115
+        assert REAL_SAVES_WRITES, "a write under the real media/ went unseen"
+        assert all(f"{os.sep}media{os.sep}" in path for _, path in REAL_SAVES_WRITES), REAL_SAVES_WRITES
+    finally:
+        REAL_SAVES_WRITES.clear()
+    assert not missing.exists()
+
+
+@pytest.fixture(scope="module")
+def module_scoped_storage():
+    """What the storage root is while a MODULE-scoped fixture is set up:
+    before any function-scoped autouse guard, so before the per-test
+    ``CLOCKWORK_DATA_DIR``."""
+    import os
+
+    from engine.persistence import storage
+
+    return {
+        "env": os.environ.get("CLOCKWORK_DATA_DIR"),
+        "root": storage.data_root(),
+        "images": storage.image_dir(),
+        # And the other writers' dirs (data-leak review M5): saves and the
+        # hosted accounts' files resolve under the same temp root.
+        "saves": storage.saves_dir("", None),
+        "hosting": storage.hosting_dir(),
+    }
+
+
+def test_a_module_scoped_fixture_gets_a_temp_storage_root(
+    module_scoped_storage, tmp_path_factory
+) -> None:
+    """
+    v0.21.0: HUE & CRY's module-scoped ``measured_law`` built twenty
+    sessions before any per-test redirect existed, with no
+    ``CLOCKWORK_DATA_DIR`` at all, and every opening's procedural scene image
+    (``ProceduralProvider.generate``) rewrote the owner's
+    ``data/media/images/<key>.svg``. ``pytest_configure`` now sets the
+    variable for the whole session, to the sandbox layer's root.
+    """
+    from pathlib import Path
+
+    from tests.conftest import _REAL_DATA_ROOT, _under_real_saves
+
+    seen = module_scoped_storage
+    assert seen["env"], "no storage root was set outside the per-test redirect"
+    root = Path(seen["root"]).resolve()
+    real = _REAL_DATA_ROOT.resolve()
+    assert root != real and real not in root.parents, root
+    assert not _under_real_saves(seen["images"] / "x.svg")
+    base = Path(tmp_path_factory.getbasetemp()).resolve()
+    assert base in root.parents, (root, base)
+    for key in ("images", "saves", "hosting"):
+        path = Path(seen[key]).resolve()
+        assert root in path.parents, (key, path, root)
+        assert not _under_real_saves(path / "x"), (key, path)
+
+
+def test_a_basetemp_under_the_real_storage_root_is_refused(tmp_path) -> None:
+    """Data-leak review M2: pytest wipes its basetemp at start, so one under
+    the owner's storage root is a UsageError before anything resolves it."""
+    from types import SimpleNamespace
+
+    import pytest as _pytest
+
+    from tests.conftest import refuse_a_basetemp_under
+
+    root = tmp_path / "data"
+    for given in (root, root / "ptmp", root / "saves" / "x"):
+        with _pytest.raises(_pytest.UsageError, match="inside the real storage root"):
+            refuse_a_basetemp_under(SimpleNamespace(option=SimpleNamespace(basetemp=str(given))), root)
+    refuse_a_basetemp_under(SimpleNamespace(option=SimpleNamespace(basetemp=str(tmp_path / "ptmp"))), root)
+    refuse_a_basetemp_under(SimpleNamespace(option=SimpleNamespace(basetemp=None)), root)
+
+
 def test_a_tests_own_monkeypatch_undo_keeps_the_saves_redirect(monkeypatch) -> None:
     """`monkeypatch.undo()` mid-test undid the shared redirect with the test's
     own patches (test_forced_and_repeatable_decks); the guard holds its own."""

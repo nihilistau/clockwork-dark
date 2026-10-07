@@ -28,6 +28,9 @@
  */
 import React from "react";
 
+import { matchApproaches } from "@core/panels/approaches.js";
+import { prettyPlace } from "@core/parts/Chrome.jsx";
+
 /** The five districts that retone the canvas, keyed off location id. */
 const DISTRICT = {
   the_grid: "grid",
@@ -44,14 +47,18 @@ export function districtOf(locationId) {
   return DISTRICT[String(locationId || "")] || "neoncity";
 }
 
-function Approach({ approach, busy, onTake }) {
+function Approach({ approach, busy, offered, onTake }) {
   const cost = Number(approach.cost_gold) || 0;
   return (
     <button
       type="button"
       className="nc-approach"
-      disabled={busy}
-      onClick={() => onTake(approach)}
+      // aria-disabled, never `disabled`, while a turn runs: a disabled button
+      // throws its focus to <body> mid-turn (spec §8.2, F9).
+      aria-disabled={busy || !offered ? "true" : undefined}
+      onClick={() => {
+        if (offered && !busy) onTake(approach);
+      }}
     >
       <span className="nc-approach__point" aria-hidden="true">▸</span>
       <span className="nc-approach__text">{approach.text}</span>
@@ -62,11 +69,12 @@ function Approach({ approach, busy, onTake }) {
         </span>
       )}
       {approach.skill && <span className="nc-approach__skill">{approach.skill}</span>}
+      {!offered && <span className="nc-approach__skill">not offered this turn</span>}
     </button>
   );
 }
 
-function Contact({ encounter, busy, onTake }) {
+function Contact({ encounter, busy, offered, onTake }) {
   const approaches = encounter.approaches || [];
   return (
     <div className="nc-contact" role="group" aria-label="Contact">
@@ -87,6 +95,7 @@ function Contact({ encounter, busy, onTake }) {
               key={approach.id}
               approach={approach}
               busy={busy}
+              offered={offered.has(approach.id)}
               onTake={onTake}
             />
           ))}
@@ -130,10 +139,13 @@ function Plate({ src, caption }) {
   );
 }
 
-export default function Stage({ state, busy, onCustom }) {
+export default function Stage({ state, controlsOff, onChoose }) {
   const encounter = state.world?.encounter || {};
-  const place = state.world?.location_id || "";
-  const caption = place ? place.replace(/_/g, " ").toUpperCase() : "";
+  const offered = matchApproaches(encounter, state.choices);
+  // The place's name, never its id (final review 4).
+  const world = state.world || {};
+  const place = world.location_name || (world.location_id ? prettyPlace(world.location_id) : "");
+  const caption = place.toUpperCase();
 
   return (
     <div className="nc-stage">
@@ -141,11 +153,16 @@ export default function Stage({ state, busy, onCustom }) {
       {Object.keys(encounter).length > 0 && (
         <Contact
           encounter={encounter}
-          busy={busy}
-          // An approach is an ORDINARY TURN: its own text goes over as a
-          // custom action and the Storyteller calls encounter_approach. The
-          // engine stays the only writer of the outcome.
-          onTake={(approach) => onCustom(approach.text)}
+          busy={controlsOff}
+          offered={offered}
+          // An approach is pressed as the narrator's intent-bearing choice
+          // (spec §2.3, rule 1), never as typed text: the engine runs
+          // encounter_approach before narration and stays the only writer
+          // of the outcome. One the narrator did not offer is not pressable.
+          onTake={(approach) => {
+            const choice = offered.get(approach.id);
+            if (choice) onChoose(choice);
+          }}
         />
       )}
     </div>

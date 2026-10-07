@@ -163,11 +163,12 @@ def test_an_unparsable_layer_raises_naming_the_file(layers: Path, tmp_path: Path
         config.get_config()
 
 
-def test_the_legacy_alias_applies_before_the_allowlist(layers: Path, tmp_path: Path) -> None:
+def test_a_legacy_block_is_refused_before_the_allowlist(layers: Path, tmp_path: Path) -> None:
     _local(layers, hosting={"enabled": True})
-    _admin(tmp_path, {"lmstudio": {"base_url": "http://legacy.internal:1234/v1"}})
-    assert config.get_config().get("llm.base_url") == "http://legacy.internal:1234/v1"
-    assert config.admin_layer_keys() == ["llm.base_url"]
+    path = _admin(tmp_path, {"lmstudio": {"base_url": "http://legacy.internal:1234/v1"}})
+    with pytest.raises(config.LegacyConfigError) as caught:
+        config.get_config()
+    assert [(s, k) for s, k, _ in caught.value.findings] == [(str(path), "lmstudio")]
 
 
 def test_every_allowlisted_key_loads(layers: Path, tmp_path: Path) -> None:

@@ -290,7 +290,9 @@ ui:
 Empty/omitted falls back to the story's own slug — the old directory-name
 match. The client contract (slug, `theme()`, `initialState`/`reduce`/
 `bodyData`, the naming slots `title`/`documentTitle`/`beginLabel`/
-`asideLabel`/`onboardingTitle`/`onboardingFinishLabel`, and the component
+`asideLabel`/`onboardingTitle`/`onboardingFinishLabel`/`saveMeta` (one line
+of the story's own words on a save row; since v0.21.0 core prints none of
+its own), and the component
 slots: `Mark`, `HeaderBadge`, `Aside`, `Ledger`, `Stage`, `Toast`,
 `MenuBanner`, `Wrap`, `StartIntro`, `Wordmark`, `Ending`, `onboarding`,
 `overlays`, `hideChoices`) is documented at the top of `ui/src/core/story.js`;
@@ -324,7 +326,7 @@ merely to look like *something*. For that, `_engine` is the answer. A borrowed
 plugin lends its **look, not its voice**:
 when `plugin != slug` the loader strips the naming slots (`title`,
 `documentTitle`, `Wordmark`, `StartIntro`, `beginLabel`, `asideLabel`,
-`onboarding` and **`overlays`**) and substitutes your story's own name from the
+`saveMeta`, `onboarding` and **`overlays`**) and substitutes your story's own name from the
 catalogue, so a scratch story borrowing the Garden's skin does not announce
 itself as The Wicked Garden or invite the player through a hedge it does not
 have. Nothing shipped borrows another story's plugin today — `dev-story` moved
@@ -349,6 +351,69 @@ mono `₵` on every price, and a five-rung heat ladder that is the game's centra
 pressure. That plugin is `ui/src/stories/neon-city/`, and the migration was
 exactly one line of `game.yaml`. If you cannot name a rule of your story's
 visual identity that the borrowed skin actively contradicts, keep borrowing.
+
+#### `ui.panels` — the engine panels
+
+```yaml
+ui:
+  plugin: _engine          # unchanged meaning
+  panels:                  # optional. Omitted: the data-gated defaults.
+    - wanted               # a bare id: its default region
+    - casing
+    - job
+    - id: people
+      region: stage        # a mapping: the id and, optionally, a region
+    - encounter
+```
+
+The client reads it through the catalogue (`ui/src/core/story.js` sets
+`story.panelDeclaration`; `ui/src/core/panels/resolve.js` places the panels).
+Every panel in the table below is built and drawn (v0.21.0); a panel whose
+component the client has not got is resolved and simply not drawn.
+
+- **Omitted:** every data-gated panel (`wanted`, `job`, `casing`,
+  `negotiation`, `rolls`) in its default region, in registry order, and no
+  opt-in panel. A data-gated panel renders only when its payload key is
+  present, which only a story declaring the system sends.
+- **Present:** exactly the listed panels, in the listed order within each
+  region, and nothing else. `panels: []` turns every core panel off.
+- **`region:`** names where a panel is drawn, from the regions it allows:
+
+| Panel | Default region | May be drawn in | Gate | Fed by |
+|---|---|---|---|---|
+| `wanted` | `ledger` | `ledger`, `shelf` | data | `paths.law` |
+| `job` | `shelf` | `shelf`, `ledger` | data | `paths.jobs` |
+| `casing` | `ledger` | `ledger`, `shelf` | data | `paths.premises` |
+| `negotiation` | `shelf` | `shelf` | data | the negotiate agent |
+| `rolls` | `toast` | `toast` | data | skill checks |
+| `people` | `stage` | `stage`, `ledger` | declared | the people route |
+| `encounter` | `shelf` | `shelf` | declared | `paths.encounters` |
+
+**Validation.** ERROR (activation refuses the story; `validate_content.py`
+reports it too): a non-list `panels`; an entry that is neither a string nor a
+mapping; a mapping with a key other than `id`/`region`; an unknown id; a
+duplicate id; a region the panel is not drawn in. ADVISORY (a WARN in
+`validate_content.py --warnings` and `doctor.py`): `wanted`, `job`, `casing`
+or `encounter` listed by a story that declares no `paths.law`, `paths.jobs`,
+`paths.premises` or `paths.encounters`: it will never render.
+
+**`ownsPanels`, the plugin's half.** A plugin that draws a system itself
+says so, by registry id, and core does not draw it twice:
+
+```js
+export default { /* ... */ ownsPanels: ["rolls", "encounter"] };
+```
+
+What is drawn is the declaration (or the defaults) minus `ownsPanels`. The
+flagship owns `["rolls", "encounter"]` (its dice toast and encounter panel),
+NEON CITY `["encounter"]` (its stage draws the approaches). It is a visual
+slot, so it is KEPT when another story borrows the plugin: the borrower
+inherits the drawing, so it inherits the claim. `ui.panels` is the story's,
+never the plugin's: `loadStory` writes `panelDeclaration` last, and
+`ui/tests/plugin-contract.test.js` fails a plugin that exports one. The
+contract is at the top of `ui/src/core/story.js`; the registry is
+`ui/src/core/panels/registry.js`, kept equal to `UI_PANELS` by
+`tests/test_ui_panels_manifest.py`.
 
 ---
 
@@ -448,6 +513,16 @@ What cuts across:
   without a choice takes the first beat and logs a WARNING. `sequence` beats
   are steps, all resolved in order. Get this wrong and a decision card applies
   every branch of the decision at once.
+- **A menu beat's `text` is the narrator's; its `label` is the player's**
+  (v0.21.0). The narrator is handed the full `text` ("render it, do not
+  replace it"), and the intent enum names the beat by it. The player's chip,
+  and the hint under a card chip, read the beat's `label:` (at most 120
+  characters) when it has one, otherwise the first sentence of `text` with
+  every backticked span removed (`engine/content/director.py::player_label`).
+  So a beat whose text carries an author's note -- a `` `flag` `` name, "Sets
+  ...", "Resolve with ...", "Always.", "RARE" -- needs a `label:`, or the
+  note is what the player reads; `validate_content.py` and `doctor.py` print
+  an advisory for such a beat (`StoryValidator._check_beat_label`).
 - **THE DEAL-TIME RULE.** A pool card's `when:` is evaluated **when the hand
   is dealt**, not when the card comes up. Gate a card on a flag that another
   card in the same deck sets, and it can never be dealt on the day that flag
@@ -1106,6 +1181,12 @@ which carries a new story fine. When the prompts are written,
 every gap, with a ready-to-paste prompt in both dialects at the right pixel
 size. `games/dev-story/README.md` § Art shows the intended workflow.
 
+A `portraits:` row keyed by an NPC id (`npc_ardane: …`) is shown in the people
+strip (`ui.panels: [people]`), to a player who has met that person; a stranger
+is a silhouette and a role. The strip (`ui/src/core/panels/PeopleStrip.jsx`)
+reads `GET /api/people` (`engine/scenes/default_api.py::people_here`); a met
+person with no portrait in the pack gets their initial in a medallion.
+
 **Generating the pack.** `scripts/generate_art.py --game <slug>` plans from
 the same subjects and the same idea of "missing" as the brief (both call
 `generate_art.plan_plates`):
@@ -1153,6 +1234,10 @@ The flagship (the default with no `--game`) keeps its original plan and flags
 `anchors/`); `paths.thievery` → one YAML file. Both are optional and both pay
 nothing when undeclared — the worked example for the whole shape is
 `games/hue-and-cry/data/premises/` and `games/hue-and-cry/data/rules/thievery.yaml`.
+
+`paths.premises` is drawn by core's casing board (`ui/src/core/panels/CasingBoard.jsx`,
+the `casing` entry of `ui.panels`, in the ledger by default): one row per
+house cased in the player's district, headed by each type's `label`.
 
 **`paths.premises` layout:**
 
@@ -1321,6 +1406,12 @@ never rolls, and a story's payload carries no `law` key. The worked example
 is `games/hue-and-cry/data/rules/law.yaml`, with the tuning story behind every
 number in its header comment and in CHANGELOG.md's `[0.10.0]` entry.
 
+Core's wanted poster (`ui/src/core/panels/WantedPoster.jsx`, the `wanted`
+entry of `ui.panels`, in the ledger by default, with a header chip) draws the
+`law` block: the wanted band per jurisdiction, a sketch drawn from the `clarity`
+word, and, for a thief held, the fine and the days. It needs no authoring beyond this file; the words
+on it are the file's own plus the panel's few ("Wanted", "Held").
+
 **Required** (the loader refuses the file without them):
 
 - `guises` — `{<id>: {label: <text>, item: <optional item id>}}`. Must
@@ -1375,7 +1466,7 @@ empty, and an empty one switches its part off):
   words below 1/3 is the second, below 2/3 the third, from 2/3 the fourth
   (the default hops 0.3 / 0.6 / 1.0 land one on each). A paid-off or
   bribed-away deed draws nothing. The word ships as the payload's
-  `law.clarity` (the v1.0 wanted poster's sketch) and ends the narrator's
+  `law.clarity` (the wanted poster's sketch: core's `wanted` panel, `ui/src/core/panels/WantedPoster.jsx`, and the header chip) and ends the narrator's
   wanted line ("it has a description of you"), so write words that read
   after "it has".
 - `spread_per_hour` (default 0.3) — the chance one held deed passes to
@@ -2028,10 +2119,13 @@ stage, the obstacle in the way, the reasons moving the odds, which flashback
 paid off this turn, the alarm's band, and — the turn a job closes — how it
 ended; all in the same words, nothing the client payload doesn't also say.
 
+The payload also carries `scales` (the `prep` and `alarm` words, low to
+high), and core's job panel (`ui/src/core/panels/JobPanel.jsx`, the `job`
+entry of `ui.panels`, in the shelf by default) draws it while a job is open:
+the house, the stages as a stepper, the alarm and prep as words with marks.
+
 **NOT WIRED** (`docs/GOVERNANCE.md`): **hired hands** (spec §4, an optional
-extra the design allows for and this release does not build), and the
-**job panel UI** — the payload above exists; no shipped story's plugin
-renders it yet.
+extra the design allows for and this release does not build).
 
 ### 3.13 `paths.agendas` — what the world does while you are not looking
 

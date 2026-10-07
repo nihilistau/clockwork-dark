@@ -47,7 +47,7 @@
   --surface-narrative: #15180f;
   --surface-chrome:    #050605;
   --accent-candle:     #cda85f;
-  --accent-brass:      #5a6f3a;
+  --accent-brass:      #5c723b; /* was #5a6f3a: 2.90:1 as a mark on the card, under 3:1 (v0.21.0) */
   --text-narration:    #e7dfca;
   --line-ink:          #020302;
   --status-corruption: #9bb862;

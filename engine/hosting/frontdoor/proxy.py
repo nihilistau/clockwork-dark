@@ -157,6 +157,11 @@ METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 CHUNK = 64 * 1024
 
 
+#: The game page's auth probe (``ui/src/core/link.js``, ``PROBE_URL``): the
+#: one request a page makes while its socket is down (v0.21.0 spec §6.4).
+PROBE_PATH = "/api/games/active"
+
+
 def reserved(path: str) -> bool:
     """Whether ``path`` is one of the front door's own (``RESERVED``)."""
     for item in RESERVED:
@@ -422,6 +427,22 @@ class Proxy:
         answer.call_on_close(finish)
         return answer
 
+    def at_connection_cap(self, account: str) -> bool:
+        """
+        Whether ``account`` already holds ``hosting.max_connections_per_account``
+        connections here, so its next WebSocket or poll would be refused 429.
+
+        The refusal of a WebSocket upgrade is an HTTP answer the browser cannot
+        read (the client sees only a transport error), so the page's auth
+        probe asks instead: ``GET /api/games/active`` answers 429 with the
+        cap's own words while the account is at its cap (v0.21.0 T11 fix round
+        1), and the page's banner shows them. Read from the count the holds
+        already keep; nothing new is counted.
+        """
+        if self.holds is None or self.holds.per_account is None:
+            return False
+        return self.holds.of_account(account) >= self.holds.per_account
+
     def unavailable(self, slug: str, row: Optional[dict[str, Any]], *, page: bool) -> Any:
         """503: the story's page (``GET /``) or ``UNAVAILABLE`` as JSON."""
         if page:
@@ -447,7 +468,12 @@ def register(app: Any, proxy: Proxy) -> None:
             return jsonify(NO_STORY), 409
         if found.refusal == REFUSED_UNAVAILABLE or found.row is None:
             return proxy.unavailable(found.story, found.row, page=False)
-        return proxy.forward(found.story, found.row, account=str(found.account.id))
+        account = str(found.account.id)
+        if request.method.upper() == "GET" and request.path == PROBE_PATH and proxy.at_connection_cap(account):
+            from engine.hosting.limits import too_many_connections
+
+            return jsonify({"error": too_many_connections(proxy.holds.per_account)}), 429
+        return proxy.forward(found.story, found.row, account=account)
 
     app.add_url_rule("/<path:path>", "proxy", proxied, methods=METHODS, provide_automatic_options=False)
     app.add_url_rule(
@@ -466,6 +492,7 @@ __all__ = [
     "METHODS",
     "NO_STORY",
     "POLLING_READ_SECONDS",
+    "PROBE_PATH",
     "Proxy",
     "RESERVED",
     "TIMED_OUT",

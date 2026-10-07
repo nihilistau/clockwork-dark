@@ -75,6 +75,23 @@
      ~122px at 1366x768 -- three lines of prose). */
   --visual-height: 12vh;     /* below this the still stops reading as an image */
   --log-min:       7rem;     /* 112 -- the log can never starve to nothing */
+  /* The people strip's row (spec §4.4: a medallion and two lines). With the
+     strip under the plate the stage track's floor is the plate's floor PLUS
+     this, so the strip never eats the plate (T14: with a job open at
+     1366x768 the plate was ~30px; at 844x390 a 2px rule). */
+  --people-strip:  3.25rem;  /* 52 */
+  /* The stage track's floor: the plate's, and (index.css) the plate's plus
+     the strip's row when the strip is in the stage. */
+  --stage-floor:   var(--visual-height);
+  /* The shelf's cap (spec §3.2): a tall job panel and a negotiation together
+     scroll inside it rather than taking the choices' height. */
+  --shelf-max:     32vh;
+  /* The choice list's cap; it scrolls among itself past this. */
+  --choices-max:   34vh;
+  /* The shelf's floor while core's encounter panel holds the only moves,
+     under 900px (index.css, T10 fix round 2): its heading, terms and first
+     approach button, whatever the shelf's cap would leave. */
+  --shelf-moves-floor: 13rem;
 
   /* Overlay cards cap here rather than at their own max-content height. */
   --overlay-max-h: 54rem;    /* 864 */
@@ -102,4 +119,24 @@
 
   /* ---- Letterbox (cutscene, 2.39:1) ---- */
   --letterbox-bar: 11%;
+}
+
+
+/* Narrow viewports (spec §3.4, measured at 390x844): the stage keeps its
+   12vh floor (`--visual-height` above is 12vh at every width, so it needs no
+   override here), the shelf drops to 16vh, and the choices to 26vh -- the
+   page itself never scrolls. */
+@media (max-width: 900px) {
+  :root {
+    --shelf-max:     16vh;
+    --choices-max:   26vh;
+  }
+}
+
+/* A short screen draws the strip on one line (index.css, max-height 560px):
+   a 2rem medallion with no second line. */
+@media (max-height: 560px) {
+  :root {
+    --people-strip:  2.25rem;  /* 36 */
+  }
 }

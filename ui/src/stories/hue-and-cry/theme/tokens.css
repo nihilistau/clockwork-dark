@@ -1,0 +1,42 @@
+/* ============================================================
+   HUE & CRY's palette: tallow and soot under the prose, parchment and ink
+   on the engine's panels, one seal-red accent.
+
+   Scoped to body[data-story-skin="hue-and-cry"] (bodyData), so it can never
+   recolour another story. On ui/tools/check-styles.mjs's palette list.
+   ============================================================ */
+
+body[data-story-skin="hue-and-cry"] {
+  /* ---- surfaces: soot and tallow ---- */
+  --surface-scene: #12100c;
+  --surface-narrative: #1b1712;
+  --surface-panel: #18140f;
+  --surface-ledger: #1a1611;
+  --surface-chrome: #0e0c09;
+  --surface-card: #221c15;
+
+  /* ---- text: tallow-ink, warm enough to read for an hour ---- */
+  --text-narration: #e8dcc4;
+  --text-body: #d9ccb2;
+  --text-muted: #a8977a;
+  --text-danger: #d8705e;
+
+  /* ---- lines and the accent ---- */
+  --line-soft: rgba(232, 220, 196, 0.12);
+  --line-brass: #8c6a3c;
+  --line-iron: #2a241c;
+  --accent-brass: #b8894a;
+  --accent-seal: #a8322a;
+  /* The seal, a shade lighter, for an edge on the dark chrome (the header
+     chip): #a8322a measured 2.93:1 there. */
+  --accent-seal-edge: #b33a30;
+
+  /* ---- the engine's panels: a bill pasted on the wall ---- */
+  --panel-paper: #e6d8b8;
+  --panel-ink: #2b2016;
+  --panel-muted: #5c4a35;
+  --panel-mark: #7a2a22;
+  --panel-focus: #7a2a22;
+  --panel-rule: #8c6a3c;
+  --panel-danger: #8e1f17;
+}

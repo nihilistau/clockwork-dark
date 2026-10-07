@@ -17,7 +17,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import NegotiationPanel from "../src/core/parts/NegotiationPanel.jsx";
+import NegotiationPanel from "../src/core/panels/NegotiationPanel.jsx";
 
 const contested = {
   ran: true,
@@ -90,6 +90,14 @@ describe("the negotiation panel", () => {
       resolutions: [{ rule: "confidence", winner: "gm", detail: "highest confidence leads" }],
     });
     expect(host.textContent).toMatch(/gm led, uncontested/i);
+  });
+
+  it("labels its section with an h2 holding the disclosure (F11)", () => {
+    draw(contested);
+    const heading = host.querySelector("h2");
+    expect(heading).not.toBeNull();
+    expect(heading.querySelector("button[aria-expanded]")).not.toBeNull();
+    expect(host.querySelector("section").getAttribute("aria-labelledby")).toBe(heading.id);
   });
 
   it("never prints a private motive, because the payload never carries one", () => {

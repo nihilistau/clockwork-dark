@@ -1326,6 +1326,49 @@ def test_one_account_cannot_take_every_open_connection(monkeypatch: pytest.Monke
         door.stop()
 
 
+def test_the_page_s_probe_says_the_account_is_at_its_connection_cap(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """
+    v0.21.0 T11 fix round 1: a WebSocket refused at the cap is an HTTP 429 the
+    browser cannot read, so the game page's auth probe (``GET
+    /api/games/active``, ``ui/src/core/link.js``) is answered 429 with the
+    cap's words while the account holds its cap, and is forwarded as before
+    for another account, and for this one once a connection closes.
+    """
+    from engine.hosting.limits import too_many_connections
+
+    door = InProcessFrontDoor(
+        monkeypatch,
+        tmp_path,
+        hosting={"max_connections_per_account": 2, "rate_limits": {"actions_per_minute": 1000}},
+    )
+    door.start()
+    sockets: list[Any] = []
+    try:
+        alice = door.logged_in("alice")
+        bob = door.logged_in("bob")
+        assert alice.get("/api/games/active").status_code == 200
+        for _ in range(2):
+            ws = WebSocketClient(alice, door.base)
+            sockets.append(ws)
+            ws.handshake()
+        probed = alice.get("/api/games/active")
+        assert probed.status_code == 429
+        assert probed.json() == {"error": too_many_connections(2)}
+        assert bob.get("/api/games/active").status_code == 200
+        # Only the probe: another route of the same account is forwarded.
+        assert alice.get("/api/games").status_code == 200
+        sockets.pop(0).close()
+        _wait(lambda: alice.get("/api/games/active").status_code == 200, what="the probe answers again")
+        alice.close()
+        bob.close()
+    finally:
+        for ws in sockets:
+            ws.close()
+        door.stop()
+
+
 def _upgrade_status(door: InProcessFrontDoor, http: httpx.Client) -> int:
     status, _found, _body, sock = upgrade(
         door.front_port,

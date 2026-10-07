@@ -1,8 +1,9 @@
 # Changelog — HUE & CRY
 
 What changed in **HUE & CRY**'s own content: everything under
-`games/hue-and-cry/`. It uses the engine's default skin (`_engine`) until
-v0.21.0's UI overhaul, so it has no UI plugin of its own yet. Engine changes,
+`games/hue-and-cry/`. Since v0.21.0 it wears its own skin
+(`ui/src/stories/hue-and-cry/`), which is a theme over the engine's panels and
+no screen of its own; its skin's changes are listed here too. Engine changes,
 and each release as a whole, are in the [root CHANGELOG](../../CHANGELOG.md),
 which also carries every measured table this file only summarises. Version
 numbers are the repo's releases, and a release is listed here only if it
@@ -16,6 +17,72 @@ them and the ways in) and never says who the Magpie is.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+
+## [0.21.0] — 2026-10-07
+
+- **Its own skin** (v0.21.0, `ui.plugin: hue-and-cry`): tallow and soot
+  under the prose, the engine's panels on parchment and ink
+  (`--panel-paper`, `--panel-ink`, `--panel-muted`, a seal-red focus ring
+  `--panel-focus` at 6.8:1 and brass rules `--panel-rule` between rows),
+  one seal-red accent,
+  the WANTED poster lettered as a bill, the title set as a printed bill,
+  "Step off the barge" to begin, and three onboarding cards -- the Watch has
+  decided you are the Magpie (and the poster shows how clearly the watch
+  where you stand could draw you), Pip, and the city keeps its hours
+  (casing; houses empty and fill by the clock). A skin only: it fills no
+  screen slot and owns no panel, and it borrows core's scene plate. It
+  replaces the engine's default skin (`_engine`) this story wore before.
+- **Its panels, declared** (`game.yaml` `ui.panels`): the wanted poster, the
+  casing board, the job, the people here, the watch stop's approaches, the
+  agents' argument and the roll card, each in its default region. New to it:
+  the people strip under the scene plate (everyone here, a stranger as a
+  silhouette until met) and the Lantern's stop as a panel in the shelf, one
+  button per approach, which presses the turn's own approach choice. The
+  ~55-plate art pack, portraits included, is v1.0 work: until it lands the
+  plate is the procedural scene and the strip draws monograms
+  (`data/art/manifest.yaml` is empty on purpose).
+- A save reloaded during a Lantern's `watch_stop` (or any open encounter)
+  now offers the stop's approaches -- run, talk, surrender, fight, and the
+  bribe when the purse can pay it -- instead of two roads the stop refuses;
+  one reloaded mid-burglary keeps the job's `abort`, and one reloaded in
+  the cells offers `serve` (and `pay_fine` when the purse covers it)
+  instead of two roads out of a locked cell (engine fix, root CHANGELOG).
+  Those choices read "Abandon the job", "Serve your time" and "Pay the
+  fine", never their ids, and the cell's break-out reads by its title, "The
+  Ring on the Nail", where it read "lantern_house_break". No content change.
+- The casing board moved to the sheet column, under the meter sheet (the
+  Sheet tab on a narrow screen), out of the main column. It is headed
+  "Casing — n houses here", with "· k empty now" when any is and "· Prep:
+  word" once the job block is in the payload; each house is a row that opens
+  onto what watching it has told you, and a house that is empty right now
+  starts open. Its heading is an `<h2>` (engine panel framework, v0.21.0).
+- The wanted poster (engine panel, v0.21.0) renders this story's `law`
+  block: no content change.
+- The job panel (engine panel, v0.21.0) draws this story's `job` block while
+  a job is open -- the house, the stages as a stepper, the alarm and prep as
+  words -- and the roll card shows each check's roll: no content change.
+- Its payload's `law` and `job` blocks carry their `scales` (the words of the wanted bands, the clarity words, `prep` and `alarm`, low to high), for the v0.21.0 poster and job panel. No content change.
+
+### Fixed
+
+- The negotiation panel (the agents' argument) is an engine panel in the
+  shelf, bounded with the rest of the current move (`--shelf-max`); its
+  heading is an `<h2>` and its toggle a 44px target that names the body it
+  opens (`aria-controls`) (v0.21.0).
+- The empty left column is gone at desktop widths (this story has no
+  companion column), so the play column takes ~270px back at 1366.
+- On a short window (under 820px tall) the job panel starts collapsed (its
+  heading carries the stage), the shelf beside the people strip is capped
+  at 20vh and the narration log keeps three lines; under 640px tall the
+  scene plate gives way to the strip, so at 900x600 both rows of choices
+  show. The Scene/Sheet tabs on a phone are no longer dimmed by the
+  scene's atmosphere layer.
+- A resume in the cells offers the beds by their labels ("The plank bench
+  in the cells", "A pallet at Old Nance's"), not "sleep flophouse"; a
+  casing row opens when its house empties, and an opened house with nothing
+  learned says "Nothing learned yet."; the roll card says its degree in
+  words; a dealt card's header shows its title (the desk, the interrogation),
+  never the deck id (v0.21.0 final fix wave).
 
 ## [0.20.0] — 2026-10-06
 

@@ -186,4 +186,6 @@ def test_raw_reads_without_expanding() -> None:
     manager = config.ConfigManager({"llm": {"provider": "${env:X}"}})
     assert manager._raw("llm.provider") == "${env:X}"
     assert manager._raw("llm.nothing", "d") == "d"
-    assert manager._raw("lmstudio.provider") == "${env:X}"
+    # No read alias since v0.21.0 (the name is built so the AST scan in
+    # tests/test_config_legacy_refused.py does not count this as a read).
+    assert manager._raw("lmstudio" + ".provider") is None

@@ -11,6 +11,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
+import ConnectionBanner from "./parts/ConnectionBanner.jsx";
 import Cutscene from "./parts/Cutscene.jsx";
 import Onboarding, { shouldOnboard } from "./parts/Onboarding.jsx";
 import { Icon } from "./parts/Chrome.jsx";
@@ -23,7 +24,8 @@ import Saves from "./screens/Saves.jsx";
 import Settings, { loadPrefs, savePrefs } from "./screens/Settings.jsx";
 import Start from "./screens/Start.jsx";
 import { clearSaveId, connect, loadSaveId, storeSaveId } from "./socket.js";
-import { createStore } from "./store.js";
+import { createLink } from "./link.js";
+import { controlsLive, createStore } from "./store.js";
 
 // The last line of defence against a server that dies without emitting
 // anything: the old client left every control disabled forever with nothing on
@@ -66,6 +68,17 @@ function MapIcon() {
   );
 }
 
+/**
+ * The default `Wrap`: one component for the life of the page. It was an arrow
+ * made inside App, so every App render handed React a NEW component type and
+ * the whole client under it was unmounted and mounted again -- the pressed
+ * chip lost its focus as the turn began, and the compose box its typed text
+ * at any socket event (v0.21.0 T13, found by the browser focus check).
+ */
+function PassThrough({ children }) {
+  return children;
+}
+
 export default function App({ story }) {
   // The reducer is the core one composed with the story's. Built once: a new
   // reducer identity per render would reset useReducer's state.
@@ -94,19 +107,64 @@ export default function App({ story }) {
   // them leaves the other failure exactly as dead as it was. Every failure the
   // player can see is now something they can press.
   const again = useRef(null);
+  // The connection's machine reads these, never `state.*` (spec §6.3, Review 26).
+  const linkRef = useRef(null);
+  const sessionRef = useRef("");
+  const busyRef = useRef(false);
+  const busyAtDropRef = useRef(false);
+  const linkStateRef = useRef("connecting");
+  // Runs this page has left (Begin/Load, transition 31): a reconnect never resumes into one.
+  const outgoingRef = useRef(new Set());
+  // THIS tab's save (spec §6.3): localStorage is shared by every tab, and the
+  // tab that released this one has just written its own save there, so Play
+  // here must resume this tab's run, not that one (T12 fix round 1).
+  const saveRef = useRef("");
+  useEffect(() => {
+    saveRef.current = state.saveId || "";
+  }, [state.saveId]);
+  useEffect(() => {
+    sessionRef.current = state.sessionId;
+  }, [state.sessionId]);
+  // The id "Try again" sends after a recovery (store.retryTarget): read
+  // when the retry fires, so the thunk made at the press never goes stale.
+  const againRef = useRef("");
+  useEffect(() => {
+    againRef.current = state.againId || "";
+  }, [state.againId]);
+  useEffect(() => {
+    busyRef.current = state.busy;
+  }, [state.busy]);
 
   useEffect(() => {
     const socket = connect(dispatch);
     socketRef.current = socket;
-
-    socket.on("connect", () => {
-      // Resume, never restart. Reconnecting used to POST /api/game/new and
-      // silently abandon the run in progress.
-      const saved = loadSaveId();
-      if (saved) socket.emit("resume", { save_id: saved });
+    // Rejoin, resume or wait -- never restart, and never resume over a live
+    // session (core/link.js). The old handler resumed on EVERY connect (F4).
+    // Created AFTER connect(): socket.js's handlers run first, so the store
+    // reduces each server event before the link's LINK for it.
+    const link = createLink({
+      socket,
+      dispatch,
+      refs: {
+        session: sessionRef,
+        save: () => saveRef.current || loadSaveId(),
+        link: linkStateRef,
+        busy: busyRef,
+        busyAtDrop: busyAtDropRef,
+        outgoing: outgoingRef,
+      },
     });
-
-    return () => socket.close();
+    linkRef.current = link;
+    // A move that was answered is never "done again" (re-review R1): the
+    // watchdog's or an error's Try again re-sends `again.current`, which
+    // must not be a move whose turn_update already arrived.
+    socket.on("turn_update", () => {
+      again.current = null;
+    });
+    return () => {
+      link.dispose();
+      socket.close();
+    };
   }, []);
 
   // Persist whichever save the server tells us we are writing to.
@@ -163,29 +221,50 @@ export default function App({ story }) {
   const begin = useCallback(async (payload) => {
     again.current = () => begin(payload);
     dispatch({ type: "SUBMIT", text: "" });
+    let left;
+    let answered = false;
     try {
+      // 31: this tab leaves its run BEFORE the POST, which in hosted mode
+      // releases it -- so that run's `session_ended` is not this tab's (30).
+      left = linkRef.current?.leaving();
       const res = await fetch("/api/game/new", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(`server said ${res.status}`);
+      answered = true;
+      if (!res.ok) {
+        // ANSWERED and refused (the save cap, the other window's turn):
+        // nothing was released, so this tab keeps its run.
+        linkRef.current?.stay(left);
+        throw new Error(`server said ${res.status}`);
+      }
       const data = await res.json();
       storeSaveId(data.save_id);
-      socketRef.current?.emit("join_session", { session_id: data.session_id });
+      linkRef.current?.join(data.session_id); // 32
     } catch (err) {
+      // The POST never answered (T12 re-review R2): nothing reached the
+      // server, so this tab keeps its run. One that answered and then failed
+      // to parse keeps the drop -- the server may have started a run.
+      if (!answered) linkRef.current?.stay(left);
       dispatch({ type: "ERROR", message: `Could not begin: ${err.message}` });
     }
   }, []);
 
   const send = useCallback(
-    (choiceId, customText, echo) => {
-      if (state.busy || !state.sessionId) return;
-      const emit = (spoken) => {
-        dispatch({ type: "SUBMIT", text: spoken });
+    (choiceId, customText, echo, choice = null) => {
+      // Not while the link is down, rejoining or waiting on a turn, nor over
+      // a turn in flight (F5): Socket.IO would buffer the emit and send it to
+      // a room the next socket is not in. `controlsLive` is the one answer.
+      if (!controlsLive(state) || !state.sessionId) return;
+      const emit = (spoken, id, move) => {
+        dispatch({ type: "SUBMIT", text: spoken, ...(move ? { move } : {}) });
         socketRef.current?.emit("player_choice", {
-          session_id: state.sessionId,
-          choice_id: choiceId,
+          // Read when SENT, not when pressed: a retry (Try again) after a
+          // recovery's resume runs in a NEW session, and the closure's id
+          // is the dead one (review 2).
+          session_id: sessionRef.current || state.sessionId,
+          choice_id: id,
           custom_text: customText || null,
         });
       };
@@ -193,10 +272,15 @@ export default function App({ story }) {
       // the log from the attempt that failed, and a retry is the same move
       // tried again, not a second thing they did -- `append` ignores empty
       // text, so the transcript stays honest about what was actually said.
-      again.current = () => emit("");
-      emit(echo);
+      // After a recovery the frame may be a new one: the retry sends the id
+      // the reducer matched by intent (`againId`, store.retryTarget), never
+      // an id that frame does not hold (final review finding 8).
+      again.current = () => emit("", againRef.current || choiceId);
+      emit(echo, choiceId, { choiceId, custom: customText || "", intent: choice?.intent || null });
     },
-    [state.busy, state.sessionId]
+    // `state` is read only through link, busy and sessionId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.link, state.busy, state.sessionId]
   );
 
   /**
@@ -208,12 +292,12 @@ export default function App({ story }) {
    * nothing to press. The input is still here; this is the press.
    */
   const retry = useCallback(() => {
-    if (state.busy) return;
+    if (state.link !== "live" || state.busy) return;
     // Both thunks open with a SUBMIT, which is what clears `error` and puts
     // the turn back into flight -- so there is no separate "forget the
     // failure" step that could leave the two out of step.
     again.current?.();
-  }, [state.busy]);
+  }, [state.link, state.busy]);
 
   const openSaves = useCallback(async () => {
     try {
@@ -228,17 +312,25 @@ export default function App({ story }) {
 
   const loadSave = useCallback(
     async (save) => {
+      let left;
+      let answered = false;
       try {
+        left = linkRef.current?.leaving(); // 31
         const res = await fetch(`/api/saves/${save.save_id}/load`, { method: "POST" });
-        if (!res.ok) throw new Error(`server said ${res.status}`);
+        answered = true;
+        if (!res.ok) {
+          linkRef.current?.stay(left); // refused: nothing was released
+          throw new Error(`server said ${res.status}`);
+        }
         const data = await res.json();
         // The incoming run is a different run: its log, choices and companion
         // must not inherit the one we were just looking at.
         dispatch({ type: "RESET", storyInitial });
         storeSaveId(data.save_id);
-        socketRef.current?.emit("join_session", { session_id: data.session_id });
+        linkRef.current?.join(data.session_id); // 32
         dispatch({ type: "SCREEN", screen: "scene" });
       } catch (err) {
+        if (!answered) linkRef.current?.stay(left); // never reached the server (R2)
         dispatch({ type: "ERROR", message: `Could not load: ${err.message}` });
       }
     },
@@ -307,6 +399,9 @@ export default function App({ story }) {
     },
     [storyInitial]
   );
+
+  // Stable, so the banner's "Reconnected." timer is not restarted per render.
+  const dismissBanner = useCallback(() => dispatch({ type: "BANNER_DISMISS" }), []);
 
   const updatePrefs = useCallback((next) => {
     setPrefs(next);
@@ -428,14 +523,32 @@ export default function App({ story }) {
   // A story that needs a React context around the whole client supplies
   // `Wrap`; the Garden uses it for analyst mode, which is read ten levels down
   // inside an ending card and has no business being threaded as a prop.
-  const Wrap = story.Wrap || (({ children }) => children);
+  const Wrap = story.Wrap || PassThrough;
+
+  // What the connection is doing, on every screen (plan decision 9).
+  const bannerNode = (
+    <ConnectionBanner
+      banner={state.banner}
+      onTry={() => linkRef.current?.tryNow()}
+      onResume={() => linkRef.current?.resume()}
+      onPlayHere={() => linkRef.current?.resume()}
+      onAgain={() => {
+        retry();
+        dismissBanner();
+      }}
+      onSignIn={() => linkRef.current?.signIn()}
+      onDismiss={dismissBanner}
+    />
+  );
 
   if (state.screen === "saves") {
     return (
       <Wrap state={state}>
+      {bannerNode}
       <Saves
         saves={state.saves}
         error={state.error}
+        story={story}
         onLoad={loadSave}
         onDelete={deleteSave}
         onClose={() => dispatch({ type: "SCREEN", screen: state.sessionId ? "scene" : "start" })}
@@ -448,7 +561,8 @@ export default function App({ story }) {
   if (state.screen === "start") {
     return (
       <Wrap state={state}>
-        <Start onBegin={begin} busy={state.busy} onOpenSaves={openSaves} story={story} />
+        {bannerNode}
+        <Start onBegin={begin} busy={state.busy} onOpenSaves={openSaves} story={story} error={state.error} />
         {onboarding && (
           <Onboarding
             cards={story.onboarding}
@@ -476,6 +590,7 @@ export default function App({ story }) {
     const StoryEnding = story.Ending || Ending;
     return (
       <Wrap state={state}>
+        {bannerNode}
         <StoryEnding
           ending={state.ending}
           state={state}
@@ -496,11 +611,12 @@ export default function App({ story }) {
 
   return (
     <Wrap state={state}>
+      {bannerNode}
       <Play
         state={state}
         story={story}
         overlays={overlays}
-        onChoose={(choice) => send(choice.id, null, choice.text)}
+        onChoose={(choice) => send(choice.id, null, choice.text, choice)}
         onCustom={(text) => send("custom", text, text)}
         onRetry={retry}
         onOpenSaves={openSaves}
@@ -520,10 +636,15 @@ export default function App({ story }) {
         <Overlay
           state={state}
           sessionId={state.sessionId}
-          busy={state.busy}
-          // Using an item, crafting, dropping, striking a bargain -- all
-          // ordinary turns. The engine stays the only writer of inventory,
-          // gold and the clock.
+          // Off while a turn runs OR the link is not live (spec §6.3, T13):
+          // an overlay's act buttons are turns too, and `send` would drop a
+          // press made offline without a word.
+          busy={!controlsLive(state)}
+          // Using an item, crafting, dropping, striking a bargain, taking
+          // posted work: each is sent as the player's TYPED words, which carry
+          // no intent -- so no skill runs from it, and only the narrator reads
+          // it (NOT WIRED, docs/GOVERNANCE.md; v0.21.0 final review finding 9).
+          // The overlay-to-intent path is the v0.23.0 and v0.25.0 overhauls'.
           onAct={(text) => send("custom", text, text)}
           onClose={() => setOverlay(null)}
         />

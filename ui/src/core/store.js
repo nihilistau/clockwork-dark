@@ -25,9 +25,28 @@
  * slice for exactly one thing: handing it back to the plugin.
  */
 
+import { banner as linkBanner, isConnected } from "./link.js";
+
 export const initialState = {
   screen: "start", // start | scene | saves
   connected: false,
+  // The connection's state (core/link.js, spec §6.3) and what its banner says.
+  // `connected` above is derived from it (LINK) because Menu and older tests
+  // read the boolean.
+  link: "connecting",
+  banner: null,
+  // Set by a recovery's resume when the log ended on an unanswered move
+  // before the resume's own line; read and cleared by the next LINK.
+  pendingAgain: false,
+  // The player's last move as sent (SUBMIT): `{choiceId, custom, intent}`.
+  // A recovery that finds it unanswered re-offers it only if the frame it
+  // lands in still holds it (`retryTarget`), and `againId` is the id to send.
+  move: null,
+  againId: "",
+  // Bumped when the player must choose again; ChoiceRow focuses its row.
+  choiceFocus: 0,
+  // The footer's error is not worth retrying (a stale choice): no Try again.
+  errorFinal: false,
   sessionId: "",
   saveId: "",
 
@@ -146,6 +165,94 @@ function repeatsLastNarration(log, text) {
   return false;
 }
 
+/**
+ * Controls are live only in `live` with no turn running (spec §6.3, F5).
+ *
+ * The one selector: App's `send` and `retry` guards, the play screen's
+ * chips, compose box and Send, and the encounter panel's approaches all ask
+ * this, so a press can never reach a socket that is down, rejoining or
+ * waiting on a turn the server is still playing.
+ */
+export function controlsLive(state) {
+  return state.link === "live" && !state.busy;
+}
+
+/** Does the log end on the player's own move, with no narration after it? (dice and quest lines skipped) */
+/** Whether two intents name the same mechanic (action, target, band). */
+function sameIntent(a, b) {
+  if (!a || !b) return false;
+  return (
+    String(a.action || "") === String(b.action || "") &&
+    String(a.target || "") === String(b.target || "") &&
+    String(a.difficulty || "") === String(b.difficulty || "")
+  );
+}
+
+/**
+ * What "Try again" may send for an unanswered `move`, given the `choices`
+ * now on screen: "" to re-send it as it was (typed text, or a chip whose id
+ * the frame still holds with the same intent), a choice id carrying the same
+ * intent under a new id, or null when the move is no longer on offer -- a
+ * chip with no intent, or one whose intent the frame does not hold. App's
+ * `send` records every move it sends; one with no record retries as it was.
+ */
+export function retryTarget(move, choices) {
+  // No record of the move (a SUBMIT that carried none): retried as it was.
+  if (!move) return "";
+  if (!move.choiceId || move.choiceId === "custom") return move.custom ? "" : null;
+  const list = choices || [];
+  const same = list.find((c) => c && c.id === move.choiceId);
+  if (same && (sameIntent(same.intent, move.intent) || (!same.intent && !move.intent))) return "";
+  if (!move.intent) return null;
+  const match = list.find((c) => c && sameIntent(c.intent, move.intent));
+  return match ? match.id : null;
+}
+
+export function endsOnUnansweredEcho(log) {
+  for (let i = log.length - 1; i >= 0; i -= 1) {
+    const kind = log[i].kind;
+    if (kind === "dice" || kind === "quest" || kind === "system") continue;
+    return kind === "player" && Boolean(log[i].text);
+  }
+  return false;
+}
+
+/**
+ * A rejoin's `game_started` (spec §6.6): the run this page already shows,
+ * picked up again after the socket came back.
+ *
+ * `opening` is the session's LAST turn, which this page may or may not have
+ * seen. Its narration is appended only if the log does not already end on
+ * it, and its quest lines only with it; an ending is read with turn_update's
+ * sticky rule (a turn that locked one while the socket was down shows the
+ * ending screen); `busy` comes from `turn_running`, so the controls stay off
+ * over a turn the server is still playing.
+ */
+function reduceRejoin(state, payload) {
+  const opening = payload.opening || {};
+  let next = {
+    ...closeStream(state),
+    world: payload.state || state.world,
+    meters: metersOf(payload, state.meters),
+    premises: premisesOf(payload, state.premises),
+    busy: Boolean(payload.turn_running),
+    error: "",
+  };
+  if (opening.narration && !repeatsLastNarration(next.log, opening.narration)) {
+    next = append(next, "narration", opening.narration);
+    for (const event of opening.quest_events || []) {
+      if (event && event.text) next = append(next, "quest", event.text);
+    }
+  }
+  return {
+    ...next,
+    choices: opening.choices || [],
+    sceneImage: opening.scene_image || next.sceneImage,
+    presence: opening.assistant || next.presence,
+    ending: opening.ending || next.ending,
+  };
+}
+
 export function reducer(state, action) {
   switch (action.type) {
     case "CONNECTED":
@@ -164,7 +271,11 @@ export function reducer(state, action) {
       return {
         ...next,
         busy: true,
+        // A retry (Try again) sends no `move` and keeps the one it retries.
+        move: action.move !== undefined ? action.move : state.move,
+        againId: action.move !== undefined ? "" : state.againId,
         dice: null,
+        errorFinal: false,
         // The card belonged to the scene that faded. It sits under the log, so
         // leaving it up while the NEXT turn is in flight would print it beneath
         // a moment it has nothing to do with.
@@ -180,6 +291,44 @@ export function reducer(state, action) {
     case "SCREEN":
       return { ...state, screen: action.screen };
 
+    // The connection's machine (core/link.js) says where it is. A rejoin that
+    // found the player's last move dropped unanswered (16) is offered again
+    // here, where the log can be read.
+    case "LINK": {
+      let shown = action.banner ?? null;
+      let againId = state.againId;
+      let choiceFocus = state.choiceFocus;
+      if (action.checkUnanswered && (state.pendingAgain || endsOnUnansweredEcho(state.log))) {
+        // Re-offered only if the frame on screen still holds the move
+        // (final review finding 8): after a server restart the resumed
+        // frame's choices are `resume_*`, and re-sending the dropped chip's
+        // id ran no mechanic and narrated "option 3". Matched by INTENT,
+        // never by an id the frame does not hold; otherwise the player is
+        // told plainly and the row takes focus.
+        const target = retryTarget(state.move, state.choices);
+        if (target === null) {
+          shown = linkBanner("unanswered_lost");
+          againId = "";
+          choiceFocus += 1;
+        } else {
+          shown = linkBanner("unanswered");
+          againId = target;
+        }
+      }
+      return {
+        ...state,
+        link: action.link,
+        connected: isConnected(action.link),
+        banner: shown,
+        pendingAgain: false,
+        againId,
+        choiceFocus,
+      };
+    }
+
+    case "BANNER_DISMISS":
+      return { ...state, banner: null };
+
     // Leaving a run. Without this the previous run's narrative log, choices,
     // companion and scene still bled straight into the next one -- the old
     // client had no way to leave a run at all, so nothing ever needed it.
@@ -187,6 +336,9 @@ export function reducer(state, action) {
       return {
         ...initialState,
         connected: state.connected,
+        // The connection outlives the run: leaving a run is not reconnecting.
+        link: state.link,
+        banner: state.banner,
         saves: state.saves,
         // The plugin's own reset value, not the previous run's slice.
         story: action.storyInitial ?? {},
@@ -225,7 +377,24 @@ function handleSocket(state, event, payload) {
   switch (event) {
     case "game_started":
     case "game_resumed": {
+      if (event === "game_started" && payload.session_id && payload.session_id === state.sessionId) {
+        if (state.link === "rejoining") return reduceRejoin(state, payload);
+        // A LATE answer for the run on screen, outside a rejoin: a second
+        // answer to the join timer's re-sent `join_session` (21) after the
+        // first already went live. It changes NOTHING (re-review R1): not
+        // `busy` -- a running turn it reports may long since have finished
+        // (setting it froze the page until the watchdog), and one it does
+        // not report may be the player's own move in flight -- and nothing
+        // is appended (it would land under a streaming move). If it says a
+        // turn is running while the page is idle, the link re-joins
+        // (core/link.js, onGameStarted) and the fresh answer decides.
+        if (state.screen === "scene") return state;
+      }
       const opening = payload.opening || {};
+      // A resume after a recovery: did the log end on the player's move, with
+      // no narration after it, BEFORE this resume's line lands? The link asks
+      // (LINK checkUnanswered) once it goes live (spec §6.7, review 2).
+      const pendingAgain = event === "game_resumed" && state.link === "resuming" && endsOnUnansweredEcho(state.log);
       let next = {
         ...state,
         screen: "scene",
@@ -236,8 +405,13 @@ function handleSocket(state, event, payload) {
         premises: premisesOf(payload, state.premises),
         busy: false,
         error: "",
+        pendingAgain,
       };
-      if (opening.narration) next = append(next, "narration", opening.narration);
+      // Guarded like a rejoin's (review 1): a resume after a server restart
+      // carries the canned resume line the log may already end on.
+      if (opening.narration && !repeatsLastNarration(next.log, opening.narration)) {
+        next = append(next, "narration", opening.narration);
+      }
       // `opening.choices || []` and not `if (opening.choices)`: a resume used
       // to arrive with no opening at all, and falling through left whatever
       // stale choices the previous screen had.
@@ -430,6 +604,19 @@ function handleSocket(state, event, payload) {
           error: payload.message || "A turn is already in progress.",
         };
       }
+      // A choice the frame no longer offers (`stale_choice`, final review
+      // finding 8): refused before any turn ran. Retrying it would be
+      // refused again, so there is nothing to try: the player chooses again.
+      if (payload.stale_choice) {
+        return {
+          ...closeStream(state),
+          busy: false,
+          error: payload.message || "That choice is no longer on offer. Choose again.",
+          errorFinal: true,
+          againId: "",
+          choiceFocus: state.choiceFocus + 1,
+        };
+      }
       return {
         ...closeStream(state),
         busy: false,
@@ -437,9 +624,14 @@ function handleSocket(state, event, payload) {
       };
 
     case "resume_failed":
-      return { ...state, screen: "start", busy: false };
+      // The message is kept for the start screen (Review 27): it used to be
+      // dropped, so a save that would not open sent the player back to Begin
+      // with no word as to why.
+      return { ...state, screen: "start", busy: false, error: payload.message || "" };
 
     case "error":
+      // The rejoin's own miss is the link's to answer (it resumes), not a failure to show.
+      if (state.link === "rejoining" && payload.message === "session not found") return state;
       return { ...state, error: payload.message || "Error", busy: false };
 
     default:

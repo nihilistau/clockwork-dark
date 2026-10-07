@@ -216,12 +216,41 @@ def time_line(state: GameState, index: Optional[dict[str, Any]] = None) -> str:
     )
 
 
+def _speaker_name(speaker: str) -> str:
+    """
+    The name an echo's speaker is shown under, never the id ("npc ilya").
+
+    The story's cast first (``npc_sim.display_name``); a speaker no schedule
+    names (the Garden's ``sophia``) is its id made readable -- the ``npc_``
+    prefix dropped, words capitalised. "" for no speaker.
+    """
+    if not speaker:
+        return ""
+    try:
+        from engine.world.npc_sim import display_name
+
+        name = display_name(speaker)
+    except Exception as exc:  # noqa: BLE001 -- a name must never cost the epilogue
+        logger.debug("[epilogue] No display name for %s: %s", speaker, exc)
+        name = ""
+    if name and name != "somebody":
+        return name
+    bare = speaker[4:] if speaker.startswith("npc_") else speaker
+    return " ".join(word.capitalize() for word in bare.split("_") if word)
+
+
 def _echoes(raw: Any) -> list[dict[str, str]]:
     out: list[dict[str, str]] = []
     for echo in raw or []:
         if isinstance(echo, dict) and echo.get("text"):
+            speaker = str(echo.get("speaker") or "")
             out.append(
-                {"speaker": str(echo.get("speaker") or ""), "text": str(echo["text"]).strip()}
+                {
+                    "speaker": speaker,
+                    # What the client prints (v0.21.0 final review, finding 5).
+                    "speaker_name": _speaker_name(speaker),
+                    "text": str(echo["text"]).strip(),
+                }
             )
     return out
 

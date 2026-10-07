@@ -6,14 +6,33 @@
  * you are short.
  *
  * IMPORTANT: this screen is presentation only. It reads prices from
- * /api/trade (data/economy.yaml) and then submits an ordinary turn describing
- * the bargain; the engine's `trade` skill is the single writer of gold and
- * inventory. There is no client-side transaction here and there must not be —
- * an overlay that moved items itself would be a second, disagreeing economy.
+ * /api/trade (data/economy.yaml) and then sends the bargain as the player's
+ * TYPED words. There is no client-side transaction here and there must not be
+ * -- an overlay that moved items itself would be a second, disagreeing economy.
+ *
+ * NOT WIRED (docs/GOVERNANCE.md, v0.21.0 final review finding 9): typed text
+ * carries no intent, so no `trade` skill runs from it. Outside LM Studio's
+ * `llm.mcp` mode only the narrator reads the bargain, and the prose can tell
+ * of a trade the save never made. The intent path (an overlay hands `onAct`
+ * an `{action, target}` the server checks against `legal_intents`) is the
+ * v0.23.0 flagship overhaul's.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@core/parts/Modal.jsx";
 import { fetchTrade } from "@core/api.js";
+
+/**
+ * A trader's tab: its name, numbered when two traders share it -- two
+ * strangers of one role ("the baker") read as identical tabs otherwise
+ * (T3 re-review R4).
+ */
+export function tabLabel(vendors, index) {
+  const name = vendors[index]?.name || "";
+  const same = vendors.filter((v) => (v?.name || "") === name).length;
+  if (same < 2) return name;
+  const nth = vendors.slice(0, index + 1).filter((v) => (v?.name || "") === name).length;
+  return `${name} (${nth})`;
+}
 
 function Row({ item, on, onToggle }) {
   const worth = (Number(item.price) || 0) * (Number(item.qty) || 1);
@@ -130,7 +149,7 @@ export default function Trade({ sessionId, busy, onStrike, onClose }) {
                 setWanted({});
               }}
             >
-              {v.name}
+              {tabLabel(data.vendors, index)}
             </button>
           ))}
         </div>
@@ -184,7 +203,10 @@ export default function Trade({ sessionId, busy, onStrike, onClose }) {
                   ? `${Math.abs(balance)}c short`
                   : nothingChosen
                     ? "Nothing agreed yet"
-                    : `Fair — ${vendor.name.split(" ")[0]} nods`}
+                    : vendor.known
+                      ? `Fair — ${vendor.name.split(" ")[0]} nods`
+                      : /* A stranger is "the <role>" (v0.21.0): no first name to nod. */
+                        "Fair — a nod"}
               </span>
             </div>
             <div className="beam__track">

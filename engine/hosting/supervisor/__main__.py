@@ -185,11 +185,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     try:
-        from engine.config import get_config
+        from engine.config import LegacyConfigError, get_config
 
         cfg = get_config()
         settings = preflight(cfg)
         directory = prepare_storage(settings)
+    except LegacyConfigError as exc:
+        # Plan decision 4: like every other startup refusal (exit 1).
+        print(f"{REFUSED_PREFIX}: {exc}", file=sys.stderr, flush=True)
+        return 1
     except HostingConfigError as exc:
         print(f"{REFUSED_PREFIX}: {exc}", file=sys.stderr, flush=True)
         return 1

@@ -30,6 +30,7 @@ import React, { useCallback, useState } from "react";
 
 import Meters from "@core/parts/Meters.jsx";
 import PaintFrame from "@core/parts/PaintFrame.jsx";
+import { prettyPlace } from "@core/parts/Chrome.jsx";
 import {
   AnalystContext,
   AnalystSetContext,
@@ -234,8 +235,9 @@ const Wordmark = () => (
  */
 function Stage({ state }) {
   const src = state.sceneImage;
-  const place = state.world?.location_id || "";
-  const caption = place ? place.replace(/_/g, " ") : "";
+  // The place's name, never its id ("gate of briars"; final review 4).
+  const world = state.world || {};
+  const caption = world.location_name || (world.location_id ? prettyPlace(world.location_id) : "");
 
   return (
     <PaintFrame

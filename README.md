@@ -1,5 +1,7 @@
 # The Clockwork Dark
 
+[![CI](https://github.com/nihilistau/clockwork-dark/actions/workflows/ci.yml/badge.svg)](https://github.com/nihilistau/clockwork-dark/actions/workflows/ci.yml)
+
 **An emergent-story engine for local AI.** A deterministic engine holds the
 truth: time, dice, money, law, what the city's schemers did last night. Local
 LLM agents only narrate it. Seeded systems run into each other, the engine
@@ -31,7 +33,7 @@ settles the result, and a model on your own machine writes the prose.
   shipped art packs mean scenes have pictures without any of them. Serving
   it to other people, with accounts, is opt-in (hosted mode).
 
-**Status:** **v0.20.0** is the current release. Six stories ship, and each
+**Status:** **v0.21.0** is the current release. Six stories ship, and each
 can be played to an ending; HUE & CRY can be finished eight ways. The engine
 is model-server agnostic: LM Studio stays the default, and llama-server,
 Ollama, vLLM and generic OpenAI-compatible servers narrate too
@@ -39,8 +41,11 @@ Ollama, vLLM and generic OpenAI-compatible servers narrate too
 were verified live; vLLM was, in v0.20.0). Since v0.20.0 **Linux** is a
 first-class platform beside Windows, and an opt-in **hosted mode** serves
 your stories to a small group with accounts, an admin panel and a Docker
-image ([docs/HOSTING.md](docs/HOSTING.md)). At v0.20.0 the suite stood at
-5782 passing, 24 skipped on Windows, plus 145 client tests. Those numbers are re-measured each
+image ([docs/HOSTING.md](docs/HOSTING.md)). Since v0.21.0 the play screen is
+built from shared engine panels (wanted poster, job panel, casing board,
+people, encounter, rolls), holds its layout from a phone to a desktop, and
+reconnects by itself. At v0.21.0 the suite stood at 5977 passing, 24 skipped
+on Windows, plus 462 client tests. Those numbers are re-measured each
 release in [CLAUDE.md](CLAUDE.md), and [CHANGELOG.md](CHANGELOG.md) records
 every change from 0.4.0 on.
 
@@ -92,7 +97,7 @@ pack and its own UI plugin.
 
 | Title screen | The map |
 |---|---|
-| ![Flagship title screen with archetype picker and seed field](docs/images/clockwork-dark-title.jpg) | ![The map: fog-of-war travel graph with hours per road](docs/images/clockwork-dark-map.jpg) |
+| ![Flagship title screen with archetype picker and seed field](docs/images/clockwork-dark-title.jpg) | ![The map: fog-of-war travel graph with hours per road](docs/images/clockwork-dark-map.png) |
 
 ![Three of the flagship's shipped art plates: the bakery, clockwork vines in the forest, the tinker](docs/images/clockwork-dark-plates.jpg)
 
@@ -129,7 +134,7 @@ silhouette.
 
 | Title screen | In play |
 |---|---|
-| ![NEON CITY title screen](docs/images/neon-city-title.jpg) | ![NEON CITY in play: credits, heat ladder, stats, and choices with lore-check intents](docs/images/neon-city-play.jpg) |
+| ![NEON CITY title screen](docs/images/neon-city-title.png) | ![NEON CITY in play: credits, heat ladder, stats, and choices with lore-check intents](docs/images/neon-city-play.png) |
 
 </details>
 
@@ -142,7 +147,7 @@ with hours on every road. When the **frame** clock fills, it forces
 city. The cast is narrated rather than run as agents: this story ships no
 `agents.yaml`. No plates ship; the procedural silhouette suits it.
 
-![THE LONG CON in play: standing, heat and the frame as veiled bands](docs/images/the-long-con-play.jpg)
+![THE LONG CON in play: standing, heat and the frame as veiled bands](docs/images/the-long-con-play.png)
 
 </details>
 
@@ -211,12 +216,18 @@ Magpie!", and the whole city agrees. Today it has:
   its door, and `scripts/simulate_endings.py` measures which policy reaches
   which.
 
-It runs on the engine's default skin for now, and no art plates ship yet.
-Its bespoke screens, art pack and live play are on the roadmap.
+Since v0.21.0 it wears its own skin (tallow and soot, parchment panels) over
+the engine's panels: the wanted poster, the job panel, the casing board, the
+people here, the watch stop's approaches and the roll card. No art plates or
+portraits ship yet: its art pack and live play are on the roadmap.
 
-| In play: the casing board beside the opening | The map |
+| In play: the opening at the Lantern House | The map |
 |---|---|
-| ![HUE & CRY opening on Tallow Docks, with the casing panel and intent-bearing choices](docs/images/hue-and-cry-play.jpg) | ![HUE & CRY map around Tallow Docks](docs/images/hue-and-cry-map.jpg) |
+| ![HUE & CRY opening at the Lantern House: the people strip, the wanted poster, the casing board and intent-bearing choices](docs/images/hue-and-cry-play.png) | ![HUE & CRY map around the Lantern House](docs/images/hue-and-cry-map.png) |
+
+| A job under way: the job panel, the wanted poster and the casing board | The same on a phone (390 x 844) |
+|---|---|
+| ![HUE & CRY at Silk Row mid-job: the job panel's stages, a likeness on the wanted poster and the casing board](docs/images/hue-and-cry-panels.png) | ![HUE & CRY on a phone: the job panel collapsed to one line, the Scene and Sheet tabs below](docs/images/hue-and-cry-phone.png) |
 
 </details>
 
@@ -230,14 +241,19 @@ with permissions that plans and negotiates, and costs one model call per turn).
 It uses the engine's default skin, which is the generic sheet drawn from
 declared meters and clocks.
 
-![Dev Story on the engine's default skin: influence, popularity and a rumour clock](docs/images/dev-story-play.jpg)
+![Dev Story on the engine's default skin: influence, popularity and a rumour clock](docs/images/dev-story-play.png)
 
 </details>
 
 > **About the screenshots.** The UI screenshots are real captures from the
-> v0.15.0 development branch. They were taken with no model server running,
-> so they show opening frames, the map and one engine-resolved move, with no
-> generated narration. The wide strips are the committed art plates.
+> v0.21.0 release, taken at 1366x768 (the phone view at 390x844) with no model
+> server running: every narration line is the story's own fallback narration,
+> the words a player sees when the model is down, and every move shown was one
+> the engine offered. The wide strips are the committed art plates. They can be
+> retaken with `scripts/screenshot_runs.py` (builds the runs in a fresh root,
+> and serves a story over them with `--serve`, no model) and
+> `npm run screenshots --prefix ui` (the captures, through the browser already
+> installed). The four plate-heavy captures are JPEG (quality 85), the rest PNG.
 
 ---
 
@@ -301,6 +317,26 @@ declared meters and clocks.
 - **Declared state.** A story's `state.yaml` says what each value *is*
   (public, `veiled` or `hidden`). A hidden value never leaves the server, and
   a veiled one reaches the client only as a band word.
+
+</details>
+
+<details>
+<summary><b>The play screen</b></summary>
+
+- **Engine panels.** Shared surfaces are drawn by the engine, not rebuilt by
+  each story: the **wanted poster** and its header chip, the **job panel**, the
+  **casing board**, the **people here** (a stranger is a silhouette until
+  met), the **encounter's approaches**, the **roll card** and the
+  **negotiation panel**. A story turns them on in its manifest (`ui.panels`,
+  [docs/AUTHORING.md](docs/AUTHORING.md) section 2.5); a plugin that draws one
+  itself says so (`ownsPanels`).
+- **A layout that holds.** The centre column is a grid of named areas: the
+  shelf of panels is capped and scrolls inside itself, so nothing paints over
+  the choices, on a desktop or a phone (`npm run layout-check --prefix ui`).
+- **A connection that recovers.** A dropped socket is retried with backoff and
+  the page rejoins its run, recovering a turn that finished meanwhile; a
+  hosted player whose run opened in another window, or was ended by an admin,
+  is told why and offered Play here or Resume.
 
 </details>
 
@@ -441,9 +477,12 @@ also ship no roster and narrate its whole cast.
 narrative log, choices and compose box, footer toolbar) and is playable on its
 own; the `_engine` default skin draws a generic sheet from the story's declared
 meters. A story can add a plugin under `ui/src/stories/<plugin>/` that fills
-named slots: an aside, a stage, a ledger, overlays. Four stories ship their
-own plugin (`clockwork-dark`, `wicked-garden`, `neon-city`, `the-long-con`);
-HUE & CRY and Dev Story use `_engine`. The build is committed, so playing
+named slots: an aside, a stage, a ledger, overlays; the engine's own panels
+(the wanted poster, the job panel and the rest) are declared in the manifest,
+not slots. Five stories ship their
+own plugin (`clockwork-dark`, `wicked-garden`, `neon-city`, `the-long-con`,
+and HUE & CRY's, a skin over the engine's panels that fills no slot); Dev
+Story uses `_engine`. The build is committed, so playing
 needs no Node.
 
 **Saves** are atomic JSON with backup recovery and a forward migration chain.
@@ -452,8 +491,9 @@ everything it makes at run time (saves, generated images, narration audio)
 under one storage root, `storage.root` in `config/default.yaml` (`data`,
 taken against the repository, not the working directory), which
 `config/local.yaml` or the `CLOCKWORK_DATA_DIR` environment variable can move.
-A story no longer declares `paths.saves`; one still set in `config/local.yaml`
-is read, with a warning, until v0.21.0.
+A story no longer declares `paths.saves`, and since v0.21.0 a `paths.saves`
+in `config/local.yaml` stops the game at startup with a message naming the
+file and the fix (set `storage.root` instead).
 
 The full design is in [docs/DESIGN.md](docs/DESIGN.md) (mechanics,
 architecture, anti-hallucination rules) and
@@ -548,9 +588,9 @@ how to declare what a server does not report are in
 [docs/MODEL_SERVERS.md](docs/MODEL_SERVERS.md).
 
 **Your model settings** live under `llm:` in `config/local.yaml`. A
-`local.yaml` written before v0.19.0 says `lmstudio:` instead; it still works,
-read as `llm:` with one warning, and the Settings panel rewrites it as `llm:`
-the first time it saves. That alias is removed in v0.21.0.
+`local.yaml` written before v0.19.0 says `lmstudio:` instead; since v0.21.0
+the game refuses to start with it, naming the file and the fix: rename the
+block `llm:` (and `ttl_seconds` inside it `keep_alive_seconds`).
 
 **The in-game Settings panel writes `config/local.yaml` too.** A save rewrites
 the whole file: every key in it is kept, but its comments are not. A
@@ -603,8 +643,8 @@ The suite never talks to a model server and never touches your
 well as its own: every script it runs gets a sandbox config pointing at the
 discard port and a temp directory. The same suite, the client's tests and
 build, and the Docker image's build and health check run in CI on Linux (`.github/workflows/ci.yml`, GitHub Actions,
-no secrets needed); the workflow has not run yet, so there is no status
-badge here until it has.
+no secrets needed); the status badge at the top of this file is its
+latest run on `main`.
 
 ### Play
 
@@ -696,7 +736,10 @@ npm test --prefix ui          # the client tests: plugins, reducer, veiled rule
 npm run build --prefix ui     # rebuild, then commit dist in the same change
 ```
 
-These three are the same in PowerShell and `sh`.
+These three are the same in PowerShell and `sh`. The layout gate
+(`npm run layout-check --prefix ui`) and the README's captures
+(`npm run screenshots --prefix ui`) drive an installed Chrome against a
+running game; AGENTS.md's "The client" says how.
 
 **Balance.** Headless, no LLM. Run these before changing a balance constant.
 
@@ -809,8 +852,8 @@ fixed; details may change as each release lands.
 | v0.18.0 | **A thief policy** for `simulate.py`, agenda collisions and welshing's cost for a burglar measured, and the fences made to pay | **shipped** |
 | v0.19.0 | **Model-server agnostic**: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | **shipped** |
 | v0.20.0 | **Linux as a first-class platform**, and a **hosted, web-served mode**: accounts and a login, per-account runs and saves, one model-server queue, a supervisor and front door, an admin panel, gunicorn, Docker; vLLM run live | **shipped** |
-| v0.21.0 | **UI/UX overhaul**, together with HUE & CRY's screens: wanted poster, job panel, casing board, portraits | planned |
-| v0.22.0 | **A new story: a dating simulation** played through a phone of apps -- dating apps, texts, voice and video messages, two-player games -- with a cast the engine runs and no endgame | planned |
+| v0.21.0 | **UI/UX overhaul**, together with HUE & CRY's screens: engine panels (wanted poster, job panel, casing board, people, encounter, rolls), a layout that holds, a connection that recovers, HUE & CRY's skin; the legacy aliases removed | **shipped** |
+| v0.22.0 | **A new story: a dating simulation** played through a phone of apps -- dating apps, texts, voice and video messages, two-player games -- with a cast the engine runs and no endgame | next |
 | v0.23.0 | **The Clockwork Dark overhaul** | planned |
 | v0.24.0 | **The Wicked Garden overhaul** | planned |
 | v0.25.0 | **NEON CITY overhaul** | planned |

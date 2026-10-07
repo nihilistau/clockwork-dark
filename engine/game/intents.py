@@ -83,6 +83,21 @@ _MAX_OPTIONS = 8
 #: engine derives the DC and itemises every modifier (engine/game/checks.py).
 DIFFICULTY_BANDS = ("trivial", "easy", "standard", "hard", "severe", "legendary")
 
+#: The engine's own words for a player-facing choice that no story data words:
+#: the resumed frame's two intent-less choices (``look``, ``wait``; built by
+#: ``engine.scenes.default_state.resume_opening``) and every verb that takes
+#: no target, which ``describe_intent`` words from here. One table, so no raw
+#: id ("pay_fine") ever reaches a choice, and plain and story-neutral, so they
+#: read in any story's register. A verb with a target is worded by its
+#: catalogue label (the story's data) instead.
+ENGINE_CHOICE_WORDS: dict[str, str] = {
+    "look": "Take stock of where you are",
+    "wait": "Wait, and listen",
+    "abort": "Abandon the job",
+    "pay_fine": "Pay the fine",
+    "serve": "Serve your time",
+}
+
 
 @dataclass(frozen=True)
 class IntentVerb:
@@ -388,8 +403,14 @@ def _set_piece(state: GameState) -> Optional[IntentVerb]:
     except Exception as exc:  # noqa: BLE001 -- a story with no challenges
         _absent("set-pieces", exc)
         return None
+    # The title is authored on the piece's `challenge:` (data/challenges/*.yaml);
+    # a piece-level `title` wins if a story writes one. Reading only the
+    # piece level labelled every set-piece with its raw id.
     targets = tuple(
-        (str(p.get("id")), str(p.get("title") or p.get("id")))
+        (
+            str(p.get("id")),
+            str(p.get("title") or (p.get("challenge") or {}).get("title") or p.get("id")),
+        )
         for p in rows
         if p.get("id")
     )
@@ -944,8 +965,8 @@ def describe_intent(state: GameState, intent: Any) -> str:
             accepts. Anything unrecognised yields "".
 
     Returns:
-        A label like ``"The Afterdeck, 0h"``, or the bare action for a verb
-        that takes no target (``"rest"``), or "" when there is nothing honest
+        A label like ``"The Afterdeck, 0h"``, or the engine's words for a verb
+        that takes no target (``"Serve your time"``), or "" when there is nothing honest
         to say -- an absent intent, or one this state would refuse anyway.
     """
     row = normalise(intent)
@@ -966,16 +987,18 @@ def describe_intent(state: GameState, intent: Any) -> str:
 
     target = str(row.get("target") or "")
     if not target:
-        # A verb that takes no target at all -- its own name is the label.
-        # A verb that DOES take one, with none declared, is malformed and gets
-        # nothing rather than a half-sentence.
-        return action if not verb.options else ""
+        # A verb that takes no target at all is worded by the engine's own
+        # table (`ENGINE_CHOICE_WORDS`), never by its id: "pay_fine" on a chip
+        # is a raw id in front of the player. A verb with no words there gets
+        # nothing. A verb that DOES take one, with none declared, is malformed
+        # and gets nothing rather than a half-sentence.
+        return ENGINE_CHOICE_WORDS.get(action, "") if not verb.options else ""
     # Membership first: `label_for` falls back to the raw id, and an id is
     # exactly what this is meant to keep off the screen. A target that is not
     # in the catalogue will be refused at execution anyway.
     if target not in verb.targets:
         return ""
-    label = verb.label_for(target)
+    label = player_label(state, action, target) or verb.label_for(target)
 
     # `check` labels its options with the bare skill name, because that is what
     # the catalogue is for -- the prompt block renders these too, so the labels
@@ -986,6 +1009,40 @@ def describe_intent(state: GameState, intent: Any) -> str:
         band = str(row.get("difficulty") or "")
         return f"{label} check ({band})" if band else f"{label} check"
     return label
+
+
+def player_label(state: GameState, action: str, target: str) -> str:
+    """
+    The PLAYER's words for a target, where they differ from the catalogue's.
+
+    A verb's option labels feed the narrator's prompt and the grammar's enum,
+    and two of them were never written for the player:
+
+    - ``card``: a beat's ``text`` is the narrator's direction and may carry
+      author notes ("Sets `resisted_call`, which..."), so the chip reads
+      ``director.player_label`` (the beat's ``label``, else its first sentence
+      with code spans removed);
+    - ``rest``: the catalogue names a rest entry by its de-underscored id
+      ("sleep flophouse"), so the chip reads the entry's authored ``label``
+      ("a pallet at Old Nance's") from the story's survival rules.
+
+    "" for every other verb, and whenever there is nothing better to say: the
+    caller falls back to ``IntentVerb.label_for``. Display only -- the prompt
+    and the enum are untouched. Never raises.
+    """
+    try:
+        if action == "card":
+            from engine.content import director
+
+            return director.player_options(state).get(target, "")
+        if action == "rest":
+            from engine.game import survival
+
+            entry = (survival.load_rules().get("rest") or {}).get(target) or {}
+            return " ".join(str(entry.get("label") or "").split()) if isinstance(entry, dict) else ""
+    except Exception as exc:  # noqa: BLE001 -- a label must never cost a turn
+        logger.debug("[intents] No player label for %s/%s: %s", action, target, exc)
+    return ""
 
 
 def find_verb(
@@ -1288,6 +1345,7 @@ def to_tool_call(
 
 __all__ = [
     "DIFFICULTY_BANDS",
+    "ENGINE_CHOICE_WORDS",
     "IntentVerb",
     "REFUSAL_KEY_FOR_ACTION",
     "SKILL_FOR_ACTION",

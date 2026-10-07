@@ -3,13 +3,14 @@
 spec §2.1).
 
 The layer merges after ``config/local.yaml`` and before the game overlay,
-aliased like every other layer. The variable may name several files joined by
+refused like every other operator layer when it holds a name v0.21.0 no
+longer reads (``LegacyConfigError``). The variable may name several files joined by
 ``os.pathsep``, merged left to right, so the last one wins. A named file that
 is missing or does not parse is a startup error naming the path, not a
 warning: an operator who pointed at a file meant it. Unset, nothing changes.
 
 It says what it shadows: ``external_config_keys()`` lists the dotted keys the
-files set (after the legacy ``lmstudio:`` -> ``llm:`` alias), and a Settings
+files set, and a Settings
 save of one of them answers ``"shadowed": [...]``, a key present only when the
 list is non-empty.
 
@@ -168,12 +169,12 @@ def test_unset_changes_nothing(layers: Path, monkeypatch: pytest.MonkeyPatch) ->
     assert config.external_config_keys() == []
 
 
-def test_external_config_keys_over_both_files_after_the_alias(
+def test_external_config_keys_over_both_files(
     layers: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     first = _yaml(
         tmp_path / "a.yaml",
-        {"lmstudio": {"base_url": "http://10.0.0.9:1234/v1", "ttl_seconds": 30}},
+        {"llm": {"base_url": "http://10.0.0.9:1234/v1", "keep_alive_seconds": 30}},
     )
     second = _yaml(tmp_path / "b.yaml", {"tts": {"enabled": True}, "world": {"tick_interval_seconds": 9}})
     _point(monkeypatch, first, second)

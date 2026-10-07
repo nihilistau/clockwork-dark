@@ -12,6 +12,32 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-10-07
+
+### Changed
+
+- `--text-danger` lifted to #d16355 (was #b6564a): it measured 3.56:1 on
+  the card surface, under WCAG's 4.5:1 (`ui/tests/contrast.test.js`,
+  v0.21.0).
+- Rolls are now shown: core's roll card (v0.21.0) draws each check's roll
+  in the top-right corner of the scene and the log, never over the choices
+  or the compose box, for six seconds or until the next turn -- skill, die,
+  modifiers (with the dice-breakdown preference), total against the bar and
+  the degree.
+- The negotiation panel is an engine panel in the shelf now, bounded with
+  the rest of the current move (`--shelf-max`) instead of growing the main
+  column; its heading is an `<h2>` and its toggle a 44px target.
+
+### Fixed
+
+- The empty left column is gone at desktop widths (this story has no
+  companion column), and the roll card says its degree in words (v0.21.0
+  final fix wave).
+
+- The road to Vance & Vance, Investigations shows its cost alone on its
+  choice chip ("-> 1h"), no longer "-> Investigations, 1h": the engine read
+  the comma in the agency's name as the end of the name.
+
 ## [0.20.0] — 2026-10-06
 
 - `saves:` removed from `game.yaml`; the engine owns where saves go (`storage.root`, v0.20.0), and runs still land in `data/saves/the-long-con/`. No content change.

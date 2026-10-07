@@ -416,6 +416,26 @@ def test_the_flagship_map_payload_is_what_it_was_before_secret_places() -> None:
         blob = json.dumps(value, sort_keys=True, default=str)
         return hashlib.sha256(blob.encode()).hexdigest()
 
+    # v0.21.0 T3 fix round 2 (S8, spec §1.2): a vendor point names a vendor
+    # only once met, so an unmet one is "the <role>" where the digests'
+    # recording has the full name. Mapped back, the payload must still be
+    # exactly the one measured: the ONLY change is the sanctioned label.
+    recorded_name = {
+        "the baker": "Maris Hearth",
+        "the caravan master": "Odran Cartwright",
+        "the tinker": "Ilya of the Nine Pins",
+        "the militia": "Sera of the Gate",
+        "the cat": "Brindle",
+    }
+    renamed = 0
+    for places in out.values():
+        for place in places:
+            for point in place.get("points") or []:
+                if point["kind"] == "vendor":
+                    point["label"] = recorded_name[point["label"]]
+                    renamed += 1
+    assert renamed > 0
+
     assert len(LOCATIONS) == 20
     assert digest(out["__start__"]) == FLAGSHIP_START_MAP_DIGEST
     assert digest(out) == FLAGSHIP_MAP_DIGEST

@@ -44,12 +44,19 @@
    The 14rem minimum matters: the panel pins its approach bar to its own bottom
    edge, and a pinned footer taller than the box it is pinned inside just clips.
    If the column cannot afford 14rem, the COLUMN overflows and scrolls -- which
-   is reachable -- instead of the panel silently eating its own buttons. */
+   is reachable -- instead of the panel silently eating its own buttons.
+   The column's seven named tracks (index.css, v0.21.0): only the stage and
+   log rows differ from core's. */
 
 .scene__col--main:has(.encounter) {
   grid-template-rows:
     minmax(14rem, 7fr)
-    minmax(var(--log-min), 3fr);
+    auto
+    minmax(var(--log-min), 3fr)
+    auto
+    auto
+    auto
+    auto;
 }
 
 
@@ -956,7 +963,7 @@
    legal moves during an encounter; the player has to be able to see which one
    is under the cursor. */
 
-.approach:hover:not(:disabled) {
+.approach:hover:not([aria-disabled="true"]) {
   background: var(--state-hover-fill);
   border-color: var(--accent-brass);
   border-left-color: var(--accent-candle);
@@ -964,10 +971,24 @@
 }
 
 
-.approach:active:not(:disabled) {
+.approach:active:not([aria-disabled="true"]) {
   background: var(--state-active-fill);
   box-shadow: var(--shadow-inset);
   transform: translateY(1px);
+}
+
+
+/* Off -- a turn running, the link down, or not offered this turn -- is
+   `aria-disabled`, never `disabled`, so a focused approach keeps its focus
+   (v0.21.0, spec §8.2); it looks as `button:disabled` did. */
+.approach[aria-disabled="true"] {
+  cursor: default;
+}
+
+/* The contents, not the button: `opacity` on the button would dim its focus
+   ring under 3:1 (T13 review finding 1). */
+.approach[aria-disabled="true"] > * {
+  opacity: 0.6;
 }
 
 
@@ -2848,7 +2869,7 @@
     }
   
   
-  .approach:active:not(:disabled) {
+  .approach:active:not([aria-disabled="true"]) {
   
       transform: none;
   
@@ -2909,7 +2930,28 @@
   
   .scene__col--main:has(.encounter) {
   
-      grid-template-rows: auto minmax(var(--log-min), auto);
+      grid-template-rows: auto auto minmax(var(--log-min), auto) auto auto auto auto;
+  
+    }
+  
+  
+  /* The row's grid item is core's `.stage-area` wrapper (v0.21.0), which
+     clips and has a 0 floor, and whose `> :first-child { min-height: 0 }`
+     outranks `.encounter` below. Both are given back here, or the `auto`
+     stage row shrinks below the panel and the wrapper CLIPS the approaches
+     -- the only legal moves -- instead of the column growing and scrolling. */
+  .scene__col--main:has(.encounter) > .stage-area {
+  
+      overflow: visible;
+  
+      min-height: auto;
+  
+    }
+  
+  
+  .scene__col--main .stage-area > .encounter {
+  
+      min-height: auto;
   
     }
   

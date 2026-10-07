@@ -55,10 +55,10 @@ def test_the_shipped_key_falls_back_to_the_environment(
     """
     FINDING 1. No key file on the machine and only ``LMSTUDIO_API_KEY`` set:
     v0.18 answered the default, and every request went out unauthenticated.
-    Asked by its v0.18 name, so the same line runs against v0.18 code.
+    Asked by its ``llm`` name: the v0.18 one is no longer read (v0.21.0).
     """
     monkeypatch.setenv("LMSTUDIO_API_KEY", SECRET)
-    assert config.get_config().get("lmstudio.api_key") == SECRET
+    assert config.get_config().get("llm.api_key") == SECRET
 
 
 def test_the_shipped_chain_prefers_the_new_names(
@@ -241,7 +241,6 @@ def test_the_value_is_never_logged(
     with caplog.at_level(logging.DEBUG):
         cfg = config.get_config()
         assert cfg.get("llm.api_key") == SECRET + "-env"
-        assert cfg.get("lmstudio.api_key") == SECRET + "-env"
         (root / "lmstudio.txt").write_text(SECRET, encoding="utf-8")
         assert cfg.get("llm.api_key") == SECRET
     assert caplog.records, "the config logged nothing at all; the check proves nothing"

@@ -54,7 +54,7 @@ export default function EpilogueCard({
   time_line: timeLine = "",
 }) {
   return (
-    <article className="epilogue" aria-label={`${id} ${title}`}>
+    <article className="epilogue" aria-label={title || "Epilogue"} data-ending={id}>
       <header className="epilogue__head">
         <span className="epilogue__kicker">Ending unlocked</span>
         <h2 className="epilogue__title">
@@ -78,8 +78,9 @@ export default function EpilogueCard({
 
       {echoes.map((echo, index) => (
         <div className="epilogue__echo" key={`${echo.speaker}-${index}`}>
-          {echo.speaker && (
-            <span className="epilogue__echo-who">{echo.speaker.replace(/_/g, " ")}</span>
+          {/* The engine's name for the speaker (`speaker_name`), never the id. */}
+          {(echo.speaker_name || echo.speaker) && (
+            <span className="epilogue__echo-who">{echo.speaker_name || ""}</span>
           )}
           <Prose text={echo.text} className="epilogue__echo-line" />
         </div>

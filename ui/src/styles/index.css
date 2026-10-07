@@ -90,6 +90,30 @@ button:disabled {
 }
 
 
+/* The turn controls that are off without being `disabled` (v0.21.0, spec
+   §8.2): a chip and the compose box are `aria-disabled` while a turn runs or
+   the link is down, so the focused one keeps its focus. They are dimmed
+   through their colour and their CONTENTS, never `opacity` on the control
+   itself: that dims the control's own outline too, and the focus ring a
+   keyboard player follows through the turn measured 2.5:1 (T13 review),
+   under WCAG's 3:1 for a focus indicator. */
+.chip[aria-disabled="true"] {
+  cursor: wait;
+  color: var(--text-disabled);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+
+.chip[aria-disabled="true"] > * {
+  opacity: 0.5;
+}
+
+.compose__input[aria-disabled="true"] {
+  cursor: wait;
+  color: var(--text-disabled);
+}
+
+
 /* Native controls default to the OS accent -- on Windows that is a bright
    blue or red bar, which was the single most out-of-palette thing on the
    pause menu. One line puts them in brass. */
@@ -170,6 +194,17 @@ input[type="radio"] {
   gap: var(--space-3);
 }
 
+/* The top bar's two halves: the place gives way (an ellipsis) before the
+   chip, the badge or the clock do (v0.21.0 T8 review: a long place name beside
+   the wanted chip at 390px). */
+.chrome--top .chrome__left { min-width: 0; flex: 0 1 auto; }
+.chrome--top .chrome__right { flex: 0 0 auto; }
+
+/* The ring and the day, one labelled group. A flex row, so the ring is a flex
+   item (blockified: its 9px box applies) with the bar's usual gap -- as an
+   inline child of a plain span it collapsed to a vertical bar (T8 review 2). */
+.chrome__clock { display: inline-flex; align-items: center; gap: var(--space-3); }
+
 
 .chrome__title {
   margin: 0;
@@ -179,6 +214,13 @@ input[type="radio"] {
   letter-spacing: var(--tracking-title);
   text-transform: uppercase;
   color: var(--text-on-dark);
+}
+
+.chrome--top .chrome__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 
@@ -415,6 +457,22 @@ input[type="radio"] {
 }
 
 
+/* NO EMPTY LEFT COLUMN (v0.21.0 final review finding 18). A story with no
+   Aside (HUE & CRY, Dev Story, THE LONG CON, NEON CITY) left the assistant
+   track reserved and blank, ~270px of the main column at 1366. Play.jsx sets
+   `data-aside="off"` and the grid drops the track. Desktop only: under 900px
+   the grid is one column already (the media query below), and this rule's
+   higher specificity must not win there. */
+@media (min-width: 901px) {
+  .scene[data-aside="off"] .scene__grid {
+    grid-template-columns: minmax(0, 1fr) var(--col-sheet);
+  }
+  .scene[data-aside="off"] .scene__col--assistant {
+    display: none;
+  }
+}
+
+
 /* Bug (nothing scrolls): `.scene__grid` had `flex: 1; min-height: 0` and NO
    overflow, and `.scene__col` had none either. In the whole stylesheet
    `overflow-y: auto` appeared on four selectors, none of them a column. The
@@ -430,28 +488,307 @@ input[type="radio"] {
 }
 
 
-/* Bug (39/61 instead of 60/40): this was a flex column whose still was
-   `height: min(34vh, 320px); flex: none` -- the 320px cap bit on every desktop
-   and `flex: none` meant the image could never grow, while the log was the
-   only item able to shrink and so absorbed every wrapping choice chip.
-   Two fr tracks make the ratio a layout invariant. The first two children
-   (still-or-encounter, then log) take the two flexible rows; everything after
-   them -- the thinking indicator, the choices, the compose bar -- lands in an
-   implicit auto row and is therefore ALWAYS on screen, whatever the turn
-   renders. */
+/* NAMED AREAS (v0.21.0, spec §3.1). The column used to give its FIRST two
+   children the flexible rows, whatever they were, so on the engine's skin the
+   log took the picture's 60% row and an optional panel took the log's -- and,
+   in a fixed-size track, painted over the choices (F1). Every area now has a
+   fixed wrapper (Play.jsx) placed by NAME. `row-gap: 0` and a margin on
+   non-empty content only: seven tracks would otherwise spend six gaps (~72px)
+   whatever rendered, and an empty frame, think or shelf costs nothing.
+
+   The 60/40 split itself is older (39/61 shipped first: the still was a fixed
+   `min(34vh, 320px)` with `flex: none`), and it is still two fr tracks, so the
+   ratio stays a layout invariant; the tokens are spacing.css's. */
 
 .scene__col--main {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "stage" "frame" "log" "think" "shelf" "choices" "compose";
   grid-template-rows:
-    minmax(var(--visual-height), var(--row-visual))
-    minmax(var(--log-min), var(--row-log));
-  grid-auto-rows: auto;
-  gap: var(--space-3);
+    minmax(var(--stage-floor), var(--row-visual))
+    auto
+    minmax(var(--log-min), var(--row-log))
+    auto
+    auto
+    auto
+    auto;
+  row-gap: 0;
+}
+
+/* The shelf's track is `auto`, not `minmax(0, auto)` (v0.21.0 T9): a fixed 0
+   base ignores the shelf's own 44px floor (`.shelf:not(:empty)` below), so on
+   a landscape phone (844x390) the track was crushed to 0 while the shelf kept
+   its 44px and painted the job panel's heading over the choices. An `auto`
+   base is the item's min-height: 44px with a panel in it, 0 with none. The
+   shelf's max-height still caps the track from above. */
+
+.scene__col--main[data-stage="off"] {
+  grid-template-rows: 0 auto minmax(var(--log-min), 1fr) auto auto auto auto;
+}
+
+/* THE PEOPLE STRIP TAKES ITS OWN ROOM (v0.21.0 T14, carried from T9's
+   review). The strip shares the stage track with the plate, and the track's
+   floor was the plate's alone, so when the shelf and choices took the column
+   (a job open) the strip kept its height and the plate shrank under it: ~30px
+   at 1366x768, a 2px rule at 844x390. With a strip in the stage the floor is
+   the plate's floor plus the strip's row and the gap between them, so the
+   plate never drops below 12vh; the room comes out of the shelf, which
+   scrolls among itself (its own floor is one heading). */
+.scene__col--main:has(> .stage-area > .people) {
+  --stage-floor: calc(var(--visual-height) + var(--people-strip) + var(--space-2));
+}
+
+/* THE HEIGHT BUDGET ON A SHORT WINDOW (v0.21.0 final review finding 19,
+   K2). With the people strip and an open job the log sat at its 112px floor
+   -- two lines of narration -- while the shelf took 184-236px, and at 900x600
+   the choices showed one row. Under 820px tall: the log's floor is three
+   lines (8rem, with its padding cut to 12px), the job panel starts collapsed
+   (JobPanel.jsx, `SHORT_QUERY`), and with the strip in the stage the shelf's
+   cap drops to 20vh. Under 640px tall, with the strip in the stage, the
+   scene plate gives way to the strip (it was a 74px sliver at 900x600):
+   who is here is the stage, and the narration is the scene. `logFloor` in
+   the layout probe (ui/tools/layout-probe.js) guards the log's floor. */
+@media (max-height: 819.98px) {
+  .scene__col--main {
+    --log-min: 8rem;
+  }
+  .scene__col--main > .log {
+    padding-block: var(--space-3);
+  }
+  .scene__col--main:has(> .stage-area > .people) {
+    --shelf-max: 20vh;
+  }
+}
+/* A PORTRAIT PHONE (v0.21.0, the README's 390x844 capture). Taller than
+   820px, so none of the above applies, and with the strip in the stage and
+   a job open the stage's 6fr took 224px (the plate 166, the strip 50) and
+   left the log 138px: three lines under a first one cut at its top. On a
+   narrow screen with the strip in the stage the split turns over -- the
+   stage 4fr, the log 6fr -- so the stage sits on its floor (the plate's 12vh
+   and the strip) whenever room is short and the narration gets it.
+   `logLines` in the layout probe gates the log's lines. */
+@media (max-width: 600px) {
+  .scene__col--main:has(> .stage-area > .people) {
+    --row-visual: 4fr;
+    --row-log: 6fr;
+  }
+}
+@media (max-height: 639.98px) {
+  .scene__col--main:has(> .stage-area > .people) {
+    --stage-floor: var(--people-strip);
+  }
+  .scene__col--main > .stage-area:has(> .people) > :first-child:not(.people) {
+    display: none;
+  }
+}
+
+.scene__col--main > :not(:empty) ~ :not(:empty) {
+  margin-block-start: var(--space-3);
+}
+
+.stage-area {
+  grid-area: stage;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  /* `clip`, not `hidden`: the stage is not a scroller, and the margin lets a
+     focus ring on a control flush with its edge draw whole. */
+  overflow: clip;
+  overflow-clip-margin: var(--space-1);
+}
+
+.stage-area > :first-child {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.scene__col--main > .beatframe { grid-area: frame; }
+.scene__col--main > .log { grid-area: log; }
+.think-area { grid-area: think; min-height: 0; }
+/* The choice list's floor is one chip (44px), as it was before the wrapper:
+   with `min-height: 0` alone the choices track's base is 0, and when the
+   floors outgrow the column (a landscape phone, 844x390) the wrapper is
+   crushed and the chips paint down over the compose box. With the floor the
+   COLUMN overflows and scrolls instead, which is reachable. And the list
+   FILLS the wrapper (a flex column), so a track held to that floor shrinks
+   the list, which then scrolls among itself, rather than the list spilling
+   out of its track over the compose box below the fold. */
+.choices-area {
+  grid-area: choices;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.choices-area:not(:empty) { min-height: 44px; }
+
+.choices-area > .choices { flex: 1 1 auto; }
+.scene__col--main > .compose { grid-area: compose; }
+
+/* The shelf (spec §3.2): the current move's panels, bounded, scrolling among
+   themselves. It is a track that grows with its CAPPED content, and the
+   choices are the next track, so nothing in it can paint over them. */
+.shelf {
+  grid-area: shelf;
+  min-height: 0;
+  max-height: var(--shelf-max);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* One heading row is the shelf's floor (T6 review issue B, the collapsed
+   disclosure row of spec §3.4): with `min-height: 0` alone a landscape phone
+   crushed the track to 0px, and a 0px scroller scrolls to nothing -- the
+   current move's panel was simply gone. With it the COLUMN overflows and
+   scrolls, as it does for the choices' floor above. An empty shelf keeps 0. */
+.shelf:not(:empty) { min-height: 44px; }
+
+/* The shelf scrolls; its panels never shrink to fit it (T10 fix round 2).
+   As flex items a panel with `overflow: hidden` (the negotiation) has a 0
+   automatic minimum, so beside a tall panel it was crushed to 2px and its
+   44px toggle hung outside it, unreachable (the layout probe's
+   `clippedControls`). */
+.shelf > * { flex-shrink: 0; }
+
+/* THE SHELF HOLDING THE ONLY MOVES (v0.21.0 T10 fix round 2; plan decision
+   11). When every narrator choice is an approach core's encounter panel
+   presses, there is no choice row (Play.jsx sets `data-moves="shelf"`), so
+   the shelf takes the row's room: its cap is the two caps together. Under
+   900px that is not enough -- at 390x844 the buttons sat below the 16vh fold,
+   at 844x390 only the panel's heading showed -- so there the shelf is placed
+   ABOVE the log (it is the current move; the log scrolls) and holds a floor
+   of one heading, the terms and a button; the intro is clamped to two lines,
+   and on a short screen (500px and under) it and the stage give way. The
+   DOM order is unchanged (log, then shelf), so a reader meets the prose
+   first. Grid tracks, so nothing paints over the compose box: past the
+   floors the column scrolls. `firstApproachVisible` in the layout probe
+   (ui/tools/layout-probe.js) gates it at every size. */
+.scene__col--main[data-moves="shelf"] .shelf {
+  max-height: calc(var(--shelf-max) + var(--choices-max));
+}
+
+@media (max-width: 900px) {
+  .scene__col--main[data-moves="shelf"] {
+    grid-template-areas: "stage" "frame" "shelf" "log" "think" "choices" "compose";
+    grid-template-rows:
+      minmax(var(--stage-floor), var(--row-visual))
+      auto
+      auto
+      minmax(var(--log-min), var(--row-log))
+      auto
+      auto
+      auto;
+  }
+  .scene__col--main[data-moves="shelf"][data-stage="off"] {
+    grid-template-rows: 0 auto auto minmax(var(--log-min), 1fr) auto auto auto;
+  }
+  .scene__col--main[data-moves="shelf"] .shelf {
+    min-height: min(calc(var(--shelf-max) + var(--choices-max)), var(--shelf-moves-floor));
+  }
+  .scene__col--main[data-moves="shelf"] .encpanel__intro {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 900px) and (max-height: 500px) {
+  .scene__col--main[data-moves="shelf"],
+  .scene__col--main[data-moves="shelf"][data-stage="off"] {
+    grid-template-rows: 0 auto auto minmax(var(--log-min), var(--row-log)) auto auto auto;
+  }
+  .scene__col--main[data-moves="shelf"] .encpanel__intro { display: none; }
+}
+
+/* ---------- engine panels (v0.21.0, spec §2) ----------
+   The shell core/panels/Panel.jsx draws: a section labelled by its h2, an
+   optional disclosure. Tokens only (--panel-*, tokens.css), so a skin
+   re-points them and core reads with no story loaded. */
+
+.panel {
+  background: var(--panel-paper);
+  color: var(--panel-ink);
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.panel__title {
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+}
+
+.panel__toggle {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.panel__summary { color: var(--panel-muted); font-weight: 400; }
+
+/* Focus inside a panel is drawn on the panel's paper (T14 review 1). */
+.panel :focus-visible,
+.people :focus-visible { outline-color: var(--panel-focus); }
+.panel__chevron { margin-left: auto; }
+.panel__body { margin-top: var(--space-2); }
+/* `hidden` must win over any display a panel's body list sets. */
+.panel__body[hidden] { display: none; }
+
+.marks { display: inline-flex; gap: 3px; vertical-align: middle; }
+.marks__mark { width: 8px; height: 8px; border: var(--border-hair) solid var(--panel-mark); border-radius: 50%; }
+.marks__mark.is-lit { background: var(--panel-mark); }
+.marks.is-danger .marks__mark.is-lit { background: var(--panel-danger); border-color: var(--panel-danger); }
+
+/* The ledger region: reference panels under the sheet column's Ledger. */
+.ledger-panels { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
+.ledger-panels:empty { display: none; }
+/* With ledger panels under it, the sheet column SCROLLS rather than shrinking
+   its children: a short viewport (844x390) crushed the Ledger's card to a
+   sliver under the casing board. Only then -- a Ledger alone keeps whatever
+   it did with the column's height. */
+.scene__col--sheet:has(> .ledger-panels:not(:empty)) > * { flex-shrink: 0; }
+
+.negotiation__heading { margin: 0; font: inherit; }
+
+.sceneplate { height: 100%; }
+.sceneplate__img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sceneplate__name {
+  position: absolute;
+  inset: auto var(--space-4) var(--space-4);
+  /* Above the frame's mist and vignette, which come after it in the DOM. */
+  z-index: 1;
+  font-family: var(--font-narration);
+  font-size: var(--text-lg);
+  color: var(--text-narration);
+  text-shadow: 0 1px 4px var(--surface-void);
 }
 
 
 .tabbar {
   display: none;
+  /* Above `.scene::before` (z-index 0, absolutely placed over the whole
+     scene): a static tab bar was PAINTED UNDER the atmosphere, so its labels
+     read dim whatever their colour (v0.21.0 final review finding 20). The
+     grid is lifted the same way (z-index 1, `.scene__grid`). The layout
+     probe cannot see this: `elementFromPoint` never returns a pseudo-element,
+     so an overlay painted by one is invisible to it. */
+  position: relative;
+  z-index: 1;
 }
 
 
@@ -948,7 +1285,7 @@ input[type="radio"] {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  max-height: 34vh;
+  max-height: var(--choices-max);
   overflow-y: auto;
   overscroll-behavior: contain;
   /* `overflow-y: auto` sets this box's automatic minimum size to zero, which
@@ -956,6 +1293,21 @@ input[type="radio"] {
      player could see that choices existed and not read one. One chip's worth is
      the floor; past that the column overflows and scrolls, which is reachable. */
   min-height: 44px;
+}
+
+/* More rows below the list's fold (ChoiceRow sets `data-more`; T6 review
+   issue A): its bottom edge fades, so a list held to one row says it holds
+   more. A mask, not a painted gradient, so it reads on every skin. */
+.choices[data-more="true"] {
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 1.5rem), transparent);
+  mask-image: linear-gradient(to bottom, black calc(100% - 1.5rem), transparent);
+}
+
+/* A short viewport (a landscape phone): the list is held near its floor, so
+   a swipe that starts on the chips must still reach the column -- the
+   compose box is below. Desktop keeps `contain`. */
+@media (max-height: 560px) {
+  .choices { overscroll-behavior-y: auto; }
 }
 
 
@@ -999,7 +1351,7 @@ input[type="radio"] {
    channel. Nobody has ever seen it. The reference selection state is a brass
    FILL plus a brass EDGE plus a candle bloom, and that is what this is. */
 
-.chip:hover:not(:disabled) {
+.chip:hover:not([aria-disabled="true"]) {
   background: var(--state-hover-fill);
   border-color: var(--accent-brass);
   border-left-color: var(--accent-candle);
@@ -1008,7 +1360,7 @@ input[type="radio"] {
 }
 
 
-.chip:active:not(:disabled) {
+.chip:active:not([aria-disabled="true"]) {
   background: var(--state-active-fill);
   border-left-color: var(--accent-candle);
   box-shadow: var(--shadow-inset);
@@ -1543,7 +1895,14 @@ input[type="radio"] {
 }
 
 
+/* `min-inline-size: 0`: a fieldset's default minimum is its MIN-CONTENT
+   width, so one unbreakable line inside it (the short-window rule below once
+   set every description `nowrap`) widened the fieldset past the card, and
+   every archetype ran off the right edge -- 1048px wide in a 518px card on
+   HUE & CRY at 1366x768, the selected card's border cut by the window on
+   NEON CITY's (v0.21.0). `probeStart` gates it. */
 .archetypes {
+  min-inline-size: 0;
   margin: 0 0 var(--space-5);
   padding: 0;
   border: 0;
@@ -1623,6 +1982,39 @@ input[type="radio"] {
   color: var(--text-muted);
 }
 
+/* THE START CARD ON A SHORT WINDOW (v0.21.0 final review finding 21, K3).
+   At 1366x768 the flagship's Begin button sat 43px below the fold and the
+   page scrolled 148px with no cue. Under 820px tall the card tightens: less
+   padding, the intro at the base size, tighter archetype cards. The
+   descriptions still WRAP: a one-line `nowrap` description was an ellipsis
+   at best and, inside the fieldset, an overflow at worst (see `.archetypes`).
+   A story whose descriptions run long widens its own card here (NEON CITY's
+   theme). `probeStart` (ui/tools/layout-probe.js) gates the button at
+   1366x768, and no start element past the window's sides or cut by a clip,
+   on every story's start screen. */
+@media (max-height: 819.98px) {
+  .start {
+    padding-block: var(--space-3);
+  }
+  .start__card {
+    padding: var(--space-4) var(--space-5);
+  }
+  .start__wordmark {
+    margin-bottom: var(--space-2);
+  }
+  .start__intro {
+    margin-bottom: var(--space-3);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal, 1.5);
+  }
+  .archetypes {
+    margin-bottom: var(--space-3);
+  }
+  .archetype {
+    padding: var(--space-2) var(--space-3);
+  }
+}
+
 
 /* ---------- saves ----------
    The card, header and empty-state rules that used to live here are gone:
@@ -1660,6 +2052,14 @@ input[type="radio"] {
 
 
 .saverow__meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+
+/* A story's declared save columns (`save.values`, v0.21.0 F7). */
+.saverow__values {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text-muted);
@@ -2079,6 +2479,14 @@ input[type="radio"] {
   margin: 0 0 var(--space-5);
   padding: 0;
   border: 0;
+}
+
+
+/* An engine field that cannot be written (hosted mode, `writable: false`):
+   the select and text box looked live, only the range had the UA's grey. */
+.settings__group :is(input, select):disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 
@@ -3182,7 +3590,7 @@ input[type="radio"] {
     opacity: 0.55;
   }
 
-  .chip:active:not(:disabled),
+  .chip:active:not([aria-disabled="true"]),
   .btn:active:not(:disabled) {
   
       transform: none;
@@ -3400,6 +3808,11 @@ input[type="radio"] {
       stays reachable, which is the right trade when something is wrong. */
 
 @media (max-width: 560px) {
+  /* The wanted chip keeps only its band word: the clarity word is in its
+     label, and the place name needs the room (v0.21.0 T8 review 3). */
+  .chip__rest,
+  .chip__where { display: none; }
+
   /* Eight 40px targets and their gaps come to 362px. A 375px phone has 375.
      The bar gives up its own padding rather than the buttons giving up their
      touch size -- the safe-area inset still wins where a notch demands it. */
@@ -3652,7 +4065,8 @@ input[type="radio"] {
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  min-height: 32px;
+  /* 44px, every panel's touch target (spec §2.5), and the shelf's floor. */
+  min-height: 44px;
   padding: var(--space-1) var(--space-3);
   background: transparent;
   border: 0;
@@ -3676,6 +4090,7 @@ input[type="radio"] {
 }
 
 
+.negotiation__body[hidden] { display: none; }
 .negotiation__body {
   padding: 0 var(--space-3) var(--space-2);
   font-family: var(--font-mono);
@@ -3720,21 +4135,15 @@ input[type="radio"] {
    this with no story plugin loaded, so it carries no colour a bare checkout
    does not already define.
 */
-.casing {
-  border: var(--border-hair) solid var(--line-soft);
-  border-radius: var(--radius-sm);
-  background: var(--surface-scene);
-  padding: var(--space-2) var(--space-3);
-}
-
-
-.casing__title {
-  margin: 0 0 var(--space-2);
+/* The box is core's `.panel` since v0.21.0; its h2 keeps the old h3's
+   look (spec §2.5: "styled as before"). */
+.panel--casing .panel__toggle {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+  font-weight: 400;
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--panel-muted);
 }
 
 
@@ -3750,50 +4159,229 @@ input[type="radio"] {
 
 .casing__house + .casing__house {
   padding-top: var(--space-2);
-  border-top: var(--border-hair) solid var(--line-soft);
+  border-top: var(--border-hair) solid var(--panel-rule);
 }
 
 
+/* Each house is a disclosure row (spec §4.3): a 44px button. */
 .casing__head {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
   font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
 }
 
 
 .casing__name {
   font-weight: 600;
-  color: var(--text-body);
+  color: var(--panel-ink);
 }
 
 
 .casing__type {
-  color: var(--text-muted);
+  color: var(--panel-muted);
   text-transform: lowercase;
 }
 
 
 .casing__badge {
-  margin-left: auto;
   font-family: var(--font-mono);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
-  color: var(--accent-brass);
+  color: var(--panel-mark);
 }
 
 
 .casing__progress {
-  margin-top: var(--space-1);
+  margin-left: auto;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--text-muted);
+  color: var(--panel-muted);
 }
 
+
+.casing__known[hidden] { display: none; }
 
 .casing__known {
   margin: var(--space-1) 0 0;
   padding-left: var(--space-4);
   font-size: var(--text-xs);
-  color: var(--text-muted);
+  color: var(--panel-muted);
+}
+.poster__guise { margin: 0; font-family: var(--font-narration); font-size: 1.15em; }
+.poster__clarity { margin: 0; color: var(--panel-muted); }
+.poster__bands { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; gap: var(--space-1); }
+.poster__band { display: flex; gap: var(--space-2); align-items: center; }
+.poster__word { margin-left: auto; }
+.poster__stamp { display: inline-block; padding: 0 var(--space-2); border: var(--border-rule) solid var(--panel-danger); color: var(--panel-danger); text-transform: uppercase; letter-spacing: 0.08em; }
+.sketch { width: 6rem; height: 7.2rem; display: block; margin: var(--space-2) auto; }
+.sketch__layer { fill: none; stroke: var(--panel-ink); stroke-width: 1.4; stroke-linecap: round; }
+.sketch__unknown { fill: var(--panel-mark); font-size: 28px; }
+.wanted-chip { white-space: nowrap; min-height: 44px; padding: 0 var(--space-3); border-radius: var(--radius-pill); border: var(--border-hair) solid var(--panel-danger); background: transparent; color: var(--text-body); font: inherit; cursor: pointer; }
+
+/* ---------- the job panel (v0.21.0, spec §4.2) ----------
+   Its heading is core's `.panel__label`, as the poster's is (T8 review 8e):
+   the job is the current move, drawn in the shelf. Words carry the meaning;
+   the marks beside them are aria-hidden. */
+.job__stages { margin: 0; padding-left: 1.4em; }
+.job__stage.is-done { color: var(--panel-muted); }
+.job__stage.is-current { font-weight: 600; }
+.job__alarm, .job__prep { margin: var(--space-2) 0 0; display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.job__alarm.is-danger .job__word { color: var(--panel-danger); }
+
+/* ---------- the people here (v0.21.0, spec §4.4) ----------
+   A strip under the scene plate (never grown or shrunk by the stage's flex),
+   or a column in the ledger. A stranger is a silhouette medallion. */
+.people { flex: none; }
+.stage-area > .people:first-child { flex: none; }
+.people__list { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--space-2); overflow-x: auto; overscroll-behavior-x: contain; }
+.people--ledger .people__list { flex-direction: column; overflow-x: visible; }
+.people__card, .people__more { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-2); align-items: center; min-width: 10rem; max-width: 14rem; padding: var(--space-1) var(--space-2); background: var(--panel-paper); color: var(--panel-ink); border: var(--border-hair) solid var(--panel-rule); border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.people--ledger .people__card, .people--ledger .people__more { max-width: none; }
+.people__more { display: flex; align-items: center; min-width: auto; color: var(--panel-muted); }
+.people__portrait, .people__monogram { grid-row: span 2; width: 2.5rem; height: 2.5rem; border-radius: 50%; object-fit: cover; display: grid; place-items: center; background: var(--panel-paper); color: var(--panel-ink); border: var(--border-hair) solid var(--panel-mark); font-family: var(--font-narration); }
+.people__who { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.people__doing { color: var(--panel-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* THE STRIP ON A PHONE (v0.21.0, the README's 390x844 capture). Cards of
+   10-14rem in a 366px strip left the third one cut at the edge, a sliver
+   that read as a layout fault. Under 600px wide each card is exactly half
+   the strip, and the strip snaps card by card: two whole cards in view,
+   the rest a swipe away, never half of one. `people` in the layout probe
+   gates it. */
+@media (max-width: 600px) {
+  .people--stage .people__list { scroll-snap-type: x mandatory; }
+  .people--stage .people__card, .people--stage .people__more { flex: 0 0 calc((100% - var(--space-2)) / 2); min-width: 0; max-width: none; scroll-snap-align: start; }
+}
+
+/* ---------- the roll card (v0.21.0, spec §4.6) ----------
+   The toast region is a grid item of the main column laid over the stage and
+   log rows (`stage-start / log-end`), never the shelf, the choices or the
+   compose box: the card sits in its top-right corner, clipped to it. Like the
+   flagship's dice rail (spacing.css, --rolls-top), it covers only what can
+   afford to be covered, and it takes no pointer events at all -- it holds
+   nothing to press, so a tap meant for what lies under it lands there (T9
+   review finding 1). Its absolutely placed contents add nothing to the rows'
+   sizes. The live region is always there and empty between rolls. Its slide
+   is skipped under reduced motion. */
+.toast-area { grid-row: stage-start / log-end; grid-column: 1; position: relative; min-height: 0; overflow: hidden; pointer-events: none; z-index: 3; }
+.scene__col--main > .toast-area:not(:empty) { margin: 0; }
+.rollcard-live { position: absolute; top: var(--space-2); right: var(--space-2); max-width: calc(100% - var(--space-4)); pointer-events: none; }
+.rollcard { pointer-events: none; background: var(--panel-paper); color: var(--panel-ink); border: var(--border-hair) solid var(--panel-rule); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); min-width: 10rem; font-size: var(--text-sm); animation: rollcard-in var(--dur-fast) var(--ease-quiet); }
+.rollcard p { margin: 0; }
+.rollcard__what { color: var(--panel-muted); }
+.rollcard__mods { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; column-gap: var(--space-2); color: var(--panel-muted); }
+.rollcard__degree { font-size: 1.4em; font-family: var(--font-narration); }
+@keyframes rollcard-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .rollcard { animation: none; } }
+:root[data-reduce-motion="true"] .rollcard { animation: none; }
+/* A short screen (a landscape phone: the stage track is ~47px) cannot afford
+   the strip's second line: the medallion shrinks and the activity is kept for
+   a screen reader only, so the strip fits its track instead of being clipped
+   by the stage. */
+@media (max-height: 560px) {
+  .people--stage .people__portrait, .people--stage .people__monogram { width: 2rem; height: 2rem; grid-row: auto; }
+  .people--stage .people__card { padding-block: 0; }
+  .people--stage .people__doing { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+}
+/* THE CARD ON A SHORTER SCREEN (v0.21.0 T14, carried from T9's re-review,
+   R1-1). Stacked, the card is ~130px, taller than a stage that a job panel
+   has squeezed to its floor (~150px at 1366x768, the plate and the people
+   strip), so it ran on into the log and sat over the right-hand end of the
+   newest narration for its six seconds. At 800px tall and under it is one
+   line instead -- what was rolled, the die, the modifiers, the sum, and the
+   degree word last and largest -- about 40px, which the stage holds. A
+   narrow screen wraps it to two or three lines over the plate. */
+@media (max-height: 800px) {
+  .rollcard { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-3); row-gap: 0; padding-block: var(--space-1); }
+  .rollcard__degree { font-size: 1.2em; }
+}
+/* A LANDSCAPE PHONE (R1-2): the column scrolls there (its floors outgrow
+   390px), and a player who has scrolled down to the choices had the card
+   drawn at the column's top, out of view; only the live region said it. So
+   on a short screen the card is pinned to the viewport, at the top-right of
+   the column's visible box under the header, wherever the column is
+   scrolled. A fixed box escapes the toast region's clip (it is not the
+   card's containing block), still takes no pointer events, and stays one
+   line, so for its six seconds it covers the top edge of what is in view --
+   the plate at rest -- and never the choices or the compose box, which are
+   at the bottom (the layout gate's --roll probe measures both, at rest and
+   scrolled to the choices). */
+@media (max-height: 560px) {
+  .rollcard-live {
+    position: fixed;
+    top: calc(var(--chrome-h) + var(--space-4) + var(--space-1));
+    right: calc(var(--space-4) + var(--space-2));
+    max-width: calc(100vw - 2 * (var(--space-4) + var(--space-2)));
+  }
+}
+
+/* The core encounter panel (v0.21.0, spec §4.5): the threat's terms and one
+   button per approach. An approach the narrator did not offer this turn is
+   drawn and not pressable (rule 1: it presses the intent-bearing choice). */
+.encpanel__terms { margin: 0; color: var(--panel-muted); }
+.encpanel__intro { margin: var(--space-2) 0 0; font-family: var(--font-narration); }
+.encpanel__approaches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.encpanel__approach { display: grid; gap: 2px; min-height: 44px; padding: var(--space-2) var(--space-3); background: var(--surface-card); color: var(--text-body); border: var(--border-hair) solid var(--line-soft); border-left: var(--border-mark) solid var(--panel-mark); border-radius: var(--radius-sm); font: inherit; text-align: left; cursor: pointer; }
+.encpanel__approach[aria-disabled="true"] { cursor: default; }
+/* The contents, not the button: `opacity` on the button would dim its focus
+   ring under 3:1 (T13 review finding 1). */
+.encpanel__approach[aria-disabled="true"] > * { opacity: 0.6; }
+/* The key badge sits beside the words, not above them, so a numbered
+   button is no taller than an unnumbered one. */
+.encpanel__approach { grid-template-columns: auto minmax(0, 1fr); }
+.encpanel__approach > :not(.encpanel__key) { grid-column: 2; }
+.encpanel__key { grid-column: 1; grid-row: 1 / span 3; align-self: start; margin-inline-end: var(--space-2); }
+.encpanel__meta, .encpanel__note { color: var(--text-muted); font-size: 0.9em; }
+
+/* ---------- the connection banner (v0.21.0, spec §6.3) ----------
+   A fixed strip just below the header on every screen (plan decision 9), not
+   a grid row: it is laid over the top of the stage and log, never over the
+   choices or the compose box, and under every modal (z-index 50/60). */
+.linkbanner {
+  position: fixed;
+  top: calc(var(--chrome-h) + var(--space-2));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: min(40rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-card);
+  color: var(--text-body);
+  border: var(--border-hair) solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+}
+.linkbanner--signed_out, .linkbanner--auth_stuck, .linkbanner--offline { border-color: var(--text-danger); }
+/* The banner's two live regions are always mounted, empty at rest: they
+   must never take a grid cell or a flex gap wherever a Wrap puts them. Zero
+   size, out of flow -- not `display: contents`, which has dropped a live
+   region's role in some browsers. The banner inside is `position: fixed`. */
+.linkbanner__region { position: absolute; width: 0; height: 0; overflow: visible; }
+.linkbanner__count { color: var(--text-muted); }
+.linkbanner__action { min-height: 44px; }
+a.linkbanner__action { display: inline-flex; align-items: center; color: inherit; }
+
+/* A short screen (500px and under: a landscape phone) gives the choice list a
+   floor of one WRAPPED chip, not one line (v0.21.0 T11 fix round 1, review
+   item b): an authored card option -- The Wicked Garden's prologue -- wraps
+   to two lines, and a two-line chip in a one-line (44px) scroller can never
+   be scrolled whole into view (the layout probe's "cut off unreachably").
+   Past the floors the column scrolls, as it already does there. */
+@media (max-height: 500px) {
+  .choices-area:not(:empty),
+  .choices { min-height: min(var(--choices-max), 4.5rem); }
 }

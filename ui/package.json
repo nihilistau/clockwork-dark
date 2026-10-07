@@ -1,7 +1,7 @@
 {
   "name": "clockwork-dark-ui",
   "private": true,
-  "version": "0.20.2",
+  "version": "0.21.0",
   "type": "module",
   "description": "The Clockwork Dark — game client. Builds into the Flask static tree.",
   "scripts": {
@@ -11,7 +11,9 @@
     "check": "node tools/check-styles.mjs",
     "prebuild": "node tools/check-styles.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "screenshots": "node tools/screenshots.mjs",
+    "layout-check": "node tools/layout-check.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -21,6 +23,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
     "jsdom": "^29.1.1",
+    "playwright-core": "1.48.2",
     "vite": "^5.4.11",
     "vitest": "^2.1.9"
   }

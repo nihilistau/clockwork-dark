@@ -26,6 +26,7 @@
 import React, { useEffect, useState } from "react";
 
 import PaintFrame from "@core/parts/PaintFrame.jsx";
+import { prettyPlace } from "@core/parts/Chrome.jsx";
 
 // Ring labels from data/world/locations.yaml. The graph is authoritative; this
 // is the presentation copy of it, which is why it carries no hours, no DCs and
@@ -185,6 +186,8 @@ export default function SceneVisual({ world, imageUrl, phase }) {
   }, [imageUrl]);
 
   const location = world?.location_id || "forest_clearing";
+  // The caption and alt name the place, never its id (final review 4).
+  const placeName = world?.location_name || prettyPlace(location);
   const time = world?.time_of_day || "day";
   const showImage = imageUrl && !failed;
   // The wash keeps painting under a loaded still: the still is 16:9 and the
@@ -198,7 +201,7 @@ export default function SceneVisual({ world, imageUrl, phase }) {
       tint={TIME_TINT[time] || TIME_TINT.day}
       corrupted={phase === "spreading" || phase === "consuming"}
       watermark={`${RING_NAMES[ringOf(location)]}`}
-      caption={`${location.replace(/_/g, " ")} · ${time}`}
+      caption={`${placeName} · ${time}`}
       style={{ "--phase": phase }}
     >
       <span className="paint__bloom" aria-hidden="true" />
@@ -206,7 +209,7 @@ export default function SceneVisual({ world, imageUrl, phase }) {
         <img
           className={`paint__img ${loaded ? "is-loaded" : ""}`}
           src={imageUrl}
-          alt={`${location.replace(/_/g, " ")}, ${time}`}
+          alt={`${placeName}, ${time}`}
           onLoad={() => setLoaded(true)}
           // Without this a missing file leaves a broken-image glyph over the
           // narration for the rest of the session.

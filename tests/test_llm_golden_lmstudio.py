@@ -5,9 +5,11 @@ THE INVARIANT. v0.19.0 makes the engine model-server agnostic, and nothing
 about that may change what an LM Studio user's engine sends or what it makes of
 the answers. ``tests/llm_golden.py`` recorded, from untouched v0.18.0 code, the
 requests of every LM Studio path and the parse of every canned answer, for the
-shipped config and for a v0.18-shaped ``lmstudio:`` ``local.yaml``. This file
-replays each scenario against the RECORDED answers (``*.responses.json``) and
-asserts the request list and the parse both equal the recording.
+shipped config and for the same v0.18-shaped settings written as an ``llm:``
+layer (the ``lmstudio:`` spelling is refused since v0.21.0, and the recordings
+did not move). This file replays each scenario against the RECORDED answers
+(``*.responses.json``) and asserts the request list and the parse both equal
+the recording.
 
 A FAILURE HERE IS A REGRESSION, or a spec decision to take back to the owner --
 never a reason to re-record. Two differences are sanctioned, each named and
@@ -42,8 +44,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from tests.llm_golden import (
+    API_KEY,
     BASELINE_ANSWERS,
     FIXTURES,
     SCENARIO_BY_NAME,
@@ -85,7 +89,7 @@ SANCTIONED = "06_turn_off"
 
 #: The second (v0.19.0 T6, spec §8): the stack's model-server probe, in the
 #: LEGACY variant only, and only by the one URL. v0.18 health-checked a fixed
-#: `http://localhost:1234/api/v1/models` whatever `lmstudio.base_url` said, so
+#: `http://localhost:1234/api/v1/models` whatever `llm.base_url` said, so
 #: an LM Studio moved to another port was checked on the wrong one -- a v0.18
 #: bug. The probe is now derived from `llm.base_url`. Headers (the key is
 #: still sent: the origin is the configured server's) and the parse are
@@ -270,3 +274,57 @@ def test_the_doctor_and_launcher_baseline(name: str, tmp_path: Path) -> None:
             recorded.splitlines(), now.splitlines(), "recorded (v0.18.0)", "now", lineterm=""
         )
     )
+
+
+#: The ``legacy`` variant's input as v0.18-v0.20 wrote it, kept verbatim to
+#: prove v0.21.0 refuses it rather than reading it under a new name.
+V18_LEGACY_INPUT: dict[str, Any] = {
+    "lmstudio": {
+        "api_key": API_KEY,
+        "base_url": "http://127.0.0.1:1235/v1",
+        "profiles": {"big": {"temperature": 0.7}},
+        "ttl_seconds": 600,
+    }
+}
+
+
+def _keys(node: Any) -> set[str]:
+    out: set[str] = set()
+    if isinstance(node, dict):
+        for key, value in node.items():
+            out.add(str(key))
+            out |= _keys(value)
+    return out
+
+
+@pytest.mark.parametrize("variant", sorted(VARIANTS))
+def test_the_harness_rename_moves_no_byte(variant: str, tmp_path: Path) -> None:
+    """
+    Spec §1.3: the harness input is ``llm:`` everywhere, and with it every
+    scenario of the variant still replays byte for byte -- the same replay as
+    ``test_lm_studio_is_byte_identical``, run here so that a rename that
+    moved a byte fails THIS test too, with no new transform.
+    """
+    assert "lmstudio" not in _keys(VARIANTS[variant]), variant
+    for scenario in SCENARIOS:
+        assert "lmstudio" not in _keys(scenario.config or {}), scenario.name
+    for scenario in SCENARIOS:
+        where = tmp_path / scenario.name
+        where.mkdir()
+        with pytest.MonkeyPatch.context() as patch:
+            test_lm_studio_is_byte_identical(scenario, variant, where, patch)
+
+
+def test_the_old_legacy_input_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import engine.config as config
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    local = config_dir / "local.yaml"
+    local.write_text(yaml.safe_dump(V18_LEGACY_INPUT), encoding="utf-8")
+    monkeypatch.setattr(config, "_CONFIG_DIR", config_dir)
+    monkeypatch.setattr(config, "_instance", None)
+    with pytest.raises(config.LegacyConfigError) as caught:
+        config.get_config()
+    assert str(caught.value).startswith(f'{local}: the "lmstudio:" block was renamed')
+    config._instance = None

@@ -16,10 +16,22 @@ stakes -- wry and affectionate, and the gallows are real.
 Design: `docs/superpowers/specs/2026-09-23-hue-and-cry-design.md` §6.
 What changed, release by release: [CHANGELOG.md](CHANGELOG.md).
 
-It draws with the engine's default skin (`ui.plugin: _engine`) until v0.21.0's
-UI overhaul builds the wanted poster, job panel and casing board as engine
-panels. No art plates ship yet: `data/art/subjects.yaml` briefs 19 locations
-and 15 portraits, and `generate_art.py --game hue-and-cry` plans them.
+It wears its own skin since v0.21.0 (`ui.plugin: hue-and-cry`,
+`ui/src/stories/hue-and-cry/`): tallow and soot under the prose, the engine's
+panels on parchment and ink, one seal-red accent, the title set as a printed
+bill, "Step off the barge" to begin, and three onboarding cards (the Watch has
+decided, Pip, the city keeps its hours). It is a skin and nothing more: every
+panel on the play screen is the engine's, declared in `game.yaml` as
+`ui.panels: [wanted, casing, job, people, encounter, negotiation, rolls]`.
+The wanted poster and the casing board sit in the sheet column, under the
+meter sheet (on a phone, the Sheet tab), its chip in the header once any
+watch-house wants you; the job panel, while a job is open, and a Lantern's
+stop, with one button per approach, sit in the shelf above the choices; the
+people here are a strip under the scene plate; a roll's card shows in the
+scene's top-right corner. No art plates ship yet: `data/art/subjects.yaml`
+briefs 19 locations and 15 portraits, and `generate_art.py --game
+hue-and-cry` plans them; until the v1.0 pack lands the plate is the
+procedural scene and the strip draws each person's monogram.
 
 ## What ships now
 
@@ -29,8 +41,8 @@ finished as a run of point releases: living city v0.14, guild economy v0.15,
 Acts I--II v0.16 (the opening, the initiation, the small room, the Magpie's
 trail, and the front desk's alibi and accusation) and Act III with the
 eight endings v0.17 (the Hanging Fair, the gallows, the jailbreak and
-`death.yaml`), so a run can now be finished eight ways. Its screens come
-with v0.21's UI overhaul, and its art pack and live play with v1.0.0. Here
+`death.yaml`), so a run can now be finished eight ways. Its screens came
+with v0.21's UI overhaul; its art pack and live play come with v1.0.0. Here
 is what is in it today:
 
 | What | Where |
@@ -126,8 +138,10 @@ deferred" list carries the engine-side rows:
   beats. A prisoner serving a sentence is fed, so only one who sat unfed in
   the cell reaches it.
 - **Hired hands** (spec §4) are not built: a job is walked solo.
-- **No bespoke screens.** The Law and the job reach the client payload and the
-  prose; no panel draws them until v0.21.0.
+- **No bespoke screens.** Since v0.21.0 the Law and the job are drawn by the
+  engine's own panels (the wanted poster, the job panel, the casing board)
+  under this story's skin; it owns no screen of its own, and its portraits
+  wait on the v1.0 art pack.
 
 The threads that do ship are Brask's bribe, Mother Gannet's job, the four
 squeezes and the two lines of credit. The graph template's stubs were removed

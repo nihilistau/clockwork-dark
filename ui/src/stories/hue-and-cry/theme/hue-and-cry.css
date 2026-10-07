@@ -1,0 +1,51 @@
+/* HUE & CRY's skin over the engine's panels. Tokens only (the palette is
+   tokens.css). If a rule here would change what a panel SAYS or DOES, it
+   belongs in core instead. */
+
+@import "./tokens.css";
+
+body[data-story-skin="hue-and-cry"] .chrome--top {
+  border-bottom: 2px solid var(--accent-seal);
+}
+
+body[data-story-skin="hue-and-cry"] .panel {
+  border-color: var(--line-brass);
+  box-shadow: 0 1px 0 var(--line-iron);
+}
+
+body[data-story-skin="hue-and-cry"] .poster .panel__title {
+  font-family: var(--font-narration);
+  border-bottom: 2px solid var(--panel-ink);
+}
+
+/* The heading's words sit in a button (the poster folds), and a button does
+   not inherit text-transform or letter-spacing: so the bill's lettering is
+   set on the label itself, centred in the row it shares with the chevron. */
+body[data-story-skin="hue-and-cry"] .poster .panel__label {
+  flex: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+body[data-story-skin="hue-and-cry"] .poster__stamp {
+  transform: rotate(-6deg);
+}
+
+body[data-story-skin="hue-and-cry"] .wanted-chip {
+  border-color: var(--accent-seal-edge);
+}
+
+body[data-story-skin="hue-and-cry"] .wordmark--bill {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-narration);
+  letter-spacing: 0.2em;
+}
+
+body[data-story-skin="hue-and-cry"] .bill__rule {
+  width: 100%;
+  border-top: 2px solid var(--accent-seal);
+}

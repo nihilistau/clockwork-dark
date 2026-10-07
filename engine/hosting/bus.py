@@ -102,9 +102,13 @@ port is loopback, but any local process can reach it before any ``hello``:
   below Windows' ``select()`` limit; a ``select()`` or ``accept()`` error
   backs off instead of spinning;
 - should the loop end anyway, ``on_dead`` tells its owner (the supervisor
-  then stops, exit 1) rather than leave a deaf bus running.
+  then stops, exit 1) rather than leave a deaf bus running;
+- the selector's wake pair is made by ``wake_pair``: on Windows, with no
+  AF_UNIX, a loopback pair whose ``accept()`` is bounded and takes only its
+  own peer (the stdlib's emulation waited forever when a loopback connect
+  never arrived, v0.21.0), so ``BusServer()`` raises rather than hangs.
 
-Version: v0.7.0 [2026-10-06]
+Version: v0.7.1 [2026-10-07]
 """
 
 from __future__ import annotations
@@ -173,6 +177,16 @@ ERROR_BACKOFF_SECONDS = 0.1
 #: A refused connection is logged at most once per this many seconds; the
 #: rest are counted into the next line.
 BAD_LINE_LOG_SECONDS = 5.0
+
+#: The selector's wake pair where the platform has no AF_UNIX socketpair
+#: (Windows): how long one attempt waits for its own loopback connection to
+#: be accepted, and how many attempts are made before ``BusServer()`` raises.
+#: The stdlib's emulation (``socket.socketpair``) waits in ``accept()`` with
+#: no bound, and a loopback connect that never reaches the listener -- measured
+#: on the owner's workstation: 13 of 3000 never accepted, many more 1-16 s
+#: late -- hung the constructor, and with it the test suite (v0.21.0).
+WAKE_PAIR_SECONDS = 5.0
+WAKE_PAIR_ATTEMPTS = 6
 
 #: Error codes.
 UNKNOWN_OP = "unknown_op"
@@ -676,6 +690,86 @@ Answer = Callable[[Optional[Mapping[str, Any]], str], None]
 DeferredHandler = Callable[[Connection, dict[str, Any], Answer], None]
 
 
+def _loopback_pair(timeout: float) -> Optional[tuple[socket.socket, socket.socket]]:
+    """
+    One attempt at a connected loopback pair, ``(accepted, connecting)``, or
+    None when the connection was not accepted within ``timeout`` seconds.
+    Only OUR connection is taken: one from any other peer (a stray client on
+    a reused port) is closed and the wait goes on, to the same deadline.
+    """
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        address = listener.getsockname()[:2]
+        ours = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            ours.setblocking(False)
+            try:
+                ours.connect(address)
+            except (BlockingIOError, InterruptedError):
+                pass
+            deadline = time.monotonic() + timeout
+            while True:
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    ours.close()
+                    return None
+                listener.settimeout(left)
+                try:
+                    accepted, peer = listener.accept()
+                except socket.timeout:
+                    ours.close()
+                    return None
+                # By port: a loopback port names one socket, and the connecting
+                # side may still report 0.0.0.0 as its host this early.
+                try:
+                    mine = ours.getsockname()[1]
+                except OSError:
+                    mine = None
+                if peer[1] == mine:
+                    accepted.setblocking(True)
+                    ours.setblocking(True)
+                    return accepted, ours
+                accepted.close()  # not ours: never wire a stranger into the selector
+        except BaseException:
+            ours.close()
+            raise
+    finally:
+        listener.close()
+
+
+def wake_pair(
+    timeout: Optional[float] = None, attempts: Optional[int] = None
+) -> tuple[socket.socket, socket.socket]:
+    """
+    A connected socket pair for waking a selector, never an unbounded wait.
+
+    With AF_UNIX (POSIX) it is ``socket.socketpair()``, which touches no
+    network. Without it (Windows) the stdlib emulates one over loopback TCP
+    and waits for its own connection in ``accept()`` with no bound, so a
+    connect that never arrives hangs forever: here each attempt is bounded by
+    ``timeout`` (``WAKE_PAIR_SECONDS``), accepts only its own peer, and
+    ``attempts`` (``WAKE_PAIR_ATTEMPTS``) are made.
+
+    Raises:
+        OSError: no attempt was accepted in time.
+    """
+    if hasattr(socket, "AF_UNIX"):
+        return socket.socketpair()
+    timeout = float(WAKE_PAIR_SECONDS if timeout is None else timeout)
+    tries = max(1, int(WAKE_PAIR_ATTEMPTS if attempts is None else attempts))
+    for _ in range(tries):
+        pair = _loopback_pair(timeout)
+        if pair is not None:
+            return pair
+        logger.warning(
+            "[bus] A loopback wake connection was not accepted within %.1fs; trying again (operation=start)",
+            timeout,
+        )
+    raise OSError(f"no loopback wake pair: {tries} attempts of {timeout:.1f}s were not accepted")
+
+
 class BusServer:
     """
     The supervisor's side: a loopback listener, the token table and one
@@ -711,7 +805,13 @@ class BusServer:
         self._listener = socket.create_server((host, 0))
         self._listener.setblocking(False)
         self.address: tuple[str, int] = self._listener.getsockname()[:2]
-        self._wake_r, self._wake_w = socket.socketpair()
+        try:
+            # Bounded (``wake_pair``): the stdlib's Windows socketpair could
+            # wait in accept() forever.
+            self._wake_r, self._wake_w = wake_pair()
+        except BaseException:
+            self._listener.close()
+            raise
         self._wake_r.setblocking(False)
         self._wake_w.setblocking(False)
         self._sel = selectors.DefaultSelector()
@@ -1697,10 +1797,13 @@ __all__ = [
     "STORY_ROW_KEYS",
     "TOO_LARGE",
     "UNKNOWN_OP",
+    "WAKE_PAIR_ATTEMPTS",
+    "WAKE_PAIR_SECONDS",
     "WORKER",
     "check_args",
     "decode",
     "encode",
     "read_frame",
     "reply_frame",
+    "wake_pair",
 ]

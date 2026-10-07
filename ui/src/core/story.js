@@ -49,6 +49,11 @@
  *   asideLabel          The Companion tab's label on a narrow viewport.
  *   onboardingTitle     Heading of the first-run shell.
  *   onboardingFinishLabel  Its last button.
+ *   saveMeta(save) -> string | null
+ *                       One line of this story's own words on a save row
+ *                       (Saves.jsx); stripped when borrowed -- it speaks the
+ *                       story's fiction, and a borrowed skin printing "the
+ *                       pattern is quiet" on another story's saves is F7.
  *
  *   initialState  The story's own slice of the store, at `state.story`.
  *   reduce(slice, action, coreNext) -> slice
@@ -64,6 +69,20 @@
  *   Aside         Left column of the play screen.
  *   Ledger        Right column. Defaults to the declared-meter sheet.
  *   Stage         Top of the centre column, above the log.
+ *   defaultStage  true for core's scene plate when the plugin has no Stage
+ *                 (spec §3.3). A visual slot: kept when borrowed.
+ *   ownsPanels    Engine panels this plugin draws itself, by registry id
+ *                 (`ui/src/core/panels/registry.js`): core does not draw them
+ *                 twice. The flagship owns ["rolls", "encounter"], NEON CITY
+ *                 ["encounter"]. A visual slot: KEPT when borrowed (the
+ *                 borrower inherits the drawing, so it inherits the claim).
+ *
+ *   panelDeclaration  NOT a plugin field. Core sets it from the catalogue's
+ *                 `ui.panels` (the story's manifest); `loadStory` writes it
+ *                 last, so a plugin that exported one would be overwritten,
+ *                 and ui/tests/plugin-contract.test.js fails on the attempt.
+ *                 `core/panels/resolve.js` turns it, the registry and
+ *                 `ownsPanels` into the panels each play-screen region draws.
  *   Toast         Free-floating layer over the play screen.
  *   MenuBanner    Top of the pause menu.
  *   Wrap          A provider around the whole client, for a story that needs
@@ -90,9 +109,15 @@
  *                 borrowing this skin without bargains gets no scroll button
  *                 rather than a permanently empty modal, which is the disease
  *                 this seam was built to cure.
- *   hideChoices(state) -> bool
- *                 The flagship suppresses the narrator's choices while an
- *                 encounter offers engine-authored approaches.
+ *   hideChoices(state) -> true | falsy | Iterable<choiceId>
+ *                 Returns `true` (hide the row), a falsy value, or an iterable
+ *                 of choice ids to hide. The flagship and NEON CITY return the
+ *                 ids their approach buttons press
+ *                 (`@core/panels/approaches.js::matchedChoiceIds`). Absent,
+ *                 core hides exactly the choices its own encounter panel
+ *                 presses, when that panel is on screen. Read only
+ *                 `state.choices` and `state.world.encounter`: the play
+ *                 screen re-asks only when one of those changes.
  *
  * SLOT PROPS. Every slot is a React component and receives the same object, so
  * a story can ignore the ones it does not care about:
@@ -171,8 +196,11 @@ export function listStories() {
  *           declares no `ui.plugin`.
  *   title   The running story's own name, from the catalogue. Only used when
  *           the plugin is BORROWED -- see below.
+ *   panelDeclaration  The story's `ui.panels`, raw from the catalogue, or
+ *           undefined when it declares none. Spread LAST into every return,
+ *           so it is always the story's and never a plugin's.
  */
-export async function loadStory(plugin, slug = plugin, title = "") {
+export async function loadStory(plugin, slug = plugin, title = "", panelDeclaration = undefined) {
   let loader = BY_PLUGIN[plugin];
   if (!loader) {
     // A story that ships no plugin gets THE ENGINE'S plugin, not bare core.
@@ -188,7 +216,7 @@ export async function loadStory(plugin, slug = plugin, title = "") {
       // Only if the engine's own plugin has been deleted. Still carries the
       // title: `story.title` being empty made the start screen read "A story"
       // above a picker correctly showing the real name two lines below.
-      return { ...CORE_ONLY, slug, title, documentTitle: title };
+      return { ...CORE_ONLY, slug, title, documentTitle: title, panelDeclaration };
     }
   }
   try {
@@ -237,6 +265,7 @@ export async function loadStory(plugin, slug = plugin, title = "") {
           asideLabel: "",
           onboarding: [],
           overlays: [],
+          saveMeta: null,
         }
       : {};
 
@@ -249,13 +278,14 @@ export async function loadStory(plugin, slug = plugin, title = "") {
         slug,
         title: title || slug,
         documentTitle: title || slug,
+        panelDeclaration,
       };
     }
 
-    return { ...CORE_ONLY, ...found, ...naming, slug: found.slug || slug };
+    return { ...CORE_ONLY, ...found, ...naming, slug: found.slug || slug, panelDeclaration };
   } catch (err) {
     console.error(`[story] plugin "${plugin}" failed to load; falling back to core`, err);
-    return CORE_ONLY;
+    return { ...CORE_ONLY, panelDeclaration };
   }
 }
 
@@ -271,6 +301,7 @@ export async function resolveStory() {
   let slug = "";
   let plugin = "";
   let title = "";
+  let panels;
   try {
     const data = await fetchGames();
     const games = data?.games || [];
@@ -281,6 +312,10 @@ export async function resolveStory() {
     // manifest declares nothing.
     plugin = active?.ui_plugin || "";
     title = active?.title || "";
+    // The manifest's `ui.panels`, carried raw in the catalogue row's `ui`
+    // block. Anything but a list is "not declared": activation refuses a
+    // malformed one, so this only guards a hand-built catalogue.
+    panels = active?.ui?.panels;
   } catch {
     // No catalogue route, or the server is not up yet. A single-story install
     // with a plugin still resolves below if there is exactly one on disk.
@@ -289,5 +324,5 @@ export async function resolveStory() {
     const only = listStories();
     if (only.length === 1) slug = only[0];
   }
-  return loadStory(plugin || slug, slug, title);
+  return loadStory(plugin || slug, slug, title, Array.isArray(panels) ? panels : undefined);
 }

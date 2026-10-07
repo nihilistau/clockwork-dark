@@ -630,6 +630,7 @@ class StoryValidator:
         self._build_registries()
 
         self.check_retired_paths()
+        self.check_ui_panels()
         self.check_state_schema()
         self.check_locations()
         self.check_items()
@@ -700,6 +701,16 @@ class StoryValidator:
                 self.schema_loaded = True
 
     # -- the manifest --------------------------------------------------------
+
+    def check_ui_panels(self) -> None:
+        """``ui.panels`` (spec §2.2): its errors, and an advisory per panel whose system is undeclared."""
+        from engine.games.manifest import ui_panel_problems
+
+        errors, advisories = ui_panel_problems(self.manifest)
+        for message in errors:
+            self._add("game.yaml", "ui.panels", message)
+        for message in advisories:
+            self._add("game.yaml", "ui.panels", message, severity="warning")
 
     def check_retired_paths(self) -> None:
         """
@@ -1639,6 +1650,39 @@ class StoryValidator:
                 "the player reads this slot",
             )
 
+    #: A sentence that is an author's note, not a line the player could pick:
+    #: "Sets `x`, which...", "Resolve with `y`.", "Always.", "RARE and...".
+    _DESIGN_NOTE = re.compile(
+        r"(?:^|(?<=[.!?])\s+)(?:Sets\b|Resolve\b|Always\.|INTENT\b|CONSTRAINTS\b|RARE\b|MENU\b)"
+    )
+
+    def _check_beat_label(self, source: str, ref: str, beat: Any) -> None:
+        """
+        ADVISORY: a menu beat whose text carries an author's note and that has
+        no ``label:``.
+
+        A menu beat's chip reads ``director.player_label``: the beat's
+        ``label``, else the first sentence of its text with backticked spans
+        removed. Its text is the NARRATOR's direction, and authors write notes
+        into it ("Sets `resisted_call`, which is the only thing..."); without
+        a label, a note in the first sentence is what the player reads (v0.21.0
+        K1: 41 beats, in the Wicked Garden and Dev Story). An advisory, not an
+        error: the narrator is meant to read the note.
+        """
+        if not isinstance(beat, dict) or str(beat.get("label") or "").strip():
+            return
+        text = str(beat.get("text") or "")
+        if "`" not in text and not self._DESIGN_NOTE.search(text):
+            return
+        self._add(
+            source,
+            ref,
+            "menu beat text carries an author's note (a `code` span or a 'Sets'/"
+            "'Resolve'/'Always.'/'RARE' sentence) and no `label:`; the player's "
+            "chip is cut from that text -- add a `label:`",
+            severity="warning",
+        )
+
     def _check_forced_scenes(
         self, known_decks: set[str], known_cards: set[str]
     ) -> None:
@@ -1837,10 +1881,13 @@ class StoryValidator:
         here looks at beat shape, and a beat that runs without erroring is
         exactly the defect a green suite keeps.
         """
+        is_menu = "menu" in ((card or {}).get("tags") or [])
         for beat in (card or {}).get("beats") or []:
             gate = (beat or {}).get("gate")
             ref = f"{card_id}/{(beat or {}).get('id') or '-'}"
             self._check_beat_prose(source, ref, beat)
+            if is_menu:
+                self._check_beat_label(source, ref, beat)
 
             # One beat is one question. `_bind_beat` keeps the gate, drops the
             # band and logs -- at deck-load time, into a stream nobody reads

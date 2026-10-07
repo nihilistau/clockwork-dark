@@ -45,6 +45,14 @@ export const fetchRecipes = (sessionId) => getJSON("/api/recipes", { session_id:
 /** The village notice board: work posted here, and work posted elsewhere. */
 export const fetchNotices = (sessionId) => getJSON("/api/notices", { session_id: sessionId });
 
+/**
+ * Who is here (v0.21.0, spec §4.4): {people: [{key, known, name, role_label,
+ * activity, portrait}], more}. Resolves null on any failure, like every
+ * reader here: the strip then renders nothing.
+ */
+export const fetchPeople = (sessionId) =>
+  getJSON("/api/people", { session_id: sessionId }).catch(() => null);
+
 /** Player-settable engine config: spec, live value, override state. */
 export const fetchSettings = () => getJSON("/api/settings");
 

@@ -379,8 +379,8 @@ def test_a_401_during_discovery_says_what_to_change(monkeypatch, caplog):
     )
     with caplog.at_level("ERROR"):
         assert ModelRegistry(base_url="http://x/v1").refresh() == []
-    # The key's name since v0.19.0; `lmstudio.api_key` still works, but it is
-    # not what a player setting one up today should be told to write.
+    # The key's name since v0.19.0; `lmstudio.api_key` is refused since v0.21.0;
+    # it is not what a player setting one up today should be told to write.
     assert "llm.api_key" in caplog.text
 
 
@@ -419,7 +419,7 @@ def test_both_transports_read_the_configured_timeout():
     from engine.llm.client import LMSClient
     from engine.llm.lmstudio_native import NativeClient
 
-    expected = float(get_config().get("lmstudio.timeout_seconds", 300))
+    expected = float(get_config().get("llm.timeout_seconds", 300))
     assert expected >= 180
     assert LMSClient().timeout == expected
     assert NativeClient().timeout == expected

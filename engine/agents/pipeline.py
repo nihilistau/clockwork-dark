@@ -49,6 +49,7 @@ Version: v0.2.0 [2026-08-13]
 from __future__ import annotations
 
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
@@ -450,6 +451,46 @@ def narration_block(result: PipelineResult) -> str:
     return "\n".join(lines)
 
 
+def _words(text: Any) -> tuple[str, ...]:
+    """A choice's text as casefolded words, punctuation and spacing ignored."""
+    return tuple(re.findall(r"[^\W_]+", str(text or "").casefold()))
+
+
+def _contains(outer: tuple[str, ...], inner: tuple[str, ...]) -> bool:
+    """Whether ``inner``'s words appear whole and in order inside ``outer``."""
+    if not inner or len(inner) > len(outer):
+        return False
+    return any(outer[i:i + len(inner)] == inner for i in range(len(outer) - len(inner) + 1))
+
+
+def _shadows_narrated(agent_row: dict[str, Any], narrated: list[dict[str, Any]]) -> bool:
+    """
+    Whether an agent's (intent-less) choice duplicates a narrator choice.
+
+    Any narrator choice with the same words; an INTENT-BEARING one whose words
+    contain the agent's whole, whose words the agent's contain with at most
+    one word added, or whose intent target is exactly the agent's words.
+    ``merge_choices`` states the rule.
+    """
+    mine = _words(agent_row.get("text"))
+    if not mine:
+        return False
+    for row in narrated:
+        theirs = _words(row.get("text"))
+        if mine == theirs:
+            return True
+        intent = row.get("intent")
+        if not isinstance(intent, dict) or not intent:
+            continue
+        if _contains(theirs, mine):
+            return True
+        if len(mine) - len(theirs) <= 1 and _contains(mine, theirs):
+            return True
+        if mine == _words(intent.get("target")):
+            return True
+    return False
+
+
 def merge_choices(
     result: PipelineResult,
     narrated: list[dict[str, Any]],
@@ -469,18 +510,54 @@ def merge_choices(
     Ids are reassigned positionally over the FINAL list. They are keyboard
     shortcuts, so two sources numbering independently would collide, and a gap
     would leave a shortcut pointing at nothing.
+
+    THE RULE (rule 1): AN AGENT'S CHOICE NEVER DISPLACES ONE THAT CARRIES AN
+    INTENT. An agent's choice has no ``intent`` (``ProposedChoice`` cannot
+    hold one), so pressing it runs no mechanic. Two parts:
+
+    - An agent choice is DROPPED when its text duplicates a narrator choice's
+      (casefolded, punctuation and spacing ignored), or near-duplicates an
+      intent-bearing one: its words appear whole, in order, inside that
+      choice's ("Draw your knife" beside "Draw your knife and fight"); that
+      choice's words appear whole inside its own with AT MOST ONE word added
+      ("... and fight him"); or its words ARE the intent target's ("Fight"
+      beside ``encounter -> fight``). Otherwise a chip that looks like the
+      approach would sit beside it and run nothing. A companion's warning
+      names the action it warns against, so anything longer survives: "Not
+      that door." beside ``card -> door``, "Talk to the guard" beside
+      "Talk", "Avoid the Lantern House tonight" beside a road there.
+    - When the narrator filled every slot, the reserved slot is taken from
+      the LAST narrator choice WITHOUT an intent. A list in which every
+      narrator choice carries an intent takes no agent choice at all.
+
+    Measured in a live check: an agent offered the "fight" approach's own
+    words with no intent, and the old reserved slot (always the last) pushed
+    out the narrator's intent-bearing "fight" -- the chip stayed on screen and
+    pressing it ran no approach.
     """
     rows = [dict(row) for row in narrated or []]
     agent_rows = (
         [choice.to_dict() for choice in result.turn.choices] if result.ran else []
     )
+    agent_rows = [row for row in agent_rows if not _shadows_narrated(row, rows)]
     # A SLOT IS RESERVED. The schema lets the narrator write four and the limit
     # is four, so appending the agents' choices after the narrator's meant a
     # full narrated list dropped every one of them -- the companion who just
     # warned you about a door could never put "not that door" on the table.
-    # The narrator keeps first place and all but the last slot.
+    # The narrator keeps first place and all but one slot -- and the slot given
+    # up is an intent-less one, never a choice that runs a mechanic.
     if agent_rows and len(rows) >= limit:
-        rows = rows[: max(1, limit - len(agent_rows[:1]))]
+        keep = max(1, limit - len(agent_rows[:1]))
+        while len(rows) > keep:
+            spare = next(
+                (i for i in range(len(rows) - 1, -1, -1) if not rows[i].get("intent")),
+                None,
+            )
+            if spare is None:
+                break
+            del rows[spare]
+        if len(rows) >= limit:
+            agent_rows = []
     rows.extend(agent_rows)
 
     seen: set[str] = set()

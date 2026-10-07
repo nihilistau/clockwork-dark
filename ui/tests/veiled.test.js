@@ -31,6 +31,7 @@ import { FileChip, HeatLadder } from "../src/stories/neon-city/parts/Ladder.jsx"
 const html = (element) => renderToStaticMarkup(element);
 
 const STORIES = fileURLToPath(new URL("./../src/stories/", import.meta.url));
+const PANELS_DIR = fileURLToPath(new URL("./../src/core/panels/", import.meta.url));
 
 describe("core's generic meter", () => {
   it("draws a veiled row as a word, with no width and no percentage", () => {
@@ -123,29 +124,29 @@ describe("the file", () => {
   });
 });
 
-describe("no story does arithmetic on a band", () => {
-  /** Every .jsx/.js under src/stories/, with comments stripped. */
-  function storySources() {
-    const out = [];
-    const walk = (dir) => {
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const path = join(dir, entry.name);
-        if (entry.isDirectory()) {
-          walk(path);
-          continue;
-        }
-        if (!/\.jsx?$/.test(entry.name)) continue;
-        const raw = readFileSync(path, "utf8");
-        const code = raw
-          .replace(/\/\*[\s\S]*?\*\//g, "")
-          .replace(/^\s*\/\/.*$/gm, "");
-        out.push([path.slice(STORIES.length).replace(/\\/g, "/"), code]);
+/** Every .jsx/.js under `dir`, with comments stripped: [[name, code], ...]. */
+function sources(dir) {
+  const out = [];
+  const walk = (at) => {
+    for (const entry of readdirSync(at, { withFileTypes: true })) {
+      const path = join(at, entry.name);
+      if (entry.isDirectory()) {
+        walk(path);
+        continue;
       }
-    };
-    walk(STORIES);
-    return out;
-  }
+      if (!/\.jsx?$/.test(entry.name)) continue;
+      const raw = readFileSync(path, "utf8");
+      const code = raw
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/^\s*\/\/.*$/gm, "");
+      out.push([path.slice(dir.length).replace(/\\/g, "/"), code]);
+    }
+  };
+  walk(dir);
+  return out;
+}
 
+describe("no story does arithmetic on a band", () => {
   /**
    * Lines that READ a band off the payload.
    *
@@ -162,13 +163,40 @@ describe("no story does arithmetic on a band", () => {
    */
   const READS = /[^\n]*(\.band\b|\bcloseness\b)[^\n]*/g;
 
-  it.each(storySources())("%s", (_name, code) => {
+  it.each(sources(STORIES))("%s", (_name, code) => {
     for (const line of code.match(READS) || []) {
       expect(line, `arithmetic on a band: ${line.trim()}`).not.toMatch(
         /(?<![\w-])(band|closeness)\b\s*[*/+-]|[*/+-]\s*(?<![\w-])(band|closeness)\b/
       );
       expect(line, `a percentage from a band: ${line.trim()}`).not.toContain("%");
       expect(line, `a width from a band: ${line.trim()}`).not.toContain("width");
+    }
+  });
+});
+
+describe("no core panel does arithmetic on a band", () => {
+  // The panels read the payload's words through `scaleIndex`; a line that
+  // READS one of those words must not turn it into a number, a percentage or
+  // a width. `.clarity`, `.alarm`, `.prep`, `.wanted` and `scaleIndex(` join
+  // `.band` and `closeness` (`scaleIndex` anchors the scan: every lookup goes
+  // through it, so a line that indexes a scale is a line that is checked).
+  const READS = /[^\n]*(\.band\b|\bcloseness\b|\.clarity\b|\.alarm\b|\.prep\b|\.wanted\b|scaleIndex\()[^\n]*/g;
+  const WORD = "(band|closeness|clarity|alarm|prep|wanted)";
+  // `String.raw`: a plain template literal would turn `\b` into a backspace
+  // and `\w` into `w`, and nothing would ever match (T8 review finding 1).
+  // The second arm is the index itself: `scaleIndex(...)` beside an operator
+  // is arithmetic on a band even when no payload key is named on the line.
+  // KNOWN LIMITS: an index kept in a variable and divided on a later line, and
+  // a `scaleIndex(f(x), w) * 2` with nested parentheses, pass; `sketchLayers`'
+  // own `3 * index` is the spec's formula (§4.1), a layer count, not a width.
+  const ARITHMETIC = new RegExp(
+    String.raw`(?<![\w-])${WORD}\b\s*[*/+-]|[*/+-]\s*(?<![\w-])${WORD}\b|scaleIndex\([^)]*\)\s*[*/+-]|[*/+-]\s*scaleIndex\(`
+  );
+  it.each(sources(PANELS_DIR))("%s", (_name, code) => {
+    for (const line of code.match(READS) || []) {
+      expect(line, `arithmetic on a band: ${line.trim()}`).not.toMatch(ARITHMETIC);
+      expect(line, `a percentage: ${line.trim()}`).not.toContain("%");
+      expect(line, `a width: ${line.trim()}`).not.toContain("width");
     }
   });
 });

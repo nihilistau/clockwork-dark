@@ -30,12 +30,15 @@ blurb: >-
   the thieves' guild has decided the same, and a one-eyed jackdaw has decided
   you are his.
 
-# The engine's own skin. HUE & CRY's bespoke plugin (wax and parchment, a
-# wanted poster as chrome) is v1.0 work; until then `_engine` is the honest
-# answer -- borrowing the flagship's would lend Edgewood's voice along with its
-# spacing (docs/AUTHORING.md §2.5).
+# HUE & CRY's own skin (v0.21.0): wax and parchment over the engine's panels,
+# with no screen of its own (ui/src/stories/hue-and-cry/). The panels are
+# declared here, by data (docs/AUTHORING.md §2.5): the wanted poster, the
+# casing board, the job, the people here, the watch stop's approaches, the
+# agents' argument and the roll. The ~55-plate art pack, portraits included,
+# is v1.0 work; until it lands the people strip draws monograms (§3.9).
 ui:
-  plugin: _engine
+  plugin: hue-and-cry
+  panels: [wanted, casing, job, people, encounter, negotiation, rolls]
 
 scene:
   name: clockwork

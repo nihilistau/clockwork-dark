@@ -18,6 +18,10 @@
  *
  * Renders nothing at all when no pipeline ran, which is every turn of the
  * flagship and of any story declaring fewer than two participants.
+ *
+ * Drawn in the shelf region (v0.21.0, spec §4.7), bounded with the rest of
+ * the current move's panels; registered as `negotiation` in
+ * `core/panels/registry.js`.
  */
 import React, { useState } from "react";
 
@@ -36,26 +40,36 @@ export default function NegotiationPanel({ negotiation }) {
   const beats = negotiation.beats || [];
   const refused = negotiation.refused || [];
 
+  // An h2 holding the disclosure (spec §2.5, F11): the play screen's h1 is
+  // the place name, so a panel is the next level down.
+  const headingId = "panel-negotiation-title";
+  // The disclosure names what it opens (T7 review 9): the body is always
+  // rendered, `hidden` while closed, so `aria-controls` points at a node.
+  const bodyId = "panel-negotiation-body";
   return (
-    <section className={`negotiation ${open ? "is-open" : "is-collapsed"}`}>
-      <button
-        type="button"
-        className="negotiation__toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className="negotiation__label">
-          {yielded.length > 0
-            ? `${pretty(negotiation.lead)} led; ${yielded.length} gave way`
-            : `${pretty(negotiation.lead)} led, uncontested`}
-        </span>
-        <span className="negotiation__chevron" aria-hidden="true">
-          {open ? "▾" : "▸"}
-        </span>
-      </button>
+    <section className={`negotiation ${open ? "is-open" : "is-collapsed"}`} aria-labelledby={headingId}>
+      <h2 className="negotiation__heading" id={headingId}>
+        <button
+          type="button"
+          className="negotiation__toggle"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span className="negotiation__label">
+            {yielded.length > 0
+              ? `${pretty(negotiation.lead)} led; ${yielded.length} gave way`
+              : `${pretty(negotiation.lead)} led, uncontested`}
+          </span>
+          <span className="negotiation__chevron" aria-hidden="true">
+            {open ? "▾" : "▸"}
+          </span>
+        </button>
+      </h2>
 
-      {open && (
-        <div className="negotiation__body">
+      <div className="negotiation__body" id={bodyId} hidden={!open}>
+        {open && (
+        <>
           {yielded.length > 0 && (
             <dl className="negotiation__rules">
               {yielded.map((r, i) => (
@@ -91,8 +105,9 @@ export default function NegotiationPanel({ negotiation }) {
           )}
 
           {negotiation.veto && <p className="negotiation__blocked">Vetoed: {negotiation.veto}</p>}
-        </div>
-      )}
+        </>
+        )}
+      </div>
     </section>
   );
 }

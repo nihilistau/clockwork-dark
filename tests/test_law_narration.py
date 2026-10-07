@@ -470,3 +470,34 @@ def test_the_narrator_hears_the_same_word_as_the_poster(lawful: Path) -> None:
 def test_the_payload_law_key_is_absent_undeclared_with_clarity_too() -> None:
     """The flagship: no `law` key at all, so no `clarity` either."""
     assert "law" not in _world().to_client_dict()
+
+
+def test_payload_law_carries_its_scales_low_to_high(lawful: Path) -> None:
+    """
+    v0.21.0 (spec §4.1): the poster needs the ORDER of the words to light
+    marks and pick a sketch layer. The scales are the story's own words,
+    already public through the bands they order -- never a number.
+    """
+    state = _world()
+    _report(state, deed="fencing")
+    payload = state.to_client_dict()["law"]
+    assert payload["scales"] == {
+        "wanted": ["unknown", "noticed", "sought", "wanted", "hunted"],
+        "clarity": list(law.DEFAULT_CLARITY_WORDS),
+    }
+    assert payload["clarity"] in payload["scales"]["clarity"]
+    assert set(payload["wanted"].values()) <= set(payload["scales"]["wanted"])
+    # The exact shape of the old keys is unchanged: `scales` is a sibling.
+    assert payload["wanted"] == {"Village": "noticed", "Town": "unknown"}
+
+
+def test_authored_clarity_words_are_the_clarity_scale(tmp_path: Path) -> None:
+    import yaml
+
+    path = tmp_path / "law.yaml"
+    path.write_text(yaml.safe_dump({**LAW_SPEC, "clarity_words": ["a stranger", "a face"]}), encoding="utf-8")
+    set_overlay({"paths": {"law": str(path)}})
+    try:
+        assert _world().to_client_dict()["law"]["scales"]["clarity"] == ["a stranger", "a face"]
+    finally:
+        set_overlay(None)

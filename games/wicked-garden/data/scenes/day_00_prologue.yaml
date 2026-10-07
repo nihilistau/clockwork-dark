@@ -74,6 +74,7 @@ cards:
               - { type: value, name: autonomy, delta: 3, why: "you tried to keep hold of the frame" }
 
       - id: turn_away_hard
+        label: "Refuse and walk"
         text: >-
           Refuse and walk. The path relocates in front of you, once, patiently.
           Sets `resisted_call`, which is the only thing on this day that changes
@@ -153,6 +154,7 @@ cards:
               - { type: value, name: autonomy, delta: 1 }
 
       - id: say_you_are_leaving
+        label: "Tell her you are leaving"
         text: >-
           She does not argue. The Gate has opinions and so does she. Sets
           `threatened_leave`, which she remembers on Day 1 and Day 7.
@@ -300,6 +302,7 @@ cards:
       MENU -- resolve exactly the beat the player chose.
     beats:
       - id: ask_her_to_stay
+        label: "Ask her to stay"
         text: "Sets `invited_sophia_night0`, which routes the night card."
         gate:
           on_pass:
@@ -350,6 +353,7 @@ cards:
               - { type: value, name: desire, delta: 2 }
 
       - id: night0_soft
+        label: "A kiss, and a stated mercy"
         text: >-
           She does not undress the night. A kiss at the corner of the mouth and
           a stated mercy. Sets `night0_kiss`.

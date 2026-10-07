@@ -823,15 +823,20 @@ def test_a_drain_past_drain_seconds_refuses_and_writes_and_restarts_nothing(
 ) -> None:
     from engine.hosting.supervisor.llm import DRAIN_REFUSED
 
-    written = _layer(instance).read_bytes()
-    kept = _prev(instance).read_bytes()
+    # Either file may not exist yet: run alone, no earlier test has applied
+    # (final review finding 24). Absent before means absent after.
+    def _bytes(path: Path) -> Optional[bytes]:
+        return path.read_bytes() if path.exists() else None
+
+    written = _bytes(_layer(instance))
+    kept = _bytes(_prev(instance))
     before = {slug: instance.own_identity(f"worker-{slug}") for slug in (A, B)}
     with Held(instance, passwords, "ash", A):
         op_id, _took = _apply(admin, {"llm.profiles.big.temperature": "0.65"})
         op = instance.wait_op(op_id, timeout=DRAIN_SECONDS + 20)
         assert op["status"] == "refused" and op["reason"] == DRAIN_REFUSED, op
         assert DRAIN_REFUSED in admin.get("/admin/model").text
-    assert _layer(instance).read_bytes() == written and _prev(instance).read_bytes() == kept
+    assert _bytes(_layer(instance)) == written and _bytes(_prev(instance)) == kept
     assert {slug: instance.own_identity(f"worker-{slug}") for slug in (A, B)} == before, "a refused apply restarted"
     snapshot = instance.call("queue.snapshot")["result"]
     assert not snapshot["paused_stories"] and not any(l["paused"] for l in snapshot["lanes"]), "left paused"

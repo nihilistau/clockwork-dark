@@ -21,6 +21,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -510,6 +511,19 @@ def test_a_lock_file_left_behind_blocks_nobody(store: AccountStore) -> None:
     assert store.by_name("alice").disabled
 
 
+def _first_line(stream: Any, timeout: float) -> str:
+    """
+    The first line of ``stream`` within ``timeout`` seconds, or a failure: a
+    bare ``readline`` would wait forever on a child that never prints.
+    """
+    lines: list[str] = []
+    reader = threading.Thread(target=lambda: lines.append(stream.readline()), name="first-line", daemon=True)
+    reader.start()
+    reader.join(timeout)
+    assert lines, f"the child printed no line within {timeout}s"
+    return lines[0]
+
+
 def test_a_killed_holder_frees_the_lock(store: AccountStore, tmp_path: Path) -> None:
     store.add("alice", new_password())
     child = subprocess.Popen(
@@ -522,7 +536,7 @@ def test_a_killed_holder_frees_the_lock(store: AccountStore, tmp_path: Path) -> 
     )
     try:
         assert child.stdout is not None
-        assert child.stdout.readline().strip() == "held"
+        assert _first_line(child.stdout, 30).strip() == "held"
         worker, done = _write_in_thread(store)
         try:
             assert not done.wait(0.3), "the child's lock was not held"

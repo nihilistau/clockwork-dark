@@ -73,6 +73,7 @@ cards:
               - { type: value, name: favor, delta: 3 }
 
       - id: follow_the_clasp_immediately
+        label: "Follow the clasp before she wakes"
         text: >-
           Out of the house before she wakes, on a compass made of something
           else's metal. Sets `slipped_out`, which is what she is actually angry
@@ -164,6 +165,7 @@ cards:
               - { type: value, name: sophia_break, delta: 1 }
 
       - id: deflect
+        label: "Deflect"
         text: >-
           Contested. If she catches it she does not say so; she simply starts
           watching, and `sophia_watching_d4` is how she finds out about the
@@ -316,6 +318,7 @@ cards:
               - { type: value, name: corruption, delta: 3 }
 
       - id: price_one_unnamed_service
+        label: "Owe him one unnamed service"
         text: >-
           Collected when the frost decides, not when the player is ready. Open
           `ashen_service_owed`. This is the price the finale most wants live.
@@ -348,6 +351,7 @@ cards:
               - { type: value, name: corruption, delta: 3 }
 
       - id: outcome_take_the_passport
+        label: "Take the passport"
         text: >-
           `ashen_route` to 2 -- BARGAINED. The passport is a Day 5 key and an
           E6a prerequisite, and it is not an ending skip.
@@ -372,6 +376,7 @@ cards:
               - { type: item, item_id: frost_thread, name: "Frost Thread" }
 
       - id: outcome_counter_for_equality
+        label: "Help me become her equal, not her escape"
         text: >-
           RARE. "Help me become her equal, not her escape." Peerage with a rose?
           Ambitious meat. He loves watching thrones tip and will trade
@@ -423,6 +428,7 @@ cards:
               - { type: value, name: autonomy, delta: -3 }
 
       - id: confess_and_ask_for_the_door
+        label: "Confess, and ask for the door"
         text: >-
           Both true at once, said to her face. The best character writing
           available on Day 4 and the seed of the whole `love_and_door` compass.
@@ -466,6 +472,7 @@ cards:
           text: "Whether it was framed as a tool for the two of you, or for one."
 
       - id: the_labyrinth_is_assigned
+        label: "Bring back something that is yours"
         text: >-
           Always. *Come back with your name still fitting your mouth.* Bring me
           back something that is yours -- not a flower, a decision.
