@@ -59,6 +59,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.challenges import spec as spec_module
 from engine.game import effects as effects_module
 from engine.game.rng import BEAT as RNG_BEAT
@@ -182,7 +183,7 @@ def _read_deck(path_str: str, _mtime: float) -> dict[str, Any]:
     """Parse one deck file, memoized on (path, mtime). See engine/game/survival.py."""
     try:
         with Path(path_str).open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle) or {}
+            data = yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.error("[deck] Unreadable deck file (path=%s): %s", path_str, exc)
         return {}

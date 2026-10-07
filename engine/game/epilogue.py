@@ -45,6 +45,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.game.state import GameState
 
 logger = logging.getLogger(__name__)
@@ -117,7 +118,7 @@ def _read(path_str: str, _mtime: float) -> dict[str, Any]:
     """Parse one YAML file, memoized on (path, mtime). See engine/game/endings.py."""
     try:
         with Path(path_str).open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle) or {}
+            data = yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.error("[epilogue] Unreadable epilogue file: %s", exc)
         return {}

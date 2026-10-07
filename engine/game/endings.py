@@ -52,6 +52,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.game import effects as effects_module
 from engine.game.state import GameState
 from engine.state.schema import VISIBILITY_VEILED, ValueSpec
@@ -137,7 +138,7 @@ def _read_table(path_str: str, _mtime: float) -> dict[str, Any]:
     """Parse endings.yaml, memoized on (path, mtime). See engine/game/survival.py."""
     try:
         with Path(path_str).open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle) or {}
+            data = yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.error("[endings] Unreadable endings table: %s", exc)
         return {}

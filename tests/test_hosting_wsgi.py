@@ -29,6 +29,8 @@ from typing import Any, Optional
 import pytest
 import yaml
 
+pytestmark = pytest.mark.process
+
 REPO = Path(__file__).resolve().parents[1]
 STORY = "clockwork-dark"
 

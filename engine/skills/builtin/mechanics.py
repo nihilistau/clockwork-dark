@@ -15,6 +15,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game.engine import get_active_engine
 from engine.skills.registry import (
@@ -417,7 +418,7 @@ def _load_recipes() -> dict[str, Any]:
     for path in paths:
         try:
             with path.open(encoding="utf-8") as handle:
-                data = yaml.safe_load(handle) or {}
+                data = yamlio.safe_load(handle) or {}
         except (OSError, yaml.YAMLError):
             continue
         for entry in data.get("recipes", []) or []:

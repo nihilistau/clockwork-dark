@@ -54,6 +54,8 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
+
 logger = logging.getLogger(__name__)
 
 BACKING_FIELD = "field"
@@ -328,7 +330,7 @@ def load_schema(path: Path | str, *, slug: str = "") -> StateSchema:
 
     try:
         with source.open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle) or {}
+            data = yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:
         raise SchemaError(f"could not read state schema at {source}: {exc}") from exc
 

@@ -39,8 +39,11 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Callable
 
 import pytest
+
+from tests.child_batch import Done, run_together, selected
 
 _ROOT = Path(__file__).resolve().parents[1]
 _SIMULATE = _ROOT / "scripts" / "simulate.py"
@@ -74,6 +77,45 @@ def _stdout(argv: list[str]) -> bytes:
     return done.stdout
 
 
+@pytest.fixture(scope="module")
+def cli_runs(
+    request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
+) -> dict[tuple[str, str], Callable[[], bytes]]:
+    """
+    Every CLI run this module's selected tests read, started together (v0.21.1
+    T4, a bounded batch: tests/child_batch.py) and answered as
+    ``{(kind, name): stdout()}``: ``("golden", name)``, ``("by_name", name)``,
+    and ``("hue", "0")``/``("hue", "1")`` -- the replay claim needs TWO fresh
+    runs. Each child's stdout goes to a file, so no pipe fills.
+    """
+    commands: dict[tuple[str, str], list[str]] = {}
+    for name in selected(request, "test_a_path_that_ran_before_prints_what_it_printed", "name"):
+        commands[("golden", name)] = GOLDEN_RUNS[name]
+    for name in selected(request, "test_the_flagship_by_name_prints_what_no_game_prints", "name"):
+        commands[("by_name", name)] = FLAGSHIP_BY_NAME[name]
+    if selected(request, "test_hue_and_cry_runs_the_thief_and_replays_from_its_seed"):
+        commands[("hue", "0")] = commands[("hue", "1")] = HUE_ARGV
+    done = run_together(
+        {key: [sys.executable, str(_SIMULATE), *argv] for key, argv in commands.items()},
+        out_dir=tmp_path_factory.mktemp("cli"),
+        cwd=_ROOT,
+        timeout=600,
+    )
+    return {key: _ran(run) for key, run in done.items()}
+
+
+def _ran(run: Done) -> Callable[[], bytes]:
+    """A run's stdout, read by its test: a failed or timed-out run fails only
+    the test that reads it, as ``_stdout`` did."""
+
+    def stdout() -> bytes:
+        assert not run.timed_out, "simulate.py timed out after 600 s"
+        assert run.returncode == 0, run.stderr.decode("utf-8", "replace")[-2000:]
+        return run.stdout
+
+    return stdout
+
+
 def _lf(data: bytes) -> bytes:
     """Every byte, with the platform's line ending read as ``\\n``: Windows'
     stdout writes CRLF, and git's autocrlf may check a golden file out either
@@ -94,14 +136,16 @@ RECAPTURE = ("{name}: simulate.py no longer prints what it printed before v0.18.
 
 
 @pytest.mark.parametrize("name", sorted(GOLDEN_RUNS))
-def test_a_path_that_ran_before_prints_what_it_printed(name: str) -> None:
-    assert _lf(_stdout(GOLDEN_RUNS[name])) == _lf((GOLDEN / name).read_bytes()), \
+@pytest.mark.process
+def test_a_path_that_ran_before_prints_what_it_printed(name: str, cli_runs) -> None:
+    assert _lf(cli_runs[("golden", name)]()) == _lf((GOLDEN / name).read_bytes()), \
         RECAPTURE.format(name=name)
 
 
 @pytest.mark.parametrize("name", sorted(FLAGSHIP_BY_NAME))
-def test_the_flagship_by_name_prints_what_no_game_prints(name: str) -> None:
-    assert _lf(_stdout(FLAGSHIP_BY_NAME[name])) == _lf((GOLDEN / name).read_bytes()), \
+@pytest.mark.process
+def test_the_flagship_by_name_prints_what_no_game_prints(name: str, cli_runs) -> None:
+    assert _lf(cli_runs[("by_name", name)]()) == _lf((GOLDEN / name).read_bytes()), \
         RECAPTURE.format(name=name)
 
 
@@ -110,9 +154,11 @@ def test_the_flagship_by_name_prints_what_no_game_prints(name: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_hue_and_cry_runs_the_thief_and_replays_from_its_seed() -> None:
-    first = _stdout(HUE_ARGV)
-    assert first == _stdout(HUE_ARGV)
+@pytest.mark.slow
+@pytest.mark.process
+def test_hue_and_cry_runs_the_thief_and_replays_from_its_seed(cli_runs) -> None:
+    first = cli_runs[("hue", "0")]()
+    assert first == cli_runs[("hue", "1")]()
     report = json.loads(first)
     assert report["config"]["game"] == "hue-and-cry"
     assert report["config"]["seeds"] == [0, 1]
@@ -124,6 +170,7 @@ def test_hue_and_cry_runs_the_thief_and_replays_from_its_seed() -> None:
     assert list(report["policies"]) == [simulate_endings.THIEF_POLICY]
 
 
+@pytest.mark.slow
 def test_the_report_carries_every_field_the_thief_is_measured_by(capsys) -> None:
     from engine.games import registry
     from scripts import simulate, simulate_endings
@@ -158,6 +205,7 @@ def test_the_report_carries_every_field_the_thief_is_measured_by(capsys) -> None
     assert 0.0 <= living["kept_days"] <= 1.0
 
 
+@pytest.mark.slow
 def test_every_endings_policy_and_all_are_accepted(capsys) -> None:
     from engine.games import registry
     from scripts import simulate, simulate_endings
@@ -389,6 +437,7 @@ def _share(measured, kind: str, policy: str = "") -> float:
             else table["kinds"][kind]["runs"])
 
 
+@pytest.mark.slow
 def test_ardanes_net_stands_over_almost_every_marked_thief(measured_collisions) -> None:
     """40 seeds: 92% of runs (heister 100%, loyalist 85%), first day 8.2 --
     every first one under the doubled watch, none waiting for the warrant.
@@ -401,6 +450,7 @@ def test_ardanes_net_stands_over_almost_every_marked_thief(measured_collisions) 
     assert row["earliest_day"] >= 4 and 6 <= row["first_day"] <= 10, row
 
 
+@pytest.mark.slow
 def test_silas_splits_the_company_under_a_sworn_thief_on_day_seven(measured_collisions) -> None:
     """40 seeds: 25% of runs, always day 7 (his clock's own pace), the
     loyalist most (45%). 8 seeds: 20%, loyalist 50%."""
@@ -413,6 +463,7 @@ def test_silas_splits_the_company_under_a_sworn_thief_on_day_seven(measured_coll
                for p in table["policies"]), table["policies"]
 
 
+@pytest.mark.slow
 def test_the_magpie_meets_the_investigator_at_the_houses_not_the_loyalist(
         measured_collisions) -> None:
     """40 seeds: the Magpie robs a house the player touched in 36% of runs --
@@ -439,6 +490,7 @@ def test_the_magpie_meets_the_investigator_at_the_houses_not_the_loyalist(
     assert kinds["same_night"]["runs"] <= kinds["cased_the_same_day"]["runs"]
 
 
+@pytest.mark.slow
 def test_ardanes_net_meets_hot_goods_under_every_policy(measured_collisions) -> None:
     """Fix round 1: the net over stolen goods still hot, whatever the band --
     40 seeds: 84% of runs (day 8.1), the loyalist least (62%). 8 seeds: 85%."""
@@ -449,6 +501,7 @@ def test_ardanes_net_meets_hot_goods_under_every_policy(measured_collisions) -> 
     assert set(row["policies"]) == set(table["policies"]), row
 
 
+@pytest.mark.slow
 def test_the_collisions_replay_from_the_seed(measured_collisions) -> None:
     from engine.games import registry
     from scripts import simulate_endings as se
@@ -547,6 +600,7 @@ def measured_living():
             registry.deactivate()
 
 
+@pytest.mark.slow
 def test_the_living_replays_from_the_seed(measured_living) -> None:
     """A welsher's run -- the credit, the collectors, the loot it could not
     sell -- played again from its seed is the same run, field for field."""
@@ -564,6 +618,7 @@ def test_the_living_replays_from_the_seed(measured_living) -> None:
     assert again == runs[seed]
 
 
+@pytest.mark.slow
 def test_the_careful_pickpocket_dies_of_hunger_and_nothing_else(measured_living) -> None:
     """The owner's v0.14 pressure, broken down (not tuned). 40 seeds x 14
     days: 2.90 deaths a run, every one hunger -- none in the street, the
@@ -580,6 +635,7 @@ def test_the_careful_pickpocket_dies_of_hunger_and_nothing_else(measured_living)
     assert hours <= {5, 21}, hours
 
 
+@pytest.mark.slow
 def test_a_careful_thief_who_takes_a_shift_when_hungry_keeps_fed(measured_living) -> None:
     """A living exists for a thief who adapts. 40 seeds x 14 days: the
     careful pickpocket who takes Dock Mag's shift on a hungry or lean
@@ -597,6 +653,7 @@ def test_a_careful_thief_who_takes_a_shift_when_hungry_keeps_fed(measured_living
                for life in measured_living["lives"]["careful_porter"])
 
 
+@pytest.mark.slow
 def test_the_fencing_burglar_lives_better_than_the_careful_pickpocket(measured_living) -> None:
     """The burglar who never borrows (fix round 1: the fences made to pay,
     trade.yaml). 40 seeds x 14 days: 6.5 hauls a run worth 99 crowns of
@@ -617,6 +674,7 @@ def test_the_fencing_burglar_lives_better_than_the_careful_pickpocket(measured_l
 
 
 @pytest.mark.parametrize("welsher,advance", [("burglar_pell", 10), ("burglar_marrow", 5)])
+@pytest.mark.slow
 def test_a_welshing_burglar_is_shut_out_of_both_fences(measured_living, welsher: str,
                                                        advance: int) -> None:
     """The cost the owner's v0.15 decision said falls on a burglar. 40 seeds
@@ -639,6 +697,7 @@ def test_a_welshing_burglar_is_shut_out_of_both_fences(measured_living, welsher:
 
 
 @pytest.mark.parametrize("welsher", ["burglar_pell", "burglar_marrow"])
+@pytest.mark.slow
 def test_welshing_costs_a_burglar_more_than_it_gains(measured_living, welsher: str) -> None:
     """The v0.15 question answered. 40 seeds x 14 days, paired by seed
     against the burglar who never borrows: kept days -0.62 (Pell) and -0.60
@@ -677,6 +736,7 @@ def test_the_new_living_policies_read_only_what_a_player_sees() -> None:
             assert name not in forbidden, (cls.name, name)
 
 
+@pytest.mark.slow
 def test_living_is_a_hue_and_cry_policy(capsys) -> None:
     """``--policy living`` runs simulate_labour's thieves who pay their own
     way, and prints each one's table."""

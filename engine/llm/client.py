@@ -43,6 +43,7 @@ from typing import Any, Callable, Generator, Optional
 
 import httpx
 
+from engine import net
 from engine.config import get_config
 from engine.llm.events import LMSResponse, LMSStreamEvent, ToolCall
 from engine.llm.gate import call_timeout, time_left, turn_expired
@@ -658,7 +659,7 @@ class LMSClient:
         headers: dict[str, str] = {}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-        self._client = httpx.Client(timeout=timeout, headers=headers)
+        self._client = httpx.Client(timeout=timeout, headers=headers, verify=net.ssl_context())
 
     def close(self) -> None:
         """Close HTTP client."""

@@ -17,6 +17,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game.state import GameState
 from engine.lore.manager import LoreManager, get_lore_manager
@@ -93,7 +94,7 @@ def _compile_terms(rules_dir: str, _mtime: float) -> tuple[_StoryTerm, ...]:
     path = Path(rules_dir) / SPOILER_FILE
     try:
         with path.open(encoding="utf-8") as handle:
-            rows = (yaml.safe_load(handle) or {}).get("spoilers") or []
+            rows = (yamlio.safe_load(handle) or {}).get("spoilers") or []
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[lore] Unreadable spoiler table at %s: %s", path, exc)
         return ()

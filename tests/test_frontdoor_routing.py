@@ -44,6 +44,8 @@ from tests.hosting_instance import (
     login,
 )
 
+pytestmark = pytest.mark.process
+
 A = "clockwork-dark"
 B = "dev-story"
 JOIN = 60.0

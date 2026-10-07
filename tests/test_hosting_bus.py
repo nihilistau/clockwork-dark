@@ -33,6 +33,9 @@ from engine.hosting.bus import (
 )
 from tests.hosting_instance import REPO
 
+# In-process loopback servers: the hybrid run's serial phase (tests/tiers.py).
+pytestmark = pytest.mark.loopback
+
 JOIN = 10.0
 
 
@@ -274,6 +277,284 @@ def test_a_wake_connection_that_never_arrives_fails_the_server_instead_of_hangin
         assert isinstance(result, OSError), f"BusServer() did not refuse a wake pair it never got: {result!r}"
     finally:
         hole.close()
+
+
+# -- a child's connect that is lost (v0.21.1) ------------------------------------------
+#
+# The same loopback loss, on a child's side: a worker whose ONE connect to the
+# bus was never accepted waited out its 10 s hello and exited 1, and a model
+# apply that was restarting it read that as "did not start under the new
+# settings" and rolled back (tests/test_admin_model.py, 2 runs in 3 here).
+# ``BusClient.connect`` now tries again on a fresh socket.
+
+
+def _first_connects_go_to(monkeypatch: pytest.MonkeyPatch, hole: tuple[str, int], lost: int) -> list[int]:
+    """The first ``lost`` bus connects land on ``hole`` (a listener that never accepts); the rest go through."""
+    real = socket.create_connection
+    calls: list[int] = []
+
+    def create_connection(address: Any, *args: Any, **kwargs: Any) -> socket.socket:
+        calls.append(1)
+        return real(hole if len(calls) <= lost else address, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "create_connection", create_connection)
+    return calls
+
+
+def _connect_bounded(client: BusClient) -> Any:
+    """``client.connect()`` on a thread joined with a bound: its result, or what it raised."""
+    outcome: list[Any] = []
+
+    def run() -> None:
+        try:
+            outcome.append(client.connect())
+        except BaseException as exc:  # noqa: BLE001 -- the outcome is the assertion
+            outcome.append(exc)
+
+    thread = threading.Thread(target=run, name="bus-connect", daemon=True)
+    thread.start()
+    thread.join(JOIN)
+    assert not thread.is_alive(), "connect() waited with no bound"
+    (result,) = outcome
+    return result
+
+
+def test_a_bus_connect_that_is_never_accepted_is_tried_again(
+    server: BusServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hole = socket.create_server(("127.0.0.1", 0))  # listens, never accepts
+    try:
+        monkeypatch.setattr(bus, "CONNECT_SECONDS", 0.5, raising=False)  # absent before v0.21.1
+        calls = _first_connects_go_to(monkeypatch, hole.getsockname()[:2], lost=2)
+        record = server.mint("worker", story="clockwork-dark")
+        client = _bare(server, record.token)
+        result = _connect_bounded(client)
+        monkeypatch.undo()
+        assert isinstance(result, dict) and result.get("process") == "worker-clockwork-dark", result
+        try:
+            assert len(calls) == 3
+            assert record.state == "live"
+            assert client.request("ready", {"port": 9})["seen"]["port"] == 9
+        finally:
+            client.close()
+    finally:
+        hole.close()
+
+
+def test_a_bus_connect_that_times_out_is_tried_again(server: BusServer, monkeypatch: pytest.MonkeyPatch) -> None:
+    real = socket.create_connection
+    calls: list[int] = []
+
+    def create_connection(address: Any, *args: Any, **kwargs: Any) -> socket.socket:
+        calls.append(1)
+        if len(calls) == 1:
+            raise socket.timeout("timed out")
+        return real(address, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "create_connection", create_connection)
+    record = server.mint("worker", story="clockwork-dark")
+    client = _bare(server, record.token)
+    result = _connect_bounded(client)
+    monkeypatch.undo()
+    assert isinstance(result, dict), result
+    client.close()
+    assert len(calls) == 2
+
+
+def test_a_bus_connect_lost_every_time_fails_within_its_bound(
+    server: BusServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hole = socket.create_server(("127.0.0.1", 0))
+    try:
+        monkeypatch.setattr(bus, "CONNECT_SECONDS", 0.3, raising=False)
+        monkeypatch.setattr(bus, "CONNECT_ATTEMPTS", 3, raising=False)
+        calls = _first_connects_go_to(monkeypatch, hole.getsockname()[:2], lost=99)
+        record = server.mint("worker", story="clockwork-dark")
+        began = time.monotonic()
+        result = _connect_bounded(_bare(server, record.token))
+        took = time.monotonic() - began
+        monkeypatch.undo()
+        assert isinstance(result, (BusError, OSError)), result
+        assert len(calls) == 3 and record.state == "unused"
+        assert took < 3 * 0.3 + 0.5, f"one deadline of 3 x 0.3 s, but connect() took {took:.2f}s"
+    finally:
+        hole.close()
+
+
+def test_one_deadline_bounds_connects_that_stall(server: BusServer, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Fix round 1: each connect stalls for most of its timeout (as a lost SYN
+    does) and then lands where no hello is ever answered. The attempts are
+    still ``CONNECT_SECONDS`` apart from their STARTS, and the whole is bounded
+    by ``CONNECT_SECONDS x CONNECT_ATTEMPTS`` -- not attempts x (connect +
+    wait), as when each attempt was timed from its connect's return.
+    """
+    monkeypatch.setattr(bus, "CONNECT_SECONDS", 0.3)
+    monkeypatch.setattr(bus, "CONNECT_ATTEMPTS", 3)
+    hole = socket.create_server(("127.0.0.1", 0))  # listens, never accepts
+    real = socket.create_connection
+    starts: list[float] = []
+
+    def stalls(address: Any, timeout: float = 0.0, *args: Any, **kwargs: Any) -> socket.socket:
+        starts.append(time.monotonic())
+        threading.Event().wait(0.9 * timeout)
+        return real(hole.getsockname()[:2], timeout, *args, **kwargs)
+
+    try:
+        monkeypatch.setattr(socket, "create_connection", stalls)
+        began = time.monotonic()
+        result = _connect_bounded(_bare(server, server.mint("worker", story="clockwork-dark").token))
+        took = time.monotonic() - began
+        monkeypatch.undo()
+        assert isinstance(result, BusError), result
+        assert len(starts) == 3
+        assert took < 3 * 0.3 + 0.25, f"connect() took {took:.2f}s, past its one deadline of 0.9 s"
+    finally:
+        hole.close()
+
+
+def test_attempts_that_fail_at_once_still_wait_their_slot(server: BusServer, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Fix round 1: a connect reset at once must not let the next attempt start
+    at once (six instant resets spent every attempt in milliseconds): attempt
+    N starts (N - 1) x ``CONNECT_SECONDS`` after the first.
+    """
+    monkeypatch.setattr(bus, "CONNECT_SECONDS", 0.4)
+    real = socket.create_connection
+    starts: list[float] = []
+
+    def reset_first(address: Any, *args: Any, **kwargs: Any) -> socket.socket:
+        starts.append(time.monotonic())
+        if len(starts) == 1:
+            raise ConnectionResetError("reset")
+        return real(address, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "create_connection", reset_first)
+    client = _bare(server, server.mint("worker", story="clockwork-dark").token)
+    result = _connect_bounded(client)
+    monkeypatch.undo()
+    assert isinstance(result, dict), result
+    client.close()
+    assert len(starts) == 2
+    assert starts[1] - starts[0] >= 0.4 - 0.02, f"the second attempt started {starts[1] - starts[0]:.3f}s after the first"
+
+
+def test_a_hello_answered_after_its_attempt_gave_up_is_still_taken(
+    server: BusServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    The race a retry opens (seen in a full run): the first hello is read and
+    its token accepted, but the answer comes after that attempt's wait. An
+    attempt given up must not be thrown away -- its token is now live on it,
+    so every later attempt is refused. The late answer is taken instead.
+    """
+    monkeypatch.setattr(bus, "CONNECT_SECONDS", 0.3, raising=False)
+    monkeypatch.setattr(bus, "CONNECT_ATTEMPTS", 10, raising=False)  # a 3 s deadline against the 1 s stall
+    seen: list[int] = []
+
+    def slow_first(_record: Any) -> bool:
+        seen.append(1)
+        if len(seen) == 1:
+            threading.Event().wait(1.0)  # past the attempt's 0.3 s
+        return True
+
+    server.admit = slow_first
+    record = server.mint("worker", story="clockwork-dark")
+    client = _bare(server, record.token)
+    result = _connect_bounded(client)
+    assert isinstance(result, dict) and result.get("process") == "worker-clockwork-dark", result
+    try:
+        assert record.state == "live"
+        assert client.request("ready", {"port": 9})["seen"]["port"] == 9
+    finally:
+        client.close()
+
+
+class _SlowAnswers:
+    """
+    A loopback relay to ``target`` that passes the client's bytes on at once
+    and holds the server's for ``delay`` seconds: a hello the server reads
+    and accepts at once, whose answer reaches the client late.
+    """
+
+    def __init__(self, target: tuple[str, int], delay: float) -> None:
+        self.target, self.delay = target, delay
+        self.listener = socket.create_server(("127.0.0.1", 0))
+        self.address = self.listener.getsockname()[:2]
+        self.socks: list[socket.socket] = []
+        threading.Thread(target=self._accept, name="slow-answers", daemon=True).start()
+
+    def _accept(self) -> None:
+        try:
+            client, _ = self.listener.accept()
+        except OSError:
+            return
+        upstream = socket.create_connection(self.target, timeout=JOIN)
+        self.socks += [client, upstream]
+        threading.Thread(target=self._pipe, args=(client, upstream, 0.0), daemon=True).start()
+        threading.Thread(target=self._pipe, args=(upstream, client, self.delay), daemon=True).start()
+
+    @staticmethod
+    def _pipe(src: socket.socket, dst: socket.socket, delay: float) -> None:
+        try:
+            while True:
+                data = src.recv(65536)
+                if not data:
+                    break
+                if delay:
+                    threading.Event().wait(delay)
+                    delay = 0.0
+                dst.sendall(data)
+        except OSError:
+            pass
+        try:
+            dst.shutdown(socket.SHUT_WR)  # pass the end on, as a direct peer would see it
+        except OSError:
+            pass
+
+    def close(self) -> None:
+        self.listener.close()
+        for sock in self.socks:
+            sock.close()
+
+
+def test_a_refusal_ends_nothing_while_an_earlier_attempt_is_open(
+    server: BusServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Fix round 1 (review finding 8): the order a refusal-first connect must
+    survive. Attempt 1's hello is accepted at once but its answer arrives
+    late (the relay holds it 1.5 s); attempt 2's hello is refused (the token
+    is live on attempt 1) and that refusal arrives FIRST. The connect must
+    keep listening and take attempt 1's answer.
+    """
+    monkeypatch.setattr(bus, "CONNECT_SECONDS", 0.3)
+    monkeypatch.setattr(bus, "CONNECT_ATTEMPTS", 10)
+    relay = _SlowAnswers(server.address, 1.5)
+    try:
+        _first_connects_go_to(monkeypatch, relay.address, lost=1)
+        record = server.mint("worker", story="clockwork-dark")
+        client = _bare(server, record.token)
+        result = _connect_bounded(client)
+        monkeypatch.undo()
+        assert isinstance(result, dict) and result.get("process") == "worker-clockwork-dark", result
+        try:
+            assert record.state == "live"
+            assert client.request("ready", {"port": 9})["seen"]["port"] == 9
+        finally:
+            client.close()
+    finally:
+        relay.close()
+
+
+def test_a_refused_hello_is_not_tried_again(server: BusServer, monkeypatch: pytest.MonkeyPatch) -> None:
+    real = socket.create_connection
+    calls: list[int] = []
+    monkeypatch.setattr(socket, "create_connection", lambda *a, **k: calls.append(1) or real(*a, **k))
+    result = _connect_bounded(_bare(server, "f" * 64))
+    monkeypatch.undo()
+    assert isinstance(result, BusError) and result.code == "unauthorized", result
+    assert len(calls) == 1
 
 
 def test_arguments_that_are_not_an_object_are_bad_args(server: BusServer) -> None:
@@ -980,6 +1261,7 @@ def _start_probe(server: BusServer, tmp_path: Path, slug: str = "clockwork-dark"
     return proc, control
 
 
+@pytest.mark.process
 def test_a_child_whose_link_closes_exits_non_zero_and_holds_no_token(tmp_path: Path) -> None:
     srv = BusServer().start()
     readied = threading.Event()

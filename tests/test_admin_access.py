@@ -34,6 +34,9 @@ import pytest
 
 from tests.hosting_instance import AdminDoor, csrf_of
 
+# In-process loopback servers: the hybrid run's serial phase (tests/tiers.py).
+pytestmark = pytest.mark.loopback
+
 #: What a non-admin is told on every rule.
 FORBIDDEN_BODY = b'{"error":"forbidden"}\n'
 

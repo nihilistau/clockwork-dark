@@ -53,6 +53,7 @@ from typing import Any, Iterable, Iterator, Optional, Union
 
 import yaml
 
+from engine import yamlio
 from engine.game.locations import KNOWN_FLAG_PREFIX
 from engine.games.manifest import GameManifest
 
@@ -415,7 +416,7 @@ def _read_yaml(path: Path) -> Any:
             return docs[key]
     try:
         with path.open(encoding="utf-8") as fh:
-            doc = yaml.safe_load(fh)
+            doc = yamlio.safe_load(fh)
         if docs is not None:
             docs[key] = doc
         return doc

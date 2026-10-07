@@ -31,6 +31,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game.rng import stable_rng
 from engine.media.providers.base import ImageRequest, ImageResult
@@ -100,7 +101,7 @@ def load_manifest() -> dict[str, Any]:
         return {}
     try:
         with path.open(encoding="utf-8") as handle:
-            return yaml.safe_load(handle) or {}
+            return yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[media] Unreadable art manifest (operation=load_manifest): %s", exc)
         return {}

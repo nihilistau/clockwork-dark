@@ -520,6 +520,7 @@ class ModelServer:
         """
         import yaml
 
+        from engine import yamlio
         from engine.config import url_origin
 
         if "llm.base_url" not in clean:
@@ -529,7 +530,7 @@ class ModelServer:
             return {"llm.api_key_origin": new}
         existing = ""
         try:
-            loaded = yaml.safe_load(layer.read_text(encoding="utf-8")) or {}
+            loaded = yamlio.safe_load(layer.read_text(encoding="utf-8")) or {}
             llm = loaded.get("llm") if isinstance(loaded, dict) else None
             existing = str(llm.get("api_key_origin") or "") if isinstance(llm, dict) else ""
         except (OSError, ValueError, yaml.YAMLError):
@@ -610,6 +611,7 @@ class ModelServer:
         """
         import yaml
 
+        from engine import yamlio
         from engine.config import deep_merge
         from engine.hosting.admin.model import nested
 
@@ -618,7 +620,7 @@ class ModelServer:
         if had_prev:
             raw = layer.read_bytes()
             self._replace_with(prev, raw)
-            loaded = yaml.safe_load(raw.decode("utf-8")) or {}
+            loaded = yamlio.safe_load(raw.decode("utf-8")) or {}
             current = loaded if isinstance(loaded, dict) else {}
         elif prev.exists():
             prev.unlink()

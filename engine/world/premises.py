@@ -54,6 +54,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game.rng import PREMISES, stable_rng
 from engine.game.state import GameState
@@ -94,7 +95,7 @@ def declared() -> bool:
 def _read(path: Path) -> Any:
     try:
         with path.open(encoding="utf-8") as fh:
-            return yaml.safe_load(fh)
+            return yamlio.safe_load(fh)
     except (OSError, yaml.YAMLError) as exc:
         raise ValueError(f"premises: cannot read {path}: {exc}") from exc
 

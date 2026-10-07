@@ -31,6 +31,7 @@ from typing import Any, Optional
 
 import httpx
 
+from engine import net
 from engine.config import get_config, project_root
 from engine.llm.routes import MODELS_PATH, same_origin
 
@@ -285,7 +286,7 @@ def probe(url: str, *, timeout: float = 3.0) -> tuple[bool, str]:
             headers["Authorization"] = f"Bearer {key}"
 
     try:
-        response = httpx.get(url, timeout=timeout, headers=headers)
+        response = net.get(url, timeout=timeout, headers=headers)
     except httpx.HTTPError as exc:
         return False, type(exc).__name__
 

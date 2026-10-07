@@ -239,6 +239,7 @@ def test_night_is_worse_than_day(synthetic):
     assert night > day
 
 
+@pytest.mark.slow
 def test_trigger_rate_over_10k_travels_sits_in_band():
     """
     Ten thousand seeded walks against the SHIPPED table.

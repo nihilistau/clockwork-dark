@@ -33,6 +33,9 @@ from tests import local_golden
 from tests.hosting_instance import HostingInstance, hosting_instance
 from tests.process_identity import alive, identify
 
+# In-process loopback servers: the hybrid run's serial phase (tests/tiers.py).
+pytestmark = pytest.mark.loopback
+
 #: The six stories, one worker each; each test below owns one.
 A, B, C, D, E, F = (
     "clockwork-dark",
@@ -94,6 +97,7 @@ def _kill(instance: HostingInstance, slug: str) -> None:
 # -- started, ready, grouped ----------------------------------------------------------
 
 
+@pytest.mark.process
 def test_every_story_is_started_and_ready_with_its_reported_port(instance: HostingInstance) -> None:
     import httpx
 
@@ -107,6 +111,7 @@ def test_every_story_is_started_and_ready_with_its_reported_port(instance: Hosti
         assert body == {"status": "ok", "fake": _w(slug)}
 
 
+@pytest.mark.process
 def test_the_cookie_key_was_made_before_any_child_said_hello(instance: HostingInstance) -> None:
     reports = instance.reports()
     assert len(reports) >= 7
@@ -114,6 +119,7 @@ def test_the_cookie_key_was_made_before_any_child_said_hello(instance: HostingIn
     assert (instance.data_dir / "hosting" / "secret_key").is_file()
 
 
+@pytest.mark.process
 def test_a_child_holds_no_token_in_its_environment(instance: HostingInstance) -> None:
     for report in instance.reports():
         keys = set(report["env_keys"])
@@ -123,6 +129,7 @@ def test_a_child_holds_no_token_in_its_environment(instance: HostingInstance) ->
             assert "CLOCKWORK_GAME" in keys
 
 
+@pytest.mark.process
 def test_no_token_reaches_a_log_line(instance: HostingInstance) -> None:
     """A token is 64 hex digits; none appears in the echo or in any log file."""
     token = re.compile(r"\b[0-9a-f]{64}\b")
@@ -132,6 +139,7 @@ def test_no_token_reaches_a_log_line(instance: HostingInstance) -> None:
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX process groups; Windows is spied below")
+@pytest.mark.process
 def test_each_child_is_in_its_own_process_group(instance: HostingInstance) -> None:
     supervisor_group = os.getpgid(instance.proc.pid)  # type: ignore[union-attr]
     groups = {r["pgid"] for r in instance.reports()}
@@ -174,6 +182,7 @@ def test_a_child_is_started_in_a_new_process_group(monkeypatch: pytest.MonkeyPat
 # -- health and restarts -------------------------------------------------------------------
 
 
+@pytest.mark.process
 def test_a_child_that_exits_is_restarted_after_its_backoff(instance: HostingInstance) -> None:
     old = _live_pid(instance, D)
     mark = instance.mark()
@@ -188,6 +197,7 @@ def test_a_child_that_exits_is_restarted_after_its_backoff(instance: HostingInst
     assert row["restarts"] == 1
 
 
+@pytest.mark.process
 def test_failed_bus_health_checks_restart_a_child(instance: HostingInstance) -> None:
     old = _live_pid(instance, E)
     gone = identify(old)  # its pid AND creation time (T15 fix round 2, N2)
@@ -202,6 +212,7 @@ def test_failed_bus_health_checks_restart_a_child(instance: HostingInstance) -> 
     assert not alive(gone)
 
 
+@pytest.mark.process
 def test_a_failing_http_check_marks_degraded_and_restarts_nothing(instance: HostingInstance) -> None:
     old = _live_pid(instance, B)
     mark = instance.mark()
@@ -217,6 +228,7 @@ def test_a_failing_http_check_marks_degraded_and_restarts_nothing(instance: Host
     assert row["pid"] == old
 
 
+@pytest.mark.process
 def test_a_child_with_no_ready_within_boot_seconds_is_restarted(instance: HostingInstance) -> None:
     instance.set_mode(_w(F), "no_ready")
     mark = instance.mark()
@@ -229,6 +241,7 @@ def test_a_child_with_no_ready_within_boot_seconds_is_restarted(instance: Hostin
     assert row["restarts"] == 1  # the boot deadline is a crash; the admin's restart is not
 
 
+@pytest.mark.process
 def test_a_crash_loop_is_held_down_and_admin_restarts_do_not_count(instance: HostingInstance) -> None:
     # Two admin restarts first: they must not count toward max_restarts (2).
     for _ in range(2):
@@ -261,6 +274,7 @@ def test_a_crash_loop_is_held_down_and_admin_restarts_do_not_count(instance: Hos
 # -- operations ----------------------------------------------------------------------------
 
 
+@pytest.mark.process
 def test_stop_answers_at_once_drains_and_stops_and_the_table_shows_each_step(
     instance: HostingInstance,
 ) -> None:
@@ -280,6 +294,7 @@ def test_stop_answers_at_once_drains_and_stops_and_the_table_shows_each_step(
     instance.wait_state(_w(D), "ready")
 
 
+@pytest.mark.process
 def test_a_drain_that_runs_out_refuses_the_stop_and_a_second_op_is_refused(
     instance: HostingInstance,
 ) -> None:
@@ -313,6 +328,7 @@ def _holds_narration(instance: HostingInstance, slug: str) -> bool:
     return any(holder["story"] == slug for holder in lane["holders"])
 
 
+@pytest.mark.process
 def test_an_unknown_story_and_a_worker_s_call_are_refused(instance: HostingInstance) -> None:
     assert instance.call("stories.stop", {"slug": "no-such-story"}) == {
         "ok": False,
@@ -350,6 +366,7 @@ def spent(tmp_path_factory: pytest.TempPathFactory) -> Iterator[dict[str, Any]]:
         inst.stop()
 
 
+@pytest.mark.process
 def test_shutdown_stops_every_child_within_shutdown_seconds(spent: dict[str, Any]) -> None:
     inst: HostingInstance = spent["instance"]
     assert spent["code"] == 0
@@ -368,6 +385,7 @@ def test_shutdown_stops_every_child_within_shutdown_seconds(spent: dict[str, Any
     assert not [line for line in after[begun:] if "Started worker-" in line or "restarting in" in line]
 
 
+@pytest.mark.process
 def test_the_front_door_is_stopped_only_after_every_worker(spent: dict[str, Any]) -> None:
     """
     T18 fix round 1: the workers drain and stop first (B only after its
@@ -384,6 +402,7 @@ def test_the_front_door_is_stopped_only_after_every_worker(spent: dict[str, Any]
     assert first(rf"Stopped worker-{B} \(operation=stop, how=terminated\)") < door
 
 
+@pytest.mark.process
 def test_each_child_s_log_is_written_and_rotated(spent: dict[str, Any]) -> None:
     inst: HostingInstance = spent["instance"]
     logs = inst.data_dir / "hosting" / "logs"
@@ -456,6 +475,7 @@ def test_preflight_refuses_naming_the_key(
 
 
 @pytest.mark.parametrize("env", [{}, {"CLOCKWORK_STUDIO": "1"}])
+@pytest.mark.process
 def test_a_refused_supervisor_exits_1_before_any_child_starts(
     tmp_path: Path, env: dict[str, str]
 ) -> None:
@@ -484,6 +504,7 @@ def test_the_backoff_doubles_to_a_minute() -> None:
     assert [backoff(n) for n in range(9)] == [1, 2, 4, 8, 16, 32, 60, 60, 60]
 
 
+@pytest.mark.process
 def test_an_admin_restart_keeps_the_crash_history(instance: HostingInstance) -> None:
     """It does not count, and it does not forgive (T10 fix round 1, review #14)."""
     old = _live_pid(instance, A)
@@ -716,6 +737,11 @@ def test_a_child_takes_its_tokens_before_anything_is_activated(monkeypatch: pyte
         assert boot.main(["--role", "worker"]) == 0
     finally:
         hosting._bus_client = None
+        # prepare_child made this process's metrics queue: a child's, never
+        # the suite's (conftest's _no_metrics_queue_outlives_its_test).
+        from engine.hosting import metrics_emit
+
+        metrics_emit.stop()
     assert "CLOCKWORK_BUS_TOKEN" not in seen["env"] and "CLOCKWORK_PROXY_TOKEN" not in seen["env"]
     assert seen["client"] is not None and seen["client"].proxy_token == "b" * 64
     if hasattr(signals, "SIGBREAK"):
@@ -906,6 +932,7 @@ def test_the_boot_runner_reports_the_os_picked_port_in_ready(capsys: pytest.Capt
     assert alone.host_guard.bind_host == "127.0.0.1"
 
 
+@pytest.mark.process
 def test_a_real_worker_boots_under_the_supervisor_and_drains_at_shutdown(tmp_path: Path) -> None:
     """
     A fresh instance with the engine's own worker (``python -m
@@ -1035,6 +1062,7 @@ def test_no_child_inherits_gunicorn_s_override_variables() -> None:
         assert env["PATH"] == "x"
 
 
+@pytest.mark.process
 def test_gunicorn_s_command_args_cannot_rebind_a_worker(tmp_path: Path) -> None:
     """
     Fix round 1, I3 and M4, under the fake gunicorn (which resolves settings
@@ -1062,6 +1090,7 @@ def test_gunicorn_s_command_args_cannot_rebind_a_worker(tmp_path: Path) -> None:
     assert "Error:" in err and "loopback only" in err and "GUNICORN_CMD_ARGS" in err
 
 
+@pytest.mark.process
 def test_under_gunicorn_a_closed_bus_link_restarts_the_master(tmp_path: Path) -> None:
     """
     Under the fake gunicorn (spec §14.3): the supervisor starts gunicorn with
@@ -1140,6 +1169,7 @@ def test_local_mode_spawns_no_hosting_process(tmp_path: Path, monkeypatch: pytes
 # -- the front door child (v0.20.0 T12) ------------------------------------------------------
 
 
+@pytest.mark.process
 def test_the_front_door_child_is_started_after_the_workers(instance: HostingInstance) -> None:
     """Spec §14.3, step 4: every worker, in list order, and then the front door."""
     started = [
@@ -1151,6 +1181,7 @@ def test_the_front_door_child_is_started_after_the_workers(instance: HostingInst
     assert first == [_w(s) for s in instance.stories] + ["frontdoor"], started
 
 
+@pytest.mark.process
 def test_every_child_gets_one_proxy_token_per_supervisor_start(instance: HostingInstance) -> None:
     """
     ``CLOCKWORK_PROXY_TOKEN`` reaches every child in its environment -- 64
@@ -1166,6 +1197,7 @@ def test_every_child_gets_one_proxy_token_per_supervisor_start(instance: Hosting
     assert not [arg for arg in instance.command() if "PROXY" in arg.upper()]
 
 
+@pytest.mark.process
 def test_a_held_down_front_door_ends_the_supervisor_non_zero(tmp_path: Path) -> None:
     """
     A FRESH instance (it ends): the front door exits at once on every start,
@@ -1318,6 +1350,7 @@ def _guard_on(tmp_path: Path, reports: list[dict[str, Any]]) -> HostingInstance:
     return inst
 
 
+@pytest.mark.process
 def test_the_orphan_guard_never_signals_a_reused_pid(tmp_path: Path) -> None:
     """
     A probe reported a pid that now belongs to ANOTHER process (simulated with
@@ -1387,6 +1420,7 @@ class _FakeBus:
         return {}
 
 
+@pytest.mark.process
 def test_a_gunicorn_worker_never_signals_its_master_s_pid_once_another_process_has_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1431,6 +1465,7 @@ def test_a_gunicorn_worker_never_signals_its_master_s_pid_once_another_process_h
         _stop_idle(stranger)
 
 
+@pytest.mark.process
 def test_a_gunicorn_worker_does_signal_the_master_it_noted(monkeypatch: pytest.MonkeyPatch) -> None:
     """The control: the master noted at ``ready`` and still running IS stopped by a shutdown."""
     from types import SimpleNamespace
@@ -1451,6 +1486,7 @@ def test_a_gunicorn_worker_does_signal_the_master_it_noted(monkeypatch: pytest.M
         _stop_idle(master)
 
 
+@pytest.mark.process
 def test_the_orphan_guard_still_ends_and_reports_a_verified_child(tmp_path: Path) -> None:
     """The control: a reported pid whose creation time matches IS the child, and is terminated and reported."""
     from tests.process_identity import created

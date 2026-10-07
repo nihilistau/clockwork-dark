@@ -60,6 +60,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.locks import renew_after_fork
 
 logger = logging.getLogger(__name__)
@@ -628,7 +629,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
         return {}
     try:
         with path.open(encoding="utf-8") as handle:
-            return yaml.safe_load(handle) or {}
+            return yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[config] Unreadable config (operation=_load_yaml, path=%s): %s", path, exc)
         return {}
@@ -849,7 +850,7 @@ def _load_external(path: Path) -> dict[str, Any]:
         raise ValueError(f"{EXTERNAL_CONFIG_ENV} names {path}, which is not a file")
     try:
         with path.open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle)
+            data = yamlio.safe_load(handle)
     except OSError as exc:
         # A permissions problem is not a syntax problem: said as what it is.
         raise ValueError(
@@ -952,7 +953,7 @@ def _load_admin_layer(path: Path) -> dict[str, Any]:
 
     try:
         with path.open(encoding="utf-8") as handle:
-            raw = yaml.safe_load(handle)
+            raw = yamlio.safe_load(handle)
     except OSError as exc:
         raise ValueError(f"the admin layer {path} cannot be read ({type(exc).__name__})") from None
     except (UnicodeDecodeError, yaml.YAMLError) as exc:

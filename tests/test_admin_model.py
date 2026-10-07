@@ -277,6 +277,23 @@ def _hosted_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, layer: Optio
     return config.get_config()
 
 
+def _probe_answers(provider: Any, attempts: int = 3) -> None:
+    """
+    The provider's health probe answers the stub: asked up to ``attempts``
+    times (v0.21.1), because one probe is one fresh loopback connection, and
+    on the owner's workstation a few in a thousand are lost under load. A
+    real "no" fails every attempt, and its detail is shown.
+    """
+    details = []
+    for _ in range(attempts):
+        ok, detail = provider.health_probe(timeout=5)
+        if ok:
+            return
+        details.append(detail)
+    raise AssertionError(f"the health probe never answered: {details}")
+
+
+@pytest.mark.loopback
 def test_the_key_is_withheld_from_a_base_url_moved_to_another_origin(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, sandbox_model_stub: Any
 ) -> None:
@@ -304,7 +321,7 @@ def test_the_key_is_withheld_from_a_base_url_moved_to_another_origin(
         assert has_key is False, "the key followed the base URL to another origin"
         assert cfg.withheld_key == ("environment", "T16_KEY")
         assert cfg.secret_source("llm.api_key") == ("", "")
-        assert get_provider().health_probe(timeout=3)[0] is True
+        _probe_answers(get_provider())
         assert ("/v1/models", True) not in new.seen and new.seen, new.seen
 
         # The admin sent the key there: the layer names the new origin.
@@ -314,7 +331,7 @@ def test_the_key_is_withheld_from_a_base_url_moved_to_another_origin(
         )
         assert cfg.get("llm.api_key") == SENTINEL and cfg.withheld_key is None
         new.seen.clear()
-        assert get_provider().health_probe(timeout=3)[0] is True
+        _probe_answers(get_provider())
         assert ("/v1/models", True) in new.seen
 
         # An operator's own llm.base_url wins over the layer's: never withheld for the layer.
@@ -352,6 +369,7 @@ def test_the_supervisor_records_where_the_key_may_go(tmp_path: Path) -> None:
     assert origin(None, cfg, {"llm.lanes.narration": 2}, True, layer) == {}
 
 
+@pytest.mark.loopback
 def test_moving_the_base_url_asks_whether_the_key_goes_too_and_audits_the_answer(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -472,18 +490,50 @@ def passwords(instance: HostingInstance) -> dict[str, str]:
 
 @pytest.fixture(scope="module")
 def admin(instance: HostingInstance, passwords: dict[str, str]) -> Iterator[httpx.Client]:
-    http = instance.admin_http("root", passwords["root"])
+    http = instance.admin_http("root", passwords["root"], retry=True)
     try:
         yield http
     finally:
         http.close()
 
 
+#: Long enough for an apply that rolls back (each worker restarted twice) to end.
+SETTLE_SECONDS = 240.0
+
+
+@pytest.fixture(autouse=True)
+def _settled(request: pytest.FixtureRequest) -> None:
+    """
+    Each test on the instance starts on a settled one (v0.21.1): no operation
+    still running and every child ready. Before, a test that failed while an
+    apply it started was still running left it running, and every later test
+    was refused "another operation is running" or met a story mid-restart --
+    one failure read as six. Fails, naming what is unsettled, if the
+    instance does not settle (or has died).
+    """
+    if "instance" not in request.fixturenames:
+        return
+    instance: HostingInstance = request.getfixturevalue("instance")
+    assert instance.proc is not None and instance.proc.poll() is None, "the module's supervisor is not running"
+
+    def unfinished() -> list[dict[str, Any]]:
+        reply = instance.call("ops.list")
+        assert reply["ok"], reply
+        return [op for op in reply["result"]["ops"] if op["status"] not in ("done", "refused", "rolled_back")]
+
+    instance.until(lambda: not unfinished(), SETTLE_SECONDS, "every operation finished")
+    instance.until(
+        lambda: all(row["state"] == "ready" for row in instance.table().values()),
+        SETTLE_SECONDS,
+        "every child ready",
+    )
+
+
 # -- helpers ----------------------------------------------------------------------------
 
 
 def _player(instance: HostingInstance, passwords: dict[str, str], name: str, slug: str) -> tuple[httpx.Client, str]:
-    http = instance.http()
+    http = instance.http(retry=True)  # a lost connect is sent again; a POST that may have been sent is not
     assert login(http, name, passwords[name]).status_code == 303
     assert choose(http, slug).status_code == 303
     opened = http.post("/api/game/new", json={"seed": 4})
@@ -491,9 +541,16 @@ def _player(instance: HostingInstance, passwords: dict[str, str], name: str, slu
     return http, str(opened.json()["session_id"])
 
 
+#: How long a held turn's own request waits: past a whole drain (the drain test
+#: holds it for DRAIN_SECONDS), so the client never times out first (v0.21.1).
+TURN_SECONDS = DRAIN_SECONDS + JOIN
+
+
 def _turn(http: httpx.Client, session_id: str, into: list[Any]) -> threading.Thread:
     thread = threading.Thread(
-        target=lambda: into.append(http.post("/api/game/choice", json={"session_id": session_id, "choice_id": "a"})),
+        target=lambda: into.append(
+            http.post("/api/game/choice", json={"session_id": session_id, "choice_id": "a"}, timeout=TURN_SECONDS)
+        ),
         name="admin-model-turn",
     )
     thread.start()
@@ -515,7 +572,10 @@ class Held:
         self.held.unlink(missing_ok=True)
         self.hold.write_text("1", encoding="utf-8")
         self.thread = _turn(self.http, self.session_id, self.answers)
-        self.instance.until(self.held.exists, 30, "the turn in flight")
+        # JOIN, not 30 s (v0.21.1): the turn reaches the worker over fresh
+        # loopback connections (the player's, perhaps the proxy's), and on the
+        # owner's workstation those stall for seconds at a time in bursts.
+        self.instance.until(self.held.exists, JOIN, "the turn in flight")
         return self
 
     def release(self) -> None:
@@ -644,6 +704,7 @@ def _account_id(instance: HostingInstance, name: str) -> str:
 # -- the instance -------------------------------------------------------------------------
 
 
+@pytest.mark.process
 def test_the_page_shows_the_provider_its_health_models_and_the_key_as_present(
     instance: HostingInstance, admin: httpx.Client, stub: StubModelServer
 ) -> None:
@@ -663,6 +724,7 @@ def test_the_page_shows_the_provider_its_health_models_and_the_key_as_present(
     assert SENTINEL not in text and SENTINEL not in json.dumps(health)
 
 
+@pytest.mark.process
 def test_the_queue_page_shows_who_holds_and_who_waits_by_account(
     instance: HostingInstance, passwords: dict[str, str], admin: httpx.Client
 ) -> None:
@@ -700,6 +762,7 @@ def test_the_queue_page_shows_who_holds_and_who_waits_by_account(
     assert waiting and waiting[0].status_code == 200, "the waiting turn was not served once the slot freed"
 
 
+@pytest.mark.process
 def test_the_base_url_is_locked_and_every_bad_edit_is_refused_with_nothing_written(
     instance: HostingInstance, admin: httpx.Client
 ) -> None:
@@ -729,6 +792,7 @@ def test_the_base_url_is_locked_and_every_bad_edit_is_refused_with_nothing_writt
     assert "hunter2pass" not in json.dumps(refused) and "sk-anything" not in json.dumps(refused)
 
 
+@pytest.mark.process
 def test_an_apply_answers_at_once_drains_first_then_writes_and_restarts_one_worker_at_a_time(
     instance: HostingInstance, passwords: dict[str, str], admin: httpx.Client
 ) -> None:
@@ -786,6 +850,7 @@ def test_an_apply_answers_at_once_drains_first_then_writes_and_restarts_one_work
     _no_resets(instance)
 
 
+@pytest.mark.process
 def test_a_form_loaded_before_another_apply_is_refused_whole(
     instance: HostingInstance, admin: httpx.Client
 ) -> None:
@@ -818,6 +883,7 @@ def test_a_form_loaded_before_another_apply_is_refused_whole(
     assert _read_layer(instance) == {"llm": {"lanes": {"narration": 2}, "profiles": {"big": {"temperature": 0.55}}}}
 
 
+@pytest.mark.process
 def test_a_drain_past_drain_seconds_refuses_and_writes_and_restarts_nothing(
     instance: HostingInstance, passwords: dict[str, str], admin: httpx.Client
 ) -> None:
@@ -844,6 +910,7 @@ def test_a_drain_past_drain_seconds_refuses_and_writes_and_restarts_nothing(
     assert end["result"] == "refused" and end["detail"]["reason"] == DRAIN_REFUSED
 
 
+@pytest.mark.process
 def test_a_worker_restarted_for_another_reason_during_the_drain_boots_under_the_old_file(
     instance: HostingInstance, passwords: dict[str, str], admin: httpx.Client
 ) -> None:
@@ -875,6 +942,7 @@ def test_a_worker_restarted_for_another_reason_during_the_drain_boots_under_the_
     _no_resets(instance)
 
 
+@pytest.mark.process
 def test_a_new_provider_that_does_not_answer_is_refused_unless_applied_anyway(
     instance: HostingInstance, admin: httpx.Client
 ) -> None:
@@ -900,6 +968,7 @@ def test_a_new_provider_that_does_not_answer_is_refused_unless_applied_anyway(
     _no_resets(instance)
 
 
+@pytest.mark.process
 def test_a_worker_that_will_not_boot_under_the_new_file_rolls_back(
     instance: HostingInstance, admin: httpx.Client
 ) -> None:
@@ -939,6 +1008,7 @@ def test_a_worker_that_will_not_boot_under_the_new_file_rolls_back(
     _no_resets(instance)
 
 
+@pytest.mark.process
 def test_a_rollback_never_starts_a_story_an_admin_stopped(instance: HostingInstance, admin: httpx.Client) -> None:
     """
     T16 re-review (M1), added in T17: an admin stops B; an apply that A will
@@ -971,6 +1041,7 @@ def test_a_rollback_never_starts_a_story_an_admin_stopped(instance: HostingInsta
     assert _llm(instance, B)["llm.provider"] == "ollama"
 
 
+@pytest.mark.process
 def test_no_serving_process_reset_and_the_key_is_nowhere_it_could_be_read(
     instance: HostingInstance, admin: httpx.Client
 ) -> None:

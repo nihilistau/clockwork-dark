@@ -18,6 +18,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
+from engine import net
 from engine.config import reset_config
 from engine.llm.backend import chat_probe
 from engine.llm.profiles import ModelProfile
@@ -65,7 +66,9 @@ def _post(monkeypatch, response_or_error):
             raise response_or_error
         return response_or_error
 
-    monkeypatch.setattr(httpx, "post", lambda _url, **_kwargs: answer())
+    # The engine's one-shot posts go through engine/net.py's shared client
+    # since v0.21.1 T3b (`httpx.post` itself is no longer called).
+    monkeypatch.setattr(net, "post", lambda _url, **_kwargs: answer())
     monkeypatch.setattr(httpx.Client, "post", lambda self, _url, **_kwargs: answer())
 
 
@@ -89,7 +92,7 @@ def test_a_401_is_not_reported_as_up(monkeypatch):
     from engine import stack
 
     monkeypatch.setattr(
-        httpx,
+        net,
         "get",
         lambda *_a, **_k: httpx.Response(
             401,
@@ -108,7 +111,7 @@ def test_a_real_model_list_is_up(monkeypatch):
     from engine import stack
 
     monkeypatch.setattr(
-        httpx,
+        net,
         "get",
         lambda *_a, **_k: httpx.Response(
             200,
@@ -240,7 +243,8 @@ _V1_BODY = {
 
 
 def _get(monkeypatch, handler):
-    monkeypatch.setattr(httpx, "get", handler)
+    # engine/net.py's shared client, not `httpx.get`, since v0.21.1 T3b.
+    monkeypatch.setattr(net, "get", handler)
 
 
 @pytest.mark.real_discovery
@@ -360,7 +364,7 @@ def test_the_stack_probe_checks_the_body_not_the_status(monkeypatch):
 @pytest.mark.real_discovery
 def test_discovery_failing_still_returns_a_list_not_an_exception(monkeypatch):
     monkeypatch.setattr(
-        httpx,
+        net,
         "get",
         lambda url, **_k: (_ for _ in ()).throw(httpx.ConnectError("down")),
     )
@@ -371,7 +375,7 @@ def test_discovery_failing_still_returns_a_list_not_an_exception(monkeypatch):
 def test_a_401_during_discovery_says_what_to_change(monkeypatch, caplog):
     """The measured state of this machine. The message has to be actionable."""
     monkeypatch.setattr(
-        httpx,
+        net,
         "get",
         lambda url, **_k: httpx.Response(
             401, json={"error": {}}, request=httpx.Request("GET", url)

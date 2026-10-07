@@ -45,6 +45,7 @@ from typing import Any, Optional
 
 import httpx
 
+from engine import net
 from engine.config import get_config
 from engine.media.art import format_for, render_tags
 from engine.media.providers.base import (
@@ -179,7 +180,7 @@ class ComfyProvider:
         if not self.enabled:
             return False
         try:
-            with httpx.Client(timeout=3.0) as client:
+            with httpx.Client(timeout=3.0, verify=net.ssl_context()) as client:
                 return client.get(f"{self.base_url}/system_stats").status_code == 200
         except httpx.HTTPError as exc:
             logger.debug("[media] ComfyUI not reachable (operation=available): %s", exc)
@@ -218,7 +219,7 @@ class ComfyProvider:
             request.kind,
         )
         try:
-            with httpx.Client(timeout=self.timeout) as client:
+            with httpx.Client(timeout=self.timeout, verify=net.ssl_context()) as client:
                 submitted = client.post(
                     f"{self.base_url}/prompt",
                     json={"prompt": workflow, "client_id": request.cache_key()},

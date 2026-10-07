@@ -49,6 +49,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game.effects import apply_effects
 from engine.game.state import GameState
@@ -226,7 +227,7 @@ def load_arcs() -> dict[str, dict[str, Any]]:
         return missing
 
     with path.open(encoding="utf-8") as fh:
-        doc = yaml.safe_load(fh) or {}
+        doc = yamlio.safe_load(fh) or {}
 
     arcs = doc.get("arcs") or {}
     if not isinstance(arcs, dict):
@@ -351,7 +352,7 @@ def load_quests() -> dict[str, dict[str, Any]]:
     for path in sorted(root.glob("*/*.yaml")):
         try:
             with path.open(encoding="utf-8") as fh:
-                doc = yaml.safe_load(fh) or {}
+                doc = yamlio.safe_load(fh) or {}
         except yaml.YAMLError as exc:
             # A YAML typo in one quest must not remove every other quest from
             # the game. Skip the file, keep the pack.

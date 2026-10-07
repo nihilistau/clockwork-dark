@@ -47,6 +47,9 @@ import pytest
 from tests.engineio_wire import PollingClient, WebSocketClient, cookie_header, read_response, upgrade
 from tests.hosting_instance import InProcessFrontDoor
 
+# In-process loopback servers: the hybrid run's serial phase (tests/tiers.py).
+pytestmark = pytest.mark.loopback
+
 JOIN = 30.0
 
 
@@ -278,6 +281,7 @@ def _status_of(sock: Any) -> bytes:
 
 
 @pytest.mark.parametrize("where", ["front door", "worker"])
+@pytest.mark.slow
 def test_one_account_s_trickled_bodies_hold_no_turn_slot(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, where: str
 ) -> None:
@@ -428,15 +432,16 @@ def test_a_turn_past_the_old_bound_but_inside_the_new_one_is_not_cut(
 ) -> None:
     """
     I2, scaled down: ``queue_wait_seconds`` 1, ``llm.timeout_seconds`` 1,
-    ``turn_deadline_seconds`` 8 and a 0.5 s margin. A turn whose model takes
-    4 s is past eb1d4d4's bound (wait + model timeout + margin = 2.5 s: the
+    ``turn_deadline_seconds`` 8 and a 0.1 s margin. A turn whose model takes
+    2.6 s is past eb1d4d4's bound (wait + model timeout + margin = 2.1 s: the
     front door answered 504 while the worker committed the turn) and inside
-    the new one (wait + deadline + margin = 9.5 s): it reaches the player.
+    the new one (wait + deadline + margin = 9.1 s): it reaches the player.
+    (v0.21.1 T1 fix round 1: was a 0.5 s margin and a 4 s model.)
     """
     import engine.hosting.frontdoor.proxy as proxy_module
     from engine.hosting.frontdoor import frontdoor
 
-    monkeypatch.setattr(proxy_module, "TURN_MARGIN_SECONDS", 0.5)
+    monkeypatch.setattr(proxy_module, "TURN_MARGIN_SECONDS", 0.1)
     slow = threading.Event()
     reply = (
         '```json\n{"narration": "The lamps gutter.", "choices": [{"id": "a", "text": "Wait"}, '
@@ -445,7 +450,7 @@ def test_a_turn_past_the_old_bound_but_inside_the_new_one_is_not_cut(
 
     def model(_messages: Any, *_args: Any, **_kwargs: Any) -> str:
         if slow.is_set():
-            threading.Event().wait(4.0)  # the model's own pace: the duration under test
+            threading.Event().wait(2.6)  # the model's own pace: the duration under test
         return reply
 
     door = InProcessFrontDoor(
@@ -465,7 +470,7 @@ def test_a_turn_past_the_old_bound_but_inside_the_new_one_is_not_cut(
         assert played.status_code == 200, (played.status_code, played.text[:200])
         assert "The lamps gutter." in played.json()["narration"]
         http.close()
-        assert proxy.read_timeout_for("POST", "/api/game/choice") == 1 + 8 + 0.5
+        assert proxy.read_timeout_for("POST", "/api/game/choice") == 1 + 8 + 0.1
     finally:
         door.stop()
 
@@ -1008,6 +1013,7 @@ def _server_of(real: Any) -> str:
     return "gunicorn" if "-m gunicorn -c " in started[-1] else "werkzeug"
 
 
+@pytest.mark.process
 def test_real_a_browser_shaped_websocket_turn_through_the_front_door(real: Any, real_player: dict[str, str]) -> None:
     from engine.hosting.supervisor.process import gunicorn_runs_here
 
@@ -1023,6 +1029,7 @@ def test_real_a_browser_shaped_websocket_turn_through_the_front_door(real: Any, 
     assert "Mist clings to the birch trunks." in _update(played["turn"])["args"][0]["narration"]
 
 
+@pytest.mark.process
 def test_real_a_refused_upgrade_never_lets_the_client_speak_http_to_the_worker(
     real: Any, real_player: dict[str, str]
 ) -> None:
@@ -1051,6 +1058,7 @@ def test_real_a_refused_upgrade_never_lets_the_client_speak_http_to_the_worker(
     assert reached == ["GET /socket.io/"], reached
 
 
+@pytest.mark.process
 def test_real_websockets_past_the_long_holds_are_refused_and_login_is_served(
     real: Any, real_player: dict[str, str]
 ) -> None:
@@ -1106,6 +1114,7 @@ def test_real_websockets_past_the_long_holds_are_refused_and_login_is_served(
         http.close()
 
 
+@pytest.mark.process
 def test_real_a_worker_takes_no_scheme_from_a_header_without_the_proxy_token(real: Any) -> None:
     """
     Fix round 1, I2: a request reaching a worker WITHOUT the proxy token
@@ -1155,6 +1164,7 @@ def _trickle(port: int, path: str, cookie: str, content_type: str, stop: threadi
 
 
 @pytest.mark.parametrize("where", ["front door", "worker"])
+@pytest.mark.process
 def test_real_a_trickled_body_is_cut_at_the_deadline(real: Any, real_player: dict[str, str], where: str) -> None:
     """
     The body-read deadline under each server (``hosting.body_read_seconds``,
@@ -1445,6 +1455,10 @@ def test_a_client_that_stops_reading_is_cut_and_the_relay_ends(
     from engine.hosting.frontdoor import frontdoor
 
     monkeypatch.setattr(relay_module, "SEND_STALL_SECONDS", 1.0)
+    # The relay's join after the cut (10 s, then an abort and 10 s more) is
+    # shortened too: the claim is that the link ends, not how long the
+    # handler waits on its relay thread (v0.21.1 T1 fix round 1: 22 s -> ~5 s).
+    monkeypatch.setattr(relay_module, "RELAY_JOIN_SECONDS", 1.0)
     state = frontdoor(door.front_app)
     http = door.logged_in("rowan")
     status, _found, _body, sock = upgrade(
@@ -1472,7 +1486,7 @@ def test_a_client_that_stops_reading_is_cut_and_the_relay_ends(
 
 
 def test_ending_a_login_returns_at_once_with_a_stuck_client_connected(
-    door: InProcessFrontDoor, echo: _EchoWorker
+    door: InProcessFrontDoor, echo: _EchoWorker, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """
     v0.20.0 T14 (from T13 fix round 1): a disable, a reset or a removal --
@@ -1486,9 +1500,13 @@ def test_ending_a_login_returns_at_once_with_a_stuck_client_connected(
     import base64
     import time
 
+    import engine.hosting.frontdoor.ws_relay as relay_module
     from engine.hosting.auth import hosting_state
     from engine.hosting.frontdoor import frontdoor
 
+    # The relay's join after the cut, shortened as in the test above: the
+    # claim is that the disable returns at once and the link is cut.
+    monkeypatch.setattr(relay_module, "RELAY_JOIN_SECONDS", 1.0)
     state = frontdoor(door.front_app)
     http = door.logged_in("rowan")
     status, _found, _body, sock = upgrade(
@@ -1529,7 +1547,7 @@ def test_a_trickled_body_on_any_route_is_cut_at_the_front_door(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """
-    M3: every proxied body is read whole within ``body_read_seconds`` (3
+    M3: every proxied body is read whole within ``body_read_seconds`` (1
     here), not only a turn's: a save trickled a byte at a time is answered
     408 at the front door. On 930cd50 it was streamed to the worker and held
     a thread for as long as the bytes kept coming.
@@ -1539,7 +1557,7 @@ def test_a_trickled_body_on_any_route_is_cut_at_the_front_door(
     door = InProcessFrontDoor(
         monkeypatch,
         tmp_path,
-        hosting={"body_read_seconds": 3, "rate_limits": {"actions_per_minute": 1000}},
+        hosting={"body_read_seconds": 1, "rate_limits": {"actions_per_minute": 1000}},
     )
     door.start()
     stop = threading.Event()
@@ -1552,7 +1570,7 @@ def test_a_trickled_body_on_any_route_is_cut_at_the_front_door(
         status = _status_of(sock)
         took = time.monotonic() - began
         assert status.startswith(b"HTTP/1.1 408"), status
-        assert took < 3 + 4, f"answered after {took:.1f}s"
+        assert took < 1 + 4, f"answered after {took:.1f}s"
         http.close()
     finally:
         stop.set()

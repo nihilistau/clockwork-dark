@@ -32,6 +32,9 @@ from engine.llm import gate
 from engine.llm.gate import InferenceBusy
 from tests.hosted_app import Hosted, Lanes, SharedQueue, build, login, teardown
 
+# In-process loopback servers: the hybrid run's serial phase (tests/tiers.py).
+pytestmark = pytest.mark.loopback
+
 JOIN = 30.0
 BUSY = "The storyteller is busy with other players. Try again in a moment."
 NARRATION = "Mist clings to the birch trunks."
@@ -517,6 +520,7 @@ def test_local_run_guarded_takes_no_admission(monkeypatch: pytest.MonkeyPatch, l
 # -- fix round 1 --------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_another_players_utility_work_cannot_hold_a_turn_past_the_narration_wait(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, served: Lanes
 ) -> None:

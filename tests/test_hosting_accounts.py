@@ -411,6 +411,7 @@ def test_unknown_row_fields_survive_a_write(store: AccountStore) -> None:
 # -- the lock -----------------------------------------------------------------
 
 
+@pytest.mark.process
 def test_two_processes_changing_two_accounts_at_once_both_land(
     store: AccountStore, tmp_path: Path
 ) -> None:
@@ -524,6 +525,7 @@ def _first_line(stream: Any, timeout: float) -> str:
     return lines[0]
 
 
+@pytest.mark.process
 def test_a_killed_holder_frees_the_lock(store: AccountStore, tmp_path: Path) -> None:
     store.add("alice", new_password())
     child = subprocess.Popen(

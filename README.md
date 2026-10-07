@@ -33,7 +33,7 @@ settles the result, and a model on your own machine writes the prose.
   shipped art packs mean scenes have pictures without any of them. Serving
   it to other people, with accounts, is opt-in (hosted mode).
 
-**Status:** **v0.21.0** is the current release. Six stories ship, and each
+**Status:** **v0.21.1** is the current release (a patch: the test suite runs in about 17 minutes on Windows, from 54). Six stories ship, and each
 can be played to an ending; HUE & CRY can be finished eight ways. The engine
 is model-server agnostic: LM Studio stays the default, and llama-server,
 Ollama, vLLM and generic OpenAI-compatible servers narrate too
@@ -619,13 +619,13 @@ stack:
 ```powershell
 .\.venv\Scripts\python.exe scripts\doctor.py     # environment, config, content, data integrity
 .\.venv\Scripts\python.exe launcher.py --check   # which local services are up, and what each outage costs
-.\.venv\Scripts\python.exe -m pytest tests\ -q   # expect fully green, no xfail
+.\.venv\Scripts\python.exe scripts\run_tests.py full # every tier, bounded, about 17 min (scripts\run_tests.py fast: about 6 min). Expect fully green, no xfail
 ```
 
 ```sh
 .venv/bin/python scripts/doctor.py
 .venv/bin/python launcher.py --check
-.venv/bin/python -m pytest tests/ -q
+.venv/bin/python scripts/run_tests.py full    # every tier, bounded (scripts/run_tests.py fast for day to day)
 ```
 
 The doctor's model-server section is named after the configured server
@@ -853,6 +853,7 @@ fixed; details may change as each release lands.
 | v0.19.0 | **Model-server agnostic**: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | **shipped** |
 | v0.20.0 | **Linux as a first-class platform**, and a **hosted, web-served mode**: accounts and a login, per-account runs and saves, one model-server queue, a supervisor and front door, an admin panel, gunicorn, Docker; vLLM run live | **shipped** |
 | v0.21.0 | **UI/UX overhaul**, together with HUE & CRY's screens: engine panels (wanted poster, job panel, casing board, people, encounter, rolls), a layout that holds, a connection that recovers, HUE & CRY's skin; the legacy aliases removed | **shipped** |
+| v0.21.1 | **Test speed** (patch): tiers, parallel hybrid runs, bounded runs, `scripts/run_tests.py` | **shipped** |
 | v0.22.0 | **A new story: a dating simulation** played through a phone of apps -- dating apps, texts, voice and video messages, two-player games -- with a cast the engine runs and no endgame | next |
 | v0.23.0 | **The Clockwork Dark overhaul** | planned |
 | v0.24.0 | **The Wicked Garden overhaul** | planned |

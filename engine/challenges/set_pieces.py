@@ -58,6 +58,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.challenges import runner
 from engine.config import get_config
 from engine.game.state import GameState
@@ -117,7 +118,7 @@ def load_set_pieces() -> dict[str, dict[str, Any]]:
     for path in sorted(directory.glob("*.yaml")):
         try:
             with path.open(encoding="utf-8") as handle:
-                data = yaml.safe_load(handle) or {}
+                data = yamlio.safe_load(handle) or {}
         except (OSError, yaml.YAMLError) as exc:
             logger.error(
                 "[set_pieces] Unreadable set-piece file, skipping "

@@ -66,6 +66,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.agents.knowledge import KnowledgePolicy
 from engine.agents.negotiate import Rule, rules_from_data
 
@@ -311,7 +312,7 @@ def load_roster(path: Path | str, *, slug: str = "") -> Roster:
 
     try:
         with source.open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle) or {}
+            data = yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:
         raise RosterError(f"could not read agent roster at {source}: {exc}") from exc
 

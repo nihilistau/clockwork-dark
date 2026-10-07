@@ -67,6 +67,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game.state import GameState
 
@@ -506,7 +507,7 @@ def spec() -> dict[str, Any]:
         # Declared and absent is a broken install: the story promised jobs.
         raise ValueError(f"jobs: declared file {path} does not exist")
     try:
-        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        doc = yamlio.safe_load(path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
         raise _fail(path, f"is not valid YAML: {exc}") from None
     if not isinstance(doc, dict):

@@ -62,6 +62,8 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
+
 logger = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -298,7 +300,7 @@ def _read_bounds(path_str: str, _mtime: float) -> dict[str, Any]:
     """
     try:
         with Path(path_str).open(encoding="utf-8") as handle:
-            return yaml.safe_load(handle) or {}
+            return yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[challenges] Unreadable challenge bounds: %s", exc)
         return {}

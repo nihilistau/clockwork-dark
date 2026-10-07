@@ -283,6 +283,7 @@ SHIPPED_DECK_ALLOWANCES = {
 
 
 @pytest.mark.parametrize("slug", sorted(SHIPPED_DECK_ALLOWANCES))
+@pytest.mark.slow
 def test_a_shipped_deck_story_does_not_lose_ground(slug):
     """
     Unreachable endings and orphan cards in a SHIPPED game, ratcheted.
@@ -320,6 +321,7 @@ def test_a_shipped_deck_story_does_not_lose_ground(slug):
 
 
 @pytest.mark.parametrize("slug", sorted(SHIPPED_DECK_ALLOWANCES))
+@pytest.mark.slow
 def test_a_shipped_deck_story_keeps_every_promise_its_clocks_make(slug):
     """
     A forced scene that is raised and never answered is a promise with nothing

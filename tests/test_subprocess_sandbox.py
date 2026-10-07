@@ -111,6 +111,7 @@ def plain_child() -> dict[str, Any]:
     return _run_probe()
 
 
+@pytest.mark.process
 def test_a_childs_mcp_json_write_lands_in_the_temp_root(
     plain_child: dict[str, Any], tmp_path_factory: pytest.TempPathFactory
 ) -> None:
@@ -120,11 +121,13 @@ def test_a_childs_mcp_json_write_lands_in_the_temp_root(
     assert Path(written).resolve() == root / "lm-studio" / "mcp.json"
 
 
+@pytest.mark.process
 def test_a_child_sees_the_discard_base_url(plain_child: dict[str, Any]) -> None:
     assert plain_child["base_url"] == DISCARD
     assert plain_child["sandboxed"] is True
 
 
+@pytest.mark.process
 def test_a_childs_own_config_file_is_kept_and_the_sandbox_wins(tmp_path: Path) -> None:
     """The caller's CLOCKWORK_CONFIG comes first, the sandbox layer last."""
     own = tmp_path / "hosted.yaml"
@@ -137,6 +140,7 @@ def test_a_childs_own_config_file_is_kept_and_the_sandbox_wins(tmp_path: Path) -
     assert child["base_url"] == DISCARD, child
 
 
+@pytest.mark.process
 def test_a_child_does_not_read_config_local_yaml(
     redirected: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -256,6 +260,7 @@ def _via_repatched_popen(argv: list[str], out: Path) -> None:
     [_via_os_system, _via_multiprocessing_spawn, _via_asyncio, _via_repatched_popen],
     ids=["os.system", "multiprocessing-spawn", "asyncio", "repatched-Popen"],
 )
+@pytest.mark.process
 def test_a_child_started_by_any_route_is_sandboxed(
     start: Callable[[list[str], Path], None],
     redirected: list[str],
@@ -481,6 +486,7 @@ def test_a_test_process_cannot_write_the_owners_local_yaml() -> None:
 # -- the session snapshot of the owner's storage (controller note N3) ----------
 
 
+@pytest.mark.process
 def test_the_storage_snapshot_sees_a_childs_write(tmp_path_factory: pytest.TempPathFactory) -> None:
     """A write by ANOTHER process -- which no audit hook here can see -- shows
     in the snapshot the session compares at its end."""
@@ -565,6 +571,7 @@ def test_a_change_under_a_watched_root_fails_the_session_check(tmp_path: Path) -
 # whatever os.environ or env= says when the child is spawned.
 
 
+@pytest.mark.process
 def test_a_child_is_sandboxed_after_the_marker_is_deleted_here(
     redirected: list[str], monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
 ) -> None:
@@ -573,6 +580,7 @@ def test_a_child_is_sandboxed_after_the_marker_is_deleted_here(
     _assert_sandboxed(child, _temp_root(tmp_path_factory))
 
 
+@pytest.mark.process
 def test_a_child_is_sandboxed_after_the_environment_is_cleared(
     redirected: list[str], tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
 ) -> None:
@@ -590,6 +598,7 @@ def test_a_child_is_sandboxed_after_the_environment_is_cleared(
     _assert_sandboxed(child, _temp_root(tmp_path_factory))
 
 
+@pytest.mark.process
 def test_a_child_is_sandboxed_when_its_env_scrubs_the_marker(
     redirected: list[str], tmp_path_factory: pytest.TempPathFactory
 ) -> None:
@@ -655,6 +664,7 @@ def test_a_stray_marker_is_refused_by_the_conftest() -> None:
             refuse_an_inherited_marker({"CLOCKWORK_TEST_SANDBOX": stray}, 42)
 
 
+@pytest.mark.process
 def test_a_suite_started_under_a_marker_fails_fast(tmp_path: Path) -> None:
     """
     A pytest run as a child of this one inherits this suite's marker and
@@ -803,6 +813,7 @@ def test_a_child_uses_only_a_registered_loopback_stub(
     assert cfg.get("llm.base_url") == (layer_url if kept else DISCARD)
 
 
+@pytest.mark.process
 def test_a_child_dials_a_registered_stub_and_nothing_else(
     sandbox_model_stub: Any, redirected: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -898,6 +909,7 @@ class _KeyStub:
         assert not self.thread.is_alive()
 
 
+@pytest.mark.process
 def test_a_child_sends_no_key_to_the_registered_stub_unless_the_layer_names_one(
     sandbox_model_stub: Any, redirected: list[str], tmp_path: Path
 ) -> None:

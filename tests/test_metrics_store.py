@@ -181,6 +181,7 @@ def _wait_written(store: MetricsStore, check: Any, timeout: float = 20.0) -> Non
     raise AssertionError("the metrics never arrived")
 
 
+@pytest.mark.loopback
 def test_a_worker_s_metric_is_stored_with_its_own_story_and_process(bare: _Bare) -> None:
     """A worker of B claims story A and the front door's process name: both are B's."""
     sup = bare.sup
@@ -201,6 +202,7 @@ def test_a_worker_s_metric_is_stored_with_its_own_story_and_process(bare: _Bare)
 # -- bounded (fix round 1, I1) -----------------------------------------------------------
 
 
+@pytest.mark.loopback
 def test_a_flood_of_refused_logins_keeps_the_store_bounded(bare: _Bare) -> None:
     """
     A script hammering /login: 50,000 `limited` logins sent by the front
@@ -259,6 +261,7 @@ def test_the_file_is_capped_and_the_oldest_rows_go_first(tmp_path: Path) -> None
         store.close()
 
 
+@pytest.mark.loopback
 def test_a_connection_s_rate_is_capped(bare: _Bare) -> None:
     sup = bare.sup
     assert sup.metrics is not None
@@ -379,6 +382,7 @@ def test_a_large_store_is_not_read_whole_at_every_start(tmp_path: Path, monkeypa
     assert seen and not any("quick_check" in statement for statement in seen)
 
 
+@pytest.mark.loopback
 def test_a_store_that_will_not_open_even_fresh_leaves_the_supervisor_running_without_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

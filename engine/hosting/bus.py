@@ -33,7 +33,11 @@ inherit it. A connection's first message must be ``hello`` carrying the token,
 within ``hosting.supervisor.hello_seconds`` (2), or the connection is
 closed. The token is compared
 with ``hmac.compare_digest`` and is SINGLE-USE: accepted once, refused while
-its connection is up, dead once that connection closes. ``CLOCKWORK_BUS_ROLE``
+its connection is up, dead once that connection closes. A child may send it
+on more than one connection (v0.21.1: ``BusClient.connect`` starts another
+attempt when loopback loses or delays one); exactly one is accepted, and each
+other is refused and logged ``hello refused (error=refused, ...,
+credential=live)`` -- a retry, not a replayed credential. ``CLOCKWORK_BUS_ROLE``
 tells a child's own boot what to build; the supervisor never believes it.
 No token is ever written to argv, a file, a log line or a reply.
 
@@ -187,6 +191,20 @@ BAD_LINE_LOG_SECONDS = 5.0
 #: late -- hung the constructor, and with it the test suite (v0.21.0).
 WAKE_PAIR_SECONDS = 5.0
 WAKE_PAIR_ATTEMPTS = 6
+
+#: A child's connect to the bus, its hello included (``BusClient.connect``):
+#: attempt N starts (N - 1) x CONNECT_SECONDS after the first, each on a fresh
+#: socket (so a fresh port), and ONE deadline, CONNECT_SECONDS x
+#: CONNECT_ATTEMPTS (30 s) from the first start, bounds every connect, read
+#: and wait. The same loopback loss as above stranded a worker's single
+#: connect until its hello timed out, and the worker exited 1 -- which a
+#: model apply restarting it read as "did not start under the new settings"
+#: and rolled back (v0.21.1). The deadline sits inside the DEFAULT
+#: ``supervisor.boot_seconds`` (120); the child does not read that setting,
+#: so under a shorter one the supervisor's boot limit ends the child first and
+#: starts it again with a new token, as for any slow boot.
+CONNECT_SECONDS = 5.0
+CONNECT_ATTEMPTS = 6
 
 #: Error codes.
 UNKNOWN_OP = "unknown_op"
@@ -1475,28 +1493,36 @@ class BusClient:
     def connected(self) -> bool:
         return self._sock is not None and not self._lost.is_set()
 
-    def connect(self, timeout: float = 10.0) -> dict[str, Any]:
+    def connect(self, timeout: Optional[float] = None, attempts: Optional[int] = None) -> dict[str, Any]:
         """
         Connect and say ``hello``; start the reader and the pool.
 
+        On loopback a connect can be lost, or its hello answered late
+        (v0.21.1). So attempts are started ``timeout`` (``CONNECT_SECONDS``)
+        apart, timed from the first start whatever became of the one before,
+        up to ``attempts`` (``CONNECT_ATTEMPTS``), each on a fresh socket; and
+        EVERY attempt still open is listened to, so the first answer that
+        accepts the token wins and the rest are closed. One deadline,
+        ``attempts * timeout`` from the first start, bounds it all: every
+        connect, read and wait. An attempt is never given up while it may
+        still answer, because the token is single-use -- a late hello the
+        server accepted holds it, and every later attempt is refused -- so a
+        refusal starts no new attempt and ends the connect once no other
+        attempt is open. A refused connect (no supervisor listening) ends it
+        when no attempt is open.
+
         Raises:
-            BusError: the token was refused (``unauthorized``, ``refused``).
+            BusError: the token was refused (``unauthorized``, ``refused``);
+                ``BusClosed`` when no attempt was answered.
             OSError: no supervisor listening.
         """
-        sock = socket.create_connection(self._address, timeout=timeout)
+        timeout = float(CONNECT_SECONDS if timeout is None else timeout)
+        tries = max(1, int(CONNECT_ATTEMPTS if attempts is None else attempts))
         token, self._token = self._token, ""
         try:
-            sock.sendall(encode({"id": 0, "op": "hello", "args": {"token": token}}))
-            stream = sock.makefile("rb")
-            reply = read_frame(stream)
-        except (OSError, FrameError):
-            sock.close()
-            raise BusClosed() from None
+            sock, stream, reply = self._hello(token, timeout, tries)
         finally:
             del token
-        if reply is None or reply.get("ok") is not True:
-            sock.close()
-            raise BusError(str((reply or {}).get("error") or "closed"))
         sock.settimeout(None)
         self._sock = sock
         self._file = stream
@@ -1508,6 +1534,98 @@ class BusClient:
         self._reader = reader
         reader.start()
         return self.hello
+
+    def _hello(self, token: str, timeout: float, tries: int) -> tuple[socket.socket, Any, dict[str, Any]]:
+        """
+        ``connect``'s attempts (see there): the winning ``(sock, stream,
+        reply)``. One deadline, ``tries * timeout`` from the first start,
+        bounds every wait, every connect and every read; attempt N starts
+        ``(N - 1) * timeout`` after the first, however the one before ended.
+        """
+        selector = selectors.DefaultSelector()
+        open_: list[socket.socket] = []
+        refusal = ""
+        started = 0
+        first = time.monotonic()
+        deadline = first + tries * timeout
+        pause = threading.Event()
+        try:
+            while True:
+                now = time.monotonic()
+                if now >= deadline:
+                    break
+                next_start = first + started * timeout
+                if started < tries and not refusal and now >= next_start:
+                    if started:
+                        logger.warning(
+                            "[bus] The supervisor's bus has not answered; attempt %d of %d (operation=connect)",
+                            started + 1,
+                            tries,
+                        )
+                    started += 1
+                    sock = self._dial(token, min(timeout, deadline - now), refuse_ok=bool(open_))
+                    if sock is not None:
+                        selector.register(sock, selectors.EVENT_READ)
+                        open_.append(sock)
+                    continue
+                if not open_ and (started >= tries or refusal):
+                    break
+                # Until the next start (or the deadline), whichever is first.
+                until = deadline if (started >= tries or refusal) else min(next_start, deadline)
+                if not open_:
+                    pause.wait(max(0.0, until - now))  # every attempt lost: wait for the next one's slot
+                    continue
+                for key, _events in selector.select(max(0.0, until - now)):
+                    sock = key.fileobj  # type: ignore[assignment]
+                    selector.unregister(sock)
+                    open_.remove(sock)
+                    sock.settimeout(max(0.001, deadline - time.monotonic()))
+                    stream = sock.makefile("rb")
+                    try:
+                        reply = read_frame(stream)
+                    except (OSError, FrameError):
+                        reply = None
+                    if reply is not None and reply.get("ok") is True:
+                        if started > 1:
+                            logger.info(
+                                "[bus] Connected on one of %d attempts (operation=connect)", started
+                            )
+                        return sock, stream, reply
+                    stream.close()
+                    sock.close()
+                    if reply is not None:
+                        refusal = str(reply.get("error") or "closed")
+            if refusal:
+                raise BusError(refusal)
+            raise BusClosed()
+        finally:
+            for sock in open_:
+                sock.close()
+            selector.close()
+
+    def _dial(self, token: str, timeout: float, *, refuse_ok: bool) -> Optional[socket.socket]:
+        """
+        One attempt's connect and hello, each within ``timeout``: the socket,
+        or None when the connect was lost (or refused while ``refuse_ok``:
+        another attempt is still open).
+
+        Raises:
+            ConnectionRefusedError: nothing listens at the address.
+        """
+        try:
+            sock = socket.create_connection(self._address, timeout=timeout)
+        except ConnectionRefusedError:
+            if refuse_ok:
+                return None
+            raise
+        except OSError:
+            return None  # a timeout, or a reset on the way
+        try:
+            sock.sendall(encode({"id": 0, "op": "hello", "args": {"token": token}}))
+        except OSError:
+            sock.close()
+            return None
+        return sock
 
     def request(
         self,

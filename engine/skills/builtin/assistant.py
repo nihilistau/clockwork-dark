@@ -29,6 +29,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game.engine import get_active_engine
 from engine.skills.registry import AGENT_ASSISTANT, TRIGGER_OPTIONAL, skill
@@ -77,7 +78,7 @@ def _load_hint_data() -> dict[str, Any]:
         return {}
     try:
         with path.open(encoding="utf-8") as fh:
-            data = yaml.safe_load(fh) or {}
+            data = yamlio.safe_load(fh) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.error(
             "[assistant] Unreadable hint corpus "

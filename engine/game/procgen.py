@@ -40,8 +40,7 @@ import secrets
 from pathlib import Path
 from typing import Any, Optional
 
-import yaml
-
+from engine import yamlio
 from engine.config import get_config
 from engine.game.rng import PROCGEN, stable_rng
 from engine.game.state import GameState, InventoryItem, ProcgenResult
@@ -90,7 +89,7 @@ def load_templates() -> dict[str, Any]:
         templates = {}
     else:
         with path.open(encoding="utf-8") as fh:
-            templates = yaml.safe_load(fh) or {}
+            templates = yamlio.safe_load(fh) or {}
     _TEMPLATE_CACHE = templates
     return templates
 

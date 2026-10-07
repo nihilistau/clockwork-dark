@@ -73,6 +73,7 @@ from typing import Any, Callable, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game.state import GameState
 
@@ -288,7 +289,7 @@ def load_spec() -> dict[str, Any]:
     from engine.game.locations import LOCATIONS
 
     try:
-        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        doc = yamlio.safe_load(path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
         # A syntax error must name this file like any other fault; PyYAML's own
         # message names a line and a column but reaches the log as "a YAML

@@ -80,7 +80,7 @@ fi
 
 "$VenvPython" -m pip install -q -r requirements.txt -c constraints.txt
 echo "Running tests..."
-"$VenvPython" -m pytest tests/ -q --tb=short
+"$VenvPython" -m pytest tests/ --full -q --tb=short
 
 # The configured model server, read from the config the engine itself reads
 # (config/default.yaml under config/local.yaml), never written here.

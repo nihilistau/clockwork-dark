@@ -66,6 +66,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import project_root
 from engine.names import is_portable_name
 
@@ -742,7 +743,7 @@ def load(path: Path) -> GameManifest:
     """
     try:
         with path.open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle)
+            data = yamlio.safe_load(handle)
     except (OSError, yaml.YAMLError) as exc:
         raise ManifestError(f"Unreadable manifest at {path}: {exc}") from exc
 

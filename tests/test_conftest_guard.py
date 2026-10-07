@@ -74,6 +74,7 @@ def test_the_shipped_config_guards_every_loopback_spelling() -> None:
     assert {(host, 1234) for host in LOOPBACK} <= _model_endpoints()
 
 
+@pytest.mark.loopback
 def test_a_guarded_host_name_is_refused_whatever_it_resolves_to(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -164,6 +165,7 @@ def test_any_host_off_this_machine_is_refused(monkeypatch: pytest.MonkeyPatch, h
         del breaches[before:]
 
 
+@pytest.mark.loopback
 def test_loopback_is_still_allowed() -> None:
     import socket
 
@@ -381,6 +383,7 @@ def test_an_unmarked_test_cannot_start_a_skills_server(
     assert seen == ["start a skills server"]
 
 
+@pytest.mark.loopback
 def test_the_session_holds_every_guarded_loopback_port(pytestconfig: pytest.Config) -> None:
     """A throwaway server can never be handed a model server's default port
     (this machine's ephemeral range starts at 1024; one test got 8080 and the
@@ -402,3 +405,84 @@ def test_the_session_holds_every_guarded_loopback_port(pytestconfig: pytest.Conf
                 probe.bind(("127.0.0.1", port))
         finally:
             probe.close()
+
+
+def test_each_test_gets_its_own_guard_dirs_without_a_numbered_scan(tmp_path_factory) -> None:
+    """v0.21.1 T4: the per-test saves, data and LM Studio dirs come from a
+    counter under ``<basetemp>/guards``, not from ``mktemp``'s scan of the
+    whole basetemp root."""
+    import os
+
+    from tests.conftest import guard_dir
+
+    base = Path(tmp_path_factory.getbasetemp()).resolve()
+    first, second = guard_dir(tmp_path_factory, "data"), guard_dir(tmp_path_factory, "data")
+    assert first != second
+    assert first.parent.parent == second.parent.parent == base / "guards"
+    assert Path(os.environ["CLOCKWORK_DATA_DIR"]).resolve().parent.parent == base / "guards"
+
+
+def test_two_conftest_copies_never_hand_out_the_same_guard_dir(tmp_path_factory) -> None:
+    """Preflight K4: ``from tests.conftest import ...`` loads a SECOND copy of
+    the conftest. Its counter must be the first copy's (kept on ``sys``), and
+    a ``guards/<n>`` that exists already is skipped, never reused."""
+    import sys
+
+    import conftest as loaded
+    import tests.conftest as copy
+
+    assert loaded is not copy, "expected two copies; the test proves nothing otherwise"
+    assert loaded.guard_dir is not copy.guard_dir
+    made = []
+    for _ in range(5):
+        made.append(loaded.guard_dir(tmp_path_factory, "x"))
+        made.append(copy.guard_dir(tmp_path_factory, "x"))
+    assert len({p.parent for p in made}) == len(made)
+
+    # A slot made behind the counter's back (another session in this process
+    # with the same basetemp) is skipped.
+    seq = getattr(sys, loaded._GUARD_SEQ_KEY)
+    ahead = int(made[-1].parent.name) + 1
+    (made[-1].parent.parent / str(ahead)).mkdir()
+    skipped = copy.guard_dir(tmp_path_factory, "x")
+    assert int(skipped.parent.name) > ahead
+    assert next(seq) > ahead
+
+
+def test_an_empty_guard_dir_is_dropped_and_a_used_one_kept(tmp_path_factory) -> None:
+    from conftest import _drop_if_empty, guard_dir
+
+    empty, used = guard_dir(tmp_path_factory, "data"), guard_dir(tmp_path_factory, "data")
+    (used / "save.json").write_text("{}", encoding="utf-8")
+    _drop_if_empty(empty)
+    _drop_if_empty(used)
+    assert not empty.parent.exists()
+    assert (used / "save.json").is_file()
+
+
+#: What `test_a_test_records_its_guard_dirs` saw, for the test after it.
+_GUARDS_SEEN: list[Path] = []
+
+
+def test_a_test_records_its_guard_dirs() -> None:
+    """The first of an ordered pair (review finding 5): record this test's
+    saves, data and LM Studio guard dirs, and write nothing into them."""
+    import os
+
+    from engine.mcp import skills_server
+    from engine.persistence import saves
+
+    _GUARDS_SEEN[:] = [
+        Path(saves.saves_base()),
+        Path(os.environ["CLOCKWORK_DATA_DIR"]),
+        Path(skills_server.mcp_json_path()).parent,
+    ]
+    assert all(path.is_dir() and path.parent.parent.name == "guards" for path in _GUARDS_SEEN)
+
+
+def test_the_guard_dirs_a_test_left_empty_are_gone_after_it() -> None:
+    """The second: both autouse guards dropped the previous test's empty dirs
+    at its teardown, with their ``guards/<n>``."""
+    if not _GUARDS_SEEN:
+        pytest.skip("the recording test did not run first in this process")
+    assert not [path.parent for path in _GUARDS_SEEN if path.parent.exists()]

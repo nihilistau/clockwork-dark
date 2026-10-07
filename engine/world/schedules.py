@@ -15,8 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-import yaml
-
+from engine import yamlio
 from engine.config import get_config
 from engine.game.state import GameState
 
@@ -82,7 +81,7 @@ def load_schedules() -> dict[str, Any]:
         schedules = {}
     else:
         with path.open(encoding="utf-8") as fh:
-            schedules = yaml.safe_load(fh) or {}
+            schedules = yamlio.safe_load(fh) or {}
     _SCHEDULE_CACHE = schedules
     return schedules
 
@@ -124,7 +123,7 @@ def load_rumors() -> dict[str, Any]:
         rumors = {}
     else:
         with path.open(encoding="utf-8") as fh:
-            rumors = yaml.safe_load(fh) or {}
+            rumors = yamlio.safe_load(fh) or {}
     _RUMOR_CACHE = rumors
     return rumors
 

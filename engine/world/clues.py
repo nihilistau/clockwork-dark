@@ -58,6 +58,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.game.state import GameState
 from engine.memory.ledger import MAX_FACT_CHARS
 
@@ -126,7 +127,7 @@ def _parse(path: Path) -> dict[str, Any]:
     from engine.world import agendas, premises
 
     try:
-        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        doc = yamlio.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as exc:
         raise _fail(path, f"cannot be read: {exc}") from None
     if not isinstance(doc, dict):

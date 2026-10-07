@@ -145,6 +145,7 @@ def test_an_action_whose_started_row_cannot_be_written_never_runs(
     assert audit.refused("account.create", actor=ACTOR, directory=tmp_path) is None
 
 
+@pytest.mark.process
 def test_two_processes_appending_at_once_land_every_line_whole(tmp_path: Path) -> None:
     count = 150
     directory = tmp_path / "hosting"
@@ -181,6 +182,7 @@ def test_two_processes_appending_at_once_land_every_line_whole(tmp_path: Path) -
         assert mine == list(range(count)), f"{label}'s rows were lost or reordered"
 
 
+@pytest.mark.loopback
 def test_no_line_holds_a_password_hash_key_or_token(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -255,6 +257,7 @@ def test_no_line_holds_a_password_hash_key_or_token(
         door.stop()
 
 
+@pytest.mark.process
 def test_a_supervisor_holding_a_story_down_writes_story_held_down(tmp_path: Path) -> None:
     """
     A fresh instance (it must crash-loop from its first start): one fake
@@ -434,6 +437,7 @@ def test_a_reader_racing_a_rotation_returns_no_duplicates(tmp_path: Path) -> Non
     assert [r["detail"]["index"] for r in rows] == [5, 4, 3, 2, 1, 0]
 
 
+@pytest.mark.loopback
 def test_the_audit_page_says_older_rows_were_not_searched(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -453,6 +457,7 @@ def test_the_audit_page_says_older_rows_were_not_searched(
         door.stop()
 
 
+@pytest.mark.loopback
 def test_the_held_down_row_goes_where_the_storage_root_pointed_when_it_was_queued(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -502,6 +507,7 @@ def test_the_held_down_row_goes_where_the_storage_root_pointed_when_it_was_queue
     assert row["action"] == "story.held_down"
 
 
+@pytest.mark.loopback
 def test_a_bus_handler_never_waits_on_the_audit_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """
     M6: the supervisor's held-down row used to be written by whichever

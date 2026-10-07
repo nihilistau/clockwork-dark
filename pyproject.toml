@@ -1,6 +1,6 @@
 [project]
 name = "clockwork-dark"
-version = "0.21.0"
+version = "0.21.1"
 description = "Local-first AI RPG — The Clockwork Dark"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-cov>=5.0"]
+dev = ["pytest>=8.0", "pytest-cov>=5.0", "pytest-timeout>=2.3"]
 # The production server for hosted mode on Linux (v0.20.0 T13; spec §7.1);
 # the image installs requirements-server.txt instead.
 server = ["gunicorn>=23"]
@@ -24,8 +24,14 @@ testpaths = ["tests"]
 pythonpath = ["."]
 # Kept in step with pytest.ini, which is the file pytest actually reads when
 # both exist. See tests/conftest.py::_no_live_model_calls.
+# The stall watchdog (v0.21.1; pytest.ini says why).
+timeout = 300
+timeout_method = "thread"
+faulthandler_timeout = 0
 markers = [
     "live: this test is ALLOWED to open a real connection to the model server, or to launch the Grok image CLI",
     "mcp_server: this test is ALLOWED to start a real skills server; its mcp.json is still redirected into its temp directory",
     "default_storage_root: this test does not get the conftest's per-test CLOCKWORK_DATA_DIR; the audit hook on the real saves/, users/ and hosting/ still applies",
+    "slow: measures balance or plays a long run (rule 10: keeps its length), or waits on a wall clock already at its setting's floor; left out of a bare `pytest`, `--full` or any explicit path runs it",
+    "process: starts a Python interpreter, gunicorn or a hosted supervisor (it or a fixture it uses); left out of a bare `pytest`; enforced for direct Popen children: an unmarked test that starts one, or uses a fixture that did, fails (tests/tier_plugin.py)",
 ]

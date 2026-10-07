@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import inspect
+import itertools
 import os
 import socket
 import subprocess
@@ -245,6 +246,29 @@ def _no_lane_backend_outlives_its_test() -> Iterator[None]:
     if gate is not None and gate.lane_backend() is not None:
         gate.reset_lane_backend()
         pytest.fail("this test left a lane backend set (engine.llm.gate.set_lane_backend)")
+
+
+@pytest.fixture(autouse=True)
+def _no_metrics_queue_outlives_its_test() -> Iterator[None]:
+    """
+    A hosted child's metrics queue (``engine.hosting.metrics_emit.enable``,
+    made by ``boot.prepare_child``) is gone when the test that made it ends,
+    and that test fails.
+
+    WHY THIS EXISTS (v0.21.1 T5, found by xdist). ``test_supervisor.py``'s
+    ``boot.main`` test enabled the queue in the suite's own process and left
+    it. A later in-process front door or worker install then started a
+    sender on its bus (``attach`` starts one only after ``enable``), the bus
+    closed with that test, and every ERROR logged afterwards was counted
+    dropped -- so ``test_hosting_bus.py``'s health answer read
+    ``metrics_dropped: 57``. Serially that file ran first and passed; under
+    xdist the order changed and it failed.
+    """
+    yield
+    emitter = sys.modules.get("engine.hosting.metrics_emit")
+    if emitter is not None and (emitter.enabled() or emitter.dropped):
+        emitter.stop()
+        pytest.fail("this test left the hosted metrics queue enabled (engine.hosting.metrics_emit)")
 
 
 @pytest.fixture(autouse=True)
@@ -733,6 +757,17 @@ def refuse_a_basetemp_under(config: Any, data_root: Path) -> None:
         )
 
 
+def pytest_addoption(parser: pytest.Parser, pluginmanager: pytest.PytestPluginManager) -> None:
+    """Registers the tier hooks (tests/tier_plugin.py: ``--full``, the fast
+    default, the ``process`` guard). ``pytest_addoption`` is historic, so the
+    plugin's own is replayed on registration: never call it by hand, or
+    ``--full`` is added twice."""
+    from tests import tier_plugin
+
+    if not pluginmanager.is_registered(tier_plugin):
+        pluginmanager.register(tier_plugin, "clockwork-tiers")
+
+
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config: pytest.Config) -> None:
     """
@@ -774,10 +809,37 @@ def pytest_configure(config: pytest.Config) -> None:
     ``tests/test_subprocess_sandbox.py`` pins that, and starts children by
     every route above.
     """
+    # THE SESSION'S JOB (v0.21.1 T2 fix round 1). On Windows the outermost
+    # session puts itself in a kill-on-close Job Object whose handle it holds
+    # until it exits (tests/process_jobs.py::contain_session), so a bare
+    # `pytest` that hangs, times out (the thread method's os._exit skips every
+    # finalizer) or is killed takes all its descendants with it. An xdist
+    # worker takes one too, nested in its controller's (T5 review F6): a
+    # worker that dies ends its own children at once, not at the run's end.
+    # Never a sandboxed child (a marker another pid set).
+    from tests.process_jobs import contain_session, wants_session_job
+
+    if wants_session_job():
+        contain_session()
     # A --basetemp under the owner's storage root is refused BEFORE pytest
     # resolves it: resolving it wipes it (data-leak review M2), and every
     # test's temp tree would then be the owner's data.
     refuse_a_basetemp_under(config, _REAL_DATA_ROOT)
+    if is_xdist_controller(config):
+        # THE XDIST CONTROLLER (v0.21.1 T5) runs no test and starts only the
+        # workers, which are its children and must not inherit the marker:
+        # each one is a whole suite and sets its own at conftest import,
+        # exactly as a serial run does (a marker naming the controller's pid
+        # would make every worker refuse to start, or run sandboxed). Nothing
+        # here is wrapped and no CLOCKWORK_DATA_DIR is exported. It holds the
+        # guarded model ports for the session -- once, for every worker -- so
+        # the OS can hand them to no worker's throwaway server, and compares
+        # the owner's storage once, after every worker has ended
+        # (pytest_sessionfinish below). Workers are started after this hook
+        # (xdist's pytest_sessionstart), so they see the environment as left.
+        os.environ.pop(_SANDBOX_ENV, None)
+        config._clockwork_held_ports = hold_guarded_ports()  # type: ignore[attr-defined]
+        return
     factory = getattr(config, "_tmp_path_factory", None)
     if factory is None:  # pragma: no cover -- the tmp_path plugin is always on
         factory = pytest.TempPathFactory.from_config(config, _ispytest=True)
@@ -797,6 +859,11 @@ def pytest_configure(config: pytest.Config) -> None:
     os.environ[_SANDBOX_ENV] = marker
 
     signature = inspect.signature(_REAL_POPEN_INIT)
+    # The tier plugin's Popen recorder (tests/tier_plugin.py, v0.21.1) was
+    # installed first (this hook is trylast): the wrapper calls it rather than
+    # the real __init__, so the chain is sandbox -> recorder -> real and every
+    # child is both sandboxed and recorded for the `process` guard.
+    previous = subprocess.Popen.__init__
 
     def sandboxed_init(self: Any, *args: Any, **kwargs: Any) -> None:
         bound = signature.bind(self, *args, **kwargs)
@@ -805,7 +872,7 @@ def pytest_configure(config: pytest.Config) -> None:
         # it now (sandbox_model_stub); one in a caller's env= is dropped.
         _pass_stub_port(env)
         bound.arguments["env"] = env
-        _REAL_POPEN_INIT(*bound.args, **bound.kwargs)
+        previous(*bound.args, **bound.kwargs)
 
     sandboxed_init.__wrapped__ = _REAL_POPEN_INIT  # type: ignore[attr-defined]
     patch = pytest.MonkeyPatch()
@@ -821,7 +888,25 @@ def pytest_configure(config: pytest.Config) -> None:
     # layer's root, the one every child process already uses.
     patch.setenv(_DATA_DIR_ENV, str(root / "data"))
     config._clockwork_sandbox_patch = patch  # type: ignore[attr-defined]
-    config._clockwork_held_ports = hold_guarded_ports()  # type: ignore[attr-defined]
+    # An xdist worker holds none: its controller holds them for the whole run
+    # (a worker's bind would only fail on each port the controller holds).
+    if not hasattr(config, "workerinput"):
+        config._clockwork_held_ports = hold_guarded_ports()  # type: ignore[attr-defined]
+
+
+def is_xdist_controller(config: pytest.Config) -> bool:
+    """True in the pytest-xdist controller: it runs no test and starts only
+    workers. xdist's own test (``-n N`` with N > 0, or ``--tx``: a ``dist``
+    mode and a worker list), in a process that is not itself a worker, and
+    not ``--collect-only``, under which xdist starts no worker and the
+    process collects as a serial one does."""
+    return (
+        config.pluginmanager.hasplugin("xdist")
+        and not hasattr(config, "workerinput")
+        and not config.getoption("collectonly", False)
+        and config.getoption("dist", "no") != "no"
+        and bool(config.getoption("tx", None))
+    )
 
 
 def guarded_loopback_ports() -> list[int]:
@@ -1014,9 +1099,113 @@ def assert_storage_unchanged(before: Snapshot, roots: list[SnapshotRoot]) -> Non
 #: collection -- by whichever copy of this file loads first (kept on ``sys``
 #: for the reason ``_SHARED_KEY`` is).
 _SNAPSHOT_KEY = "_clockwork_dark_storage_before"
-if getattr(sys, _SNAPSHOT_KEY, None) is None:
+
+#: This process is a pytest-xdist worker (v0.21.1 T5): xdist sets the
+#: variable before it builds the worker's config, so before this import. A
+#: worker takes no snapshot of its own: the controller took one before any
+#: worker started and compares it once, after the last one has ended
+#: (``pytest_sessionfinish``), so the check runs once per run and no worker
+#: compares against a moment another worker had already moved past.
+IS_XDIST_WORKER = bool(os.environ.get("PYTEST_XDIST_WORKER"))
+
+if not IS_XDIST_WORKER and getattr(sys, _SNAPSHOT_KEY, None) is None:
     _roots_now = _real_storage_roots()
     setattr(sys, _SNAPSHOT_KEY, (_roots_now, storage_snapshot(_roots_now)))
+
+
+#: The controller's failed storage check, for its terminal summary (F1).
+_STORAGE_FAILURE_KEY = pytest.StashKey[str]()
+#: Each test's window in the controller (F4): nodeid -> [start, stop, worker],
+#: from the reports the workers send it.
+_WINDOWS_KEY = pytest.StashKey[dict[str, list[Any]]]()
+#: Seconds either side of a test's window a change still names it.
+SUSPECT_SLACK_SECONDS = 5.0
+
+
+def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+    """In the xdist controller, keep when each test ran and on which worker,
+    so a storage change can name the tests that were running then (F4)."""
+    node = getattr(report, "node", None)
+    if node is None:  # a serial session, or a worker: only the controller sees nodes
+        return
+    config = node.config
+    if not is_xdist_controller(config):
+        return
+    windows = config.stash.setdefault(_WINDOWS_KEY, {})
+    start, stop = float(getattr(report, "start", 0.0) or 0.0), float(getattr(report, "stop", 0.0) or 0.0)
+    seen = windows.get(report.nodeid)
+    worker = getattr(getattr(node, "gateway", None), "id", "?")
+    if seen is None:
+        windows[report.nodeid] = [start, stop, worker]
+    else:
+        seen[0], seen[1] = min(seen[0], start), max(seen[1], stop)
+
+
+def storage_suspects(
+    before: Snapshot, after: Snapshot, windows: Mapping[str, list[Any]], slack: float = SUSPECT_SLACK_SECONDS
+) -> list[str]:
+    """The tests (``nodeid on worker``) whose run, give or take ``slack``
+    seconds, contains the mtime of an added or changed file. A SUSPECT list:
+    a file's mtime is when it was last written, a child can outlive its test,
+    and a removal has no mtime at all."""
+    stamps = [
+        after[path][1] / 1e9
+        for path in after
+        if after[path][0] >= 0 and before.get(path) != after[path]
+    ]
+    out = []
+    for nodeid, (start, stop, worker) in sorted(windows.items(), key=lambda kv: kv[1][0]):
+        if any(start - slack <= stamp <= stop + slack for stamp in stamps):
+            out.append(f"{nodeid} on {worker}")
+    return out
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """
+    Under xdist the owner's storage is compared in the controller, after every
+    worker has ended (xdist's own sessionfinish, registered later, ran first):
+    one check over every process's writes, plus any write the controller's
+    own audit hook recorded (F5). A failure fails the run -- exit 1, unless
+    the run already ended worse (F2) -- and is printed as a red section at
+    the end of the terminal summary (``pytest_terminal_summary`` below, F1),
+    with the tests that were running when each file changed (F4).
+    """
+    config = session.config
+    if not is_xdist_controller(config):
+        return
+    roots, before = getattr(sys, _SNAPSHOT_KEY)
+    problems: list[str] = []
+    outside = list(REAL_SAVES_WRITES)
+    REAL_SAVES_WRITES.clear()
+    if outside:
+        problems.append(f"the controller itself wrote under the owner's real storage root: {outside[:5]}")
+    after = storage_snapshot(roots)
+    try:
+        assert_storage_unchanged(before, roots)
+    except AssertionError as exc:
+        problems.append(str(exc))
+        suspects = storage_suspects(before, after, config.stash.get(_WINDOWS_KEY, {}))
+        problems.append(
+            "running when a file changed (suspects, not proof): " + (", ".join(suspects[:20]) or "none")
+        )
+    if not problems:
+        return
+    config.stash[_STORAGE_FAILURE_KEY] = "\n".join(problems)
+    if session.exitstatus in (pytest.ExitCode.OK, pytest.ExitCode.NO_TESTS_COLLECTED):
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: pytest.Config) -> None:
+    """The controller's failed storage check as the summary's last section,
+    red, just above the stats line (F1). ``STORAGE CHECK FAILED`` starts
+    each line, which scripts/run_tests.py repeats in its own summary."""
+    failure = config.stash.get(_STORAGE_FAILURE_KEY, None)
+    if not failure:
+        return
+    terminalreporter.write_sep("!", "STORAGE CHECK FAILED", red=True, bold=True)
+    for line in failure.splitlines():
+        terminalreporter.write_line(f"STORAGE CHECK FAILED: {line}", red=True, bold=True)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -1033,9 +1222,11 @@ def _real_storage_is_untouched() -> Iterator[list[SnapshotRoot]]:
     names, sizes and mtimes (and hashes of the small owner files), compared
     at session end, catches every one of those that leaves a net change,
     whatever wrote it. It is reported as an error on the session's last test.
+    In an xdist worker only the audit hook's leftovers are checked here: the
+    controller compares the snapshot once for the run (``pytest_sessionfinish``).
     """
-    roots, before = getattr(sys, _SNAPSHOT_KEY)
-    yield roots
+    snapshot = getattr(sys, _SNAPSHOT_KEY, None)  # None in an xdist worker
+    yield snapshot[0] if snapshot is not None else _real_storage_roots()
     # A write the audit hook recorded after the last test's teardown (a
     # module fixture's teardown, a thread) has no next test to report it.
     outside = list(REAL_SAVES_WRITES)
@@ -1043,7 +1234,8 @@ def _real_storage_is_untouched() -> Iterator[list[SnapshotRoot]]:
     assert not outside, (
         f"a write under the owner's real storage root happened after the last test: {outside[:5]}"
     )
-    assert_storage_unchanged(before, roots)
+    if snapshot is not None:  # a worker's run is compared by its controller
+        assert_storage_unchanged(snapshot[1], snapshot[0])
 
 
 @pytest.fixture(autouse=True)
@@ -1118,11 +1310,14 @@ def _no_test_writes_real_saves(
         )
 
     real = _real_saves_dir()
-    base = tmp_path_factory.mktemp("saves")
+    base = guard_dir(tmp_path_factory, "saves")
+    made = [base]
     redirect = pytest.MonkeyPatch()
     redirect.setattr(saves, "saves_base", lambda: base)
     if request.node.get_closest_marker("default_storage_root") is None:
-        redirect.setenv(_DATA_DIR_ENV, str(tmp_path_factory.mktemp("data")))
+        data = guard_dir(tmp_path_factory, "data")
+        made.append(data)
+        redirect.setenv(_DATA_DIR_ENV, str(data))
     else:
         redirect.delenv(_DATA_DIR_ENV, raising=False)
     saves.reset_save_store()
@@ -1140,6 +1335,8 @@ def _no_test_writes_real_saves(
     finally:
         saves.reset_save_store()
         redirect.undo()
+        for path in made:
+            _drop_if_empty(path)
         breaches = list(REAL_SAVES_WRITES)
         REAL_SAVES_WRITES.clear()
     assert not breaches, (
@@ -1445,6 +1642,52 @@ def _no_real_grok_cli(request: Any, monkeypatch: pytest.MonkeyPatch) -> Iterator
     )
 
 
+#: The per-test guard dirs' counter (v0.21.1). pytest's ``mktemp`` lists the
+#: whole basetemp root to number each new directory (12-16 ms at 9k entries,
+#: measured), and every test made two or three of them, so the per-test floor
+#: grew from ~10 ms to ~50 ms over a run. A counter under one parent needs no
+#: scan. (``tmp_path`` still goes through ``mktemp``, but the root now gains one
+#: entry per ``tmp_path`` test rather than three or four per test.)
+#:
+#: Kept on ``sys`` for ``_SHARED_KEY``'s reason: a test's ``from tests.conftest
+#: import guard_dir`` loads a second copy of this file, whose own counter would
+#: restart at 0 and hand out a ``guards/<n>`` the first copy already made.
+_GUARD_SEQ_KEY = "_clockwork_dark_guard_seq"
+if getattr(sys, _GUARD_SEQ_KEY, None) is None:
+    setattr(sys, _GUARD_SEQ_KEY, itertools.count())
+
+
+def guard_dir(factory: pytest.TempPathFactory, kind: str) -> Path:
+    """
+    A fresh ``<basetemp>/guards/<n>/<kind>`` for one guard of one test.
+
+    ``n`` comes from the process-wide counter; a ``guards/<n>`` that already
+    exists (another pytest session in this process -- a pytester run -- with
+    the same basetemp, say) is skipped, never reused.
+    """
+    parent = Path(factory.getbasetemp()).resolve() / "guards"
+    seq = getattr(sys, _GUARD_SEQ_KEY)
+    while True:
+        slot = parent / str(next(seq))
+        try:
+            slot.mkdir(parents=True)
+        except FileExistsError:
+            continue
+        path = slot / kind
+        path.mkdir()
+        return path
+
+
+def _drop_if_empty(path: Path) -> None:
+    """Remove a guard dir the test never wrote to (and its ``guards/<n>``);
+    keep any that holds something, for a failing test's post-mortem."""
+    for p in (path, path.parent):
+        try:
+            p.rmdir()
+        except OSError:
+            return
+
+
 def _inside(path: Any, root: Path) -> bool:
     """Whether ``path`` resolves under ``root``."""
     try:
@@ -1515,7 +1758,7 @@ def _no_owner_lm_studio_files(
         if declared and _inside(Path(declared).expanduser(), root):
             return Path(declared).expanduser()
         if not sandbox:
-            sandbox.append(tmp_path_factory.mktemp("lm-studio") / "mcp.json")
+            sandbox.append(guard_dir(tmp_path_factory, "lm-studio") / "mcp.json")
         return sandbox[0]
 
     def refuse_outside(path: Any, what: str) -> None:
@@ -1551,6 +1794,8 @@ def _no_owner_lm_studio_files(
         guard.undo()
         skills_server._server = None
         mechanics._mcp_refusal_logged = False
+        for path in sandbox:
+            _drop_if_empty(path.parent)
     assert not breaches, (
         f"{request.node.nodeid} reached for LM Studio's own files or a real "
         f"skills server ({'; '.join(breaches)}). Pass a tmp_path, or mark the "

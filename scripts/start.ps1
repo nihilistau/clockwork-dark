@@ -23,7 +23,7 @@ if (-not (Test-Path $VenvPython)) {
 
 & $VenvPython -m pip install -q -r requirements.txt -c constraints.txt
 Write-Host "Running tests..."
-& $VenvPython -m pytest tests/ -q --tb=short
+& $VenvPython -m pytest tests/ --full -q --tb=short
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 # The configured model server, read from the config the engine itself reads

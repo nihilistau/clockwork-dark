@@ -50,6 +50,7 @@ from typing import Any
 import yaml
 from flask import Blueprint, jsonify, request
 
+from engine import yamlio
 from engine.games.manifest import is_valid_slug
 from engine.names import is_portable_name
 
@@ -237,7 +238,7 @@ def studio_blueprint() -> Blueprint:
         text = str(body.get("text") or "")
         if path.suffix.lower() in {".yaml", ".yml"}:
             try:
-                yaml.safe_load(text)
+                yamlio.safe_load(text)
             except yaml.YAMLError as exc:
                 return jsonify({"error": f"not valid YAML: {exc}"}), 400
         if path.suffix.lower() == ".json":

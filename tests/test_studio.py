@@ -45,6 +45,33 @@ def client():
     return app.test_client()
 
 
+@pytest.fixture
+def bench(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A private copy of the bench story, for every test that WRITES.
+
+    v0.21.1 T5 fix round 1, found by xdist: these tests wrote probe files
+    into the live ``games/dev-story/`` tree, and on another worker
+    ``test_validation_is_reported_per_issue`` validated that tree while
+    ``studio_probe.yaml`` was in it ("item has no description"). Serially the
+    two never overlapped. The studio (``engine.studio.api.GAMES``) and the
+    registry (``games_root``, through which ``author.py`` and the validator
+    find a story) are pointed at a temp ``games/`` holding only the copy, and
+    a manifest's project-relative paths resolve under the temp root.
+    """
+    import shutil
+
+    from engine.games import manifest, registry
+    from engine.studio import api
+
+    games = tmp_path / "games"
+    shutil.copytree(ROOT / "games" / BENCH, games / BENCH)
+    monkeypatch.setattr(api, "GAMES", games)
+    monkeypatch.setattr(registry, "games_root", lambda: games)
+    # A manifest's paths are relative to the project root ("games/dev-story/...").
+    monkeypatch.setattr(manifest, "project_root", lambda: tmp_path)
+    return games / BENCH
+
+
 # ---------------------------------------------------------------------------
 # the rail
 # ---------------------------------------------------------------------------
@@ -156,28 +183,28 @@ def test_reading_outside_the_story_is_refused(client) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_broken_yaml_never_reaches_disk(client) -> None:
+def test_broken_yaml_never_reaches_disk(client, bench: Path) -> None:
     """
     Parsed BEFORE anything touches disk. A syntax error is a 400 and not a
     broken story -- the editor cannot save what the game cannot read.
     """
-    original = (ROOT / "games" / BENCH / "game.yaml").read_text(encoding="utf-8")
+    original = (bench / "game.yaml").read_text(encoding="utf-8")
     response = client.put(
         "/api/studio/file",
         json={"slug": BENCH, "path": "game.yaml", "text": "id: [unclosed\n"},
     )
     assert response.status_code == 400
     assert "YAML" in response.get_json()["error"]
-    assert (ROOT / "games" / BENCH / "game.yaml").read_text(encoding="utf-8") == original
+    assert (bench / "game.yaml").read_text(encoding="utf-8") == original
 
 
-def test_a_write_reports_the_health_it_caused(client) -> None:
+def test_a_write_reports_the_health_it_caused(client, bench: Path) -> None:
     """
     Validation runs AFTER the write and is reported rather than enforced. A
     story mid-edit is allowed to be briefly wrong; the author has to be told
     that it is.
     """
-    path = ROOT / "games" / BENCH / "README.md"
+    path = bench / "README.md"
     # Byte-exact, line endings included: this is a TRACKED file, and a
     # restore that normalised them left it modified after every suite run.
     original = path.read_bytes()
@@ -212,12 +239,12 @@ def test_validation_is_reported_per_issue(client) -> None:
     assert body["issues"] == []
 
 
-def test_drafts_carry_their_text(client) -> None:
+def test_drafts_carry_their_text(client, bench: Path) -> None:
     """
     A review queue that listed filenames would be a worse `ls`. The point is to
     READ what the model wrote before it becomes part of the story.
     """
-    draft = ROOT / "games" / BENCH / "data" / "drafts" / "item" / "probe.yaml"
+    draft = bench / "data" / "drafts" / "item" / "probe.yaml"
     draft.parent.mkdir(parents=True, exist_ok=True)
     draft.write_text("items:\n  probe: {name: Probe}\n", encoding="utf-8")
     try:
@@ -231,8 +258,8 @@ def test_drafts_carry_their_text(client) -> None:
         draft.unlink(missing_ok=True)
 
 
-def test_a_draft_can_be_thrown_away(client) -> None:
-    draft = ROOT / "games" / BENCH / "data" / "drafts" / "item" / "reject_me.yaml"
+def test_a_draft_can_be_thrown_away(client, bench: Path) -> None:
+    draft = bench / "data" / "drafts" / "item" / "reject_me.yaml"
     draft.parent.mkdir(parents=True, exist_ok=True)
     draft.write_text("items:\n  x: {name: X}\n", encoding="utf-8")
 
@@ -244,7 +271,7 @@ def test_a_draft_can_be_thrown_away(client) -> None:
     assert not draft.exists()
 
 
-def test_only_a_draft_may_be_rejected(client) -> None:
+def test_only_a_draft_may_be_rejected(client, bench: Path) -> None:
     """
     The counter-control. `reject` deletes, so it must refuse anything that is
     not in a drafts tree -- otherwise it is a delete-any-file endpoint.
@@ -254,17 +281,17 @@ def test_only_a_draft_may_be_rejected(client) -> None:
         json={"slug": BENCH, "path": "game.yaml"},
     )
     assert response.status_code == 400
-    assert (ROOT / "games" / BENCH / "game.yaml").is_file()
+    assert (bench / "game.yaml").is_file()
 
 
-def test_a_draft_can_be_kept(client) -> None:
+def test_a_draft_can_be_kept(client, bench: Path) -> None:
     """
     The verb the studio exists for. One draft becomes a live file; the draft
     itself is gone. Placement is author.py's for that kind, so a second accept
     of the same name cannot silently overwrite.
     """
-    draft = ROOT / "games" / BENCH / "data" / "drafts" / "item" / "studio_probe.yaml"
-    live = ROOT / "games" / BENCH / "data" / "items" / "studio_probe.yaml"
+    draft = bench / "data" / "drafts" / "item" / "studio_probe.yaml"
+    live = bench / "data" / "items" / "studio_probe.yaml"
     draft.parent.mkdir(parents=True, exist_ok=True)
     draft.write_text(
         "items:\n  - {id: studio_probe, name: Studio Probe, tags: [tool], value: 1, weight: 0.1}\n",
@@ -280,10 +307,12 @@ def test_a_draft_can_be_kept(client) -> None:
         assert response.status_code == 200, body
         assert body["ok"] is True
         assert not draft.exists()
-        landed = ROOT / "games" / BENCH / body["live"]
+        landed = bench / body["live"]
         extras.append(landed)
         assert landed.is_file()
         assert "Studio Probe" in landed.read_text(encoding="utf-8")
+        # Never the live tree: another xdist worker validates it meanwhile.
+        assert not (ROOT / "games" / BENCH / "data" / "items" / "studio_probe.yaml").exists()
     finally:
         draft.unlink(missing_ok=True)
         live.unlink(missing_ok=True)
@@ -291,23 +320,23 @@ def test_a_draft_can_be_kept(client) -> None:
             path.unlink(missing_ok=True)
 
 
-def test_only_a_draft_may_be_accepted(client) -> None:
+def test_only_a_draft_may_be_accepted(client, bench: Path) -> None:
     """Accept is a move. A live file must not be a source it can consume."""
-    original = (ROOT / "games" / BENCH / "game.yaml").read_text(encoding="utf-8")
+    original = (bench / "game.yaml").read_text(encoding="utf-8")
     response = client.post(
         "/api/studio/draft/accept",
         json={"slug": BENCH, "path": "game.yaml"},
     )
     assert response.status_code == 400
-    assert (ROOT / "games" / BENCH / "game.yaml").read_text(encoding="utf-8") == original
+    assert (bench / "game.yaml").read_text(encoding="utf-8") == original
 
 
-def test_drafts_are_invisible_to_validation(client) -> None:
+def test_drafts_are_invisible_to_validation(client, bench: Path) -> None:
     """
     A half-finished draft must not fail the build. `DRAFTS_DIRNAME` is skipped
     by every loader and by the validator until a promote moves it.
     """
-    draft = ROOT / "games" / BENCH / "data" / "drafts" / "item" / "nonsense.yaml"
+    draft = bench / "data" / "drafts" / "item" / "nonsense.yaml"
     draft.parent.mkdir(parents=True, exist_ok=True)
     draft.write_text("items:\n  broken: {tags: [not-a-real-tag]}\n", encoding="utf-8")
     try:

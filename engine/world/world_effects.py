@@ -59,6 +59,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game import clocks
 from engine.game.state import GameState
@@ -116,7 +117,7 @@ def load_doom_effects() -> dict[str, Any]:
 
     try:
         with path.open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle) or {}
+            data = yamlio.safe_load(handle) or {}
     except FileNotFoundError:
         logger.info(
             "[world_effects] No doom effects file; beats will not fire "

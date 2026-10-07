@@ -28,7 +28,7 @@ DESIGN_REVIEW.md, then CLAUDE_CODE_BRIEF.md.
 5. **Never hardcode** ports, model names, or paths — use `config/default.yaml` via `get_config()`. Machine-specific paths go in `config/local.yaml` (gitignored, deep-merged).
 6. **Never gate rest.** It is the only thing that restores stamina; a gate rebuilds a soft-lock the game shipped with.
 7. **Reuse patterns** from [CosySim](https://github.com/nihilistau/CosySim) and [Archives of Anubis](https://github.com/nihilistau/Achieves-Of-Anubis) before writing new code.
-8. **Prove with tests** — run `pytest` before declaring work complete. Expect fully green, no `xfail`.
+8. **Prove with tests** — a bare `pytest` is the fast tier while working; `pytest --full` before declaring a release complete. Expect fully green, no `xfail`.
 9. **Do not document a mechanism you did not wire.** Mark it **NOT WIRED** with its file. A design doc describing code that never runs is how this codebase got into trouble.
 10. **Run `scripts/simulate.py` before changing a balance constant.** Every number here was originally chosen against a clock that did not tick.
 11. **Platform-neutral, server-agnostic.** Windows and Linux are both
@@ -100,6 +100,32 @@ releases, whose release headings are written the root's way (em dash and
 date), newest first, never repeated, each a version the root CHANGELOG has
 and none newer than `pyproject.toml`'s.
 
+**How to run tests (v0.21.1).** Use `scripts/run_tests.py`, never a hand-built
+long `pytest` line:
+
+- A task or a fix runs only the AFFECTED files:
+  `python scripts/run_tests.py files <paths or node ids>`.
+- Day to day: `python scripts/run_tests.py fast` (the fast tier, about 6 min).
+- At a release, once: `python scripts/run_tests.py full` (every tier, about
+  17 min on Windows). It is a hybrid: a parallel phase (pytest-xdist), then
+  a serial phase, then one automatic solo re-run of the serial phase's
+  failures. A hosted test that passes on that re-run is reported as FLAKY,
+  never hidden; an unmarked test is never re-run. No repeated full runs to
+  "soak" a flake.
+- CI runs `full` (`--workers 2`) on every push.
+- Tiers and markers: `slow` (balance measurement), `process` (starts an
+  interpreter, gunicorn or a hosted supervisor), `mcp_server` (a real skills
+  server) and `loopback` (binds an in-process server on loopback). `slow`
+  and `process` are out of the fast tier; `process`, `mcp_server` and
+  `loopback` run in the serial phase. Guards in `tests/tier_plugin.py` fail
+  an unmarked test that starts an interpreter or binds a loopback server.
+- Every run is bounded: pytest-timeout per test, `run_tests.py`'s wall
+  clock per run, and a Job Object (Windows) or process group (POSIX) that
+  ends the whole tree. Each agent uses its OWN basetemp (`run_tests.py`
+  does this automatically; with a bare `pytest` pass a unique `--basetemp`),
+  and stops every server or process it starts.
+- A bare `pytest` still works (serial, fast tier; `--full` for all).
+
 **Tests.** A fix ships with a test that FAILED against the code before it, and a
 guard is canary-checked by reintroducing the bug it guards. A test that
 activates a story is cleaned up by `tests/conftest.py::_no_story_outlives_its_test`;
@@ -117,7 +143,8 @@ service, and writes `mcp.json` only in the temp root (a marker the suite did
 not set stops it at conftest import), and a `subprocess` child's
 `CLOCKWORK_CONFIG` also ends in the sandbox layer (`CLOCKWORK_CONFIG` itself
 is never exported in-process); the owner's real storage, `local.yaml` and
-`mcp.json` are compared at session end (`_real_storage_is_untouched`). The
+`mcp.json` are compared at session end (`_real_storage_is_untouched`; under
+xdist, once, in the controller). The
 storage root is a temp directory everywhere -- except in a test marked
 `default_storage_root` (`tests/test_local_mode_golden.py`) or a canary that
 deletes the variable, which the audit hook still watches: per test
@@ -143,6 +170,84 @@ reuses pids, so a child is its pid AND its creation time
 (`tests/process_identity.py`, over `engine/hosting/process_identity.py`,
 reported by every probe), and only a verified child is ever terminated --
 engine code included (`engine/hosting/boot.py::stop_master`).
+
+**Tiers.** A test that starts an interpreter, gunicorn or a hosted
+supervisor (itself or through a fixture) is marked `process`; the Popen
+recorder in `tests/tier_plugin.py` fails one that is not, including every
+later user of a module fixture that started one. It sees only the suite's
+direct `subprocess.Popen` children: a grandchild (an `sh` or `cmd /c` that
+starts python), or a route that bypasses Popen (`os.system`,
+`multiprocessing` spawn), is not seen, so mark those by hand. A test that
+measures balance is `slow` and keeps its length (rule 10); so is one whose
+wall-clock wait is already at its setting's floor. A bare `pytest` leaves
+both out; `--full` (or `CLOCKWORK_FULL_SUITE=1`), and any explicit path
+(`tests` included), `-m`, `-k`, `--lf` or `--sw`, runs them; so does
+`pytest` started inside `tests/`.
+
+**Every run is bounded.** pytest-timeout gives every test a limit (300 s,
+900 s for `slow`/`process`, times `CLOCKWORK_TIMEOUT_SCALE`; an explicit
+`@pytest.mark.timeout(n)` is the test's own), so a hang fails with every
+thread's stack instead of sitting forever. `scripts/run_tests.py`
+(`fast`, `full`, `files`) gives each run its own basetemp and log and a
+wall-clock limit. On Windows the run is in a kill-on-close Job Object, so
+an overrun, an interrupt or the run's end stops the WHOLE tree. On POSIX
+pytest leads its own process group, held unreaped while it is signalled
+(the one place a number names processes): past the limit or on Ctrl+C,
+SIGINT lets pytest's fixture teardowns run, then the group gets SIGTERM and
+SIGKILL. A child in a session of its own (`setsid`, as the hosted
+supervisor is) is outside that group: it is stopped by its fixture's
+teardown, and the hosted test supervisor also dies with its parent on Linux
+(`tests/hosting_instance.py::parent_lifeline`); a setsid child with neither
+survives a POSIX overrun. A bare `pytest` on Windows is covered too: the
+conftest puts the session itself in a kill-on-close job
+(`tests/process_jobs.py`), so a timed-out test's children (the thread
+method's `os._exit` skips finalizers) end with the session. A `process`
+test's limit uses SIGALRM on POSIX so its fixtures still stop their
+children; that method cannot interrupt C code that never returns to the
+interpreter, and only `run_tests.py`'s wall limit ends that.
+
+**Parallel runs (pytest-xdist).** `run_tests.py full` is HYBRID: phase
+`parallel` runs `-m "not (process or mcp_server or loopback)"` on
+`DEFAULT_WORKERS` (6) workers with `--dist loadgroup`, then phase `serial`
+runs `-m "(process or mcp_server or loopback)"` in one process -- the
+hosted, skills-server and in-process loopback-server tests, which this
+workstation's loopback stalls fail under xdist -- under one deadline,
+each with its own basetemp and log, and one exit code (`combine`: 124, then
+2, then 3/4/1). A user's `-m` is joined into each phase with `and`; the
+expressions live once in `tests/tiers.py` (`PARALLEL_MARKS`,
+`SERIAL_MARKS`). THE FAILURE RULE IS AUTOMATED, AND NEVER HIDES: after
+the phases, each test that failed in the serial phase (marked `process`,
+`mcp_server` or `loopback`) is re-run once, alone, inside the same limit;
+if all pass the run passes, and the summary lists every one under
+`FLAKY (passed on solo re-run):` -- a flaky test is reported, never
+silently green. A test that fails again stays a failure; a failure in the
+parallel phase (an unmarked, in-process test) is never re-run -- it is a
+real failure, maybe an order bug; nor is a storage-check failure, nor more
+than 40 ids (the machine is stalling). `--no-rerun` turns it off. Every
+failure left is printed with a command that re-runs it alone.
+`fast` is the same hybrid over the fast tier (`-m "not slow and not
+process"`, so its serial tail is its own loopback and mcp_server tests);
+`files` and `--workers 0` are serial (`full --workers 0` is the
+order-independence check). A test that binds an in-process server on
+loopback (a bus, a front door, a WSGI or health server), itself or through
+a fixture, is marked `loopback`: `tests/tier_plugin.py` records every
+loopback bind and fails an unmarked test that made one, so none drifts back
+into the parallel phase. A bare `pytest` stays
+serial, and `pytest -n N` alone means `--dist loadgroup` here. Under xdist
+each worker is a whole suite (its own marker, basetemp `popen-gwN`, storage
+root, audit hook, per-test checks and nested Job Object); the controller
+runs no test, is not sandboxed, holds the guarded model ports for every
+worker and compares the owner's storage once, after the last worker has
+ended (`tests/conftest.py::is_xdist_controller`, `pytest_sessionfinish`; a
+change fails the run with a red STORAGE CHECK FAILED section naming the
+tests running when each file changed, as suspects). Tests that share a
+module, class or package fixture share a worker, joined across every
+fixture a test spans, so each such fixture is built once
+(`tests/tier_plugin.py::xdist_groups`; a cheap per-worker guard can opt out,
+`UNGROUPED`); every `mcp_server` test shares one (`mcp_port`). A test that
+passes only after another file ran, or that writes into the live
+`games/` tree another worker reads, is a bug: under xdist the other test
+is often running at the same moment elsewhere.
 
 **Module state is classified.** One process serves many sessions on threads
 (hosted mode), so a new module-level global or class instance, class-level
@@ -212,7 +317,8 @@ Windows (PowerShell):
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt -c constraints.txt
 .\.venv\Scripts\python.exe scripts\doctor.py            # environment, config, content
-.\.venv\Scripts\python.exe -m pytest tests\ -q          # fully green, no xfail; time in CLAUDE.md
+.\.venv\Scripts\python.exe scripts\run_tests.py fast   # day to day: the fast tier, about 6 min
+.\.venv\Scripts\python.exe scripts\run_tests.py full   # at a release: every tier, hybrid, about 17 min; fully green (FLAKY is listed, not hidden)
 npm ci --prefix ui; npm test --prefix ui                # the client: plugins, reducer, veiled rule
 npm run build --prefix ui                               # rebuild the COMMITTED dist after any ui/src change
 .\.venv\Scripts\python.exe launcher.py --check          # local services and what each outage costs
@@ -226,7 +332,8 @@ Linux (POSIX `sh`; other POSIX systems, macOS included, should work but are unte
 ```sh
 .venv/bin/python -m pip install -r requirements.txt -c constraints.txt
 .venv/bin/python scripts/doctor.py
-.venv/bin/python -m pytest tests/ -q
+.venv/bin/python scripts/run_tests.py fast   # day to day
+.venv/bin/python scripts/run_tests.py full   # at a release: every tier, hybrid, bounded
 npm ci --prefix ui && npm test --prefix ui
 npm run build --prefix ui
 .venv/bin/python launcher.py --check

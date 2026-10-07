@@ -391,6 +391,7 @@ def health_server() -> Any:
         assert not thread.is_alive()
 
 
+@pytest.mark.loopback
 def test_the_healthcheck_asks_a_wildcard_front_door_on_loopback(
     isolated_config: Path, monkeypatch: pytest.MonkeyPatch, health_server: Any
 ) -> None:
@@ -400,6 +401,7 @@ def test_the_healthcheck_asks_a_wildcard_front_door_on_loopback(
     assert check["main"]() == 0
 
 
+@pytest.mark.loopback
 def test_the_healthcheck_ignores_proxy_environment_variables(
     isolated_config: Path, monkeypatch: pytest.MonkeyPatch, health_server: Any
 ) -> None:
@@ -418,6 +420,7 @@ def test_the_healthcheck_ignores_proxy_environment_variables(
         assert check["main"]() == 0
 
 
+@pytest.mark.loopback
 def test_in_the_image_a_loopback_front_door_is_unhealthy_though_it_answers(
     isolated_config: Path, monkeypatch: pytest.MonkeyPatch, health_server: Any, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -434,6 +437,7 @@ def test_in_the_image_a_loopback_front_door_is_unhealthy_though_it_answers(
     assert outside["main"]() == 0
 
 
+@pytest.mark.loopback
 def test_the_healthcheck_fails_when_nothing_answers(isolated_config: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import socket
 

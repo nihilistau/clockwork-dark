@@ -34,6 +34,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config, project_root
 
 logger = logging.getLogger(__name__)
@@ -56,7 +57,7 @@ def load_subjects() -> dict[str, Any]:
         return {}
     try:
         with path.open(encoding="utf-8") as handle:
-            return yaml.safe_load(handle) or {}
+            return yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[art] Unreadable subjects (operation=load_subjects): %s", exc)
         return {}

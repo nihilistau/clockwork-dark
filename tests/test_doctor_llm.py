@@ -17,6 +17,7 @@ from __future__ import annotations
 import difflib
 import importlib.util
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -249,7 +250,11 @@ def test_n4_a_skipped_key_file_that_holds_a_key_is_a_warning(
         f"is not sent. Put this server's key in `{general}` or `CLOCKWORK_LLM_API_KEY`.",
     )]
     rendered = report.render()
-    assert secret not in rendered and str(len(secret)) not in rendered
+    assert secret not in rendered
+    # The length as a whole number, once the temp path (which carries a
+    # run_tests.py basetemp's date) is out of the way.
+    scrubbed = rendered.replace(str(tmp_path), "<tmp>").replace(tmp_path.as_posix(), "<tmp>")
+    assert not re.search(rf"(?<!\d){len(secret)}(?!\d)", scrubbed), scrubbed
 
 
 def test_n4_a_skipped_variable_that_is_set_is_a_warning(

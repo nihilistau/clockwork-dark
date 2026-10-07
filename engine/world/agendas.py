@@ -100,6 +100,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game.state import GameState
 
@@ -669,7 +670,7 @@ def spec() -> dict[str, Any]:
     if not path.is_file():
         raise ValueError(f"agendas: declared file {path} does not exist")
     try:
-        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        doc = yamlio.safe_load(path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
         raise _fail(path, f"is not valid YAML: {exc}") from None
     if not isinstance(doc, dict):

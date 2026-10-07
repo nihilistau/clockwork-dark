@@ -279,6 +279,11 @@ sites:
   engine.lore.manager._manager: {verdict: locked, note: "double-checked; the manager locks its own writes"}
   engine.lore.manager._manager_lock: {verdict: locked}
 
+  # -- engine.net ---------------------------------------------------------
+  engine.net._client: {verdict: locked, note: "v0.21.1 T3b: the process's one httpx.Client for the engine's one-shot requests; double-checked build under _lock, dropped by close() (atexit) and forgotten in a forked child. httpx.Client is thread-safe for requests; it keeps no cookie and no keep-alive connection, so no request sees another's state"}
+  engine.net._lock: {verdict: locked}
+  engine.net._ssl_context: {verdict: locked, note: "v0.21.1 T3b: the one SSL context every engine client verifies with; double-checked build under _lock, forgotten in a forked child; an ssl.SSLContext is shared by many connections by design"}
+
   # -- engine.mcp ---------------------------------------------------------
   engine.mcp.scene_rules_engine._rules_instance: {verdict: locked, loader: engine.mcp.scene_rules_engine.get_rules_engine, note: "built and dropped (reset_rules_engine, a RELOADER) under _rules_lock"}
   engine.mcp.scene_rules_engine._rules_lock: {verdict: locked}

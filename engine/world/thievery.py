@@ -38,8 +38,7 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 
-import yaml
-
+from engine import yamlio
 from engine.config import get_config
 from engine.game.rng import THIEVERY, world_rng
 from engine.game.state import GameState
@@ -135,7 +134,7 @@ def load_spec() -> dict[str, Any]:
     from engine.game.checks import load_skill_rules
     from engine.game.inventory import load_items
 
-    doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    doc = yamlio.safe_load(path.read_text(encoding="utf-8")) or {}
     if not isinstance(doc, dict):
         raise _fail(path, "must be a mapping")
 

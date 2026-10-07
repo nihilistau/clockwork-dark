@@ -54,6 +54,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game import checks as checks_module
 from engine.game import effects as effects_module
@@ -83,7 +84,7 @@ def _table_path() -> Optional[Path]:
 def _read_rules(path_str: str, _mtime: float) -> dict[str, Any]:
     try:
         with Path(path_str).open(encoding="utf-8") as fh:
-            return yaml.safe_load(fh) or {}
+            return yamlio.safe_load(fh) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[trade] Unreadable table (operation=_read_rules): %s", exc)
         return {}
@@ -139,7 +140,7 @@ def currency_label(amount: int) -> str:
 def _read_economy(path_str: str, _mtime: float) -> dict[str, Any]:
     try:
         with Path(path_str).open(encoding="utf-8") as fh:
-            return yaml.safe_load(fh) or {}
+            return yamlio.safe_load(fh) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[trade] Unreadable economy (operation=_read_economy): %s", exc)
         return {}

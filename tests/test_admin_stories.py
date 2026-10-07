@@ -148,6 +148,7 @@ def _turn(http: httpx.Client, session_id: str, into: list[Any]) -> threading.Thr
     return thread
 
 
+@pytest.mark.process
 def test_a_stop_answers_at_once_drains_and_the_front_door_answers_503(
     instance: HostingInstance, passwords: dict[str, str], admin: httpx.Client
 ) -> None:
@@ -191,6 +192,7 @@ def test_a_stop_answers_at_once_drains_and_the_front_door_answers_503(
     second.close()
 
 
+@pytest.mark.process
 def test_a_start_brings_it_back_and_the_picker_lists_it(
     instance: HostingInstance, passwords: dict[str, str], admin: httpx.Client
 ) -> None:
@@ -212,6 +214,7 @@ def test_a_start_brings_it_back_and_the_picker_lists_it(
     _audited(instance, "story.start", A, "ok", op_id)
 
 
+@pytest.mark.process
 def test_a_drain_past_drain_seconds_is_refused_and_the_story_keeps_serving(
     instance: HostingInstance, passwords: dict[str, str], admin: httpx.Client
 ) -> None:
@@ -246,6 +249,7 @@ def test_a_drain_past_drain_seconds_is_refused_and_the_story_keeps_serving(
     _audited(instance, "story.stop", B, "refused", op_id)
 
 
+@pytest.mark.process
 def test_a_restart_clears_a_hold_down_and_is_not_counted(
     instance: HostingInstance, admin: httpx.Client
 ) -> None:
@@ -270,6 +274,7 @@ def test_a_restart_clears_a_hold_down_and_is_not_counted(
     assert [r["actor"] for r in held] == ["supervisor"]
 
 
+@pytest.mark.loopback
 def test_an_unanswered_operation_leaves_its_outcome_to_the_supervisor(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Any
 ) -> None:
@@ -299,6 +304,7 @@ def test_an_unanswered_operation_leaves_its_outcome_to_the_supervisor(
         door.stop()
 
 
+@pytest.mark.process
 def test_a_second_operation_while_one_runs_is_refused_and_audited(
     instance: HostingInstance, passwords: dict[str, str], admin: httpx.Client
 ) -> None:

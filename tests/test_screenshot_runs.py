@@ -146,6 +146,7 @@ def _ends(story: str, save_id: str) -> Any:
         reset_store()
 
 
+@pytest.mark.slow
 def test_every_scripted_move_is_in_its_turns_enum(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Each run is played to its end and reaches what its capture shows."""
     runs = _script()
@@ -342,6 +343,7 @@ def test_an_offer_step_must_be_last() -> None:
     assert runs.expand((("intent", "travel", ""), ("offer", "travel")))[-1] == ("intent", "travel", "", "offer")
 
 
+@pytest.mark.loopback
 def test_serve_refuses_a_port_that_already_answers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """A second server on a served port would let a stale one answer the gate (T8 review 4)."""
     import socket
@@ -379,6 +381,7 @@ def test_a_server_notes_its_own_identity(tmp_path: Path) -> None:
     assert process_identity.alive(process_identity.Identity(noted["pid"], noted["created"]))
 
 
+@pytest.mark.loopback
 def test_a_server_notes_its_own_identity_and_removes_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The serve loop's `finally` removes the file, and a stale one is replaced, a live one refused."""
     from engine.hosting import process_identity
@@ -409,6 +412,7 @@ def test_a_server_notes_its_own_identity_and_removes_it(tmp_path: Path, monkeypa
         runs._record_identity(root, 8794)
 
 
+@pytest.mark.process
 def test_exit_with_parent_follows_a_verified_parent_and_warns_on_one_it_cannot(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     import subprocess
     import sys

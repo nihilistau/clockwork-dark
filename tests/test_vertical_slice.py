@@ -77,6 +77,8 @@ from engine.memory.context import default_budget
 from engine.persistence import reset_save_store
 from engine.persistence.saves import SaveStore
 
+pytestmark = pytest.mark.slow
+
 #: Long enough for the clock to roll several days, a quest to close, hunger to
 #: bite and the ledger to overflow its buffer more than once.
 TURNS = 40

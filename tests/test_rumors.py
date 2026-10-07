@@ -91,6 +91,7 @@ def test_tier_three_available_at_awareness_sixty():
     assert drawn & tier_three, "high Awareness must actually surface specifics"
 
 
+@pytest.mark.slow
 def test_high_awareness_prefers_the_higher_tiers():
     """Otherwise Awareness moves and the player never hears the difference."""
     tier_one = {e["text"] for e in schedules.load_rumors()["rumors"] if e["tier"] == 1}

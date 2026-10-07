@@ -784,7 +784,11 @@ root. Run the instance under a user of its own, which nothing else runs as.)
 A connection that has not presented
 its credential within `hosting.supervisor.hello_seconds` (2) is closed, and
 when many are waiting the oldest is dropped first, so no other program on
-the machine can keep a child out by holding connections open. A child whose bus connection drops
+the machine can keep a child out by holding connections open. A child
+whose connect is lost or not answered tries again on a fresh connection, 5 s
+apart and 30 s at most, sending the same credential; the supervisor accepts
+it once, and refuses and logs each other attempt (`hello refused ...
+credential=live`), which is a retry, not a stolen credential. A child whose bus connection drops
 exits at once (it must not serve outside the supervisor's reach), and the
 supervisor starts it again.
 

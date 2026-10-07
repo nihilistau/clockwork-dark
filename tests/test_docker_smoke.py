@@ -52,6 +52,7 @@ from typing import Any, Callable, Iterator, Optional
 import pytest
 
 pytestmark = [
+    pytest.mark.process,
     pytest.mark.skipif(
         os.environ.get("CLOCKWORK_DOCKER_SMOKE") != "1",
         reason="the Docker smoke test runs only with CLOCKWORK_DOCKER_SMOKE=1 (it needs Docker and the built image)",

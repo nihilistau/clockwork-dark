@@ -298,6 +298,7 @@ def _keys(node: Any) -> set[str]:
 
 
 @pytest.mark.parametrize("variant", sorted(VARIANTS))
+@pytest.mark.slow
 def test_the_harness_rename_moves_no_byte(variant: str, tmp_path: Path) -> None:
     """
     Spec §1.3: the harness input is ``llm:`` everywhere, and with it every
@@ -328,3 +329,29 @@ def test_the_old_legacy_input_is_refused(tmp_path: Path, monkeypatch: pytest.Mon
         config.get_config()
     assert str(caught.value).startswith(f'{local}: the "lmstudio:" block was renamed')
     config._instance = None
+
+
+def test_no_test_imports_llm_golden_inside_a_function() -> None:
+    """
+    ``tests/llm_golden.py`` asserts at import that the conftest guard has not
+    yet pinned ``NativeClient.is_available``; imported inside a test body it
+    fails ("imported under a pin") whenever no earlier file imported it at
+    module level -- as ``test_llm_ollama.py`` did, run alone (v0.21.1 T3b).
+    """
+    import ast
+
+    offenders: list[str] = []
+    for path in sorted(Path(__file__).resolve().parent.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for func in ast.walk(tree):
+            if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for node in ast.walk(func):
+                names: list[str] = []
+                if isinstance(node, ast.ImportFrom) and node.module:
+                    names = [node.module]
+                elif isinstance(node, ast.Import):
+                    names = [alias.name for alias in node.names]
+                if any(n in ("tests.llm_golden", "llm_golden") for n in names):
+                    offenders.append(f"{path.name}:{node.lineno}")
+    assert not offenders, f"import tests.llm_golden at module level: {offenders}"

@@ -143,6 +143,7 @@ def test_a_waiter_that_times_out_costs_no_slot_and_does_not_block_the_next() -> 
     sem.release()
 
 
+@pytest.mark.loopback
 def test_a_holder_that_raises_costs_no_slot(either: Lanes) -> None:
     with pytest.raises(RuntimeError):
         with gate.inference_slot(lane="narration", label="boom", timeout=1):
@@ -215,6 +216,7 @@ def test_a_lane_built_in_one_mode_is_rebuilt_in_the_other(monkeypatch: pytest.Mo
 # -- admission and the held lane ----------------------------------------------
 
 
+@pytest.mark.loopback
 def test_an_admitted_turn_re_enters_narration_without_waiting(either: Lanes) -> None:
     """
     The storyteller's call, its ``:retry`` and its ``:room`` run inside one
@@ -263,6 +265,7 @@ def test_an_admitted_turn_re_enters_narration_without_waiting(either: Lanes) -> 
     assert sem.held == 0
 
 
+@pytest.mark.loopback
 def test_admission_times_out_with_inference_busy(either: Lanes) -> None:
     sem = either.view("narration")
     release = either.hold("narration")  # another player's turn holds the slot
@@ -277,6 +280,7 @@ def test_admission_times_out_with_inference_busy(either: Lanes) -> None:
         release()
 
 
+@pytest.mark.loopback
 def test_the_held_lane_is_carried_into_a_planner_thread(either: Lanes) -> None:
     """
     The pipeline plans on pool threads, which copy no ContextVar; a planner on
@@ -311,6 +315,7 @@ def test_hosted_utility_lanes_wait_utility_wait_seconds(
         reset_config()
 
 
+@pytest.mark.loopback
 def test_a_release_whose_reset_raises_still_frees_the_slot(either: Lanes) -> None:
     """
     Fix round 1 (M2): the slot is released before the ContextVar is reset, so
@@ -488,6 +493,7 @@ def test_with_no_deadline_a_call_keeps_its_own_timeout(lanes: None) -> None:
     assert gate.call_timeout(300.0) == 300.0
 
 
+@pytest.mark.loopback
 def test_a_reclaimed_ticket_stops_the_turn_s_further_calls(hosted: None) -> None:
     """Ruling (c): a turn whose ticket the supervisor took back makes no further model call."""
     from tests.hosted_app import SharedQueue
@@ -550,6 +556,7 @@ class _StalledStream:
         assert not self.thread.is_alive()
 
 
+@pytest.mark.loopback
 def test_a_stalled_stream_is_cut_at_the_turn_deadline(hosted: None) -> None:
     """
     v0.20.0 T12 (T11's N2): ``stop_if_turn_expired`` runs between a stream's
@@ -698,6 +705,7 @@ def test_a_running_cut_holds_the_stream_s_end_until_it_is_done(hosted: None) -> 
         assert exited.is_set() and guard.done and "shutdown" in sock.calls
 
 
+@pytest.mark.loopback
 def test_a_stream_gives_up_its_cut_once_its_body_is_read(
     hosted: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:

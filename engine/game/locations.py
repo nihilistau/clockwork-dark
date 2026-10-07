@@ -43,6 +43,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 
 logger = logging.getLogger(__name__)
@@ -320,7 +321,7 @@ def load_locations(path: Optional[Path] = None) -> dict[str, dict[str, Any]]:
         return {}
     try:
         with source.open(encoding="utf-8") as fh:
-            data = yaml.safe_load(fh) or {}
+            data = yamlio.safe_load(fh) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.error(
             "[locations] Unreadable location graph "
@@ -407,7 +408,7 @@ def load_canon_ids(path: Optional[Path] = None) -> tuple[str, ...]:
         return ()
     try:
         with source.open(encoding="utf-8") as fh:
-            data = yaml.safe_load(fh) or {}
+            data = yamlio.safe_load(fh) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.error(
             "[locations] Unreadable location graph "

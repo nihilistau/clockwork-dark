@@ -1162,6 +1162,7 @@ def chat_probe(
 
     import httpx
 
+    from engine import net
     from engine.llm.client import strip_inline_think
     from engine.llm.routes import COMPAT_CHAT_PATH, OLLAMA_CHAT_PATH, compat_base, route_url
 
@@ -1251,7 +1252,7 @@ def chat_probe(
 
     t0 = time.perf_counter()
     try:
-        response = httpx.post(url, json=payload, headers=headers, timeout=timeout)
+        response = net.post(url, json=payload, headers=headers, timeout=timeout)
     except httpx.TimeoutException:
         result["status"] = "timeout"
         result["latency_ms"] = (time.perf_counter() - t0) * 1000

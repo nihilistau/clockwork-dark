@@ -26,6 +26,9 @@ import pytest
 
 from tests.hosting_instance import AdminDoor
 
+# In-process loopback servers: the hybrid run's serial phase (tests/tiers.py).
+pytestmark = pytest.mark.loopback
+
 A = "clockwork-dark"
 B = "dev-story"
 

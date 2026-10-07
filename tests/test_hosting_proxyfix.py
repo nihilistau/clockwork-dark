@@ -29,6 +29,9 @@ import pytest
 from tests.engineio_wire import PollingClient
 from tests.hosting_instance import InProcessFrontDoor
 
+# In-process loopback servers: the hybrid run's serial phase (tests/tiers.py).
+pytestmark = pytest.mark.loopback
+
 CLIENT_ADDRESS = "203.0.113.7"
 
 

@@ -286,6 +286,7 @@ def test_success_property_excludes_partial():
 # -- advantage -----------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_advantage_skews_high_over_10k_rolls():
     n = 10000
     gen = random.Random(20260807)

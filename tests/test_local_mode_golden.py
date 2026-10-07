@@ -675,6 +675,7 @@ def test_the_bind_sanction_is_exact() -> None:
     assert launcher["run_scene_calls"] == [{"host": None, "port": None}]
 
 
+@pytest.mark.process
 def test_local_mode_never_imports_hosting(tmp_path: Path) -> None:
     """
     Build the app, play one HTTP turn and one ``join_session`` in a fresh

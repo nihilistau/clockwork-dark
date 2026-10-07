@@ -59,6 +59,7 @@ ORDER: tuple[str, ...] = (
     "engine.persistence.saves._migrated_lock",
     "engine.persistence.saves._index_locks_lock",
     "engine.telemetry.oracle.Oracle._lock",
+    "engine.net._lock",
     "engine.config._config_lock",
 )
 

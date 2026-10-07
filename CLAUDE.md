@@ -10,8 +10,14 @@ release to release.
 
 ## Status
 
-**v0.21.0** is the current release (CHANGELOG.md has every release since 0.4.0;
+**v0.21.1** (a patch: test speed) is the current release (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
+
+**Test times (v0.21.1, `scripts/run_tests.py`, measured 2026-10-08):**
+`full` (the hybrid) **16.7 min, exit 0**, with 4 flaky tests passing their
+solo re-run (parallel phase 4.7 min + serial phase 11.8 + re-run 0.2); `full`
+serial (one process) **28m50s**, green earlier; `fast` about **5.8 min**. Not
+re-measured at the release.
 
 **Windows: 5977 passed, 24 skipped in 54m48s** (v0.21.0, measured
 2026-10-07 at the release; one more test failed in that run,
@@ -35,6 +41,8 @@ client tests** under `ui/tests/` (`npm test --prefix ui`; `vitest` is a
 devDependency, so `npm install --prefix ui` once first). Re-measure and
 restate these at every release rather than trusting this line -- it has
 been stale before, in the very sentence that warned about it.
+A bare `pytest` is the fast tier since v0.21.1 (`slow` and `process` left
+out); the numbers above are `--full`.
 
 **Linux** (measured mid-release, not re-run at the release: T20 started no
 container): in `python:3.11-slim-bookworm` (pinned by digest, docs/HOSTING.md
@@ -170,6 +178,7 @@ only once the last of them lands:
 | v0.19.0 | Model-server agnostic: LM Studio plus vLLM, the llama.cpp server, Ollama and other OpenAI-compatible backends | **shipped** |
 | v0.20.0 | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker -- with the supervisor and front door, the admin panel and its audit log, metrics, and vLLM run live | **shipped** |
 | v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | **shipped** |
+| v0.21.1 | Patch: test speed -- tiers, pytest-xdist hybrid runs, bounded runs (`scripts/run_tests.py`), libyaml, a shared HTTP client | **shipped** |
 | v0.22.0 | A new story: a dating simulation played through a phone of apps (dating apps, texts, instant messages, voice and video messages, two-player games), a populated cast the engine runs, no endgame (owner's brief: docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | next |
 | v0.23.0 | The Clockwork Dark overhaul | queued |
 | v0.24.0 | The Wicked Garden overhaul | queued |
@@ -572,17 +581,43 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   sets its own: same-origin, or `[hosting.public_origin]`). The guard
   compares hosts, not ports, so a page on loopback at another port counts as
   the same site (documented in the module).
-- CI runs the suite as ONE job, not sharded (spec §3.8): sharding needs
-  `pytest-xdist` or `pytest-split`, and the suite has never run in parallel
-  workers -- it has process-wide singletons, story activation and temp-dir
-  guards, and the session's child sandbox and storage snapshot are
-  per-process. The sandbox marker is one of the things xdist-safe has to
-  solve: xdist's workers are children of the controller, inherit its
-  `CLOCKWORK_TEST_SANDBOX`, and so would refuse to start
-  (`tests/conftest.py::refuse_an_inherited_marker`) or, if let through, run
-  their whole sessions sandboxed and fail the goldens. Making it xdist-safe
-  is its own work. The job took 40 minutes on the 2-vCPU runner at
-  its first run (the budget is 150).
+- CI runs the suite as ONE job, `run_tests.py full --workers 2` (the hybrid,
+  every tier; unmeasured on the 2-vCPU runner until it first runs; budget
+  150 minutes).
+- Locally the suite is xdist-safe since v0.21.1: `run_tests.py full` and
+  `fast` are hybrids -- every test but the `process`, `mcp_server` and
+  `loopback` ones on 6 workers (`--dist loadgroup`), then those serially,
+  by design (the expressions are `tests/tiers.py`'s; `fast` limits both
+  phases to its tier). `loopback` (an in-process server bound on loopback)
+  is enforced by `tests/tier_plugin.py`'s bind recorder. Under xdist the
+  controller runs no test and is not sandboxed (it drops the marker before
+  the workers start), holds the guarded model ports and compares the
+  owner's storage once at the end; each worker is a whole suite with its
+  own marker, basetemp `popen-gwN`, storage root, audit hook and nested Job
+  Object. Left open:
+  - a storage change seen by the controller names only SUSPECTS (the tests
+    running when each changed file's mtime fell), not the writer;
+  - this workstation's loopback stalls now fail tests in the SERIAL phase,
+    a single process with nothing beside it. Measured 2026-10-08 (fix
+    round 2, final marks): the parallel phase green 4 of 4 (`full` 4.7 min
+    twice, `fast` 2.1 min twice); the serial phase green 1 of 4 (`full`
+    13.8 and 14.2 min with 10 and 3 failures, `fast` 3.7 min green then
+    10.7 min with 6). Whole `full` 18.5-18.9 min, `fast` 5.8-12.8 min,
+    against 28.9 serially. Every failure passed when its files were re-run
+    alone (262 of 262), but for `test_hosting_secrets.py`'s front-door
+    crawl, which failed 1 of 3 solo runs the same way (the bus's story
+    table "timeout"). The fully parallel runs before the split lost 5-30
+    hosted tests each; the stalls are the machine's, not xdist's;
+  - `test_survival.py::test_travel_alone_drains_stamina_to_zero` failed once
+    in a parallel phase (fix round 1: its first leg refused, 0 legs, not 5)
+    and passed alone, after every later file, and with its own file
+    reversed; not seen again in six later runs. Not root-caused.
+- Change-based test selection (pytest-testmon) was not built (v0.21.1, an
+  owner scope cut); `run_tests.py files <paths>` runs the affected files.
+- The front door's WebSocket relay: `_Link.abort` does not wake a blocked
+  send on Windows, so a stuck client makes the front door wait twice
+  `RELAY_JOIN_SECONDS` before it lets go (slow hosted shutdown of a stuck
+  client; found in v0.21.1).
 - The CI workflow (`.github/workflows/ci.yml`) is held to its shape by
   `tests/test_ci_workflow.py` (parsed; no `actionlint` on this machine), and
   has run: green on v0.20.2 (above). Node 24 on Linux is therefore measured
@@ -691,6 +726,29 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   restart, a story switched in another tab then a reconnect, a player's
   place in the queue, and the flagship's and NEON CITY's encounter look
   (theirs to restyle in v0.23.0 and v0.25.0).
+- The `process` guard (`tests/tier_plugin.py`, v0.21.1) sees only the
+  suite's direct `subprocess.Popen` children. A grandchild interpreter (an
+  `sh`, or on Windows a `cmd /c`, that starts python) and a start that
+  bypasses Popen (`os.system`, `multiprocessing` spawn,
+  `_winapi.CreateProcess`, and the sandbox test's repatched-Popen route)
+  are not recorded, so such a test is marked by hand
+  (`test_subprocess_sandbox.py`'s any-route test is). A child started from a
+  background thread is charged to whichever test is running then. Closing
+  it needs the child to report itself through the sandbox marker, which is
+  its own work.
+- This workstation's loopback fails in bursts while the hosted tests run
+  (measured in v0.21.1 by a monitor beside `tests/test_admin_model.py`: none
+  in 1424 fresh connects at idle; during runs, spells of one to three
+  minutes in which most fresh connects time out -- never refused, so the bus
+  connect's refused-means-no-supervisor rule stands -- and a kept bus link
+  can be aborted, while MsMpEng and WmiPrvSE carry heavy CPU). The owner's
+  Windows Defender exclusions (2026-10-07 20:29: the repository, the
+  Claude temp root, both `python.exe`) did NOT end them: the monitor, started
+  after, still saw spells at 20:36-20:39, 20:46-20:47 and 20:50-20:51,
+  shorter than before. The bus connect, the test relay and the hosted test
+  clients now ride out short spells (5 of 5 runs passed across two of them);
+  a long one can still fail a hosted test. Cause unknown and outside the
+  repository.
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 
@@ -719,14 +777,35 @@ The one-line index, because each is a mistake worth not repeating:
 ## Machine notes (this workstation)
 
 - The default pytest temp directory is unreadable here (WinError 5, environmental).
-  Pass `--basetemp="C:/Users/Knack/AppData/Local/Temp/claude/ptmp"`; parallel
-  runs each pass their own (`ptmp-<agent>`), because pytest wipes its basetemp
-  at start.
+  `scripts/run_tests.py` makes a fresh basetemp per run under
+  `%TEMP%\claude\clockwork-tests` (set `CLOCKWORK_TEST_BASETEMP_ROOT` to move
+  it), because pytest wipes its basetemp at start and two runs sharing one
+  destroy each other's trees. A bare `pytest` still needs `--basetemp=` here
+  (`ptmp-<agent>`, one per parallel run).
+- Every test has a limit (pytest-timeout: 300 s, 900 s in a tier,
+  ×`CLOCKWORK_TIMEOUT_SCALE`), and `run_tests.py` puts a wall-clock limit on
+  the whole run, stopping the whole process tree (a Job Object here). A bare
+  `pytest` is safe here too: the conftest puts the session in a
+  kill-on-close job, so a timed-out test's children (the thread method's
+  `os._exit` skips finalizers) end with the session (v0.21.1 T2 fix round 1).
+- Windows Defender exclusions (the repo, `Temp\claude`, the `.venv` and base
+  Python `python.exe`) were added by the owner on 2026-10-07; the import
+  baseline fell sharply. Loopback stall bursts remain, cause unknown.
 - Loopback TCP connects here sometimes stall: in a plain Python loop of
   3000 listen/connect/accept pairs (2026-10-07, nothing else running), 13
   were never accepted and many more arrived 1-16 s late, in bursts. Every
   hosted test's socket wait is bounded (the bus's wake pair since
   v0.21.0), so a stall fails a test rather than hanging the run; a lone
   connect timeout in the hosted files is worth one re-run before a hunt.
+  Under xdist (the parallel phase of `run_tests.py fast` and `full`) the
+  stalls come oftener and in bursts that fail a whole hosted module at
+  once. `run_tests.py fast`/`full` re-run each serial-phase (loopback,
+  process, mcp_server) failure once, alone, and pass the run when all pass,
+  listing them as `FLAKY (passed on solo re-run)`; a test that fails twice
+  is a bug to hunt, and so is any parallel-phase failure. An idle probe of 1000 pairs
+  here (2026-10-08) had 1-5 over 1 s, worst 3 s. A local `llama-server`
+  holding ~22 GB was running during the 2026-10-07 xdist measurements (4-5
+  GB of 31.5 free); it was gone by the 2026-10-08 hybrid re-measure (17.7
+  GB free at its end).
 - Heredocs and `python -c` strings lose backticks to shell command
   substitution; write commit messages and patch scripts to a file first.

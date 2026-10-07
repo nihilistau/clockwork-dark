@@ -56,6 +56,7 @@ from typing import Any, Optional
 
 import httpx
 
+from engine import net
 from engine.config import get_config
 from engine.llm.routes import compat_base, route_url
 from engine.locks import renew_after_fork
@@ -315,7 +316,7 @@ def probe_models(
     headers = {"Authorization": f"Bearer {key}"} if key else {}
 
     try:
-        response = httpx.get(target, headers=headers, timeout=timeout)
+        response = net.get(target, headers=headers, timeout=timeout)
     except httpx.HTTPError as exc:
         return False, f"{target} unreachable ({type(exc).__name__})"
 
@@ -422,9 +423,9 @@ class ModelRegistry:
         """
         url = route_url(path, self.base_url)
         if body is None:
-            response = httpx.get(url, headers=self._headers(), timeout=self.timeout)
+            response = net.get(url, headers=self._headers(), timeout=self.timeout)
         else:
-            response = httpx.post(
+            response = net.post(
                 url, headers=self._headers(), json=body, timeout=self.timeout
             )
         if response.status_code == 401:

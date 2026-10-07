@@ -35,8 +35,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
-import yaml
-
+from engine import yamlio
 from engine.config import get_config
 from engine.game.rng import stable_rng
 from engine.game.state import GameState
@@ -147,7 +146,7 @@ def load_npc_schedules() -> dict[str, Any]:
         routines = {}
     else:
         with path.open(encoding="utf-8") as fh:
-            routines = yaml.safe_load(fh) or {}
+            routines = yamlio.safe_load(fh) or {}
     _SCHEDULE_CACHE = routines
     return routines
 

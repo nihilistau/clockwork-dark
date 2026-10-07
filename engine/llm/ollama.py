@@ -71,6 +71,7 @@ from typing import Any, Callable, Generator, Optional
 
 import httpx
 
+from engine import net
 from engine.config import get_config
 from engine.llm.client import (
     InlineThinkSplitter,
@@ -243,7 +244,7 @@ class OllamaClient:
         # None locally; a reverse proxy in front of Ollama may want one.
         self.api_key = api_key or cfg.get("llm.api_key", "") or ""
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
-        self._client = httpx.Client(timeout=timeout, headers=headers)
+        self._client = httpx.Client(timeout=timeout, headers=headers, verify=net.ssl_context())
 
     def close(self) -> None:
         self._client.close()

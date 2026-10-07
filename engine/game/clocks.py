@@ -54,6 +54,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.game import effects as effects_module
 from engine.game import moved as moved_module
 from engine.game.state import GameState
@@ -455,7 +456,7 @@ def _read_table(path_str: str, _mtime: float) -> dict[str, Any]:
     """
     try:
         with Path(path_str).open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle) or {}
+            data = yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.error("[clocks] Unreadable clock table: %s", exc)
         return {}

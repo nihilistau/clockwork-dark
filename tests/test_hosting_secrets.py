@@ -45,6 +45,9 @@ from tests.hosted_app import Hosted, build, login, teardown
 from tests.llm_wire import wire
 from tests.local_golden import wav_bytes
 
+# In-process loopback servers: the hybrid run's serial phase (tests/tiers.py).
+pytestmark = pytest.mark.loopback
+
 MODEL_HOST = "model-crawl.internal"
 MODEL_URL = f"http://{MODEL_HOST}:5999/v1"
 STT_HOST = "stt-crawl.internal"

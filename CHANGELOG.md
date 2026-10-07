@@ -14,6 +14,151 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.21.1] — 2026-10-08
+
+A patch: test speed. Measured on Windows: `run_tests.py full` 16.7 min (the
+serial full suite 28m50s), `fast` about 5.8 min.
+
+### Added
+
+- A stall watchdog: `pytest-timeout` (pinned 2.4.0) gives every test a
+  limit, 300 s and 900 s for a `slow` or `process` test, stretched by
+  `CLOCKWORK_TIMEOUT_SCALE`; a hang fails with every thread's stack.
+  `faulthandler_timeout` is 0: its watchdog, dumping a test still running
+  at 120 s, read running threads' frames without the GIL and crashed the
+  run with an access violation. A `process` test's limit uses SIGALRM on POSIX so its fixtures
+  still stop their children. On Windows the test session puts itself in a
+  kill-on-close Job Object, so a bare `pytest` that times out, hangs or is
+  killed takes its children with it.
+- `scripts/run_tests.py fast|full|files`: a fresh basetemp and log per run
+  (under `CLOCKWORK_TEST_BASETEMP_ROOT`, never inside the repository) and a
+  wall-clock limit on the whole run. On Windows an overrun, an interrupt or
+  the run's end stops the whole tree (a Job Object). On POSIX pytest gets
+  SIGINT so its teardowns run, then its process group is ended; a child in
+  a session of its own is stopped only by its teardown or its own lifeline
+  (the hosted test supervisor dies with its parent on Linux).
+- Parallel test runs with `pytest-xdist` (pinned 3.8.0, with `execnet`
+  2.1.2). `run_tests.py full` is a hybrid: every test but the `process`,
+  `mcp_server` and `loopback` ones on 6 workers (`--dist loadgroup`), then
+  those serially, under one limit and one exit code, with a summary that
+  lists each failed id and a command to re-run it alone. A test that failed
+  in the serial phase is re-run once, alone, in the same limit; if all pass
+  the run passes and the summary lists them as `FLAKY (passed on solo
+  re-run)`. Parallel-phase (unmarked) failures, a storage change and more
+  than 40 failures are never re-run; `--no-rerun` turns it off. `fast` is the
+  same over the fast tier (a short serial tail of its loopback and
+  skills-server tests); `files` and `--workers 0` are serial; a bare `pytest` stays serial, and `pytest
+  -n N` alone means loadgroup. The xdist controller is not sandboxed: it
+  drops the sandbox marker before its workers start (each worker sets its
+  own, as a serial session does), holds the guarded model ports for all of
+  them and compares the owner's storage once, after the last worker; a
+  change fails the run (never turning a worse exit into 1) with a red
+  STORAGE CHECK FAILED section at the end of the summary that names the
+  tests running when each file changed, and `run_tests.py` repeats it.
+  Each worker has its own nested kill-on-close job on Windows, so a worker
+  that dies takes its children with it. Tests that share a module, class
+  or package fixture run in one worker, so each such fixture is built once;
+  every `mcp_server` test shares one; `-n` with a `--dist` other than
+  loadgroup (the command line, `PYTEST_ADDOPTS` or the ini) warns when
+  skills-server tests are collected. The FAST TIER banner is printed by the
+  controller from the workers' count. A new `loopback` marker: a test that
+  binds an in-process server on loopback, itself or through a fixture, and
+  is not marked (or `process`) fails, so the stall-prone tests stay in the
+  serial phase.
+
+### Changed
+
+- CI's one `suite` job runs `python scripts/run_tests.py full --workers 2` (the
+  hybrid, every tier, on the 2-vCPU runner), with `pytest-xdist` and
+  `pytest-timeout` installed from `requirements.txt` under `constraints.txt`;
+  no tier jobs. AGENTS.md and the README carry the new way to run tests
+  (`files` for a task, `fast` day to day, `full` once at a release).
+- The test suite has tiers: `slow` (balance measurement) and `process`
+  (starts an interpreter or a hosted supervisor) are left out of a bare
+  `pytest`; `--full` runs every test, and so does any explicit path, `-m`,
+  `-k`, `--lf` or `--sw`. An unmarked test that starts an interpreter, or
+  uses a fixture that started one, fails. CI and the start scripts pass
+  `--full`.
+- Tests: the per-test guard dirs (saves, storage root, LM Studio's
+  `mcp.json`) are numbered by a counter under `<basetemp>/guards`, not by
+  `mktemp`'s scan of the whole basetemp, which grew every test's setup from
+  ~10 ms to ~50 ms over a run; one a test left empty is removed at its
+  teardown. (`tmp_path` still scans, but the root now gains one entry per
+  `tmp_path` test rather than three or four per test.) The fresh-interpreter import checks (`tests/test_imports.py`)
+  and the simulate CLI goldens (`tests/test_simulate_thief.py`) start their
+  children together, at most 8 at a time (`tests/child_batch.py`), and only
+  those the session's selected tests read, within one budget for the
+  batch below the test's own limit; on an exception or a deadline
+  every child still running is ended by its identity and reaped
+  (`tests/test_child_batch.py`). Measured on Windows: `test_imports.py`
+  4.6 s to 1.6 s, the seven simulate CLI tests 13.8 s to 4.5 s.
+- The engine reads YAML through libyaml (`engine/yamlio.py`), falling back
+  to the pure parser for its error text; every shipped file parses
+  identically (`tests/test_yamlio.py`). A file handle's error still names
+  the file, and a file that is not UTF-8 fails as it did. libyaml is more
+  lenient than the pure parser about a tab after a token (`a: 1\t`) and a
+  byte-order mark past the first character, so a document holding either
+  goes to the pure parser, which refuses or reads it as before; no shipped
+  file does. The doctor's two config reads and `scripts/author.py` use it
+  too.
+- The engine's one-shot HTTP requests (model discovery, the health and
+  liveness probes, the doctor's chat probe, the TTS health check) go through
+  one process-wide `httpx.Client` (`engine/net.py`) instead of
+  `httpx.get`/`httpx.post`, each of which built a new SSL context and
+  reloaded the CA bundle, about 0.21 s a request on Windows, plain `http://`
+  included; the model clients and the media clients verify with the same
+  one context. Each request is unchanged: its own timeout and headers, no
+  redirect followed, no cookie kept, its own connection (no keep-alive).
+  The proxy and CA environment variables, and on Windows the system proxy
+  settings in the registry, are read once, at first use, not per request:
+  a system-proxy change is seen at the next start. `net.close()` drops the
+  client (the proxies are re-read) but keeps the SSL context.
+  `tests/test_llm_ollama.py` runs in about 4 s, from about 97 s.
+
+### Fixed
+
+- Tests: `test_supervisor.py`'s `boot.main` test left a hosted child's
+  metrics queue enabled in the suite's own process, so a later in-process
+  front door or worker started a metrics sender on a bus that then closed,
+  and `test_hosting_bus.py`'s health check read dropped metrics. It passed
+  serially only because that file ran first; xdist's order exposed it. The
+  test now stops the queue, and a conftest guard
+  (`_no_metrics_queue_outlives_its_test`) fails any test that leaves one.
+  `test_hosting_queue_remote.py`'s shared instance allows five missed health
+  checks, not two (nothing there measures them; a loaded machine marked a
+  worker degraded mid-test). `test_studio.py`'s writing tests wrote probe
+  files into the live `games/dev-story/` tree, where another xdist worker's
+  validation of the bench read them; they write a private copy now.
+- A hosted child whose one connect to the supervisor's bus was lost on
+  loopback waited out its hello and exited 1, so a model apply restarting
+  it rolled back ("did not start under the new settings"). `BusClient.connect`
+  now starts attempts 5 s apart, timed from the first start however the one
+  before ended (a connect reset at once waits its slot), up to 6
+  (`bus.CONNECT_SECONDS`, `CONNECT_ATTEMPTS`), and keeps listening to every
+  earlier one, taking the first that accepts the token: the token is
+  single-use, so a late answer the server already accepted must not be
+  thrown away. One deadline, 30 s from the first start, bounds every
+  connect, read and wait. A refused token starts no new attempt and ends it
+  once no attempt is open; the losing attempts' refusals are logged by the
+  supervisor as `hello refused ... credential=live` (docs/HOSTING.md). The
+  30 s sits inside the default `supervisor.boot_seconds` (120); under a
+  shorter one the supervisor's boot limit ends the child first and starts it
+  again with a new token.
+- `tests/test_admin_model.py` failed about 2 runs in 3 on the owner's
+  workstation, where fresh loopback connections fail in bursts while kept
+  ones do not (measured). Besides the bus fix: the test front door's bus side
+  door keeps its connection alive (it was a new one per 0.1 s poll);
+  `HostingInstance.call` sends a lost read again, and `http(retry=True)`
+  any request whose connect failed and a GET or HEAD whose connection was
+  lost (never one that timed out); a new
+  instance is given the bus's own retry bounds plus 30 s to be ready (it was
+  30 s, which the wake pair alone may take); a held turn's request outlasts
+  the drain that holds it; and each test on the module's instance first
+  waits for it to settle, so one failure no longer fails the rest. It now
+  passes about 9 runs in 10 there; each failure left fell in a burst, seen
+  by a loopback monitor beside the run, in which fresh connects failed for
+  minutes and kept ones were reset (CLAUDE.md, Deliberately deferred).
+
 ## [0.21.0] — 2026-10-07
 
 ### Added

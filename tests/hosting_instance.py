@@ -78,6 +78,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Iterator, Optional
 
+import httpx
 import yaml
 
 REPO = Path(__file__).resolve().parents[1]
@@ -106,13 +107,99 @@ FAST_SUPERVISOR = {
     "shutdown_seconds": 21,  # >= drain + stop + 7 + the front door's 10 (config.py's cross-check, T18)
 }
 
+#: ``HostingInstance.call``: the ops that only read, so may be sent again when
+#: their answer is lost; how many attempts; how long one connect may take.
+READ_OPS = frozenset({"ops.list", "stories.list", "queue.snapshot", "sessions.list"})
+CALL_ATTEMPTS = 3
+CALL_CONNECT_SECONDS = 5.0
+
+
+def ready_seconds() -> float:
+    """
+    How long a new instance is given to be ready: the bus's own bounds on a
+    lost loopback connection -- its wake pair (``WAKE_PAIR_SECONDS`` x
+    ``WAKE_PAIR_ATTEMPTS``) and a child's connect (one deadline,
+    ``CONNECT_SECONDS`` x ``CONNECT_ATTEMPTS``) -- plus 30 s to boot. It was
+    a flat 30 s, which the wake pair alone may take (v0.21.1: four lost
+    attempts were seen).
+    """
+    from engine.hosting import bus
+
+    return bus.WAKE_PAIR_SECONDS * bus.WAKE_PAIR_ATTEMPTS + bus.CONNECT_SECONDS * bus.CONNECT_ATTEMPTS + 30.0
+
+
 #: Environment a child of the test must not inherit from the shell.
 _CLEARED = ("CLOCKWORK_STUDIO", "CLOCKWORK_GAME", "CLOCKWORK_SECRET_KEY", "CLOCKWORK_ENV")
+
+
+#: ``prctl``'s PR_SET_PDEATHSIG (linux/prctl.h).
+_PR_SET_PDEATHSIG = 1
+
+
+def parent_lifeline() -> dict[str, Any]:
+    """
+    Popen keywords that end a child when the process that started it dies
+    (v0.21.1 T2 fix round 1): on Linux, ``prctl(PR_SET_PDEATHSIG, SIGTERM)``
+    in the child before it runs, then a check that its parent did not already
+    die in between. The supervisor runs in a session of its own
+    (``start_new_session``), outside ``scripts/run_tests.py``'s process
+    group, so without this a pytest killed past its limit (no teardown) left
+    it and every worker running. SIGTERM is the supervisor's own clean
+    shutdown, which ends its children (the bus lifeline).
+
+    Empty -- no lifeline -- where there is no ``prctl`` (Windows: the session's
+    Job Object, tests/process_jobs.py, ends it instead; macOS: none), or off
+    the main thread: PDEATHSIG fires when the THREAD that started the child
+    ends, not the process.
+    """
+    if not sys.platform.startswith("linux") or threading.current_thread() is not threading.main_thread():
+        return {}
+    import ctypes
+
+    try:
+        prctl = ctypes.CDLL(None, use_errno=True).prctl
+    except (OSError, AttributeError):
+        return {}
+    prctl.argtypes = (ctypes.c_int, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong)
+    prctl.restype = ctypes.c_int
+    parent = os.getpid()
+    sigterm = int(signal.SIGTERM)
+
+    def die_with_parent() -> None:  # runs in the child, between fork and exec
+        if prctl(_PR_SET_PDEATHSIG, sigterm, 0, 0, 0) == 0 and os.getppid() != parent:
+            os._exit(1)  # the parent died before the lifeline was in place
+
+    return {"preexec_fn": die_with_parent}
 
 
 #: ``pid_alive`` (a bare-pid liveness probe) was removed in v0.20.0 T15 fix
 #: round 2 (N2): the OS reuses pids, so a child is counted or waited for only
 #: by its identity, pid AND creation time (``tests/process_identity.py``).
+
+
+class RetryingTransport(httpx.HTTPTransport):
+    """
+    ``HTTPTransport`` that sends a request again when loopback lost it
+    (v0.21.1): on the owner's workstation fresh loopback connections fail in
+    bursts -- connects time out, a connection is reset -- while the processes
+    on both ends are fine. A request whose connect failed was never sent, so
+    any is sent again; one whose connection was lost under it (read, write,
+    protocol error) only if it is a GET or HEAD -- never one that timed out,
+    which is more likely the product hanging than loopback. Up to
+    ``CALL_ATTEMPTS`` in all.
+    """
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        for attempt in range(1, CALL_ATTEMPTS + 1):
+            try:
+                return super().handle_request(request)
+            except (httpx.ConnectError, httpx.ConnectTimeout):
+                if attempt == CALL_ATTEMPTS:
+                    raise
+            except (httpx.ReadError, httpx.RemoteProtocolError, httpx.WriteError):
+                if request.method not in ("GET", "HEAD") or attempt == CALL_ATTEMPTS:
+                    raise
+        raise AssertionError("unreachable")
 
 
 class HostingInstance:
@@ -210,7 +297,7 @@ class HostingInstance:
         kwargs: dict[str, Any] = (
             {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
             if os.name == "nt"
-            else {"start_new_session": True}
+            else {"start_new_session": True, **parent_lifeline()}
         )
         self.proc = subprocess.Popen(
             self.command(),
@@ -278,7 +365,9 @@ class HostingInstance:
             pause.wait(0.1)
         raise AssertionError(f"not within {timeout}s: {what or check} (last: {last!r})")
 
-    def wait_all_ready(self, timeout: float = 30.0) -> None:
+    def wait_all_ready(self, timeout: Optional[float] = None) -> None:
+        if timeout is None:
+            timeout = ready_seconds()
         if self.frontdoor:
             match = self.wait_for(r"frontdoor sent ready \(operation=ready, pid=\d+, port=(\d+)\)", timeout)
             self.frontdoor_port = int(match.group(1))
@@ -301,17 +390,36 @@ class HostingInstance:
         return int(self.until(lambda: path.is_file() and path.read_text(encoding="utf-8").strip(), 30, "the relay port"))
 
     def call(self, op: str, args: Optional[dict[str, Any]] = None, timeout: float = 10.0) -> dict[str, Any]:
-        """``op`` sent to the supervisor through the probe front door; its reply."""
+        """
+        ``op`` sent to the supervisor through the probe front door; its reply.
+
+        A request lost on loopback is sent again (v0.21.1; on the owner's
+        workstation a few connects in a thousand are never accepted, or
+        accepted seconds late, under load): any op whose connect failed --
+        nothing was sent -- and a READ (``READ_OPS``) that got no answer.
+        An op that changes something and may have been sent is never resent.
+        """
         import httpx
 
         if self._http is None:
             self._http = httpx.Client(trust_env=False, timeout=timeout + 5)
-        response = self._http.post(
-            f"http://127.0.0.1:{self.relay_port()}/bus",
-            json={"op": op, "args": args or {}, "timeout": timeout},
-        )
-        response.raise_for_status()
-        return response.json()
+        for attempt in range(1, CALL_ATTEMPTS + 1):
+            try:
+                response = self._http.post(
+                    f"http://127.0.0.1:{self.relay_port()}/bus",
+                    json={"op": op, "args": args or {}, "timeout": timeout},
+                    timeout=httpx.Timeout(timeout + 5, connect=CALL_CONNECT_SECONDS),
+                )
+            except (httpx.ConnectError, httpx.ConnectTimeout):
+                if attempt == CALL_ATTEMPTS:
+                    raise
+            except httpx.TransportError:
+                if op not in READ_OPS or attempt == CALL_ATTEMPTS:
+                    raise
+            else:
+                response.raise_for_status()
+                return response.json()
+        raise AssertionError("unreachable")
 
     def tell(self, slug: str, payload: dict[str, Any], timeout: float = 10.0) -> dict[str, Any]:
         """
@@ -422,12 +530,13 @@ class HostingInstance:
         AccountStore(self.data_dir / "hosting").add(name, password, admin=admin)
         return password
 
-    def admin_http(self, name: str, password: str) -> Any:
+    def admin_http(self, name: str, password: str, *, retry: bool = False) -> Any:
         """
         An ``httpx.Client`` on the front door logged in as the admin ``name``
-        and re-authenticated at ``/admin/reauth`` (v0.20.0 T15).
+        and re-authenticated at ``/admin/reauth`` (v0.20.0 T15). ``retry``:
+        as ``http``.
         """
-        http = self.http()
+        http = self.http(retry=retry)
         try:
             assert login(http, name, password).status_code == 303
             page = http.get("/admin/reauth")
@@ -441,11 +550,19 @@ class HostingInstance:
             raise
         return http
 
-    def http(self) -> Any:
-        """An ``httpx.Client`` on the front door (no redirects followed, no system proxy)."""
+    def http(self, *, retry: bool = False) -> Any:
+        """
+        An ``httpx.Client`` on the front door (no redirects followed, no
+        system proxy). With ``retry``, a request lost on loopback is sent
+        again (``RetryingTransport``): for a test about something else, not
+        one that asserts what a lost connection does.
+        """
         import httpx
 
-        return httpx.Client(base_url=self.base, trust_env=False, follow_redirects=False, timeout=30.0)
+        transport = RetryingTransport() if retry else None
+        return httpx.Client(
+            base_url=self.base, trust_env=False, follow_redirects=False, timeout=30.0, transport=transport
+        )
 
     def proxied(self, process: str) -> list[str]:
         """Every ``METHOD path`` a scripted worker was sent through the front door."""

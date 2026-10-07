@@ -23,8 +23,7 @@ import logging
 from pathlib import Path
 from typing import Any, Optional, Union
 
-import yaml
-
+from engine import yamlio
 from engine.config import get_config
 from engine.game.state import GameState
 
@@ -78,7 +77,7 @@ def load_factions() -> dict[str, Any]:
         factions = {}
     else:
         with path.open(encoding="utf-8") as fh:
-            factions = yaml.safe_load(fh) or {}
+            factions = yamlio.safe_load(fh) or {}
     _FACTION_CACHE = factions
     return factions
 

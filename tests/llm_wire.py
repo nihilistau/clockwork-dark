@@ -3,8 +3,9 @@ The one wire seam every mocked model-server test goes through.
 
 WHY ONE SEAM, AND WHY THIS ONE. The engine reaches the model server three
 ways: through ``httpx.Client`` INSTANCES (``LMSClient``, ``NativeClient``),
-through the module-level ``httpx.get`` / ``httpx.post`` (discovery, the stack
-probe, the doctor's diagnostic post), and through ``Client.stream`` (both
+through ``engine/net.py``'s shared client (discovery, the stack probe, the
+doctor's diagnostic post; the module-level ``httpx.get`` / ``httpx.post``
+before v0.21.1), and through ``Client.stream`` (both
 streaming transports). Patching any one of those left the others reaching the
 real server -- ``tests/test_lmstudio_health.py`` opened by saying "Everything
 here is mocked" while seven of its tests talked to LM Studio. All three ways end

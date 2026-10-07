@@ -114,6 +114,7 @@ def test_hue_and_cry_lays_a_trail(hue) -> None:
         assert sum(r["points_to"] == npc for r in sp["clues"].values()) >= 4, npc
 
 
+@pytest.mark.slow
 def test_every_candidates_trail_is_laid_in_every_seed(hue) -> None:
     """40 seeds: the real Magpie's four clues and two for each other candidate,
     each in its own generated house in a district a thief can walk to."""
@@ -297,6 +298,7 @@ def test_an_emptied_house_still_gives_its_clue(hue, monkeypatch) -> None:
     assert len(clues.found(state)) == 1
 
 
+@pytest.mark.slow
 def test_every_candidates_trail_is_findable_in_40_seeds(hue, monkeypatch) -> None:
     """For every seed, one of each candidate's clue houses is burgled and its
     clue kept: every trail can be walked, the herrings' included."""

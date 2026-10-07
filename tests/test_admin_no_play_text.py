@@ -43,6 +43,8 @@ import pytest
 from tests.engineio_wire import PollingClient
 from tests.hosting_instance import SCRIPTED_WORKER, HostingInstance, choose, csrf_of, hosting_instance, login
 
+pytestmark = pytest.mark.process
+
 A = "clockwork-dark"
 B = "dev-story"
 

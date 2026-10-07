@@ -286,6 +286,7 @@ def test_the_row_keys_are_the_spec_s_on_both_sides() -> None:
     assert set(ROW_KEYS) == {"story", "owner_name", "ref", "save_ref"} | set(SESSION_ROW_KEYS) - {"save_id"}
 
 
+@pytest.mark.process
 def test_every_account_s_sessions_across_both_stories_a_page_at_a_time(
     instance: HostingInstance, runs: dict[Any, Any], admin: httpx.Client, passwords: dict[str, str]
 ) -> None:
@@ -319,6 +320,7 @@ def test_every_account_s_sessions_across_both_stories_a_page_at_a_time(
     assert "<td>2</td>" in users  # wren's and moss's live sessions
 
 
+@pytest.mark.process
 def test_no_play_text_reaches_any_admin_surface(
     instance: HostingInstance, runs: dict[Any, Any], admin: httpx.Client
 ) -> None:
@@ -340,6 +342,7 @@ def test_no_play_text_reaches_any_admin_surface(
 # -- ending one ---------------------------------------------------------------------------
 
 
+@pytest.mark.process
 def test_ending_a_session_releases_it_closes_its_room_and_is_audited(
     instance: HostingInstance, runs: dict[Any, Any], admin: httpx.Client
 ) -> None:
@@ -388,6 +391,7 @@ def test_ending_a_session_releases_it_closes_its_room_and_is_audited(
     assert again.status_code == 404
 
 
+@pytest.mark.process
 def test_a_session_whose_turn_is_running_is_not_ended(
     instance: HostingInstance, runs: dict[Any, Any], admin: httpx.Client
 ) -> None:
@@ -424,6 +428,7 @@ def test_a_session_whose_turn_is_running_is_not_ended(
     assert [r["result"] for r in rows] == ["started", "refused"] and rows[0]["ref"] == rows[1]["ref"]
 
 
+@pytest.mark.process
 def test_disabling_an_account_ends_its_sessions_in_both_stories(
     instance: HostingInstance, passwords: dict[str, str], admin: httpx.Client, runs: dict[Any, Any]
 ) -> None:
@@ -482,6 +487,7 @@ def _release(instance: HostingInstance, slug: str, turn: threading.Thread) -> No
     assert not turn.is_alive()
 
 
+@pytest.mark.process
 def test_a_disable_during_a_turn_lets_it_finish_but_save_nothing(
     instance: HostingInstance, admin: httpx.Client
 ) -> None:
@@ -524,6 +530,7 @@ def test_a_disable_during_a_turn_lets_it_finish_but_save_nothing(
     http.close()
 
 
+@pytest.mark.process
 def test_a_purge_waits_while_a_turn_of_the_account_runs(instance: HostingInstance, admin: httpx.Client) -> None:
     """
     A delete with purge while one of the account's turns runs is REFUSED,
@@ -563,6 +570,7 @@ def test_a_purge_waits_while_a_turn_of_the_account_runs(instance: HostingInstanc
 # -- the frame cap ------------------------------------------------------------------------
 
 
+@pytest.mark.process
 def test_a_listing_past_one_bus_frame_is_an_error_row_and_the_front_door_stays_up(
     instance: HostingInstance, runs: dict[Any, Any], admin: httpx.Client
 ) -> None:

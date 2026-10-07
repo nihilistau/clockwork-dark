@@ -45,12 +45,19 @@ def _relay(bus: Any, control: Path) -> None:
     from engine.hosting.bus import BusError
 
     class Handler(BaseHTTPRequestHandler):
+        # Keep-alive (v0.21.1): a test polls this side door every 0.1 s, and
+        # on HTTP/1.0 each poll was a fresh loopback connection -- hundreds a
+        # test, on a workstation that loses or delays a few in a thousand
+        # under load. One kept connection is reused instead.
+        protocol_version = "HTTP/1.1"
+
         def log_message(self, *_args: Any) -> None:
             return
 
         def do_POST(self) -> None:  # noqa: N802
             if self.path != "/bus":
                 self.send_response(404)
+                self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
             length = int(self.headers.get("Content-Length") or 0)

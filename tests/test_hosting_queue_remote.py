@@ -36,6 +36,9 @@ import pytest
 from tests.hosting_instance import CONTROL_ENV, LANE_CLIENT, REPO, HostingInstance, hosting_instance
 from tests.process_identity import alive
 
+# In-process loopback servers: the hybrid run's serial phase (tests/tiers.py).
+pytestmark = pytest.mark.loopback
+
 #: Three stories, one lane_client each.
 A, B, C = "clockwork-dark", "wicked-garden", "neon-city"
 
@@ -52,7 +55,11 @@ def instance(tmp_path_factory: pytest.TempPathFactory) -> Iterator[HostingInstan
         "queue",
         stories=[A, B, C],
         worker_module=LANE_CLIENT,
-        supervisor={"drain_seconds": DRAIN, "shutdown_seconds": DRAIN + 2 + 7 + 10 + 2},  # +10: the front door's reserve (T18)
+        # health_failures 5, not FAST_SUPERVISOR's 2: nothing here measures the
+        # health check, and two missed 1 s checks on a loaded machine
+        # (v0.21.1 T5) marked a worker degraded mid-test.
+        supervisor={"drain_seconds": DRAIN, "shutdown_seconds": DRAIN + 2 + 7 + 10 + 2,  # +10: the front door's reserve (T18)
+                    "health_failures": 5},
         extra={"llm": {"lanes": {"narration": 1, "utility": 2}}},
     )
 
@@ -119,6 +126,7 @@ def _hold(instance: HostingInstance, slug: str, name: str, account: str, lane: s
 # -- order and ownership -----------------------------------------------------------------
 
 
+@pytest.mark.process
 def test_two_processes_four_threads_each_are_granted_in_global_arrival_order(instance: HostingInstance) -> None:
     """
     One narration slot, held; then eight acquires, alternating between two
@@ -152,6 +160,7 @@ def test_two_processes_four_threads_each_are_granted_in_global_arrival_order(ins
     _empty(instance)
 
 
+@pytest.mark.process
 def test_a_release_is_served_at_once_while_every_pool_thread_of_its_process_waits(
     instance: HostingInstance,
 ) -> None:
@@ -174,6 +183,7 @@ def test_a_release_is_served_at_once_while_every_pool_thread_of_its_process_wait
     _empty(instance)
 
 
+@pytest.mark.process
 def test_a_second_narration_acquire_for_the_same_account_is_other_window_at_once(
     instance: HostingInstance,
 ) -> None:
@@ -197,6 +207,7 @@ def test_a_second_narration_acquire_for_the_same_account_is_other_window_at_once
     _empty(instance)
 
 
+@pytest.mark.process
 def test_a_worker_killed_while_holding_frees_its_ticket_and_its_waits(instance: HostingInstance) -> None:
     """
     Tickets belong to the connection: C is killed while it holds the slot and
@@ -239,6 +250,7 @@ def _step_at(op: dict[str, Any], status: str) -> float:
     return next(float(step["at"]) for step in op["steps"] if step["status"] == status)
 
 
+@pytest.mark.process
 def test_a_paused_turn_s_utility_call_is_granted_and_the_drain_ends_when_it_releases(
     instance: HostingInstance,
 ) -> None:
@@ -271,6 +283,7 @@ def test_a_paused_turn_s_utility_call_is_granted_and_the_drain_ends_when_it_rele
     _empty(instance)
 
 
+@pytest.mark.process
 def test_a_paused_head_never_delays_another_story_and_resume_grants_in_order(
     instance: HostingInstance,
 ) -> None:
@@ -315,6 +328,7 @@ def test_a_paused_head_never_delays_another_story_and_resume_grants_in_order(
 # -- a wait called off (#2), a grant nobody waits for (I2) -------------------------------
 
 
+@pytest.mark.process
 def test_a_cancelled_wait_leaves_the_queue_at_once_and_frees_the_account(instance: HostingInstance) -> None:
     """
     T11 fix round 1 (#2): B's turn waits behind A's for narration; its player
@@ -425,6 +439,7 @@ def _leaves(value: Any, key: str = "") -> Iterator[tuple[str, Any]]:
         yield key, value
 
 
+@pytest.mark.process
 def test_the_snapshot_holds_only_ids_slugs_enums_and_numbers(instance: HostingInstance) -> None:
     _hold(instance, A, "snap-h", _account())
     _hold(instance, B, "snap-u", _account(), lane="utility")
@@ -797,6 +812,7 @@ def _held_by(sup: Any, slug: str) -> bool:
     return any(h["story"] == slug for h in _lane(sup.queue.snapshot())["holders"])
 
 
+@pytest.mark.process
 def test_a_slow_but_healthy_turn_past_max_hold_is_reclaimed_without_a_restart(
     in_process: InProcess, caplog: Any
 ) -> None:
@@ -823,6 +839,7 @@ def test_a_slow_but_healthy_turn_past_max_hold_is_reclaimed_without_a_restart(
     assert any("acknowledged a reclaimed lane ticket; not restarted" in m for m in messages)
 
 
+@pytest.mark.process
 def test_reclaims_never_count_toward_the_hold_down(in_process: InProcess) -> None:
     """
     Ruling (c): with ``max_restarts`` at 1, two reclaims in a row leave A
@@ -840,6 +857,7 @@ def test_reclaims_never_count_toward_the_hold_down(in_process: InProcess) -> Non
     assert in_process.own_pid(A) == pid
 
 
+@pytest.mark.process
 def test_a_hung_worker_that_does_not_acknowledge_is_restarted(in_process: InProcess, caplog: Any) -> None:
     """
     Ruling (c): B is hung (its ``lane.reclaimed`` is never answered). Its

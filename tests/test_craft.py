@@ -593,14 +593,14 @@ def _count_parses(monkeypatch) -> list[int]:
     from engine.skills.builtin import mechanics
 
     calls = [0]
-    real = mechanics.yaml.safe_load
+    real = mechanics.yamlio.safe_load
 
     def counting(stream):
         if "recipes" in str(getattr(stream, "name", "")):
             calls[0] += 1
         return real(stream)
 
-    monkeypatch.setattr(mechanics.yaml, "safe_load", counting)
+    monkeypatch.setattr(mechanics.yamlio, "safe_load", counting)
     return calls
 
 

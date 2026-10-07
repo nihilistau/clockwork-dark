@@ -35,6 +35,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game import effects as effects_module
 from engine.game.state import GameState
@@ -61,7 +62,7 @@ def _read_rules(path_str: str, _mtime: float) -> dict[str, Any]:
     """
     try:
         with Path(path_str).open(encoding="utf-8") as fh:
-            return yaml.safe_load(fh) or {}
+            return yamlio.safe_load(fh) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[survival] Unreadable rules (operation=_read_rules): %s", exc)
         return {}

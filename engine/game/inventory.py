@@ -56,6 +56,7 @@ from typing import Any, Iterable, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game import effects as effects_module
 from engine.game.state import GameState, InventoryItem
@@ -132,7 +133,7 @@ def _read_items(dir_str: str, _fp: tuple[Any, ...]) -> dict[str, dict[str, Any]]
     for path in sorted(directory.glob("*.yaml")):
         try:
             with path.open(encoding="utf-8") as fh:
-                data = yaml.safe_load(fh) or {}
+                data = yamlio.safe_load(fh) or {}
         except (OSError, yaml.YAMLError) as exc:
             # One malformed category file costs that category, not the game.
             logger.warning(
@@ -296,7 +297,7 @@ def _read_quest_locks(dir_str: str, _fp: tuple[Any, ...]) -> frozenset[str]:
         for path in sorted(directory.rglob("*.yaml")):
             try:
                 with path.open(encoding="utf-8") as fh:
-                    walk(yaml.safe_load(fh))
+                    walk(yamlio.safe_load(fh))
             except (OSError, yaml.YAMLError) as exc:
                 # One malformed quest file costs that file's locks, not the
                 # verb list for every item in the game.
@@ -345,7 +346,7 @@ def _read_recipe_refs(dir_str: str, _fp: tuple[Any, ...]) -> frozenset[str]:
     for path in sorted(directory.glob("*.yaml")):
         try:
             with path.open(encoding="utf-8") as fh:
-                data = yaml.safe_load(fh) or {}
+                data = yamlio.safe_load(fh) or {}
         except (OSError, yaml.YAMLError) as exc:
             logger.warning(
                 "[inventory] Unreadable recipe file (operation=_read_recipe_refs, "
@@ -545,7 +546,7 @@ def _collections_path() -> Optional[Path]:
 def _read_collections(path_str: str, _mtime: float) -> list[dict[str, Any]]:
     try:
         with Path(path_str).open(encoding="utf-8") as fh:
-            data = yaml.safe_load(fh) or {}
+            data = yamlio.safe_load(fh) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[inventory] Unreadable collections (operation=_read): %s", exc)
         return []

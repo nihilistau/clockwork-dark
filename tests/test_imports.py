@@ -12,16 +12,20 @@ module always happened to import the packages in a lucky order:
                           -> world.schedules             (partial)
 
 Each module is imported in a FRESH subprocess so nothing else can prime
-sys.modules and mask the cycle.
+sys.modules and mask the cycle. The subprocesses run together, a bounded batch
+one module fixture starts (v0.21.1 T4, tests/child_batch.py).
 """
 
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+
+from tests.child_batch import Done, run_together, selected
+
+pytestmark = pytest.mark.process
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -46,19 +50,28 @@ MODULES = [
 ]
 
 
+@pytest.fixture(scope="module")
+def first_imports(
+    request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
+) -> dict[str, Done]:
+    """Every selected module's fresh-interpreter import, started together (a
+    bounded batch, tests/child_batch.py) -- each child still its own
+    interpreter, which is the point -- and read back by each test."""
+    wanted = set(selected(request, "test_module_imports_first", "module"))
+    return run_together(
+        {module: [sys.executable, "-c", f"import {module}"] for module in MODULES if module in wanted},
+        out_dir=tmp_path_factory.mktemp("imports"),
+        cwd=ROOT,
+        timeout=180,
+    )
+
+
 @pytest.mark.parametrize("module", MODULES)
-def test_module_imports_first(module):
+def test_module_imports_first(module, first_imports):
     """Every module must be safe as the FIRST engine import in a process."""
-    result = subprocess.run(
-        [sys.executable, "-c", f"import {module}"],
-        cwd=str(ROOT),
-        capture_output=True,
-        timeout=90,
-    )
-    assert result.returncode == 0, (
-        f"{module} cannot be imported first:\n"
-        + result.stderr.decode("utf-8", "replace")[-800:]
-    )
+    done = first_imports[module]
+    err = "timed out after 180 s" if done.timed_out else done.stderr.decode("utf-8", "replace")[-800:]
+    assert done.returncode == 0, f"{module} cannot be imported first:\n{err}"
 
 
 def test_lazy_reexports_still_resolve():

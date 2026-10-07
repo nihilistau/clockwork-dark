@@ -379,6 +379,7 @@ def _read_local() -> tuple[dict[str, Any], str]:
     """
     import yaml
 
+    from engine import yamlio
     from engine.config import child_sandbox, project_root
 
     if child_sandbox() is not None:
@@ -390,7 +391,7 @@ def _read_local() -> tuple[dict[str, Any], str]:
         return {}, ""
     try:
         with path.open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle)
+            data = yamlio.safe_load(handle)
     # UnicodeDecodeError is a ValueError, not an OSError: a file that is not
     # UTF-8 is as unreadable as one that does not parse, and is refused alike.
     except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:

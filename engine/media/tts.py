@@ -39,6 +39,7 @@ from typing import Any, Callable, Optional
 
 import httpx
 
+from engine import net
 from engine.config import get_config
 from engine.locks import renew_after_fork
 from engine.media.queue import MediaJob, get_media_queue
@@ -148,7 +149,7 @@ class TTSClient:
 
     def is_available(self) -> bool:
         try:
-            response = httpx.get(f"{self.base_url}/health", timeout=3.0)
+            response = net.get(f"{self.base_url}/health", timeout=3.0)
             return response.status_code == 200
         except httpx.HTTPError:
             return False
@@ -189,7 +190,7 @@ class TTSClient:
             }
 
         try:
-            with httpx.Client(timeout=self.timeout) as client:
+            with httpx.Client(timeout=self.timeout, verify=net.ssl_context()) as client:
                 response = client.post(
                     f"{self.base_url}/speak",
                     json={

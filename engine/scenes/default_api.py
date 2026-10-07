@@ -575,12 +575,14 @@ def _load_economy() -> dict[str, Any]:
     """
     import yaml
 
+    from engine import yamlio
+
     path = _story_dir("paths.economy")
     if path is None:
         return {}
     try:
         with path.open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle) or {}
+            data = yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[default_api] Economy unreadable: %s", exc)
         return {}
@@ -603,6 +605,7 @@ def _load_item_registry() -> dict[str, dict[str, Any]]:
     """
     import yaml
 
+    from engine import yamlio
     from engine.config import project_root
 
     registry: dict[str, dict[str, Any]] = {}
@@ -612,7 +615,7 @@ def _load_item_registry() -> dict[str, dict[str, Any]]:
     for path in sorted(root.glob("*.yaml")):
         try:
             with path.open(encoding="utf-8") as handle:
-                data = yaml.safe_load(handle) or {}
+                data = yamlio.safe_load(handle) or {}
         except (OSError, yaml.YAMLError) as exc:
             # One malformed file costs one category, never the whole pack.
             logger.warning("[default_api] Item file unreadable (%s): %s", path, exc)
@@ -628,6 +631,8 @@ def _load_recipe_registry() -> dict[str, dict[str, Any]]:
     engine/skills/builtin/mechanics.py, which is private to that module."""
     import yaml
 
+    from engine import yamlio
+
     recipes: dict[str, dict[str, Any]] = {}
     root = _story_dir("paths.recipes")
     if root is None or not root.is_dir():
@@ -635,7 +640,7 @@ def _load_recipe_registry() -> dict[str, dict[str, Any]]:
     for path in sorted(root.glob("*.yaml")):
         try:
             with path.open(encoding="utf-8") as handle:
-                data = yaml.safe_load(handle) or {}
+                data = yamlio.safe_load(handle) or {}
         except (OSError, yaml.YAMLError) as exc:
             logger.warning("[default_api] Recipe file unreadable (%s): %s", path, exc)
             continue
@@ -649,13 +654,15 @@ def _economy_prices() -> dict[str, dict[str, Any]]:
     """item id -> {price, vendor_id} from data/economy.yaml, first vendor wins."""
     import yaml
 
+    from engine import yamlio
+
     prices: dict[str, dict[str, Any]] = {}
     path = _story_dir("paths.economy")
     if path is None:
         return prices
     try:
         with path.open(encoding="utf-8") as handle:
-            economy = yaml.safe_load(handle) or {}
+            economy = yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[default_api] Economy unreadable: %s", exc)
         return prices

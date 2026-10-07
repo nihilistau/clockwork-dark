@@ -416,6 +416,7 @@ class _LoopingInput:
         return out
 
 
+@pytest.mark.loopback
 def test_a_trickled_body_is_cut_at_the_deadline_without_read1() -> None:
     """
     A client sends a 40-byte body one byte every 0.15 s (6 s in all, each
@@ -464,6 +465,7 @@ def test_a_trickled_body_is_cut_at_the_deadline_without_read1() -> None:
     assert took < 2.5, f"the read ran {took:.1f}s past a 1s deadline"
 
 
+@pytest.mark.loopback
 def test_a_body_that_arrives_in_time_is_read_whole_without_read1() -> None:
     import socket
 

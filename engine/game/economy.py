@@ -44,6 +44,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game import checks as checks_module
 from engine.game import effects as effects_module
@@ -71,7 +72,7 @@ def _read_rules(path_str: str, _mtime: float) -> dict[str, Any]:
     """Parse labour.yaml, memoized on (path, mtime) so an edit invalidates."""
     try:
         with Path(path_str).open(encoding="utf-8") as fh:
-            return yaml.safe_load(fh) or {}
+            return yamlio.safe_load(fh) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[economy] Unreadable table (operation=_read_rules): %s", exc)
         return {}

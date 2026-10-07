@@ -105,7 +105,11 @@ def test_the_suite_job() -> None:
     runs = _runs(doc, "suite")
     assert "pip install -r requirements.txt -c constraints.txt" in runs
     assert "--upgrade pip" not in runs  # the installer is the runner's, not upgraded
-    assert "python -m pytest tests -q" in runs
+    # Every tier, said outright (`full`), as the hybrid run on 2 workers (the
+    # runner's vCPUs), not left to a bare pytest's fast tier.
+    assert "python scripts/run_tests.py full --workers 2" in runs
+    reqs = (REPO / "requirements.txt").read_text(encoding="utf-8")
+    assert "pytest-xdist" in reqs and "pytest-timeout" in reqs  # installed above
 
 
 def test_the_suite_job_installs_the_server_requirements_so_gunicorn_serves_its_hosted_tests() -> None:
@@ -113,7 +117,7 @@ def test_the_suite_job_installs_the_server_requirements_so_gunicorn_serves_its_h
     doc = _workflow()
     runs = _runs(doc, "suite")
     assert "pip install -r requirements-server.txt -c constraints.txt" in runs
-    assert runs.index("requirements-server.txt") < runs.index("python -m pytest")
+    assert runs.index("requirements-server.txt") < runs.index("run_tests.py")
     cached = str(_uses(doc, "suite", "actions/setup-python")["cache-dependency-path"])
     assert "requirements-server.txt" in cached
     server = (REPO / "requirements-server.txt").read_text(encoding="utf-8").splitlines()

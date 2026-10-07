@@ -402,10 +402,11 @@ def _shipped_llm() -> dict:
     import yaml
 
     import engine.config as config
+    from engine import yamlio
 
     try:
         with config._DEFAULT_PATH.open(encoding="utf-8") as handle:
-            raw = yaml.safe_load(handle) or {}
+            raw = yamlio.safe_load(handle) or {}
     except (OSError, yaml.YAMLError):
         return {}
     block = raw.get("llm") if isinstance(raw, dict) else None
@@ -1122,13 +1123,14 @@ def check_inherited_content(report: Report) -> None:
     """
     import yaml
 
+    from engine import yamlio
     from engine.config import project_root
     from engine.games.registry import discover
 
     root = project_root()
     try:
         with (root / "config" / "default.yaml").open(encoding="utf-8") as handle:
-            defaults = (yaml.safe_load(handle) or {}).get("paths") or {}
+            defaults = (yamlio.safe_load(handle) or {}).get("paths") or {}
     except (OSError, yaml.YAMLError) as exc:
         report.add("Story paths", "defaults", WARN, f"could not read config/default.yaml: {exc}")
         return

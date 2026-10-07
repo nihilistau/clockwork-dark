@@ -418,6 +418,7 @@ def test_the_launcher_warns_and_exits_1_on_a_refusal(
 # -- the front door's rules, enumerated (v0.20.0 T12) -----------------------------------
 
 
+@pytest.mark.loopback
 def test_every_front_door_rule_and_method_needs_a_login_but_its_open_list(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

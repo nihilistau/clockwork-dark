@@ -421,6 +421,7 @@ def test_great_houses_are_never_empty(hue) -> None:
             assert premises._occupancy_text(state, prem) == "never empty", prem["name"]
 
 
+@pytest.mark.slow
 def test_most_houses_have_an_hour_to_go_in(hue) -> None:
     """At least the measured share of houses stand empty for three hours running."""
     from engine.world import premises
@@ -528,6 +529,7 @@ _NOT_CRAFTS = ("Bargeman", "Porter", "Snuffer", "Lamplighter", "Fat-Boiler",
                "Tallow-Renderer")
 
 
+@pytest.mark.slow
 def test_signs_read_as_the_house_they_hang_on(hue) -> None:
     import re
 
@@ -1062,19 +1064,23 @@ def measured_law():
             registry.deactivate()
 
 
+@pytest.mark.slow
 def test_a_careful_thief_stays_below_sought_most_days(measured_law) -> None:
     assert measured_law["careful"]["below_sought_seed_days"] >= 0.60, measured_law["careful"]
 
 
+@pytest.mark.slow
 def test_a_reckless_thief_is_wanted_by_day_four(measured_law) -> None:
     assert measured_law["reckless"]["wanted_by_day_4"] >= 0.60, measured_law["reckless"]
 
 
+@pytest.mark.slow
 def test_a_reckless_thief_is_likely_but_not_certain_to_be_arrested(measured_law) -> None:
     rate = measured_law["reckless"]["runs_with_an_arrest"]
     assert 0.50 <= rate < 0.95, measured_law["reckless"]
 
 
+@pytest.mark.slow
 def test_bribing_is_not_a_free_pass(measured_law) -> None:
     """The band holds for a thief who pays every Lantern it can afford."""
     report = measured_law["briber"]
@@ -1082,6 +1088,7 @@ def test_bribing_is_not_a_free_pass(measured_law) -> None:
     assert 0.50 <= report["runs_with_an_arrest"] < 0.95, report
 
 
+@pytest.mark.slow
 def test_no_sentence_outlasts_the_cap(measured_law, hue) -> None:
     from engine.world import law
 
@@ -1092,6 +1099,7 @@ def test_no_sentence_outlasts_the_cap(measured_law, hue) -> None:
             assert report["max_days_served"] <= cap, (policy, report)
 
 
+@pytest.mark.slow
 def test_a_sentence_never_kills_and_a_day_is_cheap(measured_law) -> None:
     served = 0
     for policy, report in measured_law.items():
@@ -1331,6 +1339,7 @@ def measured_jobs():
             registry.deactivate()
 
 
+@pytest.mark.slow
 def test_a_careful_thief_gets_the_take_out_and_is_not_caught(measured_jobs) -> None:
     """The brief asked for careful CLEAN >= 60% on tier 1-2; the engine's
     degree table caps clean near 30% (a partial is always noise, and a job is
@@ -1342,11 +1351,13 @@ def test_a_careful_thief_gets_the_take_out_and_is_not_caught(measured_jobs) -> N
     assert report["clean"] > measured_jobs["blind"]["tier_1_2"]["clean"], measured_jobs
 
 
+@pytest.mark.slow
 def test_a_blind_thief_is_caught_often_enough_to_feel_it(measured_jobs) -> None:
     report = measured_jobs["blind"]["tier_1_2"]
     assert report["caught"] >= 0.20, report
 
 
+@pytest.mark.slow
 def test_the_treasury_wants_prep_and_tools(measured_jobs) -> None:
     bare = measured_jobs["greedy_bare"]["treasury"]
     prepped = measured_jobs["greedy"]["treasury"]
@@ -1449,6 +1460,7 @@ def test_mother_gannets_job_is_struck_in_the_snuffs_and_pays_after_the_house(
     assert threads.get(state, thread_id)["status"] == threads.STATUS_DISCHARGED
 
 
+@pytest.mark.slow
 def test_mother_gannets_job_can_be_done_on_every_seed(hue) -> None:
     """Controller fix: a townhouse-only contract could only break on 7 of the
     first 300 seeds (Silk Row drew none). What the contract reads must exist on
@@ -1631,6 +1643,7 @@ def test_the_magpies_name_is_masked_until_the_flag(hue) -> None:
         assert [row[1] for row in agendas.revealed(state)] == [name]
 
 
+@pytest.mark.slow
 def test_no_house_name_changes_under_any_candidates_mask(hue) -> None:
     """Four taverns are "The ... Lamplighter": a title-case alias would mask
     "The Lamplighter's Arms" in exactly the seeds Wren is the thief."""
@@ -1720,12 +1733,14 @@ def measured_agendas():
             registry.deactivate()
 
 
+@pytest.mark.slow
 def test_a_player_who_never_steals_is_sought_for_the_magpies_work(measured_agendas) -> None:
     report = measured_agendas["idle"]
     assert report["sought_by_day_6"] >= 0.60, report
     assert report["first_noticed_median_day"] <= 3, report
 
 
+@pytest.mark.slow
 def test_the_magpie_robs_most_nights_and_rarely_where_you_do(measured_agendas) -> None:
     for policy, report in measured_agendas.items():
         assert 7 <= report["magpie_hits_per_run"] <= 11, (policy, report)
@@ -1735,6 +1750,7 @@ def test_the_magpie_robs_most_nights_and_rarely_where_you_do(measured_agendas) -
         assert report["magpie_collision_rate"] < 0.15, (policy, report)
 
 
+@pytest.mark.slow
 def test_the_captains_net_closes_on_the_reckless_first(measured_agendas) -> None:
     reckless, careful = measured_agendas["reckless"], measured_agendas["careful"]
     assert reckless["ardane"]["utmost"]["reached"] >= 0.30, reckless["ardane"]
@@ -1743,6 +1759,7 @@ def test_the_captains_net_closes_on_the_reckless_first(measured_agendas) -> None
     assert careful["per_day"][-1]["ardane_mean"] < reckless["per_day"][-1]["ardane_mean"]
 
 
+@pytest.mark.slow
 def test_silas_works_the_company_and_the_signs_stay_few(measured_agendas) -> None:
     for policy, report in measured_agendas.items():
         assert 1 <= report["silas_moves_per_run"] <= 5, (policy, report)
@@ -1751,6 +1768,7 @@ def test_silas_works_the_company_and_the_signs_stay_few(measured_agendas) -> Non
         assert report["traces_max"] <= 25, (policy, report)
 
 
+@pytest.mark.slow
 def test_with_the_magpie_on_a_careful_thief_is_sought_like_anyone(measured_agendas) -> None:
     """RESTATED from v0.10's `test_a_careful_thief_stays_below_sought_most_days`
     (100% of seed-days below `sought`, measured with agendas off and still
@@ -2329,6 +2347,7 @@ def measured_scrounge():
             registry.deactivate()
 
 
+@pytest.mark.slow
 def test_scrounging_all_day_earns_less_than_picking_pockets(measured_scrounge) -> None:
     """A living, barely: coin enough for nothing, and less than a careful lift."""
     report = measured_scrounge
@@ -2336,6 +2355,7 @@ def test_scrounging_all_day_earns_less_than_picking_pockets(measured_scrounge) -
     assert report["value_per_hour"] < 0.6, report
 
 
+@pytest.mark.slow
 def test_scrounging_all_day_does_not_quite_feed_you(measured_scrounge) -> None:
     """Most of a day's food from twelve hours in the gutters -- never all of it."""
     report = measured_scrounge
@@ -2344,6 +2364,7 @@ def test_scrounging_all_day_does_not_quite_feed_you(measured_scrounge) -> None:
     assert report["runs_with_a_death"] == 0, report  # a respawn hides the 0 (v0.17)
 
 
+@pytest.mark.slow
 def test_a_scrounger_finds_the_ways_in(measured_scrounge) -> None:
     for secret, row in measured_scrounge["ways_found"].items():
         assert row["share"] >= 0.5, (secret, row)
@@ -2506,6 +2527,7 @@ def measured_living():
             registry.deactivate()
 
 
+@pytest.mark.slow
 def test_an_honest_day_pays_for_bread_and_a_bed_most_days(measured_living) -> None:
     """Honest After All has to be a life you can actually live -- either way."""
     report = measured_living["porter"]
@@ -2518,6 +2540,7 @@ def test_an_honest_day_pays_for_bread_and_a_bed_most_days(measured_living) -> No
     assert dipper["kept_days"] >= 0.6, dipper
 
 
+@pytest.mark.slow
 def test_an_honest_day_leaves_little_over(measured_living) -> None:
     """Thin: a crown a day saved would make honesty the easy road."""
     for policy in ("porter", "dipper"):
@@ -2525,12 +2548,14 @@ def test_an_honest_day_leaves_little_over(measured_living) -> None:
         assert -0.5 < report["saved_per_day"] < 1.0, (policy, report)
 
 
+@pytest.mark.slow
 def test_thieving_pays_more_than_honest_work(measured_living) -> None:
     for policy in ("porter", "dipper"):
         report = measured_living[policy]
         assert report["earned_per_day"] < RECKLESS_PICKPOCKET_CR_PER_DAY, (policy, report)
 
 
+@pytest.mark.slow
 def test_honest_work_keeps_you_better_than_careful_purses(measured_living) -> None:
     porter, careful = measured_living["porter"], measured_living["careful"]
     assert porter["kept_days"] > careful["kept_days"] + 0.3, (porter, careful)
@@ -2549,6 +2574,7 @@ def test_honest_work_keeps_you_better_than_careful_purses(measured_living) -> No
 #: between 10 and 20 days, and it is never a living beside an honest
 #: porter's 18.4 kept days in 20. Asserted over the fixture's 8 x 8, loosely:
 #: the lifeline, the trap, the lower earnings and the gap to the porter.
+@pytest.mark.slow
 def test_pells_advance_is_a_lifeline_and_a_trap(measured_living) -> None:
     careful, credit = measured_living["careful"], measured_living["careful_pell"]
     assert credit["credit_struck"] >= 1.0, credit
@@ -2811,6 +2837,7 @@ def test_a_night_street_hands_the_walker_a_scene_through_travel(session) -> None
     assert len(walks(12)) <= 2
 
 
+@pytest.mark.slow
 def test_the_wanderer_meets_the_night_and_not_the_day(hue) -> None:
     """The harness, production channel: a street an hour, day and night."""
     _scripts_on_path()
@@ -3328,6 +3355,7 @@ def test_the_hoard_keeps_the_citys_secrets(hue) -> None:
         assert word not in body, word
 
 
+@pytest.mark.slow
 def test_every_hoard_piece_is_placed_in_every_seed(hue) -> None:
     """Across 40 cities: the four anchor pieces sit in their anchor's loot, and
     standing in each secret place finds its piece. (The Magpie's agenda may
@@ -4602,6 +4630,7 @@ def test_other_openings_are_labelled_exactly_as_before(slug) -> None:
     assert json.dumps(after, sort_keys=True) == json.dumps(before, sort_keys=True)
 
 
+@pytest.mark.slow
 def test_a_filed_run_is_noticed_on_the_quay_and_never_sought(hue) -> None:
     """Measured (law.yaml header, CHANGELOG [0.16.0]): a run a Lantern
     files leaves the Quay `noticed` into the next morning -- the narrator can
@@ -6325,12 +6354,14 @@ def measured_acts():
             registry.deactivate()
 
 
+@pytest.mark.slow
 def test_every_investigator_is_sworn_to_the_company_on_day_one(measured_acts) -> None:
     """Off the barge by the Lantern House, fine paid, to the Snuffs by
     evening: the initiation is dealt, and answered, on the first night."""
     assert [r.initiated_day for r in measured_acts] == [1] * ACTS_SEEDS
 
 
+@pytest.mark.slow
 def test_the_trail_reads_slowly_but_it_reads(measured_acts) -> None:
     """A clue costs about three houses cased to the end; by day 12 every run
     has carried out at least two, and the mean is well above that."""
@@ -6341,6 +6372,7 @@ def test_the_trail_reads_slowly_but_it_reads(measured_acts) -> None:
     assert all(sum(d <= 3 for d in r.clue_days) < 2 for r in measured_acts)
 
 
+@pytest.mark.slow
 def test_the_reveal_is_an_achievement_within_the_spine(measured_acts) -> None:
     """Reachable for a deliberate investigator within the spine's ~10-12
     days, and not for everyone: most unmask the Magpie by day 12, some do
@@ -6353,6 +6385,7 @@ def test_the_reveal_is_an_achievement_within_the_spine(measured_acts) -> None:
     assert min(d for d in unmasked if d is not None) >= 4, unmasked
 
 
+@pytest.mark.slow
 def test_a_wrong_naming_always_costs_the_accuser_something(measured_acts, hue) -> None:
     """Every real wrong naming strictly raises the accuser's own wanted score
     in the Wick -- an accuser already `hunted` pays too, not only one a band
@@ -6367,6 +6400,7 @@ def test_a_wrong_naming_always_costs_the_accuser_something(measured_acts, hue) -
         assert bands.index(n["band_after"]) >= max(1, bands.index(n["band_before"])), n
 
 
+@pytest.mark.slow
 def test_no_investigator_starves_or_is_stuck(measured_acts) -> None:
     # Since v0.17 hp 0 respawns inside the hour that reached it, so the
     # sampled min_hp alone would miss a death: count them (counting_deaths).
@@ -6374,6 +6408,7 @@ def test_no_investigator_starves_or_is_stuck(measured_acts) -> None:
     assert sum(r.deaths for r in measured_acts) == 0
 
 
+@pytest.mark.slow
 def test_the_acts_harness_replays_from_its_seed(hue) -> None:
     """Rule 4 and the harness's own promise: a seed replays byte for byte."""
     _scripts_on_path()
@@ -8250,6 +8285,7 @@ def test_cleared_after_the_fair_keeps_the_mask_and_locks_only_cleared(hue) -> No
     assert locks == [{"type": "ending_lock", "ending": "cleared"}]
 
 
+@pytest.mark.slow
 def test_the_endings_measurement_replays(hue) -> None:
     """Rule 10: the numbers in endings.yaml and the CHANGELOGs come from a
     committed harness (`simulate_labour.py --endings`), and it replays."""
@@ -9708,6 +9744,7 @@ def test_the_endings_harness_reads_the_fair_the_story_declares(hue_scripts) -> N
 
 @pytest.mark.parametrize("ending_id,policy,seed,door", ENDINGS_REACHED,
                          ids=[f"{row[0]}-{row[3]}" for row in ENDINGS_REACHED])
+@pytest.mark.slow
 def test_every_ending_is_reached_by_a_policy_that_plays_for_it(hue_scripts, ending_id, policy,
                                                                 seed, door) -> None:
     from engine.game import endings
@@ -9720,6 +9757,7 @@ def test_every_ending_is_reached_by_a_policy_that_plays_for_it(hue_scripts, endi
         assert run.ending_day >= FAIR_FIRST_DAY, run
 
 
+@pytest.mark.slow
 def test_the_endings_harness_replays_from_its_seed(hue_scripts) -> None:
     """Rule 4 and the harness's own promise: a seed replays byte for byte --
     here a run that plays the whole fair to its horizon."""

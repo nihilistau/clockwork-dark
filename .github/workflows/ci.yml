@@ -73,7 +73,13 @@ jobs:
           python -m pip install -r requirements.txt -c constraints.txt
           python -m pip install -r requirements-server.txt -c constraints.txt
       - name: Test suite
-        run: python -m pytest tests -q
+        # The hybrid run (v0.21.1): every test but the process, mcp_server and
+        # loopback ones on 2 xdist workers (the runner has 2 vCPUs), then
+        # those serially, then a solo re-run of the serial phase's failures
+        # (reported as FLAKY, never hidden). Every tier, bounded.
+        # pytest-xdist and pytest-timeout come from requirements.txt under
+        # constraints.txt, installed above.
+        run: python scripts/run_tests.py full --workers 2
 
   client:
     name: client (Node 24)

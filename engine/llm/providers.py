@@ -329,13 +329,14 @@ class Provider:
         """One non-list health route, by its shape (``health_probe``)."""
         import httpx
 
+        from engine import net
         from engine.config import get_config
         from engine.llm.registry import _refused_key_detail
 
         key = str(get_config().get("llm.api_key", "") or "") if api_key is None else api_key
         headers = {"Authorization": f"Bearer {key}"} if key else {}
         try:
-            response = httpx.get(url, headers=headers, timeout=timeout)
+            response = net.get(url, headers=headers, timeout=timeout)
         except httpx.HTTPError as exc:
             return False, f"{url} unreachable ({type(exc).__name__})"
         if response.status_code == 401:

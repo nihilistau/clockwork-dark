@@ -34,6 +34,9 @@ from typing import Any
 import httpx
 import pytest
 
+# At module level, never in a test body: llm_golden asserts at import that the
+# conftest guard has not yet pinned NativeClient.is_available (v0.21.1 T3b).
+from tests.llm_golden import AUTHOR_ENVELOPE, AUTHOR_REPLY, _load_script
 from tests.llm_wire import wire
 
 pytestmark = pytest.mark.real_discovery
@@ -352,8 +355,6 @@ def test_the_planners_grammar_is_translated_to_format(llm_server: Any) -> None:
 
 def test_author_py_s_envelope_is_translated_to_format(llm_server: Any) -> None:
     """``scripts/author.py`` builds ``{"type": "json_schema", "json_schema": envelope}`` itself."""
-    from tests.llm_golden import AUTHOR_ENVELOPE, AUTHOR_REPLY, _load_script
-
     configure(llm_server)
     author = _load_script("author", REPO / "scripts" / "author.py").Author("clockwork-dark")
     with wire(discovery() + [answer(AUTHOR_REPLY)], exhaust=True) as seam:

@@ -35,7 +35,8 @@ LOCK ORDER (outer first):
 23. engine.persistence.saves._migrated_lock
 24. engine.persistence.saves._index_locks_lock
 25. engine.telemetry.oracle.Oracle._lock
-26. engine.config._config_lock
+26. engine.net._lock
+27. engine.config._config_lock
 
 What the order means in practice:
 
@@ -45,6 +46,10 @@ What the order means in practice:
   (``reset_config``, ``set_overlay``) or fill ``_story_paths_by_slug`` on a
   miss, and call nothing that locks. ``reset_config`` walks the cache resets
   AFTER releasing it.
+* **The shared HTTP client's lock is next-innermost** (``engine/net.py``,
+  v0.21.1): its holder builds the process's one ``httpx.Client`` or SSL
+  context and takes no other lock, so a request may be made holding any
+  lock above it.
 * **Warming is outermost.** ``warm_all_caches`` holds ``_warm_lock`` (not the
   config lock) while its loaders run, so they may take any lock after it: the
   registry's, the grammar's, a getter's, the config's.

@@ -40,6 +40,7 @@ from typing import Any, Optional, Protocol
 
 import httpx
 
+from engine import net
 from engine.config import get_config
 from engine.locks import renew_after_fork
 
@@ -131,7 +132,7 @@ class STTClient:
 
         url = f"{self.base_url}/v1/audio/transcriptions"
         try:
-            with httpx.Client(timeout=self.timeout) as client:
+            with httpx.Client(timeout=self.timeout, verify=net.ssl_context()) as client:
                 response = client.post(
                     url,
                     files={"file": ("audio.wav", audio_bytes, content_type)},

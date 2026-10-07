@@ -44,6 +44,7 @@ from typing import Any, Optional
 
 import yaml
 
+from engine import yamlio
 from engine.config import get_config
 from engine.game import checks as checks_module
 from engine.game import effects as effects_module
@@ -111,7 +112,7 @@ def _read_dir(dir_str: str, _fp: tuple[Any, ...]) -> dict[str, Any]:
     for path in sorted(directory.glob("*.yaml")):
         try:
             with path.open(encoding="utf-8") as fh:
-                data = yaml.safe_load(fh) or {}
+                data = yamlio.safe_load(fh) or {}
         except (OSError, yaml.YAMLError) as exc:
             # One malformed band file must not take the other three down with
             # it, and must never abort a turn mid-travel.
@@ -181,7 +182,7 @@ def _scene_rules() -> dict[str, Any]:
 def _read_death(path_str: str, _mtime: float) -> dict[str, Any]:
     try:
         with Path(path_str).open(encoding="utf-8") as fh:
-            return yaml.safe_load(fh) or {}
+            return yamlio.safe_load(fh) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[encounter] Unreadable death rules (operation=_read_death): %s", exc)
         return {}
@@ -278,7 +279,7 @@ def death_file_problem(death_path: Path, endings_path: Optional[Path]) -> Option
     """
     try:
         with death_path.open(encoding="utf-8") as fh:
-            doc = yaml.safe_load(fh)
+            doc = yamlio.safe_load(fh)
     except (OSError, yaml.YAMLError) as exc:
         return f"death rules are unreadable: {exc}"
     if doc is None:
@@ -289,7 +290,7 @@ def death_file_problem(death_path: Path, endings_path: Optional[Path]) -> Option
     if endings_path is not None and endings_path.is_file():
         try:
             with endings_path.open(encoding="utf-8") as fh:
-                ending_ids = declared_ending_ids(yaml.safe_load(fh))
+                ending_ids = declared_ending_ids(yamlio.safe_load(fh))
         except (OSError, yaml.YAMLError):
             ending_ids = set()
     return death_terminal_problem(doc.get("terminal"), ending_ids) or death_respawn_problem(

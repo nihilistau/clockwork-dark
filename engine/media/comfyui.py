@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 import httpx
-import yaml
 
+from engine import net, yamlio
 from engine.config import get_config
 from engine.game.state import GameState
 from engine.media.queue import (
@@ -49,7 +49,7 @@ def load_comfyui_templates() -> dict[str, Any]:
         templates: dict[str, Any] = {}
     else:
         with path.open(encoding="utf-8") as fh:
-            templates = yaml.safe_load(fh) or {}
+            templates = yamlio.safe_load(fh) or {}
     _TEMPLATE_CACHE = templates
     return templates
 
@@ -94,7 +94,7 @@ class ComfyUIClient:
         if not self.enabled:
             return False
         try:
-            with httpx.Client(timeout=3.0) as client:
+            with httpx.Client(timeout=3.0, verify=net.ssl_context()) as client:
                 r = client.get(f"{self.base_url}/system_stats")
                 return r.status_code == 200
         except Exception:
@@ -184,7 +184,7 @@ class ComfyUIClient:
             },
             "client_id": get_media_queue().new_job_id(),
         }
-        with httpx.Client(timeout=self.timeout) as client:
+        with httpx.Client(timeout=self.timeout, verify=net.ssl_context()) as client:
             response = client.post(f"{self.base_url}/prompt", json=payload)
             response.raise_for_status()
             data = response.json()

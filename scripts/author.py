@@ -83,6 +83,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 import yaml  # noqa: E402
 
+from engine import yamlio  # noqa: E402
 from engine.games import registry, validation  # noqa: E402
 from engine.games.manifest import GameManifest, from_dict  # noqa: E402
 from engine.games.validation import DRAFTS_DIRNAME, Issue  # noqa: E402
@@ -177,7 +178,7 @@ class Vocabulary:
 def _load_yaml(path: pathlib.Path) -> Any:
     try:
         with path.open(encoding="utf-8") as handle:
-            return yaml.safe_load(handle)
+            return yamlio.safe_load(handle)
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("[author] Unreadable YAML (operation=_load_yaml, path=%s): %s", path, exc)
         return None
