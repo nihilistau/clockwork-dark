@@ -88,6 +88,7 @@ from engine.hosting.limits import (
     BodyTimeout,
     BodyTooLarge,
     over_cap,
+    phone_over_cap,
     read_body,
     refusal_text,
 )
@@ -137,6 +138,12 @@ ACTION_RULES = frozenset(
 CAPPED_RULES = frozenset(
     {("POST", "/api/game/new"), ("POST", "/api/game/choice"), ("POST", "/api/saves")}
 )
+
+#: ``(method, rule)`` of the phone's HTTP twin (v0.22.0, spec §17.1): its own
+#: text cap (``limits.phone_over_cap``) and its own bucket
+#: (``rate_limits.phone_actions_per_minute``), never the actions bucket. A
+#: mechanics action makes no model call, so it takes no turn slot.
+PHONE_RULES = frozenset({("POST", "/api/phone/action")})
 
 #: ``(method, rule)`` of every HTTP request that may run a turn or a model
 #: call, and so may wait in the model server's queue: each takes a turn slot
@@ -255,6 +262,23 @@ def limit_request(state: Any, account: Any) -> Any:
             )
             metrics_emit.refused(account.id, "refused_cap")
             return jsonify({"error": text}), 400
+    if key in PHONE_RULES:
+        text = phone_over_cap(request.get_json(silent=True), state.settings.max_input_chars)
+        if text is not None:
+            logger.info(
+                "[hosting] Refused a phone action over the input cap (operation=gate, account=%s)",
+                account.id,
+            )
+            metrics_emit.phone_refused(account.id)
+            return jsonify({"error": text}), 400
+        phone_actions = getattr(state, "phone_actions", None)
+        if phone_actions is not None and not phone_actions.allow(account.id):
+            logger.info(
+                "[hosting] Refused a phone action over the rate limit (operation=gate, account=%s)",
+                account.id,
+            )
+            metrics_emit.phone_refused(account.id)
+            return jsonify({"error": SLOW_DOWN}), 429
     if key in ACTION_RULES and state.actions is not None and not state.actions.allow(account.id):
         logger.info(
             "[hosting] Refused an action over the rate limit (operation=gate, "

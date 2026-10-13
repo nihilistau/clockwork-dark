@@ -664,12 +664,52 @@ server: one queue for every story).
   "You are acting faster than this server allows. Wait a moment, then try
   again."; reading (the state, the save list, the story's screens) is not
   counted.
+- **Phone actions** (a story played on the phone, such as READ RECEIPTS,
+  v0.22.0): each account has its own phone bucket,
+  `hosting.rate_limits.phone_actions_per_minute` (90), across the game
+  connection's `phone_action` and its HTTP twin `POST /api/phone/action`,
+  and a phone action never spends from the actions bucket above. A swipe
+  deck read at a glance runs about one card a second, so 12 a minute would
+  stop a player mid-deck; 90 leaves half again over that for opening and
+  closing threads. **Measured** (v0.22.0 T30, 2026-10-13, 1366x768 in the
+  Claude Code browser pane, local play, `screenshot_runs.py --serve` with
+  `--voice-delay`, the server log's `operation=phone_action` lines): a
+  minute of swiping a Matchstick deck at a glance's pace (36 swipes in 54 s)
+  and a stretch of messaging (11 sends in 72 s), 110 actions over two
+  sessions; the actions in the 60 s window each action opens were p50 9,
+  p95 32 over the first whole session and **p95 34**, max 36, within the
+  swiping minute (sends: max 8 a minute). 34 is under 75% of 90
+  (67.5), so 90 stands. Its limit: the hands were an agent's, driving the
+  pane through tool calls at about one swipe a second, not a person's thumb;
+  a fast human swiper may run nearer the one-card-a-second ceiling above,
+  60 a minute, still inside 90. Past it, the same 429 or "slow down" message. A phone
+  action is pure mechanics, with no model call: it takes **no admission**
+  (no place in the narration queue, no turn slot), only the run's own turn
+  lock, briefly.
+- **Phone replies** (v0.22.0): the people's replies are written afterwards,
+  by a background voicing pass the player never waits for. Each pass takes
+  **one narration place, briefly waited for**: it asks for it before it
+  touches the run, waiting at most `social.voice.admit_wait_seconds` (5),
+  as the run's account (so under the supervisor an account's phone holds at
+  most one narration place, as its turns do), with
+  `hosting.turn_deadline_seconds` as its deadline. A busy queue sends the
+  pass back to wait, 2, 4, 8, 16 and 32 seconds, and after
+  `social.voice.max_attempts` (6) it is dropped: the messages stay "…" and
+  the player's next phone action asks again. The model call itself is made
+  holding no lock, so the player keeps swiping and sending while a reply is
+  being written. A pass is called off when the player's last game
+  connection to the run closes (local mode keeps writing, so the replies
+  are there on return). Its thread summary is a utility call, made after
+  the place is given back.
 - **Typed input:** any text a player sends -- a typed action, a chosen
   option's id, a save's label, an archetype, a seed -- longer than
   `hosting.max_input_chars` (1000 characters), and a player name longer than
   40, is **refused, not cut** -- "That is longer than this server accepts
   (1000 characters)." -- because a sentence cut short is an action the player
-  did not choose. A voice transcript longer than that is returned to the
+  did not choose. A phone action's text (a message, a bio, a like's comment)
+  and its ids are held to the same cap, refused the same way; the phone's
+  own, smaller caps (`social.max_text_chars`, 600 for a message or a bio)
+  refuse in every mode, hosted or not. A voice transcript longer than that is returned to the
   player with the same words and no companion reply. It is a length and
   nothing else.
 - **Saves:** each account keeps at most `hosting.max_saves_per_story` (50)
@@ -732,6 +772,82 @@ server: one queue for every story).
 - **Disk:** there is no per-player quota in bytes. The save cap above bounds
   how many runs a player keeps and the action limit how fast they are made;
   a run's transcript grows with the run.
+
+### Phone media: ComfyUI as a hosted service
+
+A story with a phone (READ RECEIPTS) can have its photos, videos and
+profile portraits made by a ComfyUI server when `phone_media.provider` is
+`comfyui` (the default, `procedural`, contacts nothing; docs/MEDIA_SERVERS.md
+has the workflows and what was verified live -- nothing yet). The game reaches ComfyUI over HTTP and needs nothing else
+of it, so the server can be on the same host, another machine or a hosted
+service:
+
+- **Where:** `comfyui.base_url`, any `http` or `https` URL.
+- **The key:** `comfyui.api_key`, resolved from the gitignored
+  `comfyui_api_key.txt` or `CLOCKWORK_COMFYUI_API_KEY` (never put it in a
+  config file); empty sends no header. It is never logged.
+- **The header:** `comfyui.auth_header`. `Authorization` (the default) sends
+  `Bearer <key>`; any other name (a service's own, say `X-API-Key`) sends the
+  key as written.
+- **Timeouts:** `comfyui.timeout_seconds` (120) bounds each HTTP call, and
+  `comfyui.job_timeout_seconds` (600) each ATTEMPT from submit to result
+  (past it the server is sent `/interrupt` and the job fails); the server is
+  polled every `comfyui.poll_seconds` (1.5). An execution error is resubmitted
+  `comfyui.retries` (1) times, each with its own window, so one job can take
+  up to (`retries` + 1) x `job_timeout_seconds`, plus its upload and fetch. A fetched file is refused past
+  `comfyui.max_bytes` (25 MiB), any other reply past `comfyui.max_json_bytes`.
+- **One job at a time, per process:** each story worker runs its media jobs
+  on one background thread, never inside a player's turn: thread media first,
+  then a player's own photos, then portraits, round-robin between accounts,
+  oldest first.
+- **The per-account cap:** `phone_media.daily_job_cap` (40) jobs per account
+  per real (local) day, counted per story worker; past it a player's further
+  media are the procedural tile at once, logged once per account per day.
+  That cap is also the queue's only bound: at most `daily_job_cap` x the
+  accounts playing per day, and a backlog carries over midnight. The count
+  is kept **in memory**, per worker process (`MediaJobWorker` in
+  `engine/media/comfy/jobs.py`), and is not saved: a worker restart (a
+  crash restart, a deploy) or a drain (which rebuilds the media worker, a
+  Model server apply among them) resets every account's count to zero for
+  the rest of that day.
+- **Storage:** each account's files are kept apart, at
+  `<storage.root>/media/phone/<account id>/<save id>/` (local play uses
+  `local` for the account). Deleting a save deletes its media; deleting an
+  account with **purge** deletes the account's media folder too; a job
+  finishing after either writes nothing (it needs the save's folder to
+  exist). `scripts/users.py adopt` moves a local run's media with the run.
+- **A failure** (refused graph, execution error past the retries, timeout,
+  401, an oversized or untyped output) ends the job `failed`, logged with
+  its id, never a raise; on the player's phone it is the procedural tile
+  for good. A worker stopped mid-job abandons it, and the same job
+  resubmitted (same id, so ComfyUI is sent the same `client_id`) stores one
+  file.
+- **Back to the run:** a finished job is handed to its run only if that run
+  is still live, of the same build and the same account
+  (`engine/social/media.py::hand_off`); its turn lock is tried, never
+  waited for -- free, the row is updated and `media_ready` pushed through the
+  room-checked emitter; busy, the result waits in the run's inbox for its
+  next action. A result for a run that was released writes nothing; on
+  **resume** every job the save shows unfinished is submitted again with its
+  stored request (the same seed and prompt).
+- **Serving is owner-scoped:** `GET /api/phone/media/<save_id>/<name>` takes
+  the OWNER from the login (the gate's account; local play: the local
+  player), never from the URL, requires the save to be one of that owner's,
+  and serves only a stored file's name (`<mid>-<digest>.<ext>`, `storage.check_name`).
+  Another account's save id, a `..` or any other name answers 404, exactly
+  as a missing file does. Like every route, it needs a login.
+- **Voice notes** are not ComfyUI's: with `tts.enabled` a person's note is
+  spoken by the TTS server (`tts.base_url`) on one speech thread per story
+  worker, one queue for every account (`engine/media/tts.py`). Each new note
+  is one of the account's `phone_media.daily_job_cap` jobs, counted with its
+  images and videos; past the cap, or past `tts.job_timeout_seconds` waiting,
+  the note is its transcript tile. The WAV is stored and served with the
+  save's other media, by the same owner-scoped route.
+- **A drain** (`engine/hosting/__init__.py::drain`) stops the story worker's
+  media job worker after cancelling its voicing passes: it starts no further
+  job, and a job waiting between polls is abandoned (resubmitted on the
+  run's next resume). The `phone` metric counts each hand-off as
+  `media_job` (`ok`, `failed`, `fallback`, `dropped`).
 
 ---
 
@@ -1141,7 +1257,10 @@ moment it does, not at the deadline. Turns still waiting in line are then
 answered busy (they never started, so nothing is lost, and the page's
 reconnect picks the run up from its autosave once the story is back), and
 the worker is given what is left of `drain_seconds` to finish the requests
-it is still answering. A drain that runs out before the story is idle
+it is still answering; a phone story's worker first calls off every
+voicing pass and waits, inside the same time, for those still finishing --
+one model call already sent cannot be cut, and its answer is thrown away --
+then saves every run whose phone changed since its last save (v0.22.0). A drain that runs out before the story is idle
 changes nothing: the story is resumed, its waiting turns keep their places,
 and the operation is `refused`, "turns are still running; the story was not
 stopped". (If the worker's own last step runs out instead, the story is
@@ -1395,7 +1514,12 @@ button:
   again in a moment"): the account stays disabled, and its saves are not
   deleted until nothing of it can still write them. After deleting them the
   purge asks the stories once more, and deletes again if anything of the
-  account was still there.
+  account was still there. A phone story's saves (READ RECEIPTS, v0.22.0)
+  go through the same two checks as a turn's -- none for a session being
+  ended, none for a closed account -- whether made by a phone action, its
+  ten-second dirty-save timer, the idle sweep or a drain, so they never
+  write a purged account's folder back; the purge removes the save
+  directory's `phone_archive.jsonl` (older phone messages) with the rest.
 
 Every action that changes something answers by sending you back to its page
 with a one-line note of what was done, so reloading the page never repeats
@@ -1622,7 +1746,7 @@ schema is closed (`engine/hosting/metrics_schema.py`) and a test pins it
 the panel asks it for one of a fixed set of named queries, a page at a time,
 so no SQL ever crosses the bus.
 
-What is recorded, six kinds, every field a time, a number, an id (an
+What is recorded, seven kinds, every field a time, a number, an id (an
 account, a story, a process, a reference), a Python class or logger name, or
 one of a fixed list of words:
 
@@ -1634,6 +1758,7 @@ one of a fixed list of words:
 | `login` | the account (none for a name that is no account) and `ok`, `failed`, `limited`, `disabled` or `must_change` | the front door |
 | `error` | the process, the player's reference (when one was shown), the exception's class and the logger's name | every process |
 | `process` | a child `started`, `ready`, `unhealthy`, `exited` (with its code), `restarted`, `held_down` or `stopped` | the supervisor |
+| `phone` | a phone story's (v0.22.0) story and account, the `event` (`action`: one mechanics action; `voice_pass`: one voicing pass; `media_job`: one media job handed back), its time in ms, and `ok`, `busy`, `refused`, `fallback`, `failed`, `discarded` or `dropped`. A phone action is never a `turn`: one refused -- over its text cap, past the phone bucket, or declined by the engine (an action not legal now) -- is a `phone` `refused` | each worker |
 
 A lane a profile opened under its own name is not recorded (the schema names
 only `narration` and `utility`). The supervisor stamps each metric's process
@@ -1647,8 +1772,9 @@ are deleted every hour, and the file cannot grow without limit whatever a
 client does:
 
 - a **refusal** -- a failed, limited or disabled login, an action over a cap
-  or the rate -- is not kept one row each: it is counted per minute, one row
-  per (minute, login or action, story, outcome), with no account, so a script
+  or the rate, a refused phone action -- is not kept one row each: it is
+  counted per minute, one row per (minute, login, action or phone, story,
+  outcome), with no account, so a script
   hammering `/login` adds a few rows a minute;
 - the supervisor takes at most 100 metrics a second from each process (a
   burst of 400); past that they are dropped and counted;

@@ -4,7 +4,7 @@ The operating rules for any coding agent changing this repository. Tool-neutral:
 
 Not to be confused with [docs/AGENTS.md](docs/AGENTS.md), which documents the IN-GAME agents (roster, plan, negotiate, commit).
 
-Local-first AI RPG: a deterministic engine holds truth and LLM agents narrate it. Six stories ship under `games/<slug>/`; the engine is story-agnostic.
+Local-first AI RPG: a deterministic engine holds truth and LLM agents narrate it. Seven stories ship under `games/<slug>/`; the engine is story-agnostic. Six can be played to an ending; READ RECEIPTS is endless (`endless: true`, no ending, by the owner's brief).
 
 ## Start here
 
@@ -107,7 +107,8 @@ long `pytest` line:
   `python scripts/run_tests.py files <paths or node ids>`.
 - Day to day: `python scripts/run_tests.py fast` (the fast tier, about 6 min).
 - At a release, once: `python scripts/run_tests.py full` (every tier, about
-  17 min on Windows). It is a hybrid: a parallel phase (pytest-xdist), then
+  100 min on Windows since v0.22.0, most of it READ RECEIPTS' `slow`
+  simulator and save-size pins; CLAUDE.md's Status has the latest). It is a hybrid: a parallel phase (pytest-xdist), then
   a serial phase, then one automatic solo re-run of the serial phase's
   failures. A hosted test that passes on that re-run is reported as FLAKY,
   never hidden; an unmarked test is never re-run. No repeated full runs to
@@ -318,12 +319,13 @@ Windows (PowerShell):
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt -c constraints.txt
 .\.venv\Scripts\python.exe scripts\doctor.py            # environment, config, content
 .\.venv\Scripts\python.exe scripts\run_tests.py fast   # day to day: the fast tier, about 6 min
-.\.venv\Scripts\python.exe scripts\run_tests.py full   # at a release: every tier, hybrid, about 17 min; fully green (FLAKY is listed, not hidden)
+.\.venv\Scripts\python.exe scripts\run_tests.py full   # at a release: every tier, hybrid, about 100 min; fully green (FLAKY is listed, not hidden)
 npm ci --prefix ui; npm test --prefix ui                # the client: plugins, reducer, veiled rule
 npm run build --prefix ui                               # rebuild the COMMITTED dist after any ui/src change
 .\.venv\Scripts\python.exe launcher.py --check          # local services and what each outage costs
 .\.venv\Scripts\python.exe scripts\simulate.py --policy all --turns 200
 .\.venv\Scripts\python.exe scripts\simulate.py --game hue-and-cry     # HUE & CRY's thief, over its own harnesses
+.\.venv\Scripts\python.exe scripts\simulate_social.py --game read-receipts --days 60 --seeds 40 --policy attentive   # READ RECEIPTS' phone, stub voice
 docker build -t clockwork-dark .                         # the hosted image (Docker; docs/HOSTING.md § Docker)
 ```
 
@@ -339,6 +341,7 @@ npm run build --prefix ui
 .venv/bin/python launcher.py --check
 .venv/bin/python scripts/simulate.py --policy all --turns 200
 .venv/bin/python scripts/simulate.py --game hue-and-cry
+.venv/bin/python scripts/simulate_social.py --game read-receipts --days 60 --seeds 40 --policy attentive
 docker build -t clockwork-dark .
 ```
 

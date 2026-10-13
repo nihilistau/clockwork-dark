@@ -8,7 +8,7 @@
  * NOT WIRED (docs/GOVERNANCE.md, v0.21.0 final review finding 9): "Take the
  * work" sends the player's words as TYPED TEXT (`onAct`), which carries no
  * intent, so no `work` skill runs from it -- only the narrator reads it.
- * The intent path for overlays is the v0.23.0 flagship overhaul's.
+ * The intent path for overlays is the v0.25.0 flagship overhaul's.
  */
 import React, { useEffect, useState } from "react";
 import Modal from "@core/parts/Modal.jsx";

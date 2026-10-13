@@ -137,6 +137,7 @@ export const THEMES = {
   "neon-city": ["stories/neon-city/theme/tokens.css"],
   "the-long-con": ["stories/the-long-con/theme/tokens.css"],
   "hue-and-cry": ["stories/hue-and-cry/theme/tokens.css"],
+  "read-receipts": ["stories/read-receipts/theme/tokens.css"],
 };
 
 function check(table, label) {

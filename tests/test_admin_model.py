@@ -914,6 +914,14 @@ def test_a_drain_past_drain_seconds_refuses_and_writes_and_restarts_nothing(
 def test_a_worker_restarted_for_another_reason_during_the_drain_boots_under_the_old_file(
     instance: HostingInstance, passwords: dict[str, str], admin: httpx.Client
 ) -> None:
+    # Its own precondition, the old file at 0.55 (v0.22.0 T32): run alone, no
+    # earlier test of the module has applied it, and the worker would boot on
+    # the default (0.85), which is neither the old file nor the new.
+    layer = _read_layer(instance) if _layer(instance).is_file() else {}
+    if ((layer.get("llm") or {}).get("profiles") or {}).get("big", {}).get("temperature") != 0.55:
+        op_id, _took = _apply(admin, {"llm.profiles.big.temperature": "0.55"})
+        assert instance.wait_op(op_id, timeout=180)["status"] == "done"
+    assert _llm(instance, B)["llm.profiles.big.temperature"] == 0.55, "the precondition did not take"
     killed = instance.own_identity(f"worker-{B}")
     with Held(instance, passwords, "ash", A) as held:
         op_id, _took = _apply(admin, {"llm.profiles.big.temperature": "0.75"})

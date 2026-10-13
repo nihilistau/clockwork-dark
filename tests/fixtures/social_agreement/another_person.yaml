@@ -1,0 +1,43 @@
+# Agreement check "another person" (spec §11.5): a name from the player's contacts this person
+# cannot know, in bubbles, shared or learned. The LAST bad case puts the name in `shared`.
+# `bad` must fail the check; `good` must pass EVERY check.
+base: &base
+  stage: talking
+  person: {name: Maya, age: 31, job: nurse, neighbourhood: old_town}
+  player: {name: Sam, age: 29, neighbourhood: harbourside, attributes: {job: accountant}}
+  contacts: [Callum, Priya, April, Kai]
+  decision: {situation: reply}
+
+bad:
+  - {<<: *base, reply: {bubbles: [{text: "Callum said the same thing lol"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "how's Priya doing?"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "priya's party was fun"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "ok"}, {text: "ha"}, {text: "tell callum hi"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "noted"}], learned: ["knows Priya from work"]}}
+  # a short name is still a name (whole words, two letters or more)
+  - {<<: *base, reply: {bubbles: [{text: "tell Kai hi"}]}}
+  # the player named someone else, not Callum
+  - {<<: *base, told: [Priya], reply: {bubbles: [{text: "is Callum coming too"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "small world"}], shared: ["went to school with Callum"]}}
+
+good:
+  # a substring is not a name
+  - {<<: *base, reply: {bubbles: [{text: "my cousin Priyanka visits tomorrow"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "kaiser rolls are underrated"}]}}
+  # their own name
+  - {<<: *base, reply: {bubbles: [{text: "Maya here 👋"}]}}
+  # a contact's name that is an ordinary word (relationships.yaml ordinary_names)
+  - {<<: *base, reply: {bubbles: [{text: "see you in April then"}]}}
+  - <<: *base
+    contacts: [Kit, Max, Rob, Jordan]
+    reply: {bubbles: [{text: "the camping kit is packed"}, {text: "max effort today"},
+                      {text: "they'll rob you blind at that bar, I went to Jordan cheaper"}]}
+  # chat shorthand and an idiom, not the contacts Ty and Pete
+  - {<<: *base, contacts: [Ty, Pete], reply: {bubbles: [{text: "ty so much, that means a lot"}, {text: "for Pete's sake"}]}}
+  # the player's own name, which a contact shares
+  - <<: *base
+    player: {name: Callum, age: 29, neighbourhood: harbourside, attributes: {job: accountant}}
+    reply: {bubbles: [{text: "morning Callum ☀️"}]}
+  # a name the player told this person
+  - {<<: *base, told: [Callum], reply: {bubbles: [{text: "tell Callum hi back"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "the river was wild today"}], shared: ["I swim at the lido"]}}

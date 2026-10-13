@@ -1,0 +1,25 @@
+# Agreement check "number" (spec §11.5): more bubbles than the decision allows.
+# `bad` must fail the check; `good` must pass EVERY check.
+base: &base
+  stage: talking
+  person: {name: Maya, age: 31, job: nurse, neighbourhood: old_town}
+  player: {name: Sam, age: 29, neighbourhood: harbourside, attributes: {job: accountant}}
+  contacts: [Jordan, Priya]
+  decision: {situation: reply, max_bubbles: 3}
+
+bad:
+  - {<<: *base, reply: {bubbles: [{text: a}, {text: b}, {text: c}, {text: d}]}}
+  - {<<: *base, decision: {situation: reply, max_bubbles: 1}, reply: {bubbles: [{text: "hi"}, {text: "there"}]}}
+  - {<<: *base, decision: {situation: reply, max_bubbles: 2}, reply: {bubbles: [{text: "1"}, {text: "2"}, {text: "3"}]}}
+  - {<<: *base, decision: {situation: opener, max_bubbles: 1}, reply: {bubbles: [{text: "hey"}, {text: "hey"}, {text: "hey"}]}}
+  - {<<: *base, decision: {situation: double_text, max_bubbles: 2}, reply: {bubbles: [{text: "hello?"}, {text: "ok"}, {text: "nvm"}, {text: "x"}]}}
+  - {<<: *base, reply: {bubbles: [{text: a}, {text: b}, {text: c}, {text: d}, {text: e}, {text: f}]}}
+
+good:
+  - {<<: *base, reply: {bubbles: [{text: "one"}, {text: "two"}, {text: "three"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "one"}]}}
+  - {<<: *base, decision: {situation: reply, max_bubbles: 1}, reply: {bubbles: [{text: "hi"}]}}
+  - {<<: *base, decision: {situation: reply, max_bubbles: 2}, reply: {bubbles: [{text: "hi"}, {text: "there"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "a"}, {text: "b"}]}}
+  # shared and learned are not bubbles
+  - {<<: *base, reply: {bubbles: [{text: "only one"}], shared: ["one", "two"], learned: ["one", "two"]}}

@@ -28,7 +28,7 @@
 import { banner as linkBanner, isConnected } from "./link.js";
 
 export const initialState = {
-  screen: "start", // start | scene | saves
+  screen: "start", // start | new_run | scene | saves
   connected: false,
   // The connection's state (core/link.js, spec §6.3) and what its banner says.
   // `connected` above is derived from it (LINK) because Menu and older tests
@@ -354,6 +354,12 @@ export function reducer(state, action) {
     case "SOCKET":
       return handleSocket(state, action.event, action.payload || {});
 
+    // Phone actions that never reached the server, `{intents}` (socket.js
+    // createPhoneSender's onDrop, spec §18.2). Core keeps nothing; `composed`
+    // hands it to the plugin's `reduce`, which keeps the composed text.
+    case "PHONE_DROPPED":
+      return state;
+
     default:
       return state;
   }
@@ -628,6 +634,15 @@ function handleSocket(state, event, payload) {
       // dropped, so a save that would not open sent the player back to Begin
       // with no word as to why.
       return { ...state, screen: "start", busy: false, error: payload.message || "" };
+
+    // READ RECEIPTS' background pushes (v0.22.0, spec §17.3): a voiced
+    // message, a withdrawal's thread row, a finished photo or clip. Core keeps
+    // nothing of them -- they are the phone's, reduced into `state.story` by
+    // the plugin's `reduce` -- so a story with no phone never sees them, and
+    // one that has one finds core's state exactly as it was.
+    case "phone_message":
+    case "media_ready":
+      return state;
 
     case "error":
       // The rejoin's own miss is the link's to answer (it resumes), not a failure to show.

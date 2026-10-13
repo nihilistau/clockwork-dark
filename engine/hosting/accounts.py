@@ -896,19 +896,35 @@ def user_dir(account: Account) -> Path:
 
 def purge_user_dir(account: Account) -> bool:
     """
-    Delete ``user_dir(account)``; whether there was one. The caller confirms
-    first. Refuses anything that does not resolve to a direct child of
-    ``users/``.
+    Delete ``user_dir(account)`` and the account's phone media
+    (``media/phone/<id>``, v0.22.0 T18); whether there was either. The
+    caller confirms first. Refuses anything that does not resolve to a direct
+    child of ``users/`` (or of ``media/phone/``).
     """
     directory = user_dir(account)
     root = users_root().resolve()
     resolved = directory.resolve()
     if resolved.parent != root or resolved.name != account.id:
         raise AccountError(f"refusing to delete {resolved}: it is not an account's folder")
-    if not directory.is_dir():
-        return False
-    shutil.rmtree(directory)
-    return True
+    from engine.media.comfy.storage import phone_owner_dir
+
+    # Both folders are checked before either is removed: a refusal never
+    # leaves a half-purge.
+    try:
+        media = phone_owner_dir(account.id)
+    except ValueError:
+        raise AccountError(f"refusing to delete the media of {account.id!r}: not an account id") from None
+    media_resolved = media.resolve()
+    if media_resolved.parent != media.parent.resolve() or media_resolved.name != account.id.lower():
+        raise AccountError(f"refusing to delete {media_resolved}: it is not an account's media folder")
+    found = False
+    if directory.is_dir():
+        shutil.rmtree(directory)
+        found = True
+    if media.is_dir():
+        shutil.rmtree(media)
+        found = True
+    return found
 
 
 #: Suffix of a run copied to the account's volume and not yet in place.
@@ -1046,6 +1062,30 @@ def adopt(
         return _adopt(account, slug)
 
 
+def _media_target(account: Account, save_id: str) -> Path:
+    """Where an adopted run's phone media go: ``media/phone/<account id>/<save_id>``."""
+    from engine.media.comfy.storage import phone_media_dir
+
+    return phone_media_dir(account.id, save_id)
+
+
+def _move_phone_media(account: Account, save_id: str) -> Optional[tuple[Path, Path]]:
+    """
+    An adopted run's phone media (v0.22.0 T18), renamed from the local
+    player's folder to the account's: one media root, so a rename. Returns
+    ``(source, target)`` for an undo, or None when the run has no media.
+    """
+    from engine.media.comfy.storage import phone_media_dir
+
+    source = phone_media_dir("", save_id)
+    if not source.is_dir():
+        return None
+    target = _media_target(account, save_id)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    os.rename(source, target)
+    return source, target
+
+
 def _adopt(account: Account, slug: Optional[str]) -> dict[str, list[str]]:
     """``adopt``'s work, run under ``adopt_lock``."""
     from engine.games.manifest import is_valid_slug
@@ -1073,7 +1113,7 @@ def _adopt(account: Account, slug: Optional[str]) -> dict[str, list[str]]:
                 saves.check_save_id(directory.name)
             except saves.InvalidSaveId:
                 continue
-            if (target / directory.name).exists():
+            if (target / directory.name).exists() or _media_target(account, directory.name).exists():
                 clashes.append(f"{chosen}/{directory.name}")
             ids.append(directory.name)
         if ids:
@@ -1089,7 +1129,16 @@ def _adopt(account: Account, slug: Optional[str]) -> dict[str, list[str]]:
         target.mkdir(parents=True, exist_ok=True)
         try:
             for save_id in ids:
-                _move_run(source / save_id, target / save_id)
+                # The media first (a rename that cannot half-happen), then the
+                # run; a run that fails to move takes its media back, so the
+                # two never end up in different owners (T18 re-review N1).
+                moved_media = _move_phone_media(account, save_id)
+                try:
+                    _move_run(source / save_id, target / save_id)
+                except BaseException:
+                    if moved_media is not None:
+                        os.rename(moved_media[1], moved_media[0])
+                    raise
         finally:
             saves.SaveStore(root=source, slug=chosen).reindex()
             saves.SaveStore(root=target, slug=chosen).reindex()

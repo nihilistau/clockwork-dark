@@ -122,7 +122,11 @@ SETTING_SPECS: tuple[dict[str, Any], ...] = (
         "label": "Voice",
         "group": "Voice",
         "type": "enum",
-        "options": ["neutral_male", "neutral_female", "warm_female", "old_male"],
+        # Read from `tts.voices` (config/default.yaml) when served or checked,
+        # so the Settings list and the voices READ RECEIPTS' people draw from
+        # are one list (v0.22.0 T21).
+        "options": [],
+        "options_from": "tts.voices",
         "restart": False,
         "hint": "Whatever your Voxtral build ships. An unknown name falls back to text.",
     },
@@ -409,6 +413,24 @@ def _local_overrides() -> dict[str, Any]:
     return _read_local()[0]
 
 
+def tts_voice_ids() -> list[str]:
+    """The ids of `tts.voices` (config), in order: the Settings voice list."""
+    voices = get_config().get("tts.voices") or []
+    return [str(v["id"]) for v in voices if isinstance(v, dict) and v.get("id")]
+
+
+#: Where a row's `options` come from when it names `options_from` (a config key).
+_OPTION_SOURCES = {"tts.voices": tts_voice_ids}
+
+
+def _resolved(spec: dict[str, Any]) -> dict[str, Any]:
+    """A row as served and checked: an `options_from` row's options read now, the marker dropped."""
+    source = spec.get("options_from")
+    if not source:
+        return dict(spec)
+    return {k: (_OPTION_SOURCES[source]() if k == "options" else v) for k, v in spec.items() if k != "options_from"}
+
+
 def _listed(spec: dict[str, Any], provider: str) -> bool:
     """Whether a row applies to the configured model server."""
     providers = spec.get("providers")
@@ -441,7 +463,7 @@ def settings_view() -> dict[str, Any]:
     for spec in SETTING_SPECS:
         if not _listed(spec, provider):
             continue
-        row = _fit_range(dict(spec), cfg.get(spec["key"]))
+        row = _fit_range(_resolved(spec), cfg.get(spec["key"]))
         row["overridden"] = _dig(overrides, spec["key"]) is not None
         rows.append(row)
     return {
@@ -469,6 +491,7 @@ def _coerce_setting(spec: dict[str, Any], raw: Any) -> tuple[bool, Any, str]:
     that no reachable value can brick a run, so the safe move is to land on the
     nearest legal one, not to hand back an error the player cannot act on.
     """
+    spec = _resolved(spec)
     kind = spec["type"]
     # A ${...} reference is a secrets-chain template, which the config checks
     # when it loads (engine/config.py::check_scopes): one written from here

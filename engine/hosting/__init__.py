@@ -218,14 +218,51 @@ def install_sessions(scene: Any) -> None:
             # A turn this socket still had waiting for a slot is called off
             # first (T11 fix round 1): its place and, under the supervisor,
             # its account claim go at once. Then the idle sweep.
-            if cancel_waiting is not None:
-                from flask import request as current_request
+            from flask import request as current_request
 
-                cancel_waiting(str(getattr(current_request, "sid", "") or ""))
+            leaving = str(getattr(current_request, "sid", "") or "")
+            if cancel_waiting is not None:
+                cancel_waiting(leaving)
+            _cancel_unwatched_passes(scene, leaving)
             store.sweep_idle()
 
         door.after_disconnect = after_disconnect
 
+
+def _cancel_unwatched_passes(scene: Any, leaving: str) -> None:
+    """
+    A phone story (v0.22.0 spec §16.2), hosted only: a socket is going, so
+    every voicing pass of a run whose room THIS socket was in, and which now
+    has no other connected socket (the leaving one is still a participant
+    while its disconnect runs), is cancelled. A run this socket was not in --
+    one played over HTTP, or whose socket has not joined yet -- is left
+    alone. Local mode keeps voicing for a player who closed the tab, so the
+    replies are there on return. Absent in any other story.
+    """
+    from engine import social
+
+    if not social.declared():
+        return
+    from engine.social import voicer
+
+    manager = scene.socketio.server.manager
+    try:
+        rooms = {str(room) for room in manager.get_rooms(leaving, "/") or ()}
+    except Exception:  # noqa: BLE001 -- no rooms to read: nothing of this socket's to call off
+        return
+    rooms.discard(leaving)
+
+    def has_listeners(room: str) -> bool:
+        if room not in rooms:
+            return True
+        return any(sid != leaving and manager.is_connected(sid, "/")
+                   for sid, _eio in manager.get_participants("/", room))
+
+    voicer.cancel_unwatched(has_listeners)
+
+
+#: How long a drain waits for the media job worker's thread to end, in seconds.
+MEDIA_JOIN_SECONDS = 1.0
 
 #: How often a drain looks again for a running turn, in seconds.
 DRAIN_POLL_SECONDS = 0.05
@@ -240,21 +277,79 @@ def drain(store: Any, seconds: float) -> bool:
     requests still under a session's turn lock -- a refused turn writing its
     answer, a run being built -- finish: wait up to ``seconds`` for no
     session to hold its turn lock. True: drained. False: one still does.
+
+    A phone story (v0.22.0 spec §16.5): every voicing pass is cancelled
+    first, then the drain also waits for the passes still finishing
+    (``voicer.in_flight() == 0``). A cancelled pass commits nothing more, so
+    it waits at most for one model call already sent. **Drain cancels
+    passes, and counts the ones still finishing.** The media job worker is
+    stopped too (T19): its unfinished jobs resubmit on resume.
     """
+    from engine.social import declared as social_declared
+
+    phone = social_declared()
+    if phone:
+        from engine.social import voicer
+
+        voicer.cancel_all()
+        _stop_media_worker(seconds)
     deadline = time.monotonic() + max(0.0, float(seconds))
     waiter = threading.Event()
     while True:
         running = store.turns_running() if store is not None else 0
-        if running == 0:
+        passes = voicer.in_flight() if phone else 0
+        if running == 0 and passes == 0:
             logger.info("[hosting] Drained: no turn running (operation=drain)")
+            _flush_phone(store)
             return True
         if time.monotonic() >= deadline:
             logger.warning(
-                "[hosting] Drain ran out with %d turn lock(s) held (operation=drain)",
+                "[hosting] Drain ran out with %d turn lock(s) held and %d voicing pass(es) "
+                "finishing (operation=drain)",
                 running,
+                passes,
             )
+            _flush_phone(store)
             return False
         waiter.wait(DRAIN_POLL_SECONDS)
+
+
+def _stop_media_worker(seconds: float) -> None:
+    """
+    A phone story's drain (v0.22.0 T19): the process's media job worker
+    stopped and dropped, so it starts no further job. A job waiting between
+    polls is abandoned at once; its row stays unfinished in the run's save
+    and is resubmitted on resume (spec §13.2). Joined for at most
+    ``MEDIA_JOIN_SECONDS`` of the drain's own: a job inside an HTTP call ends
+    with that call (bounded by ``comfyui.timeout_seconds``) and is handed off
+    like any other, through the hand-off's liveness check. Never raises.
+    """
+    try:
+        from engine.media.comfy import jobs
+
+        if not jobs.reset_media_worker(min(MEDIA_JOIN_SECONDS, max(0.0, float(seconds)))):
+            logger.warning("[hosting] The media job worker had not stopped by the drain's end (operation=drain)")
+    except Exception as exc:  # noqa: BLE001 -- a drain answers whatever the worker does
+        logger.warning("[hosting] Media worker not stopped (operation=drain): %s", exc)
+
+
+def _flush_phone(store: Any) -> None:
+    """
+    After a drain, before the worker stops (v0.22.0 spec §16.5): in a story
+    declaring ``paths.social``, every dirty phone run whose turn lock is free
+    is saved, through the same two checks as a turn's save. Absent in any
+    other story. Never raises.
+    """
+    from engine import social
+
+    if store is None or not social.declared():
+        return
+    try:
+        from engine.social import saves
+
+        saves.flush_all(store)
+    except Exception as exc:  # noqa: BLE001 -- a drain answers whatever a save does
+        logger.warning("[hosting] Phone flush failed (operation=drain): %s", exc)
 
 
 def connect_bus(scene: Any) -> Optional[Any]:
@@ -367,13 +462,16 @@ def install(scene: Any) -> Any:
             settings.logins_per_minute, all_per_minute=settings.logins_per_minute_all
         ),
         actions=ActionLimiter(settings.actions_per_minute),
+        phone_actions=ActionLimiter(settings.phone_actions_per_minute),
         server_lock=server_lock,
         turn_slots=TurnSlots(turn_slot_limit(settings.threads)),
     )
     app.extensions[EXTENSION] = state
     register(app)
     install_error_handler(app)
-    install_socket_guard(scene, state.accounts, actions=state.actions, settings=settings)
+    install_socket_guard(
+        scene, state.accounts, actions=state.actions, settings=settings, phone_actions=state.phone_actions
+    )
     install_sessions(scene)
     store = getattr(scene, "store", None)
     if store is not None:

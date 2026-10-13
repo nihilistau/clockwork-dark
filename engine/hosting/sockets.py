@@ -29,6 +29,9 @@ runs:
   ``limit_action``, v0.20.0 T9): a refusal is ``turn_error`` with ``busy:
   false`` and the handler never runs; under the supervisor each refusal is
   a ``turn`` metric, ``refused_cap`` or ``refused_rate`` (v0.20.0 T17);
+- the phone's events (``PHONE_EVENTS``: ``phone_action``, v0.22.0) pass
+  their own text cap and their OWN bucket (``limit_phone``), never the
+  actions bucket;
 - anything the body raises is logged under a reference and answered
   ``error`` ``{"message": "The request could not be completed (ref ...)"}``
   (``engine/hosting/errors.py``), never with the exception's words.
@@ -84,7 +87,7 @@ from socketio.exceptions import ConnectionRefusedError as SocketRefused
 from engine.hosting.auth import current_account
 from engine.hosting import metrics_emit
 from engine.hosting.errors import REQUEST_FAILED, public_error
-from engine.hosting.limits import SLOW_DOWN, over_cap, too_many_connections
+from engine.hosting.limits import SLOW_DOWN, over_cap, phone_over_cap, too_many_connections
 from engine.session.store import current_owner
 
 logger = logging.getLogger(__name__)
@@ -95,6 +98,11 @@ LOGIN_REQUIRED = {"message": "login required"}
 #: The events that are actions (spec §6.5): the action limit and the input
 #: caps apply to these.
 ACTION_EVENTS = frozenset({"player_choice", "resume"})
+
+#: The phone's events (v0.22.0, spec §17.1): their own bucket
+#: (``rate_limits.phone_actions_per_minute``) and their own text cap
+#: (``limits.phone_over_cap``); never the actions bucket.
+PHONE_EVENTS = frozenset({"phone_action"})
 
 #: Socket.IO's own lifecycle events: ``connect`` admits or refuses,
 #: ``disconnect`` only ever cleans up.
@@ -139,6 +147,40 @@ def limit_action(
             account.id,
         )
         metrics_emit.refused(account.id, "refused_rate")
+        return {"message": SLOW_DOWN, "busy": False}
+    return None
+
+
+def limit_phone(
+    account: Any,
+    args: tuple[Any, ...],
+    *,
+    phone_actions: Any = None,
+    max_input_chars: Optional[int] = None,
+) -> Optional[dict[str, Any]]:
+    """
+    ``limit_action`` for the phone's events (v0.22.0): the text cap first
+    (``phone_over_cap``), so an oversize message spends no token, then one
+    token from the account's PHONE bucket. The ``turn_error`` payload that
+    refuses it (``busy: false``), or None. A refusal is a ``phone`` metric,
+    ``refused`` (spec §17.1: a mechanics action is never a ``turn``).
+    """
+    body = args[0] if args else None
+    if max_input_chars is not None:
+        text = phone_over_cap(body, max_input_chars)
+        if text is not None:
+            logger.info(
+                "[hosting] Refused a phone action over the input cap (operation=limit_phone, account=%s)",
+                getattr(account, "id", ""),
+            )
+            metrics_emit.phone_refused(getattr(account, "id", ""))
+            return {"message": text, "busy": False}
+    if phone_actions is not None and not phone_actions.allow(account.id):
+        logger.info(
+            "[hosting] Refused a phone action over the rate limit (operation=limit_phone, account=%s)",
+            account.id,
+        )
+        metrics_emit.phone_refused(account.id)
         return {"message": SLOW_DOWN, "busy": False}
     return None
 
@@ -222,6 +264,7 @@ class SocketDoor:
         actions: Any = None,
         max_input_chars: Optional[int] = None,
         max_connections: Optional[int] = None,
+        phone_actions: Any = None,
     ) -> None:
         self.scene = scene
         self.accounts = accounts
@@ -230,6 +273,8 @@ class SocketDoor:
         self.max_connections = max_connections
         #: The actions bucket (``limits.ActionLimiter``), None for none.
         self.actions = actions
+        #: The phone bucket (v0.22.0), None for none.
+        self.phone_actions = phone_actions
         #: ``hosting.max_input_chars``, None for no cap.
         self.max_input_chars = max_input_chars
         #: Run by the guard itself after every ``disconnect`` body (hosted
@@ -312,6 +357,16 @@ class SocketDoor:
                         account,
                         args,
                         actions=self.actions,
+                        max_input_chars=self.max_input_chars,
+                    )
+                    if refusal is not None:
+                        emit("turn_error", refusal)
+                        return None
+                if event in PHONE_EVENTS:
+                    refusal = limit_phone(
+                        account,
+                        args,
+                        phone_actions=self.phone_actions,
                         max_input_chars=self.max_input_chars,
                     )
                     if refusal is not None:
@@ -407,7 +462,14 @@ def _forget_only(*_args: Any) -> None:
     """The default ``disconnect`` body: the guard itself forgets the socket."""
 
 
-def install(scene: Any, accounts: Any, *, actions: Any = None, settings: Any = None) -> SocketDoor:
+def install(
+    scene: Any,
+    accounts: Any,
+    *,
+    actions: Any = None,
+    settings: Any = None,
+    phone_actions: Any = None,
+) -> SocketDoor:
     """
     Put every socket handler ``scene`` registers from now on behind the
     door, shut out a revoked login at once (``accounts.on_revoke``) and
@@ -415,7 +477,8 @@ def install(scene: Any, accounts: Any, *, actions: Any = None, settings: Any = N
     ``disconnect`` handler that forgets a closed socket (a story's own,
     registered later through ``scene.on``, replaces its body; the guard
     still forgets). ``actions`` (the actions bucket) and ``settings``'
-    ``max_input_chars`` limit the action events (spec §6.5).
+    ``max_input_chars`` limit the action events (spec §6.5); ``phone_actions``
+    (the phone bucket, v0.22.0) and the same cap limit the phone's events.
     """
     door = SocketDoor(
         scene,
@@ -423,6 +486,7 @@ def install(scene: Any, accounts: Any, *, actions: Any = None, settings: Any = N
         actions=actions,
         max_input_chars=getattr(settings, "max_input_chars", None),
         max_connections=getattr(settings, "max_connections_per_account", None),
+        phone_actions=phone_actions,
     )
     scene._socket_guard = door.guard
     scene._room_check = door.check_room
@@ -437,8 +501,10 @@ __all__ = [
     "CONNECT",
     "DISCONNECT",
     "LOGIN_REQUIRED",
+    "PHONE_EVENTS",
     "SocketDoor",
     "SocketRegistry",
     "install",
     "limit_action",
+    "limit_phone",
 ]

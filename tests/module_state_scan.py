@@ -167,6 +167,8 @@ def _is_tracked_value(value: Optional[ast.AST]) -> bool:
     mod, name = called
     if mod in _THREADING_MODULES:
         return True
+    if mod == "itertools" and name == "count":
+        return True  # a process-wide counter: next() is the write (v0.22.0 T10, _EPOCHS)
     return mod is None and name in _THREADING_NAMES
 
 

@@ -353,6 +353,25 @@ llm:
       require_tools: false
       prefer_non_reasoning: true
       min_context: 4096
+    # The phone's voice (v0.22.0, READ RECEIPTS spec §11.4): one person's text
+    # reply per call, not streamed (typing dots show meanwhile), on the
+    # narration lane. A custom profile starts from big's defaults and these
+    # keys override them (engine/llm/profiles.py::_config_for). Reasoning OFF
+    # with no budget: a reply is one to three short bubbles plus a small JSON
+    # envelope, and thinking would cost the player seconds of typing dots per
+    # message. `reasoning_budget: 0` is a starting point: on a server whose
+    # reasoning-off patch is untrusted (CLAUDE.md's deferred row) a thinking
+    # model may starve, which falls back to the story's own lines; T14
+    # measures it (docs/MODEL_SERVERS.md § The texter profile).
+    texter:
+      lane: narration
+      require_tools: false
+      min_context: 4096
+      max_tokens: 360
+      reasoning: "off"
+      reasoning_budget: 0
+      temperature: 0.9
+      # model: "" -- inherits big's binding; set it to a smaller model for speed
 
   # Legacy alias map, still honoured as an explicit-id hint per profile. Left
   # empty: the ids that used to live here did not exist.
@@ -383,9 +402,107 @@ media:
   cutscene_budget: phase_shift_only
 
 comfyui:
-  base_url: "http://localhost:8188"
-  enabled: false
-  timeout_seconds: 120
+  # One ComfyUI server, local or hosted (v0.22.0 spec §13.4;
+  # engine/media/comfy/). Two things use it, each with its OWN switch:
+  #   - the art pipeline's ComfyProvider (media.image_provider: comfyui,
+  #     scripts/generate_art.py), switched by `enabled` below;
+  #   - the phone's media (READ RECEIPTS' photos, portraits and video),
+  #     switched by `phone_media.provider: comfyui` alone. Phone media read
+  #     only the connection keys here (base_url, api_key, auth_header, the
+  #     timeouts, `workflows`), never `enabled`, so turning the art pipeline
+  #     on makes no other story's turn post a workflow.
+  # No story's turn contacts ComfyUI: the in-turn queue
+  # (engine/media/comfyui.py) answers placeholders whatever `enabled` says.
+  enabled: false                          # the ART provider's switch
+  base_url: "http://localhost:8188"       # any https URL for a hosted service
+  # A fallback chain, the first non-empty value wins: comfyui_api_key.txt
+  # (gitignored, first line, relative to the repo), then the
+  # CLOCKWORK_COMFYUI_API_KEY environment variable. Empty sends no header.
+  api_key: "${file:comfyui_api_key.txt|env:CLOCKWORK_COMFYUI_API_KEY}"
+  # The header the key travels in: "Authorization" sends "Bearer <key>";
+  # any other name (a hosted service's own, say "X-API-Key") sends the key
+  # as written.
+  auth_header: "Authorization"
+  timeout_seconds: 120                    # per HTTP call
+  job_timeout_seconds: 600                # submit to result, then /interrupt
+  poll_seconds: 1.5                       # GET /history every this often
+  retries: 1                              # an execution error, retried once
+  max_bytes: 26214400                     # a fetched output's cap (25 MiB)
+  max_json_bytes: 1048576                 # any other reply's cap (1 MiB)
+  # The art provider's sampler; the phone binds the same five keys.
+  checkpoint: "sd_xl_base_1.0.safetensors"
+  steps: 28
+  cfg_scale: 6.5
+  sampler: "dpmpp_2m"
+  scheduler: "karras"
+  # A workflow is an API-format graph exported from ComfyUI unmodified
+  # ("Save (API Format)") and its BINDINGS: each name the engine fills ->
+  # [node id, input name] in that graph. A binding naming a node or input
+  # the template does not have refuses to load (BindingError). `output` is
+  # the node whose files are the result; `size` the pixels the phone asks
+  # for. Point `template` at your own graph (an IP-Adapter, a LoRA stack)
+  # and re-map the bindings; a workflow that binds `reference_image` is
+  # given the person's first portrait (spec §13.3).
+  workflows:
+    photo:
+      template: "config/comfyui/photo_sdxl.json"
+      bindings:
+        checkpoint: ["1", "ckpt_name"]
+        positive: ["2", "text"]
+        width: ["4", "width"]
+        height: ["4", "height"]
+        seed: ["5", "seed"]
+        steps: ["5", "steps"]
+        cfg_scale: ["5", "cfg"]
+        sampler: ["5", "sampler_name"]
+        scheduler: ["5", "scheduler"]
+        filename_prefix: ["7", "filename_prefix"]
+      output: {node: "7", kind: image}
+      size: {width: 832, height: 1216}
+    portrait:
+      template: "config/comfyui/photo_sdxl.json"
+      bindings:
+        checkpoint: ["1", "ckpt_name"]
+        positive: ["2", "text"]
+        width: ["4", "width"]
+        height: ["4", "height"]
+        seed: ["5", "seed"]
+        steps: ["5", "steps"]
+        cfg_scale: ["5", "cfg"]
+        sampler: ["5", "sampler_name"]
+        scheduler: ["5", "scheduler"]
+        filename_prefix: ["7", "filename_prefix"]
+      output: {node: "7", kind: image}
+      size: {width: 896, height: 1152}
+    # A video message (spec §13.8): Wan 2.1 text-to-video (1.3B) on
+    # ComfyUI's native nodes, 49 frames at 16 fps (about 3 s) at 480p,
+    # saved by SaveWEBM. UNVERIFIED until run against a live ComfyUI
+    # (docs/MEDIA_SERVERS.md). The sampler keys above are not bound here:
+    # the template carries Wan's own (30 steps, cfg 6, uni_pc, simple).
+    # SaveWEBM writes the clip alone; the poster is the first frame, cut
+    # by ImageFromBatch and saved by node 12 (`poster_node`). With no
+    # `poster_node` it is the output node's first image file, else the
+    # procedural tile.
+    video:
+      template: "config/comfyui/video_wan.json"
+      bindings:
+        positive: ["5", "text"]
+        seed: ["8", "seed"]
+        width: ["7", "width"]
+        height: ["7", "height"]
+        frames: ["7", "length"]
+        filename_prefix: ["10", "filename_prefix"]
+      output: {node: "10", kind: video, poster_node: "12"}
+      size: {width: 480, height: 832, frames: 49}
+
+phone_media:
+  # Where a story's phone media come from (v0.22.0 spec §13.4-13.5):
+  #   procedural  the engine's tile with the caption; no service (= off)
+  #   stub        tests/comfy_stub.py's in-process ComfyUI (tests)
+  #   comfyui     the `comfyui:` server above (its connection keys only)
+  provider: procedural
+  portraits: on_match         # off | on_match | on_view
+  daily_job_cap: 40           # per account per real day; beyond it, procedural
 
 tts:
   # OFF by default, and that is a measurement, not a preference: this machine
@@ -403,6 +520,26 @@ tts:
   # because the queue is the accept loop.
   timeout_seconds: 120
   voice: "neutral_male"
+  # The voices this Voxtral build speaks, each tagged with a sex: the Settings
+  # panel's voice list (engine/api/settings.py) and the voice each READ
+  # RECEIPTS person draws, one of their sex (engine/social/population.py).
+  # Change it here and both follow -- and a person's voice is drawn again
+  # from the new list, so they may sound different after the change (NOT
+  # WIRED: docs/GOVERNANCE.md, "A person's voice kept across a TTS server
+  # change").
+  voices:
+    - {id: neutral_male, sex: male}
+    - {id: neutral_female, sex: female}
+    - {id: warm_female, sex: female}
+    - {id: old_male, sex: male}
+  # A synthesized answer's largest body (bytes); past it the line falls back
+  # to text and nothing is kept. Typed by its magic bytes (a WAV), never by
+  # the server's Content-Type.
+  max_bytes: 8388608
+  # A phone voice note's longest wait in the speech queue (seconds, from its
+  # submission): one not started by then is the transcript tile for good.
+  # Serial synthesis at ~21x realtime makes a 15 s note about five minutes.
+  job_timeout_seconds: 1800
   # HARD server limit: tts-server rejects anything longer with HTTP 400.
   # Long input on this build does not degrade, it blows up -- a 20s paragraph
   # was measured at 47 minutes and 11.9/12 GB VRAM. Narration is split on
@@ -592,6 +729,13 @@ hosting:
   max_saves_per_story: 50        # runs and saves an account keeps in one story; past it a new one is refused until one is deleted
   rate_limits:
     actions_per_minute: 12       # per account: new game, choice, resume, save, transcribe; a rest counts like any
+    # Per account, phone_action and POST /api/phone/action only (v0.22.0, READ
+    # RECEIPTS): a swipe deck read at a glance runs about one card a second
+    # (60 a minute, which is Matchstick's whole daily allowance), sends run far
+    # slower, and 90 leaves half again for bursts of opens and backs. T30
+    # measures the cadence; above 75% of this, raise it. The actions bucket
+    # above is not spent by phone actions.
+    phone_actions_per_minute: 90
     logins_per_minute: 5         # per address (an IPv6 /64 counts as one); half that per (address, name)
     logins_per_minute_all: 60    # shared by every address with a failed login in the last minute
     admin_actions_per_minute: 30 # per admin: every POST to the admin panel (/admin), and each error lookup; past it refused 429
@@ -830,6 +974,10 @@ paths:
   # a hidden clock, moves on a cadence and reactions to engine events. See
   # engine/world/agendas.py.
   agendas: ""
+  # A DIRECTORY: creation, population, behaviours, apps, relationships, media,
+  # venues and games .yaml, plus words.txt -- a phone of apps and the people in
+  # it (v0.22.0). See engine/social/ and docs/AUTHORING.md §3.15.
+  social: ""
 
   # -- things, work and trade ----------------------------------------------
   items: ""
@@ -922,3 +1070,57 @@ governance:
   commit: []
   post:
     - RulesGovernor
+
+social:
+  # The social engine's BOUNDS (v0.22.0). Balance numbers live in the story's
+  # data (rule 10); these cap work and size.
+  away: {mode: real, rate: 1.0, max_hours: 72}   # mode: real | none (§15.2)
+  voice:
+    # The voice prompt's token window (§12.4): the texter's max_tokens is
+    # reserved out of it, and memory.budgeted trims the rest to fit.
+    window_tokens: 4096
+    # People voiced per pass (§16.2). Measured (v0.22.0 T26, scripts/simulate_social.py,
+    # 20 seeds, T26 fix round 1): after a 72-hour away at day 60 the first pass
+    # finds 47 due messages at the p95 (54 with a warm model), a few each from the
+    # people who wrote; passes run back to back and each reply is committed as it
+    # lands, so the cap bounds one pass's lock work, not the catch-up: 3 stays.
+    max_per_pass: 3
+    workers: 2
+    queue_max: 64
+    admit_wait_seconds: 5
+    max_attempts: 6
+    pass_deadline_seconds: 300
+    commit_retry_ms: [50, 100, 200, 400, 800]
+  max_text_chars: 600
+  # A conversation's memory (§12.3-12.4): the bubbles the voice prompt sees
+  # word for word, the floor the budget may trim them to, the history rows it
+  # keeps at least, the summary's word cap (prompts/thread_summary.md says the
+  # same number) and the most older messages one summary call folds.
+  memory: {verbatim: 24, verbatim_min: 12, history_min: 4, summary_words: 180, summary_batch: 40}
+  # Messages a thread keeps in state; older ones go to phone_archive.jsonl at
+  # each save (§17.2). At least memory.verbatim (24): the voice prompt's
+  # verbatim window reads them. 24 since v0.22.0 T26 (60 before), for the
+  # day-180 save's size bound (tests/test_social_save_size.py).
+  state_messages: 24
+  # A dead thread (its person faded, ended, unmatched or blocked; nothing due
+  # or unread) quiet this many in-game days goes to the archive whole at the
+  # next save, keeping only its summary and a stamp of its last message
+  # (spec §17.2's size bound, v0.22.0 T26; engine/social/archive.py `dead`).
+  archive_dead_after_days: 7
+  # Answered requests a save keeps (the newest); older ones leave state
+  # (engine/social/relationships.py `forget_answered`, T26).
+  requests_kept: 30
+  history_max: 60
+  canon_max: 40
+  knows_max: 30
+  notifications_max: 30
+  # The games (§21, T22): finished and abandoned games kept in state (the
+  # oldest leave), and the moves each game keeps in its log.
+  games_kept: 20
+  game_moves_kept: 16
+  # Meet-ups (§14, T24): meets over (done, cancelled, flaked, missed) kept in
+  # state, the oldest leaving; planned ones are always kept.
+  meets_kept: 20
+  wait_next_cap_hours: 8
+  max_events_per_advance: 2000
+  autosave_seconds: 10

@@ -180,6 +180,17 @@ class FlaskScene:
 
         return decorator
 
+    def emit_to_session(self, session_id: str, event: str, payload: dict[str, Any]) -> None:
+        """
+        A background push to one run's room (v0.22.0: the voicing and media
+        threads): the same room check a turn's emit runs first, so a login
+        revoked elsewhere stops receiving the run at once (spec §17.1).
+        """
+        room_check = self._room_check
+        if room_check is not None:
+            room_check(session_id)
+        self.socketio.emit(event, payload, to=session_id)
+
     def _register_health(self) -> None:
         @self.app.get("/api/health")
         def health() -> Any:

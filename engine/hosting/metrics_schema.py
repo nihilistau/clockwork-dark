@@ -10,7 +10,7 @@ message text. No field rates, classifies, flags or filters content, and none
 can be added without failing ``tests/test_metrics_schema.py``, which pins
 ``KINDS`` to the spec's table.
 
-THE SIX KINDS, each a closed set of fields (``KINDS``). Every field is one of:
+THE SEVEN KINDS, each a closed set of fields (``KINDS``). Every field is one of:
 
 - a timestamp (``ts``: wall-clock seconds, a number);
 - a number of milliseconds, or an exit code (an integer);
@@ -125,7 +125,7 @@ _MS = Field(MILLISECONDS)
 _STORY = Field(STORY)
 _ACCOUNT_OR_NONE = Field(ACCOUNT, nullable=True)
 
-#: THE SIX KINDS (spec §14.10's table), each field typed. The only place the
+#: THE SEVEN KINDS (spec §14.10's table, and v0.22.0's ``phone``), each field typed. The only place the
 #: schema is written; the store's tables are built from it.
 KINDS: dict[str, dict[str, Field]] = {
     # A worker: run_guarded (admission wait, duration, outcome) and the limits.
@@ -168,6 +168,19 @@ KINDS: dict[str, dict[str, Field]] = {
         "ref": Field(REF, nullable=True),
         "exc_class": Field(NAME, nullable=True),
         "logger": Field(NAME),
+    },
+    # A worker: one phone mechanics action, voicing pass or media job (v0.22.0).
+    # `voice_pass` is ONE row per pass run: `ok`, `fallback` or `discarded` (read
+    # off its commits) when it committed something, `busy` when it was not
+    # admitted, `dropped` for the busy attempt that gave it up; a pass that found
+    # nothing due records nothing.
+    "phone": {
+        "ts": _TS,
+        "story": _STORY,
+        "account": _ACCOUNT_OR_NONE,
+        "event": Field(ENUM, ("action", "voice_pass", "media_job")),
+        "status": Field(ENUM, ("ok", "busy", "refused", "fallback", "failed", "discarded", "dropped")),
+        "ms": _MS,
     },
     # The supervisor, of its children.
     "process": {

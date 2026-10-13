@@ -22,12 +22,12 @@ as every other subject in the game:
     python scripts/generate_dice_art.py            generate the missing faces
     python scripts/generate_dice_art.py --face 6 --force    redo one
 
-ComfyUI is not driven from here. It is not running on this machine and its
-client (engine/media/comfyui.py) submits a bare CLIPTextEncode node rather than
-a real SDXL workflow, so a "generate with comfy" flag would be a promise this
-script cannot keep. --prompts prints exactly what to paste into a workflow, and
-the same strings are mirrored in games/clockwork-dark/data/procgen_templates/comfyui.yaml, which is
-the file that client reads.
+ComfyUI is not driven from here: it was not running on this machine when this
+was written, so a "generate with comfy" flag would be a promise this script
+could not test. --prompts prints exactly what to paste into a workflow, and the
+same strings are mirrored in games/clockwork-dark/data/procgen_templates/comfyui.yaml,
+which the in-turn queue (engine/media/comfyui.py) reads. A real SDXL workflow
+is engine/media/providers/comfy.py's (scripts/generate_art.py --provider comfyui).
 
 Version: v0.1.0 [2026-08-08]
 """

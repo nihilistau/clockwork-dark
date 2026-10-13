@@ -542,3 +542,105 @@ export function probeStart({ fold = true } = {}) {
     clipped: [...clipped],
   };
 }
+
+/**
+ * A phone play screen (v0.22.0 T27, spec §18.3): a plugin's own `PlayScreen`
+ * drawn as READ RECEIPTS' `.rr-screen`. Self-contained: it runs in the page.
+ *
+ * GATED (`failures`):
+ *   - `noScreen`: no `.rr-screen` on the page;
+ *   - `pageScrolls`: the page itself scrolls, either way;
+ *   - `screenOutside`: the phone's screen is not wholly inside the window;
+ *   - `bezel` (`{ bezel: true }`, 900px wide and over): the frame keeps its
+ *     9:19.5 (within 2%) and is at most 860px tall; without, the frame
+ *     fills the window's width (no bezel under 900px);
+ *   - `unreachable`: each control named in `controls` (CSS selectors, every
+ *     match) must be wholly inside the screen (one outside the phone, such
+ *     as the header's Menu, inside the window), cut by no
+ *     clip, and be what the pointer finds at its centre -- nothing painted
+ *     over it. A selector that matches nothing fails by name. A whole
+ *     region (T30: the Tile Talk board, `.rr-board`) is named here too: it
+ *     must lie wholly on the screen, uncut by its own scroller.
+ *   - `{ scroll: true }` (T30, the landscape phone, where a screen may
+ *     scroll): each control is first scrolled into view (`nearest`), so the
+ *     gate is "reachable by scrolling", never "on screen at rest". The
+ *     page's own scroll is measured before any of it.
+ */
+export function probePhone({ bezel = false, controls = [], scroll = false } = {}) {
+  const screen = document.querySelector(".rr-screen");
+  if (!screen) return { failures: ["no .rr-screen on the page"], present: false };
+  const failures = [];
+  const box = (el) => el.getBoundingClientRect();
+  const s = box(screen);
+  const page = document.scrollingElement;
+  if (page && (page.scrollHeight > innerHeight + 1 || page.scrollWidth > innerWidth + 1)) {
+    failures.push(`the page scrolls (${page.scrollWidth}x${page.scrollHeight} in ${innerWidth}x${innerHeight})`);
+  }
+  if (s.top < -0.5 || s.left < -0.5 || s.bottom > innerHeight + 0.5 || s.right > innerWidth + 0.5) {
+    failures.push(`the phone's screen is not wholly in the window (${Math.round(s.left)},${Math.round(s.top)}..${Math.round(s.right)},${Math.round(s.bottom)})`);
+  }
+  const frame = document.querySelector(".rr-frame") || screen;
+  const f = box(frame);
+  if (bezel) {
+    const ratio = f.width / Math.max(1, f.height);
+    if (Math.abs(ratio - 9 / 19.5) > (9 / 19.5) * 0.02) failures.push(`the frame is ${f.width.toFixed(0)}x${f.height.toFixed(0)}, not 9:19.5`);
+    if (f.height > 860.5) failures.push(`the frame is ${Math.round(f.height)}px tall, over 860`);
+  } else if (Math.abs(f.width - innerWidth) > 1) {
+    failures.push(`under 900px the frame should fill the width (${Math.round(f.width)} of ${innerWidth})`);
+  }
+  const name = (el) => (typeof el.className === "string" && el.className.trim()) || el.tagName.toLowerCase();
+  const reached = [];
+  for (const selector of controls) {
+    const found = [...document.querySelectorAll(selector)];
+    if (!found.length) {
+      failures.push(`no control matches ${selector}`);
+      continue;
+    }
+    for (const el of found) {
+      if (scroll && el.scrollIntoView) el.scrollIntoView({ block: "nearest", inline: "nearest" });
+      const b = box(el);
+      const label = `${selector} (${(el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 30)})`;
+      if (b.width <= 0 || b.height <= 0) {
+        failures.push(`${label} has no box`);
+        continue;
+      }
+      // A control of the phone lies on its screen; one around it (the
+      // header's Menu beside the bezel) in the window.
+      const on = screen.contains(el);
+      const r = on ? s : { top: 0, bottom: innerHeight, left: 0, right: innerWidth };
+      const inside =
+        b.top >= Math.max(0, r.top) - 0.5 && b.bottom <= Math.min(innerHeight, r.bottom) + 0.5 &&
+        b.left >= Math.max(0, r.left) - 0.5 && b.right <= Math.min(innerWidth, r.right) + 0.5;
+      if (!inside) {
+        failures.push(`${label} is not wholly ${on ? "on the phone's screen" : "in the window"} (${Math.round(b.top)}..${Math.round(b.bottom)})`);
+        continue;
+      }
+      let cut = "";
+      for (let p = el.parentElement; p && p !== screen.parentElement; p = p.parentElement) {
+        const st = getComputedStyle(p);
+        if (st.overflowY === "visible" && st.overflowX === "visible") continue;
+        const a = box(p);
+        if (b.top < a.top - 0.5 || b.bottom > a.bottom + 0.5 || b.left < a.left - 0.5 || b.right > a.right + 0.5) {
+          cut = name(p);
+          break;
+        }
+      }
+      if (cut) {
+        failures.push(`${label} is cut off by ${cut}`);
+        continue;
+      }
+      const hit = document.elementFromPoint ? document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2) : el;
+      if (hit && hit !== el && !el.contains(hit)) {
+        failures.push(`${label} is covered by ${name(hit)}`);
+        continue;
+      }
+      reached.push(label);
+    }
+  }
+  return {
+    present: true,
+    failures,
+    reached,
+    frame: { width: Math.round(f.width), height: Math.round(f.height) },
+  };
+}

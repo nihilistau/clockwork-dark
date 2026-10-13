@@ -1,0 +1,89 @@
+/* ============================================================
+   READ RECEIPTS' palette: a late-evening desk under a phone with a bright
+   screen. Core's own surfaces (the start screen, the pause menu, saves) wear
+   the desk -- ink-blue, warm text -- and the phone's screen is light, as a
+   phone is.
+
+   Scoped to body[data-story-skin="read-receipts"] (bodyData), so it can never
+   recolour another story. On ui/tools/check-styles.mjs's palette list, and
+   measured by ui/tests/contrast.test.js.
+   ============================================================ */
+
+body[data-story-skin="read-receipts"] {
+  /* ---- core's surfaces: the desk ---- */
+  --surface-scene: #11131c;
+  --surface-narrative: #171a26;
+  --surface-panel: #161925;
+  --surface-ledger: #161925;
+  --surface-chrome: #0d0f16;
+  --surface-card: #1d2130;
+
+  --text-narration: #ece8f1;
+  --text-body: #dcd8e6;
+  --text-muted: #a29db3;
+  --text-danger: #f08a7e;
+
+  --line-soft: rgba(236, 232, 241, 0.12);
+  --line-brass: #8a7fb0;
+  --line-iron: #272b3b;
+  --accent-brass: #c39bf2;
+  --focus-ring: #c39bf2;
+
+  /* ---- the phone ---- */
+  --rr-desk: #11131c;
+  --rr-desk-ink: #dcd8e6;
+  --rr-bezel: #05060a;
+  --rr-bezel-edge: #2b2f3f;
+  --rr-screen: #f7f5fa;
+  --rr-ink: #1d1a24;
+  --rr-ink-soft: #5d5768;
+  --rr-line: #e3dfea;
+  --rr-card: #ffffff;
+  --rr-raised: #efebf5;
+  --rr-accent: #7b3fc4;
+  --rr-accent-ink: #ffffff;
+  --rr-danger: #b42d2d;
+  --rr-badge: #d93a3a;
+  --rr-badge-ink: #ffffff;
+  --rr-mine: #7b3fc4;
+  --rr-mine-ink: #ffffff;
+  --rr-theirs: #e8e4ef;
+  --rr-photo-ink: #ffffff;
+  --rr-shade: rgba(10, 8, 20, 0.55);
+
+  /* the lock screen and home: a dusk wallpaper with light text */
+  --rr-wall-top: #2a2350;
+  --rr-wall-bottom: #6b3a6e;
+  --rr-wall-ink: #ffffff;
+  --rr-wall-soft: rgba(255, 255, 255, 0.78);
+  --rr-glass: rgba(255, 255, 255, 0.16);
+  --rr-glass-strong: rgba(255, 255, 255, 0.26);
+
+  /* the apps' own colours */
+  --rr-app-texts: #2f9e5a;
+  --rr-app-natter: #2f6fd6;
+  --rr-app-matchstick: #e0532f;
+  --rr-app-front_porch: #b9772a;
+  --rr-app-games: #8a3fc4;
+  --rr-app-photos: #d23f7e;
+  --rr-app-calendar: #c73a3a;
+  --rr-app-contacts: #5a6478;
+  --rr-app-settings: #4b5160;
+  --rr-like: #e0532f;
+  --rr-super: #2f6fd6;
+  --rr-pass: #5d5768;
+
+  /* Tile Talk (T29): the board, its premium squares, the tiles */
+  --rr-board: #d8d2e4;
+  --rr-square: #f3f0f8;
+  --rr-square-ink: #5d5768;
+  --rr-prem-dl: #cfe3f7;
+  --rr-prem-tl: #8fb8e8;
+  --rr-prem-dw: #f6d3dc;
+  --rr-prem-tw: #e58da3;
+  --rr-prem-centre: #f6d3dc;
+  --rr-tile: #f4e3b8;
+  --rr-tile-ink: #2b2112;
+  --rr-tile-new: #ffd36b;
+  --rr-agree: #2f9e5a;
+}

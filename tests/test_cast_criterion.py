@@ -263,3 +263,11 @@ def absent_cast_forms(npc_id: str, name: str) -> tuple[str, ...]:
     from engine.agents.cast import _surface_forms
 
     return _surface_forms(npc_id, name)
+
+
+def test_the_public_surface_forms_is_the_private_one() -> None:
+    """v0.22.0 T11 lifted `_surface_forms` to `surface_forms` (the agreement check reuses it); the old name stays."""
+    from engine.agents import cast
+
+    assert cast._surface_forms is cast.surface_forms
+    assert cast.surface_forms("npc_sera", "Sergeant Sera Venn") == ("Sergeant Sera Venn", "Sera")

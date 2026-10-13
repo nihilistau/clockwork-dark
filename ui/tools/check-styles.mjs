@@ -37,6 +37,7 @@ const PALETTES = new Set([
   "stories/_engine/theme/tokens.css",
   "stories/the-long-con/theme/tokens.css",
   "stories/hue-and-cry/theme/tokens.css",
+  "stories/read-receipts/theme/tokens.css",
 ]);
 
 function walk(dir, out = []) {

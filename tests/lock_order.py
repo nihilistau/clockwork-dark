@@ -53,12 +53,16 @@ ORDER: tuple[str, ...] = (
     "engine.media.queue._queue_lock",
     "engine.media.providers._worker_lock",
     "engine.media.tts._worker_lock",
+    "engine.media.comfy.jobs._worker_lock",
     "engine.scenes.default_scene._store_lock",
     "engine.telemetry.oracle._oracle_lock",
     "engine.persistence.saves._stores_lock",
     "engine.persistence.saves._migrated_lock",
     "engine.persistence.saves._index_locks_lock",
     "engine.telemetry.oracle.Oracle._lock",
+    "engine.social._DATA_LOCK",
+    "engine.social.saves._saver_lock",
+    "engine.social.voicer._scheduler_lock",
     "engine.net._lock",
     "engine.config._config_lock",
 )
@@ -80,6 +84,13 @@ LEAVES: tuple[str, ...] = (
     "engine.hosting.supervisor.process.AuditWriter._lock",
     "engine.hosting.limits.TurnSlots._lock",
     "engine.hosting.lanes_remote.RemoteLanes._lock",
+    "engine.social.population._PROFILES_LOCK",
+    "engine.social.saves.DirtySaver._lock",
+    "engine.social.voicer.VoicingScheduler._lock",
+    "engine.social.inbox.SessionInbox._lock",
+    "engine.media.comfy.jobs.MediaJobWorker._lock",
+    "engine.media.tts.SpeechWorker._lock",
+    "engine.social.games.wordgame._WORDS_LOCK",
 )
 
 #: Instance locks: ``(module, name)``; the module's ``threading.Lock`` and
@@ -109,6 +120,15 @@ INSTANCE_LOCKS: tuple[tuple[str, str], ...] = (
     # The final review's leaves on the worker's turn path.
     ("engine.hosting.limits", "engine.hosting.limits.TurnSlots._lock"),
     ("engine.hosting.lanes_remote", "engine.hosting.lanes_remote.RemoteLanes._lock"),
+    # v0.22.0 T10: the phone's dirty timer (a leaf over its heap).
+    ("engine.social.saves", "engine.social.saves.DirtySaver._lock"),
+    # v0.22.0 T14: the voicing scheduler's queue, and each session's inbox (leaves).
+    ("engine.social.voicer", "engine.social.voicer.VoicingScheduler._lock"),
+    ("engine.social.inbox", "engine.social.inbox.SessionInbox._lock"),
+    # v0.22.0 T18: the media job worker's queue (a leaf).
+    ("engine.media.comfy.jobs", "engine.media.comfy.jobs.MediaJobWorker._lock"),
+    # v0.22.0 T21 review I1: the speech worker's keyed voice-note requests (a leaf).
+    ("engine.media.tts", "engine.media.tts.SpeechWorker._lock"),
 )
 
 #: The lane semaphores, one name for all (``engine/llm/gate.py``).
@@ -272,10 +292,13 @@ def _threading_with_tracked_lock(name: str, checker: Checker) -> Any:
 
 
 def install(monkeypatch: pytest.MonkeyPatch, checker: Optional[Checker] = None) -> Checker:
-    """Wrap every lock in ``ORDER`` that this engine has. Undone by ``monkeypatch``."""
+    """Wrap every lock in ``ORDER``, and every module-level leaf, that this engine has. Undone by ``monkeypatch``."""
     checker = checker or Checker()
     instance_names = {name for _module, name in INSTANCE_LOCKS}
-    for name in ORDER:
+    # The ordered locks, then the module-level leaves (a class's leaf --
+    # ``module.Class._lock`` -- is tracked through INSTANCE_LOCKS instead).
+    module_leaves = tuple(name for name in LEAVES if not _class_name(name)[:1].isupper())
+    for name in (*ORDER, *module_leaves):
         if name in instance_names:
             continue
         module_name, _, attr = name.rpartition(".")

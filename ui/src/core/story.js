@@ -96,6 +96,30 @@
  *                 payload's render order and draws any story correctly; a
  *                 story overrides it only when its last page is typeset rather
  *                 than listed, which is the Garden's case and nobody else's.
+ *   PlayScreen    v0.22.0 (spec §18.1). Replaces core's whole play screen
+ *                 (`Play`): {state, sessionId, busy, onAct, onOpenMenu,
+ *                 onOpenSaves, blocked} -- `blocked` is true while core's
+ *                 menu, settings, an overlay or a cutscene is up, so the
+ *                 screen's own window-level keys stand down. A SOCKET answer
+ *                 core's sender credits to no action (a timed-out action's
+ *                 late answer) carries `stale: true`. `onAct(intent)` sends one phone action,
+ *                 `{action, target, args, text}`, as `phone_action` (there is
+ *                 no onChoose and no onCustom); it never sets `busy`, and
+ *                 returns whether the action was taken. An action that never
+ *                 reached the server (a disconnect, a busy re-send cut off)
+ *                 comes back to `reduce` as `{type: "PHONE_DROPPED",
+ *                 intents}`, so the plugin can keep what was composed. Core
+ *                 keeps the connection banner, the menu, saves and settings
+ *                 around it, and offers no overlays (no map, no clue board).
+ *                 STRIPPED WHEN BORROWED, like `overlays`: it is a whole
+ *                 screen written against the payload's `phone` block, which
+ *                 a borrowing story's payload lacks.
+ *   NewRun        v0.22.0 (spec §18.1). Opened by the start screen's Begin in
+ *                 place of starting at once: {onBegin(creation), onCancel,
+ *                 busy, error}. It fetches its form (`fetchCreation()`, GET
+ *                 /api/social/creation); `onBegin(creation)` starts the run
+ *                 with `{player_name: creation.name, creation}`. STRIPPED WHEN
+ *                 BORROWED for the same reason.
  *   onboarding    Cards for the first-run shell. No cards, no first-run modal.
  *   overlays      [{id, key, label, Icon, Component, when}] -- one keyboard
  *                 shortcut, one footer button and one modal per entry.
@@ -224,69 +248,82 @@ export async function loadStory(plugin, slug = plugin, title = "", panelDeclarat
     const found = module.default || CORE_ONLY;
     if (found.theme) await found.theme();
 
-    // A BORROWED plugin lends its LOOK, not its VOICE.
-    //
-    // A plugin holds two kinds of thing. Visual slots -- theme, Ledger, Stage,
-    // Wrap, components -- are what a story borrows one for. Naming slots are
-    // copy written in that story's own fiction, and they assert whose story
-    // this is: `title` and `documentTitle` reach the tab and the masthead,
-    // `Wordmark` is the start screen's title treatment, `beginLabel` is a
-    // sentence about a specific world ("Step through the hedge"), `StartIntro`
-    // and `onboarding` are prose about it.
-    //
-    // Left alone, a scratch story borrowing the Garden's skin announced itself
-    // as The Wicked Garden everywhere and invited the player to step through a
-    // hedge that is not in its one room. Stripped, it gets the look it asked
-    // for and its own name. When the plugin is the story's own -- every shipped
-    // story -- none of this runs.
-    //
-    // `overlays` JOINED THIS LIST after being watched in a shipped game. They
-    // look like visual slots and are not: an overlay is a whole screen written
-    // against one story's concepts, so a funeral-barge test story
-    // borrowing the Garden -- offered "The court" and "The mirror pool", and
-    // the court drew Sophia and Mother Briar, who are not aboard and do not
-    // exist. A screen that renders another story's cast is worse than no
-    // screen. A borrower that wants overlays ships its own plugin.
-    //
-    // THE ENGINE'S OWN PLUGIN IS NOT A BORROW. It has no world to lend and no
-    // voice to strip: no title, no beginLabel, and a Wordmark that renders
-    // whatever name it is handed. Stripping it would blank the only naming it
-    // has and leave the story worse dressed than before. What it DOES need is
-    // the running story's identity, since it carries none of its own.
-    const engine = found.slug === ENGINE_PLUGIN;
-    const borrowed = !engine && plugin !== slug;
-    const naming = borrowed
-      ? {
-          title: title || slug,
-          documentTitle: title || slug,
-          Wordmark: null,
-          StartIntro: null,
-          beginLabel: "",
-          asideLabel: "",
-          onboarding: [],
-          overlays: [],
-          saveMeta: null,
-        }
-      : {};
-
-    if (engine) {
-      return {
-        ...CORE_ONLY,
-        ...found,
-        // The story's own name and slug, never the plugin's -- otherwise every
-        // undressed story would report itself as "_engine".
-        slug,
-        title: title || slug,
-        documentTitle: title || slug,
-        panelDeclaration,
-      };
-    }
-
-    return { ...CORE_ONLY, ...found, ...naming, slug: found.slug || slug, panelDeclaration };
+    return dressPlugin(found, plugin, slug, title, panelDeclaration);
   } catch (err) {
     console.error(`[story] plugin "${plugin}" failed to load; falling back to core`, err);
     return { ...CORE_ONLY, panelDeclaration };
   }
+}
+
+/**
+ * A loaded plugin, dressed for the story wearing it: borrowed, the engine's
+ * own, or the story's own (below). Pure, and exported so the borrowing rule
+ * is held by test against a plugin no story ships yet.
+ */
+export function dressPlugin(found, plugin, slug = plugin, title = "", panelDeclaration = undefined) {
+  // A BORROWED plugin lends its LOOK, not its VOICE.
+  //
+  // A plugin holds two kinds of thing. Visual slots -- theme, Ledger, Stage,
+  // Wrap, components -- are what a story borrows one for. Naming slots are
+  // copy written in that story's own fiction, and they assert whose story
+  // this is: `title` and `documentTitle` reach the tab and the masthead,
+  // `Wordmark` is the start screen's title treatment, `beginLabel` is a
+  // sentence about a specific world ("Step through the hedge"), `StartIntro`
+  // and `onboarding` are prose about it.
+  //
+  // Left alone, a scratch story borrowing the Garden's skin announced itself
+  // as The Wicked Garden everywhere and invited the player to step through a
+  // hedge that is not in its one room. Stripped, it gets the look it asked
+  // for and its own name. When the plugin is the story's own -- every shipped
+  // story -- none of this runs.
+  //
+  // `overlays` JOINED THIS LIST after being watched in a shipped game. They
+  // look like visual slots and are not: an overlay is a whole screen written
+  // against one story's concepts, so a funeral-barge test story
+  // borrowing the Garden -- offered "The court" and "The mirror pool", and
+  // the court drew Sophia and Mother Briar, who are not aboard and do not
+  // exist. A screen that renders another story's cast is worse than no
+  // screen. A borrower that wants overlays ships its own plugin.
+  //
+  // THE ENGINE'S OWN PLUGIN IS NOT A BORROW. It has no world to lend and no
+  // voice to strip: no title, no beginLabel, and a Wordmark that renders
+  // whatever name it is handed. Stripping it would blank the only naming it
+  // has and leave the story worse dressed than before. What it DOES need is
+  // the running story's identity, since it carries none of its own.
+  const engine = found.slug === ENGINE_PLUGIN;
+  const borrowed = !engine && plugin !== slug;
+  const naming = borrowed
+    ? {
+        title: title || slug,
+        documentTitle: title || slug,
+        Wordmark: null,
+        StartIntro: null,
+        beginLabel: "",
+        asideLabel: "",
+        onboarding: [],
+        overlays: [],
+        saveMeta: null,
+        // v0.22.0: whole screens written against the `phone` payload block;
+        // a borrowing story's payload has none (spec §18.1).
+        PlayScreen: null,
+        NewRun: null,
+      }
+    : {};
+
+  if (engine) {
+    return {
+      ...CORE_ONLY,
+      ...found,
+      // The story's own name and slug, never the plugin's -- otherwise every
+      // undressed story would report itself as "_engine".
+      slug,
+      title: title || slug,
+      documentTitle: title || slug,
+      panelDeclaration,
+    };
+  }
+
+  return { ...CORE_ONLY, ...found, ...naming, slug: found.slug || slug, panelDeclaration };
 }
 
 /**

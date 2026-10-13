@@ -1,0 +1,350 @@
+# READ RECEIPTS -- relationships.yaml (paths.social, spec §2.1, §10).
+#
+# Read by engine/social/relationships.py (v0.22.0 T9); checked whole when the
+# story's data loads (relationships.check_data) and by validate_content.py.
+# Later tasks added rows: T11 reads `claims:`, T19 added the `offer_photo`,
+# `offer_voice` and `offer_video` proposals, T22 added `invite_game`, T24
+# `ask_meet`, `meet_claims`, `meet_denials` and the `meets:` block
+# (engine/social/meets.py).
+#
+# stages        every stage spec §10.3 names, in the engine's order
+#               (engine/social/kinds.py STAGES): `words` (what the player
+#               sees, never a number), and for a stage reached by a gate:
+#                 from     the stages it is reached from
+#                 trigger  automatic (checked after every exchange), ask (a
+#                          request accepted: the player's `ask` or the
+#                          person's proposal) or meet (T24's meet agreed);
+#                          `branch` marks dating, friends and fling, chosen
+#                          from `meeting` by `branch:` below
+#                 gate     the measures that must hold, each a minimum:
+#                          warmth, trust (0-100), exchanges (turns taken,
+#                          either way), days (in-game days with contact),
+#                          stage_days (days at the current stage, counted
+#                          each morning), meets_good (meet-ups that went
+#                          `good` or better, T24)
+#                 needs    what both sides want: `both: long_term` (the
+#                          player's looking_for and their intent)
+# branch        from `meeting`, the first row that matches: `either` (one
+#               side wants it) picks `stage`; a row with no `either` is the
+#               default
+# claims        per stage, phrases a reply that claims that stage would use
+#               (agreement's "stage claimed", spec §11.5): a stage the person
+#               has not reached -- neither theirs nor one theirs is reached
+#               through -- named in a statement fails the reply
+# media_claims  phrases saying media was sent; a reply with no media attached
+#               that states one fails ("media claimed")
+# media_denials phrases refusing to send; a reply with media attached that
+#               states one fails ("media denied")
+# agree_phrases phrases agreeing to send; a DECLINE that states one fails
+#               ("decline wording")
+# negations     a word among the three before a claim cancels it ("I haven't
+#               sent you a pic"); not applied to media_denials
+# ordinary_names  contacts' names that are also ordinary words or places ("April",
+#               "Will", "Miles"): never matched by "another person"
+#
+#               The agreement checks (engine/social/agreement.py, T11) only
+#               MATCH these: a whole phrase, case-folded, in a clause that
+#               is not a question. They test facts, never tone (rule 12).
+#               Precision first: a phrase that also reads innocently ("listen
+#               to this album") does not belong here.
+# bands         the closeness bands the player sees (spec §10.3), lowest
+#               first: a band holds at `warmth` or more AND `contact_days`
+#               or more. An archetype's warmth_cap_band stops warmth one
+#               below the next band's `warmth`
+# regard        start (where warmth and trust start at a match), per_reply
+#               ([low, high] a reply may move each), per_day_gain (the most
+#               each may GAIN per person per in-game day; losses are never
+#               capped), fight_warmth (a day's warmth loss this low or lower
+#               is a fight, a history row; the engine's own exact moves,
+#               a turn's say, are not counted), reconcile_warmth (a day's
+#               warmth gain this high after a fight is a reconciliation),
+#               fallback (what an engine-authored fallback reply proposes,
+#               spec §10.2's ruling; applied by T13 through apply_regard,
+#               under the same caps, and `per_day` {warmth, trust}: the most
+#               fallback replies may add per person per in-game day (T26),
+#               so a run with no model progresses, more slowly than a
+#               working model)
+# interest      the engine's own measure of whether they keep turning up:
+#               start, per_exchange, shared_hobby_mention (the player names
+#               one of their hobbies), daily_decay (a day with no contact),
+#               left_on_read {grace_hours, max} (the archetype's
+#               left_on_read_sensitivity per hour past the grace, at most
+#               `max`, charged at their next event)
+# mood          values (the enum a reply may set), decay_hours (back to
+#               neutral), media_mult ([low, high], T19's accept multiplier)
+# asks          per_day (asks of one kind a day; the next is refused, "Give
+#               it a day"), repeat_mult (a repeat ask's accept odds,
+#               multiplied), repeat_warmth (what a repeat ask costs),
+#               turned_down {warmth, mood} (the player saying no to theirs;
+#               not to a game invite, which costs nothing)
+# cold          warmth_below and days: that long below it and a live stage
+#               winds down; recover_above and recover_days: a cold spell's
+#               winding down that warms to recover_above or more for that
+#               many mornings goes back to the stage it left (spec §10.3's
+#               ruling). A turn's winding down never recovers this way; a
+#               reconnect lifts it. recover_above must be above warmth_below.
+#               Recovery returns to the stage they left WITHOUT re-checking
+#               that stage's gate: deliberate, a cold spell is not a breakup
+# fade_days     no contact either way this many days: faded
+# proposals     what a voiced reply may propose (spec §10.5): id -> stage
+#               (a stage id, or `live`: any live stage) and gate (a stage
+#               whose gate and needs must hold, or null). The three
+#               `offer_*` rows (T19) are also held by media.yaml: a budget of
+#               at least 1, the kind's `unlock_stage` reached and a thread
+#               whose app can carry it (engine/social/media.py offer_open).
+#               `invite_game` (T22) is also held by the engine: the games
+#               app's `unlock` stage reached, no game running with them and
+#               none asked (engine/social/games/ proposal_open).
+#               `ask_meet` (T24) is also held by the engine: stage numbers or
+#               past it, no meet-up planned with them and none asked
+#               (engine/social/meets.py proposal_open); the engine picks the
+#               venue (by the hobbies you share) and the first slot free for
+#               both of you
+# meet_claims   phrases stating a meet-up is on (agreement's "meeting
+#               claimed", spec §11.5), by when: `today` ("see you tonight")
+#               needs a meet-up planned for today, `tomorrow` one for
+#               tomorrow, `any` one at all; a reply stating one with no such
+#               meet-up planned fails
+# meet_denials  phrases denying any plan to meet: a reply stating one while a
+#               meet-up is planned fails (not negatable)
+# meets         meet-ups (spec §14, engine/social/meets.py):
+#                 slots        id -> [start, end] hours: a meet-up starts at
+#                              `start`; no answer from you by `end` is a
+#                              no-show
+#                 days_ahead   [first, last]: how many days ahead you may
+#                              propose (spec §7.1's +1..+7)
+#                 quality      the meet's quality: compat x compatibility x
+#                              compat_scale + chemistry x their chemistry +
+#                              warmth x their warmth + venue_hobby_bonus (a
+#                              venue hobby you both hold) + a gaussian of sd
+#                              `spread` (one SOCIAL_MEET draw)
+#                 bands        the least quality of each band, best first;
+#                              below the last, `bad`
+#                 effects      per band, warmth, trust and interest moved
+#                              (exactly: the engine's own), and a mood
+#                 cancel_cost  rows by how long before the start you cancel,
+#                              first match: `within_hours` (the last row has
+#                              none: any earlier); warmth and interest lost,
+#                              larger the later
+#                 no_show      what not turning up costs
+#                 post_meet    their text afterwards: `pace_mult` (times their
+#                              reply latency), and none after a band in
+#                              `none_after` or from an archetype in
+#                              `none_from`
+#                 recap_lines  per band, the engine's words for how it went
+#                              ("It was a little awkward."): the recap's
+#                              HOW IT WENT block and its fallback line
+#                 recap_tone   phrases saying a meet-up went very well
+#                              (`glowing`) or badly (`grim`), and per band
+#                              which list contradicts it (`contradicts`): a
+#                              recap stating one is retried once, then the
+#                              engine line. They test how it WENT, never
+#                              register (rule 12)
+#
+# Every number here is a balance constant (rule 10).
+# Measured 2026-10-13 (v0.22.0 T26, fix round 1): `python scripts/simulate_social.py --game
+# read-receipts --days 60 --first-seed N --seeds 1 --policy attentive --raw r-N.json`
+# for N = 0..19, then `--fold r-*.json` (the attentive player, the default
+# `neutral_model` voice; the turners' row at --days 75). The whole table, every
+# voice and policy and the before, is in the story's CHANGELOG ([Unreleased],
+# Changed). The rows this file's numbers move (measured, band):
+#   talking_to_numbers_21d 0.187 (15-30%), numbers_to_meet_21d 0.362 (25-45%)
+#   meet bands great 0.128, good 0.308, fine 0.265, awkward 0.197, bad 0.103
+#     (10-20, 25-40, 20-30, 10-20, 5-15%)
+#   interest_half_life_days 5.0 (4-10); live_relationships_day30 35.0 (4-10, DEFERRED:
+#     CLAUDE.md; `fade_days` stays 21, spec §10.3)
+#   days to warming / close / very close: romantic 4.07 / 15.4 / 37.5, steady
+#     2.3 / 13.5 / 35.8 (2-5 / 10-25 / 30-60); dry texters never close
+#   a dead model server (regard.fallback and its per_day cap) progresses,
+#     slower than the neutral model: numbers in 21 days 0.059 vs 0.187 (warm
+#     0.267), numbers 9.65 vs 17.2 a run, meet-ups 4.55 vs 30.0 (warm 42.2)
+#
+# The numbers gate re-measured 2026-10-14 (v0.22.0 final review wave 2, the
+# owner's "phone numbers don't work": `days: 6` and `trust: 40` were
+# unreachable in a session that moves hours). Now warmth 30, trust 23,
+# exchanges 20, no days. Trust 23 is the most `per_day_gain` (4) lets a
+# match's start (15) reach by its second in-game day; 25 needs a third.
+# One person messaged and waited on (`wait next`), the gate checked after
+# each reply, seeds 0-19, `neutral_model` and `romantic_model` alike (the
+# warm voice's extra warmth binds nothing): the gate holds after 10-18 of
+# the player's messages (median 14), 39-144 in-game hours after the match
+# (median 96, set by their reply pace and nights), against 28-39 messages
+# and 183-322 hours before (seeds 0-5); 9 of 20 ghosted first. Rows moved
+# (tests/test_simulate_social.py, 10 seeds x 60 days, neutral model):
+#   talking_to_numbers_21d 0.350 (band 15-30%), numbers_to_meet_21d 0.160
+#   (25-45%), meet band awkward 0.208 (10-20%): all three DEFERRED (CLAUDE.md),
+#   v0.23.0 redesigns pacing around real session time; the dead model server
+#   still progresses slower than the neutral model (its test passes)
+#
+# Version: v0.7.0
+
+stages:
+  matched: {words: Just matched}
+  talking:
+    words: Talking
+    from: [matched]
+    trigger: automatic
+    gate: {exchanges: 4}
+  numbers:
+    words: Swapped numbers
+    from: [talking]
+    trigger: ask
+    gate: {warmth: 30, trust: 23, exchanges: 20, days: 0}
+  meeting:
+    words: Seeing each other
+    from: [numbers]
+    trigger: meet
+    gate: {warmth: 70, trust: 70}
+  dating:
+    words: Dating
+    from: [meeting]
+    trigger: branch
+    gate: {meets_good: 2}
+  friends:
+    words: Friends
+    from: [meeting]
+    trigger: branch
+    gate: {meets_good: 2}
+  fling:
+    words: Something casual
+    from: [meeting]
+    trigger: branch
+    gate: {meets_good: 2}
+  exclusive:
+    words: Together
+    from: [dating]
+    trigger: ask
+    gate: {warmth: 80, trust: 70, stage_days: 28}
+    needs: {both: long_term}
+  winding_down: {words: Cooling off}
+  ended: {words: Ended}
+  faded: {words: Lost touch}
+  expired: {words: Match expired}
+
+branch:
+  - {either: friendship, stage: friends}
+  - {either: short_term, stage: fling}
+  - {stage: dating}
+
+claims:
+  numbers: ["here's my number", "my number is", "save my number", "text me on this number"]
+  meeting: ["our first date was", "since our first date", "when we met up", "last time I saw you", "great to meet you last night"]
+  dating: ["we're dating", "you're my girlfriend", "you're my boyfriend", "my girlfriend now", "my boyfriend now", "since we started dating"]
+  exclusive: ["we're exclusive", "exclusive now", "official now", "just us now", "we're official"]
+  ended: ["it's over between us", "we're over", "this is goodbye"]
+
+media_claims: [
+  "sent you a pic", "sent you a photo", "sent you a picture", "sent you a selfie",
+  "sending you a pic", "sending you a photo", "here's a pic", "here's a photo", "here's a selfie",
+  "pic attached", "photo attached", "sent you a voice note", "sent you a voice message",
+  "here's a voice note", "sent you a video", "here's a video", "check the pic I sent",
+]
+media_denials: [
+  "not sending", "won't send", "can't send", "not gonna send", "i don't send pics",
+  "no pics", "not comfortable sending",
+]
+agree_phrases: [
+  "ok sending", "okay sending", "sure sending", "sending now", "here you go", "here it is",
+  "just sent it", "on its way", "coming right up",
+]
+negations: [
+  "not", "never", "haven't", "havent", "didn't", "didnt", "won't", "wont", "can't", "cant",
+  "don't", "dont", "isn't", "isnt", "wasn't", "wasnt", "without",
+]
+# Every population.yaml name that is also an ordinary word or a place, reviewed
+# whole in v0.22.0 T11 (tests/test_social_agreement.py pins the review: a new
+# name in population.yaml must be decided here or there).
+ordinary_names: [
+  amber, april, aria, ash, beau, billy, bobby, bonnie, daisy, dev, eden, fern, finn, georgia,
+  grace, harper, harry, hazel, holly, india, iris, ivy, jack, jade, jasmine, jay, joe, jordan,
+  josh, june, kit, lacey, leo, lewis, lily, mark, matt, max, miles, milo, mo, molly, nick,
+  olive, ollie, oscar, pat, pearl, pip, poppy, raf, ray, rob, rose, rowan, ruby, sienna, skye,
+  sofia, sol, stan, stella, teddy, tom, violet, will, zara, ty, pete, cole,
+]
+
+bands:
+  - {name: new, warmth: 0, contact_days: 0}
+  - {name: warming, warmth: 30, contact_days: 3}
+  - {name: close, warmth: 50, contact_days: 13}
+  - {name: very close, warmth: 70, contact_days: 35}
+  - {name: inseparable, warmth: 88, contact_days: 60}
+
+regard:
+  start: {warmth: 20, trust: 15}
+  per_reply: {warmth: [-4, 4], trust: [-2, 2]}
+  per_day_gain: {warmth: 6, trust: 4}
+  fight_warmth: -8
+  reconcile_warmth: 6
+  fallback: {warmth: 1, trust: 1, per_day: {warmth: 3, trust: 2}}
+
+interest:
+  start: 50
+  per_exchange: 0
+  shared_hobby_mention: 3
+  daily_decay: 5
+  left_on_read: {grace_hours: 4, max: 15}
+
+mood:
+  values: [neutral, fond, playful, tired, annoyed, hurt]
+  decay_hours: 12
+  media_mult: [0.3, 1.3]
+
+asks:
+  per_day: 2
+  repeat_mult: 0.5
+  repeat_warmth: -2
+  turned_down: {warmth: -3, mood: hurt}
+
+cold: {warmth_below: 15, days: 5, recover_above: 30, recover_days: 2}
+
+fade_days: 21
+
+proposals:
+  offer_number: {stage: talking, gate: numbers}
+  ask_exclusive: {stage: dating, gate: exclusive}
+  cool_off: {stage: live, gate: null}
+  offer_photo: {stage: live, gate: null}
+  offer_voice: {stage: live, gate: null}
+  offer_video: {stage: live, gate: null}
+  invite_game: {stage: live, gate: null}     # games open with them and none running (engine/social/games/)
+  ask_meet: {stage: live, gate: meeting}     # numbers or past it, no meet-up planned or asked (engine/social/meets.py)
+
+meet_claims:
+  today: ["see you tonight", "see you later tonight", "see you this evening", "see you later today",
+          "see you this afternoon", "tonight's still on", "still on for tonight"]
+  tomorrow: ["see you tomorrow", "still on for tomorrow", "tomorrow's still on"]
+  any: ["it's a date", "can't wait for our date", "looking forward to our date", "see you there",
+        "our plans are still on", "still on for our date"]
+meet_denials: ["we never made plans", "we don't have plans", "we haven't made any plans",
+               "i never said i'd meet you", "we never agreed to meet"]
+
+meets:
+  slots: {morning: [10, 12], afternoon: [14, 16], evening: [19, 21]}
+  days_ahead: [1, 7]
+  quality: {compat: 1.0, compat_scale: 0.3, chemistry: 0.3, warmth: 0.003, venue_hobby_bonus: 0.05, spread: 0.18}
+  bands: {great: 0.665, good: 0.51, fine: 0.37, awkward: 0.225}
+  effects:
+    great: {warmth: 8, trust: 6, interest: 10, mood: fond}
+    good: {warmth: 5, trust: 4, interest: 6, mood: fond}
+    fine: {warmth: 2, trust: 2, interest: 2}
+    awkward: {warmth: -2, trust: 0, interest: -4}
+    bad: {warmth: -6, trust: -3, interest: -10, mood: annoyed}
+  cancel_cost:
+    - {within_hours: 3, warmth: -8, interest: -6}
+    - {within_hours: 24, warmth: -4, interest: -3}
+    - {warmth: -2, interest: -1}
+  no_show: {warmth: -8, interest: -6, mood: hurt}
+  post_meet: {pace_mult: 1.0, none_after: [bad], none_from: [ghoster]}
+  recap_lines:
+    great: It went really well.
+    good: It went well.
+    fine: It was fine.
+    awkward: It was a little awkward.
+    bad: It didn't go well.
+  recap_tone:
+    glowing: ["best night ever", "best date ever", "perfect evening", "perfect night", "perfect date",
+              "couldn't have gone better", "hit it off", "sparks flew", "never wanted it to end",
+              "an amazing time", "an incredible time"]
+    grim: ["a disaster", "a nightmare", "went badly", "didn't go well", "couldn't wait to leave",
+           "no spark", "fell flat", "a terrible time", "an awful time"]
+    contradicts: {great: [grim], good: [grim], fine: [glowing, grim], awkward: [glowing], bad: [glowing]}

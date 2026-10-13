@@ -215,6 +215,31 @@ def test_every_scripted_move_is_in_its_turns_enum(tmp_path: Path, monkeypatch: p
     held = end("hue-and-cry", "held")
     assert law.in_custody(held)
 
+    # READ RECEIPTS' phone run (v0.22.0 T27): a match made by likes alone, its
+    # replies voiced (fallback lines, no model), the thread left open.
+    phone = end("read-receipts", "phone")
+    threads = phone.social["threads"]
+    assert threads, "the phone run made no match"
+    assert phone.social["open_thread"] in threads
+    assert all(m.get("voiced") is not False for t in threads.values() for m in t["messages"]), "a message is stuck unvoiced"
+    assert phone.social["player"]["name"] == runs.PLAYERS["phone"] == phone.player_name
+
+    # The media run (v0.22.0 T30, spec §18.3): on numbers, a Natter thread that
+    # RECEIVED a photo, a voice note and a video (procedural, fallback-voiced),
+    # a Tile Talk game going, the Natter thread open -- nothing stuck unvoiced.
+    media = end("read-receipts", "media")
+    pid = media.social["open_thread"].split(":", 1)[1]
+    assert media.social["open_thread"] == f"natter:{pid}"
+    assert media.social["people"][pid]["stage"] == "numbers"
+    natter = media.social["threads"][f"natter:{pid}"]["messages"]
+    received = {m["kind"] for m in natter if m["from"] == pid}
+    assert {"photo", "voice", "video"} <= received, received
+    assert any(m["from"] == "player" and runs.PHONE_TEXT in m["bubbles"] for m in natter)
+    assert all(m.get("voiced") is not False for t in media.social["threads"].values() for m in t["messages"])
+    games = [g for g in (media.social.get("games") or {}).values() if g["game"] == "wordgame"]
+    assert games and games[0]["status"] == "active" and games[0]["pid"] == pid
+    assert media.player_name == runs.PLAYERS["media"]
+
     deck = end("wicked-garden", "deck")
     assert director.active(deck), "the deck run shows no card"
     garden = end("wicked-garden", "play")
@@ -336,6 +361,16 @@ def test_an_offer_step_stops_when_a_target_is_lost_on_the_way(tmp_path: Path, mo
     config._instance = None
 
 
+def test_the_numbers_setup_refuses_a_gate_field_it_cannot_write(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A nested gate measure stops the set-up by name, before any write (T30 review M4)."""
+    runs = _script()
+    from engine.social import relationships
+
+    monkeypatch.setattr(relationships, "gate_spec", lambda stage: {"warmth": 70, "exchanges": 20})
+    with pytest.raises(runs.ScriptStop, match="exchanges"):
+        runs._setup_numbers(None, "p0001")
+
+
 def test_an_offer_step_must_be_last() -> None:
     runs = _script()
     with pytest.raises(runs.ScriptStop, match="must be a run's last"):
@@ -368,6 +403,37 @@ def test_serve_refuses_a_port_that_already_answers(tmp_path: Path, monkeypatch: 
         assert "already served" in capsys.readouterr().err
     assert not runs.port_answers(port)
     assert not list(root.glob("serve-*.json"))
+
+
+def test_a_phone_build_never_hands_a_scheduled_pass_the_model(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Every phone action also requests a background voicing pass (routes._run). In a build, that pass
+    must meet no model: the scheduler's function is the build's own, which raises (the fallback), never
+    `voicing.production_llm_fn` -- whose backend, made earlier in the same process under another
+    config, reached localhost:1234 when this file ran after the social tests (T30 follow-up). It is
+    restored after the build.
+    """
+    runs = _script()
+    from engine.social import voicer
+
+    seen: list[Any] = []
+    real = voicer.request_if_due
+    monkeypatch.setattr(voicer, "request_if_due", lambda session: (seen.append(voicer._llm_fn), real(session))[1])
+    before = voicer._llm_fn
+    root = tmp_path / "shots"
+    _isolate(monkeypatch, tmp_path, root)
+    runs.build_runs(root, ["read-receipts"])
+    assert seen, "no phone action requested a pass"
+    assert all(fn is not None for fn in seen), "a scheduled pass would have reached the production model"
+    with pytest.raises(RuntimeError):
+        seen[0]([], {})
+    assert voicer._llm_fn is before
+    # Nothing the build requested is left waiting to run under the restored function (review M1).
+    scheduler = voicer._existing()
+    assert scheduler is None or not scheduler.queued(), scheduler.queued()
+    import engine.config as config
+
+    config._instance = None
 
 
 def test_a_server_notes_its_own_identity(tmp_path: Path) -> None:

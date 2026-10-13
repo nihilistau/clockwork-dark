@@ -3,7 +3,7 @@ The closed metrics schema and the Oracle projection (v0.20.0 T17, spec §14.10).
 
 OBSERVABILITY, NOT MODERATION (AGENTS.md rule 12):
 
-- the six kinds and their field sets are pinned to spec §14.10's table, so a
+- the seven kinds and their field sets are pinned to spec §14.10's table, so a
   field added to any kind fails here;
 - every field is a timestamp, a number, a patterned id, a patterned NAME or a
   member of a fixed enum -- no free string -- and an ``exc_class`` holding a
@@ -45,6 +45,8 @@ SPEC_FIELDS = {
     "login": {"ts", "account", "outcome"},
     "error": {"ts", "process", "ref", "exc_class", "logger"},
     "process": {"ts", "process", "event", "exit_code"},
+    # v0.22.0 (READ RECEIPTS): one phone mechanics action, voicing pass or media job.
+    "phone": {"ts", "story", "account", "event", "status", "ms"},
 }
 
 SPEC_ENUMS = {
@@ -54,6 +56,8 @@ SPEC_ENUMS = {
     ("session", "event"): {"created", "resumed", "released", "swept", "ended_by_admin"},
     ("login", "outcome"): {"ok", "failed", "limited", "disabled", "must_change"},
     ("process", "event"): {"started", "ready", "unhealthy", "exited", "restarted", "held_down", "stopped"},
+    ("phone", "event"): {"action", "voice_pass", "media_job"},
+    ("phone", "status"): {"ok", "busy", "refused", "fallback", "failed", "discarded", "dropped"},
 }
 
 #: One valid event of each kind.
@@ -67,6 +71,8 @@ GOOD = {
     "error": {"kind": "error", "ts": 1_790_000_000, "process": "worker-dev-story", "ref": "3fa9c2e1",
               "exc_class": "httpx.ConnectError", "logger": "engine.hosting.errors"},
     "process": {"kind": "process", "ts": 1_790_000_000, "process": "frontdoor", "event": "exited", "exit_code": -9},
+    "phone": {"kind": "phone", "ts": 1_790_000_000, "story": "dev-story", "account": ACCOUNT, "event": "action",
+              "status": "ok", "ms": 3.5},
 }
 
 #: Words a schema that rated, classified or filtered what players write would

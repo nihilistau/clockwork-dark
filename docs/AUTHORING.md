@@ -88,6 +88,7 @@ A manifest is a small, bounded set of things:
 | `ui:` | Which client plugin draws it. |
 | `state:` / `state.yaml` | The story's own meters, clocks and tracks (§3.1). |
 | `save_summary:` | Which declared values the load menu shows. Absent means the engine's own row — what both big stories use. |
+| `endless:` | `true` for a story with no ending, by design (§2.6). Absent means finishable. |
 
 Unknown top-level keys are kept verbatim in `extras` (that is how `ui:` and
 unknown keys travel), so a manifest can carry data the dataclass has not learned
@@ -96,7 +97,7 @@ about.
 ### 2.1 The `paths.*` vocabulary
 
 `config/default.yaml`'s `paths:` block is the engine's complete inventory of
-content systems — 34 keys, every one declared and empty. A key listed there is
+content systems — 35 keys, every one declared and empty. A key listed there is
 a thing a story MAY ship; a key a story declares that is not listed is a line
 nothing validates. Validation requires every declared path to **exist** —
 except `lore_db` (`OUTPUT_PATH_KEYS`), which the engine writes rather than
@@ -119,6 +120,7 @@ in `config/local.yaml`, never a story.
 | What the player is told | `lore`, `lore_db`, `assistant_hints`, `prompts` | RAG lore, the companion, the narrator persona |
 | Pictures | `art_subjects`, `art_manifest`, `art_root`, `comfyui_templates` | `engine/media/**`; `art_root` is served at `/story-art/` by `engine/api/art.py`, never via `/static` |
 | Structural systems | `clocks`, `threads`, `endings`, `decks`, `challenge_bounds`, `epilogues` | §3.3–3.6 |
+| The phone | `social` — a DIRECTORY, not a file (v0.22.0): `creation`, `population`, `behaviours`, `apps`, `relationships`, `media`, `venues` and `games` `.yaml`, found by fixed name, plus `words.txt` | `engine/social/` (§3.15). A story that does not declare it pays nothing: no `engine.social` submodule is imported and its payload carries no `phone` key |
 
 A path habit worth adopting from the shipped manifests: write a comment block
 naming what you deliberately do NOT declare — `games/dev-story/game.yaml` is
@@ -295,7 +297,8 @@ of the story's own words on a save row; since v0.21.0 core prints none of
 its own), and the component
 slots: `Mark`, `HeaderBadge`, `Aside`, `Ledger`, `Stage`, `Toast`,
 `MenuBanner`, `Wrap`, `StartIntro`, `Wordmark`, `Ending`, `onboarding`,
-`overlays`, `hideChoices`) is documented at the top of `ui/src/core/story.js`;
+`overlays`, `hideChoices`, and since v0.22.0 the two whole-screen slots
+`PlayScreen` and `NewRun`, below) is documented at the top of `ui/src/core/story.js`;
 every field is optional and core has a working default for all of them, so a
 story that ships no plugin still runs.
 
@@ -326,7 +329,7 @@ merely to look like *something*. For that, `_engine` is the answer. A borrowed
 plugin lends its **look, not its voice**:
 when `plugin != slug` the loader strips the naming slots (`title`,
 `documentTitle`, `Wordmark`, `StartIntro`, `beginLabel`, `asideLabel`,
-`saveMeta`, `onboarding` and **`overlays`**) and substitutes your story's own name from the
+`saveMeta`, `onboarding`, **`overlays`**, **`PlayScreen`** and **`NewRun`**) and substitutes your story's own name from the
 catalogue, so a scratch story borrowing the Garden's skin does not announce
 itself as The Wicked Garden or invite the player through a hedge it does not
 have. Nothing shipped borrows another story's plugin today — `dev-story` moved
@@ -341,6 +344,41 @@ offering "The court" and "The mirror pool", and the court drew Sophia and
 Mother Briar, who are not aboard and do not exist in it. A screen rendering
 another story's cast is worse than no screen, so a borrower gets none. If your
 story wants overlays, that is the signal to ship your own plugin.
+
+**`PlayScreen` and `NewRun` — a story's own screens (v0.22.0, READ RECEIPTS).**
+A plugin may replace the play screen wholesale. `PlayScreen` takes
+`{state, sessionId, busy, onAct, onOpenMenu, onOpenSaves, blocked}` and is
+drawn in place of core's `Play` (`blocked` is true while core's menu,
+settings, an overlay or a cutscene is up: a screen's own window-level keys,
+such as a deck's arrows, stand down under it); core keeps the connection banner, the pause menu
+(Escape -- but Escape in one of the screen's text fields only leaves the
+field, so the menu never opens over half a message), saves and settings
+around it, and offers it no overlays (no map, no clue board, no shortcut). `onAct({action, target, args, text})` sends one
+phone action as `phone_action` with the session's id -- there is no
+`onChoose` and no `onCustom` -- and never sets `busy`. Core sends one action
+at a time; one answered `turn_error {busy}` (a voicing pass committing
+holds the turn lock for milliseconds) is re-sent once after 150 ms without
+reaching the store, and a second busy answer reaches it, so the plugin can
+keep what the player composed (`ui/src/core/socket.js::createPhoneSender`).
+`onAct` returns whether the action was taken, and an action that never
+reached the server (queued at a disconnect, or cut off waiting for its
+re-send) comes back to `reduce` as `{type: "PHONE_DROPPED", intents}`:
+nothing the player composed is dropped in silence. The plugin does not
+re-send a busy answer itself (core already has): READ RECEIPTS' `usePhoneAct`
+turns the second busy, a `PHONE_DROPPED` and a refused `onAct` into "Not
+sent — tap to retry" with the words kept. An answer core credits to no
+action (a timed-out action's late one) reaches `reduce` marked `stale: true`,
+so a plugin never counts it as its own action's answer.
+The background pushes `phone_message` and `media_ready` are the plugin's to
+reduce: core's reducer keeps nothing of them. `NewRun` takes
+`{onBegin(creation), onCancel, busy, error}` and is opened by the start
+screen's Begin in place of starting at once (the start screen then shows no
+name, class or seed of its own); it reads its form with
+`fetchCreation()` (`GET /api/social/creation`), and `onBegin(creation)`
+starts the run with `{player_name: creation.name, creation}` -- a refusal
+names its field in `error`. Both are **stripped when borrowed**, like
+`overlays`: each is a whole screen written against the payload's `phone`
+block, which a borrowing story's payload lacks.
 
 **When to stop borrowing.** Borrow while the difference between your story and
 the lender's is subject matter. Build when it is *register*. NEON CITY borrowed
@@ -414,6 +452,25 @@ never the plugin's: `loadStory` writes `panelDeclaration` last, and
 contract is at the top of `ui/src/core/story.js`; the registry is
 `ui/src/core/panels/registry.js`, kept equal to `UI_PANELS` by
 `tests/test_ui_panels_manifest.py`.
+
+### 2.6 `endless:` — a story with no ending
+
+`endless: true` (v0.22.0) says the story has no ending on purpose: it is
+played, not finished. It is a top-level manifest key, kept in `extras` and
+read by `GameManifest.endless`; absent (or `false`) means the story is
+finishable.
+
+What it refuses (`StoryValidator.check_endless`, errors): a value that is not
+`true` or `false`, and, with `true`, a declared `paths.endings` or
+`paths.epilogues` — an endless story with an ending is a contradiction.
+
+What it answers to: `tests/test_finales.py` holds every shipped story to one
+of two lists. A slug in `FINALE_SLUGS` must be playable to an epilogue and
+must not say `endless`; any other shipped story must say `endless: true` and
+declare no endings or epilogues
+(`test_an_endless_story_declares_no_ending_and_says_so`). A new story is
+therefore either added to `FINALE_SLUGS`, with an ending it can reach, or
+declared endless.
 
 ---
 
@@ -2360,6 +2417,485 @@ rule 6). Leave it out and the story has neither. Models:
   needs an item in `paths.items` and, to be bought, a vendor row in
   `paths.economy`.
 
+### 3.15 `paths.social` — a phone the engine runs
+
+`paths.social` (v0.22.0) names a DIRECTORY. Its files are found by fixed name
+(`engine/social/__init__.py::FILES`): `creation`, `population`,
+`behaviours`, `apps`, `relationships`, `media`, `venues` and `games`
+`.yaml`, plus `words.txt` beside `games.yaml`, and the story's
+`prompts/texter.md` (and, for meet-ups, `prompts/date_recap.md`; for a
+thread's running summary, `prompts/thread_summary.md`). READ RECEIPTS
+(`games/read-receipts/`) is the one shipped story that declares it, and
+each of its files opens with a header that documents every key: read those
+headers beside this section, which is the map. A story that declares the
+key is played through phone actions (`phone_action`), never through
+`player_choice`, and its client is a plugin with its own `PlayScreen` and
+`NewRun` (§2.5).
+
+What is fixed and what is yours: the people are a pure function of the seed
+and an index (`population.py`), every decision about them is the engine's
+(rule 1), and the model only writes what they say (`texter.md`). Every
+number in these files is a balance constant: run
+`scripts/simulate_social.py` before changing one (rule 10; §5.2).
+
+**Checked twice.** Each file is parsed and checked when the story's data
+loads (`social._check_loaded`: `behaviours`' pacing, arcs and canon,
+`relationships`, `media`, `venues` with `relationships.meets`, and `games`
+refuse to load with a `ValueError` naming file and key), and every file is
+checked whole by `scripts/validate_content.py` and the doctor
+(`engine/games/validation.py::check_social`, one finding per fault). A file
+that is absent reads as empty, and most blocks are then required: ship all
+eight.
+
+#### `population.yaml` — who is in the apps
+
+Read by `engine/social/population.py`. Nobody is stored: a person is drawn
+from these tables on the stream `stable_rng(seed, "social.population:<index>")`
+whenever they are needed, so a seed always holds the same people. Only what
+happens between them and the player is kept (`state.social["people"]`).
+
+| Key | Shape | Checked |
+|---|---|---|
+| `filter` | `{sex: opposite \| same \| any, age_from_discovery: bool}` | `sex` one of `population.FILTER_MODES` |
+| `age_spill` | the player's discovery range widened by this share either side | |
+| `age_bounds` | `{min, max}`, whole numbers; `min` is the apps' age floor (data, never an engine gate) | required |
+| `names` | `{female: [...], male: [...]}`, drawn after the filter on its own key | both non-empty |
+| `ages` | per dating app `{mean, sd}`, clamped to the discovery range and `age_bounds` | |
+| `neighbourhoods` | exactly eleven `{id, label}` rows | eleven distinct ids |
+| `distance` | an 11x11 table of whole numbers 0-4, symmetric, 0 on the diagonal (matching's distance term) | every cell |
+| `jobs` | `{id, label, shape, education: [...], weight?, article?}`; `shape` names a `schedules` week, `article` (a \| an) where the first letter misleads | each `shape` has a week |
+| `schedules` | per job shape, per weekday (`mon`-`sun`), `[start_hour, end_hour, status]` bands; status `asleep \| work \| free \| out`; an hour no band covers is asleep | each band |
+| `hobbies` | `{id, label, tags: [...], weight?}`: the tags feed matching's hobby term | |
+| `traits` | `{id, label, weight?}`, three drawn per person: character notes for the voice | |
+| `personality` | the five slider names, each 1-5 per person | |
+| `attribute_tables` | the attribute tables drawn in this order; each a list of `{id, label, weight?}` rows of the same name (`height`, `build`, ...), every id one of `creation.yaml`'s for that attribute | each names a table |
+| `appearance` | `{eyes, skin, features}` rows: joined after the attribute labels into the image prompt's description | weights |
+| `flags` | `name: probability`, each drawn once per person: the fixed facts a mechanic may gate on (`media.yaml` `requires_flag`) | |
+| `texting_styles` | `{id, length, caps, punctuation, emoji, questions, humour, weight}`: character notes for the voice, never rules | |
+| `bios`, `like_comments` | per texting style, templates; a template may name only `{hobby_a} {hobby_b} {job} {a_job} {A_job} {neighbourhood}` (`population.BIO_FIELDS`) | each style declared, each name known |
+| `prompts` | per app, `[{q, a_by_hobby: {hobby: [...]}, a_any: [...]}]`: Front Porch's three, an answer by a hobby they hold, else `a_any` | `a_any` required |
+| `photo_set` | `{id, label, scene}` rows: every person's 2-5 photos (so at least five) and the player's own; READ RECEIPTS ships 33 | |
+| `preferences` | `selectivity {mean, sd}` (0-1), `age_below`/`age_above` `[low, high]`, `dealbreaker_count [low, high]`, `dealbreakers: [...]` | |
+
+A table row's `weight` defaults to 1 and must be a positive number where
+given. A `dealbreakers` id is `<attribute>_<value>` (`smokes_yes`,
+`kids_dont_want`): matching splits it at the FIRST underscore, so an
+attribute's own name must not contain one. A person's archetype and what
+they are looking for are drawn by their app's `culture` (`apps.yaml`), not
+here.
+
+**The filter.** `filter.sex` decides who the apps show: `opposite` (READ
+RECEIPTS ships this, the owner's brief), `same`, or `any`. Changing it
+changes each person's sex and name and nothing else about them: sex is drawn
+on `...:<index>:sex` (only under `any`) and the name on `...:<index>:name`,
+keyed by that sex, so every other field keeps its draw. `same` and `any` are
+built and tested but no shipped story uses them (a docs/GOVERNANCE.md row).
+
+```yaml
+filter: {sex: opposite, age_from_discovery: true}
+age_bounds: {min: 18, max: 75}
+jobs:
+  - {id: nurse, label: Nurse, shape: shifts, education: [degree]}
+  - {id: hr_manager, label: HR manager, shape: office, education: [degree], article: an}
+schedules:
+  office:
+    mon: [[7, 9, free], [9, 17, work], [17, 23, free]]
+bios:
+  dry_one_liners:
+    - "{job}. It's fine."
+flags: {has_pet: 0.3}
+```
+
+#### `creation.yaml` — the player
+
+Read by `engine/social/creation.py`. `GET /api/social/creation` serves the
+form resolved (each `of_table` expanded to `{id, label}` rows), and
+`POST /api/game/new`'s `creation` object is checked against it: an unknown
+key, a value outside its list or range, or a list of the wrong length is
+refused naming its dotted field; an omitted field takes its default. A
+choice with no `default`, and a `multi`, default to a pick seeded per
+dotted field, so adding a field moves no other field's default.
+
+| Field kind | Keys |
+|---|---|
+| `text` | `max` (required), `default` (required); blank takes the default |
+| `choice` | `of: [...]` or `of_table: <population.yaml table>`; `default?` |
+| `int` | `min?`, `max?`, `default` (required) |
+| `multi` | `of_table` (or `of`), `min`, `max`; distinct ids |
+| `sliders` | `of: [names]`, `min`, `max`; each slider defaults to 3 |
+
+A mapping with no `kind` is a group of fields (`attributes:`,
+`discovery:`). `start_hour` (0-23) is the hour a new run starts on day 1.
+Quote `"no"` and `"yes"` so YAML reads them as words.
+
+```yaml
+start_hour: 19
+fields:
+  name:  {kind: text, max: 24, default: "Sam"}
+  age:   {kind: int, min: 18, max: 75, default: 29}
+  hobbies: {kind: multi, of_table: hobbies, min: 2, max: 6}
+  attributes:
+    smokes: {kind: choice, of: ["no", sometimes, "yes"]}
+  discovery:
+    distance: {kind: choice, of: [near, city, anywhere], default: city}
+```
+
+**What the engine reads of the profile**, and so what a field MEANS:
+`name` (the run's `player_name`), `sex` (the filter), `age`,
+`neighbourhood` (distance), `looking_for` (an intent id, matching),
+`hobbies`, `personality`, `attributes` (a person's dealbreakers, and the
+profile's completeness), `photos`, `discovery` (`age_min`, `age_max`,
+`distance`: a `matching.discovery_distance` key), and `attributes.job`,
+`age` and `name` for the agreement checks' "what the player told them".
+
+**Adding a field.** Declare it under `fields:` with a kind; the wizard
+(`ui/src/stories/read-receipts/NewRun.jsx`) draws every kind generically,
+the engine validates it and keeps it in `state.social["player"]`, and the
+validator checks its shape. A field nothing above names is kept and read by
+nothing until code reads it: no matching term, no voice block. A new
+attribute that people should have too needs a `population.yaml` table of
+the same name listed in `attribute_tables` (the validator checks its ids
+against the field's), and is then also a possible `dealbreakers` id.
+
+#### `behaviours.yaml` — how people behave
+
+Read by `engine/social/behaviour.py` (rows), `messaging.py` (pacing,
+initiations, double texts) and `relationships.py` (arcs). Four blocks:
+`pacing`, `archetypes`, `arcs` and `canon`.
+
+**The event queue.** Nothing a person does runs on the wall clock. Every
+read, reply, opener, double text, initiation, like seen, likes-you arrival,
+match expiry, game move, meet-up start and arc beat is an event at an exact
+in-game hour in `state.social["queue"]` (`engine/social/events.py`), kept in
+`(at, seq)` order and walked inside `clock.advance_time` (rule 2), at most
+`social.max_events_per_advance` per advance. The kinds are fixed
+(`events.KINDS`); a story chooses only the numbers that time them. At 04:00
+each day the `daily` event runs every module's morning step: likes reset,
+the day's likes-you, the day's initiations, mood back to neutral, interest
+decay, drift, the cold wind-down and the fade, media budgets refilled, the
+games' invites and clean-up. So a latency in this file is a time IN THE
+GAME: a person who replies in a median 120 minutes does so whether the
+player waits two real minutes or two real hours.
+
+**An archetype** carries every key of `behaviour.ARCHETYPE_KEYS`, and no
+other:
+
+```yaml
+archetypes:
+  steady:
+    reply_minutes: {median: 25, spread: 0.6}   # lognormal, in-game minutes
+    read_minutes: {median: 8, spread: 0.6}
+    reply_prob: 0.96
+    opener_prob: 0.6                # writes first after a match (an `either` app)
+    ghost_per_exchange: 0.008
+    left_on_read_sensitivity: 0.4   # interest lost per hour left on read
+    warmth_mult: 1.0                # times the model's proposed warmth
+    warmth_cap_band: null           # or a relationships.yaml band warmth never passes
+    cool_off_step: 1                # 0-5: interest a `cool_off` proposal costs
+    flake_prob: 0.02                # a meet-up flaked on the day
+    double_text: {after_hours: 18, prob: 0.15, max_in_row: 1}
+    initiations:
+      - id: how_was_your_day
+        at_hours: [18, 19, 20]      # whole hours 0-23; only in their free or out hours
+        when: {stage_min: numbers, hours_since_player: 18}
+        prob_per_day: 0.6           # or `prob`: once per spell of the player's silence
+        kind: text
+        instruction: check_in       # a row of texter.md's ## Instructions (default: the id)
+    media: {offer_mult: 0.9, accept_mult: 1.0}
+    games: {skill: 0.55, invite_prob_per_day: 0.04}
+    arc: null                       # or an `arcs:` id
+```
+
+An initiation's `when` may name `stage_min` (a live stage),
+`hours_since_player`, `days_since_last`, `ghosted` (true: only after they
+went quiet, and it brings them back) and `weekend`; nothing else loads. At
+most one initiation a day per person is queued. `kind` is the decision's
+message kind: every shipped one is `text`, and a person's photos, voice
+notes and videos come from `media.yaml`, not from an initiation.
+
+**Pacing** (`pacing:`, all four keys required) holds the terms every
+archetype's reply and ghost chances share: `interest_factor [at 0, at
+100]`, `burst_factor` (by how many messages the player sent in a row),
+`status_mult` (each of `asleep`, `work`, `free`, `out`: the latency's
+multiplier at the moment they read) and `stage_factor` (per stage, the
+ghost chance's multiplier; unlisted is 1.0).
+
+**Arcs** change a relationship over time. Exactly one of `at` (a point,
+counted in `exchanges`) or `from` (a start, counted in
+`days_since_matched`), each `{measure: [low, high]}` with a point drawn once
+per person; then a `beat` (at the point: `reveal` a `canon:` row,
+`history` a line on their card, `instruction` the situation the reveal's
+message is written in, `then` a `stage` and `warmth`/`trust`/`interest`/`mood`
+moved exactly) and/or `each_day` (from the start, each morning). **Canon**
+rows are one fact each, at most 140 characters, added to a person's canon
+when a beat reveals them; the voice reads canon and no mechanic does.
+
+```yaml
+arcs:
+  turner_wants_different:
+    at: {exchanges: [8, 30]}
+    beat:
+      reveal: wants_something_else
+      history: Wanted something different
+      instruction: reveal_turn
+      then: {stage: winding_down, warmth: -10}
+canon:
+  wants_something_else: has realised that what they want is not what this is turning into
+```
+
+**Adding an archetype.** (1) A row under `archetypes:` with every key.
+(2) A weight in at least one dating app's `culture.archetype_weights`
+(`apps.yaml`), or nobody is drawn with it; an app naming an undeclared
+archetype is an error. (3) Every initiation's `instruction` (or id) a row
+of `texter.md`'s `## Instructions`. (4) Optionally a `## Fallbacks` block
+for it: an archetype with none falls back to the engine's one line, "hey".
+(5) A `warmth_cap_band` names a `relationships.yaml` band. Then run
+`scripts/simulate_social.py`: its per-archetype table reports the days from
+a match to each closeness band.
+
+#### `apps.yaml` — the phone
+
+Read by `population.py` (pools, cultures), `apps.py` (the apps, decks and
+limits), `matching.py` and `messaging.py`. An app is an engine surface: the
+phone's catalogue offers its verbs from this table and the state, and
+refuses anything it does not allow.
+
+Keys marked **required** are refused when missing (`validation._check_apps`);
+`capabilities` and `cost_minutes` are not, but an app that carries messages
+or spends time needs them, and every value given is checked.
+
+| Key | For | Meaning |
+|---|---|---|
+| `kind` | every app, **required** | `dating \| messenger \| games \| gallery \| calendar \| contacts \| settings` |
+| `label` | every app | what the phone calls it |
+| `capabilities` | threads; unset is none, so a thread on the app carries nothing | what a thread may carry: `text`, `photo`, `voice`, `video` (each checked) |
+| `cost_minutes` | every app; unset is none, so its verbs cost no time | in-game minutes per verb: `swipe`, `like`, `edit`, `text`, `photo`, `voice`, `video`, `move` (each checked, 0 or more) |
+| `unlock` | messenger, games | the live stage that opens the app with a person |
+| `receipts`, `typing` | threads | whether read receipts show, and typing dots (`typing`, true when unset: Texts says `false`, as SMS shows none) |
+| `pool` | dating | `{from, size}`: a range of person indices, disjoint across apps; `overlap_with` + `overlap` add a band after every pool whose people are on both |
+| `deck` | dating, **required** | `swipe` (one card: like, pass, super) or `browse` (a full profile: like a photo or a prompt) |
+| `likes_per_day` | dating, **required** | a whole number above 0, reset each morning |
+| `super_likes_per_day` | dating | reset each morning; 0 when unset |
+| `likes_you_per_day`, `likes_you_visible`, `comment_on_like` | dating | people who like the player first, and whether "Likes you" shows them |
+| `first_message` | dating, **required** | `either` (they may write first, `opener_prob`) or `player` |
+| `match_expiry_days` | dating, **required** | a match nobody writes in expires (whole days above 0) |
+| `culture` | dating, **required** | `archetype_weights`, `intent_weights` (`long_term`, `short_term`, `friendship`, `unsure`), `selectivity_mult` |
+| `offers` | games | the games it holds (`wordgame`, `this_or_that`) |
+
+The `matching:` block is compatibility and like-back: `weights` over
+`looking_for`, `hobbies`, `personality`, `preferences` and `distance`
+(summing to 1.0), `looking_for_table` (intent pairs, 0-1), `dealbreaker_mult`,
+`chemistry [low, high]`, `like_back_base` per dating app, `compat_offset`,
+`completeness [low, high]`, `super_like_mult`, `see_like_hours {median,
+spread, max?}`, `likes_you_hours [start, end]` within the day from 04:00,
+and `discovery_distance` (each `creation.yaml` discovery distance to 0-4).
+The like-back is drawn once per pair, so un-liking cannot re-roll it.
+
+```yaml
+apps:
+  natter:
+    kind: messenger
+    label: Natter
+    unlock: numbers
+    capabilities: [text, photo, voice, video]
+    receipts: true
+    typing: true
+    cost_minutes: {text: 2, photo: 1, voice: 3, video: 2}
+```
+
+**Adding an app.** A `messenger`, `gallery`, `calendar`, `contacts`,
+`settings` or `games` app is data: give it an id, a `kind` and its keys,
+and the client draws it by kind (`ui/src/stories/read-receipts/PlayScreen.jsx`);
+a messenger with `unlock: numbers` opens with each person once they have
+swapped numbers. A new DATING app needs a `pool` (disjoint from the
+others), a `deck`, its limits and a `culture`, an `ages` row in
+`population.yaml`, and a `like_back_base` entry (texter.md needs nothing:
+the voice does not know which app it writes in). The engine runs it in
+full -- deck, likes, matches, expiry, threads -- but the READ RECEIPTS
+client draws its two dating apps by id (`matchstick`, `front_porch`), so a
+third shows the "not yet" screen until the plugin draws it (a
+docs/GOVERNANCE.md row).
+
+#### `relationships.yaml` — where they stand with the player
+
+Read by `engine/social/relationships.py`, `agreement.py`, `media.py` and
+`meets.py`; required blocks: `stages`, `branch`, `claims`, `bands`,
+`regard`, `interest`, `mood`, `asks`, `cold`, `fade_days`, `proposals`.
+
+- `stages` lists exactly the engine's stages, in its order
+  (`engine/social/kinds.py::STAGES`), each with `words` (all the player
+  sees, never a number) and, if reached by a gate, `from`, `trigger`
+  (`automatic`, `ask`, `meet` or `branch`), `gate` (minimums of `warmth`,
+  `trust`, `exchanges`, `days`, `stage_days`, `meets_good`) and `needs:
+  {both: long_term}`. A story re-tunes the gates and words; it cannot add a
+  stage.
+- `branch` picks dating, friends or fling out of `meeting`: the first row
+  whose `either` one side wants.
+- `bands` are the closeness bands the player sees, each `{name, warmth,
+  contact_days}`, lowest first.
+- `regard` bounds the model: `start`, `per_reply` (a reply's warmth and
+  trust move, clamped), `per_day_gain` (gains only), `fight_warmth`,
+  `reconcile_warmth`, and `fallback` -- what an engine-written fallback
+  reply moves (+1/+1 shipped) and its own `per_day` cap, so a run with no
+  model server still progresses, more slowly than a working one.
+- `interest`, `mood` (`values`, the enum a reply may set; `decay_hours`;
+  `media_mult`), `asks` (`per_day`, `repeat_mult`, `repeat_warmth`,
+  `turned_down`), `cold` (`warmth_below` for `days` winds a live stage down;
+  warming to `recover_above` for `recover_days` mornings goes back to the
+  stage it left) and `fade_days` (no contact for that long: faded; 21
+  shipped).
+- **Proposals** are the only things a voiced reply may ask the engine for
+  (spec §10.5): `offer_number`, `ask_exclusive`, `cool_off`, `offer_photo`,
+  `offer_voice`, `offer_video`, `invite_game` and `ask_meet`
+  (`relationships.PROPOSALS`). Each row is `{stage, gate}`: the stage it may
+  be made at (`live`: any live stage) and the stage whose gate must hold.
+  List a subset to offer fewer; an id the engine does not apply refuses to
+  load. The engine re-checks every one at commit (the media offers also
+  hold `media.yaml`'s budget and unlock; `invite_game` the games app's
+  unlock and no game running; `ask_meet` numbers or past it and no plan).
+- The phrase lists the agreement checks MATCH (`engine/social/agreement.py`):
+  `claims` (per stage), `media_claims`, `media_denials`, `agree_phrases`,
+  `negations`, `ordinary_names`, `meet_claims` (`today`, `tomorrow`,
+  `any`) and `meet_denials`. A whole phrase, case-folded, in a clause that
+  is not a question. They test facts, never tone (rule 12): precision first.
+- `meets:` runs meet-ups (`meets.py`): `slots`, `days_ahead`, `quality`,
+  `bands`, `effects`, `cancel_cost`, `no_show`, `post_meet`, `recap_lines`
+  and `recap_tone`. It is **required** once the story ships a `venues.yaml`
+  (and a `venues.yaml` once it has `meets:`): `meets.check_data` refuses
+  either alone.
+
+```yaml
+stages:
+  numbers:
+    words: Swapped numbers
+    from: [talking]
+    trigger: ask
+    gate: {warmth: 30, trust: 23, exchanges: 20, days: 0}
+regard:
+  start: {warmth: 20, trust: 15}
+  per_reply: {warmth: [-4, 4], trust: [-2, 2]}
+  fallback: {warmth: 1, trust: 1, per_day: {warmth: 3, trust: 2}}
+proposals:
+  offer_number: {stage: talking, gate: numbers}
+  cool_off: {stage: live, gate: null}
+```
+
+#### `media.yaml` — photos, voice notes, videos
+
+Read by `engine/social/media.py`; every block of `media.BLOCKS` is required.
+The engine decides every medium (rule 1) and the model only words the
+message that carries it.
+
+- `budget`: per kind (`photo`, `voice`, `video`) `{start, per_day, cap,
+  unlock_stage}`; one send spends 1.
+- `request`: the player's `ask {what: photo|voice|video}`, decided at their
+  next read: `accept {base, trust_per_10, warmth_per_10}`, `later_share`,
+  `mood_mult` (every mood a `relationships.yaml` mood value).
+- `unsolicited`: `per_day_at_stage` (a morning draw per kind at that stage
+  or past it) and `offered_mult` (a model's `offer_*` proposal).
+- `subjects`: what a photo or video of theirs shows: `{id, when, label,
+  scene, requires_flag?}`; `when` a schedule status or statuses,
+  `requires_flag` a `population.yaml` flag (never canon text).
+- `player_subjects` (`{id, kinds, label, scene}`), `portrait {scene}`,
+  `style` (appended to every image prompt), `voice {max_seconds}`.
+
+Nothing here filters, rates or rewrites an image (rule 12). Whether a
+medium is generated at all is the owner's machine setting
+(`phone_media.provider`, `tts.enabled`; docs/MEDIA_SERVERS.md); off, each
+is a procedural tile with its caption or transcript.
+
+```yaml
+budget:
+  photo: {start: 0, per_day: 0.15, cap: 2, unlock_stage: talking}
+subjects:
+  - {id: pet, when: free, requires_flag: has_pet, label: their pet, scene: "their pet curled up nearby"}
+```
+
+#### `venues.yaml` — where meet-ups happen
+
+Read by `engine/social/meets.py`. `kinds` maps a kind to `{label, at}` (the
+engine's own line: "Coffee" "at" "The Copper Kettle"); `venues` holds
+twelve or more `{id, label, neighbourhood, kind, hobbies, duration_hours}`
+rows, each neighbourhood and hobby a `population.yaml` id. A hobby both
+sides hold is the meet's shared-hobby bonus, and a person who asks to meet
+picks a venue by the hobbies the two share.
+
+```yaml
+kinds:
+  coffee: {label: Coffee, at: at}
+venues:
+  - {id: copper_kettle, label: The Copper Kettle, neighbourhood: old_town, kind: coffee,
+     hobbies: [coffee, reading, baking], duration_hours: 1.5}
+```
+
+#### `games.yaml` and `words.txt` — the two games
+
+Read by `engine/social/games/`. `wordgame:` is Tile Talk: `label`, `size`
+(11), `rack` (7), `premiums` (11 strings of 11 squares: `.` `l` `L` `w`
+`W` and `*` at the centre), `letters` (`{count, value}` per letter) with
+`blanks` (2) making a 72-tile bag, `bingo_bonus`, `node_budget` (the
+person's search, a count of prefixes tried, never a time),
+`top_k_by_skill`, `scoreless_turns`, `swap_bag_min`, `pace_mult`,
+`banter_prob` and `effects` (`finished`, `crushing_margin`,
+`<archetype>_crushing_warmth`). `words.txt` is the word list, one lower-case
+word a line. `this_or_that:` is This or That: `label`, `pace_mult`, `lean`
+(`hobby`, `trait`, `slider`, `sharpness`, `noise`), `effects`, `tags`
+(`{hobbies, traits, sliders}`, every id a `population.yaml` one) and
+`pairs` (60 or more `{a: {label, tags}, b: {label, tags}}`). A game is
+started by the player's `game_invite` or a person's (their
+`games.invite_prob_per_day`, or a reply's `invite_game` proposal); the
+games themselves are engine code, so a story tunes these two and cannot add
+a third.
+
+#### `prompts/texter.md` — the voice
+
+Read by `engine/social/voicing.py::parse_texter`, in three parts:
+
+1. **The persona**, everything above `## Instructions`: the system message
+   of every voicing call, sent as written.
+2. **The instruction table**: under `## Instructions`, one row per
+   situation, exactly `` - `<id>`: <line> ``. The engine sends the row of the
+   situation it decided (a reply, an opener, a decline, a photo sent ...)
+   in the prompt's RIGHT NOW block. Every situation the engine emits
+   (`voicing.SITUATIONS`: `opener`, `reply`, `double_text`,
+   `answer_request`, `send_selfie`, `send_photo`, `send_voice`,
+   `send_video`, `decline_photo`, `decline_voice`, `decline_video`,
+   `game_banter`, `post_meet`) and every one `behaviours.yaml` names (an initiation's
+   `instruction` or id, an arc beat's `instruction`) must have a row; the
+   validator names a missing one (and should one slip past it, that
+   message's voicing falls back to the story's line, logged at ERROR).
+   Rows the engine never emits are allowed: READ RECEIPTS keeps
+   `offer_number` and `ask_meet`, which a reply carries as proposals, in
+   its own words.
+3. **The Fallbacks fence**: under `## Fallbacks`, one fenced `yaml` block,
+   archetype -> situation -> lines. When no model answers (or both attempts
+   fail the agreement checks), the engine picks one line, seeded by the
+   message: `decline` first for any answer that is no, then the
+   situation's row, then `reply`, then the engine's "hey". Every archetype
+   in it must be a `behaviours.yaml` one, every situation a table row or
+   `decline`. A fallback reply moves `regard.fallback`, never more.
+
+````markdown
+## Instructions
+
+- `reply`: Answer what they last said, the way you text.
+- `check_in`: Nobody has written for a while and you feel like talking to them. Start something, your way.
+
+## Fallbacks
+
+```yaml
+steady:
+  reply: ["That sounds good.", "How did it go?"]
+  decline: ["Not yet, but I'm glad you asked."]
+```
+````
+
+The model's answer is a JSON reply (`voicing.reply_schema`: bubbles,
+facts learned and shared, a mood, warmth and trust within
+`regard.per_reply`, at most two proposals from the list above), checked
+against what the engine holds before it lands and again at commit. No line
+in any of these files may rate content (rule 12).
+
 ---
 
 ## 3.9 The studio — the same job, in a browser
@@ -2665,6 +3201,22 @@ the template's two endings are both reachable at the default 30. Low run
 counts under-report reachability; use `--runs 200` before believing a
 "never" list.
 
+**Phone stories** (`paths.social`, §3.15): `scripts/simulate_social.py
+--game read-receipts` plays the phone headless through the same mechanics action
+and voicing pass play uses, with a stub voice (never a model) and a seeded
+player policy (`--policy attentive|swiper|picky|slow|neglectful|pushy|all`,
+`--voice neutral_model|romantic_model|cold_model|zero|no_model|all`), and
+reports every balance row of the v0.22.0 spec's §20 -- like-to-match per
+app, talking, ghosting, numbers, meet-ups and how they went, interest's
+half-life, messages a day, media per relationship -- and the days from a
+match to each closeness band per archetype. A 60-day run is minutes, so
+seed ranges run side by side (`--first-seed N --seeds 1 --raw OUT`) and
+fold (`--fold OUT...`). READ RECEIPTS' README has the commands and where
+its measured tables live. The harness is READ RECEIPTS' only (`--game`
+accepts that slug alone: its policies use that story's app ids), so a new
+phone story's numbers are unmeasured until it learns the story -- say so in
+the story's README, as for a graph story above.
+
 ### 5.3 Doctor
 
 ```powershell
@@ -2724,6 +3276,7 @@ to the wrong ending.
 | `games/dev-story/` | **The full worked example.** One small working instance of every subsystem — thirteen locations, eight scheduled NPCs, a two-agent pipeline, a clock that forces a scene, a thread with renegotiations (declared only: renegotiation is NOT WIRED, §3.4), three gated endings and their epilogues — each file annotated at a depth a template cannot afford. When a mechanism is unclear, it is running here with the lights on. |
 | `games/wicked-garden/` | **The deck exemplar**, full scale. Its `data/scenes/README.md` is the deck grammar's reference treatment; its `data/canon/` established the dictionary shape; its manifest shows the "what this story deliberately does not ship" comment style. |
 | `games/clockwork-dark/` | **The graph exemplar**, full scale. The travel graph, arcs, encounters, the livelihood economy, doom — 5,300 lines of the shape the engine's clock was tuned for. |
+| `games/read-receipts/` | **The phone exemplar** (`paths.social`, §3.15): no locations to walk, no plot, no ending (`endless: true`); a seeded population the engine runs, two dating apps, messaging on the engine's clock, relationships, media, meet-ups and two games, voiced by `prompts/texter.md`. Every data file's header documents its keys and the measured rows its numbers move. |
 | `scripts/story_template/minimal/` | The smallest thing that validates and plays a turn. Start here unless you already know your shape. |
 | `scripts/story_template/graph/` | The flagship's skeleton with Edgewood removed. |
 | `scripts/story_template/deck/` | The Garden's skeleton, one working instance of each coupling. |
@@ -2733,4 +3286,4 @@ are distilled from dev-story** — when a subsystem changes shape, fix dev-story
 first (the suite runs its rows, so it cannot silently rot), then re-distil the
 templates. A template that drifts from the bench teaches the old engine.
 
-Version: v0.1.4 [2026-09-26]
+Version: v0.1.5 [2026-10-13]

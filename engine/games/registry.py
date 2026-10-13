@@ -463,6 +463,17 @@ def entry_archetypes(default: tuple[str, ...] = ()) -> list[str]:
     return manifest.archetypes or list(default)
 
 
+def catalog_key(row: dict[str, Any]) -> tuple[bool, str]:
+    """
+    The catalogue's sort key: playable games first, then by title, case folded.
+
+    A module function rather than an inline lambda so the local-mode golden's
+    sanction that inserts a row (``tests/test_local_mode_golden.py``) sorts
+    exactly as ``GET /api/games`` does.
+    """
+    return (not row["playable"], str(row["title"]).lower())
+
+
 def catalog() -> list[dict[str, Any]]:
     """
     Every discovered game as picker-ready dicts, newest problems included.
@@ -481,7 +492,7 @@ def catalog() -> list[dict[str, Any]]:
         row["problems"] = problems
         row["active"] = slug == current
         rows.append(row)
-    rows.sort(key=lambda r: (not r["playable"], str(r["title"]).lower()))
+    rows.sort(key=catalog_key)
     return rows
 
 
@@ -493,6 +504,7 @@ __all__ = [
     "active",
     "active_slug",
     "catalog",
+    "catalog_key",
     "deactivate",
     "discover",
     "entry_archetypes",

@@ -72,6 +72,12 @@ def test_the_scan_catches_a_new_module_dict():
     assert scan_source("_X: dict = {}\n", "engine.fake") == {"engine.fake._X"}
 
 
+def test_the_scan_catches_a_module_counter():
+    """v0.22.0 T10: an ``itertools.count`` at module level is process-wide state (``next`` writes it)."""
+    source = "import itertools\n_N = itertools.count(1)\n"
+    assert scan_source(source, "engine.fake") == {"engine.fake._N"}
+
+
 def test_the_scan_catches_each_kind_of_site():
     source = (
         "import threading, functools\n"

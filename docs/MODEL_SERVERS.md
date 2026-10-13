@@ -311,6 +311,44 @@ log says which case it was, and only then what to do:
   starvation, and no declaration fixes it; the log says so and points at the
   server's own log.
 
+## The texter profile
+
+READ RECEIPTS' people are voiced on their own profile, `llm.profiles.texter`
+(`config/default.yaml`, v0.22.0 T13): the narration lane, no tools, a
+4096-token context, a 360-token answer, `reasoning: "off"` with
+`reasoning_budget: 0`, temperature 0.9. It is a custom profile, so it starts
+from `big`'s defaults and its own keys override them
+(`engine/llm/profiles.py::_config_for`); with no `model:` it is bound like
+any profile, and naming a smaller model there is the lever for speed.
+
+**Why reasoning is off.** A text reply is one to three short bubbles in a
+small JSON envelope, and the player watches typing dots while it is
+written: thinking buys nothing a texter needs and costs seconds per
+message. The budget is zero, not a reserve, because a reply that starves
+is not lost: an answer cut at the cap with no content raises, and the
+voice falls back to the story's own lines (`texter.md`'s fallbacks), which
+are final. On a server whose reasoning-off patch is untrusted (an
+undeclared model, [above](#turning-reasoning-off)) a model whose template
+ignores the patch may still think and starve; declare the model's
+`reasoning`, name a non-thinking model in `llm.profiles.texter.model`, or
+give the profile a budget. **Latency and starvation: not measured.** The
+voicing pass (v0.22.0 T14) was built and tested with a scripted voice only;
+no live model was called in that task (the release's working rules forbid
+it), so the `texter` call's p50/p95 time and how often `reasoning_budget: 0`
+starves on the owner's model are still open.
+
+The voice call is made by a background pass holding no lock; hosted, it
+runs inside the pass's own narration place (the pass is admitted first, and
+a narration-lane call made inside an admitted context shares its ticket), so
+a reply never waits in the narration queue twice. Its thread summary is a
+`small` profile call on the utility lane, made after that place is given
+back.
+
+The call is not streamed, and its grammar rides the same structured-output
+ladder as narration (`backend.structured_output`): on rungs 2 and 3 the
+voice prompt's FORMAT block carries the shape, and the reply is conformed
+and held to its bounds either way.
+
 ## Inline `<think>`
 
 vLLM without `--reasoning-parser`, and `llama-server` with

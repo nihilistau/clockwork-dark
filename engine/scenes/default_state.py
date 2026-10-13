@@ -512,7 +512,17 @@ def resume_opening(state: GameState, ledger: StoryLedger) -> dict[str, Any]:
     the turn (an open encounter, a dealt card, a set-piece, a job), or the
     watch holds the player, the roads give way to the legal intents
     (``_scene_resume_choices``).
+
+    A phone story (v0.22.0 spec §15.3) resumes on its lock screen instead:
+    no narration, no choices, and what arrived while the player was away
+    (``engine.social.away.resume_frame``).
     """
+    from engine import social
+
+    if social.declared():
+        from engine.social import away
+
+        return away.resume_frame(state)
     narration = ""
     buffer = list(getattr(ledger, "turn_buffer", []) or [])
     if buffer:
@@ -1048,7 +1058,14 @@ def _record_memory(
         summarize(ledger, [evicted], llm_fn=_summarizer_fn())
 
 
-def _autosave(session: GameSession, player_action: str, narration: str) -> None:
+def _autosave(
+    session: GameSession,
+    player_action: str,
+    narration: str,
+    *,
+    record: bool = True,
+    entry: Optional[dict[str, Any]] = None,
+) -> bool:
     """
     Persist after every completed turn.
 
@@ -1058,6 +1075,14 @@ def _autosave(session: GameSession, player_action: str, narration: str) -> None:
     Into the SESSION's store (``GameSession.saves``, v0.20.0 spec §4.4): the
     one it was created or resumed from, which is its owner's. A session built
     by hand, outside ``SessionStore``, has none and gets the local player's.
+
+    ``record`` and ``entry`` (v0.22.0 Plan decision 5): a phone save made by
+    its dirty timer or a flush passes ``record=False`` (no transcript line
+    per save); a phone action passes its own ``entry`` as the transcript
+    line. A turn passes neither and writes exactly what it always did.
+
+    Returns whether the save was written (False: ending, or the write
+    failed); a turn ignores it, the phone's ``save_now`` retries on False.
     """
     state = session.engine.state
     if getattr(session, "ending", False):
@@ -1068,7 +1093,7 @@ def _autosave(session: GameSession, player_action: str, narration: str) -> None:
             "[default_state] Not saved: the session is ending (operation=_autosave, id=%s)",
             getattr(session, "session_id", ""),
         )
-        return
+        return False
     try:
         store = session.saves if session.saves is not None else get_save_store()
         session.save_id = store.save(
@@ -1076,23 +1101,28 @@ def _autosave(session: GameSession, player_action: str, narration: str) -> None:
             save_id=session.save_id or None,
             memory=session.ledger.to_dict(),
         )
-        store.append_transcript(
-            session.save_id,
-            {
-                "turn": state.turn_number,
-                "day": state.world_day,
-                "hour": state.world_hour,
-                "location": state.location_id,
-                "action": player_action,
-                "narration": narration,
-            },
-        )
+        if record:
+            store.append_transcript(
+                session.save_id,
+                entry
+                if entry is not None
+                else {
+                    "turn": state.turn_number,
+                    "day": state.world_day,
+                    "hour": state.world_hour,
+                    "location": state.location_id,
+                    "action": player_action,
+                    "narration": narration,
+                },
+            )
     except (OSError, ValueError) as exc:
         logger.warning(
             "[default_state] Autosave failed (operation=_autosave, id=%s): %s",
             session.session_id,
             exc,
         )
+        return False
+    return True
 
 
 def _negotiate(state: GameState, player_action: str, **kwargs: Any) -> Any:

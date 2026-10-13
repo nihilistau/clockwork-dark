@@ -761,9 +761,35 @@ def test_a_child_has_every_other_service_off(as_a_child: Any, tmp_path: Path, mo
     assert services and all(spec.get("manage") is False for spec in services.values()), services
 
 
+def test_a_child_resolves_no_comfyui_key_but_its_layers_own(
+    as_a_child: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    v0.22.0 T17 fix round 1: the shipped ``comfyui.api_key`` chain reads
+    ``comfyui_api_key.txt`` and ``CLOCKWORK_COMFYUI_API_KEY``; a child of the
+    suite resolves neither, layer or none -- only the sandbox layer's own key.
+    """
+    monkeypatch.setenv("CLOCKWORK_COMFYUI_API_KEY", "the-owners-comfy-key")
+    cfg = as_a_child(None)
+    assert cfg.get("comfyui.api_key") == ""
+
+    own = tmp_path / "services-key.yaml"
+    own.write_text(yaml.safe_dump({"comfyui": {"api_key": "${env:CLOCKWORK_COMFYUI_API_KEY}"}}), encoding="utf-8")
+    monkeypatch.setenv("CLOCKWORK_CONFIG", str(own))
+    cfg = as_a_child(None)
+    assert cfg.get("comfyui.api_key") == "", "a layer of the child's own does not bring the key back"
+
+    monkeypatch.delenv("CLOCKWORK_CONFIG")
+    layer = tmp_path / "sandbox-config.yaml"
+    layer.write_text(yaml.safe_dump({"comfyui": {"api_key": "a-stub-key"}}), encoding="utf-8")
+    cfg = as_a_child(layer)
+    assert cfg.get("comfyui.api_key") == "a-stub-key"
+
+
 def test_the_session_layer_turns_every_other_service_off(tmp_path_factory: pytest.TempPathFactory) -> None:
     layer = yaml.safe_load((_temp_root(tmp_path_factory) / "sandbox-config.yaml").read_text(encoding="utf-8"))
     assert layer["comfyui"]["enabled"] is False and layer["tts"]["enabled"] is False
+    assert layer["comfyui"]["api_key"] == ""
     assert layer["stt"]["base_url"].endswith(":9")
     assert all(spec["manage"] is False for spec in layer["stack"]["services"].values())
 
@@ -823,6 +849,63 @@ def test_a_child_dials_a_registered_stub_and_nothing_else(
     monkeypatch.delenv("CLOCKWORK_TEST_MODEL_STUB_PORT")
     env = dict(os.environ, CLOCKWORK_TEST_MODEL_STUB_PORT="5555")
     assert _run_probe(*redirected, env=env)["base_url"] == DISCARD
+
+
+# v0.22.0 T18: a child keeps the sandbox layer's comfyui.base_url only on the
+# registered loopback stub ComfyUI port, and never gains a key the layer does not name.
+
+
+@pytest.mark.parametrize(
+    ("layer_url", "registered", "kept"),
+    [
+        ("http://127.0.0.1:5577", "5577", True),
+        ("http://localhost:5577", "5577", True),
+        ("http://127.0.0.1:5577", "5578", False),
+        ("http://127.0.0.1:5577", None, False),
+        ("http://10.0.0.7:5577", "5577", False),
+        ("https://127.0.0.1:5577", "5577", False),
+    ],
+    ids=["loopback-registered", "localhost-registered", "other-port", "unregistered", "lan-host", "https-scheme"],
+)
+def test_a_child_uses_only_a_registered_loopback_comfy_stub(
+    as_a_child: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    layer_url: str,
+    registered: Optional[str],
+    kept: bool,
+) -> None:
+    from engine.config import TEST_SANDBOX_SERVICE_URL
+
+    layer = tmp_path / "sandbox-config.yaml"
+    layer.write_text(yaml.safe_dump({"comfyui": {"base_url": layer_url}}), encoding="utf-8")
+    monkeypatch.delenv("CLOCKWORK_TEST_MODEL_STUB_PORT", raising=False)
+    if registered is None:
+        monkeypatch.delenv("CLOCKWORK_TEST_COMFY_STUB_PORT", raising=False)
+    else:
+        monkeypatch.setenv("CLOCKWORK_TEST_COMFY_STUB_PORT", registered)
+    cfg = as_a_child(layer)
+    assert cfg.get("comfyui.base_url") == (layer_url if kept else TEST_SANDBOX_SERVICE_URL)
+    assert cfg.get("comfyui.enabled") is False, "the stub's registration does not turn the art provider on"
+    assert cfg.get("comfyui.api_key") == "", "a registered stub gets no key the layer does not name"
+    assert cfg.get("llm.base_url") == DISCARD, "a ComfyUI registration does not open the model port"
+
+
+@pytest.mark.process
+def test_a_child_dials_a_registered_comfy_stub_and_nothing_else(
+    sandbox_comfy_stub: Any, redirected: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from engine.config import TEST_SANDBOX_SERVICE_URL
+
+    monkeypatch.setenv("CLOCKWORK_COMFYUI_API_KEY", "the-owners-comfy-key")
+    url = sandbox_comfy_stub(5577)
+    child = _run_probe(*redirected)
+    assert child["comfy_base_url"] == url and child["comfy_api_key_set"] is False
+    assert child["base_url"] == DISCARD
+    # A caller's own env= cannot register a port: only this process's registration counts.
+    monkeypatch.delenv("CLOCKWORK_TEST_COMFY_STUB_PORT")
+    env = dict(os.environ, CLOCKWORK_TEST_COMFY_STUB_PORT="5577")
+    assert _run_probe(*redirected, env=env)["comfy_base_url"] == TEST_SANDBOX_SERVICE_URL
 
 
 # v0.20.0 T16 fix round 1 (I3): a child has NO API key but the sandbox layer's own.

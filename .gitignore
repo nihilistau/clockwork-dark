@@ -2,6 +2,7 @@
 # Secrets — never commit
 # ---------------------------------------------------------------------------
 llm_api_key.txt
+comfyui_api_key.txt
 lmstudio.txt
 *.token
 *.key

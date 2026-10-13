@@ -1,0 +1,641 @@
+# READ RECEIPTS -- population.yaml (paths.social, spec §2.1, §4).
+#
+# Who lives in Port Merrow's two dating apps. Read by
+# engine/social/population.py: a person is a pure function of (seed, index),
+# every field drawn from the tables below on the person's own stream, never
+# stored, never written by the model (spec §4.1, §4.3). creation.yaml's
+# `of_table` names the tables here, so the player picks from the same lists
+# the population is drawn from (spec §3.1).
+#
+# Shapes:
+#   a table row         {id, label, weight?}; weight defaults to 1, and must
+#                       be a positive number where given
+#   names               {female: [...], male: [...]}; the name is drawn AFTER
+#                       the filter, keyed by sex, on its own stream key
+#   ages                per dating app {mean, sd}, clamped to the player's
+#                       discovery range widened by `age_spill`, floor
+#                       `age_bounds.min`
+#   distance            11x11, symmetric, 0-4 (matching's distance term, T7)
+#   schedules           per job shape, per weekday, [start_hour, end_hour,
+#                       status] bands; any hour no band covers is asleep
+#                       (behaviour.status_at, T5)
+#   bios / prompts      templates; {hobby_a} {hobby_b} {job} {a_job} {A_job} {neighbourhood}
+#                       are the only names a template may use
+#   flags               the fixed facts a mechanic may gate on, each drawn
+#                       once per person with its probability
+#
+# Intent and archetype weights are per app, in apps.yaml `culture:` (spec §6).
+#
+# Every number here is a balance constant (rule 10).
+# Measured 2026-10-13 (v0.22.0 T26, fix round 1): `python scripts/simulate_social.py --game
+# read-receipts --days 60 --first-seed N --seeds 1 --policy attentive --raw r-N.json`
+# for N = 0..19, then `--fold r-*.json` (the attentive player, the default
+# `neutral_model` voice; the turners' row at --days 75). The whole table, every
+# voice and policy and the before, is in the story's CHANGELOG ([Unreleased],
+# Changed). The rows this file's numbers move (measured, band):
+#   no §20 row of its own; every row above is drawn over these tables as shipped
+#
+# Version: v0.2.0
+
+filter:
+  sex: opposite              # opposite | same | any (spec §4.2) -- the brief: opposite
+  age_from_discovery: true
+
+age_spill: 0.2               # discovery's range widened by 20% either side
+age_bounds: {min: 18, max: 75}   # required; the apps' own minimum, as on every real dating app (spec §3.1)
+
+names:
+  female: [
+    Abby, Ada, Aisha, Alana, Alex, Alice, Amara, Amber, Amelia, Amy,
+    Ana, Anna, Annie, April, Aria, Ava, Bea, Bella, Beth, Bianca,
+    Bonnie, Bree, Brooke, Caitlin, Callie, Carla, Carmen, Cass, Chloe, Ciara,
+    Clara, Claudia, Cleo, Daisy, Dani, Darcy, Delia, Demi, Eden, Eleanor,
+    Elena, Eliza, Ella, Ellie, Elsie, Emily, Emma, Erin, Esme, Eva,
+    Evie, Faye, Fern, Fiona, Flo, Freya, Gabi, Gemma, Georgia, Grace,
+    Hana, Hannah, Harper, Hattie, Hazel, Heidi, Holly, Imogen, India, Ines,
+    Iris, Isla, Ivy, Jade, Jasmine, Jess, Jo, Josie, Jude, Julia,
+    June, Kara, Kate, Katie, Keira, Kim, Kira, Lacey, Laila, Lana,
+    Laura, Layla, Leah, Lena, Lexi, Libby, Lila, Lily, Lina, Liv,
+    Lola, Lottie, Lucy, Luna, Lydia, Mabel, Maddie, Maeve, Maisie, Maria,
+    Martha, Maya, Meg, Mia, Mila, Millie, Mina, Molly, Nadia, Naomi,
+    Nell, Nia, Nina, Nora, Olive, Olivia, Orla, Paige, Pearl, Phoebe,
+    Pip, Poppy, Priya, Quinn, Rae, Rhea, Rita, Robyn, Rosa, Rose,
+    Ruby, Ruth, Sadie, Sam, Sara, Sasha, Selma, Sian, Sienna, Skye,
+    Sofia, Sophie, Stella, Tara, Tess, Thea, Tilly, Uma, Vera, Violet,
+    Willa, Yara, Yasmin, Zara, Zoe
+  ]
+  male: [
+    Aaron, Abe, Adam, Aidan, Alfie, Ali, Amir, Andre, Andy, Archie,
+    Arlo, Arthur, Asher, Ben, Billy, Blake, Bobby, Caleb, Callum, Carlos,
+    Charlie, Chris, Cian, Cole, Conor, Dan, Danny, Dara, Dev, Declan,
+    Dexter, Dom, Dylan, Eddie, Eli, Elliot, Emil, Eric, Ethan, Evan,
+    Ezra, Felix, Finn, Fraser, Freddie, Gabe, George, Gus, Hamza, Hari,
+    Harry, Harvey, Hugo, Ian, Idris, Isaac, Ivan, Jack, Jacob, Jake,
+    James, Jamie, Jay, Jed, Joe, Jonah, Jonny, Jordan, Josh, Jude,
+    Kai, Kaz, Kieran, Kit, Kofi, Leo, Leon, Lewis, Liam, Louis,
+    Luca, Luke, Malik, Marcus, Mark, Mason, Matt, Max, Miles, Milo,
+    Mo, Nate, Ned, Niall, Nick, Noah, Ollie, Omar, Oscar, Otis,
+    Owen, Pat, Paul, Pete, Raf, Rami, Ravi, Ray, Reece, Rhys,
+    Rob, Ronan, Rory, Ross, Rowan, Ruben, Rufus, Ryan, Sami, Sean,
+    Seb, Sid, Simon, Sol, Stan, Steve, Teddy, Theo, Tom, Tommy,
+    Toby, Tristan, Ty, Vic, Vince, Wes, Will, Wilf, Xander, Yusuf,
+    Zac, Zain, Zeke, Ash, Beau, Cal, Ellis, Fergus, Gil, Hal
+  ]
+
+ages:
+  matchstick: {mean: 29, sd: 6}
+  front_porch: {mean: 33, sd: 7}
+
+# Port Merrow: a harbour city, the sea to the south-west.
+neighbourhoods:              # exactly eleven
+  - {id: harbourside, label: Harbourside}
+  - {id: old_town, label: Old Town}
+  - {id: the_quays, label: The Quays}
+  - {id: castle_hill, label: Castle Hill}
+  - {id: the_lanes, label: The Lanes}
+  - {id: riverside, label: Riverside}
+  - {id: millbrook, label: Millbrook}
+  - {id: northgate, label: Northgate}
+  - {id: eastfield, label: Eastfield}
+  - {id: saltmarsh, label: Saltmarsh}
+  - {id: westcliff, label: Westcliff}
+
+distance:                    # symmetric, 0 (same) to 4 (the far side of the city)
+  harbourside: {harbourside: 0, old_town: 1, the_quays: 1, castle_hill: 1, the_lanes: 1, riverside: 2, millbrook: 2, northgate: 2, eastfield: 3, saltmarsh: 1, westcliff: 1}
+  old_town: {harbourside: 1, old_town: 0, the_quays: 1, castle_hill: 1, the_lanes: 1, riverside: 1, millbrook: 2, northgate: 1, eastfield: 2, saltmarsh: 2, westcliff: 2}
+  the_quays: {harbourside: 1, old_town: 1, the_quays: 0, castle_hill: 2, the_lanes: 1, riverside: 1, millbrook: 2, northgate: 2, eastfield: 2, saltmarsh: 2, westcliff: 2}
+  castle_hill: {harbourside: 1, old_town: 1, the_quays: 2, castle_hill: 0, the_lanes: 1, riverside: 2, millbrook: 1, northgate: 1, eastfield: 2, saltmarsh: 2, westcliff: 2}
+  the_lanes: {harbourside: 1, old_town: 1, the_quays: 1, castle_hill: 1, the_lanes: 0, riverside: 1, millbrook: 1, northgate: 2, eastfield: 2, saltmarsh: 2, westcliff: 2}
+  riverside: {harbourside: 2, old_town: 1, the_quays: 1, castle_hill: 2, the_lanes: 1, riverside: 0, millbrook: 1, northgate: 2, eastfield: 1, saltmarsh: 3, westcliff: 3}
+  millbrook: {harbourside: 2, old_town: 2, the_quays: 2, castle_hill: 1, the_lanes: 1, riverside: 1, millbrook: 0, northgate: 1, eastfield: 1, saltmarsh: 3, westcliff: 3}
+  northgate: {harbourside: 2, old_town: 1, the_quays: 2, castle_hill: 1, the_lanes: 2, riverside: 2, millbrook: 1, northgate: 0, eastfield: 2, saltmarsh: 3, westcliff: 3}
+  eastfield: {harbourside: 3, old_town: 2, the_quays: 2, castle_hill: 2, the_lanes: 2, riverside: 1, millbrook: 1, northgate: 2, eastfield: 0, saltmarsh: 4, westcliff: 4}
+  saltmarsh: {harbourside: 1, old_town: 2, the_quays: 2, castle_hill: 2, the_lanes: 2, riverside: 3, millbrook: 3, northgate: 3, eastfield: 4, saltmarsh: 0, westcliff: 2}
+  westcliff: {harbourside: 1, old_town: 2, the_quays: 2, castle_hill: 2, the_lanes: 2, riverside: 3, millbrook: 3, northgate: 3, eastfield: 4, saltmarsh: 2, westcliff: 0}
+
+# A job's `shape` is its week (schedules below); `education` the levels a
+# holder may have, one drawn; `article` (a | an) where the label's first
+# letter misleads ("an HR manager"), else "an" before a vowel.
+jobs:
+  - {id: nurse, label: Nurse, shape: shifts, education: [degree]}
+  - {id: junior_doctor, label: Junior doctor, shape: shifts, education: [postgrad]}
+  - {id: paramedic, label: Paramedic, shape: shifts, education: [degree, college]}
+  - {id: pharmacist, label: Pharmacist, shape: office, education: [postgrad]}
+  - {id: physio, label: Physiotherapist, shape: office, education: [degree]}
+  - {id: dentist, label: Dentist, shape: office, education: [postgrad]}
+  - {id: vet_nurse, label: Vet nurse, shape: shifts, education: [college, degree]}
+  - {id: teacher, label: Teacher, shape: office, education: [degree, postgrad], weight: 2}
+  - {id: lecturer, label: Lecturer, shape: freelance, education: [postgrad]}
+  - {id: teaching_assistant, label: Teaching assistant, shape: office, education: [school, college]}
+  - {id: software_developer, label: Software developer, shape: office, education: [degree, college, school], weight: 2}
+  - {id: data_analyst, label: Data analyst, shape: office, education: [degree, postgrad]}
+  - {id: ux_designer, label: UX designer, shape: freelance, education: [degree, college]}
+  - {id: graphic_designer, label: Graphic designer, shape: freelance, education: [degree, college]}
+  - {id: architect, label: Architect, shape: office, education: [postgrad]}
+  - {id: civil_engineer, label: Civil engineer, shape: office, education: [degree, postgrad]}
+  - {id: marine_engineer, label: Marine engineer, shape: shifts, education: [degree, college]}
+  - {id: electrician, label: Electrician, shape: office, education: [college, school]}
+  - {id: plumber, label: Plumber, shape: office, education: [college, school]}
+  - {id: carpenter, label: Carpenter, shape: freelance, education: [college, school]}
+  - {id: mechanic, label: Mechanic, shape: office, education: [college, school]}
+  - {id: accountant, label: Accountant, shape: office, education: [degree], weight: 2}
+  - {id: solicitor, label: Solicitor, shape: office, education: [postgrad]}
+  - {id: paralegal, label: Paralegal, shape: office, education: [degree]}
+  - {id: hr_manager, label: HR manager, shape: office, education: [degree], article: an}
+  - {id: marketing_exec, label: Marketing exec, shape: office, education: [degree], weight: 2}
+  - {id: recruiter, label: Recruiter, shape: office, education: [degree, college]}
+  - {id: estate_agent, label: Estate agent, shape: office, education: [school, college]}
+  - {id: journalist, label: Journalist, shape: freelance, education: [degree]}
+  - {id: photographer, label: Photographer, shape: freelance, education: [college, degree]}
+  - {id: musician, label: Musician, shape: nights, education: [school, college, degree]}
+  - {id: bartender, label: Bartender, shape: nights, education: [school, college], weight: 2}
+  - {id: chef, label: Chef, shape: nights, education: [college, school], weight: 2}
+  - {id: barista, label: Barista, shape: shifts, education: [school, college]}
+  - {id: baker, label: Baker, shape: shifts, education: [school, college]}
+  - {id: retail_manager, label: Retail manager, shape: shifts, education: [school, college]}
+  - {id: hairdresser, label: Hairdresser, shape: shifts, education: [college]}
+  - {id: personal_trainer, label: Personal trainer, shape: freelance, education: [college]}
+  - {id: police_officer, label: Police officer, shape: shifts, education: [college, degree]}
+  - {id: firefighter, label: Firefighter, shape: shifts, education: [college, school]}
+  - {id: social_worker, label: Social worker, shape: office, education: [degree]}
+  - {id: care_worker, label: Care worker, shape: shifts, education: [school, college]}
+  - {id: ferry_crew, label: Ferry deckhand, shape: shifts, education: [school, college]}
+  - {id: dock_worker, label: Dock worker, shape: nights, education: [school]}
+  - {id: security_guard, label: Night security guard, shape: nights, education: [school]}
+  - {id: delivery_driver, label: Delivery driver, shape: shifts, education: [school]}
+  - {id: museum_curator, label: Museum curator, shape: office, education: [postgrad]}
+  - {id: librarian, label: Librarian, shape: office, education: [degree, postgrad]}
+  - {id: phd_student, label: PhD student, shape: student, education: [postgrad]}
+  - {id: student, label: Student, shape: student, education: [school, college], weight: 2}
+  - {id: small_business_owner, label: Small business owner, shape: freelance, education: [school, college, degree]}
+  - {id: tattoo_artist, label: Tattoo artist, shape: freelance, education: [college, school]}
+
+schedules:
+  # [start_hour, end_hour, status] on a 24-hour day; status asleep | work | free | out.
+  office:
+    mon: [[7, 9, free], [9, 17, work], [17, 23, free]]
+    tue: [[7, 9, free], [9, 17, work], [17, 23, free]]
+    wed: [[7, 9, free], [9, 17, work], [17, 19, free], [19, 23, out]]
+    thu: [[7, 9, free], [9, 17, work], [17, 23, free]]
+    fri: [[7, 9, free], [9, 17, work], [17, 19, free], [19, 24, out]]
+    sat: [[9, 13, free], [13, 18, out], [18, 20, free], [20, 24, out]]
+    sun: [[9, 23, free]]
+  shifts:
+    mon: [[6, 7, free], [7, 15, work], [15, 22, free]]
+    tue: [[6, 7, free], [7, 15, work], [15, 22, free]]
+    wed: [[9, 23, free]]
+    thu: [[10, 14, free], [14, 22, work], [22, 24, free]]
+    fri: [[10, 14, free], [14, 22, work], [22, 24, out]]
+    sat: [[7, 15, work], [15, 18, free], [18, 24, out]]
+    sun: [[10, 22, free]]
+  nights:
+    mon: [[12, 23, free]]
+    tue: [[12, 16, free], [16, 24, work]]
+    wed: [[0, 2, work], [12, 16, free], [16, 24, work]]
+    thu: [[0, 2, work], [12, 16, free], [16, 24, work]]
+    fri: [[0, 2, work], [12, 16, free], [16, 24, work]]
+    sat: [[0, 2, work], [12, 16, free], [16, 24, work]]
+    sun: [[0, 2, work], [12, 18, out], [18, 24, free]]
+  student:
+    mon: [[9, 10, free], [10, 15, work], [15, 20, free], [20, 24, out]]
+    tue: [[0, 1, out], [10, 13, work], [13, 24, free]]
+    wed: [[10, 15, work], [15, 19, free], [19, 24, out]]
+    thu: [[0, 2, out], [11, 16, work], [16, 24, free]]
+    fri: [[10, 13, work], [13, 20, free], [20, 24, out]]
+    sat: [[0, 3, out], [11, 19, free], [19, 24, out]]
+    sun: [[0, 2, out], [11, 24, free]]
+  freelance:
+    mon: [[8, 10, free], [10, 16, work], [16, 23, free]]
+    tue: [[8, 10, free], [10, 18, work], [18, 23, free]]
+    wed: [[8, 12, work], [12, 15, out], [15, 23, free]]
+    thu: [[8, 10, free], [10, 19, work], [19, 23, out]]
+    fri: [[8, 10, free], [10, 15, work], [15, 18, free], [18, 24, out]]
+    sat: [[9, 12, work], [12, 24, free]]
+    sun: [[9, 23, free]]
+
+# The creation hobbies (spec §3.1): `tags` feed matching's Jaccard (T7).
+hobbies:
+  - {id: climbing, label: Climbing, tags: [outdoors, active]}
+  - {id: hiking, label: Hiking, tags: [outdoors, active], weight: 2}
+  - {id: running, label: Running, tags: [active, fitness], weight: 2}
+  - {id: cycling, label: Cycling, tags: [active, outdoors]}
+  - {id: open_water_swimming, label: Sea swimming, tags: [outdoors, active, sea]}
+  - {id: surfing, label: Surfing, tags: [sea, active, outdoors]}
+  - {id: sailing, label: Sailing, tags: [sea, outdoors]}
+  - {id: paddleboarding, label: Paddleboarding, tags: [sea, active]}
+  - {id: gym, label: The gym, tags: [fitness, active], weight: 2}
+  - {id: yoga, label: Yoga, tags: [fitness, calm]}
+  - {id: football, label: Five-a-side, tags: [sport, social, active]}
+  - {id: tennis, label: Tennis, tags: [sport, active]}
+  - {id: bouldering, label: Bouldering, tags: [active, social]}
+  - {id: dancing, label: Dancing, tags: [music, social, active]}
+  - {id: cooking, label: Cooking, tags: [food, home], weight: 2}
+  - {id: baking, label: Baking, tags: [food, home, creative]}
+  - {id: eating_out, label: Eating out, tags: [food, social], weight: 2}
+  - {id: coffee, label: Good coffee, tags: [food, calm]}
+  - {id: wine, label: Wine bars, tags: [food, social, nightlife]}
+  - {id: craft_beer, label: Craft beer, tags: [nightlife, social]}
+  - {id: gigs, label: Live music, tags: [music, nightlife, social], weight: 2}
+  - {id: clubbing, label: Clubbing, tags: [music, nightlife]}
+  - {id: playing_guitar, label: Playing guitar, tags: [music, creative]}
+  - {id: vinyl, label: Vinyl, tags: [music, home]}
+  - {id: karaoke, label: Karaoke, tags: [music, social, nightlife]}
+  - {id: reading, label: Reading, tags: [books, calm, home], weight: 2}
+  - {id: writing, label: Writing, tags: [books, creative]}
+  - {id: poetry, label: Poetry, tags: [books, creative]}
+  - {id: film, label: Film, tags: [screen, culture], weight: 2}
+  - {id: tv, label: Bingeing a series, tags: [screen, home]}
+  - {id: video_games, label: Video games, tags: [screen, games, home]}
+  - {id: board_games, label: Board games, tags: [games, social, home]}
+  - {id: pub_quizzes, label: Pub quizzes, tags: [games, social, nightlife]}
+  - {id: chess, label: Chess, tags: [games, calm]}
+  - {id: painting, label: Painting, tags: [creative, art]}
+  - {id: photography, label: Photography, tags: [creative, art, outdoors]}
+  - {id: galleries, label: Galleries, tags: [art, culture]}
+  - {id: theatre, label: Theatre, tags: [culture, social]}
+  - {id: comedy, label: Stand-up comedy, tags: [culture, nightlife, social]}
+  - {id: museums, label: Museums, tags: [culture, calm]}
+  - {id: travel, label: Travel, tags: [travel, outdoors], weight: 2}
+  - {id: languages, label: Learning languages, tags: [travel, books]}
+  - {id: gardening, label: Gardening, tags: [home, outdoors, calm]}
+  - {id: plants, label: Houseplants, tags: [home, calm]}
+  - {id: dogs, label: Dogs, tags: [animals, outdoors]}
+  - {id: cats, label: Cats, tags: [animals, home]}
+  - {id: thrifting, label: Charity shops, tags: [style, creative]}
+  - {id: fashion, label: Fashion, tags: [style, social]}
+  - {id: diy, label: DIY, tags: [home, creative]}
+  - {id: volunteering, label: Volunteering, tags: [social, calm]}
+  - {id: astronomy, label: Stargazing, tags: [outdoors, calm, science]}
+  - {id: podcasts, label: Podcasts, tags: [screen, calm]}
+  - {id: fishing, label: Fishing, tags: [sea, outdoors, calm]}
+
+# Three per person, weighted; character notes for the voice (spec §11).
+traits:
+  - {id: dry_humour, label: Dry humour, weight: 3}
+  - {id: warm, label: Warm, weight: 3}
+  - {id: curious, label: Curious, weight: 3}
+  - {id: sarcastic, label: Sarcastic, weight: 2}
+  - {id: earnest, label: Earnest, weight: 2}
+  - {id: chaotic, label: A bit chaotic, weight: 2}
+  - {id: organised, label: Organised, weight: 2}
+  - {id: shy, label: Shy at first, weight: 2}
+  - {id: confident, label: Confident, weight: 2}
+  - {id: flirty, label: Flirty, weight: 2}
+  - {id: blunt, label: Blunt, weight: 1}
+  - {id: thoughtful, label: Thoughtful, weight: 3}
+  - {id: anxious, label: A worrier, weight: 1}
+  - {id: laid_back, label: Laid back, weight: 3}
+  - {id: competitive, label: Competitive, weight: 2}
+  - {id: romantic_streak, label: A romantic streak, weight: 2}
+  - {id: nerdy, label: Nerdy, weight: 2}
+  - {id: adventurous, label: Up for anything, weight: 2}
+  - {id: homely, label: A homebody, weight: 2}
+  - {id: loyal, label: Loyal, weight: 2}
+  - {id: stubborn, label: Stubborn, weight: 1}
+  - {id: impulsive, label: Impulsive, weight: 1}
+  - {id: observant, label: Notices everything, weight: 1}
+  - {id: storyteller, label: A storyteller, weight: 2}
+  - {id: teasing, label: Teasing, weight: 2}
+  - {id: practical, label: Practical, weight: 2}
+  - {id: dreamy, label: A daydreamer, weight: 1}
+  - {id: ambitious, label: Ambitious, weight: 2}
+  - {id: easily_bored, label: Easily bored, weight: 1}
+  - {id: generous, label: Generous, weight: 2}
+  - {id: private, label: Private, weight: 1}
+  - {id: night_person, label: A night person, weight: 1}
+  - {id: morning_person, label: A morning person, weight: 1}
+  - {id: overthinker, label: An overthinker, weight: 1}
+
+# The five sliders, 1-5 (creation.yaml's `personality.of`; matching compares them, T7).
+personality: [outgoing, playful, romantic, adventurous, homebody]
+
+# The creation attribute set (spec §3.1), one weighted row of each, drawn in
+# this order. Each id must be one of creation.yaml's for that attribute.
+attribute_tables: [height, build, hair, style, drinks, smokes, kids]
+
+height:
+  - {id: short, label: short, weight: 2}
+  - {id: average, label: average height, weight: 5}
+  - {id: tall, label: tall, weight: 3}
+
+build:
+  - {id: slim, label: slim, weight: 3}
+  - {id: average, label: average build, weight: 4}
+  - {id: athletic, label: athletic, weight: 3}
+  - {id: curvy, label: curvy, weight: 2}
+  - {id: broad, label: broad-shouldered, weight: 2}
+  - {id: heavy, label: heavyset, weight: 1}
+
+hair:
+  - {id: black_short, label: short black hair, weight: 3}
+  - {id: black_long, label: long black hair, weight: 2}
+  - {id: brown_short, label: short brown hair, weight: 4}
+  - {id: brown_long, label: long brown hair, weight: 3}
+  - {id: brown_curly, label: curly brown hair, weight: 2}
+  - {id: blonde_short, label: short blonde hair, weight: 2}
+  - {id: blonde_long, label: long blonde hair, weight: 2}
+  - {id: red, label: red hair, weight: 1}
+  - {id: auburn_wavy, label: wavy auburn hair, weight: 1}
+  - {id: grey, label: grey hair, weight: 1}
+  - {id: dyed, label: brightly dyed hair, weight: 1}
+  - {id: shaved, label: a shaved head, weight: 1}
+  - {id: braids, label: braids, weight: 1}
+  - {id: afro, label: an afro, weight: 1}
+  - {id: buzz_cut, label: a buzz cut, weight: 1}
+
+style:
+  - {id: casual, label: jeans-and-a-t-shirt casual, weight: 5}
+  - {id: smart, label: smart, weight: 2}
+  - {id: sporty, label: sporty, weight: 3}
+  - {id: outdoorsy, label: outdoorsy, in a rain jacket, weight: 2}
+  - {id: vintage, label: vintage, weight: 2}
+  - {id: alternative, label: alternative, all black, weight: 1}
+  - {id: preppy, label: preppy, weight: 1}
+  - {id: artsy, label: artsy, paint on the sleeves, weight: 1}
+  - {id: minimal, label: minimal, neutral colours, weight: 2}
+  - {id: streetwear, label: streetwear, weight: 2}
+
+drinks:
+  - {id: never, label: Never, weight: 2}
+  - {id: socially, label: Socially, weight: 6}
+  - {id: often, label: Often, weight: 2}
+
+smokes:
+  - {id: "no", label: "No", weight: 8}
+  - {id: sometimes, label: Sometimes, weight: 2}
+  - {id: "yes", label: "Yes", weight: 1}
+
+kids:                        # "have" is the has_kids flag's; a drawn "have" without it reads "unsure"
+  - {id: want, label: Wants kids, weight: 3}
+  - {id: dont_want, label: Doesn't want kids, weight: 2}
+  - {id: unsure, label: Not sure yet, weight: 4}
+
+appearance:                  # one row of each, joined after the attribute labels (spec §13.3)
+  eyes:
+    - {id: brown, label: brown eyes, weight: 5}
+    - {id: blue, label: blue eyes, weight: 3}
+    - {id: green, label: green eyes, weight: 2}
+    - {id: grey, label: grey eyes, weight: 1}
+    - {id: hazel, label: hazel eyes, weight: 2}
+  skin:
+    - {id: fair, label: fair skin, weight: 3}
+    - {id: freckled, label: freckled skin, weight: 1}
+    - {id: olive, label: olive skin, weight: 2}
+    - {id: light_brown, label: light brown skin, weight: 2}
+    - {id: brown, label: brown skin, weight: 2}
+    - {id: dark, label: dark skin, weight: 2}
+  features:
+    - {id: none, label: an easy smile, weight: 4}
+    - {id: glasses, label: round glasses, weight: 2}
+    - {id: tattoo_arm, label: a tattooed forearm, weight: 1}
+    - {id: nose_ring, label: a nose ring, weight: 1}
+    - {id: dimples, label: dimples, weight: 1}
+    - {id: gap_teeth, label: a gap-toothed grin, weight: 1}
+    - {id: scar, label: a small scar through one eyebrow, weight: 1}
+    - {id: sunglasses, label: sunglasses pushed up on the head, weight: 1}
+
+flags:                       # each drawn once per person with its probability
+  has_pet: 0.3
+  has_kids: 0.15
+  lives_with_flatmates: 0.35
+  owns_a_car: 0.4
+  plays_an_instrument: 0.2
+  has_tattoos: 0.25
+
+texting_styles:              # character notes for the voice, never rules (spec §4.3)
+  - {id: lowercase_fast, length: short, caps: lower, punctuation: light, emoji: 0.2, questions: 0.3, humour: playful, weight: 3}
+  - {id: proper_paragraphs, length: long, caps: sentence, punctuation: full, emoji: 0.05, questions: 0.5, humour: warm, weight: 2}
+  - {id: emoji_heavy, length: short, caps: sentence, punctuation: light, emoji: 0.8, questions: 0.4, humour: playful, weight: 2}
+  - {id: dry_one_liners, length: short, caps: sentence, punctuation: full, emoji: 0.05, questions: 0.2, humour: dry, weight: 2}
+  - {id: voice_of_a_meme, length: short, caps: mixed, punctuation: none, emoji: 0.3, questions: 0.3, humour: absurd, weight: 1}
+  - {id: earnest_questions, length: medium, caps: sentence, punctuation: full, emoji: 0.15, questions: 0.8, humour: gentle, weight: 2}
+  - {id: rapid_bursts, length: short, caps: lower, punctuation: none, emoji: 0.25, questions: 0.4, humour: playful, weight: 2}
+  - {id: ellipsis_drifter, length: medium, caps: lower, punctuation: ellipses, emoji: 0.1, questions: 0.3, humour: gentle, weight: 1}
+  - {id: exclamation_sunny, length: medium, caps: sentence, punctuation: exclamations, emoji: 0.5, questions: 0.5, humour: warm, weight: 2}
+  - {id: terse_busy, length: short, caps: sentence, punctuation: light, emoji: 0.0, questions: 0.1, humour: dry, weight: 1}
+
+bios:                        # per texting style; {hobby_a} {hobby_b} {job} {a_job} {A_job} {neighbourhood}
+  lowercase_fast:
+    - "{hobby_a} > everything"
+    - "{job} by day, {hobby_a} by night"
+    - "new-ish to {neighbourhood}. show me the good chippy"
+    - "{hobby_a}, {hobby_b}, too much tea"
+    - "probably out {hobby_a} rn"
+    - "will judge u on ur {hobby_b} opinions"
+    - "{neighbourhood} local. ask me about {hobby_a}"
+  proper_paragraphs:
+    - "I work as {a_job} and spend most weekends on {hobby_a}. Looking for someone to share a long Sunday with."
+    - "Living in {neighbourhood}. Fond of {hobby_a} and {hobby_b}, and of people who ask good questions."
+    - "{job}, occasionally competent. I'll talk about {hobby_a} for longer than you'd like."
+    - "Recently took up {hobby_b}. Still terrible at it. Would welcome company in being terrible."
+    - "{A_job} in {neighbourhood}. Happiest doing {hobby_a}, or planning the next time I can."
+    - "I like {hobby_a}, I like {hobby_b}, and I like a good walk along the harbour after."
+  emoji_heavy:
+    - "{hobby_a} 🌊 {hobby_b} 🍜 {neighbourhood} 📍"
+    - "{job} 💼 but mostly {hobby_a} ✨"
+    - "send me your best {hobby_b} recs 🙏"
+    - "{neighbourhood} girlie/guy 🏙️ {hobby_a} obsessed 😅"
+    - "☕ + {hobby_a} = perfect day"
+    - "will beat you at {hobby_b} 🏆"
+  dry_one_liners:
+    - "{job}. It's fine."
+    - "Mostly {hobby_a}. Some {hobby_b}. Occasionally sleep."
+    - "Lives in {neighbourhood}. Has opinions about it."
+    - "Professionally {a_job}. Recreationally, {hobby_a}."
+    - "Two truths and a lie: I like {hobby_a}, I like {hobby_b}, I like mornings."
+    - "Here because my friend said so."
+  voice_of_a_meme:
+    - "{hobby_a} enjoyer"
+    - "me: one more episode. also me: {hobby_b}"
+    - "{job} by trade, gremlin by nature"
+    - "{neighbourhood}'s premier {hobby_a} guy (self-appointed)"
+    - "it's giving {hobby_a}"
+    - "certified {hobby_b} menace"
+  earnest_questions:
+    - "What's the best thing about {neighbourhood}? I'm still deciding."
+    - "Into {hobby_a} and {hobby_b}. What are you into?"
+    - "I'm {a_job}. Tell me what you'd do if you weren't doing what you do."
+    - "Looking for good conversation, and maybe someone to try {hobby_b} with."
+    - "Favourite way to spend a Saturday? Mine involves {hobby_a}."
+    - "What's something you've changed your mind about lately?"
+  rapid_bursts:
+    - "{hobby_a} {hobby_b} repeat"
+    - "{job} tired but {hobby_a} awake"
+    - "ok so {neighbourhood} is underrated"
+    - "message me ur {hobby_a} spots"
+    - "here for {hobby_b} buddies and whatever else"
+    - "talk fast i get bored jk"
+  ellipsis_drifter:
+    - "{hobby_a}... {hobby_b}... the sea..."
+    - "{a_job} who'd rather be doing {hobby_a}..."
+    - "somewhere in {neighbourhood}... probably with a book..."
+    - "still figuring things out... {hobby_b} helps..."
+    - "slow mornings... long walks... you know..."
+    - "not great at bios... better at {hobby_a}..."
+  exclamation_sunny:
+    - "Big fan of {hobby_a}! And {hobby_b}! And snacks!"
+    - "{job} who loves a plan! Let's make one!"
+    - "Just moved to {neighbourhood}! Show me around!"
+    - "Happiest doing {hobby_a} with good people!"
+    - "Looking for someone to drag to {hobby_b}!"
+    - "Life's short! Go {hobby_a}!"
+  terse_busy:
+    - "{job}. Busy. Worth it."
+    - "{hobby_a} when I can."
+    - "{neighbourhood}. Weekends free."
+    - "Work, {hobby_a}, sleep."
+    - "Not on here much."
+    - "{hobby_b}. Coffee. Early nights."
+
+# The comment a person leaves when they like the player first (Front Porch's
+# "Likes you", spec §8.3), per texting style; the same names as a bio may use.
+# Read by engine/social/matching.py (v0.22.0 T7).
+like_comments:
+  lowercase_fast:
+    - "ok ur profile made me laugh"
+    - "u seem fun. {hobby_a} sometime?"
+    - "had to say hi"
+  proper_paragraphs:
+    - "Your profile felt like someone I'd actually enjoy talking to. Hello!"
+    - "I spend my weekends on {hobby_a}, and I think you'd fit right in."
+    - "I liked the way you write. Tell me more?"
+  emoji_heavy:
+    - "hiii 👋 you seem lovely ✨"
+    - "{hobby_a} buddy?? 😄"
+    - "this made my day 😂"
+  dry_one_liners:
+    - "Good profile. Annoyingly good."
+    - "You seem tolerable. High praise."
+    - "Hello. That's the whole opener."
+  voice_of_a_meme:
+    - "me liking ur profile: 10/10 no notes"
+    - "not me sending a like at this hour"
+    - "this is a sign"
+  earnest_questions:
+    - "What's the best thing you've done this month?"
+    - "Do you like {hobby_a}? I couldn't tell!"
+    - "How do you spend a slow Sunday?"
+  rapid_bursts:
+    - "hi"
+    - "ok hello"
+    - "you seem cool hi"
+  ellipsis_drifter:
+    - "hi... your profile stuck with me..."
+    - "this felt worth a like..."
+    - "hello from {neighbourhood}..."
+  exclamation_sunny:
+    - "Hi! You seem great!"
+    - "Okay you sound fun! {hobby_a} sometime?"
+    - "Had to say hello!"
+  terse_busy:
+    - "Hi. Liked your profile."
+    - "Free at the weekend?"
+    - "Hello."
+
+prompts:                    # Front Porch's three (spec §6); an answer by hobby, else `a_any`
+  front_porch:
+    - q: "A perfect Sunday"
+      a_by_hobby:
+        climbing: ["Early session at the wall, then a fry-up I've earned."]
+        hiking: ["Out on the coast path before anyone's up, pub lunch after."]
+        cooking: ["A slow-cooked something and nowhere to be."]
+        reading: ["A whole novel and a whole pot of tea."]
+        open_water_swimming: ["A cold dip at Saltmarsh and a very hot shower."]
+        gigs: ["Recovering from Saturday's gig with a bacon roll."]
+      a_any: ["Late breakfast, a long walk, somebody good to talk to.", "Doing absolutely nothing, beautifully."]
+    - q: "I'm weirdly attracted to"
+      a_by_hobby:
+        board_games: ["People who read the rules out loud properly."]
+        cooking: ["Anyone who seasons as they go."]
+        film: ["People who stay for the credits."]
+        running: ["A good stretching routine, honestly."]
+      a_any: ["Good handwriting.", "People who know the names of birds.", "Confidence in karaoke."]
+    - q: "My most irrational fear"
+      a_by_hobby:
+        sailing: ["Running aground in front of the whole harbour."]
+        surfing: ["Not the sharks. The seaweed."]
+        plants: ["Coming home to a crispy monstera."]
+      a_any: ["Pigeons with intent.", "Someone reading my texts over my shoulder.", "Phone calls from unknown numbers."]
+    - q: "The way to win me over is"
+      a_by_hobby:
+        coffee: ["Knowing the good café before I do."]
+        baking: ["Arrive with baked goods. Any baked goods."]
+        dogs: ["Be nice to my dog. Or any dog."]
+        pub_quizzes: ["Know the answer to the music round."]
+      a_any: ["Ask a follow-up question.", "Make me laugh at something stupid.", "Plan the second date before the first ends."]
+    - q: "Together, we could"
+      a_by_hobby:
+        travel: ["Finally book the trip I keep talking about."]
+        diy: ["Build a bookshelf that doesn't lean."]
+        gardening: ["Grow tomatoes on a balcony and be insufferable about it."]
+        video_games: ["Beat the co-op level I'm stuck on."]
+      a_any: ["Find the best chips in {neighbourhood}.", "Try every café on the harbour.", "Get lost on purpose."]
+    - q: "My simple pleasures"
+      a_by_hobby:
+        vinyl: ["The crackle before the first track."]
+        coffee: ["The first sip, standing at the window."]
+        astronomy: ["A clear night up on Castle Hill."]
+        fishing: ["Nothing biting and not minding."]
+      a_any: ["Clean sheets.", "Rain on the window when I'm already in.", "A bus that comes when the app says it will."]
+    - q: "I'll fall for you if"
+      a_by_hobby:
+        dancing: ["You'll dance badly with me in the kitchen."]
+        poetry: ["You send me a line of something you love."]
+        comedy: ["You laugh at my jokes. Or at me. Either."]
+      a_any: ["You remember the small things.", "You text back like a normal person.", "You've got a good story about {hobby_a}."]
+    - q: "Typical weeknight"
+      a_by_hobby:
+        gym: ["Gym, dinner, an episode, asleep by eleven."]
+        tv: ["Two episodes that become five."]
+        football: ["Five-a-side on Tuesdays, sacred."]
+      a_any: ["Work as {a_job}, cook something, call it a night.", "Pretending I'll go to bed early."]
+    - q: "Green flags I look for"
+      a_any: ["Kind to waiters.", "Has a hobby they'd talk about for an hour.", "Says what they mean."]
+    - q: "Best spot in Port Merrow"
+      a_by_hobby:
+        hiking: ["The top of Westcliff at sunset."]
+        eating_out: ["The noodle bar behind the Quays market."]
+        galleries: ["The little gallery on Castle Hill nobody goes into."]
+      a_any: ["Anywhere in {neighbourhood} after the rain.", "The harbour wall at high tide."]
+
+photo_set:                   # >= 30; also the player's (creation.yaml `photos`)
+  - {id: hike_squint, label: "on a hike, squinting at the camera", scene: "coastal trail, midday light"}
+  - {id: mirror_jacket, label: "a mirror selfie in a good jacket", scene: "hallway mirror, warm lamp"}
+  - {id: harbour_sunset, label: "on the harbour wall at sunset", scene: "harbour wall, golden hour"}
+  - {id: pint_laughing, label: "laughing at a pub table", scene: "busy pub, low light"}
+  - {id: dog_cuddle, label: "cuddling somebody's dog", scene: "park lawn, overcast"}
+  - {id: wedding_guest, label: "dressed up as a wedding guest", scene: "marquee, string lights"}
+  - {id: festival_crowd, label: "in a festival crowd", scene: "outdoor stage, evening"}
+  - {id: kitchen_cooking, label: "cooking, mid-stir", scene: "small kitchen, steam"}
+  - {id: coffee_window, label: "with a coffee by a café window", scene: "café window, morning light"}
+  - {id: beach_windswept, label: "windswept on a beach", scene: "grey beach, wind"}
+  - {id: gig_blurry, label: "a blurry photo at a gig", scene: "dark venue, stage lights"}
+  - {id: bike_helmet, label: "with a bike, helmet on", scene: "country lane, bright"}
+  - {id: book_sofa, label: "reading on a sofa", scene: "living room, afternoon"}
+  - {id: group_night_out, label: "a group shot on a night out", scene: "city street, night"}
+  - {id: travel_landmark, label: "in front of a landmark abroad", scene: "foreign square, sunshine"}
+  - {id: gym_selfie, label: "a post-gym selfie", scene: "gym mirror, fluorescent light"}
+  - {id: climbing_wall, label: "halfway up a climbing wall", scene: "indoor climbing wall"}
+  - {id: boat_deck, label: "on the deck of a small boat", scene: "open water, bright sky"}
+  - {id: snow_hat, label: "in a woolly hat in the snow", scene: "snowy hillside"}
+  - {id: art_gallery, label: "looking at a painting in a gallery", scene: "white gallery wall"}
+  - {id: garden_plants, label: "among a lot of plants", scene: "balcony garden"}
+  - {id: cat_on_lap, label: "with a cat on their lap", scene: "armchair, lamp light"}
+  - {id: rooftop_drink, label: "with a drink on a rooftop", scene: "rooftop bar, dusk"}
+  - {id: market_stall, label: "browsing a market stall", scene: "covered market, daytime"}
+  - {id: swim_cold, label: "just out of a cold sea swim", scene: "stone slipway, early morning"}
+  - {id: costume_party, label: "in a fancy-dress costume", scene: "house party, coloured lights"}
+  - {id: graduation, label: "in a graduation gown", scene: "university lawn"}
+  - {id: car_selfie, label: "a selfie in the driver's seat", scene: "parked car, daylight"}
+  - {id: kid_photo, label: "a childhood photo, for fun", scene: "faded print, 90s colours"}
+  - {id: guitar_playing, label: "playing guitar", scene: "bedroom, fairy lights"}
+  - {id: picnic_blanket, label: "on a picnic blanket", scene: "park, summer afternoon"}
+  - {id: rain_umbrella, label: "under an umbrella in the rain", scene: "wet street, reflections"}
+  - {id: candid_laugh, label: "a candid shot, mid-laugh", scene: "friend's kitchen"}
+
+preferences:
+  selectivity: {mean: 0.45, sd: 0.2}       # 0-1, clamped
+  age_below: [3, 8]                        # their range: own age minus this ...
+  age_above: [3, 10]                       # ... to own age plus this
+  dealbreaker_count: [0, 2]                # drawn per person, from:
+  dealbreakers: [smokes_yes, smokes_sometimes, kids_dont_want, kids_want, kids_have, drinks_often, drinks_never]

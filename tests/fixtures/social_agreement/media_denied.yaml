@@ -1,0 +1,30 @@
+# Agreement check "media denied" (spec §11.5): media attached, the bubbles say they will not send it.
+# `bad` must fail the check; `good` must pass EVERY check.
+base: &base
+  stage: numbers
+  person: {name: Maya, age: 31, job: nurse, neighbourhood: old_town}
+  player: {name: Sam, age: 29, neighbourhood: harbourside, attributes: {job: accountant}}
+  contacts: [Jordan, Priya]
+  decision: {situation: send_selfie, kind: photo, media_kind: photo, subject: selfie}
+
+bad:
+  - {<<: *base, reply: {bubbles: [{text: "not sending that one sorry"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "I won't send it, too shy"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "can't send pics at work"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "No pics, sorry!"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "I'm not comfortable sending that"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "hmm"}, {text: "not gonna send that"}]}}
+
+good:
+  - {<<: *base, reply: {bubbles: [{text: "here's me at the harbour"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "sending this before I chicken out"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "not my best angle but here"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "took this just now"}, {text: "is it ok?"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "you asked for it 🙈"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "here's one, maybe another time I'll send a better one"}]}}
+  # a question about sending, not a refusal
+  - {<<: *base, reply: {bubbles: [{text: "should I be not sending these at work?"}]}}
+  # no media attached: a refusal agrees with the engine
+  - <<: *base
+    decision: {situation: decline_photo, kind: decline, request_id: r0001}
+    reply: {bubbles: [{text: "not sending that, sorry"}]}

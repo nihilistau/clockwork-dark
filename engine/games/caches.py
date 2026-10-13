@@ -117,6 +117,13 @@ NULLED_ATTRIBUTES: tuple[tuple[str, str], ...] = (
     # Parsed clues file: the role, the evidence meter, every clue's row. A swap
     # that kept it warm would lay one city's trail through another's houses.
     ("engine.world.clues", "_SPEC_CACHE"),
+    # The social engine's data files for the active story (v0.22.0).
+    ("engine.social", "_DATA_CACHE"),
+    # The active story's parsed prompts/texter.md (v0.22.0 T13): persona, situations, fallbacks.
+    ("engine.social.voicing", "_TEXTER_CACHE"),
+    # The active story's Tile Talk word list (v0.22.0 T22): its words and every prefix of them.
+    ("engine.social.games.wordgame", "_WORDS"),
+    ("engine.social.games.wordgame", "_PREFIXES"),
     # Warn-once memory for a story's missing death rules; per story.
     ("engine.game.encounter", "_WARNED_DEATH"),
     ("engine.media.comfyui", "_TEMPLATE_CACHE"),
@@ -231,6 +238,10 @@ RELOADERS: tuple[tuple[str, str], ...] = (
     # failure mode is the worst kind: reads succeed and return the wrong story's
     # defaults.
     ("engine.state.active", "reset_schema"),
+    # READ RECEIPTS' generated people (v0.22.0 T3, pre-flight F7): a profile is
+    # drawn from the active story's population.yaml and apps.yaml, so a data
+    # reload or a filter change must never serve the people cached before it.
+    ("engine.social.population", "reset_profiles"),
 )
 
 # (consumer module, consumer attribute, source module, source attribute).
@@ -286,6 +297,13 @@ WARMERS: tuple[tuple[str, str], ...] = (
     ("engine.world.jobs", "spec"),
     ("engine.world.agendas", "spec"),
     ("engine.world.clues", "spec"),
+    # The social engine's data files (v0.22.0); {} for a story without paths.social.
+    ("engine.social", "load_all"),
+    # texter.md, cross-checked against the social data loaded just above
+    # (only for a story declaring paths.social: no other imports engine.social's submodules).
+    ("engine.games.caches", "_warm_texter"),
+    # Tile Talk's word list (v0.22.0 T22), for a story declaring paths.social only.
+    ("engine.games.caches", "_warm_words"),
     ("engine.media.comfyui", "load_comfyui_templates"),
     ("engine.mcp.scene_rules_engine", "get_rules_engine"),
     ("engine.game.quests", "load_arcs"),
@@ -333,6 +351,24 @@ def _warm_story_tables() -> None:
     """
     importlib.import_module("engine.game.locations")
     importlib.import_module("engine.skills.builtin.assistant")
+
+
+def _warm_texter() -> None:
+    """READ RECEIPTS' parsed ``prompts/texter.md`` (v0.22.0 T13), for a story declaring ``paths.social``
+    only: a story without it never imports ``engine.social``'s submodules (spec §2.1)."""
+    from engine import social
+
+    if social.declared():
+        importlib.import_module("engine.social.voicing").texter_prompt()
+
+
+def _warm_words() -> None:
+    """READ RECEIPTS' Tile Talk word list and its prefixes (v0.22.0 T22), for a story declaring
+    ``paths.social`` only: a story without it never imports ``engine.social``'s submodules (spec §2.1)."""
+    from engine import social
+
+    if social.declared():
+        importlib.import_module("engine.social.games.wordgame").load_words()
 
 
 def _warm_decks() -> None:

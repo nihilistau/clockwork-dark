@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { probeHeader, probeLayout, probeStart, shelfHeadingVisible } from "../tools/layout-probe.js";
+import { probeHeader, probeLayout, probePhone, probeStart, shelfHeadingVisible } from "../tools/layout-probe.js";
 
 // The same root plugin-contract.test.js reads from: vitest runs in ui/.
 const read = (path) => readFileSync(resolve(process.cwd(), "src", path), "utf8").replace(/\r\n/g, "\n");
@@ -528,5 +528,83 @@ describe("the people strip and the log's lines on a phone (v0.21.0)", () => {
     expect(css).toMatch(/@media \(max-width: 600px\) \{\s*\.scene__col--main:has\(> \.stage-area > \.people\) \{\s*--row-visual: 4fr;\s*--row-log: 6fr;/);
     expect(css).toMatch(/\.people--stage \.people__list \{ scroll-snap-type: x mandatory; \}/);
     expect(css).toMatch(/flex: 0 0 calc\(\(100% - var\(--space-2\)\) \/ 2\)/);
+  });
+});
+
+describe("probePhone (v0.22.0 T27)", () => {
+  /** A phone in a 800x600 window: frame, screen, one button, from [top, bottom, left, right] boxes. */
+  function phone({ frame = [0, 600, 0, 800], button = [500, 540, 100, 200], cover = null } = {}) {
+    document.body.innerHTML = `
+      <div class="rr-frame"><div class="rr-screen"><div class="rr-view"><button class="go">Go</button></div></div></div>
+      ${cover ? '<div class="sheet"></div>' : ""}`;
+    const set = (el, [top, bottom, left, right]) => {
+      el.getBoundingClientRect = () => ({ top, bottom, left, right, width: right - left, height: bottom - top });
+    };
+    set(document.querySelector(".rr-frame"), frame);
+    set(document.querySelector(".rr-screen"), frame);
+    set(document.querySelector(".rr-view"), frame);
+    set(document.querySelector(".go"), button);
+    if (cover) set(document.querySelector(".sheet"), cover);
+    document.elementFromPoint = () => (cover ? document.querySelector(".sheet") : document.querySelector(".go"));
+    window.innerWidth = 800;
+    window.innerHeight = 600;
+  }
+
+  it("a control on the screen with nothing over it is reached", () => {
+    phone();
+    const result = probePhone({ controls: [".go"] });
+    expect(result.failures).toEqual([]);
+    expect(result.reached).toHaveLength(1);
+  });
+
+  it("a control below the screen's edge, one covered, and one missing all fail", () => {
+    phone({ button: [590, 640, 100, 200] });
+    expect(probePhone({ controls: [".go"] }).failures.join()).toMatch(/not wholly on the phone's screen/);
+    phone({ cover: [0, 600, 0, 800] });
+    expect(probePhone({ controls: [".go"] }).failures.join()).toMatch(/covered by sheet/);
+    phone();
+    expect(probePhone({ controls: [".nope"] }).failures.join()).toMatch(/no control matches \.nope/);
+  });
+
+  it("the bezel keeps 9:19.5 under 860px; without one the frame fills the width", () => {
+    phone({ frame: [0, 585, 265, 535] });
+    expect(probePhone({ bezel: true }).failures).toEqual([]);
+    phone({ frame: [0, 585, 200, 600] });
+    expect(probePhone({ bezel: true }).failures.join()).toMatch(/not 9:19.5/);
+    phone({ frame: [0, 600, 0, 700] });
+    expect(probePhone({ bezel: false }).failures.join()).toMatch(/fill the width/);
+  });
+
+  it("scroll: a control below the fold is scrolled into view first, and only then measured (T30)", () => {
+    phone({ button: [590, 640, 100, 200] });
+    const go = document.querySelector(".go");
+    let scrolled = 0;
+    go.scrollIntoView = () => {
+      scrolled += 1;
+      go.getBoundingClientRect = () => ({ top: 500, bottom: 550, left: 100, right: 200, width: 100, height: 50 });
+    };
+    // At rest it is past the screen's edge; the strict probe never scrolls it.
+    expect(probePhone({ controls: [".go"] }).failures.join()).toMatch(/not wholly on the phone's screen/);
+    expect(scrolled).toBe(0);
+    expect(probePhone({ controls: [".go"], scroll: true }).failures).toEqual([]);
+    expect(scrolled).toBe(1);
+  });
+
+  it("a region (the Tile Talk board) cut by its own scroller fails by that scroller's name (T30)", () => {
+    document.body.innerHTML = `
+      <div class="rr-frame"><div class="rr-screen"><div class="rr-board-wrap" style="overflow-y: auto"><div class="rr-board"></div></div></div></div>`;
+    const set = (el, [top, bottom, left, right]) => {
+      el.getBoundingClientRect = () => ({ top, bottom, left, right, width: right - left, height: bottom - top });
+    };
+    set(document.querySelector(".rr-frame"), [0, 600, 0, 800]);
+    set(document.querySelector(".rr-screen"), [0, 600, 0, 800]);
+    set(document.querySelector(".rr-board-wrap"), [100, 400, 0, 800]);
+    set(document.querySelector(".rr-board"), [100, 560, 0, 460]);
+    document.elementFromPoint = () => document.querySelector(".rr-board");
+    window.innerWidth = 800;
+    window.innerHeight = 600;
+    expect(probePhone({ controls: [".rr-board"] }).failures.join()).toMatch(/\.rr-board .* is cut off by rr-board-wrap/);
+    set(document.querySelector(".rr-board"), [100, 400, 0, 300]);
+    expect(probePhone({ controls: [".rr-board"] }).failures).toEqual([]);
   });
 });

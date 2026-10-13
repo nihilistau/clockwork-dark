@@ -1,0 +1,395 @@
+# READ RECEIPTS -- behaviours.yaml (paths.social, spec §2.1, §5).
+#
+# The archetypes: pacing, ghosting, initiations, arcs, media habits and game
+# skill (spec §5). Read by engine/social/behaviour.py (`archetype(name)`,
+# `arc_spec(name)`); every person has one archetype, drawn by its app's
+# `culture.archetype_weights` (apps.yaml), so every archetype named there is
+# declared here (validate_content.py checks it).
+#
+# Shapes (spec §5.1; every key is required):
+#   reply_minutes, read_minutes   {median, spread}: a lognormal latency in
+#                                 minutes, median > 0 (behaviour.lognormal_minutes)
+#   reply_prob, opener_prob       0-1
+#   ghost_per_exchange            0-1, a chance per exchange (spec §9.2)
+#   left_on_read_sensitivity      interest lost per hour left on read (spec §9.4)
+#   warmth_mult                   the model's proposed warmth, multiplied (spec §10.2)
+#   warmth_cap_band               a closeness band warmth never passes, or null
+#   cool_off_step                 interest a `cool_off` proposal costs, 0-5 (spec §10.5)
+#   flake_prob                    0-1, a meet-up flaked on the day (spec §14.2)
+#   double_text                   {after_hours, prob, max_in_row} (spec §9.3)
+#   initiations                   a list of {id, kind, prob | prob_per_day,
+#                                 at_hours?, when?, instruction?}; `when` names
+#                                 conditions (stage_min, hours_since_player,
+#                                 days_since_last ...) read by T8/T9;
+#                                 `instruction` an id in texter.md's
+#                                 `## Instructions` table
+#   media                         {offer_mult, accept_mult} (spec §13.1)
+#   games                         {skill 0-1, invite_prob_per_day 0-1} (spec §21):
+#                                 Tile Talk's pick by skill; the chance each
+#                                 morning they ask the player for a game
+#                                 (engine/social/games, since T23)
+#   arc                           an `arcs:` id, or null
+#
+# Arcs (spec §5.3, engine/social/relationships.py): exactly one of `at` (a
+# point) or `from` (a start), each `{measure: [low, high]}`, and `beat`
+# and/or `each_day`. A person's point is a whole number drawn once in that
+# span (SOCIAL_BEHAVIOUR, a stable key). `at` counts `exchanges` (turns
+# taken, either way): at the point an `arc_beat` fires its `beat` --
+# `reveal` (a canon row id, spec §12.1), `history` (the line on their card),
+# `instruction` (the situation the voice is given for the message that
+# reveals it) and `then` (a `stage`, and warmth, trust, interest or mood
+# moved exactly). `from` counts `days_since_matched`: from the point on,
+# each morning applies `each_day` (warmth, trust, interest or mood).
+#
+# Pacing (spec §9.2, v0.22.0 T8, engine/social/messaging.py): the terms of
+# the reply and ghost decisions every archetype shares.
+#   interest_factor   [at interest 0, at interest 100]: the reply chance's
+#                     multiplier, linear between
+#   burst_factor      by how many messages the player sent since their last
+#                     (1, 2, 3, ...; the last entry for any longer burst): the
+#                     reply chance's multiplier
+#   status_mult       per schedule status (asleep, work, free, out): the
+#                     reply latency's multiplier at the moment they read
+#   stage_factor      per stage (spec §10.3): the ghost chance's multiplier;
+#                     a stage not listed is 1.0
+#
+# Initiations' `when` conditions (spec §9.3, read by messaging): stage_min (a
+# stage id, by spec §10.3's order), hours_since_player (hours since the
+# player last wrote to them, or since the match), days_since_last (days since
+# either side wrote), ghosted (true: only after they ghosted, false: the
+# default, never after) and weekend (Saturday or Sunday).
+#
+# Every number here is a balance constant (rule 10).
+# Measured 2026-10-13 (v0.22.0 T26, fix round 1): `python scripts/simulate_social.py --game
+# read-receipts --days 60 --first-seed N --seeds 1 --policy attentive --raw r-N.json`
+# for N = 0..19, then `--fold r-*.json` (the attentive player, the default
+# `neutral_model` voice; the turners' row at --days 75). The whole table, every
+# voice and policy and the before, is in the story's CHANGELOG ([Unreleased],
+# Changed). The rows this file's numbers move (measured, band):
+#   match_to_talking_3d 0.462 (40-60%), match_to_message_3d 0.677 (55-75%)
+#   talking_to_ghosted_14d 0.282 (20-35%), turners_turned_60d 0.825 (60-90%)
+#   messages_per_day.attentive 29.5 (15-60)
+#
+# Version: v0.5.0
+
+pacing:
+  interest_factor: [0.3, 1.5]
+  burst_factor: [1.0, 1.0, 0.95, 0.85, 0.7]
+  status_mult: {asleep: 1.0, work: 2.5, free: 1.0, out: 1.8}
+  stage_factor:
+    matched: 6.0
+    talking: 1.2
+    numbers: 1.2
+    meeting: 0.8
+    dating: 0.2
+    friends: 0.3
+    fling: 0.5
+    exclusive: 0.05
+    winding_down: 2.0
+
+archetypes:
+  romantic:
+    reply_minutes: {median: 8, spread: 0.8}
+    read_minutes: {median: 3, spread: 0.7}
+    reply_prob: 0.95
+    opener_prob: 0.7
+    ghost_per_exchange: 0.025
+    left_on_read_sensitivity: 1.0
+    warmth_mult: 1.4
+    warmth_cap_band: null
+    cool_off_step: 2
+    flake_prob: 0.05
+    double_text: {after_hours: 4, prob: 0.3, max_in_row: 2}
+    initiations:
+      - id: good_morning
+        at_hours: [7, 8, 9]
+        when: {stage_min: numbers}
+        prob_per_day: 0.9
+        kind: text
+        instruction: good_morning
+      - id: thinking_of_you
+        at_hours: [13, 18, 21]
+        when: {stage_min: talking, hours_since_player: 6}
+        prob_per_day: 0.15
+        kind: text
+        instruction: check_in
+    media: {offer_mult: 1.4, accept_mult: 1.2}
+    games: {skill: 0.5, invite_prob_per_day: 0.05}
+    arc: null
+
+  slow_burner:
+    reply_minutes: {median: 120, spread: 1.0}
+    read_minutes: {median: 45, spread: 1.0}
+    reply_prob: 0.92
+    opener_prob: 0.4
+    ghost_per_exchange: 0.013
+    left_on_read_sensitivity: 0.3
+    warmth_mult: 0.7
+    warmth_cap_band: null
+    cool_off_step: 1
+    flake_prob: 0.04
+    double_text: {after_hours: 48, prob: 0.05, max_in_row: 1}
+    initiations:
+      - id: long_message
+        at_hours: [20, 21, 22]
+        when: {stage_min: talking, hours_since_player: 30}
+        prob_per_day: 0.12
+        kind: text
+        instruction: check_in
+    media: {offer_mult: 0.7, accept_mult: 0.9}
+    games: {skill: 0.6, invite_prob_per_day: 0.02}
+    arc: null
+
+  banterer:
+    reply_minutes: {median: 4, spread: 0.9}
+    read_minutes: {median: 1.5, spread: 0.8}
+    reply_prob: 0.9
+    opener_prob: 0.8
+    ghost_per_exchange: 0.05
+    left_on_read_sensitivity: 0.8
+    warmth_mult: 1.0
+    warmth_cap_band: null
+    cool_off_step: 2
+    flake_prob: 0.08
+    double_text: {after_hours: 3, prob: 0.35, max_in_row: 2}
+    initiations:
+      - id: random_question
+        at_hours: [12, 17, 22]
+        when: {stage_min: talking, hours_since_player: 10}
+        prob_per_day: 0.2
+        kind: text
+        instruction: check_in
+    media: {offer_mult: 1.0, accept_mult: 1.0}
+    games: {skill: 0.75, invite_prob_per_day: 0.15}
+    arc: null
+
+  dry_texter:
+    reply_minutes: {median: 35, spread: 1.1}
+    read_minutes: {median: 10, spread: 1.0}
+    reply_prob: 0.75
+    opener_prob: 0.2
+    ghost_per_exchange: 0.07
+    left_on_read_sensitivity: 0.2
+    warmth_mult: 0.6
+    warmth_cap_band: warming
+    cool_off_step: 2
+    flake_prob: 0.12
+    double_text: {after_hours: 72, prob: 0.0, max_in_row: 0}
+    initiations: []
+    media: {offer_mult: 0.4, accept_mult: 0.7}
+    games: {skill: 0.4, invite_prob_per_day: 0.01}
+    arc: null
+
+  needy:
+    reply_minutes: {median: 6, spread: 1.0}
+    read_minutes: {median: 2, spread: 0.8}
+    reply_prob: 0.97
+    opener_prob: 0.6
+    ghost_per_exchange: 0.025
+    left_on_read_sensitivity: 2.0
+    warmth_mult: 1.2
+    warmth_cap_band: null
+    cool_off_step: 3
+    flake_prob: 0.05
+    double_text: {after_hours: 1.5, prob: 0.6, max_in_row: 3}
+    initiations:
+      - id: good_morning
+        at_hours: [7, 8, 9]
+        when: {stage_min: numbers}
+        prob_per_day: 0.8
+        kind: text
+        instruction: good_morning
+      - id: did_i_do_something
+        when: {hours_since_player: 20, stage_min: talking}
+        prob: 0.2
+        kind: text
+        instruction: anxious_check_in
+    media: {offer_mult: 1.0, accept_mult: 1.1}
+    games: {skill: 0.4, invite_prob_per_day: 0.05}
+    arc: null
+
+  ghoster:
+    reply_minutes: {median: 20, spread: 1.2}
+    read_minutes: {median: 6, spread: 1.0}
+    reply_prob: 0.85
+    opener_prob: 0.5
+    ghost_per_exchange: 0.25
+    left_on_read_sensitivity: 0.5
+    warmth_mult: 1.0
+    warmth_cap_band: null
+    cool_off_step: 3
+    flake_prob: 0.25
+    double_text: {after_hours: 24, prob: 0.05, max_in_row: 1}
+    initiations:
+      - id: hey_stranger
+        when: {ghosted: true, days_since_last: 14}
+        prob_per_day: 0.02
+        kind: text
+        instruction: reconnect
+    media: {offer_mult: 0.9, accept_mult: 0.9}
+    games: {skill: 0.5, invite_prob_per_day: 0.03}
+    arc: null
+
+  breadcrumber:
+    reply_minutes: {median: 90, spread: 1.5}
+    read_minutes: {median: 15, spread: 1.2}
+    reply_prob: 0.7
+    opener_prob: 0.5
+    ghost_per_exchange: 0.12
+    left_on_read_sensitivity: 0.2
+    warmth_mult: 0.9
+    warmth_cap_band: close
+    cool_off_step: 4
+    flake_prob: 0.3
+    double_text: {after_hours: 36, prob: 0.1, max_in_row: 1}
+    initiations:
+      - id: breadcrumb
+        at_hours: [22, 23]
+        when: {stage_min: talking, hours_since_player: 48}
+        prob_per_day: 0.1
+        kind: text
+        instruction: breadcrumb
+    media: {offer_mult: 1.1, accept_mult: 0.8}
+    games: {skill: 0.5, invite_prob_per_day: 0.04}
+    arc: null
+
+  drifter:
+    reply_minutes: {median: 15, spread: 1.0}
+    read_minutes: {median: 5, spread: 0.9}
+    reply_prob: 0.9
+    opener_prob: 0.6
+    ghost_per_exchange: 0.038
+    left_on_read_sensitivity: 0.6
+    warmth_mult: 1.1
+    warmth_cap_band: null
+    cool_off_step: 3
+    flake_prob: 0.1
+    double_text: {after_hours: 12, prob: 0.15, max_in_row: 1}
+    initiations:
+      - id: checking_in
+        at_hours: [12, 19]
+        when: {stage_min: talking, hours_since_player: 24}
+        prob_per_day: 0.12
+        kind: text
+        instruction: check_in
+    media: {offer_mult: 1.0, accept_mult: 1.0}
+    games: {skill: 0.5, invite_prob_per_day: 0.05}
+    arc: drifter_fade
+
+  turner:
+    reply_minutes: {median: 12, spread: 1.0}
+    read_minutes: {median: 4, spread: 0.9}
+    reply_prob: 0.92
+    opener_prob: 0.6
+    ghost_per_exchange: 0.025
+    left_on_read_sensitivity: 0.8
+    warmth_mult: 1.1
+    warmth_cap_band: null
+    cool_off_step: 2
+    flake_prob: 0.08
+    double_text: {after_hours: 8, prob: 0.2, max_in_row: 1}
+    initiations:
+      - id: how_was_your_day
+        at_hours: [18, 19, 20]
+        when: {stage_min: talking, hours_since_player: 20}
+        prob_per_day: 0.15
+        kind: text
+        instruction: check_in
+    media: {offer_mult: 1.0, accept_mult: 1.0}
+    games: {skill: 0.5, invite_prob_per_day: 0.05}
+    arc: turner_wants_different
+
+  steady:
+    reply_minutes: {median: 25, spread: 0.6}
+    read_minutes: {median: 8, spread: 0.6}
+    reply_prob: 0.96
+    opener_prob: 0.6
+    ghost_per_exchange: 0.008
+    left_on_read_sensitivity: 0.4
+    warmth_mult: 1.0
+    warmth_cap_band: null
+    cool_off_step: 1
+    flake_prob: 0.02
+    double_text: {after_hours: 18, prob: 0.15, max_in_row: 1}
+    initiations:
+      - id: good_morning
+        at_hours: [8, 9]
+        when: {stage_min: dating}
+        prob_per_day: 0.8
+        kind: text
+        instruction: good_morning
+      - id: how_was_your_day
+        at_hours: [18, 19, 20]
+        when: {stage_min: numbers, hours_since_player: 18}
+        prob_per_day: 0.6
+        kind: text
+        instruction: check_in
+    media: {offer_mult: 0.9, accept_mult: 1.0}
+    games: {skill: 0.55, invite_prob_per_day: 0.04}
+    arc: null
+
+  busy:
+    reply_minutes: {median: 180, spread: 1.0}
+    read_minutes: {median: 60, spread: 1.0}
+    reply_prob: 0.85
+    opener_prob: 0.4
+    ghost_per_exchange: 0.038
+    left_on_read_sensitivity: 0.2
+    warmth_mult: 0.9
+    warmth_cap_band: null
+    cool_off_step: 2
+    flake_prob: 0.2
+    double_text: {after_hours: 48, prob: 0.05, max_in_row: 1}
+    initiations:
+      - id: weekend_hello
+        at_hours: [10, 11, 12]
+        when: {stage_min: talking, weekend: true}
+        prob_per_day: 0.2
+        kind: text
+        instruction: check_in
+    media: {offer_mult: 0.8, accept_mult: 0.9}
+    games: {skill: 0.5, invite_prob_per_day: 0.02}
+    arc: null
+
+  night_owl:
+    reply_minutes: {median: 30, spread: 1.0}
+    read_minutes: {median: 10, spread: 1.0}
+    reply_prob: 0.9
+    opener_prob: 0.55
+    ghost_per_exchange: 0.038
+    left_on_read_sensitivity: 0.5
+    warmth_mult: 1.0
+    warmth_cap_band: null
+    cool_off_step: 2
+    flake_prob: 0.1
+    double_text: {after_hours: 10, prob: 0.2, max_in_row: 2}
+    initiations:
+      - id: you_up
+        at_hours: [22, 23]
+        when: {stage_min: talking}
+        prob_per_day: 0.2
+        kind: text
+        instruction: late_night
+    media: {offer_mult: 1.1, accept_mult: 1.0}
+    games: {skill: 0.6, invite_prob_per_day: 0.06}
+    arc: null
+
+arcs:
+  turner_wants_different:
+    at: {exchanges: [8, 30]}
+    beat:
+      reveal: wants_something_else     # a canon row from data (spec §12.1)
+      history: Wanted something different
+      instruction: reveal_turn
+      then: {stage: winding_down, warmth: -10}
+  drifter_fade:
+    from: {days_since_matched: [14, 40]}
+    each_day: {interest: -2}
+
+# Canon rows (spec §12.1, v0.22.0 T12, engine/social/memory.py): what an
+# arc's `reveal` adds to a person's canon -- one fact about them, in prose
+# (at most 140 characters), written into their canon through social_memory
+# when the beat fires. Every `reveal` above names a row here (checked at
+# load). The voice reads canon; no mechanic does.
+canon:
+  wants_something_else: has realised that what they want is not what this is turning into

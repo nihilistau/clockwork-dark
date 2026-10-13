@@ -23,7 +23,7 @@ import Play from "./screens/Play.jsx";
 import Saves from "./screens/Saves.jsx";
 import Settings, { loadPrefs, savePrefs } from "./screens/Settings.jsx";
 import Start from "./screens/Start.jsx";
-import { clearSaveId, connect, loadSaveId, storeSaveId } from "./socket.js";
+import { clearSaveId, connect, createPhoneSender, loadSaveId, storeSaveId } from "./socket.js";
 import { createLink } from "./link.js";
 import { controlsLive, createStore } from "./store.js";
 
@@ -134,9 +134,25 @@ export default function App({ story }) {
   useEffect(() => {
     busyRef.current = state.busy;
   }, [state.busy]);
+  // The phone's sender (v0.22.0): one action on the wire at a time, a busy
+  // answer re-sent after a moment rather than shown (socket.js).
+  const phoneRef = useRef(null);
+  if (!phoneRef.current) {
+    phoneRef.current = createPhoneSender({
+      getSocket: () => socketRef.current,
+      // What never reached the server goes back to the plugin (spec §18.2).
+      onDrop: (intents) => dispatch({ type: "PHONE_DROPPED", intents }),
+    });
+  }
 
   useEffect(() => {
-    const socket = connect(dispatch);
+    // Every server event passes the phone's sender first: a busy answer it
+    // is about to re-send never reaches the store. For a story with no
+    // phone nothing is ever in flight there, and every action passes.
+    const socket = connect((action) => {
+      if (phoneRef.current.filter(action)) return;
+      dispatch(action);
+    });
     socketRef.current = socket;
     // Rejoin, resume or wait -- never restart, and never resume over a live
     // session (core/link.js). The old handler resumed on EVERY connect (F4).
@@ -163,6 +179,7 @@ export default function App({ story }) {
     });
     return () => {
       link.dispose();
+      phoneRef.current.reset();
       socket.close();
     };
   }, []);
@@ -237,7 +254,10 @@ export default function App({ story }) {
         // ANSWERED and refused (the save cap, the other window's turn):
         // nothing was released, so this tab keeps its run.
         linkRef.current?.stay(left);
-        throw new Error(`server said ${res.status}`);
+        // A refused creation names its field (spec §3.2): the setup screen
+        // shows the server's own reason rather than a status code.
+        const refused = payload && payload.creation ? await res.json().catch(() => ({})) : {};
+        throw new Error(refused.error || `server said ${res.status}`);
       }
       const data = await res.json();
       storeSaveId(data.save_id);
@@ -394,6 +414,7 @@ export default function App({ story }) {
       again.current = null;
       setShowMenu(false);
       setOverlay(null);
+      phoneRef.current.reset();
       dispatch({ type: "RESET", storyInitial });
       dispatch({ type: "SCREEN", screen: "start" });
     },
@@ -447,6 +468,10 @@ export default function App({ story }) {
   // the Garden's skin bought you a scroll button that opens on nothing, which
   // is precisely the permanently-empty modal this seam exists to prevent.
   const overlays = useMemo(() => {
+    // A whole play screen of the story's own (`PlayScreen`, v0.22.0) has no
+    // footer to hold them, and core's map and clue board read a world it does
+    // not have: no overlay, no shortcut (spec §18.1).
+    if (story.PlayScreen) return [];
     const declared = story.overlays.filter((entry) =>
       entry.when ? entry.when(state) : true
     );
@@ -499,13 +524,22 @@ export default function App({ story }) {
 
       if (event.key === "Escape") {
         if (blocked) return;
+        // A story's own play screen (the phone) is typed into: Escape there
+        // leaves the field -- it never opens the menu over half a message.
+        // A second Escape, with nothing focused, opens the menu (v0.22.0 T27).
+        if (typing && story.PlayScreen) {
+          event.preventDefault();
+          event.target.blur?.();
+          return;
+        }
         event.preventDefault();
         setShowMenu(true);
         return;
       }
       if (typing || blocked) return;
 
-      if (event.key === "/") {
+      // A story's own play screen has no core compose box: `/` is its key.
+      if (event.key === "/" && !story.PlayScreen) {
         event.preventDefault();
         composeRef.current?.focus();
         return;
@@ -518,7 +552,7 @@ export default function App({ story }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [blocked, overlayKeys]);
+  }, [blocked, overlayKeys, story]);
 
   // A story that needs a React context around the whole client supplies
   // `Wrap`; the Garden uses it for analyst mode, which is read ten levels down
@@ -562,7 +596,14 @@ export default function App({ story }) {
     return (
       <Wrap state={state}>
         {bannerNode}
-        <Start onBegin={begin} busy={state.busy} onOpenSaves={openSaves} story={story} error={state.error} />
+        <Start
+          onBegin={begin}
+          busy={state.busy}
+          onOpenSaves={openSaves}
+          story={story}
+          error={state.error}
+          onNewRun={story.NewRun ? () => dispatch({ type: "SCREEN", screen: "new_run" }) : null}
+        />
         {onboarding && (
           <Onboarding
             cards={story.onboarding}
@@ -572,6 +613,24 @@ export default function App({ story }) {
             onDone={() => setOnboarding(false)}
           />
         )}
+      </Wrap>
+    );
+  }
+
+  // A story's own setup screen (`NewRun`, v0.22.0 spec §18.1), opened by the
+  // start screen's Begin. Its `creation` goes to /api/game/new whole, its
+  // name as the player's; a refusal names the field and keeps the player here.
+  if (state.screen === "new_run" && story.NewRun) {
+    const NewRun = story.NewRun;
+    return (
+      <Wrap state={state}>
+        {bannerNode}
+        <NewRun
+          busy={state.busy}
+          error={state.error}
+          onBegin={(creation) => begin({ player_name: creation?.name || "", creation })}
+          onCancel={() => dispatch({ type: "SCREEN", screen: "start" })}
+        />
       </Wrap>
     );
   }
@@ -609,29 +668,11 @@ export default function App({ story }) {
   const Overlay = open?.Component;
   const MenuBanner = story.MenuBanner;
 
-  return (
-    <Wrap state={state}>
-      {bannerNode}
-      <Play
-        state={state}
-        story={story}
-        overlays={overlays}
-        onChoose={(choice) => send(choice.id, null, choice.text, choice)}
-        onCustom={(text) => send("custom", text, text)}
-        onRetry={retry}
-        onOpenSaves={openSaves}
-        onOpenSettings={() => setShowSettings(true)}
-        onOpenOverlay={setOverlay}
-        onOpenMenu={() => setShowMenu(true)}
-        onToggleReasoning={() => dispatch({ type: "REASONING_TOGGLE" })}
-        blocked={blocked}
-        muted={muted}
-        onToggleMute={toggleMute}
-        showDiceBreakdown={prefs.showDiceBreakdown}
-        showReasoning={prefs.showReasoning}
-        composeRef={composeRef}
-      />
-
+  // What surrounds the play screen, whichever draws it: the overlay open, the
+  // cutscene, the pause menu, settings and the narration audio. One fragment,
+  // so a story's own PlayScreen keeps exactly what Play keeps (spec §18.1).
+  const chrome = (
+    <>
       {Overlay && (
         <Overlay
           state={state}
@@ -644,7 +685,7 @@ export default function App({ story }) {
           // posted work: each is sent as the player's TYPED words, which carry
           // no intent -- so no skill runs from it, and only the narrator reads
           // it (NOT WIRED, docs/GOVERNANCE.md; v0.21.0 final review finding 9).
-          // The overlay-to-intent path is the v0.23.0 and v0.25.0 overhauls'.
+          // The overlay-to-intent path is the v0.25.0 and v0.27.0 overhauls'.
           onAct={(text) => send("custom", text, text)}
           onClose={() => setOverlay(null)}
         />
@@ -663,6 +704,7 @@ export default function App({ story }) {
           banner={MenuBanner ? <MenuBanner state={state} /> : null}
           storyId={story.slug}
           overlays={overlays}
+          playScreen={Boolean(story.PlayScreen)}
           saveId={state.saveId}
           connected={state.connected}
           prefs={prefs}
@@ -691,6 +733,62 @@ export default function App({ story }) {
       )}
 
       <audio ref={audioRef} hidden />
+    </>
+  );
+
+  if (story.PlayScreen) {
+    const PlayScreen = story.PlayScreen;
+    return (
+      <Wrap state={state}>
+        {bannerNode}
+        <PlayScreen
+          state={state}
+          sessionId={state.sessionId}
+          busy={state.busy}
+          onAct={(intent) => {
+            // Not while the link is down, rejoining or waiting (controlsLive).
+            // A phone action never sets `busy`: mechanics answer in
+            // milliseconds and the voicing pass never blocks the player.
+            // Returns whether the action was taken: on false the plugin
+            // keeps what the player composed.
+            if (!controlsLive(state)) return false;
+            return phoneRef.current.send(sessionRef.current || state.sessionId, intent);
+          }}
+          onOpenMenu={() => setShowMenu(true)}
+          onOpenSaves={openSaves}
+          // True while core's menu, settings, an overlay or a cutscene is up:
+          // the plugin's own window-level keys must stand down under them.
+          blocked={blocked}
+        />
+        {chrome}
+      </Wrap>
+    );
+  }
+
+  return (
+    <Wrap state={state}>
+      {bannerNode}
+      <Play
+        state={state}
+        story={story}
+        overlays={overlays}
+        onChoose={(choice) => send(choice.id, null, choice.text, choice)}
+        onCustom={(text) => send("custom", text, text)}
+        onRetry={retry}
+        onOpenSaves={openSaves}
+        onOpenSettings={() => setShowSettings(true)}
+        onOpenOverlay={setOverlay}
+        onOpenMenu={() => setShowMenu(true)}
+        onToggleReasoning={() => dispatch({ type: "REASONING_TOGGLE" })}
+        blocked={blocked}
+        muted={muted}
+        onToggleMute={toggleMute}
+        showDiceBreakdown={prefs.showDiceBreakdown}
+        showReasoning={prefs.showReasoning}
+        composeRef={composeRef}
+      />
+
+      {chrome}
     </Wrap>
   );
 }

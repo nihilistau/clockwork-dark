@@ -50,6 +50,24 @@ def _death_check_guard() -> Iterator[None]:
         _guard.depth -= 1
 
 
+class SocialPassClockError(RuntimeError):
+    """A social event handler tried to move the clock (engine/social/events.py: it never may)."""
+
+
+@contextmanager
+def _social_pass_guard() -> Iterator[None]:
+    """Set while the social event pass runs; a nested `advance_time` then raises.
+
+    On the same thread-local as the death guard. The death check's own
+    re-entry runs after the pass has ended, so it never sees this set.
+    """
+    _guard.social_pass = True
+    try:
+        yield
+    finally:
+        _guard.social_pass = False
+
+
 @dataclass
 class TimeAdvance:
     """What one movement of the clock actually did."""
@@ -131,8 +149,14 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
     """
     if hours < 0:
         raise ValueError(f"time does not run backward (hours={hours})")
+    if getattr(_guard, "social_pass", False):
+        raise SocialPassClockError(
+            "clock.advance_time was called from inside the social event pass: a social "
+            "event handler never moves the clock (engine/social/events.py)"
+        )
 
     from_day, from_hour = state.world_day, state.world_hour
+    from_hours = state.world_clock_hours
 
     state.world_clock_hours += float(hours)
     days = float(hours) / HOURS_PER_DAY
@@ -254,6 +278,30 @@ def advance_time(state: GameState, hours: float) -> TimeAdvance:
     # them, in a story with no Law) and the ``last_hour`` stamp.
     if walk is not None:
         walk.finish()
+
+    # The phone's exact-time events (v0.22.0, engine/social/events.py): after
+    # every other world pass, before the death check. A story that declares no
+    # paths.social never imports the submodule. Only the package import is
+    # "not this story"; a declared story whose submodule will not import is a
+    # fault, logged at ERROR once, never a silent no-op (Plan decision 27).
+    try:
+        from engine import social
+    except ImportError:
+        social = None
+    if social is not None and social.declared():
+        try:
+            social.boot()
+            from engine.social import events as social_events
+        except ImportError as exc:
+            social.import_fault("events", exc)
+        else:
+            # The pass's receipts are not carried into the turn: everything an
+            # event does that the player may see -- a message landing, a read
+            # receipt, a notification -- is written into state.social, and the
+            # payload's phone block reads it from there (engine/social/
+            # messaging.py's sections). A ghost must never be shown at all.
+            with _social_pass_guard():
+                social_events.advance(state, from_hours, state.world_clock_hours)
 
     # Death handling advances the clock itself (unconsciousness costs hours),
     # which re-enters this function. Unguarded, each nested call ran the death

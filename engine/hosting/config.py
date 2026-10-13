@@ -86,6 +86,9 @@ SCHEMA: dict[str, tuple[str, int, int]] = {
     "max_saves_per_story": (_INT, 1, 100_000),
     "max_concurrent_logins": (_INT, 1, 64),
     "rate_limits.actions_per_minute": (_INT, 1, 10_000),
+    # The phone's own bucket (v0.22.0, spec §17.1): phone_action and
+    # POST /api/phone/action only.
+    "rate_limits.phone_actions_per_minute": (_INT, 1, 10_000),
     "rate_limits.logins_per_minute": (_INT, 1, 10_000),
     "rate_limits.logins_per_minute_all": (_INT, 1, 100_000),
     # The admin panel (spec §14.7, T14): every POST under /admin, per admin;
@@ -177,6 +180,7 @@ class HostingSettings:
     max_saves_per_story: int
     max_concurrent_logins: int
     actions_per_minute: int
+    phone_actions_per_minute: int
     logins_per_minute: int
     logins_per_minute_all: int
     admin_actions_per_minute: int
@@ -419,6 +423,7 @@ def validate(block: Any, *, secret_key: str = "") -> HostingSettings:
         max_saves_per_story=values["max_saves_per_story"],
         max_concurrent_logins=values["max_concurrent_logins"],
         actions_per_minute=values["rate_limits.actions_per_minute"],
+        phone_actions_per_minute=values["rate_limits.phone_actions_per_minute"],
         logins_per_minute=values["rate_limits.logins_per_minute"],
         logins_per_minute_all=values["rate_limits.logins_per_minute_all"],
         admin_actions_per_minute=values["rate_limits.admin_actions_per_minute"],

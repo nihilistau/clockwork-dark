@@ -258,21 +258,45 @@ def test_the_committed_build_is_not_behind_its_source():
 _SOCKET_EMIT = r'(?<!metrics_emit\.)emit(?:_callback)?\(\s*"([a-z_]+)"'
 
 
+#: A push to one session's room, the event name second (v0.22.0): the scene's
+#: `emit_to_session(session_id, "<event>", payload)`, and the two places the
+#: phone reaches it through -- the voicer's installed `emitter(...)` and its
+#: `voicer.emit(...)` (`phone_message`, `media_ready`; spec §17.3).
+_SESSION_EMIT = r'\b(?:emit_to_session|emitter|voicer\.emit)\([^,\n()]*(?:\([^()\n]*\))?[^,\n()]*,\s*"([a-z_]+)"'
+
+
 def _server_events(pattern: str = _SOCKET_EMIT) -> set[str]:
     """
     Event names the server passes to an emit call.
 
     Scans engine/scenes/ and content/ (the default scene and its turn), and
-    engine/hosting/ since v0.21.0 (`session_ended`, Review 8). The metrics
-    module is skipped: its `emit` is a metric.
+    engine/hosting/ since v0.21.0 (`session_ended`, Review 8), and
+    engine/social/ since v0.22.0 (the phone's event and its pushes). The
+    metrics module is skipped: its `emit` is a metric. With the default
+    pattern, a push to one session's room (`_SESSION_EMIT`) is read too.
     """
+    patterns = [pattern] + ([_SESSION_EMIT] if pattern == _SOCKET_EMIT else [])
     found: set[str] = set()
-    for tree in (ROOT / "content", ROOT / "engine" / "scenes", ROOT / "engine" / "hosting"):
+    trees = (ROOT / "content", ROOT / "engine" / "scenes", ROOT / "engine" / "hosting", ROOT / "engine" / "social")
+    for tree in trees:
         for path in tree.rglob("*.py"):
             if path.name == "metrics_emit.py":
                 continue
-            found |= set(re.findall(pattern, path.read_text(encoding="utf-8")))
+            text = path.read_text(encoding="utf-8")
+            for each in patterns:
+                found |= set(re.findall(each, text))
     return found
+
+
+def test_the_phone_pushes_are_found_and_listened_for() -> None:
+    """READ RECEIPTS' background pushes go out through `emit_to_session` by way of the
+    voicer, not an `emit("...")` call: the scan reads them, and INBOUND has both."""
+    emitted = _server_events()
+    assert {"phone_message", "media_ready"} <= emitted
+    inbound = (UI_SRC / "core" / "socket.js").read_text(encoding="utf-8").split("export const INBOUND")[1].split("]")[0]
+    assert '"phone_message"' in inbound and '"media_ready"' in inbound
+    assert re.findall(_SESSION_EMIT, 'scene.emit_to_session(sid, "session_ended", {})') == ["session_ended"]
+    assert re.findall(_SESSION_EMIT, 'emitter(str(session.session_id), "phone_message", body)') == ["phone_message"]
 
 
 def test_the_hosting_tree_is_scanned_and_its_metrics_are_not_events():
@@ -798,3 +822,278 @@ def test_the_encounter_panel_reads_only_keys_the_encounter_sends() -> None:
         read = _reads(text, name)
         assert read, f"EncounterPanel reads nothing off `{name}`"
         assert read <= served, f"EncounterPanel reads `{name}` keys the payload never sends: {sorted(read - served)}"
+
+
+# -- the phone block (v0.22.0 T10, spec §17.3) --------------------------------------------
+
+from tests.social_fixtures import matched, receipts_active, receipts_state  # noqa: E402,F401 -- the fixtures
+
+#: Values the engine keeps per person that never leave the server (spec §17.3).
+HIDDEN_PHONE_KEYS = {"warmth", "interest", "trust", "mood", "mood_until", "ghosted", "arc_point", "rev",
+                     "regard_today", "regard_day", "rng_n", "chemistry", "selectivity", "archetype",
+                     # A game's undrawn tiles and both racks (T22): the payload shows the player's own rack
+                     # (`rack`) and the bag's count (`bag_left`), never these.
+                     "bag", "racks",
+                     # This or That's picks (T23): the payload shows the player's own (`mine`) and theirs
+                     # (`theirs`) only once the reveal has ended the game, never this.
+                     "picks",
+                     # A meet-up's flake, drawn when it is agreed and shown only at its start, and its
+                     # quality (T24): the calendar shows the status and, once done, the band.
+                     "flake", "quality"}
+
+
+def _keys(tree: Any) -> set[str]:
+    """Every dict key at any depth."""
+    if isinstance(tree, dict):
+        return set(tree) | {k for v in tree.values() for k in _keys(v)}
+    if isinstance(tree, list):
+        return {k for v in tree for k in _keys(v)}
+    return set()
+
+
+def test_the_phone_block_carries_no_hidden_key(receipts_state, matched) -> None:
+    """A match, a due message and a request in state: no hidden key at any depth of `phone`, nor of a thread row."""
+    from engine.social import messaging, payload, relationships
+    from tests.social_fixtures import _force_stage
+
+    state = receipts_state
+    thread = matched("matchstick")
+    pid = state.social["threads"][thread]["pid"]
+    messaging.new_message(state, thread, pid, "text", voiced=False, decision={"situation": "reply"})
+    _force_stage(state, pid, "talking")
+    asked = relationships.ask(state, thread, "number")
+    assert asked["ok"], asked
+    assert state.social["people"][pid].get("warmth") is not None   # the slice holds them: the scan is not empty-handed
+    assert messaging.open_thread(state, thread)["ok"]                # so message rows are scanned too
+    block = payload.phone_block(state)
+    assert block["threads"] and block["requests"] and block["open_thread"]["messages"]
+    leaked = _keys(block) & HIDDEN_PHONE_KEYS
+    assert not leaked, f"hidden keys in the phone block: {sorted(leaked)}"
+    row = payload.thread_row(state, thread)
+    assert row is not None and not (_keys(row) & HIDDEN_PHONE_KEYS)
+    assert block["apps"] and all("badge" in a for a in block["apps"])
+
+
+def test_the_phone_block_says_what_a_thread_can_attach(receipts_state) -> None:
+    """T28 (spec §18.2, §13.7): each app row carries its apps.yaml `capabilities` (the compose bar's
+    attachments), and `player` its camera roll with labels and the `player_subjects` it may send."""
+    from engine import social
+    from engine.social import media, payload
+
+    block = payload.phone_block(receipts_state)
+    declared = social.data("apps")["apps"]
+    for row in block["apps"]:
+        assert row["capabilities"] == [str(c) for c in declared[row["id"]].get("capabilities") or ()]
+    caps = {row["id"]: row["capabilities"] for row in block["apps"]}
+    assert "voice" not in caps["texts"] and "photo" in caps["texts"] and "video" in caps["natter"]
+    roll = block["player"]["camera_roll"]
+    assert [r["id"] for r in roll] == media.player_photos(receipts_state) and roll
+    assert all(r["label"] and r["label"] != r["id"] for r in roll)
+    subjects = block["player"]["subjects"]
+    assert [s["id"] for s in subjects] == [r["id"] for r in media.player_subjects()]
+    assert all(set(s) == {"id", "kinds", "label"} for s in subjects)
+    assert not (_keys(block) & HIDDEN_PHONE_KEYS)
+
+
+def test_a_fault_in_what_the_player_may_attach_costs_only_that_field(receipts_state, monkeypatch) -> None:
+    """T28 review M2: `player.subjects` and `player.camera_roll` are fenced like sections."""
+    from engine.social import media, payload
+
+    def boom(*_a, **_k):
+        raise RuntimeError("subjects unreadable")
+
+    monkeypatch.setattr(media, "player_subjects", boom)
+    block = payload.phone_block(receipts_state)
+    assert block["player"]["subjects"] == [] and block["player"]["camera_roll"]
+    assert block["player"]["name"] and block["threads"] is not None
+
+
+def test_a_game_never_shows_their_rack_or_the_bag(receipts_state, matched) -> None:
+    """T22 (spec §21.1): a Tile Talk game in state, their move made: no hidden key in `phone`, and no
+    game entry carries a rack but the player's own."""
+    from engine.game import clock
+    from engine.social import payload
+    from tests.social_fixtures import _act, _force_stage
+
+    state = receipts_state
+    pid = matched("matchstick").split(":", 1)[1]
+    _force_stage(state, pid, "talking")
+    gid = _act(state, "game_invite", target=pid, args={"game": "wordgame"})["result"]["game_id"]
+    assert _act(state, "game_move", target=gid, args={"move": "pass"})["success"]
+    due = [e for e in state.social["queue"] if e["kind"] == "game_move"][0]
+    clock.advance_time(state, due["at"] - state.world_clock_hours + 1 / 60)
+    row = state.social["games"][gid]
+    assert row["racks"]["them"] and row["bag"]                       # the state holds them: the scan is not empty-handed
+    block = payload.phone_block(state)
+    leaked = _keys(block) & HIDDEN_PHONE_KEYS
+    assert not leaked, f"hidden keys in the phone block: {sorted(leaked)}"
+    (game,) = block["games"]
+    assert game["rack"] == row["racks"]["player"] and game["bag_left"] == len(row["bag"])
+    assert all(set(m) <= {"by", "kind", "words", "score", "at", "swapped"} for m in game["moves"])
+
+
+def test_this_or_that_never_shows_their_picks_before_the_reveal(receipts_state, matched) -> None:
+    """T23 (spec §21.2): a This or That game with both sides' picks in state and the reveal not yet run:
+    no hidden key in `phone`, and their picks appear nowhere in the game's entry; after the reveal they do."""
+    from engine.game.effects import apply_effect
+    from engine.social import payload
+    from engine.social.games import this_or_that
+    from tests.social_fixtures import _act, _force_stage
+
+    state = receipts_state
+    pid = matched("matchstick").split(":", 1)[1]
+    _force_stage(state, pid, "talking")
+    gid = _act(state, "game_invite", target=pid, args={"game": "this_or_that"})["result"]["game_id"]
+    assert _act(state, "game_move", target=gid, args={"move": "answer", "answers": ["a"] * 5})["success"]
+    theirs = ["b", "b", "a", "b", "b"]
+    assert apply_effect(state, {"type": "social_game", "op": "move", "game_id": gid, "by": "them",
+                                "args": {"move": "answer", "answers": theirs}})["ok"]
+    assert state.social["games"][gid]["picks"]["them"] == theirs   # the state holds them: the scan is not empty-handed
+    block = payload.phone_block(state)
+    leaked = _keys(block) & HIDDEN_PHONE_KEYS
+    assert not leaked, f"hidden keys in the phone block: {sorted(leaked)}"
+    (game,) = block["games"]
+    assert game["mine"] == ["a"] * 5 and game["theirs"] is None and theirs not in game.values()
+    assert all(set(m) <= {"by", "kind", "words", "score", "at", "swapped"} for m in game["moves"])
+    assert this_or_that.reveal(state, gid)["ok"]
+    (game,) = payload.phone_block(state)["games"]
+    assert game["theirs"] == theirs and not (_keys(game) & HIDDEN_PHONE_KEYS)
+
+
+def test_the_calendar_never_shows_a_flake_before_the_day(receipts_state, matched, monkeypatch) -> None:
+    """T24 (spec §14.2): a meet-up agreed with its flake drawn true: the calendar shows it as `agreed`,
+    with no hidden key at any depth of `phone`; at its start it shows `flaked`."""
+    import dataclasses
+
+    from engine.game import clock
+    from engine.social import behaviour, messaging, payload, relationships
+    from tests.social_fixtures import _act, _at, _force_stage, _set_person
+
+    state = receipts_state
+    pid = matched("matchstick").split(":", 1)[1]
+    _force_stage(state, pid, "numbers")
+    messaging.open_numbers(state, pid)
+    _set_person(state, pid, **_at(relationships.gate_spec("meeting")))
+    real = behaviour.archetype
+    monkeypatch.setattr(behaviour, "archetype", lambda name: dataclasses.replace(real(name), flake_prob=1.0))
+    monkeypatch.setattr(behaviour, "status_at", lambda person, at: "free")
+    made = _act(state, "propose_meet", target=pid, args={"venue": "copper_kettle", "day": 1, "slot": "afternoon"})
+    assert made["success"] and made["result"]["answer"] == "accept", made
+    mid = made["result"]["meet_id"]
+    assert state.social["meets"][mid]["flake"] is True                 # the state holds it: the scan is not empty-handed
+    block = payload.phone_block(state)
+    (row,) = block["calendar"]
+    assert row["id"] == mid and row["status"] == "agreed"
+    leaked = _keys(block) & HIDDEN_PHONE_KEYS
+    assert not leaked, f"hidden keys in the phone block: {sorted(leaked)}"
+    clock.advance_time(state, state.social["meets"][mid]["start"] - state.world_clock_hours + 1 / 60)
+    assert payload.phone_block(state)["calendar"][0]["status"] == "flaked"
+
+
+def test_the_contact_card_and_photos_sections_carry_no_hidden_key(receipts_state, matched) -> None:
+    """T29 (spec §18.2): the contact card's `contacts`, the Photos app's `gallery` and the planner's
+    `meet_options`, with a person whose slice holds every hidden value, their canon AND what they know of
+    the player in state: no hidden key at any depth, and `knows` (theirs about the player) nowhere."""
+    from engine.social import media, memory, messaging, payload
+    from tests.social_fixtures import _force_stage
+
+    state = receipts_state
+    thread = matched("matchstick")
+    pid = thread.split(":", 1)[1]
+    _force_stage(state, pid, "numbers")
+    messaging.open_numbers(state, pid)
+    memory.add_canon(state, pid, ["I swim every morning"])
+    memory.add_knows(state, pid, ["zz-knows-sentinel"])
+    natter = f"natter:{pid}"
+    photo = messaging.new_message(state, natter, pid, "photo", bubbles=["look"], voiced=True)
+    media.mark_procedural(state, media.attach(state, pid, natter, photo["id"], "photo", "selfie_now"))
+    person = state.social["people"][pid]
+    assert person.get("warmth") is not None and person.get("knows")   # the slice holds them: the scan is not empty-handed
+    block = payload.phone_block(state)
+    assert block["contacts"] and block["gallery"] and block["meet_options"]["venues"]
+    for name in ("contacts", "gallery", "meet_options", "settings"):
+        leaked = _keys(block[name]) & (HIDDEN_PHONE_KEYS | {"knows", "canon", "seed", "subject", "prompt_id"})
+        assert not leaked, f"hidden keys in {name}: {sorted(leaked)}"
+    assert "zz-knows-sentinel" not in repr(block)
+
+
+def test_let_time_pass_is_offered_in_local_mode_only(receipts_state, monkeypatch) -> None:
+    """T29 (spec §15.1): the payload's `auto_wait` says whether the client may offer "Let time pass" -- the
+    preference itself is the client's -- true locally and false hosted; `settings` carries Natter's
+    receipts switch as the Settings app shows it, and the bio's cap (`social.max_text_chars`, review M10)."""
+    import engine.config
+    from engine.social import payload
+    from tests.social_fixtures import _act
+
+    block = payload.phone_block(receipts_state)
+    from engine import social
+
+    cap = int(social.setting("max_text_chars", 0))
+    assert cap > 0
+    assert block["auto_wait"] is True and block["settings"] == {"receipts": True, "bio_max": cap}
+    assert _act(receipts_state, "set_receipts", target="natter", args={"to": "off"})["success"]
+    assert payload.phone_block(receipts_state)["settings"] == {"receipts": False, "bio_max": cap}
+    monkeypatch.setattr(engine.config, "hosting_enabled", lambda: True)
+    assert payload.phone_block(receipts_state)["auto_wait"] is False
+
+
+def test_the_phone_message_push_carries_no_hidden_key(receipts_active) -> None:
+    """T14 (spec §17.3): `phone_message`, built from a committed reply -- a warm one, so regard moved -- carries
+    no hidden key at any depth (`media_ready` is scanned below)."""
+    from engine.social import voicer
+    from tests.social_fixtures import _live_session, _matched_in, _phone, _replies_forced
+    from tests.social_stub import StubVoice
+
+    scene, session = _live_session()
+    thread = _matched_in(session, "matchstick")
+    with _replies_forced():                    # their reply drawn, never a ghost (T26's tuning: F16)
+        _phone(scene, session, "send", target=thread, args={"kind": "text"}, text="hey you")
+        _phone(scene, session, "wait", args={"until": "next"})
+    pushed: list[dict[str, Any]] = []
+    voicer.set_emitter(lambda _sid, event, body: pushed.append(body) if event == "phone_message" else None)
+    assert voicer.run_pass(voicer.VoicePass(session, session.epoch), llm_fn=StubVoice("warm"), admit=False) == "ok"
+    assert pushed and pushed[0]["message"]["bubbles"]                     # the scan is not empty-handed
+    pid = thread.split(":")[1]
+    assert session.engine.state.social["people"][pid].get("warmth") is not None
+    leaked = _keys(pushed) & HIDDEN_PHONE_KEYS
+    assert not leaked, f"hidden keys in phone_message: {sorted(leaked)}"
+
+
+def test_the_media_ready_push_carries_no_hidden_key(receipts_active) -> None:
+    """T19 (spec §17.3): `media_ready` -- `{message_id, mid, url, poster_url, kind, thread}`, the thread row built
+    with the session -- carries no hidden key at any depth, after regard moved; nor does a message's `media` view."""
+    import dataclasses
+
+    from engine.media.comfy import storage
+    from engine.media.comfy.jobs import JobResult, JobSpec
+    from engine.session.store import release_turn
+    from engine.social import media, messaging, voicer
+    from tests.social_fixtures import _force_stage, _live_session, _matched_in, _set_person
+
+    scene, session = _live_session()
+    thread = _matched_in(session, "matchstick")
+    pid = thread.split(":")[1]
+    state = session.engine.state
+    assert session.lock.acquire(blocking=False)
+    try:
+        _force_stage(state, pid, "numbers")
+        messaging.open_numbers(state, pid)
+        _set_person(state, pid, warmth=70, trust=60, mood="fond")
+        natter = f"natter:{pid}"
+        message = messaging.new_message(state, natter, pid, "photo", bubbles=["look"], voiced=True,
+                                        decision=dataclasses.asdict(media.send_decision("photo", "selfie_now")))
+        mid = media.attach(state, pid, natter, message["id"], "photo", "selfie_now")
+        media.mark_submitted(state, mid, {"positive": "x"}, account=session.owner, provider="stub")
+    finally:
+        release_turn(session)
+    pushed: list[dict[str, Any]] = []
+    voicer.set_emitter(lambda _sid, event, body: pushed.append(body) if event == "media_ready" else None)
+    spec = JobSpec(mid=mid, kind="image", owner=session.owner, save_id=session.save_id, session_id=session.session_id,
+                   epoch=session.epoch, workflow="photo", values={}, priority=0, account=session.owner)
+    media.hand_off(spec, JobResult(mid, "ready", url=storage.url_for(session.save_id, f"{mid}.png"), kind="image"))
+    assert pushed and pushed[0]["thread"]["thread_id"] == natter       # the scan is not empty-handed
+    assert state.social["people"][pid].get("warmth") is not None
+    leaked = _keys(pushed) & HIDDEN_PHONE_KEYS
+    assert not leaked, f"hidden keys in media_ready: {sorted(leaked)}"
+    view = messaging.message_view(state, state.social["threads"][natter], message)
+    assert view["media"]["status"] == "ready" and not (_keys(view) & (HIDDEN_PHONE_KEYS | {"seed", "request", "account"}))

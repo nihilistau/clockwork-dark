@@ -72,6 +72,15 @@ export const fetchArchetypes = () =>
   getJSON("/api/archetypes").then((data) => data?.archetypes || []);
 
 /**
+ * READ RECEIPTS' creation form (v0.22.0, spec §3.2, §18.1), resolved: `{fields}`,
+ * each choice field's table expanded to `{id, label}` rows. Registered only for
+ * a story declaring `paths.social`; the `NewRun` slot is its one reader. Throws,
+ * unlike the readers above: a setup wizard with no form has nothing to show
+ * but the failure.
+ */
+export const fetchCreation = () => getJSON("/api/social/creation");
+
+/**
  * Persist engine settings into config/local.yaml.
  *
  * Unlike the readers above this one throws: a settings write that silently

@@ -39,8 +39,9 @@ import engine.skills.builtin.livelihood  # noqa: F401 — register skills
 import engine.skills.builtin.mechanics  # noqa: F401 — register skills
 import engine.skills.builtin.quests  # noqa: F401 — register skills
 import engine.skills.builtin.scenes  # noqa: F401 — register skills
+import engine.skills.builtin.social  # noqa: F401 — register skills (system-only phone skills, v0.22.0)
 from engine.game.engine import GameEngine, active_engine
-from engine.skills.registry import AGENT_STORYTELLER, SKILL_REGISTRY
+from engine.skills.registry import AGENT_STORYTELLER, AGENT_SYSTEM, SKILL_REGISTRY
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +214,79 @@ def execute_intent(
         receipt["refused"] = True
 
     return [receipt]
+
+
+def execute_phone_intent(intent: Any, engine: GameEngine) -> dict[str, Any]:
+    """
+    Resolve one phone action (v0.22.0 spec §7.3): normalise, find the verb in
+    the catalogue rebuilt NOW, check target and payload, run its system-only
+    skill. ONE receipt, never []: anything illegal is a refusal in the
+    engine's words, which reaches the player as a system line or a toast.
+    """
+    from engine.game.intents import find_verb as intents_find
+    from engine.social import intents as phone
+
+    parsed = phone.normalise_phone(intent)
+    if parsed is None:
+        return phone.phone_refusal({"action": "", "target": "", "args": {}, "text": ""},
+                                   "That is not something the phone can do.")
+    entry = phone.row(parsed["action"])
+    verb = None
+    if entry is not None:
+        verb = intents_find(phone.legal_phone_intents(engine.state), parsed["action"])
+    if entry is None or verb is None:
+        reason = (phone.refusal_for(engine.state, parsed) or phone.why_not(engine.state, parsed["action"])
+                  if entry is not None else "")
+        return phone.phone_refusal(parsed, reason or f"You can't {parsed['action'].replace('_', ' ')} right now.")
+    if verb.targets and parsed["target"] not in verb.targets:
+        reason = phone.refusal_for(engine.state, parsed)
+        return phone.phone_refusal(parsed, reason or f"{parsed['target'] or 'That'} isn't available any more.")
+    problem = phone.check_payload(entry, verb, parsed)
+    if problem:
+        # A declared value not offered now (an ask for a photo this thread may not make) is refused
+        # in the row's own words when it has some; a malformed payload keeps its own problem.
+        if phone.not_offered(entry, verb, parsed):
+            problem = phone.refusal_for(engine.state, parsed) or problem
+        return phone.phone_refusal(parsed, problem)
+    skill_def = SKILL_REGISTRY.get(entry.skill)
+    if skill_def is None or not skill_def.callable_by(AGENT_SYSTEM):
+        return phone.phone_refusal(parsed, "the phone has no way to do that.")
+    receipt = execute_tool(entry.skill, {"target": parsed["target"], "args": parsed["args"],
+                                         "text": parsed["text"]}, engine)
+    receipt["intent"] = dict(parsed)
+    result = receipt.get("result")
+    answered = isinstance(result, dict) and "ok" in result
+    if answered and result.get("ok") is False:
+        # The owning module said no, in its own words.
+        receipt["success"] = False
+        receipt["refused"] = True
+    elif not answered or not receipt.get("success"):
+        # The skill FAULTED (it raised, took bad arguments or returned no
+        # answer): still a refusal the player sees, never a silent no-op.
+        detail = str(result.get("error") or result.get("raw") or "") if isinstance(result, dict) else str(result)
+        logger.error(
+            "[tool_dispatcher] Phone skill failed (operation=execute_phone_intent, action=%s, skill=%s): %s",
+            parsed["action"],
+            entry.skill,
+            detail,
+        )
+        receipt["success"] = False
+        receipt["refused"] = True
+        receipt["result"] = {"ok": False, "error": _phone_fault_line(detail)}
+    return receipt
+
+
+#: What the player is told when a phone skill faults (hosted: never the
+#: exception's words, which can name internals; spec §6.6's rule).
+PHONE_FAULT = "That didn't go through. Try again in a moment."
+
+
+def _phone_fault_line(detail: str) -> str:
+    from engine.config import hosting_enabled
+
+    if hosting_enabled() or not detail:
+        return PHONE_FAULT
+    return f"{PHONE_FAULT} ({detail})"
 
 
 def execute_tool_calls(

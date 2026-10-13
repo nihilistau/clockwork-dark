@@ -22,6 +22,10 @@
  * column is ALLOWED to scroll, so only overlap, reachability and the page's
  * own scroll are gated there.
  *
+ * A story whose plugin draws its own play screen (READ RECEIPTS' phone,
+ * v0.22.0 T27) is walked instead by `phoneScreens`: the lock screen, home,
+ * Matchstick's deck and a thread, each gated by `probePhone`.
+ *
  * With the people strip in the stage, the scene plate must keep most of its
  * own 12vh floor (T14).
  *
@@ -62,7 +66,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { chromium } from "playwright-core";
 
-import { clippedControlsIn, probeHeader, probeLayout, probeStart, shelfHeadingVisible } from "./layout-probe.js";
+import { clippedControlsIn, probeHeader, probeLayout, probePhone, probeStart, shelfHeadingVisible } from "./layout-probe.js";
 
 export const SIZES = [
   { name: "1366x768", width: 1366, height: 768, phone: false, strict: true },
@@ -70,6 +74,9 @@ export const SIZES = [
   { name: "390x844", width: 390, height: 844, phone: true, strict: true },
   { name: "844x390", width: 844, height: 390, phone: true, strict: false },
 ];
+
+/** Phone runs that must hold a Tile Talk game for the board probe (scripts/screenshot_runs.py). */
+export const TILE_TALK_RUNS = ["media"];
 
 const FLAGS = ["story", "url", "runs", "out", "run", "channel", "executable-path", "panels", "roll"];
 
@@ -153,7 +160,9 @@ async function probe(browser, opts, tag, player, size) {
     await page.waitForSelector(".start__continue", { timeout: 30000 });
     await page.click(".start__continue");
     await page.locator(".saverow", { hasText: player }).getByRole("button", { name: "Continue" }).click();
-    await page.waitForSelector(".scene", { timeout: 30000 });
+    await page.waitForSelector(".scene, .rr-screen", { timeout: 30000 });
+    // A story's own play screen (v0.22.0: READ RECEIPTS' phone) has its own probe set.
+    if (await page.locator(".rr-screen").count()) return await phoneScreens(page, opts, tag, size);
     await page.waitForFunction(() => !document.querySelector(".is-streaming"), null, { timeout: 30000 });
     await page.evaluate(async () => { await document.fonts.ready; });
     await page.waitForTimeout(800);
@@ -176,6 +185,95 @@ async function probe(browser, opts, tag, player, size) {
   } finally {
     await context.close();
   }
+}
+
+/**
+ * READ RECEIPTS' phone (v0.22.0 T27, spec §18.3), walked as a player would:
+ * the lock screen, home, Matchstick's deck, and a thread. At each, the page
+ * must not scroll, the phone's screen must lie wholly in the window, the
+ * bezel must keep 9:19.5 at 900px wide and over (none under), and the
+ * screen's controls must be reachable (`probePhone`): the lock screen's two
+ * buttons; the dock, the home bar, the side (lock) button and the menu; Matchstick's like and pass;
+ * a thread's compose box, its tools and Send (and, on the landscape phone, the
+ * conversation list beside it, T28). Each step is photographed as
+ * `...-<size>-<step>.png`.
+ *
+ * T30 (spec §18.3): the compose bar is probed whole (`.rr-compose`), and a
+ * run holding a Tile Talk game is walked on to it through the Games app: the
+ * board (`.rr-board`) must lie wholly on the screen, uncut by its scroller,
+ * with the rack and the move buttons reachable -- at rest at the three strict
+ * sizes; at 844x390, where the screen may scroll, each scrolled into view
+ * first (`probePhone`'s `scroll`). A run with no Tile Talk game skips the step
+ * (named in the result's `skipped`); a run in `TILE_TALK_RUNS` (the
+ * `media` run of scripts/screenshot_runs.py) must have one, or it fails.
+ */
+async function phoneScreens(page, opts, tag, size) {
+  const bezel = size.width >= 900;
+  const menu = bezel ? ".rr-top__btn" : ".rr-status__menu";
+  await page.evaluate(async () => { await document.fonts.ready; });
+  await page.waitForTimeout(500);
+  const steps = {};
+  const failures = [];
+  const skipped = [];
+  const step = async (name, controls, scroll = false) => {
+    const result = await page.evaluate(probePhone, { bezel, controls, scroll });
+    const png = join(opts.out, `${opts.story}-${tag}-${size.name}${opts.suffix}-${name}.png`);
+    await page.screenshot({ path: png, animations: "disabled" });
+    steps[name] = { ...result, png };
+    for (const failure of result.failures) failures.push(`${name}: ${failure}`);
+  };
+  await step("lock", [".rr-lock__actions button", menu]);
+  await page.click(".rr-lock__open");
+  await page.waitForSelector(".rr-home");
+  await step("home", [".rr-dock .rr-icon", ".rr-homebar__btn", ".rr-status__lock", menu]);
+  await page.click('[data-testid="app-matchstick"]');
+  await page.waitForSelector(".rr-app--matchstick");
+  const card = await page.locator(".rr-deck__card").count();
+  await step("deck", [".rr-tab", ".rr-homebar__btn", ".rr-status__lock", ...(card ? ['.rr-deck__buttons button[aria-label="Like"]', '.rr-deck__buttons button[aria-label="Pass"]'] : [])]);
+  if (!card) failures.push("deck: the run shows no card to like or pass");
+  // A thread: the first chat, else the first match.
+  let opened = false;
+  for (const at of [3, 2]) {
+    await page.click(`.rr-app--matchstick .rr-tab:nth-child(${at})`);
+    if (await page.locator(".rr-chat").count()) {
+      await page.locator(".rr-chat").first().click();
+      await page.waitForSelector(".rr-compose");
+      opened = true;
+      break;
+    }
+  }
+  if (opened) {
+    await page.waitForTimeout(300);
+    // T28: the compose bar's tools too, and on the landscape phone the list beside the thread.
+    const landscape = size.width > 700 && size.width < 900 && size.width > size.height;
+    await step("thread", [
+      ".rr-compose", ".rr-compose__input", ".rr-compose__send", ".rr-compose__tools button", ".rr-back", ".rr-status__lock",
+      ...(landscape ? [".rr-split__list li:first-child .rr-chat"] : []),
+    ]);
+  } else {
+    failures.push("thread: the run has no match or chat to open");
+  }
+  // T30: the Tile Talk board, through the Games app (home bar, then the app).
+  await page.click(".rr-homebar__btn");
+  await page.waitForSelector(".rr-home");
+  await page.click('[data-testid="app-games"]');
+  await page.waitForSelector(".rr-app--games");
+  const tiles = page.locator(".rr-app--games .rr-chat", { hasText: "Tile Talk" });
+  if (await tiles.count()) {
+    await tiles.first().click();
+    await page.waitForSelector(".rr-game--tiles .rr-board");
+    await page.waitForTimeout(300);
+    const active = await page.locator(".rr-game--tiles .rr-rack").count();
+    await step("tiletalk", [
+      ".rr-board", ".rr-back", ".rr-status__lock",
+      ...(active ? [".rr-rack .rr-tile-btn", ".rr-game__actions button"] : []),
+    ], !size.strict);
+  } else if (TILE_TALK_RUNS.includes(tag)) {
+    failures.push("tiletalk: the run has no Tile Talk game to open");
+  } else {
+    skipped.push("tiletalk");
+  }
+  return { failures, phone: steps, skipped, advisories: [] };
 }
 
 /**

@@ -7,7 +7,7 @@ Two modes, one storage root (``CLOCKWORK_DATA_DIR``):
         builds every story's runs at a fixed seed and name, and writes
         <root>/runs.json: {story: {tag: {save_id, player}}}
     python scripts/screenshot_runs.py --root <same dir> --serve <slug> [--port N]
-                                      [--exit-with-parent]
+                                      [--exit-with-parent] [--voice-delay SECONDS]
         serves that story on 127.0.0.1 over those saves, for
         `npm run screenshots --prefix ui` (ui/tools/screenshots.mjs). It
         refuses a port that already answers, and notes its own pid AND
@@ -15,6 +15,8 @@ Two modes, one storage root (``CLOCKWORK_DATA_DIR``):
         under --exit-with-parent; a file left by a killed server is replaced when
         its process is gone and refused while it is alive). Start
         it with the shell's background task, never a bare `&`, which orphans it.
+        ``--voice-delay S`` (a phone story) makes each voicing call wait S
+        seconds and then fall back, so a reply shows "typing" first.
 
 NO MODEL, NO OWNER FILE. The config is pinned to <root>/config/local.yaml
 (``pinned_layer``: ``llm.base_url`` at the discard port with no key, every
@@ -56,7 +58,9 @@ if str(REPO) not in sys.path:
 from engine.config import TEST_SANDBOX_BASE_URL as DISCARD_BASE_URL  # noqa: E402
 
 #: Every story the README photographs.
-STORIES: tuple[str, ...] = ("clockwork-dark", "wicked-garden", "neon-city", "the-long-con", "hue-and-cry", "dev-story")
+STORIES: tuple[str, ...] = (
+    "clockwork-dark", "wicked-garden", "neon-city", "the-long-con", "hue-and-cry", "dev-story", "read-receipts",
+)
 #: One seed and one name for every run, so a re-run photographs the same world.
 SEED = 1021
 #: The player's name per run tag: an in-world name on the README's side
@@ -68,6 +72,8 @@ PLAYERS: dict[str, str] = {
     "encounter": "Wren Marley",
     "wanted": "Wren Marsh",
     "held": "Wren Kell",
+    "phone": "Wren Calloway",
+    "media": "Wren Fairley",
 }
 #: Each story's archetype, named rather than left to the manifest's default.
 ARCHETYPES: dict[str, str] = {
@@ -77,6 +83,9 @@ ARCHETYPES: dict[str, str] = {
     "the-long-con": "gumshoe",
     "hue-and-cry": "cutpurse",
     "dev-story": "human",
+    # READ RECEIPTS has no archetypes (`entry.archetypes: []`): the manifest's
+    # answer, which is none.
+    "read-receipts": "",
 }
 RUNS_FILE = "runs.json"
 
@@ -168,7 +177,40 @@ RUNS: dict[str, dict[str, tuple[Step, ...]]] = {
         ),
     },
     "dev-story": {"play": (("intent", "travel", ""),)},
+    # READ RECEIPTS is played on the phone (v0.22.0 T27): its run is phone
+    # actions (`PHONE_STORIES`, `_play_phone`), each the engine's own catalogue
+    # shape -- like on Matchstick until someone matches, put the phone down
+    # for the replies (voiced by the fallback lines: no model), then open the
+    # newest thread. The layout's phone probes walk it (ui/tools/layout-check.mjs).
+    "read-receipts": {
+        "phone": (
+            ("phone", "swipe", "like", "12"),
+            ("phone", "wait", "next", "3"),
+            ("phone", "open_thread", "", "1"),
+        ),
+        # T30 (spec §18.3): the same match taken to numbers (`setup`, below),
+        # then, by phone actions only: a text on Natter, the three asks --
+        # a photo, a voice note, a video -- answered and sent (procedural
+        # tiles, fallback lines), and a Tile Talk game begun; the Natter
+        # thread left open. The layout's board probe walks its game.
+        "media": (
+            ("phone", "swipe", "like", "12"),
+            ("phone", "wait", "next", "3"),
+            ("setup", "numbers", "", ""),
+            ("phone", "send", "natter", "1"),
+            ("phone", "ask", "photo", "1"),
+            ("phone", "ask", "voice", "1"),
+            ("phone", "ask", "video", "1"),
+            ("phone", "wait", "next", "6"),
+            ("phone", "game_invite", "wordgame", "1"),
+            ("phone", "wait", "next", "3"),
+            ("phone", "open_thread", "natter", "1"),
+        ),
+    },
 }
+
+#: Stories played on the phone (`phone_action` over its HTTP twin), not by choices.
+PHONE_STORIES: frozenset[str] = frozenset({"read-receipts"})
 
 
 class ScriptStop(RuntimeError):
@@ -208,7 +250,7 @@ def pinned_layer() -> dict[str, Any]:
     services = ((default.get("stack") or {}).get("services") or {})
     return {
         "llm": {"base_url": DISCARD_BASE_URL, "api_key": "", "mcp": {"enabled": False}},
-        "comfyui": {"enabled": False, "base_url": TEST_SANDBOX_SERVICE_URL},
+        "comfyui": {"enabled": False, "base_url": TEST_SANDBOX_SERVICE_URL, "api_key": ""},
         "tts": {"enabled": False, "assistant_enabled": False, "base_url": TEST_SANDBOX_SERVICE_URL},
         "stt": {"base_url": TEST_SANDBOX_SERVICE_URL},
         "media": {"live_generation": False},
@@ -441,10 +483,177 @@ def _play(story: str, tag: str, steps: tuple[Step, ...]) -> dict[str, str]:
         reset_store()
 
 
+#: The text the media run sends on Natter (the player's own words, not a model's).
+PHONE_TEXT = "So what are you up to tonight?"
+
+
+def _setup_numbers(state: Any, pid: str) -> None:
+    """
+    ("setup", "numbers"): the run's first match taken to stage ``numbers``
+    with its messengers open, its warmth and trust at the ``meeting`` gate
+    and its media budget at each kind's cap -- through the engine's own
+    effects (``social_stage``, ``social_message``, ``social_person``: the one
+    writer, rule 3), as ``tests/social_fixtures.py``'s ``numbers_pid`` does.
+
+    Why a set-up and not play: with no model a relationship grows on
+    ``regard.fallback`` alone, and numbers takes in-game weeks. Measured
+    (T30, seed 1021, an attentive scripted player): 16 in-game days, about
+    2100 actions and 13 minutes of build, with no one past ``talking`` and
+    no media received. Every step after it is a phone action the engine
+    offered, decided by the engine (the asks' answers are its draws).
+    """
+    from engine.game.effects import apply_effect
+    from engine import social
+    from engine.social import messaging, relationships
+    from engine.social.kinds import MEDIA_KINDS
+
+    def ok(effect: dict[str, Any]) -> None:
+        done = apply_effect(state, effect)
+        if not done.get("ok"):
+            raise ScriptStop(f"setup numbers: {effect['type']} refused: {done}")
+
+    paths = dict(relationships.GATE_PATHS)
+    fields: dict[str, Any] = {}
+    for name, value in relationships.gate_spec("meeting").items():
+        if len(paths.get(name, ())) != 1:
+            # A nested measure (familiarity's) is not set here: fail loudly rather than fall short of
+            # the gate the run is meant to stand at (T30 review M4).
+            raise ScriptStop(f"setup numbers: the meeting gate's {name!r} is not a field this set-up can write")
+        fields[paths[name][0]] = value
+    ok({"type": "social_stage", "pid": pid, "stage": "numbers"})
+    messaging.open_numbers(state, pid)
+    budget = social.data("media").get("budget") or {}
+    fields["media_budget"] = {kind: float((budget.get(kind) or {}).get("cap", 1)) for kind in MEDIA_KINDS}
+    ok({"type": "social_person", "pid": pid, "set": fields})
+
+
+def _play_phone(story: str, tag: str, steps: tuple[Step, ...]) -> dict[str, str]:
+    """
+    A phone story's run (v0.22.0 T27): a new game with the creation form's
+    name, then each step a `POST /api/phone/action` the engine's catalogue
+    offers -- ("phone", "swipe", dir, max) on the top Matchstick card until
+    a thread exists or `max` swipes; ("phone", "wait", until, times);
+    ("phone", "open_thread", app, 1) on the first match's thread in `app`
+    ("" = the newest thread). T30 adds, each on the run's FIRST match:
+    ("phone", "send", app, n) a text in its `app` thread; ("phone", "ask",
+    what, 1) on its Natter thread; ("phone", "game_invite", game, 1); and
+    ("setup", "numbers", "", "") (`_setup_numbers`, the one step that is not
+    a phone action). After every action the due messages are voiced at once
+    (`voicer.run_until_quiet`, the fallback lines: the pinned config reaches
+    no model), so a capture never shows a thread mid-pass. A refusal stops
+    the script, naming it.
+    """
+    from engine.games import registry
+    from engine.scenes.default_scene import create_app, reset_store
+    from engine.session.store import release_turn
+    from engine.social import voicer
+
+    manifest = registry.activate(story)
+    # Every phone action also requests a background voicing pass (engine/social/routes.py). In a
+    # build that pass meets no model either: its function raises, so it falls back as
+    # `run_until_quiet` does -- never `voicing.production_llm_fn`, whose backend may have been made
+    # under another config earlier in the same process (T30 follow-up). Restored after the build.
+    prior_llm_fn = voicer._llm_fn
+    voicer.set_llm_fn(_no_model)
+    # And the scheduler is paused for the build: `run_until_quiet` voices every action's due messages
+    # on this thread, so a background pass would only race the next action for the turn lock (a 409).
+    scheduler = voicer.get_scheduler()
+    was_paused = bool(getattr(scheduler, "_paused", False))
+    scheduler.pause()
+    try:
+        reset_store()
+        fallback = manifest.fallback_narration or "The world waits."
+        scene, app = create_app(testing=True, llm_fn=lambda *_a, **_k: json.dumps({"narration": fallback, "choices": []}))
+        client = app.test_client()
+        player = PLAYERS[tag]
+        started = client.post(
+            "/api/game/new", json={"seed": SEED, "player_name": player, "creation": {"name": player}}
+        ).get_json()
+        session_id = started["session_id"]
+        session = scene.store.require(session_id)
+        phone = started["state"]["phone"]
+
+        def act(action: str, target: str = "", args: Optional[dict[str, Any]] = None, text: str = "") -> dict[str, Any]:
+            answer = client.post("/api/phone/action", json={
+                "session_id": session_id, "action": action, "target": target, "args": args or {}, "text": text})
+            if answer.status_code != 200:
+                raise ScriptStop(f"{story}/{tag}: {action} answered {answer.status_code}")
+            block = answer.get_json()["state"]["phone"]
+            if block.get("refusal"):
+                raise ScriptStop(f"{story}/{tag}: {action} refused: {block['refusal']['reason']}")
+            voicer.run_until_quiet(session, None)
+            return block
+
+        def first_pid() -> str:
+            threads = phone.get("threads") or []
+            if not threads:
+                raise ScriptStop(f"{story}/{tag}: no match yet")
+            return str(threads[-1]["pid"])   # listed latest first: the last row is the first match
+
+        def thread_in(app: str) -> str:
+            return f"{app}:{first_pid()}"
+
+        for step in steps:
+            if step[:2] == ("setup", "numbers"):
+                if not session.lock.acquire(blocking=False):
+                    raise ScriptStop(f"{story}/{tag}: the turn lock is held")
+                try:
+                    _setup_numbers(session.engine.state, first_pid())
+                finally:
+                    release_turn(session)
+                continue
+            if step[0] != "phone":
+                raise ScriptStop(f"{story}/{tag}: {step} is not a phone step")
+            _, action, arg, count = step
+            for _ in range(int(count)):
+                if action == "swipe":
+                    card = ((phone.get("deck") or {}).get("matchstick") or {}).get("card")
+                    if not card or phone.get("threads"):
+                        break
+                    phone = act("swipe", card["pid"], {"dir": arg})
+                elif action == "wait":
+                    phone = act("wait", "", {"until": arg})
+                elif action == "open_thread":
+                    threads = phone.get("threads") or []
+                    if not threads:
+                        raise ScriptStop(f"{story}/{tag}: no thread to open")
+                    phone = act("open_thread", thread_in(arg) if arg else threads[0]["thread_id"])
+                elif action == "send":
+                    phone = act("send", thread_in(arg), {"kind": "text"}, PHONE_TEXT)
+                elif action == "ask":
+                    phone = act("ask", thread_in("natter"), {"what": arg})
+                elif action == "game_invite":
+                    phone = act("game_invite", first_pid(), {"game": arg})
+                else:
+                    raise ScriptStop(f"{story}/{tag}: unknown phone step {action!r}")
+
+        saved = client.post("/api/saves", json={"session_id": session_id, "save_id": started["save_id"]}).get_json()
+        if str(saved.get("save_id")) != str(started["save_id"]):
+            raise ScriptStop(f"{story}/{tag}: the save was written under another id ({saved})")
+        return {"save_id": str(saved["save_id"]), "player": player}
+    finally:
+        try:
+            # The build's own passes, queued or in backoff, are cancelled BEFORE the model function is
+            # restored: a pass reads it when it runs, not when it is asked for (T30 review M1).
+            voicer.cancel_all()
+            registry.deactivate()
+            reset_store()
+        finally:
+            voicer.set_llm_fn(prior_llm_fn)
+            if not was_paused:
+                scheduler.resume()
+
+
+def _no_model(_messages: Any, _fmt: Any) -> str:
+    """A build's voicing model: there is none (the voicer falls back at once)."""
+    raise RuntimeError("screenshot_runs: no model in a build")
+
+
 def build_runs(root: Path, stories: Iterable[str] = STORIES) -> dict[str, dict[str, dict[str, str]]]:
     built: dict[str, dict[str, dict[str, str]]] = {}
     for story in stories:
-        built[story] = {tag: _play(story, tag, steps) for tag, steps in RUNS[story].items()}
+        play = _play_phone if story in PHONE_STORIES else _play
+        built[story] = {tag: play(story, tag, steps) for tag, steps in RUNS[story].items()}
     root.mkdir(parents=True, exist_ok=True)
     (root / RUNS_FILE).write_text(json.dumps(built, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return built
@@ -527,7 +736,39 @@ def _exit_with_parent(
     return thread
 
 
-def serve(root: Path, slug: str, port: Optional[int], exit_with_parent: bool = False) -> None:
+def delayed_voice(seconds: float) -> Any:
+    """
+    ``--voice-delay``'s model function (v0.22.0 T30, spec Acceptance): it waits
+    ``seconds`` and then raises, so each person's reply is the story's fallback
+    line after a visible "typing" -- a voicing pass that takes time, as a real
+    model's does, with no model reached. A raise is what a dead server gives
+    the voicer (``voicing.voice`` falls back at once).
+    """
+    import time
+
+    def call(_messages: Any, _fmt: Any) -> str:
+        time.sleep(seconds)
+        raise RuntimeError(f"screenshot_runs --voice-delay: no model ({seconds:g} s)")
+
+    return call
+
+
+def _log_phone_actions() -> None:
+    """
+    The serve's log (its stdout) carries the phone's INFO lines -- one
+    ``operation=phone_action`` line per action, its name and a monotonic
+    ``t=`` (engine/social/routes.py), the cadence measurement's source
+    (v0.22.0 T30) -- and every logger's WARNING and above.
+    """
+    import logging
+
+    logging.basicConfig(level=logging.WARNING, stream=sys.stdout,
+                        format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    logging.getLogger("engine.social").setLevel(logging.INFO)
+
+
+def serve(root: Path, slug: str, port: Optional[int], exit_with_parent: bool = False,
+          voice_delay: float = 0.0) -> None:
     from engine.games import registry
     from engine.scenes.default_scene import create_app
     from engine.scenes.spec import scene_port
@@ -541,6 +782,12 @@ def serve(root: Path, slug: str, port: Optional[int], exit_with_parent: bool = F
     manifest = registry.activate(slug)
     fallback = manifest.fallback_narration or "The world waits."
     scene, _app = create_app(llm_fn=lambda *_a, **_k: json.dumps({"narration": fallback, "choices": []}))
+    if voice_delay > 0:
+        # The phone's voicing scheduler reads its own model function (engine/social/voicer.py).
+        from engine.social import voicer
+
+        voicer.set_llm_fn(delayed_voice(voice_delay))
+    _log_phone_actions()
     record = _record_identity(root, chosen)
     if exit_with_parent:
         _exit_with_parent(record)
@@ -561,6 +808,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--exit-with-parent", action="store_true",
         help="with --serve: exit when the launching process is gone (never leaves an orphan)",
     )
+    parser.add_argument(
+        "--voice-delay", type=float, default=0.0, metavar="SECONDS",
+        help="with --serve: each phone voicing call waits this long, then falls back (a visible \"typing\")",
+    )
     args = parser.parse_args(argv)
     try:
         if args.serve:
@@ -568,7 +819,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             if not env or not _same_path(env, args.root) or not (args.root / RUNS_FILE).is_file():
                 raise ScriptStop("--serve needs CLOCKWORK_DATA_DIR = --root, holding a runs.json from a build")
             pin_config(args.root)
-            serve(args.root, args.serve, args.port, args.exit_with_parent)
+            serve(args.root, args.serve, args.port, args.exit_with_parent, args.voice_delay)
             return 0
         require_fresh(args.root)
         pin_config(args.root)

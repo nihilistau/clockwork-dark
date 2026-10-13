@@ -37,6 +37,10 @@ WSGI layer outside everything that the test drives through files in
   for the model apply's rollback;
 - ``scripted.reply`` (v0.20.0 T17): while it exists, its text is every
   worker's scripted reply (the sentinel test's narration and stat claim);
+- ``scripted.voice`` (v0.22.0 T14): in a story declaring ``paths.social``,
+  the voicing pass's model is scripted too (``voicer.set_llm_fn``, never a
+  model server): each reply is one bubble, this file's text while it exists
+  (else "sure"), valid against the call's schema;
 - ``<process>.fail`` (v0.20.0 T17): while it exists, a turn raises inside
   ``run_turn`` with the file's text as its message;
 - with ``CLOCKWORK_PROBE_BUS_TRACE`` set (v0.20.0 T17), every frame the
@@ -65,7 +69,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Optional
 
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
@@ -256,6 +260,87 @@ def _reply() -> str:
     return SCRIPTED_REPLY
 
 
+#: A control file whose text, while it exists, is every scripted phone reply's one bubble (v0.22.0 T14).
+VOICE_FILE = "scripted.voice"
+
+
+def scripted_voice(_messages: Any, fmt: Any) -> str:
+    """The voicing pass's scripted model: one bubble (``scripted.voice``'s text), nothing else moved."""
+    text = "sure"
+    control = os.environ.get(CONTROL_ENV, "")
+    if control:
+        try:
+            text = (Path(control) / VOICE_FILE).read_text(encoding="utf-8").strip() or text
+        except OSError:
+            pass
+    schema = ((fmt or {}).get("json_schema") or {}).get("schema") or {}
+    props = schema.get("properties") or {}
+    reply: dict[str, Any] = {"bubbles": [{"text": text}], "regard": {"warmth": 0, "trust": 0, "mood": "neutral"},
+                             "learned": [], "shared": []}
+    if "proposals" in props:
+        reply["proposals"] = []
+    if "media" in props:
+        reply["media"] = {"caption": text}
+    return json.dumps(reply)
+
+
+#: A control file: while it exists, every person of a phone story always reads and replies -- never
+#: ghosts, never leaves the player on read (pre-flight F16: a test FORCES the draws it needs instead of
+#: hunting for a seed whose course a content change can move; tests/test_admin_no_play_text.py).
+ALWAYS_REPLIES = "scripted.always_replies"
+#: A control file (v0.22.0 T21 review M7): while it exists, a phone story's people say yes to every media
+#: ask the app can carry -- the kind unlocked at any stage, a budget always held, the accept odds 1 -- so
+#: a person's voice note (its transcript the scripted voice's line) lands in the save the admin scan reads.
+MEDIA_YES = "scripted.media_yes"
+
+
+def script_the_phone(control: Optional[Path] = None) -> None:
+    """
+    A phone story's voicing pass voiced by ``scripted_voice`` (absent in any
+    other story). With ``control``, while ``<control>/scripted.always_replies``
+    exists every archetype's ghost chance is 0 and its reply odds 1 (its
+    interest and burst terms pinned to 1), read per decision; and while
+    ``scripted.media_yes`` exists every media ask the app can carry is
+    accepted (``_media_yes``).
+    """
+    from engine import social
+
+    if social.declared():
+        from engine.social import voicer
+
+        voicer.set_llm_fn(scripted_voice)
+        voicer.set_summary_fn(lambda messages: "")   # "" takes the deterministic fallback, no server asked
+        if control is not None:
+            _always_replies(control / ALWAYS_REPLIES)
+            _media_yes(control / MEDIA_YES)
+
+
+def _always_replies(flag: Path) -> None:
+    import dataclasses
+
+    from engine.social import behaviour, messaging
+
+    real_archetype = behaviour.archetype
+    real_interest, real_burst = messaging._interest_factor, messaging._burst_factor
+
+    def archetype(name: str) -> Any:
+        arch = real_archetype(name)
+        return dataclasses.replace(arch, ghost_per_exchange=0.0, reply_prob=1.0) if flag.exists() else arch
+
+    behaviour.archetype = archetype  # type: ignore[assignment]
+    messaging._interest_factor = lambda interest: 1.0 if flag.exists() else real_interest(interest)  # type: ignore[assignment]
+    messaging._burst_factor = lambda burst: 1.0 if flag.exists() else real_burst(burst)  # type: ignore[assignment]
+
+
+def _media_yes(flag: Path) -> None:
+    from engine.social import media
+
+    real_unlocked, real_budget, real_accept = media.unlocked, media.budget_of, media.accept_p
+    media.unlocked = lambda *a, **k: True if flag.exists() else real_unlocked(*a, **k)  # type: ignore[assignment]
+    media.budget_of = lambda *a, **k: 2.0 if flag.exists() else real_budget(*a, **k)  # type: ignore[assignment]
+    media.accept_p = lambda *a, **k: 1.0 if flag.exists() else real_accept(*a, **k)  # type: ignore[assignment]
+
+
 def fail_when_asked(control: Path, name: str) -> None:
     """``default_scene.run_turn`` wrapped: it raises while ``<name>.fail`` exists."""
     from engine.scenes import default_scene
@@ -327,6 +412,7 @@ def _builder() -> Callable[[], tuple[Any, Any]]:
         _llm_report(control, name)
         forbid_resets(control, name)
         fail_when_asked(control, name)  # v0.20.0 T17
+        script_the_phone(control)  # v0.22.0 T14; the draws pinned on request (T19)
         trace_bus(control, name)  # v0.20.0 T17
         return scene, app
 

@@ -142,9 +142,12 @@ class MediaPipeline:
             # Records the job and serves a cache hit immediately; anything that
             # actually needs synthesizing goes to the background worker, because
             # doing it here costs minutes per turn.
+            # The cache is looked up in the voice the worker speaks with: since
+            # v0.22.0 the file is keyed by the voice too, so asking under
+            # another name ("storyteller") would never find it.
             job = self._tts.enqueue_narration(
                 narration,
-                voice="storyteller",
+                voice=self._tts.voice,
                 style=voice_style,
             )
             result.tts_jobs.append(job)

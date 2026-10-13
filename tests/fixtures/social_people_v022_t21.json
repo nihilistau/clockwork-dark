@@ -1,0 +1,2430 @@
+[
+ {
+  "age": 30,
+  "appearance": "short, slim, short blonde hair, jeans-and-a-t-shirt casual, brown eyes, brown skin, round glasses",
+  "archetype": "dry_texter",
+  "attributes": [
+   [
+    "build",
+    "slim"
+   ],
+   [
+    "drinks",
+    "never"
+   ],
+   [
+    "hair",
+    "blonde_short"
+   ],
+   [
+    "height",
+    "short"
+   ],
+   [
+    "job",
+    "chef"
+   ],
+   [
+    "kids",
+    "want"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "casual"
+   ]
+  ],
+  "bio": {
+   "matchstick": "slow mornings... long walks... you know..."
+  },
+  "chemistry": 0.0642,
+  "education": "college",
+  "flags": [],
+  "hobbies": [
+   "paddleboarding",
+   "hiking",
+   "plants",
+   "diy"
+  ],
+  "index": 0,
+  "intent": "long_term",
+  "job": "chef",
+  "job_shape": "nights",
+  "name": "Jack",
+  "neighbourhood": "the_lanes",
+  "personality": [
+   [
+    "outgoing",
+    3
+   ],
+   [
+    "playful",
+    2
+   ],
+   [
+    "romantic",
+    2
+   ],
+   [
+    "adventurous",
+    4
+   ],
+   [
+    "homebody",
+    4
+   ]
+  ],
+  "photos": [
+   "boat_deck",
+   "coffee_window",
+   "hike_squint",
+   "garden_plants"
+  ],
+  "pid": "p0000",
+  "preferences": [
+   [
+    "age_max",
+    37
+   ],
+   [
+    "age_min",
+    22
+   ],
+   [
+    "dealbreakers",
+    []
+   ],
+   [
+    "liked_hobbies",
+    [
+     "baking",
+     "sailing",
+     "poetry"
+    ]
+   ],
+   [
+    "selectivity",
+    0.635
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "ellipsis_drifter",
+  "traits": [
+   "curious",
+   "confident",
+   "homely"
+  ]
+ },
+ {
+  "age": 29,
+  "appearance": "tall, average build, long brown hair, jeans-and-a-t-shirt casual, brown eyes, dark skin, a gap-toothed grin",
+  "archetype": "busy",
+  "attributes": [
+   [
+    "build",
+    "average"
+   ],
+   [
+    "drinks",
+    "never"
+   ],
+   [
+    "hair",
+    "brown_long"
+   ],
+   [
+    "height",
+    "tall"
+   ],
+   [
+    "job",
+    "architect"
+   ],
+   [
+    "kids",
+    "unsure"
+   ],
+   [
+    "smokes",
+    "yes"
+   ],
+   [
+    "style",
+    "casual"
+   ]
+  ],
+  "bio": {
+   "matchstick": "Eastfield's premier painting guy (self-appointed)"
+  },
+  "chemistry": -0.0149,
+  "education": "postgrad",
+  "flags": [],
+  "hobbies": [
+   "painting",
+   "video_games",
+   "thrifting"
+  ],
+  "index": 37,
+  "intent": "short_term",
+  "job": "architect",
+  "job_shape": "office",
+  "name": "Gabe",
+  "neighbourhood": "eastfield",
+  "personality": [
+   [
+    "outgoing",
+    1
+   ],
+   [
+    "playful",
+    3
+   ],
+   [
+    "romantic",
+    4
+   ],
+   [
+    "adventurous",
+    1
+   ],
+   [
+    "homebody",
+    4
+   ]
+  ],
+  "photos": [
+   "hike_squint",
+   "gig_blurry"
+  ],
+  "pid": "p0037",
+  "preferences": [
+   [
+    "age_max",
+    34
+   ],
+   [
+    "age_min",
+    25
+   ],
+   [
+    "dealbreakers",
+    [
+     "kids_have",
+     "smokes_yes"
+    ]
+   ],
+   [
+    "liked_hobbies",
+    [
+     "astronomy",
+     "climbing",
+     "hiking"
+    ]
+   ],
+   [
+    "selectivity",
+    0.756
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "voice_of_a_meme",
+  "traits": [
+   "thoughtful",
+   "night_person",
+   "competitive"
+  ]
+ },
+ {
+  "age": 21,
+  "appearance": "short, average build, short brown hair, vintage, hazel eyes, freckled skin, a small scar through one eyebrow",
+  "archetype": "drifter",
+  "attributes": [
+   [
+    "build",
+    "average"
+   ],
+   [
+    "drinks",
+    "often"
+   ],
+   [
+    "hair",
+    "brown_short"
+   ],
+   [
+    "height",
+    "short"
+   ],
+   [
+    "job",
+    "chef"
+   ],
+   [
+    "kids",
+    "dont_want"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "vintage"
+   ]
+  ],
+  "bio": {
+   "matchstick": "Life's short! Go volunteering!"
+  },
+  "chemistry": -0.0539,
+  "education": "school",
+  "flags": [],
+  "hobbies": [
+   "volunteering",
+   "hiking",
+   "plants",
+   "thrifting",
+   "running",
+   "paddleboarding"
+  ],
+  "index": 74,
+  "intent": "short_term",
+  "job": "chef",
+  "job_shape": "nights",
+  "name": "Leo",
+  "neighbourhood": "the_lanes",
+  "personality": [
+   [
+    "outgoing",
+    4
+   ],
+   [
+    "playful",
+    3
+   ],
+   [
+    "romantic",
+    3
+   ],
+   [
+    "adventurous",
+    4
+   ],
+   [
+    "homebody",
+    5
+   ]
+  ],
+  "photos": [
+   "travel_landmark",
+   "festival_crowd",
+   "snow_hat",
+   "kitchen_cooking"
+  ],
+  "pid": "p0074",
+  "preferences": [
+   [
+    "age_max",
+    30
+   ],
+   [
+    "age_min",
+    18
+   ],
+   [
+    "dealbreakers",
+    []
+   ],
+   [
+    "liked_hobbies",
+    [
+     "plants",
+     "playing_guitar",
+     "travel"
+    ]
+   ],
+   [
+    "selectivity",
+    0.187
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "exclamation_sunny",
+  "traits": [
+   "dry_humour",
+   "curious",
+   "adventurous"
+  ]
+ },
+ {
+  "age": 26,
+  "appearance": "average height, slim, a shaved head, smart, blue eyes, brown skin, an easy smile",
+  "archetype": "drifter",
+  "attributes": [
+   [
+    "build",
+    "slim"
+   ],
+   [
+    "drinks",
+    "socially"
+   ],
+   [
+    "hair",
+    "shaved"
+   ],
+   [
+    "height",
+    "average"
+   ],
+   [
+    "job",
+    "vet_nurse"
+   ],
+   [
+    "kids",
+    "unsure"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "smart"
+   ]
+  ],
+  "bio": {
+   "matchstick": "Not on here much."
+  },
+  "chemistry": -0.1338,
+  "education": "degree",
+  "flags": [
+   "lives_with_flatmates"
+  ],
+  "hobbies": [
+   "cooking",
+   "eating_out",
+   "gym",
+   "climbing"
+  ],
+  "index": 111,
+  "intent": "unsure",
+  "job": "vet_nurse",
+  "job_shape": "shifts",
+  "name": "Eric",
+  "neighbourhood": "riverside",
+  "personality": [
+   [
+    "outgoing",
+    5
+   ],
+   [
+    "playful",
+    3
+   ],
+   [
+    "romantic",
+    2
+   ],
+   [
+    "adventurous",
+    4
+   ],
+   [
+    "homebody",
+    1
+   ]
+  ],
+  "photos": [
+   "harbour_sunset",
+   "kid_photo",
+   "picnic_blanket"
+  ],
+  "pid": "p0111",
+  "preferences": [
+   [
+    "age_max",
+    31
+   ],
+   [
+    "age_min",
+    19
+   ],
+   [
+    "dealbreakers",
+    []
+   ],
+   [
+    "liked_hobbies",
+    [
+     "coffee",
+     "wine",
+     "open_water_swimming"
+    ]
+   ],
+   [
+    "selectivity",
+    0.286
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "terse_busy",
+  "traits": [
+   "earnest",
+   "night_person",
+   "teasing"
+  ]
+ },
+ {
+  "age": 26,
+  "appearance": "tall, average build, long blonde hair, artsy, grey eyes, fair skin, an easy smile",
+  "archetype": "ghoster",
+  "attributes": [
+   [
+    "build",
+    "average"
+   ],
+   [
+    "drinks",
+    "never"
+   ],
+   [
+    "hair",
+    "blonde_long"
+   ],
+   [
+    "height",
+    "tall"
+   ],
+   [
+    "job",
+    "chef"
+   ],
+   [
+    "kids",
+    "unsure"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "artsy"
+   ]
+  ],
+  "bio": {
+   "matchstick": "hiking > everything"
+  },
+  "chemistry": -0.0179,
+  "education": "school",
+  "flags": [
+   "owns_a_car",
+   "plays_an_instrument"
+  ],
+  "hobbies": [
+   "hiking",
+   "pub_quizzes"
+  ],
+  "index": 148,
+  "intent": "short_term",
+  "job": "chef",
+  "job_shape": "nights",
+  "name": "Mason",
+  "neighbourhood": "the_quays",
+  "personality": [
+   [
+    "outgoing",
+    5
+   ],
+   [
+    "playful",
+    4
+   ],
+   [
+    "romantic",
+    4
+   ],
+   [
+    "adventurous",
+    1
+   ],
+   [
+    "homebody",
+    4
+   ]
+  ],
+  "photos": [
+   "garden_plants",
+   "mirror_jacket",
+   "dog_cuddle"
+  ],
+  "pid": "p0148",
+  "preferences": [
+   [
+    "age_max",
+    33
+   ],
+   [
+    "age_min",
+    22
+   ],
+   [
+    "dealbreakers",
+    [
+     "drinks_often",
+     "kids_dont_want"
+    ]
+   ],
+   [
+    "liked_hobbies",
+    [
+     "hiking",
+     "cats",
+     "cooking"
+    ]
+   ],
+   [
+    "selectivity",
+    0.627
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "lowercase_fast",
+  "traits": [
+   "warm",
+   "confident",
+   "curious"
+  ]
+ },
+ {
+  "age": 30,
+  "appearance": "average height, athletic, long brown hair, minimal, hazel eyes, dark skin, an easy smile",
+  "archetype": "romantic",
+  "attributes": [
+   [
+    "build",
+    "athletic"
+   ],
+   [
+    "drinks",
+    "socially"
+   ],
+   [
+    "hair",
+    "brown_long"
+   ],
+   [
+    "height",
+    "average"
+   ],
+   [
+    "job",
+    "paramedic"
+   ],
+   [
+    "kids",
+    "unsure"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "minimal"
+   ]
+  ],
+  "bio": {
+   "matchstick": "Mostly video games. Some reading. Occasionally sleep."
+  },
+  "chemistry": -0.0396,
+  "education": "degree",
+  "flags": [
+   "owns_a_car"
+  ],
+  "hobbies": [
+   "video_games",
+   "reading",
+   "sailing"
+  ],
+  "index": 185,
+  "intent": "short_term",
+  "job": "paramedic",
+  "job_shape": "shifts",
+  "name": "Owen",
+  "neighbourhood": "riverside",
+  "personality": [
+   [
+    "outgoing",
+    5
+   ],
+   [
+    "playful",
+    4
+   ],
+   [
+    "romantic",
+    2
+   ],
+   [
+    "adventurous",
+    2
+   ],
+   [
+    "homebody",
+    4
+   ]
+  ],
+  "photos": [
+   "snow_hat",
+   "market_stall"
+  ],
+  "pid": "p0185",
+  "preferences": [
+   [
+    "age_max",
+    40
+   ],
+   [
+    "age_min",
+    25
+   ],
+   [
+    "dealbreakers",
+    [
+     "kids_dont_want"
+    ]
+   ],
+   [
+    "liked_hobbies",
+    [
+     "travel",
+     "chess"
+    ]
+   ],
+   [
+    "selectivity",
+    0.493
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "dry_one_liners",
+  "traits": [
+   "nerdy",
+   "homely",
+   "flirty"
+  ]
+ },
+ {
+  "age": 25,
+  "appearance": "average height, athletic, long brown hair, streetwear, grey eyes, dark skin, round glasses",
+  "archetype": "busy",
+  "attributes": [
+   [
+    "build",
+    "athletic"
+   ],
+   [
+    "drinks",
+    "never"
+   ],
+   [
+    "hair",
+    "brown_long"
+   ],
+   [
+    "height",
+    "average"
+   ],
+   [
+    "job",
+    "accountant"
+   ],
+   [
+    "kids",
+    "unsure"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "streetwear"
+   ]
+  ],
+  "bio": {
+   "matchstick": "accountant, occasionally competent. I'll talk about fashion for longer than you'd like."
+  },
+  "chemistry": 0.0363,
+  "education": "degree",
+  "flags": [
+   "owns_a_car"
+  ],
+  "hobbies": [
+   "fashion",
+   "running",
+   "yoga",
+   "cooking"
+  ],
+  "index": 222,
+  "intent": "unsure",
+  "job": "accountant",
+  "job_shape": "office",
+  "name": "Kit",
+  "neighbourhood": "riverside",
+  "personality": [
+   [
+    "outgoing",
+    2
+   ],
+   [
+    "playful",
+    4
+   ],
+   [
+    "romantic",
+    4
+   ],
+   [
+    "adventurous",
+    5
+   ],
+   [
+    "homebody",
+    1
+   ]
+  ],
+  "photos": [
+   "snow_hat",
+   "market_stall",
+   "mirror_jacket",
+   "rooftop_drink"
+  ],
+  "pid": "p0222",
+  "preferences": [
+   [
+    "age_max",
+    35
+   ],
+   [
+    "age_min",
+    22
+   ],
+   [
+    "dealbreakers",
+    [
+     "drinks_never"
+    ]
+   ],
+   [
+    "liked_hobbies",
+    [
+     "diy",
+     "running",
+     "hiking"
+    ]
+   ],
+   [
+    "selectivity",
+    0.634
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "proper_paragraphs",
+  "traits": [
+   "practical",
+   "morning_person",
+   "shy"
+  ]
+ },
+ {
+  "age": 36,
+  "appearance": "average height, athletic, curly brown hair, jeans-and-a-t-shirt casual, brown eyes, dark skin, sunglasses pushed up on the head",
+  "archetype": "drifter",
+  "attributes": [
+   [
+    "build",
+    "athletic"
+   ],
+   [
+    "drinks",
+    "never"
+   ],
+   [
+    "hair",
+    "brown_curly"
+   ],
+   [
+    "height",
+    "average"
+   ],
+   [
+    "job",
+    "ferry_crew"
+   ],
+   [
+    "kids",
+    "want"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "casual"
+   ]
+  ],
+  "bio": {
+   "matchstick": "will judge u on ur writing opinions"
+  },
+  "chemistry": 0.0939,
+  "education": "college",
+  "flags": [],
+  "hobbies": [
+   "vinyl",
+   "writing",
+   "film",
+   "baking"
+  ],
+  "index": 259,
+  "intent": "short_term",
+  "job": "ferry_crew",
+  "job_shape": "shifts",
+  "name": "Theo",
+  "neighbourhood": "harbourside",
+  "personality": [
+   [
+    "outgoing",
+    1
+   ],
+   [
+    "playful",
+    1
+   ],
+   [
+    "romantic",
+    2
+   ],
+   [
+    "adventurous",
+    2
+   ],
+   [
+    "homebody",
+    5
+   ]
+  ],
+  "photos": [
+   "rooftop_drink",
+   "group_night_out"
+  ],
+  "pid": "p0259",
+  "preferences": [
+   [
+    "age_max",
+    39
+   ],
+   [
+    "age_min",
+    30
+   ],
+   [
+    "dealbreakers",
+    []
+   ],
+   [
+    "liked_hobbies",
+    [
+     "eating_out"
+    ]
+   ],
+   [
+    "selectivity",
+    0.175
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "lowercase_fast",
+  "traits": [
+   "blunt",
+   "thoughtful",
+   "homely"
+  ]
+ },
+ {
+  "age": 31,
+  "appearance": "average height, average build, long black hair, jeans-and-a-t-shirt casual, green eyes, brown skin, an easy smile",
+  "archetype": "breadcrumber",
+  "attributes": [
+   [
+    "build",
+    "average"
+   ],
+   [
+    "drinks",
+    "socially"
+   ],
+   [
+    "hair",
+    "black_long"
+   ],
+   [
+    "height",
+    "average"
+   ],
+   [
+    "job",
+    "marine_engineer"
+   ],
+   [
+    "kids",
+    "want"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "casual"
+   ]
+  ],
+  "bio": {
+   "matchstick": "Professionally a marine engineer. Recreationally, hiking."
+  },
+  "chemistry": 0.0848,
+  "education": "degree",
+  "flags": [
+   "has_pet",
+   "lives_with_flatmates"
+  ],
+  "hobbies": [
+   "hiking",
+   "open_water_swimming",
+   "paddleboarding",
+   "diy",
+   "gardening"
+  ],
+  "index": 296,
+  "intent": "friendship",
+  "job": "marine_engineer",
+  "job_shape": "shifts",
+  "name": "Hugo",
+  "neighbourhood": "millbrook",
+  "personality": [
+   [
+    "outgoing",
+    5
+   ],
+   [
+    "playful",
+    2
+   ],
+   [
+    "romantic",
+    3
+   ],
+   [
+    "adventurous",
+    4
+   ],
+   [
+    "homebody",
+    1
+   ]
+  ],
+  "photos": [
+   "festival_crowd",
+   "travel_landmark",
+   "group_night_out",
+   "rooftop_drink",
+   "graduation"
+  ],
+  "pid": "p0296",
+  "preferences": [
+   [
+    "age_max",
+    35
+   ],
+   [
+    "age_min",
+    23
+   ],
+   [
+    "dealbreakers",
+    [
+     "smokes_yes"
+    ]
+   ],
+   [
+    "liked_hobbies",
+    [
+     "football",
+     "volunteering",
+     "gardening"
+    ]
+   ],
+   [
+    "selectivity",
+    0.388
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "dry_one_liners",
+  "traits": [
+   "anxious",
+   "thoughtful",
+   "organised"
+  ]
+ },
+ {
+  "age": 34,
+  "appearance": "tall, heavyset, short black hair, alternative, green eyes, freckled skin, an easy smile",
+  "archetype": "dry_texter",
+  "attributes": [
+   [
+    "build",
+    "heavy"
+   ],
+   [
+    "drinks",
+    "socially"
+   ],
+   [
+    "hair",
+    "black_short"
+   ],
+   [
+    "height",
+    "tall"
+   ],
+   [
+    "job",
+    "lecturer"
+   ],
+   [
+    "kids",
+    "unsure"
+   ],
+   [
+    "smokes",
+    "sometimes"
+   ],
+   [
+    "style",
+    "alternative"
+   ]
+  ],
+  "bio": {
+   "matchstick": "What's the best thing about Riverside? I'm still deciding."
+  },
+  "chemistry": 0.0232,
+  "education": "postgrad",
+  "flags": [
+   "has_tattoos"
+  ],
+  "hobbies": [
+   "craft_beer",
+   "diy",
+   "surfing",
+   "bouldering",
+   "baking"
+  ],
+  "index": 333,
+  "intent": "short_term",
+  "job": "lecturer",
+  "job_shape": "freelance",
+  "name": "Finn",
+  "neighbourhood": "riverside",
+  "personality": [
+   [
+    "outgoing",
+    3
+   ],
+   [
+    "playful",
+    2
+   ],
+   [
+    "romantic",
+    1
+   ],
+   [
+    "adventurous",
+    5
+   ],
+   [
+    "homebody",
+    5
+   ]
+  ],
+  "photos": [
+   "beach_windswept",
+   "group_night_out",
+   "gig_blurry",
+   "pint_laughing",
+   "garden_plants"
+  ],
+  "pid": "p0333",
+  "preferences": [
+   [
+    "age_max",
+    39
+   ],
+   [
+    "age_min",
+    29
+   ],
+   [
+    "dealbreakers",
+    [
+     "drinks_never",
+     "drinks_often"
+    ]
+   ],
+   [
+    "liked_hobbies",
+    [
+     "eating_out"
+    ]
+   ],
+   [
+    "selectivity",
+    0.75
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "earnest_questions",
+  "traits": [
+   "nerdy",
+   "sarcastic",
+   "chaotic"
+  ]
+ },
+ {
+  "age": 21,
+  "appearance": "average height, broad-shouldered, short black hair, vintage, grey eyes, light brown skin, a nose ring",
+  "archetype": "drifter",
+  "attributes": [
+   [
+    "build",
+    "broad"
+   ],
+   [
+    "drinks",
+    "socially"
+   ],
+   [
+    "hair",
+    "black_short"
+   ],
+   [
+    "height",
+    "average"
+   ],
+   [
+    "job",
+    "police_officer"
+   ],
+   [
+    "kids",
+    "dont_want"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "vintage"
+   ]
+  ],
+  "bio": {
+   "matchstick": "cooking... eating out... the sea..."
+  },
+  "chemistry": 0.0351,
+  "education": "college",
+  "flags": [
+   "has_tattoos"
+  ],
+  "hobbies": [
+   "cooking",
+   "eating_out"
+  ],
+  "index": 370,
+  "intent": "unsure",
+  "job": "police_officer",
+  "job_shape": "shifts",
+  "name": "Ash",
+  "neighbourhood": "castle_hill",
+  "personality": [
+   [
+    "outgoing",
+    4
+   ],
+   [
+    "playful",
+    1
+   ],
+   [
+    "romantic",
+    5
+   ],
+   [
+    "adventurous",
+    3
+   ],
+   [
+    "homebody",
+    5
+   ]
+  ],
+  "photos": [
+   "car_selfie",
+   "garden_plants",
+   "cat_on_lap"
+  ],
+  "pid": "p0370",
+  "preferences": [
+   [
+    "age_max",
+    30
+   ],
+   [
+    "age_min",
+    18
+   ],
+   [
+    "dealbreakers",
+    []
+   ],
+   [
+    "liked_hobbies",
+    [
+     "video_games"
+    ]
+   ],
+   [
+    "selectivity",
+    0.456
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "ellipsis_drifter",
+  "traits": [
+   "overthinker",
+   "flirty",
+   "nerdy"
+  ]
+ },
+ {
+  "age": 27,
+  "appearance": "tall, average build, short brown hair, preppy, hazel eyes, light brown skin, sunglasses pushed up on the head",
+  "archetype": "ghoster",
+  "attributes": [
+   [
+    "build",
+    "average"
+   ],
+   [
+    "drinks",
+    "never"
+   ],
+   [
+    "hair",
+    "brown_short"
+   ],
+   [
+    "height",
+    "tall"
+   ],
+   [
+    "job",
+    "lecturer"
+   ],
+   [
+    "kids",
+    "have"
+   ],
+   [
+    "smokes",
+    "yes"
+   ],
+   [
+    "style",
+    "preppy"
+   ]
+  ],
+  "bio": {
+   "matchstick": "Not on here much."
+  },
+  "chemistry": -0.045,
+  "education": "postgrad",
+  "flags": [
+   "has_pet",
+   "has_kids"
+  ],
+  "hobbies": [
+   "film",
+   "football"
+  ],
+  "index": 407,
+  "intent": "short_term",
+  "job": "lecturer",
+  "job_shape": "freelance",
+  "name": "Jack",
+  "neighbourhood": "the_quays",
+  "personality": [
+   [
+    "outgoing",
+    1
+   ],
+   [
+    "playful",
+    5
+   ],
+   [
+    "romantic",
+    4
+   ],
+   [
+    "adventurous",
+    3
+   ],
+   [
+    "homebody",
+    4
+   ]
+  ],
+  "photos": [
+   "bike_helmet",
+   "beach_windswept",
+   "kid_photo",
+   "guitar_playing",
+   "group_night_out"
+  ],
+  "pid": "p0407",
+  "preferences": [
+   [
+    "age_max",
+    32
+   ],
+   [
+    "age_min",
+    21
+   ],
+   [
+    "dealbreakers",
+    [
+     "smokes_sometimes"
+    ]
+   ],
+   [
+    "liked_hobbies",
+    [
+     "dogs"
+    ]
+   ],
+   [
+    "selectivity",
+    0.767
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "terse_busy",
+  "traits": [
+   "confident",
+   "romantic_streak",
+   "storyteller"
+  ]
+ },
+ {
+  "age": 24,
+  "appearance": "average height, slim, long blonde hair, alternative, blue eyes, light brown skin, dimples",
+  "archetype": "turner",
+  "attributes": [
+   [
+    "build",
+    "slim"
+   ],
+   [
+    "drinks",
+    "socially"
+   ],
+   [
+    "hair",
+    "blonde_long"
+   ],
+   [
+    "height",
+    "average"
+   ],
+   [
+    "job",
+    "hairdresser"
+   ],
+   [
+    "kids",
+    "dont_want"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "alternative"
+   ]
+  ],
+  "bio": {
+   "matchstick": "reading, cooking, too much tea"
+  },
+  "chemistry": -0.0152,
+  "education": "college",
+  "flags": [
+   "has_tattoos"
+  ],
+  "hobbies": [
+   "reading",
+   "cooking"
+  ],
+  "index": 444,
+  "intent": "long_term",
+  "job": "hairdresser",
+  "job_shape": "shifts",
+  "name": "Noah",
+  "neighbourhood": "castle_hill",
+  "personality": [
+   [
+    "outgoing",
+    5
+   ],
+   [
+    "playful",
+    5
+   ],
+   [
+    "romantic",
+    2
+   ],
+   [
+    "adventurous",
+    5
+   ],
+   [
+    "homebody",
+    2
+   ]
+  ],
+  "photos": [
+   "car_selfie",
+   "kid_photo",
+   "rain_umbrella",
+   "coffee_window"
+  ],
+  "pid": "p0444",
+  "preferences": [
+   [
+    "age_max",
+    30
+   ],
+   [
+    "age_min",
+    18
+   ],
+   [
+    "dealbreakers",
+    []
+   ],
+   [
+    "liked_hobbies",
+    [
+     "paddleboarding",
+     "astronomy"
+    ]
+   ],
+   [
+    "selectivity",
+    0.643
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "lowercase_fast",
+  "traits": [
+   "nerdy",
+   "warm",
+   "confident"
+  ]
+ },
+ {
+  "age": 31,
+  "appearance": "tall, athletic, long blonde hair, minimal, brown eyes, fair skin, an easy smile",
+  "archetype": "drifter",
+  "attributes": [
+   [
+    "build",
+    "athletic"
+   ],
+   [
+    "drinks",
+    "often"
+   ],
+   [
+    "hair",
+    "blonde_long"
+   ],
+   [
+    "height",
+    "tall"
+   ],
+   [
+    "job",
+    "marine_engineer"
+   ],
+   [
+    "kids",
+    "dont_want"
+   ],
+   [
+    "smokes",
+    "sometimes"
+   ],
+   [
+    "style",
+    "minimal"
+   ]
+  ],
+  "bio": {
+   "matchstick": "A marine engineer in Millbrook. Happiest doing reading, or planning the next time I can."
+  },
+  "chemistry": 0.0805,
+  "education": "degree",
+  "flags": [
+   "has_tattoos"
+  ],
+  "hobbies": [
+   "reading",
+   "baking",
+   "hiking",
+   "languages",
+   "gigs",
+   "dogs"
+  ],
+  "index": 481,
+  "intent": "short_term",
+  "job": "marine_engineer",
+  "job_shape": "shifts",
+  "name": "Nate",
+  "neighbourhood": "millbrook",
+  "personality": [
+   [
+    "outgoing",
+    3
+   ],
+   [
+    "playful",
+    1
+   ],
+   [
+    "romantic",
+    3
+   ],
+   [
+    "adventurous",
+    3
+   ],
+   [
+    "homebody",
+    1
+   ]
+  ],
+  "photos": [
+   "gig_blurry",
+   "market_stall"
+  ],
+  "pid": "p0481",
+  "preferences": [
+   [
+    "age_max",
+    37
+   ],
+   [
+    "age_min",
+    24
+   ],
+   [
+    "dealbreakers",
+    []
+   ],
+   [
+    "liked_hobbies",
+    [
+     "video_games"
+    ]
+   ],
+   [
+    "selectivity",
+    0.633
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "proper_paragraphs",
+  "traits": [
+   "stubborn",
+   "romantic_streak",
+   "competitive"
+  ]
+ },
+ {
+  "age": 36,
+  "appearance": "short, athletic, short brown hair, sporty, brown eyes, dark skin, an easy smile",
+  "archetype": "drifter",
+  "attributes": [
+   [
+    "build",
+    "athletic"
+   ],
+   [
+    "drinks",
+    "socially"
+   ],
+   [
+    "hair",
+    "brown_short"
+   ],
+   [
+    "height",
+    "short"
+   ],
+   [
+    "job",
+    "physio"
+   ],
+   [
+    "kids",
+    "want"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "sporty"
+   ]
+  ],
+  "bio": {
+   "matchstick": "What's the best thing about The Lanes? I'm still deciding."
+  },
+  "chemistry": -0.146,
+  "education": "degree",
+  "flags": [],
+  "hobbies": [
+   "gardening",
+   "volunteering",
+   "bouldering",
+   "reading"
+  ],
+  "index": 518,
+  "intent": "short_term",
+  "job": "physio",
+  "job_shape": "office",
+  "name": "Arthur",
+  "neighbourhood": "the_lanes",
+  "personality": [
+   [
+    "outgoing",
+    2
+   ],
+   [
+    "playful",
+    2
+   ],
+   [
+    "romantic",
+    1
+   ],
+   [
+    "adventurous",
+    5
+   ],
+   [
+    "homebody",
+    2
+   ]
+  ],
+  "photos": [
+   "art_gallery",
+   "beach_windswept",
+   "graduation",
+   "pint_laughing"
+  ],
+  "pid": "p0518",
+  "preferences": [
+   [
+    "age_max",
+    45
+   ],
+   [
+    "age_min",
+    29
+   ],
+   [
+    "dealbreakers",
+    [
+     "kids_have",
+     "smokes_sometimes"
+    ]
+   ],
+   [
+    "liked_hobbies",
+    [
+     "museums"
+    ]
+   ],
+   [
+    "selectivity",
+    0.44
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "earnest_questions",
+  "traits": [
+   "organised",
+   "competitive",
+   "homely"
+  ]
+ },
+ {
+  "age": 29,
+  "appearance": "average height, broad-shouldered, long black hair, jeans-and-a-t-shirt casual, grey eyes, fair skin, an easy smile",
+  "archetype": "drifter",
+  "attributes": [
+   [
+    "build",
+    "broad"
+   ],
+   [
+    "drinks",
+    "socially"
+   ],
+   [
+    "hair",
+    "black_long"
+   ],
+   [
+    "height",
+    "average"
+   ],
+   [
+    "job",
+    "physio"
+   ],
+   [
+    "kids",
+    "dont_want"
+   ],
+   [
+    "smokes",
+    "sometimes"
+   ],
+   [
+    "style",
+    "casual"
+   ]
+  ],
+  "bio": {
+   "matchstick": "Lives in Northgate. Has opinions about it."
+  },
+  "chemistry": 0.0139,
+  "education": "degree",
+  "flags": [
+   "plays_an_instrument"
+  ],
+  "hobbies": [
+   "film",
+   "surfing",
+   "theatre",
+   "coffee"
+  ],
+  "index": 555,
+  "intent": "short_term",
+  "job": "physio",
+  "job_shape": "office",
+  "name": "Danny",
+  "neighbourhood": "northgate",
+  "personality": [
+   [
+    "outgoing",
+    4
+   ],
+   [
+    "playful",
+    1
+   ],
+   [
+    "romantic",
+    1
+   ],
+   [
+    "adventurous",
+    3
+   ],
+   [
+    "homebody",
+    1
+   ]
+  ],
+  "photos": [
+   "travel_landmark",
+   "boat_deck",
+   "graduation",
+   "festival_crowd",
+   "car_selfie"
+  ],
+  "pid": "p0555",
+  "preferences": [
+   [
+    "age_max",
+    38
+   ],
+   [
+    "age_min",
+    23
+   ],
+   [
+    "dealbreakers",
+    [
+     "drinks_never",
+     "smokes_yes"
+    ]
+   ],
+   [
+    "liked_hobbies",
+    [
+     "fashion"
+    ]
+   ],
+   [
+    "selectivity",
+    0.378
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "dry_one_liners",
+  "traits": [
+   "stubborn",
+   "laid_back",
+   "earnest"
+  ]
+ },
+ {
+  "age": 30,
+  "appearance": "tall, heavyset, an afro, streetwear, blue eyes, freckled skin, a gap-toothed grin",
+  "archetype": "romantic",
+  "attributes": [
+   [
+    "build",
+    "heavy"
+   ],
+   [
+    "drinks",
+    "socially"
+   ],
+   [
+    "hair",
+    "afro"
+   ],
+   [
+    "height",
+    "tall"
+   ],
+   [
+    "job",
+    "plumber"
+   ],
+   [
+    "kids",
+    "dont_want"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "streetwear"
+   ]
+  ],
+  "bio": {
+   "matchstick": "Looking for good conversation, and maybe someone to try volunteering with."
+  },
+  "chemistry": 0.0221,
+  "education": "college",
+  "flags": [
+   "has_pet",
+   "lives_with_flatmates",
+   "owns_a_car"
+  ],
+  "hobbies": [
+   "hiking",
+   "volunteering",
+   "eating_out",
+   "dogs"
+  ],
+  "index": 592,
+  "intent": "long_term",
+  "job": "plumber",
+  "job_shape": "office",
+  "name": "Chris",
+  "neighbourhood": "westcliff",
+  "personality": [
+   [
+    "outgoing",
+    4
+   ],
+   [
+    "playful",
+    5
+   ],
+   [
+    "romantic",
+    5
+   ],
+   [
+    "adventurous",
+    3
+   ],
+   [
+    "homebody",
+    1
+   ]
+  ],
+  "photos": [
+   "graduation",
+   "candid_laugh"
+  ],
+  "pid": "p0592",
+  "preferences": [
+   [
+    "age_max",
+    35
+   ],
+   [
+    "age_min",
+    22
+   ],
+   [
+    "dealbreakers",
+    []
+   ],
+   [
+    "liked_hobbies",
+    [
+     "craft_beer"
+    ]
+   ],
+   [
+    "selectivity",
+    0.45
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "earnest_questions",
+  "traits": [
+   "warm",
+   "chaotic",
+   "earnest"
+  ]
+ },
+ {
+  "age": 28,
+  "appearance": "tall, average build, grey hair, vintage, brown eyes, dark skin, a tattooed forearm",
+  "archetype": "banterer",
+  "attributes": [
+   [
+    "build",
+    "average"
+   ],
+   [
+    "drinks",
+    "socially"
+   ],
+   [
+    "hair",
+    "grey"
+   ],
+   [
+    "height",
+    "tall"
+   ],
+   [
+    "job",
+    "baker"
+   ],
+   [
+    "kids",
+    "have"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "vintage"
+   ]
+  ],
+  "bio": {
+   "matchstick": "Looking for good conversation, and maybe someone to try charity shops with."
+  },
+  "chemistry": -0.0936,
+  "education": "college",
+  "flags": [
+   "has_kids",
+   "has_tattoos"
+  ],
+  "hobbies": [
+   "yoga",
+   "thrifting",
+   "astronomy"
+  ],
+  "index": 629,
+  "intent": "unsure",
+  "job": "baker",
+  "job_shape": "shifts",
+  "name": "Marcus",
+  "neighbourhood": "millbrook",
+  "personality": [
+   [
+    "outgoing",
+    1
+   ],
+   [
+    "playful",
+    5
+   ],
+   [
+    "romantic",
+    1
+   ],
+   [
+    "adventurous",
+    1
+   ],
+   [
+    "homebody",
+    4
+   ]
+  ],
+  "photos": [
+   "boat_deck",
+   "coffee_window",
+   "rooftop_drink",
+   "kid_photo"
+  ],
+  "pid": "p0629",
+  "preferences": [
+   [
+    "age_max",
+    38
+   ],
+   [
+    "age_min",
+    21
+   ],
+   [
+    "dealbreakers",
+    []
+   ],
+   [
+    "liked_hobbies",
+    [
+     "gardening",
+     "dogs"
+    ]
+   ],
+   [
+    "selectivity",
+    0.503
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "earnest_questions",
+  "traits": [
+   "shy",
+   "generous",
+   "easily_bored"
+  ]
+ },
+ {
+  "age": 32,
+  "appearance": "average height, broad-shouldered, short brown hair, minimal, brown eyes, olive skin, a nose ring",
+  "archetype": "dry_texter",
+  "attributes": [
+   [
+    "build",
+    "broad"
+   ],
+   [
+    "drinks",
+    "socially"
+   ],
+   [
+    "hair",
+    "brown_short"
+   ],
+   [
+    "height",
+    "average"
+   ],
+   [
+    "job",
+    "phd_student"
+   ],
+   [
+    "kids",
+    "dont_want"
+   ],
+   [
+    "smokes",
+    "no"
+   ],
+   [
+    "style",
+    "minimal"
+   ]
+  ],
+  "bio": {
+   "matchstick": "Two truths and a lie: I like the gym, I like baking, I like mornings."
+  },
+  "chemistry": -0.0563,
+  "education": "postgrad",
+  "flags": [
+   "has_pet"
+  ],
+  "hobbies": [
+   "gym",
+   "baking",
+   "travel",
+   "coffee",
+   "painting",
+   "tv"
+  ],
+  "index": 666,
+  "intent": "short_term",
+  "job": "phd_student",
+  "job_shape": "student",
+  "name": "Sean",
+  "neighbourhood": "riverside",
+  "personality": [
+   [
+    "outgoing",
+    3
+   ],
+   [
+    "playful",
+    2
+   ],
+   [
+    "romantic",
+    1
+   ],
+   [
+    "adventurous",
+    4
+   ],
+   [
+    "homebody",
+    5
+   ]
+  ],
+  "photos": [
+   "wedding_guest",
+   "cat_on_lap",
+   "snow_hat",
+   "hike_squint"
+  ],
+  "pid": "p0666",
+  "preferences": [
+   [
+    "age_max",
+    37
+   ],
+   [
+    "age_min",
+    27
+   ],
+   [
+    "dealbreakers",
+    [
+     "drinks_never"
+    ]
+   ],
+   [
+    "liked_hobbies",
+    [
+     "comedy",
+     "dogs",
+     "thrifting"
+    ]
+   ],
+   [
+    "selectivity",
+    0.43
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "dry_one_liners",
+  "traits": [
+   "thoughtful",
+   "night_person",
+   "overthinker"
+  ]
+ },
+ {
+  "age": 34,
+  "appearance": "tall, average build, short brown hair, sporty, green eyes, freckled skin, dimples",
+  "archetype": "banterer",
+  "attributes": [
+   [
+    "build",
+    "average"
+   ],
+   [
+    "drinks",
+    "often"
+   ],
+   [
+    "hair",
+    "brown_short"
+   ],
+   [
+    "height",
+    "tall"
+   ],
+   [
+    "job",
+    "ux_designer"
+   ],
+   [
+    "kids",
+    "unsure"
+   ],
+   [
+    "smokes",
+    "yes"
+   ],
+   [
+    "style",
+    "sporty"
+   ]
+  ],
+  "bio": {
+   "matchstick": "Not on here much."
+  },
+  "chemistry": 0.0224,
+  "education": "college",
+  "flags": [
+   "owns_a_car"
+  ],
+  "hobbies": [
+   "bouldering",
+   "fishing",
+   "theatre",
+   "astronomy",
+   "fashion",
+   "climbing"
+  ],
+  "index": 703,
+  "intent": "short_term",
+  "job": "ux_designer",
+  "job_shape": "freelance",
+  "name": "Theo",
+  "neighbourhood": "the_quays",
+  "personality": [
+   [
+    "outgoing",
+    2
+   ],
+   [
+    "playful",
+    1
+   ],
+   [
+    "romantic",
+    5
+   ],
+   [
+    "adventurous",
+    1
+   ],
+   [
+    "homebody",
+    3
+   ]
+  ],
+  "photos": [
+   "coffee_window",
+   "rooftop_drink"
+  ],
+  "pid": "p0703",
+  "preferences": [
+   [
+    "age_max",
+    40
+   ],
+   [
+    "age_min",
+    28
+   ],
+   [
+    "dealbreakers",
+    []
+   ],
+   [
+    "liked_hobbies",
+    [
+     "cooking"
+    ]
+   ],
+   [
+    "selectivity",
+    0.424
+   ]
+  ],
+  "prompts": [],
+  "sex": "male",
+  "texting_style": "terse_busy",
+  "traits": [
+   "warm",
+   "dry_humour",
+   "curious"
+  ]
+ }
+]

@@ -16,3 +16,6 @@ Dockerfile text eol=lf
 # built copy stored LF, so CI's dist diff compares like with like (v0.20.0).
 ui/index.html text eol=lf
 content/scenes/clockwork/static/dist/index.html text eol=lf
+# Tile Talk's word list (v0.22.0 T22) is data recorded by its SHA-256 in the story's README:
+# LF on every checkout, so the bytes match what was recorded.
+games/read-receipts/data/social/words.txt text eol=lf

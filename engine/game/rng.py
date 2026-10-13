@@ -86,6 +86,16 @@ AGENDA = "agenda"
 # AFTER every PREMISES draw and never on that stream, so a story adding its
 # first clue moves no house, household or casing order any seed generated.
 CLUES = "clues"
+# The social engine (v0.22.0, engine/social/). POPULATION and MATCH are used
+# only through stable_rng (a person and a pair's like-back are pure functions
+# of the seed); the others per person through engine.social.behaviour.person_rng.
+SOCIAL_POPULATION = "social.population"
+SOCIAL_MATCH = "social.match"
+SOCIAL_PACE = "social.pace"
+SOCIAL_BEHAVIOUR = "social.behaviour"
+SOCIAL_MEDIA = "social.media"
+SOCIAL_MEET = "social.meet"
+SOCIAL_GAME = "social.game"
 
 
 def _mix(seed: int, stream: str, counter: int) -> int:

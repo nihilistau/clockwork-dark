@@ -37,6 +37,7 @@ games/*/data/lore/*.db
 config/local.yaml
 config/secrets.yaml
 llm_api_key.txt
+comfyui_api_key.txt
 lmstudio.txt
 *.key
 **/*.key

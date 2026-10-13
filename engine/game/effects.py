@@ -64,6 +64,7 @@ import logging
 from typing import Any, Callable, Optional
 
 from engine.game.state import GameState, InventoryItem, TimedEffect, Wound
+from engine.social.kinds import SOCIAL_EFFECT_KINDS  # data only; imports nothing (spec §2.1)
 
 # Safe to import at module scope: engine.state.store reaches only
 # engine.state.schema, which reaches only yaml. The story-AWARE half
@@ -206,8 +207,9 @@ _KINDS: dict[str, EffectHandler] = {}
 #: card, a thread or a set-piece drops one. ``custody_served`` (v0.17):
 #: the hours of a sentence ``law.serve_sentence`` has served.
 #: ``law_deed_committed`` (v0.17): every deed ``law.commit_deed`` commits,
-#: seen or not.
-ENGINE_ONLY_EFFECTS: frozenset[str] = frozenset({"custody_served", "law_deed_committed"})
+#: seen or not. The ``social_*`` kinds (v0.22.0, ``engine/social/kinds.py``):
+#: the social engine's whole slice is written only by its own functions.
+ENGINE_ONLY_EFFECTS: frozenset[str] = frozenset({"custody_served", "law_deed_committed"}) | SOCIAL_EFFECT_KINDS
 
 
 def effect_kind(*names: str) -> Callable[[EffectHandler], EffectHandler]:

@@ -132,6 +132,49 @@ def test_a_hand_built_session_autosaves_to_the_local_store(data_dir: Path) -> No
     assert get_save_store().exists(bare.save_id)
 
 
+def test_path_for_is_the_runs_own_directory(data_dir: Path) -> None:
+    """v0.22.0: ``path_for`` is ``_dir``'s public twin -- the same folder, the same id check."""
+    store = get_save_store()
+    assert store.path_for("abc123") == store.root / "abc123"
+    with pytest.raises(InvalidSaveId):
+        store.path_for("../escape")
+
+
+def test_an_autosave_with_record_false_or_an_entry_writes_that_transcript(data_dir: Path) -> None:
+    """Plan decision 5: ``record=False`` writes no line; ``entry`` is written as the line."""
+    session = DefaultSessionStore().create(seed=17, llm_fn=scripted_model)
+    transcript = session.saves.path_for(session.save_id) / "transcript.jsonl"
+    before = transcript.read_text(encoding="utf-8") if transcript.exists() else ""
+    default_state._autosave(session, "", "", record=False)
+    assert (transcript.read_text(encoding="utf-8") if transcript.exists() else "") == before
+    default_state._autosave(session, "", "", entry={"phone": "wait", "day": 1, "hour": 9})
+    lines = [json.loads(x) for x in transcript.read_text(encoding="utf-8").splitlines() if x]
+    assert lines[-1] == {"phone": "wait", "day": 1, "hour": 9}
+
+
+def test_every_build_gets_a_new_epoch_and_its_store(data_dir: Path) -> None:
+    """v0.22.0 (Plan decision 28): ``epoch`` new per build, ``store`` the store that built it."""
+    store = DefaultSessionStore()
+    first = store.create(seed=19, llm_fn=scripted_model)
+    again = store.resume(first.save_id, llm_fn=scripted_model)
+    assert first.store is store and again.store is store
+    assert again.session_id == first.session_id and again.epoch > first.epoch > 0
+    assert store.is_live(again) and not store.is_live(first)
+    assert first.dirty is False
+
+
+def test_release_turn_releases_then_runs_the_waiting_end(data_dir: Path) -> None:
+    """Plan decision 31: the one release -- the lock first, then ``end_after_turn``."""
+    from engine.session.store import release_turn
+
+    session = DefaultSessionStore().create(seed=23, llm_fn=scripted_model)
+    seen: list[bool] = []
+    session.end_after_turn = lambda: seen.append(session.lock.locked())
+    assert session.lock.acquire(blocking=False)
+    release_turn(session)
+    assert seen == [False] and not session.lock.locked()
+
+
 def test_an_accounts_store_never_migrates(data_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """
     The legacy migration folds a pre-namespacing flat ``data/saves/`` into a

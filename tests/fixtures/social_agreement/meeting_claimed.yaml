@@ -1,0 +1,51 @@
+# Agreement check "meeting claimed" (spec §11.5, v0.22.0 T24): a meet-up stated that `meets` has not
+# agreed, or one it has denied. `now` is the in-game hour judged at (18.0: day 1, 18:00); a meet row's
+# `day` is the in-game day it is on (1-based), its `status` `agreed` or `due` while it is still a plan.
+# `bad` must fail the check; `good` must pass EVERY check.
+base: &base
+  stage: numbers
+  now: 18.0
+  person: {name: Maya, age: 31, job: nurse, neighbourhood: old_town}
+  player: {name: Sam, age: 29, neighbourhood: harbourside, attributes: {job: accountant}}
+  contacts: [Jordan, Priya]
+  decision: {situation: reply}
+
+bad:
+  # nothing planned
+  - {<<: *base, reply: {bubbles: [{text: "see you tonight!"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "ok it's a date then"}]}}
+  - {<<: *base, now: null, reply: {bubbles: [{text: "looking forward to our date x"}]}}
+  # planned, but not tonight: tomorrow
+  - {<<: *base, agreed_meets: [{id: t1, status: agreed, day: 2}], reply: {bubbles: [{text: "see you tonight x"}]}}
+  # planned tonight, not tomorrow
+  - {<<: *base, agreed_meets: [{id: t1, status: agreed, day: 1}], reply: {bubbles: [{text: "see you tomorrow then"}]}}
+  # a plan called off is no plan
+  - {<<: *base, agreed_meets: [{id: t1, status: cancelled, day: 1}], reply: {bubbles: [{text: "see you later tonight"}]}}
+  # denied while one is planned
+  - {<<: *base, agreed_meets: [{id: t1, status: agreed, day: 3}], reply: {bubbles: [{text: "haha we never made plans"}]}}
+  - {<<: *base, stage: meeting, agreed_meets: [{id: t1, status: due, day: 1}],
+     reply: {bubbles: [{text: "sorry what"}, {text: "we don't have plans though"}]}}
+
+good:
+  # planned for the day it names
+  - {<<: *base, agreed_meets: [{id: t1, status: agreed, day: 1}], reply: {bubbles: [{text: "see you tonight!"}]}}
+  - {<<: *base, agreed_meets: [{id: t1, status: agreed, day: 2}], reply: {bubbles: [{text: "see you tomorrow x"}]}}
+  - {<<: *base, stage: meeting, agreed_meets: [{id: t1, status: due, day: 1}],
+     reply: {bubbles: [{text: "on my way, see you this afternoon"}]}}
+  # "see you in a bit" is a sign-off ("talk soon"), not a plan: not a claim (T24 review M3)
+  - {<<: *base, reply: {bubbles: [{text: "gotta run, see you in a bit"}]}}
+  - {<<: *base, agreed_meets: [{id: t1, status: agreed, day: 5}], reply: {bubbles: [{text: "it's a date"}]}}
+  # see you tonight with a plan for tonight (moved here from stage_claimed's fixtures, T11's carry)
+  - {<<: *base, stage: talking, agreed_meets: [{id: t1, status: agreed, day: 1}],
+     reply: {bubbles: [{text: "see you tonight at the quiz then!"}]}}
+  # asked, not stated; negated
+  - {<<: *base, reply: {bubbles: [{text: "is it a date?"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "can't see you tonight sadly, work"}]}}
+  # no plans, and saying so
+  - {<<: *base, reply: {bubbles: [{text: "we don't have plans yet but we should"}]}}
+  # near misses: a wish, not a plan
+  - {<<: *base, reply: {bubbles: [{text: "we should get a drink sometime"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "see you in April then"}]}}
+  # a recap tells of a meet-up that happened: judged by its band, not here
+  - {<<: *base, decision: {situation: recap, kind: recap},
+     reply: {bubbles: [{text: "You met Maya at The Copper Kettle. It was a date, and a good one."}]}}

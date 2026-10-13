@@ -9,8 +9,8 @@ nothing left for two first readers to build at once.
 * Every ``warmed`` row of ``tests/fixtures/module_state.yaml`` names a
   ``WARMERS`` loader, and every loader builds some classified row.
 * Every warmed cache has a reset in the registry (or says ``never``).
-* After warming, every warmed cache is built, for the flagship and for HUE &
-  CRY.
+* After warming, every warmed cache is built, for the flagship, for HUE &
+  CRY and for READ RECEIPTS (the one story declaring `paths.social`).
 
 Version: v0.1.0 [2026-10-01]
 """
@@ -113,24 +113,25 @@ def _holds_content(site: str) -> bool:
     return isinstance(value, bool) or bool(value)
 
 
-STORIES = ("clockwork-dark", "hue-and-cry")
+STORIES = ("clockwork-dark", "hue-and-cry", "read-receipts")
 
 #: Warmed caches that no shipped story gives content, so they are built empty
-#: (or not at all) for both: nothing to hold is not a loader gone wrong.
+#: (or not at all) for every one: nothing to hold is not a loader gone wrong.
 NO_SHIPPED_CONTENT = {
     "engine.challenges.spec._read_bounds()": "no story declares paths.challenge_bounds",
 }
 
 
-def test_after_warming_every_warmed_cache_is_built_for_the_flagship_and_hue_and_cry():
+def test_after_warming_every_warmed_cache_is_built_for_each_warmed_story():
     """
     Each story is activated (which resets every cache), then warmed, and every
-    ``warmed`` row must be BUILT for both.
+    ``warmed`` row must be BUILT for each.
 
     Built is not enough on its own: a loader pointed at the wrong thing builds
     an empty answer. So each warmed cache must also hold content for at least
-    one of the two (a system a story does not declare is built empty for it,
-    correctly: the flagship has no law, HUE & CRY no doom clock).
+    one of them (a system a story does not declare is built empty for it,
+    correctly: the flagship has no law, HUE & CRY no doom clock, and only READ
+    RECEIPTS declares `paths.social`, v0.22.0).
     """
     from engine.games import registry
 
@@ -158,6 +159,6 @@ def test_after_warming_every_warmed_cache_is_built_for_the_flagship_and_hue_and_
         site for site in rows if not any(seen[slug][site][1] for slug in STORIES)
     )
     assert empty == sorted(NO_SHIPPED_CONTENT), (
-        f"warmed caches empty for both stories (NO_SHIPPED_CONTENT lists the "
+        f"warmed caches empty for every story (NO_SHIPPED_CONTENT lists the "
         f"ones that should be): {empty}"
     )

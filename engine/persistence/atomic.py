@@ -2,7 +2,8 @@
 Atomic File Writes
 ==================
 
-Crash-safe JSON persistence.
+Crash-safe JSON persistence, and one bytes writer (``write_bytes_atomic``,
+v0.22.0: the phone's generated media).
 
 A half-written save is worse than no save: the player loses the run *and*
 believes they still have it. Every write here lands whole or not at all.
@@ -28,7 +29,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def write_json_atomic(path: Path, payload: Any, *, keep_backup: bool = True) -> None:
+def write_json_atomic(path: Path, payload: Any, *, keep_backup: bool = True, compact: bool = False) -> None:
     """
     Write JSON to path atomically, optionally preserving the previous version.
 
@@ -36,6 +37,9 @@ def write_json_atomic(path: Path, payload: Any, *, keep_backup: bool = True) -> 
         path: Destination file.
         payload: JSON-serializable object.
         keep_backup: Copy the existing file to ``<name>.bak`` before replacing.
+        compact: No indentation and no spaces after separators (a save's
+            envelope, v0.22.0 T26: a phone save is mostly rows, and indenting
+            them doubled the file). Read back the same either way.
 
     Raises:
         OSError: If the write or replace fails. The destination is left
@@ -62,7 +66,35 @@ def write_json_atomic(path: Path, payload: Any, *, keep_backup: bool = True) -> 
     tmp_path = Path(tmp_name)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, indent=2, ensure_ascii=False, sort_keys=False)
+            if compact:
+                json.dump(payload, handle, separators=(",", ":"), ensure_ascii=False, sort_keys=False)
+            else:
+                json.dump(payload, handle, indent=2, ensure_ascii=False, sort_keys=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
+def write_bytes_atomic(path: Path, data: bytes) -> None:
+    """
+    Write ``data`` to ``path`` atomically (v0.22.0 T18, the phone's media):
+    a temp file in the destination's own directory, flushed and fsynced, then
+    ``os.replace``. A reader sees the old file or the whole new one, never a
+    part; a failure leaves no temp file and the destination untouched.
+
+    Raises:
+        OSError: If the write or replace fails.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(bytes(data))
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp_path, path)

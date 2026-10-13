@@ -150,7 +150,8 @@ def test_every_shipped_story_declares_well_formed_panels_or_none() -> None:
 def test_hue_and_cry_declares_its_seven_panels_with_no_advisory() -> None:
     """
     v0.21.0 T14 (spec §9): HUE & CRY is the one shipped story that declares
-    ``ui.panels``, every panel in its default region, and it declares each
+    engine panels in ``ui.panels`` (READ RECEIPTS declares an empty list,
+    below), every panel in its default region, and it declares each
     panel's system (law, jobs, premises, encounters), so the content
     validator has nothing to say about it.
     """
@@ -167,8 +168,26 @@ def test_hue_and_cry_declares_its_seven_panels_with_no_advisory() -> None:
     validator = StoryValidator(manifest)
     validator.check_ui_panels()
     assert validator.issues == []
-    declaring = sorted(slug for slug, m in discover().items() if "panels" in (m.extras.get("ui") or {}))
+    declaring = sorted(slug for slug, m in discover().items() if (m.extras.get("ui") or {}).get("panels"))
     assert declaring == ["hue-and-cry"]
+
+
+def test_an_empty_panel_list_is_declared_and_accepted() -> None:
+    """
+    v0.22.0 T2 (spec §2.3, §18): READ RECEIPTS declares ``panels: []`` -- no
+    engine panel, the phone owns the screen -- and ``check_ui_panels`` has
+    nothing to say about an empty list.
+    """
+    from engine.games.registry import discover
+    from engine.games.validation import StoryValidator
+
+    manifest = discover()["read-receipts"]
+    assert manifest.extras["ui"] == {"plugin": "read-receipts", "panels": []}
+    validator = StoryValidator(manifest)
+    validator.check_ui_panels()
+    assert validator.issues == []
+    empty = sorted(slug for slug, m in discover().items() if (m.extras.get("ui") or {}).get("panels") == [])
+    assert empty == ["read-receipts"]
 
 
 REGISTRY = Path(__file__).resolve().parents[1] / "ui" / "src" / "core" / "panels" / "registry.js"

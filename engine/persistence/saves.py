@@ -434,7 +434,13 @@ class SaveStore:
             must be impossible rather than merely unlikely.
     """
 
-    def __init__(self, root: Optional[Path] = None, slug: Optional[str] = None) -> None:
+    def __init__(
+        self, root: Optional[Path] = None, slug: Optional[str] = None, *, owner: str = ""
+    ) -> None:
+        # Whose saves these are ("" the local player, else an account id):
+        # set by ``save_store_for``, read by ``delete`` to remove the save's
+        # phone media too (v0.22.0 T18, ``engine/media/comfy/storage.py``).
+        self.owner = str(owner or "")
         if root is None:
             self.root = saves_root(slug)
             if not slug:
@@ -479,6 +485,14 @@ class SaveStore:
         if directory.exists() and directory.resolve().name != save_id:
             raise InvalidSaveId(f"differs only in case from an existing save: {save_id!r}")
         return directory
+
+    def path_for(self, save_id: str) -> Path:
+        """
+        The run's directory, for a file that lives beside its save (v0.22.0:
+        the phone's ``phone_archive.jsonl``). The public twin of ``_dir``:
+        the same id check, the same case refusal. Not created here.
+        """
+        return self._dir(save_id)
 
     def _case_twin(self, save_id: str, index: dict[str, Any]) -> Optional[str]:
         """
@@ -753,7 +767,9 @@ class SaveStore:
         limit = self._index_limit()
 
         def write_files() -> None:
-            write_json_atomic(directory / "save.json", envelope)
+            # Compact only for a phone story (a state carrying its `social` slice, v0.22.0 T26: spec
+            # §17.2's size bound); every other story's save is written exactly as before, indented.
+            write_json_atomic(directory / "save.json", envelope, compact=bool(getattr(state, "social", None)))
             if memory is not None:
                 write_json_atomic(directory / "memory.json", memory)
 
@@ -865,9 +881,32 @@ class SaveStore:
                 self._write_index(index, limit=limit)
                 removed = True
 
+        self._delete_phone_media(save_id)
         if removed:
             logger.info("[persistence] Deleted (operation=delete, id=%s)", save_id)
         return removed
+
+    def _delete_phone_media(self, save_id: str) -> None:
+        """
+        The save's phone media folder (v0.22.0 T18,
+        ``storage.media_dir()/phone/<owner or local>/<save_id>``), removed
+        with it. Only a story with phone media ever made one; a failure is
+        logged, never raised into the delete.
+        """
+        import shutil
+
+        if not (storage.media_dir() / "phone").is_dir():
+            return  # no story here ever stored phone media: import nothing
+        from engine.media.comfy.storage import phone_media_dir
+
+        try:
+            folder = phone_media_dir(self.owner, save_id)
+            if folder.is_dir():
+                shutil.rmtree(folder)
+        except (OSError, ValueError) as exc:
+            logger.warning(
+                "[persistence] Phone media not removed (operation=delete, id=%s): %s", save_id, exc
+            )
 
 
 #: One store per ``(owner, slug)``, built on first use (v0.20.0, spec §4.4).
@@ -925,7 +964,7 @@ def save_store_for(owner: str = "", slug: Optional[str] = None) -> SaveStore:
         store = stores.get(key)
         if store is None:
             if owner:
-                store = SaveStore(root=storage.saves_dir(owner, chosen), slug=chosen)
+                store = SaveStore(root=storage.saves_dir(owner, chosen), slug=chosen, owner=owner)
             else:
                 store = SaveStore(slug=chosen)
             stores[key] = store

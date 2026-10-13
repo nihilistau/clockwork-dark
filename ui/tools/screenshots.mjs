@@ -21,7 +21,7 @@ const DESKTOP = { width: 1366, height: 768 };
 const PHONE = { width: 390, height: 844 };
 
 /**
- * Every UI capture the README carries: thirteen. `run` names a runs.json tag.
+ * Every UI capture the README carries: seventeen. `run` names a runs.json tag.
  * `jpeg: true` for the plate-heavy ones (final review finding 22): a painted
  * plate is a photograph, and as PNG the title screen weighed 1.06 MB. They
  * are written as `<name>.jpg` at JPEG_QUALITY; the rest stay PNG.
@@ -41,7 +41,24 @@ export const CAPTURES = [
   { name: "hue-and-cry-panels", story: "hue-and-cry", run: "panels" },
   { name: "hue-and-cry-phone", story: "hue-and-cry", run: "panels", size: PHONE },
   { name: "dev-story-play", story: "dev-story", run: "play" },
+  // READ RECEIPTS draws its own play screen (v0.22.0): `phone` is the walk
+  // from its lock screen, each step a PHONE_STEPS entry, taken as a player
+  // would (the runs are scripts/screenshot_runs.py's `phone` and `media`).
+  { name: "read-receipts-lock", story: "read-receipts", run: "media", phone: [] },
+  { name: "read-receipts-deck", story: "read-receipts", run: "phone", phone: ["open", "matchstick"] },
+  { name: "read-receipts-thread", story: "read-receipts", run: "media", phone: ["open", "natter", "chat"] },
+  { name: "read-receipts-tiletalk", story: "read-receipts", run: "media", size: PHONE, phone: ["open", "games", "tiletalk"] },
 ];
+
+/** A phone walk's steps: each clicks one control and waits for what it opens. */
+const PHONE_STEPS = {
+  open: [".rr-lock__open", ".rr-home"],
+  matchstick: ['[data-testid="app-matchstick"]', ".rr-app--matchstick .rr-deck__card"],
+  natter: ['[data-testid="app-natter"]', ".rr-app--natter"],
+  games: ['[data-testid="app-games"]', ".rr-app--games"],
+  chat: [".rr-chat", ".rr-compose"],
+  tiletalk: ['.rr-app--games .rr-chat:has-text("Tile Talk")', ".rr-game--tiles .rr-board"],
+};
 
 /** Every flag the tool takes; any other is refused, never ignored. */
 const FLAGS = ["story", "url", "runs", "out", "only", "channel", "executable-path"];
@@ -72,6 +89,17 @@ async function settle(page) {
   await page.waitForTimeout(500);
 }
 
+async function walk(page, steps) {
+  await page.waitForSelector(".rr-screen", { timeout: 30000 });
+  for (const name of steps) {
+    const [control, opens] = PHONE_STEPS[name];
+    await page.locator(control).first().click();
+    await page.waitForSelector(opens, { timeout: 15000 });
+  }
+  await page.evaluate(async () => { await document.fonts.ready; });
+  await page.waitForTimeout(500);
+}
+
 async function capture(browser, opts, runs, item) {
   const context = await browser.newContext({ viewport: item.size || DESKTOP, deviceScaleFactor: 1 });
   await context.addInitScript((slug) => {
@@ -91,7 +119,8 @@ async function capture(browser, opts, runs, item) {
     await page.click(".start__continue");
     const row = page.locator(".saverow", { hasText: player });
     await row.getByRole("button", { name: "Continue" }).click();
-    await settle(page);
+    if (item.phone) await walk(page, item.phone);
+    else await settle(page);
     if (item.open) {
       await page.keyboard.press(item.open);
       await page.waitForSelector('[role="dialog"]', { timeout: 15000 });

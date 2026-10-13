@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from engine.game.engine import GameEngine
 from engine.game.procgen import new_game_state
@@ -154,26 +154,28 @@ def test_a_turns_image_tag_reaches_the_media_pipeline():
     assert len(result.to_dict()["images"]) == 1
 
 
-def test_comfyui_submit_when_enabled():
+def test_comfyui_enabled_still_answers_a_placeholder_and_posts_nothing():
+    """
+    v0.22.0 (spec §13.4): the in-turn queue's ``/prompt`` submit is retired. It
+    posted a one-node graph that produces nothing on every turn of every story
+    once ``comfyui.enabled`` (the art pipeline's switch) was on.
+    """
+    from engine.config import get_config, overlay, set_overlay
+
     reset_media_queue()
     engine = _engine()
-    client = ComfyUIClient()
-    client.enabled = True
-
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"prompt_id": "abc123"}
-
-    with patch("httpx.Client") as mock_client_cls:
-        mock_client = MagicMock()
-        mock_client.__enter__.return_value = mock_client
-        mock_client.post.return_value = mock_response
-        mock_client_cls.return_value = mock_client
-
-        job = client.enqueue_image("edgewood_square_noon", engine.state)
-        assert job.status == "submitted"
-        assert job.payload["comfyui"]["prompt_id"] == "abc123"
-        mock_client.post.assert_called_once()
+    saved = overlay()
+    set_overlay({**saved, "comfyui": {**saved.get("comfyui", {}), "enabled": True}})
+    try:
+        assert get_config().get("comfyui.enabled") is True
+        client = ComfyUIClient()
+        with patch("httpx.Client") as mock_client_cls:
+            job = client.enqueue_image("edgewood_square_noon", engine.state)
+            mock_client_cls.assert_not_called()
+    finally:
+        set_overlay(saved)
+    assert job.status == "placeholder"
+    assert "comfyui" not in job.payload
 
 
 def test_comfyui_templates_load():

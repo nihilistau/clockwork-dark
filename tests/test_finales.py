@@ -83,10 +83,25 @@ def _assert_finale(state, slug: str) -> None:
 # -- every game declares a reachable finale ------------------------------
 
 
-@pytest.mark.parametrize(
-    "slug",
-    ["clockwork-dark", "neon-city", "wicked-garden", "the-long-con", "dev-story", "hue-and-cry"],
-)
+#: Every story that can be played to an ending; any other shipped story says
+#: `endless: true` (v0.22.0, AUTHORING §2.6).
+FINALE_SLUGS = ["clockwork-dark", "neon-city", "wicked-garden", "the-long-con", "dev-story", "hue-and-cry"]
+
+
+def test_an_endless_story_declares_no_ending_and_says_so() -> None:
+    """Every shipped manifest is in the finale list or says `endless: true` (spec §2.4)."""
+    from engine.games import registry
+
+    finale = set(FINALE_SLUGS)
+    for slug, manifest in registry.discover().items():
+        if slug in finale:
+            assert not manifest.endless, manifest.slug
+        else:
+            assert manifest.endless, f"{slug} is neither finishable nor endless"
+            assert not manifest.paths.get("endings") and not manifest.paths.get("epilogues")
+
+
+@pytest.mark.parametrize("slug", FINALE_SLUGS)
 def test_every_shipped_game_can_reach_an_epilogue(slug: str) -> None:
     """
     THE HEADLINE GATE. Two of these five could not do this at all.
@@ -106,9 +121,7 @@ def test_every_shipped_game_can_reach_an_epilogue(slug: str) -> None:
         registry.deactivate()
 
 
-@pytest.mark.parametrize(
-    "slug", ["clockwork-dark", "neon-city", "wicked-garden", "the-long-con", "dev-story", "hue-and-cry"]
-)
+@pytest.mark.parametrize("slug", FINALE_SLUGS)
 def test_every_shipped_game_declares_a_fail_forward(slug: str) -> None:
     """
     A run that qualifies for nothing still has to land somewhere.

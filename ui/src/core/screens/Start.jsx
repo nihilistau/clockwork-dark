@@ -110,7 +110,10 @@ function GamePicker() {
  * are plugin slots now (`Wordmark`, `StartIntro`); with no plugin the screen
  * falls back to the catalogue's own title, which the server already knows.
  */
-export default function Start({ onBegin, busy, onOpenSaves, story = {}, error = "" }) {
+export default function Start({ onBegin, busy, onOpenSaves, story = {}, error = "", onNewRun = null }) {
+  // A story with its own setup screen (`NewRun`, v0.22.0 spec §18.1): Begin
+  // opens it, and this form's name, class and seed give way to it.
+  const wizard = Boolean(story.NewRun && onNewRun);
   const Wordmark = story.Wordmark || null;
   const Intro = story.StartIntro || null;
   const [name, setName] = useState("");
@@ -144,6 +147,10 @@ export default function Start({ onBegin, busy, onOpenSaves, story = {}, error = 
 
   function submit(event) {
     event.preventDefault();
+    if (wizard) {
+      onNewRun();
+      return;
+    }
     onBegin({
       player_name: name.trim() || "You",
       // Empty lets the server ask the active story's manifest rather than the
@@ -165,22 +172,24 @@ export default function Start({ onBegin, busy, onOpenSaves, story = {}, error = 
         <GamePicker />
         {Intro && <Intro />}
 
-        <label className="field">
-          <span className="field__label">Your name</span>
-          <input
-            className="field__input"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="You"
-            maxLength={32}
-            autoFocus
-          />
-        </label>
+        {!wizard && (
+          <label className="field">
+            <span className="field__label">Your name</span>
+            <input
+              className="field__input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="You"
+              maxLength={32}
+              autoFocus
+            />
+          </label>
+        )}
 
         {/* Hidden entirely for a story with no classes -- an empty fieldset
             with a legend asking "what you were, before this" and nothing to
             pick is worse than no question. */}
-        <fieldset className="archetypes" hidden={archetypes.length === 0}>
+        <fieldset className="archetypes" hidden={wizard || archetypes.length === 0}>
           <legend className="field__label">What you were, before this</legend>
           {archetypes.map((option) => (
             <label
@@ -206,17 +215,19 @@ export default function Start({ onBegin, busy, onOpenSaves, story = {}, error = 
           ))}
         </fieldset>
 
-        <label className="field field--inline">
-          <span className="field__label">Seed</span>
-          <input
-            className="field__input field__input--short"
-            value={seed}
-            onChange={(e) => setSeed(e.target.value.replace(/[^0-9]/g, ""))}
-            placeholder="random"
-            inputMode="numeric"
-          />
-          <span className="field__hint">Same seed, same world.</span>
-        </label>
+        {!wizard && (
+          <label className="field field--inline">
+            <span className="field__label">Seed</span>
+            <input
+              className="field__input field__input--short"
+              value={seed}
+              onChange={(e) => setSeed(e.target.value.replace(/[^0-9]/g, ""))}
+              placeholder="random"
+              inputMode="numeric"
+            />
+            <span className="field__hint">Same seed, same world.</span>
+          </label>
+        )}
 
         {/* A run that would not open (resume_failed, Review 27) or would not
             begin says why here, where the player is sent. */}

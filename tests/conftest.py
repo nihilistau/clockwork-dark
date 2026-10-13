@@ -575,7 +575,7 @@ def sandbox_layer(root: Path, services: Iterable[str]) -> dict[str, Any]:
         # Every other server a child could dial, off and on the discard port
         # (engine.config._force_sandbox holds a child to the same, layer or
         # none: T5 re-review, N2).
-        "comfyui": {"enabled": False, "base_url": SANDBOX_SERVICE_URL},
+        "comfyui": {"enabled": False, "base_url": SANDBOX_SERVICE_URL, "api_key": ""},
         "tts": {"enabled": False, "assistant_enabled": False, "base_url": SANDBOX_SERVICE_URL},
         "stt": {"base_url": SANDBOX_SERVICE_URL},
     }
@@ -588,16 +588,21 @@ SANDBOX_SERVICE_URL = "http://127.0.0.1:9"
 #: (``engine.config.TEST_MODEL_STUB_PORT_ENV``).
 _STUB_PORT_ENV = "CLOCKWORK_TEST_MODEL_STUB_PORT"
 
+#: The companion variable naming a test's stub ComfyUI port (v0.22.0 T18,
+#: ``engine.config.TEST_COMFY_STUB_PORT_ENV``).
+_COMFY_STUB_PORT_ENV = "CLOCKWORK_TEST_COMFY_STUB_PORT"
+
 
 def _pass_stub_port(env: dict[Any, Any]) -> None:
-    """Set the child's stub port from THIS process's registration, or drop it."""
+    """Set the child's stub ports from THIS process's registrations, or drop them."""
     as_bytes = any(isinstance(key, bytes) for key in env)
-    key: Any = os.fsencode(_STUB_PORT_ENV) if as_bytes else _STUB_PORT_ENV
-    registered = os.environ.get(_STUB_PORT_ENV, "")
-    if registered:
-        env[key] = os.fsencode(registered) if as_bytes else registered
-    else:
-        env.pop(key, None)
+    for name in (_STUB_PORT_ENV, _COMFY_STUB_PORT_ENV):
+        key: Any = os.fsencode(name) if as_bytes else name
+        registered = os.environ.get(name, "")
+        if registered:
+            env[key] = os.fsencode(registered) if as_bytes else registered
+        else:
+            env.pop(key, None)
 
 
 @pytest.fixture
@@ -640,6 +645,39 @@ def _model_stub_registration(monkeypatch: pytest.MonkeyPatch) -> Iterator[Any]:
             data["llm"]["api_key"] = api_key
         layer.write_text(yaml.safe_dump(data, sort_keys=True), encoding="utf-8")
         monkeypatch.setenv(_STUB_PORT_ENV, str(int(port)))
+        return url
+
+    try:
+        yield register
+    finally:
+        layer.write_bytes(original)
+
+
+@pytest.fixture
+def sandbox_comfy_stub(monkeypatch: pytest.MonkeyPatch) -> Iterator[Any]:
+    """
+    Let this test's children dial a stub ComfyUI on loopback (v0.22.0 T18,
+    ``scripts/comfy_stub.py``).
+
+    Yields ``register(port, api_key=None)``: the session's sandbox layer
+    names ``http://127.0.0.1:<port>`` as ``comfyui.base_url`` (and, only when
+    given, ``comfyui.api_key``), and the companion variable registers the
+    port, for this test only (both restored at teardown). A sandboxed child
+    keeps that URL only because both agree and it is plain http on loopback
+    (``engine.config._sandbox_comfy_url``); anything else is the discard port,
+    and with no ``api_key`` the child sends no key.
+    """
+    _, layer = session_sandbox()
+    original = layer.read_bytes()
+
+    def register(port: int, api_key: Optional[str] = None) -> str:
+        url = f"http://127.0.0.1:{int(port)}"
+        data = yaml.safe_load(original.decode("utf-8")) or {}
+        data.setdefault("comfyui", {})["base_url"] = url
+        if api_key is not None:
+            data["comfyui"]["api_key"] = api_key
+        layer.write_text(yaml.safe_dump(data, sort_keys=True), encoding="utf-8")
+        monkeypatch.setenv(_COMFY_STUB_PORT_ENV, str(int(port)))
         return url
 
     try:

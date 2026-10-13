@@ -1,0 +1,41 @@
+# Agreement check "stage claimed" (spec §11.5): a stage not reached, named in a statement.
+# `bad` must fail the check; `good` must pass EVERY check.
+base: &base
+  stage: talking
+  person: {name: Maya, age: 31, job: nurse, neighbourhood: old_town}
+  player: {name: Sam, age: 29, neighbourhood: harbourside, attributes: {job: accountant}}
+  contacts: [Jordan, Priya]
+  decision: {situation: reply}
+
+bad:
+  - {<<: *base, reply: {bubbles: [{text: "can't wait to tell people you're my girlfriend"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "so we're exclusive now right"}]}}
+  - {<<: *base, stage: matched, reply: {bubbles: [{text: "here's my number, use it"}]}}
+  - {<<: *base, stage: numbers, reply: {bubbles: [{text: "great to meet you last night x"}]}}
+  - {<<: *base, stage: meeting, reply: {bubbles: [{text: "we're official!!"}]}}
+  # a sibling branch: friends never passed through dating
+  - {<<: *base, stage: friends, reply: {bubbles: [{text: "you're my boyfriend basically"}]}}
+  - {<<: *base, stage: dating, reply: {bubbles: [{text: "it's over between us"}]}}
+  # off a live stage, judged by the stage they left
+  - {<<: *base, stage: faded, stage_before: talking, reply: {bubbles: [{text: "we're exclusive, you know that"}]}}
+
+good:
+  # reached: the current stage, and one it was reached through
+  - {<<: *base, stage: dating, reply: {bubbles: [{text: "told my mum about my girlfriend 🙈"}]}}
+  - {<<: *base, stage: exclusive, reply: {bubbles: [{text: "since we started dating everything's better"}]}}
+  - {<<: *base, stage: numbers, reply: {bubbles: [{text: "text me on here whenever"}]}}
+  # asked, not claimed
+  - {<<: *base, reply: {bubbles: [{text: "are we exclusive now?"}]}}
+  # negated
+  - {<<: *base, reply: {bubbles: [{text: "it's not my girlfriend's style, that place"}]}}
+  # the word alone is not the claim
+  - {<<: *base, reply: {bubbles: [{text: "an exclusive preview of my weekend: sofa"}]}}
+  # off a live stage, the stage they left was reached
+  - {<<: *base, stage: ended, stage_before: exclusive, reply: {bubbles: [{text: "since we started dating I've been happier"}]}}
+  # near misses before the stage: the in-app phrasing, a date planned, a past girlfriend ("see you
+  # tonight", a plan for tonight, is meeting_claimed's: judged against the meet-ups agreed, T24)
+  - {<<: *base, stage: matched, reply: {bubbles: [{text: "text me on here whenever"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "our first date should be somewhere quiet"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "me and my girlfriend from uni went to Lisbon"}]}}
+  # off a live stage with nothing left from, nothing is claimed against it
+  - {<<: *base, stage: winding_down, reply: {bubbles: [{text: "my girlfriend from uni says hi"}]}}

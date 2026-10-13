@@ -1,0 +1,65 @@
+# READ RECEIPTS -- creation.yaml (paths.social, spec §2.1, §3).
+#
+# The player-creation form: every field the player fills in before the phone
+# lights up. Read by engine/social/creation.py: `GET /api/social/creation`
+# serves it resolved (each `of_table` expanded to {id, label} rows from
+# population.yaml), and `POST /api/game/new`'s `creation` object is checked
+# against it -- an unknown key, a value outside its list or range, or a list
+# of the wrong length is refused naming its field, and every omitted field
+# takes its default.
+#
+# Shapes (a field is one of these, or a mapping of fields):
+#   text     {max, default}            a string, stripped, at most `max` long;
+#                                      an empty or whitespace-only value takes
+#                                      the default (`max` is required)
+#   choice   {of | of_table, default?} one id; no default: a seeded pick
+#   int      {min?, max?, default}     a whole number in range
+#   multi    {of_table, min, max}      distinct ids; default: `min` ids of a
+#                                      seeded pick (none when `min` is 0)
+#   sliders  {of, min, max}            each name to a whole number; default 3
+#
+# `of_table` names a population.yaml table, so the player picks from the lists
+# the population is drawn from. 18 is the apps' own minimum, as on every real
+# dating app: data, not an engine gate. `no` and `yes` are quoted, as in
+# population.yaml, so YAML reads them as words and not booleans.
+#
+# `start_hour` is the in-game hour a new run starts at, on day 1 (spec
+# §15.4: 19:00, an evening with the phone; the engine's own default is
+# 08:00). A whole number 0-23; read by engine/social/creation.py's
+# `start_hours`, which `procgen.new_game_state` gives the new state.
+#
+# Every number here is a balance constant (rule 10).
+# Measured 2026-10-13 (v0.22.0 T26, fix round 1): `python scripts/simulate_social.py --game
+# read-receipts --days 60 --first-seed N --seeds 1 --policy attentive --raw r-N.json`
+# for N = 0..19, then `--fold r-*.json` (the attentive player, the default
+# `neutral_model` voice; the turners' row at --days 75). The whole table, every
+# voice and policy and the before, is in the story's CHANGELOG ([Unreleased],
+# Changed). The rows this file's numbers move (measured, band):
+#   no §20 row of its own; every run starts at `start_hour` on the default player
+#
+# Version: v0.3.0
+
+start_hour: 19
+
+fields:
+  name:        {kind: text, max: 24, default: "Sam"}
+  sex:         {kind: choice, of: [male, female], default: female}
+  age:         {kind: int, min: 18, max: 75, default: 29}
+  neighbourhood: {kind: choice, of_table: neighbourhoods}   # where the player lives: matching's distance (T7)
+  looking_for: {kind: choice, of: [friendship, short_term, long_term, unsure], default: unsure}
+  hobbies:     {kind: multi, of_table: hobbies, min: 2, max: 6}
+  attributes:
+    height:    {kind: choice, of: [short, average, tall]}
+    build:     {kind: choice, of: [slim, average, athletic, curvy, broad, heavy]}
+    hair:      {kind: choice, of_table: hair}
+    style:     {kind: choice, of_table: style}
+    job:       {kind: choice, of_table: jobs}
+    drinks:    {kind: choice, of: [never, socially, often]}
+    smokes:    {kind: choice, of: ["no", sometimes, "yes"]}
+    kids:      {kind: choice, of: [have, want, dont_want, unsure]}
+  personality: {kind: sliders, of: [outgoing, playful, romantic, adventurous, homebody], min: 1, max: 5}
+  discovery:
+    age_min:   {kind: int, min: 18, default: 25}
+    age_max:   {kind: int, max: 75, default: 38}
+    distance:  {kind: choice, of: [near, city, anywhere], default: city}
+  photos:      {kind: multi, of_table: photo_set, min: 1, max: 6}

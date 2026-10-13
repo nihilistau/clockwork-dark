@@ -61,7 +61,7 @@ from engine.scenes.default_state import (
     resolve_player_intent,
     run_turn,
 )
-from engine.session.store import OTHER_WINDOW_BUSY, SavesFull, SessionBusy
+from engine.session.store import OTHER_WINDOW_BUSY, SavesFull, SessionBusy, release_turn
 from engine.scenes.flask_scene import FlaskScene
 from engine.scenes.spec import (
     DEFAULT_SCENE_NAME,
@@ -181,6 +181,43 @@ def _report_turn(session: Any, admit_ms: float, run_ms: float, outcome: str) -> 
         logger.warning("[default_scene] A turn metric was not recorded (operation=run_guarded)")
 
 
+#: ``phone_metric(account, event, status, ms)`` (v0.22.0): one phone mechanics
+#: action's numbers, as ``turn_metric`` is a turn's. A HOOK set by
+#: ``engine.hosting.metrics_emit.install_hooks`` (to ``hook_phone``); None in
+#: local mode, so local mode records nothing.
+phone_metric: Optional[Callable[[str, str, str, float], None]] = None
+
+#: ``run_guarded``'s outcome -> the ``phone`` metric's status.
+_PHONE_STATUS = {"ok": "ok", "busy": "busy", "error": "failed", "refused": "refused"}
+
+
+def _report_phone(session: Any, event: str, status: str, ms: float) -> None:
+    """Hand one phone action's numbers to ``phone_metric``, if set. Never raises."""
+    hook = phone_metric
+    if hook is None:
+        return
+    try:
+        hook(str(getattr(session, "owner", "") or ""), event, status, float(ms))
+    except Exception:  # noqa: BLE001 -- a metric must never fail an action
+        logger.warning("[default_scene] A phone metric was not recorded (operation=_report_phone)")
+
+
+def _outcome(payload: Any, metric: str) -> str:
+    """``ok``, or (a ``phone`` metric) ``refused`` when the action's receipt is an engine refusal."""
+    if metric == "phone" and isinstance(payload, dict):
+        if any(isinstance(r, dict) and r.get("refused") for r in payload.get("receipts") or ()):
+            return "refused"
+    return "ok"
+
+
+def _report(session: Any, metric: str, admit_ms: float, run_ms: float, outcome: str) -> None:
+    """A turn's numbers to ``turn_metric``, or (``metric="phone"``) a phone action's to ``phone_metric``."""
+    if metric == "phone":
+        _report_phone(session, "action", _PHONE_STATUS.get(outcome, "failed"), admit_ms + run_ms)
+    else:
+        _report_turn(session, admit_ms, run_ms, outcome)
+
+
 def _turn_deadline_seconds() -> Optional[float]:
     """
     ``hosting.turn_deadline_seconds`` (hosted): an admitted turn's wall-clock
@@ -223,6 +260,9 @@ def run_guarded(
     emit_callback: Optional[Any] = None,
     present: Optional[Any] = None,
     cancel: Optional[Any] = None,
+    runner: Optional[Callable[..., dict[str, Any]]] = None,
+    admit: bool = True,
+    metric: str = "turn",
 ) -> tuple[Optional[dict[str, Any]], str, bool]:
     """
     Run one turn under the session lock.
@@ -276,15 +316,21 @@ def run_guarded(
     Under the supervisor (v0.20.0 T17) each turn's admission wait, run time
     and outcome (``ok``, ``busy``, ``error``) go to the ``turn_metric`` hook,
     numbers and the account id only.
+
+    ``runner``, ``admit``, ``metric`` (v0.22.0, spec §16.1): a phone mechanics
+    action passes ``turn.run_mechanics``, ``admit=False`` (never
+    ``admit_turn``: a swipe never enters the narration queue) and
+    ``metric="phone"``; every other caller passes none and is unchanged.
     """
+    run = runner or run_turn
     if not session.lock.acquire(blocking=False):
-        _report_turn(session, 0.0, 0.0, "busy")
+        _report(session, metric, 0.0, 0.0, "busy")
         return None, "A turn is already in progress.", True
     # Hosted (v0.20.0 T17): the admission wait and the run, for turn_metric.
     began = time.monotonic()
     admit_ms = 0.0
     try:
-        if hosting_enabled():
+        if hosting_enabled() and admit:
             from engine.llm.gate import CANCELLED, OTHER_WINDOW, InferenceBusy, admit_turn
 
             try:
@@ -295,7 +341,7 @@ def run_guarded(
                     cancel=cancel,
                 )
             except InferenceBusy as exc:
-                _report_turn(session, (time.monotonic() - began) * 1000.0, 0.0, "busy")
+                _report(session, metric, (time.monotonic() - began) * 1000.0, 0.0, "busy")
                 reason = getattr(exc, "reason", "")
                 logger.warning(
                     "[default_scene] Turn refused before it ran (operation=run_guarded, "
@@ -324,19 +370,23 @@ def run_guarded(
                     "(operation=run_guarded, id=%s)",
                     getattr(session, "session_id", "") or "",
                 )
-                _report_turn(session, admit_ms, 0.0, "busy")
+                _report(session, metric, admit_ms, 0.0, "busy")
                 return None, PLAYER_GONE, True
             try:
-                payload = run_turn(
+                payload = run(
                     session, action, intent=intent, authored=authored, emit_callback=emit_callback
                 )
             finally:
                 admission.release()
-            _report_turn(session, admit_ms, (time.monotonic() - admitted) * 1000.0, "ok")
+            _report(session, metric, admit_ms, (time.monotonic() - admitted) * 1000.0, "ok")
             return payload, "", False
-        payload = run_turn(
+        payload = run(
             session, action, intent=intent, authored=authored, emit_callback=emit_callback
         )
+        if hosting_enabled():
+            # No admission (admit=False, a phone action): still reported, as
+            # `phone`, `refused` when the engine declined it.
+            _report(session, metric, 0.0, (time.monotonic() - began) * 1000.0, _outcome(payload, metric))
         return payload, "", False
     except Exception as exc:  # noqa: BLE001 — last line of defence
         # Without this the socket handler raised into Socket.IO, no event was
@@ -352,7 +402,7 @@ def run_guarded(
             text, _ref = public_error(
                 exc, TURN_FAILED, where="run_guarded", id=getattr(session, "session_id", "")
             )
-            _report_turn(session, admit_ms, max(0.0, (time.monotonic() - began) * 1000.0 - admit_ms), "error")
+            _report(session, metric, admit_ms, max(0.0, (time.monotonic() - began) * 1000.0 - admit_ms), "error")
             return None, text, False
         logger.exception(
             "[default_scene] Turn failed (operation=run_guarded, id=%s)",
@@ -360,12 +410,10 @@ def run_guarded(
         )
         return None, f"The turn could not be completed: {exc}", False
     finally:
-        session.lock.release()
         # Hosted (v0.20.0 T15 fix round 1): an admin ended this session's
-        # account during the turn; it is released now the turn is over.
-        after = getattr(session, "end_after_turn", None)
-        if after is not None:
-            after()
+        # account during the turn; it is released now the turn is over --
+        # release_turn does both (v0.22.0 Plan decision 31).
+        release_turn(session)
 
 
 class DefaultScene(FlaskScene):
@@ -470,21 +518,42 @@ class DefaultScene(FlaskScene):
             # the session store, which asks the active story's manifest. This
             # route hardcoding "wayfarer" was one of three independent copies
             # of the flagship's answer, and it beat the manifest every time.
+            # READ RECEIPTS (v0.22.0, spec §3.2): an optional `creation`
+            # object, the player's profile. A story with no `paths.social`
+            # refuses one rather than ignoring it; this is a branch inside the
+            # route every story has, so `app_shape.json` does not move.
+            creation_body = body.get("creation")
+            if creation_body is not None:
+                from engine import social
+
+                if not social.declared():
+                    return jsonify({"error": "this story has no creation form"}), 400
             try:
                 session = self.store.create(
                     player_name=str(body.get("player_name", "Traveler")),
                     archetype=str(body.get("archetype") or "") or None,
                     seed=body.get("seed"),
                     llm_fn=self.llm_fn,
+                    creation=creation_body,
                 )
             except (SessionBusy, SavesFull) as exc:
                 # Hosted: this account's other run is mid-turn (spec §5.4),
                 # or its saves in this story are at the cap (T9 fix round 1).
                 return jsonify({"error": str(exc)}), 409
+            except ValueError as exc:
+                # Only a creation refusal is answered as the player's own
+                # mistake; any other ValueError is the engine's and re-raised.
+                if creation_body is None:
+                    raise
+                from engine.social.creation import CreationError
+
+                if not isinstance(exc, CreationError):
+                    raise
+                return jsonify({"error": str(exc)}), 400
             payload = {
                 "session_id": session.session_id,
                 "save_id": session.save_id,
-                "state": session.engine.state.to_client_dict(),
+                "state": _client_state(session),
                 "opening": session.last_turn,
             }
             return jsonify(payload)
@@ -496,7 +565,7 @@ class DefaultScene(FlaskScene):
                 session = self.store.require(session_id)
             except KeyError:
                 return jsonify({"error": "session not found"}), 404
-            return jsonify({"state": session.engine.state.to_client_dict()})
+            return jsonify({"state": _client_state(session)})
 
         @app.post("/api/game/choice")
         def api_choice() -> Any:
@@ -506,6 +575,14 @@ class DefaultScene(FlaskScene):
                 session = self.store.require(session_id)
             except KeyError:
                 return jsonify({"error": "session not found"}), 404
+            # READ RECEIPTS (v0.22.0, spec §7.2): a phone story is played
+            # through phone_action; a choice is answered, never run.
+            from engine import social
+
+            if social.declared():
+                from engine.social.turn import played_on_the_phone
+
+                return jsonify({"error": played_on_the_phone()}), 409
 
             choice_id = str(body.get("choice_id", ""))
             # An id the frame no longer offers (a "Try again" into a resumed
@@ -552,6 +629,7 @@ class DefaultScene(FlaskScene):
                     emit("error", {"message": "session not found"})
                     return
                 join_room(session_id)
+                _request_voicing(session)
                 # v0.21.0 (spec §6.2, S6): a rejoining client learns whether
                 # `opening` is the PREVIOUS turn while another is still
                 # running. Every answer carries it. Read BEFORE `opening`: a
@@ -564,7 +642,7 @@ class DefaultScene(FlaskScene):
                     {
                         "session_id": session_id,
                         "save_id": session.save_id,
-                        "state": session.engine.state.to_client_dict(),
+                        "state": _client_state(session),
                         "opening": session.last_turn,
                         "turn_running": running,
                     },
@@ -577,6 +655,14 @@ class DefaultScene(FlaskScene):
                 session = self.store.require(session_id)
             except KeyError:
                 emit("turn_error", {"message": "session not found", "fatal": True})
+                return
+            # READ RECEIPTS (v0.22.0, spec §7.2): answered on the phone, never run.
+            from engine import social
+
+            if social.declared():
+                from engine.social.turn import played_on_the_phone
+
+                emit("turn_error", {"message": played_on_the_phone(), "busy": False})
                 return
 
             def _emit(event: str, payload: dict[str, Any]) -> None:
@@ -678,6 +764,7 @@ class DefaultScene(FlaskScene):
                 emit("resume_failed", {"message": f"Save could not be read: {save_id}"})
                 return
             join_room(session.session_id)
+            _request_voicing(session)
             emit(
                 "game_resumed",
                 {
@@ -692,6 +779,80 @@ class DefaultScene(FlaskScene):
                     "opening": session.last_turn,
                 },
             )
+
+        # READ RECEIPTS (v0.22.0, spec §7.2): the phone's routes and event exist
+        # only for a story declaring paths.social (the active story is fixed per
+        # process), so every other story's app_shape.json is unchanged.
+        from engine import social
+
+        if social.declared():
+            social.boot()
+            from engine.social import routes as social_routes
+
+            social_routes.register(self)
+            # Shutdown (spec §16.5): every dirty phone save is flushed, under
+            # its turn lock, with the same two checks as a turn's save.
+            from engine.social import saves as social_saves
+
+            social_saves.install_shutdown_flush()
+
+
+#: How long `_client_state` tries a phone story's turn lock (ms between tries): ~0.4 s at most.
+CLIENT_STATE_RETRY_MS: tuple[int, ...] = (0, 25, 50, 100, 200)
+
+
+def _client_state(session: Any) -> dict[str, Any]:
+    """
+    ``session``'s client state for an answer outside a turn (the state route,
+    a join, a start or resume). A phone story (v0.22.0) builds it holding the
+    turn lock, TRIED on ``CLIENT_STATE_RETRY_MS`` (never a blocking take):
+    its voicing commits, the DirtySaver's spill and the media hand-off write
+    ``state.social`` from other threads under that lock (final review M4).
+    Still busy after the tries (a turn or save outlasting them), it is built
+    unlocked, as before: ``_phone_block`` catches a torn read and logs it,
+    and the client's next payload repairs it. Any other story has no
+    background writer and builds it unlocked, unchanged.
+    """
+    from engine import social
+
+    state = session.engine.state
+    if not social.declared():
+        return state.to_client_dict()
+    tick = threading.Event()
+    for delay in CLIENT_STATE_RETRY_MS:
+        if delay:
+            tick.wait(delay / 1000.0)
+        if session.lock.acquire(blocking=False):
+            try:
+                return state.to_client_dict()
+            finally:
+                release_turn(session)
+    logger.info("[default_scene] Client state built without the turn lock: it stayed busy "
+                "(operation=_client_state, id=%s)", getattr(session, "session_id", ""))
+    return state.to_client_dict()
+
+
+def _request_voicing(session: Any) -> None:
+    """
+    A phone story (v0.22.0 spec §15.3): a client that joins or resumes a run
+    asks for a voicing pass, so due messages -- the away advance's, or any
+    left when the last pass ended -- are voiced without waiting for the next
+    phone action. The pass enters the voicing queue under its normal rules
+    (idempotent; hosted, admitted like any other). Absent in any other story.
+    """
+    from engine import social
+
+    if not social.declared():
+        return
+    try:
+        from engine.social import voicer
+
+        voicer.request(session)
+    except Exception:  # noqa: BLE001 -- the answering emit must still be sent
+        logger.exception(
+            "[default_scene] Voicing pass request failed (operation=_request_voicing, id=%s)",
+            getattr(session, "session_id", ""),
+        )
 
 
 def create_app(

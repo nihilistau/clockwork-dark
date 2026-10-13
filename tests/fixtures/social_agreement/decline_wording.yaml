@@ -1,0 +1,29 @@
+# Agreement check "decline wording" (spec §11.5): a decline decision whose bubbles agree.
+# `bad` must fail the check; `good` must pass EVERY check.
+base: &base
+  stage: numbers
+  person: {name: Maya, age: 31, job: nurse, neighbourhood: old_town}
+  player: {name: Sam, age: 29, neighbourhood: harbourside, attributes: {job: accountant}}
+  contacts: [Jordan, Priya]
+  decision: {situation: decline_photo, kind: decline, request_id: r0001}
+
+bad:
+  - {<<: *base, reply: {bubbles: [{text: "ok sending"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "haha fine, here you go"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "Sure, sending now!"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "here it is 🙈"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "just sent it"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "one sec"}, {text: "on its way"}]}}
+
+good:
+  - {<<: *base, reply: {bubbles: [{text: "not sending that, sorry"}]}}
+  # asked, not agreed
+  - {<<: *base, reply: {bubbles: [{text: "would you be ok sending one first?"}]}}
+  # negated
+  - {<<: *base, reply: {bubbles: [{text: "I won't be sending now, maybe later"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "not on its way, sorry 😅"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "haha nice try"}]}}
+  # not a decline: agreeing is right
+  - <<: *base
+    decision: {situation: send_selfie, kind: photo, media_kind: photo, subject: selfie}
+    reply: {bubbles: [{text: "here you go"}], media: {caption: "me"}}

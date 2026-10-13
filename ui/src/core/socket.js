@@ -39,10 +39,198 @@ export const INBOUND = [
   "turn_error",
   // Hosted: this tab's run was released elsewhere, ended, or put away idle (spec §6.5).
   "session_ended",
+  // READ RECEIPTS (v0.22.0): background pushes from the voicing and media
+  // threads, between actions; reduced by the plugin, never by core (spec §17.3).
+  "phone_message",
+  "media_ready",
   "error",
 ];
 
-export const OUTBOUND = ["join_session", "player_choice", "resume"];
+export const OUTBOUND = ["join_session", "player_choice", "resume", "phone_action"];
+
+/** One phone action (v0.22.0): the catalogue's shape, nothing else. */
+export function emitPhone(socket, sessionId, intent) {
+  if (!socket || !sessionId || !intent || !intent.action) return false;
+  const { action, target = "", args = {}, text = "" } = intent;
+  socket.emit("phone_action", { session_id: sessionId, action, target, args, text });
+  return true;
+}
+
+/**
+ * How long a busy phone action waits before it is sent again, and how many
+ * sends it gets in all: the first and one re-send (spec §18.2, "re-sent once
+ * after 150 ms; a second busy keeps the composed text").
+ */
+export const PHONE_RETRY_MS = 150;
+export const PHONE_RETRY_TRIES = 2;
+/** An action whose answer never came stops holding the line after this long. */
+export const PHONE_ANSWER_MS = 10000;
+
+/**
+ * The phone's sender (v0.22.0, spec §16.1, §18.2): one action on the wire at a
+ * time, a busy answer re-sent transparently.
+ *
+ * A voicing pass commits its messages holding the turn lock for a few
+ * milliseconds, so an action that lands in that window is answered
+ * `turn_error {busy}` with nothing changed. That is contention, not failure:
+ * the action is sent again after `delay` ms, up to `tries` sends in all, and
+ * the busy answers it drew never reach the store. Only the last one does, so
+ * the plugin can keep what the player composed ("Not sent").
+ *
+ * ONE IN FLIGHT. A busy answer does not say which action it refused, so a
+ * second action pressed while the first is unanswered waits its turn here
+ * (mechanics answer in milliseconds). The in-flight action is answered by the
+ * next `turn_update` or `turn_error`; one that never is (a dropped socket, a
+ * handler that raised) stops holding the line after `answerMs`, and its late
+ * answer, if it comes, is credited to nobody (`stale`). An answer eaten that
+ * way while another action is in flight may have been THAT action's own (the
+ * late one never came): so that action, if it then times out, owes nothing --
+ * it never re-arms `stale`, or the debt would pass from action to action and
+ * eat every later answer (v0.22.0 T27).
+ *
+ * NOTHING IS DROPPED IN SILENCE. Whatever never reached the server -- the
+ * queue and an action waiting out its re-send, on a disconnect or a reset;
+ * an action with no socket to go on -- is handed to `onDrop(intents)`, which
+ * App turns into a `PHONE_DROPPED` action for the plugin's `reduce`, so a
+ * composed message is kept ("Not sent", spec §18.2), never lost. An action
+ * sent and still unanswered is not reported: the server may have applied it.
+ *
+ * CAVEAT: `turn_update` goes to the session's whole ROOM. Two tabs driving
+ * one local session (CLAUDE.md, deferred) each see the other's answers, and
+ * this sender credits them to its own in-flight action. Hosted mode allows
+ * one live run per account, so only local mode can meet it.
+ *
+ * `filter(action)` sees every store action before the store does and returns
+ * true for the ones it swallows (a busy answer it will retry).
+ */
+export function createPhoneSender({
+  getSocket,
+  delay = PHONE_RETRY_MS,
+  tries = PHONE_RETRY_TRIES,
+  answerMs = PHONE_ANSWER_MS,
+  onDrop = () => {},
+  timers = { set: (fn, ms) => setTimeout(fn, ms), clear: (id) => clearTimeout(id) },
+} = {}) {
+  let flight = null; // {sessionId, intent, sends, waiting, timer, eaten}
+  const queue = [];
+  // Answers still owed to an action that timed out: the next answer is its,
+  // not the in-flight action's. Forgotten after another `answerMs`, so an
+  // answer that never comes cannot make every later action wait out its time.
+  let stale = 0;
+  let staleTimer = null;
+
+  function stopTimer() {
+    if (flight && flight.timer) timers.clear(flight.timer);
+    if (flight) flight.timer = null;
+  }
+
+  function drop(intents) {
+    if (intents.length) onDrop(intents);
+  }
+
+  /** Send the in-flight action (again); false when it could not go at all. */
+  function fire() {
+    stopTimer();
+    if (!emitPhone(getSocket(), flight.sessionId, flight.intent)) return false;
+    flight.sends += 1;
+    flight.waiting = false;
+    flight.timer = timers.set(timedOut, answerMs);
+    return true;
+  }
+
+  /** The in-flight action is done with: send the next queued one, if any. */
+  function advance() {
+    stopTimer();
+    flight = null;
+    while (queue.length) {
+      flight = { ...queue.shift(), sends: 0, waiting: false, timer: null };
+      if (fire()) return;
+      // No socket to go on: never sent, so it is reported, not lost.
+      drop([flight.intent]);
+      flight = null;
+    }
+  }
+
+  /** No answer within `answerMs`: give up the line, and owe the late answer nothing. */
+  function timedOut() {
+    if (flight) flight.timer = null;
+    // An action whose answer may already have been eaten as the owed late
+    // one is owed nothing more: re-arming here is how the debt re-armed.
+    if (!(flight && flight.eaten)) {
+      stale = 1;
+      if (staleTimer) timers.clear(staleTimer);
+      staleTimer = timers.set(() => {
+        staleTimer = null;
+        stale = 0;
+      }, answerMs);
+    }
+    advance();
+  }
+
+  /** Drop the queue and an action waiting to be re-sent, reporting both. */
+  function reset() {
+    const dropped = [];
+    if (flight && flight.waiting) dropped.push(flight.intent);
+    for (const item of queue) dropped.push(item.intent);
+    stopTimer();
+    flight = null;
+    queue.length = 0;
+    if (staleTimer) timers.clear(staleTimer);
+    staleTimer = null;
+    stale = 0;
+    drop(dropped);
+  }
+
+  /** A retry's timer: the action goes again, or (no socket) is dropped and gives way. */
+  function retry() {
+    if (!flight || fire()) return;
+    drop([flight.intent]);
+    advance();
+  }
+
+  return {
+    send(sessionId, intent) {
+      if (!sessionId || !intent || !intent.action) return false;
+      queue.push({ sessionId, intent });
+      if (!flight) advance();
+      return true;
+    },
+    filter(action) {
+      if (!action) return false;
+      if (action.type === "DISCONNECTED") {
+        reset();
+        return false;
+      }
+      if (action.type !== "SOCKET") return false;
+      const { event, payload } = action;
+      if (event !== "turn_update" && event !== "turn_error") return false;
+      if (stale > 0) {
+        // A timed-out action's late answer: the store gets it, no action is
+        // credited. It may have been the in-flight action's own, so that one
+        // is marked: should it time out, it owes no late answer of its own.
+        stale -= 1;
+        if (flight) flight.eaten = true;
+        // Said on the action, so a plugin counting answers (READ RECEIPTS'
+        // usePhoneAct) never takes it for the answer to its own action.
+        action.stale = true;
+        return false;
+      }
+      if (!flight || flight.waiting) return false;
+      if (event === "turn_error" && payload && payload.busy && flight.sends < tries) {
+        stopTimer();
+        flight.waiting = true;
+        flight.timer = timers.set(retry, delay);
+        return true;
+      }
+      advance();
+      return false;
+    },
+    reset,
+    pending() {
+      return (flight ? 1 : 0) + queue.length;
+    },
+  };
+}
 
 // Key is unchanged from before the core/story split on purpose: renaming it
 // would orphan the save id in every existing player's localStorage and silently

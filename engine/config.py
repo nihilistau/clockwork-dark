@@ -753,10 +753,41 @@ def stray_sandbox_message() -> Optional[str]:
 #: hosted supervisor's stub server, v0.20.0 T16). No deployment sets it.
 TEST_MODEL_STUB_PORT_ENV = "CLOCKWORK_TEST_MODEL_STUB_PORT"
 
+#: The loopback port a test's stub ComfyUI listens on (v0.22.0 T18,
+#: ``tests/conftest.py::sandbox_comfy_stub``): a sandboxed child keeps the
+#: SANDBOX LAYER's ``comfyui.base_url`` only when it is plain http on loopback
+#: on exactly this port; anything else is the discard port. No deployment sets
+#: it.
+TEST_COMFY_STUB_PORT_ENV = "CLOCKWORK_TEST_COMFY_STUB_PORT"
+
 #: What every other service URL is forced to in a sandboxed child.
 TEST_SANDBOX_SERVICE_URL = "http://127.0.0.1:9"
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def _sandbox_stub_url(layer_url: Any, port_env: str, discard: str) -> str:
+    """
+    A sandboxed child's URL for one service: the sandbox layer's own value
+    when it is plain http on loopback on the port ``port_env`` registers,
+    else ``discard``.
+    """
+    from urllib.parse import urlsplit
+
+    registered = os.environ.get(port_env, "").strip()
+    if not registered.isdigit() or not isinstance(layer_url, str):
+        return discard
+    try:
+        parts = urlsplit(layer_url)
+        port = parts.port
+    except ValueError:
+        return discard
+    host = (parts.hostname or "").lower()
+    # Plain http only (v0.20.0 T16, from T5's re-review): the stub is a
+    # loopback test server, and no other scheme is one.
+    if parts.scheme == "http" and host in _LOOPBACK_HOSTS and port == int(registered):
+        return layer_url
+    return discard
 
 
 def _sandbox_model_url(layer_url: Any) -> str:
@@ -765,28 +796,23 @@ def _sandbox_model_url(layer_url: Any) -> str:
     value when it is loopback on the registered stub port, else the discard
     port.
     """
-    from urllib.parse import urlsplit
+    return _sandbox_stub_url(layer_url, TEST_MODEL_STUB_PORT_ENV, TEST_SANDBOX_BASE_URL)
 
-    registered = os.environ.get(TEST_MODEL_STUB_PORT_ENV, "").strip()
-    if not registered.isdigit() or not isinstance(layer_url, str):
-        return TEST_SANDBOX_BASE_URL
-    try:
-        parts = urlsplit(layer_url)
-        port = parts.port
-    except ValueError:
-        return TEST_SANDBOX_BASE_URL
-    host = (parts.hostname or "").lower()
-    # Plain http only (v0.20.0 T16, from T5's re-review): the stub is a
-    # loopback test server, and no other scheme is one.
-    if parts.scheme == "http" and host in _LOOPBACK_HOSTS and port == int(registered):
-        return layer_url
-    return TEST_SANDBOX_BASE_URL
+
+def _sandbox_comfy_url(layer_url: Any) -> str:
+    """
+    The ``comfyui.base_url`` a sandboxed child may use (v0.22.0 T18): the
+    sandbox layer's own value when it is loopback on the registered stub
+    ComfyUI port, else the discard port.
+    """
+    return _sandbox_stub_url(layer_url, TEST_COMFY_STUB_PORT_ENV, TEST_SANDBOX_SERVICE_URL)
 
 
 def _force_sandbox(data: dict[str, Any], sandbox_layer: dict[str, Any]) -> None:
     """
     What a sandboxed child is held to, whatever its layers say: no model
-    server but a registered loopback stub, no MCP bridge, no ComfyUI, no TTS,
+    server but a registered loopback stub, no MCP bridge, no ComfyUI but a
+    registered loopback stub (and no ComfyUI key but the layer's own), no TTS,
     no STT server, and no managed service (a marker with no layer merges no
     layer, so these cannot rest on it).
     """
@@ -812,6 +838,16 @@ def _force_sandbox(data: dict[str, Any], sandbox_layer: dict[str, Any]) -> None:
         section["base_url"] = TEST_SANDBOX_SERVICE_URL
         for flag in flags:
             section[flag] = False
+    # ComfyUI's key likewise (v0.22.0 T17 fix round 1): the shipped chain reads
+    # comfyui_api_key.txt in the repository root and CLOCKWORK_COMFYUI_API_KEY,
+    # and a child of the suite must never read either or send one to a stub.
+    layer_comfy = sandbox_layer.get("comfyui") if isinstance(sandbox_layer, dict) else None
+    # Its URL: the discard port, but a stub ComfyUI the test registered on
+    # loopback (v0.22.0 T18, ``sandbox_comfy_stub``), as for the model server.
+    data["comfyui"]["base_url"] = _sandbox_comfy_url(
+        layer_comfy.get("base_url") if isinstance(layer_comfy, dict) else None
+    )
+    data["comfyui"]["api_key"] = layer_comfy.get("api_key", "") if isinstance(layer_comfy, dict) else ""
     stack = data.get("stack")
     services = stack.get("services") if isinstance(stack, dict) else None
     if isinstance(services, dict):

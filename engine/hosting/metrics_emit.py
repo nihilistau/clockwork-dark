@@ -31,13 +31,14 @@ line may quote play text, a metric may not. A record already reported by
 ``errors.public_error`` (which sends its own event, with the player's
 reference) carries ``METRIC_REPORTED`` and is skipped.
 
-THE HOOKS. Two emitters live in engine modules local mode also loads, so they
+THE HOOKS. Three emitters live in engine modules local mode also loads, so they
 are hooks ``install()`` sets, None by default, never imports of
 ``engine.hosting`` from engine code (spec §14.10; §1's no-import test):
 ``engine.scenes.default_scene.turn_metric`` (a hosted ``run_guarded``'s
-admission wait, duration and outcome) and ``SessionStore.on_event``
+admission wait, duration and outcome), ``default_scene.phone_metric`` (a
+hosted phone mechanics action, v0.22.0) and ``SessionStore.on_event``
 (``engine/session/store.py``: ``created``, ``resumed``, ``released``,
-``swept``, ``ended_by_admin``). ``hook_turn`` and ``hook_session`` are what
+``swept``, ``ended_by_admin``). ``hook_turn``, ``hook_phone`` and ``hook_session`` are what
 ``install`` sets them to.
 
 Version: v0.1.0 [2026-10-06]
@@ -199,6 +200,16 @@ def hook_turn(account: str, admit_wait_ms: float, duration_ms: float, outcome: s
     )
 
 
+def hook_phone(account: str, event: str, status: str, ms: float) -> None:
+    """``default_scene.phone_metric``: one hosted phone action (v0.22.0; ``install`` sets it)."""
+    emit("phone", account=account or None, event=event, status=status, ms=max(0.0, float(ms)))
+
+
+def phone_refused(account_id: str) -> None:
+    """A phone action the limits refused (its cap or the phone bucket): a ``phone`` ``refused``, never a ``turn``."""
+    emit("phone", account=account_id or None, event="action", status="refused", ms=0.0)
+
+
 def refused(account_id: str, outcome: str) -> None:
     """An action the limits refused (``refused_cap``, ``refused_rate``): a ``turn`` that never ran."""
     emit("turn", account=account_id or None, admit_wait_ms=0.0, duration_ms=0.0, outcome=outcome)
@@ -210,20 +221,22 @@ def hook_session(event: str, owner: str) -> None:
 
 
 def install_hooks(scene: Any) -> None:
-    """Set the two engine hooks (``install()``, under the supervisor)."""
+    """Set the engine hooks (``install()``, under the supervisor)."""
     from engine.scenes import default_scene
 
     default_scene.turn_metric = hook_turn
+    default_scene.phone_metric = hook_phone
     store = getattr(scene, "store", None)
     if store is not None:
         store.on_event = hook_session
 
 
 def reset_hooks() -> None:
-    """Clear ``default_scene.turn_metric`` (a test that built a supervised app in-process)."""
+    """Clear ``default_scene.turn_metric`` and ``phone_metric`` (a test that built a supervised app in-process)."""
     from engine.scenes import default_scene
 
     default_scene.turn_metric = None
+    default_scene.phone_metric = None
 
 
 __all__ = [
@@ -234,9 +247,11 @@ __all__ = [
     "emit",
     "enable",
     "enabled",
+    "hook_phone",
     "hook_session",
     "hook_turn",
     "install_hooks",
+    "phone_refused",
     "refused",
     "reset_hooks",
     "stop",

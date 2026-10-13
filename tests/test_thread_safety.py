@@ -42,6 +42,7 @@ import contextvars
 import importlib
 import sys
 import threading
+import time
 from typing import Any, Callable
 
 import pytest
@@ -419,6 +420,9 @@ GETTERS = [
     ("engine.media.tts", "get_speech_worker", "SpeechWorker", "_worker"),
     ("engine.scenes.default_scene", "get_store", "SessionStore", "_store"),
     ("engine.telemetry.oracle", "get_oracle", "Oracle", "_oracle"),
+    ("engine.social.saves", "get_dirty_saver", "DirtySaver", "_saver"),  # v0.22.0 T10
+    ("engine.social.voicer", "get_scheduler", "VoicingScheduler", "_scheduler"),  # v0.22.0 T14
+    ("engine.media.comfy.jobs", "get_media_worker", "MediaJobWorker", "_worker"),  # v0.22.0 T18
 ]
 
 
@@ -1077,6 +1081,184 @@ def test_the_hosting_leaves_are_tracked_by_class_and_take_nothing_under_them(loc
             assert name in lock_order.acquired, name
 
 
+def test_the_profile_cache_is_a_tracked_leaf_and_generation_runs_outside_it(lock_order, monkeypatch):
+    """
+    v0.22.0 T3: ``engine.social.population._PROFILES_LOCK`` is a MODULE leaf,
+    wrapped by the checker like the ordered locks. Generation reads story data
+    through loaders that may take ordered locks (stood in for here by
+    ``_DATA_LOCK``, taken around each draw), so it must run with the leaf
+    released: eight threads drawing the same people never block on another
+    lock while holding it, and agree on every person.
+    """
+    from engine import social
+    from engine.games import registry
+
+    registry.activate("read-receipts")
+    try:
+        social.boot()
+        from engine.social import population
+
+        assert isinstance(population._PROFILES_LOCK, lock_order_helper.TrackedLock)
+        population.reset_profiles()
+        real = population._generate
+
+        def generate(*args):
+            with social._DATA_LOCK:   # an ordered lock, as a cold loader would take
+                pass
+            return real(*args)
+
+        monkeypatch.setattr(population, "_generate", generate)
+        results: list[list] = []
+        barrier = threading.Barrier(8)
+
+        def draw() -> None:
+            barrier.wait()
+            results.append([population.person(5, i) for i in range(30)])
+
+        threads = [threading.Thread(target=draw) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(30)
+        assert len(results) == 8 and all(r == results[0] for r in results)
+        assert "engine.social.population._PROFILES_LOCK" in lock_order.acquired
+    finally:
+        registry.deactivate()
+
+
+def test_the_phone_dirty_timer_saves_holding_only_its_leaf_released(lock_order, monkeypatch):
+    """
+    v0.22.0 T10: ``DirtySaver._lock`` is a leaf over its heap. A due phone
+    session is saved by the timer's thread -- liveness (the store's guard),
+    the turn lock tried, the save (a save folder's index lock) -- with the
+    leaf released, so nothing is ever taken under it.
+    """
+    from engine import social
+    from engine.games import registry
+    from tests.social_fixtures import _live_session
+
+    registry.activate("read-receipts")
+    try:
+        social.boot()
+        from engine.social import saves
+
+        saver = saves.DirtySaver()
+        assert isinstance(saver._lock, lock_order_helper.TrackedLock), "the checker is not tracking the leaf"
+        _scene, session = _live_session()
+        session.dirty = True
+        saver.schedule(session, 0.0)
+        deadline = time.monotonic() + JOIN_SECONDS
+        while session.dirty and time.monotonic() < deadline:
+            threading.Event().wait(0.02)
+        saver.stop()
+        assert session.dirty is False, "the timer did not save the dirty session"
+        assert "engine.social.saves.DirtySaver._lock" in lock_order.acquired
+    finally:
+        saves_module = sys.modules.get("engine.social.saves")
+        if saves_module is not None:
+            saves_module.reset_dirty_saver()
+        registry.deactivate()
+
+
+def test_a_scheduled_voicing_pass_holds_only_released_leaves(lock_order, monkeypatch):
+    """
+    v0.22.0 T14: ``VoicingScheduler._lock`` and ``SessionInbox._lock`` are
+    leaves. A pass run by the scheduler's worker -- its queue popped under the
+    scheduler's leaf, the session's turn lock tried, the inbox drained, the
+    model called, the commit and its save -- takes nothing under either, and
+    the model is called holding no lock at all.
+    """
+    from engine import social
+    from engine.games import registry
+    from tests.social_fixtures import _live_session, _matched_in, _phone, _replies_forced
+    from tests.social_stub import StubVoice
+
+    registry.activate("read-receipts")
+    try:
+        social.boot()
+        from engine.social import messaging, saves, voicer
+
+        held_during_call: list[list[str]] = []
+        stub = StubVoice("zero")
+
+        def llm(messages: Any, fmt: Any) -> str:
+            held_during_call.append(list(lock_order._stack()))
+            return stub(messages, fmt)
+
+        voicer.set_llm_fn(llm)
+        voicer.set_summary_fn(lambda messages: "")
+        scheduler = voicer.get_scheduler()
+        assert isinstance(scheduler._lock, lock_order_helper.TrackedLock), "the checker is not tracking the leaf"
+        scheduler.pause()
+        _scene, session = _live_session()
+        assert isinstance(session.inbox._lock, lock_order_helper.TrackedLock)
+        thread = _matched_in(session, "matchstick")
+        with _replies_forced():                # their reply drawn, never a ghost (T26's tuning: F16)
+            _phone(_scene, session, "send", target=thread, args={"kind": "text"}, text="hey you")
+            _phone(_scene, session, "wait", args={"until": "next"})
+        assert messaging.unvoiced(session.engine.state)
+        scheduler.resume()
+        voicer.request(session)
+        deadline = time.monotonic() + JOIN_SECONDS
+        while (messaging.unvoiced(session.engine.state) or voicer.in_flight()) and time.monotonic() < deadline:
+            threading.Event().wait(0.02)
+        assert not messaging.unvoiced(session.engine.state), "the scheduled pass voiced nothing"
+        assert held_during_call and all(not held for held in held_during_call), held_during_call
+        assert "engine.social.voicer.VoicingScheduler._lock" in lock_order.acquired
+        assert "engine.social.inbox.SessionInbox._lock" in lock_order.acquired
+    finally:
+        voicer_module = sys.modules.get("engine.social.voicer")
+        if voicer_module is not None:
+            voicer_module.reset()
+        saves_module = sys.modules.get("engine.social.saves")
+        if saves_module is not None:
+            saves_module.reset_dirty_saver()
+        registry.deactivate()
+
+
+def test_a_media_job_holds_only_released_leaves(lock_order, monkeypatch):
+    """
+    v0.22.0 T18: ``MediaJobWorker._lock`` is a leaf and ``_worker_lock`` an
+    ordered getter lock. A job run by the process's worker -- picked under the
+    leaf, submitted, polled, fetched, stored and handed off -- makes every
+    HTTP call and the hand-off holding no lock at all.
+    """
+    import httpx
+
+    from engine.media.comfy import jobs
+    from engine.media.comfy.client import ComfyClient
+    from tests.comfy_stub import StubComfy
+    from tests.social_fixtures import _spec
+
+    stub = StubComfy("ready", polls=1)
+    held_during_http: list[list[str]] = []
+    real_handle = stub._handle
+
+    def handle(request: Any) -> Any:
+        held_during_http.append(list(lock_order._stack()))
+        return real_handle(request)
+
+    stub.transport = httpx.MockTransport(handle)
+    handed: list[list[str]] = []
+    jobs.set_client_factory(lambda: ComfyClient("http://comfy.test", transport=stub.transport))
+    jobs.set_on_done(lambda spec, result: handed.append(list(lock_order._stack())))
+    try:
+        worker = jobs.get_media_worker()
+        assert isinstance(worker._lock, lock_order_helper.TrackedLock), "the checker is not tracking the leaf"
+        worker.submit(_spec("x1", "photo"))
+        deadline = time.monotonic() + JOIN_SECONDS
+        while not handed and time.monotonic() < deadline:
+            threading.Event().wait(0.02)
+        assert handed == [[]], f"the hand-off ran holding {handed}"
+        assert held_during_http and all(not held for held in held_during_http), held_during_http
+        assert "engine.media.comfy.jobs.MediaJobWorker._lock" in lock_order.acquired
+        assert "engine.media.comfy.jobs._worker_lock" in lock_order.acquired
+    finally:
+        jobs.set_client_factory(None)
+        jobs.set_on_done(None)
+        assert jobs.reset_media_worker(JOIN_SECONDS)
+
+
 def test_a_lane_is_taken_holding_nothing(monkeypatch):
     from engine.llm import gate
 
@@ -1089,7 +1271,7 @@ def test_a_lane_is_taken_holding_nothing(monkeypatch):
 
 
 def test_every_module_lock_is_ordered_and_renewed_after_fork():
-    """Each lock object the inventory lists is in the order and renews after fork."""
+    """Each lock object the inventory lists is in the order (or a documented leaf) and renews after fork."""
     from engine import locks
     from tests.module_state_scan import load_inventory
 
@@ -1107,7 +1289,8 @@ def test_every_module_lock_is_ordered_and_renewed_after_fork():
             module_locks.append(site)
     assert module_locks, "found no module locks: the probe is broken"
     renewed = {f"{m}.{n}" for m, n in locks.RENEWED_AFTER_FORK}
-    assert sorted(set(module_locks) - set(lock_order_helper.ORDER)) == [], "a lock missing from the order"
+    placed = set(lock_order_helper.ORDER) | set(lock_order_helper.LEAVES)
+    assert sorted(set(module_locks) - placed) == [], "a lock missing from the order and the leaves"
     assert sorted(set(module_locks) - renewed) == [], "a lock not renewed after fork"
 
 

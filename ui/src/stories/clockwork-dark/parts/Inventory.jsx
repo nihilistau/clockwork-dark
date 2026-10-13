@@ -19,7 +19,7 @@
  * NOT WIRED (docs/GOVERNANCE.md, v0.21.0 final review finding 9): typed text
  * carries no intent, so using an item or crafting here runs no skill -- only
  * the narrator reads the sentence (outside LM Studio's `llm.mcp` mode). The
- * intent path for overlays is the v0.23.0 flagship overhaul's.
+ * intent path for overlays is the v0.25.0 flagship overhaul's.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@core/parts/Modal.jsx";

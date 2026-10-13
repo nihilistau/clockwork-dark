@@ -21,7 +21,8 @@ BOUNDED, NOT ONLY BY TIME (fix round 1, I1). Rows older than
 ``observability.retention_days`` are pruned hourly, and:
 
 - a REFUSAL (a ``login`` ``failed``/``limited``/``disabled``, a ``turn``
-  ``refused_cap``/``refused_rate``) is not a row of its own: it is counted
+  ``refused_cap``/``refused_rate``, a ``phone`` ``refused``, v0.22.0) is not
+  a row of its own: it is counted
   into ``refused``, one row per (minute, kind, story, outcome), so a script
   hammering ``/login`` adds at most a few rows a minute, whatever its rate;
 - the file is capped at ``observability.metrics_max_mb``
@@ -154,7 +155,12 @@ PARAM_KEYS = frozenset({"hours", "ref"})
 REFUSALS: dict[str, frozenset[str]] = {
     "login": frozenset({"failed", "limited", "disabled"}),
     "turn": frozenset({"refused_cap", "refused_rate"}),
+    # v0.22.0: a phone action refused by its cap, the phone bucket or the engine.
+    "phone": frozenset({"refused"}),
 }
+
+#: The field a kind's refusal is named in (``outcome`` unless listed).
+REFUSAL_FIELD: dict[str, str] = {"phone": "status"}
 
 #: The refusal counters' table (its columns fixed here, never from an event).
 REFUSED_TABLE = "refused"
@@ -484,12 +490,13 @@ class MetricsStore:
     def _write(self, db: sqlite3.Connection, rows: list[dict[str, Any]]) -> None:
         for row in rows:
             kind = row["kind"]
-            if row.get("outcome") in REFUSALS.get(kind, ()):
+            outcome = row.get(REFUSAL_FIELD.get(kind, "outcome"))
+            if outcome in REFUSALS.get(kind, ()):
                 # Counted per minute, one row per (minute, kind, story, outcome).
                 db.execute(
                     f"INSERT INTO {REFUSED_TABLE} (minute, kind, story, outcome, count) VALUES (?, ?, ?, ?, 1) "
                     "ON CONFLICT (minute, kind, story, outcome) DO UPDATE SET count = count + 1",
-                    (math.floor(row["ts"] / _MINUTE) * _MINUTE, kind, row.get("story") or "", row["outcome"]),
+                    (math.floor(row["ts"] / _MINUTE) * _MINUTE, kind, row.get("story") or "", outcome),
                 )
                 continue
             names = list(KINDS[kind])

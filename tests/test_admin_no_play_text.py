@@ -21,7 +21,8 @@ and an admin's end of a session. Then:
 - the audit file is read whole;
 - every frame the supervisor received from a child is read;
 
-and the sentinel is in none of them. The same surfaces are shown to HOLD what
+and the sentinel is in none of them. A READ RECEIPTS run (v0.22.0 T10)
+carries it too, as the player's bio and in every message sent, saved. The same surfaces are shown to HOLD what
 they should (the error's reference, the turns, the session the admin ended,
 the claim counted with no name), so the test cannot pass on empty pages.
 
@@ -32,6 +33,7 @@ nothing to rate, flag or filter (``tests/test_metrics_schema.py``).
 from __future__ import annotations
 
 import json
+import threading
 import re
 import sqlite3
 from pathlib import Path
@@ -47,6 +49,9 @@ pytestmark = pytest.mark.process
 
 A = "clockwork-dark"
 B = "dev-story"
+#: v0.22.0 T10 (spec §17.1): a phone save -- READ RECEIPTS, a bio and
+#: messages sent, a reply due -- in the same instance.
+C = "read-receipts"
 
 #: The play text: one word, so it fits a name (40 characters), a stat and a label.
 SENTINEL = "Zq9Sentinel"
@@ -76,7 +81,7 @@ def instance(tmp_path_factory: pytest.TempPathFactory) -> Iterator[HostingInstan
     yield from hosting_instance(
         tmp_path_factory,
         "admin_no_play_text",
-        stories=[A, B],
+        stories=[A, B, C],
         frontdoor="real",
         worker_module=SCRIPTED_WORKER,
         supervisor={"boot_seconds": 180, "health_failures": 5},
@@ -88,6 +93,7 @@ def instance(tmp_path_factory: pytest.TempPathFactory) -> Iterator[HostingInstan
                 "logins_per_minute": 1000,
                 "logins_per_minute_all": 1000,
                 "admin_actions_per_minute": 1000,
+                "phone_actions_per_minute": 1000,
             },
         },
     )
@@ -101,6 +107,12 @@ def played(instance: HostingInstance) -> Iterator[dict[str, Any]]:
     "session_id": the session the admin ended}``.
     """
     (instance.control / "scripted.reply").write_text(REPLY, encoding="utf-8")
+    (instance.control / "scripted.voice").write_text(f"{SENTINEL} texts back", encoding="utf-8")
+    # The match always reads and replies (pre-flight F16: the draws forced, not a seed hunted for):
+    # since T16's 19:00 start, seed 7's one match ghosted on a send and no reply ever fell due.
+    (instance.control / "scripted.always_replies").write_text("1", encoding="utf-8")
+    # A person's voice note lands (T21 review M7): every media ask the app can carry is accepted.
+    (instance.control / "scripted.media_yes").write_text("1", encoding="utf-8")
     root = instance.add_account("root", admin=True)
     wren = instance.add_account("wren")
     player = instance.http()
@@ -156,6 +168,10 @@ def played(instance: HostingInstance) -> Iterator[dict[str, Any]]:
         turn = player.post("/api/game/choice", json={"session_id": session_b, "choice_id": "a"})
         assert turn.status_code == 200, turn.text[:300]
 
+        _play_the_phone(player)
+        _the_match_answers(instance)
+        _until_the_phone_save_holds_voiced_words(instance)
+
         admin = instance.admin_http("root", root)
         token = csrf_of(admin.get("/admin/sessions").text)
         ended = admin.post("/admin/sessions/end", data={"csrf": token, "slug": B, "session_id": session_b})
@@ -165,6 +181,149 @@ def played(instance: HostingInstance) -> Iterator[dict[str, Any]]:
         player.close()
         if admin is not None:
             admin.close()
+
+
+def _phone(player: httpx.Client, sid: str, action: str, target: str = "", args: Any = None, text: str = "") -> dict[str, Any]:
+    """
+    One phone action through the front door; its turn payload, the action not
+    refused. Since T14 a background voicing pass holds the run's turn lock for
+    its snapshot and each commit, so an action can be answered busy (409):
+    re-sent after 150 ms, as the client does (spec §16.2), a bounded number
+    of times.
+    """
+    pause = threading.Event()
+    for _attempt in range(40):
+        resp = player.post("/api/phone/action", json={"session_id": sid, "action": action, "target": target,
+                                                      "args": args or {}, "text": text})
+        if resp.status_code != 409:
+            break
+        pause.wait(0.15)
+    assert resp.status_code == 200, resp.text[:300]
+    body = resp.json()
+    assert not body["receipts"][0].get("refused"), body["receipts"][0]
+    return body
+
+
+def _play_the_phone(player: httpx.Client) -> None:
+    """
+    A phone save holding play text (spec §17.1): the sentinel as a bio and in
+    every message the player sends, then time passed so the match's replies
+    fall due and the run is saved (at once on the match, then by the dirty
+    timer and on each later save). Since T14 the worker's voicing pass (its
+    model scripted: ``scripted.voice``, the sentinel's line) voices the
+    replies in the background and, past the voice's verbatim window
+    (`social.memory.verbatim`, 24), writes the thread's summary -- both
+    saved. Since T21 the player also sends a voice note -- the sentinel in its
+    transcript -- on a Front Porch match (Matchstick carries no voice), made
+    from its "Likes you" row or a like on its deck, and asks for one back,
+    which the person sends (``scripted.media_yes``): its transcript, the
+    scripted voice's sentinel line, is on their media row and its message.
+    """
+    assert choose(player, C).status_code == 303
+    opened = player.post("/api/game/new", json={"seed": 7})
+    assert opened.status_code == 200, opened.text[:300]
+    sid = str(opened.json()["session_id"])
+    _phone(player, sid, "edit_profile", target="matchstick", args={"field": "bio"}, text=f"{SENTINEL} climbs")
+    phone: dict[str, Any] = {}
+    for _ in range(40):  # like down the deck, letting time pass, until someone likes back
+        deck = (phone.get("deck") or {}).get("matchstick") if phone else None
+        card = (deck or {}).get("card")
+        if card:
+            phone = _phone(player, sid, "swipe", target=card["pid"], args={"dir": "like"})["state"]["phone"]
+        phone = _phone(player, sid, "wait", args={"until": "next"})["state"]["phone"]
+        if phone["threads"]:
+            break
+    assert phone["threads"], "no match in forty likes"
+    thread = phone["threads"][0]["thread_id"]
+    for i in range(30):  # past the voice's verbatim window (24), so a summary is due
+        _phone(player, sid, "send", target=thread, args={"kind": "text"}, text=f"{SENTINEL} says {i}")
+    _phone(player, sid, "wait", args={"until": "next"})          # their reply falls due: a pass is requested
+    _phone(player, sid, "wait", args={"until": "1h"})
+    phone = _phone(player, sid, "open_thread", target=thread)["state"]["phone"]
+    porch = _front_porch_match(player, sid, phone)
+    _phone(player, sid, "send", target=porch, args={"kind": "voice", "audio_transcript": f"{SENTINEL} hums"})
+    _phone(player, sid, "ask", target=porch, args={"what": "voice"})   # their voice note: the scripted line
+    for _ in range(12):
+        opened = _phone(player, sid, "open_thread", target=porch)["state"]["phone"].get("open_thread") or {}
+        if any(m.get("kind") == "voice" and m.get("from") not in ("player", "system")
+               for m in opened.get("messages") or []):
+            break
+        _phone(player, sid, "wait", args={"until": "next"})
+    else:
+        raise AssertionError("their voice note never fell due")
+
+
+def _front_porch_match(player: httpx.Client, sid: str, phone: dict[str, Any]) -> str:
+    """A Front Porch thread: a "Likes you" row liked back (a match at once), else a like on the deck's top card."""
+    for _ in range(40):
+        porch = [t["thread_id"] for t in phone["threads"] if str(t["thread_id"]).startswith("front_porch:")]
+        if porch:
+            return porch[0]
+        waiting = [r for r in phone.get("likes_you") or [] if r.get("app") == "front_porch"]
+        deck = (phone.get("deck") or {}).get("front_porch") or {}
+        if waiting:
+            phone = _phone(player, sid, "like_back", target=waiting[0]["pid"])["state"]["phone"]
+            continue
+        if deck.get("card") and int(deck.get("likes_left") or 0) > 0:
+            phone = _phone(player, sid, "like", target=deck["card"]["pid"], args={"on": "photo_0"})["state"]["phone"]
+        phone = _phone(player, sid, "wait", args={"until": "next"})["state"]["phone"]
+    raise AssertionError("no Front Porch match in forty tries")
+
+
+def _the_match_answers(instance: HostingInstance) -> None:
+    """
+    Fail FAST, with the reason, when the phone's match cannot answer: the
+    saved run's matched person must not be ghosted and must have a reply of
+    theirs due or voiced. A content change that moves this course fails
+    here, not as a 90 s wait for a reply that can never come.
+    """
+
+    def answered() -> bool:
+        for path in instance.data_dir.rglob("save.json"):
+            if C not in path.parts:
+                continue
+            social = ((json.loads(path.read_text(encoding="utf-8")).get("state") or {}).get("social") or {})
+            for t in (social.get("threads") or {}).values():
+                pid = t.get("pid")
+                assert not ((social.get("people") or {}).get(pid) or {}).get("ghosted"), (
+                    f"the phone's match {pid} ghosted the player: no reply can ever fall due "
+                    "(is scripted.always_replies still honoured by tests/probes/scripted_worker.py?)")
+                if any(m.get("from") == pid for m in t.get("messages") or []):
+                    return True
+        return False
+
+    instance.until(answered, 30, "the phone's match has a reply due or voiced in the saved run")
+
+
+def _until_the_phone_save_holds_voiced_words(instance: HostingInstance) -> None:
+    """
+    The READ RECEIPTS save holds a reply voiced in the background with the
+    sentinel's line, a thread summary carrying the sentinel (T14), the
+    player's voice note with the sentinel in its transcript and a person's
+    voice-note row whose transcript is the sentinel's line (T21), before any
+    page is scanned: the scans then cover all four.
+    """
+
+    def voiced_and_summarised() -> bool:
+        for path in instance.data_dir.rglob("save.json"):
+            if C not in path.parts:
+                continue
+            state = (json.loads(path.read_text(encoding="utf-8")).get("state") or {})
+            threads = ((state.get("social") or {}).get("threads") or {}).values()
+            voiced = any(SENTINEL in " ".join(m.get("bubbles") or []) for t in threads
+                         for m in t.get("messages") or [] if m.get("from") not in ("player", "system")
+                         and m.get("voiced") is True)
+            summarised = any(SENTINEL in str(t.get("summary") or "") for t in threads)
+            spoken = any(SENTINEL in str(m.get("transcript") or "") for t in threads for m in t.get("messages") or []
+                         if m.get("from") == "player")
+            rows = ((state.get("social") or {}).get("media") or {}).values()
+            heard = any(r.get("kind") == "voice" and SENTINEL in str(r.get("transcript") or "") for r in rows)
+            if voiced and summarised and spoken and heard:
+                return True
+        return False
+
+    instance.until(voiced_and_summarised, 90,
+                   "the phone save holding a voiced reply, a summary and both voice notes' transcripts")
 
 
 def _get_pages() -> list[str]:
@@ -286,3 +445,20 @@ def test_no_bus_message_the_supervisor_received_holds_play_text(
     assert {m["args"]["event"]["kind"] for m in metrics} >= {"turn", "session", "login", "error"}
     for line in frames:
         _no_sentinel("a bus frame to the supervisor", line)
+
+
+def test_the_phone_save_holds_the_play_text_the_pages_do_not(instance: HostingInstance, played: dict[str, Any]) -> None:
+    """The READ RECEIPTS run's save (and its transcript) carries the sentinel: the scans above are not empty-handed."""
+
+    def saved_with_sentinel() -> bool:
+        for path in instance.data_dir.rglob("save.json"):
+            if C in path.parts and SENTINEL in path.read_text(encoding="utf-8"):
+                return True
+        return False
+
+    instance.until(saved_with_sentinel, 30, "the phone save holding the sentinel")
+    admin: httpx.Client = played["admin"]
+    for path in ("/admin/saves", "/admin/sessions"):
+        response = admin.get(path)
+        assert response.status_code == 200, (path, response.status_code)
+        _no_sentinel(path, response.text)

@@ -14,6 +14,1028 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-10-14
+
+### Added
+
+- The `paths.social` seam (v0.22.0 T1): a story that declares the new
+  `paths.social` directory turns the phone and its people on
+  (`engine/social/`); any other story pays nothing -- no `engine.social`
+  submodule is imported on its turns, its payload carries no `phone` key and
+  its saves no `social` key, and its payload is byte-identical to v0.21.1's
+  (`tests/test_social_seam.py`, against a recording). With it:
+  `GameState.social`, seven `SOCIAL_*` rng streams, the `social_*` effect
+  kinds (engine-only), a `social:` block of engine bounds in
+  `config/default.yaml`, a skeleton `check_social` and a doctor row.
+- `endless: true` in a manifest (AUTHORING §2.6): a story with no ending by
+  design, which may not declare `paths.endings` or `paths.epilogues`;
+  `tests/test_finales.py` holds every shipped story to the finale list or
+  to `endless`.
+- READ RECEIPTS, a new story (v0.22.0, `games/read-receipts/`; its own
+  CHANGELOG has its content): a dating story played on a phone, an
+  `endless` manifest declaring `paths.social`, one location, its four
+  prompts and its eight social data files, built across the entries below
+  and played through its own `PlayScreen`. Its skeleton (T2) joins the catalogue (`GET /api/games`), the one sanctioned
+  change to the local-mode golden (S11, `tests/test_local_mode_golden.py`).
+  `engine.games.registry.catalog_key` is the catalogue's sort key, lifted
+  out of `catalog` so the sanction sorts as the route does.
+- The population (v0.22.0 T3, `engine/social/population.py`, spec §4): a
+  person is a pure function of (seed, index) on the `SOCIAL_POPULATION`
+  stream -- never stored, no model call -- with sex and name on their own
+  keys so `population.yaml`'s `filter.sex` (`opposite`, `same`, `any`) moves
+  nothing else. Profiles are cached per process in a bounded LRU under a new
+  LEAF lock (`_PROFILES_LOCK`, the first module lock among the leaves --
+  Tile Talk's `_WORDS_LOCK` is the second, T22 -- `engine/locks.py`; the order checker now wraps module-level leaves too),
+  keyed by the filter mode, and dropped by the cache-reset walk
+  (`RELOADERS`). `check_social` gains the population checks (the filter, the
+  eleven neighbourhoods and a symmetric 0-4 distance table, the name pools,
+  every weight, the bio and prompt templates' names).
+- Player creation (v0.22.0 T4, `engine/social/creation.py`, spec §3): a
+  story's `creation.yaml` declares its form (`text`, `choice`, `int`,
+  `multi`, `sliders` fields, nested mappings, `of_table` naming a
+  `population.yaml` table). `POST /api/game/new` takes an optional
+  `creation` object in a story declaring `paths.social`, passed through
+  `SessionStore.create(..., creation=)` to
+  `procgen.new_game_state(..., creation=)`; an unknown key, a value outside
+  its choices or range, or a list of the wrong length is refused 400 naming
+  the field, every omitted field takes its default (seeded where it must be
+  chosen), and the profile is written by the engine-only `social_profile`
+  effect. Elsewhere `creation` is refused 400 ("this story has no creation
+  form"), never ignored. `GET /api/social/creation` (`engine/social/routes.py`,
+  registered only for a story declaring `paths.social`, so no other story's
+  app shape moves) serves the form with its tables expanded to `{id, label}`
+  rows. `check_social` gains the form's checks: every field's kind, bounds
+  (`min <= max`, a multi's `max` within its choices, a text field's `max`
+  required) and default (the discovery defaults an ordered range), every
+  `of_table` a real table, and each attribute table's drawn ids among its
+  field's choices.
+- Behaviour and the event queue (v0.22.0 T5, `engine/social/behaviour.py`,
+  `engine/social/events.py`, spec §5, §9.1): `clock.advance_time` walks the
+  social event queue for a story declaring `paths.social`, after every other
+  world pass and before the death check. The queue is
+  `state.social["queue"]`, kept in `(at, seq)` order (`at` an absolute
+  in-game hour, `seq` a monotonic counter), pushed through the engine-only
+  `social_queue` effect and applied one event at a time through
+  `social_event` and the handler its module registers (`@events.handles`),
+  bounded at `social.max_events_per_advance` with an ERROR. `daily` runs at
+  04:00 each in-game day, calls each module's `events.daily_hooks` in order
+  and re-queues itself; `social_profile` queues the first. Only the
+  `engine.social` package import is guarded in the clock: a declared story
+  whose social submodule fails to import logs one ERROR per process
+  (`engine.social.import_fault`), never a silent skip. Behaviour builds an
+  `Archetype` from `behaviours.yaml` (a `ValueError` naming the file and
+  key), derives a person's status (`asleep`, `work`, `free`, `out`) and next
+  waking hour from their job shape's week with no draw, and gives each
+  person their own draw counter per stream (`person_rng`). `check_social`
+  gains the behaviour checks: every archetype whole, every arc's shape,
+  every archetype an app weights declared, and every job shape's week well
+  formed.
+- The phone channel (v0.22.0 T6, spec §7, §16.1): a story declaring
+  `paths.social` is played through the `phone_action` socket event and its
+  HTTP twin `POST /api/phone/action` (`engine/social/routes.py`, registered
+  only for such a story, so no other app shape moves), each a structured
+  `{action, target, args, text}` intent (rule 1): the typed words are
+  payload, never mechanic. `engine/social/intents.py` is the phone's
+  catalogue, rebuilt from the live state and grown by `@phone_verb` rows
+  (target membership, enums, ints, lists, text caps -- refused, never cut);
+  `tool_dispatcher.execute_phone_intent` returns ONE receipt, a refusal in
+  the engine's words for anything illegal, never nothing. Each action runs
+  a system-only `social_*` skill (`engine/skills/builtin/social.py`,
+  `pack="social"`, `category="PHONE"`, `agents=["system"]`), so the
+  storyteller's and the skills server's tool lists do not move. The first
+  three: `wait` (`next`, `15m`, `1h`, `morning`, through
+  `clock.advance_time`), `edit_profile` and `set_receipts` (the
+  engine-only `social_settings` effect). `run_guarded` gains `runner`,
+  `admit` and `metric`: a phone action runs `turn.run_mechanics` under the
+  turn lock with no admission and no model call, and answers a
+  `turn_update` with empty narration, its receipt and the state, whose
+  `phone` block (`engine/social/payload.py`, sections registered per
+  module) carries the clock, the apps, the player's profile and the last
+  refusal. `player_choice` and `POST /api/game/choice` in such a story
+  answer "<title> is played on the phone." Hosted: a phone bucket of its
+  own (`hosting.rate_limits.phone_actions_per_minute`, 90; the actions
+  bucket is never spent), the text cap on every phone text field
+  (`limits.phone_over_cap`), and a seventh metric kind, `phone`
+  (`default_scene.phone_metric`, `metrics_emit.hook_phone`): a phone action
+  refused -- by its cap, the phone bucket or the engine -- is a `phone`
+  `refused`, never a `turn`, and the store counts it per minute. A phone
+  skill that faults is still a refusal the player sees (hosted: a generic
+  line, the exception logged). A declared
+  story's phone block that fails to build now logs an ERROR (the T1-T5
+  quiet `ImportError` branch is gone).
+- Apps and matching (v0.22.0 T7, `engine/social/apps.py`,
+  `engine/social/matching.py`, spec §6, §8): the dating apps' decks -- a
+  day's order is the app's pool and overlap band shuffled on a stable
+  `SOCIAL_MATCH` key, filtered lazily as cards are shown by the player's
+  discovery settings (the filter's sex, the age range and, from the
+  player's new `neighbourhood` creation field, the distance) -- and their
+  daily likes and super likes, refilled at the 04:00 `daily`. Six new phone
+  actions, each a system-only skill: `swipe` (`like`, `pass`, `super`),
+  `like` (a browse card, on a photo or a prompt, a comment up to 140
+  characters), `like_back`, `pass`, `unmatch` and `block`; each spends its
+  app's `cost_minutes` through `clock.advance_time`. A verb row may name its
+  own refusal (`phone_verb(..., why_not=)`), so a spent day reads "No likes
+  left today." Compatibility is deterministic (looking-for, hobby tags,
+  personality, preferences and dealbreakers, distance, plus the person's
+  chemistry); the like-back is drawn once per pair, and a mutual like
+  becomes a match only at its `see_like` event, hours later. Front Porch's
+  "Likes you" arrive through each day, about `likes_you_per_day` x the
+  profile's completeness, each with a comment from the liker's texting
+  style; liking one back is a match at once. A match nobody writes in
+  expires with an engine line; an unmatch or a block closes the thread,
+  leaves a line on the person's card and takes the person off every app
+  (no deck, no "Likes you", no match again). New engine-only effects
+  `social_person`, `social_app`, `social_match` and `social_unmatch`; queued
+  kinds `see_like`, `likes_you` and `expire`; the phone block gains `deck`
+  and `likes_you`. `check_social` gains the apps checks: every app's kind,
+  capabilities (`text`, `photo`, `voice`, `video`) and `cost_minutes` verbs,
+  the dating apps' decks, limits and culture weights (each id known, each
+  weight above 0), and the `matching:` block (its weights summing to 1.0).
+  `edit_profile` now spends Settings' 2 minutes.
+- Messaging and pacing (v0.22.0 T8, `engine/social/messaging.py`, spec §9):
+  threads across the apps, with three new phone actions, each a system-only
+  skill: `send` (a text; the app's capabilities checked, a closed thread
+  refused with its reason, its `cost_minutes` spent), `open_thread` (the
+  player's read marks and the thread's focus) and `ask {what: number}`.
+  The ENGINE decides when people answer (rule 1): a send schedules the
+  person's `read` (`read_minutes`, or their waking time), one per burst; at
+  the read, a ghost draw (`ghost_per_exchange` x (1 - interest/100) x the
+  stage's factor; hidden, and it cancels their queue), then a pending number
+  ask, else a reply (`reply_prob` x interest and burst factors) or left on
+  read. Replies, openers (queued at every match, `opener_prob` drawn when
+  due, cancelled if the player writes first), the day's initiations
+  (behaviours.yaml `initiations`, at their free hours, while their `when`
+  holds) and double texts (after `after_hours` of the player's silence,
+  capped at `max_in_row`) land as DUE messages: `voiced: false`, no words,
+  carrying the engine's `Decision` (`engine/social/kinds.py`, which the
+  voicing pass reads). Read receipts on a `receipts: true` app, both ways,
+  hidden both ways when the player turns theirs off; `left_on_read_since`
+  is recorded for the interest cost (T9). A number accepted (a draw on
+  trust x the archetype's `accept_mult`) moves the stage to `numbers` and
+  opens the Texts and Natter threads. New engine-only effects
+  `social_message` and `social_read`; queued kinds `read`, `reply`,
+  `initiate` and `double_text`; the phone block gains `threads` (closed
+  ones hidden), `notifications` (bounded at `social.notifications_max`) and
+  `open_thread`, and the apps' badges count unread messages. The streams
+  `SOCIAL_PACE` and `SOCIAL_BEHAVIOUR` are read from here.
+  `check_social` gains behaviours.yaml's `pacing:` block, every
+  initiation's `when` condition, and the apps' `first_message` and `unlock`.
+- Relationships (v0.22.0 T9, `engine/social/relationships.py`, spec §10):
+  the engine keeps each person's warmth, trust, interest, mood,
+  familiarity (exchanges, days in touch), stage and history, and the model
+  can later only propose. `social_regard` clamps a proposed move per reply
+  and per in-game day (losses uncapped), multiplies a gain by the
+  archetype and stops it at the archetype's closeness band; `social_stage`
+  is the ONE writer of a stage (an AST scan pins it, tuple targets
+  included; `social_person` refuses a `stage`, and T7's and T8's stage
+  writes moved to it); `social_history` keeps the card's engine lines,
+  bounded at `social.history_max` with the oldest folded into one
+  "earlier" row; `social_request` holds asks both ways. Stages move by
+  their gates (`relationships.yaml`): talking automatically, numbers and
+  exclusive by an ask accepted (the player's, decided at the person's next
+  read by the gate and a draw; or the person's proposal, answered by the
+  player), winding down after five cold days or a turn (a cold spell's
+  recovers to the stage it left after `cold.recover_days` mornings at
+  `cold.recover_above`; a turn's only by a reconnect), faded after 21
+  silent days, re-opened when the person writes again; no stage ends the
+  story. `relationships.mood_now` reads a mood against the clock (the
+  morning step also clears it); an engine move (`exact`) never counts
+  toward a fight. The `arc_beat` event fires a turner's turn at its drawn exchange
+  count (canon, history, its `then`, a due message carrying the reveal);
+  a drifter's arc drains interest each morning past its point. Ask pacing:
+  a second ask of a kind the same day lowers its odds and costs warmth, a
+  third is refused by the catalogue ("Give it a day", through a new
+  per-intent `refuse` hook on a phone verb). New phone actions `answer`
+  and `end`, and `ask {what: exclusive}`; the phone block gains `requests`,
+  and each thread row its `stage_words` and `band`. Every write to a person
+  bumps their `rev`. `check_social` gains relationships.yaml whole and what
+  behaviours.yaml names in it (stages, bands, arc measures); the cap bands
+  are also checked when the data loads (`relationships.check_cap_bands`).
+  `regard.fallback` is validated for T13's fallback replies.
+- The phone's saves and payload (v0.22.0 T10, `engine/social/saves.py`,
+  `engine/social/archive.py`, spec §16.5, §17.2-17.3). Every phone save goes
+  through one path, `saves.save_now`, made holding the run's turn lock and
+  refused, writing nothing, for a session an admin is ending (checked
+  first) or, hosted, a closed account -- the two checks a turn's save makes.
+  A match, a stage change or an ending saves inside the action (a
+  transcript line naming the phone action); any other action marks the run
+  dirty, and a dirty-save timer (`DirtySaver`, one thread per process, a
+  new leaf lock and an ordered getter lock in `engine/locks.py`) saves it
+  within `social.autosave_seconds`, writing no transcript line. A run taken
+  for good (the idle sweep, hosted one-run-per-account) is flushed first;
+  local shutdown and a hosted drain flush every free dirty run. A thread
+  keeps `social.state_messages` messages in state; older ones move to the
+  save directory's append-only `phone_archive.jsonl` at each phone save
+  (never a message still waiting for its words), deduplicated by id on read,
+  and `GET /api/phone/thread/<thread_id>` pages back through state then the
+  archive, owner-checked; `open_thread`'s `more` counts the archive. Each
+  phone skill's result lists the social effects it applied (its events'
+  included), read for the save triggers and taken off the receipt before
+  the client sees it. `GameSession` gains `epoch` (new per build), `dirty`
+  and `store`; `engine.session.store.release_turn` is now the one way a turn
+  lock is let go (`run_guarded` and `owner_write` call it, unchanged in
+  behaviour); `SessionStore` gains `is_live` and `live_sessions`;
+  `SaveStore.path_for` is `_dir`'s public twin; `default_state._autosave`
+  takes `record` and `entry` (a turn's call is unchanged).
+  `payload.thread_row` builds one thread row (the `phone_message` push's, T14).
+  `_autosave` answers whether it wrote (a failed phone save stays dirty and
+  is retried); the timer keeps one entry per run; a resume of a save first
+  flushes the live run it came from (when its lock is free), so the resumed
+  run loads its phone; a torn last archive line is closed before the next
+  append. The module-state scan now counts a module-level `itertools.count`.
+- The agreement checks (v0.22.0 T11, `engine/social/agreement.py`, spec
+  §11.5): `agreement.check(reply, decision, view)` judges a voiced reply
+  against what the engine holds, PURE over an `AgreementView` (Plan decision
+  24; `view_from_state(state, pid)` builds one, `view_of` and `decision_of`
+  build one from a fixture). Seven checks, each a `@check_fn`: media
+  claimed (no media attached), media denied (media attached), stage claimed
+  (a stage neither reached nor passed through), profile contradicted (their
+  age, job or neighbourhood, or a learned fact about the player's), another
+  person (a contact's name as a whole word of two letters or more, never a
+  title, an ordinary word the story lists, the person's or the player's own
+  name, or a name the player told them, `AgreementView.told`), number
+  (bubbles over the decision's) and decline wording. Off a live stage,
+  stage claimed reads the stage they left (`AgreementView.stage_before`); a
+  learned fact is read as the player's only when its subject is the player. Facts only, never tone (rule
+  12): every phrase is the story's, matched whole, case-folded, in a
+  statement, a negated claim skipped. Measured both ways by
+  `tests/fixtures/social_agreement/`. `engine/agents/cast.py`'s
+  `_surface_forms` is public as `surface_forms` (the old name kept), and its
+  `_COMMON_WORDS` as `COMMON_WORDS`. The
+  validator checks `relationships.yaml`'s phrase lists. The voicing pass
+  runs them on every reply, and `STATE_CHECKS` once more at its commit (T14).
+- Memory (v0.22.0 T12, `engine/social/memory.py`, spec §12): one memory per
+  relationship, written only through the new `social_memory` effect (`op:
+  canon | knows | told | summary`). Canon (what they shared, bounded at
+  `social.canon_max`, the oldest folded into the summary of each of their
+  threads), knows (what they learned about the player, bounded at
+  `social.knows_max`, the oldest dropped; no fact crosses threads), told
+  (the contacts the player named to them, recorded as the messages leave
+  state for the archive, so `agreement.view_from_state` still counts a name
+  the archive holds), and each thread's running summary (at most
+  `social.memory.summary_words`, 180) over the conversation older than the
+  voice's verbatim window. `engine/memory/summarizer.py` gains
+  `summarize_with(existing, items, *, renderer, fallback, system,
+  new_label, llm_fn, max_words) -> (text, model_wrote_it)`, the one
+  summarizing call; `summarize` now runs on it with its own renderer,
+  fallback, prompt and "NEW EVENTS", its request bytes unchanged (pinned by
+  a literal and by the LM Studio golden). A thread summary sends
+  `prompts/thread_summary.md` verbatim and "NEW MESSAGES" in the thread's
+  own form ("Tue 21:14 you: ..."), falls back to a deterministic
+  compression that keeps folded canon ahead of the conversation, and reads
+  `phone_archive.jsonl` when the archive holds a message newer than the
+  summary: `thread_view` copies state under the turn lock, and
+  `with_archive` reads the file off it, from its end
+  (`archive.archived_after`, as far back as the summary reaches; a thread's
+  `archived_through` names the newest archived message). A spill never
+  takes a message past the summary unread, and an archive that should hold
+  such messages and does not leaves the summary where it is. A memory write
+  for a person with no row is refused; a story with no
+  `thread_summary.md` is warned of once. A summary written from a
+  snapshot is committed with the summary it was written over and refused
+  as stale if that moved. `memory.production_summary_fn()` is the
+  production binding: one argument, the `small` profile (the utility lane),
+  reasoning off, a starved reply read as "" (pre-flight F10); a busy
+  utility lane in hosted mode is the deterministic fallback.
+  `memory.budgeted(blocks, window)` trims the voice prompt (§12.4: the
+  verbatim tail to `memory.verbatim_min`, history to `memory.history_min`,
+  canon, then the summary). New `social.memory` bounds: `verbatim_min`
+  (12), `history_min` (4), `summary_words` (180), `summary_batch` (40). An
+  arc's `reveal` now writes its canon row's PROSE (`behaviours.yaml`'s new
+  `canon:` table, checked at load and by the validator) instead of the row
+  id. The voicing pass (T14) folds the summary and stores a reply's facts.
+- The voicing call (v0.22.0 T13, `engine/social/voicing.py`, spec
+  §11.1-11.4): `voice(snapshot, llm_fn)` words one person's due burst in
+  one thread and writes no state (rule 1; the commit is T14's).
+  `snapshot_of(state, thread_id)` copies what it reads under the turn lock
+  into a `PersonSnapshot` (the person's profile and slice, the thread's
+  tail, summary and due messages, the legal proposals, the player, the
+  time, the contacts, their meets, every word the player wrote them, and
+  `seed`). `reply_schema(decision, proposals, moods)` is built per call: 1
+  to the decision's `max_bubbles` bubbles, a `media` caption only when media
+  is attached, regard inside -4..4 / -2..2 narrowed by `relationships.yaml`
+  `regard.per_reply` (`regard_bounds`) and the story's moods, learned
+  and shared facts, and `proposals` only when one is legal (an empty enum is
+  left out rather than sent). `messages(snapshot)` is exactly seven blocks:
+  the system message is `texter.md`'s persona section verbatim (Plan
+  decision 22), the user message WHO YOU ARE, WHERE YOU ARE WITH THEM (mood
+  read through `relationships.mood_now`), WHAT YOU KNOW ABOUT THEM, THE
+  CONVERSATION, RIGHT NOW (ending with the situation's own line from
+  `texter.md`'s instruction table) and FORMAT, trimmed by `memory.budgeted`
+  to `social.voice.window_tokens` (4096, new) less the texter's reply cap.
+  The reply is conformed and held to its bounds, checked by
+  `agreement.check`, retried once with a one-line correction naming only
+  the fact it got wrong (after a reply that did not parse, "Reply with the
+  JSON object only."), then trimmed of what disagreed, else the fallback; a
+  content fault (an unknown situation, a broken `texter.md`) falls back with
+  an ERROR, with or without a model, and never raises.
+  `fallback_reply(snapshot, why, *, failures=())` picks the archetype's line
+  for the situation from `texter.md`'s fallbacks by `stable_rng(seed, ...)`
+  keyed by the first due message, and proposes `relationships.yaml`
+  `regard.fallback` (the §10.2 ruling, never zero), keeping the agreement
+  failures that led to it (pre-flight F9). `production_llm_fn()` calls the
+  new `llm.profiles.texter` (narration lane, no tools, 4096 context, 360
+  tokens, reasoning off with no budget, temperature 0.9) through the
+  backend's structured-output ladder; a reply starved with no content falls
+  back. `agreement.view_from_snapshot(snapshot)` mirrors `view_from_state`
+  (`told` from their memory and the words still in state, `stage_before`),
+  both now built by one shared function. `texter.md` is parsed once
+  (`texter_prompt`, a NULLED_ATTRIBUTES cache warmed for a story declaring
+  `paths.social`), and every situation the engine (`voicing.SITUATIONS`) or
+  `behaviours.yaml` emits must have a row: a load-time ValueError, and a
+  validator error naming the row. `tests/social_stub.py::StubVoice` is the
+  suite's scripted voice. `memory.stamp`, `memory.message_words`,
+  `population.in_sentence` and `population.template_words` are public (the
+  voice prompt reads them), as are `agreement.player_said`, `said_to` and
+  `meets_of`, which the snapshot and `view_from_state` share. The voicing
+  pass (T14) calls it; `voicing.fallback_reply_for(state, pid, thread_id,
+  wanted, why)` builds the same fallback from the live state, for the
+  commit.
+
+- The voicing pass (v0.22.0 T14, `engine/social/voicer.py`,
+  `engine/social/inbox.py`, spec §16.2-16.5, §17.1's pushes): after a
+  phone action has released its lock, the due messages are voiced by a
+  background pass the player never waits for. A pass is bound to the
+  session OBJECT and its `epoch`: before admission, its snapshot and every
+  commit it checks the object is still its store's live run of that build,
+  and ends -- committing and saving nothing -- when it is not. Hosted, it is
+  admitted BEFORE it marks anything (`admit_turn(label="voice",
+  account=<owner>)`, `social.voice.admit_wait_seconds`, the turn deadline,
+  its cancel), re-queued with backoff (2-32 s) when busy and dropped after
+  `social.voice.max_attempts`; the voice call then runs inside that ticket.
+  Under the turn lock (tried, never waited for) it drains the run's inbox,
+  takes at most `social.voice.max_per_pass` people by thread focus, warmth
+  and age, and marks their messages in `GameSession.voicing` (never in
+  state or a save); it calls the model holding no lock
+  (`GameSession.typing` drives the thread row's `typing`), and commits each
+  reply under the lock re-validated against the live state -- still wanted,
+  proposals legal now, `agreement.STATE_CHECKS` re-run, a failing bubble or
+  fact dropped, none left the fallback -- as one transaction of effects:
+  the new `social_voiced`, the regard (a fallback's too), the facts, each
+  proposal. The pass's last commit saves under its lock; a commit that
+  cannot get the lock parks the reply in the run's `SessionInbox`, drained
+  by the next action (`run_mechanics` step 1) or pass. At most one thread
+  summary follows, off the lock. Each commit pushes `phone_message`
+  (`message`, `messages`, `thread`, `badges`, `notification`) through the
+  new `FlaskScene.emit_to_session`, which runs the hosted room check first;
+  a "New message" notification takes the reply's words. The scheduler is a
+  process singleton (`get_scheduler`): a bounded queue
+  (`social.voice.queue_max`, one entry per session object), lazy worker
+  threads, a new leaf lock and an ordered getter lock in `engine/locks.py`
+  (and `SessionInbox._lock`, a leaf). `SessionStore`'s release cancels a
+  gone run's passes (`voicer.forget`); a hosted drain cancels every pass and
+  waits for `voicer.in_flight() == 0` too; hosted, a run's room emptying
+  cancels its passes; `saves.flush_all` cancels them first. A `voice_pass`
+  phone metric reports `ok`, `fallback`, `discarded`, `busy` and `dropped`.
+  `voicer.run_until_quiet(session, llm_fn)` runs the same pass on the
+  caller's thread for harnesses. `tests/social_fixtures.py` keeps every
+  social test's voicer stubbed and its scheduler paused (pre-flight F2).
+  The texter's live latency is not measured (docs/MODEL_SERVERS.md).
+  Review fix round 1: a request that lands while the run's pass is
+  cancelled but still in its call queues a fresh pass when that one ends
+  (it was absorbed); the due messages of a person who left (unmatched,
+  blocked, ended) are withdrawn (`voiced: "withdrawn"`, through
+  `social_voiced` `op: withdraw`), never voiced and out of the payload,
+  the thread pages and the unread count; a burst answered with fewer
+  bubbles withdraws the rest rather than voicing them wordless; a hosted
+  pass with nothing due takes no ticket; one inbox item's fault costs that
+  item only; a socket closing cancels only the passes of its own rooms;
+  `voice_pass` is one metric row per pass run; a commit asks liveness again
+  just before its save. Fix round 2: a withdrawn message is never pushed,
+  a withdrawal is pushed at once (the thread row, no message), withdrawn
+  messages count as never sent (double-text cap, opener, burst, "written
+  in"), and a cancel that lands just after a request has set `rerun` still
+  queues a fresh pass.
+- `scripts/simulate_social.py` (v0.22.0 T15, spec §20): READ RECEIPTS'
+  balance harness. Every action goes through `engine.social.turn.run_mechanics`
+  and is voiced by `voicer.run_until_quiet` on the caller's thread, in a
+  `SessionStore` whose save store keeps nothing (`keeps_nothing`, Plan
+  decision 28): no save, no thread, no model. Its `REPORT_ROWS` are the plan's.
+  The same seeds give the same report; seed ranges run side by side fold into
+  one (`--raw`, `--fold`). Since T26 it measures every §20 row: the meet-up
+  rows (every policy that asks also asks to meet and goes to each meet-up
+  that comes due), photos, voice notes and videos per relationship-week, the
+  turners (`--days` 75 or more), the 72-hour away's events, the due messages
+  it leaves and the meet-ups it misses; `neutral_model` (a working model's
+  pleasant, unremarkable replies, +1/+1) is the default voice; `--disk DIR`
+  plays on a real save store, spilling every thread into its archive after
+  each action as play does (a test holds the measurements equal on disk and
+  off); and `write_day_save` writes the save spec §17.2's size bound pins
+  (`tests/test_social_save_size.py`). `tests/test_simulate_social.py`
+  (`slow`) pins every row's band on ten seeds, but the rows deferred by
+  data (`DEFERRED_ROWS`, each with its CLAUDE.md row). `tests/test_social_replay.py` covers spec §19.1's replay,
+  the voice-independence of the mechanics, and one person's draws unchanged
+  by another person's history.
+- Away and resume (v0.22.0 T16, spec §15, `engine/social/away.py`): in a
+  story declaring `paths.social`, `SessionStore.resume` runs one away
+  advance after `_build`, under the run's turn lock (`away.apply_on_resume`):
+  the real seconds since `state.social["last_active_wall"]` times
+  `social.away.rate`, capped at `social.away.max_hours`, as ONE
+  `clock.advance_time` (fractional hours kept), recorded in the transcript
+  as `{kind: away, hours, real_seconds}`, re-stamped and saved at once
+  (`saves.save_now`), released through `release_turn`. A second resume
+  adds only the time between; a wall clock that went backwards adds
+  nothing; `social.away.mode: none` advances nothing. `social_settings`
+  gains `away_since` (the in-game hour the absence began; the next
+  mechanics action clears it). `default_state.resume_opening`'s phone
+  branch is the lock screen (`away.resume_frame`: no narration, no choices,
+  `lock_screen` = `away.lock_screen(state, away_since)`, its `lines`, `text`
+  and the notifications after it). `default_scene`'s `resume` and
+  `join_session` handlers request a voicing pass. A phone story's new run
+  is born at `creation.yaml`'s `start_hour` (`creation.start_hours`, given to
+  `GameState` by `procgen.new_game_state`, checked by the validator); every
+  other story keeps 08:00. `scripts/simulate_social.py` gains `Phone.away`
+  (the harness's own wall clock, never the real one), one 72-hour away in
+  the replay script, and the `events_per_72h_away_day60` row (runs of 60
+  days or more; no longer `NOT_BUILT`). `tests/test_social_away.py` holds
+  spec §2.3's survival test: 72 hours away change only the payload's
+  `TIME_VARYING_SECTIONS`, with no death and no refusal, and no phone module
+  or prompt names hunger, hp or stamina. Review fix round 1: `SessionStore.create` stamps a phone run's
+  `last_active_wall` before its first save, so a run left with no action
+  counts its first absence; a failed save keeps its transcript line
+  (`GameSession.pending_entry`) for the retry; a skipped advance is logged at
+  WARNING; a failing pass request never blocks the resume's or join's answer.
+- The ComfyUI client and workflows (v0.22.0 T17, spec §13.4,
+  `engine/media/comfy/`): `ComfyClient` speaks to one ComfyUI server, local
+  or hosted -- `system_stats`, `upload_image`, `submit`, `history`, `wait`
+  (polls `/history` every `comfyui.poll_seconds`, and past
+  `comfyui.job_timeout_seconds` posts `/interrupt` and raises), `outputs`
+  (the declared node's `images`, `gifs`, `videos` and `audio`), `fetch`
+  (streamed, refused past `comfyui.max_bytes`) and `interrupt` -- every call
+  bounded by `comfyui.timeout_seconds` and every failure a `ComfyError` by
+  kind (`http`, `node_errors`, `execution`, `timeout`, `auth`, `oversized`,
+  `unreachable`; `bad_type` and `cancelled` are the job worker's), never a
+  raw `httpx` exception. A key (`comfyui.api_key`, from the gitignored
+  `comfyui_api_key.txt` or `CLOCKWORK_COMFYUI_API_KEY`) is sent in
+  `comfyui.auth_header`, `Bearer <key>` under `Authorization`.
+  `workflows.load_workflow` reads `comfyui.workflows.<name>`: an API-format
+  template exported from ComfyUI unmodified and its bindings (value ->
+  `[node, input]`); a binding naming a missing node or input refuses to load
+  (`BindingError`, naming the key), and `bind` fills a deep copy. The
+  shipped `photo` and `portrait` workflows bind `config/comfyui/photo_sdxl.json`,
+  which reproduces v0.21.1's in-code graph node for node (held equal by
+  test against a verbatim recording, `tests/fixtures/comfy_reference.py`).
+  The art provider (`engine/media/providers/comfy.py`) is rebuilt on both:
+  its graph is the bound `photo` template (`ComfyProvider.graph_for`;
+  `build_workflow` is gone) and it reads only the output node's files, still
+  switched by `comfyui.enabled`. The phone's media have their own switch,
+  `phone_media.provider` (`procedural`, the default and off, `stub` or
+  `comfyui`; with `phone_media.portraits` and `phone_media.daily_job_cap`),
+  read by `phone_media_provider()`, which never reads `comfyui.enabled`
+  (pinned by a source scan); an unknown value is off, warned once per
+  value. Every reply but `/view` is streamed and refused past
+  `comfyui.max_json_bytes` (`oversized`), and a prompt id is quoted into its
+  path. A sandboxed child of the test suite resolves no `comfyui.api_key`
+  but its sandbox layer's own (`engine/config.py::_force_sandbox`), as for
+  `llm.api_key`. Not verified against a live ComfyUI.
+- The phone's media jobs and their storage (v0.22.0 T18, spec §13.2,
+  §13.4, §13.5; `engine/media/comfy/jobs.py`, `storage.py`):
+  `MediaJobWorker`, one background thread per process
+  (`get_media_worker`), runs a queued `JobSpec` off every turn lock --
+  build and bind the workflow, upload a reference image when the workflow
+  binds `reference_image`, submit (`client_id` = the media id, so a
+  resubmission after a restart is the same request), poll, collect, fetch,
+  type by magic bytes, store -- and hands a `JobResult` (`ready` or
+  `failed`, never a raise) to its `on_done`. An execution error is
+  resubmitted up to `comfyui.retries` times. Ordered by priority (thread
+  media, the player's own photos, portraits), then round-robin by account,
+  then age; `phone_media.daily_job_cap` per account per real day, past which
+  `submit` answers False (the procedural tile), logged once per account per
+  day; a job already queued or running under the same owner, save and id is
+  not queued twice. `stop()` abandons a job sleeping between polls at once
+  (logged, never handed on). A video's poster is stored beside its clip
+  (which file is T20's `output.poster_node`, below). Files land at
+  `media/phone/<owner or local>/<save_id>/<mid>-<digest>.<ext>` (T19: the digest is the request's) through the new
+  `engine/persistence/atomic.py::write_bytes_atomic`; every name is checked
+  as a save id, so nothing traverses. Deleting a save removes its phone
+  media (`SaveStore.owner`, set by `save_store_for`), and purging an account
+  removes the account's; `scripts/users.py adopt` moves a run's media with
+  it, first, and back if the run's move fails (a clash in the account's
+  media refuses the adoption). Every id is
+  checked at `submit` (a bad one is refused), every file name before its
+  write, and a job writes only while its save's folder still exists, so a
+  delete or purge mid-job leaves nothing behind. `scripts/comfy_stub.py` serves a scripted stub
+  ComfyUI on loopback (`--exit-with-parent`) and `tests/comfy_stub.py`'s
+  `StubComfy` the same table in process; a sandboxed child of the suite
+  keeps the sandbox layer's `comfyui.base_url` only on a loopback stub port
+  the test registered (`tests/conftest.py::sandbox_comfy_stub`,
+  `CLOCKWORK_TEST_COMFY_STUB_PORT`), and its key stays cleared. New locks:
+  `jobs._worker_lock` (ordered after the speech worker's) and the leaf
+  `MediaJobWorker._lock`. A job already queued or running that a resumed
+  run resubmits is handed to the newer run (its session id and build, T19).
+- Phone media (v0.22.0 T19, spec §13.1-13.4, §16.1 step 3;
+  `engine/social/media.py`): photos, voice notes and videos are special
+  events the ENGINE decides (rule 1) from a story's `media.yaml` -- a
+  per-person budget per kind (refilled each morning to a cap, opened at a
+  stage), the app (a thread carries only its app's capabilities), and a draw
+  on `SOCIAL_MEDIA` at accept odds from trust, warmth, the archetype's
+  `accept_mult` and the mood's multiplier (held inside relationships.yaml
+  `mood.media_mult`). The player's `ask {what: photo|voice|video}` is
+  answered at the person's next read: accept (the medium is due, its
+  caption the model's), decline, or "later" (kept or broken the next
+  morning); a third ask of a kind in a day is "Give it a day". A voiced
+  reply's `offer_photo|voice|video` proposal (relationships.yaml) is legal
+  only with budget, the stage and a capable thread, and draws at
+  `unsolicited.offered_mult`; on success a new due message carrying the
+  medium lands at once. Each morning a person may send one unasked. Subjects
+  gate on fixed `flags`, never canon. A media row (`state.social.media`,
+  through the new `social_media` and `social_media_decision` effects) rides
+  on its message; `run_mechanics` step 3 (`media.submit_due`, also run after
+  a voiced commit) submits the rows whose caption is committed and the
+  portraits due by `phone_media.portraits` (`on_match`: the matched,
+  `on_view`: also each deck's shown card, `off`), one past the day's cap a
+  procedural tile at once; with `phone_media.provider: procedural` (the
+  default) nothing is submitted and every row is the procedural tile. The
+  image prompt (`media.photo_request`) is the person's appearance, the
+  subject's scene, the caption (cut to 200 characters), the time of day and
+  status, and the story's `style`: no negative prompt, nothing filtered
+  (rule 12). Seeds are `_mix` of the run's seed (`face` per person for
+  portraits). A finished job is handed back (`media.hand_off`, the worker's
+  `on_done`): the run found by id, its liveness, owner and build checked,
+  its turn lock tried -- applied through `social_media` and pushed as
+  `media_ready` (`{message_id, mid, url, poster_url, kind, thread}`), or
+  parked in the run's inbox for the next action (`voicer.drain_inbox`'s
+  `media` branch, the account re-checked). A resume resubmits the run's
+  unfinished jobs with their stored request (`SessionStore.resume`); a
+  hosted drain stops the media worker; each hand-off is a `phone` metric
+  `media_job` (`ok|failed|fallback|dropped`). The player sends photos (a
+  camera-roll photo, `photo_id`, or a `player_subjects` row) and videos
+  (`subject`) with an optional caption (`send`, refused until now). A
+  message's view carries `media` (`kind`, `sending|ready|fallback`, the URLs,
+  the caption), and thread rows and deck cards an `avatar_url` (the ready
+  portrait's). `GET /api/phone/media/<save_id>/<name>` serves a run's files,
+  the owner taken from the login, never the URL. `validate_content.py`
+  checks `media.yaml` whole (every `requires_flag` a population flag, every
+  `when` a status). docs/MEDIA_SERVERS.md is new. Not verified against a live
+  ComfyUI.
+- Video messages (v0.22.0 T20, spec §13.8): `comfyui.workflows.video` is
+  declared, on the new `config/comfyui/video_wan.json` -- Wan 2.1
+  text-to-video (1.3B) on ComfyUI's native nodes, saved by `SaveWEBM`, 49
+  frames at 16 fps (about 3 s) at 480x832, binding `positive`, `seed`,
+  `width`, `height`, `frames` and `filename_prefix`, its negative encode
+  empty and bound to nothing (rule 12). A person's video (the `video`
+  budget, `ask {what: video}`, `offer_video`) and the player's own (`send
+  {kind: video, subject}`) are now jobs like photos: the clip typed by its
+  magic bytes, its poster the clip's first frame (`ImageFromBatch` and a
+  `SaveImage` node named by the new optional `output.poster_node`, read by
+  `workflows.load_workflow`; the row's `poster_url`), else the procedural
+  tile; with `phone_media.provider: procedural` a video is the poster tile
+  and its caption. `MediaJobWorker._store_poster` picks its file before
+  fetching -- never the clip itself, only a file named as an image -- so
+  native `SaveWEBM`, which lists its clip under `images`, is downloaded
+  once. `media.photo_request` carries only the sampler keys the workflow
+  binds (a video's request, and so its digest, no longer holds the SDXL
+  keys; a photo's is unchanged). `scripts/comfy_stub.py` gains a
+  `native_video` script (the native nodes' history shape). The template is
+  unverified until run against a live ComfyUI (docs/MEDIA_SERVERS.md; a
+  docs/GOVERNANCE.md row).
+- Voice notes (v0.22.0 T21, spec §13.6-13.7): `tts.voices` in
+  `config/default.yaml` (`{id, sex}`: `neutral_male`, `neutral_female`,
+  `warm_female`, `old_male`) is the Settings panel's voice list (read from
+  it, no longer a literal) and each READ RECEIPTS person's `voice_id`, one of
+  their sex, drawn last on its own `SOCIAL_POPULATION` key so no earlier
+  field moved (`tests/fixtures/social_people_v022_t21.json`). A person's
+  voice note is a row of kind `voice` whose transcript (the model's
+  `media.caption`, checked as a reply's bubbles are,
+  `voicing.transcript_failures`; the prompt names it a transcript) is cut by
+  whole words to `media.yaml` `voice.max_seconds` at 150 words a minute and
+  to `tts.max_chars`
+  (`media.voice_transcript`, `voice_note_seconds`). With `tts.enabled` (off
+  by default) it is spoken in their voice on the `SpeechWorker` (a request
+  with `on_done` and a deadline, `tts.job_timeout_seconds`, spoken uncached
+  by the new `TTSClient.speak`), the WAV checked (magic bytes, `tts.max_bytes`,
+  length) and stored as `<mid>-<digest>.wav` with the save's media, handed
+  back through `media.hand_off`. Each new note is one of the account's
+  `phone_media.daily_job_cap` jobs, counted with its images and videos
+  (`MediaJobWorker.charge`), and a resume's resubmission of a note still
+  queued is retargeted to the newer run, never queued twice
+  (`SpeechWorker.submit(key=)`). Otherwise, or on any failure, the
+  transcript tile (`media.voice_fallback`: `fallback`, `seconds`, the
+  transcript). The player sends `send {kind: voice, audio_transcript}` on an
+  app that carries voice: a message of kind `voice` with the transcript, no
+  audio kept. `tests/tts_stub.py::StubTTS` is an in-process TTS server for
+  the suite. Not verified against a live Voxtral server
+  (docs/MEDIA_SERVERS.md).
+- Tile Talk (v0.22.0 T22, spec §21.1): `engine/social/games/` -- the games
+  registry (`GAMES`), the `social_game` effect (`op: start | move |
+  abandon`), the `game_move` event, the catalogue rows `game_invite` (a pid
+  the Games app's `unlock` stage has reached, none running, none asked; the
+  game starts at once, the player first) and `game_move` (`move: play |
+  pass | swap`, `tiles: [{x, y, letter, blank?}]`, `letters` to swap; legal
+  on the player's turn, else "It's not your turn"), the skills
+  `social_game_invite` and `social_game_move`, and the payload's `games`
+  section (`time_varying`): the board, the premiums, the player's OWN rack,
+  the bag's count, the scores and the moves, never the other rack or the bag
+  (`tests/test_ui_contract.py` scans for `bag` and `racks`).
+  `engine/social/games/wordgame.py` is the judge of every move, the
+  player's and the person's (rule 1): placement in one unbroken line, the
+  first word over the centre, every later one joining the board, every word
+  formed in the story's `words.txt`, scored with premiums (a blank scores 0)
+  and the seven-tile bonus, each refusal in the engine's words. The bag is
+  shuffled once per game from `stable_rng(seed, f"{SOCIAL_GAME}:{game_id}")`.
+  The person's move is anchor-based generation over the word list's prefix
+  set, bounded by `node_budget` prefix extensions (`NodeCounter`; never a
+  wall clock), sorted `(-score, placement)`, picked from the top `k` for
+  their archetype's `games.skill` on their `SOCIAL_GAME` stream (the
+  stream's `ALLOWED_UNREAD` row is gone), as a `game_move` event at their
+  pace; a `banter_prob` draw lands a due `game_banter` message whose RIGHT
+  NOW block carries the engine's line about the game
+  (`PersonSnapshot.games`). The person's `invite_game` proposal (§10.5) is
+  a request the player answers; yes starts the game. A finished game adds
+  familiarity (`relationships.add_familiarity`) and interest, and a crushing
+  win costs `<archetype>_crushing_warmth` through `social_regard`; a game
+  whose person left, ended or faded is abandoned the next morning; one left
+  on the turn of a person who ghosted is re-armed when they come back
+  (`games.rearm`, called from messaging's reconnect), and the player may
+  resign on either turn (`game_move {move: resign}`, `social_game op:
+  resign`: status `resigned`, their loss, no finished-game effects, the
+  pair free for another). A swap needs the bag to hold as many tiles as it
+  swaps and games.yaml `swap_bag_min` (`wordgame.can_swap`). Declining
+  their game invite costs no warmth (`asks.turned_down` is for a number or
+  exclusivity). `engine.social.turn._cost` is public as `cost_hours`. Local
+  mode does not warm the word list: the first move of a run loads it
+  inside its turn (about 1.5 s; a background warm could publish one
+  story's list after a story switch's reset). Finished
+  games keep no bag or racks and at most `social.games_kept` (20) are kept,
+  each with its last `social.game_moves_kept` (16) moves (config). The word
+  list (`words()`, `prefixes()`, frozensets) is two `NULLED_ATTRIBUTES` rows
+  warmed by `caches._warm_words`, loaded under a new leaf lock,
+  `wordgame._WORDS_LOCK`: 172,820 words and 387,880 prefixes hold 47 MiB
+  per process (53 MiB at the load's peak, about 1.5 s, measured with
+  `tracemalloc` on Windows). `validation.check_social` checks games.yaml's
+  `wordgame:` (11x11 premiums, a 72-tile bag with two blanks, its numbers)
+  and `words.txt` beside it.
+- This or That (v0.22.0 T23, spec §21.2): `engine/social/games/this_or_that.py`,
+  the registry's second row. `new_game` deals five pairs from games.yaml's
+  bank with `stable_rng(seed, f"{SOCIAL_GAME}:{game_id}")`; the player
+  answers with one `game_move {move: answer, answers: [a|b x5]}` (the
+  catalogue's `answers` is a list of exactly five `a`/`b`: `ArgSpec` gains
+  `min_len`); the person's picks are the engine's (rule 1, `their_answers`):
+  each option's pull from their hobbies, traits and personality sliders
+  through games.yaml `tags`, one draw per pair on their `SOCIAL_GAME`
+  stream, at their pace, only after the player's are in. Right after their
+  answer the `game_move` event runs `reveal`: a `social_game` move
+  (`reveal`) ends the game with the agreements, the finished-game effects
+  plus each agreement's (`bonus`, a new per-module hook beside `REVEALS`;
+  the crushing-win check now runs only for a game whose effects carry
+  `crushing_margin`), each agreement written as canon both ways
+  (`memory.add_canon`, `add_knows`) in the engine's words ("You both pick
+  mountains over beaches"), and a due `game_banter` message whose RIGHT NOW
+  line is `banter_note`. The payload shows the player's own picks
+  (`mine`), theirs (`theirs`) and the count only once the game is over;
+  the row's `picks` never leaves the server (`tests/test_ui_contract.py`
+  scans for it). `validation.check_social` checks the block: its numbers,
+  each tag's hobbies, traits and sliders against population.yaml, and a
+  bank of 60 or more pairs naming only declared tags.
+  Two items carried from T22: a person's own game invite is now drawn each
+  morning (`games._queue_their_invites`, a `daily` step: one
+  `SOCIAL_GAME` draw per person with games open, none running or asked,
+  not ghosted, against their archetype's behaviours.yaml
+  `games.invite_prob_per_day`, until now read by nothing), queued as a
+  `game_move` event carrying `invite: true` at the morning's hour or when
+  they wake, and made when it lands through `relationships.apply_proposal`
+  (which gains `at=`), with a notification; and which game an invite asks
+  for is chosen with no draw (spec §10.5): the offered game the pair has
+  played least among the rows kept, ties to apps.yaml's `offers` order.
+- Meet-ups (v0.22.0 T24, spec §14): `engine/social/meets.py`. A meet is a
+  `state.social["meets"]` row (`t<n>`), written only by the new
+  `social_meet` effect. The player's `propose_meet {pid, venue, day (1-7
+  ahead), slot}` is answered at once by the engine: `accept` when the
+  stage is `numbers` or past it, relationships.yaml's `meeting` gate holds
+  and both sides are free (their schedule, the player's calendar), else
+  `counter` (the nearest free slot that day or the next), else `not_yet`.
+  `ask {what: meet}` (answered at their read) and the person's `ask_meet`
+  proposal (a request the player answers) leave the venue (by shared
+  hobbies, ties on `SOCIAL_MEET`) and the first free slot to the engine.
+  An agreed meet moves `numbers` to `meeting`, draws the person's flake
+  once (`flake_prob`, `SOCIAL_MEET`, never in the payload) and queues a
+  `meet_start` event (no pid, so a ghost's queue drop never strands it):
+  a flake or a person gone quiet is shown at the start as an engine line;
+  otherwise the meet is due (`wait` stops) and `meet {go | cancel}` is
+  offered; a meet still due at the slot's end is a no-show
+  (`meets.no_show`). `cancel` costs `meets.cancel_cost`, larger the later.
+  `go` moves the clock by the venue's `duration_hours` through
+  `clock.advance_time` from the phone action, then resolves `quality`
+  (one `SOCIAL_MEET` draw) into a band (`great`/`good`/`fine`/`awkward`/
+  `bad`): the band's exact regard, a history row, `meets_good` (two
+  good-or-better meets branch `meeting` to dating, friends or fling), the
+  recap as a due system card, and -- unless the band or archetype is in
+  `meets.post_meet`'s lists -- their `post_meet` text at their pace. The
+  voicing pass voices a recap through `meets.voice_recap` (its own prompt:
+  `date_recap.md` verbatim and WHO, WHERE, HOW IT WENT, TOPICS, FORMAT,
+  pinned by test), checked against the band (`meets.recap_tone`), retried
+  once, else the engine line; a recap moves no regard. The agreement check
+  `meeting_claimed` (a `STATE_CHECK`) fails a reply stating a meet-up not
+  agreed (relationships.yaml `meet_claims` by today/tomorrow/any, against
+  `AgreementView.agreed_meets` and its new `now`) or denying one that is
+  (`meet_denials`); "see you tonight" is judged here now. The payload
+  gains `calendar` (time-varying); the voice's RIGHT NOW names a meet-up
+  just had and the plans made. `venues.yaml` holds fifteen venues and
+  their kinds; `validation.check_social` checks them and the `meets:`
+  block; `social.meets_kept` (20) bounds the rows kept. A ghosted person
+  gives no answer to a proposal; their meet request lapses (answered no
+  by the engine, free, with an engine line) at its slot's start or the
+  first morning it can no longer be met (a `daily` step); unmatching,
+  blocking or ending calls off every plan with them at no cost
+  (`meets.call_off`); a meet missed while away is a no-show with its own
+  notification; a recap whose meet row is gone is withdrawn.
+- The client's core seams for READ RECEIPTS (v0.22.0 T25, spec §18.1): two
+  plugin slots, `PlayScreen` (replaces the play screen wholesale; core keeps
+  the banner, menu, saves and settings around it and offers it no overlays)
+  and `NewRun` (opened by the start screen's Begin; its `creation` goes to
+  `POST /api/game/new`), both stripped when a plugin is borrowed
+  (`story.js::dressPlugin`, pure and tested); `phone_action` outbound
+  (`socket.js::emitPhone`, the catalogue's shape only) through a sender that
+  keeps one action on the wire and re-sends a busy answer once after 150 ms
+  without showing it, and hands what never reached the server back to the
+  plugin as `PHONE_DROPPED` (`createPhoneSender`); `phone_message` and
+  `media_ready` inbound, left by core's reducer to the plugin's `reduce`;
+  `fetchCreation()` in `api.js`. `tests/test_ui_contract.py`'s emit scan now
+  reads `engine/social/` and a push to one session's room
+  (`emit_to_session`, the voicer's `emitter`/`voicer.emit`).
+  `ui/tests/helpers/dom.js` is the phone tests' shared `createRoot` +
+  `React.act` verbs. The committed `dist` is rebuilt.
+- READ RECEIPTS' phone plugin, first part (v0.22.0 T27, spec §18.2-18.3,
+  `ui/src/stories/read-receipts/`): the phone frame (a bezel at 900px wide
+  and over, `min(100vh - header, 860px)` tall at 9:19.5; no bezel below),
+  the lock screen, home, Matchstick and Front Porch, a first thread view, and
+  the setup wizard (`NewRun`) over the creation form. Its slice merges the
+  `phone_message` and `media_ready` pushes idempotently (a duplicate, or a
+  photo finished before its message, lands as one in-order delivery), and
+  an action that never went -- core's second busy, a `PHONE_DROPPED`, a
+  refused `onAct` -- keeps what the player wrote with "Not sent — tap to
+  retry". `scripts/screenshot_runs.py` builds a READ RECEIPTS phone run
+  (phone actions over the HTTP twin, voiced by the fallback lines), and
+  `npm run layout-check` walks it at the four sizes with a phone probe set
+  (`layout-probe.js::probePhone`: no page scroll, the screen in the window,
+  the bezel's shape, and the lock screen's, the dock's, the deck's and a
+  thread's controls reachable).
+- READ RECEIPTS' phone plugin, the thread (v0.22.0 T28, spec §18.2-18.3,
+  `ui/src/stories/read-receipts/thread/`): bubbles, read state, typing dots,
+  photo / voice / video tiles (a `src` only from the media route,
+  `thread/media.js::mediaSrc`), request, game and meet-up cards, "Load
+  earlier" over `GET /api/phone/thread/<id>`, and the compose bar with the
+  app's attachments, the mic (`MicButton`) and asks; a list | thread split
+  on the landscape phone. The payload's phone block gains each app's
+  `capabilities` and the player's `camera_roll` and `subjects`
+  (`engine/social/payload.py`), and a meet-up request its `venue_label` and
+  `when` (`relationships.py`). A full payload no longer clears a push it
+  does not yet hold (a reply voiced after the payload was built but
+  delivered before it, `state.js::keptPushes`). The layout check's thread
+  step probes the compose bar's tools and, at 844x390, the list beside the
+  thread. The committed `dist` is rebuilt.
+- READ RECEIPTS' phone plugin, the rest (v0.22.0 T29, spec §18.2-18.3,
+  `ui/src/stories/read-receipts/`): the contact card (`contact/`, a side
+  sheet beside the phone at 1200px wide and over), Games with Tile Talk and
+  This or That (`games/`; a placement is sent as one `game_move {move:
+  play, tiles}` the engine judges, and a thread's game card opens its
+  game), Photos, Calendar, and Settings with "Let time pass"
+  (`settings/letTimePass.js`: local only, a localStorage preference; 30 s
+  idle on a thread whose person is typing or due sends `wait {until:
+  15m}`, paused while the page is hidden, core's menu or an in-phone
+  confirm is up, and after four in a row with no input). The payload's phone block gains `contacts` (time-varying, F14:
+  per person their profile, stage words, band, history lines, their
+  `canon` as `about`, `last_heard_days`, `matched_on` from the person's own
+  match record; `engine/social/relationships.py`),
+  `gallery` (received photos and videos once voiced, `media.py`),
+  `meet_options` (venues, slots, days ahead; `meets.py`) and `settings`
+  (Natter's receipts, and `bio_max`, the edit_profile cap); its `auto_wait` now says whether the client may
+  offer "Let time pass" -- true locally, false hosted -- rather than
+  reading a state setting nothing wrote (`payload.py`). Two NOT WIRED rows
+  (docs/GOVERNANCE.md): changing discovery during a run, and "Let time
+  pass" hosted or kept server-side. The committed `dist` is rebuilt.
+- In the pane (v0.22.0 T30, spec §18.3, §17.1): `scripts/screenshot_runs.py`
+  builds a second READ RECEIPTS run, `media` -- the first match taken to
+  numbers (`("setup", "numbers")`, the one step that is not a phone action:
+  `social_stage` and `social_person` through `apply_effect`, as
+  `tests/social_fixtures.py` does, because with no model numbers takes
+  in-game weeks -- measured, 16 days and 2100 actions with no one past
+  `talking`), then by phone actions a text on Natter, the three asks
+  answered with a photo, a voice note and a video (procedural, fallback
+  lines), and a Tile Talk game; `--serve` gains `--voice-delay SECONDS`
+  (each voicing call waits, then falls back: a visible "typing" with no
+  model) and logs the phone's INFO lines to its stdout. `routes._run` logs
+  one line per phone action, `[social] Phone action
+  (operation=phone_action, action=<name>, t=<monotonic>)` -- a catalogue
+  verb's name, else `?` (a crafted action string is the client's own text),
+  never the text. `ui/tools/layout-check.mjs` probes the compose bar whole
+  and walks a run with a Tile Talk game to its board through the Games app:
+  the board wholly on the screen and uncut, the rack and the move buttons
+  reachable, at rest at the three strict sizes and scrolled into view at
+  844x390 (`probePhone`'s new `scroll`). The phone-action cadence, measured
+  in the pane, is in docs/HOSTING.md (p95 34 a minute while swiping, under 75% of 90:
+  `phone_actions_per_minute` unchanged).
+- From the T30 walk (the coordinator's rulings): a meet-up counter-offer's
+  line carries the countered venue, day and slot (`meets._line`'s `extra`,
+  through `social_meet`), the player's view of it says whether it is still
+  `open` (`meets.counter_view`), and the thread draws Accept on it, the same
+  `propose_meet` at that slot; a new match notifies "New match"
+  (`messaging.notify` inside `social_match`, opener or not; spec §15.3
+  counts new matches); a procedural photo or video tile shows its caption
+  under the tile, as a generated one does; the player's own ask answered
+  "later" reads "<name> said maybe later.", not "Waiting for ..."; and the
+  core menu's key table leaves out "1 – 4" and "/" for a story with its own
+  `PlayScreen`, where core binds neither. The committed `dist` is rebuilt.
+  And a phone build (`screenshot_runs.py`) sets the voicer's model function
+  to one that raises for its duration: each phone action also requests a
+  background voicing pass, which otherwise took `voicing.production_llm_fn`
+  and, in a test process whose backend was made earlier under another
+  config, reached localhost:1234 (caught by the suite's live-call guard when
+  `tests/test_screenshot_runs.py` ran after the social tests; latent since
+  T27's phone run). The build also pauses the voicer's scheduler and, before
+  restoring the function, cancels whatever it queued.
+- The docs for the phone (v0.22.0 T31, spec §25): docs/AUTHORING.md §3.15
+  documents every `paths.social` file (its keys checked against the loaders
+  and the validator), the event queue, archetypes, proposals, the filter,
+  `texter.md`'s instruction table and Fallbacks fence, and how to add an
+  app, a creation field and an archetype; §5.2 the phone's simulator; §6 the
+  story. docs/GOVERNANCE.md gains the spec's §22 rows (voice and video
+  calls, jealousy, an authored friend, real-clock alignment, the shipped
+  populations, group chats, bio edits after a match, the `comfyui` provider
+  verified live) and a third dating app's screens. docs/DESIGN.md describes
+  the social system and the lock order's v0.22.0 additions; docs/HOSTING.md
+  voice notes in hosted mode. `ui/tools/screenshots.mjs` captures READ
+  RECEIPTS' phone (a walk from its lock screen per capture), and the README
+  carries four of them.
+
+### Changed
+
+- One identity for the phone's player (v0.22.0 T27, the T4 ruling):
+  `creation.name` is the story's name for the player, a new game's
+  `player_name` (when it is not the engine's "Traveler" and the form
+  accepts it) is that field's default, and the run's `player_name` is the
+  name the creation stored (`social.creation.seeded_name`, `name_of`;
+  `procgen.new_game_state`). The wizard starts the run with the same name
+  as both.
+- Escape while typing in a story's own play screen (`PlayScreen`) leaves
+  the field and no longer opens the pause menu over half a message; with
+  nothing focused it opens the menu as before (`App.jsx`, v0.22.0 T27).
+- The phone sender's owed late answer can no longer re-arm: an action whose
+  own answer may have been eaten as a timed-out one's owes nothing when it
+  times out in turn, and the answer it credits to nobody reaches the store
+  marked `stale: true` (`socket.js::createPhoneSender`, v0.22.0 T27).
+- `PlayScreen` also gets `blocked` (true while core's menu, settings, an
+  overlay or a cutscene is up), so a screen's own window-level keys -- READ
+  RECEIPTS' deck arrows -- stand down under them (v0.22.0 T27).
+- A phone action whose argument names a value its row declares but does
+  not offer now (an `ask` for a photo where the app cannot carry it, or past
+  today's asks) is refused in the row's own words (`phone_verb(refuse=)`,
+  `intents.not_offered`; v0.22.0 T19), not with the enum's list of what is
+  left; a malformed payload keeps its own refusal.
+- The in-turn ComfyUI stub submit is retired: no story's turn contacts
+  ComfyUI (v0.22.0 T17, spec §13.4). `engine/media/comfyui.py`'s
+  `ComfyUIClient` posted a one-node graph (a lone CLIPTextEncode, which
+  ComfyUI accepts and which produces nothing) on every turn of every story
+  once `comfyui.enabled` was on; `_submit_prompt`, `is_available` and the
+  client's connection attributes are deleted, and `enqueue_image` answers a
+  placeholder (or a cached URL) whatever the switch says. Its queue and
+  prompt building stay (a docs/GOVERNANCE.md NOT WIRED row).
+- `TTSClient.synthesize` reads the server's answer to at most `tts.max_bytes`
+  (8 MiB) and keeps an `audio/*` answer only if it is a WAV by its magic
+  bytes; anything else is the text fallback, nothing written (v0.22.0 T21).
+- A voiced reply's commit (`engine/social/voicer.py::_apply_reply`, spec
+  §16.3 step 4) no longer snapshots the whole state under the turn lock
+  (v0.22.0 T26). Its transaction was `StateTransaction`, a `to_save_dict` per
+  reply: over the 400 policy steps after day 30 of an attentive run (seed 7,
+  the warm stub, T15's constants; 1,011 people, 247 threads and 13,441
+  messages kept unspilled by the end) a commit held the lock 435 ms at the
+  median and 1.2 s at the p95, and an action's voicing 458 ms at the median. It is now `ScopedTransaction`: the replying person's own
+  rows (their person row, and their threads, requests, media, games, meets
+  and queued events) copied deep, every other row of the slice by reference,
+  the small keys and `rng_counters` whole, restored in place. The same commit
+  now holds it 14.5 ms at the median (35 ms at the p95; 20.8 ms per action's
+  voicing), on the same 1,815 commits.
+  `tests/test_social_commit_scope.py` rolls back every commit of a played
+  run after all of its writes and holds `to_save_dict` byte-identical, and a
+  commit that raises at any of its writes or whose `social_voiced` refuses
+  leaves the state as it was. The balance harness's `light_commits` and its
+  `--snapshots` flag are deleted: it measures the engine's own commit.
+- A thread's page (`GET /api/phone/thread/<thread_id>`, `archive.page`, read
+  under the turn lock) reads `phone_archive.jsonl` from its end and stops
+  once it holds the page (`archive.archived_before`), decoding only the
+  lines that hold the thread's id (v0.22.0 T26). It read the whole file for
+  every page: 17.7-24 ms for a day-60 save's 335 KB archive, growing with
+  every day played; now 2.4-3.3 ms for the same pages, which are
+  byte-identical (`tests/test_social_saves.py` holds a page equal to the
+  whole-file read on every cursor, and that another thread's lines are never
+  decoded).
+- The phone's save keeps its state bounded (spec §17.2; v0.22.0 T26 fix
+  round 1; `engine/social/saves.py::compact`, run at every save before the
+  envelope is written). A dead thread -- its person faded, ended, unmatched
+  or blocked, or left behind for a messenger, not the open thread, nothing
+  due or unread, quiet
+  `social.archive_dead_after_days` (7) -- goes to `phone_archive.jsonl`
+  whole and keeps a stamp of its last message (`messaging._stamp`: every
+  reader of a thread's messages falls back to it, so it reads as it did); a
+  person the player only swiped is cut to the swipe
+  (`matching.compact_swiped`, `social_person` `op: compact`); answered
+  requests past `social.requests_kept` (30) are forgotten
+  (`relationships.forget_answered`, `social_request` `op: forget`). A dead
+  thread is never summarised (no model call for it), and a media row whose
+  message a save spilled reads it back from the archive
+  (`archive.archived_message`).
+  `social.state_messages` 60 -> 24, and `save.json` is written without
+  indentation for a phone story (`write_json_atomic(compact=True)` when the
+  state carries its `social` slice; it reads back the same; every other
+  story's save is written byte-for-byte as in v0.21.1, indented, held by
+  `tests/test_social_compaction.py`). A day-180 attentive READ RECEIPTS save went from
+  2.87 MB to 0.82 MB (817,664 bytes), pinned under the spec's 1 MB by
+  `tests/test_social_save_size.py`. None of it changes a mechanic:
+  `tests/test_simulate_social.py` plays the same run on disk (compacting
+  after every action) and in memory and holds every measurement equal, and
+  `tests/test_social_compaction.py` holds each reader equal across an
+  emptied thread.
+- `scripts/simulate_social.py` runs under a throwaway storage root unless
+  `CLOCKWORK_DATA_DIR` names one: a run's opening drew its scene art into the
+  owner's `data/media/images/` (v0.22.0 T26).
+
+### Fixed
+
+- READ RECEIPTS' phone numbers (the owner's "phone numbers don't work at
+  all", v0.22.0 final review wave 2). The chain worked; the gate did not:
+  - The numbers gate needed 6 in-game days and trust 40, which a session
+    that moves hours never reaches, so every ask was "not yet". It is now
+    warmth 30, trust 23, 20 exchanges and no days
+    (`games/read-receipts/data/social/relationships.yaml`, its header the
+    measurement: the gate holds after 10-18 of the player's messages to
+    one person, from its second in-game day). Three simulator rows left
+    their bands and are DEFERRED (CLAUDE.md, `tests/test_simulate_social.py`
+    `DEFERRED_ROWS`): v0.23.0 redesigns pacing around real session time.
+  - Why a no was said is kept: `relationships.ask_decision`'s `why` ("not
+    yet", "draw", "stage") was dropped at the read; `settle_ask` now records
+    it on the answered request (`social_request` `answer` `why`), the voice
+    is told "Your answer: not yet, it's too early" for the gate (a draw's no
+    stays a plain no), and their decline carries `declined: not_yet`, which
+    the thread shows as "Not yet.".
+  - Each thread row carries `asks` (`messaging.ready_asks`): the asks
+    offered now, a stage ask only once its gate holds
+    (`relationships.can_reach`). The Ask menu greys "Their number" until the
+    row lists it. The committed `dist` is rebuilt.
+- The roadmap renumbered (owner, 2026-10-13): v0.23.0 is READ RECEIPTS'
+  rework (docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md
+  with its addendum), v0.24.0 sound effects, and the overhauls v0.25.0
+  (The Clockwork Dark), v0.26.0 (The Wicked Garden), v0.27.0 (NEON CITY)
+  and v0.28.0 (THE LONG CON); `scripts/simulate.py`'s refusal names the new
+  overhaul numbers, and none for Dev Story. READ RECEIPTS counts toward
+  v1.0.0 and needs its art and live play (owner).
+- The v0.22.0 final review's fix wave (READ RECEIPTS' phone runtime):
+  - A media result parked in the inbox while the turn lock was busy (a
+    timed save, a pass's commit) waited for the player's next tap; hosted
+    play has no auto-wait, so it waited indefinitely (I1).
+    `media.hand_off` now requests a voicing pass when it parks, and
+    `voicer.run_pass` drains the inbox under a tried lock BEFORE admission:
+    applying parked items calls no model, so a pass that finds only inbox
+    items (or nothing) due asks no narration ticket.
+  - A meet request's lapse event (`meet_start` with a `request_id`) no
+    longer stops `wait {until: next}` once the request is answered or can no
+    longer be met (`turn._stale_lapse`, read at the one reader so it covers
+    every way a request closes and events already in a save); a lapse
+    writes no line into a thread that is unlisted or whose person is gone
+    or ended (M1).
+  - The social event pass is fault-isolated (`events.advance`): a raising
+    handler is logged at ERROR with its kind and person, its event dropped,
+    and the pass goes on, so an action's minutes and an away advance's
+    record, stamp and lock screen still land. A handler moving the clock
+    (`clock.SocialPassClockError`, rule 2) still raises. `away.apply_on_resume`
+    marks the run dirty if its advance ever raises (M2).
+  - The state route, `join_session` and the start/resume answer build a
+    phone story's client state holding the turn lock, tried on a short
+    schedule (`default_scene._client_state`, about 0.4 s at most) and built
+    unlocked as before if it stays busy; other stories are unchanged (M4).
+  - A page joining after the player has acted past a resume's lock screen
+    (a reload) is no longer shown that absence again: the first phone action
+    empties the saved opening's `lock_screen` (M5).
+  - docs/HOSTING.md and the GOVERNANCE row say the media worker's
+    per-account daily cap is in memory, reset by a worker restart or a
+    drain (M3); AGENTS.md, CLAUDE.md and the README say seven stories ship,
+    READ RECEIPTS endless (M6).
+- `apps.yaml`'s `typing` is read (v0.22.0 T31 review): a thread row and the
+  open thread report `typing` only when the voicing call is in flight AND
+  the thread's app shows typing dots (`messaging._typing_shown`; true when
+  unset). It was documented and read by nothing, so READ RECEIPTS' Texts
+  (`typing: false`) showed dots like Natter.
+- `post_meet` is in `voicing.SITUATIONS` (v0.22.0 T31 review): the engine
+  emits it after a meet-up, and a `texter.md` without its row now fails the
+  validator as any other missing situation does. `_right_now`'s table
+  lookup raises the content fault `voice` falls back on (a `ValueError`
+  naming the situation), never a bare `KeyError`.
+- READ RECEIPTS' lock screen kept "New message" for a reply already voiced:
+  the payload lists a notification while its message is still being written,
+  and the voicing pass's `phone_message` push carries the SAME notification
+  id with the words, which the client's merge skipped as a duplicate
+  (`ui/src/stories/read-receipts/state.js::withNotification`, found in the
+  T30 walk). A held row is now replaced in place. The committed `dist` is
+  rebuilt.
+- The TTS disk cache ignored the voice: `write_audio` and `cached_url`
+  named the file by the text alone, so two voices saying the same line
+  shared one file, the first voice's (v0.22.0 T21, F7). Every reader and
+  writer now keys by `tts.cache_key(text, voice)` (`write_audio(..., voice=)`,
+  `cached_url(text, voice)`, `synthesize`). Narration cached before the fix
+  (named by the text alone) is still read for the configured `tts.voice`,
+  the only voice it can have been spoken in, so an existing cache is not
+  spoken again. The narration pipeline now looks the cache up in the voice the
+  speech worker speaks with, not "storyteller" (`engine/media/pipeline.py`).
+
 ## [0.21.1] — 2026-10-08
 
 A patch: test speed. Measured on Windows: `run_tests.py full` 16.7 min (the

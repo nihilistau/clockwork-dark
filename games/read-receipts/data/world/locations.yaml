@@ -1,0 +1,24 @@
+# READ RECEIPTS -- the world graph: one node, no edges (spec §2.5).
+#
+# The phone is the whole stage, so `travel` is never offered. Meet-up venues
+# are rows of data/social/venues.yaml, not locations.
+#
+# Version: v0.1.1
+
+version: 1
+
+rings:
+  0: "Home"
+
+locations:
+
+  home:
+    name: "Your flat"
+    ring: 0
+    evil_multiplier: 0.1          # the engine's floor (locations._EVIL_MULTIPLIER_RANGE): what 0.0 was clamped to
+    # ID PINNED: game.yaml's `entry.location_id`.
+    summary: >-
+      A rented flat in Port Merrow, half unpacked. The sofa is the only
+      thing that has found its place.
+    tags: [interior, home, quiet]
+    connections: {}

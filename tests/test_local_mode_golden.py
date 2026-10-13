@@ -18,8 +18,8 @@ empty; v0.20.0 added S1 (the bind) and S2 (``paths.saves`` leaving the
 manifests), and v0.21.0 adds S3 (the poster's and job panel's scales), S4
 (``/api/people``), S5 (HUE & CRY's ``ui`` block), S6 (``turn_running`` on
 a rejoin), S7 and S8 (the codex's souls and vendors), S9 (a resume in an open
-encounter) and S10 (the pace slider's range, marks and hint). There are no
-others.
+encounter) and S10 (the pace slider's range, marks and hint), and v0.22.0
+adds S11 (READ RECEIPTS's row in the catalogue). There are no others.
 
 The capture opens no socket (Flask's and Socket.IO's test clients), writes
 nothing outside the test's temp directory (asserted, by an audit hook), and
@@ -43,6 +43,7 @@ from typing import Any, Callable
 
 import pytest
 
+from engine.games.registry import catalog_key
 from tests.local_golden import (
     FIXTURES,
     OVERWRITE_ENV,
@@ -462,11 +463,66 @@ UI_SANCTION: list[tuple[str, Callable[[str], str]]] = [
 ]
 
 
+#: S11 (v0.22.0, spec §19.6): READ RECEIPTS joins the catalogue. One row is
+#: added where the catalogue's order puts it, and nothing else moves.
+READ_RECEIPTS_ROW: dict[str, Any] = {
+    # Written by hand from games/read-receipts/game.yaml in T2 (engine_requires
+    # ">=0.2.0", Plan decision 23: ">=0.22.0" would make the row unplayable),
+    # every key the other rows carry with this story's values, plus the one
+    # extra its manifest declares (`endless`). Reviewed against a live
+    # registry.catalog() row once, by hand.
+    "active": False,
+    "archetypes": [],
+    "blurb": (
+        "A new city, a new phone, two dating apps. Everyone in them is somebody, "
+        "and somebody is always typing."
+    ),
+    "endless": True,
+    "engine_requires": ">=0.2.0",
+    "entry_location": "home",
+    "id": "read-receipts",
+    "paths": {
+        "locations": "games/read-receipts/data/world/locations.yaml",
+        "prompts": "games/read-receipts/prompts",
+        "social": "games/read-receipts/data/social",
+    },
+    "playable": True,
+    "problems": [],
+    "scene": {
+        "blueprint": "engine.scenes.default_api:story_blueprint",
+        "module": "engine.scenes.default_scene",
+        "name": "clockwork",
+    },
+    "settings": {
+        "world.evil_base_rate_per_day": 0.0,
+        "world.tick_hours": 0.0,
+    },
+    "slug": "read-receipts",
+    "title": "Read Receipts",
+    "ui": {"panels": [], "plugin": "read-receipts"},
+    "ui_plugin": "read-receipts",
+    "version": "0.1.0",
+}
+
+
+def with_read_receipts(value: Any) -> None:
+    """The READ RECEIPTS row, added where ``catalog_key`` sorts it, and nothing else."""
+    body = value["json"]
+    rows = body["games"]
+    assert all(row.get("slug") != "read-receipts" for row in rows), "S11 applied twice"
+    rows.append(copy.deepcopy(READ_RECEIPTS_ROW))
+    rows.sort(key=catalog_key)  # engine.games.registry.catalog_key: the route's own sort key
+    assert len(rows) == 7, f"S11 left {len(rows)} rows"
+
+
+RECEIPTS_SANCTION: tuple[str, Callable[[str], str]] = ("games.json", json_sanction(with_read_receipts))
+
+
 #: ``(fixture name, transform)``: the recording, as the sanctioned change
 #: makes it. S1 since v0.20.0 T2, S2 since T3, S3-S10 since v0.21.0
 #: (spec §1.2; S7 added in T3 fix round 1, S8 in fix round 2, S9 in the
-#: encounter-resume fix, S10 in T13 fix round 1, S5 in T14); there are no
-#: others.
+#: encounter-resume fix, S10 in T13 fix round 1, S5 in T14), S11 since
+#: v0.22.0 T2; there are no others.
 SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     BIND_SANCTION,
     *SAVES_SANCTION,
@@ -478,6 +534,7 @@ SANCTIONED: list[tuple[str, Callable[[str], str]]] = [
     RESUME_SANCTION,
     SLIDER_SANCTION,
     *UI_SANCTION,
+    RECEIPTS_SANCTION,
 ]
 
 
@@ -844,6 +901,31 @@ def test_the_v021_sanctions_are_exact() -> None:
     for untouched in ("games_active.json", "games_clockwork-dark.json"):
         with pytest.raises(AssertionError, match="S5 touched 0 rows"):
             json_sanction(with_hue_ui)(recorded[untouched])
+
+
+def test_the_receipts_sanction_is_exact() -> None:
+    """
+    S11 adds one row to ``games.json`` -- READ RECEIPTS's, between NEON CITY
+    and The Clockwork Dark, where ``catalog_key`` puts it -- and moves no other
+    row or key; applied twice it raises; and its row is the live catalogue's.
+    """
+    from engine.games import registry
+
+    name, transform = RECEIPTS_SANCTION
+    before = json.loads(_recorded()[name])
+    after = json.loads(transform(_recorded()[name]))
+    slugs = [row["slug"] for row in after["json"]["games"]]
+    assert slugs == ["dev-story", "hue-and-cry", "neon-city", "read-receipts",
+                     "clockwork-dark", "the-long-con", "wicked-garden"], slugs
+    rows = [row for row in after["json"]["games"] if row["slug"] != "read-receipts"]
+    after["json"]["games"] = rows
+    assert after == before
+    with pytest.raises(AssertionError, match="S11 applied twice"):
+        transform(transform(_recorded()[name]))
+    live = next(row for row in registry.catalog() if row["slug"] == "read-receipts")
+    assert {k: v for k, v in live.items() if k != "active"} == {
+        k: v for k, v in READ_RECEIPTS_ROW.items() if k != "active"
+    }
 
 
 def test_hue_scales_reads_the_shipped_bands() -> None:

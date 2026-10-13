@@ -272,6 +272,67 @@ def _fallback_summary(existing: str, turns: list[TurnRecord]) -> str:
     return _within_words(prose, _distinct(entries), MAX_SUMMARY_WORDS)
 
 
+def _within_words_text(result: str, max_words: int) -> str:
+    """
+    A model-written summary held to its cap: ``max_words`` x 1.3 words, the
+    slack a model's prose gets before it is cut (v0.3.0's rule, unchanged).
+    """
+    words = result.split()
+    if len(words) > max_words * 1.3:
+        return " ".join(words[: int(max_words * 1.3)])
+    return result
+
+
+def summarize_with(
+    existing: str,
+    items: list[Any],
+    *,
+    renderer: Callable[[list[Any]], str],
+    fallback: Callable[[str, list[Any]], str],
+    system: str,
+    new_label: str,
+    llm_fn: Optional[Callable[[list[dict[str, Any]]], str]],
+    max_words: int,
+    operation: str = "summarize_with",
+) -> tuple[str, bool]:
+    """
+    Fold ``items`` into ``existing``: (the new text, whether the model wrote it).
+
+    The one summarizing call (v0.22.0, Plan decision 6): the ledger's
+    ``summarize`` passes its turn renderer, its deterministic fallback,
+    ``SUMMARIZER_PROMPT`` and "NEW EVENTS"; a phone thread's summary
+    (``engine/social/memory.py``) passes its own. The request is exactly two
+    messages -- ``system``, then the user's CURRENT SUMMARY and ``new_label``
+    blocks -- so ``summarize``'s bytes are v0.21.1's (the LM Studio golden
+    pins them). No model (``llm_fn`` None), a raise, or an empty answer is the
+    fallback's text and False; a model's text is held to ``max_words``
+    (``_within_words_text``). Never raises. ``operation`` names the caller in
+    the log line.
+    """
+    if not items:
+        return existing, False
+    if llm_fn is None:
+        return fallback(existing, items), False
+    messages = [
+        {"role": "system", "content": system},
+        {
+            "role": "user",
+            "content": (
+                f"CURRENT SUMMARY:\n{existing or '(nothing yet)'}\n\n"
+                f"{new_label}:\n{renderer(items)}"
+            ),
+        },
+    ]
+    try:
+        result = (llm_fn(messages) or "").strip()
+    except Exception as exc:  # noqa: BLE001 -- summarization is best-effort
+        logger.warning("[memory] Summarizer failed (operation=%s): %s", operation, exc)
+        result = ""
+    if not result:
+        return fallback(existing, items), False
+    return _within_words_text(result, max_words), True
+
+
 def summarize(
     ledger: StoryLedger,
     evicted: list[TurnRecord],
@@ -282,7 +343,9 @@ def summarize(
     """
     Fold evicted turns into the ledger's summary. Returns the new summary.
 
-    Never raises: losing the summary must not lose the turn.
+    Never raises: losing the summary must not lose the turn. The call itself
+    is ``summarize_with``'s (v0.22.0), with this module's renderer, fallback,
+    prompt and "NEW EVENTS": the request bytes are v0.21.1's.
     """
     if not evicted:
         return ledger.summary
@@ -297,24 +360,19 @@ def summarize(
         ledger.summary_through_turn = evicted[-1].turn
         return ledger.summary
 
-    messages = [
-        {"role": "system", "content": SUMMARIZER_PROMPT.format(max_words=max_words)},
-        {
-            "role": "user",
-            "content": (
-                f"CURRENT SUMMARY:\n{ledger.summary or '(nothing yet)'}\n\n"
-                f"NEW EVENTS:\n{_render_turns(evicted)}"
-            ),
-        },
-    ]
+    result, used_llm = summarize_with(
+        ledger.summary,
+        evicted,
+        renderer=_render_turns,
+        fallback=_fallback_summary,
+        system=SUMMARIZER_PROMPT.format(max_words=max_words),
+        new_label="NEW EVENTS",
+        llm_fn=llm_fn,
+        max_words=max_words,
+        operation="summarize",
+    )
 
-    try:
-        result = (llm_fn(messages) or "").strip()
-    except Exception as exc:  # noqa: BLE001 — summarization is best-effort
-        logger.warning("[memory] Summarizer failed (operation=summarize): %s", exc)
-        result = ""
-
-    if not result:
+    if not used_llm:
         # The confirmed production path: the model returned "" because it spent
         # the whole token cap reasoning. This used to fall through in silence.
         logger.error(
@@ -324,14 +382,8 @@ def summarize(
             "summarizer must run on a reasoning='off' profile.",
             len(evicted),
         )
-        result = _fallback_summary(ledger.summary, evicted)
-        used_llm = False
-    else:
-        used_llm = True
-
-    words = result.split()
-    if len(words) > max_words * 1.3:
-        result = " ".join(words[: int(max_words * 1.3)])
+        # The fallback's text is held to the same cap a model's is (v0.21.1).
+        result = _within_words_text(result, max_words)
 
     ledger.summary = result
     ledger.summary_through_turn = evicted[-1].turn

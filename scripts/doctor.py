@@ -1286,6 +1286,23 @@ def check_content(report: Report) -> None:
         except (ImportError, AttributeError) as exc:
             report.add("Content", label, WARN, f"not available: {exc}")
 
+    # The phone (v0.22.0): one row, declared or not. A story without
+    # `paths.social` pays nothing, so "not declared" is OK, never a warning.
+    from engine import social
+
+    directory = social.social_dir()
+    if directory is None:
+        report.add("Content", "social", OK, "not declared")
+    else:
+        present = sum(1 for name in social.FILES if (directory / f"{name}.yaml").is_file())
+        try:
+            where = directory.relative_to(REPO_ROOT).as_posix()
+        except ValueError:
+            where = directory.as_posix()
+        report.add("Content", "social", OK if directory.is_dir() else FAIL,
+                   f"declared ({where}, {present} files)" if directory.is_dir()
+                   else f"declared, missing: {where}")
+
     art = Path("content/scenes/clockwork/static/art")
     files = list(art.rglob("*.jpg")) + list(art.rglob("*.png")) if art.exists() else []
     report.add("Content", "art pack", OK if files else WARN,

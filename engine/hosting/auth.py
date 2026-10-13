@@ -172,6 +172,8 @@ class HostingState:
     logins: LoginLimiter
     #: The actions bucket (spec §6.5): per account, over HTTP and the socket.
     actions: Optional[ActionLimiter] = None
+    #: The phone bucket (v0.22.0, spec §17.1): per account, phone actions only.
+    phone_actions: Optional[ActionLimiter] = None
     #: This process's ``server-<pid>.lock`` handle (``accounts.hold_server_lock``),
     #: held for the process's life so ``users.py adopt`` refuses while it runs.
     server_lock: Optional[int] = None

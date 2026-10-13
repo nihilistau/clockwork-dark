@@ -489,6 +489,11 @@ class GameManifest:
         return str(self.entry.get("fallback_narration") or "").strip()
 
     @property
+    def endless(self) -> bool:
+        """`endless: true` (v0.22.0): this story has no ending, by design (AUTHORING §2.6)."""
+        return self.extras.get("endless") is True
+
+    @property
     def archetypes(self) -> list[str]:
         """Archetype ids this game offers at character creation."""
         raw = self.entry.get("archetypes") or []

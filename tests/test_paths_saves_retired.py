@@ -86,7 +86,7 @@ def _manifests() -> list[Path]:
 
 def test_no_shipped_manifest_or_template_declares_it() -> None:
     found = _manifests()
-    assert len(found) == 9, [p.relative_to(REPO).as_posix() for p in found]
+    assert len(found) == 10, [p.relative_to(REPO).as_posix() for p in found]
     for path in found:
         data = yaml.safe_load(path.read_text(encoding="utf-8").replace("{{slug}}", "x-y"))
         assert "saves" not in (data.get("paths") or {}), path.relative_to(REPO).as_posix()

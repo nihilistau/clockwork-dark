@@ -33,8 +33,9 @@ settles the result, and a model on your own machine writes the prose.
   shipped art packs mean scenes have pictures without any of them. Serving
   it to other people, with accounts, is opt-in (hosted mode).
 
-**Status:** **v0.21.1** is the current release (a patch: the test suite runs in about 17 minutes on Windows, from 54). Six stories ship, and each
-can be played to an ending; HUE & CRY can be finished eight ways. The engine
+**Status:** **v0.22.0** is the current release: a new story, READ RECEIPTS, a dating story played on a phone, whose cast the engine runs. Seven stories ship. Six
+can be played to an ending (HUE & CRY eight ways); READ RECEIPTS is endless
+(`endless: true`, no ending, by the owner's brief). The engine
 is model-server agnostic: LM Studio stays the default, and llama-server,
 Ollama, vLLM and generic OpenAI-compatible servers narrate too
 ([docs/MODEL_SERVERS.md](docs/MODEL_SERVERS.md) says which facts about each
@@ -44,8 +45,9 @@ your stories to a small group with accounts, an admin panel and a Docker
 image ([docs/HOSTING.md](docs/HOSTING.md)). Since v0.21.0 the play screen is
 built from shared engine panels (wanted poster, job panel, casing board,
 people, encounter, rolls), holds its layout from a phone to a desktop, and
-reconnects by itself. At v0.21.0 the suite stood at 5977 passing, 24 skipped
-on Windows, plus 462 client tests. Those numbers are re-measured each
+reconnects by itself. At v0.22.0 the full suite stood at 7386 passing, 32 skipped
+on Windows (two failures at the release, recorded in CLAUDE.md), plus 684
+client tests. Those numbers are re-measured each
 release in [CLAUDE.md](CLAUDE.md), and [CHANGELOG.md](CHANGELOG.md) records
 every change from 0.4.0 on.
 
@@ -80,6 +82,7 @@ release.
 | **NEON CITY: THE CROSSING** | `neon-city` | Cyberpunk survival expedition across the Sprawl on a 21-day timestamp | Graph world, scavenge economy, a doom-style clock that quests can make *slip*, debt escalation, threads, six ending classes | A graph story with no evil clock. The pressure comes from heat, debt, the weather and the file |
 | **THE LONG CON** | `the-long-con` | Rain-and-radiator noir. A client, a photograph, a man already dead | Graph city with road encounters, a shop, and a clock that forces an authored deck scene | The first hybrid: a walkable city with a set-piece deck inside it. It also has secret places, a clue board, gossip, and a continuity guard that rejects a scene greeting someone you know as a stranger |
 | **HUE & CRY** | `hue-and-cry` | Wry, warm thief's comedy with real gallows. Tallowmere, a candle-port, where everyone has decided you are the Magpie | Premises, the Law, jobs and flashbacks, NPC agendas, survival, labour, factions, lore, a guild economy (crafting, a collectable set, blackmail, credit), Acts I–III (the Magpie's trail, an alibi and an accusation, the Hanging Fair, a jailbreak), death with a respawn, and eight endings | The systems-heavy one, finishable eight ways, and still in progress toward v1.0.0 (screens, art, live play). The world schemes, robs and hunts on its own clock |
+| **READ RECEIPTS** | `read-receipts` | A dating story on a phone. Port Merrow, a harbour city of the present day, two dating apps, texts and a messenger | `paths.social`: a seeded population the engine runs, apps, matching, messaging on the engine's clock, relationships, photos, voice notes and videos, meet-ups, two games | No plot and no ending (`endless: true`): the people are populated and the system runs them, the model writes what they say. Its own play screen, a phone, instead of narration and choices |
 | **Dev Story** | `dev-story` | Not a game: the annotated bench. A house, a university and eight people | One small working instance of every subsystem, plus the multi-agent pipeline | The worked example the story templates are distilled from. Change one thing and see what it does |
 
 <details open>
@@ -232,6 +235,37 @@ portraits ship yet: its art pack and live play are on the roadmap.
 </details>
 
 <details>
+<summary><b>READ RECEIPTS</b>, a dating story on a phone</summary>
+
+You have just moved to Port Merrow, and your phone is the whole stage. Make
+a profile, swipe on Matchstick or like a photo or a prompt on Front Porch,
+and wait: matches arrive over time, and the people in them are drawn from
+the seed and run by the engine, never stored and never invented by the
+model. Each has an archetype (a romantic, a slow burner, a dry texter, a
+ghoster, a breadcrumber...) and a week of their own, so they read and reply
+on their own clock, write first, double-text, start conversations, go quiet
+or ghost. A relationship moves from just matched to talking, swapped
+numbers (which opens Texts and Natter), seeing each other and on, by gates
+of warmth, trust and time together, and can cool off, fade or take a turn.
+Photos, voice notes and videos are rare and earned, decided by the engine;
+meet-ups are planned in the calendar and the engine decides how they went;
+Tile Talk (a word game) and This or That are played turn by turn. The model
+writes only what they say, checked against what the engine holds; with no
+model server the story's own fallback lines answer, and the game still
+moves, slowly. The city does not wait: while you are away the time passes
+there too, and the phone opens on its lock screen with what you missed.
+
+| The lock screen | A Matchstick card |
+|---|---|
+| ![READ RECEIPTS' lock screen: notifications from Natter and Matchstick, Put it down and Open phone](docs/images/read-receipts-lock.png) | ![Matchstick's swipe deck: a profile card with its photo caption, job, bio and hobbies, and the pass, super like and like buttons](docs/images/read-receipts-deck.png) |
+
+| A Natter conversation: a photo, a video, a Tile Talk game and an ask | Tile Talk on a phone (390 x 844) |
+|---|---|
+| ![A Natter thread: procedural photo and video tiles, fallback replies, a Tile Talk card and a pending ask for a video](docs/images/read-receipts-thread.png) | ![Tile Talk on a phone: the 11x11 board with its premium squares, the rack and Play, Pass, Swap and Resign](docs/images/read-receipts-tiletalk.png) |
+
+</details>
+
+<details>
 <summary><b>Dev Story</b>, the bench</summary>
 
 A sandbox that ships so every per-story test has a row that shares almost
@@ -246,8 +280,8 @@ declared meters and clocks.
 </details>
 
 > **About the screenshots.** The UI screenshots are real captures from the
-> v0.21.0 release, taken at 1366x768 (the phone view at 390x844) with no model
-> server running: every narration line is the story's own fallback narration,
+> v0.21.0 release (READ RECEIPTS' from v0.22.0), taken at 1366x768 (the phone
+> views at 390x844) with no model server running: every narration line is the story's own fallback narration,
 > the words a player sees when the model is down, and every move shown was one
 > the engine offered. The wide strips are the committed art plates. They can be
 > retaken with `scripts/screenshot_runs.py` (builds the runs in a fresh root,
@@ -310,6 +344,13 @@ declared meters and clocks.
   engine-evaluable stages.
 - **Deck stories:** authored days and cards with gates and bands.
 - **Hybrids:** a clock can **force** a deck scene in the middle of a graph.
+- **Phone stories** (`paths.social`, v0.22.0): a seeded population the
+  engine runs on exact-time events, dating apps with matching and
+  like-back, messaging, relationships with stages and closeness bands,
+  engine-decided photos, voice notes and videos (ComfyUI and TTS optional),
+  meet-ups and two games; the model only voices the people, and every reply
+  is checked against what the engine holds. The story draws its own play
+  screen ([docs/AUTHORING.md §3.15](docs/AUTHORING.md)).
 - **Clocks** (progress clocks that fill and force scenes), **threads**
   (contracts, bribes, blackmail and repeatable lines of credit, with a
   lifecycle and consequences when broken), **endings** with gates, and
@@ -384,9 +425,9 @@ declared meters and clocks.
   live validation and a review queue.
 - **Balance harnesses** that run headless, with no LLM: `scripts/simulate.py`
   for the flagship and (`--game hue-and-cry`) HUE & CRY's thief,
-  `scripts/simulate_decks.py` for deck stories, and one per HUE & CRY system
+  `scripts/simulate_decks.py` for deck stories, one per HUE & CRY system
   (law, jobs, agendas, scrounging, labour, streets, the Hoard, the Acts, the
-  endings).
+  endings), and `scripts/simulate_social.py` for READ RECEIPTS' phone.
 - `scripts/art_missing.py` and `scripts/generate_art.py` list missing plates
   and fill them ahead of time.
 
@@ -619,7 +660,7 @@ stack:
 ```powershell
 .\.venv\Scripts\python.exe scripts\doctor.py     # environment, config, content, data integrity
 .\.venv\Scripts\python.exe launcher.py --check   # which local services are up, and what each outage costs
-.\.venv\Scripts\python.exe scripts\run_tests.py full # every tier, bounded, about 17 min (scripts\run_tests.py fast: about 6 min). Expect fully green, no xfail
+.\.venv\Scripts\python.exe scripts\run_tests.py full # every tier, bounded, about 100 min (scripts\run_tests.py fast: about 6 min). Expect fully green, no xfail
 ```
 
 ```sh
@@ -704,6 +745,7 @@ local dev server, say) counts as the same site, as it does for the browser.
 |---|---|---|---|
 | Live image generation | `media.live_generation` | **off** | A Grok Imagine still takes 2 to 3 minutes, which can't sit inside a real-time turn. Use `scripts/generate_art.py` to fill gaps ahead of time |
 | ComfyUI `:8188` | `comfyui.enabled` | **off** | Takes seconds rather than minutes, so it's the backend worth turning live generation on for |
+| Phone media (READ RECEIPTS) | `phone_media.provider` | `procedural` | `comfyui` sends the phone's photos, videos and portraits to the `comfyui:` server (local or hosted, `comfyui.api_key` from `comfyui_api_key.txt` or `CLOCKWORK_COMFYUI_API_KEY`) through `comfyui.workflows`; its own switch, so `comfyui.enabled` never makes a story's turn post a workflow. Off, every picture is a procedural tile with its caption ([docs/MEDIA_SERVERS.md](docs/MEDIA_SERVERS.md)) |
 | Spoken narration | `tts.enabled` | **off** | Measured at about 21x slower than realtime on the reference machine |
 | Assistant voice only | `tts.assistant_enabled` | **off** | The companion's 1 to 3 sentence lines are the only thing worth speaking live |
 | Push-to-talk | `stt.provider` | `faster_whisper` | Hold the mic button. The transcript lands in the box as editable text and never auto-submits. Runs in-process and needs `faster-whisper`, which `requirements.txt` installs |
@@ -755,6 +797,7 @@ running game; AGENTS.md's "The client" says how.
 .\.venv\Scripts\python.exe scripts\simulate_hoard.py     # hoarder: the anchors, the Hoard, the squeezes (--no-pass, --severity)
 .\.venv\Scripts\python.exe scripts\simulate_acts.py      # investigator: Acts I-II, the trail and the reveal (--opening, --gate)
 .\.venv\Scripts\python.exe scripts\simulate_endings.py   # eleven policies to the ending each run locks (--fair-day, --break-out)
+.\.venv\Scripts\python.exe scripts\simulate_social.py --game read-receipts --days 60 --seeds 40 --policy attentive   # READ RECEIPTS' phone (--policy attentive|swiper|picky|slow|neglectful|pushy|all, --voice romantic_model|cold_model|zero|no_model|all, --first-seed, --raw OUT, --fold RAW..., --json OUT)
 ```
 
 ```sh
@@ -769,6 +812,7 @@ running game; AGENTS.md's "The client" says how.
 .venv/bin/python scripts/simulate_hoard.py
 .venv/bin/python scripts/simulate_acts.py
 .venv/bin/python scripts/simulate_endings.py
+.venv/bin/python scripts/simulate_social.py --game read-receipts --days 60 --seeds 40 --policy attentive
 ```
 
 (The same flags as the PowerShell lines above.)
@@ -786,9 +830,15 @@ careful pickpocket; `--policy living` plays that harness's thieves who pay their
 (the fencing burglar, borrowing or not, and the careful pickpocket who takes a porter's shift when hungry).
 `scripts/simulate_decks.py --game wicked-garden` walks a deck
 story the same way: every ending, card and clock, over seeded runs.
+`scripts/simulate_social.py --game read-receipts` plays READ RECEIPTS' phone
+through its own mechanics action, a scripted player (six policies) against a
+stub voice (no model is called), and reports match rates, conversations
+started, ghosting, numbers swapped, reply latency, interest's half-life and how
+fast each archetype warms. A 60-day run is long: seed ranges run side by side
+(`--first-seed`, `--raw`) fold into one report with `--fold`.
 NEON CITY's and THE LONG CON's numbers are authored judgement and haven't been
 simulated; their READMEs say so, and `simulate.py --game` refuses them (and
-Dev Story, the engine's test bench) until their overhauls, v0.25.0-v0.26.0.
+Dev Story, the engine's test bench) until their overhauls, v0.27.0-v0.28.0.
 
 </details>
 
@@ -854,11 +904,13 @@ fixed; details may change as each release lands.
 | v0.20.0 | **Linux as a first-class platform**, and a **hosted, web-served mode**: accounts and a login, per-account runs and saves, one model-server queue, a supervisor and front door, an admin panel, gunicorn, Docker; vLLM run live | **shipped** |
 | v0.21.0 | **UI/UX overhaul**, together with HUE & CRY's screens: engine panels (wanted poster, job panel, casing board, people, encounter, rolls), a layout that holds, a connection that recovers, HUE & CRY's skin; the legacy aliases removed | **shipped** |
 | v0.21.1 | **Test speed** (patch): tiers, parallel hybrid runs, bounded runs, `scripts/run_tests.py` | **shipped** |
-| v0.22.0 | **A new story: a dating simulation** played through a phone of apps -- dating apps, texts, voice and video messages, two-player games -- with a cast the engine runs and no endgame | next |
-| v0.23.0 | **The Clockwork Dark overhaul** | planned |
-| v0.24.0 | **The Wicked Garden overhaul** | planned |
-| v0.25.0 | **NEON CITY overhaul** | planned |
-| v0.26.0 | **THE LONG CON overhaul** | planned |
+| v0.22.0 | **A new story: READ RECEIPTS**, a dating simulation played through a phone of apps -- two dating apps, texts and a messenger, photos, voice notes and videos, meet-ups, two two-player games -- with a cast the engine runs and no endgame | **shipped** |
+| v0.23.0 | **READ RECEIPTS rework**: people who grow closer at their own pace, no set time on dating, phone numbers that work, places (the player's apartment, the cast's homes) with art, and real-life events and meet-ups outside the phone | next |
+| v0.24.0 | **Sound effects** for the engine and every story: alerts, ringtones, button presses | planned |
+| v0.25.0 | **The Clockwork Dark overhaul** | planned |
+| v0.26.0 | **The Wicked Garden overhaul** | planned |
+| v0.27.0 | **NEON CITY overhaul** | planned |
+| v0.28.0 | **THE LONG CON overhaul** | planned |
 | v1.0.0 | **Every story finished**, each with its art and live play (Dev Story stays the engine's test bench) | planned |
 
 Each overhaul gives a story HUE & CRY's full treatment: a design spec, its
@@ -885,6 +937,7 @@ down, not implied. They're in CLAUDE.md's "Deliberately deferred" list and the
 | [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) | Anyone picking this up | What the overhaul found, what it fixed, what's still open |
 | [docs/AUTHORING.md](docs/AUTHORING.md) | Story authors | Writing a story under `games/<slug>/` without reading engine source |
 | [docs/MODEL_SERVERS.md](docs/MODEL_SERVERS.md) | Anyone running the game | The model servers the engine speaks, what it knows about each, model discovery and declared models |
+| [docs/MEDIA_SERVERS.md](docs/MEDIA_SERVERS.md) | Anyone turning on generated pictures | What makes a phone story's photos and portraits (ComfyUI or the procedural tile), the workflows and their bindings, a hosted ComfyUI, and what was run live |
 | [docs/HOSTING.md](docs/HOSTING.md) | Anyone running it on Linux, or for others | Linux as a platform (the start script, each optional service, the suite in a container); what hosted mode is and is not, and upgrading; its accounts and login (`scripts/users.py`), ownership, one live run per player, sharing the model server, the limits; the supervisor, its workers and the front door, the reverse proxy, gunicorn and systemd; the admin panel page by page, metrics, errors and the audit log, and what the operator can read; the Docker image and Compose; the config layers and the doctor's hosted rows; what hosted mode turns off |
 | [docs/AGENTS.md](docs/AGENTS.md) | Architects | The in-game agents: roster, plan, negotiate, commit |
 | [docs/GOVERNANCE.md](docs/GOVERNANCE.md), [docs/STATE.md](docs/STATE.md) | Architects | What is wired, and the NOT WIRED tables |
@@ -902,6 +955,7 @@ Each story has its own README and CHANGELOG:
 | NEON CITY: THE CROSSING | [games/neon-city/README.md](games/neon-city/README.md) | [CHANGELOG](games/neon-city/CHANGELOG.md) |
 | THE LONG CON | [games/the-long-con/README.md](games/the-long-con/README.md) | [CHANGELOG](games/the-long-con/CHANGELOG.md) |
 | HUE & CRY | [games/hue-and-cry/README.md](games/hue-and-cry/README.md) | [CHANGELOG](games/hue-and-cry/CHANGELOG.md) |
+| READ RECEIPTS | [games/read-receipts/README.md](games/read-receipts/README.md) | [CHANGELOG](games/read-receipts/CHANGELOG.md) |
 | Dev Story | [games/dev-story/README.md](games/dev-story/README.md) | [CHANGELOG](games/dev-story/CHANGELOG.md) |
 
 When documents disagree, the code wins, then DESIGN.md.

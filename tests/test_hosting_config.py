@@ -30,6 +30,15 @@ DEFAULT = REPO / "config" / "default.yaml"
 LATER_KEYS: set[str] = set()  # T17 added the last of them, observability.retention_days
 LATER_SECTIONS: tuple[str, ...] = ()
 
+#: Keys a LATER release's spec added to the block -> (that spec's file under
+#: docs/superpowers/specs/, its section): the v0.20.0 spec's §6.9 is the
+#: base, not the whole of it. Each cited spec must name its key
+#: (``test_each_later_release_key_is_in_the_spec_it_cites``).
+LATER_RELEASE_KEYS: dict[str, tuple[str, str]] = {
+    # v0.22.0 (READ RECEIPTS): the phone's own bucket.
+    "rate_limits.phone_actions_per_minute": ("2026-10-08-v0.22.0-dating-sim-design.md", "§17.1"),
+}
+
 
 def _flatten(tree: dict[str, Any], prefix: str = "") -> set[str]:
     keys: set[str] = set()
@@ -72,9 +81,18 @@ def test_the_key_set_is_the_spec_s_less_the_later_tasks_keys() -> None:
         key
         for key in _spec_keys()
         if key not in LATER_KEYS and not key.startswith(LATER_SECTIONS)
-    }
+    } | set(LATER_RELEASE_KEYS)
     assert set(SCHEMA) == expected
     assert _flatten(_default_block()) == expected
+
+
+@pytest.mark.parametrize("key", sorted(LATER_RELEASE_KEYS))
+def test_each_later_release_key_is_in_the_spec_it_cites(key: str) -> None:
+    spec_file, section = LATER_RELEASE_KEYS[key]
+    text = (SPEC.parent / spec_file).read_text(encoding="utf-8")
+    leaf = key.rsplit(".", 1)[-1]
+    assert leaf in text, f"{spec_file} does not name {key}"
+    assert section.lstrip("§") in text, f"{spec_file} has no {section}"
 
 
 def test_the_shipped_block_validates_and_is_off() -> None:
@@ -84,6 +102,7 @@ def test_the_shipped_block_validates_and_is_off() -> None:
     assert settings.session_days == 14
     assert settings.logins_per_minute == 5
     assert settings.public_origin == ""
+    assert settings.phone_actions_per_minute == 90   # v0.22.0 spec §17.1
 
 
 def _block(**changes: Any) -> dict[str, Any]:

@@ -422,6 +422,7 @@ def new_game_state(
     archetype: Optional[str] = None,
     seed: Optional[int] = None,
     location_id: Optional[str] = None,
+    creation: Optional[dict[str, Any]] = None,
 ) -> GameState:
     """
     Create a new session with procgen-populated world.
@@ -436,17 +437,34 @@ def new_game_state(
         location_id: Starting location. None means "ask the active manifest",
             which is now the only correct answer -- the old ``forest_clearing``
             default started every story in Edgewood.
+        creation: The player-creation payload (v0.22.0 spec §3.2), for a
+            story declaring ``paths.social``; None there means every default.
+            A story without the key takes none.
 
     Returns:
         Fresh GameState ready for play.
+
+    Raises:
+        ValueError: ``creation`` given to a story with no creation form, or
+            refused by it (``engine.social.creation.CreationError``).
     """
     from engine.session import default_archetype
+    from engine import social
 
     chosen = default_archetype() if archetype is None else archetype
+    if social.declared():
+        # One identity (v0.22.0 T27): the creation form's `name` is the
+        # player's, seeded from `player_name` when the payload names none.
+        social.boot()
+        from engine.social import creation as social_creation
+
+        creation = social_creation.seeded_name(creation or {}, player_name)
+        player_name = social_creation.name_of(creation) or player_name
     state = GameState(
         player_name=player_name,
         archetype=chosen,
         location_id=location_id or entry_location_id(),
+        **_story_start(),
     )
     # The story's own opening arc(s), not the flagship's `quiet_life`.
     from engine.game.quests import seed_default_arcs
@@ -454,7 +472,36 @@ def new_game_state(
     seed_default_arcs(state)
     apply_archetype(state, chosen)
     populate_state(state, seed=seed)
+    # READ RECEIPTS (v0.22.0, spec §3.2): the player's profile, after the
+    # seed is set (its seeded defaults read it). `engine.social` itself reads
+    # only config; its submodules load only for a story declaring the key.
+    if social.declared():
+        social.boot()
+        from engine.social import creation as social_creation
+
+        social_creation.apply(state, creation or {})
+    elif creation is not None:
+        raise ValueError("this story has no creation form")
     return state
+
+
+def _story_start() -> dict[str, Any]:
+    """
+    The world clock a story's new run is born at, as GameState's keyword:
+    READ RECEIPTS' 19:00 on day 1 (v0.22.0 spec §15.4, its `creation.yaml`
+    `start_hour`). A birth, not a passage of time -- no hour is advanced, so
+    nothing ticks. Empty for every story without `paths.social`, which keep
+    the dataclass default (08:00) and stay byte-identical.
+    """
+    from engine import social
+
+    if not social.declared():
+        return {}
+    social.boot()
+    from engine.social import creation as social_creation
+
+    hours = social_creation.start_hours()
+    return {} if hours is None else {"world_clock_hours": hours}
 
 
 def apply_archetype(state: GameState, archetype: str) -> dict[str, Any]:

@@ -103,7 +103,7 @@ const NAMES = Object.keys(PLUGINS)
 const isComponent = (value) => typeof value === "function";
 
 describe("the plugin directory", () => {
-  it("ships the five story plugins plus the engine's own", () => {
+  it("ships the six story plugins plus the engine's own", () => {
     // Not a count: the names. A plugin appearing with no story pointing at it
     // is a chunk in the committed dist/ that nothing can ever load, and one
     // disappearing is a story that silently falls back to something else.
@@ -117,6 +117,7 @@ describe("the plugin directory", () => {
       "clockwork-dark",
       "hue-and-cry",
       "neon-city",
+      "read-receipts",
       "the-long-con",
       "wicked-garden",
     ]);
@@ -128,7 +129,7 @@ describe("the plugin directory", () => {
     // of five, which is the failure mode a harvested list has and a hand
     // written one does not.
     expect(ALLOWED.size).toBeGreaterThan(15);
-    for (const slot of ["Ledger", "Stage", "overlays", "bodyData", "hideChoices"]) {
+    for (const slot of ["Ledger", "Stage", "overlays", "bodyData", "hideChoices", "PlayScreen", "NewRun"]) {
       expect(ALLOWED.has(slot)).toBe(true);
     }
   });
@@ -178,7 +179,7 @@ describe.each(NAMES)("plugin: %s", (name) => {
     const plugin = (await load()).default;
     const slots = [
       "Mark", "HeaderBadge", "Aside", "Ledger", "Stage", "Toast",
-      "MenuBanner", "Wrap", "StartIntro", "Wordmark", "Ending",
+      "MenuBanner", "Wrap", "StartIntro", "Wordmark", "Ending", "PlayScreen", "NewRun",
     ];
     for (const slot of slots) {
       if (plugin[slot] == null) continue;
@@ -343,6 +344,30 @@ describe("the panel seam (v0.21.0)", () => {
     expect(plugin.ownsPanels).toBeUndefined();
     expect(plugin.defaultStage).toBe(true);
     expect(plugin.bodyData({})).toEqual({ storySkin: "hue-and-cry" });
+  });
+
+  it("a borrowed plugin loses PlayScreen and NewRun, as it loses overlays; its own story keeps them (v0.22.0)", async () => {
+    const { dressPlugin } = await import("../src/core/story.js");
+    const PlayScreen = () => null;
+    const NewRun = () => null;
+    const Overlay = () => null;
+    const phone = {
+      slug: "a-phone", title: "A Phone", PlayScreen, NewRun,
+      overlays: [{ id: "x", label: "X", Component: Overlay }],
+    };
+    const borrowed = dressPlugin(phone, "a-phone", "a-borrower", "A Borrower");
+    expect(borrowed.PlayScreen).toBeNull();
+    expect(borrowed.NewRun).toBeNull();
+    expect(borrowed.overlays).toEqual([]);
+    expect(borrowed.title).toBe("A Borrower");
+    const own = dressPlugin(phone, "a-phone", "a-phone", "A Phone");
+    expect(own.PlayScreen).toBe(PlayScreen);
+    expect(own.NewRun).toBe(NewRun);
+    // And a shipped plugin borrowed today carries neither key's value.
+    const { loadStory } = await import("../src/core/story.js");
+    const garden = await loadStory("wicked-garden", "a-borrower", "A Borrower");
+    expect(garden.PlayScreen).toBeNull();
+    expect(garden.NewRun).toBeNull();
   });
 
   it("a borrowed plugin keeps ownsPanels and defaultStage; the declaration is the story's", async () => {

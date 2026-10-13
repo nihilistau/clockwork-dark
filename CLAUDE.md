@@ -10,37 +10,41 @@ release to release.
 
 ## Status
 
-**v0.21.1** (a patch: test speed) is the current release (CHANGELOG.md has every release since 0.4.0;
+**v0.22.0** (a new story: READ RECEIPTS, a dating story played on a phone) is the current release (CHANGELOG.md has every release since 0.4.0;
 each story's own changes are in `games/<slug>/CHANGELOG.md`).
 
-**Test times (v0.21.1, `scripts/run_tests.py`, measured 2026-10-08):**
-`full` (the hybrid) **16.7 min, exit 0**, with 4 flaky tests passing their
-solo re-run (parallel phase 4.7 min + serial phase 11.8 + re-run 0.2); `full`
-serial (one process) **28m50s**, green earlier; `fast` about **5.8 min**. Not
-re-measured at the release.
-
-**Windows: 5977 passed, 24 skipped in 54m48s** (v0.21.0, measured
-2026-10-07 at the release; one more test failed in that run,
-`tests/test_screenshot_runs.py::test_serve_refuses_a_port_that_already_answers`,
-a loopback stall of this machine that passes alone, and one test errored on
-a port clash fixed before the release, `tests/conftest.py::hold_guarded_ports`;
-in a checkout holding the gitignored
-`Design_files/`, which runs the Design_files-only Garden test; a fresh
-worktree skips it too), no expected failures. The 24 skips: `tests/test_llm_live.py`
-(unless `CLOCKWORK_LIVE_LLM` names the configured model server); the ten
-tests of `tests/test_docker_smoke.py` (opt-in, `CLOCKWORK_DOCKER_SMOKE=1` and
-a built image); the stamina soft-lock test's three stories (it covers only
-stories with no rest verb); THE LONG CON's word-limit check;
-`tests/test_constraints.py`'s installed-version check for `faster-whisper`
-and `gunicorn` (neither installed on Windows); six POSIX-only tests (file
-modes in accounts, login and metrics, two exact-name command lookups, POSIX
-process groups); and one bus test skipped by design (a reply to nothing
-after `hello`). `tests/test_simulate_thief.py` alone takes about four
-minutes. Plus **462
-client tests** under `ui/tests/` (`npm test --prefix ui`; `vitest` is a
-devDependency, so `npm install --prefix ui` once first). Re-measure and
-restate these at every release rather than trusting this line -- it has
-been stale before, in the very sentence that warned about it.
+**Windows, v0.22.0 (`scripts/run_tests.py full`, measured 2026-10-14 at
+the release): 7386 passed, 32 skipped, 2 failed, exit 1, in 98.5 min**
+(parallel phase 6859 passed, 18 skipped in 21.8 min; serial phase 527
+passed, 14 skipped, 2 failed in 55.0 min; the solo re-run of the two 21.8
+min). The release is far slower than v0.21.1's 16.7 min because of
+READ RECEIPTS' `slow` pins: `tests/test_social_save_size.py` (940 s, a
+day-180 save), `tests/test_social_commit_scope.py` (422 s) and, in the
+serial phase (it starts interpreters), `tests/test_simulate_social.py`'s
+60-day and 75-day simulator runs (about 25 min, and again in the re-run).
+The two failures:
+`tests/test_admin_model.py::test_a_worker_restarted_for_another_reason_during_the_drain_boots_under_the_old_file`
+failed in the serial phase and in its solo re-run, which could not pass
+alone: it needed its module's earlier tests to have set 0.55. It now sets
+its own precondition (passed solo twice and in its file, v0.22.0 T32); the
+serial-phase failure was a timing flake, its cause not hunted. `tests/test_simulate_social.py::test_closeness_takes_its_days[warming-romantic]`
+fails for real: on its seeds 0-9 a romantic reaches warming in 5.22 days
+(band 2-5), 4.08 before the final review's wave 2 (the numbers gate,
+cfaf1c6, whose own run did not include the closeness tests); over 40 seeds
+it is 3.76, in band. The cell is deferred by data, not retuned
+(`DEFERRED_CLOSENESS`, its row below; v0.22.0 T32 ruling). The
+skips: `tests/test_llm_live.py` (unless `CLOCKWORK_LIVE_LLM` names the
+configured model server); the ten tests of `tests/test_docker_smoke.py`
+(opt-in, `CLOCKWORK_DOCKER_SMOKE=1` and a built image); the stamina
+soft-lock test's stories with no rest verb; THE LONG CON's word-limit
+check; `tests/test_constraints.py`'s installed-version check for
+`faster-whisper` and `gunicorn` (neither installed on Windows); the
+POSIX-only tests; and one bus test skipped by design. Plus **684 client
+tests** in 30 files under `ui/tests/` (`npm test --prefix ui`; `vitest` is a
+devDependency, so `npm install --prefix ui` once first). `fast` was not
+re-measured (v0.21.1: about 5.8 min). Re-measure and restate these at every
+release rather than trusting this line -- it has been stale before, in the
+very sentence that warned about it.
 A bare `pytest` is the fast tier since v0.21.1 (`slow` and `process` left
 out); the numbers above are `--full`.
 
@@ -120,7 +124,10 @@ to the audit log (`engine/hosting/audit.py`). **Metrics** in a closed
 schema (`engine/hosting/metrics_schema.py`), kept by the supervisor in
 SQLite. **Docker**: `Dockerfile`, `config/docker.yaml`, `docker-compose.yml`
 (published on the host's loopback, a `vllm` profile).
-Six stories ship, and every one can be played to an ending
+Seven stories ship. READ RECEIPTS (`read-receipts`, v0.22.0) is endless
+(`endless: true`, no ending, by the owner's brief): a dating story played on
+a phone, its cast run by the engine, and `tests/test_finales.py` holds that it
+declares no ending. The other six can each be played to an ending
 (`tests/test_finales.py`): `clockwork-dark` (the flagship), `wicked-garden`
 (the deck exemplar), `neon-city` (NEON CITY: THE CROSSING), `the-long-con` (THE
 LONG CON, the first graph/deck hybrid), `dev-story` (the annotated bench) and
@@ -179,11 +186,13 @@ only once the last of them lands:
 | v0.20.0 | Linux as a first-class platform, and a hosted/web-served mode: auth, per-user sessions and saves, a production server, Docker -- with the supervisor and front door, the admin panel and its audit log, metrics, and vLLM run live | **shipped** |
 | v0.21.0 | UI/UX overhaul, together with HUE & CRY's screens: the wanted poster, job panel and casing board as generic engine panels, portraits | **shipped** |
 | v0.21.1 | Patch: test speed -- tiers, pytest-xdist hybrid runs, bounded runs (`scripts/run_tests.py`), libyaml, a shared HTTP client | **shipped** |
-| v0.22.0 | A new story: a dating simulation played through a phone of apps (dating apps, texts, instant messages, voice and video messages, two-player games), a populated cast the engine runs, no endgame (owner's brief: docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | next |
-| v0.23.0 | The Clockwork Dark overhaul | queued |
-| v0.24.0 | The Wicked Garden overhaul | queued |
-| v0.25.0 | NEON CITY overhaul | queued |
-| v0.26.0 | THE LONG CON overhaul | queued |
+| v0.22.0 | A new story: a dating simulation played through a phone of apps (dating apps, texts, instant messages, voice and video messages, two-player games), a populated cast the engine runs, no endgame (owner's brief: docs/superpowers/briefs/2026-09-30-dating-sim-brief.md) | **shipped** |
+| v0.23.0 | READ RECEIPTS rework: growth (people who change at their own pace, conversations and willingness that ramp up), no set time on dating, phone numbers that work, places (the player's apartment and its rooms, 3-4 homes for the cast) with their art, and real-life events and meet-ups happening outside the phone; slice of life, no ending (owner's brief, with its addendum: docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md) | next |
+| v0.24.0 | Sound effects for the engine and every story: alerts, ringtones, button presses (owner's brief: docs/superpowers/briefs/2026-10-13-sound-effects-brief.md) | queued |
+| v0.25.0 | The Clockwork Dark overhaul | queued |
+| v0.26.0 | The Wicked Garden overhaul | queued |
+| v0.27.0 | NEON CITY overhaul | queued |
+| v0.28.0 | THE LONG CON overhaul | queued |
 | v1.0.0 | Every story finished, each with its art and live play -- `hue-and-cry`'s being a thief mistaken for "the Magpie" in the candle-port of Tallowmere, eight endings, a ~55-plate Grok art pack -- tagged only once this lands. `dev-story` is the engine's test bench, not a story, and is not overhauled | queued |
 
 Re-cut once more by the owner on 2026-09-26: the platform releases (v0.19.0
@@ -193,11 +202,13 @@ v0.21.0, so the shared surfaces are built once, as engine panels.
 
 Re-cut again by the owner on 2026-09-26 (during v0.16.0): after the UI/UX
 overhaul, each of the other five stories gets the full HUE & CRY treatment,
-one a release (now v0.23.0–v0.26.0, Dev Story excepted): a design spec, its story and characters,
+one a release (now v0.25.0–v0.28.0, Dev Story excepted): a design spec, its story and characters,
 the engine systems apt to it, every ending reachable and tested, measured
 balance, reviews, UI screens and art. A large story may take two minors,
 which shifts the later numbers. v1.0.0 now means all six stories finished,
-with art and live play for each. The owner does not approve each
+with art and live play for each -- and READ RECEIPTS, the seventh, endless
+story, counts too: it needs its art and live play like the others (owner,
+2026-10-13, docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md). The owner does not approve each
 overhaul's design: write the spec, have it reviewed (opus), build it, and
 keep going.
 
@@ -207,6 +218,17 @@ v0.23.0-v0.26.0. Dev Story leaves the overhaul list: it was only ever a
 testing ground, not a story. The new story's brief is the owner's own,
 kept verbatim in docs/superpowers/briefs/2026-09-30-dating-sim-brief.md;
 its design follows the same rule (spec, opus review, build).
+
+Re-cut again by the owner on 2026-10-13 (during v0.22.0): sound effects for
+the engine and every story (alerts, ringtones, button presses; brief
+verbatim in docs/superpowers/briefs/2026-10-13-sound-effects-brief.md) were
+added after v0.22.0, and the four overhauls moved up one. Then, the same
+day, after playing v0.22.0: v0.23.0 is READ RECEIPTS' rework (growth, no
+set time on dating, places and their art, real-life events and meet-ups
+outside the phone; brief and addendum verbatim in
+docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md), sound
+effects are v0.24.0 and the overhauls v0.25.0-v0.28.0. Same rule: spec,
+opus review, build.
 
 **The README is kept current at every release through v1.0.0** (owner
 instruction, 2026-09-26): status, features and roadmap each release; new
@@ -235,7 +257,7 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
 - The Garden's bargains work only as written: `bargain` strikes, `discharge`
   settles, falling due breaks. Its renegotiations, the knife's cut, the gift
   auto-thread (`accept_gift`) and two undeclared templates (`briar_witness`,
-  `three_nights_or_truths`) are NOT WIRED (docs/GOVERNANCE.md); the v0.24.0
+  `three_nights_or_truths`) are NOT WIRED (docs/GOVERNANCE.md); the v0.26.0
   Wicked Garden overhaul takes them up.
 - `mortal_threshold`, the Garden's entry location, has no plate on purpose (it
   hosts the ten-card prologue), so a new player sees no scene art until the
@@ -582,8 +604,9 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   compares hosts, not ports, so a page on loopback at another port counts as
   the same site (documented in the module).
 - CI runs the suite as ONE job, `run_tests.py full --workers 2` (the hybrid,
-  every tier; unmeasured on the 2-vCPU runner until it first runs; budget
-  150 minutes).
+  every tier; budget 150 minutes). Its first run, on the v0.21.1 push (run
+  37657972199, 2026-10-07), was green in 10m29s (the serial-run suite took
+  40 min on v0.20.2); `image` 32 s, `client` 25 s.
 - Locally the suite is xdist-safe since v0.21.1: `run_tests.py full` and
   `fast` are hybrids -- every test but the `process`, `mcp_server` and
   `loopback` ones on 6 workers (`--dist loadgroup`), then those serially,
@@ -708,7 +731,7 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   work, a thread's paper) send the player's words as typed text, which carries
   no intent, so no skill runs from them and the prose can tell of a trade the
   save never made (a GOVERNANCE NOT WIRED row names the five files). The
-  overlay-to-intent path is the v0.23.0 (flagship) and v0.25.0 (NEON CITY)
+  overlay-to-intent path is the v0.25.0 (flagship) and v0.27.0 (NEON CITY)
   overhauls' work, not a fix (v0.21.0 final review, controller ruling).
 - Under 640px tall, with the people strip in the stage, the scene plate gives
   way to the strip entirely (HUE & CRY at 900x600 and 844x390), so the log
@@ -725,7 +748,7 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   stands in (`_law_block`), the prose of a turn finished across a server
   restart, a story switched in another tab then a reconnect, a player's
   place in the queue, and the flagship's and NEON CITY's encounter look
-  (theirs to restyle in v0.23.0 and v0.25.0).
+  (theirs to restyle in v0.25.0 and v0.27.0).
 - The `process` guard (`tests/tier_plugin.py`, v0.21.1) sees only the
   suite's direct `subprocess.Popen` children. A grandchild interpreter (an
   `sh`, or on Windows a `cmd /c`, that starts python) and a start that
@@ -749,6 +772,83 @@ Recorded rather than fixed, so nobody mistakes them for forgotten work:
   clients now ride out short spells (5 of 5 runs passed across two of them);
   a long one can still fail a hosted test. Cause unknown and outside the
   repository.
+- `scripts/validate_content.py` (and `engine/games/validation.py::validate_story`,
+  which it runs) does not run `engine/games/registry.py::validate`'s manifest
+  checks, so it can report 0 errors on a story the registry marks unplayable
+  and refuses to activate: found in v0.22.0 T2, where READ RECEIPTS without
+  `entry.archetypes` validated clean but could not be activated. Recorded,
+  not fixed.
+- READ RECEIPTS' live relationships at day 30 (spec §20, band 4-10) measure 35.0 for the attentive player (20 seeds x 60 days, neutral model, v0.22.0 T26 fix round 1), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not banded.
+  The attentive player matches about 2.5 people a day and answers everything,
+  and a relationship that goes quiet stays live until it fades, `fade_days` 21
+  days later (spec §10.3). The band was reached once, with a 1.75-day fade and
+  a 1-day match expiry; that was rejected (relationships must remain, and a
+  weekend away cost a quarter of them). Ghosting is held to its own band
+  (20-35% in 14 days, measured 0.28), and the other rows land. The levers
+  left: fewer matches surfaced to the attentive player (its 19 likes a day are
+  the harness's, the like-back rate is at its band's floor), or a quiet
+  relationship counted as something other than live (a spec change).
+- READ RECEIPTS' talking-to-numbers within 21 days (spec §20, band 15-30%) measures 35.0% for the attentive player (10 seeds x 60 days, neutral model) since the numbers gate lost its 6 in-game days (owner bug, v0.22.0 final review wave 2: warmth 30, trust 23, 20 exchanges, no days), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not banded; v0.23.0 redesigns pacing around real session time (the owner's growth brief, docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md).
+- READ RECEIPTS' numbers-to-meet within 21 days (spec §20, band 25-45%) measures 16.0% for the attentive player (10 seeds x 60 days, neutral model) since numbers come days sooner, at lower warmth and trust, while the meeting gate (warmth 70, trust 70) is unchanged (v0.22.0 final review wave 2), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not banded; v0.23.0 redesigns pacing around real session time (the owner's growth brief).
+- READ RECEIPTS' awkward meet-ups (spec §20, band 10-20%) measure 20.8% for the attentive player (10 seeds x 60 days, neutral model) since the numbers gate lost its days (v0.22.0 final review wave 2), so the row is deferred by data (`tests/test_simulate_social.py` `DEFERRED_ROWS`), not banded; v0.23.0 redesigns pacing around real session time (the owner's growth brief).
+- READ RECEIPTS' days from a match to warming for a romantic (spec §20, band 2-5 days) measure 5.22 on `tests/test_simulate_social.py`'s seeds 0-9 (attentive, neutral model, 60 days; 4.08 before the final review's wave 2 numbers gate, 9c09d38) and 3.76 over 40 seeds, in band: seed-sensitive, so the cell is deferred by data (`tests/test_simulate_social.py` `DEFERRED_CLOSENESS`), not retuned or widened; v0.23.0 replaces the pacing model (the owner's growth brief and its addenda).
+- READ RECEIPTS' backlog after a long absence (v0.22.0 T26, accepted): a
+  72-hour away at day 60 leaves 47 due messages for the first voicing pass at
+  the p95 (54 with a warm model; 20 seeds x 60 days, attentive), because a
+  quiet relationship stays live for its 21 days. `social.voice.max_per_pass`
+  stays 3: passes run back to back and each reply commits as it lands, so the
+  cap bounds one pass's work under the lock, not the catch-up, which takes
+  several passes (config/default.yaml's comment).
+- READ RECEIPTS' meet-ups come late (v0.22.0 T26, accepted): the `meeting`
+  gate is warmth 70 and trust 70 (relationships.yaml), so a first meet-up
+  needs weeks of steady contact (numbers to a meet within 21 days 0.36, in
+  its band). A player who looks at the phone only at fixed hours misses many
+  of those that come due -- the simulator's swiper 4.65 and slow player 2.2
+  no-shows a run over 30 days. Measured and kept; the lever is the gate.
+- READ RECEIPTS' whole-state serialisation on every phone save (v0.22.0
+  T15, deferred): a save (`engine/social/saves.py::save_now`, at once on a
+  match, a stage change, an away advance, and from the dirty timer)
+  serialises the WHOLE state under the turn lock. Re-measured at the release
+  after T26's compaction (seed 7, attentive, warm stub, 30 days on disk:
+  1,201 people, 160 threads, 1,043 messages in state, `save.json` 598 KB):
+  `GameState.to_save_dict` 60 ms (median; 220 ms before the compaction),
+  the store's whole save 112 ms, `compact` 2.4 ms. In hosted mode it is also
+  GIL time every account on the worker shares. The lever: a save that writes
+  only the slices an action dirtied. (The voicing pass's own commit no
+  longer pays it: T26's `voicer.ScopedTransaction`.)
+- READ RECEIPTS' agreement check re-normalises every contact's name forms on
+  every check (v0.22.0 T15, deferred): `engine/social/agreement.py::_another_person`
+  builds `name_forms` for each contact per reply, in the voicing pass and
+  again in its commit's re-check under the turn lock. Measured at the
+  release (same day-30 run, the busiest person, 80 contacts): 7.0 ms a
+  check. The lever: cache the forms per contacts revision.
+- READ RECEIPTS' phone block and catalogue are rebuilt per action (v0.22.0
+  T15, deferred): `engine/social/payload.py::phone_block` (14 ms at day 30)
+  and `engine/social/intents.py::legal_phone_intents` (10 ms) walk every
+  thread on every action, O(threads), with nothing cached between actions.
+- READ RECEIPTS' deck order is reshuffled on every top-card read (v0.22.0
+  T15, recorded): `engine/social/apps.py::order` shuffles the day's whole
+  pool (about 1,800 indices on Matchstick) for each `top_card`, 0.4 ms at
+  day 30. A cache would need a module-state row.
+- READ RECEIPTS' texter latency is not measured live (v0.22.0 T14): the
+  voicing pass was built and tested with scripted voices only, and no live
+  model was called during the release, so the `llm.profiles.texter` call's
+  p50/p95 and how often `reasoning_budget: 0` starves on the owner's model
+  are open (docs/MODEL_SERVERS.md § The texter profile).
+- READ RECEIPTS' media servers are not verified live (v0.22.0 T19-T21):
+  no ComfyUI was listening during T17-T20, so the phone's `photo` and
+  `video` workflows (`config/comfyui/video_wan.json`: node types, model file
+  names, `SaveWEBM`'s history shape) have run only against the stub; and no
+  Voxtral TTS server was run in T21 (`tts.enabled` stays off), so voice notes
+  have been spoken only by the in-process stub. Off, every picture is a
+  procedural tile and every voice note its transcript tile
+  (docs/MEDIA_SERVERS.md § Verified; GOVERNANCE rows).
+- READ RECEIPTS' phone-action cadence was measured by an agent, not a person
+  (v0.22.0 T30): driving the pane at 1366x768, 77 actions over 552 s reached
+  p95 32 and at most 36 actions in a minute (a dedicated swipe minute: 36 in
+  54 s, p95 34), so `hosting.rate_limits.phone_actions_per_minute` stays 90
+  (p95 under 0.75 x 90). A fast human thumb may approach the spec's 60 a
+  minute, still inside 90 (docs/HOSTING.md).
 - The NOT WIRED tables: [docs/GOVERNANCE.md](docs/GOVERNANCE.md),
   [docs/STATE.md](docs/STATE.md), [docs/AGENTS.md](docs/AGENTS.md).
 

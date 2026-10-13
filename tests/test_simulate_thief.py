@@ -757,9 +757,9 @@ def test_living_is_a_hue_and_cry_policy(capsys) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("slug,release", [("neon-city", "v0.24.0"),
-                                          ("the-long-con", "v0.25.0"),
-                                          ("dev-story", "v0.26.0")])
+@pytest.mark.parametrize("slug,release", [("neon-city", "v0.27.0"),
+                                          ("the-long-con", "v0.28.0"),
+                                          ("dev-story", "")])          # the test bench: no overhaul
 def test_a_graph_story_with_no_harness_is_refused_truthfully(capsys, slug: str,
                                                              release: str) -> None:
     from engine.games import registry
@@ -774,6 +774,7 @@ def test_a_graph_story_with_no_harness_is_refused_truthfully(capsys, slug: str,
     assert excinfo.value.code == 2
     err = capsys.readouterr().err
     assert "flagship-owned" in err and release in err and "hue-and-cry" in err
+    assert ("its overhaul" in err) == bool(release)
 
 
 # ---------------------------------------------------------------------------

@@ -104,6 +104,19 @@ def test_a_good_event_is_stored_as_typed_columns(store: MetricsStore) -> None:
     assert row[1:] == (NOW, A, ACCOUNT, 5.0, 100.0, "ok")
 
 
+def test_a_refused_phone_action_is_counted_per_minute_never_a_row(store: MetricsStore) -> None:
+    """v0.22.0: a ``phone`` ``refused`` (its cap, the phone bucket, the engine) is bounded as a refused turn is."""
+    phone = {"kind": "phone", "ts": NOW, "story": A, "account": ACCOUNT, "event": "action", "ms": 0.0}
+    for _ in range(5):
+        assert store.record({**phone, "status": "refused"})
+    assert store.record({**phone, "status": "ok", "ms": 2.5})
+    assert store.flush()
+    assert _rows(store.path, "phone") == [(1, NOW, A, ACCOUNT, "action", "ok", 2.5)]
+    assert _rows_of(store.path, "SELECT minute, kind, story, outcome, count FROM refused") == [
+        (math.floor(NOW / 60) * 60, "phone", A, "refused", 5)
+    ]
+
+
 def test_a_full_store_queue_drops_and_counts(tmp_path: Path) -> None:
     store = MetricsStore(tmp_path / "m.sqlite3", retention_days=30, stories=(A,), maxsize=2)  # never opened: no writer
     assert store.record(_turn()) and store.record(_turn())

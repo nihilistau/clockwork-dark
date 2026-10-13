@@ -68,6 +68,7 @@ Version: v0.3.0 [2026-10-06]
 from __future__ import annotations
 
 import contextvars
+import itertools
 import logging
 import threading
 import time
@@ -376,10 +377,81 @@ class GameSession:
     # its turn lock is released (``run_guarded``), releases the session.
     ending: bool = False
     end_after_turn: Optional[Callable[[], None]] = None
+    # v0.22.0 (spec §16.2, §17.2): which BUILD of this run the object is --
+    # a fresh number from the process-wide ``_EPOCHS`` at every ``_build``
+    # (create or resume), so a resumed run (same id, new object) is never
+    # mistaken for the old one -- whether its phone state has changed since
+    # its last save (``engine.social.saves.mark_dirty``), and the store that
+    # built it (Plan decision 28: liveness asks the session's OWN store).
+    # None of the three is ever saved.
+    epoch: int = 0
+    dirty: bool = False
+    store: Optional["SessionStore"] = field(default=None, repr=False, compare=False)
+    # v0.22.0 T14 (spec §16.2, §16.4), none of them ever saved: the due
+    # messages a live voicing pass has taken (message id -> pass id), the
+    # threads with a voicing call in flight (the payload's `typing`), and the
+    # inbox of results that could not take the turn lock. Pass threads change
+    # the first two holding no turn lock, so every reader iterates a copy
+    # (``tuple(...)``). Every session gets an inbox object -- a story without
+    # ``paths.social`` too: it is cheap and never used -- built lazily so this
+    # module imports nothing of ``engine.social`` at its top.
+    voicing: dict[str, str] = field(default_factory=dict, repr=False, compare=False)
+    typing: set[str] = field(default_factory=set, repr=False, compare=False)
+    inbox: Any = field(default_factory=lambda: _new_inbox(), repr=False, compare=False)
+    # v0.22.0 T16 fix round 1 (review M4), never saved: a transcript line
+    # whose save failed (the away advance's ``{kind: away}``), written by the
+    # retry that next succeeds (``engine.social.saves.save_now``).
+    pending_entry: Optional[dict[str, Any]] = field(default=None, repr=False, compare=False)
 
     @property
     def session_id(self) -> str:
         return self.engine.state.session_id
+
+
+def _new_inbox() -> Any:
+    """A fresh ``engine.social.inbox.SessionInbox`` (imported here, never at this module's top)."""
+    from engine.social.inbox import SessionInbox
+
+    return SessionInbox()
+
+
+#: Every ``GameSession.epoch``, process-wide (spec §16.2): drawn once per
+#: ``_build`` under that store's guard; ``next`` on a ``count`` is one C call,
+#: so two stores drawing at once still get distinct numbers.
+_EPOCHS = itertools.count(1)
+
+
+def release_turn(session: GameSession) -> None:
+    """
+    Let go of a turn lock: release it, then run ``end_after_turn`` if an
+    admin's end is waiting for this turn (v0.20.0 T15). THE ONE WAY a turn
+    lock is let go (v0.22.0 Plan decision 31): ``run_guarded``,
+    ``owner_write`` and the phone's saver, voicer and media hand-off all call
+    it, so none can forget the end that was waiting.
+    """
+    session.lock.release()
+    after = getattr(session, "end_after_turn", None)
+    if after is not None:
+        after()
+
+
+def _flush_taken(session: GameSession) -> None:
+    """
+    A run taken out of the store for good, its turn lock held (the idle sweep,
+    one run per account): in a story declaring ``paths.social``, save its
+    phone state if it changed since its last save (spec §16.5). Absent in any
+    other story. Never raises.
+    """
+    from engine import social
+
+    if not social.declared():
+        return
+    try:
+        from engine.social import saves
+
+        saves.flush_taken(session)
+    except Exception as exc:  # noqa: BLE001 -- a release must not fail on a save
+        logger.warning("[session] Phone flush failed (operation=_flush_taken, id=%s): %s", session.session_id, exc)
 
 
 def _is_busy(session: GameSession) -> bool:
@@ -551,6 +623,8 @@ class SessionStore:
                 raise SessionConflict(
                     f"session {state.session_id} is live under another owner"
                 )
+            session.epoch = next(_EPOCHS)
+            session.store = self
             if one_per_owner:
                 # ONE LIVE SESSION PER ACCOUNT (spec §5.4), decided here,
                 # atomically with the insert, so two starts at once cannot
@@ -566,6 +640,7 @@ class SessionStore:
             # good, so a request that found it before the release is refused
             # as busy and the old engine never autosaves over this one (a
             # resume of the same save rebuilds the same id: finding 7).
+            _flush_taken(other)  # its phone state, saved holding that lock (spec §16.5)
             self._release(other.session_id, RELEASED_ELSEWHERE)
             self._event("released", other.owner)
 
@@ -589,6 +664,7 @@ class SessionStore:
         seed: Optional[int] = None,
         llm_fn: Optional[LLMFn] = None,
         owner: Optional[str] = None,
+        creation: Optional[dict[str, Any]] = None,
     ) -> GameSession:
         """
         Create a new procgen-backed session and write its first save, into
@@ -605,12 +681,18 @@ class SessionStore:
         Hosted mode: the account's other live run is released first (spec
         §5.4).
 
+        ``creation`` is a story's player-creation payload (v0.22.0 spec §3.2),
+        passed to ``new_game_state``; only a story declaring ``paths.social``
+        takes one.
+
         Raises:
             OwnerUnset: hosted mode with no owner (``request_owner``).
             SessionBusy: hosted, and the account's other run has a turn
                 running.
             SavesFull: hosted, and the account's saves in this story are at
                 ``hosting.max_saves_per_story``.
+            engine.social.creation.CreationError: ``creation`` refused (a
+                ``ValueError`` naming the field); nothing was built or saved.
         """
         owner = request_owner(owner) or ""
         self._refuse_if_owner_busy(owner)
@@ -620,9 +702,11 @@ class SessionStore:
             player_name=player_name,
             archetype=archetype or default_archetype(),
             seed=seed,
+            creation=creation,
         )
         saves = self._store_for(owner)
         session = self._build(state, llm_fn=llm_fn, owner=owner, saves=saves)
+        self._stamp_active(session)
         session.last_turn = self._opening(state)
         try:
             room = save_room_limit() if owner else None
@@ -677,6 +761,7 @@ class SessionStore:
         owner = request_owner(owner) or ""
         self._refuse_if_owner_busy(owner)
         saves = self._store_for(owner)
+        self._flush_before_load(owner, save_id)
         state, memory = saves.load(save_id)
         session = self._build(
             state,
@@ -686,6 +771,8 @@ class SessionStore:
             owner=owner,
             saves=saves,
         )
+        self._away_advance(session)
+        self._resubmit_media(session)
         session.last_turn = self._resume_opening(state, session.ledger)
         logger.info(
             "[session] Session resumed (operation=resume, save=%s, day=%s)",
@@ -694,6 +781,121 @@ class SessionStore:
         )
         self._event("resumed", owner)
         return session
+
+    @staticmethod
+    def _stamp_active(session: GameSession) -> None:
+        """
+        A phone story (v0.22.0 T16 fix round 1, review M1): a new run is
+        stamped active (``last_active_wall``) under its turn lock before its
+        first save, so an absence after a run started with no phone action
+        is still counted at its first resume. Absent in any other story.
+        """
+        from engine import social
+
+        if not social.declared():
+            return
+        if not session.lock.acquire(blocking=False):
+            logger.warning(
+                "[session] New run not stamped active: its turn lock is held (operation=create, id=%s)",
+                session.session_id,
+            )
+            return
+        try:
+            from engine.game.effects import apply_effect
+
+            apply_effect(
+                session.engine.state,
+                {"type": "social_settings", "field": "last_active_wall", "value": time.time()},
+            )
+        finally:
+            release_turn(session)
+
+    @staticmethod
+    def _away_advance(session: GameSession) -> None:
+        """
+        A phone story (v0.22.0 spec §15.2, Plan decision 15): the time the
+        player was away passes as one ``advance_time``, recorded and saved,
+        under the resumed run's turn lock, before its resume frame is built
+        (the frame's lock screen counts what arrived). Absent in any other
+        story. Never raises: a fault costs the advance, not the resume.
+        """
+        from engine import social
+
+        if not social.declared():
+            return
+        try:
+            from engine.social import away
+
+            away.apply_on_resume(session)
+        except Exception:  # noqa: BLE001 -- the run must still load
+            logger.exception(
+                "[session] Away advance failed (operation=_away_advance, id=%s)",
+                session.session_id,
+            )
+
+    @staticmethod
+    def _resubmit_media(session: GameSession) -> None:
+        """
+        A phone story (v0.22.0 spec §13.2, T19): every media job the saved
+        run had handed to the worker and not seen finish is submitted again
+        (``media.resubmit_unfinished``: the same seed and prompt), under the
+        resumed run's turn lock, after the away advance. Absent in any other
+        story. Never raises: a fault costs the jobs (procedural), not the
+        resume.
+        """
+        from engine import social
+
+        if not social.declared():
+            return
+        if not session.lock.acquire(blocking=False):
+            logger.warning(
+                "[session] Media not resubmitted: the turn lock is held (operation=resume, id=%s)",
+                session.session_id,
+            )
+            return
+        try:
+            from engine.social import media
+
+            media.resubmit_unfinished(session)
+        except Exception:  # noqa: BLE001 -- the run must still load
+            logger.exception(
+                "[session] Media resubmission failed (operation=_resubmit_media, id=%s)",
+                session.session_id,
+            )
+        finally:
+            release_turn(session)
+
+    def _flush_before_load(self, owner: str, save_id: str) -> None:
+        """
+        A phone story (v0.22.0 T10 review, controller ruling): a resume of a
+        save that a live run of the same owner came from -- which ``_build``
+        is about to replace -- first saves that run's dirty phone state, so
+        the resumed run loads it. Only when its turn lock can be taken without
+        waiting; a run mid-turn is skipped, logged at INFO (that window is a
+        docs/GOVERNANCE.md row). Absent in any other story.
+        """
+        from engine import social
+
+        if not save_id or not social.declared():
+            return
+        taken: list[GameSession] = []
+        with self._guard:
+            for live in self._sessions.values():
+                if live.owner != owner or live.save_id != save_id:
+                    continue
+                if live.lock.acquire(blocking=False):
+                    taken.append(live)
+                else:
+                    logger.info(
+                        "[session] Not flushed before its resume: a turn is running "
+                        "(operation=_flush_before_load, id=%s)",
+                        live.session_id,
+                    )
+        for live in taken:
+            try:
+                _flush_taken(live)
+            finally:
+                release_turn(live)
 
     def get(self, session_id: str, owner: Optional[str] = None) -> Optional[GameSession]:
         """
@@ -832,10 +1034,7 @@ class SessionStore:
                 raise AccountClosed()
             return write()
         finally:
-            session.lock.release()
-            after = session.end_after_turn
-            if after is not None:
-                after()
+            release_turn(session)
 
     def _end_when_done(self, session_id: str) -> None:
         """Mark a session whose turn is running ENDING: no save from that turn; released after it."""
@@ -905,7 +1104,7 @@ class SessionStore:
         cutoff = now - max(1.0, float(ttl_minutes)) * 60.0
 
         stale: list[str] = []
-        owners: list[str] = []
+        taken: list[GameSession] = []
         with self._guard:
             self._last_sweep = now
             for sid, session in list(self._sessions.items()):
@@ -916,16 +1115,32 @@ class SessionStore:
                 self._sessions.pop(sid, None)
                 self._seen.pop(sid, None)
                 stale.append(sid)
-                owners.append(session.owner)
+                taken.append(session)
 
-        for session_id, owner in zip(stale, owners):
+        for session_id, session in zip(stale, taken):
             logger.info(
                 "[session] Releasing idle session (operation=sweep_idle, id=%s)",
                 session_id,
             )
+            _flush_taken(session)  # outside the leaf, its turn lock still held (spec §16.5)
             self._release(session_id, RELEASED_IDLE)
-            self._event("swept", owner)
+            self._event("swept", session.owner)
         return stale
+
+    def live_sessions(self) -> list[GameSession]:
+        """Every live run, a snapshot taken under the guard (the phone's shutdown flush walks it)."""
+        with self._guard:
+            return list(self._sessions.values())
+
+    def is_live(self, session: GameSession) -> bool:
+        """
+        Whether ``session`` -- this very object -- is the store's live run
+        under its id (v0.22.0 spec §16.2's generation check). Unlike ``get``
+        it touches no idle clock and runs no sweep, so a background check (the
+        phone's saver, its voicer) never keeps a run from going idle.
+        """
+        with self._guard:
+            return self._sessions.get(session.session_id) is session
 
     def _sweep_if_due(self) -> None:
         """Hosted: the idle sweep, at most once per ``SWEEP_INTERVAL_SECONDS``."""
@@ -1012,6 +1227,18 @@ class SessionStore:
         except Exception as exc:  # noqa: BLE001 -- see docstring
             logger.debug("[session] Skills release skipped (id=%s): %s", session_id, exc)
 
+        try:
+            # v0.22.0 (spec §16.5): a phone story's voicing passes for a run
+            # no longer live are cancelled and let go of it. Absent elsewhere.
+            from engine import social
+
+            if social.declared():
+                from engine.social import voicer
+
+                voicer.forget(session_id)
+        except Exception as exc:  # noqa: BLE001 -- see docstring
+            logger.warning("[session] Voicing passes not forgotten (operation=_release, id=%s): %s", session_id, exc)
+
         hook = self.on_release
         if hook is not None:
             try:
@@ -1052,5 +1279,6 @@ __all__ = [
     "SessionStore",
     "current_owner",
     "default_archetype",
+    "release_turn",
     "request_owner",
 ]

@@ -1,0 +1,238 @@
+# READ RECEIPTS -- games.yaml (paths.social, spec §2.1).
+#
+# The two games' rules and banks, Tile Talk and This or That (spec §21).
+# Read by engine/social/games/. Tile Talk (`wordgame:`) since v0.22.0 T22;
+# This or That (`this_or_that:`) since T23.
+#
+# Every number here is a balance constant (rule 10):
+# the bingo bonus, the letter values and counts, the person's search budget
+# and how many of their best moves they pick from by skill (the archetype's
+# behaviours.yaml `games.skill`), their pace, the banter chance, how strongly
+# a person's profile leans their This or That picks, and what a finished game
+# (and each This or That agreement) does to the relationship.
+#
+# Measured 2026-10-13 (v0.22.0 T26, fix round 1): `python scripts/simulate_social.py --game
+# read-receipts --days 60 --first-seed N --seeds 1 --policy attentive --raw r-N.json`
+# for N = 0..19, then `--fold r-*.json` (the attentive player, the default
+# `neutral_model` voice; the turners' row at --days 75). The whole table, every
+# voice and policy and the before, is in the story's CHANGELOG ([Unreleased],
+# Changed). The rows this file's numbers move (measured, band):
+#   no §20 row of its own; the full pass played with these numbers as shipped
+#     (a person's daily invite and the invite_game proposal are behaviours.yaml's)
+#
+# wordgame:
+#   label            what the phone calls the game
+#   size             the board's side (11): `premiums` has that many rows of
+#                    that many squares
+#   rack             tiles in a rack (7)
+#   premiums         one string per row: `.` plain, `l` double letter, `L`
+#                    triple letter, `w` double word, `W` triple word, `*` the
+#                    centre (plain; the first word must cross it)
+#   letters          letter -> {count, value}; with `blanks`, the bag (72)
+#   blanks           blank tiles in the bag: they score 0 and stand for any letter
+#   bingo_bonus      added when one move places a whole rack
+#   node_budget      the person's search: at most this many prefix extensions
+#                    tried per move (spec §21.1), whatever the machine
+#   top_k_by_skill   [[skill at least, k], ...]: the person picks one of their
+#                    k best moves found, k from the highest row their skill
+#                    reaches
+#   scoreless_turns  passes and swaps in a row (both sides) that end the game
+#   swap_bag_min     a swap needs the bag to hold at least this many tiles, and
+#                    always at least as many as are swapped (0: only the
+#                    latter, the shipped rule; the board-game rule is 7)
+#   pace_mult        the person's move delay: their reply latency times this
+#   banter_prob      a move of theirs brings a `game_banter` message
+#   effects          a finished game: `finished` {familiarity (exchanges),
+#                    interest}; a win by the player by more than
+#                    `crushing_margin` points costs `<archetype>_crushing_warmth`
+#                    warmth from a person of that archetype
+#
+# The word list is words.txt beside this file: ENABLE (public domain; source
+# in the story's README).
+#
+# this_or_that:
+#   label            what the phone calls the game
+#   pace_mult        the person's answer delay: their reply latency times this
+#   lean             how their profile leans each pick (their_answers): an
+#                    option's pull is, for each of its tags, `hobby` when they
+#                    hold any of the tag's hobbies, plus `trait` when any of
+#                    its traits, plus `slider` x sign x (slider - 3) / 2 for
+#                    each of its personality sliders (1-5, 3 neutral). They
+#                    pick `a` with chance noise/2 + (1 - noise) x
+#                    logistic(sharpness x (pull a - pull b)): one draw per
+#                    pair on their SOCIAL_GAME stream
+#   effects          `finished` {familiarity (exchanges), interest} for any
+#                    finished game, plus `agree_familiarity` and
+#                    `agree_interest` for each of the five pairs both picked
+#                    the same way
+#   tags             tag -> {hobbies, traits (population.yaml ids), sliders
+#                    (personality slider -> +1 leans toward, -1 away)}
+#   pairs            the bank (60 or more): {a: {label, tags}, b: {label,
+#                    tags}}. A game deals five, drawn without repeats from
+#                    stable_rng(seed, "social_game:<game id>"). A label reads
+#                    in "You both pick <a> over <b>" (the canon line written at
+#                    the reveal, engine words)
+#
+# Version: v0.2.2
+
+wordgame:
+  label: Tile Talk
+  size: 11
+  rack: 7
+  premiums:
+    - "W..l...l..W"
+    - ".w...L...w."
+    - "..l.w.w.l.."
+    - "l..L...L..l"
+    - "..w.....w.."
+    - ".L...*...L."
+    - "..w.....w.."
+    - "l..L...L..l"
+    - "..l.w.w.l.."
+    - ".w...L...w."
+    - "W..l...l..W"
+  letters:
+    a: {count: 6, value: 1}
+    b: {count: 1, value: 4}
+    c: {count: 2, value: 4}
+    d: {count: 3, value: 2}
+    e: {count: 9, value: 1}
+    f: {count: 1, value: 4}
+    g: {count: 2, value: 3}
+    h: {count: 2, value: 3}
+    i: {count: 5, value: 1}
+    j: {count: 1, value: 10}
+    k: {count: 1, value: 5}
+    l: {count: 3, value: 2}
+    m: {count: 2, value: 4}
+    n: {count: 4, value: 2}
+    o: {count: 5, value: 1}
+    p: {count: 2, value: 4}
+    q: {count: 1, value: 10}
+    r: {count: 4, value: 1}
+    s: {count: 4, value: 1}
+    t: {count: 5, value: 1}
+    u: {count: 2, value: 2}
+    v: {count: 1, value: 5}
+    w: {count: 1, value: 4}
+    x: {count: 1, value: 8}
+    y: {count: 1, value: 3}
+    z: {count: 1, value: 10}
+  blanks: 2
+  bingo_bonus: 35
+  node_budget: 20000
+  top_k_by_skill: [[0.0, 12], [0.4, 8], [0.5, 5], [0.6, 3], [0.75, 2], [0.9, 1]]
+  scoreless_turns: 4
+  swap_bag_min: 0
+  pace_mult: 1.5
+  banter_prob: 0.35
+  effects:
+    finished: {familiarity: 2, interest: 4}
+    crushing_margin: 80
+    needy_crushing_warmth: -3
+
+this_or_that:
+  label: This or That
+  pace_mult: 1.0
+  lean: {hobby: 1.0, trait: 1.0, slider: 1.0, sharpness: 1.0, noise: 0.2}
+  effects:
+    finished: {familiarity: 1, interest: 2}
+    agree_familiarity: 1
+    agree_interest: 1
+  tags:
+    outdoors:    {hobbies: [climbing, hiking, running, cycling, open_water_swimming, surfing, sailing, paddleboarding, bouldering, fishing], traits: [adventurous], sliders: {adventurous: 1, homebody: -1}}
+    lazy:        {hobbies: [tv, film, video_games, podcasts, cats], traits: [laid_back], sliders: {homebody: 1, adventurous: -1}}
+    active:      {hobbies: [gym, running, cycling, football, tennis, yoga, dancing, climbing, bouldering], traits: [competitive], sliders: {adventurous: 1}}
+    homely:      {hobbies: [cooking, baking, gardening, plants, board_games, tv, cats], traits: [homely, private], sliders: {homebody: 1, outgoing: -1}}
+    social:      {hobbies: [clubbing, karaoke, pub_quizzes, gigs, eating_out, craft_beer, wine, dancing], traits: [confident, flirty], sliders: {outgoing: 1, homebody: -1}}
+    quiet:       {hobbies: [reading, writing, poetry, chess, astronomy, gardening], traits: [shy, thoughtful, private, overthinker], sliders: {outgoing: -1}}
+    playful:     {hobbies: [video_games, board_games, karaoke, comedy], traits: [teasing, chaotic, impulsive], sliders: {playful: 1}}
+    serious:     {hobbies: [museums, chess, languages, volunteering], traits: [earnest, organised, ambitious], sliders: {playful: -1}}
+    romantic:    {hobbies: [poetry, wine, theatre, galleries], traits: [romantic_streak, dreamy], sliders: {romantic: 1}}
+    practical:   {hobbies: [diy, cooking, gardening], traits: [practical, organised, blunt], sliders: {romantic: -1}}
+    adventure:   {hobbies: [travel, languages, surfing, sailing, climbing], traits: [adventurous, impulsive, easily_bored], sliders: {adventurous: 1}}
+    routine:     {hobbies: [running, gardening, yoga], traits: [organised, morning_person, loyal], sliders: {adventurous: -1}}
+    arty:        {hobbies: [painting, photography, galleries, theatre, museums, writing, poetry, film], traits: [dreamy, observant], sliders: {}}
+    music:       {hobbies: [gigs, vinyl, playing_guitar, karaoke, dancing, clubbing], traits: [], sliders: {outgoing: 1}}
+    foodie:      {hobbies: [cooking, baking, eating_out, wine, coffee, craft_beer], traits: [generous], sliders: {}}
+    nerdy:       {hobbies: [video_games, board_games, chess, astronomy, podcasts, reading], traits: [nerdy, curious], sliders: {}}
+    night:       {hobbies: [clubbing, gigs, astronomy], traits: [night_person], sliders: {outgoing: 1}}
+    morning:     {hobbies: [running, yoga, coffee, hiking], traits: [morning_person, organised], sliders: {}}
+    spontaneous: {hobbies: [travel, thrifting], traits: [impulsive, chaotic, easily_bored], sliders: {adventurous: 1}}
+    planner:     {hobbies: [board_games, diy], traits: [organised, overthinker, practical], sliders: {adventurous: -1}}
+    dog_person:  {hobbies: [dogs, hiking], traits: [loyal, warm], sliders: {outgoing: 1}}
+    cat_person:  {hobbies: [cats], traits: [private, sarcastic, dry_humour], sliders: {homebody: 1}}
+    city:        {hobbies: [eating_out, galleries, museums, theatre, thrifting, fashion, coffee], traits: [ambitious], sliders: {outgoing: 1}}
+    nature:      {hobbies: [gardening, plants, hiking, fishing, astronomy], traits: [thoughtful], sliders: {}}
+    water:       {hobbies: [open_water_swimming, surfing, sailing, paddleboarding, fishing], traits: [], sliders: {adventurous: 1}}
+    comfort:     {hobbies: [baking, tv, film], traits: [warm, homely], sliders: {homebody: 1}}
+    bold:        {hobbies: [], traits: [confident, blunt, flirty, competitive], sliders: {outgoing: 1, playful: 1}}
+    gentle:      {hobbies: [], traits: [warm, earnest, shy, thoughtful], sliders: {romantic: 1}}
+    funny:       {hobbies: [comedy, podcasts], traits: [dry_humour, sarcastic, teasing, storyteller], sliders: {playful: 1}}
+    screen:      {hobbies: [film, tv, video_games, podcasts], traits: [nerdy], sliders: {homebody: 1}}
+    page:        {hobbies: [reading, writing, poetry], traits: [thoughtful, curious], sliders: {}}
+  pairs:
+    - {a: {label: mountains, tags: [outdoors, adventure]}, b: {label: beaches, tags: [lazy, water]}}
+    - {a: {label: coffee, tags: [morning, foodie]}, b: {label: tea, tags: [comfort, quiet]}}
+    - {a: {label: a night in, tags: [homely, screen]}, b: {label: a night out, tags: [social, night]}}
+    - {a: {label: dogs, tags: [dog_person]}, b: {label: cats, tags: [cat_person]}}
+    - {a: {label: sunrise, tags: [morning]}, b: {label: sunset, tags: [romantic, night]}}
+    - {a: {label: books, tags: [page, quiet]}, b: {label: films, tags: [screen, arty]}}
+    - {a: {label: city breaks, tags: [city, adventure]}, b: {label: a cabin in the woods, tags: [nature, quiet]}}
+    - {a: {label: texting, tags: [quiet]}, b: {label: calling, tags: [bold, social]}}
+    - {a: {label: sweet, tags: [comfort]}, b: {label: savoury, tags: [foodie]}}
+    - {a: {label: planning every detail, tags: [planner]}, b: {label: winging it, tags: [spontaneous]}}
+    - {a: {label: gigs, tags: [music, social]}, b: {label: galleries, tags: [arty, quiet]}}
+    - {a: {label: board games, tags: [nerdy, playful]}, b: {label: pub quizzes, tags: [social, funny]}}
+    - {a: {label: cooking at home, tags: [homely, foodie]}, b: {label: eating out, tags: [city, social]}}
+    - {a: {label: early nights, tags: [morning, routine]}, b: {label: late nights, tags: [night]}}
+    - {a: {label: the gym, tags: [active]}, b: {label: a long walk, tags: [outdoors, gentle]}}
+    - {a: {label: summer, tags: [outdoors, social]}, b: {label: winter, tags: [comfort, homely]}}
+    - {a: {label: surprises, tags: [spontaneous, romantic]}, b: {label: "knowing what's coming", tags: [planner]}}
+    - {a: {label: handwritten letters, tags: [romantic, page]}, b: {label: voice notes, tags: [playful, social]}}
+    - {a: {label: karaoke, tags: [music, playful, bold]}, b: {label: a quiet pub, tags: [quiet]}}
+    - {a: {label: camping, tags: [outdoors, adventure]}, b: {label: a nice hotel, tags: [comfort, city]}}
+    - {a: {label: the window seat, tags: [arty, quiet]}, b: {label: the aisle seat, tags: [practical]}}
+    - {a: {label: pizza, tags: [comfort, social]}, b: {label: sushi, tags: [foodie, city]}}
+    - {a: {label: a road trip, tags: [adventure, spontaneous]}, b: {label: a city weekend, tags: [city]}}
+    - {a: {label: rain on the window, tags: [comfort, quiet]}, b: {label: sun on your face, tags: [outdoors]}}
+    - {a: {label: museums, tags: [arty, nerdy]}, b: {label: theme parks, tags: [playful, bold]}}
+    - {a: {label: dancing, tags: [music, active, social]}, b: {label: people-watching, tags: [quiet, arty]}}
+    - {a: {label: vinyl, tags: [music, arty]}, b: {label: playlists, tags: [practical, screen]}}
+    - {a: {label: the match on telly, tags: [social, screen]}, b: {label: a box set, tags: [screen, homely]}}
+    - {a: {label: brunch, tags: [social, foodie]}, b: {label: breakfast in bed, tags: [romantic, comfort]}}
+    - {a: {label: the sea, tags: [water]}, b: {label: the countryside, tags: [nature]}}
+    - {a: {label: big parties, tags: [social, night]}, b: {label: dinner for four, tags: [homely, gentle]}}
+    - {a: {label: spicy food, tags: [bold, foodie]}, b: {label: mild food, tags: [comfort, gentle]}}
+    - {a: {label: a hike, tags: [outdoors, active]}, b: {label: a spa day, tags: [lazy, comfort]}}
+    - {a: {label: old films, tags: [arty, page]}, b: {label: new releases, tags: [screen, city]}}
+    - {a: {label: talking it out, tags: [gentle, bold]}, b: {label: sleeping on it, tags: [quiet, planner]}}
+    - {a: {label: the window open, tags: [outdoors]}, b: {label: the heating on, tags: [comfort]}}
+    - {a: {label: a long lie-in, tags: [lazy, night]}, b: {label: an early start, tags: [morning, routine]}}
+    - {a: {label: podcasts, tags: [nerdy, funny]}, b: {label: music, tags: [music]}}
+    - {a: {label: paper books, tags: [page]}, b: {label: e-readers, tags: [practical, nerdy]}}
+    - {a: {label: a big wedding, tags: [social, romantic]}, b: {label: eloping, tags: [spontaneous, adventure]}}
+    - {a: {label: thrift shops, tags: [arty, city]}, b: {label: new clothes, tags: [city, bold]}}
+    - {a: {label: a jungle of house plants, tags: [nature, homely]}, b: {label: clean and minimal, tags: [planner, practical]}}
+    - {a: {label: chess, tags: [nerdy, serious]}, b: {label: poker, tags: [bold, playful]}}
+    - {a: {label: cocktails, tags: [social, night]}, b: {label: a pint, tags: [funny, practical]}}
+    - {a: {label: red wine, tags: [romantic, foodie]}, b: {label: white wine, tags: [social]}}
+    - {a: {label: cereal for dinner, tags: [lazy, playful]}, b: {label: a proper meal, tags: [foodie, routine]}}
+    - {a: {label: a stand-up gig, tags: [funny, social]}, b: {label: the theatre, tags: [arty, serious]}}
+    - {a: {label: lake swims, tags: [water, adventure]}, b: {label: heated pools, tags: [comfort, routine]}}
+    - {a: {label: learning a language, tags: [nerdy, serious, adventure]}, b: {label: learning an instrument, tags: [music, arty]}}
+    - {a: {label: cycling there, tags: [active, outdoors]}, b: {label: taking the bus, tags: [lazy, practical]}}
+    - {a: {label: snow, tags: [outdoors, adventure]}, b: {label: sunshine, tags: [social, lazy]}}
+    - {a: {label: a picnic, tags: [outdoors, romantic]}, b: {label: a restaurant, tags: [city, foodie]}}
+    - {a: {label: being early, tags: [planner, routine]}, b: {label: being fashionably late, tags: [spontaneous, bold]}}
+    - {a: {label: deep chats, tags: [gentle, serious]}, b: {label: silly jokes, tags: [funny, playful]}}
+    - {a: {label: horror films, tags: [bold, screen]}, b: {label: romcoms, tags: [romantic, comfort]}}
+    - {a: {label: stargazing, tags: [nature, romantic, quiet]}, b: {label: fireworks, tags: [social, bold]}}
+    - {a: {label: baking, tags: [homely, comfort]}, b: {label: a takeaway, tags: [lazy, city]}}
+    - {a: {label: video games, tags: [screen, nerdy, playful]}, b: {label: sport, tags: [active, social]}}
+    - {a: {label: a tidy desk, tags: [planner]}, b: {label: creative chaos, tags: [arty, spontaneous]}}
+    - {a: {label: roller coasters, tags: [bold, adventure]}, b: {label: the carousel, tags: [gentle, romantic]}}
+    - {a: {label: photos of everything, tags: [arty, social]}, b: {label: living in the moment, tags: [spontaneous, quiet]}}
+    - {a: {label: travelling far, tags: [adventure]}, b: {label: knowing your neighbourhood, tags: [homely, routine]}}
+    - {a: {label: a festival, tags: [music, social, outdoors]}, b: {label: a gig in a small room, tags: [music, quiet]}}
+    - {a: {label: secondhand books, tags: [page, arty]}, b: {label: audiobooks, tags: [practical, screen]}}

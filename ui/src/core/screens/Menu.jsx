@@ -28,6 +28,10 @@ const CORE_KEYS = [
   ["/", "Jump to the compose box"],
   ["Enter", "Send what you typed"],
 ];
+// A story with its own play screen (`story.PlayScreen`, v0.22.0) has no numbered
+// choices and no core compose box: core binds neither key there (App.jsx), so the
+// table does not offer them.
+const NOT_ON_A_PLAY_SCREEN = new Set(["1 – 4", "/"]);
 
 function Row({ label, hint, onClick, tone = "", disabled = false }) {
   return (
@@ -58,6 +62,7 @@ export default function Menu({
   onOpenSettings,
   onNewRun,
   onAbandon,
+  playScreen = false,
 }) {
   const [slot, setSlot] = useState("");
   const [saved, setSaved] = useState("");
@@ -77,11 +82,12 @@ export default function Menu({
   }, []);
 
   const active = (games?.games || []).find((g) => g.active) || null;
+  const coreKeys = playScreen ? CORE_KEYS.map((k) => (NOT_ON_A_PLAY_SCREEN.has(k[0]) ? null : k)) : CORE_KEYS;
   const keys = [
-    ...CORE_KEYS.slice(0, 2),
+    ...coreKeys.slice(0, 2),
     ...overlays.filter((o) => o.key).map((o) => [o.key.toUpperCase(), o.label]),
-    ...CORE_KEYS.slice(2),
-  ];
+    ...coreKeys.slice(2),
+  ].filter(Boolean);
 
   async function saveNow() {
     setSaved("saving…");

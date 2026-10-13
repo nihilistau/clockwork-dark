@@ -15,7 +15,7 @@
  * `llm.mcp` mode only the narrator reads the bargain, and the prose can tell
  * of a trade the save never made. The intent path (an overlay hands `onAct`
  * an `{action, target}` the server checks against `legal_intents`) is the
- * v0.23.0 flagship overhaul's.
+ * v0.25.0 flagship overhaul's.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@core/parts/Modal.jsx";

@@ -103,6 +103,7 @@ import yaml
 from engine import yamlio
 from engine.config import get_config
 from engine.game.state import GameState
+from engine.social.kinds import SOCIAL_EFFECT_KINDS  # data only (spec §2.1)
 
 logger = logging.getLogger(__name__)
 
@@ -134,10 +135,11 @@ PROGRESS_PREDICATES = frozenset({"days_in_stage", "days_since_started"})
 #: would forge the bookkeeping: stamp a move that never fired, rob a house
 #: nobody entered, or leave a sign with no move behind it.
 #: Also every kind ``effects.ENGINE_ONLY_EFFECTS`` names (v0.17: a served
-#: sentence's hours, ``custody_served``), which only the engine may write.
+#: sentence's hours, ``custody_served``), which only the engine may write,
+#: the ``social_*`` kinds included (v0.22.0).
 BOOKKEEPING_EFFECTS = frozenset({"agenda_mark", "agenda_hit", "agenda_trace",
                                  "agenda_trace_seen", "custody_served",
-                                 "law_deed_committed"})
+                                 "law_deed_committed"}) | SOCIAL_EFFECT_KINDS
 #: Effect kinds that write the Law, and so need one declared. Without it each
 #: refuses at runtime -- a move that loads and files nothing.
 LAW_EFFECTS = frozenset({

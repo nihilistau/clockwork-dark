@@ -1,0 +1,77 @@
+# READ RECEIPTS -- venues.yaml (paths.social, spec §2.1, §14).
+#
+# Where meet-ups happen. Read by engine/social/meets.py (v0.22.0 T24); checked
+# whole when the story's data loads (meets.check_data) and by
+# validate_content.py.
+#
+# kinds     what sort of meet-up a venue is: `label` and `at` make the
+#           engine's own line about it ("Coffee" "at" "The Copper Kettle":
+#           "Coffee at The Copper Kettle with Kai."), the line a recap falls
+#           back to when no model writes one
+# venues    twelve or more rows, each:
+#             id              unique
+#             label           the place's name as the player reads it
+#             neighbourhood   a population.yaml `neighbourhoods` id
+#             kind            a `kinds` id
+#             hobbies         population.yaml `hobbies` ids this place suits:
+#                             one both of you hold is the meet's shared-hobby
+#                             bonus (relationships.yaml `meets.quality`), and
+#                             when a person asks to meet, the engine picks a
+#                             venue by the hobbies you share
+#             duration_hours  how long a meet-up there lasts (the clock moves
+#                             by it when you go)
+#
+# Every number here is a balance constant (rule 10).
+# Measured 2026-10-13 (v0.22.0 T26, fix round 1): `python scripts/simulate_social.py --game
+# read-receipts --days 60 --first-seed N --seeds 1 --policy attentive --raw r-N.json`
+# for N = 0..19, then `--fold r-*.json` (the attentive player, the default
+# `neutral_model` voice; the turners' row at --days 75). The whole table, every
+# voice and policy and the before, is in the story's CHANGELOG ([Unreleased],
+# Changed). The rows this file's numbers move (measured, band):
+#   numbers_to_meet_21d 0.362 (25-45%) and the meet bands (relationships.yaml's
+#     header); `duration_hours` moves the clock only
+#
+# Version: v0.2.0
+
+kinds:
+  coffee: {label: Coffee, at: at}
+  drinks: {label: Drinks, at: at}
+  dinner: {label: Dinner, at: at}
+  walk: {label: A walk, at: along}
+  visit: {label: A visit, at: to}
+  film: {label: A film, at: at}
+  climbing: {label: Climbing, at: at}
+  games: {label: Games, at: at}
+  gig: {label: A gig, at: at}
+
+venues:
+  - {id: copper_kettle, label: The Copper Kettle, neighbourhood: old_town, kind: coffee,
+     hobbies: [coffee, reading, baking], duration_hours: 1.5}
+  - {id: driftwood_roasters, label: Driftwood Roasters, neighbourhood: harbourside, kind: coffee,
+     hobbies: [coffee, surfing, photography], duration_hours: 1.5}
+  - {id: the_anchor, label: The Anchor, neighbourhood: the_quays, kind: drinks,
+     hobbies: [craft_beer, pub_quizzes, football], duration_hours: 2.5}
+  - {id: lantern_wine_bar, label: The Lantern Wine Bar, neighbourhood: the_lanes, kind: drinks,
+     hobbies: [wine, eating_out, comedy], duration_hours: 2.5}
+  - {id: salt_and_ember, label: Salt & Ember, neighbourhood: harbourside, kind: dinner,
+     hobbies: [eating_out, cooking, wine], duration_hours: 3}
+  - {id: merrow_noodle_house, label: Merrow Noodle House, neighbourhood: northgate, kind: dinner,
+     hobbies: [eating_out, travel, languages], duration_hours: 2}
+  - {id: westcliff_path, label: the Westcliff Path, neighbourhood: westcliff, kind: walk,
+     hobbies: [hiking, dogs, photography, running], duration_hours: 2}
+  - {id: river_walk, label: the River Walk, neighbourhood: riverside, kind: walk,
+     hobbies: [gardening, plants, cycling, dogs], duration_hours: 1.5}
+  - {id: saltmarsh_boardwalk, label: the Saltmarsh Boardwalk, neighbourhood: saltmarsh, kind: walk,
+     hobbies: [astronomy, fishing, sailing, open_water_swimming], duration_hours: 2}
+  - {id: harbour_gallery, label: The Harbour Gallery, neighbourhood: harbourside, kind: visit,
+     hobbies: [galleries, painting, photography], duration_hours: 2}
+  - {id: castle_hill_museum, label: Castle Hill Museum, neighbourhood: castle_hill, kind: visit,
+     hobbies: [museums, travel, writing], duration_hours: 2}
+  - {id: the_rialto, label: The Rialto, neighbourhood: old_town, kind: film,
+     hobbies: [film, tv, theatre], duration_hours: 2.5}
+  - {id: the_crate, label: The Crate, neighbourhood: eastfield, kind: climbing,
+     hobbies: [climbing, bouldering, gym], duration_hours: 2}
+  - {id: the_dice_box, label: The Dice Box, neighbourhood: the_lanes, kind: games,
+     hobbies: [board_games, video_games, chess], duration_hours: 2.5}
+  - {id: the_vinyl_cellar, label: The Vinyl Cellar, neighbourhood: the_quays, kind: gig,
+     hobbies: [gigs, vinyl, dancing, playing_guitar], duration_hours: 3}

@@ -29,14 +29,18 @@ LOCK ORDER (outer first):
 17. engine.media.queue._queue_lock
 18. engine.media.providers._worker_lock
 19. engine.media.tts._worker_lock
-20. engine.scenes.default_scene._store_lock
-21. engine.telemetry.oracle._oracle_lock
-22. engine.persistence.saves._stores_lock
-23. engine.persistence.saves._migrated_lock
-24. engine.persistence.saves._index_locks_lock
-25. engine.telemetry.oracle.Oracle._lock
-26. engine.net._lock
-27. engine.config._config_lock
+20. engine.media.comfy.jobs._worker_lock
+21. engine.scenes.default_scene._store_lock
+22. engine.telemetry.oracle._oracle_lock
+23. engine.persistence.saves._stores_lock
+24. engine.persistence.saves._migrated_lock
+25. engine.persistence.saves._index_locks_lock
+26. engine.telemetry.oracle.Oracle._lock
+27. engine.social._DATA_LOCK
+28. engine.social.saves._saver_lock
+29. engine.social.voicer._scheduler_lock
+30. engine.net._lock
+31. engine.config._config_lock
 
 What the order means in practice:
 
@@ -57,15 +61,32 @@ What the order means in practice:
   across ``set_overlay`` and the whole reset walk (backend, LLM registry,
   profiles, lanes), all of which come after it.
 * ``route_client`` holds a backend's own lock while it builds a client, and a
-  client's build reads the config: 5, then 13 or 14, then 25.
+  client's build reads the config: 5, then 13 or 14, then 31.
+* **The social data lock** (``engine/social/__init__.py``, v0.22.0) is held
+  only while ``load_all`` builds the active story's social cache, taken
+  holding nothing but possibly ``_warm_lock``; under it only the config's
+  lock is taken (``social_dir`` reads ``paths.social``).
+* **The phone's saver lock** (``engine/social/saves.py``, v0.22.0 T10) is
+  held only while ``get_dirty_saver`` builds the process's one
+  ``DirtySaver`` or ``reset_dirty_saver`` drops it; its holder takes no
+  other lock (the saver's thread is started later, under no lock of ours).
+* **The voicing scheduler's lock** (``engine/social/voicer.py``, v0.22.0
+  T14) is held only while ``get_scheduler`` builds the process's one
+  ``VoicingScheduler`` or ``reset`` drops it; its holder takes no other lock
+  (the scheduler is stopped, and its workers joined, after it is released).
+* **The media job worker's lock** (``engine/media/comfy/jobs.py``, v0.22.0
+  T18) is held only while ``get_media_worker`` builds the process's one
+  ``MediaJobWorker`` or ``reset_media_worker`` drops it; its holder takes no
+  other lock (the worker's thread is started, and a dropped one stopped and
+  joined, after it is released).
 * ``save_store_for`` holds ``_stores_lock`` while a store's first build runs
   the legacy migration and then finds its folder's index lock
-  (``index_lock_for``): 22, then 23, then 24. The registry's holder only
+  (``index_lock_for``): 23, then 24, then 25. The registry's holder only
   reads and fills a dict (v0.20.0 T8: one index lock per save folder, shared
   by every ``SaveStore`` over it).
 
-LEAF LOCKS. Fourteen per-object locks sit outside the list because nothing is
-ever taken under them: their holders make no BLOCKING acquisition of any
+LEAF LOCKS. Twenty-one locks sit outside the list because nothing is ever taken
+under them: their holders make no BLOCKING acquisition of any
 other lock (the config's included -- a caller reads what it needs from the
 config before it takes one). A non-blocking try, which cannot wait, is the
 one thing allowed under a leaf.
@@ -84,7 +105,41 @@ one thing allowed under a leaf.
 - engine.hosting.supervisor.process.AuditWriter._lock
 - engine.hosting.limits.TurnSlots._lock
 - engine.hosting.lanes_remote.RemoteLanes._lock
+- engine.social.population._PROFILES_LOCK
+- engine.social.saves.DirtySaver._lock
+- engine.social.voicer.VoicingScheduler._lock
+- engine.social.inbox.SessionInbox._lock
+- engine.media.comfy.jobs.MediaJobWorker._lock
+- engine.media.tts.SpeechWorker._lock
+- engine.social.games.wordgame._WORDS_LOCK
 
+(``_PROFILES_LOCK``, v0.22.0 T3, and ``_WORDS_LOCK``, v0.22.0 T22, are the two
+MODULE locks among the leaves. The population's profile LRU is only looked
+up, inserted into and trimmed under ``_PROFILES_LOCK``, and a profile is
+generated -- reading story data through loaders that take ordered locks --
+with it released. ``_WORDS_LOCK`` is held while Tile Talk's word list file is
+read and its two sets built; the story's directory is read from config
+BEFORE it is taken.)
+(``DirtySaver._lock``, v0.22.0 T10, guards only the phone saver's heap
+and the choice of who builds its thread, started with the lock released; a
+due session's turn lock is tried by the thread holding nothing.)
+(``VoicingScheduler._lock``, v0.22.0 T14, guards only the voicing queue,
+its timed entries and the in-flight table; its workers are started, a pass's
+liveness judged and its cancel fired with the lock released, and a pass
+tries its session's turn lock holding nothing. ``SessionInbox._lock``, one
+per session object, guards only that inbox's deque: a voicing pass that
+could not take a turn lock parks its reply there instead of waiting for it,
+and the lock's next holder drains it holding the turn lock -- a leaf under
+it.)
+(``MediaJobWorker._lock``, v0.22.0 T18, guards only the media job queue,
+the day's per-account counts and the running job's key: no HTTP call, config
+read, log line or hand-off runs under it, and the worker's thread is started
+with it released.)
+(``SpeechWorker._lock``, v0.22.0 T21 review I1, guards only the speech
+worker's keyed voice-note requests (queued or speaking): a resubmission is
+retargeted under it, and a finished one is popped and its hand-off read under
+it; the synthesis, the queue's put and the hand-off itself run with it
+released.)
 (The last three joined the list in v0.20.0 T15, leaves since they were
 built: ``LongHolds._lock`` (the front door's long holds, T13) and
 ``OneTimeShown._lock`` (the panel's one-time passwords, T14) only count,

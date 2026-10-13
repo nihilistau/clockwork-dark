@@ -1,0 +1,37 @@
+# Agreement check "profile contradicted" (spec §11.5): their age, job or neighbourhood stated
+# otherwise (bubbles, shared), or a learned fact contradicting the player's profile.
+# `bad` must fail the check; `good` must pass EVERY check.
+base: &base
+  stage: talking
+  person: {name: Maya, age: 31, job: nurse, neighbourhood: old_town}
+  player: {name: Sam, age: 29, neighbourhood: harbourside, attributes: {job: accountant}}
+  contacts: [Jordan, Priya]
+  decision: {situation: reply}
+
+bad:
+  - {<<: *base, reply: {bubbles: [{text: "I'm 27 btw"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "I'm a teacher actually"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "I work as an accountant"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "I live in Westcliff, top of the hill"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "haha"}], shared: ["I'm 24 years old"]}}
+  - {<<: *base, reply: {bubbles: [{text: "noted"}], learned: ["Sam is 35"]}}
+  - {<<: *base, reply: {bubbles: [{text: "noted"}], learned: ["works as a solicitor"]}}
+  - {<<: *base, reply: {bubbles: [{text: "noted"}], learned: ["lives in the Quays"]}}
+  - {<<: *base, reply: {bubbles: [{text: "noted"}], learned: ["they're 41"]}}
+  - {<<: *base, reply: {bubbles: [{text: "noted"}], learned: ["Sam works as a plumber"]}}
+
+good:
+  - {<<: *base, reply: {bubbles: [{text: "I'm 29 minutes away"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "I'm 31, before you ask"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "I'm 2 streets from the café"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "I'm a nurse, so nights are weird"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "my sister is a teacher"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "I live in Old Town, near the market"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "my friend lives in Westcliff"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "noted"}], learned: ["Sam is 29", "works as an accountant"]}}
+  - {<<: *base, reply: {bubbles: [{text: "noted"}], shared: ["I'm 35 percent sure I left the oven on"]}}
+  # about someone else, not the player (the fact's subject is anchored)
+  - {<<: *base, reply: {bubbles: [{text: "noted"}], learned: ["their sister is 35"]}}
+  - {<<: *base, reply: {bubbles: [{text: "noted"}], learned: ["their mum is a teacher"]}}
+  - {<<: *base, reply: {bubbles: [{text: "noted"}], learned: ["their brother lives in Westcliff"]}}
+  - {<<: *base, reply: {bubbles: [{text: "noted"}], learned: ["they live in Harbourside", "Sam's 29"]}}

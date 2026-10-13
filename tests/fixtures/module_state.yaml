@@ -65,6 +65,7 @@ sites:
 
   # -- engine.api ---------------------------------------------------------
   engine.api.settings.SETTINGS_BY_KEY: {verdict: constant}
+  engine.api.settings._OPTION_SOURCES: {verdict: constant}
 
   # -- engine.challenges --------------------------------------------------
   engine.challenges.runner._PRESENTERS: {verdict: registration}
@@ -187,12 +188,15 @@ sites:
   engine.hosting.metrics_schema._ACCOUNT_OR_NONE: {verdict: constant, note: "a frozen Field row of KINDS"}
   engine.hosting.supervisor.queue._OUTCOME_OF: {verdict: constant, note: "a refusal's lane metric outcome, only read"}
   engine.hosting.supervisor.metrics.REFUSALS: {verdict: constant, note: "T17 fix round 1: the refusals counted per minute, kind -> outcomes; only read"}
+  engine.hosting.supervisor.metrics.REFUSAL_FIELD: {verdict: constant, note: "v0.22.0 T6 fix round 1: the field a kind's refusal is named in (phone: status); only read"}
   engine.hosting.metrics_emit._queue: {verdict: shared_by_design, note: "a supervised child's ONE bounded metric queue (a queue.Queue, thread-safe; its internal lock is the library's, never held across anything of ours): made by enable() on the main thread at boot.prepare_child, before any request; None in every other process (emit is then a no-op); emit put_nowaits and drops when full, never blocking a turn"}
   engine.hosting.metrics_emit._sender: {verdict: shared_by_design, note: "the child's one metric sender thread, set by attach() once, on the boot thread, after the bus connects; None until then"}
   engine.hosting.metrics_emit.attach#Thread: {verdict: shared_by_design, note: "a supervised child's ONE metric sender: takes events off the bounded queue and sends each as a `metric` notification (BusClient.notify, its leaf lock for one sendall); a failed send is counted in dropped; daemon, ends on a None or with the process"}
   engine.hosting.metrics_emit.dropped: {verdict: log_once, note: "a diagnostic count of metrics dropped (a full queue, a failed send), incremented without a lock: a race loses one count"}
   engine.hosting.metrics_emit._handler: {verdict: shared_by_design, note: "the ERROR handler's install flag (the handler attach() put on the root logger, once, on the boot thread); logging's own handler lock serialises its emit"}
   engine.hosting.supervisor.metrics.MetricsStore.open#Thread: {verdict: shared_by_design, note: "the supervisor process only: the metrics store's ONE writer thread, draining a bounded queue.Queue into SQLite in batches and pruning hourly; the connection under MetricsStore._db_lock and the counters under _counts_lock, both leaves; record() never waits on either across I/O (validate, then put_nowait); joined by MetricsStore.close"}
+  engine.scenes.default_scene.phone_metric: {verdict: shared_by_design, note: "v0.22.0 T6: the hosted phone-metric HOOK, as turn_metric: None by default (local mode never sets it, and this module never imports engine.hosting); engine.hosting.metrics_emit.install_hooks sets it once, under the supervisor, before anything is served; _report_phone reads it once per action into a local"}
+  engine.scenes.default_scene._PHONE_STATUS: {verdict: constant}
   engine.scenes.default_scene.turn_metric: {verdict: shared_by_design, note: "v0.20.0 T17: the hosted turn-metric HOOK, None by default (local mode never sets it, and this module never imports engine.hosting); engine.hosting.install sets it once, under the supervisor, before anything is served; run_guarded reads it once per turn into a local"}
   # The front door (v0.20.0 T12, spec §14.5). Its live state is NOT
   # module-level, so the scan has no site for it: the FrontDoor on the app
@@ -298,6 +302,13 @@ sites:
 
   # -- engine.media -------------------------------------------------------
   engine.media.art.load_subjects(): {verdict: warmed, loader: engine.media.art.load_subjects}
+  engine.media.comfy.jobs.MediaJobWorker.start#Thread: {verdict: shared_by_design, note: "v0.22.0 T18: the phone's one media job thread per process (max_concurrent 1, spec §13.4), started once with MediaJobWorker._lock (a leaf) released; every HTTP call, config read and hand-off runs holding no lock"}
+  engine.media.comfy.jobs._MAIN_KEYS: {verdict: constant}
+  engine.media.comfy.jobs._client_factory: {verdict: shared_by_design, note: "the process worker's client factory when not ComfyClient.from_config: set by tests (and T19's stub provider) before the worker is built, read once per job; None in production"}
+  engine.media.comfy.jobs._on_done: {verdict: shared_by_design, note: "the process worker's hand-off (T19 sets it when the app is built), read once per finished job; None until then (logged)"}
+  engine.media.comfy.jobs._worker: {verdict: locked, note: "the process's one MediaJobWorker, double-checked under _worker_lock; reset_media_worker stops, joins and drops it"}
+  engine.media.comfy.jobs._worker_lock: {verdict: locked}
+  engine.media.comfy.workflows._WARNED_PROVIDERS: {verdict: log_once, note: "v0.22.0 T17: one WARNING per unknown phone_media.provider value"}
   engine.media.comfyui._TEMPLATE_CACHE: {verdict: warmed, loader: engine.media.comfyui.load_comfyui_templates}
   engine.media.providers.ImageWorker.start#Thread: {verdict: shared_by_design, note: "one image worker per process; jobs queue, outputs are a shared cache"}
   engine.media.providers._worker: {verdict: locked}
@@ -337,11 +348,50 @@ sites:
 
   # -- engine.session -----------------------------------------------------
   engine.session.store.current_owner: {verdict: per_context, note: "the request's owner (v0.20.0 T8): set by the HTTP gate and the socket guard, reset by teardown_request and the guard's finally"}
+  engine.session.store._EPOCHS: {verdict: shared_by_design, note: "every GameSession.epoch, process-wide (v0.22.0 T10): drawn once per _build; next() on an itertools.count is one C call, so two stores drawing at once still get distinct numbers"}
 
   # -- engine.skills ------------------------------------------------------
   engine.skills.builtin.assistant._FALLBACK_HINT: {verdict: warmed, loader: engine.games.caches._warm_story_tables, reset: engine.skills.builtin.assistant.reload_hints}
   engine.skills.registry.SKILL_REGISTRY: {verdict: registration, note: "filled by @skill as the skill modules import, read after"}
   engine.skills.builtin.mechanics._RECIPE_CACHE: {verdict: warmed, loader: engine.skills.builtin.mechanics._load_recipes}
+
+  # -- engine.social (v0.22.0) --------------------------------------------
+  engine.social._DATA_CACHE: {verdict: warmed, loader: engine.social.load_all}
+  engine.social._DATA_LOCK: {verdict: locked}
+  engine.social._IMPORT_FAULTS_LOGGED: {verdict: log_once, note: "import_fault's names already reported (Plan decision 27): one ERROR per process"}
+  engine.social.events._HANDLERS: {verdict: registration}
+  engine.social.memory._PROMPT_MISSING_LOGGED: {verdict: log_once, note: "summary_prompt's missing prompt paths already reported: one WARNING per path, per process"}
+  engine.social.events.daily_hooks: {verdict: registration}
+  engine.social.population._PROFILES: {verdict: locked, note: "the per-process profile LRU (spec §4.1): looked up and inserted only under _PROFILES_LOCK, a leaf; a profile is generated outside it; reset_profiles is a RELOADERS row (F7)"}
+  engine.social.population._PROFILES_LOCK: {verdict: locked}
+  engine.social.intents._ROWS: {verdict: registration, note: "filled by @phone_verb as the engine.social submodules import (social.boot), read after"}
+  engine.social.intents.PHONE_SKILL_FOR_ACTION: {verdict: registration}
+  engine.social.intents.PAYLOADS: {verdict: registration}
+  engine.social.payload._SECTIONS: {verdict: registration, note: "filled by @payload.section as the engine.social submodules import, read after"}
+  engine.social.payload.TIME_VARYING_SECTIONS: {verdict: registration}
+  engine.social.kinds._APPLIED: {verdict: per_context, note: "a ContextVar set by kinds.collecting around one phone skill's run (T10) and reset in its finally"}
+  engine.social.saves.DirtySaver.schedule#Thread: {verdict: shared_by_design, note: "the phone's one dirty-save timer thread per process (spec §17.2), started by the first schedule with DirtySaver._lock (a leaf) released; it takes each due session's turn lock non-blocking"}
+  engine.social.saves._saver: {verdict: locked, note: "the process's one DirtySaver, double-checked under _saver_lock; reset_dirty_saver stops and drops it"}
+  engine.social.saves._saver_lock: {verdict: locked}
+  engine.social.agreement.CHECKS: {verdict: registration, note: "filled by @check_fn as engine.social.agreement imports (T24 adds one), read after"}
+  engine.social.payload._BUILDING: {verdict: per_context, note: "a ContextVar set by run_mechanics around one to_client_dict (Plan decision 32) and reset in its finally"}
+  engine.social.voicing.CORRECTIONS: {verdict: constant}
+  engine.social.voicing.INTENT_WORDS: {verdict: constant}
+  engine.social.voicing.PROPOSAL_WORDS: {verdict: constant}
+  engine.social.voicing.STATUS_WORDS: {verdict: constant}
+  engine.social.voicer.VoicingScheduler._start_workers#Thread: {verdict: shared_by_design, note: "the voicing pass's social.voice.workers daemon threads per process (spec §16.2), started lazily by the first request with VoicingScheduler._lock (a leaf) released; each pass tries its session's turn lock non-blocking and calls the model holding no lock"}
+  engine.social.voicer._PASS_IDS: {verdict: shared_by_design, note: "itertools.count of pass ids, process-wide: next() on a count is one C call, so two passes drawing at once get distinct ids"}
+  engine.social.voicer._emitter: {verdict: shared_by_design, note: "the room-checked push (FlaskScene.emit_to_session), set by social.routes.register when the app is built and only read after; voicer.reset clears it (tests)"}
+  engine.social.voicer._llm_fn: {verdict: shared_by_design, note: "the voicer's model function when not production's: set by tests and screenshot_runs before passes run, read once per pass; None in production"}
+  engine.social.voicer._summary_fn: {verdict: shared_by_design, note: "the one-argument thread summary function when not production's (pre-flight F10): set by tests before passes run, read once per summary; None in production"}
+  engine.social.voicer._scheduler: {verdict: locked, note: "the process's one VoicingScheduler, double-checked under _scheduler_lock; reset stops and drops it"}
+  engine.social.voicer._scheduler_lock: {verdict: locked}
+  engine.social.voicing._TEXTER_CACHE: {verdict: warmed, loader: engine.games.caches._warm_texter, note: "the active story's parsed prompts/texter.md (T13); warmed only for a story declaring paths.social"}
+  engine.social.games.GAMES: {verdict: registration, note: "game id -> its module, filled as engine.social.games imports (T23 adds a row), read after"}
+  engine.social.games.wordgame._WORDS: {verdict: warmed, loader: engine.games.caches._warm_words, note: "the active story's Tile Talk word list (T22), a frozenset; built with _PREFIXES under _WORDS_LOCK, a leaf"}
+  engine.social.games.wordgame._PREFIXES: {verdict: warmed, loader: engine.games.caches._warm_words, note: "every prefix of every word of _WORDS (the move search's pruning), built with it"}
+  engine.social.games.wordgame._WORDS_LOCK: {verdict: locked}
+  engine.social.games.wordgame.PREMIUMS: {verdict: constant}
 
   # -- engine.state -------------------------------------------------------
   engine.state._EXPORTS: {verdict: registration}

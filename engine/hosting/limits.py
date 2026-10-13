@@ -11,6 +11,12 @@ write and transcribe, on both doors (``engine/hosting/gate.py`` for HTTP,
 ``engine/hosting/sockets.py`` for the socket). Every action costs the same,
 a rest included (AGENTS.md rule 6).
 
+THE PHONE BUCKET (v0.22.0): a second ``ActionLimiter``, per account,
+``rate_limits.phone_actions_per_minute`` across ``phone_action`` and
+``POST /api/phone/action`` only; a phone action never spends from the
+actions bucket. ``phone_over_cap`` holds its text fields to
+``hosting.max_input_chars``.
+
 THE INPUT CAPS (``over_cap``): a typed action (``custom_text``) longer than
 ``hosting.max_input_chars`` and a ``player_name`` longer than
 ``PLAYER_NAME_MAX_CHARS`` are refused, never cut (survey finding 14). A
@@ -213,6 +219,29 @@ def over_cap(body: Any, max_input_chars: int) -> Optional[str]:
     caps.append(("player_name", PLAYER_NAME_MAX_CHARS))
     for key, limit in caps:
         value = body.get(key)
+        if value is not None and len(value if isinstance(value, str) else str(value)) > limit:
+            return too_long(limit)
+    return None
+
+
+def phone_over_cap(body: Any, max_input_chars: int) -> Optional[str]:
+    """
+    The refusal for a ``phone_action`` body (v0.22.0, spec §17.1) with a text
+    field longer than ``max_input_chars``, or None. Its text fields are the
+    message or bio (``text``), the ``action`` and ``target`` ids, and every
+    string argument (a like's comment, a voice note's transcript). Held to
+    ``hosting.max_input_chars`` like any action's text; the catalogue's own,
+    smaller caps (``social.max_text_chars``, 140 for a comment) apply in
+    every mode. Refused, never cut; a length and nothing else (rule 12).
+    """
+    if not isinstance(body, dict):
+        return None
+    limit = int(max_input_chars)
+    values = [body.get("text"), body.get("action"), body.get("target")]
+    args = body.get("args")
+    if isinstance(args, dict):
+        values.extend(v for v in args.values() if isinstance(v, str))
+    for value in values:
         if value is not None and len(value if isinstance(value, str) else str(value)) > limit:
             return too_long(limit)
     return None

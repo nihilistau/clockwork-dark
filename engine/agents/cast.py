@@ -114,7 +114,7 @@ _COMMON_WORDS = frozenset(
 )
 
 
-def _surface_forms(npc_id: str, display_name: str) -> tuple[str, ...]:
+def surface_forms(npc_id: str, display_name: str) -> tuple[str, ...]:
     """
     The written forms a narrator would use for one character.
 
@@ -157,6 +157,13 @@ def _surface_forms(npc_id: str, display_name: str) -> tuple[str, ...]:
     if len(tokens) == 1 and full.lower() in _COMMON_WORDS:
         return ()
     return tuple(dict.fromkeys(forms))
+
+
+#: The pre-v0.22.0 private name, kept for its callers (continuity, the cast tests).
+_surface_forms = surface_forms
+
+#: The titles and trades never read as a name on their own (the agreement check reuses them, v0.22.0 T11).
+COMMON_WORDS = _COMMON_WORDS
 
 
 def _is_crowd(npc_id: str) -> bool:
@@ -202,7 +209,7 @@ def absent_cast(
     for npc_id in present:
         presence = resolve_npc(state, npc_id)
         present_forms.update(
-            form.lower() for form in _surface_forms(npc_id, getattr(presence, "name", ""))
+            form.lower() for form in surface_forms(npc_id, getattr(presence, "name", ""))
         )
 
     cast: dict[str, tuple[str, ...]] = {}
@@ -216,7 +223,7 @@ def absent_cast(
         presence = resolve_npc(state, npc_id)
         forms = tuple(
             form
-            for form in _surface_forms(npc_id, getattr(presence, "name", ""))
+            for form in surface_forms(npc_id, getattr(presence, "name", ""))
             # A form shared with someone standing in the room, or already
             # entered in the ledger's name list, cannot be attributed.
             if form.lower() not in present_forms and form.lower() not in known_names

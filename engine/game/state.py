@@ -18,10 +18,13 @@ Version: v0.2.1 [2026-08-14]
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import asdict, dataclass, field, fields, is_dataclass
 from enum import Enum
 from typing import Any, Optional, get_args, get_origin, get_type_hints
+
+logger = logging.getLogger(__name__)
 
 CURRENT_SAVE_VERSION = 2
 
@@ -330,6 +333,10 @@ class GameState:
     # no Law, and absent from an old save, which loads as "the watch knows
     # nothing".
     law: dict[str, Any] = field(default_factory=dict)
+    # The social engine's whole slice (v0.22.0, engine/social/): profiles,
+    # people, threads, the event queue. Written only by `social_*` effect
+    # kinds (rule 3). A plain dict for the `law` reason: absent loads empty.
+    social: dict[str, Any] = field(default_factory=dict)
     # Burglaries: the veiled prep meter, the premises already robbed, the job
     # id counter, the open job (``active``, present only while one runs) and
     # the last job's close. A plain dict for the ``law`` reason. Written only
@@ -452,6 +459,10 @@ class GameState:
         """
         data = asdict(self)
         data["evil_phase"] = self.evil_phase.value
+        # A story without `paths.social` writes no `social` key (v0.22.0, spec
+        # §2.1): its saves stay byte-identical, and an absent key loads empty.
+        if not data.get("social"):
+            data.pop("social", None)
         return data
 
     def to_client_dict(self) -> dict[str, Any]:
@@ -483,6 +494,7 @@ class GameState:
             **self._premises_block(),
             **self._law_block(),
             **self._job_block(),
+            **self._phone_block(),
             "session_id": self.session_id,
             "player_name": self.player_name,
             "archetype": self.archetype,
@@ -837,6 +849,27 @@ class GameState:
                 "job": {"active": active, "prep": jobs_module.prep_band(self), "scales": scales}
             }
         except Exception:  # noqa: BLE001 -- see docstring
+            return {}
+
+    def _phone_block(self) -> dict[str, Any]:
+        """
+        The phone (v0.22.0): only for a story declaring `paths.social`, so
+        every other story's payload stays byte-identical. Never raises.
+        """
+        try:
+            from engine import social
+
+            if not social.declared():
+                return {}
+            social.boot()
+            from engine.social import payload
+        except Exception:  # noqa: BLE001 -- a broken phone file costs the screen, not the turn
+            logger.exception("[state] Phone block failed (operation=_phone_block)")
+            return {}
+        try:
+            return {"phone": payload.phone_block(self)}
+        except Exception:  # noqa: BLE001 -- a broken phone file costs the screen, not the turn
+            logger.exception("[state] Phone block failed (operation=_phone_block)")
             return {}
 
     @classmethod

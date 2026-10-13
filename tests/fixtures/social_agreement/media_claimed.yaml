@@ -1,0 +1,33 @@
+# Agreement check "media claimed" (spec §11.5): they say media was sent and none is attached.
+# `bad` must fail the check; `good` must pass EVERY check -- the near misses (A2's precision rule).
+base: &base
+  stage: talking
+  person: {name: Maya, age: 31, job: nurse, neighbourhood: old_town}
+  player: {name: Sam, age: 29, neighbourhood: harbourside, attributes: {job: accountant}}
+  contacts: [Jordan, Priya]
+  decision: {situation: reply}
+
+bad:
+  - {<<: *base, reply: {bubbles: [{text: "just sent you a pic of the view"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "here's a photo from the hike 😊"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "Sent you a selfie, don't laugh"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "sending you a pic now"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "Pic attached!"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "ok"}, {text: "sent you a voice note, listen when you can"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "here’s a video of the waves"}]}}
+
+good:
+  # a question about a photo, not a claim
+  - {<<: *base, reply: {bubbles: [{text: "sent you a pic yesterday?"}]}}
+  # negated
+  - {<<: *base, reply: {bubbles: [{text: "I haven't sent you a pic yet, give me a sec"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "never sent you a photo, that was someone else lol"}]}}
+  # the PLAYER's photo
+  - {<<: *base, reply: {bubbles: [{text: "love the photo you sent"}]}}
+  - {<<: *base, reply: {bubbles: [{text: "you sent me a pic yesterday and I'm still laughing"}]}}
+  # a promise, not a claim
+  - {<<: *base, reply: {bubbles: [{text: "I'll send you a pic later maybe"}]}}
+  # media IS attached
+  - <<: *base
+    decision: {situation: send_selfie, kind: photo, media_kind: photo, subject: selfie}
+    reply: {bubbles: [{text: "here's a pic from the beach"}], media: {caption: "the beach"}}

@@ -8,5 +8,6 @@ from engine.skills.builtin import (  # noqa: F401
     livelihood,
     mechanics,
     memory,
+    social,
     thievery,
 )

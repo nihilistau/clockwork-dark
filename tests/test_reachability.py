@@ -294,6 +294,25 @@ def test_every_registered_skill_is_reachable_or_declared_unreachable() -> None:
     )
 
 
+def test_every_phone_skill_has_a_phone_verb() -> None:
+    """Plan decision 4: phone skills are system-only, reached by the phone catalogue alone."""
+    import engine.agents.tool_dispatcher  # noqa: F401 -- registers the builtins
+    from engine import social
+    from engine.games import registry
+    from engine.skills.registry import SKILL_REGISTRY
+
+    registry.activate("read-receipts")
+    try:
+        social.boot()
+        from engine.social.intents import PHONE_SKILL_FOR_ACTION
+
+        phone = {s.name for s in SKILL_REGISTRY.all_tools() if s.pack == "social"}
+        assert phone == set(PHONE_SKILL_FOR_ACTION.values())
+        assert all(SKILL_REGISTRY.get(name).agents == ["system"] for name in phone)
+    finally:
+        registry.deactivate()
+
+
 def test_the_allowlist_does_not_rot() -> None:
     """
     A row for a skill that no longer exists is a lie the next reader inherits.

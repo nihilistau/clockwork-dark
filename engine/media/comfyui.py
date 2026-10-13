@@ -2,12 +2,22 @@
 ComfyUI Client
 ==============
 
-Image generation queue with template prompts and placeholder fallback.
+The in-turn image queue: template prompts and placeholder URLs.
 
 v0.15.1: no negative prompt. The templates carry none and the job payload
 no longer has a ``negative_prompt`` slot.
 
-Version: v0.1.1 [2026-09-26]
+v0.22.0 (spec §13.4): its ``/prompt`` submit is RETIRED. It posted a one-node
+graph (a lone CLIPTextEncode) that ComfyUI accepts and that produces nothing,
+on every turn of every story once ``comfyui.enabled`` was on -- the art
+pipeline's switch. ``enqueue_image`` now answers a placeholder (or a cached
+URL) whatever that switch says, and no story's turn contacts ComfyUI. Real
+generation is ``engine/media/providers/comfy.py`` (the art pipeline, behind the
+image worker) and ``engine/media/comfy/`` (the phone's media). The queue and
+its prompt building stay: the turn payload's ``media.images`` rows are built
+here. NOT WIRED to any server (docs/GOVERNANCE.md).
+
+Version: v0.2.0 [2026-10-12]
 """
 
 from __future__ import annotations
@@ -16,9 +26,7 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 
-import httpx
-
-from engine import net, yamlio
+from engine import yamlio
 from engine.config import get_config
 from engine.game.state import GameState
 from engine.media.queue import (
@@ -76,29 +84,10 @@ def build_image_prompt(
 
 class ComfyUIClient:
     """
-    Queue ComfyUI image jobs; POST to API when enabled.
+    Queue in-turn image jobs: a cached URL, else a placeholder.
 
-    When disabled, returns placeholder URLs for dev/test.
+    It contacts no server (v0.22.0): see the module docstring.
     """
-
-    def __init__(self, base_url: Optional[str] = None) -> None:
-        cfg = get_config()
-        self.base_url = (base_url or cfg.get("comfyui.base_url", "http://localhost:8188")).rstrip(
-            "/"
-        )
-        self.enabled = bool(cfg.get("comfyui.enabled", False))
-        self.timeout = float(cfg.get("comfyui.timeout_seconds", 120))
-
-    def is_available(self) -> bool:
-        """Return True if ComfyUI responds."""
-        if not self.enabled:
-            return False
-        try:
-            with httpx.Client(timeout=3.0, verify=net.ssl_context()) as client:
-                r = client.get(f"{self.base_url}/system_stats")
-                return r.status_code == 200
-        except Exception:
-            return False
 
     def enqueue_image(
         self,
@@ -108,14 +97,15 @@ class ComfyUIClient:
         templates: Optional[dict[str, Any]] = None,
     ) -> MediaJob:
         """
-        Enqueue an image generation job from a stream tag.
+        Enqueue an image job from a stream tag.
 
         Args:
             image_tag: e.g. forest_clearing_dawn
             state: Game state for phase bucket and cache.
 
         Returns:
-            MediaJob added to the media queue.
+            MediaJob added to the media queue: ``cached`` with the cached URL,
+            else ``placeholder``.
         """
         location_id, time_of_day = parse_image_tag(image_tag)
         phase_bucket = state.evil_phase.value
@@ -146,50 +136,11 @@ class ComfyUIClient:
             job.url = cached_url
             return queue.enqueue(job)
 
-        if not self.enabled:
-            job.status = "placeholder"
-            job.url = f"/static/placeholders/{image_tag}.png"
-            state.media_cache[cache_key] = job.url
-            logger.debug(
-                "[comfyui] Placeholder image (operation=enqueue_image, tag=%s)",
-                image_tag,
-            )
-            return queue.enqueue(job)
-
-        try:
-            submitted = self._submit_prompt(prompt)
-            job.status = "submitted"
-            job.payload["comfyui"] = submitted
-            job.url = submitted.get("preview_url", "")
-            if job.url:
-                state.media_cache[cache_key] = job.url
-        except Exception as exc:
-            job.status = "error"
-            job.error = str(exc)
-            job.url = f"/static/placeholders/{image_tag}.png"
-            logger.warning(
-                "[comfyui] Submit failed (operation=enqueue_image): %s", exc
-            )
-
+        job.status = "placeholder"
+        job.url = f"/static/placeholders/{image_tag}.png"
+        state.media_cache[cache_key] = job.url
+        logger.debug(
+            "[comfyui] Placeholder image (operation=enqueue_image, tag=%s)",
+            image_tag,
+        )
         return queue.enqueue(job)
-
-    def _submit_prompt(self, prompt: str) -> dict[str, Any]:
-        """POST minimal workflow payload to ComfyUI."""
-        payload = {
-            "prompt": {
-                "1": {
-                    "class_type": "CLIPTextEncode",
-                    "inputs": {"text": prompt},
-                },
-            },
-            "client_id": get_media_queue().new_job_id(),
-        }
-        with httpx.Client(timeout=self.timeout, verify=net.ssl_context()) as client:
-            response = client.post(f"{self.base_url}/prompt", json=payload)
-            response.raise_for_status()
-            data = response.json()
-            return {
-                "prompt_id": data.get("prompt_id"),
-                "preview_url": "",
-                "raw": data,
-            }

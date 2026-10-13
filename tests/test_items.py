@@ -640,17 +640,11 @@ def test_the_comfyui_provider_can_be_built():
 def test_the_comfyui_workflow_ends_in_a_saved_file():
     """A bare CLIPTextEncode node is accepted by ComfyUI and produces nothing."""
     from engine.media.providers.base import ImageRequest
-    from engine.media.providers.comfy import build_workflow
+    from engine.media.providers.comfy import ComfyProvider
 
-    graph = build_workflow(
-        ImageRequest(subject_id="bent_nail", kind="item"),
-        checkpoint="sd_xl_base_1.0.safetensors",
-        steps=28,
-        cfg_scale=6.5,
-        sampler="dpmpp_2m",
-        scheduler="karras",
-        seed=1234,
-    )
+    # Since v0.22.0 the graph is the `photo` workflow's template with the
+    # request bound into it (config/comfyui/photo_sdxl.json).
+    graph = ComfyProvider().graph_for(ImageRequest(subject_id="bent_nail", kind="item"))
     classes = {node["class_type"] for node in graph.values()}
     assert {"CheckpointLoaderSimple", "KSampler", "VAEDecode", "SaveImage"} <= classes
     # KSampler takes a positive and a negative conditioning, so there are two

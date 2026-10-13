@@ -650,6 +650,8 @@ class StoryValidator:
         self.check_declared_event_scenes()
         self.check_event_references()
         self.check_endings_and_epilogues()
+        self.check_endless()
+        self.check_social()
         self.check_opening()
         self.check_law_effects()
         self.check_death_rules()
@@ -1916,6 +1918,600 @@ class StoryValidator:
             )
 
     # -- endings and epilogues ---------------------------------------------
+
+    def check_endless(self) -> None:
+        """`endless: true` refuses `paths.endings` and `paths.epilogues` (spec §2.4)."""
+        raw = self.manifest.extras.get("endless")
+        if raw is not None and not isinstance(raw, bool):
+            self._add("game.yaml", "endless", "must be true or false")
+        if raw is True:
+            for key in ("endings", "epilogues"):
+                if self.manifest.paths.get(key):
+                    self._add("game.yaml", "endless", f"an endless story may not declare paths.{key}")
+
+    def check_social(self) -> None:
+        """`paths.social` (spec §2.1): each file parses; each data task adds its own checks."""
+        directory = self._dir("social")
+        if directory is None:
+            return
+        from engine import social
+
+        for name in social.FILES:
+            try:
+                social.load_file(directory, name)
+            except ValueError as exc:
+                self._add(f"social/{name}.yaml", name, str(exc))
+        self._check_population(directory)
+        self._check_creation(directory)
+        self._check_behaviours(directory)
+        self._check_apps(directory)
+        self._check_relationships(directory)
+        self._check_media(directory)
+        self._check_texter(directory)
+        self._check_games(directory)
+        self._check_meets(directory)
+
+    def _check_meets(self, directory: Path) -> None:
+        """Meet-ups (spec §14, v0.22.0 T24): relationships.yaml's `meets:` block whole, and venues.yaml's
+        kinds and twelve or more venues, each neighbourhood and hobby a population.yaml id."""
+        from engine import social
+        from engine.social import meets
+
+        try:
+            venues = social.load_file(directory, "venues")
+            relationships_data = social.load_file(directory, "relationships")
+            population_data = social.load_file(directory, "population")
+        except ValueError:
+            return  # reported by check_social
+        for source, key, message in meets.meet_faults(venues, relationships_data, population_data or None):
+            self._add(f"social/{source}", key, message)
+
+    def _check_games(self, directory: Path) -> None:
+        """`games.yaml` (spec §21, v0.22.0 T22-T23): `wordgame`'s premiums 11x11, its bag 72 tiles with
+        two blanks, its numbers and `words.txt` beside it; `this_or_that`'s numbers, its tags (each
+        hobby, trait and slider one population.yaml knows) and its bank of 60 or more pairs."""
+        from engine import social
+
+        try:
+            data = social.load_file(directory, "games")
+        except ValueError:
+            return  # reported by check_social
+        if "wordgame" in data:
+            from engine.social.games import wordgame
+
+            for key, message in wordgame.data_faults(data["wordgame"], directory):
+                self._add(f"social/{wordgame.WORDS_FILE}" if key == wordgame.WORDS_FILE else "social/games.yaml",
+                          key, message)
+        if "this_or_that" in data:
+            from engine.social.games import this_or_that
+
+            try:
+                population = social.load_file(directory, "population")
+            except ValueError:
+                population = None  # reported by check_social
+            for key, message in this_or_that.data_faults(data["this_or_that"], population or None):
+                self._add("social/games.yaml", key, message)
+
+    def _check_media(self, directory: Path) -> None:
+        """`media.yaml` (spec §13.1, v0.22.0 T19) whole, and what it names elsewhere: every subject's
+        `requires_flag` a population.yaml flag, every `when` a schedule status, every `unlock_stage`
+        a stage, every `mood_mult` key a relationships.yaml mood value."""
+        from engine import social
+        from engine.social import media
+
+        try:
+            data = social.load_file(directory, "media")
+            population_data = social.load_file(directory, "population")
+            relationships_data = social.load_file(directory, "relationships")
+        except ValueError:
+            return  # reported by check_social
+        for key, message in media.media_faults(data, population_data, relationships_data):
+            self._add("social/media.yaml", key, message)
+
+    def _check_texter(self, directory: Path) -> None:
+        """`prompts/texter.md` (spec §11.3-11.4, v0.22.0 T13): its persona, instruction table and
+        fallbacks parse, every situation the engine or behaviours.yaml emits has a row, and every
+        fallback archetype is declared."""
+        from engine import social
+        from engine.social import voicing
+
+        source = f"prompts/{voicing.TEXTER_FILE}"
+        path = directory.parent.parent / "prompts" / voicing.TEXTER_FILE
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            self._add(source, "file", "missing: a story declaring paths.social needs it")
+            return
+        try:
+            prompt = voicing.parse_texter(text)
+        except ValueError as exc:
+            parts = str(exc).split(": ", 3)
+            key, message = (parts[2], parts[3]) if len(parts) == 4 else ("texter", str(exc))
+            self._add(source, key, message)
+            return
+        try:
+            behaviours = social.load_file(directory, "behaviours")
+        except ValueError:
+            behaviours = {}  # reported by check_social
+        for key, message in voicing.situation_faults(prompt, behaviours):
+            self._add(source, key, message)
+
+    def _check_relationships(self, directory: Path) -> None:
+        """`relationships.yaml` (spec §10, v0.22.0 T9) whole, and what behaviours.yaml names in it:
+        every initiation's `stage_min` a stage, every arc's `then.stage` a stage and its measures the
+        ones the engine counts, every `warmth_cap_band` a band."""
+        from engine import social
+        from engine.social import relationships
+
+        source = "social/relationships.yaml"
+        try:
+            data = social.load_file(directory, "relationships")
+            behaviours = social.load_file(directory, "behaviours")
+        except ValueError:
+            return  # reported by check_social
+        if not data:
+            return
+        try:
+            relationships.check_data(data)
+        except ValueError as exc:
+            parts = str(exc).split(": ", 3)
+            key, message = (parts[2], parts[3]) if len(parts) == 4 else ("relationships", str(exc))
+            self._add(source, key, message)
+            return
+        from engine.social import agreement
+
+        for key, message in agreement.check_phrases(data):   # spec §11.5's phrase lists (T11)
+            self._add(source, key, message)
+        stages = set(data["stages"])
+        bands = {str(row["name"]) for row in data["bands"]}
+        bsource = "social/behaviours.yaml"
+        rows = behaviours.get("archetypes") if isinstance(behaviours.get("archetypes"), dict) else {}
+        for name, row in rows.items():
+            if not isinstance(row, dict):
+                continue
+            band = row.get("warmth_cap_band")
+            if band is not None and band not in bands:   # relationships.check_cap_bands, one row per fault
+                self._add(bsource, f"archetypes.{name}.warmth_cap_band", f"{band!r} is no relationships.yaml band")
+            for i, init in enumerate(row.get("initiations") or []):
+                stage = ((init or {}).get("when") or {}).get("stage_min") if isinstance(init, dict) else None
+                if stage is not None and stage not in stages:
+                    self._add(bsource, f"archetypes.{name}.initiations[{i}].when.stage_min",
+                              f"{stage!r} is no relationships.yaml stage")
+        arcs = behaviours.get("arcs") if isinstance(behaviours.get("arcs"), dict) else {}
+        for name, spec in arcs.items():
+            if not isinstance(spec, dict):
+                continue
+            for point, allowed in (("at", relationships.ARC_POINTS), ("from", relationships.ARC_STARTS)):
+                for measure in (spec.get(point) or {}) if isinstance(spec.get(point), dict) else ():
+                    if measure not in allowed:
+                        self._add(bsource, f"arcs.{name}.{point}", f"{measure!r} is not one of {', '.join(allowed)}")
+            then = ((spec.get("beat") or {}).get("then") or {}) if isinstance(spec.get("beat"), dict) else {}
+            for key, value in then.items() if isinstance(then, dict) else ():
+                if key == "stage":
+                    if value not in stages:
+                        self._add(bsource, f"arcs.{name}.beat.then.stage", f"{value!r} is no relationships.yaml stage")
+                elif key not in relationships.ARC_MOVES:
+                    self._add(bsource, f"arcs.{name}.beat.then", f"{key!r} is not one of stage, "
+                                                                  f"{', '.join(relationships.ARC_MOVES)}")
+            each = spec.get("each_day") or {}
+            for key in each if isinstance(each, dict) else ():
+                if key not in relationships.ARC_MOVES:
+                    self._add(bsource, f"arcs.{name}.each_day", f"{key!r} is not one of "
+                                                                f"{', '.join(relationships.ARC_MOVES)}")
+
+    def _check_apps(self, directory: Path) -> None:
+        """`apps.yaml` (spec §6, §8, v0.22.0 T7): every app's kind, capabilities and costs; the
+        dating apps' decks, limits and culture weights; and the `matching:` block whole."""
+        from engine import social
+        from engine.social import apps as social_apps
+        from engine.social import matching, messaging
+        from engine.social.events import DAILY_HOUR as daily_hour
+        from engine.social.kinds import stage_rank
+
+        source = "social/apps.yaml"
+        try:
+            data = social.load_file(directory, "apps")
+        except ValueError:
+            return  # reported by check_social
+        if not data:
+            return
+
+        def add(key: str, message: str) -> None:
+            self._add(source, key, message)
+
+        def number(value: Any) -> bool:
+            return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+        rows = data.get("apps")
+        if not isinstance(rows, dict) or not rows:
+            add("apps", "must be a non-empty mapping of apps")
+            rows = {}
+        dating: list[str] = []
+        for name, row in rows.items():
+            where = f"apps.{name}"
+            if not isinstance(row, dict):
+                add(where, "must be a mapping")
+                continue
+            kind = row.get("kind")
+            if kind not in social_apps.KINDS:
+                add(f"{where}.kind", f"must be one of {', '.join(social_apps.KINDS)}, not {kind!r}")
+            caps = row.get("capabilities", [])
+            if not isinstance(caps, list) or any(c not in social_apps.CAPABILITIES for c in caps):
+                add(f"{where}.capabilities", f"each must be one of {'|'.join(social_apps.CAPABILITIES)}, not {caps!r}")
+            costs = row.get("cost_minutes", {})
+            if not isinstance(costs, dict):
+                add(f"{where}.cost_minutes", "must be a mapping of verb to minutes")
+                costs = {}
+            for verb, minutes in costs.items():
+                if verb not in social_apps.COST_VERBS:
+                    add(f"{where}.cost_minutes", f"{verb!r} is no verb that reads a cost "
+                                                 f"({', '.join(social_apps.COST_VERBS)})")
+                elif not number(minutes) or minutes < 0:
+                    add(f"{where}.cost_minutes", f"{verb}: must be minutes, 0 or more, not {minutes!r}")
+            if "unlock" in row and stage_rank(row["unlock"]) < 0:
+                add(f"{where}.unlock", f"must be a live stage (spec §10.3), not {row['unlock']!r}")
+            if kind != "dating":
+                continue
+            dating.append(str(name))
+            if row.get("first_message", "either") not in messaging.FIRST_MESSAGE:
+                add(f"{where}.first_message", f"must be one of {', '.join(messaging.FIRST_MESSAGE)}, "
+                                              f"not {row.get('first_message')!r}")
+            if row.get("deck") not in social_apps.DECKS:
+                add(f"{where}.deck", f"must be one of {', '.join(social_apps.DECKS)}")
+            for key in ("likes_per_day", "match_expiry_days"):
+                value = row.get(key)
+                if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+                    add(f"{where}.{key}", f"must be a whole number above 0, not {value!r}")
+            for key in ("super_likes_per_day", "likes_you_per_day"):
+                value = row.get(key, 0)
+                if not number(value) or value < 0:
+                    add(f"{where}.{key}", f"must be a number, 0 or more, not {value!r}")
+            culture = row.get("culture")
+            if not isinstance(culture, dict):
+                add(f"{where}.culture", "required: {archetype_weights, intent_weights, selectivity_mult}")
+                continue
+            for key in ("archetype_weights", "intent_weights"):
+                weights = culture.get(key)
+                if not isinstance(weights, dict) or not weights:
+                    add(f"{where}.culture.{key}", "required: a mapping of id to a weight above 0")
+                    continue
+                for ident, weight in weights.items():
+                    if not number(weight) or weight <= 0:
+                        add(f"{where}.culture.{key}", f"{ident}: weight must be above 0, not {weight!r}")
+                    if key == "intent_weights" and ident not in matching.INTENTS:
+                        add(f"{where}.culture.{key}", f"{ident!r} is not an intent ({', '.join(matching.INTENTS)})")
+            # An unknown archetype id is _check_behaviours' (it reads behaviours.yaml's rows).
+            mult = culture.get("selectivity_mult", 1.0)
+            if not number(mult) or mult < 0:
+                add(f"{where}.culture.selectivity_mult", f"must be a number, 0 or more, not {mult!r}")
+
+        block = data.get("matching")
+        if not isinstance(block, dict):
+            add("matching", "required (spec §8)")
+            return
+        weights = block.get("weights")
+        if not isinstance(weights, dict) or set(weights) != set(matching.TERMS) \
+                or not all(number(w) and w >= 0 for w in weights.values()):
+            add("matching.weights", f"must give each of {', '.join(matching.TERMS)} a weight, 0 or more")
+        elif abs(sum(float(w) for w in weights.values()) - 1.0) > 1e-6:
+            add("matching.weights", f"must sum to 1.0, not {sum(float(w) for w in weights.values()):g}")
+        shorts = [short for _, short in matching.SHORT]
+        pairs = {f"{a}_{b}" for i, a in enumerate(shorts) for b in shorts[i:]}
+        table = block.get("looking_for_table")
+        if not isinstance(table, dict):
+            add("matching.looking_for_table", "required: a mapping of intent pairs to 0-1")
+        else:
+            for key, value in table.items():
+                if key not in pairs:
+                    add("matching.looking_for_table", f"{key!r} is no pair in the order {', '.join(shorts)}")
+                elif not number(value) or not 0 <= value <= 1:
+                    add("matching.looking_for_table", f"{key}: must be 0-1, not {value!r}")
+        for key, low, high in (("dealbreaker_mult", 0, 1), ("compat_offset", 0, None), ("super_like_mult", 0, None)):
+            value = block.get(key)
+            if not number(value) or value < low or (high is not None and value > high):
+                add(f"matching.{key}", f"must be a number {low}{'-' + str(high) if high is not None else ' or more'}, "
+                                       f"not {value!r}")
+        for key in ("chemistry", "completeness"):
+            value = block.get(key)
+            if not (isinstance(value, list) and len(value) == 2 and all(number(v) for v in value)
+                    and value[0] <= value[1]):
+                add(f"matching.{key}", f"must be [low, high], numbers with low <= high, not {value!r}")
+        base = block.get("like_back_base")
+        if not isinstance(base, dict):
+            add("matching.like_back_base", "required: a base chance per dating app")
+        else:
+            for name in dating:
+                if not number(base.get(name)) or base[name] < 0:
+                    add("matching.like_back_base", f"{name}: must be a number, 0 or more")
+        see = block.get("see_like_hours")
+        if not (isinstance(see, dict) and number(see.get("median")) and see["median"] > 0
+                and number(see.get("spread")) and see["spread"] >= 0
+                and (("max" not in see) or (number(see["max"]) and see["max"] > 0))):
+            add("matching.see_like_hours", "must be {median > 0, spread >= 0, max? > 0}")
+        window = block.get("likes_you_hours")
+        if not (isinstance(window, list) and len(window) == 2 and all(number(h) for h in window)
+                and daily_hour <= window[0] < window[1] <= daily_hour + 24):
+            add("matching.likes_you_hours", f"must be [start, end] clock hours within the deck's day "
+                                            f"({daily_hour:g} to {daily_hour + 24:g}), not {window!r}")
+        reach = block.get("discovery_distance")
+        if not (isinstance(reach, dict) and reach
+                and all(isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= 4 for v in reach.values())):
+            add("matching.discovery_distance", "must map each discovery distance to a whole number 0-4")
+
+    def _check_behaviours(self, directory: Path) -> None:
+        """`behaviours.yaml` (spec §5, v0.22.0 T5): every archetype whole, every arc's shape,
+        every archetype an app draws declared, and every job shape's week well formed."""
+        from engine import social
+        from engine.social import behaviour
+
+        source = "social/behaviours.yaml"
+        try:
+            data = social.load_file(directory, "behaviours")
+            apps = social.load_file(directory, "apps")
+            population = social.load_file(directory, "population")
+        except ValueError:
+            return  # reported by check_social
+
+        def report(exc: ValueError, fallback: str) -> None:
+            # behaviour's faults read "social: behaviours.yaml: <key>: <message>".
+            parts = str(exc).split(": ", 3)
+            key, message = (parts[2], parts[3]) if len(parts) == 4 else (fallback, str(exc))
+            self._add(source, key, message)
+
+        if data:
+            arcs = data.get("arcs") or {}
+            if not isinstance(arcs, dict):
+                self._add(source, "arcs", "must be a mapping")
+                arcs = {}
+            for name, spec in arcs.items():
+                try:
+                    behaviour.check_arc(str(name), spec)
+                except ValueError as exc:
+                    report(exc, f"arcs.{name}")
+            rows = data.get("archetypes")
+            if not isinstance(rows, dict) or not rows:
+                self._add(source, "archetypes", "must be a non-empty mapping of archetypes")
+                rows = {}
+            for name, row in rows.items():
+                try:
+                    behaviour.build_archetype(str(name), row, arcs)
+                except ValueError as exc:
+                    report(exc, f"archetypes.{name}")
+            try:
+                behaviour.check_pacing(data.get("pacing"))   # spec §9.2, v0.22.0 T8
+            except ValueError as exc:
+                report(exc, "pacing")
+            try:
+                behaviour.check_canon(data)                  # spec §12.1, v0.22.0 T12
+            except ValueError as exc:
+                report(exc, "canon")
+            for app, spec in (apps.get("apps") or {}).items() if isinstance(apps.get("apps"), dict) else ():
+                weights = ((spec or {}).get("culture") or {}).get("archetype_weights") if isinstance(spec, dict) else None
+                for name in weights or {}:
+                    if name not in rows:
+                        self._add("social/apps.yaml", f"apps.{app}.culture.archetype_weights",
+                                  f"{name!r} is not a behaviours.yaml archetype")
+
+        schedules = population.get("schedules")
+        if not population or schedules is None:
+            return
+        psource = "social/population.yaml"
+        if not isinstance(schedules, dict):
+            self._add(psource, "schedules", "must be a mapping of job shape to week")
+            return
+        for row in population.get("jobs") or []:
+            if isinstance(row, dict) and row.get("shape") not in schedules:
+                self._add(psource, "jobs", f"{row.get('id')}: shape {row.get('shape')!r} has no schedules entry")
+        for shape, week in schedules.items():
+            if not isinstance(week, dict) or set(week) - set(behaviour.WEEKDAYS):
+                self._add(psource, f"schedules.{shape}", f"must map weekdays ({', '.join(behaviour.WEEKDAYS)}) to bands")
+                continue
+            for day, bands in week.items():
+                for band in bands or []:
+                    ok = (isinstance(band, list) and len(band) == 3
+                          and all(isinstance(h, (int, float)) and not isinstance(h, bool) for h in band[:2])
+                          and 0 <= band[0] < band[1] <= 24 and band[2] in behaviour.STATUSES)
+                    if not ok:
+                        self._add(psource, f"schedules.{shape}.{day}",
+                                  f"{band!r}: a band is [start, end, status], 0 <= start < end <= 24, "
+                                  f"status one of {', '.join(behaviour.STATUSES)}")
+
+    def _check_creation(self, directory: Path) -> None:
+        """`creation.yaml` (spec §3, v0.22.0 T4): every field's shape, and every `of_table` a real table."""
+        from engine import social
+        from engine.social.creation import FIELD_KINDS
+
+        source = "social/creation.yaml"
+        try:
+            form = social.load_file(directory, "creation")
+            population = social.load_file(directory, "population")
+        except ValueError:
+            return  # reported by check_social
+        if not form:
+            return
+        start = form.get("start_hour")
+        if start is not None and (isinstance(start, bool) or not isinstance(start, int) or not 0 <= start <= 23):
+            self._add(source, "start_hour", f"must be a whole hour 0-23, not {start!r}")
+        fields = form.get("fields")
+        if not isinstance(fields, dict) or not fields:
+            self._add(source, "fields", "must be a non-empty mapping of fields")
+            return
+
+        def whole(value: Any) -> bool:
+            return isinstance(value, int) and not isinstance(value, bool)
+
+        def walk(mapping: dict[str, Any], prefix: str) -> None:
+            for name, spec in mapping.items():
+                key = f"fields.{prefix}{name}"
+                if not isinstance(spec, dict):
+                    self._add(source, key, "must be a field ({kind: ...}) or a mapping of fields")
+                    continue
+                if "kind" not in spec:
+                    walk(spec, f"{prefix}{name}.")
+                    continue
+                kind = spec.get("kind")
+                if kind not in FIELD_KINDS:
+                    self._add(source, key, f"kind must be one of {', '.join(sorted(FIELD_KINDS))}, not {kind!r}")
+                    continue
+                for bound in ("min", "max"):
+                    if bound in spec and not whole(spec[bound]):
+                        self._add(source, key, f"{bound} must be a whole number")
+                if whole(spec.get("min")) and whole(spec.get("max")) and spec["min"] > spec["max"]:
+                    self._add(source, key, f"min {spec['min']} is above max {spec['max']}")
+                ids: list[str] = []
+                if kind in ("choice", "multi"):
+                    named = spec.get("of_table")
+                    if named:
+                        rows = population.get(str(named))
+                        if not isinstance(rows, list) or not rows:
+                            self._add(source, key, f"of_table {named!r} names no population.yaml table")
+                            continue
+                        ids = [str(row.get("id")) for row in rows if isinstance(row, dict)]
+                    else:
+                        raw = spec.get("of")
+                        if not isinstance(raw, list) or not raw or not all(isinstance(v, str) for v in raw):
+                            self._add(source, key, "needs `of` (a list of ids, quoted where YAML reads a boolean) or `of_table`")
+                            continue
+                        ids = list(raw)
+                if kind == "choice" and "default" in spec and str(spec["default"]) not in ids:
+                    self._add(source, key, f"default {spec['default']!r} is not one of its choices")
+                if kind == "multi" and whole(spec.get("min")) and spec["min"] > len(ids):
+                    self._add(source, key, f"min {spec['min']} is more than its {len(ids)} choices")
+                if kind == "multi" and whole(spec.get("max")) and spec["max"] > len(ids):
+                    self._add(source, key, f"max {spec['max']} is more than its {len(ids)} choices")
+                if kind == "int":
+                    default = spec.get("default")
+                    if not whole(default):
+                        self._add(source, key, "an int field needs a whole-number default")
+                    elif (whole(spec.get("min")) and default < spec["min"]) or (whole(spec.get("max")) and default > spec["max"]):
+                        self._add(source, key, f"default {default} is outside its range")
+                if kind == "text" and not isinstance(spec.get("default"), str):
+                    self._add(source, key, "a text field needs a text default")
+                if kind == "text" and not whole(spec.get("max")):
+                    self._add(source, key, "a text field needs a whole-number max (free text is never unbounded)")
+                if kind == "sliders":
+                    raw = spec.get("of")
+                    if not isinstance(raw, list) or not raw or not all(isinstance(v, str) for v in raw):
+                        self._add(source, key, "needs `of`, a list of slider names")
+                    if not (whole(spec.get("min")) and whole(spec.get("max"))):
+                        self._add(source, key, "needs whole-number min and max")
+                # population.yaml's attribute tables draw ids the player can also pick
+                # (its `attribute_tables` comment): each must be one of this field's.
+                if prefix == "attributes." and kind == "choice" and name in (population.get("attribute_tables") or []):
+                    drawn = {str(row.get("id")) for row in population.get(name) or [] if isinstance(row, dict)}
+                    missing = sorted(drawn - set(ids))
+                    if missing:
+                        self._add(source, key, f"population.yaml's {name} table draws {missing}, not among its choices")
+
+        walk(fields, "")
+
+        # creation.apply refuses a discovery range whose age_min is above its
+        # age_max; the form's own defaults must not be one.
+        discovery = fields.get("discovery")
+        if isinstance(discovery, dict):
+            low = (discovery.get("age_min") or {}).get("default") if isinstance(discovery.get("age_min"), dict) else None
+            high = (discovery.get("age_max") or {}).get("default") if isinstance(discovery.get("age_max"), dict) else None
+            if whole(low) and whole(high) and low > high:
+                self._add(source, "fields.discovery", f"the default age_min {low} is above the default age_max {high}")
+
+    def _check_population(self, directory: Path) -> None:
+        """`population.yaml` (spec §4, v0.22.0 T3): the filter, the city, the pools and every weight."""
+        from engine import social
+        from engine.social import population
+
+        source = "social/population.yaml"
+        try:
+            data = social.load_file(directory, "population")
+        except ValueError:
+            return  # reported by check_social
+        if not data:
+            return
+
+        def add(key: str, message: str) -> None:
+            self._add(source, key, message)
+
+        spec = data.get("filter")
+        if not isinstance(spec, dict) or spec.get("sex") not in population.FILTER_MODES:
+            add("filter.sex", f"must be one of {', '.join(population.FILTER_MODES)}")
+
+        hoods = [row.get("id") for row in data.get("neighbourhoods") or [] if isinstance(row, dict)]
+        if len(hoods) != 11 or len(set(hoods)) != 11:
+            add("neighbourhoods", f"must be exactly eleven distinct ids, not {len(set(hoods))}")
+        table = data.get("distance")
+        if not isinstance(table, dict) or set(table) != set(hoods):
+            add("distance", "must have one row per neighbourhood, and no other")
+        else:
+            for a in hoods:
+                row = table.get(a)
+                if not isinstance(row, dict) or set(row) != set(hoods):
+                    add("distance", f"{a}: must name every neighbourhood")
+                    continue
+                for b in hoods:
+                    value = row.get(b)
+                    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 4:
+                        add("distance", f"{a}.{b}: must be a whole number 0-4")
+                    elif (a == b and value != 0) or (table.get(b) or {}).get(a) != value:
+                        add("distance", f"{a}.{b}: must be 0 on the diagonal and symmetric")
+
+        bounds = data.get("age_bounds")
+        values = [bounds.get(k) for k in ("min", "max")] if isinstance(bounds, dict) else [None, None]
+        if not all(isinstance(v, int) and not isinstance(v, bool) for v in values) or values[0] > values[1]:
+            add("age_bounds", "must be {min, max}, whole numbers with min <= max (the apps' own age floor is data)")
+
+        for row in data.get("jobs") or []:
+            if isinstance(row, dict) and row.get("article") not in (None, "a", "an"):
+                add("jobs", f"{row.get('id')}: article must be a or an, not {row.get('article')!r}")
+
+        names = data.get("names") if isinstance(data.get("names"), dict) else {}
+        for sex in ("female", "male"):
+            if not names.get(sex):
+                add(f"names.{sex}", "must be a non-empty list of names")
+
+        for key, rows in data.items():
+            if isinstance(rows, list) and rows and all(isinstance(row, dict) for row in rows):
+                self._check_weights(source, key, rows)
+        for key, rows in (data.get("appearance") or {}).items():
+            self._check_weights(source, f"appearance.{key}", rows if isinstance(rows, list) else [])
+
+        styles = {row.get("id") for row in data.get("texting_styles") or [] if isinstance(row, dict)}
+        for style, bank in (data.get("bios") or {}).items():
+            if style not in styles:
+                add(f"bios.{style}", "is not a declared texting_styles id")
+            for text in bank or []:
+                unknown = population.template_fields(str(text)) - population.BIO_FIELDS
+                if unknown:
+                    add(f"bios.{style}", f"{text!r} names {sorted(unknown)}; a template may name only {sorted(population.BIO_FIELDS)}")
+        for style, bank in (data.get("like_comments") or {}).items():
+            if style not in styles:
+                add(f"like_comments.{style}", "is not a declared texting_styles id")
+            for text in bank or []:
+                unknown = population.template_fields(str(text)) - population.BIO_FIELDS
+                if unknown:
+                    add(f"like_comments.{style}", f"{text!r} names {sorted(unknown)}; a template may name only {sorted(population.BIO_FIELDS)}")
+        for app, bank in (data.get("prompts") or {}).items():
+            for row in bank or []:
+                if not isinstance(row, dict):
+                    add(f"prompts.{app}", f"{row!r}: must be a mapping {{q, a_by_hobby, a_any}}")
+                    continue
+                answers = [a for rows in (row.get("a_by_hobby") or {}).values() for a in rows] + list(row.get("a_any") or [])
+                if not row.get("a_any"):
+                    add(f"prompts.{app}", f"{row.get('q')!r}: needs `a_any`, the answer for a person with none of its hobbies")
+                for text in answers:
+                    unknown = population.template_fields(str(text)) - population.BIO_FIELDS
+                    if unknown:
+                        add(f"prompts.{app}", f"{text!r} names {sorted(unknown)}")
+
+        for name in data.get("attribute_tables") or []:
+            if not data.get(name):
+                add("attribute_tables", f"{name}: names no table")
+
+    def _check_weights(self, source: str, key: str, rows: list[Any]) -> None:
+        for row in rows:
+            if not isinstance(row, dict) or "weight" not in row:
+                continue
+            weight = row["weight"]
+            if isinstance(weight, bool) or not isinstance(weight, (int, float)) or weight <= 0:
+                self._add(source, key, f"{row.get('id')}: weight must be a positive number, not {weight!r}")
 
     def check_endings_and_epilogues(self) -> None:
         """Every declared ending resolves to an epilogue; fail_forward is real."""

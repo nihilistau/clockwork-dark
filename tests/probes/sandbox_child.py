@@ -10,6 +10,9 @@ sandbox layer). It imports the engine, registers one session into
 ``mcp.json`` -- and reports, as JSON:
 
 - ``base_url``: ``get_config().get("llm.base_url")``;
+- ``comfy_base_url``: ``comfyui.base_url``, and ``comfy_api_key_set`` whether
+  ``comfyui.api_key`` resolves to anything (v0.22.0 T18: the discard port and
+  no key, but a stub ComfyUI the test registered);
 - ``hosting``: ``get_config().get("hosting.enabled")``;
 - ``marker``: ``get_config().get("sandbox_probe.marker")``, a key only a
   stand-in ``local.yaml`` sets;
@@ -78,6 +81,8 @@ def report(argv: list[str]) -> dict[str, Any]:
         "api_key_kind": cfg.secret_source("llm.api_key")[0],
         "probed": probed,
         "base_url": cfg.get("llm.base_url"),
+        "comfy_base_url": cfg.get("comfyui.base_url"),
+        "comfy_api_key_set": bool(cfg.get("comfyui.api_key")),
         "hosting": cfg.get("hosting.enabled"),
         "marker": cfg.get("sandbox_probe.marker"),
         "written": written,

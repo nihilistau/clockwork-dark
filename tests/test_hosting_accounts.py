@@ -655,6 +655,65 @@ def test_adopt_refuses_an_id_already_in_the_account_and_moves_nothing(
     assert (theirs / "save.json").read_text(encoding="utf-8") == "{}"
 
 
+def test_adopt_moves_a_runs_phone_media_and_refuses_a_media_clash(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """v0.22.0 T18 review I4: a run's phone media follow it into the account."""
+    from engine.media.comfy.storage import phone_media_dir
+    from engine.persistence import saves, storage
+
+    monkeypatch.setenv("CLOCKWORK_DATA_DIR", str(tmp_path / "data"))
+    store = AccountStore(storage.hosting_dir())
+    account = store.add("alice", new_password())
+    base = saves.saves_base()
+    _local_run(base, "read-receipts", "abc123def456")
+    _local_run(base, "read-receipts", "bbb222ccc333")      # a run with no media
+    local = phone_media_dir("", "abc123def456")
+    local.mkdir(parents=True)
+    (local / "x1.png").write_bytes(b"PNGDATA")
+
+    # A clash in the account's MEDIA alone refuses the whole adoption.
+    theirs = phone_media_dir(account.id, "abc123def456")
+    theirs.mkdir(parents=True)
+    with pytest.raises(AccountError, match="abc123def456"):
+        adopt(account, "read-receipts")
+    assert (local / "x1.png").exists() and (base / "read-receipts" / "abc123def456").is_dir()
+    theirs.rmdir()
+
+    assert adopt(account, "read-receipts") == {"read-receipts": ["abc123def456", "bbb222ccc333"]}
+    assert not local.exists(), "the local media stayed behind"
+    assert (theirs / "x1.png").read_bytes() == b"PNGDATA"
+    assert not phone_media_dir(account.id, "bbb222ccc333").exists()
+
+
+def test_a_run_that_fails_to_move_takes_its_media_back(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """v0.22.0 T18 re-review N1: media moved first, and back when the run's move fails."""
+    from engine.hosting import accounts
+    from engine.media.comfy.storage import phone_media_dir
+    from engine.persistence import saves, storage
+
+    monkeypatch.setenv("CLOCKWORK_DATA_DIR", str(tmp_path / "data"))
+    store = AccountStore(storage.hosting_dir())
+    account = store.add("alice", new_password())
+    run = _local_run(saves.saves_base(), "read-receipts", "abc123def456")
+    local = phone_media_dir("", "abc123def456")
+    local.mkdir(parents=True)
+    (local / "x1.png").write_bytes(b"PNGDATA")
+
+    def refuse(source: Path, target: Path) -> None:
+        assert not local.exists(), "the media were not moved before the run"
+        raise OSError("the run's folder is held")
+
+    monkeypatch.setattr(accounts, "_move_run", refuse)
+    with pytest.raises(OSError, match="held"):
+        adopt(account, "read-receipts")
+    assert (local / "x1.png").read_bytes() == b"PNGDATA", "the media did not come back under local"
+    assert not phone_media_dir(account.id, "abc123def456").exists()
+    assert run.is_dir()
+
+
 def _cross_device(monkeypatch: pytest.MonkeyPatch, base: Path) -> None:
     """``os.rename`` from the local saves to anywhere else answers EXDEV."""
     import errno
