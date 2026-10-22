@@ -422,6 +422,7 @@ def summarize(phases: list[Phase], rerun: Rerun | None = None) -> list[str]:
     re-runs it alone."""
     out: list[str] = []
     failed: list[str] = []
+    reasons: list[str] = []
     rerun = rerun or Rerun()
     shown = list(phases) + ([rerun.phase] if rerun.phase is not None else [])
     for phase in shown:
@@ -434,12 +435,18 @@ def summarize(phases: list[Phase], rerun: Rerun | None = None) -> list[str]:
         out += [f"[{phase.name}] {line.strip()}" for line in text.splitlines() if STORAGE_MARK in line]
         if phase.name != "rerun":
             failed += [i for i in failed_ids(text) if i not in failed]
+            # pytest's own one-line reason per failure, so a log read only here (CI's) names the cause.
+            reasons += [line.strip() for line in _last_summary(text)
+                        if line.startswith(("FAILED ", "ERROR ")) and " - " in line]
     if rerun.skipped:
         out.append(f"solo re-run: not run ({rerun.skipped})")
     if rerun.flaky:
         out.append(f"FLAKY (passed on solo re-run): {len(rerun.flaky)}")
         out += [f"  {nodeid}" for nodeid in rerun.flaky]
     failed = [i for i in failed if i not in rerun.flaky]
+    if failed and reasons:
+        out.append("why (pytest's short summary):")
+        out += [f"  {line[:300]}" for line in reasons if any(nodeid in line for nodeid in failed)]
     if failed:
         out.append(f"{len(failed)} failed; each alone (a test that needs its module's earlier tests: its file):")
         script = "python scripts/run_tests.py files"

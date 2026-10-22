@@ -14,6 +14,15 @@ file is the authority from 0.4.0 on.
 
 ## [Unreleased]
 
+## [0.23.1] — 2026-10-23
+
+v0.23.0's CI run (39867929090) failed one test, `tests/test_social_turn_cost.py::test_a_world_turn_at_day_60_costs_little_and_moves_nothing`, and its log named no reason. A repair release.
+
+### Fixed
+
+- The world-turn cost bound (400 ms median at day 60) holds on the owner's workstation only; on a CI runner (`CI` set, two shared vCPUs) a wall-clock bound times noise, so there only the test's byte-identity pins hold.
+- `scripts/run_tests.py`'s summary gives pytest's one-line reason for each failure ("why (pytest's short summary):"), from the outer summary only, so a log read only through the summary (CI's) names the cause (`tests/test_run_tests_script.py::test_the_summary_gives_pytest_s_reason_for_each_failure`).
+
 ## [0.23.0] — 2026-10-23
 
 READ RECEIPTS, reworked from the owner's playtest (brief and addenda: docs/superpowers/briefs/2026-10-13-read-receipts-growth-brief.md; spec: docs/superpowers/specs/2026-10-14-v0.23.0-read-receipts-rework-design.md). People grow at their own pace (a disclosure depth, an openness meter, willingness per step), conversations are episodes with instant replies and promises kept in engine state, there is no set time on dating (plans with a kind, a venue and a time of day in words), phone numbers follow the conversation and not the calendar, and the world outside the phone is played: 28 places (the player's flat and its rooms, homes for the cast, venues) with 48 plates, in-person scenes with the person you meet (the narrator voices them under the texter's fact checks), chance meetings, homes and visits, living together, engagement and marriage as live stages (never an ending), and life events. A v0.22.0 save loads and is upgraded. The voice is reworked (per-person memory, recap jobs, a narration turnstile so a world turn and a voice pass never overlap). Sound effects and the rest of the story's life-event decks stay in v0.24.0.

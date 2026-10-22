@@ -232,6 +232,20 @@ def test_failed_ids_come_from_the_outer_summary_with_the_group_dropped() -> None
     ]
 
 
+def test_the_summary_gives_pytest_s_reason_for_each_failure(tmp_path) -> None:
+    """A log read only through this summary (CI's) names each failure's cause, from the OUTER summary only
+    (v0.23.0: CI run 39867929090 showed a failing test with no reason)."""
+    phases = _phases(tmp_path)
+    phases[0].log.write_text(_LOG, encoding="utf-8")
+    phases[1].log.write_text("==== 154 passed in 300.00s ====\n", encoding="utf-8")
+    phases[0].code, phases[1].code = 1, 0
+    text = "\n".join(run_tests.summarize(phases))
+    assert "why (pytest's short summary):" in text
+    assert "FAILED tests/test_c.py::test_three[p] - assert 1 == 2" in text
+    assert "AssertionError: no - thing" in text
+    assert "t/test_inner.py" not in text            # the inner pytester session's summary is not the run's
+
+
 def test_the_summary_names_each_phase_the_storage_line_and_a_solo_rerun_for_each_failure(tmp_path) -> None:
     phases = _phases(tmp_path)
     phases[0].log.write_text(_LOG, encoding="utf-8")
